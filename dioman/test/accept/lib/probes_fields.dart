@@ -47,6 +47,7 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
     };
     e.mark(snapshot.keys, 'property read');
   }
+  e.read('DiomanKeyService.maxBodyBytes', DiomanKeyService.maxBodyBytes);
   if (values['DiomanKeyService'] is DiomanKeyService) {
     final v = values['DiomanKeyService'] as DiomanKeyService;
     final snapshot = <String, Object?>{
@@ -428,6 +429,7 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
       'DiomanAuthOptions.ready': v.ready,
       'DiomanAuthOptions.expiresAt': v.expiresAt,
       'DiomanAuthOptions.refreshLeeway': v.refreshLeeway,
+      'DiomanAuthOptions.refreshTimeout': v.refreshTimeout,
       'DiomanAuthOptions.headerKey': v.headerKey,
       'DiomanAuthOptions.buildHeader': v.buildHeader,
     };
@@ -450,6 +452,7 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
       'DiomanAuth.ready': v.ready,
       'DiomanAuth.expiresAt': v.expiresAt,
       'DiomanAuth.refreshLeeway': v.refreshLeeway,
+      'DiomanAuth.refreshTimeout': v.refreshTimeout,
       'DiomanAuth.headerKey': v.headerKey,
       'DiomanAuth.buildHeader': v.buildHeader,
       'DiomanAuth.name': v.name,

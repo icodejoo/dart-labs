@@ -1,0 +1,24 @@
+{
+  "sessions": [
+    85792,
+    47044
+  ],
+  "processes": [
+    {
+      "sha256": "FC9AD609A878B959D0213FE217D419CCF01FFC2610B2230627B752EF58758EDD",
+      "port": 47190,
+      "pid": 48744,
+      "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d\\scratchpad\\tk-target-b8\\release\\netem.exe"
+    },
+    {
+      "sha256": "F8886AA3F504FA10BDD234228E019421374DC30CD292C225A8B60FCFBF62D344",
+      "port": 47180,
+      "pid": 22160,
+      "path": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d\\scratchpad\\tk-target-b8\\release\\api-ws-demo.exe"
+    }
+  ],
+  "started": "2026-10-29T03:48:41.5366074Z",
+  "closed": "2026-10-29T04:11:12.3485591Z",
+  "owned_processes_remaining": 0,
+  "listeners_remaining": 0
+}

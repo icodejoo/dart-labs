@@ -277,7 +277,7 @@ void main() {
       expect(tm.accessToken, b3Fresh);
       expect(notices, 0);
       expect(tm.clears, 0);
-      expect(r.ok, mode == b3ValueReplay);
+      expect(r.ok, mode != b3ValueExpired);
       api.dispose();
     }
   });

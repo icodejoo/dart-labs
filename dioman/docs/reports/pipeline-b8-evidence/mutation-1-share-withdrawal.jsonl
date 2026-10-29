@@ -1,0 +1,10 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":49748,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/combo/b8_share_withdrawal_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/combo/b8_share_withdrawal_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":1,"time":13,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":859}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":862}
+{"test":{"id":3,"name":"[DiomanShare.policy] B8 撤回 DiomanSharePolicy.end latest timeout=false","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":21,"column":9,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/combo/b8_share_withdrawal_test.dart"},"type":"testStart","time":862}
+{"testID":3,"error":"Expected: DiomanKind:<DiomanKind.http>\n  Actual: DiomanKind:<DiomanKind.cancel>\nI8 他人撤回不污染结果\n","stackTrace":"package:matcher                                 expect\ntest\\combo\\b8_share_withdrawal_test.dart 74:13  main.<fn>\n","isFailure":true,"type":"error","time":911}
+{"testID":3,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":912}
+{"success":false,"type":"done","time":919}

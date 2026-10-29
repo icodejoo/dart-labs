@@ -25,6 +25,9 @@ class DiomanKeyOptions {
 
 /// 与旧版算法独立共存的构键服务。
 class DiomanKeyService {
+  /// 自动构键允许按内容哈希的最大字节数。
+  static const maxBodyBytes = 64 * 1024;
+
   /// 创建服务，例如 `DiomanKeyService(const DiomanKeyOptions())`。
   const DiomanKeyService(this.options);
 
@@ -70,8 +73,8 @@ class DiomanKeyService {
   String _fastKey(RequestOptions o) =>
       '${o.method.toUpperCase()}:${o.uri.hasAuthority ? o.uri.origin : ''}${o.uri.path}';
 
-  /// 分字段编码规范化查询及请求体，保留非结构化对象的身份。
-  String _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
+  /// 分字段编码查询和安全请求体，不透明载荷不生成自动键。
+  String? _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
     final uri = o.uri;
     final params = <String, dynamic>{
       for (final e in uri.queryParametersAll.entries)
@@ -85,26 +88,44 @@ class DiomanKeyService {
         for (final e in data.entries)
           if (!ignoreKeys.contains('${e.key}')) '${e.key}': e.value,
       };
-      if (filtered.isNotEmpty) body = {'map': _encode(filtered)};
-    } else if (data is String && data.isNotEmpty) {
-      body = {'string': data};
+      if (filtered.isNotEmpty) {
+        final encoded = _encode(filtered);
+        if (encoded == null) return null;
+        body = {'map': encoded};
+      }
+    } else if (data is String) {
+      if (data.isNotEmpty) body = {'string': data};
+    } else if (data is List<int>) {
+      if (data.length > maxBodyBytes) return null;
+      var hash = 0x811c9dc5;
+      for (final byte in data) {
+        hash = ((hash ^ byte) * 0x01000193) & 0xffffffff;
+      }
+      body = {
+        'bytes': [data.length, hash, base64Encode(data)]
+      };
+    } else if (data is List) {
+      final encoded = _encode(data);
+      if (encoded == null) return null;
+      body = {'list': encoded};
     } else if (data != null) {
-      body = {'identity': identityHashCode(data)};
+      return null;
     }
+    final query = _encode(params);
     return jsonEncode([
       _fastKey(o),
-      _encode(params),
+      query,
       body,
       if (scope != null && scope.isNotEmpty) scope,
     ]);
   }
 
-  /// 递归排序Map字段并保留List顺序后编码，无法序列化时保留原Map的字符串表示。
-  static String _encode(Map v) {
+  /// 递归排序 Map 字段并保留 List 顺序后编码，失败则禁用自动键。
+  static String? _encode(Object v) {
     try {
       return jsonEncode(_normalize(v));
     } catch (_) {
-      return v.toString();
+      return null;
     }
   }
 

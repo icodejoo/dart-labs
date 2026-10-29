@@ -378,7 +378,8 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       if (hit != null) {
         if (memo) put(key, hit);
-        return clone(ctx, hit.response, o.clone!);
+        final result = clone(ctx, hit.response, o.clone!);
+        return ctx.cancelled() ?? result;
       }
       final r = await next();
       final cancel = ctx.cancelled();

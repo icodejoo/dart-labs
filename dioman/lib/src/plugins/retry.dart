@@ -87,7 +87,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
       this.delayMax,
       this.respectRetryAfter = true,
       this.afterStatusCodes = defaultAfterStatusCodes,
-      this.retryAfterMax,
+      this.retryAfterMax = const Duration(seconds: 60),
       this.onRetry});
 
   /// 安装或请求级开关。
@@ -122,7 +122,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final List<int> afterStatusCodes;
 
   /// 服务器等待时间上限；不受 delayMax 限制。
-  final Duration? retryAfterMax;
+  final Duration retryAfterMax;
 
   /// 重试通知；抛错隔离并记日志。
   final void Function(int attempt)? onRetry;
@@ -268,8 +268,7 @@ class _Retry<R extends DiomanResponse<dynamic>>
     if (raw == null) return null;
     final seconds = raw.isEmpty ? 0 : num.tryParse(raw);
     if (seconds != null && seconds.isFinite) {
-      return _cap(
-          Duration(milliseconds: (seconds * 1000).round()), o.retryAfterMax);
+      return _cap(Duration(milliseconds: (seconds * 1000).round()), null);
     }
     final m = _httpDate.firstMatch(raw);
     if (m == null) return null;
@@ -277,7 +276,7 @@ class _Retry<R extends DiomanResponse<dynamic>>
     if (month < 0) return null;
     final date = DateTime.utc(int.parse(m[3]!), month + 1, int.parse(m[1]!),
         int.parse(m[4]!), int.parse(m[5]!), int.parse(m[6]!));
-    return _cap(date.difference(ctx.clock.now().toUtc()), o.retryAfterMax);
+    return _cap(date.difference(ctx.clock.now().toUtc()), null);
   }
 
   /// 服务器退避优先；普通退避施加抖动后封顶。
@@ -321,6 +320,9 @@ class _Retry<R extends DiomanResponse<dynamic>>
     for (var attempt = 1;
         attempt <= o.max! && _retry(o, r, attempt);
         attempt++) {
+      if (!ctx.canReplay()) return r;
+      final after = _after(ctx, o, r);
+      if (after != null && after > o.retryAfterMax!) return r;
       final duration = _delay(ctx, o, r, attempt);
       // ctx.wait 自己拥有计时器，取消时即释放，无额外退避资源。
       await ctx.wait<void>(Completer<void>().future, timeout: duration);

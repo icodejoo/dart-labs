@@ -1,0 +1,459 @@
+{
+  "decisions": [
+    {
+      "cell": "cache.business-failure-not-cached|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "cache.business-failure-not-cached|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.bad-json|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.bad-json|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.bad-json|weak@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.bad-json|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.status-with-business|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.status-with-business|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.non2xx-business-safe|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "faults.non2xx-business-safe|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "notify.business-error-once|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "notify.business-error-once|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "notify.parse-error-once|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "notify.parse-error-once|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-fail|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-fail|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.http-error-wins|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-fail|weak@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-fail|weak@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决",
+      "after": "通过",
+      "reasons": []
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决",
+      "after": "缺能力",
+      "reasons": [
+        "skipped: missing timeout-total"
+      ]
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决",
+      "after": "缺能力",
+      "reasons": [
+        "skipped: missing timeout-total"
+      ]
+    },
+    {
+      "cell": "plugins.full-flap-workflow|flap@http",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决",
+      "after": "不适用",
+      "reasons": [
+        "不适用：outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决"
+      ]
+    },
+    {
+      "cell": "plugins.full-flap-workflow|flap@business",
+      "before": "不适用",
+      "rule_before_failure": "失败",
+      "reason": "outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决",
+      "after": "不适用",
+      "reasons": [
+        "不适用：outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决"
+      ]
+    }
+  ],
+  "transitions": {
+    "通过": 39,
+    "缺能力": 2,
+    "不适用": 2
+  },
+  "new_not_applicable": [],
+  "removed_not_applicable": [
+    "cache.business-failure-not-cached|normal@business",
+    "cache.business-failure-not-cached|normal@http",
+    "combo.normalize-business-retry-notify-cache|normal@business",
+    "combo.normalize-business-retry-notify-cache|normal@http",
+    "faults.bad-json|normal@business",
+    "faults.bad-json|normal@http",
+    "faults.bad-json|weak@business",
+    "faults.bad-json|weak@http",
+    "faults.html-gateway-page|normal@business",
+    "faults.html-gateway-page|normal@http",
+    "faults.html-gateway-page|weak@business",
+    "faults.html-gateway-page|weak@http",
+    "faults.non2xx-business-safe|normal@business",
+    "faults.non2xx-business-safe|weak@business",
+    "faults.recovery-after-bad|normal@business",
+    "faults.recovery-after-bad|normal@http",
+    "faults.recovery-after-bad|weak@business",
+    "faults.recovery-after-bad|weak@http",
+    "faults.status-with-business|normal@business",
+    "faults.status-with-business|weak@business",
+    "normalize.business-fail|normal@business",
+    "normalize.business-fail|normal@http",
+    "normalize.business-fail|weak@business",
+    "normalize.business-fail|weak@http",
+    "normalize.business-multi-codes|normal@business",
+    "normalize.business-multi-codes|normal@http",
+    "normalize.business-negative-code|normal@business",
+    "normalize.business-negative-code|normal@http",
+    "normalize.business-notify-retry-combo|normal@business",
+    "normalize.business-notify-retry-combo|normal@http",
+    "normalize.http-error-wins|normal@business",
+    "notify.business-error-once|normal@business",
+    "notify.business-error-once|normal@http",
+    "notify.parse-error-once|normal@business",
+    "notify.parse-error-once|normal@http",
+    "retry.business-code-not-retried|normal@business",
+    "retry.business-code-not-retried|normal@http",
+    "retry.parse-error-not-retried|normal@business",
+    "retry.parse-error-not-retried|normal@http",
+    "share.single-all-timeout-aborts-server|blackhole@business",
+    "share.single-all-timeout-aborts-server|blackhole@http",
+    "share.single-all-timeout-aborts-server|dns@business",
+    "share.single-all-timeout-aborts-server|dns@http",
+    "share.single-all-timeout-aborts-server|flap@business",
+    "share.single-all-timeout-aborts-server|flap@http",
+    "share.single-all-timeout-aborts-server|lossy@business",
+    "share.single-all-timeout-aborts-server|lossy@http",
+    "share.single-all-timeout-aborts-server|normal@business",
+    "share.single-all-timeout-aborts-server|normal@http",
+    "share.single-all-timeout-aborts-server|offline@business",
+    "share.single-all-timeout-aborts-server|offline@http",
+    "share.single-all-timeout-aborts-server|weak@business",
+    "share.single-all-timeout-aborts-server|weak@http"
+  ],
+  "initial_failures": [
+    {
+      "cell": "faults.html-gateway-page|normal@http",
+      "before": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"http\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ],
+      "after": "通过"
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@business",
+      "before": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"business\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ],
+      "after": "通过"
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@http",
+      "before": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"http\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ],
+      "after": "通过"
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@business",
+      "before": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"business\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ],
+      "after": "通过"
+    },
+    {
+      "cell": "plugins.boundary-timeout-connect-ms-0|normal@business",
+      "before": [
+        "boundary: 预期 ok=true，实际 {\"id\":\"boundary\",\"style\":\"business\",\"ok\":false,\"data\":null,\"status\":0,\"error\":\"timeout\",\"message\":\"\"}",
+        "boundary: data 子集不符"
+      ],
+      "after": "通过"
+    }
+  ]
+}

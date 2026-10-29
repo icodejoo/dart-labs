@@ -93,16 +93,21 @@ void main() {
           data = {_field: _payload};
         }
         final pending = api.send<Object?>(b3ValuePost5, b3Path, data: data);
-        if (!auth) {
+        if (!auth && bodyKind != b3ValueResult) {
           while (clock.pendingTimers == 0) {
             await b3Turn();
           }
           clock.elapse(const Duration(seconds: 3));
         }
-        expect((await pending).ok, isTrue);
-        expect(bodies, hasLength(2));
+        expect((await pending).ok, bodyKind != b3ValueResult);
+        expect(bodies, hasLength(bodyKind == b3ValueResult ? 1 : 2));
         expect(bodies.every((s) => s.contains(_payload)), isTrue);
-        if (auth) expect(headers, ['Bearer $b3Old', 'Bearer $b3Fresh']);
+        if (auth) {
+          expect(headers, [
+            'Bearer $b3Old',
+            if (bodyKind != b3ValueResult) 'Bearer $b3Fresh'
+          ]);
+        }
         expect(logs.any((s) => s.contains('无法克隆')), bodyKind == b3ValueResult);
         expect((await dio.get<dynamic>(b3Path)).statusCode, 200);
         api.dispose();

@@ -1,0 +1,94 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running unittests src\lib.rs (C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8\debug\deps\api_ws_demo-e911d6ce202d4a69.exe)
+
+running 38 tests
+test cpu::tests::computes_usage_from_deltas ... ok
+test cpu::tests::no_cpu_time_consumed_is_zero_usage ... ok
+test auth::jwt::tests::rejects_bad_signature ... ok
+test cpu::tests::scales_by_fractional_cpu_allotment ... ok
+test auth::jwt::tests::round_trip_valid_token ... ok
+test auth::jwt::tests::rejects_expired_token ... ok
+test netem::bucket::tests::token_math ... ok
+test cpu::tests::zero_wall_gap_is_zero_usage ... ok
+test netem::profile::tests::parses_presets ... ok
+test stats::tests::full_usage_is_100_percent ... ok
+test stats::tests::zero_total_is_zero_percent ... ok
+test stats::tests::rounds_to_one_decimal ... ok
+test stomp::connection::tests::client_declining_to_receive_disables_outgoing_only ... ok
+test stomp::connection::tests::absent_client_header_disables_both_directions ... ok
+test stomp::connection::tests::invalid_utf8_becomes_a_binary_frame ... ok
+test stomp::connection::tests::client_declining_to_send_disables_incoming_only ... ok
+test stomp::connection::tests::lone_heartbeat_newline_becomes_a_text_frame ... ok
+test stomp::connection::tests::malformed_client_header_defaults_to_disabled ... ok
+test stomp::connection::tests::negotiates_both_directions_when_both_sides_want_heartbeats ... ok
+test stomp::connection::tests::takes_the_larger_of_the_two_proposed_intervals ... ok
+test stomp::connection::tests::valid_utf8_becomes_a_text_frame ... ok
+test stomp::frame::tests::header_escaping_round_trip ... ok
+test stomp::frame::tests::parses_crlf_line_endings ... ok
+test stomp::frame::tests::rejects_unknown_command ... ok
+test stomp::frame::tests::round_trip_connect ... ok
+test stomp::frame::tests::round_trip_send_with_content_length_and_embedded_nul ... ok
+test testkit::barrier::tests::order_and_shuffle ... ok
+test testkit::control::tests::parses_and_counts ... ok
+test testkit::run_store::tests::isolation_and_gc ... ok
+test testkit::stats::tests::lifecycle_and_log_bound ... ok
+test testkit::run_store::tests::bounded_runs_and_keys ... ok
+test testkit::auth::tests::expiry_and_reuse ... ok
+test testkit::barrier::tests::releases_in_order_and_resets ... ok
+test netem::relay::tests::live_blackhole_and_reset ... ok
+test testkit::tests::read_delay_does_not_poll_body ... ok
+test netem::manager::tests::flap_and_generation ... ok
+test netem::relay::tests::rate_and_byte_threshold ... ok
+test netem::manager::tests::refuse_restores_same_port_and_closes_connections ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.13s
+
+     Running unittests src\main.rs (C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8\debug\deps\api_ws_demo-119803fe773bc25a.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\bin\netem.rs (C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8\debug\deps\netem-12de565a7a582686.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\netem.rs (C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8\debug\deps\netem-553cfae4fb6dc524.exe)
+
+running 4 tests
+test blackhole_completes_connect_then_times_out_read ... ok
+test shaping_and_threshold_reset ... ok
+test flap_and_schedule ... ok
+test modes_and_live_changes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.29s
+
+     Running tests\testkit.rs (C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8\debug\deps\testkit-e8f4f45e332cde86.exe)
+
+running 15 tests
+test no_refresh_user_omits_refresh_token ... ok
+test barrier_failure_styles_and_metadata ... ok
+test connection_ids_follow_tcp_keep_alive ... ok
+test multipart_echo_fields_files_and_digest ... ok
+test malformed_multipart_respects_response_style ... ok
+test forbidden_and_injected_retry_in_both_styles ... ok
+test style_precedence_status_code_and_logs ... ok
+test strict_rotation_revokes_previous_access ... ok
+test faults_and_observation ... ok
+test auth_endpoint_failures_in_both_styles ... ok
+test auth_reasons_in_both_styles ... ok
+test barrier_orders ... ok
+test auth_lifecycle ... ok
+test revoke_scopes_and_counts ... ok
+test read_delay_blocks_upload_before_body_limit ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s
+
+   Doc-tests api_ws_demo
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

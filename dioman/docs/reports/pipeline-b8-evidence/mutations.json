@@ -1,0 +1,44 @@
+[
+  {
+    "mutation": "1-share-withdrawal",
+    "failures": 1,
+    "test": "test/combo/b8_share_withdrawal_test.dart",
+    "before_sha256": "6c5b928589d0757d6f818d23415193150ff432fba24e93049ae11779d59985ec",
+    "restored_sha256": "6c5b928589d0757d6f818d23415193150ff432fba24e93049ae11779d59985ec"
+  },
+  {
+    "mutation": "2-byte-key",
+    "failures": 1,
+    "test": "test/unit/b8_core_test.dart",
+    "before_sha256": "4b6918122447c689283f7f4f3268611adff85fae725bc85182d432d1fba96f95",
+    "restored_sha256": "4b6918122447c689283f7f4f3268611adff85fae725bc85182d432d1fba96f95"
+  },
+  {
+    "mutation": "3-auth-session",
+    "failures": 1,
+    "test": "test/rule/b8_regression_test.dart",
+    "before_sha256": "ddc0b9b409f29eb1842894d7b835a3a4ee3bdd0c5c1957b125d466d94b0399ed",
+    "restored_sha256": "ddc0b9b409f29eb1842894d7b835a3a4ee3bdd0c5c1957b125d466d94b0399ed"
+  },
+  {
+    "mutation": "4-retry-after-limit",
+    "failures": 1,
+    "test": "test/rule/b8_regression_test.dart",
+    "before_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4",
+    "restored_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4"
+  },
+  {
+    "mutation": "5-cache-cancel",
+    "failures": 2,
+    "test": "test/rule/b8_regression_test.dart",
+    "before_sha256": "3a7850e7ae9c1459ed29163809d9a6cfe141fbaa1fc9b2d216c38b9734bacd69",
+    "restored_sha256": "3a7850e7ae9c1459ed29163809d9a6cfe141fbaa1fc9b2d216c38b9734bacd69"
+  },
+  {
+    "mutation": "6-one-shot",
+    "failures": 1,
+    "test": "test/rule/b8_regression_test.dart",
+    "before_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4",
+    "restored_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4"
+  }
+]

@@ -2,12 +2,12 @@
 title: dioman 洋葱管线测试方案
 status: active
 updated: 2026-10-29
-summary: 六层测试、不变量 I1–I7 与夹具、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移
+summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移
 ---
 ## TL;DR
 
 - 沿用六层（unit / rule / boundary / combo / integration / acceptance）和标题 `[API id]` 约定，**按新 API 重写，不搬旧断言**。
-- 不变量 I1–I7 做成夹具，从内核批次起生效；powerset 枚举 9 个有交互的插件（512 个子集）× 9 条流程，只断言不变量。
+- 不变量 I1–I9 做成夹具，从内核批次起生效；powerset 枚举 9 个有交互的插件（512 个子集）× 10 条流程，只断言不变量。
 - 门槛：内核 6 个文件行覆盖与分支覆盖 100%；全库行 ≥ 95%；总账闸门 G0–G5 全绿；每批做变异验证。
 - 性能用 `Stopwatch` 自写 bench，和旧版交错对比；验收用 testkit 全量场景在新服务端实例上跑。
 
@@ -35,7 +35,7 @@ summary: 六层测试、不变量 I1–I7 与夹具、powerset、覆盖率与总
 |---|---|
 | `FakeNetwork` | 假 adapter：路由表、可脚本化的响应序列、`fail_on` 式的第 n 次失败、业务码信封、记录每次发送（含请求体与 `x-invariant-request` 标记） |
 | `FakeClock` | 可推进的时钟与计时器，`pendingTimers` 供 I3 断言 |
-| `InvariantHarness` | 每个逻辑请求登记、最外层与每阶段的直通探针、发送记录、取消订阅追踪；`assertAll()` 一次检查 I1–I7 |
+| `InvariantHarness` | 每个逻辑请求登记、最外层与每阶段的直通探针、发送记录、取消订阅追踪；`assertAll()` 一次检查 I1–I9 |
 | `TestTokens` | 可变 token 管理器（沿用） |
 
 ## 3. 不变量
@@ -49,14 +49,16 @@ summary: 六层测试、不变量 I1–I7 与夹具、powerset、覆盖率与总
 | I5 | 并发 401 只调用一次 `onRefresh` | 按"刷新轮"计数，每轮恰好 1 次 |
 | I6 | `next()` 从不出错 | 每个阶段的 pre 与 post 位置各挂一个直通探针，捕获到异常即失败；受控流程里不许出现 internal 结果 |
 | I7 | 同一逻辑请求的每次发送，请求体一致 | 按 `x-invariant-request` 标记分组比较各次发送的请求体。**用嵌套结构**（如 `{'items': [{'n': 0}]}`）并让 Transformer 原地改它，确认去掉 `markReplayable()` 时用例会失败（axp B3 的教训：浅对象会被浅拷贝掩盖） |
+| I8 | 结果归属：他人取消或超时不改变本调用结果类别 | 落定时比对自身取消状态与结果；combo 增加 share 三策略 × 四种角色 × 取消/超时共 24 格 |
+| I9 | 来源一致：实际请求与调用方请求一致 | 带体流程逐发送比对调用方快照，并比对 FakeNetwork 回显；提前失败无回显时仍检查已有发送 |
 
 ## 4. powerset（`test/combo/powerset_combo_test.dart`）
 
 - **插件表驱动**：9 个有交互的插件——loading、notify、retry、breaker、auth、mock、share、cache、offline。repath、filter、timeout 只做请求整形，和其余插件没有时序交互，放在成对组合里测，不进 powerset。
 - 位掩码枚举 512 个子集，跳过依赖不满足的组合。
-- **9 条流程**：成功（并再命中一次）、HTTP 500、500 两次后成功、business 401 刷新（3 个并发、其中 2 个同 key）、网络错误、并发同 key、中途 `cancelAll`、首发取消（看 share 跟随者）、离线后恢复。每条流程只发请求、推进假时钟，最后统一 `assertAll()`。
+- **10 条流程**：成功（并再命中一次）、HTTP 500、500 两次后成功、business 401 刷新（3 个并发、其中 2 个同 key）、网络错误、并发同 key、中途 `cancelAll`、首发取消（看 share 跟随者）、离线后恢复、PUT 带体重发（retry，请求级开 cache/share，FakeNetwork 回显真实请求）。每条流程只发请求、推进假时钟，最后统一 `assertAll()`。
 - 每条流程有 baseline（不装插件时每个请求应得到的 kind），单独一组用例核对它，防止脚本空转。
-- 每次运行用全新的插件对象和全新的夹具。规模 512 × 9 = 4608 条，目标在 2 分钟内跑完（powerset 用假传输，不受本地端口限制）。
+- 每次运行用全新的插件对象和全新的夹具。规模 512 × 10 = 5120 条，目标在 2 分钟内跑完（powerset 用假传输，不受本地端口限制）。
 - 另外保留 3 条元测试：子集互不相同、包含空集与全集；恰好 512 个；依赖缺失的子集不生成。
 
 ## 5. 覆盖率与总账

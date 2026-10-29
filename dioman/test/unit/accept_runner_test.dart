@@ -140,6 +140,17 @@ const _literalNormal = "normal";
 
 /// 执行器只观察公开结果，缺能力在发请求前被识别。
 void main() {
+  test('[client.classify] B8 业务编号读取原始 code，不读取 status 或 data', () {
+    final r = DiomanResponse<dynamic>(
+        ok: false,
+        kind: DiomanKind.biz,
+        status: 200,
+        httpStatus: 200,
+        code: 5001,
+        request: DiomanRequest(RequestOptions()),
+        data: {'code': 401});
+    expect(classify(r), 'business:5001');
+  });
   test('[ScenarioClient] 安装 cache 后省略请求覆盖仍缓存，false 明确关闭', () async {
     final network = FakeNetwork();
     final client = ScenarioClient({
@@ -275,7 +286,7 @@ void main() {
       expect(result[_b7Literal4], ['skipped: missing $timeoutTotalCapability']);
     }
   });
-  test('[client.classify] 归类只读取 kind reason status，原始数据不参与判断', () {
+  test('[client.classify] 归类只读取 kind reason status code，原始数据不参与判断', () {
     final request = DiomanRequest(RequestOptions(path: '/classification'));
     for (final entry in {
       DiomanKind.biz: _b7Literal5,
@@ -292,6 +303,7 @@ void main() {
           ok: false,
           kind: entry.key,
           status: 503,
+          code: 503,
           httpStatus: 200,
           request: request,
           reason: _literalDenied,
@@ -400,7 +412,7 @@ void main() {
             _b7Literal13: {_b7Literal14: _b7Literal7}
           }
         }),
-        isNotNull);
+        isNull);
     expect(
         designInapplicability(scenario, {
           _b7Literal12: {
@@ -416,7 +428,7 @@ void main() {
             _b7Literal13: {_b7Literal14: 'business:5001'}
           }
         }),
-        isNotNull);
+        isNull);
     expect(
         designInapplicability({}, {
           _b7Literal12: {

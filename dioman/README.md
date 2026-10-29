@@ -93,6 +93,8 @@ Future<void> main() async {
 
 ### Notify
 
+The default `stringify` returns an empty string for `kind == internal`; custom formatting can opt in to a message.
+
 Notify waits for the final result before showing a message. By default it reports failures and stays quiet for successful, silent or cancelled calls.
 
 Options: `notify, stringify`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
@@ -189,6 +191,8 @@ Future<void> main() async {
 
 ### Retry
 
+Behavior change: `retryAfterMax` defaults to 60 seconds. A Retry-After value (seconds or HTTP date) above that limit returns the current result without retrying. To honor practically unlimited waits, explicitly supply a very large Duration, such as `retryAfterMax: Duration(days: 36500)`. Server waits still receive no jitter and ignore `delayMax`. Streams and opaque bodies are sent at most once.
+
 Set max explicitly when you want retries; its default is zero. Retry checks the method allowlist first, then uses logical status to decide whether to send another attempt through the inner layers.
 
 Options: `max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
@@ -237,6 +241,8 @@ Future<void> main() async {
 
 ### Auth
 
+`refreshTimeout` is available on the plugin and `DiomanAuthOptions` (default 30 seconds, measured with `DiomanClock`). Timeout follows the refresh failure path and notifies expiration once per session. If a new login replaces the token while refresh fails, waiting calls continue with the current token. When `onRefresh` sends through the same client, disable auth for that call: `call: DiomanCall(options: {DiomanAuth.option: false})`. A consumed stream or opaque body cannot be replayed; the original result is returned.
+
 Auth protects all requests by default and shares one refresh operation within a client. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
 
 Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
@@ -276,6 +282,8 @@ Future<void> main() async {
 
 ### Mock
 
+Probe fallback does not resend a stream or opaque body; it returns the probe result when the body cannot be replayed.
+
 Mock runs first within the source stage. An inline match returns before share, cache or offline run; a mock-server probe falls back to the real API by default only for HTTP 404 or a network failure.
 
 Options: `routes, mockUrl, fallbackWhen`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
@@ -300,6 +308,8 @@ Future<void> main() async {
 
 ### Share
 
+Caller cancellation or subscription timeout withdraws that participant from end/race selection; the caller keeps its own cancellation/timeout result. Unsafe automatic keys bypass sharing (see Cache).
+
 Enable Share on calls that should coordinate concurrent requests, then choose start, end, race or retry. It is off when omitted, and subscribers to the same attempt share a read-only result.
 
 Options: `policy, retries, interval, methods`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
@@ -323,6 +333,8 @@ Future<void> main() async {
 ```
 
 ### Cache
+
+Automatic keys preserve Map/String output, encode JSON arrays by content and hash byte lists up to 64 KiB by content. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
 
 Enable Cache per call with a Duration TTL. It uses memo by default and stores successful GET/HEAD results. Use clear to invalidate all in-flight writes, or remove to invalidate just one key.
 
@@ -442,6 +454,8 @@ dart run test/accept/bin/matrix.dart gates
 ```
 
 ## Migration
+
+Dio unknown errors caused by decoding `FormatException` now return `kind: parse` with the HTTP status (when supplied by Dio). HTML remains text by default; `expectJson: true` rejects nonempty 2xx text, including text/html, regardless of MIME type.
 
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 

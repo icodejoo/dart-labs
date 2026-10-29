@@ -1,0 +1,1 @@
+汇总 459 个真实用例、64 个 API 触达 → test/accept/evidence/2026-10-29-summary.json

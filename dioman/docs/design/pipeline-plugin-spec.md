@@ -30,7 +30,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 - 内核依赖：outer 阶段位置、`DiomanClock`。
 
 ### notify
-- 选项：`notify(String message, R r)` 必填；`stringify(R r, DiomanContext ctx)`，默认在 `r.ok`、`kind == cancel`、`ctx.request.silent` 时返回空串，否则返回 `r.message`，为空时返回 `'<kind> <status>'`。空串表示不通知。请求级只有开关。
+- 选项：`notify(String message, R r)` 必填；`stringify(R r, DiomanContext ctx)`，默认在 `r.ok`、`kind == cancel/internal`、`ctx.request.silent` 时返回空串，否则返回 `r.message`，为空时返回 `'<kind> <status>'`。空串表示不通知。请求级只有开关。
 - 模型：`final r = await next(); 通知; return r;`。每个逻辑请求最多一次，天然只在最终失败时通知，刷新成功不通知。
 - 内核依赖：outer 阶段、`request.silent`。
 
@@ -50,7 +50,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 ## 3. attempt
 
 ### retry
-- 选项沿用 0.7：`max`、`methods`（硬否决）、`statusCodes`（默认 408/429/500/502/503/504，读**逻辑状态** `r.status`）、`shouldRetry(R r, int attempt)`、`delay`、`jitter`、`delayMax`、`respectRetryAfter`（默认 true，命中 `afterStatusCodes` 默认 413/429/503 时按 `Retry-After` 的秒数或 HTTP 日期等待，上限 `retryAfterMax`，不叠 jitter、不受 delayMax 限制）、`onRetry(attempt)`。请求级：整数 = max、`false`、`true`、`DiomanRetryOptions`。
+- 选项沿用 0.7：`max`、`methods`（硬否决）、`statusCodes`（默认 408/429/500/502/503/504，读**逻辑状态** `r.status`）、`shouldRetry(R r, int attempt)`、`delay`、`jitter`、`delayMax`、`respectRetryAfter`（默认 true，命中 `afterStatusCodes` 默认 413/429/503 时按 `Retry-After` 的秒数或 HTTP 日期等待，上限 `retryAfterMax` 默认 60s、超过上限不重试，显式很大的 Duration 才放宽，不叠 jitter、不受 delayMax 限制）、`onRetry(attempt)`。请求级：整数 = max、`false`、`true`、`DiomanRetryOptions`。
 - 判定顺序：请求级关闭 → 方法不在白名单 → `kind` 属于 cancel、auth、internal、parse、breaker、offline 时不重试 → `shouldRetry` 返回布尔就采用 → network、timeout 重试 → `statusCodes` 包含 `r.status` 时重试。
 - 模型：`markReplayable()`；`var r = await next(); for (attempt = 1..max) { 判定; 等待 ctx.wait(delay); 取消则返回; r = await next(); } return r;`。次数用完返回最后一次结果，由落定决定抛不抛。每次尝试都会穿过 breaker、auth 和 source 阶段。
 - 删除：重放交接、认领判断（`_notAdmitted`）、`share`/`cancel` 兼容 setter、`breaker` 字段。
@@ -62,7 +62,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 
 ## 4. credential：auth
 
-- 选项沿用 0.7：`tokenManager`、`onRefresh`、`onAccessExpired` 必填；`onAccessDenied`（缺省回退 expired）；`onFailure(R r, tokenManager)`，默认见下；`isProtected(request)`；`ready(tokenManager, request)` 返回 `RequestPatch`，默认写 `Authorization: Bearer <token>`（`headerKey`、`buildHeader` 保留为便捷写法）；`expiresAt`、`refreshLeeway`、`clock` 用于主动刷新。请求级：`false`、`DiomanAuthOptions`。
+- 选项沿用 0.7：`tokenManager`、`onRefresh`、`onAccessExpired` 必填；`onAccessDenied`（缺省回退 expired）；`onFailure(R r, tokenManager)`，默认见下；`isProtected(request)`；`ready(tokenManager, request)` 返回 `RequestPatch`，默认写 `Authorization: Bearer <token>`（`headerKey`、`buildHeader` 保留为便捷写法）；`expiresAt`、`refreshLeeway` 用于主动刷新；`refreshTimeout` 默认 30s，由客户端 DiomanClock 计时。请求级：`false`、`DiomanAuthOptions`。
 - 默认失败判定（读逻辑状态，所以 business 风格里的业务 401 自动适用）：`r.status == 401` 时，本地没有 token → expired；**本次注入的 token 不等于当前 token → replay**（说明已被并发刷新）；否则 refresh。`403` → deny；其余 → others。本次注入的 token 记在状态键里，不去解析请求头。
 - 模型：
   1. 不受保护，直接 `return next()`；`markReplayable()`。
@@ -83,8 +83,8 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 - 选项：`policy`（start、end、race、retry，默认 start）、`retries`、`interval`（retry 策略用）、`methods`（默认 GET、HEAD）。请求级（optIn）：`true`、策略枚举、`DiomanShareOptions`、`false`。`ctx.key()` 为 null 时直接放行。
 - 模型：
   - start：首发 `next(patch: cancelToken = 共享 token，并去掉 Dio 层超时)`；每个订阅者用 `ctx.wait(共享结果, timeout: 自己的超时)`，各自离开只结束自己；最后一个订阅者离开时才取消共享请求。首发取消不连累跟随者。
-  - end：每次都发，只有序号最新的结果落定。
-  - race：每次都发，第一个 `r.ok` 的结果胜出，全部失败时用最后一个。
+  - end：每次都发，最新有效参与者的结果落定；调用方自身取消或订阅计时超时则撤回，回退仍在途或最近完成者。
+  - race：每次都发，第一个有效 `r.ok` 的结果胜出，全部失败取最后完成的非撤回结果。
   - retry：共享同一个结果，失败时在内部按 `retries`、`interval` 重试，调用方只看到最终一次。
 - 跟随者拿到同一个只读的 `R`。共享以"一次尝试"为单位；retry 在外层，每次重试都会重新进入 share。共享表按策略分开存放。
 - 删除：结算登记簿、`hasMultipleDownstreamSettlers`、`registerDownstreamSettler`、`isJoined`。
@@ -157,6 +157,19 @@ B4 终审补充：
 | offline 判定顺序 | 选项关闭 → 在线直接放行 → 再调用 `shouldQueue`，在线时不调用判定回调 |
 | 迁移承接用例 | 标题写 `[API id]` 加行为，不写迁移行号；行号对应只留在报告证据里 |
 
+### B8 补充（2026-10-29）
+
+| 问题 | 裁决 |
+|---|---|
+| share end/race 取消污染其他调用方 | 用自身取消状态及自身订阅计时撤回，不以结果 kind 推断；end 回退最新有效请求，race 回退最后有效完成结果 |
+| 不透明体或编码失败构键 | Map/String 输出不变；JSON List 内容编码；字节列表最多 64 KiB 按内容哈希并带无损内容校验，避免哈希碰撞；其余返回 null，不参与 cache/share |
+| auth 刷新挂起、新登录被误判过期 | 插件/请求级 refreshTimeout 默认 30s，DiomanClock 计时；新 token 替换后刷新失败继续当前会话；同客户端刷新须本次关闭 auth |
+| Retry-After 过大 | retryAfterMax 默认 60s，超限直接返回当前结果；显式大 Duration 可放宽，不叠 jitter 或 delayMax |
+| 缓存命中时取消 | 内存和持久化命中返回前均重查取消 |
+| 一次性请求体重放 | ctx.canReplay 判断；retry/auth/mock/share retry 不可重放时返回本次结果；传输重复发送仅以 internal 暴露插件 bug |
+| internal 默认通知 | stringify 返回空串 |
+| B7 业务编号、坏 JSON、单一预算 | 执行器读 biz.code；Dio 解码 FormatException 归 parse 并保留 HTTP 状态；expectJson=true 对 2xx 非空文本（含 HTML）归 parse，默认仍接受文本；预算场景声明 timeout-total；offline 通知规则保留 |
+
 ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
 
 | # | 变化 | 原因 |
@@ -174,3 +187,8 @@ B4 终审补充：
 | C11 | `DiomanTokenManager.canRefresh` 删除 | §8 |
 | C12 | 判定类回调抛错按 bug 原样抛出（0.7 部分被吞掉）；`onRetry` 归通知类，抛错不再变成请求失败 | 核心架构 §7、§8.1 |
 | C13 | 删除请求级时钟覆盖、cache `cachePolicy.none` 与 `maxEntries` 占位字段、`DiomanSharePolicy.none`；cache 默认策略改为 memo | §8.1 |
+| C14 | auth refreshTimeout 默认 30s，失败时新登录继续；同客户端刷新必须本次关闭 auth | B8 补充 |
+| C15 | retryAfterMax 默认 60s，超限不重试；显式大 Duration 放宽 | B8 补充 |
+| C16 | 无法安全构键的请求体不参与 cache/share | B8 补充 |
+| C17 | 默认 notify 不提示 internal | B8 补充 |
+| C18 | Dio unknown 解码 FormatException 归 parse，status 取 HTTP 状态；expectJson=true 严格拒绝 2xx 非空文本，不依赖 MIME | B8 补充 |

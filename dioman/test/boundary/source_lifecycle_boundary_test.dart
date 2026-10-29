@@ -10,7 +10,7 @@ import '../support/helpers.dart';
 
 /// 每客户端隔离、取消结果归属及在途生命周期。
 void main() {
-  test('[DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布', () async {
+  test('[DiomanSharePolicy.end] 最新调用取消后撤回，旧请求继续产生自己的结果', () async {
     final old = Completer<void>();
     final latest = Completer<void>();
     final token = CancelToken();
@@ -31,8 +31,8 @@ void main() {
     await b4Turn();
     token.cancel();
     expect((await b).kind, DiomanKind.cancel);
-    expect((await a).kind, DiomanKind.cancel);
     old.complete();
+    expect((await a).kind, DiomanKind.ok);
     latest.complete();
     await b4Turn();
     expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
@@ -90,7 +90,7 @@ void main() {
   });
   test(
       '[DiomanCall.connectTimeout][DiomanCall.receiveTimeout]'
-      '[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复',
+      '[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时撤回并取消自己的底层排队',
       () async {
     final clock = FakeClock();
     final stream = StreamController<bool>.broadcast(sync: true);
@@ -111,10 +111,11 @@ void main() {
     await b4Turn();
     clock.elapse(b4Tick * 2);
     expect((await pending).kind, DiomanKind.timeout);
-    expect(api.plugin<DiomanOfflineApi>()!.pending, 1);
+    await b4Turn();
+    expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
     stream.add(true);
     await b4Turn();
-    expect(net.sends.length, 1);
+    expect(net.sends.length, 0);
     expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
     expect(clock.pendingTimers, 0);
   });

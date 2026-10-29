@@ -92,8 +92,9 @@ void main() {
       expect(notifications, 0);
       clock.elapse(const Duration(milliseconds: 1));
       await pending;
-      expect(sends, 2);
-      expect(notifications, 1);
+      final over = entry.$1.retryAfterMax == b3Tick;
+      expect(sends, over ? 1 : 2);
+      expect(notifications, over ? 0 : 1);
       api.dispose();
     }
   });

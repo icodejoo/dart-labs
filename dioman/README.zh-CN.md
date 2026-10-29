@@ -93,6 +93,8 @@ Future<void> main() async {
 
 ### Notify
 
+默认 `stringify` 对 `kind == internal` 返回空串；需要通知时可自行提供 stringify。
+
 Notify 等到最终结果才决定是否提示。默认只提示失败，成功、silent 或被取消的调用都不会打扰用户。
 
 选项：`notify, stringify`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
@@ -189,6 +191,8 @@ Future<void> main() async {
 
 ### Retry
 
+行为变化：`retryAfterMax` 默认 60 秒。Retry-After 秒数或 HTTP 日期要求的等待超过上限时，不再重试，直接返回本次结果。需要近似无限遵守时显式传很大的 Duration，例如 `retryAfterMax: Duration(days: 36500)`。服务端等待仍不叠 jitter、不受 `delayMax` 限制。一次性流及不透明体最多发送一次。
+
 需要重试时，请显式设置 max，它的默认值是零。Retry 先检查方法白名单，再根据逻辑状态决定是否让下一次尝试重新经过内层。
 
 选项：`max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
@@ -237,6 +241,8 @@ Future<void> main() async {
 
 ### Auth
 
+插件与 `DiomanAuthOptions` 新增 `refreshTimeout`，默认 30 秒，使用 `DiomanClock` 计时；超时走刷新失败路径，同一失败会话只通知一次。刷新期间重新登录替换了 token 时，失败等待者按当前 token 继续。`onRefresh` 经同一客户端请求时必须本次关闭 auth：`call: DiomanCall(options: {DiomanAuth.option: false})`。一次性流及不透明体不能重放，返回本次结果。
+
 Auth 默认保护所有请求，同一客户端的并发请求会共享一次刷新。请在 onRefresh 中通过独立客户端获取并保存新 token；下面的 renewed 只演示如何更新存储。
 
 选项：`tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
@@ -276,6 +282,8 @@ Future<void> main() async {
 
 ### Mock
 
+探测后回落前检查请求体是否可重放；一次性流及不透明体返回探测结果，不再次发送。
+
 Mock 在 source 阶段最先执行。内联命中会直接返回，不进入 share、cache 或 offline；探测 mock 服务时，默认只有 HTTP 404 或网络失败才回落到真实接口。
 
 选项：`routes, mockUrl, fallbackWhen`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
@@ -300,6 +308,8 @@ Future<void> main() async {
 
 ### Share
 
+调用方自身取消或订阅超时撤回 end/race 的结果资格，调用方仍保留自己的取消或超时结果；无法安全构键的请求体不参与共享，详见 Cache。
+
 需要协调并发请求时，在该次调用中开启 Share，再选择 start、end、race 或 retry 策略。省略时它不参与；同一次尝试的订阅者共享一份只读结果。
 
 选项：`policy, retries, interval, methods`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
@@ -323,6 +333,8 @@ Future<void> main() async {
 ```
 
 ### Cache
+
+自动 key 保持 Map/String 输出不变，JSON 数组按内容编码，64 KiB 内字节列表按内容哈希；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
 
 按请求开启 Cache，并用 Duration 设置 TTL。它默认使用 memo，保存成功的 GET/HEAD 结果。clear 会作废所有在途旧写入，remove 则只影响指定 key。
 
@@ -442,6 +454,8 @@ dart run test/accept/bin/matrix.dart gates
 ```
 
 ## 迁移
+
+Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 将 2xx 非空文本（包括 text/html）判为 parse，不依赖 MIME 声明。
 
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 

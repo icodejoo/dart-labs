@@ -35,7 +35,7 @@ api.get<Pet>('/pet/{id}', query: {'id': 1})
 | `client.dart` | `Dioman`：动词方法、`request/send`、建逻辑请求上下文、登记在途、落定、`use/eject/inspect/cancelAll/pending/extend/dispose` |
 | `pipeline.dart` | 插件排序（阶段 + 内置位置表）、链编译、`next(patch)`、每层的异常边界 |
 | `stages.dart` | `DiomanStage` 枚举与内置插件位置表 |
-| `context.dart` | `DiomanContext`：请求视图、取消、状态键、`key()`、`fail()`、`markReplayable()`、`wait()`、`cancelled()` |
+| `context.dart` | `DiomanContext`：请求视图、取消、状态键、`key()`、`fail()`、`markReplayable()`、`canReplay()`、`wait()`、`cancelled()` |
 | `request.dart` | 不可变的 `DiomanRequest`、`RequestPatch`、与 `RequestOptions` 互转 |
 | `transport.dart` | 按需克隆请求体、调用 `dio.fetch`（`validateStatus` 全部放行）、交给工厂判定 |
 | `response.dart` | `DiomanKind`、`DiomanResponse`、`DiomanResponseFactory`、`Envelope` |
@@ -88,6 +88,7 @@ abstract class DiomanContext<R extends DiomanResponse> {
   T? get<T>(StateKey<T> key);                   // 逻辑请求级状态
   void set<T>(StateKey<T> key, T value);
   R fail(DiomanFailure init);                   // 凭空造结果，必须经工厂
+  bool canReplay();                             // 最近实际发送的请求体能否安全重放
   void markReplayable();                        // 声明本请求可能被重发，传输层据此克隆请求体
   Future<T?> wait<T>(Future<T> pending, {Duration? timeout});  // 取消原语一，见下
   R? cancelled();                               // 取消原语二：已取消则返回 cancel 结果
@@ -142,10 +143,11 @@ class DiomanResponse<D> implements Exception {
 |---|---|---|
 | 内核 token 已取消，或 `DioExceptionType.cancel` | cancel | 0 |
 | `connectionTimeout` / `sendTimeout` / `receiveTimeout` | timeout | 0 |
+| `unknown` 且 cause 为解码 `FormatException` | parse | HTTP 状态（传输解码闭包保留元信息） |
 | `connectionError`、`badCertificate`，或 `unknown` 且 `error` 是 `SocketException`/`HttpException`/`TlsException` | network | 0 |
 | `badResponse`（只会来自使用者的 Dio 拦截器主动 reject） | http | 取响应状态 |
 | 其余 `DioException.unknown`、非 Dio 异常（使用者拦截器或 Transformer 里的 bug） | internal | 0 |
-| 2xx、`expectJson`、声明 JSON 但数据仍是非空字符串 | parse | httpStatus |
+| 2xx、`expectJson`、数据是非空字符串（不依赖 MIME） | parse | httpStatus |
 | 收到响应 | ok / biz / http，按 `isSuccess` 与 2xx 判定 | 按 `logicalStatus` |
 
 内核负责：工厂自己抛错时，改用内置工厂造 `internal` 结果，并保留第一次的异常，保证外层照常收尾。
@@ -225,7 +227,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 | P1 | 链只在增删插件时编译，请求时不排序、不查表 |
 | P2 | 上下文固定形状；没有 patch 时复用外层实例，有 patch 才派生；状态容器惰性创建 |
 | P3 | `key()` 惰性计算并按请求缓存；不用 cache/share 的请求不算 key |
-| P4 | 请求体按需克隆：只有 `markReplayable()` 时才克隆。Map/List 递归拷贝，`FormData` 用 `clone()`，`Stream` 等无法克隆的回退原引用并在 debug 下告警，不让请求失败 |
+| P4 | 重发前先检查 canReplay，不能重放则返回本次结果，重复传输保护触发 internal；请求体按需克隆：只有 `markReplayable()` 时才克隆。Map/List 递归拷贝，`FormData` 用 `clone()`，`Stream` 等无法克隆的回退原引用并在 debug 下告警，不让请求失败 |
 | P5 | 传输层 `validateStatus` 全部放行，HTTP 错误不构造 `DioException` |
 | P6 | 失败直接抛 `R`，不另建异常对象；调用点只在 debug 下记录 |
 | P7 | 入口只合并一次配置，传输层直接 `fetch`，没有二次合并 |

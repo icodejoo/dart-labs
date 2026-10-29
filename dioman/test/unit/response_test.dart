@@ -162,7 +162,7 @@ void main() {
         DiomanKind.parse);
     expect(normalize(pipelineTestEmpty, factory: factory, json: true).kind,
         DiomanKind.ok);
-    expect(normalize(pipelineTestBroken, factory: factory).kind, DiomanKind.ok);
+    expect(normalize(pipelineTestBroken, factory: factory).kind, DiomanKind.parse);
     expect(normalize({}, factory: factory, json: true).kind, DiomanKind.ok);
     expect(
         normalize(pipelineTestBroken, factory: factory, json: true, status: 500)

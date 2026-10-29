@@ -29,4 +29,4 @@ summary: 当前验收客户端的能力、结果与限制
 
 真实执行步骤见 [手册](../guides/accept-runner.md)。connect 超时、HTTP 日期 Retry-After 的真实环境限制保留在状态与历史证据，不扩大 PASS 范围。
 
-B7 从场景字段识别四种现行设计差异，并以“不适用：”报告：非 400–599 业务码的错误编号、注入坏 JSON/HTML 时强制 parse 预期、共享订阅者的单一请求预算、旧链路排除 offline 通知的计数。与首轮失败逐格对账 41+2 格，多跳 0、漏跳 0；这些差异仍需终审裁决，不修改设计结论。详见 [B7 报告](../reports/2026-10-29-pipeline-b7.md)。
+B8 裁决后，biz 的 error 比较直接读取 `business:${r.code}`；不由执行器判定业务码。Dio unknown 的解码 FormatException 归 parse；执行器显式使用 expectJson=true，HTML 归 parse（库默认工厂仍接受 HTML 文本）；share 单一预算场景声明 timeout-total 后按缺能力跳过。只保留旧链路排除 offline 通知的计数差异为“不适用”，既有两格对账见 [B7 报告](../reports/2026-10-29-pipeline-b7.md)，本次重跑见 [B8 报告](../reports/2026-10-29-pipeline-b8.md)。

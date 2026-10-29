@@ -148,7 +148,8 @@ void main() {
   });
   test(
       '[INV-context-lifecycle]'
-      '[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁', () async {
+      '[DiomanShare.policy × Dioman.cancelAll] 胜出后落败传输随订阅退出取消，之后取消或销毁幂等',
+      () async {
     for (final policy in [DiomanSharePolicy.end, DiomanSharePolicy.race]) {
       for (final dispose in [false, true]) {
         final gate = Completer<void>();
@@ -166,11 +167,12 @@ void main() {
         expect(api.pending, 0);
         expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
         final token = net.sends.first.options.cancelToken!;
-        expect(token.isCancelled, isFalse);
+        expect(token.isCancelled, isTrue);
+        await b4Turn();
         if (dispose) {
           api.dispose();
         } else {
-          expect(api.cancelAll(), 1);
+          expect(api.cancelAll(), 0);
         }
         expect(token.isCancelled, isTrue);
         gate.complete();

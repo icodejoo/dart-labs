@@ -10,7 +10,8 @@ import 'package:test/test.dart';
 void main() {
   test(
       '[DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores]'
-      '[DiomanKeyService.build] 固定种子 2400 组与旧 key 固定基准逐字节一致', () async {
+      '[DiomanKeyService.build] 固定种子 2400 个入口中 Map/String 与显式/快速键逐字节兼容旧基准',
+      () async {
     final random = Random(20261028);
     Object? value(int depth) {
       if (depth > 2) return random.nextInt(9);
@@ -71,11 +72,16 @@ void main() {
                   ignores: requestIgnores,
                   key: explicit,
                   builder: local));
-      // 顶层非 Map/String 走对象身份键，进程间身份数值不能固化。
-      // 只替换旧实现导出时标明的身份槽，其余字节仍严格对照。
+      // B8 撤销 409 个旧身份键；其余 1991 个旧基准逐字节严格对照。
       final expected = (baseline[i] as String?)?.replaceAll(
           '"<identityHashCode(data)>"', '${identityHashCode(request.data)}');
-      expect(next, expected, reason: 'seed=20261028 case=$i');
+      if (expected?.contains('identity') != true) {
+        expect(next, expected, reason: 'seed=20261028 case=$i');
+      } else if (request.data is List) {
+        expect(next, isNotNull, reason: 'B8 JSON 数组按内容构键 case=$i');
+      } else {
+        expect(next, isNull, reason: 'B8 不再生成标量身份键 case=$i');
+      }
     }
   });
 
@@ -86,7 +92,7 @@ void main() {
     expect(service.build(r, false), isNull);
     expect(service.build(r, pipelineTestExplicit), pipelineTestExplicit);
     expect(() => service.build(r, 3), throwsArgumentError);
-    expect(service.build(r), contains('NaN'));
+    expect(service.build(r), isNull);
     expect(service.build(RequestOptions(data: pipelineTestEmpty)), isNotNull);
     expect(service.build(RequestOptions(data: {})), isNotNull);
     final sorted = RequestOptions(data: {

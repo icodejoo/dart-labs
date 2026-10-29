@@ -12,6 +12,9 @@ extension DiomanContextInternal<R extends DiomanResponse<dynamic>>
   /// 传输是否需要克隆重放体；插件通过 markReplayable 声明。
   bool get replayable => _state.replayable;
 
+  /// 当前发送视图的载荷判定，不读取上次传输快照。
+  bool get bodyReplayable => DiomanContext._canReplay(request.data);
+
   /// 为内核及白盒夹具创建带共享状态的上下文。
   static DiomanContext<T> create<T extends DiomanResponse<dynamic>>(
           {required int id,

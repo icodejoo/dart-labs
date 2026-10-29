@@ -35,7 +35,10 @@ class DiomanNotify<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 默认忽略成功、取消、静默请求，否则取消息或 kind/status。
   static String defaultStringify(
           DiomanResponse<dynamic> r, DiomanContext ctx) =>
-      r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
+      r.ok ||
+              r.kind == DiomanKind.cancel ||
+              r.kind == DiomanKind.internal ||
+              ctx.request.silent
           ? ''
           : (r.message.isEmpty ? '${r.kind.name} ${r.status}' : r.message);
 

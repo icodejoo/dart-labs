@@ -69,6 +69,7 @@ class DiomanAuthOptions {
       this.ready,
       this.expiresAt,
       this.refreshLeeway,
+      this.refreshTimeout,
       this.headerKey,
       this.buildHeader});
 
@@ -96,6 +97,9 @@ class DiomanAuthOptions {
   /// 过期提前量。
   final Duration? refreshLeeway;
 
+  /// 刷新窗口上限，使用客户端时钟计时。
+  final Duration? refreshTimeout;
+
   /// 默认注入的请求头名称。
   final String? headerKey;
 
@@ -118,6 +122,7 @@ class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
       this.ready,
       this.expiresAt,
       this.refreshLeeway = Duration.zero,
+      this.refreshTimeout = const Duration(seconds: 30),
       this.headerKey = 'Authorization',
       this.buildHeader = defaultBuildHeader});
 
@@ -151,6 +156,9 @@ class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
 
   /// 过期提前量。
   final Duration refreshLeeway;
+
+  /// 刷新窗口上限，默认三十秒。
+  final Duration refreshTimeout;
 
   /// 默认注入的请求头名称。
   final String headerKey;
@@ -193,6 +201,7 @@ class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
           ready: ready,
           expiresAt: expiresAt,
           refreshLeeway: refreshLeeway,
+          refreshTimeout: refreshTimeout,
           headerKey: headerKey,
           buildHeader: buildHeader));
 }
@@ -208,6 +217,7 @@ DiomanAuthOptions _merge(DiomanAuthOptions a, DiomanAuthOptions b) =>
         ready: b.ready ?? a.ready,
         expiresAt: b.expiresAt ?? a.expiresAt,
         refreshLeeway: b.refreshLeeway ?? a.refreshLeeway,
+        refreshTimeout: b.refreshTimeout ?? a.refreshTimeout,
         headerKey: b.headerKey ?? a.headerKey,
         buildHeader: b.buildHeader ?? a.buildHeader);
 
@@ -262,11 +272,26 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
   Future<bool> _refresh(DiomanContext<R> ctx, DiomanAuthOptions o,
       DiomanResponse<dynamic> r, String? session) {
     return _refreshing ??= (() async {
+      final snapshot = _tokens.accessToken;
       try {
-        await Future<void>(() => config.onRefresh(_tokens, r));
+        final done = Completer<void>();
+        final timer = ctx.clock.createTimer(o.refreshTimeout!, () {
+          if (!done.isCompleted) done.completeError(TimeoutException('刷新超时'));
+        });
+        Future<void>(() => config.onRefresh(_tokens, r)).then((_) {
+          if (!done.isCompleted) done.complete();
+        }, onError: (Object e, StackTrace s) {
+          if (!done.isCompleted) done.completeError(e, s);
+        });
+        try {
+          await done.future;
+        } finally {
+          timer.cancel();
+        }
         return true;
       } catch (e, s) {
         ctx.log('[${DiomanAuth.pluginName}] 刷新失败: $e\n$s');
+        if (_tokens.accessToken != snapshot) return true;
         await _expire(ctx, o, r, session);
         return false;
       } finally {
@@ -362,6 +387,7 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
       switch (action!) {
         case DiomanAuthFailureAction.refresh:
         case DiomanAuthFailureAction.replay:
+          if (!ctx.canReplay()) return r;
           if (replayed) {
             await ctx.wait(_expire(ctx, o, r, token));
             return ctx.cancelled() ?? _fail(ctx, _expired);

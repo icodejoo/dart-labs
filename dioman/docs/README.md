@@ -97,3 +97,8 @@
 - [archive/architecture-before-pipeline.md](archive/architecture-before-pipeline.md)
 - [archive/testkit-mapping-before-pipeline.md](archive/testkit-mapping-before-pipeline.md)
 - [B5b 最终闸门](reports/pipeline-b5b-evidence/final-review-gates.md)
+
+## B7/B8 验收与终审补修
+
+- [B7 真实验收](reports/2026-10-29-pipeline-b7.md)
+- [B8 对照终审补修](reports/2026-10-29-pipeline-b8.md)

@@ -125,8 +125,14 @@ class _Shared {
   /// 发起序号。
   int sequence = 0;
 
-  /// 未结束的传输数。
-  int pending = 0;
+  /// end/race 的有效参与者，null 表示仍在途。
+  final candidates = <int, DiomanResponse<dynamic>?>{};
+
+  /// end/race 的独立传输令牌，订阅退出时立即中止本次传输。
+  final competitors = <int, CancelToken>{};
+
+  /// 非撤回结果的完成顺序，race 全失败时取最后完成者。
+  final completed = <int>[];
 }
 
 /// 每客户端按策略隔离的活动表。
@@ -188,6 +194,7 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
             i < o.retries! &&
                 !r.ok &&
                 r.kind != DiomanKind.internal &&
+                shared.canReplay() &&
                 !shared.isCancelled;
             i++) {
           if (o.interval! > Duration.zero) {
@@ -217,20 +224,47 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       DiomanShareOptions o,
       Map<String, _Shared> table,
       String key,
-      _Shared entry) async {
-    final sequence = ++entry.sequence;
-    entry.pending++;
+      _Shared entry,
+      int sequence) async {
     ctx.state.retain();
     try {
-      final r = await next();
-      entry.pending--;
-      if (o.policy == DiomanSharePolicy.end
-          ? sequence == entry.sequence
-          : r.ok || entry.pending == 0) {
-        finish(table, key, entry, r);
+      final r = await next(RequestPatch(
+          cancelToken: entry.competitors[sequence],
+          connectTimeout: Duration.zero,
+          receiveTimeout: Duration.zero,
+          sendTimeout: Duration.zero));
+      if (ctx.cancelled() != null) {
+        entry.candidates.remove(sequence);
+      } else if (entry.candidates.containsKey(sequence)) {
+        entry.candidates[sequence] = r;
+        entry.completed.add(sequence);
       }
+      settle(o, table, key, entry);
     } finally {
+      entry.competitors.remove(sequence);
       ctx.state.release();
+    }
+  }
+
+  /// 撤回后重新选择最新有效请求或最后完成的有效失败。
+  void settle(DiomanShareOptions o, Map<String, _Shared> table, String key,
+      _Shared entry) {
+    if (entry.candidates.isEmpty) return;
+    if (o.policy == DiomanSharePolicy.end) {
+      final r = entry.candidates[entry.candidates.keys.last];
+      if (r != null) finish(table, key, entry, r);
+    } else {
+      final done = entry.completed.where(entry.candidates.containsKey).toList();
+      for (final id in done) {
+        final r = entry.candidates[id]!;
+        if (r.ok) {
+          finish(table, key, entry, r);
+          return;
+        }
+      }
+      if (done.length == entry.candidates.length) {
+        finish(table, key, entry, entry.candidates[done.last]!);
+      }
     }
   }
 
@@ -268,21 +302,31 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     final shared = o.policy == DiomanSharePolicy.start ||
         o.policy == DiomanSharePolicy.retry;
     entry.subscribers++;
+    final sequence = ++entry.sequence;
+    if (!shared) {
+      entry.candidates[sequence] = null;
+      entry.competitors[sequence] = CancelToken();
+    }
     if (shared) {
       if (existing == null) {
         if (o.policy == DiomanSharePolicy.retry) ctx.markReplayable();
         unawaited(run(ctx, next, o, table, key, entry));
       }
     } else {
-      unawaited(compete(ctx, next, o, table, key, entry));
+      unawaited(compete(ctx, next, o, table, key, entry, sequence));
     }
     try {
       final r =
           await ctx.wait(entry.result.future, timeout: timeout(ctx.request));
+      if (!shared && (ctx.cancelled() != null || r == null)) {
+        entry.candidates.remove(sequence);
+        settle(o, table, key, entry);
+      }
       return ctx.cancelled() ??
           r ??
           ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
     } finally {
+      if (!shared) entry.competitors[sequence]?.cancel();
       if (--entry.subscribers == 0) {
         detach(table, key, entry);
         if (shared && !entry.result.isCompleted) entry.token.cancel();

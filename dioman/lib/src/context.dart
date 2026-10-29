@@ -101,6 +101,27 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
   /// 声明可能重放；后续每次发送均独立克隆请求体。
   void markReplayable() => state.replayable = true;
 
+  /// 本请求体能否安全重放；不透明对象与流保留身份，不能再次发送。
+  bool canReplay() {
+    final safe = _canReplay((state.sentRequest ?? request).data);
+    if (!safe) log('请求体不能重放，保留本次结果');
+    return safe;
+  }
+
+  /// JSON 容器递归判定；FormData 由 Dio 克隆。
+  static bool _canReplay(Object? value) {
+    if (value == null ||
+        value is num ||
+        value is bool ||
+        value is String ||
+        value is FormData) {
+      return true;
+    }
+    if (value is Map) return value.values.every(_canReplay);
+    if (value is List) return value.every(_canReplay);
+    return false;
+  }
+
   /// 已取消则造 cancel 结果，否则返回 null；每次 await 后应调用。
   DiomanResponse<dynamic>? cancelled() => isCancelled
       ? fail(get(cancellationFailure) ??

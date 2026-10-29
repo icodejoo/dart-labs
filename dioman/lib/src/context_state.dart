@@ -52,6 +52,12 @@ class DiomanContextState {
   /// 是否需要克隆发送体。
   bool replayable = false;
 
+  /// 已发送的不可重放载荷，按身份记录，防止补丁视图绕过保护。
+  final consumedBodies = Set<Object>.identity();
+
+  /// 最近实际交给传输的请求视图，重放方不能只检查入口请求体。
+  DiomanRequest? sentRequest;
+
   /// 脱离首发调用方但仍在执行的共享传输数。
   int _retained = 0;
 

@@ -6,7 +6,7 @@ import 'fake_clock.dart';
 import 'fake_network.dart';
 import 'helpers.dart';
 
-/// 启用 I1–I7，刷新按调用方声明的轮次统计。
+/// 启用 I1–I9，刷新按调用方声明的轮次统计。
 class InvariantHarness {
   /// 绑定网络和时钟。
   InvariantHarness(this.network, this.clock);
@@ -31,6 +31,16 @@ class InvariantHarness {
 
   /// I4 每请求通知次数。
   final notifications = <int, int>{};
+
+  /// I8 在落定时记录调用方自身取消与实际结果类别。
+  final ownership = <int, (bool, DiomanKind)>{};
+
+  /// 调用方计时器明确确认的自身超时；未声明的 timeout 属于污染。
+  final ownTimeouts = <int>{};
+
+  /// I9 由调用方登记的请求体与服务端回显。
+  final expectedEcho = <int, Object?>{};
+  final actualEcho = <int, Object?>{};
 
   /// I5 每轮刷新次数。
   final refreshRounds = <int, int>{};
@@ -79,6 +89,10 @@ class InvariantHarness {
           entries.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
           contexts.add(ctx);
           final r = await next();
+          ownership[ctx.id] = (ctx.cancelled() != null, r.kind);
+          if (expectedEcho.containsKey(ctx.id) && r.raw != null) {
+            actualEcho[ctx.id] = r.data;
+          }
           exits.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
           return r;
         }),
@@ -106,12 +120,25 @@ class InvariantHarness {
     for (final id in entries.keys) {
       expect([entries[id], exits[id], settlements[id]], [1, 1, 1]);
     }
+    for (final entry in ownership.entries) {
+      final outcome = entry.value;
+      expect(outcome.$2 == DiomanKind.cancel, outcome.$1, reason: 'I8 取消归属');
+      expect(outcome.$2 == DiomanKind.timeout, ownTimeouts.contains(entry.key),
+          reason: 'I8 超时归属');
+    }
+    for (final id in actualEcho.keys) {
+      expect(actualEcho[id], expectedEcho[id], reason: 'I9 请求回显与调用方请求一致');
+    }
     expect(api.pending, 0, reason: 'I3');
     expect(api.cancellationSubscriptions, 0);
     expect(contexts.every((c) => c.cancellationSubscriptions == 0), isTrue);
     expect(clock.pendingTimers, 0);
     final bodies = <Object?, String>{};
     for (final send in network.sends) {
+      if (expectedEcho.containsKey(send.invariant)) {
+        expect(send.body, expectedEcho[send.invariant],
+            reason: 'I9 实际发送等于调用方请求');
+      }
       if (send.invariant == null) continue;
       final body = jsonEncode(send.body);
       expect(body, bodies.putIfAbsent(send.invariant, () => body),

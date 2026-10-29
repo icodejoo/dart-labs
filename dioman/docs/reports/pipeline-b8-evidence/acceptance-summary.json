@@ -1,0 +1,95 @@
+{
+  "sources": [
+    {
+      "path": "docs\\reports\\pipeline-b8-evidence\\acceptance-full.json",
+      "sha256": "901a61c123b14af1fd5c2c336edd30431487fc592bc170ddf98e2d9aa4be10b3",
+      "bytes": 10296232,
+      "planned": 6426,
+      "executed": 6426,
+      "interrupted": false,
+      "counts": {
+        "通过": 1275,
+        "跳过": 5146,
+        "失败": 5
+      }
+    },
+    {
+      "path": "docs\\reports\\pipeline-b8-evidence\\acceptance-final.json",
+      "sha256": "f3f37cdd12eb8a9fd81ba5dcb7365071174460cfb0376ff7831afb07e670259e",
+      "bytes": 10298229,
+      "planned": 6426,
+      "executed": 6426,
+      "interrupted": false,
+      "counts": {
+        "通过": 1280,
+        "跳过": 5146
+      }
+    },
+    {
+      "path": "docs\\reports\\pipeline-b8-evidence\\plugin-matrix-final.json",
+      "sha256": "ab86d084bee4473d5ca64455175c7786b20b0e21ceb0279c20a9d7b6a35d6f12",
+      "bytes": 526509,
+      "planned": 156,
+      "executed": 156,
+      "interrupted": false,
+      "counts": {
+        "跳过": 18,
+        "通过": 138
+      }
+    }
+  ],
+  "unique_cells": 6426,
+  "counts": {
+    "通过": 1280,
+    "不适用": 4726,
+    "缺能力": 420
+  },
+  "skip_reasons": {
+    "不适用：场景未声明此网络或风格；不推断未定义的正确预期": 4708,
+    "skipped: missing raw-business-code": 252,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，9 个并发请求里总有请求以 network 失败，与状态码分类无关，无法确定性断言；状态码分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关；断网恢复由 retry.flap-recovers 覆盖": 2,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，单发无重试请求可能以 network 失败，无法确定性断言状态码分类；分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关": 2,
+    "不适用：outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决": 2,
+    "不适用：本场景重试预算（3 次、每次 100ms 退避）短于 flap 前 1500ms 的离线窗口，首发请求落在窗口内会以 network 耗尽重试，不是重试能恢复的有效对照；flap 下的重试恢复由 retry.flap-recovers 覆盖": 6,
+    "不适用：lossy 的随机 RST 会额外消耗重试次数，而本场景只比必需的 3 次多 1 次预算，最终是否成功取决于随机决策，无法确定性断言": 2,
+    "skipped: missing timeout-total": 168
+  },
+  "invariants": {
+    "checked": 1280,
+    "pending_after": 0,
+    "active_cancel_tokens": 0,
+    "inflight": 0,
+    "loading_paired": true
+  },
+  "method_matrix": {
+    "单体": {
+      "缺能力": 16,
+      "通过": 18
+    },
+    "配对": {
+      "通过": 64
+    },
+    "边界": {
+      "通过": 52
+    },
+    "全量": {
+      "通过": 4,
+      "不适用": 2
+    }
+  },
+  "b7_counts": {
+    "通过": 1241,
+    "缺能力": 406,
+    "不适用": 4779,
+    "失败": 0
+  },
+  "delta": {
+    "通过": 39,
+    "缺能力": 14,
+    "不适用": -53,
+    "失败": 0
+  },
+  "owned_proxies": 2542
+}

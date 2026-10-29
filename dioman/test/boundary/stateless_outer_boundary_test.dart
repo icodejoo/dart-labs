@@ -191,7 +191,7 @@ void main() {
       })
     ]);
     await expectLater(api.send<Object?>(b2Get, outerPath), throwsA(same(bug)));
-    expect(notified!.kind, DiomanKind.internal);
+    expect(notified, isNull);
     expect(events, [true, false]);
   });
 }

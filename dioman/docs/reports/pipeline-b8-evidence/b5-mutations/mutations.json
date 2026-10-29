@@ -1,0 +1,79 @@
+[
+  {
+    "mutation": "leave-listener",
+    "source": "lib\\src\\context.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 256,
+    "powerset_failures": 256,
+    "baseline_failures": 0,
+    "seconds": 14.212,
+    "before_sha256": "8684d9ae66c24dd3b4f892f49fd9d600a1df188ccb5770a8f63ef8db1256f69f",
+    "restored_sha256": "8684d9ae66c24dd3b4f892f49fd9d600a1df188ccb5770a8f63ef8db1256f69f"
+  },
+  {
+    "mutation": "loading-close",
+    "source": "lib\\src\\plugins\\loading.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 2560,
+    "powerset_failures": 2560,
+    "baseline_failures": 0,
+    "seconds": 18.956,
+    "before_sha256": "d111dfa4388b696fa8e6dd69a247b14c6550108da7d60a64eb4a070aa1ec149d",
+    "restored_sha256": "d111dfa4388b696fa8e6dd69a247b14c6550108da7d60a64eb4a070aa1ec149d"
+  },
+  {
+    "mutation": "notify-double",
+    "source": "lib\\src\\plugins\\notify.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 1024,
+    "powerset_failures": 1024,
+    "baseline_failures": 0,
+    "seconds": 13.898,
+    "before_sha256": "5b4360092b249107d2dbba3826938b45bc4374c8b0ffb7dbf4920e044d6c5ccb",
+    "restored_sha256": "5b4360092b249107d2dbba3826938b45bc4374c8b0ffb7dbf4920e044d6c5ccb"
+  },
+  {
+    "mutation": "auth-singleflight",
+    "source": "lib\\src\\plugins\\auth.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 256,
+    "powerset_failures": 256,
+    "baseline_failures": 0,
+    "seconds": 14.231,
+    "before_sha256": "ddc0b9b409f29eb1842894d7b835a3a4ee3bdd0c5c1957b125d466d94b0399ed",
+    "restored_sha256": "ddc0b9b409f29eb1842894d7b835a3a4ee3bdd0c5c1957b125d466d94b0399ed"
+  },
+  {
+    "mutation": "retry-replayable",
+    "source": "lib\\src\\plugins\\retry.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 192,
+    "powerset_failures": 192,
+    "baseline_failures": 0,
+    "seconds": 13.714,
+    "before_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4",
+    "restored_sha256": "9dd20de4053201fd847a9f8ba74bbee6a2d59bdad326a59e25a2e6d030a9e1c4"
+  },
+  {
+    "mutation": "cache-barrier",
+    "source": "lib\\src\\plugins\\cache.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 2432,
+    "powerset_failures": 2432,
+    "baseline_failures": 0,
+    "seconds": 18.171,
+    "before_sha256": "3a7850e7ae9c1459ed29163809d9a6cfe141fbaa1fc9b2d216c38b9734bacd69",
+    "restored_sha256": "3a7850e7ae9c1459ed29163809d9a6cfe141fbaa1fc9b2d216c38b9734bacd69"
+  },
+  {
+    "mutation": "mock-replayable",
+    "source": "lib\\src\\plugins\\mock.dart",
+    "test": "test/combo/powerset_combo_test.dart",
+    "failures": 512,
+    "powerset_failures": 512,
+    "baseline_failures": 0,
+    "seconds": 16.155,
+    "before_sha256": "132001caae46ad5c53596fdc504113e4e3802f456799608b2a6085b66849838b",
+    "restored_sha256": "132001caae46ad5c53596fdc504113e4e3802f456799608b2a6085b66849838b"
+  }
+]

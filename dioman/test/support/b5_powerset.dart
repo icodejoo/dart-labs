@@ -94,7 +94,8 @@ enum PowerFlow {
   concurrent([DiomanKind.ok, DiomanKind.ok]),
   cancelAll([DiomanKind.cancel, DiomanKind.cancel]),
   cancelLeader([DiomanKind.cancel, DiomanKind.ok]),
-  recovery([DiomanKind.ok, DiomanKind.ok]);
+  recovery([DiomanKind.ok, DiomanKind.ok]),
+  bodyReplay([DiomanKind.http]);
 
   const PowerFlow(this.baseline);
   final List<DiomanKind> baseline;
@@ -109,7 +110,9 @@ class PowerFixture {
       final hit = ++realHits;
       final status = probe
           ? 404
-          : flow == PowerFlow.http || flow == PowerFlow.flaky && hit <= 2
+          : flow == PowerFlow.http ||
+                  (flow == PowerFlow.flaky || flow == PowerFlow.bodyReplay) &&
+                      hit <= 2
               ? 500
               : 200;
       if (probe) realHits--;
@@ -123,7 +126,7 @@ class PowerFixture {
                     request.headers[b3Header] != 'Bearer $b3Fresh'
                 ? 401
                 : 0,
-            flowData: null
+            flowData: flow == PowerFlow.bodyReplay ? send.body : null
           },
           error: !probe && flow == PowerFlow.network
               ? DioException(
@@ -137,7 +140,8 @@ class PowerFixture {
     h = InvariantHarness(net, clock);
     api = testClient(
         network: net, clock: clock, plugins: [...h.probes(), ...plugins()]);
-    api.dio.transformer = B3Transformer();
+    api.dio.transformer =
+        flow == PowerFlow.bodyReplay ? SyncTransformer() : B3Transformer();
   }
 
   final int mask;
@@ -174,8 +178,8 @@ class PowerFixture {
             tm.setTokens(accessToken: b3Fresh);
           })),
       mockName: () => DiomanMock<Result>(mockUrl: mockUrl),
-      shareName: () => DiomanShare<Result>(),
-      cacheName: () => DiomanCache<Result>(),
+      shareName: () => const DiomanShare<Result>(methods: {flowGet, 'PUT'}),
+      cacheName: () => DiomanCache<Result>(shouldCache: (_) => true),
       offlineName: () => DiomanOffline<Result>(
           isOnline: () => online, onConnectivityChanged: connectivity.stream),
     };
@@ -188,10 +192,18 @@ class PowerFixture {
   /// 登记嵌套载荷与逻辑请求标记；同 key 请求不靠标记参与构键。
   void launch({String key = flowKey, CancelToken? token}) {
     final id = requests.length + 1;
+    if (flow == PowerFlow.bodyReplay) {
+      h.expectedEcho[id] = {
+        flowItems: [
+          {flowN: 0}
+        ]
+      };
+    }
     requests.add(h.track(
         id,
         api
-            .send<dynamic>(flowGet, flowPath,
+            .send<dynamic>(
+                flow == PowerFlow.bodyReplay ? 'PUT' : flowGet, flowPath,
                 data: {
                   flowItems: [
                     {flowN: 0}
@@ -268,6 +280,7 @@ class PowerFixture {
         clock.elapse(Duration.zero);
         online = true;
         connectivity.add(true);
+      case PowerFlow.bodyReplay:
       case PowerFlow.http:
       case PowerFlow.flaky:
       case PowerFlow.network:

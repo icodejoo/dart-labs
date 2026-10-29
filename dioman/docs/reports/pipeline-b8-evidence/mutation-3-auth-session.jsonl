@@ -1,0 +1,10 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":35904,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/rule/b8_regression_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/rule/b8_regression_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":1}
+{"count":1,"time":9,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":832}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":833}
+{"test":{"id":3,"name":"[DiomanAuth.refreshTimeout] B8 刷新异常遇到新登录继续当前 token","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":145,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":834}
+{"testID":3,"error":"Expected: <200>\n  Actual: <0>\n","stackTrace":"package:matcher                          expect\ntest\\rule\\b8_regression_test.dart 166:5  main.<fn>\n","isFailure":true,"type":"error","time":886}
+{"testID":3,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":886}
+{"success":false,"type":"done","time":893}

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Behavior change (B8)**: Auth adds plugin/call `refreshTimeout` (30s, `DiomanClock`); timeout follows refresh failure and session notification deduplication. Failed refresh after a new login continues with the new token. Refresh requests through the same client must set `DiomanAuth.option: false` for that call.
+- **Behavior change (B8)**: `retryAfterMax` defaults to 60s; larger server waits return the current result without retry. Use an explicitly very large Duration to honor practically unlimited Retry-After. No jitter or `delayMax` is applied to server waits.
+- **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. Map/String keys remain compatible; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.
+- **Behavior change (B8)**: Default notify suppresses internal results; Dio decoding FormatException is parse with the available HTTP status. HTML text remains accepted by default; expectJson now rejects nonempty 2xx text regardless of MIME type.
+- Fix share end/race participant withdrawal, cancellation before cache hits, and replay of one-shot bodies in retry/auth/mock/share retry; plugins return the current result when the body cannot be replayed.
+
 Changes since 0.7.2. See the [migration guide](docs/guides/migrating-to-pipeline.md) for plugin-by-plugin examples and the complete API replacement table.
 
 - **Breaking**: Replace `Dioman.install` and interceptor handles with a `Dioman` client so every logical request uses the same pipeline. Construct the client with `dio` and `plugins`, and call `api.get`/`api.send`; use `use`, `eject` and `inspect` for changes.

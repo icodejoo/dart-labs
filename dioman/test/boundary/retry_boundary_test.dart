@@ -74,7 +74,7 @@ void main() {
       expect(inner, positive ? 1 : 2);
       clock.elapse(b3Tick);
       await p;
-      expect(inner, 2);
+      expect(inner, positive ? 1 : 2);
       expect(clock.pendingTimers, 0);
       api.dispose();
     }

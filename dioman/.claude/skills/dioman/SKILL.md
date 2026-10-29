@@ -11,7 +11,7 @@ Dart ^3.5.0，唯一运行依赖 Dio，不新增依赖。公开入口 lib/dioman
 
 - docs/decisions/0001-pipeline-redesign.md
 - docs/design/pipeline-architecture.md
-- docs/design/pipeline-plugin-spec.md（含 §8.1、C1–C13）
+- docs/design/pipeline-plugin-spec.md（含 §8.1、C1–C18）
 - docs/design/pipeline-test-plan.md
 - docs/design/pipeline-implementation-plan.md
 - docs/guides/migrating-to-pipeline.md
@@ -20,7 +20,7 @@ Dart ^3.5.0，唯一运行依赖 Dio，不新增依赖。公开入口 lib/dioman
 
 outer → prepare → attempt → credential → source → Dio。envs 只有 setup。固定内置顺序不能由注册顺序改写；自定义 pre/post 只在本阶段生效。插件工厂只放配置，setup 返回每客户端状态。禁止恢复宿主 setter、认领和手工结算基础设施。
 
-next(patch) 从当前基准派生，链内返回归一化结果，程序错误只在公共边界原栈抛出。StateKey 使用非 const 身份键。await 等待用 ctx.wait，随后检查 ctx.cancelled()。多次发送先 markReplayable，不能承诺单订阅流可重放。
+next(patch) 从当前基准派生，链内返回归一化结果，程序错误只在公共边界原栈抛出。StateKey 使用非 const 身份键。await 等待用 ctx.wait，随后检查 ctx.cancelled()。多次发送先 markReplayable，先用 ctx.canReplay() 判断最近实际体，不能重放就返回本次结果，不能承诺单订阅流可重放。
 
 ## 不变量
 
@@ -31,6 +31,8 @@ next(patch) 从当前基准派生，链内返回归一化结果，程序错误�
 - I5：并发 401 每轮只刷新一次。
 - I6：next 不抛异常；受控流程不出现 internal。
 - I7：同一逻辑请求每次发送请求体一致，使用嵌套结构验证。
+- I8：调用方自身取消或超时不污染其他调用方结果类别。
+- I9：实际发送与回显必须等于调用方请求快照。
 
 ## 必跑验证
 

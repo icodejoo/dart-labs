@@ -91,6 +91,8 @@ Future<void> main() async {
 
 ## 错误处理
 
+Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 将 2xx 非空文本（包括 text/html）判为 parse，不依赖 MIME 声明。
+
 捕获 DiomanResponse，按 kind 与 reason 分流；不要再捕获旧异常子类。status 是逻辑状态，httpStatus 是 HTTP 状态。send 对可预期失败返回结果，但程序错误仍原样抛出。判定回调的错误不吞掉；通知回调错误隔离，onRefresh 抛错算刷新失败。
 
 旧写法：
@@ -163,6 +165,8 @@ Future<void> main() async {
 - 按回调身份计数并成对关闭；用 `api.plugin<DiomanLoadingApi>()` 读取 activeCount，回调异常不会改变结果。
 
 ### Notify
+
+默认 `stringify` 对 `kind == internal` 返回空串；需要通知时可自行提供 stringify。
 
 旧写法：
 
@@ -308,6 +312,8 @@ Future<void> main() async {
 
 ### Retry
 
+行为变化：`retryAfterMax` 默认 60 秒。Retry-After 秒数或 HTTP 日期要求的等待超过上限时，不再重试，直接返回本次结果。需要近似无限遵守时显式传很大的 Duration，例如 `retryAfterMax: Duration(days: 36500)`。服务端等待仍不叠 jitter、不受 `delayMax` 限制。一次性流及不透明体最多发送一次。
+
 旧写法：
 
 <!-- docs:old -->
@@ -379,6 +385,8 @@ Future<void> main() async {
 
 ### Auth
 
+插件与 `DiomanAuthOptions` 新增 `refreshTimeout`，默认 30 秒，使用 `DiomanClock` 计时；超时走刷新失败路径，同一失败会话只通知一次。刷新期间重新登录替换了 token 时，失败等待者按当前 token 继续。`onRefresh` 经同一客户端请求时必须本次关闭 auth：`call: DiomanCall(options: {DiomanAuth.option: false})`。一次性流及不透明体不能重放，返回本次结果。
+
 旧写法：
 
 <!-- docs:old -->
@@ -433,6 +441,8 @@ Future<void> main() async {
 
 ### Mock
 
+探测后回落前检查请求体是否可重放；一次性流及不透明体返回探测结果，不再次发送。
+
 旧写法：
 
 <!-- docs:old -->
@@ -472,6 +482,8 @@ Future<void> main() async {
 
 ### Share
 
+调用方自身取消或订阅超时撤回 end/race 的结果资格，调用方仍保留自己的取消或超时结果；无法安全构键的请求体不参与共享，详见 Cache。
+
 旧写法：
 
 <!-- docs:old -->
@@ -509,6 +521,8 @@ Future<void> main() async {
 - 首发取消仍保留其他订阅者的传输，最后一个订阅者离开才取消；超时计算见来源层说明。
 
 ### Cache
+
+自动 key 保持 Map/String 输出不变，JSON 数组按内容编码，64 KiB 内字节列表按内容哈希；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
 
 旧写法：
 

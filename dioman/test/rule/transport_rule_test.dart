@@ -113,7 +113,10 @@ void main() {
         log: logs.add);
     ctx.markReplayable();
     await diomanTransport(api.dio, ctx);
-    expect(logs, ['请求体无法克隆，回退原引用']);
+    expect(logs, contains('请求体无法克隆，回退原引用'));
+    final repeated = await diomanTransport(api.dio, ctx);
+    expect(repeated.kind, DiomanKind.internal);
+    expect(repeated.error, isA<StateError>());
     final throwLog = testClient(
         debug: (String _) => throw StateError(pipelineTestLog),
         plugins: [

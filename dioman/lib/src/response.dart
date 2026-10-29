@@ -173,7 +173,7 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
   /// 收到响应后的逻辑状态映射。
   final int Function(DiomanResponse<dynamic>)? logicalStatus;
 
-  /// 声明 JSON 但仍是非空字符串时判 parse。
+  /// 严格 JSON 模式：2xx 的非空文本归 parse，不依赖服务端 MIME 声明。
   final bool expectJson;
 
   /// 构造扩展结果；抛错时内核使用基础结果，避免再次调用坏钩子。
@@ -263,7 +263,10 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
               status = error.response?.statusCode ?? 0;
             case DioExceptionType.unknown:
               final cause = error.error;
-              if (cause is SocketException ||
+              if (cause is FormatException) {
+                kind = DiomanKind.parse;
+                status = error.response?.statusCode ?? 0;
+              } else if (cause is SocketException ||
                   cause is HttpException ||
                   cause is TlsException) {
                 kind = DiomanKind.network;
@@ -297,13 +300,7 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
       final http = response.statusCode ?? 0;
       final httpOk = http >= 200 && http < 300;
       final body = response.data;
-      if (httpOk &&
-          expectJson &&
-          body is String &&
-          body.isNotEmpty &&
-          (response.headers.value(Headers.contentTypeHeader) ?? _emptyMessage)
-              .toLowerCase()
-              .contains('json')) {
+      if (httpOk && expectJson && body is String && body.isNotEmpty) {
         return _finish(DiomanResponse(
             ok: false,
             kind: DiomanKind.parse,

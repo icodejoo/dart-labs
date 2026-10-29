@@ -140,7 +140,7 @@ String classify(Object error) {
   return switch (error.kind) {
     DiomanKind.ok => tkOk,
     DiomanKind.http => 'http:${error.status}',
-    DiomanKind.biz => 'business:${error.status}',
+    DiomanKind.biz => 'business:${error.code}',
     DiomanKind.network => tkNetwork,
     DiomanKind.timeout => tkTimeout,
     DiomanKind.cancel => tkCanceled,
@@ -187,10 +187,12 @@ class ScenarioClient {
     api = Dioman<DiomanResponse<dynamic>>(
       dio: dio,
       // 只读库已分类的逻辑状态；服务停止守卫不重分类、不改结果。
-      response: DiomanResponseFactory(create: (result) {
-        checkServiceStatus(result.status, data: result.data);
-        return result;
-      }),
+      response: DiomanResponseFactory(
+          expectJson: true,
+          create: (result) {
+            checkServiceStatus(result.status, data: result.data);
+            return result;
+          }),
       key: DiomanKeyOptions(
           namespace: key[tkScope] == tkUser ? () => tokens.user : null),
       debug: plugins.containsKey(tkLog) ? logs.add : false,

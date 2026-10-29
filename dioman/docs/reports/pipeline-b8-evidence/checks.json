@@ -1,0 +1,85 @@
+{
+  "sdk": "^3.5.0; no dependency changes",
+  "dart_analyze": {
+    "exit_code": 0,
+    "issues": 0,
+    "evidence": "analyze.txt"
+  },
+  "extra_analyze": {
+    "exit_code": 0,
+    "issues": 0,
+    "paths": [
+      "example",
+      "test/accept",
+      "benchmark"
+    ],
+    "evidence": "analyze-extra.txt"
+  },
+  "rust": {
+    "command": "cargo test --target-dir C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8",
+    "exit_code": 0,
+    "unit_passed": 38,
+    "netem_passed": 4,
+    "testkit_passed": 15,
+    "source": "rust-tests.txt"
+  },
+  "testkit_validate": {
+    "scenarios": 459,
+    "exit_code": 0,
+    "evidence": "testkit-validate.txt"
+  },
+  "build": {
+    "command": "cargo build --release --target-dir C:/Users/jelon/AppData/Local/Temp/claude/E--workspaces-dart-labs-dioman/e6bbf3b6-48ce-4317-ba30-42fb3fbf5b8d/scratchpad/tk-target-b8",
+    "exit_code": 0
+  },
+  "key_baseline": {
+    "entries": 2400,
+    "unchanged_entries_compared": 1991,
+    "withdrawn_identity_slots": 409,
+    "baseline_sha256": "e90c638898e98f5f6346f3e2d7c2e761399fe87e15a1f66398fc4f44ce909ea0"
+  },
+  "review": {
+    "dioman": {
+      "command": "codex review --uncommitted",
+      "findings": [
+        "P2: 32-bit FNV byte hash collision",
+        "P2: auth ready effective body replay check"
+      ],
+      "fixed": true,
+      "regressions": [
+        "test/unit/b8_core_test.dart",
+        "test/rule/b8_regression_test.dart"
+      ]
+    },
+    "testkit": {
+      "command": "codex review --uncommitted",
+      "findings": []
+    }
+  },
+  "dart_test": {
+    "passed": 5588,
+    "failed": 0,
+    "evidence": "coverage-tests.txt",
+    "b7_passed": 5022,
+    "increase": 566
+  },
+  "coverage": {
+    "files": 34,
+    "lines_hit": 1486,
+    "lines_total": 1486,
+    "branches_hit": 720,
+    "branches_total": 720,
+    "evidence": "coverage.info"
+  },
+  "gates": {
+    "G0": 0,
+    "G1": 0,
+    "G2": 0,
+    "G3": 0,
+    "G4": 1,
+    "G5": 0,
+    "only_blocked": "DiomanTimeouts.connect#effective:no-real",
+    "baseline_grew": false
+  },
+  "mutations_restored_against_final_source": true
+}

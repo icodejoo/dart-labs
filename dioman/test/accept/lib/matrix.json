@@ -362,6 +362,21 @@
     "blocked": null
   },
   {
+    "id": "DiomanAuth.refreshTimeout",
+    "plugin": "auth",
+    "capability": "刷新窗口默认 30 秒，DiomanClock 超时、失败会话去重与新登录继续",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(refreshTimeout)",
+      "DiomanAuth.refreshTimeout"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "B8：确定性内核/插件规则，FakeClock 与实际体回归验证，不声称 testkit 覆盖新增计时选项。"
+  },
+  {
     "id": "DiomanAuth.setup",
     "plugin": "auth",
     "capability": "DiomanAuth.setup：公开契约及配置解析",
@@ -643,6 +658,21 @@
     "result": null,
     "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:189。"
+  },
+  {
+    "id": "DiomanAuthOptions.refreshTimeout",
+    "plugin": "auth",
+    "capability": "请求级覆盖刷新上限，null 继承插件 30 秒默认值",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(refreshTimeout)",
+      "DiomanAuthOptions.refreshTimeout"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "B8：确定性内核/插件规则，FakeClock 与实际体回归验证，不声称 testkit 覆盖新增计时选项。"
   },
   {
     "id": "DiomanTokenManager.accessToken",
@@ -2482,7 +2512,12 @@
       "cache.business-failure-not-cached"
     ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
     "blocked": null,
     "note": "lib/src/cache_plugin.dart:onResponse 只看 2xx；normalize 排末尾，不能阻止已发生的缓存写入。真实场景期望业务失败不缓存与源码冲突，终审应核对结果而非替源码写愿景。",
     "unit": [
@@ -2569,8 +2604,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 62,
-      "total": 62
+      "passed": 64,
+      "total": 64
     },
     "blocked": null,
     "note": "只作为实际组合管线协作的代表核对，不替代具体选项覆盖；部分包含本批外插件，由后续批次为其局部能力补映射。含 all-seventeen 验证额外 notify 插入。与 INV-10 的全量/网络整链冒烟区分。",
@@ -2616,6 +2651,20 @@
     "unit": [
       "test/boundary/share_replay_boundary_test.dart"
     ]
+  },
+  {
+    "id": "DiomanContext.canReplay",
+    "plugin": "context",
+    "capability": "按最近实际发送的体判断能否安全重放，流与不透明体不能重放",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.canReplay"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "B8：确定性内核/插件规则，FakeClock 与实际体回归验证，不声称 testkit 覆盖新增计时选项。"
   },
   {
     "id": "DiomanContext.cancelToken",
@@ -3443,8 +3492,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 54,
-      "total": 54
+      "passed": 66,
+      "total": 66
     },
     "blocked": null,
     "unit": [
@@ -3643,6 +3692,20 @@
       "total": 18
     },
     "blocked": null
+  },
+  {
+    "id": "DiomanKeyService.maxBodyBytes",
+    "plugin": "key",
+    "capability": "自动字节内容键大小上限 64 KiB，超限不参与 cache/share",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyService.maxBodyBytes"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "B8：确定性内核/插件规则，FakeClock 与实际体回归验证，不声称 testkit 覆盖新增计时选项。"
   },
   {
     "id": "DiomanKeyService.options",
@@ -4167,8 +4230,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 23,
-      "total": 23
+      "passed": 27,
+      "total": 27
     },
     "blocked": null
   },
@@ -5686,8 +5749,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 17,
-      "total": 31
+      "passed": 19,
+      "total": 33
     },
     "blocked": null
   },
@@ -5746,7 +5809,12 @@
       "faults.html-gateway-page"
     ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
     "blocked": null
   },
   {
@@ -5838,8 +5906,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 1,
-      "total": 1
+      "passed": 10,
+      "total": 10
     },
     "blocked": null
   },
@@ -6371,8 +6439,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 12,
-      "total": 12
+      "passed": 16,
+      "total": 16
     },
     "blocked": null,
     "note": "使用者传入的回调（契约替身）；真实执行器的回调始终返回非 null。"
@@ -6761,7 +6829,7 @@
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
       "passed": 24,
-      "total": 24
+      "total": 38
     },
     "blocked": null
   },

@@ -1,0 +1,592 @@
+OpenAI Codex v0.165.0
+--------
+workdir: E:\workspaces\api-ws-demo
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: none
+reasoning summaries: none
+session id: 01a185bc-43f9-7e32-b7e5-bcb5f47908c9
+--------
+user
+current changes
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'git status --short; git diff --stat; git diff --cached --stat; Get-ChildItem -Force -Name AGENTS*' in E:\workspaces\api-ws-demo
+ succeeded in 5747ms:
+ M testkit/DECISIONS.md
+ M testkit/scenarios/share.json
+ testkit/DECISIONS.md         | 2 ++
+ testkit/scenarios/share.json | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "git diff; Get-ChildItem -Path . -Filter AGENTS* -Recurse -Force | Select-Object -ExpandProperty FullName; Get-ChildItem -Force -Name; Get-ChildItem E:\\ -Name AGENTS*; Get-ChildItem E:\\workspaces -Name AGENTS*" in E:\workspaces\api-ws-demo
+ succeeded in 4647ms:
+diff --git a/testkit/DECISIONS.md b/testkit/DECISIONS.md
+index 90001b6..4c82a5d 100644
+--- a/testkit/DECISIONS.md
++++ b/testkit/DECISIONS.md
+@@ -290,3 +290,5 @@
+ - **repeat 声明回归**：结构遍历按 walkStep 的展开规则匹配 r#i（含 id_suffix=false），保证重复请求也能由成功预期推导 raw-business-code；新增正反例，Node 校验回归共 5 条。
+ 
+ - **生成矩阵 key 开关复审**：单体成功请求与 pairwise 请求显式 options.key=是否装配 key，使 key-on 实际生成键、key-off 不使用内核自动键；源生成器同步。重新执行完整方法矩阵，不沿用旧 key 配置的结果。
++
++- D24 补充（2026-10-29，用户 B8 裁决）：share 中以请求级 `timeout_ms` 表达单一整体预算的两个场景补 `requires: timeout-total`；阶段超时之和不能冒充单一预算，不支持者按缺能力跳过。本次不增加参与者取消或超大 Retry-After 场景。
+diff --git a/testkit/scenarios/share.json b/testkit/scenarios/share.json
+index 0eefd1a..3a4c379 100644
+--- a/testkit/scenarios/share.json
++++ b/testkit/scenarios/share.json
+@@ -2711,7 +2711,8 @@
+     "title": "share 单独：所有订阅者都超时后掐断底层请求",
+     "why": "每个订阅者按自己的 timeout 退出；最后一个也超时后必须 abort 底层请求，服务端才能观察到断开，不能留着空跑到 delay 结束",
+     "requires": [
+-      "share"
++      "share",
++      "timeout-total"
+     ],
+     "networks": [
+       "normal"
+E:\workspaces\api-ws-demo\testkit\AGENTS.md
+.claude
+.codegraph
+.git
+.github
+assets
+src
+target
+testkit
+tests
+.dockerignore
+.gitignore
+Cargo.lock
+Cargo.toml
+CLAUDE.md
+Dockerfile
+README.md
+render.yaml
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content testkit/AGENTS.md; Get-Content testkit/scenarios/share.json | Select-Object -Skip 2550 -First 260; rg 'timeout-total|D24' testkit/DECISIONS.md; rg 'timeout_ms|timeout-total' testkit -g '*.md'" in E:\workspaces\api-ws-demo
+ succeeded in 2244ms:
+# testkit 手册（写给 AI）
+
+testkit 是跨语言的 HTTP 客户端黑盒验收工具，分三层：**场景**（`scenarios/*.json`，与语言无关）、**netem**（网络条件代理）、**`/t/*`**（业务场景接口）。
+所有改动都遵循**契约先行**：先改契约文档，再改实现和场景，最后记录决策。
+
+先判断你属于哪个分支，只读那一节。
+
+---
+
+## 资源地图
+
+| 要找什么 | 在哪 |
+|---|---|
+| 接口行为、控制参数、业务码、响应体 | `CONTRACT.md`（§2.1 响应风格，§4.2 鉴权，附录 A 响应体，附录 B 语义澄清） |
+| 覆盖哪些维度、每种网络下断言什么 | `MATRIX.md` |
+| 为什么这样设计、谁拍的板 | `DECISIONS.md`（D 编号，只追加不修改） |
+| 场景格式 | `scenario.schema.json` |
+| dioman 文档入口 | `E:\workspaces\dart-labs\dioman\docs\README.md`（测试分层见 `docs/guides/test-layers.md`，三档与总账方案见 `docs/design/test-matrix-plan.md`）；本地 `dart test`，真实服务 `dart test -t real --configuration=dart_test.real.yaml --fail-fast` |
+| 场景本身 | `scenarios/<领域>.json`；按 id 查找：`grep -rn '"id": "<id>"' scenarios/` |
+| 场景索引与覆盖统计 | `scenarios/README.md`，由 `tools/gen-index.mjs` 生成 |
+| axp API 反查与组合缺口 | `COVERAGE.md`；清单 `coverage/axp-api.json`，生成/检查：`node tools/gen-coverage.mjs [--check]` |
+| 校验 | `node tools/validate.mjs --check-index` |
+| `/t/*` 的服务端实现 | `../src/testkit/`，路由在 `../src/routes.rs` |
+| netem 的实现 | `../src/netem/`，入口在 `../src/bin/netem.rs` |
+| 服务端集成测试 | `../tests/testkit.rs`、`../tests/netem.rs` |
+| 已接入的客户端执行器 | axp：`E:\workspaces\codejoo\apps\axp\accept\`（执行 `npm run accept`） |
+| dioman Dart io 执行器 | `E:\workspaces\dart-labs\dioman\test\accept\`（2026-10-28 从 `accept/` 迁入；`dart run test/accept/bin/cli.dart`；映射见 `docs/reference/testkit-mapping.md`，本地新证据在 `coverage/accept/`，入库证据汇总在 `test/accept/evidence/`） |
+| dioman 验收证据与总账 | 入库汇总 `dioman/test/accept/evidence/<日期>-summary.json`；能力总账 `dioman/test/accept/lib/matrix.json`（每行挂 testkit 场景 id）；假设清单 `dioman/test/ASSUMPTIONS.md`；历史原始结果只在本地 `dioman/test/accept/results/`（不入库） |
+| dioman 的历史专属记录 | 2026-10-27 的 dioman 覆盖分析（原 `COVERAGE-dioman.md`、`coverage/dioman-api.json`）与五方法复核笔记（原本文件末尾两节）已迁回 dioman：`E:\workspaces\dart-labs\dioman\docs\archive\2026-10-27-testkit-*` |
+| 提议 | `proposals/`（待拍板的放这里；落地后改成"已落地"并写明去向）。当前无待拍板项；`proposals/2026-10-28-dioman-gaps.md` 已落地（决策 D20–D23），仅 connect 超时（netem 丢 SYN 不可行）和 HTTP 日期形式的 Retry-After 未落地，原因见该文件顶部 |
+
+---
+
+## 分支一：接入新客户端
+
+1. 读 `README.md` 里的"接入新的客户端"一节、`CONTRACT.md` §7 和附录 B，再读 `scenario.schema.json`。
+   **完成标准**：能说清楚执行器要实现的全部 step 类型、全部错误类别和全部客户端事件，每一个都有对应项。
+2. 列出该客户端具备的能力（CONTRACT §7 的能力名）。缺失的能力不用实现，执行器输出 `skipped: missing <cap>` 即可。
+3. 写**能力映射表**，放在该客户端的执行器目录里，有三张：
+   - 中立插件选项 → 本库参数；
+   - 本库错误 → 错误类别；
+   - 本库回调 → 客户端事件。
+   映射不了的选项要显式报错。
+   **完成标准**：schema 中 `pluginOptions` 的每个字段都标明了"已映射"或"显式报错"。
+4. 实现执行器。参考 axp 的执行器，它是第一个落地的实现。
+5. 先跑 `normal × http`，再逐步放开全部网络和风格。
+   **完成标准**：每个场景都有明确结论，只能是通过、失败、跳过三种之一，失败的附上原因。
+6. 在本文件的资源地图里加一行该客户端执行器的位置，在 `DECISIONS.md` 追加一条接入记录。
+
+## 分支二：扩展测试范围
+
+1. 判断这次变化落在哪一层：
+   - **新的服务端行为**（新接口、新控制参数、新故障）：改 `CONTRACT.md`，同时补附录 A 的响应体。
+   - **新的场景表达能力**（新 step、新断言字段、新错误类别、新能力名）：改 `scenario.schema.json` 和 CONTRACT §7；新能力名要同时加进 schema 的 `$defs/capability` 和 CONTRACT §7 的细分能力表，`tools/validate.mjs` 会检查场景用到 multipart、share retry、send_ms 时是否声明了对应能力。
+   - **只是新增场景**：直接进入第 3 步。
+2. 契约改动要同步实现：服务端在 `../src/testkit/` 或 netem，并补上 `../tests/` 下的测试；所有执行器都支持新的 step 或字段。
+   **完成标准**：`cargo test` 通过；契约里每一条新增内容都能在实现中找到对应代码。
+3. 写场景时，预期按**正确行为**写，不要迁就某个客户端的现状：
+   - 与风格无关的错误用 `status:<n>`；
+   - 不适用的网络写 `skip` 并说明原因；
+   - 每个场景都要写 `why`。
+4. 执行 `node tools/gen-index.mjs`，再执行 `node tools/validate.mjs --check-index`。
+   **完成标准**：两条命令的退出码都是 0。
+5. 改了覆盖维度就更新 `MATRIX.md`；做了取舍就在 `DECISIONS.md` 追加一条记录，写明背景、选项、结论、理由和拍板人。
+
+## 分支三：排查失败
+
+1. 先定位失败落在哪一层：
+
+   | 现象 | 先看哪里 |
+   |---|---|
+   | 场景校验不过、索引过期 | `tools/validate.mjs` 的报错信息，以及 schema |
+   | 服务端行为和契约不符，例如 code 错了、风格没生效、barrier 放行顺序不对 | `../src/testkit/` 对照 CONTRACT 相应章节；用 curl 带 `X-Test-Run` 请求，再查 `GET /t/runs/{run}` 的 log |
+   | 网络条件没生效 | netem 的 `GET /proxies/{id}/stats`（refused、resets、bytes 计数）对照 CONTRACT §6 |
+   | 客户端结果和预期不符 | 先确认场景预期是不是按正确行为写的；再看执行器的能力映射表；最后才看客户端库本身 |
+   | 只在 weak、lossy、flap 网络下偶发失败 | 检查场景有没有违反 MATRIX §2，即在这些网络下断言了耗时、计数或顺序；或者 seed 没有固定 |
+   | 只在 business 风格下失败 | 客户端是否只看 HTTP 状态码。business 风格下失败响应是 HTTP 200 加 code，必须在响应体层识别 |
+
+2. 用服务端 log 复现。每次运行都有唯一的 `X-Test-Run`，`GET /t/runs/{run}` 的 log 能看到每个请求的 style、status、code、reason，以及请求是否被中止（aborted）。
+   **完成标准**：能用一句话说清楚问题出在哪一层、具体是哪个文件。
+3. 根因在客户端库时，到对应仓库修复并补单测；根因在契约或场景时，按分支二的流程修改。
+
+---
+
+## 本地运行与端口
+
+默认端口特意选了偏门的，避开 8080/9090/3000/5173 这类常见开发端口：
+
+| 服务 | 默认地址 | 改端口的方式 |
+|---|---|---|
+| 测试服务器 `api-ws-demo` | `127.0.0.1:47080` | 环境变量 `PORT` |
+| netem 控制面 | `127.0.0.1:47090` | 参数 `--control <addr>` |
+
+启动（先服务器、后 netem，各开一个终端）：
+
+```bash
+TEST_MODE=1 cargo run --release
+cargo run --release --bin netem
+```
+
+执行器（以 axp 为例）默认连上面两个地址；改了端口就用环境变量对齐：`TESTKIT_SERVER`、`TESTKIT_NETEM`。
+创建 netem 代理时 `upstream` 要写成测试服务器的实际地址。
+
+**端口被占时**：启动会报 `AddrInUse`，换个端口即可，不要去杀占用进程，那多半是别的项目的开发服务。
+注意 `0.0.0.0:<端口>` 和 `127.0.0.1:<端口>` 可以各被一个进程占住，后者优先，客户端连到的可能是别人的服务。
+所以启动后先 `curl http://127.0.0.1:<端口>/t/ping`，确认返回 `{"code":0}` 再跑验收。
+
+## 踩过的坑
+
+- **环境变量 `CARGO_TARGET_DIR` 会让产物不落在仓库的 `target/`**。改完代码后 `target/release/*.exe` 可能是旧的，启动后端口还是老的。编译用 `cargo build --release --target-dir target`，并看启动日志里打印的端口确认。
+
+- **含 login 的步骤走旁路**，不经过 netem，也不经过客户端插件链（附录 B.2）。所以断网档下登录照样能成功，失败的只有被测请求。
+- **business 风格下判定失败依赖 normalize 类插件**。场景作者已经给相关场景自动加上了 normalize，客户端缺少这个能力时应该跳过，不能算失败。
+- **`scenarios/README.md` 不要手改**，要改就改 `tools/gen-index.mjs`。
+- **`/t/*` 在线上也挂载着**，但线上只适合做冒烟测试。冷启动、限流、共享计数器都会让精确断言失效（D6）。本地运行时要加 `TEST_MODE=1`。
+- **netem 不进 Docker 镜像**。Dockerfile 只构建 `--bin api-ws-demo`，新增可执行文件时要保持这一点（D4）。
+            "request": {
+              "id": "a",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 300
+              },
+              "options": {
+                "key": "s1",
+                "share": true
+              }
+            }
+          },
+          {
+            "request": {
+              "id": "b",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 300
+              },
+              "options": {
+                "key": "s1",
+                "share": true
+              }
+            }
+          },
+          {
+            "request": {
+              "id": "c",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 300
+              },
+              "options": {
+                "key": "s1",
+                "share": true
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "expect": {
+      "normal": {
+        "results": {
+          "a": {
+            "ok": true,
+            "hit": 1
+          },
+          "b": {
+            "ok": true,
+            "hit": 1
+          },
+          "c": {
+            "ok": true,
+            "hit": 1
+          }
+        },
+        "server": {
+          "by_path": {
+            "/t/echo": {
+              "eq": 1
+            }
+          },
+          "peak_inflight": {
+            "max": 1
+          }
+        },
+        "client": {
+          "pending_after": {
+            "eq": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "share.single-req-policy-race",
+    "title": "share 单独：请求级 policy=race 覆盖插件默认 start",
+    "why": "插件默认 start，请求级写 race 后最快的成功响应分发给所有人",
+    "requires": [
+      "share"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "client": {
+      "plugins": {
+        "share": {
+          "policy": "start"
+        }
+      }
+    },
+    "steps": [
+      {
+        "parallel": [
+          {
+            "request": {
+              "id": "slow",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 1500,
+                "v": 1
+              },
+              "options": {
+                "key": "same",
+                "share": "race"
+              }
+            }
+          },
+          {
+            "request": {
+              "id": "fast",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 100,
+                "v": 2
+              },
+              "options": {
+                "key": "same",
+                "share": "race"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "expect": {
+      "normal": {
+        "results": {
+          "slow": {
+            "ok": true,
+            "data": {
+              "request": {
+                "query": {
+                  "v": "2"
+                }
+              }
+            }
+          },
+          "fast": {
+            "ok": true,
+            "data": {
+              "request": {
+                "query": {
+                  "v": "2"
+                }
+              }
+            }
+          }
+        },
+        "client": {
+          "pending_after": {
+            "eq": 0
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "share.single-all-timeout-aborts-server",
+    "title": "share 单独：所有订阅者都超时后掐断底层请求",
+    "why": "每个订阅者按自己的 timeout 退出；最后一个也超时后必须 abort 底层请求，服务端才能观察到断开，不能留着空跑到 delay 结束",
+    "requires": [
+      "share",
+      "timeout-total"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "client": {
+      "plugins": {
+        "share": {
+          "policy": "start"
+        }
+      }
+    },
+    "steps": [
+      {
+        "parallel": [
+          {
+            "request": {
+              "id": "a",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 5000
+              },
+              "options": {
+                "key": "st",
+                "share": true,
+                "timeout_ms": 700
+              }
+            }
+          },
+          {
+            "request": {
+              "id": "b",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 5000
+              },
+              "options": {
+                "key": "st",
+                "share": true,
+                "timeout_ms": 300
+              }
+            }
+          },
+          {
+            "request": {
+              "id": "c",
+              "path": "/t/echo",
+              "query": {
+                "delay_ms": 5000
+              },
+              "options": {
+                "key": "st",
+                "share": true,
+                "timeout_ms": 500
+              }
+            }
+          }
+        ]
+      },
+      {
+        "wait": 500
+      }
+    ],
+    "expect": {
+      "normal": {
+        "results": {
+          "a": {
+            "ok": false,
+            "error": "timeout"
+          },
+          "b": {
+            "ok": false,
+            "error": "timeout"
+          },
+          "c": {
+            "ok": false,
+            "error": "timeout"
+          }
+        },
+        "server": {
+          "aborted": {
+            "min": 1
+          },
+          "by_path": {
+            "/t/echo": {
+              "eq": 1
+            }
+          }
+        },
+        "client": {
+          "pending_after": {
+            "eq": 0
+          }
+        }
+      }
+    }
+## D24 · 2026-10-29 · B7 能力声明与完整验收收口
+- **结论**：新增 `raw-business-code` 与 `timeout-total`（CONTRACT §7、schema 同步）。前者挂在全部未归一化业务码透传场景，后者挂在全部配置 total_ms 的场景。dioman 不声明两者；axp 需依据实际实现补能力声明。执行器不得补整体计时器。
+- D24 补充（2026-10-29，用户 B8 裁决）：share 中以请求级 `timeout_ms` 表达单一整体预算的两个场景补 `requires: timeout-total`；阶段超时之和不能冒充单一预算，不支持者按缺能力跳过。本次不增加参与者取消或超大 Retry-After 场景。
+testkit\DECISIONS.md:- **结论**：选 B。normal 恢复原有的精确预期；weak/lossy 只断言最终结果与资源释放；offline/dns 断言 `network` 且服务端 total=0，blackhole 断言 `timeout`（场景补 `base_timeout_ms=4000`、`timeout_ms=40000`）。仍写 skip 的只有：lossy（15% 随机 RST 与被测行为无关，`status-matrix`、`status-with-business`、`respects-retry-after-over-delay`），flap（离线窗口 1500ms 长于重试预算，或单发请求只会得到 network）。skip 原因都写在场景里，不再用"本轮用户要求"。`status-with-business` 的 `normal`/`weak` 现在断言 http 风格 `status:503`，`@business` 断言 `business:9`（附录 B.1）。
+testkit\DECISIONS.md:- **结论**：新增 `raw-business-code` 与 `timeout-total`（CONTRACT §7、schema 同步）。前者挂在全部未归一化业务码透传场景，后者挂在全部配置 total_ms 的场景。dioman 不声明两者；axp 需依据实际实现补能力声明。执行器不得补整体计时器。
+testkit\DECISIONS.md:- **超时与取消**：`basic.status-matrix` 增加 base_timeout_ms=4000（场景预算仍 40000ms），保证 blackhole 有限结束；所有 cancel_after_ms/cancel_all 场景 requires 补 cancel，校验器持续检查。
+testkit\DECISIONS.md:- D24 补充（2026-10-29，用户 B8 裁决）：share 中以请求级 `timeout_ms` 表达单一整体预算的两个场景补 `requires: timeout-total`；阶段超时之和不能冒充单一预算，不支持者按缺能力跳过。本次不增加参与者取消或超大 Retry-After 场景。
+testkit\scenarios\README.md:- **blackhole** 场景带 `client.base_timeout_ms=4000`；weak/blackhole/flap/lossy 场景 `timeout_ms=40000`。
+testkit\CONTRACT.md:  `multipart`、`keep-alive`、`share-retry`、`timeout-send`、`mock-in-chain`、`raw-business-code`、`timeout-total`。
+testkit\CONTRACT.md:  | `timeout-total` | 支持 `timeout.total_ms` 整体预算：覆盖完整逻辑请求的耗时（含响应体），超过预算以 timeout 失败；请求级 `timeout_ms` 可覆盖该预算。不能由执行器额外计时器模拟 |
+testkit\MATRIX.md:细分能力影响可执行格：未归一化业务码透传需 `raw-business-code`，整体预算需 `timeout-total`（D24）。16 个单体的 HTTP 检查拆为独立 `-http` 场景，business 原 id 保留透传能力要求；因此缺少透传能力的客户端仍执行全部 HTTP 单体。使用取消参数的场景必须声明 `cancel`。
+testkit\COVERAGE.md:| `core.req.defaults` | 实例 axios.defaults 在逻辑请求入口合并一次，各阶段与 key 看到同一份有效配置，请求值优先。；`src/client.ts:104` | 仅 client.base_timeout_ms（axios.defaults.timeout）；其余 defaults 不可表达；按 client 顶层字段 base_timeout_ms 匹配 | [`auth.anon-and-private-mix`](scenarios/auth.json)、[`auth.expired-refresh-replay`](scenarios/auth.json)、[`auth.concurrent-401-single-refresh-8`](scenarios/auth.json)、[`auth.revoke-kicked`](scenarios/auth.json)、[`auth.deny-403`](scenarios/auth.json)、[`auth.post-replay-body-intact`](scenarios/auth.json)、[`auth.token-garbage-refresh-ok`](scenarios/auth.json)、[`auth.token-bad-signature-refresh-ok`](scenarios/auth.json)、[`auth.strict-rotation-refresh-replay`](scenarios/auth.json)、[`auth.network-failure-keeps-session`](scenarios/auth.json)、[`basic.get-ok`](scenarios/basic.json)、[`basic.post-json-body`](scenarios/basic.json)、[`basic.query-echo`](scenarios/basic.json)、[`basic.http-404`](scenarios/basic.json)、[`basic.status-matrix`](scenarios/basic.json)、[`cache.hit-no-server`](scenarios/cache.json)、[`cancel.single`](scenarios/cancel.json)、[`cancel.blackhole-cancel-before-timeout`](scenarios/cancel.json)、[`conc.barrier-asc`](scenarios/concurrency.json)、[`faults.status-with-business`](scenarios/faults.json)、[`loading.single-pair`](scenarios/loading.json)、[`loading.concurrent-single-pair`](scenarios/loading.json)、[`loading.delay-fast-never-shows`](scenarios/loading.json)、[`mock.routes-to-mock-server`](scenarios/mock.json)、[`network.blackhole-timeout`](scenarios/network.json)、[`network.blackhole-parallel-timeouts`](scenarios/network.json)、[`network.blackhole-cancel-all`](scenarios/network.json)、[`notify.http-error-once`](scenarios/notify-normalize.json)、[`retry.429-retried`](scenarios/retry.json)、[`retry.503-retry-after`](scenarios/retry.json)、[`retry.blackhole-timeout`](scenarios/retry.json)、[`retry.respects-retry-after-over-delay`](scenarios/retry.json)、[`share.start-single-flight`](scenarios/share.json)、[`share.network-failure-all-fail`](scenarios/share.json)；不可执行候选：[`network.flap-no-retry`](scenarios/network.json)、[`offline.probe-fails-fast`](scenarios/offline.json)、[`offline.cancel-while-probing`](scenarios/offline.json)、[`timeout.connect-blackhole`](scenarios/timeout.json)、[`timeout.send-slow-reader`](scenarios/timeout.json) | — |
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "node tools/validate.mjs --check-index; Get-Content tools/gen-index.mjs | Select-Object -First 130; node -e \"const a=require('./scenarios/share.json');for(const s of a){if(JSON.stringify(s.steps).includes('timeout_ms'))console.log(s.id,s.requires)}\"" in E:\workspaces\api-ws-demo\testkit
+ succeeded in 2961ms:
+索引检查通过
+校验通过：19 个文件，459 个场景，id 全局唯一
+#!/usr/bin/env node
+// 由 scenarios/*.json 生成 scenarios/README.md（零依赖）。
+// 用法：node tools/gen-index.mjs [scenarios 目录]
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_DIR = path.join(here, '..', 'scenarios');
+const NETS = ['normal', 'weak', 'lossy', 'offline', 'blackhole', 'flap', 'dns'];
+const STYLES = ['http', 'business'];
+const LABELS = {
+  basic: '基础', auth: '鉴权', retry: '重试', cache: '缓存', share: '请求合并', concurrency: '并发',
+  cancel: '取消', loading: '加载状态', 'notify-normalize': '通知与信封', faults: '故障响应',
+  network: '网络条件', timeout: '超时（dioman）', breaker: '熔断（dioman）', offline: '离线（dioman）',
+  'repath-key-filter': '路径/键/过滤', combos: '组合交互', mock: '模拟',
+};
+const ORDER = Object.keys(LABELS);
+
+/** 约定说明（固定文案） */
+const CONVENTIONS = `## 约定（执行器必读）
+
+- **每个场景 × 每个声明的网络 × 每种风格**各跑一遍（风格默认 http、business 都跑，见 CONTRACT §2.1；\`styles\` 可收窄）。
+  预期里的错误优先用 \`status:<n>\`（与风格无关）。需要区分风格时才用 \`<网络>@business\` 键。
+- **business 风格要求客户端把"HTTP 200 + code=n"也识别成逻辑状态 n**：涉及 status/fail_times/fail_every/barrier fail 的场景已自动配上 \`normalize\` 插件并在 \`requires\` 里声明。
+  retry / breaker / notify 等对失败的判定，要求按**逻辑状态**（两种风格一致）生效，这是本目录有意为之的要求。
+- **expect 没用 '*'**：每个网络都显式写出，避免 results/server/client 浅合并时 weak 与 offline 的 server 断言互相污染。weak/lossy/flap 不含 \`order\`/\`duration_ms\`。
+- **weak/lossy/flap 只断言最终结果与资源释放**；offline/dns/blackhole 下无鉴权的场景 \`server.total eq 0\`。
+- **login/logout/revoke/server_reset 走旁路**（CONTRACT 附录 B.2）：不经过 netem 和插件链，所以含 login 的场景也可以跑 offline/dns/blackhole，被测请求应得到 network/timeout，**不能误判 expired，也不能清掉 token**；这类场景用 \`by_path\`（旁路登录会计入服务端 total）。
+- **revoke 默认 scope=all**（access+refresh 都吊销，应判 expired）；要测"刷新后恢复"必须显式写 \`scope:"access"\`。
+- **\`style\` 步骤**在运行中切换响应风格，用到它的场景 \`styles\` 只写 \`http\`。
+- **\`/t/mock/*\`**：mock 插件的基址固定为 \`<baseURL>/t/mock\`，场景用 \`data.mock=true\` 与真实路径 by_path 为 0 判断路由。
+- **status 与 code 同时给出**（附录 B.1）：http 风格归 \`status:<n>\`，business 风格归 \`business:<code>\`，场景用 \`@business\` 键区分（\`faults.status-with-business\`、\`normalize.http-error-wins\`）。
+- **blackhole** 场景带 \`client.base_timeout_ms=4000\`；weak/blackhole/flap/lossy 场景 \`timeout_ms=40000\`。
+- **server 计数**：\`by_path\` 的 key 是请求路径，缺失按 0 计；登录、刷新也计入 \`by_path\`（所以 auth 场景用 by_path 而不用 total）。
+- **\`from_cache: true\`** = 服务端日志里没有该请求。
+- **repeat 的内部 id** 为 \`<id>#<i>\`，i 从 0 开始。
+- **\`data\` 子集匹配**：客户端最终拿到的是信封里的 \`data\`（CONTRACT 附录 A.1，\`data.request.body.json\` 为解析后的请求体）。
+- **并发 32/64 的场景假设执行器没有每主机连接数限制**（浏览器环境下要放宽或跳过）。
+- 中立插件选项扩展：\`auth.refresh_query\`、\`key.scope='user'\`、\`retry.methods\`、\`cache.methods\`/\`cache.max\`（见 schema pluginOptions）。映射不了必须显式报错。
+- **细分能力与新字段**（CONTRACT §7）：\`multipart\`（\`body.multipart\`，文件内容按 seed 的 LCG 算法生成）、\`keep-alive\`、\`share-retry\`、\`timeout-send\`（\`timeout.send_ms\`）、\`mock-in-chain\`；缺这些能力的执行器按"缺能力"跳过。结果项 \`same_as\` 要求两个成功请求 data 的同一字段相等（如 \`meta.conn\`）。`;
+
+/**
+ * 读取目录下全部场景并生成 README 文本。
+ * @param {string} dir scenarios 目录
+ * @returns {string} README 内容
+ */
+export function buildIndex(dir = DEFAULT_DIR) {
+  const names = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
+  names.sort((a, b) => {
+    const ia = ORDER.indexOf(a); const ib = ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+  const files = names.map((n) => ({ name: n, label: LABELS[n] || n, list: JSON.parse(fs.readFileSync(path.join(dir, n + '.json'), 'utf8')) }));
+  const total = files.reduce((a, f) => a + f.list.length, 0);
+  const stylesOf = (s) => s.styles || STYLES;
+
+  const matrix = files.map((f) => {
+    const cells = NETS.map((n) => f.list.filter((s) => s.networks.includes(n)).length);
+    return `| ${f.label}（${f.name}.json） | ${f.list.length} | ${cells.join(' | ')} |`;
+  });
+  const sumNet = NETS.map((n) => files.reduce((a, f) => a + f.list.filter((s) => s.networks.includes(n)).length, 0));
+
+  const styleRows = files.map((f) => {
+    const both = f.list.filter((s) => stylesOf(s).length === 2).length;
+    const only = (st) => f.list.filter((s) => stylesOf(s).length === 1 && stylesOf(s)[0] === st).length;
+    const biz = f.list.filter((s) => Object.keys(s.expect).some((k) => k.endsWith('@business'))).length;
+    return `| ${f.label} | ${both} | ${only('http')} | ${only('business')} | ${biz} |`;
+  });
+  const allS = files.flatMap((f) => f.list);
+  const sumBoth = allS.filter((s) => stylesOf(s).length === 2).length;
+  const sumHttp = allS.filter((s) => stylesOf(s).length === 1 && stylesOf(s)[0] === 'http').length;
+  const sumBiz = allS.filter((s) => stylesOf(s).length === 1 && stylesOf(s)[0] === 'business').length;
+  const sumOverride = allS.filter((s) => Object.keys(s.expect).some((k) => k.endsWith('@business'))).length;
+  const runs = allS.reduce((a, s) => a + s.networks.length * stylesOf(s).length, 0);
+
+  const index = files.map((f) => `### ${f.label}（${f.name}.json，${f.list.length} 个）\n\n`
+    + f.list.map((s) => `- \`${s.id}\` [${s.networks.join(',')}${s.styles ? ' | ' + s.styles.join(',') : ''}] ${s.title}`).join('\n'));
+
+  return `<!-- 由 tools/gen-index.mjs 生成，勿手改。改完 scenarios/*.json 后运行：node tools/gen-index.mjs -->
+# 场景目录
+
+> 本文件由 \`tools/gen-index.mjs\` 生成，**勿手改**。\`node tools/validate.mjs --check-index\` 会检查它是否过期。
+
+与语言无关的客户端验收场景，格式见 \`../scenario.schema.json\`，契约见 \`../CONTRACT.md\`。axp（TS/axios）与 dioman（Dart/dio）共用同一份。
+校验：\`node tools/validate.mjs\`（合法 JSON、schema 关键规则、id 唯一、expect 覆盖 networks 与 styles、results 引用的 id 存在）。
+
+共 **${total}** 个场景，${files.length} 个文件，每个文件顶层是场景数组；按（网络 × 风格）展开共 **${runs}** 次运行。
+
+${CONVENTIONS}
+
+## 覆盖矩阵（场景数：领域 × 网络预设）
+
+| 领域 | 合计 | ${NETS.join(' | ')} |
+|---|---|${NETS.map(() => '---').join('|')}|
+${matrix.join('\n')}
+| **合计** | ${total} | ${sumNet.join(' | ')} |
+
+（一个场景可声明多个网络，所以每行网络列之和大于合计。）
+
+## 风格统计（CONTRACT §2.1）
+
+| 领域 | 两种风格都跑 | 仅 http | 仅 business | 含 \`@business\` 专属预期 |
+|---|---|---|---|---|
+${styleRows.join('\n')}
+| **合计** | ${sumBoth} | ${sumHttp} | ${sumBiz} | ${sumOverride} |
+
+## 场景索引
+
+方括号内依次是网络预设，竖线后是收窄的风格（缺省表示两种都跑）。
+
+${index.join('\n\n')}
+`;
+}
+
+// 直接运行时写文件
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const dir = path.resolve(process.argv[2] || DEFAULT_DIR);
+  const out = buildIndex(dir);
+  fs.writeFileSync(path.join(dir, 'README.md'), out);
+  console.log(`已生成 ${path.join(dir, 'README.md')}`);
+}
+share.single-all-timeout-aborts-server [ 'share', 'timeout-total' ]
+
+codex
+The added timeout-total requirement matches the scenario’s request-level timeout budgets and the documented capability contract. Validation and index checks pass for all 459 scenarios.
+The added timeout-total requirement matches the scenario’s request-level timeout budgets and the documented capability contract. Validation and index checks pass for all 459 scenarios.
