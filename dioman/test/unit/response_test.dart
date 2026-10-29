@@ -1,6 +1,6 @@
-import '../support/pipeline/constants.dart';
+import '../support/constants.dart';
 import 'dart:io';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 
@@ -86,7 +86,9 @@ void main() {
     expect(r.errorStack, same(stack));
   });
 
-  test('[DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态', () {
+  test(
+      '[Envelope.message]'
+      '[DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态', () {
     expect(normalize({pipelineTestCode: 0, pipelineTestData: 7}).data, 7);
     expect(normalize({pipelineTestCode: 0, pipelineTestData: 7}).kind,
         DiomanKind.ok);
@@ -151,7 +153,9 @@ void main() {
     expect(normalize({pipelineTestD: 1}, factory: custom).kind, DiomanKind.ok);
   });
 
-  test('[DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse',
+  test(
+      '[DiomanKind.http][DiomanKind.parse]'
+      '[DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse',
       () {
     const factory = DiomanResponseFactory(expectJson: true);
     expect(normalize(pipelineTestBroken, factory: factory, json: true).kind,
@@ -166,7 +170,9 @@ void main() {
         DiomanKind.http);
   });
 
-  test('[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常', () {
+  test(
+      '[DiomanFailure.errorStack][DiomanResponseFactory.isEnvelope][DiomanResponseFactory.isSuccess][DiomanResponseFactory.logicalStatus]'
+      '[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常', () {
     final bug = StateError(pipelineTestFirst);
     final second = StateError('second');
     final stack = StackTrace.fromString('first-stack');
@@ -204,7 +210,9 @@ void main() {
     expect(normalize(1, factory: expanded), isA<ExtraResult>());
   });
 
-  test('[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生', () {
+  test(
+      '[DiomanResponse.callSite][DiomanResponse.code][DiomanResponse.copy][DiomanResponse.data][DiomanResponse.error][DiomanResponse.httpStatus][DiomanResponse.kind][DiomanResponse.ok][DiomanResponse.reason][DiomanResponse.request][DiomanResponse.status]'
+      '[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生', () {
     final cycle = <Object?>[];
     cycle.add(cycle);
     final r = DiomanResponse(

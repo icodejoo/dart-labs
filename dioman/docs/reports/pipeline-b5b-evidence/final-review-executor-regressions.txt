@@ -1,0 +1,10 @@
+00:00 +0: loading test/unit/accept_runner_test.dart
+00:00 +0: [ScenarioClient] 安装 cache 后省略请求覆盖仍缓存，false 明确关闭
+00:00 +1: [ScenarioClient] 安装 share 后省略请求覆盖仍合并，false 明确关闭
+00:00 +2: [ScenarioClient] 服务停止只读归一化逻辑状态，在重试前阻止非注入 429/503
+00:00 +3: [ScenarioClient] 注入 HTTP/business 503 正常交给库重试
+00:00 +4: [ScenarioClient] total_ms 没有库实现，显式拒绝配置，不能静默失效
+00:00 +5: [client.classify] 归类只读取 kind reason status，原始数据不参与判断
+00:00 +6: [common.missingCapabilities] mock 在链内，raw-business-code 未声明
+00:00 +7: [ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务
+00:00 +8: All tests passed!

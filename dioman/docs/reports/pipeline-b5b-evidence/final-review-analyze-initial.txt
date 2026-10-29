@@ -1,0 +1,27 @@
+Analyzing dioman...
+
+  error - test\accept\lib\probes_fields.dart:14:45 - The getter 'cancellationSubscriptions' isn't defined for the type 'Dioman<DiomanResponse<dynamic>>'. Try importing the library that defines 'cancellationSubscriptions', correcting the name to the name of an existing getter, or defining a getter or field named 'cancellationSubscriptions'. - undefined_getter
+  error - test\accept\lib\probes_fields.dart:25:39 - The name 'DiomanContextState' isn't defined, so it can't be used in an 'is' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanContextState'. - type_test_with_undefined_name
+  error - test\accept\lib\probes_fields.dart:26:47 - The name 'DiomanContextState' isn't a type, so it can't be used in an 'as' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanContextState'. - cast_to_non_type
+  error - test\accept\lib\probes_fields.dart:42:32 - The getter 'state' isn't defined for the type 'DiomanContext<DiomanResponse<dynamic>>'. Try importing the library that defines 'state', correcting the name to the name of an existing getter, or defining a getter or field named 'state'. - undefined_getter
+  error - test\accept\lib\probes_fields.dart:49:52 - The getter 'cancellationSubscriptions' isn't defined for the type 'DiomanContext<DiomanResponse<dynamic>>'. Try importing the library that defines 'cancellationSubscriptions', correcting the name to the name of an existing getter, or defining a getter or field named 'cancellationSubscriptions'. - undefined_getter
+  error - test\accept\lib\probes_fields.dart:94:39 - The name 'DiomanRegistration' isn't defined, so it can't be used in an 'is' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanRegistration'. - type_test_with_undefined_name
+  error - test\accept\lib\probes_fields.dart:95:47 - The name 'DiomanRegistration' isn't a type, so it can't be used in an 'as' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanRegistration'. - cast_to_non_type
+  error - test\accept\lib\probes_fields.dart:515:35 - The name 'DiomanShareApi' isn't defined, so it can't be used in an 'is' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanShareApi'. - type_test_with_undefined_name
+  error - test\accept\lib\probes_fields.dart:516:43 - The name 'DiomanShareApi' isn't a type, so it can't be used in an 'as' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanShareApi'. - cast_to_non_type
+  error - test\accept\lib\probes_fields.dart:563:41 - The getter 'pendingWrites' isn't defined for the type 'DiomanCacheApi'. Try importing the library that defines 'pendingWrites', correcting the name to the name of an existing getter, or defining a getter or field named 'pendingWrites'. - undefined_getter
+  error - test\accept\lib\probes_fields.dart:564:38 - The getter 'entryCount' isn't defined for the type 'DiomanCacheApi'. Try importing the library that defines 'entryCount', correcting the name to the name of an existing getter, or defining a getter or field named 'entryCount'. - undefined_getter
+  error - test\support\helpers.dart:121:5 - Undefined name 'DiomanContextInternal'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+warning - test\boundary\b4_final_review_boundary_test.dart:3:8 - Unused import: 'package:dioman/src/context_state.dart'. Try removing the import directive. - unused_import
+warning - test\boundary\b4_final_review_boundary_test.dart:4:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\boundary\cache_persist_boundary_test.dart:2:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\boundary\client_boundary_test.dart:1:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\boundary\mock_cancel_boundary_test.dart:1:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\integration\source_transport_integration_test.dart:2:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\rule\transport_rule_test.dart:2:8 - Unused import: 'package:dioman/src/context_state.dart'. Try removing the import directive. - unused_import
+warning - test\support\b4_migration_scenarios.dart:3:8 - Unused import: 'package:dioman/src/context.dart'. Try removing the import directive. - unused_import
+warning - test\unit\context_test.dart:1:8 - Unused import: 'package:dioman/src/context_state.dart'. Try removing the import directive. - unused_import
+warning - test\unit\context_test.dart:3:8 - Unused import: 'package:dioman/src/client.dart'. Try removing the import directive. - unused_import
+   info - test\support\b5_powerset.dart:4:8 - The import of 'package:dioman/src/client.dart' is unnecessary because all of the used elements are also provided by the import of 'package:dioman/dioman.dart'. Try removing the import directive. - unnecessary_import
+
+23 issues found.

@@ -1,11 +1,13 @@
-import '../support/pipeline/constants.dart';
-import 'package:dioman/pipeline.dart';
+import '../support/constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 
 /// 请求补丁及统一请求选项解析的规则测试。
 void main() {
-  test('[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留', () {
+  test(
+      '[DiomanRequest.baseUrl][DiomanRequest.cancelToken][DiomanRequest.connectTimeout][DiomanRequest.data][DiomanRequest.extra][DiomanRequest.headers][DiomanRequest.method][DiomanRequest.new(options)][DiomanRequest.patch][DiomanRequest.path][DiomanRequest.query][DiomanRequest.receiveTimeout][DiomanRequest.sendTimeout][DiomanRequest.silent][DiomanRequest.toRequestOptions][DiomanRequest.uri][RequestPatch.connectTimeout][RequestPatch.data][RequestPatch.extra][RequestPatch.method][RequestPatch.query][RequestPatch.receiveTimeout][RequestPatch.removeHeaders][RequestPatch.removeQuery]'
+      '[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留', () {
     final token = CancelToken();
     final original = RequestOptions(
         path: '/old',
@@ -56,7 +58,8 @@ void main() {
     expect(r.call.options[optionKey], 3);
     expect(() => r.headers[pipelineTestXValue] = 1, throwsUnsupportedError);
     expect(() => r.query[pipelineTestXValue] = 1, throwsUnsupportedError);
-    expect(() => r.extra[pipelineTestXValue] = 1, throwsUnsupportedError);
+    final extras = r.extra;
+    expect(() => extras[pipelineTestXValue] = 1, throwsUnsupportedError);
     expect(() => r.call.options[optionKey] = 1, throwsUnsupportedError);
     final unchanged = r.patch(const RequestPatch());
     expect(unchanged.data, same(r.data));
@@ -83,7 +86,8 @@ void main() {
         everyElement(Duration.zero));
   });
 
-  test('[resolveOption] 四种写法、简写、optIn 和未知类型', () {
+  test('[DiomanOptionKey.description]' '[resolveOption] 四种写法、简写、optIn 和未知类型',
+      () {
     final base = <int>[1];
     List<int> merge(List<int> a, List<int> b) => [...a, ...b];
     for (final value in [null, true]) {

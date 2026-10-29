@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/pipeline-b5a-evidence'
+DEST = ROOT / 'docs/reports/pipeline-b5b-evidence'
 TEST = 'test/combo/powerset_combo_test.dart'
 CASES = [
     ('leave-listener', 'context', 'state.listeners.remove(cancel);', ''),
@@ -28,7 +28,7 @@ def run():
     """逐项原字节恢复，不把编译、加载错误或超时当成击中。"""
     results = []
     for name, module, old, new in CASES:
-        path = ROOT / f'lib/src/pipeline/{module}.dart'
+        path = ROOT / f'lib/src/{module}.dart'
         original = path.read_bytes()
         digest = hashlib.sha256(original).hexdigest()
         source = original.decode('utf-8').replace('\r\n', '\n')

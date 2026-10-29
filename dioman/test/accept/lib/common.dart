@@ -79,7 +79,7 @@ bool isInjectedResponse(List<int> body) =>
 /// business 风格下注入的 429/503 以 HTTP 200 加业务码返回，到不了传输层的字节
 /// 检查；拦截器和转换器拿到的是解析后的 [data]，用它判定。
 bool isInjectedData(dynamic data) {
-  final reason = obj(obj(data)[tkData])['reason'];
+  final reason = obj(data)[tkReason] ?? obj(obj(data)[tkData])[tkReason];
   return reason is String && reason.startsWith('injected');
 }
 
@@ -188,16 +188,24 @@ const capabilities = {
 
 /// 细分能力：声明某个具体行为，不对应独立插件，不参与插件矩阵与幂集。
 ///
-/// dioman 的 mock 在传输层（DiomanMockAdapter），没有 `mock-in-chain`，不声明。
+/// mock 已在 source 管线中；业务信封始终归一化，不声明 raw-business-code。
 const subCapabilities = {
   tkMultipart,
   'keep-alive',
   'share-retry',
   'timeout-send',
+  'mock-in-chain',
 };
 
 /// 执行器声明的全部能力；场景 requires 里不在其中的按"缺能力"跳过。
 const supportedCapabilities = {...capabilities, ...subCapabilities};
+
+/// 缺能力只按场景声明识别；raw-business-code 等未声明能力一律不执行。
+List<String> missingCapabilities(Map<String, dynamic> scenario) =>
+    (scenario[tkRequires] as List? ?? const [])
+        .cast<String>()
+        .where((capability) => !supportedCapabilities.contains(capability))
+        .toList();
 
 /// 中立插件允许字段，未知字段必须报错。
 const pluginFields = <String, Set<String>>{
@@ -207,7 +215,7 @@ const pluginFields = <String, Set<String>>{
   tkShare: {tkPolicy},
   tkLoading: {tkDelayMs, tkDelayCloseMs},
   tkKey: {tkScope},
-  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs, tkTotalMs},
+  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs},
   tkBreaker: {tkThreshold, tkOpenMs},
   tkOffline: {tkProbe},
   tkMock: {tkFallbackOn404},
@@ -366,42 +374,7 @@ Dio ioClient(String base, {int budget = defaultBudget}) {
       ServiceGuardAdapter(IOHttpClientAdapter(createHttpClient: () {
     return HttpClient()..findProxy = (_) => 'DIRECT';
   }));
-  d.interceptors.add(InterceptorsWrapper(onResponse: (response, handler) {
-    try {
-      checkServiceStatus(logical(response), data: response.data);
-      handler.next(response);
-    } catch (error) {
-      handler.reject(DioException(
-          requestOptions: response.requestOptions,
-          response: response,
-          type: DioExceptionType.cancel,
-          error: error));
-    }
-  }, onError: (error, handler) {
-    try {
-      checkServiceStatus(logical(error.response), data: error.response?.data);
-      handler.next(error);
-    } catch (cause) {
-      handler.next(DioException(
-          requestOptions: error.requestOptions,
-          response: error.response,
-          type: DioExceptionType.cancel,
-          error: cause));
-    }
-  }));
   return d;
-}
-
-/// logical 的测试辅助入口。
-/// 确定逻辑状态，HTTP 失败优先。
-int logical(Response<dynamic>? r) {
-  final status = r?.statusCode ?? 0;
-  final code = obj(r?.data)[tkCode];
-  return status >= 400
-      ? status
-      : code is int && code != 0
-          ? code
-          : status;
 }
 
 /// subset 的测试辅助入口。

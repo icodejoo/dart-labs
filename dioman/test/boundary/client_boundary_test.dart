@@ -1,9 +1,10 @@
-import '../support/pipeline/constants.dart';
+import 'package:dioman/src/diagnostics.dart';
+import '../support/constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/helpers.dart';
 
 /// 客户端生命周期与取消边界。
 void main() {
@@ -101,7 +102,10 @@ void main() {
     expect(await api.get<String>(pipelineTestRootPath), pipelineTestOk);
   });
 
-  test('[Dioman.inspect] 内置按名定位和在途保留链快照', () async {
+  test(
+      '[DiomanEnforce.pre][DiomanStage.outer]'
+      '[Dioman.eject]'
+      '[Dioman.inspect] 内置按名定位和在途保留链快照', () async {
     final gate = Completer<void>();
     var calls = 0;
     final api = testClient(plugins: [
@@ -132,7 +136,8 @@ void main() {
   test('[Dioman.extend] 重新 setup，配置深拷贝和实例状态隔离', () async {
     final p = TestPlugin('state');
     final api = testClient(plugins: [p]);
-    api.dio.options.extra[pipelineTestNested] = {
+    final parentExtras = api.dio.options.extra;
+    parentExtras[pipelineTestNested] = {
       pipelineTestList: [1]
     };
     final child = api.extend();
@@ -141,11 +146,9 @@ void main() {
     await api.get<Object?>(pipelineTestRootPath);
     expect(api.plugin<TestInstance>()!.count, 1);
     expect(child.plugin<TestInstance>()!.count, 0);
-    ((child.dio.options.extra[pipelineTestNested] as Map)[pipelineTestList]
-            as List)
-        .add(2);
-    expect((api.dio.options.extra[pipelineTestNested] as Map)[pipelineTestList],
-        [1]);
+    final childExtras = child.dio.options.extra;
+    ((childExtras[pipelineTestNested] as Map)[pipelineTestList] as List).add(2);
+    expect((parentExtras[pipelineTestNested] as Map)[pipelineTestList], [1]);
     final overridden = api.extend(
         options: BaseOptions(baseUrl: pipelineTestHttpsOtherTest), plugins: []);
     expect(overridden.dio.options.baseUrl, pipelineTestHttpsOtherTest);
@@ -155,7 +158,10 @@ void main() {
     overridden.dispose();
   });
 
-  test('[Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求', () async {
+  test(
+      '[DiomanPluginInstance.dispose]'
+      '[DiomanPluginInstance.handle]'
+      '[Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求', () async {
     final order = <String>[];
     final first = StateError(pipelineTestFirst);
     final api = testClient(plugins: [

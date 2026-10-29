@@ -1,9 +1,10 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 探测取消必须在回落判定前收尾。
 void main() {

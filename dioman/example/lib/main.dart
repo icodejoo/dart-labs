@@ -6,21 +6,121 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'package:flutter/material.dart';
+import 'token_manager.dart';
+
+/// 文件内共用的字面量。
+const _literalHttpsPlaceholder = "https://placeholder";
+
+/// 文件内共用的字面量。
+const _literalHttpsApiDevExample = "https://api.dev.example";
+
+/// 文件内共用的字面量。
+const _literalXEnv = "X-Env";
+
+/// 文件内共用的字面量。
+const _literalHttpsApiProdExample = "https://api.prod.example";
+
+/// 文件内共用的字面量。
+const _literalHttpsApiDemoDev = "https://api.demo.dev";
+
+/// 文件内共用的字面量。
+const _literalGET = "GET";
+
+/// 文件内共用的字面量。
+const _literalId = "id";
+
+/// 文件内共用的字面量。
+const _literalQ = "q";
+
+/// 文件内共用的字面量。
+const _literal = "";
+
+/// 文件内共用的字面量。
+const _literalPage = "page";
+
+/// 文件内共用的字面量。
+const _literalDioman = "dioman";
+
+/// 文件内共用的字面量。
+const _literalItems = "/items";
+
+/// 文件内共用的字面量。
+const _literalSort = "sort";
+
+/// 文件内共用的字面量。
+const _literalAsc = "asc";
+
+/// 文件内共用的字面量。
+const _literalGETUsers1 = "GET:/users/1";
+
+/// 文件内共用的字面量。
+const _literalUsers1 = "/users/1";
+
+/// 文件内共用的字面量。
+const _literalUsers7 = "/users/7";
+
+/// 文件内共用的字面量。
+const _literalName = "name";
+
+/// 文件内共用的字面量。
+const _literalPets = "/pets";
+
+/// 文件内共用的字面量。
+const _literalEnvs = "envs";
+
+/// 文件内共用的字面量。
+const _literalRepath = "repath";
+
+/// 文件内共用的字面量。
+const _literalMock = "mock";
+
+/// 文件内共用的字面量。
+const _literalFilter = "filter";
+
+/// 文件内共用的字面量。
+const _literalKey = "key";
+
+/// 文件内共用的字面量。
+const _literalCache = "cache";
+
+/// 文件内共用的字面量。
+const _literalNormalize = "normalize";
+
+/// 文件内共用的字面量。
+const _literalShare = "share";
+
+/// 文件内共用的字面量。
+const _literalCancel = "cancel";
+
+/// 文件内共用的字面量。
+const _literalLoading = "loading";
+
+/// 文件内共用的字面量。
+const _literalAuth = "auth";
+
+/// 文件内共用的字面量。
+const _literalRetry = "retry";
+
+/// 文件内共用的字面量。
+const _literalLog = "log";
+
+/// 文件内共用的字面量。
+const _literalCourierNew = "Courier New";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
-const _bg     = Color(0xFF0D1117);
-const _card   = Color(0xFF161B22);
+const _bg = Color(0xFF0D1117);
+const _card = Color(0xFF161B22);
 const _border = Color(0xFF30363D);
-const _blue   = Color(0xFF58A6FF);
-const _green  = Color(0xFF3FB950);
-const _red    = Color(0xFFF85149);
+const _blue = Color(0xFF58A6FF);
+const _green = Color(0xFF3FB950);
+const _red = Color(0xFFF85149);
 const _yellow = Color(0xFFD29922);
 const _purple = Color(0xFFD2A8FF);
 const _orange = Color(0xFFFF7B72);
-const _cyan   = Color(0xFF79C0FF);
-const _teal   = Color(0xFF56D364);
-const _text   = Color(0xFFE6EDF3);
+const _cyan = Color(0xFF79C0FF);
+const _teal = Color(0xFF56D364);
+const _text = Color(0xFFE6EDF3);
 const _subtle = Color(0xFF8B949E);
 
 // ── Log model ─────────────────────────────────────────────────────────────────
@@ -43,7 +143,8 @@ class _MemCachePersist implements DiomanCachePersist {
   @override
   dynamic read(String key) => _store[key];
   @override
-  Future<void> write(String key, Map<String, dynamic> value) async => _store[key] = value;
+  Future<void> write(String key, Map<String, dynamic> value) async =>
+      _store[key] = value;
   @override
   Future<void> remove(String key) async => _store.remove(key);
   @override
@@ -56,10 +157,12 @@ class _MemCachePersist implements DiomanCachePersist {
 /// real server would (so cache / share see ordinary responses). Installed as
 /// the Dio `httpClientAdapter`; unknown routes get a 404.
 class _FakeServer implements HttpClientAdapter {
-  final _routes = <String, MockHandler>{};
+  final _routes = <String, Future<ResponseBody> Function(RequestOptions)>{};
 
   /// Registers a handler for `routeKey` (`'METHOD:path'`).
-  void add(String routeKey, MockHandler handler) => _routes[routeKey] = handler;
+  void add(String routeKey,
+          Future<ResponseBody> Function(RequestOptions) handler) =>
+      _routes[routeKey] = handler;
 
   @override
   Future<ResponseBody> fetch(RequestOptions options,
@@ -76,9 +179,12 @@ class _FakeServer implements HttpClientAdapter {
 }
 
 ResponseBody _json(String body, {int code = 200}) => ResponseBody.fromString(
-  body, code,
-  headers: {Headers.contentTypeHeader: ['application/json']},
-);
+      body,
+      code,
+      headers: {
+        Headers.contentTypeHeader: ['application/json']
+      },
+    );
 
 void _emitJson(_Emit emit, dynamic data) {
   emit('result:', _Kind.system);
@@ -88,144 +194,94 @@ void _emitJson(_Emit emit, dynamic data) {
   }
 }
 
-DiomanLog _logPlugin(_Emit emit, {bool headers = false, bool body = true}) =>
-    DiomanLog(
-      logHeaders: headers,
-      logBody: body,
-      maxBodyLength: 200,
-      writer: (msg, {error}) {
-        final m = msg
-            .replaceFirst('[dioman:log] ', '')
-            .replaceAll('https://api.demo.dev', '');
-        final kind = m.startsWith('→')
-            ? _Kind.request
-            : (error != null || m.startsWith('✗') ? _Kind.error : _Kind.response);
-        emit(m, kind);
-      },
-    );
-
-// ── _DemoAuth — replays via main Dio so mock intercepts the retry ─────────────
-
-class _DemoAuth extends DiomanPlugin {
-  _DemoAuth({required Dio dio, required _Emit emit})
-      : _dio = dio, _emit = emit;
-
-  final Dio _dio;
-  final _Emit _emit;
-  String _token = 'demo-access';
-  bool _refreshed = false;
-
+/// 示例的透明观察插件，只记录管线进出。
+class _Trace extends DiomanPlugin {
+  const _Trace(this.emit);
+  final _Emit emit;
   @override
-  String get name => 'demo:auth';
-
+  String get name => 'demo:trace';
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    options.headers['Authorization'] = 'Bearer $_token';
-    _emit('dioman:auth      inject Bearer $_token', _Kind.system);
-    handler.next(options);
-  }
-
+  DiomanStage get stage => DiomanStage.outer;
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode != 401 || _refreshed) {
-      handler.next(err);
-      return;
-    }
-    _refreshed = true;
-    _emit('dioman:auth      401 → refreshing token…', _Kind.system);
-    await Future.delayed(const Duration(milliseconds: 600));
-    _token = 'new-access-${DateTime.now().millisecondsSinceEpoch}';
-    _emit('dioman:auth      refreshed ✓ → replaying', _Kind.system);
-    err.requestOptions.cancelToken = null;
-    err.requestOptions.headers['Authorization'] = 'Bearer $_token';
-    try {
-      final res = await _dio.fetch<dynamic>(err.requestOptions);
-      handler.resolve(res);
-    } on DioException catch (e) {
-      handler.next(e);
-    }
+  DiomanPluginInstance setup(Dioman client) => _TraceInstance(emit);
+}
+
+/// 每客户端独立观察器。
+class _TraceInstance extends DiomanPluginInstance {
+  _TraceInstance(this.emit);
+  final _Emit emit;
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext ctx, DiomanNext next) async {
+    emit('${ctx.request.method} ${ctx.request.path}', _Kind.request);
+    final result = await next();
+    emit('${result.kind.name} ${result.status}',
+        result.ok ? _Kind.response : _Kind.error);
+    return result;
   }
 }
 
-// ── _DemoRetry — retries via main Dio so mock intercepts each attempt ─────────
+DiomanPlugin _logPlugin(_Emit emit) => _Trace(emit);
 
-class _DemoRetry extends DiomanPlugin {
-  _DemoRetry({required Dio dio, required _Emit emit})
-      : _dio = dio, _emit = emit;
-
-  final Dio _dio;
-  final _Emit _emit;
-  static const int _max = 2;
-  static const int _baseMs = 300;
-  static const Set<int> _codes = {500, 502, 503};
-  int _attempts = 0;
-
-  @override
-  String get name => 'demo:retry';
-
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    final status = err.response?.statusCode;
-    if (status == null || !_codes.contains(status) || _attempts >= _max) {
-      handler.next(err);
-      return;
-    }
-    _attempts++;
-    final delay = Duration(milliseconds: _baseMs * _attempts);
-    _emit(
-      'dioman:retry     wait ${delay.inMilliseconds} ms → attempt ${_attempts + 1}',
-      _Kind.system,
-    );
-    await Future.delayed(delay);
-    err.requestOptions.cancelToken = null;
-    try {
-      final res = await _dio.fetch<dynamic>(err.requestOptions);
-      handler.resolve(res);
-    } on DioException catch (e) {
-      handler.next(e);
-    }
-  }
-}
+/// 演示缓存和共享须由调用级显式开启。
+final _sourceCall =
+    DiomanCall(options: {DiomanCache.option: true, DiomanShare.option: true});
 
 // ── Scenario runners ──────────────────────────────────────────────────────────
 
 // 1. envs ──────────────────────────────────────────────────────────────────────
 
 Future<void> _runEnvs(_Emit emit) async {
-  emit('DiomanEnvs applies the first matching rule to dio.options at construction time — no HTTP needed.', _Kind.system);
+  emit(
+      'DiomanEnvs applies the first matching rule to dio.options at construction time — no HTTP needed.',
+      _Kind.system);
 
   // Rule 0 matches → dev
-  final devDio = Dio(BaseOptions(baseUrl: 'https://placeholder'));
-  DiomanEnvs(dio: devDio, [
-    EnvRule(
-      rule: () => true,
-      config: BaseOptions(
-        baseUrl: 'https://api.dev.example',
-        headers: {'X-Env': 'development'},
+  final devDio = Dio(BaseOptions(baseUrl: _literalHttpsPlaceholder));
+  final dev = Dioman(dio: devDio, plugins: [
+    DiomanEnvs([
+      EnvRule(
+        rule: () => true,
+        config: BaseOptions(
+          baseUrl: _literalHttpsApiDevExample,
+          headers: {_literalXEnv: 'development'},
+        ),
       ),
-    ),
-    EnvRule(
-      rule: () => true,
-      config: BaseOptions(baseUrl: 'https://api.prod.example'),
-    ),
+      EnvRule(
+        rule: () => true,
+        config: BaseOptions(baseUrl: _literalHttpsApiProdExample),
+      ),
+    ])
   ]);
-  emit('rule[0] matched  →  baseUrl = "${devDio.options.baseUrl}"', _Kind.response);
-  emit('                    X-Env   = "${devDio.options.headers['X-Env']}"', _Kind.response);
+  emit('rule[0] matched  →  baseUrl = "${devDio.options.baseUrl}"',
+      _Kind.response);
+  emit(
+      '                    X-Env   = "${devDio.options.headers[_literalXEnv]}"',
+      _Kind.response);
 
   // Rule 0 skipped → prod
-  final prodDio = Dio(BaseOptions(baseUrl: 'https://placeholder'));
-  DiomanEnvs(dio: prodDio, [
-    EnvRule(rule: () => false, config: BaseOptions(baseUrl: 'https://api.dev.example')),
-    EnvRule(
-      rule: () => true,
-      config: BaseOptions(
-        baseUrl: 'https://api.prod.example',
-        headers: {'X-Env': 'production'},
+  final prodDio = Dio(BaseOptions(baseUrl: _literalHttpsPlaceholder));
+  final prod = Dioman(dio: prodDio, plugins: [
+    DiomanEnvs([
+      EnvRule(
+          rule: () => false,
+          config: BaseOptions(baseUrl: _literalHttpsApiDevExample)),
+      EnvRule(
+        rule: () => true,
+        config: BaseOptions(
+          baseUrl: _literalHttpsApiProdExample,
+          headers: {_literalXEnv: 'production'},
+        ),
       ),
-    ),
+    ])
   ]);
-  emit('rule[1] matched  →  baseUrl = "${prodDio.options.baseUrl}"', _Kind.response);
-  emit('                    X-Env   = "${prodDio.options.headers['X-Env']}"', _Kind.response);
+  emit('rule[1] matched  →  baseUrl = "${prodDio.options.baseUrl}"',
+      _Kind.response);
+  emit(
+      '                    X-Env   = "${prodDio.options.headers[_literalXEnv]}"',
+      _Kind.response);
+  dev.dispose();
+  prod.dispose();
 }
 
 // 2. repath ────────────────────────────────────────────────────────────────────
@@ -242,17 +298,24 @@ Future<void> _runRepath(_Emit emit) async {
       return _json('{"repo":"dioman"}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll([DiomanRepath(), _logPlugin(emit)]);
+  final api = Dioman(dio: dio, plugins: [DiomanRepath(), _logPlugin(emit)]);
 
   emit('GET "/users/{id}"  queryParams: {id:42, q:"", page:1}', _Kind.system);
-  await dio.get('/users/{id}', queryParameters: {'id': 42, 'q': '', 'page': 1});
+  await api.send<dynamic>(
+      _literalGET,
+      call: _sourceCall,
+      '/users/{id}',
+      query: {_literalId: 42, _literalQ: _literal, _literalPage: 1});
   emit('actual path sent → "${paths[0]}"', _Kind.response);
 
   emit('GET "/orgs/{org}/repos/{repo}"', _Kind.system);
-  await dio.get('/orgs/{org}/repos/{repo}',
-      queryParameters: {'org': 'dart-labs', 'repo': 'dioman'});
+  await api.send<dynamic>(
+      _literalGET,
+      call: _sourceCall,
+      '/orgs/{org}/repos/{repo}',
+      query: {'org': 'dart-labs', 'repo': _literalDioman});
   emit('actual path sent → "${paths[1]}"', _Kind.response);
 }
 
@@ -266,13 +329,21 @@ Future<void> _runFilter(_Emit emit) async {
       return _json('{"results":[]}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll([const DiomanFilter(), _logPlugin(emit)]);
+  final api =
+      Dioman(dio: dio, plugins: [const DiomanFilter(), _logPlugin(emit)]);
 
-  final raw = {'q': '', 'page': 1, 'limit': null, 'active': true, 'tag': ''};
+  final raw = {
+    _literalQ: _literal,
+    _literalPage: 1,
+    'limit': null,
+    'active': true,
+    'tag': _literal
+  };
   emit('before filter: $raw', _Kind.system);
-  await dio.get('/search', queryParameters: raw);
+  await api.send<dynamic>(
+      _literalGET, call: _sourceCall, '/search', query: raw);
   emit('after filter:  ?$capturedQuery', _Kind.response);
   emit('  (empty-string q & tag, null limit stripped)', _Kind.system);
 }
@@ -280,7 +351,9 @@ Future<void> _runFilter(_Emit emit) async {
 // 4. key ───────────────────────────────────────────────────────────────────────
 
 Future<void> _runKey(_Emit emit) async {
-  emit('DiomanKey normalises "METHOD:path?sorted-params" — param order is irrelevant.', _Kind.system);
+  emit(
+      'DiomanKey normalises "METHOD:path?sorted-params" — param order is irrelevant.',
+      _Kind.system);
 
   int hits = 0;
   final mock = _FakeServer()
@@ -289,20 +362,35 @@ Future<void> _runKey(_Emit emit) async {
       return _json('[1,2,3]');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: _MemCachePersist()), _logPlugin(emit)]);
+  final api = Dioman(
+      dio: dio,
+      plugins: [DiomanCache(persist: _MemCachePersist()), _logPlugin(emit)]);
 
   emit('① GET /items?sort=asc&page=1', _Kind.system);
-  await dio.get('/items', queryParameters: {'sort': 'asc', 'page': 1});
+  await api.send<dynamic>(
+      _literalGET,
+      call: _sourceCall,
+      _literalItems,
+      query: {_literalSort: _literalAsc, _literalPage: 1});
   emit('   server hits: $hits', _Kind.system);
 
-  emit('② GET /items?page=1&sort=asc  (same params, swapped order)', _Kind.system);
-  await dio.get('/items', queryParameters: {'page': 1, 'sort': 'asc'});
+  emit('② GET /items?page=1&sort=asc  (same params, swapped order)',
+      _Kind.system);
+  await api.send<dynamic>(
+      _literalGET,
+      call: _sourceCall,
+      _literalItems,
+      query: {_literalPage: 1, _literalSort: _literalAsc});
   emit('   server hits: $hits  ← cache hit, same key', _Kind.response);
 
   emit('③ GET /items?page=2&sort=asc  (different value)', _Kind.system);
-  await dio.get('/items', queryParameters: {'page': 2, 'sort': 'asc'});
+  await api.send<dynamic>(
+      _literalGET,
+      call: _sourceCall,
+      _literalItems,
+      query: {_literalPage: 2, _literalSort: _literalAsc});
   emit('   server hits: $hits  ← different key, new request', _Kind.response);
 }
 
@@ -310,38 +398,39 @@ Future<void> _runKey(_Emit emit) async {
 
 Future<void> _runNormalize(_Emit emit) async {
   final mock = _FakeServer()
-    ..add('GET:/users/1', (_) async => _json(
-        '{"code":0,"data":{"id":1,"name":"Alice"},"message":"ok"}'))
-    ..add('GET:/users/2', (_) async => _json(
-        '{"code":10001,"data":null,"message":"User not found"}'));
+    ..add(
+        _literalGETUsers1,
+        (_) async =>
+            _json('{"code":0,"data":{"id":1,"name":"Alice"},"message":"ok"}'))
+    ..add(
+        'GET:/users/2',
+        (_) async =>
+            _json('{"code":10001,"data":null,"message":"User not found"}'));
 
   // ── success: envelope unwrapped
   {
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+    final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
     dio.httpClientAdapter = mock;
-    dio.interceptors.addAll([const DiomanNormalize(), _logPlugin(emit)]);
+    final api = Dioman(dio: dio, plugins: [_logPlugin(emit)]);
 
     emit('response: {"code":0,"data":{...},"message":"ok"}', _Kind.system);
-    final res = await dio.get('/users/1');
+    final res =
+        await api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers1);
     emit('res.data (unwrapped): ${jsonEncode(res.data)}', _Kind.response);
   }
 
   // ── failure: non-zero code → DiomanException
   {
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+    final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
     dio.httpClientAdapter = mock;
-    dio.interceptors.addAll([const DiomanNormalize(), _logPlugin(emit)]);
+    final api = Dioman(dio: dio, plugins: [_logPlugin(emit)]);
 
-    emit('response: {"code":10001,"data":null,"message":"User not found"}', _Kind.system);
+    emit('response: {"code":10001,"data":null,"message":"User not found"}',
+        _Kind.system);
     try {
-      await dio.get('/users/2');
-    } on DioException catch (e) {
-      if (e.error is DiomanException) {
-        final ex = e.error as DiomanException;
-        emit('DiomanException(code: ${ex.code}, message: "${ex.message}")', _Kind.error);
-      } else {
-        emit('$e', _Kind.error);
-      }
+      await api.request<dynamic>(_literalGET, call: _sourceCall, '/users/2');
+    } on DiomanResponse catch (e) {
+      emit('${e.kind.name} ${e.status}: ${e.message}', _Kind.error);
     }
   }
 }
@@ -351,30 +440,32 @@ Future<void> _runNormalize(_Emit emit) async {
 Future<void> _runCache(_Emit emit) async {
   int hits = 0;
   final mock = _FakeServer()
-    ..add('GET:/users/1', (_) async {
+    ..add(_literalGETUsers1, (_) async {
       hits++;
       await Future.delayed(const Duration(milliseconds: 120));
       return _json('{"id":1,"name":"Bob Smith"}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll(
-      [const DiomanKey(), DiomanCache(persist: _MemCachePersist()), _logPlugin(emit)]);
+  final api = Dioman(
+      dio: dio,
+      plugins: [DiomanCache(persist: _MemCachePersist()), _logPlugin(emit)]);
 
   emit('1st GET /users/1  (network)', _Kind.system);
   final t1 = Stopwatch()..start();
-  await dio.get('/users/1');
+  await api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers1);
   t1.stop();
   emit('   server hits: $hits   ${t1.elapsedMilliseconds} ms', _Kind.system);
 
   emit('2nd GET /users/1  (same key → cache)', _Kind.system);
   final t2 = Stopwatch()..start();
-  final r2 = await dio.get('/users/1');
+  final r2 =
+      await api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers1);
   t2.stop();
   emit(
     '   server hits: $hits   ${t2.elapsedMilliseconds} ms'
-    '   statusMessage: "${r2.statusMessage}"',
+    '   statusMessage: "${r2.message}"',
     _Kind.response,
   );
 }
@@ -391,17 +482,16 @@ Future<void> _runDedup(_Emit emit) async {
       return _json('{"id":7,"name":"Carol"}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll(
-      [const DiomanKey(), DiomanShare(), _logPlugin(emit)]);
+  final api = Dioman(dio: dio, plugins: [DiomanShare(), _logPlugin(emit)]);
 
   emit('fire 3× GET /users/7 concurrently…', _Kind.system);
   final sw = Stopwatch()..start();
   final results = await Future.wait([
-    dio.get<dynamic>('/users/7'),
-    dio.get<dynamic>('/users/7'),
-    dio.get<dynamic>('/users/7'),
+    api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers7),
+    api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers7),
+    api.send<dynamic>(_literalGET, call: _sourceCall, _literalUsers7),
   ]);
   sw.stop();
   emit(
@@ -413,35 +503,37 @@ Future<void> _runDedup(_Emit emit) async {
 // 8. mock ──────────────────────────────────────────────────────────────────────
 
 Future<void> _runMock(_Emit emit) async {
-  // DiomanMockAdapter is a transport-level mock: wrap the host adapter, no
-  // plugin ordering involved. Install it in dev / test flavors only.
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
-  dio.httpClientAdapter = DiomanMockAdapter(
-    inner: dio.httpClientAdapter,
-    routes: {
-      'GET:/pets': (_) async =>
-          _json('[{"id":1,"name":"Whiskers"},{"id":2,"name":"Buddy"}]'),
-      'POST:/pets': (o) async {
-        final body = o.data is Map ? o.data as Map : <String, dynamic>{};
-        return _json('{"id":3,"name":"${body["name"]}","created":true}',
-            code: 201);
-      },
-      'DELETE:/pets/1': (_) async => ResponseBody.fromString('', 204,
-          headers: {Headers.contentTypeHeader: ['application/json']}),
-    },
-  );
-  dio.interceptors.add(_logPlugin(emit));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  final api = Dioman(dio: dio, plugins: [
+    DiomanMock(routes: {
+      'GET:/pets': (_) => [
+            {_literalId: 1, _literalName: 'Whiskers'},
+            {_literalId: 2, _literalName: 'Buddy'}
+          ],
+      'POST:/pets': (request) => {
+            _literalId: 3,
+            _literalName: (request.data as Map)[_literalName],
+            'created': true
+          },
+      'DELETE:/pets/1': (request) => Response<dynamic>(
+          requestOptions: RequestOptions(path: request.path), statusCode: 204),
+    }),
+    _logPlugin(emit),
+  ]);
 
-  emit('3 routes registered: GET /pets · POST /pets · DELETE /pets/1', _Kind.system);
+  emit('3 routes registered: GET /pets · POST /pets · DELETE /pets/1',
+      _Kind.system);
 
-  final list = await dio.get<dynamic>('/pets');
+  final list =
+      await api.send<dynamic>(_literalGET, call: _sourceCall, _literalPets);
   emit('GET   /pets              → ${list.data}', _Kind.response);
 
-  final created = await dio.post<dynamic>('/pets', data: {'name': 'Luna'});
+  final created = await api
+      .send<dynamic>('POST', _literalPets, data: {_literalName: 'Luna'});
   emit('POST  /pets {name:Luna}  → ${created.data}', _Kind.response);
 
-  final del = await dio.delete<dynamic>('/pets/1');
-  emit('DELETE /pets/1           → ${del.statusCode} No Content', _Kind.response);
+  final del = await api.send<dynamic>('DELETE', '/pets/1');
+  emit('DELETE /pets/1           → ${del.status} No Content', _Kind.response);
 }
 
 // 9. cancel ────────────────────────────────────────────────────────────────────
@@ -469,28 +561,29 @@ Future<void> _runCancel(_Emit emit) async {
     ..add('GET:/slow/b', (o) => slowHandler(o, 'b'))
     ..add('GET:/slow/c', (o) => slowHandler(o, 'c'));
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll([DiomanCancel(), _logPlugin(emit)]);
+  final api = Dioman(dio: dio, plugins: [_logPlugin(emit)]);
 
   emit('fire 3 slow requests (500 ms each)…', _Kind.system);
 
   Future<void> fire(String path, int n) async {
     try {
-      await dio.get<dynamic>(path);
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.cancel) {
+      await api.request<dynamic>(_literalGET, call: _sourceCall, path);
+    } on DiomanResponse catch (e) {
+      if (e.kind == DiomanKind.cancel) {
         aborted++;
         emit('  request $n cancelled ✗', _Kind.error);
       }
     }
   }
 
-  final all = Future.wait([fire('/slow/a', 1), fire('/slow/b', 2), fire('/slow/c', 3)]);
+  final all =
+      Future.wait([fire('/slow/a', 1), fire('/slow/b', 2), fire('/slow/c', 3)]);
 
   await Future.delayed(const Duration(milliseconds: 150));
   emit('cancelAll() — simulating page navigation', _Kind.system);
-  cancelAll(dio, 'left page');
+  api.cancelAll('left page');
 
   await all;
   emit('cancelled: $aborted · completed: $done', _Kind.system);
@@ -515,9 +608,9 @@ Future<void> _runLoading(_Emit emit) async {
       return _json('{"task":"c"}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll([
+  final api = Dioman(dio: dio, plugins: [
     DiomanLoading(onChanged: (on) {
       counter += on ? 1 : -1;
       emit('counter = $counter  (${on ? "+1" : "−1"})', _Kind.system);
@@ -525,11 +618,12 @@ Future<void> _runLoading(_Emit emit) async {
     _logPlugin(emit),
   ]);
 
-  emit('fire 3 concurrent requests (/task/a · /task/b · /task/c)…', _Kind.system);
+  emit('fire 3 concurrent requests (/task/a · /task/b · /task/c)…',
+      _Kind.system);
   await Future.wait([
-    dio.get<dynamic>('/task/a'),
-    dio.get<dynamic>('/task/b'),
-    dio.get<dynamic>('/task/c'),
+    api.send<dynamic>(_literalGET, call: _sourceCall, '/task/a'),
+    api.send<dynamic>(_literalGET, call: _sourceCall, '/task/b'),
+    api.send<dynamic>(_literalGET, call: _sourceCall, '/task/c'),
   ]);
   emit('all done  counter = $counter', _Kind.response);
 }
@@ -546,7 +640,8 @@ Future<void> _runAuth(_Emit emit) async {
         throw DioException(
           requestOptions: opts,
           response: Response(
-              requestOptions: opts, statusCode: 401,
+              requestOptions: opts,
+              statusCode: 401,
               statusMessage: 'Unauthorized'),
           type: DioExceptionType.badResponse,
         );
@@ -555,14 +650,20 @@ Future<void> _runAuth(_Emit emit) async {
       return _json('{"id":1,"name":"Alice","role":"admin"}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll(
-      [DiomanCancel(), _DemoAuth(dio: dio, emit: emit), _logPlugin(emit)]);
+  final api = Dioman(dio: dio, plugins: [
+    DiomanAuth(
+        tokenManager: InMemoryTokenManager(access: 'demo-access'),
+        onRefresh: (tokens, _) => tokens.setTokens(accessToken: 'new-access'),
+        onAccessExpired: (_, __) {}),
+    _logPlugin(emit)
+  ]);
 
   emit('GET /profile  (token will expire → refresh → replay)', _Kind.system);
   try {
-    final res = await dio.get<dynamic>('/profile');
+    final res =
+        await api.send<dynamic>(_literalGET, call: _sourceCall, '/profile');
     _emitJson(emit, res.data);
   } catch (e) {
     emit('$e', _Kind.error);
@@ -581,7 +682,8 @@ Future<void> _runRetry(_Emit emit) async {
         throw DioException(
           requestOptions: opts,
           response: Response(
-              requestOptions: opts, statusCode: 500,
+              requestOptions: opts,
+              statusCode: 500,
               statusMessage: 'Server Error'),
           type: DioExceptionType.badResponse,
         );
@@ -590,14 +692,19 @@ Future<void> _runRetry(_Emit emit) async {
       return _json('{"status":"ok","attempts":$attempts}');
     });
 
-  final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
   dio.httpClientAdapter = mock;
-  dio.interceptors.addAll(
-      [_DemoRetry(dio: dio, emit: emit), _logPlugin(emit)]);
+  final api = Dioman(dio: dio, plugins: [
+    DiomanRetry(
+        max: 2,
+        delay: (attempt, _, __) => Duration(milliseconds: 300 * attempt)),
+    _logPlugin(emit)
+  ]);
 
   emit('GET /flaky  (fails ×2, succeeds on 3rd)', _Kind.system);
   try {
-    final res = await dio.get<dynamic>('/flaky');
+    final res =
+        await api.send<dynamic>(_literalGET, call: _sourceCall, '/flaky');
     _emitJson(emit, res.data);
   } catch (e) {
     emit('$e', _Kind.error);
@@ -607,40 +714,20 @@ Future<void> _runRetry(_Emit emit) async {
 // 13. log ──────────────────────────────────────────────────────────────────────
 
 Future<void> _runLog(_Emit emit) async {
-  final mock = _FakeServer()
-    ..add('GET:/config', (_) async => _json(
-        '{"theme":"dark","lang":"zh","features":{"beta":true}}'));
-
-  emit('── logBody: true (default) ──', _Kind.system);
-  {
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
-    dio.httpClientAdapter = mock;
-    dio.interceptors.addAll([_logPlugin(emit, body: true)]);
-    await dio.get<dynamic>('/config');
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  dio.httpClientAdapter = _FakeServer()
+    ..add('GET:/config', (_) async => _json('{"theme":"dark"}'));
+  final api = Dioman(
+      dio: dio,
+      plugins: [_logPlugin(emit)],
+      debug: (String message) => emit(message, _Kind.system));
+  try {
+    final result = await api.send<dynamic>(_literalGET, '/config');
+    _emitJson(emit, result.data);
+  } finally {
+    api.dispose();
+    dio.close(force: true);
   }
-
-  emit('── logBody: false ──', _Kind.system);
-  {
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
-    dio.httpClientAdapter = mock;
-    dio.interceptors.addAll([_logPlugin(emit, body: false)]);
-    await dio.get<dynamic>('/config');
-  }
-
-  emit('── per-request: enabled: false ──', _Kind.system);
-  {
-    final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
-    dio.httpClientAdapter = mock;
-    dio.interceptors.addAll([_logPlugin(emit)]);
-    await dio.get<dynamic>('/config',
-        options: Options(extra: {
-          'dioman:log': const DiomanLogOptions(enabled: false),
-        }));
-    emit('  (nothing logged — per-request disabled)', _Kind.system);
-  }
-
-  emit('── custom writer routes to any sink ──', _Kind.system);
-  emit('  all other scenario consoles use the same writer pattern', _Kind.system);
 }
 
 // ── Scenario definitions ──────────────────────────────────────────────────────
@@ -671,7 +758,7 @@ final _scenarios = <_Scenario>[
     title: 'Env Config',
     subtitle: 'Apply env-specific BaseOptions at install time — no HTTP needed',
     color: _blue,
-    tags: ['envs'],
+    tags: [_literalEnvs],
     run: _runEnvs,
   ),
   _Scenario(
@@ -679,7 +766,7 @@ final _scenarios = <_Scenario>[
     title: 'Path Rewrite',
     subtitle: '{id} / :{id} templates replaced before the request is sent',
     color: _cyan,
-    tags: ['repath', 'mock'],
+    tags: [_literalRepath, _literalMock],
     run: _runRepath,
   ),
   _Scenario(
@@ -687,7 +774,7 @@ final _scenarios = <_Scenario>[
     title: 'Param Filter',
     subtitle: 'null & empty-string query params stripped automatically',
     color: _teal,
-    tags: ['filter', 'mock'],
+    tags: [_literalFilter, _literalMock],
     run: _runFilter,
   ),
   _Scenario(
@@ -695,31 +782,34 @@ final _scenarios = <_Scenario>[
     title: 'Request Key',
     subtitle: 'Canonical key sorts params — swapped order = same cache hit',
     color: _subtle,
-    tags: ['key', 'cache'],
+    tags: [_literalKey, _literalCache],
     run: _runKey,
   ),
   _Scenario(
     icon: Icons.unarchive_rounded,
     title: 'Normalize',
-    subtitle: 'Unwrap {code, data, message} envelope — throw DiomanException on non-zero code',
+    subtitle:
+        'Unwrap {code, data, message} envelope — throw DiomanException on non-zero code',
     color: _orange,
-    tags: ['normalize', 'mock'],
+    tags: [_literalNormalize, _literalMock],
     run: _runNormalize,
   ),
   _Scenario(
     icon: Icons.memory_rounded,
     title: 'Cache',
-    subtitle: 'Same GET twice — 2nd served from in-memory LRU, near-zero latency',
+    subtitle:
+        'Same GET twice — 2nd served from in-memory LRU, near-zero latency',
     color: _green,
-    tags: ['cache', 'mock'],
+    tags: [_literalCache, _literalMock],
     run: _runCache,
   ),
   _Scenario(
     icon: Icons.people_rounded,
     title: 'Request Dedup',
-    subtitle: '3 concurrent identical GETs → only 1 actual HTTP call (DiomanShare)',
+    subtitle:
+        '3 concurrent identical GETs → only 1 actual HTTP call (DiomanShare)',
     color: _purple,
-    tags: ['share', 'mock'],
+    tags: [_literalShare, _literalMock],
     run: _runDedup,
   ),
   _Scenario(
@@ -727,23 +817,25 @@ final _scenarios = <_Scenario>[
     title: 'Mock Routes',
     subtitle: 'Register inline handlers by METHOD:path — GET · POST · DELETE',
     color: _teal,
-    tags: ['mock'],
+    tags: [_literalMock],
     run: _runMock,
   ),
   _Scenario(
     icon: Icons.cancel_rounded,
     title: 'Cancel',
-    subtitle: 'cancelAll() aborts all in-flight requests — e.g. on page navigation',
+    subtitle:
+        'cancelAll() aborts all in-flight requests — e.g. on page navigation',
     color: _red,
-    tags: ['cancel', 'mock'],
+    tags: [_literalCancel, _literalMock],
     run: _runCancel,
   ),
   _Scenario(
     icon: Icons.hourglass_empty_rounded,
     title: 'Loading Counter',
-    subtitle: 'Ref-counted indicator: 3 concurrent requests → counter 0 → 3 → 0',
+    subtitle:
+        'Ref-counted indicator: 3 concurrent requests → counter 0 → 3 → 0',
     color: _yellow,
-    tags: ['loading', 'mock'],
+    tags: [_literalLoading, _literalMock],
     run: _runLoading,
   ),
   _Scenario(
@@ -751,7 +843,7 @@ final _scenarios = <_Scenario>[
     title: '401 Refresh',
     subtitle: 'Token expired → silent refresh → original request auto-replayed',
     color: _yellow,
-    tags: ['auth', 'mock'],
+    tags: [_literalAuth, _literalMock],
     run: _runAuth,
   ),
   _Scenario(
@@ -759,7 +851,7 @@ final _scenarios = <_Scenario>[
     title: 'Network Retry',
     subtitle: '500 ×2 → back-off delay → success on 3rd attempt',
     color: _orange,
-    tags: ['retry', 'mock'],
+    tags: [_literalRetry, _literalMock],
     run: _runRetry,
   ),
   _Scenario(
@@ -767,7 +859,7 @@ final _scenarios = <_Scenario>[
     title: 'Log Options',
     subtitle: 'logBody · per-request enabled:false · custom writer to any sink',
     color: _subtle,
-    tags: ['log'],
+    tags: [_literalLog],
     run: _runLog,
   ),
 ];
@@ -836,15 +928,25 @@ class _HomePage extends StatelessWidget {
 
   Widget _buildHeader() {
     const plugins = [
-      'envs', 'repath', 'filter', 'key', 'normalize',
-      'cache', 'share', 'mock', 'cancel', 'loading',
-      'auth', 'retry', 'log',
+      _literalEnvs,
+      _literalRepath,
+      _literalFilter,
+      _literalKey,
+      _literalNormalize,
+      _literalCache,
+      _literalShare,
+      _literalMock,
+      _literalCancel,
+      _literalLoading,
+      _literalAuth,
+      _literalRetry,
+      _literalLog,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          _Chip('dioman', _blue, bold: true, mono: true),
+          _Chip(_literalDioman, _blue, bold: true, mono: true),
           const SizedBox(width: 10),
           const Text('interceptor playground',
               style: TextStyle(color: _subtle, fontSize: 13)),
@@ -892,7 +994,9 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: isSubtle ? _border.withValues(alpha: 0.6) : color.withValues(alpha: 0.14),
+        color: isSubtle
+            ? _border.withValues(alpha: 0.6)
+            : color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(5),
         border: Border.all(
             color: isSubtle ? _border : color.withValues(alpha: 0.35)),
@@ -903,7 +1007,7 @@ class _Chip extends StatelessWidget {
           color: isSubtle ? _subtle : color,
           fontSize: 11.5,
           fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
-          fontFamily: mono ? 'Courier New' : null,
+          fontFamily: mono ? _literalCourierNew : null,
         ),
       ),
     );
@@ -963,10 +1067,10 @@ class _ScenarioCardState extends State<_ScenarioCard> {
   }
 
   Color _kindColor(_Kind k) => switch (k) {
-        _Kind.system   => _subtle,
-        _Kind.request  => _blue,
+        _Kind.system => _subtle,
+        _Kind.request => _blue,
         _Kind.response => _green,
-        _Kind.error    => _red,
+        _Kind.error => _red,
       };
 
   @override
@@ -1077,14 +1181,14 @@ class _ScenarioCardState extends State<_ScenarioCard> {
                               style: const TextStyle(
                                   color: _subtle,
                                   fontSize: 10.5,
-                                  fontFamily: 'Courier New')),
+                                  fontFamily: _literalCourierNew)),
                         ),
                         Expanded(
                           child: Text(e.msg,
                               style: TextStyle(
                                   color: _kindColor(e.kind),
                                   fontSize: 12,
-                                  fontFamily: 'Courier New',
+                                  fontFamily: _literalCourierNew,
                                   height: 1.45)),
                         ),
                       ],
@@ -1116,9 +1220,7 @@ class _TagChip extends StatelessWidget {
       ),
       child: Text(label,
           style: TextStyle(
-              color: color,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600)),
+              color: color, fontSize: 10.5, fontWeight: FontWeight.w600)),
     );
   }
 }

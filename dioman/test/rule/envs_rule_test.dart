@@ -1,8 +1,8 @@
-import '../support/pipeline/b2_constants.dart';
-import 'package:dioman/pipeline.dart';
+import '../support/b2_constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/helpers.dart';
 
 /// 环境地址模板。
 const envUrl = 'https://env.example.test';
@@ -18,7 +18,8 @@ const envNested = b2Nested;
 
 /// 核对安装期配置契约。
 void main() {
-  test('[DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链', () async {
+  test('[DiomanEnvs.pluginName]' '[DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链',
+      () async {
     final visits = <int>[];
     final rules = [
       for (var i = 0; i < 3; i++)
@@ -49,7 +50,8 @@ void main() {
     expect(options.sendTimeout, envTime);
     expect(options.headers[b2Env], 1);
     expect(options.queryParameters[b2Env], 1);
-    expect(options.extra[b2Env], 1);
+    final extras = options.extra;
+    expect(extras[b2Env], 1);
     expect(options.responseType, ResponseType.bytes);
     expect(api.inspect(), isEmpty);
     options.headers.remove(b2Env);
@@ -62,7 +64,9 @@ void main() {
     expect(options.baseUrl, envUrl);
   });
 
-  test('[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改', () {
+  test(
+      '[DiomanEnvs.new(enabled)][DiomanEnvs.rules][DiomanEnvsOptions.enabled]'
+      '[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改', () {
     for (final rules in <List<EnvRule>>[
       [],
       [EnvRule(rule: () => false, config: BaseOptions(baseUrl: envUrl))]

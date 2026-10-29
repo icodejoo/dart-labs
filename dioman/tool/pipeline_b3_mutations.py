@@ -43,7 +43,7 @@ def run():
     DEST.mkdir(parents=True, exist_ok=True)
     results = []
     for name, module, old, new, test, title in CASES:
-        path = ROOT / f'lib/src/pipeline/plugins/{module}.dart'
+        path = ROOT / f'lib/src/plugins/{module}.dart'
         original = path.read_bytes()
         digest = hashlib.sha256(original).hexdigest()
         source = original.decode('utf-8').replace('\r\n', '\n')

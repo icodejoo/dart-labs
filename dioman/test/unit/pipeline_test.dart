@@ -1,11 +1,17 @@
-import '../support/pipeline/constants.dart';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/src/stages.dart';
+import 'package:dioman/src/pipeline.dart';
+import '../support/constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/helpers.dart';
 
 /// 阶段排序及每层异常边界的纯单元验证。
 void main() {
-  test('[DiomanPlugin.setup] 默认接口、空日志器与独立实例', () async {
+  test(
+      '[DiomanEnforce.post][DiomanStage.attempt]'
+      '[INV-pipeline-internals]'
+      '[DiomanPlugin.enforce]'
+      '[DiomanPlugin.setup] 默认接口、空日志器与独立实例', () async {
     final plugin = _DefaultPlugin();
     expect(plugin.stage, DiomanStage.attempt);
     expect(plugin.enforce, DiomanEnforce.post);
@@ -14,7 +20,10 @@ void main() {
     expect(await api.get<String>(pipelineTestRootPath), pipelineTestOk);
     api.dispose();
   });
-  test('[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链', () async {
+  test(
+      '[INV-pipeline-internals][INV-pipeline-internals]'
+      '[INV-pipeline-internals]'
+      '[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链', () async {
     final plugins = <TestPlugin>[
       for (final names in diomanBuiltinStages.values.toList().reversed)
         for (final name in names.reversed)
@@ -59,7 +68,9 @@ void main() {
         same(result));
   });
 
-  test('[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁', () async {
+  test(
+      '[DiomanContext.client][DiomanContext.fail][DiomanContext.request][RequestPatch.path]'
+      '[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁', () async {
     final ctx = testContext();
     final seen = <DiomanContext<Result>>[];
     final plugin = TestPlugin('twice', handler: (c, next) async {
@@ -108,7 +119,9 @@ void main() {
       expect(r.errorStack.toString(), contains(pipelineTestOriginalStack));
     });
   }
-  test('[DiomanNext] 补丁构造异常也作为结果返回', () async {
+  test(
+      '[DiomanKind.ok][INV-pipeline-internals][RequestPatch.sendTimeout][INV-pipeline-internals]'
+      '[DiomanNext] 补丁构造异常也作为结果返回', () async {
     final ctx = testContext();
     final plugin = TestPlugin('patch',
         handler: (_, next) =>

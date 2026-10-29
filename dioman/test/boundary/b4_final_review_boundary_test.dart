@@ -1,10 +1,11 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 终审累计超时与在线判定回归。
 void main() {
@@ -122,7 +123,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调', () async {
+  test(
+      '[DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)][DiomanOfflineApi.pending]'
+      '[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调', () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);
     final net = FakeNetwork();
@@ -143,7 +146,9 @@ void main() {
     expect(api.cancellationSubscriptions, 0);
     api.dispose();
   });
-  test('[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁', () async {
+  test(
+      '[INV-context-lifecycle]'
+      '[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁', () async {
     for (final policy in [DiomanSharePolicy.end, DiomanSharePolicy.race]) {
       for (final dispose in [false, true]) {
         final gate = Completer<void>();
@@ -176,7 +181,9 @@ void main() {
       }
     }
   });
-  test('[DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据', () async {
+  test(
+      '[DiomanResponseFactory.derive]'
+      '[DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据', () async {
     for (final policy in DiomanCachePolicy.values) {
       final body = <int, dynamic>{
         1: <int>[2]

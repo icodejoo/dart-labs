@@ -1,14 +1,16 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 熔断状态机与请求级配置规则。
 void main() {
-  test('[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态', () async {
+  test(
+      '[DiomanBreaker.keyBuilder][DiomanBreakerApi.bucketCount][DiomanBreakerOptions.enabled][DiomanBreakerOptions.keyBuilder][DiomanRequest.call]'
+      '[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态', () async {
     for (final custom in [false, true]) {
       final api = testClient(plugins: [
         DiomanBreaker(keyBuilder: custom ? (_) => b3ValueKey : null)
@@ -37,7 +39,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanBreaker.defaultMaxBuckets] 默认回收一小时和一千桶软上限', () {
+  test(
+      '[DiomanBreaker.defaultIdleTtl]'
+      '[DiomanBreaker.defaultMaxBuckets] 默认回收一小时和一千桶软上限', () {
     expect(DiomanBreaker.defaultIdleTtl, const Duration(hours: 1));
     expect(DiomanBreaker.defaultMaxBuckets, 1000);
   });
@@ -99,7 +103,9 @@ void main() {
       }
     }
   });
-  test('[DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null', () async {
+  test(
+      '[DiomanBreakerState.open]'
+      '[DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null', () async {
     for (final custom in [null, true, false]) {
       for (final kind in [
         DiomanKind.network,
@@ -128,7 +134,12 @@ void main() {
       }
     }
   });
-  test('[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭', () async {
+  test(
+      '[DiomanBreakerOptions.failureThreshold][DiomanBreakerOptions.halfOpenMaxCalls][DiomanBreakerOptions.resetDuration][DiomanBreakerOptions.shouldTrip]'
+      '[DiomanBreaker.defaultFailureThreshold]'
+      '[DiomanBreaker.defaultHalfOpenMaxCalls]'
+      '[DiomanBreaker.defaultResetDuration]'
+      '[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭', () async {
     expect(const DiomanBreaker().idleTtl, DiomanBreaker.defaultIdleTtl);
     expect(const DiomanBreaker().maxBuckets, DiomanBreaker.defaultMaxBuckets);
     expect(const DiomanBreaker().failureThreshold, 10);

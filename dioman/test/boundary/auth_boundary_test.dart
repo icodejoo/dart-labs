@@ -1,14 +1,16 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 验证刷新窗口与异步回调期间的会话边界。
 void main() {
-  test('[DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次', () async {
+  test(
+      '[DiomanAuth.readyStableAttempts][RequestPatch.headers]'
+      '[DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次', () async {
     final tm = TestTokens();
     var ready = 0;
     var refresh = 0;
@@ -32,7 +34,9 @@ void main() {
     expect(net.sends.first.options.headers[b3Header], 'Bearer $b3Fresh');
     api.dispose();
   });
-  test('[DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新', () async {
+  test(
+      '[DiomanAuth.injectedToken]'
+      '[DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新', () async {
     for (final unauthorized in [false, true]) {
       final tm = TestTokens();
       var ready = 0;

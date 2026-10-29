@@ -1,0 +1,25 @@
+{
+  "api_before": 785,
+  "api_after": 744,
+  "internalized": 41,
+  "matrix_before": 631,
+  "matrix_after": 605,
+  "matrix_removed": 29,
+  "invariant_added": 3,
+  "baseline_before": 190,
+  "baseline_after": 190,
+  "coverage_files": 34,
+  "coverage_counts": [
+    1410,
+    1410,
+    675,
+    675
+  ],
+  "tests": 5014,
+  "review_findings_fixed": 2,
+  "source_hashes": "PASS",
+  "mutation_hashes": "PASS",
+  "report_links": "PASS",
+  "temporary_files": "clean",
+  "sdk": "^3.5.0"
+}

@@ -10,7 +10,7 @@ DEST = ROOT / 'docs/reference/pipeline-migration'
 LAYERS = ('unit', 'rule', 'boundary', 'combo', 'integration')
 DECISIONS = ('keep', 'change', 'drop')
 MANIFEST = DEST / 'manifest.json'
-MATRIX = ROOT / 'test/accept/lib/matrix.json'
+MATRIX = DEST / 'raw/matrix-before-pipeline.json'
 EVENTS = DEST / 'raw/legacy-tests.ndjson'
 
 

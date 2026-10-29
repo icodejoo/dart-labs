@@ -1,12 +1,13 @@
-import '../support/pipeline/constants.dart';
+import 'package:dioman/src/transport.dart';
+import '../support/constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// 使用真实 Dio 转换器和假 adapter 验证传输边界。
 void main() {
@@ -81,7 +82,11 @@ void main() {
     harness.assertAll(api);
   });
 
-  test('[diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离',
+  test(
+      '[INV-context-lifecycle]'
+      '[INV-context-lifecycle]'
+      '[DiomanContext.log]'
+      '[INV-pipeline-internals] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离',
       () async {
     final network = FakeNetwork();
     final logs = <String>[];
@@ -120,7 +125,8 @@ void main() {
     expect(await throwLog.get<String>(pipelineTestRootPath), pipelineTestOk);
   });
 
-  test('[diomanTransport] 取消前不发送、传输 bug 原栈、原始 Dio 拦截器主动 reject', () async {
+  test('[INV-pipeline-internals] 取消前不发送、传输 bug 原栈、原始 Dio 拦截器主动 reject',
+      () async {
     final network = FakeNetwork();
     final api = testClient(network: network);
     final token = CancelToken()..cancel();

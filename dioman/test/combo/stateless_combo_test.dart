@@ -1,12 +1,12 @@
-import '../support/pipeline/b2_constants.dart';
+import '../support/b2_constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/invariant_harness.dart';
 import '../rule/envs_rule_test.dart'
     show envUrl, overrideUrl, envNested, envTime;
 
@@ -49,7 +49,9 @@ void main() {
       h.assertAll(api);
     }
   });
-  test('[DiomanLoadingApi.activeCount] credential 等待期间已计数，失败出口均释放自己的括号',
+  test(
+      '[DiomanLoading.stage]'
+      '[DiomanLoadingApi.activeCount] credential 等待期间已计数，失败出口均释放自己的括号',
       () async {
     for (final kind in [
       DiomanKind.http,
@@ -269,7 +271,10 @@ void main() {
         isNot(same(parent.plugin<DiomanLoadingApi>())));
     (child.dio.options.headers[envNested][b2List] as List).add(10);
     (child.dio.options.queryParameters[envNested] as List).add(10);
-    (child.dio.options.extra[envNested] as List).add(10);
+    final childExtras = child.dio.options.extra;
+    final overrideExtras = overrides.extra;
+    final parentExtras = parent.dio.options.extra;
+    (childExtras[envNested] as List).add(10);
     expect(parent.dio.options.headers[envNested], {
       b2List: [1]
     });
@@ -280,9 +285,9 @@ void main() {
       b2List: [9]
     });
     expect(overrides.queryParameters[envNested], [9]);
-    expect(overrides.extra[envNested], [9]);
+    expect(overrideExtras[envNested], [9]);
     expect(parent.dio.options.queryParameters[envNested], [1]);
-    expect(parent.dio.options.extra[envNested], [1]);
+    expect(parentExtras[envNested], [1]);
     parent.dispose();
     child.dispose();
     inherited.dispose();

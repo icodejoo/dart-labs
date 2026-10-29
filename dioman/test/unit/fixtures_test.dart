@@ -1,15 +1,17 @@
-import '../support/pipeline/constants.dart';
+import '../support/constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// 夹具自身也须证明脚本、时间和不变量不会空跑。
 void main() {
-  test('[DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟', () async {
+  test(
+      '[DiomanClock.createTimer][DiomanClock.now]'
+      '[DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟', () async {
     final clock = FakeClock();
     final events = <int>[];
     final timer =
@@ -58,7 +60,8 @@ void main() {
     expect(net.closed, isTrue);
   });
 
-  test('[Dioman.send] InvariantHarness 拒绝空跑、重复落定和泄漏证据', () async {
+  test('[DiomanContext.id]' '[Dioman.send] InvariantHarness 拒绝空跑、重复落定和泄漏证据',
+      () async {
     final network = FakeNetwork();
     final clock = FakeClock();
     final h = InvariantHarness(network, clock);

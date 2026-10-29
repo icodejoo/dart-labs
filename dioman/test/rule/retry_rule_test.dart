@@ -1,13 +1,16 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/src/diagnostics.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 验证重试判定优先级和请求级合并。
 void main() {
-  test('[DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果', () async {
+  test(
+      '[DiomanRetry.defaultStatusCodes]'
+      '[DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果', () async {
     for (final business in [false, true]) {
       for (final status in [200, 408, 429, 500, 501, 502, 503, 504, 505]) {
         final net = FakeNetwork()
@@ -52,7 +55,11 @@ void main() {
       }
     }
   });
-  test('[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试', () async {
+  test(
+      '[DiomanKind.auth]'
+      '[DiomanRetry.defaultAfterStatusCodes]'
+      '[DiomanRetry.defaultMethods]'
+      '[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试', () async {
     for (final kind
         in DiomanKind.values.where((k) => k != DiomanKind.internal)) {
       var inner = 0;
@@ -88,7 +95,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关', () async {
+  test(
+      '[DiomanRetry.afterStatusCodes][DiomanRetry.retryAfterMax][DiomanRetryOptions.afterStatusCodes][DiomanRetryOptions.delayMax][DiomanRetryOptions.enabled][DiomanRetryOptions.jitter][DiomanRetryOptions.onRetry][DiomanRetryOptions.respectRetryAfter][DiomanRetryOptions.retryAfterMax]'
+      '[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关', () async {
     for (final option in [
       null,
       true,

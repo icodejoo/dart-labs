@@ -1,10 +1,11 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/helpers.dart';
 
 /// 验证每个异步阶段的取消与窗口收尾。
 void main() {
@@ -67,7 +68,11 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态', () async {
+  test(
+      '[DiomanAuth.enabled][DiomanAuth.stage][DiomanBreaker.enabled][DiomanBreaker.name][DiomanBreaker.pluginName][DiomanBreaker.stage][DiomanBreakerApi.isOpen][DiomanRetry.enabled][DiomanRetry.name][DiomanRetry.pluginName][DiomanRetry.stage]'
+      '[DiomanBreaker.setup]'
+      '[DiomanRetry.setup]'
+      '[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态', () async {
     final retry = const DiomanRetry();
     final breaker = const DiomanBreaker();
     final auth = b3Auth(TestTokens());
@@ -112,7 +117,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanNext] 下游返回前取消不路由，过期通知并发去重且取消后以 cancel 结束', () async {
+  test(
+      '[DiomanFailure.reason]'
+      '[DiomanNext] 下游返回前取消不路由，过期通知并发去重且取消后以 cancel 结束', () async {
     var notices = 0;
     final started = Completer<void>();
     final gate = Completer<void>();
@@ -147,7 +154,9 @@ void main() {
     expect(notices, 1);
     api.dispose();
   });
-  test('[DiomanAuth.onAccessExpired] 同会话多个在途 expired 只清理通知一次', () async {
+  test(
+      '[DiomanFailure.status]'
+      '[DiomanAuth.onAccessExpired] 同会话多个在途 expired 只清理通知一次', () async {
     final gates = List.generate(2, (_) => Completer<void>());
     var sent = 0;
     var notices = 0;

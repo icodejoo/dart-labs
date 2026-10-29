@@ -1,0 +1,57 @@
+Analyzing dioman...
+
+  error - example\dioman_example.dart:8:7 - Missing concrete implementation of 'DiomanTokenManager.setTokens'. Try implementing the missing method, or make the class abstract. - non_abstract_class_inherits_abstract_member
+  error - example\dioman_example.dart:135:9 - The function 'DiomanMockAdapter' isn't defined. Try importing the library that defines 'DiomanMockAdapter', correcting the name to the name of an existing function, or defining a function named 'DiomanMockAdapter'. - undefined_function
+  error - example\dioman_example.dart:140:27 - The named parameter 'dio' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'dio'. - undefined_named_parameter
+  error - example\dioman_example.dart:151:27 - The argument type 'List<DiomanPlugin<DiomanResponse<dynamic>>>' can't be assigned to the parameter type 'Iterable<Interceptor>'.  - argument_type_not_assignable
+  error - example\dioman_example.dart:156:11 - The name 'DiomanKey' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\dioman_example.dart:158:11 - The name 'DiomanNormalize' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\dioman_example.dart:162:5 - The function 'DiomanCancel' isn't defined. Try importing the library that defines 'DiomanCancel', correcting the name to the name of an existing function, or defining a function named 'DiomanCancel'. - undefined_function
+  error - example\dioman_example.dart:185:11 - The name 'DiomanLog' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\dioman_example.dart:227:3 - The function 'cancelAll' isn't defined. Try importing the library that defines 'cancelAll', correcting the name to the name of an existing function, or defining a function named 'cancelAll'. - undefined_function
+  error - example\lib\main.dart:59:28 - The name 'MockHandler' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'MockHandler'. - non_type_as_type_argument
+  error - example\lib\main.dart:62:29 - Undefined class 'MockHandler'. Try changing the name to the name of an existing class, or creating a class with the name 'MockHandler'. - undefined_class
+  error - example\lib\main.dart:91:1 - Undefined class 'DiomanLog'. Try changing the name to the name of an existing class, or creating a class with the name 'DiomanLog'. - undefined_class
+  error - example\lib\main.dart:92:5 - The function 'DiomanLog' isn't defined. Try importing the library that defines 'DiomanLog', correcting the name to the name of an existing function, or defining a function named 'DiomanLog'. - undefined_function
+  error - example\lib\main.dart:109:7 - Missing concrete implementation of 'DiomanPlugin.setup'. Try implementing the missing method, or make the class abstract. - non_abstract_class_inherits_abstract_member
+  error - example\lib\main.dart:152:7 - Missing concrete implementation of 'DiomanPlugin.setup'. Try implementing the missing method, or make the class abstract. - non_abstract_class_inherits_abstract_member
+  error - example\lib\main.dart:199:14 - The named parameter 'dio' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'dio'. - undefined_named_parameter
+  error - example\lib\main.dart:217:14 - The named parameter 'dio' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'dio'. - undefined_named_parameter
+  error - example\lib\main.dart:247:28 - The element type 'DiomanRepath<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:271:28 - The element type 'DiomanFilter<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:294:34 - The name 'DiomanKey' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\lib\main.dart:294:47 - The element type 'DiomanCache<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:322:36 - The name 'DiomanNormalize' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\lib\main.dart:333:36 - The name 'DiomanNormalize' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\lib\main.dart:339:22 - The name 'DiomanException' isn't defined, so it can't be used in an 'is' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanException'. - type_test_with_undefined_name
+  error - example\lib\main.dart:340:31 - The name 'DiomanException' isn't a type, so it can't be used in an 'as' expression. Try changing the name to the name of an existing type, or creating a type with the name 'DiomanException'. - cast_to_non_type
+  error - example\lib\main.dart:363:14 - The name 'DiomanKey' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\lib\main.dart:363:27 - The element type 'DiomanCache<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:397:14 - The name 'DiomanKey' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\lib\main.dart:397:27 - The element type 'DiomanShare<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:419:27 - The function 'DiomanMockAdapter' isn't defined. Try importing the library that defines 'DiomanMockAdapter', correcting the name to the name of an existing function, or defining a function named 'DiomanMockAdapter'. - undefined_function
+  error - example\lib\main.dart:474:28 - The function 'DiomanCancel' isn't defined. Try importing the library that defines 'DiomanCancel', correcting the name to the name of an existing function, or defining a function named 'DiomanCancel'. - undefined_function
+  error - example\lib\main.dart:493:3 - The function 'cancelAll' isn't defined. Try importing the library that defines 'cancelAll', correcting the name to the name of an existing function, or defining a function named 'cancelAll'. - undefined_function
+  error - example\lib\main.dart:521:5 - The element type 'DiomanLoading<DiomanResponse<dynamic>>' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:561:8 - The function 'DiomanCancel' isn't defined. Try importing the library that defines 'DiomanCancel', correcting the name to the name of an existing function, or defining a function named 'DiomanCancel'. - undefined_function
+  error - example\lib\main.dart:561:24 - The element type '_DemoAuth' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:596:8 - The element type '_DemoRetry' can't be assigned to the list type 'Interceptor'. - list_element_type_not_assignable
+  error - example\lib\main.dart:637:31 - The name 'DiomanLogOptions' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\real_run.dart:19:7 - Missing concrete implementation of 'DiomanTokenManager.setTokens'. Try implementing the missing method, or make the class abstract. - non_abstract_class_inherits_abstract_member
+  error - example\real_run.dart:49:7 - Missing concrete implementation of 'DiomanPlugin.setup'. Try implementing the missing method, or make the class abstract. - non_abstract_class_inherits_abstract_member
+  error - example\real_run.dart:79:25 - The method 'install' isn't defined for the type 'Dioman'. Try correcting the name to the name of an existing method, or defining a method named 'install'. - undefined_method
+  error - example\real_run.dart:82:16 - The name 'DiomanKey' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\real_run.dart:83:22 - The name 'DiomanNormalize' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\real_run.dart:86:13 - The function 'DiomanCancel' isn't defined. Try importing the library that defines 'DiomanCancel', correcting the name to the name of an existing function, or defining a function named 'DiomanCancel'. - undefined_function
+  error - example\real_run.dart:102:16 - The name 'DiomanLog' isn't a class. Try correcting the name to match an existing class. - creation_with_non_type
+  error - example\real_run.dart:104:24 - The argument type '_NetCounter' can't be assigned to the parameter type 'Interceptor'.  - argument_type_not_assignable
+  error - example\real_run.dart:251:21 - The function 'DiomanLogOptions' isn't defined. Try importing the library that defines 'DiomanLogOptions', correcting the name to the name of an existing function, or defining a function named 'DiomanLogOptions'. - undefined_function
+  error - example\real_run.dart:272:21 - The function 'cancelAll' isn't defined. Try importing the library that defines 'cancelAll', correcting the name to the name of an existing function, or defining a function named 'cancelAll'. - undefined_function
+warning - example\dioman_example.dart:23:12 - The getter doesn't override an inherited getter. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+warning - example\lib\main.dart:122:8 - The method doesn't override an inherited method. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+warning - example\lib\main.dart:129:8 - The method doesn't override an inherited method. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+warning - example\lib\main.dart:167:8 - The method doesn't override an inherited method. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+warning - example\real_run.dart:27:12 - The getter doesn't override an inherited getter. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+warning - example\real_run.dart:54:8 - The method doesn't override an inherited method. Try updating this class to match the superclass, or removing the override annotation. - override_on_non_overriding_member
+
+53 issues found.

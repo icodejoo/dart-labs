@@ -50,16 +50,17 @@
 | 要找 | 路径 |
 |---|---|
 | 各层用例 | `test/{unit,rule,boundary,combo,integration}/` |
-| 夹具：假适配器、TestTokens、组合安装 | `test/support/fixtures.dart` |
-| 本地真实 HTTP 服务夹具 | `test/support/test_server.dart` |
+| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,b3_helpers,helpers}.dart` |
+| 本地真实 HTTP 回环 | `test/integration/{b3_transport,source_transport,timeout_effective}_integration_test.dart` |
 | 本地全量组合（powerset） | `test/combo/powerset_combo_test.dart` |
-| 真实服务白盒入口（`real` 标签） | `test/integration/real_service_integration_test.dart` |
+| 整形插件成对组合 | `test/combo/prepare_pairs_combo_test.dart` |
+| 唯一入口与旧 key 固定基准 | `lib/dioman.dart`、`test/support/key_baseline.json` |
 | 验收执行器源码 | `test/accept/bin/`（入口）、`test/accept/lib/`（实现） |
-| 公开 API 台账（691 项） | `test/accept/lib/api-inventory.json` |
+| 公开 API 台账（785 项） | `test/accept/lib/api-inventory.json` |
 | 真实 pairwise 执行计划 | `test/accept/lib/plugin_matrix_plan.json` |
 | 总账矩阵 / 缺口基线 / 行覆盖白名单 | `test/accept/lib/matrix.json`、`matrix-baseline.json`、`matrix-lcov-whitelist.json` |
 | 闸门、证据汇总、结论回填 | `dart run test/accept/bin/matrix.dart gates / evidence / results`；静态闸门 `test/integration/matrix_integration_test.dart` |
-| 入库的真实验收证据汇总 | `test/accept/evidence/` |
+| 新版入库验收证据 / 切换前历史汇总 | `test/accept/evidence/`；`docs/reference/pipeline-migration/raw/accept-evidence/` |
 | 假设清单（H 编号） | `test/ASSUMPTIONS.md` |
 | 给 testkit 的提议（外部仓库，已落地为 testkit D20–D23，顶部有各节去向） | `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md` |
 | 历史验收日志 / 结果（本地，不入库） | `test/accept/*.log`、`test/accept/results/` |
@@ -68,3 +69,23 @@
 ## 约束
 
 - 改 `lib/src/` 前必读：`.claude/skills/dioman/SKILL.md`
+
+## 批次报告、分层迁移与证据索引
+
+- [reference/pipeline-migration/boundary.md](reference/pipeline-migration/boundary.md)
+- [reference/pipeline-migration/combo.md](reference/pipeline-migration/combo.md)
+- [reference/pipeline-migration/integration.md](reference/pipeline-migration/integration.md)
+- [reference/pipeline-migration/rule.md](reference/pipeline-migration/rule.md)
+- [reference/pipeline-migration/unit.md](reference/pipeline-migration/unit.md)
+- [dioman 洋葱管线 B1 内核](reports/2026-10-29-pipeline-b1.md)
+- [dioman 洋葱管线 B2 无状态插件](reports/2026-10-29-pipeline-b2.md)
+- [dioman 洋葱管线 B3 重试与鉴权](reports/2026-10-29-pipeline-b3.md)
+- [dioman 洋葱管线 B4 结果来源](reports/2026-10-29-pipeline-b4.md)
+- [dioman 洋葱管线 B5a powerset、成对组合与全库覆盖率](reports/2026-10-29-pipeline-b5a.md)
+- [dioman 洋葱管线 B5b 删除与切换报告](reports/2026-10-29-pipeline-b5b.md)
+- [reports/pipeline-b2-evidence/migration.md](reports/pipeline-b2-evidence/migration.md)
+- [reports/pipeline-b3-evidence/migration.md](reports/pipeline-b3-evidence/migration.md)
+- [reports/pipeline-b4-evidence/b3-39.md](reports/pipeline-b4-evidence/b3-39.md)
+- [reports/pipeline-b4-evidence/migration.md](reports/pipeline-b4-evidence/migration.md)
+- [reports/pipeline-b5a-evidence/pairs.md](reports/pipeline-b5a-evidence/pairs.md)
+- [测试总账矩阵缺口报告](reports/pipeline-b5b-evidence/gates.md)

@@ -1,13 +1,16 @@
-import '../support/pipeline/constants.dart';
-import 'package:dioman/pipeline.dart';
+import '../support/constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 最外层落定规则及用户配置合并。
 void main() {
-  test('[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出', () async {
+  test(
+      '[DiomanKind.offline][DiomanResponseFactory.fail]'
+      '[INV-context-lifecycle]'
+      '[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出', () async {
     final bug = StateError('debug factory');
     var rejected = 0;
     final api = testClient(
@@ -32,7 +35,9 @@ void main() {
   });
   for (final debug in [false, true, pipelineTestLogger]) {
     for (final kind in [DiomanKind.ok, DiomanKind.http, DiomanKind.internal]) {
-      test('[Dioman.send] 九格落定 debug=$debug kind=$kind', () async {
+      test(
+          '[DiomanResponse.errorStack]'
+          '[Dioman.send] 九格落定 debug=$debug kind=$kind', () async {
         final bug = StateError(pipelineTestOriginal);
         final stack = StackTrace.fromString(pipelineTestOriginalStack);
         var rejected = 0;
@@ -82,7 +87,13 @@ void main() {
       });
     }
   }
-  test('[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行', () async {
+  test(
+      '[Dioman.delete]'
+      '[Dioman.head]'
+      '[Dioman.patch]'
+      '[Dioman.post]'
+      '[Dioman.put]'
+      '[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行', () async {
     final network = FakeNetwork();
     final api = testClient(network: network);
     api.dio.options.headers[pipelineTestBase] = 1;

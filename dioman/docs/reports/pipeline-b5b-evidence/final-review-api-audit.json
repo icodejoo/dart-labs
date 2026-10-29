@@ -1,0 +1,4753 @@
+[
+  {
+    "api": "Dioman",
+    "kind": "class",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(dio)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(plugins)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(response)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(key)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(reject)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(debug)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.new(clock)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.dio",
+    "kind": "field",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.response",
+    "kind": "field",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.key",
+    "kind": "field",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.reject",
+    "kind": "field",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.clock",
+    "kind": "field",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.pending",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.cancellationSubscriptions",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "Dioman.logError",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.use",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.eject",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.plugin",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.inspect",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.cancelAll",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.extend",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.dispose",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.send",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.request",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.get",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.post",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.put",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.patch",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.delete",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "Dioman.head",
+    "kind": "method",
+    "action": "keep",
+    "reason": "客户端请求、配置、插件管理及生命周期契约；pending 是宿主管理在途调用的语义计数"
+  },
+  {
+    "api": "DiomanClock",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主与自定义插件注入时钟的契约"
+  },
+  {
+    "api": "DiomanClock.system",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "宿主与自定义插件注入时钟的契约"
+  },
+  {
+    "api": "DiomanClock.now",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主与自定义插件注入时钟的契约"
+  },
+  {
+    "api": "DiomanClock.createTimer",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主与自定义插件注入时钟的契约"
+  },
+  {
+    "api": "DiomanLogger",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "StateKey",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "StateKey.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "StateKey.new(description)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "StateKey.description",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanCancelLink",
+    "kind": "class",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanCancelLink.new",
+    "kind": "constructor",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanCancelLink.new(source)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanCancelLink.new(target)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanCancelLink.dispose",
+    "kind": "method",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState",
+    "kind": "class",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.new",
+    "kind": "constructor",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.new(token)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.new(onDispose)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.token",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.values",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.keys",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.listeners",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.replayable",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.retain",
+    "kind": "method",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.release",
+    "kind": "method",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.cancel",
+    "kind": "method",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContextState.dispose",
+    "kind": "method",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContext",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(id)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(client)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(request)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(state)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContext.new(factory)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(keyService)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(clock)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.new(log)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.id",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.client",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.request",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.state",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContext.factory",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.keyService",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.clock",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.log",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.cancelToken",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.isCancelled",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.cancellationSubscriptions",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "内部取消桥、共享状态及其泄漏入口，只用于内核生命周期与 I3 白盒断言",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContext.replayable",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "仅供内核传输读取重放标记或落定时附加调用栈；插件作者使用 markReplayable 声明，宿主读取最终响应 callSite",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanContext.key",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.get",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.set",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.fail",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.markReplayable",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.cancelled",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.derive",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanContext.wait",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件使用的请求上下文、取消等待、重放声明和按身份隔离的 StateKey 状态契约"
+  },
+  {
+    "api": "DiomanKeyOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new(fastMode)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new(ignores)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new(builder)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new(namespace)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.new(key)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.fastMode",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.ignores",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.builder",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.namespace",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyOptions.key",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyService",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyService.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyService.new(options)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyService.options",
+    "kind": "field",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "DiomanKeyService.build",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主和自定义插件构键配置及构键服务"
+  },
+  {
+    "api": "replaceOption",
+    "kind": "function",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanOptionKey",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanOptionKey.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanOptionKey.new(description)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanOptionKey.description",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "resolveOption",
+    "kind": "function",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(headers)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(connectTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(sendTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(receiveTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(cancelToken)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(key)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(envelope)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(silent)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.new(options)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.headers",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.connectTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.sendTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.receiveTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.cancelToken",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.key",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.envelope",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.silent",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanCall.options",
+    "kind": "field",
+    "action": "keep",
+    "reason": "自定义插件选项解析、按身份隔离的选项键及调用配置；replaceOption/resolveOption 保留统一开关与合并规则"
+  },
+  {
+    "api": "DiomanRunner",
+    "kind": "typedef",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration",
+    "kind": "class",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration.new",
+    "kind": "constructor",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration.new(plugin)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration.new(instance)",
+    "kind": "parameter",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration.plugin",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanRegistration.instance",
+    "kind": "field",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "validateDiomanPlugins",
+    "kind": "function",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "sortDiomanPipeline",
+    "kind": "function",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "compileDiomanPipeline",
+    "kind": "function",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanNext",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.enforce",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.enabled",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPlugin.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPluginInstance",
+    "kind": "class",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPluginInstance.handle",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanPluginInstance.dispose",
+    "kind": "method",
+    "action": "keep",
+    "reason": "自定义插件配置、实例、setup/handle/dispose 和 next 生命周期契约"
+  },
+  {
+    "api": "DiomanRequest",
+    "kind": "class",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.new(options)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.new(call)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.data",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.headers",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.query",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.extra",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.call",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.path",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.method",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.baseUrl",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.uri",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.connectTimeout",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.sendTimeout",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.receiveTimeout",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.cancelToken",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.silent",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.toRequestOptions",
+    "kind": "method",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanRequest.patch",
+    "kind": "method",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch",
+    "kind": "class",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(headers)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(query)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(extra)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(removeHeaders)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(removeQuery)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(data)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(path)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(method)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(connectTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(sendTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(receiveTimeout)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.new(cancelToken)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.headers",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.query",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.extra",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.removeHeaders",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.removeQuery",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.data",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.path",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.method",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.connectTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.sendTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.receiveTimeout",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "RequestPatch.cancelToken",
+    "kind": "field",
+    "action": "keep",
+    "reason": "插件读取请求与派生补丁的契约"
+  },
+  {
+    "api": "DiomanKind",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.ok",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.http",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.biz",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.network",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.timeout",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.cancel",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.parse",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.auth",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.breaker",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.offline",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanKind.internal",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope",
+    "kind": "class",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.new(code)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.new(data)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.new(message)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.code",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.data",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "Envelope.message",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse",
+    "kind": "class",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(ok)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(kind)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(status)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(httpStatus)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(code)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(message)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(data)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(reason)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(request)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(raw)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(error)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(errorStack)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.new(callSite)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.ok",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.kind",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.status",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.httpStatus",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.code",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.message",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.data",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.reason",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.request",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.raw",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.error",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.errorStack",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.callSite",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.copy",
+    "kind": "method",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponse.toString",
+    "kind": "method",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure",
+    "kind": "class",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(kind)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(status)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(message)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(reason)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(data)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(error)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.new(errorStack)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.kind",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.status",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.message",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.reason",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.data",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.error",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanFailure.errorStack",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory",
+    "kind": "class",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(envelope)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(isEnvelope)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(isSuccess)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(logicalStatus)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(expectJson)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.new(create)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.envelope",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.isEnvelope",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.isSuccess",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.logicalStatus",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.expectJson",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.create",
+    "kind": "field",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.withCallSite",
+    "kind": "method",
+    "action": "internal",
+    "reason": "仅供内核传输读取重放标记或落定时附加调用栈；插件作者使用 markReplayable 声明，宿主读取最终响应 callSite",
+    "invariant": "INV-context-lifecycle"
+  },
+  {
+    "api": "DiomanResponseFactory.derive",
+    "kind": "method",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.fail",
+    "kind": "method",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanResponseFactory.normalize",
+    "kind": "method",
+    "action": "keep",
+    "reason": "归一化结果、失败和宿主可扩展结果工厂契约"
+  },
+  {
+    "api": "DiomanStage",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanStage.outer",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanStage.prepare",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanStage.attempt",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanStage.credential",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanStage.source",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanEnforce",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanEnforce.pre",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "DiomanEnforce.post",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "自定义插件阶段及前后顺序契约"
+  },
+  {
+    "api": "diomanSetupPlugins",
+    "kind": "constant",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "diomanBuiltinStages",
+    "kind": "constant",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "diomanTransport",
+    "kind": "function",
+    "action": "internal",
+    "reason": "内核执行器实现细节，插件作者通过 setup/handle/next 扩展，不应自行注册、排序或编译内核",
+    "invariant": "INV-pipeline-internals"
+  },
+  {
+    "api": "DiomanLoadingOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.new(onChanged)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.new(delay)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.new(delayClose)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.onChanged",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.delay",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingOptions.delayClose",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoadingApi",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主可读取当前参与 loading 的逻辑请求数用于界面状态；不是内部表大小"
+  },
+  {
+    "api": "DiomanLoadingApi.activeCount",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "宿主可读取当前参与 loading 的逻辑请求数用于界面状态；不是内部表大小"
+  },
+  {
+    "api": "DiomanLoading",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.new(onChanged)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.new(delay)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.new(delayClose)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.onChanged",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.delay",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.delayClose",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanLoading.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.new(notify)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.new(stringify)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.notify",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.stringify",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.defaultStringify",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanNotify.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.new(pattern)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.new(removeKey)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.pattern",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepathOptions.removeKey",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.new(pattern)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.new(removeKey)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.pattern",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.removeKey",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.defaultPattern",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRepath.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterPredicate",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.new(predicate)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.new(ignoreKeys)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.new(ignoreValues)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.predicate",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.ignoreKeys",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilterOptions.ignoreValues",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.new(predicate)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.new(ignoreKeys)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.new(ignoreValues)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.predicate",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.ignoreKeys",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.ignoreValues",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.defaultPredicate",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanFilter.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "NetworkQuality",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "NetworkQuality.excellent",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "NetworkQuality.good",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "NetworkQuality.poor",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "NetworkQuality.none",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.new(connect)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.new(receive)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.new(send)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.connect",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.receive",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeouts.send",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions.new(timeouts)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeoutOptions.timeouts",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.new(probe)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.new(timeouts)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.probe",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.timeouts",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.defaultConnect",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.defaultTimeouts",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTimeout.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule.new(rule)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule.new(config)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule.rule",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "EnvRule.config",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvsOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvsOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvsOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvsOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.new(rules)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.rules",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.config",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.enabled",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanEnvs.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShouldRetry",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryDelay",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanJitter",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(max)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(methods)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(statusCodes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(shouldRetry)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(delay)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(jitter)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(delayMax)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(respectRetryAfter)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(afterStatusCodes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(retryAfterMax)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.new(onRetry)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.max",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.methods",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.statusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.shouldRetry",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.delay",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.jitter",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.delayMax",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.respectRetryAfter",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.afterStatusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.retryAfterMax",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetryOptions.onRetry",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(max)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(methods)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(statusCodes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(shouldRetry)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(delay)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(jitter)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(delayMax)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(respectRetryAfter)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(afterStatusCodes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(retryAfterMax)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.new(onRetry)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.max",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.methods",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.statusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.shouldRetry",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.delay",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.jitter",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.delayMax",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.respectRetryAfter",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.afterStatusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.retryAfterMax",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.onRetry",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.defaultMethods",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.defaultStatusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.defaultAfterStatusCodes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.defaultDelay",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanRetry.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerState",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerState.closed",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerState.open",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerState.halfOpen",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShouldTrip",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerApi",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.reset",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.stateOf",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.keyOf",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.retryableAt",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.isOpen",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerApi.bucketCount",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "宿主可查询熔断状态并 reset，属于断路器管理能力"
+  },
+  {
+    "api": "DiomanBreakerOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(failureThreshold)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(resetDuration)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(halfOpenMaxCalls)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(shouldTrip)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.new(keyBuilder)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.failureThreshold",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.resetDuration",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.halfOpenMaxCalls",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.shouldTrip",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreakerOptions.keyBuilder",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(failureThreshold)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(resetDuration)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(halfOpenMaxCalls)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(shouldTrip)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(keyBuilder)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(idleTtl)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(maxBuckets)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(clock)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.new(onStateChange)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.failureThreshold",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.resetDuration",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.halfOpenMaxCalls",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.shouldTrip",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.keyBuilder",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.defaultFailureThreshold",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.defaultResetDuration",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.defaultHalfOpenMaxCalls",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.defaultIdleTtl",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.defaultMaxBuckets",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.idleTtl",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.maxBuckets",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.clock",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.onStateChange",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanBreaker.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction.refresh",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction.replay",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction.deny",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction.expired",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailureAction.others",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthNotice",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthRefresh",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthFailure",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthReady",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "defaultAuthFailure",
+    "kind": "function",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(onAccessDenied)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(onAccessExpired)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(onFailure)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(isProtected)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(ready)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(expiresAt)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(refreshLeeway)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(headerKey)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.new(buildHeader)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.onAccessDenied",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.onAccessExpired",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.onFailure",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.isProtected",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.ready",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.expiresAt",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.refreshLeeway",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.headerKey",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuthOptions.buildHeader",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(tokenManager)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(onRefresh)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(onAccessDenied)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(onAccessExpired)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(onFailure)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(isProtected)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(ready)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(expiresAt)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(refreshLeeway)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(headerKey)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.new(buildHeader)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.tokenManager",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.onRefresh",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.onAccessDenied",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.onAccessExpired",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.onFailure",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.isProtected",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.ready",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.expiresAt",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.refreshLeeway",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.headerKey",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.buildHeader",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.readyStableAttempts",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.injectedToken",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.defaultBuildHeader",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanAuth.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanTokenManager",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主认证令牌存储与刷新依赖契约"
+  },
+  {
+    "api": "DiomanTokenManager.accessToken",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "宿主认证令牌存储与刷新依赖契约"
+  },
+  {
+    "api": "DiomanTokenManager.refreshToken",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "宿主认证令牌存储与刷新依赖契约"
+  },
+  {
+    "api": "DiomanTokenManager.setTokens",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主认证令牌存储与刷新依赖契约"
+  },
+  {
+    "api": "DiomanTokenManager.clear",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主认证令牌存储与刷新依赖契约"
+  },
+  {
+    "api": "DiomanCachePersist",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主持久化缓存存储契约"
+  },
+  {
+    "api": "DiomanCachePersist.read",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主持久化缓存存储契约"
+  },
+  {
+    "api": "DiomanCachePersist.write",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主持久化缓存存储契约"
+  },
+  {
+    "api": "DiomanCachePersist.remove",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主持久化缓存存储契约"
+  },
+  {
+    "api": "DiomanCachePersist.erase",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主持久化缓存存储契约"
+  },
+  {
+    "api": "DiomanMockRoute",
+    "kind": "typedef",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.new(routes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.new(mockUrl)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.new(fallbackWhen)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.routes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.mockUrl",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMockOptions.fallbackWhen",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.new(routes)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.new(mockUrl)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.new(fallbackWhen)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.routes",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.mockUrl",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.fallbackWhen",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanMock.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanSharePolicy",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanSharePolicy.start",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanSharePolicy.end",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanSharePolicy.race",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanSharePolicy.retry",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareApi",
+    "kind": "class",
+    "action": "internal",
+    "reason": "内部表物理大小及屏障回收的白盒诊断，不提供产品管理能力",
+    "invariant": "INV-source-diagnostics"
+  },
+  {
+    "api": "DiomanShareApi.activeEntries",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "内部表物理大小及屏障回收的白盒诊断，不提供产品管理能力",
+    "invariant": "INV-source-diagnostics"
+  },
+  {
+    "api": "DiomanShareOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new(policy)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new(retries)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new(interval)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.new(methods)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.policy",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.retries",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.interval",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShareOptions.methods",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new(policy)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new(retries)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new(interval)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new(methods)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.policy",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.retries",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.interval",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.methods",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanShare.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanClonePolicy",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanClonePolicy.none",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanClonePolicy.shallow",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanClonePolicy.deep",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCachePolicy",
+    "kind": "enum",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCachePolicy.memo",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCachePolicy.persist",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCachePolicy.both",
+    "kind": "enumValue",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(expires)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(clone)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(shouldCache)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(shouldStore)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.new(cachePolicy)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.expires",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.clone",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.shouldCache",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.shouldStore",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheOptions.cachePolicy",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheApi",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheApi.remove",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheApi.clear",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCacheApi.pendingWrites",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "内部表物理大小及屏障回收的白盒诊断，不提供产品管理能力",
+    "invariant": "INV-source-diagnostics"
+  },
+  {
+    "api": "DiomanCacheApi.entryCount",
+    "kind": "getter",
+    "action": "internal",
+    "reason": "内部表物理大小及屏障回收的白盒诊断，不提供产品管理能力",
+    "invariant": "INV-source-diagnostics"
+  },
+  {
+    "api": "DiomanCache",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(persist)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(maxEntries)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(cachePolicy)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(expires)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(clone)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(clock)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(shouldCache)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(shouldStore)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.maxEntries",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.persist",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.cachePolicy",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.expires",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.clone",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.shouldCache",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.shouldStore",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.clock",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanCache.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.new(shouldQueue)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.new(maxQueueSize)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.new(maxWait)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.shouldQueue",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.maxQueueSize",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineOptions.maxWait",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOfflineApi",
+    "kind": "class",
+    "action": "keep",
+    "reason": "宿主可读取排队数并主动 flush，属于离线队列管理能力"
+  },
+  {
+    "api": "DiomanOfflineApi.pending",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "宿主可读取排队数并主动 flush，属于离线队列管理能力"
+  },
+  {
+    "api": "DiomanOfflineApi.flush",
+    "kind": "method",
+    "action": "keep",
+    "reason": "宿主可读取排队数并主动 flush，属于离线队列管理能力"
+  },
+  {
+    "api": "DiomanOffline",
+    "kind": "class",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new",
+    "kind": "constructor",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(isOnline)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(onConnectivityChanged)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(shouldQueue)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(maxQueueSize)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(maxWait)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.new(enabled)",
+    "kind": "parameter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.isOnline",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.onConnectivityChanged",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.shouldQueue",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.maxQueueSize",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.maxWait",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.enabled",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.defaultMaxQueueSize",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.pluginName",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.option",
+    "kind": "field",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.name",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.stage",
+    "kind": "getter",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  },
+  {
+    "api": "DiomanOffline.setup",
+    "kind": "method",
+    "action": "keep",
+    "reason": "内置插件的安装/请求配置、回调类型或宿主管理端口契约"
+  }
+]

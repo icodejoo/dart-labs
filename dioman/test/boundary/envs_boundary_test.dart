@@ -1,13 +1,13 @@
-import '../support/pipeline/b2_constants.dart';
-import 'package:dioman/pipeline.dart';
+import '../support/b2_constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/helpers.dart';
 import '../rule/envs_rule_test.dart' show envNested;
 
 /// 核对安装错误和配置容器的引用边界。
 void main() {
-  test('[EnvRule.rule] 抛错原样中断 setup，宿主没有写入', () {
+  test('[DiomanEnvs.config]' '[EnvRule.rule] 抛错原样中断 setup，宿主没有写入', () {
     final api = testClient();
     final base = api.dio.options;
     final error = StateError('rule sentinel');
@@ -40,7 +40,8 @@ void main() {
         DiomanEnvs<Result>([EnvRule(rule: () => true, config: template)]);
     final first = testClient();
     final host = first.dio.options;
-    host.extra[b2Host] = {
+    final hostExtras = host.extra;
+    hostExtras[b2Host] = {
       b2List: [2]
     };
     first.use(plugin);
@@ -62,8 +63,9 @@ void main() {
         b2List: [1]
       });
     }
-    ((first.dio.options.extra[b2Host] as Map)[b2List] as List).add(3);
-    expect(host.extra[b2Host], {
+    final firstExtras = first.dio.options.extra;
+    ((firstExtras[b2Host] as Map)[b2List] as List).add(3);
+    expect(hostExtras[b2Host], {
       b2List: [2]
     });
   });

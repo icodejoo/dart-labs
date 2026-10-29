@@ -1,0 +1,5 @@
+Formatted test/unit/accept_runner_test.dart
+Formatted example/real_run.dart
+Formatted example/dioman_example.dart
+Formatted example/lib/main.dart
+Formatted 4 files (4 changed) in 0.02 seconds.

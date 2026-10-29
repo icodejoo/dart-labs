@@ -1,0 +1,13 @@
+Formatted benchmark\pipeline_client.dart
+Formatted test\accept\bin\audit.dart
+Formatted test\accept\bin\hoist_literals.dart
+Formatted test\accept\bin\share_prepare_probe.dart
+Formatted test\accept\lib\client.dart
+Formatted test\accept\lib\probes.dart
+Formatted test\accept\lib\probes_fields.dart
+Formatted test\accept\lib\runner.dart
+Formatted example\lib\main.dart
+Formatted example\lib\token_manager.dart
+Formatted example/dioman_example.dart
+Formatted example/real_run.dart
+Formatted 27 files (12 changed) in 0.09 seconds.

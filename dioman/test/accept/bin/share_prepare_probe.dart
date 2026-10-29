@@ -5,17 +5,24 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
-import '../lib/client.dart';
 import '../lib/common.dart';
+
+/// 首次发送之后的克隆失败原因。
+const _cloneFailure = 'multipart replay clone failed';
 
 /// 封装 BrokenReplayForm 测试夹具。
 /// 让已发送附件在重试克隆时暴露格式错误，模拟调用方自定义 multipart。
 class BrokenReplayForm extends FormData {
+  /// 原始请求体的克隆次数；首发也会克隆。
+  int _clones = 0;
+
   /// clone 的测试实现。
   /// 非状态类错误应通过共享结算传给每个调用者。
   @override
-  FormData clone() =>
-      throw const FormatException('multipart replay clone failed');
+  FormData clone() {
+    if (_clones++ == 0) return super.clone();
+    throw const FormatException(_cloneFailure);
+  }
 }
 
 /// main 的测试辅助入口。
@@ -31,24 +38,28 @@ Future<void> main() async {
       final run = '$session-$style';
       final proxy = await createProbeProxy(control, run);
       final dio = ioClient('http://127.0.0.1:${proxy[tkPort]}');
-      dio.transformer = EnvelopeTransformer(true);
       final events = <bool>[];
-      final handle = Dioman.install(dio,
-          key: DiomanKey(builder: (_) => run),
-          share: DiomanShare(policy: DiomanSharePolicy.retry, retries: 1),
-          loading: DiomanLoading(onChanged: events.add));
+      final api = Dioman(
+          dio: dio,
+          key: DiomanKeyOptions(builder: (_) => run),
+          plugins: [
+            const DiomanShare(
+                policy: DiomanSharePolicy.retry, retries: 1, methods: {tkPOST}),
+            DiomanLoading(onChanged: events.add)
+          ]);
       dio.options.headers.addAll({runHeader: run, styleHeader: style});
       try {
         /// 捕获真实失败，避免并发请求产生未处理异常。
         /// attempt 的测试辅助入口。
-        Future<DioException> attempt() async {
+        Future<FormatException> attempt() async {
           if (serviceBlocked) throw StateError('服务已要求停止验收');
           try {
-            await dio.post<dynamic>(tkTEcho,
+            await api.post<dynamic>(tkTEcho,
                 data: BrokenReplayForm(),
-                queryParameters: {tkKey: run, tkFailTimes: 1, tkDelayMs: 100});
+                call: DiomanCall(options: {DiomanShare.option: true}),
+                query: {tkKey: run, tkFailTimes: 1, tkDelayMs: 100});
             throw StateError('预期附件克隆失败，实际成功');
-          } on DioException catch (error) {
+          } on FormatException catch (error) {
             return error;
           }
         }
@@ -69,7 +80,7 @@ Future<void> main() async {
         final stats = obj(obj((await server.get<dynamic>('/t/runs/$run',
                 options: Options(headers: {runHeader: run})))
             .data)[tkData]);
-        if (errors.any((error) => error.error is! FormatException) ||
+        if (errors.any((error) => error.message != _cloneFailure) ||
             stats[tkTotal] != 1 ||
             stats[tkInflight] != 0 ||
             events.where((v) => v).length != events.where((v) => !v).length) {
@@ -79,13 +90,13 @@ Future<void> main() async {
           tkRunId: run,
           tkStyle: style,
           tkStatus: tkPassed,
-          'errors': errors.map((error) => error.error.toString()).toList(),
+          'errors': errors.map((error) => error.toString()).toList(),
           tkLoading: events,
           tkServer: stats
         });
         stdout.writeln('通过 $run');
       } finally {
-        handle.dispose();
+        api.dispose();
         dio.close(force: true);
         await deleteProbeProxy(control, proxy, run);
       }

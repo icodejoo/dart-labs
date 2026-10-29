@@ -175,6 +175,12 @@ List<String> titleIdsFromSource(String source) {
   final title = RegExp(r'''\btest\(\s*((?:r?(['"])(?:\\.|(?!\2).)*\2\s*)+),''',
       dotAll: true);
   final literal = RegExp(r'''r?(['"])((?:\\.|(?!\1).)*)\1''', dotAll: true);
+  final constants = <String, String>{
+    for (final match in RegExp(
+            r'''\bconst\s+(?:String\s+)?(\w+)\s*=\s*(['"])([^\r\n]*?)\2\s*;''')
+        .allMatches(source))
+      match[1]!: match[3]!,
+  };
   final ids = <String>[];
   var offset = 0;
   while (offset < source.length) {
@@ -192,8 +198,11 @@ List<String> titleIdsFromSource(String source) {
         ? title.matchAsPrefix(source, offset)
         : null;
     if (match != null) {
-      ids.addAll(parseTitleIds(
-          literal.allMatches(match[1]!).map((m) => m[2]!).join()));
+      var value = literal.allMatches(match[1]!).map((m) => m[2]!).join();
+      for (final entry in constants.entries) {
+        value = value.replaceAll(r'$' + entry.key, entry.value);
+      }
+      ids.addAll(parseTitleIds(value));
       offset = match.end;
       continue;
     }
@@ -216,7 +225,7 @@ List<String> titleIdsFromSource(String source) {
 /// 从源码 [sources] 收集粗粒度符号；返回内部 id 集合，例如 `symbolsFromSources({'matrix': 'void sync() {}'})`。
 Set<String> symbolsFromSources(Map<String, String> sources) {
   final result = <String>{};
-  final names = RegExp(r'\b([A-Za-z_$][\w$]*)\s*(?:<[^;{}]*>)?\s*\(');
+  final names = RegExp(r'\b([A-Za-z_$][\w$]*)\s*(?:<[^<>;{}()]*>)?\s*\(');
   final fields = RegExp(
       r'\b(?:get|set|final|var|const|late|bool|int|String)\s+(?:[\w<>?,]+\s+)?([A-Za-z_$][\w$]*)\s*(?:[;=({]|=>)');
   for (final entry in sources.entries) {
@@ -262,24 +271,10 @@ Set<String> internalSymbols(List<Directory> directories) => symbolsFromSources({
                 file.readAsStringSync(),
     });
 
-/// 非插件源文件到分组的固定映射：安装/排序归 install，extra 键注册表归 extra，传输层 mock 归 mock。
-const _fileGroups = {
-  'dioman.dart': 'install',
-  'dioman_plugin.dart': 'install',
-  'plugin_order.dart': 'install',
-  'extra_keys.dart': 'extra',
-  'mock_adapter.dart': 'mock',
-};
-
-/// 按台账里的源文件推导分组，未知文件返回 core。
-///
-/// [file] 为台账 `file` 字段（如 `lib/src/retry_plugin.dart`）；返回分组名。
-/// 例：`pluginForFile('lib/src/timeout_plugin.dart')` 返回 `timeout`。
+/// 按归位后的源路径分组；plugins 下每个文件就是独立能力。
 String pluginForFile(String? file) {
-  final name = (file ?? _empty).split(_slash).last;
-  return _fileGroups[name] ??
-      RegExp(r'^(\w+)_plugin\.dart$').firstMatch(name)?.group(1) ??
-      _core;
+  final normalized = (file ?? _empty).replaceAll(_backslash, _slash);
+  return normalized.split(_slash).last.replaceAll(_dart, _empty);
 }
 
 /// 为 [inventory] 追加未覆盖草稿，保留 [existingRows]；例如 `draftRows(inventory, [])` 返回排序矩阵。
@@ -365,7 +360,8 @@ Set<String> computeGaps({
     final api = item[_api] as String;
     if (behaviorKinds.contains(item[_kind])
         ? !covered.contains(api)
-        : evidenceHits != null && !evidenceHits.contains(api)) {
+        : !titles.containsKey(api) &&
+            (evidenceHits == null || !evidenceHits.contains(api))) {
       gaps.add('G2:$api');
     }
   }
@@ -373,7 +369,10 @@ Set<String> computeGaps({
   final testFiles = titles.values.expand((files) => files).toSet();
   for (final row in rows) {
     if (row.tier == null) gaps.add('G0:${row.id}');
-    final unit = _strings(row.extra[_unit]);
+    final unit = _strings(row.extra.entries
+        .firstWhere((entry) => entry.key == _unit,
+            orElse: () => const MapEntry(_unit, null))
+        .value);
     for (final file in unit.where((f) => !testFiles.contains(f))) {
       gaps.add('G5:row-unit:${row.id}:$file');
     }

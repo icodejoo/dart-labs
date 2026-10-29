@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// 验证跨插件的不变量和重发边界。
 void main() {
   test(
+      '[DiomanBreaker.new(clock)][DiomanKind.breaker]'
       '[DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线',
       () async {
     final net = FakeNetwork()..routes[b3Route] = [const FakeReply(status: 500)];

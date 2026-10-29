@@ -1,14 +1,16 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 四个 source 插件的公开规则。
 void main() {
-  test('[DiomanMock.routes] 默认生效，内联数据经工厂识别 business 且零触网', () async {
+  test('[DiomanKind.biz]' '[DiomanMock.routes] 默认生效，内联数据经工厂识别 business 且零触网',
+      () async {
     final net = FakeNetwork();
     final api = testClient(network: net, plugins: [
       DiomanMock<Result>(routes: {
@@ -99,6 +101,7 @@ void main() {
     expect(clock.pendingTimers, 0);
   });
   test(
+      '[DiomanCache.new(shouldCache)][DiomanCacheOptions.clone][DiomanCacheOptions.expires][DiomanCacheOptions.shouldCache]'
       '[DiomanCache.option] true 继承 clone expires shouldCache，Duration 与覆盖选项生效',
       () async {
     final net = FakeNetwork();
@@ -157,7 +160,9 @@ void main() {
     await head.send<Object?>(b4LiteralHEAD, b4Path, call: b4Call(cache: true));
     expect(net.sends.length, 3);
   });
-  test('[DiomanCache.cachePolicy] memo persist both 分层，持久化命中提升且惰性过期', () async {
+  test(
+      '[DiomanCache.persist][DiomanCachePolicy.memo]'
+      '[DiomanCache.cachePolicy] memo persist both 分层，持久化命中提升且惰性过期', () async {
     for (final policy in DiomanCachePolicy.values) {
       final store = B4Persist();
       final clock = FakeClock();
@@ -179,7 +184,10 @@ void main() {
       expect(api.plugin<DiomanCacheApi>()!.pendingWrites, 0);
     }
   });
-  test('[DiomanOfflineApi.flush] 离线排队恢复和手动 flush，shouldQueue false 放行',
+  test(
+      '[DiomanOfflineOptions.shouldQueue]'
+      '[DiomanOffline.defaultMaxQueueSize]'
+      '[DiomanOfflineApi.flush] 离线排队恢复和手动 flush，shouldQueue false 放行',
       () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);

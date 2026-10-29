@@ -1,10 +1,11 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 自审问题的独立回归。
 void main() {
@@ -18,7 +19,9 @@ void main() {
     expect(net.sends.single.options.uri.queryParameters,
         {'inline': 'yes', b4LiteralSeparate: b4LiteralAlso});
   });
-  test('[DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason',
+  test(
+      '[DiomanCachePolicy.persist]'
+      '[DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason',
       () async {
     for (final reply in [
       const FakeReply(status: 503, body: 'unavailable'),
@@ -60,7 +63,9 @@ void main() {
       expect(net.sends.length, 1);
     }
   });
-  test('[DiomanOffline.dispose] 自审：旧链晚到请求以 disposed 结束，不再排队', () async {
+  test(
+      '[Dioman.dispose × DiomanOfflineApi.pending] 自审：旧链晚到请求以 disposed 结束，不再排队',
+      () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);
     final gate = Completer<void>();
@@ -82,7 +87,9 @@ void main() {
     expect(offline.pending, 0);
     expect(net.sends, isEmpty);
   });
-  test('[DiomanSharePolicy.retry] 内部等待时钟异常经工厂发布，所有跟随者按 bug 收尾', () async {
+  test(
+      '[DiomanShare.interval][INV-source-diagnostics]'
+      '[DiomanSharePolicy.retry] 内部等待时钟异常经工厂发布，所有跟随者按 bug 收尾', () async {
     final net = FakeNetwork()..routes[b4Route] = [const FakeReply(status: 500)];
     final api = testClient(
         network: net,

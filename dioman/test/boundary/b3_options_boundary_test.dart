@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 请求级自定义头名称。
 const _customHeader = 'X-Access';
@@ -96,7 +96,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanAuthOptions.headerKey] 自定义头和格式、ready 优先，过期通知与 expiresAt 请求覆盖',
+  test(
+      '[DiomanAuth.new(headerKey)][DiomanAuthOptions.buildHeader][DiomanAuthOptions.onFailure]'
+      '[DiomanAuthOptions.headerKey] 自定义头和格式、ready 优先，过期通知与 expiresAt 请求覆盖',
       () async {
     final tokens = TestTokens();
     final net = FakeNetwork();
@@ -177,7 +179,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanAuth.ready] buildHeader expiresAt 在首发和重放抛错均原样且收尾', () async {
+  test(
+      '[DiomanAuth.new(buildHeader)][DiomanAuth.new(tokenManager)]'
+      '[DiomanAuth.ready] buildHeader expiresAt 在首发和重放抛错均原样且收尾', () async {
     for (final header in [false, true]) {
       for (final replay in [false, true]) {
         final tm = TestTokens();

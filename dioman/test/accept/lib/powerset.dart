@@ -63,17 +63,13 @@ Future<void> runRealPowerset() async {
         tkClient: {tkPlugins: plugins}
       }, subsetRun, transport.options.baseUrl, tkHttp, transport: adapter);
       try {
-        final response = await client.dio.get<dynamic>(tkTEcho,
-            queryParameters: {
+        final response = await client.api.get<dynamic>(tkTEcho,
+            query: {
               tkKey: tkPowerset,
               tkData: jsonEncode({tkMask: mask})
             },
-            options: Options(
-                headers: client.headers,
-                extra: client.extras(
-                    {tkMock: false, tkKey: true, tkCache: true}, '$mask')));
-        final body = obj(response.data);
-        final data = body.containsKey(tkCode) ? obj(body[tkData]) : body;
+            call: client.call({tkMock: false, tkKey: true, tkCache: true}));
+        final data = obj(response);
         final meta = obj(data[tkMeta]);
         if (meta[tkRun] != subsetRun ||
             meta[tkHit] != 1 ||

@@ -1,16 +1,22 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'dart:io';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 选项和判定回调的公开边界。
 void main() {
-  test('[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项', () async {
+  test(
+      '[DiomanCache.enabled][DiomanCache.name][DiomanCache.pluginName][DiomanCache.stage][DiomanCacheOptions.enabled][DiomanMock.enabled][DiomanMock.name][DiomanMock.pluginName][DiomanMock.stage][DiomanMockOptions.enabled][DiomanOffline.enabled][DiomanOffline.name][DiomanOffline.option][DiomanOffline.pluginName][DiomanOffline.stage][DiomanOfflineOptions.enabled][DiomanShare.enabled][DiomanShare.name][DiomanShare.pluginName][DiomanShare.stage][DiomanShareOptions.enabled]'
+      '[DiomanCache.setup]'
+      '[DiomanMock.setup]'
+      '[DiomanOffline.setup]'
+      '[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项', () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);
     final plugins = <DiomanPlugin<Result>>[
@@ -67,7 +73,9 @@ void main() {
     }
     installed.dispose();
   });
-  test('[DiomanMock.option] 请求级路由地址覆盖，network 默认回落，判定抛错原样', () async {
+  test(
+      '[DiomanMockOptions.fallbackWhen][DiomanMockOptions.mockUrl][DiomanMockOptions.routes]'
+      '[DiomanMock.option] 请求级路由地址覆盖，network 默认回落，判定抛错原样', () async {
     final net = FakeNetwork()
       ..routes['GET:https://mock.test$b4Path'] = [
         FakeReply(
@@ -106,6 +114,7 @@ void main() {
         DiomanKind.cancel);
   });
   test(
+      '[DiomanCacheOptions.cachePolicy]'
       '[DiomanCache.option × DiomanShare.option] key false 方法否决与自定义方法和 shouldStore',
       () async {
     final net = FakeNetwork();
@@ -153,7 +162,9 @@ void main() {
                     cachePolicy: DiomanCachePolicy.persist))),
         throwsStateError);
   });
-  test('[DiomanCache.clone] deep 保留非字符串键隔离嵌套，shallow List 标量及非法策略', () async {
+  test(
+      '[DiomanClonePolicy.shallow]'
+      '[DiomanCache.clone] deep 保留非字符串键隔离嵌套，shallow List 标量及非法策略', () async {
     for (final body in <Object>[
       {
         1: [2]
@@ -226,7 +237,9 @@ void main() {
     api.dispose();
     cancelled.dispose();
   });
-  test('[DiomanShare.retries] retry 间隔取消与耗尽释放条目，dispose 所有策略清表', () async {
+  test(
+      '[DiomanShareOptions.interval]'
+      '[DiomanShare.retries] retry 间隔取消与耗尽释放条目，dispose 所有策略清表', () async {
     for (final p in DiomanSharePolicy.values) {
       final gate = Completer<void>();
       final clock = FakeClock();

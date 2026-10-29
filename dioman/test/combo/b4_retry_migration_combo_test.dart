@@ -1,6 +1,6 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_migration_scenarios.dart';
+import '../support/b4_migration_scenarios.dart';
 
 /// 鉴权与重试跨来源阶段的行为组合回归。
 void main() {
@@ -30,7 +30,9 @@ void main() {
       () => b4MockRetryRecovers(inlineBusiness: true, withShare: true));
   test('[DiomanRetry.max × DiomanShare.option] 外层重试中最新成功覆盖较早成功并统一结果',
       () => b4RetryArbitration(policy: DiomanSharePolicy.end));
-  test('[DiomanRetry.max × DiomanShare.option] 外层重试中竞速等待在途成功且不被旧失败提前结算',
+  test(
+      '[DiomanSharePolicy.race]'
+      '[DiomanRetry.max × DiomanShare.option] 外层重试中竞速等待在途成功且不被旧失败提前结算',
       () => b4RetryArbitration(policy: DiomanSharePolicy.race));
   test('[DiomanRetry.max × DiomanShare.option] 竞速重试通知异常被隔离且各调用均正确落定',
       () => b4RetryNoticesSettle(throwNotice: true));

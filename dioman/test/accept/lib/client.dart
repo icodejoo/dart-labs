@@ -1,7 +1,6 @@
 import 'literals.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'common.dart';
@@ -67,11 +66,6 @@ class Tokens implements DiomanTokenManager {
   @override
   String? get refreshToken => refresh;
 
-  /// canRefresh 的测试实现。
-  /// 是否允许刷新。
-  @override
-  bool get canRefresh => refresh != null && refresh!.isNotEmpty;
-
   /// replace 的测试实现。
   /// 更换令牌并记录变化。
   void replace(String? a, String? r) {
@@ -86,6 +80,11 @@ class Tokens implements DiomanTokenManager {
   void accept(Map<String, dynamic> data) => replace(
       data[tkAccessToken] == null ? null : 'Bearer ${data[tkAccessToken]}',
       data[tkRefreshToken] as String?);
+
+  /// 写入刷新后的原始凭证。
+  @override
+  void setTokens({required String accessToken, String? refreshToken}) =>
+      replace(accessToken, refreshToken);
 
   /// clear 的测试实现。
   /// 清空当前令牌。
@@ -135,399 +134,205 @@ class Tokens implements DiomanTokenManager {
   }
 }
 
-/// 封装 EnvelopeTransformer 测试夹具。
-/// 业务信封在传输边界转成错误，使 auth/retry/cache 看到同一种失败。
-class EnvelopeTransformer extends FusedTransformer {
-  /// 构造独立测试实例。
-  /// 装了 normalize 且请求未关闭时，所有业务失败都转成错误；
-  /// 只装 auth（[authOnly]）时，只把业务 401/403 转成错误交给 auth 识别。
-  EnvelopeTransformer(this.enabled, {this.authOnly = false});
-
-  /// 全局业务判定开关（安装了 normalize）。
-  final bool enabled;
-
-  /// 没有 normalize 但装了 auth：契约里 auth 只负责识别 401/403，
-  /// 其余业务码保持为成功响应（testkit D21）。
-  final bool authOnly;
-
-  /// transformResponse 的测试实现。
-  /// 保留原始状态、响应头及响应体。
-  @override
-  Future<dynamic> transformResponse(
-      RequestOptions options, ResponseBody body) async {
-    final data = await super.transformResponse(options, body);
-    try {
-      checkServiceStatus(body.statusCode, data: data);
-      if (obj(data)[tkCode] is int) {
-        checkServiceStatus(obj(data)[tkCode] as int, data: data);
-      }
-    } catch (error) {
-      throw DioException(
-          requestOptions: options, type: DioExceptionType.cancel, error: error);
-    }
-    if (body.statusCode < 400 &&
-        data is String &&
-        data.trim().isNotEmpty &&
-        (body.headers[Headers.contentTypeHeader]?.join().contains('html') ??
-            false)) {
-      throw DioException(
-          requestOptions: options, error: const FormatException('网关返回 HTML'));
-    }
-    final override = options.extra[DiomanNormalize.pluginName];
-    final code = obj(data)[tkCode];
-    final authCode = authOnly && (code == 401 || code == 403);
-    if ((enabled &&
-                !(override is DiomanNormalizeOptions &&
-                    override.enabled == false) ||
-            authCode) &&
-        body.statusCode < 400 &&
-        code is int &&
-        code != 0) {
-      throw DioException(
-          requestOptions: options,
-          type: DioExceptionType.badResponse,
-          response: Response<dynamic>(
-              requestOptions: options,
-              statusCode: body.statusCode,
-              data: data,
-              headers: Headers.fromMap(body.headers)),
-          error: DiomanException(
-              code: obj(data)[tkCode],
-              message: '${obj(data)[tkMessage]}',
-              data: data));
-    }
-    return data;
-  }
+/// 只读库返回的类别、原因和逻辑状态，不重复判定业务信封。
+String classify(Object error) {
+  if (error is! DiomanResponse) return 'unknown:$error';
+  return switch (error.kind) {
+    DiomanKind.ok => tkOk,
+    DiomanKind.http => 'http:${error.status}',
+    DiomanKind.biz => 'business:${error.status}',
+    DiomanKind.network => tkNetwork,
+    DiomanKind.timeout => tkTimeout,
+    DiomanKind.cancel => tkCanceled,
+    DiomanKind.parse => 'parse',
+    DiomanKind.auth => error.reason ?? tkExpired,
+    DiomanKind.breaker => 'breaker_open',
+    DiomanKind.offline => tkOffline,
+    DiomanKind.internal => 'internal',
+  };
 }
 
-/// classify 的测试辅助入口。
-/// 把 dioman 错误归入契约类别。
-String classify(Object error, {String? authTag, bool budgetExpired = false}) {
-  if (budgetExpired) return tkTimeout;
-  if (error is! DioException) return 'unknown:$error';
-  if (error.type == DioExceptionType.cancel) return tkCanceled;
-  if (authTag != null) return authTag;
-  if ((error.message ?? tkEmpty).contains('[auth] session expired')) {
-    return tkExpired;
-  }
-  if (error.error is DiomanBreakerOpenException) return 'breaker_open';
-  if (error.error is DiomanOfflineException) return tkOffline;
-  if (error.type == DioExceptionType.connectionTimeout ||
-      error.type == DioExceptionType.receiveTimeout ||
-      error.type == DioExceptionType.sendTimeout) {
-    return tkTimeout;
-  }
-  if (error.response != null) {
-    final r = error.response!;
-    if ((r.statusCode ?? 0) >= 400) return 'http:${r.statusCode}';
-    final code = obj(r.data)[tkCode];
-    if (code != null) return 'business:$code';
-    if (error.error is DiomanException) {
-      return 'business:${(error.error as DiomanException).code}';
-    }
-  }
-  if (error.error is FormatException) return 'parse';
-  if (error.error is SocketException ||
-      error.error is HttpException ||
-      error.type == DioExceptionType.connectionError) {
-    return tkNetwork;
-  }
-  if ((error.message ?? tkEmpty).contains(tkRefreshFailed)) return tkExpired;
-  if ((error.message ?? tkEmpty).contains('no token')) return tkUnauthenticated;
-  return 'unknown:$error';
-}
-
-/// 封装 ScenarioClient 测试夹具。
-/// 场景客户端及其原始回调记录。
+/// 中立场景到公开配置的映射；库独立承担归一化、取消和插件决策。
 class ScenarioClient {
-  /// 构造独立测试实例。
-  /// 按中立配置创建 io 客户端。
+  /// 构造被测客户端，真实传输可由连接池场景共享。
   ScenarioClient(this.config, this.run, String base, this.style,
       {HttpClientAdapter? transport})
       : dio = ioClient(base,
             budget: obj(config[tkClient])['base_timeout_ms'] as int? ??
                 defaultBudget) {
-    final p = obj(obj(config[tkClient])[tkPlugins]);
-    plugins = p;
-    for (final entry in p.entries) {
+    plugins = obj(obj(config[tkClient])[tkPlugins]);
+    for (final entry in plugins.entries) {
       final allowed = pluginFields[entry.key];
       if (allowed == null) throw StateError('插件 ${entry.key} 未映射');
-      for (final k in obj(entry.value).keys) {
-        if (!allowed.contains(k)) throw StateError('插件 ${entry.key}.$k 未映射');
+      for (final key in obj(entry.value).keys) {
+        if (!allowed.contains(key)) {
+          throw StateError('插件 ${entry.key}.$key 未映射');
+        }
       }
     }
-    final auth = obj(p[tkAuth]);
+    if (transport != null) dio.httpClientAdapter = transport;
+    final auth = obj(plugins[tkAuth]);
+    final cache = obj(plugins[tkCache]);
+    final retry = obj(plugins[tkRetry]);
+    final timeout = obj(plugins[tkTimeout]);
+    final breaker = obj(plugins[tkBreaker]);
+    final loading = obj(plugins[tkLoading]);
+    final key = obj(plugins[tkKey]);
     if (auth[tkRefresh] != null && auth[tkRefresh] != 'endpoint') {
       throw StateError('auth.refresh 只支持 endpoint');
     }
-    final key = obj(p[tkKey]);
     if (key[tkScope] != null && key[tkScope] != tkUser) {
       throw StateError('key.scope 只支持 user');
     }
-    final retry = obj(p[tkRetry]);
-    final timeout = obj(p[tkTimeout]);
-    final cache = obj(p[tkCache]);
-    final loading = obj(p[tkLoading]);
-    final breaker = obj(p[tkBreaker]);
-    // 装了 normalize：所有业务失败信封都转成错误；只装 auth：仅业务 401/403。
-    dio.transformer = EnvelopeTransformer(p.containsKey(tkNormalize),
-        authOnly: p.containsKey(tkAuth));
-    // [transport] 用于让多个客户端共享同一条真实连接池；mock 要包在它外面。
-    if (transport != null) dio.httpClientAdapter = transport;
-    // 中立语义里的 mock 能力由传输层 adapter 实现：在 install 之前包住宿主
-    // adapter，不参与插件顺序。回落沿用 fallback_on_404 的映射。
-    if (p.containsKey(tkMock)) {
-      dio.httpClientAdapter = DiomanMockAdapter(
-          inner: dio.httpClientAdapter,
-          mockUrl: '$base/t/mock',
-          fallbackWhen: ({response, error}) =>
-              obj(p[tkMock])[tkFallbackOn404] != false &&
-              (response ?? error?.response)?.statusCode == 404);
-    }
-    // 总预算取消在进入插件错误链前还原为超时，避免熔断器把它当用户取消。
-    dio.interceptors.add(InterceptorsWrapper(onError: (error, handler) {
-      if (error.requestOptions.extra[tkAcceptBudgetExpired] == true) {
-        handler.next(error.copyWith(type: DioExceptionType.receiveTimeout));
-      } else {
-        handler.next(error);
-      }
-    }));
-    handle = Dioman.install(
-      dio,
-      envs: p.containsKey(tkEnvs) ? DiomanEnvs([]) : null,
-      timeout: p.containsKey(tkTimeout)
-          ? DiomanTimeout(probe: () => NetworkQuality.excellent, timeouts: {
-              NetworkQuality.excellent: DiomanTimeouts(
-                  connect: timeout[tkConnectMs] == null
-                      ? null
-                      : ms(timeout[tkConnectMs] as num),
-                  send: timeout[tkSendMs] == null
-                      ? null
-                      : ms(timeout[tkSendMs] as num),
-                  receive: timeout[tkReceiveMs] == null
-                      ? null
-                      : ms(timeout[tkReceiveMs] as num))
-            })
-          : null,
-      repath: p.containsKey(tkRepath) ? DiomanRepath() : null,
-      filter: p.containsKey(tkFilter) ? const DiomanFilter() : null,
-      // 中立语义里请求级显式 key（options.key / cache.key）不依赖装配 key 插件；
-      // dioman 的 share/cache 要靠 DiomanKey 写入 extra[kKey]，所以装了 share 或
-      // cache 就同时装一个默认关闭的 DiomanKey，只由请求级选项开启。
-      key: p.containsKey(tkKey) ||
-              p.containsKey(tkShare) ||
-              p.containsKey(tkCache)
-          ? DiomanKey(
-              enabled: false,
-              namespace: key[tkScope] == tkUser ? () => tokens.user : null)
-          : null,
-      cache: p.containsKey(tkCache)
-          ? DiomanCache(
+    api = Dioman<DiomanResponse<dynamic>>(
+      dio: dio,
+      // 只读库已分类的逻辑状态；服务停止守卫不重分类、不改结果。
+      response: DiomanResponseFactory(create: (result) {
+        checkServiceStatus(result.status, data: result.data);
+        return result;
+      }),
+      key: DiomanKeyOptions(
+          namespace: key[tkScope] == tkUser ? () => tokens.user : null),
+      debug: plugins.containsKey(tkLog) ? logs.add : false,
+      plugins: [
+        if (plugins.containsKey(tkEnvs)) const DiomanEnvs([]),
+        if (plugins.containsKey(tkTimeout))
+          DiomanTimeout(probe: () => NetworkQuality.excellent, timeouts: {
+            NetworkQuality.excellent: DiomanTimeouts(
+                connect: timeout[tkConnectMs] == null
+                    ? null
+                    : ms(timeout[tkConnectMs] as num),
+                send: timeout[tkSendMs] == null
+                    ? null
+                    : ms(timeout[tkSendMs] as num),
+                receive: timeout[tkReceiveMs] == null
+                    ? null
+                    : ms(timeout[tkReceiveMs] as num)),
+          }),
+        if (plugins.containsKey(tkRepath)) const DiomanRepath(),
+        if (plugins.containsKey(tkFilter)) const DiomanFilter(),
+        if (plugins.containsKey(tkCache))
+          DiomanCache(
               persist: MemoryPersist(),
-              cachePolicy: DiomanCachePolicy.memo,
-              expires: cache[tkTtlMs] as int? ?? 60000,
+              expires: ms(cache[tkTtlMs] as num? ?? 60000),
               maxEntries: cache[tkMax] as int? ?? 500,
-              shouldCache: (o) =>
-                  (cache[tkMethods] as List? ?? [tkGET]).contains(o.method))
-          : null,
-      offline: p.containsKey(tkOffline)
-          ? DiomanOffline(
+              shouldCache: (request) => (cache[tkMethods] as List? ?? [tkGET])
+                  .contains(request.method)),
+        if (plugins.containsKey(tkOffline))
+          DiomanOffline(
               isOnline: () => online,
-              onConnectivityChanged: connectivity.stream,
-              maxQueueSize: 50,
-              maxWait: Duration.zero)
-          : null,
-      share: p.containsKey(tkShare)
-          ? DiomanShare(policy: policy(obj(p[tkShare])[tkPolicy]))
-          : null,
-      cancel: p.containsKey(tkCancel) ? DiomanCancel() : null,
-      loading: p.containsKey(tkLoading)
-          ? DiomanLoading(
+              onConnectivityChanged: connectivity.stream),
+        if (plugins.containsKey(tkShare))
+          DiomanShare(policy: policy(obj(plugins[tkShare])[tkPolicy])),
+        if (plugins.containsKey(tkMock))
+          DiomanMock(
+              mockUrl: '$base/t/mock',
+              fallbackWhen: obj(plugins[tkMock])[tkFallbackOn404] == false
+                  ? (_) => false
+                  : null),
+        if (plugins.containsKey(tkLoading))
+          DiomanLoading(
               onChanged: loadingEvents.add,
               delay: ms(loading[tkDelayMs] as num? ?? 0),
-              delayClose: ms(loading[tkDelayCloseMs] as num? ?? 0))
-          : null,
-      auth: p.containsKey(tkAuth)
-          ? DiomanAuth(
+              delayClose: ms(loading[tkDelayCloseMs] as num? ?? 0)),
+        if (plugins.containsKey(tkAuth))
+          DiomanAuth(
               tokenManager: tokens,
-              buildHeader: (t) => t,
-              isProtected: (o) => o.uri.path
+              buildHeader: (token) => token,
+              isProtected: (request) => request.uri.path
                   .startsWith(auth[tkUrlPattern] as String? ?? privatePath),
-              onRefresh: (_, r) async {
+              onRefresh: (_, result) async {
                 refreshCount++;
-                final d = ioClient(dio.options.baseUrl);
+                final refreshApi = Dioman(dio: ioClient(dio.options.baseUrl));
                 try {
-                  final response = await d.post<dynamic>(refreshPath,
+                  final data = await refreshApi.post<Map<String, dynamic>>(
+                      refreshPath,
                       data: {tkRefreshToken: tokens.refresh},
-                      queryParameters: obj(auth[tkRefreshQuery]),
-                      options: Options(headers: headers));
-                  if (logical(response) >= 400) {
-                    throw StateError(tkRefreshFailed);
-                  }
-                  tokens.accept(obj(obj(response.data)[tkData]));
+                      query: obj(auth[tkRefreshQuery]),
+                      call: DiomanCall(headers: headers));
+                  tokens.accept(data);
                 } finally {
-                  d.close(force: true);
+                  refreshApi.dispose();
+                  refreshApi.dio.close(force: true);
                 }
               },
-              onAccessExpired: (_, r) async {
-                expiredCount++;
-                tags['${r.requestOptions.extra[tkAcceptId]}'] = tkExpired;
-              },
-              onAccessDenied: (_, r) async {
-                final synthetic = r.statusCode == 0;
-                if (!synthetic) deniedCount++;
-                tags['${r.requestOptions.extra[tkAcceptId]}'] =
-                    synthetic ? tkUnauthenticated : tkDenied;
-              },
-              onFailure: (_, r) {
-                final status = logical(r);
-                if (status == 403) return DiomanAuthFailureAction.deny;
-                if (status != 401) return DiomanAuthFailureAction.others;
-                if (!tokens.canRefresh) return DiomanAuthFailureAction.expired;
-                return defaultAuthFailure(
-                    tokens,
-                    Response<dynamic>(
-                        requestOptions: r.requestOptions,
-                        statusCode: 401,
-                        data: r.data),
-                    tkAuthorization);
-              })
-          : null,
-      retry: p.containsKey(tkRetry)
-          ? DiomanRetry(
+              onAccessExpired: (_, __) => expiredCount++,
+              onAccessDenied: (_, __) => deniedCount++),
+        if (plugins.containsKey(tkRetry))
+          DiomanRetry(
               max: retry[tkMax] as int? ?? 0,
               methods:
                   List<String>.from(retry[tkMethods] as List? ?? retryMethods),
-              delay: (_, __, ___, ____) => ms(retry[tkDelayMs] as num? ?? 0),
-              shouldRetry: (e, r) => shouldRetry(e, r, retry),
-              statusCodes: retryStatusCodes(retry),
-              respectRetryAfter: retry[tkRespectRetryAfter] as bool? ?? true,
-              afterStatusCodes: [200, 413, 429, 503])
-          : null,
-      breaker: p.containsKey(tkBreaker)
-          ? DiomanBreaker(
+              delay: (_, __, ___) => ms(retry[tkDelayMs] as num? ?? 0),
+              statusCodes:
+                  List<int>.from(retry[tkStatuses] as List? ?? retryStatuses),
+              respectRetryAfter: retry[tkRespectRetryAfter] as bool? ?? true),
+        if (plugins.containsKey(tkBreaker))
+          DiomanBreaker(
               failureThreshold: breaker[tkThreshold] as int? ?? 3,
-              resetDuration: ms(breaker[tkOpenMs] as num? ?? 1000),
-              shouldTrip: shouldTrip)
-          : null,
-      log: p.containsKey(tkLog)
-          ? DiomanLog(writer: (message, {error}) => logs.add(message))
-          : null,
-      normalize: p.containsKey(tkNormalize) ? const DiomanNormalize() : null,
-      plugins: [
-        if (p.containsKey(tkNotify))
-          DiomanNotify<dynamic>(
-              notify: notices.add,
-              stringify: (data, message, status, o) =>
-                  o.extra[tkAcceptSilent] == true ||
-                          o.cancelToken?.isCancelled == true
-                      ? tkEmpty
-                      : status >= 400 ||
-                              (obj(data)[tkCode] is int &&
-                                  obj(data)[tkCode] != 0) ||
-                              status == 0
-                          ? (message.isEmpty ? 'request failed' : message)
-                          : tkEmpty)
+              resetDuration: ms(breaker[tkOpenMs] as num? ?? 1000)),
+        if (plugins.containsKey(tkNotify))
+          DiomanNotify(notify: (message, _) => notices.add(message)),
       ],
     );
-    // 在插件登记后接收原生 token，宿主只维护中断及在途观测。
-    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-      final onToken = options.extra[tkAcceptOnToken];
-      final token = options.cancelToken;
-      if (onToken is void Function(CancelToken) && token != null) {
-        onToken(token);
-      }
-      handler.next(options);
-    }));
   }
 
-  /// 场景原始配置。
+  /// 原始场景配置。
   final Map<String, dynamic> config;
 
-  /// 本轮唯一隔离标识。
+  /// 本轮隔离标识。
   final String run;
 
-  /// 当前风格。
+  /// 当前响应风格。
   String style;
 
-  /// 被测 Dio。
+  /// 真实传输宿主。
   final Dio dio;
 
-  /// 插件句柄。
-  late final DiomanHandle handle;
+  /// 被测洋葱客户端。
+  late final Dioman<DiomanResponse<dynamic>> api;
 
-  /// 插件配置。
+  /// 原始插件配置。
   late final Map<String, dynamic> plugins;
 
-  /// 令牌端口。
+  /// 凭证存储。
   final tokens = Tokens();
 
-  /// 连通性事件源。
+  /// 连通事件端口。
   final connectivity = StreamController<bool>.broadcast();
 
-  /// 最近探测状态。
+  /// 宿主观测的连通状态。
   bool online = true;
 
   /// loading 原始事件。
   final loadingEvents = <bool>[];
 
-  /// 通知原始文本。
+  /// 通知原文。
   final notices = <String>[];
 
-  /// 日志原文。
+  /// debug 原文。
   final logs = <String>[];
 
-  /// 按请求记录鉴权类别。
-  final tags = <String, String>{};
-
-  /// 实际刷新次数。
+  /// 刷新次数。
   int refreshCount = 0;
 
-  /// 过期回调次数。
+  /// 会话过期通知次数。
   int expiredCount = 0;
 
-  /// 越权回调次数。
+  /// 拒绝通知次数。
   int deniedCount = 0;
 
-  /// headers 的测试实现。
-  /// 场景隔离与风格请求头。
+  /// 隔离请求头。
   Map<String, dynamic> get headers => {runHeader: run, styleHeader: style};
 
-  /// policy 的测试实现。
-  /// 解析去重策略，拒绝未知值。
+  /// 解析策略，拒绝未知值。
   static DiomanSharePolicy policy(dynamic value) =>
       DiomanSharePolicy.values.firstWhere((p) => p.name == (value ?? 'start'),
           orElse: () => throw StateError('share.policy 未映射: $value'));
 
-  /// shouldRetry 的测试实现。
-  /// 仅补充非零业务码；HTTP 状态及错误类型交回插件原生判定。
-  bool? shouldRetry(DioException? e, Response<dynamic>? response,
-      Map<String, dynamic> options) {
-    final r = response ?? e?.response;
-    final code = obj(r?.data)[tkCode];
-    if (r != null && (r.statusCode ?? 0) < 400 && code is int && code != 0) {
-      return retryStatusCodes(options).contains(code);
-    }
-    return null;
-  }
-
-  /// 将中立重试状态白名单传给插件，保留契约默认值。
-  static List<int> retryStatusCodes(Map<String, dynamic> options) =>
-      List<int>.from(options[tkStatuses] as List? ?? retryStatuses);
-
-  /// 仅补充业务信封失败；HTTP 状态及网络错误交回插件内置分类。
-  static bool? shouldTrip(Response<dynamic>? response, DioException? error) {
-    final r = response ?? error?.response;
-    final code = obj(r?.data)[tkCode];
-    if (r != null && (r.statusCode ?? 0) < 400 && code is int && code != 0) {
-      return code >= 500 || code == 429;
-    }
-    return null;
-  }
-
-  /// extras 的测试实现。
-  /// 把请求级配置逐项映射到公开选项对象。
-  Map<String, dynamic> extras(Map<String, dynamic> o, String id) {
+  /// 将请求配置映射到类型化键，不用 extra 携带运行状态。
+  DiomanCall call(Map<String, dynamic> options,
+      {CancelToken? token, Map<String, dynamic>? headers}) {
     const allowed = {
       tkAuth,
       tkCache,
@@ -542,68 +347,75 @@ class ScenarioClient {
       tkBreaker,
       tkFilter
     };
-    for (final k in o.keys) {
-      if (!allowed.contains(k)) throw StateError('请求选项 $k 未映射');
+    for (final key in options.keys) {
+      if (!allowed.contains(key)) throw StateError('请求选项 $key 未映射');
     }
-    if (o.containsKey(tkFilter) && o[tkFilter] is! bool) {
-      throw StateError('请求选项 filter 必须是布尔值: ${o[tkFilter]}');
+    if (options.containsKey(tkFilter) && options[tkFilter] is! bool) {
+      throw StateError('请求选项 filter 必须是布尔值');
     }
-    final key = o[tkKey];
-    final c = obj(o[tkCache]);
-    final r = {...obj(plugins[tkRetry]), ...obj(o[tkRetry])};
-    for (final k in c.keys) {
-      if (!{tkTtlMs, tkKey}.contains(k)) throw StateError('cache.$k 未映射');
+    final cache = obj(options[tkCache]);
+    final retry = obj(options[tkRetry]);
+    for (final key in cache.keys) {
+      if (!{tkTtlMs, tkKey}.contains(key)) throw StateError('cache.$key 未映射');
     }
-    for (final k in r.keys) {
-      if (!pluginFields[tkRetry]!.contains(k)) throw StateError('retry.$k 未映射');
+    for (final key in retry.keys) {
+      if (!pluginFields[tkRetry]!.contains(key)) {
+        throw StateError('retry.$key 未映射');
+      }
     }
-    return {
-      tkAcceptId: id,
-      tkAcceptSilent: o[tkSilent] == true,
-      DiomanAuth.pluginName: DiomanAuthOptions(enabled: o[tkAuth] as bool?),
-      DiomanKey.pluginName: DiomanKeyOptions(
-          enabled: c[tkKey] != null || key != null && key != false,
-          key: c[tkKey] as String? ??
-              (key is String && !{'deep', tkSimple}.contains(key) ? key : null),
-          fastMode: key == tkSimple),
-      DiomanCache.pluginName: DiomanCacheOptions(
-          enabled: o[tkCache] != false, expires: c[tkTtlMs] as int?),
-      DiomanShare.pluginName: DiomanShareOptions(
-          enabled: o[tkShare] != false,
-          policy: o[tkShare] is String ? policy(o[tkShare]) : null),
-      DiomanLoading.pluginName:
-          DiomanLoadingOptions(enabled: o[tkLoading] as bool?),
-      DiomanRetry.pluginName: DiomanRetryOptions(
-          enabled: o[tkRetry] != false,
-          max: o[tkRetry] is num
-              ? (o[tkRetry] as num).toInt()
-              : r[tkMax] as int?,
-          methods: r[tkMethods] == null
-              ? null
-              : List<String>.from(r[tkMethods] as List),
-          delay: r[tkDelayMs] == null
-              ? null
-              : (_, __, ___, ____) => ms(r[tkDelayMs] as num),
-          shouldRetry: (e, response) => shouldRetry(e, response, r),
-          statusCodes: retryStatusCodes(r),
-          respectRetryAfter: r[tkRespectRetryAfter] as bool?),
-      DiomanMockAdapter.extraKey:
-          DiomanMockOptions(enabled: o[tkMock] as bool?),
-      DiomanNormalize.pluginName:
-          DiomanNormalizeOptions(enabled: o[tkNormalize] as bool?),
-      DiomanBreaker.pluginName:
-          DiomanBreakerOptions(enabled: o[tkBreaker] as bool?),
-      // testkit D19：只有请求级 filter: true 才过滤；DiomanFilter 装上默认开启，
-      // 所以缺省与 false 都要显式关掉，client.plugins.filter 只代表装配。
-      DiomanFilter.pluginName:
-          DiomanFilterOptions(enabled: o[tkFilter] == true),
-    };
+    final key = cache[tkKey] ?? options[tkKey];
+    return DiomanCall(
+        headers: {...this.headers, ...?headers},
+        cancelToken: token,
+        key: key == tkSimple
+            ? const DiomanKeyOptions(fastMode: true)
+            : key == 'deep' || key == true
+                ? null
+                : key,
+        envelope: options[tkNormalize] as bool?,
+        silent: options[tkSilent] == true,
+        receiveTimeout: options[tkTimeoutMs] == null
+            ? null
+            : ms(options[tkTimeoutMs] as num),
+        options: {
+          DiomanAuth.option: options[tkAuth],
+          DiomanCache.option: options[tkCache] == false
+              ? false
+              : options[tkCache] == null
+                  ? true
+                  : DiomanCacheOptions(
+                      expires: cache[tkTtlMs] == null
+                          ? null
+                          : ms(cache[tkTtlMs] as num)),
+          DiomanShare.option: options[tkShare] is String
+              ? DiomanShareOptions(policy: policy(options[tkShare]))
+              : options[tkShare] ?? true,
+          DiomanLoading.option: options[tkLoading],
+          DiomanRetry.option: options[tkRetry] == false
+              ? false
+              : DiomanRetryOptions(
+                  max: options[tkRetry] is num
+                      ? (options[tkRetry] as num).toInt()
+                      : retry[tkMax] as int?,
+                  methods: retry[tkMethods] == null
+                      ? null
+                      : List<String>.from(retry[tkMethods] as List),
+                  delay: retry[tkDelayMs] == null
+                      ? null
+                      : (_, __, ___) => ms(retry[tkDelayMs] as num),
+                  statusCodes: retry[tkStatuses] == null
+                      ? null
+                      : List<int>.from(retry[tkStatuses] as List),
+                  respectRetryAfter: retry[tkRespectRetryAfter] as bool?),
+          DiomanMock.option: options[tkMock],
+          DiomanBreaker.option: options[tkBreaker],
+          DiomanFilter.option: options[tkFilter] == true,
+        });
   }
 
-  /// dispose 的测试实现。
-  /// 释放全部客户端资源。
+  /// 释放客户端和宿主端口。
   Future<void> dispose() async {
-    handle.dispose();
+    api.dispose();
     dio.close(force: true);
     await connectivity.close();
   }

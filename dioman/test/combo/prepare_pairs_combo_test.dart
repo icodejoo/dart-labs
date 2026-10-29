@@ -1,14 +1,15 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/b5_powerset.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/b5_powerset.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 只做请求整形的四项；envs 只在 setup 合并配置。
+const pairSeparator = '+';
 const prepareNames = [repathName, filterName, timeoutName, envsName];
 const pairPath = '/pairs/{id}';
 const shapedPath = '/pairs/7';
@@ -26,7 +27,7 @@ void main() {
     for (var j = i + 1; j < names.length; j++) {
       final pair = [names[i], names[j]];
       if (!pair.any(prepareNames.contains)) continue;
-      test('[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送', () async {
+      test('[DiomanPlugin pairs] ${pair.join(pairSeparator)} 补丁穿透发送', () async {
         final clock = FakeClock();
         final stream = StreamController<bool>.broadcast(sync: true);
         final net = FakeNetwork();

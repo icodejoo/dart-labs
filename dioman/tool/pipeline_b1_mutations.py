@@ -37,7 +37,7 @@ def run():
     dart = shutil.which('dart')
     results = []
     for name, module, old, new, test, title in CASES:
-        path = ROOT / f'lib/src/pipeline/{module}.dart'
+        path = ROOT / f'lib/src/{module}.dart'
         original = path.read_bytes()
         digest = hashlib.sha256(original).hexdigest()
         text = original.decode('utf-8').replace('\r\n', '\n')

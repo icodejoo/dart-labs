@@ -1,0 +1,1337 @@
+{
+  "DiomanAuth.enabled": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 2692,
+    "title": "'[DiomanAuthOptions.enabled] true 强制保护优先于公开谓词，省略与 call.true 沿用谓词'"
+  },
+  "DiomanAuth.injectedToken": {
+    "file": "test/boundary/auth_boundary_test.dart",
+    "offset": 1223,
+    "title": "'[DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新'"
+  },
+  "DiomanAuth.new(buildHeader)": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 6439,
+    "title": "'[DiomanAuth.ready] buildHeader expiresAt 在首发和重放抛错均原样且收尾'"
+  },
+  "DiomanAuth.new(headerKey)": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 3382,
+    "title": "'[DiomanAuthOptions.headerKey] 自定义头和格式、ready 优先，过期通知与 expiresAt 请求覆盖'"
+  },
+  "DiomanAuth.new(isProtected)": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 6841,
+    "title": "'[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用'"
+  },
+  "DiomanAuth.new(refreshLeeway)": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 5553,
+    "title": "'[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖'"
+  },
+  "DiomanAuth.new(tokenManager)": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 6439,
+    "title": "'[DiomanAuth.ready] buildHeader expiresAt 在首发和重放抛错均原样且收尾'"
+  },
+  "DiomanAuth.readyStableAttempts": {
+    "file": "test/boundary/auth_boundary_test.dart",
+    "offset": 288,
+    "title": "'[DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次'"
+  },
+  "DiomanAuth.stage": {
+    "file": "test/boundary/auth_boundary_test.dart",
+    "offset": 1223,
+    "title": "'[DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新'"
+  },
+  "DiomanAuthFailureAction.deny": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 758,
+    "title": "'[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败'"
+  },
+  "DiomanAuthFailureAction.expired": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 758,
+    "title": "'[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败'"
+  },
+  "DiomanAuthFailureAction.others": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 758,
+    "title": "'[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败'"
+  },
+  "DiomanAuthFailureAction.refresh": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 758,
+    "title": "'[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败'"
+  },
+  "DiomanAuthOptions.buildHeader": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 3382,
+    "title": "'[DiomanAuthOptions.headerKey] 自定义头和格式、ready 优先，过期通知与 expiresAt 请求覆盖'"
+  },
+  "DiomanAuthOptions.expiresAt": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 5553,
+    "title": "'[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖'"
+  },
+  "DiomanAuthOptions.isProtected": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 6841,
+    "title": "'[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用'"
+  },
+  "DiomanAuthOptions.onAccessDenied": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 6841,
+    "title": "'[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用'"
+  },
+  "DiomanAuthOptions.onAccessExpired": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 5553,
+    "title": "'[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖'"
+  },
+  "DiomanAuthOptions.onFailure": {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "offset": 3382,
+    "title": "'[DiomanAuthOptions.headerKey] 自定义头和格式、ready 优先，过期通知与 expiresAt 请求覆盖'"
+  },
+  "DiomanAuthOptions.ready": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 6841,
+    "title": "'[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用'"
+  },
+  "DiomanAuthOptions.refreshLeeway": {
+    "file": "test/rule/auth_rule_test.dart",
+    "offset": 5553,
+    "title": "'[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖'"
+  },
+  "DiomanBreaker.defaultIdleTtl": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 1347,
+    "title": "'[DiomanBreaker.defaultMaxBuckets] 默认回收一小时和一千桶软上限'"
+  },
+  "DiomanBreaker.enabled": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanBreaker.keyBuilder": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanBreaker.maxBuckets": {
+    "file": "test/boundary/breaker_boundary_test.dart",
+    "offset": 6489,
+    "title": "'[DiomanBreaker.idleTtl] TTL 与软上限只淘汰安全桶，保留失败和打开半开在途桶'"
+  },
+  "DiomanBreaker.name": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 2469,
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanBreaker.new(clock)": {
+    "file": "test/combo/b3_combo_test.dart",
+    "offset": 343,
+    "title": "'[DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线'"
+  },
+  "DiomanBreaker.pluginName": {
+    "file": "test/integration/b3_transport_integration_test.dart",
+    "offset": 5646,
+    "title": "'[Dioman.use × DiomanBreakerApi.stateOf] 插入移除替换熔断器使用新实例，dispose 拒绝复活'"
+  },
+  "DiomanBreaker.resetDuration": {
+    "file": "test/boundary/breaker_boundary_test.dart",
+    "offset": 2355,
+    "title": "'[DiomanBreaker.shouldTrip] cancel 只归还名额，不清连续失败也不计失败，半开可继续探测'"
+  },
+  "DiomanBreaker.stage": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 2469,
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanBreakerApi.bucketCount": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanBreakerApi.isOpen": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 2469,
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanBreakerOptions.enabled": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanBreakerOptions.failureThreshold": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 5075,
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreakerOptions.halfOpenMaxCalls": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 5075,
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreakerOptions.keyBuilder": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanBreakerOptions.resetDuration": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 5075,
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreakerOptions.shouldTrip": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 5075,
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreakerState.closed": {
+    "file": "test/boundary/breaker_boundary_test.dart",
+    "offset": 5568,
+    "title": "'[DiomanBreakerApi.reset] reset 之后旧请求不写新桶，internal 不计数且释放名额'"
+  },
+  "DiomanBreakerState.halfOpen": {
+    "file": "test/boundary/breaker_boundary_test.dart",
+    "offset": 2355,
+    "title": "'[DiomanBreaker.shouldTrip] cancel 只归还名额，不清连续失败也不计失败，半开可继续探测'"
+  },
+  "DiomanBreakerState.open": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 3936,
+    "title": "'[DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null'"
+  },
+  "DiomanCache.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanCache.expires": {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "offset": 8639,
+    "title": "'[DiomanCache.clock] 插件级 DiomanClock 控制 TTL，零负有效期不钳制'"
+  },
+  "DiomanCache.name": {
+    "file": "test/combo/prepare_pairs_combo_test.dart",
+    "offset": 998,
+    "title": "'[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送'"
+  },
+  "DiomanCache.new(shouldCache)": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 4206,
+    "title": "'[DiomanCache.option] true 继承 clone expires shouldCache，Duration 与覆盖选项生效'"
+  },
+  "DiomanCache.persist": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 6489,
+    "title": "'[DiomanCache.cachePolicy] memo persist both 分层，持久化命中提升且惰性过期'"
+  },
+  "DiomanCache.pluginName": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "offset": 258,
+    "title": "'[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填'"
+  },
+  "DiomanCache.stage": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "offset": 6393,
+    "title": "'[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记'"
+  },
+  "DiomanCacheApi.entryCount": {
+    "file": "test/boundary/source_lifecycle_boundary_test.dart",
+    "offset": 1330,
+    "title": "'[DiomanCache.shouldStore] 取消的在途响应不缓存且屏障回收'"
+  },
+  "DiomanCacheApi.pendingWrites": {
+    "file": "test/boundary/source_lifecycle_boundary_test.dart",
+    "offset": 1330,
+    "title": "'[DiomanCache.shouldStore] 取消的在途响应不缓存且屏障回收'"
+  },
+  "DiomanCacheApi.remove": {
+    "file": "test/boundary/source_boundary_test.dart",
+    "offset": 5959,
+    "title": "'[DiomanCacheApi.clear] clear 作废在途写入，屏障 finally 回收，remove 不复活'"
+  },
+  "DiomanCacheOptions.cachePolicy": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 3823,
+    "title": "'[DiomanCache.option × DiomanShare.option] key false 方法否决与自定义方法和 shouldStore'"
+  },
+  "DiomanCacheOptions.clone": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 4206,
+    "title": "'[DiomanCache.option] true 继承 clone expires shouldCache，Duration 与覆盖选项生效'"
+  },
+  "DiomanCacheOptions.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanCacheOptions.expires": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 4206,
+    "title": "'[DiomanCache.option] true 继承 clone expires shouldCache，Duration 与覆盖选项生效'"
+  },
+  "DiomanCacheOptions.shouldCache": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 4206,
+    "title": "'[DiomanCache.option] true 继承 clone expires shouldCache，Duration 与覆盖选项生效'"
+  },
+  "DiomanCachePolicy.both": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "offset": 258,
+    "title": "'[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填'"
+  },
+  "DiomanCachePolicy.memo": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 6489,
+    "title": "'[DiomanCache.cachePolicy] memo persist both 分层，持久化命中提升且惰性过期'"
+  },
+  "DiomanCachePolicy.persist": {
+    "file": "test/boundary/source_review_boundary_test.dart",
+    "offset": 762,
+    "title": "'[DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason'"
+  },
+  "DiomanClonePolicy.deep": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "offset": 6393,
+    "title": "'[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记'"
+  },
+  "DiomanClonePolicy.none": {
+    "file": "test/combo/source_combo_test.dart",
+    "offset": 2222,
+    "title": "'[DiomanShare.option × DiomanCache.option] 并发一次发送缓存一次，下一轮零触网'"
+  },
+  "DiomanClonePolicy.shallow": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 5808,
+    "title": "'[DiomanCache.clone] deep 保留非字符串键隔离嵌套，shallow List 标量及非法策略'"
+  },
+  "Dioman.cancellationSubscriptions": {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "offset": 1582,
+    "title": "'[DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio'"
+  },
+  "Dioman.clock": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 4439,
+    "title": "'[DiomanRetry.onRetry] 通知抛错隔离并记日志，通知取消不重发'"
+  },
+  "Dioman.dio": {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "offset": 332,
+    "title": "'[DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网'"
+  },
+  "Dioman.get": {
+    "file": "test/rule/response_extension_rule_test.dart",
+    "offset": 237,
+    "title": "'[DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段'"
+  },
+  "Dioman.key": {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "offset": 1582,
+    "title": "'[DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio'"
+  },
+  "Dioman.new(debug)": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 4439,
+    "title": "'[DiomanRetry.onRetry] 通知抛错隔离并记日志，通知取消不重发'"
+  },
+  "Dioman.new(plugins)": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 4439,
+    "title": "'[DiomanRetry.onRetry] 通知抛错隔离并记日志，通知取消不重发'"
+  },
+  "Dioman.plugin": {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "offset": 1582,
+    "title": "'[DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio'"
+  },
+  "Dioman.response": {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "offset": 332,
+    "title": "'[DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网'"
+  },
+  "DiomanClock.createTimer": {
+    "file": "test/unit/fixtures_test.dart",
+    "offset": 341,
+    "title": "'[DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟'"
+  },
+  "DiomanClock.now": {
+    "file": "test/unit/fixtures_test.dart",
+    "offset": 341,
+    "title": "'[DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟'"
+  },
+  "DiomanContext.client": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 2244,
+    "title": "'[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁'"
+  },
+  "DiomanContext.fail": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 2244,
+    "title": "'[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁'"
+  },
+  "DiomanContext.request": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 2244,
+    "title": "'[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁'"
+  },
+  "StateKey.description": {
+    "file": "test/unit/context_test.dart",
+    "offset": 3657,
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanEnvs.config": {
+    "file": "test/boundary/envs_boundary_test.dart",
+    "offset": 280,
+    "title": "'[EnvRule.rule] 抛错原样中断 setup，宿主没有写入'"
+  },
+  "DiomanEnvs.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanEnvs.new(enabled)": {
+    "file": "test/rule/envs_rule_test.dart",
+    "offset": 2042,
+    "title": "'[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改'"
+  },
+  "DiomanEnvs.pluginName": {
+    "file": "test/rule/envs_rule_test.dart",
+    "offset": 446,
+    "title": "'[DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链'"
+  },
+  "DiomanEnvs.rules": {
+    "file": "test/rule/envs_rule_test.dart",
+    "offset": 2042,
+    "title": "'[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改'"
+  },
+  "DiomanEnvsOptions.enabled": {
+    "file": "test/rule/envs_rule_test.dart",
+    "offset": 2042,
+    "title": "'[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改'"
+  },
+  "DiomanFilter.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilter.ignoreKeys": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilter.ignoreValues": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilter.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanFilter.stage": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 2594,
+    "title": "'[DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁'"
+  },
+  "DiomanFilterOptions.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilterOptions.ignoreKeys": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilterOptions.ignoreValues": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanFilterOptions.predicate": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 3420,
+    "title": "'[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承'"
+  },
+  "DiomanPlugin.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanKeyOptions.builder": {
+    "file": "test/unit/context_test.dart",
+    "offset": 3657,
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanKeyOptions.fastMode": {
+    "file": "test/unit/key_parity_test.dart",
+    "offset": 262,
+    "title": "'[DiomanKeyService.build] 固定种子 2400 组与旧 key 固定基准逐字节一致'"
+  },
+  "DiomanKeyOptions.ignores": {
+    "file": "test/unit/key_parity_test.dart",
+    "offset": 262,
+    "title": "'[DiomanKeyService.build] 固定种子 2400 组与旧 key 固定基准逐字节一致'"
+  },
+  "DiomanKeyOptions.key": {
+    "file": "test/unit/context_test.dart",
+    "offset": 3657,
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanLoading.enabled": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "offset": 1636,
+    "title": "'[DiomanLoading.option] 四种写法、字段继承与请求开关'"
+  },
+  "DiomanLoading.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanLoading.pluginName": {
+    "file": "test/boundary/stateless_outer_boundary_test.dart",
+    "offset": 5328,
+    "title": "'[DiomanLoading.onChanged] 通知抛错隔离、日志记录且计数仍归零'"
+  },
+  "DiomanLoading.stage": {
+    "file": "test/combo/stateless_combo_test.dart",
+    "offset": 1652,
+    "title": "'[DiomanLoadingApi.activeCount] credential 等待期间已计数，失败出口均释放自己的括号'"
+  },
+  "DiomanLoadingOptions.delay": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "offset": 2701,
+    "title": "'[DiomanLoadingOptions.onChanged] 独占回调替代默认且两个延迟都生效'"
+  },
+  "DiomanLoadingOptions.delayClose": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "offset": 2701,
+    "title": "'[DiomanLoadingOptions.onChanged] 独占回调替代默认且两个延迟都生效'"
+  },
+  "DiomanLoadingOptions.enabled": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "offset": 1636,
+    "title": "'[DiomanLoading.option] 四种写法、字段继承与请求开关'"
+  },
+  "DiomanMock.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanMock.name": {
+    "file": "test/combo/prepare_pairs_combo_test.dart",
+    "offset": 998,
+    "title": "'[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送'"
+  },
+  "DiomanMock.pluginName": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanMock.stage": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanMockOptions.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanMockOptions.fallbackWhen": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 2340,
+    "title": "'[DiomanMock.option] 请求级路由地址覆盖，network 默认回落，判定抛错原样'"
+  },
+  "DiomanMockOptions.mockUrl": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 2340,
+    "title": "'[DiomanMock.option] 请求级路由地址覆盖，network 默认回落，判定抛错原样'"
+  },
+  "DiomanMockOptions.routes": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 2340,
+    "title": "'[DiomanMock.option] 请求级路由地址覆盖，network 默认回落，判定抛错原样'"
+  },
+  "DiomanNotify.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanNotify.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanNotify.pluginName": {
+    "file": "test/boundary/stateless_outer_boundary_test.dart",
+    "offset": 5920,
+    "title": "'[DiomanNotify.notify] stringify 与 notify 的错误均隔离并记日志'"
+  },
+  "DiomanNotify.stage": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanOffline.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanOffline.name": {
+    "file": "test/combo/prepare_pairs_combo_test.dart",
+    "offset": 998,
+    "title": "'[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送'"
+  },
+  "DiomanOffline.new(isOnline)": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "offset": 4788,
+    "title": "'[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调'"
+  },
+  "DiomanOffline.new(onConnectivityChanged)": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "offset": 4788,
+    "title": "'[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调'"
+  },
+  "DiomanOffline.option": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanOffline.pluginName": {
+    "file": "test/boundary/source_review_boundary_test.dart",
+    "offset": 2064,
+    "title": "'[DiomanOffline.dispose] 自审：旧链晚到请求以 disposed 结束，不再排队'"
+  },
+  "DiomanOffline.stage": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanOfflineApi.pending": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "offset": 4788,
+    "title": "'[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调'"
+  },
+  "DiomanOfflineOptions.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanOfflineOptions.maxQueueSize": {
+    "file": "test/boundary/source_boundary_test.dart",
+    "offset": 10051,
+    "title": "'[DiomanOffline.maxQueueSize] 队满挤出最早，0 不限，请求级覆盖上限'"
+  },
+  "DiomanOfflineOptions.shouldQueue": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 7523,
+    "title": "'[DiomanOfflineApi.flush] 离线排队恢复和手动 flush，shouldQueue false 放行'"
+  },
+  "DiomanCall.cancelToken": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 6726,
+    "title": "'[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错'"
+  },
+  "DiomanCall.connectTimeout": {
+    "file": "test/boundary/source_lifecycle_boundary_test.dart",
+    "offset": 3363,
+    "title": "'[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复'"
+  },
+  "DiomanCall.envelope": {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "offset": 2103,
+    "title": "'[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包'"
+  },
+  "DiomanCall.headers": {
+    "file": "test/integration/timeout_effective_integration_test.dart",
+    "offset": 5220,
+    "title": "'[DiomanTimeouts.send] 发送缓冲阻塞时真实超时'"
+  },
+  "DiomanCall.key": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 5239,
+    "title": "'[resolveOption] 每个插件拒绝未知请求选项类型'"
+  },
+  "DiomanCall.options": {
+    "file": "test/integration/timeout_effective_integration_test.dart",
+    "offset": 4128,
+    "title": "'[DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效'"
+  },
+  "DiomanCall.receiveTimeout": {
+    "file": "test/boundary/source_lifecycle_boundary_test.dart",
+    "offset": 3363,
+    "title": "'[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复'"
+  },
+  "DiomanCall.sendTimeout": {
+    "file": "test/integration/timeout_effective_integration_test.dart",
+    "offset": 5220,
+    "title": "'[DiomanTimeouts.send] 发送缓冲阻塞时真实超时'"
+  },
+  "DiomanCall.silent": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "offset": 3640,
+    "title": "'[DiomanNotify.stringify] 默认忽略成功、取消和 silent，失败消息与空消息回退'"
+  },
+  "DiomanOptionKey.description": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 3595,
+    "title": "'[resolveOption] 四种写法、简写、optIn 和未知类型'"
+  },
+  "DiomanRegistration.plugin": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 4197,
+    "title": "'[DiomanNext] 补丁构造异常也作为结果返回'"
+  },
+  "compileDiomanPipeline": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 4197,
+    "title": "'[DiomanNext] 补丁构造异常也作为结果返回'"
+  },
+  "sortDiomanPipeline": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 571,
+    "title": "'[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链'"
+  },
+  "validateDiomanPlugins": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 571,
+    "title": "'[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链'"
+  },
+  "DiomanRepath.defaultPattern": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 1258,
+    "title": "'[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源'"
+  },
+  "DiomanRepath.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 1258,
+    "title": "'[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源'"
+  },
+  "DiomanRepath.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanRepath.removeKey": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 1258,
+    "title": "'[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源'"
+  },
+  "DiomanRepath.stage": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanRepathOptions.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 1258,
+    "title": "'[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源'"
+  },
+  "DiomanRepathOptions.pattern": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 954,
+    "title": "'[DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样'"
+  },
+  "DiomanRepathOptions.removeKey": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 1258,
+    "title": "'[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源'"
+  },
+  "DiomanRequest.baseUrl": {
+    "file": "test/rule/transport_rule_test.dart",
+    "offset": 2815,
+    "title": "'[diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离'"
+  },
+  "DiomanRequest.call": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanRequest.cancelToken": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.connectTimeout": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.data": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 2594,
+    "title": "'[DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁'"
+  },
+  "DiomanRequest.extra": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.headers": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.method": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanRequest.new(options)": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 299,
+    "title": "'[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态'"
+  },
+  "DiomanRequest.patch": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.path": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 2469,
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanRequest.query": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 2594,
+    "title": "'[DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁'"
+  },
+  "DiomanRequest.receiveTimeout": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.sendTimeout": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.silent": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "DiomanRequest.toRequestOptions": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "offset": 1540,
+    "title": "'[DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致'"
+  },
+  "DiomanRequest.uri": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.cancelToken": {
+    "file": "test/unit/context_test.dart",
+    "offset": 283,
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "RequestPatch.connectTimeout": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.data": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.extra": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.headers": {
+    "file": "test/boundary/auth_boundary_test.dart",
+    "offset": 288,
+    "title": "'[DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次'"
+  },
+  "RequestPatch.method": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.path": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 2244,
+    "title": "'[DiomanNext] 无补丁复用外层，有补丁派生，第二次 next 不继承第一次补丁'"
+  },
+  "RequestPatch.query": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.receiveTimeout": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.removeHeaders": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.removeQuery": {
+    "file": "test/unit/request_options_test.dart",
+    "offset": 190,
+    "title": "'[RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留'"
+  },
+  "RequestPatch.sendTimeout": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 4197,
+    "title": "'[DiomanNext] 补丁构造异常也作为结果返回'"
+  },
+  "DiomanFailure.data": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "offset": 6393,
+    "title": "'[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记'"
+  },
+  "DiomanFailure.error": {
+    "file": "test/boundary/internal_settlement_boundary_test.dart",
+    "offset": 703,
+    "title": "'[Dioman.send] internal 缺 stack 时保留原 error 并补当前栈'"
+  },
+  "DiomanFailure.errorStack": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6811,
+    "title": "'[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常'"
+  },
+  "DiomanFailure.kind": {
+    "file": "test/boundary/internal_settlement_boundary_test.dart",
+    "offset": 703,
+    "title": "'[Dioman.send] internal 缺 stack 时保留原 error 并补当前栈'"
+  },
+  "DiomanFailure.message": {
+    "file": "test/boundary/internal_settlement_boundary_test.dart",
+    "offset": 210,
+    "title": "'[Dioman.send] internal 缺 error 时抛明确 StateError'"
+  },
+  "DiomanFailure.reason": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 4194,
+    "title": "'[DiomanNext] 下游返回前取消不路由，过期通知并发去重且取消后以 cancel 结束'"
+  },
+  "DiomanFailure.status": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 5345,
+    "title": "'[DiomanAuth.onAccessExpired] 同会话多个在途 expired 只清理通知一次'"
+  },
+  "DiomanKind.auth": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 2015,
+    "title": "'[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试'"
+  },
+  "DiomanKind.biz": {
+    "file": "test/rule/source_rule_test.dart",
+    "offset": 293,
+    "title": "'[DiomanMock.routes] 默认生效，内联数据经工厂识别 business 且零触网'"
+  },
+  "DiomanKind.breaker": {
+    "file": "test/combo/b3_combo_test.dart",
+    "offset": 343,
+    "title": "'[DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线'"
+  },
+  "DiomanKind.cancel": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 6726,
+    "title": "'[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错'"
+  },
+  "DiomanKind.http": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6139,
+    "title": "'[DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse'"
+  },
+  "DiomanKind.internal": {
+    "file": "test/boundary/internal_settlement_boundary_test.dart",
+    "offset": 703,
+    "title": "'[Dioman.send] internal 缺 stack 时保留原 error 并补当前栈'"
+  },
+  "DiomanKind.network": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 6726,
+    "title": "'[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错'"
+  },
+  "DiomanKind.offline": {
+    "file": "test/rule/client_rule_test.dart",
+    "offset": 261,
+    "title": "'[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出'"
+  },
+  "DiomanKind.ok": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 4197,
+    "title": "'[DiomanNext] 补丁构造异常也作为结果返回'"
+  },
+  "DiomanKind.parse": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6139,
+    "title": "'[DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse'"
+  },
+  "DiomanKind.timeout": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 361,
+    "title": "'[DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类'"
+  },
+  "DiomanResponse.callSite": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.code": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.copy": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.data": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.error": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.errorStack": {
+    "file": "test/rule/client_rule_test.dart",
+    "offset": 1161,
+    "title": "'[Dioman.send] 九格落定 debug=$debug kind=$kind'"
+  },
+  "DiomanResponse.httpStatus": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.kind": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.ok": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.raw": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 261,
+    "title": "'[DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶'"
+  },
+  "DiomanResponse.reason": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.request": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponse.status": {
+    "file": "test/unit/response_test.dart",
+    "offset": 8297,
+    "title": "'[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生'"
+  },
+  "DiomanResponseFactory.fail": {
+    "file": "test/rule/client_rule_test.dart",
+    "offset": 261,
+    "title": "'[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出'"
+  },
+  "DiomanResponseFactory.isEnvelope": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6811,
+    "title": "'[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常'"
+  },
+  "DiomanResponseFactory.isSuccess": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6811,
+    "title": "'[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常'"
+  },
+  "DiomanResponseFactory.logicalStatus": {
+    "file": "test/unit/response_test.dart",
+    "offset": 6811,
+    "title": "'[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常'"
+  },
+  "Envelope.code": {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "offset": 2103,
+    "title": "'[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包'"
+  },
+  "Envelope.data": {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "offset": 2103,
+    "title": "'[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包'"
+  },
+  "Envelope.message": {
+    "file": "test/unit/response_test.dart",
+    "offset": 3371,
+    "title": "'[DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态'"
+  },
+  "DiomanRetry.afterStatusCodes": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetry.defaultDelay": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 5672,
+    "title": "'[DiomanRetry.shouldRetry] shouldRetry delay jitter 程序错误原样落定，internal 不重试'"
+  },
+  "DiomanRetry.defaultStatusCodes": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 269,
+    "title": "'[DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果'"
+  },
+  "DiomanRetry.delayMax": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 2433,
+    "title": "'[DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头'"
+  },
+  "DiomanRetry.enabled": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetry.jitter": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 2433,
+    "title": "'[DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头'"
+  },
+  "DiomanRetry.methods": {
+    "file": "test/boundary/retry_options_boundary_test.dart",
+    "offset": 2937,
+    "title": "'[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换'"
+  },
+  "DiomanRetry.name": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "offset": 2469,
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanRetry.pluginName": {
+    "file": "test/integration/b3_transport_integration_test.dart",
+    "offset": 5646,
+    "title": "'[Dioman.use × DiomanBreakerApi.stateOf] 插入移除替换熔断器使用新实例，dispose 拒绝复活'"
+  },
+  "DiomanRetry.retryAfterMax": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetry.stage": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 6726,
+    "title": "'[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错'"
+  },
+  "DiomanRetryOptions.afterStatusCodes": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.delayMax": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.enabled": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.jitter": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.max": {
+    "file": "test/boundary/retry_options_boundary_test.dart",
+    "offset": 2937,
+    "title": "'[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换'"
+  },
+  "DiomanRetryOptions.methods": {
+    "file": "test/boundary/retry_options_boundary_test.dart",
+    "offset": 2937,
+    "title": "'[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换'"
+  },
+  "DiomanRetryOptions.onRetry": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.respectRetryAfter": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.retryAfterMax": {
+    "file": "test/rule/retry_rule_test.dart",
+    "offset": 3168,
+    "title": "'[DiomanRetry.option] 四种写法、整数简写、字段覆盖、非法类型和安装开关'"
+  },
+  "DiomanRetryOptions.statusCodes": {
+    "file": "test/boundary/retry_options_boundary_test.dart",
+    "offset": 2937,
+    "title": "'[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换'"
+  },
+  "DiomanShare.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanShare.interval": {
+    "file": "test/boundary/source_review_boundary_test.dart",
+    "offset": 2920,
+    "title": "'[DiomanSharePolicy.retry] 内部等待时钟异常经工厂发布，所有跟随者按 bug 收尾'"
+  },
+  "DiomanShare.methods": {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "offset": 7474,
+    "title": "'[DiomanSharePolicy.start] FormData 首发取消跟随者沿用传输，嵌套信封只拆一层'"
+  },
+  "DiomanShare.name": {
+    "file": "test/combo/prepare_pairs_combo_test.dart",
+    "offset": 998,
+    "title": "'[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送'"
+  },
+  "DiomanShare.pluginName": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 8449,
+    "title": "'[DiomanShare.retries] retry 间隔取消与耗尽释放条目，dispose 所有策略清表'"
+  },
+  "DiomanShare.stage": {
+    "file": "test/boundary/source_boundary_test.dart",
+    "offset": 5120,
+    "title": "'[DiomanShare.setup] 到达前已取消与内层同步取消均不挂起且不泄漏'"
+  },
+  "DiomanShareApi.activeEntries": {
+    "file": "test/boundary/source_review_boundary_test.dart",
+    "offset": 2920,
+    "title": "'[DiomanSharePolicy.retry] 内部等待时钟异常经工厂发布，所有跟随者按 bug 收尾'"
+  },
+  "DiomanShareOptions.enabled": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 339,
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanShareOptions.interval": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "offset": 8449,
+    "title": "'[DiomanShare.retries] retry 间隔取消与耗尽释放条目，dispose 所有策略清表'"
+  },
+  "DiomanShareOptions.methods": {
+    "file": "test/boundary/share_replay_boundary_test.dart",
+    "offset": 387,
+    "title": "'[DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖'"
+  },
+  "DiomanShareOptions.policy": {
+    "file": "test/boundary/share_replay_boundary_test.dart",
+    "offset": 2231,
+    "title": "'[DiomanShare.retries] 默认内部重试三次，零负次数不重发'"
+  },
+  "DiomanShareOptions.retries": {
+    "file": "test/boundary/share_replay_boundary_test.dart",
+    "offset": 2231,
+    "title": "'[DiomanShare.retries] 默认内部重试三次，零负次数不重发'"
+  },
+  "DiomanSharePolicy.race": {
+    "file": "test/combo/b4_retry_migration_combo_test.dart",
+    "offset": 1767,
+    "title": "'[DiomanRetry.max × DiomanShare.option] 外层重试中竞速等待在途成功且不被旧失败提前结算'"
+  },
+  "DiomanEnforce.post": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 192,
+    "title": "'[DiomanPlugin.setup] 默认接口、空日志器与独立实例'"
+  },
+  "DiomanEnforce.pre": {
+    "file": "test/boundary/client_boundary_test.dart",
+    "offset": 4019,
+    "title": "'[Dioman.inspect] 内置按名定位和在途保留链快照'"
+  },
+  "DiomanStage.attempt": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 192,
+    "title": "'[DiomanPlugin.setup] 默认接口、空日志器与独立实例'"
+  },
+  "DiomanStage.credential": {
+    "file": "test/boundary/source_boundary_test.dart",
+    "offset": 5120,
+    "title": "'[DiomanShare.setup] 到达前已取消与内层同步取消均不挂起且不泄漏'"
+  },
+  "DiomanStage.outer": {
+    "file": "test/boundary/client_boundary_test.dart",
+    "offset": 4019,
+    "title": "'[Dioman.inspect] 内置按名定位和在途保留链快照'"
+  },
+  "DiomanStage.prepare": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 2594,
+    "title": "'[DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁'"
+  },
+  "DiomanStage.source": {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "offset": 6726,
+    "title": "'[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错'"
+  },
+  "diomanBuiltinStages": {
+    "file": "test/unit/pipeline_test.dart",
+    "offset": 571,
+    "title": "'[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链'"
+  },
+  "DiomanTimeout.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 5630,
+    "title": "'[DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭'"
+  },
+  "DiomanTimeout.name": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanTimeout.pluginName": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 4343,
+    "title": "'[DiomanTimeout.probe] 缺档无补丁，空档保留请求超时，probe 错误原样抛出'"
+  },
+  "DiomanTimeout.stage": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 7338,
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanTimeoutOptions.enabled": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 5630,
+    "title": "'[DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭'"
+  },
+  "NetworkQuality.excellent": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "offset": 4809,
+    "title": "'[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次'"
+  },
+  "NetworkQuality.good": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 5239,
+    "title": "'[resolveOption] 每个插件拒绝未知请求选项类型'"
+  },
+  "NetworkQuality.none": {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "offset": 4343,
+    "title": "'[DiomanTimeout.probe] 缺档无补丁，空档保留请求超时，probe 错误原样抛出'"
+  },
+  "NetworkQuality.poor": {
+    "file": "test/integration/timeout_effective_integration_test.dart",
+    "offset": 4128,
+    "title": "'[DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效'"
+  }
+}

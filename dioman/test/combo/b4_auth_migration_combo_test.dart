@@ -1,6 +1,6 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_migration_scenarios.dart';
+import '../support/b4_migration_scenarios.dart';
 
 /// 鉴权与重试跨来源阶段的行为组合回归。
 void main() {

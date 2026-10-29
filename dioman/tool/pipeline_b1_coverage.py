@@ -22,9 +22,9 @@ def inspect(path):
     for block in path.read_text(encoding='utf-8').split('end_of_record'):
         lines = block.splitlines()
         source = next((line[3:].replace('\\', '/') for line in lines if line.startswith('SF:')), '')
-        if '/lib/src/pipeline/' not in source:
+        if '/lib/src/' not in source:
             continue
-        name = source.split('/lib/src/pipeline/', 1)[1].removesuffix('.dart')
+        name = source.split('/lib/src/', 1)[1].removesuffix('.dart')
         if name not in FILES:
             continue
         assert name not in found, f'重复文件 {source}'
@@ -46,11 +46,11 @@ def inspect(path):
         print(name + '.dart', lf, lh, brf, brh)
         assert lf > 0 and brf > 0 and lf == lh and brf == brh, name
     if 'plugins/auth' in FILES:
-        interface = ROOT / 'lib/src/pipeline/token_manager.dart'
+        interface = ROOT / 'lib/src/token_manager.dart'
         assert interface.is_file() and 'abstract interface class DiomanTokenManager' in interface.read_text(encoding='utf-8')
         print('token_manager.dart 0 0 0 0 (abstract interface: no executable lines/branches; source verified)')
     if 'plugins/cache' in FILES:
-        interface = ROOT / 'lib/src/pipeline/cache_store.dart'
+        interface = ROOT / 'lib/src/cache_store.dart'
         assert interface.is_file() and 'abstract interface class DiomanCachePersist' in interface.read_text(encoding='utf-8')
         print('cache_store.dart 0 0 0 0 (abstract interface: no executable lines/branches; source verified)')
     print(f'{len(FILES)} files present; nonzero counters; lines=100%; branches=100%; PASS')

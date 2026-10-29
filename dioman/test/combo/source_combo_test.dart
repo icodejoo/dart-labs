@@ -1,13 +1,14 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/b3_helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// source 与外层尝试、凭证阶段的真实装配。
 void main() {
@@ -58,7 +59,9 @@ void main() {
     expect(r.map((r) => r.data), [1, 2, 3]);
     expect(net.sends, isEmpty);
   });
-  test('[DiomanShare.option × DiomanCache.option] 并发一次发送缓存一次，下一轮零触网', () async {
+  test(
+      '[DiomanClonePolicy.none]'
+      '[DiomanShare.option × DiomanCache.option] 并发一次发送缓存一次，下一轮零触网', () async {
     final gate = Completer<void>();
     final net = FakeNetwork()..routes[b4Route] = [FakeReply(gate: gate.future)];
     final api = testClient(network: net, plugins: [
@@ -102,7 +105,8 @@ void main() {
     expect(net.sends.length, 2);
     api.dispose();
   });
-  test('[DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3',
+  test(
+      '[DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3',
       () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);

@@ -1,12 +1,13 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// 其余迁移行的 key、外层收尾与归一化组合。
 void main() {
@@ -54,7 +55,9 @@ void main() {
       }
     }
   });
-  test('[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包',
+  test(
+      '[DiomanCall.envelope][Envelope.code][Envelope.data]'
+      '[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包',
       () async {
     for (final mode in [
       b4LiteralPlain,
@@ -194,7 +197,9 @@ void main() {
     await cached.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
     expect(hits, [true, false, true, false]);
   });
-  test('[DiomanSharePolicy.start] FormData 首发取消跟随者沿用传输，嵌套信封只拆一层', () async {
+  test(
+      '[DiomanShare.methods]'
+      '[DiomanSharePolicy.start] FormData 首发取消跟随者沿用传输，嵌套信封只拆一层', () async {
     final gate = Completer<void>();
     final net = FakeNetwork()
       ..routes['POST:$b4Path'] = [
@@ -223,7 +228,9 @@ void main() {
     expect((await b).data, {b4LiteralCode: 0, b4LiteralData: b4LiteralNested});
     expect(net.sends.length, 1);
   });
-  test('[DiomanCache.clock] 插件级 DiomanClock 控制 TTL，零负有效期不钳制', () async {
+  test(
+      '[DiomanCache.expires]'
+      '[DiomanCache.clock] 插件级 DiomanClock 控制 TTL，零负有效期不钳制', () async {
     for (final ttl in [Duration.zero, const Duration(seconds: -1), b4Tick]) {
       final clock = FakeClock();
       final net = FakeNetwork();

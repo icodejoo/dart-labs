@@ -1,0 +1,8 @@
+Analyzing dioman...
+
+warning - test\boundary\b3_options_boundary_test.dart:1:8 - Unused import: 'package:dioman/src/diagnostics.dart'. Try removing the import directive. - unused_import
+warning - test\boundary\breaker_boundary_test.dart:1:8 - Unused import: 'package:dioman/src/diagnostics.dart'. Try removing the import directive. - unused_import
+warning - test\integration\b3_transport_integration_test.dart:1:8 - Unused import: 'package:dioman/src/diagnostics.dart'. Try removing the import directive. - unused_import
+warning - test\rule\breaker_rule_test.dart:1:8 - Unused import: 'package:dioman/src/diagnostics.dart'. Try removing the import directive. - unused_import
+
+4 issues found.

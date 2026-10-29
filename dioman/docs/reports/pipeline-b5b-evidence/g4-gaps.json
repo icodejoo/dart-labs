@@ -1,0 +1,1815 @@
+[
+  {
+    "gap": "G4:Dioman.cancelAll:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.cancelAll:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.delete:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.delete:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.get:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.get:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.head:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.head:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.patch:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.patch:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.post:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.post:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.put:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.put:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.request:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.request:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.send:no-real",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:Dioman.send:no-result",
+    "category": "新客户端传输入口",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+  },
+  {
+    "gap": "G4:DiomanLoading.delay:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "loading.delay-fast-never-shows",
+      "loading.delay-slow-shows",
+      "plugins.boundary-loading-delay-ms-0",
+      "plugins.boundary-loading-delay-ms-1"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanLoading.delayClose:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "loading.delay-close-merges",
+      "plugins.boundary-loading-delay-close-ms-1"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanRetry.respectRetryAfter#real-header:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "retry.503-retry-after",
+      "retry.respects-retry-after-over-delay",
+      "retry.single-retry-after-honored"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanRetry.statusCodes#network-type:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "retry.network-error-retried"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanSharePolicy.retry:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "share.retry-recovers-single-result"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanTimeouts.connect#effective:no-real",
+    "category": "connect 超时环境阻塞",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收（connect 超时 BLOCKED）：testkit D22 netem 用户态不能阻止内核握手，回环只能立即拒绝。需要独立可控不可达端点。"
+  },
+  {
+    "gap": "G4:DiomanTimeouts.connect#effective:no-result",
+    "category": "connect 超时环境阻塞",
+    "tier": 2,
+    "real": [],
+    "blocked": "待 B7 真实验收（connect 超时 BLOCKED）：testkit D22 netem 用户态不能阻止内核握手，回环只能立即拒绝。需要独立可控不可达端点。"
+  },
+  {
+    "gap": "G4:DiomanTimeouts.receive#effective:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "plugins.boundary-timeout-receive-ms-0",
+      "timeout.receive-slow-body",
+      "timeout.connect-blackhole",
+      "timeout.receive-ok-fast-chunks",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:DiomanTimeouts.send#effective:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "local:test/integration/timeout_effective_integration_test.dart",
+      "timeout.send-slow-reader"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-09:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "plugins.pair-0",
+      "plugins.pair-1",
+      "plugins.pair-2",
+      "plugins.pair-3",
+      "plugins.pair-4",
+      "plugins.pair-5",
+      "plugins.pair-6",
+      "plugins.pair-7",
+      "plugins.pair-8",
+      "plugins.pair-9",
+      "plugins.pair-10",
+      "plugins.pair-11",
+      "plugins.pair-12",
+      "plugins.pair-13",
+      "plugins.pair-14",
+      "plugins.pair-15",
+      "plugins.pair-16",
+      "plugins.pair-17",
+      "plugins.pair-18",
+      "plugins.pair-19",
+      "plugins.pair-20",
+      "plugins.pair-21",
+      "plugins.pair-22",
+      "plugins.pair-23",
+      "plugins.pair-24",
+      "plugins.pair-25",
+      "plugins.pair-26",
+      "plugins.pair-27",
+      "plugins.pair-28",
+      "plugins.pair-29",
+      "plugins.pair-30",
+      "plugins.pair-31",
+      "combo.auth-envs-refresh-replay",
+      "combo.auth-logger-refresh-deny-revoked",
+      "combo.cache-envs-hit-and-ttl",
+      "combo.cancel-logger-cleanup",
+      "combo.envs-mock-routing",
+      "combo.envs-retry-recovers-and-exhausts",
+      "combo.filter-retry-recovers-and-exhausts",
+      "combo.logger-retry-recovers-and-exhausts"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-10:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "plugins.full-workflow",
+      "plugins.full-flap-workflow"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-11:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "plugins.single-auth",
+      "plugins.single-breaker",
+      "plugins.single-cache",
+      "plugins.single-cancel",
+      "plugins.single-envs",
+      "plugins.single-filter",
+      "plugins.single-key",
+      "plugins.single-loading",
+      "plugins.single-log",
+      "plugins.single-mock",
+      "plugins.single-normalize",
+      "plugins.single-notify",
+      "plugins.single-offline",
+      "plugins.single-repath",
+      "plugins.single-retry",
+      "plugins.single-share",
+      "plugins.single-timeout"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-15:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "share.leader-cancel-followers-survive",
+      "share.follower-cancel-isolated",
+      "combo.cancel-share-follower"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-18:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 3,
+    "real": [
+      "basic.keep-alive-recovery-isolated"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-19:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "combo.cache-share-retry",
+      "combo.share-failure-not-cached",
+      "combo.auth-retry-loading-notify-recovers",
+      "combo.auth-retry-loading-notify-fails",
+      "combo.auth-concurrent-loading-notify",
+      "combo.auth-expired-loading-notify",
+      "combo.auth-cache-refresh",
+      "combo.cancel-share-follower",
+      "combo.cancel-all-share",
+      "combo.retry-cancel-loading-notify",
+      "combo.share-retry-loading-notify",
+      "combo.share-fail-notify",
+      "combo.loading-cache-hit-delay",
+      "combo.normalize-business-retry-notify-cache",
+      "combo.lossy-everything",
+      "combo.flap-share-cache-loading",
+      "combo.offline-share-notify",
+      "combo.full-stack-happy",
+      "combo.all-seventeen-plugins"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-23:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 3,
+    "real": [
+      "basic.all-methods",
+      "basic.business-code-without-normalize",
+      "basic.custom-header",
+      "basic.custom-key-param",
+      "basic.delay-respected",
+      "basic.get-ok",
+      "basic.head-request",
+      "basic.http-404",
+      "basic.large-sequence",
+      "basic.parallel-independent",
+      "basic.post-json-body",
+      "basic.public-path",
+      "basic.query-echo",
+      "basic.safe-status-matrix",
+      "basic.sequential-hits",
+      "basic.server-reset",
+      "basic.status-201-empty-data",
+      "basic.status-matrix",
+      "basic.unicode-body"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-24:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "faults.bad-json",
+      "faults.close-network",
+      "faults.close-parallel",
+      "faults.empty-body",
+      "faults.half-body",
+      "faults.hang-parallel-timeouts",
+      "faults.hang-timeout",
+      "faults.html-502",
+      "faults.large-size",
+      "faults.non2xx-business-safe",
+      "faults.post-close-no-double-send",
+      "faults.recovery-after-bad",
+      "faults.slow-body-succeeds",
+      "faults.status-with-business",
+      "network.blackhole-parallel-timeouts",
+      "network.blackhole-timeout",
+      "network.dns-failure",
+      "network.offline-all-methods",
+      "network.weak-parallel"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-25:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "conc.barrier-32-peak",
+      "conc.barrier-64-desc-order",
+      "conc.barrier-64-shuffle",
+      "conc.barrier-all-fail",
+      "conc.barrier-asc",
+      "conc.barrier-desc",
+      "conc.barrier-given",
+      "conc.barrier-mixed-with-other",
+      "conc.barrier-partial-fail",
+      "conc.barrier-partial-wait",
+      "conc.barrier-reuse",
+      "conc.barrier-shuffle",
+      "conc.fast-slow-settle-order",
+      "conc.fire-then-settle",
+      "conc.no-share-peak-inflight",
+      "conc.parallel-failure-isolated"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-26:no-result",
+    "category": "既有场景切换后复验",
+    "tier": 2,
+    "real": [
+      "timeout.parallel-all-timeout",
+      "timeout.recovers-after-timeout",
+      "timeout.request-override-longer",
+      "timeout.request-override-shorter",
+      "timeout.total-hang",
+      "timeout.within-budget"
+    ],
+    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.code-only-401-concurrent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.code-only-401-concurrent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.code-only-401-no-refresh-token:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.code-only-401-no-refresh-token"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.code-only-401-refresh-once-then-expired:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.code-only-401-refresh-once-then-expired"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.expired-multipart-replay:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.expired-multipart-replay"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.garbage-then-relogin:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.garbage-then-relogin"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.logout-inflight:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.logout-inflight"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.natural-expiry-refresh:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.natural-expiry-refresh"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.network-failure-keeps-session:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.network-failure-keeps-session"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.offline-refresh-keeps-session:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.offline-refresh-keeps-session"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.post-replay-body-intact:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.post-replay-body-intact"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.relogin-after-expired:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.relogin-after-expired"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.relogin-other-user:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.relogin-other-user"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-all-concurrent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-all-concurrent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-all-expired:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-all-expired"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-all-previous-tokens:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-all-previous-tokens"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-all-then-relogin:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-all-then-relogin"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-default-scope-is-all:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-default-scope-is-all"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.revoke-kicked:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.revoke-kicked"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.slow-refresh-cancel-all:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.slow-refresh-cancel-all"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.slow-refresh-cancel:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.slow-refresh-cancel"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.strict-rotation-two-rounds:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.strict-rotation-two-rounds"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.style-switch-concurrent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.style-switch-concurrent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.style-switch-expired:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.style-switch-expired"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-bad-signature-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-bad-signature-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-bad-signature-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-bad-signature-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-bad-signature-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-bad-signature-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-empty-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-empty-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-empty-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-empty-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-empty-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-empty-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-garbage-concurrent-no-refresh:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-garbage-concurrent-no-refresh"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-garbage-concurrent-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-garbage-concurrent-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-garbage-concurrent-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-garbage-concurrent-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-garbage-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-garbage-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-garbage-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-garbage-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-no-refresh-user-garbage:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-no-refresh-user-garbage"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-no-refresh-user-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-no-refresh-user-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-none-concurrent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-none-concurrent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-none-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-none-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-none-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-none-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-none-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-none-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-nonstrict-previous-access:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-nonstrict-previous-access"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-previous-after-logout:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-previous-after-logout"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-previous-after-revoke:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-previous-after-revoke"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-previous-refresh-reuse:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-previous-refresh-reuse"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-strict-previous-access:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-strict-previous-access"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-tampered-payload-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-tampered-payload-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-tampered-payload-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-tampered-payload-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-tampered-payload-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-tampered-payload-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-wrong-scheme-refresh-bad:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-wrong-scheme-refresh-bad"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-wrong-scheme-refresh-none:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-wrong-scheme-refresh-none"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.token-wrong-scheme-refresh-ok:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.token-wrong-scheme-refresh-ok"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-auth.two-rounds-refresh-chain:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "auth.two-rounds-refresh-chain"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-breaker.half-open-probe-cancel:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "breaker.half-open-probe-cancel"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-breaker.open-fast-fail:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "breaker.open-fast-fail"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-breaker.retry-halts-on-trip:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "breaker.retry-halts-on-trip"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-breaker.success-resets-count:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "breaker.success-resets-count"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.cancel-not-cached:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.cancel-not-cached"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.clear:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.clear"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.concurrent-no-share-all-miss:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.concurrent-no-share-all-miss"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.diff-body-no-mixup:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.diff-body-no-mixup"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.diff-query-no-mixup:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.diff-query-no-mixup"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.failure-then-success-cached:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.failure-then-success-cached"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.http-error-not-cached:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.http-error-not-cached"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.large-response:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.large-response"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.offline-miss-then-recover:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.offline-miss-then-recover"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.single-clear-cache:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.single-clear-cache"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.timeout-not-cached:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.timeout-not-cached"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.user-scope-no-leak:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.user-scope-no-leak"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cache.user-scope-same-user-hits:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cache.user-scope-same-user-hits"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.after-complete-noop:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.after-complete-noop"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.all-then-new-works:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.all-then-new-works"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.all-with-nothing-inflight:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.all-with-nothing-inflight"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.all:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.all"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.before-reach-server:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.before-reach-server"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.blackhole-cancel-before-timeout:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.blackhole-cancel-before-timeout"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.double-cancel:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.double-cancel"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.hang-is-canceled-not-timeout:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.hang-is-canceled-not-timeout"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.one-of-many:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.one-of-many"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.parallel-32:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.parallel-32"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.single:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.single"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-cancel.slow-body:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "cancel.slow-body"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-combo.filter-repath-path-var-first:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "combo.filter-repath-path-var-first"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-combo.loading-mock-fallback-single-pair:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "combo.loading-mock-fallback-single-pair"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-combo.mock-share-fallback-single-flight:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "combo.mock-share-fallback-single-flight"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-faults.html-gateway-page:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "faults.html-gateway-page"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-faults.no-envelope:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "faults.no-envelope"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-key.filter-before-key:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "key.filter-before-key"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-key.method-diff-not-merged:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "key.method-diff-not-merged"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-key.share-diff-query-not-merged:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "key.share-diff-query-not-merged"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-key.share-without-key-not-merged:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "key.share-without-key-not-merged"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.big-parallel-20:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.big-parallel-20"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.cancel-closes:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.cancel-closes"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.failure-closes:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.failure-closes"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.flap-recovers-single-pair:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.flap-recovers-single-pair"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.network-switch-pairs:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.network-switch-pairs"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.parallel-partial-fail:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.parallel-partial-fail"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.retry-exhausted-closes:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.retry-exhausted-closes"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.retry-no-flicker:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.retry-no-flicker"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-loading.timeout-closes:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "loading.timeout-closes"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-mock.fallback-to-real-on-404:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "mock.fallback-to-real-on-404"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-mock.mock-then-retry-untouched:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "mock.mock-then-retry-untouched"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-mock.query-and-body-forwarded:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "mock.query-and-body-forwarded"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-mock.routes-to-mock-server:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "mock.routes-to-mock-server"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-mock.single-fallback-disabled:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "mock.single-fallback-disabled"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.blackhole-cancel-all:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.blackhole-cancel-all"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.flap-parallel-retry:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.flap-parallel-retry"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.flap-retry-recovers:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.flap-retry-recovers"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.lossy-parallel-retry:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.lossy-parallel-retry"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.offline-immediate:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.offline-immediate"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.offline-share-loading:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.offline-share-loading"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.recovery-state-clean:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.recovery-state-clean"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-network.switch-offline-online:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 3,
+    "real": [
+      "network.switch-offline-online"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.business-fail:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.business-fail"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.business-multi-codes:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.business-multi-codes"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.business-negative-code:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.business-negative-code"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.business-notify-retry-combo:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.business-notify-retry-combo"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.envelope-unwrap:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.envelope-unwrap"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.http-error-wins:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.http-error-wins"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.no-envelope-passthrough:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.no-envelope-passthrough"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.per-request-off:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.per-request-off"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-normalize.style-switch:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "normalize.style-switch"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-notify.parallel-failures-each:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "notify.parallel-failures-each"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-notify.parse-error-once:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "notify.parse-error-once"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-notify.retry-exhausted-once:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "notify.retry-exhausted-once"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-notify.retry-recovered-silent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "notify.retry-recovered-silent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-notify.timeout-once:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "notify.timeout-once"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-offline.cancel-while-probing:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "offline.cancel-while-probing"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-offline.then-online-no-stale-state:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "offline.then-online-no-stale-state"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-repath.key-after-repath:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "repath.key-after-repath"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-repath.key-cache-no-mixup:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "repath.key-cache-no-mixup"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-repath.same-var-twice:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "repath.same-var-twice"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-repath.zero-value:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "repath.zero-value"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.401-goes-refresh-first:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.401-goes-refresh-first"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.attempt-is-new-connection-friendly:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.attempt-is-new-connection-friendly"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.blackhole-timeout:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.blackhole-timeout"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.cancel-all-during-wait:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.cancel-all-during-wait"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.cancel-during-wait:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.cancel-during-wait"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.fail-every-all-recover:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.fail-every-all-recover"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.fail-on-gap-exhausts:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.fail-on-gap-exhausts"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.fail-on-noncontiguous-retried:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.fail-on-noncontiguous-retried"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.fail-on-union-fail-times:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.fail-on-union-fail-times"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.flap-recovers:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.flap-recovers"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.hang-timeout-retried:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.hang-timeout-retried"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.lossy-converges:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.lossy-converges"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.offline-exhausts:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.offline-exhausts"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.parallel-independent:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.parallel-independent"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.post-network-no-retry:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.post-network-no-retry"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-retry.style-switch:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "retry.style-switch"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-share.all-cancelled-aborts-server:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "share.all-cancelled-aborts-server"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-share.network-failure-all-fail:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "share.network-failure-all-fail"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-share.reuse-after-failure:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "share.reuse-after-failure"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-share.single-all-timeout-aborts-server:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "share.single-all-timeout-aborts-server"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  },
+  {
+    "gap": "G4:INV-REAL-share.single-start-explicit-key:no-result",
+    "category": "真实场景从旧 API 行迁入",
+    "tier": 2,
+    "real": [
+      "share.single-start-explicit-key"
+    ],
+    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+  }
+]

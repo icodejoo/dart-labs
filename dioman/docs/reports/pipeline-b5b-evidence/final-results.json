@@ -1,0 +1,11 @@
+{
+  "analyze": "Analyzing dioman...\nNo issues found!",
+  "example_analyze": "Analyzing example...\nNo issues found!",
+  "test_tail": "00:07 +5014: All tests passed!",
+  "coverage_test_tail": "00:09 +5014: All tests passed!",
+  "gates": "G0: 0\nG1: 0\nG2: 0\nG3: 0\nG4: 190\n  G4:Dioman.cancelAll:no-real\n  G4:Dioman.cancelAll:no-result\n  G4:Dioman.delete:no-real\n  G4:Dioman.delete:no-result\n  G4:Dioman.get:no-real\nG5: 0",
+  "git_status_lines": 303,
+  "git_log": "895d959 test(dioman): B5a powerset 与成对组合补齐",
+  "review_findings": 3,
+  "review_fixed": 3
+}

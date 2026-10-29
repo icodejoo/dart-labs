@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/helpers.dart';
 
 /// 熔断名额、窗口隔离与安全回收边界。
 void main() {
@@ -58,7 +58,9 @@ void main() {
     expect(m.bucketCount, 0);
     api.dispose();
   });
-  test('[DiomanBreaker.shouldTrip] cancel 只归还名额，不清连续失败也不计失败，半开可继续探测', () async {
+  test(
+      '[DiomanBreaker.resetDuration][DiomanBreakerState.halfOpen]'
+      '[DiomanBreaker.shouldTrip] cancel 只归还名额，不清连续失败也不计失败，半开可继续探测', () async {
     final clock = FakeClock();
     var outcome = DiomanKind.network;
     var trips = 0;
@@ -141,7 +143,9 @@ void main() {
     gates[0].complete();
     api.dispose();
   });
-  test('[DiomanBreakerApi.reset] reset 之后旧请求不写新桶，internal 不计数且释放名额', () async {
+  test(
+      '[DiomanBreakerState.closed]'
+      '[DiomanBreakerApi.reset] reset 之后旧请求不写新桶，internal 不计数且释放名额', () async {
     final gate = Completer<void>();
     var old = true;
     final bug = StateError(b3ValueInternal);
@@ -168,7 +172,9 @@ void main() {
     expect(m.stateOf(b3Route), DiomanBreakerState.closed);
     api.dispose();
   });
-  test('[DiomanBreaker.idleTtl] TTL 与软上限只淘汰安全桶，保留失败和打开半开在途桶', () async {
+  test(
+      '[DiomanBreaker.maxBuckets]'
+      '[DiomanBreaker.idleTtl] TTL 与软上限只淘汰安全桶，保留失败和打开半开在途桶', () async {
     for (final ttl in [false, true]) {
       final clock = FakeClock();
       var failed = false;

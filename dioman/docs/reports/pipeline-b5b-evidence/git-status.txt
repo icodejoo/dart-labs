@@ -1,0 +1,310 @@
+ D benchmark/legacy.dart
+ D benchmark/legacy_client.dart
+ M benchmark/runner.dart
+ M benchmark/scenarios.dart
+ M benchmark/summarize.py
+ M docs/README.md
+ M docs/design/pipeline-implementation-plan.md
+ M docs/design/test-matrix-plan.md
+ M docs/reports/2026-10-29-pipeline-b1.md
+ M docs/reports/2026-10-29-pipeline-b2.md
+ M docs/reports/2026-10-29-pipeline-b3.md
+ M docs/reports/2026-10-29-pipeline-b4.md
+ M docs/reports/2026-10-29-pipeline-b5a.md
+ M example/dioman_example.dart
+ M example/lib/main.dart
+ M example/real_run.dart
+ M lib/dioman.dart
+ D lib/pipeline.dart
+ D lib/src/auth_plugin.dart
+ D lib/src/breaker_plugin.dart
+ D lib/src/cache_plugin.dart
+ D lib/src/cancel_plugin.dart
+ D lib/src/dioman.dart
+ D lib/src/dioman_plugin.dart
+ D lib/src/envs_plugin.dart
+ D lib/src/extra_keys.dart
+ D lib/src/filter_plugin.dart
+ D lib/src/key_plugin.dart
+ D lib/src/loading_plugin.dart
+ D lib/src/log_plugin.dart
+ D lib/src/mock_adapter.dart
+ D lib/src/normalize_plugin.dart
+ D lib/src/notify_plugin.dart
+ D lib/src/offline_plugin.dart
+ D lib/src/pipeline/cache_store.dart
+ D lib/src/pipeline/client.dart
+ D lib/src/pipeline/clock.dart
+ D lib/src/pipeline/config.dart
+ D lib/src/pipeline/context.dart
+ D lib/src/pipeline/key.dart
+ D lib/src/pipeline/options.dart
+ D lib/src/pipeline/pipeline.dart
+ D lib/src/pipeline/plugin.dart
+ D lib/src/pipeline/plugins/auth.dart
+ D lib/src/pipeline/plugins/breaker.dart
+ D lib/src/pipeline/plugins/cache.dart
+ D lib/src/pipeline/plugins/envs.dart
+ D lib/src/pipeline/plugins/filter.dart
+ D lib/src/pipeline/plugins/loading.dart
+ D lib/src/pipeline/plugins/mock.dart
+ D lib/src/pipeline/plugins/notify.dart
+ D lib/src/pipeline/plugins/offline.dart
+ D lib/src/pipeline/plugins/repath.dart
+ D lib/src/pipeline/plugins/retry.dart
+ D lib/src/pipeline/plugins/share.dart
+ D lib/src/pipeline/plugins/timeout.dart
+ D lib/src/pipeline/request.dart
+ D lib/src/pipeline/response.dart
+ D lib/src/pipeline/stages.dart
+ D lib/src/pipeline/token_manager.dart
+ D lib/src/pipeline/transport.dart
+ D lib/src/plugin_order.dart
+ D lib/src/repath_plugin.dart
+ D lib/src/replay_support.dart
+ D lib/src/request_claims.dart
+ D lib/src/retry_plugin.dart
+ D lib/src/share_plugin.dart
+ D lib/src/timeout_plugin.dart
+ M test/accept/bin/audit.dart
+ M test/accept/bin/hoist_literals.dart
+ M test/accept/bin/inventory.dart
+ M test/accept/bin/share_prepare_probe.dart
+ D test/accept/evidence/2026-10-27-summary.json
+ D test/accept/evidence/2026-10-28-summary.json
+ M test/accept/lib/api-inventory.json
+ M test/accept/lib/client.dart
+ M test/accept/lib/common.dart
+ M test/accept/lib/matrix-baseline.json
+ M test/accept/lib/matrix-lcov-whitelist.json
+ M test/accept/lib/matrix.dart
+ M test/accept/lib/matrix.json
+ M test/accept/lib/plugin_rules.dart
+ M test/accept/lib/powerset.dart
+ M test/accept/lib/probes.dart
+ M test/accept/lib/probes_fields.dart
+ M test/accept/lib/runner.dart
+ M test/boundary/auth_boundary_test.dart
+ M test/boundary/b3_await_boundary_test.dart
+ M test/boundary/b3_options_boundary_test.dart
+ M test/boundary/b4_final_review_boundary_test.dart
+ M test/boundary/breaker_boundary_test.dart
+ M test/boundary/cache_persist_boundary_test.dart
+ M test/boundary/client_boundary_test.dart
+ M test/boundary/envs_boundary_test.dart
+ M test/boundary/internal_settlement_boundary_test.dart
+ M test/boundary/mock_cancel_boundary_test.dart
+ M test/boundary/retry_boundary_test.dart
+ M test/boundary/retry_options_boundary_test.dart
+ M test/boundary/share_replay_boundary_test.dart
+ M test/boundary/source_boundary_test.dart
+ M test/boundary/source_lifecycle_boundary_test.dart
+ M test/boundary/source_options_boundary_test.dart
+ M test/boundary/source_review_boundary_test.dart
+ M test/boundary/stateless_outer_boundary_test.dart
+ M test/boundary/stateless_prepare_boundary_test.dart
+ M test/combo/b3_combo_test.dart
+ M test/combo/b3_outer_combo_test.dart
+ M test/combo/b4_auth_migration_combo_test.dart
+ M test/combo/b4_retry_migration_combo_test.dart
+ M test/combo/powerset_combo_test.dart
+ M test/combo/prepare_pairs_combo_test.dart
+ M test/combo/source_combo_test.dart
+ M test/combo/source_migration_combo_test.dart
+ M test/combo/stateless_combo_test.dart
+ M test/integration/b3_transport_integration_test.dart
+ M test/integration/source_transport_integration_test.dart
+ M test/integration/timeout_effective_integration_test.dart
+ M test/rule/auth_rule_test.dart
+ M test/rule/breaker_rule_test.dart
+ M test/rule/client_rule_test.dart
+ M test/rule/envs_rule_test.dart
+ M test/rule/response_extension_rule_test.dart
+ M test/rule/retry_rule_test.dart
+ M test/rule/source_rule_test.dart
+ M test/rule/stateless_outer_rule_test.dart
+ M test/rule/stateless_prepare_rule_test.dart
+ M test/rule/transport_rule_test.dart
+ D test/support/fake_cache_persist.dart
+ D test/support/fixtures.dart
+ D test/support/pipeline/b2_constants.dart
+ D test/support/pipeline/b3_helpers.dart
+ D test/support/pipeline/b4_constants.dart
+ D test/support/pipeline/b4_helpers.dart
+ D test/support/pipeline/b4_migration_scenarios.dart
+ D test/support/pipeline/b4_retry_migration_scenarios.dart
+ D test/support/pipeline/b5_powerset.dart
+ D test/support/pipeline/constants.dart
+ D test/support/pipeline/fake_clock.dart
+ D test/support/pipeline/fake_network.dart
+ D test/support/pipeline/helpers.dart
+ D test/support/pipeline/invariant_harness.dart
+ D test/support/test_server.dart
+ M test/unit/context_test.dart
+ M test/unit/fixtures_test.dart
+ M test/unit/key_parity_test.dart
+ M test/unit/pipeline_test.dart
+ M test/unit/request_options_test.dart
+ M test/unit/response_test.dart
+ D test_legacy/boundary/auth_concurrent_boundary_test.dart
+ D test_legacy/boundary/auth_replay_boundary_test.dart
+ D test_legacy/boundary/auth_session_boundary_test.dart
+ D test_legacy/boundary/auth_transport_boundary_test.dart
+ D test_legacy/boundary/breaker_boundary_test.dart
+ D test_legacy/boundary/breaker_callbacks_boundary_test.dart
+ D test_legacy/boundary/cache_boundary_test.dart
+ D test_legacy/boundary/cancel_boundary_test.dart
+ D test_legacy/boundary/cancel_dispose_boundary_test.dart
+ D test_legacy/boundary/filter_boundary_test.dart
+ D test_legacy/boundary/key_boundary_test.dart
+ D test_legacy/boundary/loading_boundary_test.dart
+ D test_legacy/boundary/log_boundary_test.dart
+ D test_legacy/boundary/normalize_boundary_test.dart
+ D test_legacy/boundary/offline_boundary_test.dart
+ D test_legacy/boundary/offline_options_boundary_test.dart
+ D test_legacy/boundary/repath_boundary_test.dart
+ D test_legacy/boundary/retry_backoff_boundary_test.dart
+ D test_legacy/boundary/retry_boundary_test.dart
+ D test_legacy/boundary/share_boundary_test.dart
+ D test_legacy/boundary/timeout_boundary_test.dart
+ D test_legacy/boundary/timeout_effective_boundary_test.dart
+ D test_legacy/combo/auth_cache_combo_test.dart
+ D test_legacy/combo/auth_cancel_combo_test.dart
+ D test_legacy/combo/auth_loading_combo_test.dart
+ D test_legacy/combo/auth_normalize_combo_test.dart
+ D test_legacy/combo/auth_retry_cancel_combo_test.dart
+ D test_legacy/combo/auth_retry_combo_test.dart
+ D test_legacy/combo/auth_retry_keep_alive_combo_test.dart
+ D test_legacy/combo/auth_share_combo_test.dart
+ D test_legacy/combo/breaker_retry_combo_test.dart
+ D test_legacy/combo/cache_cancel_combo_test.dart
+ D test_legacy/combo/cache_key_combo_test.dart
+ D test_legacy/combo/cache_loading_combo_test.dart
+ D test_legacy/combo/cache_normalize_combo_test.dart
+ D test_legacy/combo/cache_offline_combo_test.dart
+ D test_legacy/combo/cache_retry_combo_test.dart
+ D test_legacy/combo/cache_share_combo_test.dart
+ D test_legacy/combo/cancel_loading_combo_test.dart
+ D test_legacy/combo/cancel_retry_combo_test.dart
+ D test_legacy/combo/cancel_share_combo_test.dart
+ D test_legacy/combo/cancel_share_takeover_combo_test.dart
+ D test_legacy/combo/full_stack_combo_test.dart
+ D test_legacy/combo/key_share_combo_test.dart
+ D test_legacy/combo/loading_retry_combo_test.dart
+ D test_legacy/combo/loading_share_combo_test.dart
+ D test_legacy/combo/mock_adapter_combo_test.dart
+ D test_legacy/combo/normalize_notify_combo_test.dart
+ D test_legacy/combo/normalize_retry_combo_test.dart
+ D test_legacy/combo/normalize_share_combo_test.dart
+ D test_legacy/combo/powerset_combo_test.dart
+ D test_legacy/combo/retry_share_arbitration_combo_test.dart
+ D test_legacy/combo/retry_share_recovery_combo_test.dart
+ D test_legacy/integration/extra_keys_integration_test.dart
+ D test_legacy/integration/install_integration_test.dart
+ D test_legacy/integration/install_plugins_integration_test.dart
+ D test_legacy/integration/matrix_integration_test.dart
+ D test_legacy/integration/real_service_integration_test.dart
+ D test_legacy/rule/auth_flow_rule_test.dart
+ D test_legacy/rule/auth_options_rule_test.dart
+ D test_legacy/rule/auth_overrides_rule_test.dart
+ D test_legacy/rule/breaker_accounting_rule_test.dart
+ D test_legacy/rule/breaker_options_rule_test.dart
+ D test_legacy/rule/breaker_rule_test.dart
+ D test_legacy/rule/cache_clone_rule_test.dart
+ D test_legacy/rule/cache_options_rule_test.dart
+ D test_legacy/rule/cache_policy_rule_test.dart
+ D test_legacy/rule/cache_store_rule_test.dart
+ D test_legacy/rule/cancel_options_rule_test.dart
+ D test_legacy/rule/cancel_rule_test.dart
+ D test_legacy/rule/envs_options_rule_test.dart
+ D test_legacy/rule/envs_rule_test.dart
+ D test_legacy/rule/filter_names_rule_test.dart
+ D test_legacy/rule/filter_rule_test.dart
+ D test_legacy/rule/key_options_rule_test.dart
+ D test_legacy/rule/key_rule_test.dart
+ D test_legacy/rule/loading_options_rule_test.dart
+ D test_legacy/rule/loading_rule_test.dart
+ D test_legacy/rule/log_flags_rule_test.dart
+ D test_legacy/rule/log_rule_test.dart
+ D test_legacy/rule/log_stages_rule_test.dart
+ D test_legacy/rule/mock_adapter_rule_test.dart
+ D test_legacy/rule/normalize_options_rule_test.dart
+ D test_legacy/rule/normalize_rule_test.dart
+ D test_legacy/rule/notify_rule_test.dart
+ D test_legacy/rule/offline_rule_test.dart
+ D test_legacy/rule/repath_names_rule_test.dart
+ D test_legacy/rule/repath_rule_test.dart
+ D test_legacy/rule/retry_after_rule_test.dart
+ D test_legacy/rule/retry_decision_rule_test.dart
+ D test_legacy/rule/retry_rule_test.dart
+ D test_legacy/rule/share_retry_rule_test.dart
+ D test_legacy/rule/share_rule_test.dart
+ D test_legacy/rule/share_settle_rule_test.dart
+ D test_legacy/rule/timeout_rule_test.dart
+ D test_legacy/rule/timeout_tiers_rule_test.dart
+ D test_legacy/unit/accept_executor_test.dart
+ D test_legacy/unit/exception_test.dart
+ D test_legacy/unit/extra_descriptors_test.dart
+ D test_legacy/unit/extra_keys_test.dart
+ D test_legacy/unit/matrix_test.dart
+ D test_legacy/unit/pairwise_test.dart
+ D test_legacy/unit/plugin_contract_test.dart
+ D test_legacy/unit/plugin_order_test.dart
+ D test_legacy/unit/replay_support_test.dart
+ D test_legacy/unit/request_claims_test.dart
+ D test_legacy/unit/service_guard_test.dart
+ M tool/pipeline_b1_coverage.py
+ M tool/pipeline_b1_mutations.py
+ M tool/pipeline_b2_mutations.py
+ M tool/pipeline_b3_mutations.py
+ M tool/pipeline_b4_mutations.py
+ M tool/pipeline_b5a_coverage.py
+ M tool/pipeline_b5a_mutations.py
+ M tool/pipeline_migration.py
+?? benchmark/pipeline.dart
+?? benchmark/pipeline_client.dart
+?? docs/reference/pipeline-migration/raw/accept-evidence/
+?? docs/reference/pipeline-migration/raw/matrix-before-pipeline.json
+?? docs/reports/2026-10-29-pipeline-b5b.md
+?? docs/reports/pipeline-b5b-evidence/
+?? example/lib/token_manager.dart
+?? lib/src/cache_store.dart
+?? lib/src/client.dart
+?? lib/src/client_internal.dart
+?? lib/src/clock.dart
+?? lib/src/config.dart
+?? lib/src/context.dart
+?? lib/src/context_internal.dart
+?? lib/src/context_state.dart
+?? lib/src/diagnostics.dart
+?? lib/src/key.dart
+?? lib/src/options.dart
+?? lib/src/pipeline.dart
+?? lib/src/plugin.dart
+?? lib/src/plugins/
+?? lib/src/request.dart
+?? lib/src/response.dart
+?? lib/src/response_internal.dart
+?? lib/src/stages.dart
+?? lib/src/token_manager.dart
+?? lib/src/transport.dart
+?? test/integration/example_integration_test.dart
+?? test/integration/matrix_integration_test.dart
+?? test/integration/share_prepare_probe_integration_test.dart
+?? test/support/b2_constants.dart
+?? test/support/b3_helpers.dart
+?? test/support/b4_constants.dart
+?? test/support/b4_helpers.dart
+?? test/support/b4_migration_scenarios.dart
+?? test/support/b4_retry_migration_scenarios.dart
+?? test/support/b5_powerset.dart
+?? test/support/constants.dart
+?? test/support/fake_clock.dart
+?? test/support/fake_network.dart
+?? test/support/helpers.dart
+?? test/support/invariant_harness.dart
+?? test/support/key_baseline.json
+?? test/unit/accept_runner_test.dart
+?? test/unit/matrix_test.dart
+?? test/unit/public_exports_test.dart
+?? tool/bench_legacy.py

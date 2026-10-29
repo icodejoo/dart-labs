@@ -1,9 +1,9 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/helpers.dart';
 
 /// 退避头名称。
 const _retryHeader = 'retry-after';
@@ -97,7 +97,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换', () async {
+  test(
+      '[DiomanRetry.methods][DiomanRetryOptions.max][DiomanRetryOptions.methods][DiomanRetryOptions.statusCodes]'
+      '[DiomanRetryOptions.shouldRetry] 请求判定覆盖插件判定，状态表与方法按请求替换', () async {
     for (final permit in [false, true]) {
       final clock = FakeClock();
       var calls = 0;

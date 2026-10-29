@@ -1,8 +1,8 @@
-import '../support/pipeline/b2_constants.dart';
+import '../support/b2_constants.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 
@@ -134,7 +134,9 @@ void main() {
     expect(r.ok, isTrue);
     expect(watch.elapsed, greaterThan(timeout));
   });
-  test('[DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效', () async {
+  test(
+      '[DiomanCall.options][NetworkQuality.poor]'
+      '[DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效', () async {
     final loop =
         await _Loop.start(b2HeadersMode, const DiomanTimeouts(receive: _base));
     final watch = Stopwatch()..start();
@@ -158,7 +160,9 @@ void main() {
     expect(r.ok, isTrue);
     expect(r.data, _payload);
   });
-  test('[DiomanTimeouts.send] 发送缓冲阻塞时真实超时', () async {
+  test(
+      '[DiomanCall.headers][DiomanCall.sendTimeout]'
+      '[DiomanTimeouts.send] 发送缓冲阻塞时真实超时', () async {
     final loop =
         await _Loop.start(b2StallMode, const DiomanTimeouts(send: _short));
     final chunk = Uint8List(_chunkSize);

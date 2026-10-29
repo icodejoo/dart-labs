@@ -4,8 +4,8 @@ import json
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/pipeline-b5a-evidence'
-SOURCE = ROOT / 'lib/src/pipeline'
+DEST = ROOT / 'docs/reports/pipeline-b5b-evidence'
+SOURCE = ROOT / 'lib/src'
 
 
 def inspect(path):
@@ -15,12 +15,13 @@ def inspect(path):
         'token_manager.dart': 'abstract interface class DiomanTokenManager',
         'cache_store.dart': 'abstract interface class DiomanCachePersist',
         'stages.dart': 'const diomanBuiltinStages',
+        'diagnostics.dart': "export 'client.dart' show DiomanDiagnostics",
     }
     found = {}
     for block in path.read_text(encoding='utf-8').split('end_of_record'):
         lines = block.splitlines()
         source = next((s[3:].replace('\\', '/') for s in lines if s.startswith('SF:')), '')
-        marker = '/lib/src/pipeline/'
+        marker = '/lib/src/'
         if marker not in source:
             continue
         name = source.split(marker)[1]
@@ -53,9 +54,9 @@ def inspect(path):
         print(name, *counts)
     (DEST / 'coverage.json').write_text(json.dumps(found, indent=2) + '\n', encoding='utf-8')
     print(f'{len(files)} source files accounted for; all executable lines/branches 100%; PASS')
-    print('cache_store/token_manager: abstract contracts; stages: enums/const tables; no executable denominator')
+    print('cache_store/token_manager: abstract contracts; stages: enums/const tables; diagnostics: export-only; no executable denominator')
 
 
 if __name__ == '__main__':
     inspect(ROOT / (sys.argv[1] if len(sys.argv) > 1 else
-                   'docs/reports/pipeline-b5a-evidence/coverage.info'))
+                   'docs/reports/pipeline-b5b-evidence/coverage.info'))

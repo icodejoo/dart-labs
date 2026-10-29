@@ -1,6 +1,6 @@
 ---
 title: dioman 洋葱管线 B5a powerset、成对组合与全库覆盖率
-status: review
+status: active
 updated: 2026-10-29
 summary: 九插件 512 子集乘九流程、独立 baseline、78 对组合清单、27 文件全覆盖与七项 powerset 变异证据
 ---

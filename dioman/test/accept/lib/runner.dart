@@ -120,7 +120,7 @@ class ScenarioRun {
       {dynamic data, String method = tkPOST}) async {
     final r = await server.request<dynamic>(path,
         data: data, options: Options(method: method, headers: client!.headers));
-    if (logical(r) >= 400) throw StateError('旁路 $path 失败: ${r.data}');
+    if ((r.statusCode ?? 0) >= 400) throw StateError('旁路 $path 失败: ${r.data}');
     return obj(obj(r.data)[tkData]);
   }
 
@@ -186,7 +186,6 @@ class ScenarioRun {
     final c = client!;
     final id = '${spec[tkId]}$suffix';
     final options = obj(spec[tkOptions]);
-    final extra = c.extras(options, id);
     if (stopped || serviceBlocked) return;
     var token = CancelToken();
     active.add(token);
@@ -196,64 +195,21 @@ class ScenarioRun {
         ? await observe()
         : null;
     Timer? cancelTimer;
-    Timer? budgetTimer;
-    var budgetExpired = false;
-    final pluginTotal = obj(c.plugins[tkTimeout])[tkTotalMs];
-    final total =
-        pluginTotal == null ? null : options[tkTimeoutMs] ?? pluginTotal;
-    // 无外部取消时钟、探测或共享跟随者时，由插件注入并登记 token。
-    final nativeCancel = c.plugins.containsKey(tkCancel) &&
-        !c.plugins.containsKey(tkOffline) &&
-        !c.plugins.containsKey(tkShare) &&
-        total == null &&
-        spec[tkCancelAfterMs] == null;
-    if (nativeCancel) {
-      extra[tkAcceptOnToken] = (CancelToken registered) {
-        active.remove(token);
-        token = registered;
-        active.add(token);
-      };
-    } else {
-      c.handle.plugin<DiomanCancel>()?.track(token);
-    }
-    if (total != null) {
-      budgetTimer = Timer(ms(total as num), () {
-        budgetExpired = true;
-        token.requestOptions?.extra[tkAcceptBudgetExpired] = true;
-        token.cancel('testkit total budget');
-      });
-    }
     if (spec[tkCancelAfterMs] != null) {
       cancelTimer = Timer(ms(spec[tkCancelAfterMs] as num),
           () => token.cancel('testkit cancel'));
     }
     try {
       await probe(token);
-      final r = await c.dio.request<dynamic>(spec[tkPath] as String,
-          queryParameters: obj(spec[tkQuery]),
+      final r = await c.api.send<dynamic>(
+          spec[tkMethod] as String? ?? tkGET, spec[tkPath] as String,
+          query: obj(spec[tkQuery]),
           data: requestBody(spec[tkBody]),
-          cancelToken: nativeCancel ? null : token,
-          options: Options(
-              method: spec[tkMethod] as String? ?? tkGET,
-              headers: {...c.headers, ...obj(spec['headers'])},
-              extra: extra,
-              receiveTimeout: options[tkTimeoutMs] == null
-                  ? null
-                  : ms(options[tkTimeoutMs] as num)));
-      var data = r.data;
-      if (data is Map &&
-          data.containsKey(tkCode) &&
-          data[tkCode] == 0 &&
-          data.containsKey(tkData)) {
-        data = data[tkData];
-      }
-      rec.addAll({tkOk: true, tkData: data, tkStatus: r.statusCode});
+          call: c.call(options, token: token, headers: obj(spec['headers'])));
+      rec.addAll({tkOk: r.ok, tkData: r.data, tkStatus: r.status});
+      if (!r.ok) rec.addAll({tkError: classify(r), tkMessage: r.message});
     } catch (e) {
-      rec.addAll({
-        tkOk: false,
-        tkError: classify(e, authTag: c.tags[id], budgetExpired: budgetExpired),
-        tkMessage: '$e'
-      });
+      rec.addAll({tkOk: false, tkError: classify(e), tkMessage: '$e'});
       if (e is DioException &&
           e.response?.statusCode == 503 &&
           '${e.response?.data}'.toLowerCase().contains('cpu')) {
@@ -261,9 +217,7 @@ class ScenarioRun {
       }
     } finally {
       cancelTimer?.cancel();
-      budgetTimer?.cancel();
       active.remove(token);
-      if (!nativeCancel) c.handle.plugin<DiomanCancel>()?.untrack(token);
       records[id] = rec;
       order.add(id);
     }
@@ -327,9 +281,9 @@ class ScenarioRun {
         });
       case tkCancelAll:
         await pause(obj(v)['after_ms'] as num? ?? 0);
-        cancelAllCounts.add(c.handle.plugin<DiomanCancel>()?.cancelAll() ?? 0);
+        cancelAllCounts.add(c.api.cancelAll());
       case 'clear_cache':
-        await c.handle.plugin<DiomanCache>()?.clear();
+        await c.api.plugin<DiomanCacheApi>()?.clear();
       case tkNetwork:
         await setNetwork(v);
       case tkStyle:
@@ -407,7 +361,7 @@ class ScenarioRun {
         range(failures, 'client.${e.key}', events[e.key] as num, e.value);
       }
     }
-    if (active.isNotEmpty) failures.add('pending_after=${active.length}');
+    if (c.api.pending != 0) failures.add('pending_after=${c.api.pending}');
     var balance = 0;
     for (final value in c.loadingEvents) {
       balance += value ? 1 : -1;
@@ -466,8 +420,7 @@ class ScenarioRun {
       tkAdapter: tkIo,
       tkRunId: runId
     };
-    final missing = (scenario[tkRequires] as List)
-        .where((x) => !supportedCapabilities.contains(x));
+    final missing = missingCapabilities(scenario);
     final excluded = !(scenario[tkNetworks] as List).contains(network) ||
         !(scenario[tkStyles] as List? ?? [tkHttp, tkBusiness]).contains(style);
     if (missing.isNotEmpty || expectation[tkSkip] != null || excluded) {
@@ -481,7 +434,7 @@ class ScenarioRun {
               ? 'skipped: missing ${missing.first}'
               // 主动注入的 429/503 不再跳过：ServiceGuardAdapter 按注入标记放行，
               // 真实限流/熔断仍整轮停止（2026-10-28 决定）。
-              : expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'
+              : '不适用：${expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'}'
         ]
       };
     }
@@ -528,7 +481,7 @@ class ScenarioRun {
       result['events'] = eventSnapshot();
       result['records'] = records;
       result[tkOrder] = order;
-      result[tkPlugins] = client!.handle.plugins.map((p) => p.name).toList();
+      result[tkPlugins] = client!.api.inspect().map((p) => p.$2).toList();
     } catch (e, st) {
       if (e is DioException &&
           e.type == DioExceptionType.connectionError &&

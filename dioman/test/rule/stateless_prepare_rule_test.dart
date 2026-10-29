@@ -1,9 +1,9 @@
-import '../support/pipeline/b2_constants.dart';
-import 'package:dioman/pipeline.dart';
+import '../support/b2_constants.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/fake_network.dart';
 
 /// 共用带三种占位符的路径。
 const preparePath = '/{id}/:name/[id]';
@@ -34,7 +34,9 @@ void main() {
     expect(api.dio.options.queryParameters, contains(b2Id));
   });
 
-  test('[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源', () async {
+  test(
+      '[DiomanRepath.defaultPattern][DiomanRepath.enabled][DiomanRepath.removeKey][DiomanRepathOptions.enabled][DiomanRepathOptions.removeKey]'
+      '[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源', () async {
     final net = FakeNetwork();
     final plugin = DiomanRepath(pattern: RegExp(r'\$(\w+)'), removeKey: false);
     final api = testClient(network: net, plugins: [plugin]);
@@ -90,7 +92,9 @@ void main() {
     expect(api.dio.options.queryParameters, contains(b2Nil));
   });
 
-  test('[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承', () async {
+  test(
+      '[DiomanFilter.enabled][DiomanFilter.ignoreKeys][DiomanFilter.ignoreValues][DiomanFilterOptions.enabled][DiomanFilterOptions.ignoreKeys][DiomanFilterOptions.ignoreValues][DiomanFilterOptions.predicate]'
+      '[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承', () async {
     final net = FakeNetwork();
     final api = testClient(network: net, plugins: [
       const DiomanFilter(ignoreKeys: ['a'], ignoreValues: [b2Empty])
@@ -122,7 +126,11 @@ void main() {
     }
   });
 
-  test('[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次', () async {
+  test(
+      '[NetworkQuality.excellent]'
+      '[DiomanTimeout.defaultConnect]'
+      '[DiomanTimeout.defaultTimeouts]'
+      '[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次', () async {
     final net = FakeNetwork();
     var tier = NetworkQuality.excellent;
     var probes = 0;
@@ -145,7 +153,9 @@ void main() {
     expect(probes, 4);
   });
 
-  test('[DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭', () async {
+  test(
+      '[DiomanTimeout.enabled][DiomanTimeoutOptions.enabled]'
+      '[DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭', () async {
     final net = FakeNetwork();
     var tier = NetworkQuality.good;
     final api = testClient(network: net, plugins: [
@@ -180,7 +190,16 @@ void main() {
     }
   });
 
-  test('[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键', () async {
+  test(
+      '[DiomanEnvs.name][DiomanFilter.name][DiomanLoading.name][DiomanNotify.enabled][DiomanNotify.name][DiomanNotify.stage][DiomanPlugin.name][DiomanRepath.name][DiomanRepath.stage][DiomanTimeout.name][DiomanTimeout.stage]'
+      '[DiomanFilter.pluginName]'
+      '[DiomanRepath.pluginName]'
+      '[DiomanLoading.setup]'
+      '[DiomanNotify.setup]'
+      '[DiomanRepath.setup]'
+      '[DiomanFilter.setup]'
+      '[DiomanTimeout.setup]'
+      '[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键', () async {
     final plugins = <DiomanPlugin<Result>>[
       DiomanLoading(onChanged: (_) {}),
       DiomanNotify(notify: (_, r) {}),

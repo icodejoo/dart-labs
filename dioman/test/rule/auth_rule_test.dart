@@ -1,13 +1,17 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 验证凭证、逻辑状态与鉴权路由。
 void main() {
-  test('[DiomanTokenManager] setTokens 与 clear 管理原始凭证，不提供 canRefresh', () {
+  test(
+      '[DiomanTokenManager.accessToken]'
+      '[DiomanTokenManager.clear]'
+      '[DiomanTokenManager.setTokens]'
+      '[DiomanTokenManager] setTokens 与 clear 管理原始凭证，不提供 canRefresh', () {
     final tm = TestTokens(null);
     expect(tm.accessToken, isNull);
     expect(tm.refreshToken, isNull);
@@ -20,7 +24,9 @@ void main() {
     expect(tm.accessToken, isNull);
     expect(tm.clears, 1);
   });
-  test('[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败', () async {
+  test(
+      '[DiomanAuthFailureAction.deny][DiomanAuthFailureAction.expired][DiomanAuthFailureAction.others][DiomanAuthFailureAction.refresh]'
+      '[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败', () async {
     for (final current in <String?>[null, b3ValueEmpty, b3Old, b3Fresh]) {
       final tm = TestTokens(current);
       final api = testClient();
@@ -48,7 +54,11 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanAuth.onRefresh] HTTP 与 business 401 默认 Bearer 刷新重放一次，非鉴权失败原样',
+  test(
+      '[DiomanAuth.defaultBuildHeader]'
+      '[DiomanAuth.name]'
+      '[DiomanAuth.pluginName]'
+      '[DiomanAuth.onRefresh] HTTP 与 business 401 默认 Bearer 刷新重放一次，非鉴权失败原样',
       () async {
     for (final business in [false, true]) {
       for (final finalStatus in [200, 401, 403, 500]) {
@@ -149,7 +159,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖', () async {
+  test(
+      '[DiomanAuth.new(refreshLeeway)][DiomanAuthOptions.expiresAt][DiomanAuthOptions.onAccessExpired][DiomanAuthOptions.refreshLeeway]'
+      '[DiomanAuth.expiresAt] 主动刷新只一次、空过期时间不刷新、提前量请求覆盖', () async {
     for (final mode in [
       b3ValueDue,
       b3ValueFuture,
@@ -183,7 +195,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用', () async {
+  test(
+      '[DiomanAuth.new(isProtected)][DiomanAuthOptions.isProtected][DiomanAuthOptions.onAccessDenied][DiomanAuthOptions.ready]'
+      '[DiomanAuth.option] 四种写法、请求覆盖、公开路径和安装禁用', () async {
     for (final option in <Object?>[
       null,
       true,

@@ -1,0 +1,7 @@
+{
+  "command": "codex review --uncommitted",
+  "exit_code": 0,
+  "findings": 3,
+  "fixed": 3,
+  "regression_without_each_fix_fails": true
+}

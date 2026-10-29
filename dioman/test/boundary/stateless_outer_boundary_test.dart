@@ -1,10 +1,10 @@
-import '../support/pipeline/b2_constants.dart';
+import '../support/b2_constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
 import '../rule/stateless_outer_rule_test.dart'
     show outerPath, outerTick, outerRoute;
 
@@ -142,7 +142,9 @@ void main() {
     await pending;
   });
 
-  test('[DiomanLoading.onChanged] 通知抛错隔离、日志记录且计数仍归零', () async {
+  test(
+      '[DiomanLoading.pluginName]'
+      '[DiomanLoading.onChanged] 通知抛错隔离、日志记录且计数仍归零', () async {
     final logs = <String>[];
     final events = <bool>[];
     final api = testClient(debug: logs.add, plugins: [
@@ -158,7 +160,9 @@ void main() {
     expect(api.plugin<DiomanLoadingApi>()!.activeCount, 0);
   });
 
-  test('[DiomanNotify.notify] stringify 与 notify 的错误均隔离并记日志', () async {
+  test(
+      '[DiomanNotify.pluginName]'
+      '[DiomanNotify.notify] stringify 与 notify 的错误均隔离并记日志', () async {
     for (final brokenStringify in [false, true]) {
       final logs = <String>[];
       final api = testClient(debug: logs.add, plugins: [

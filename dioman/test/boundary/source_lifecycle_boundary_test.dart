@@ -1,11 +1,12 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 每客户端隔离、取消结果归属及在途生命周期。
 void main() {
@@ -36,7 +37,9 @@ void main() {
     await b4Turn();
     expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
   });
-  test('[DiomanCache.shouldStore] 取消的在途响应不缓存且屏障回收', () async {
+  test(
+      '[INV-source-diagnostics]'
+      '[DiomanCache.shouldStore] 取消的在途响应不缓存且屏障回收', () async {
     final gate = Completer<void>();
     final net = FakeNetwork()..routes[b4Route] = [FakeReply(gate: gate.future)];
     final api = testClient(network: net, plugins: [
@@ -85,7 +88,9 @@ void main() {
     a.dispose();
     b.dispose();
   });
-  test('[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复',
+  test(
+      '[DiomanCall.connectTimeout][DiomanCall.receiveTimeout]'
+      '[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复',
       () async {
     final clock = FakeClock();
     final stream = StreamController<bool>.broadcast(sync: true);

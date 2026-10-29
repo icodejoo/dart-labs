@@ -1,12 +1,13 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// source 取消、计时和新鲜度边界。
 void main() {
@@ -129,7 +130,8 @@ void main() {
           isTrue);
     }
   });
-  test('[DiomanShare.setup] 到达前已取消与内层同步取消均不挂起且不泄漏', () async {
+  test('[DiomanStage.credential]' '[DiomanShare.setup] 到达前已取消与内层同步取消均不挂起且不泄漏',
+      () async {
     for (final before in [true, false]) {
       final token = CancelToken();
       final net = FakeNetwork();
@@ -152,8 +154,9 @@ void main() {
       expect(api.cancellationSubscriptions, 0);
     }
   });
-  test('[DiomanCacheApi.clear] clear 作废在途写入，屏障 finally 回收，remove 不复活',
-      () async {
+  test(
+      '[DiomanCacheApi.remove]'
+      '[DiomanCacheApi.clear] clear 作废在途写入，屏障 finally 回收，remove 不复活', () async {
     for (final remove in [false, true]) {
       final gate = Completer<void>();
       final net = FakeNetwork()
@@ -211,7 +214,9 @@ void main() {
       expect(n.sends.length, 3);
     }
   });
-  test('[DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3',
+  test(
+      '[DiomanOfflineOptions.maxWait]'
+      '[DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3',
       () async {
     for (final exit in [
       b4LiteralTimeout,
@@ -266,7 +271,9 @@ void main() {
       await stream.close();
     }
   });
-  test('[DiomanOffline.maxQueueSize] 队满挤出最早，0 不限，请求级覆盖上限', () async {
+  test(
+      '[DiomanOfflineOptions.maxQueueSize]'
+      '[DiomanOffline.maxQueueSize] 队满挤出最早，0 不限，请求级覆盖上限', () async {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);
     final api = testClient(plugins: [

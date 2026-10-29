@@ -1,12 +1,15 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/constants.dart';
-import '../support/pipeline/fake_network.dart';
+import '../support/constants.dart';
+import '../support/fake_network.dart';
 
 /// 工厂子类在调用端和 debug 派生时保留扩展字段。
 void main() {
-  test('[DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段', () async {
+  test(
+      '[Dioman.get]'
+      '[DiomanContext.factory]'
+      '[DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段', () async {
     final network = FakeNetwork();
     network.routes['GET:/typed'] = [
       const FakeReply(body: {pipelineTestCode: 0, pipelineTestData: 7}),

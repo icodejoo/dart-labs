@@ -1,16 +1,18 @@
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/b3_helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
+import '../support/invariant_harness.dart';
 
 /// 内部重试独立于外层 retry 的重放保护和首发配置归属。
 void main() {
-  test('[DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖', () async {
+  test(
+      '[DiomanShareOptions.methods]'
+      '[DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖', () async {
     final clock = FakeClock();
     final first = Completer<void>();
     final net = FakeNetwork()
@@ -67,7 +69,9 @@ void main() {
     });
     h.assertAll(api);
   });
-  test('[DiomanShare.retries] 默认内部重试三次，零负次数不重发', () async {
+  test(
+      '[DiomanShareOptions.policy][DiomanShareOptions.retries]'
+      '[DiomanShare.retries] 默认内部重试三次，零负次数不重发', () async {
     for (final count in <int?>[null, 0, -1]) {
       final net = FakeNetwork()
         ..routes[b4Route] = [const FakeReply(status: 500)];

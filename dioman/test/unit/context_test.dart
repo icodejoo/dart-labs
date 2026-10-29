@@ -1,14 +1,47 @@
-import '../support/pipeline/constants.dart';
+import 'package:dioman/src/diagnostics.dart';
+import '../support/constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/helpers.dart';
 
 /// 取消等待的各个终局及逻辑状态共享。
 void main() {
-  test('[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享', () async {
+  test('[DiomanContext.new][INV-context-lifecycle] 公开构造器独立创建状态且派生共享', () async {
+    final base = testContext();
+    final ctx = DiomanContext(
+        id: base.id,
+        client: base.client,
+        request: base.request,
+        factory: base.factory,
+        keyService: base.keyService,
+        clock: base.clock,
+        log: base.log);
+    final key = StateKey<int>('public context value');
+    ctx.set(key, 7);
+    expect(ctx.derive(const RequestPatch()).get(key), 7);
+    expect(base.get(key), isNull);
+    final pending = Completer<int>();
+    final waiting = ctx.wait(pending.future);
+    expect(ctx.cancellationSubscriptions, 1);
+    ctx.state.cancel();
+    expect(await waiting, isNull);
+    expect(ctx.cancellationSubscriptions, 0);
+    pending.complete(1);
+    ctx.state.dispose();
+    base.state.dispose();
+    base.client.dispose();
+  });
+  test(
+      '[RequestPatch.cancelToken]'
+      '[INV-context-lifecycle]'
+      '[DiomanContext.derive]'
+      '[DiomanContext.isCancelled]'
+      '[INV-context-lifecycle]'
+      '[DiomanContext.cancelToken]'
+      '[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享', () async {
     final root = testContext();
     final token = CancelToken();
     final inner = root.derive(RequestPatch(cancelToken: token));
@@ -26,7 +59,8 @@ void main() {
     await flush();
     expect(inner.isCancelled, isTrue);
   });
-  test('[DiomanContext.wait] 正常值、异常、超时、取消均清理且忽略迟到结果', () async {
+  test('[DiomanContext.clock]' '[DiomanContext.wait] 正常值、异常、超时、取消均清理且忽略迟到结果',
+      () async {
     for (final outcome in [
       pipelineTestValue,
       pipelineTestError,
@@ -96,7 +130,14 @@ void main() {
     await flush();
   });
 
-  test('[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离', () {
+  test(
+      '[DiomanKeyOptions.builder][DiomanKeyOptions.key][StateKey.description]'
+      '[DiomanContext.get]'
+      '[DiomanContext.set]'
+      '[DiomanContext.keyService]'
+      '[DiomanKeyService.options]'
+      '[INV-context-lifecycle]'
+      '[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离', () {
     var calls = 0;
     final ctx = testContext(key: DiomanKeyOptions(builder: (o) {
       calls++;

@@ -1,13 +1,18 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
 /// 持久化 I/O 竞态，所有用户等待可取消。
 void main() {
-  test('[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填',
+  test(
+      '[DiomanCachePolicy.both]'
+      '[DiomanCachePersist.erase]'
+      '[DiomanCachePersist.remove]'
+      '[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填',
       () async {
     for (final action in [b4LiteralClear, b4LiteralRemove, b4LiteralDispose]) {
       final store = B4Persist()
@@ -173,7 +178,9 @@ void main() {
       expect(api.cancellationSubscriptions, 0);
     }
   });
-  test('[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记', () async {
+  test(
+      '[DiomanClonePolicy.deep][DiomanFailure.data]'
+      '[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记', () async {
     final body = <int, dynamic>{
       1: <int>[2]
     };

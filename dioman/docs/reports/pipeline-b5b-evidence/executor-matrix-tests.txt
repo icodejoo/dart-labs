@@ -1,0 +1,9 @@
+00:00 +0: loading test/unit/accept_runner_test.dart
+00:00 +0: test/unit/accept_runner_test.dart: [client.classify] 归类只读取 kind reason status，原始数据不参与判断
+00:00 +1: test/unit/matrix_test.dart: [matrix.titleIdsFromSource] 常量插值及相邻字面量被反查，注释和普通字符串忽略
+00:00 +2: test/unit/matrix_test.dart: [matrix.titleIdsFromSource] 常量插值及相邻字面量被反查，注释和普通字符串忽略
+00:00 +3: test/unit/accept_runner_test.dart: [ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务
+00:00 +4: test/unit/accept_runner_test.dart: [ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务
+00:00 +5: test/unit/accept_runner_test.dart: [ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务
+00:00 +6: test/integration/matrix_integration_test.dart: [matrix.repositoryGaps] 总账 G0/G2/G3/G5 单测侧无缺口
+00:00 +7: All tests passed!

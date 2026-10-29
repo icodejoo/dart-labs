@@ -1,0 +1,325 @@
+[
+  {
+    "id": "DiomanCacheApi.entryCount",
+    "plugin": "cache",
+    "capability": "DiomanCacheApi.entryCount：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanCacheApi.pendingWrites",
+    "plugin": "cache",
+    "capability": "DiomanCacheApi.pendingWrites：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.cancellationSubscriptions",
+    "plugin": "client",
+    "capability": "Dioman.cancellationSubscriptions：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanCancelLink.dispose",
+    "plugin": "context",
+    "capability": "DiomanCancelLink.dispose：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanCancelLink.new(source)",
+    "plugin": "context",
+    "capability": "DiomanCancelLink.new(source)：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanCancelLink.new(target)",
+    "plugin": "context",
+    "capability": "DiomanCancelLink.new(target)：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContext.cancellationSubscriptions",
+    "plugin": "context",
+    "capability": "DiomanContext.cancellationSubscriptions：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContext.state",
+    "plugin": "context",
+    "capability": "DiomanContext.state：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.cancel",
+    "plugin": "context",
+    "capability": "DiomanContextState.cancel：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.dispose",
+    "plugin": "context",
+    "capability": "DiomanContextState.dispose：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.keys",
+    "plugin": "context",
+    "capability": "DiomanContextState.keys：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.listeners",
+    "plugin": "context",
+    "capability": "DiomanContextState.listeners：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.new(onDispose)",
+    "plugin": "context",
+    "capability": "DiomanContextState.new(onDispose)：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.release",
+    "plugin": "context",
+    "capability": "DiomanContextState.release：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.replayable",
+    "plugin": "context",
+    "capability": "DiomanContextState.replayable：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.retain",
+    "plugin": "context",
+    "capability": "DiomanContextState.retain：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.token",
+    "plugin": "context",
+    "capability": "DiomanContextState.token：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContextState.values",
+    "plugin": "context",
+    "capability": "DiomanContextState.values：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRegistration.instance",
+    "plugin": "pipeline",
+    "capability": "DiomanRegistration.instance：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRegistration.plugin",
+    "plugin": "pipeline",
+    "capability": "DiomanRegistration.plugin：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "compileDiomanPipeline",
+    "plugin": "pipeline",
+    "capability": "compileDiomanPipeline：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "sortDiomanPipeline",
+    "plugin": "pipeline",
+    "capability": "sortDiomanPipeline：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "validateDiomanPlugins",
+    "plugin": "pipeline",
+    "capability": "validateDiomanPlugins：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShareApi.activeEntries",
+    "plugin": "share",
+    "capability": "DiomanShareApi.activeEntries：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "diomanBuiltinStages",
+    "plugin": "stages",
+    "capability": "diomanBuiltinStages：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "diomanSetupPlugins",
+    "plugin": "stages",
+    "capability": "diomanSetupPlugins：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "diomanTransport",
+    "plugin": "transport",
+    "capability": "diomanTransport：公开契约及配置解析",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContext.replayable",
+    "plugin": "context",
+    "capability": "DiomanContext.replayable：公开契约及配置解析",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.replayable"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanResponseFactory.withCallSite",
+    "plugin": "response",
+    "capability": "DiomanResponseFactory.withCallSite：公开契约及配置解析",
+    "tier": 1,
+    "apis": [
+      "DiomanResponseFactory.withCallSite"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  }
+]

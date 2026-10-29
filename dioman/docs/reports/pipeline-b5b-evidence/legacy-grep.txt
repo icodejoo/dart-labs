@@ -1,0 +1,7 @@
+rg -n 'extra\\[' lib test -> exit 1, 0 matches
+rg -n 'handler\\.(next|resolve)' lib test -> exit 1, 0 matches
+rg -n 'claimRequest' lib test -> exit 1, 0 matches
+rg -n 'DiomanMockAdapter' lib test -> exit 1, 0 matches
+rg -n 'x-dioman-mock' lib test -> exit 1, 0 matches
+rg -n 'package:dioman/pipeline.dart' lib test -> exit 1, 0 matches
+rg -n 'test_legacy' lib test -> exit 1, 0 matches

@@ -1,13 +1,15 @@
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b3_helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/helpers.dart';
 
 /// 验证退避、服务器时间与取消窗口。
 void main() {
-  test('[DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶', () async {
+  test(
+      '[DiomanResponse.raw]'
+      '[DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶', () async {
     for (final header in <String?>[
       null,
       b3ValueEmpty,
@@ -77,7 +79,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头', () async {
+  test(
+      '[DiomanRetry.delayMax][DiomanRetry.jitter]'
+      '[DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头', () async {
     for (final jitter in <Object?>[
       null,
       false,
@@ -136,7 +140,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanRetry.onRetry] 通知抛错隔离并记日志，通知取消不重发', () async {
+  test(
+      '[Dioman.clock][Dioman.new(debug)][Dioman.new(plugins)]'
+      '[DiomanRetry.onRetry] 通知抛错隔离并记日志，通知取消不重发', () async {
     for (final cancel in [false, true]) {
       final token = CancelToken();
       final clock = FakeClock();
@@ -173,6 +179,7 @@ void main() {
     }
   });
   test(
+      '[DiomanRetry.defaultDelay]'
       '[DiomanRetry.shouldRetry] shouldRetry delay jitter 程序错误原样落定，internal 不重试',
       () async {
     final bug = StateError('decision');
@@ -202,7 +209,9 @@ void main() {
       api.dispose();
     }
   });
-  test('[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错', () async {
+  test(
+      '[DiomanCall.cancelToken][DiomanKind.cancel][DiomanKind.network][DiomanStage.source]'
+      '[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错', () async {
     final token = CancelToken();
     var inner = 0;
     final api = testClient(plugins: [

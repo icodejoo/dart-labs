@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import '../support/pipeline/b5_powerset.dart';
+import '../support/b5_powerset.dart';
 
 /// 位掩码、脚本 baseline 和真正的 512 × 9 不变量组合。
 void main() {

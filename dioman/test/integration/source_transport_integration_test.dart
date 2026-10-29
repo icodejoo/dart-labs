@@ -1,17 +1,20 @@
+import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'dart:io';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/b4_helpers.dart';
-import '../support/pipeline/helpers.dart';
+import '../support/b4_helpers.dart';
+import '../support/helpers.dart';
 
 /// 回环成功响应。
 const _body = '{"code":0,"data":"source"}';
 
 /// 真实 Dio 的转发、共享取消与超时、缓存命中。
 void main() {
-  test('[DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网',
+  test(
+      '[Dioman.dio][Dioman.response]'
+      '[DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网',
       () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
@@ -47,7 +50,9 @@ void main() {
     expect(probes, 2);
     expect(real, 1);
   });
-  test('[DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio', () async {
+  test(
+      '[INV-context-lifecycle][Dioman.key][Dioman.plugin]'
+      '[DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio', () async {
     for (final cancel in [true, false]) {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final gate = Completer<void>();

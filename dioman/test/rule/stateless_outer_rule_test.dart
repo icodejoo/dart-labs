@@ -1,11 +1,11 @@
-import '../support/pipeline/b2_constants.dart';
+import '../support/b2_constants.dart';
 import 'dart:async';
-import 'package:dioman/pipeline.dart';
+import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/pipeline/helpers.dart';
-import '../support/pipeline/fake_clock.dart';
-import '../support/pipeline/fake_network.dart';
-import '../support/pipeline/invariant_harness.dart';
+import '../support/helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/invariant_harness.dart';
 
 /// 外层规则使用的请求路径。
 const outerPath = '/outer';
@@ -48,7 +48,9 @@ void main() {
     h.assertAll(api);
   });
 
-  test('[DiomanLoading.option] 四种写法、字段继承与请求开关', () async {
+  test(
+      '[DiomanLoading.enabled][DiomanLoadingOptions.enabled]'
+      '[DiomanLoading.option] 四种写法、字段继承与请求开关', () async {
     final events = <bool>[];
     final clock = FakeClock();
     final api = testClient(
@@ -74,7 +76,9 @@ void main() {
     expect(clock.pendingTimers, 0);
   });
 
-  test('[DiomanLoadingOptions.onChanged] 独占回调替代默认且两个延迟都生效', () async {
+  test(
+      '[DiomanLoadingOptions.delay][DiomanLoadingOptions.delayClose]'
+      '[DiomanLoadingOptions.onChanged] 独占回调替代默认且两个延迟都生效', () async {
     final own = <bool>[];
     final clock = FakeClock();
     final gate = Completer<void>();
@@ -102,7 +106,11 @@ void main() {
     expect(clock.pendingTimers, 0);
   });
 
-  test('[DiomanNotify.stringify] 默认忽略成功、取消和 silent，失败消息与空消息回退', () async {
+  test(
+      '[DiomanCall.silent]'
+      '[DiomanNotify.defaultStringify]'
+      '[DiomanResponse.message]'
+      '[DiomanNotify.stringify] 默认忽略成功、取消和 silent，失败消息与空消息回退', () async {
     final net = FakeNetwork();
     final messages = <String>[];
     final results = <Result>[];
