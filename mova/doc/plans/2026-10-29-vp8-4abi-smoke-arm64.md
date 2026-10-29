@@ -151,3 +151,18 @@ so：CI run 40838203263（分支 `jelon/vp8-dequeue-spin`，提交 `c29d638`，`
 - 重开仍是 3 次，但新实例不再收到非关键帧开头的包，不再触发 `UNSUP_BITSTREAM`；根因判断得到修复侧的验证。
 - 局限：n=12、单设备、单个 ABI；只验了原生 media_kit 页面（mova 路径与它同一个 libmpv，预期一致，未单独跑）；未做 seek/长时间播放/WHEP 的回归；其余三个 ABI 未构建。
 - 复现全关键帧样本：`ffmpeg -t 12 -i vp8.webm -c:v libvpx -g 1 -b:v 2M -crf 10 -c:a copy vp8_allkey.webm`。
+
+## 补：“解码器每轮打开 3 次”是什么、能不能修
+
+**成因（源码 + 日志）**：media_kit_video 2.0.1 的 Android `VideoController` 只有在第一帧解码出尺寸后才触发 `VideoOutputManager.SetSurfaceSize`，原生层建好渲染面后经 `VideoOutput.Resize` 回填 `wid`，`widListener` 随即先写 `vo=null`、再批量写 `android-surface-size`/`wid`/`vo=gpu`，最后还 `player.seek(当前位置)`。mpv 每次改 `vo` 都会重建视频链并**重开解码器**，所以 = 1 次初始 + 2 次 `vo` 切换（日志：每轮解码器 #2 打开后紧跟 `Set property: vo="gpu"`）。与 mova、与 libmpv 无关（原生 media_kit 同样）。
+
+**实验（旧 so，原生 media_kit，同进程交替；`arm64-presize.log`、`arm64-presize2.log`）**：在打开文件前用 media_kit 的私有 MethodChannel 先调一次 `VideoOutputManager.SetSurfaceSize`。
+| 预设尺寸（真实 640x360） | 解码器打开次数 | 卡死 | 回退 | libvpx 失败 | 首帧(ms) |
+|---|---|---|---|---|---|
+| 不预设（现状） | 3 | 6/12 | 12/12 | 23 | 约 400–610 |
+| **640x360（正确）** | **1** | **0/12** | **0/12** | **0** | **约 190–310** |
+| 320x180（错误） | **4** | 6/12 | 12/12 | 21 | 约 260–760 |
+| 1920x1080（错误） | **4** | 4/12 | 12/12 | 23 | 约 260–950 |
+- 预设对了：开文件前 `vo` 已是 `gpu`，只开 1 次，首帧约快一半，且（即使没有 0016）不再出现 VP8 故障。
+- 预设错了：**更糟**（4 次）——第一帧的真实尺寸与预设不同，media_kit 会再发一次 `SetSurfaceSize`，原生层重建渲染面、`wid` 变化，`vo` 再切一轮。
+- 结论：**可修，但前提是打开文件前就知道视频尺寸**；否则需要改 media_kit_video（让“调整尺寸”不换 `wid`，或不再先写 `vo=null`），本仓库没有改。依赖 media_kit 私有通道名/方法名，跨版本脆弱。

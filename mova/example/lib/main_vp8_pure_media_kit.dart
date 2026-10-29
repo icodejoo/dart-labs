@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mova/mova.dart';
@@ -57,8 +58,9 @@ void main() {
     for (var r = 0; r < runsEach; r++) {
       for (final kind in kinds) {
         try {
-          await probe(kind, r, 'vp8.webm');
-          await probe(kind, r, 'vp8_allkey.webm');
+          await probe(kind, r, 'vp8.webm', presize: true);
+          await probe(kind, r, 'vp8.webm', presize: true, w: 320, h: 180);
+          await probe(kind, r, 'vp8.webm', presize: true, w: 1920, h: 1080);
         } catch (e, s) {
           mark('SCRIPT_ERROR', {'kernel': kind, 'run': r, 'error': '$e', 'stack': '$s'});
         }
@@ -103,7 +105,7 @@ Future<String?> prop(NativePlayer n, String k) async {
 }
 
 /// 跑一轮：[kind] 为 mova 或 pure；两者用同一个 so、同一样本、同样的 mpv 属性，观察口径一致。
-Future<void> probe(String kind, int run, String file) async {
+Future<void> probe(String kind, int run, String file, {bool presize = false, int w = 640, int h = 360}) async {
   maxGapMs = 0;
   final player = Player(configuration: const PlayerConfiguration(logLevel: MPVLogLevel.v));
   var opens = 0, attempts = 0, decodeErr = 0, dequeueFail = 0;
@@ -132,6 +134,19 @@ Future<void> probe(String kind, int run, String file) async {
   }
   await WidgetsBinding.instance.endOfFrame;
   await native.setProperty('vd-lavc-o', 'ndk_codec=1');
+  // 实验：打开文件前先用已知尺寸触发 media_kit 的 SetSurfaceSize，让渲染面与 vo=gpu 提前就绪。
+  var voBefore = '-';
+  if (presize) {
+    final handle = await player.handle;
+    await const MethodChannel('com.alexmercerind/media_kit_video')
+        .invokeMethod('VideoOutputManager.SetSurfaceSize', {'handle': handle.toString(), 'width': '$w', 'height': '$h'});
+    final w0 = DateTime.now();
+    while (DateTime.now().difference(w0).inMilliseconds < 3000) {
+      voBefore = (await prop(native, 'vo')) ?? '-';
+      if (voBefore == 'gpu') break;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
   final t0 = DateTime.now();
   Object? openErr;
   try {
@@ -160,6 +175,9 @@ Future<void> probe(String kind, int run, String file) async {
   mark('RESULT', {
     'kernel': kind,
     'file': file,
+    'presize': presize,
+    'preW': presize ? w : 0,
+    'voBefore': voBefore,
     'run': run,
     'openErr': openErr?.toString(),
     'ttffMs': ttff,
