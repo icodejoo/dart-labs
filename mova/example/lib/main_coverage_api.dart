@@ -145,7 +145,7 @@ class _CoverageHomeState extends State<CoverageHome> {
 
   Future<void> serve() async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 18083);
-    mark('SERVER', {'port': 18083});
+    mark('SERVER', {'port': 18083,'build':'rerun5-20261027'});
     await for (final req in server) {
       if(req.uri.path=='/artifact') {
         final name=req.uri.queryParameters['name']??'';
@@ -332,7 +332,7 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'miniRect': mini.setRect(const MovaMiniRect(left:30,top:90,width:180,height:110));
       case 'miniInfo':
         final r=mini.rect;
-        mark('MINI_INFO',{'showing':mini.isShowing(a),'mount':mini.mount.name,'rect':r==null?null:{'left':r.left,'top':r.top,'width':r.width,'height':r.height}});
+        mark('MINI_INFO',{'apiNull':mini.api==null,'showing':mini.isShowing(a),'mount':mini.mount.name,'rect':r==null?null:{'left':r.left,'top':r.top,'width':r.width,'height':r.height}});
       case 'skin':
         skin.value = switch(args['value']) {
           'bilibili' => MovaBilibiliSkin(),

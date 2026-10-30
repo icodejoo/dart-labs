@@ -11,6 +11,7 @@ import 'main_quality_switch_verify.dart' as quality;
 import 'main_observe_event_verify2.dart' as pump;
 import 'main_subtitle_formats_probe.dart' as subtitles;
 import 'main_review_fixes_verify2.dart' as review;
+import 'main_hwdec_matrix_verify.dart' as hwdec;
 
 /// Selects an existing verification page using the local host, keeping its
 /// original event-based assertions intact.
@@ -40,6 +41,7 @@ Future<void> main() async {
     case 'pump': pump.main();
     case 'subtitles': subtitles.main();
     case 'review': review.main([]);
+    case 'hwdec': hwdec.main();
     default: api.main();
   }
 }

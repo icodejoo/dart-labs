@@ -58,9 +58,7 @@ void main() {
     for (var r = 0; r < runsEach; r++) {
       for (final kind in kinds) {
         try {
-          await probe(kind, r, 'vp8.webm', presize: true);
-          await probe(kind, r, 'vp8.webm', presize: true, w: 320, h: 180);
-          await probe(kind, r, 'vp8.webm', presize: true, w: 1920, h: 1080);
+          await probe(kind, r, 'vp8.webm');
         } catch (e, s) {
           mark('SCRIPT_ERROR', {'kernel': kind, 'run': r, 'error': '$e', 'stack': '$s'});
         }
@@ -194,6 +192,13 @@ Future<void> probe(String kind, int run, String file, {bool presize = false, int
     'topThreads': top,
     'hwdecCurrent': hw,
   });
+  if (run == 0) {
+    final keys = ['Opening decoder', 'Set property: vo', 'Set property: wid', 'android-surface', 'seek', 'Uninit', 'uninit', 'Destroy', 'reconfig', 'Creating', 'Closing', 'Starting playback', 'Video: '];
+    var i = 0;
+    for (final l in all) {
+      if (keys.any(l.contains)) mark('SEQ', {'i': i++, 'line': l.length > 160 ? l.substring(0, 160) : l});
+    }
+  }
   screen.value = null;
   await WidgetsBinding.instance.endOfFrame;
   if (api != null) {

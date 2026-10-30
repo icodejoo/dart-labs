@@ -1,0 +1,13 @@
+// Override only the applicationId so two builds (new / old lib) can coexist on the device.
+// Use after coverage.init.gradle: `-I tool/ab_id.init.gradle -PabId=com.icodejoo.mova.mova_example.coverage.abnew`.
+// 仅覆盖 applicationId，让新旧 lib 两份构建能在设备上并存；须排在 coverage.init.gradle 之后。
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        def abId = gradle.startParameter.projectProperties['abId']
+        if (abId != null) {
+            project.androidComponents.finalizeDsl { android ->
+                android.defaultConfig.applicationId = abId
+            }
+        }
+    }
+}

@@ -1,7 +1,7 @@
 """Verify constructor assertions on the Android debug VM and archive raw logcat."""
 from pathlib import Path
 import subprocess,time,re,json
-from coverage_device import adb,unlocked
+from coverage_device import adb,unlocked,shot
 import coverage_record
 from coverage_record import update
 H=Path(__file__).resolve().parent;O=H/'coverage_evidence';P='com.icodejoo.mova.mova_example.coverage'
@@ -22,7 +22,7 @@ while time.monotonic()<end:
     time.sleep(.3)
 (O/'rerun-debug-assert.logcat.txt').write_text(raw,encoding='utf-8')
 (O/'rerun-debug-assert.window.txt').write_text(unlocked(),encoding='utf-8')
-(O/'rerun-debug-assert.png').write_bytes(adb('exec-out','screencap','-p',binary=True))
+shot(O/'rerun-debug-assert.png',P)
 result={'foundMarker':found is not None,'assertionsEnabled':bool(found and found[1]=='true'),'trackCountRejected':bool(found and found[2]=='true'),'maxZoomRejected':bool(found and found[3]=='true')}
 (O/'rerun-debug-assert.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
 adb('shell','am','force-stop',P)

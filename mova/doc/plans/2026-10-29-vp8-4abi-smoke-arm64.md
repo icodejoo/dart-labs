@@ -166,3 +166,44 @@ so：CI run 40838203263（分支 `jelon/vp8-dequeue-spin`，提交 `c29d638`，`
 - 预设对了：开文件前 `vo` 已是 `gpu`，只开 1 次，首帧约快一半，且（即使没有 0016）不再出现 VP8 故障。
 - 预设错了：**更糟**（4 次）——第一帧的真实尺寸与预设不同，media_kit 会再发一次 `SetSurfaceSize`，原生层重建渲染面、`wid` 变化，`vo` 再切一轮。
 - 结论：**可修，但前提是打开文件前就知道视频尺寸**；否则需要改 media_kit_video（让“调整尺寸”不换 `wid`，或不再先写 `vo=null`），本仓库没有改。依赖 media_kit 私有通道名/方法名，跨版本脆弱。
+
+## 原型：固定渲染面（`packages/media_kit_video_fixsurface`，2026-10-30）
+
+改动只在 Android 控制器的 Dart 侧（`real.dart`）：`create()` 里先用固定 1920x1080 调一次 `SetSurfaceSize`，`widListener` 的 `android-surface-size` 用固定值，`videoParams` 回调不再调 `SetSurfaceSize`、只更新显示用 `rect`，并设 `keepaspect=no`（Flutter 按视频宽高比显示纹理，两次拉伸抵消）。example 用 `dependency_overrides` 接入。
+
+真机 STG-AL00 arm64，纯 media_kit，vp8.webm 12 轮：`Opening decoder` 每轮 1 次（原 3 次），0 卡死、0 次回退，首帧 207–370ms（中位约 255ms）。Windows 无此问题（基线每轮 1 次）。
+
+未验证：画质与宽高比的目视检查、`fit`/截图/小窗/PiP/转屏、高分辨率源。
+
+### 固定渲染面的画质/比例检查（2026-10-30，STG-AL00，testsrc2 样本，adb screencap，同一定格帧）
+
+画面比例：四种样本（16:9、4:3、9:16 竖屏、1080p）显示框与原版逐像素一致（1080x608 / 1080x810 / 1080x1920），比例无异常。
+
+清晰度（画面内 Laplacian 方差，越大越锐；原版 / 固定 1920x1080 / 固定 1280x720）：720p 224 / 126 / 224；640x480 62 / 56 / 39；360x640 23 / 15 / 12；1080p 原版整轮黑屏 / 263 / 135。
+结论：比例没问题，但固定渲染面会让清晰度下降（1920x1080 下 720p 样本降约 44%，竖屏样本降约 35%），因为画面被 mpv 放大到固定面再由 Flutter 缩回显示尺寸，两次重采样。固定尺寸只在恰好等于显示像素时无损，换一个固定值只是换着损失别的样本。原版在 1080p 样本上黑屏，原因未查。
+
+### 方案修订：渲染面按控件物理像素（2026-10-30，fixsurface 第二版）
+
+参考 VLC/mpv 的做法（渲染面大小与视频尺寸解耦，由播放器在面内做黑边）：`Video` 控件布局后用 `LayoutBuilder` 取物理像素尺寸，经新增的 `PlatformVideoController.setViewSize` 调 `SetSurfaceSize`；`keepaspect` 保持默认（mpv 在面内做黑边），显示 `rect` 取原生返回的渲染面尺寸；`videoParams` 回调不再触发任何渲染面重建。
+
+真机 STG-AL00，同一批 testsrc2 定格帧：显示框比例与原版一致（16:9 / 4:3 / 9:16）；清晰度（Laplacian 方差）720p 219、640x480 63、竖屏 24、1080p 254，与原版（224/62/23，1080p 原版黑屏）持平。VP8 12 轮：`Opening decoder` 每轮 1 次，0 卡死、0 回退，首帧 254–312ms。
+
+已知限制：`fit: cover/fill` 不再裁剪/拉伸视频（面内已按 contain 黑边，需改用 mpv 的 panscan/keepaspect 实现）；控件尺寸变化（转屏、小窗）会再次 SetSurfaceSize，重开次数未测；mova 页、截图、PiP 未验证。
+
+### 转屏/小窗实测：渲染面跟随控件尺寸的方案不可行（2026-10-30）
+
+`main_surface_resize.dart`：VP8 循环播放，依次切小窗 240x135 / 320x240 / 全屏 / 横屏 / 横屏小窗 / 横屏全屏 / 竖屏，统计 `Opening decoder` 累计次数与 1 秒内位置推进。
+
+- 渲染面跟随控件（第二版）：每次尺寸变化 +3 次解码器打开（累计 1→4→7→10→13→16→19→22），切小窗和转横屏后各有一次 1 秒内位置不推进（`advance=0ms`）。原版渲染面固定为视频尺寸，缩放/转屏不碰渲染面，无此问题——第二版在这点上是回退。
+- 尝试在原生层让 resize 保留 `wid`（同一 Surface 对象时不换 wid）：日志 0 次命中 "surface unchanged"，说明 Flutter `SurfaceProducer.setSize` 每次都会换新的 Surface，`wid` 必然变化，无法避免 `vo` 重建。横屏仍出现 `advance=0ms`。
+- 结论：只要渲染面尺寸会变，就要付出一次 3 次解码器重开；只在首次布局设一次又会让转屏/小窗时纹理缩放失真或变糊。两头都不干净，且收益只是首次起播少 2 次打开（首帧耗时无可测量差别）。起播卡死根因已由 ffmpeg 0016 解决。**不建议继续 fork media_kit_video**；`packages/media_kit_video_fixsurface` 仅作实验记录保留（未接入 example）。
+
+### 3 次打开压到 2 次的尝试（2026-10-30，未成功）
+
+在原版 media_kit_video 上做两处纯 Dart 最小改动，各跑 12 轮（pure 页，arm64；所用 `libmpv.so` 不含 ffmpeg 0016，所以仍有卡死和 1 次回退）：① 去掉 `widListener` 里冗余的 `vo=null` 预写（首个渲染面前 vo 本来就是 null）；② 再去掉末尾的 `player.seek(currentPosition)`。两种改动下每轮仍是 3 次 `Opening decoder`，没有减少。说明这两处都不是多出来的那次打开的来源；第三次的真实来源未查清（该组 `attemptNext=1` 含一次 hwdec 回退，与 0016 之后的 3 次是否同源待用 0016 的 so 重跑确认）。
+
+#### 补测：带 0016 的 so（sha 4ee4fd5b8a8a）重跑 3→2（2026-10-30）
+
+带 0016 后原版每轮仍是 3 次 `Opening decoder`，回退 0 次、无卡死，所以 3 次与回退无关（上一小节的 so 不带 0016，回退会把减掉的一次补回来，实验被混淆）。第 0 轮日志顺序：open#1（vo=null，起播）→ 首帧参数到达后 `widListener`：重复写 `vo=null`、写 `android-surface-size`（open#2 紧随其后）→ 写 `wid` → 写 `vo=gpu`（open#3）。
+
+在原版上依次去掉：① 冗余的 `vo=null` 预写 → 仍 3 次（open#2 改落在 `android-surface-size` 之后）；② 再不写 `android-surface-size` → 仍 3 次（open#2 落在首个 `vo/null reconfig to 640x360` 之后、`wid` 之前，触发点在日志过滤范围外，未定位）。结论：mpv 在 vo 链的多个属性变更点都会重建视频链，仅靠删减 `widListener` 写入顺序压不到 2 次；要继续需要打开完整属性/事件日志，逐条确认 open#2 的触发者。

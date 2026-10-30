@@ -26,6 +26,7 @@ Future<void> runNew(Map<String, String> args) async {
     case 'preview': await preview(args);
     case 'qoe': await qoe(args);
     case 'hls': await hls(args);
+    case 'retestDispose': await retestDispose();
     case 'tls': await tls();
     case 'lifecycle': await lifecycle();
     case 'lazy': await lazy();
@@ -507,42 +508,170 @@ Future<void> qoe(Map<String,String> args) async {
 /// Switches real local HLS variants and records seek completion errors.
 ///
 /// 切换真实本地 HLS 档位并记录续播落点误差。
+/// Logs actual kernel seek calls without changing library code.
+///
+/// 不修改库，记录真实内核seek调用。
+class RetestKernel extends MovaMpvKernel {
+  RetestKernel(Player p):super(player:p,observeNativeEvents:true,
+    backendFactory:(n,address)=>createFfiMpvEventBackend(n,address,pollInDebug:false));
+  @override
+  Future<void> seek(Duration position) async {
+    c.mark('KERNEL_SEEK_CALL',{'target':position.inMilliseconds});
+    await super.seek(position);
+    c.mark('KERNEL_SEEK_RETURN',{'target':position.inMilliseconds});
+  }
+}
+
+/// Waits on native readback; timeout only prevents hangs.
+///
+/// 等待原生读回，超时只防挂死。
+Future<void> nativeUntil(FutureOr<bool> Function() predicate,{int seconds=20}) async {
+  final end=c.clock.elapsedMilliseconds+seconds*1000;
+  while(!await predicate()) {
+    if(c.clock.elapsedMilliseconds>end) throw TimeoutException('native condition');
+    await c.settle(40);
+  }
+}
+
+/// Checks repeated disposal for real audio-only engines and proxies.
+///
+/// 检查真实仅音频引擎和代理的重复销毁。
+Future<void> retestDispose() async {
+  for(final proxy in [false,true]) {
+    MovaEngine factory()=>createMovaEngine(audioOnly:true,options:MovaOpts(cutover:MovaCutoverConfig(enabled:proxy)));
+    final MovaApi a=proxy?MovaCutoverEngine(engineFactory:factory):factory();
+    c.observe(a);await a.open(c.source(),autoPlay:false);
+    await c.until(()=>a.state.duration>Duration.zero);
+    c.mark('DISPOSE_OPEN',{'cutover':proxy,'audioOnly':true,'state':c.snapshot(a)});
+    for(var call=1;call<=2;call++) {
+      try {await a.dispose().timeout(const Duration(seconds:10));c.mark('DISPOSE_RESULT',{'cutover':proxy,'call':call,'exception':null});}
+      catch(e,s){c.mark('DISPOSE_RESULT',{'cutover':proxy,'call':call,'exception':'$e','stack':'$s'});}
+    }
+  }
+}
+
 Future<void> hls(Map<String,String> args) async {
+  final count=int.parse(args['count']??'5');
+  final paused=args['paused']=='true';
+  final proxy=args['cutover']=='true';
+  var iteration=-1;
   late Player player;
   late MovaMpvKernel kernel;
-  MovaEngine factory(){player=Player();kernel=MovaMpvKernel(player:player,observeNativeEvents:true,backendFactory:(n,address)=>createFfiMpvEventBackend(n,address,pollInDebug:false));return createMovaEngine(kernel:kernel,preciseFirstFrame:true);}
-  final MovaApi a=args['cutover']=='true'?MovaCutoverEngine(engineFactory:factory):factory(); c.observe(a); c.screen.value=a;
-  await c.settle(400);
-  final local=<MovaEvent>[]; a.events.listen(local.add);
-  await a.open(MovaSource('http://127.0.0.1:18084/master.m3u8?t=${DateTime.now().microsecondsSinceEpoch}'));
-  await c.until(()=>a.state.rendered && (c.progressOf[a]?.position.inSeconds??0)>=8,seconds:35);
-  await a.loadQualities();
-  await c.until(()=>a.state.qualities.length>=3);
-  c.mark('HLS_QUALITIES',{'qualities':a.state.qualities.map((q)=>{'label':q.label,'uri':q.uri}).toList()});
-  if(args['paused']=='true'){await a.pause();}
-  for(var i=0;i<5;i++) {
-    final native=player.platform as NativePlayer;
-    final target=((double.tryParse(await native.getProperty('time-pos'))??0)*1000).round();
-    final samples=<int>[];
-    final sub=kernel.playbackRestarts.listen((_)async {
-      final pos=((double.tryParse(await native.getProperty('time-pos'))??0)*1000).round();samples.add(pos);
-      c.mark('HLS_RESTART',{'run':i,'position':pos,'target':target,'path':await native.getProperty('path')});
-    });
-    await a.switchQuality(a.state.qualities[1+i%2]);
-    final deadline=DateTime.now().add(const Duration(seconds:15));
-    var landed=-1;
-    while(DateTime.now().isBefore(deadline)) {
-      if(samples.any((pos)=>(pos-target).abs()<1000)){landed=samples.firstWhere((pos)=>(pos-target).abs()<1000);break;}
-      await c.settle(40);
-    }
-    await c.settle(700);
-    final continued=((double.tryParse(await native.getProperty('time-pos'))??0)*1000).round();
-    await sub.cancel();
-    c.mark('HLS_NATIVE',{'run':i,'target':target,'landed':landed,'continued':continued,'samples':samples,'state':c.snapshot(a),'path':await native.getProperty('path')});
-    c.check('F3.switch',(landed-target).abs()<200 && continued>=target-200,'run=$i target=$target landed=$landed error=${landed-target} continued=$continued');
+  MovaEngine factory() {
+    player = Player();
+    kernel = RetestKernel(player);
+    return createMovaEngine(kernel: kernel, preciseFirstFrame: true,
+      options: MovaOpts(cutover: MovaCutoverConfig(enabled: proxy)));
   }
-  await a.play(); await c.settle(4000);
-  c.mark('HLS_END',{'state':c.snapshot(a),'downshifts':local.whereType<MovaAbrDownShift>().length});
+  final MovaApi a = proxy ? MovaCutoverEngine(engineFactory: factory) : factory();
+  final native = player.platform as NativePlayer;
+  Future<int> position() async => ((double.tryParse(await native.getProperty('time-pos')) ?? -1) * 1000).round();
+  var restarts = <int>[];
+  var observedRestarts = <int>[];
+  String? expectedUri;
+  var qualitySeen = false;
+  var gateMs = -1;
+  Future<bool> variantReady() async {
+    final path = await native.getProperty('path');
+    if (qualitySeen && a.state.duration > Duration.zero && path == expectedUri) {
+      if (gateMs < 0) {
+        gateMs = c.clock.elapsedMilliseconds;
+        c.mark('HLS_VARIANT_READY', {'run': iteration, 'path': path,
+          'duration': a.state.duration.inMilliseconds, 'qualitySeen': qualitySeen});
+      }
+      return true;
+    }
+    return false;
+  }
+  var pending = Future<void>.value();
+  c.observe(a);
+  final eventSub = a.events.listen((e) {
+    if (e is MovaQualityChange && e.quality.uri == expectedUri) qualitySeen = true;
+    c.mark('HLS_EVENT', {'type': '${e.runtimeType}',
+    'position': player.state.position.inMilliseconds, 'duration': a.state.duration.inMilliseconds,
+    'playing': a.state.playing, 'intent': a.state.playbackIntent, 'rendered': a.state.rendered,
+    if (e is MovaQualityChange) 'qualityUri': e.quality.uri,
+    if (e is MovaErrorEvent) 'error': '${e.error}'});
+  });
+  final progressSub = player.stream.position.listen((p) => c.mark('NATIVE_PROGRESS', {'position': p.inMilliseconds}));
+  final sub = kernel.playbackRestarts.listen((_) {
+    final run = iteration;
+    pending = pending.then((_) async {
+      final p = await position();
+      final path = await native.getProperty('path');
+      await variantReady();
+      final eligible = gateMs >= 0 && path == expectedUri;
+      restarts.add(p);
+      if (eligible) observedRestarts.add(p);
+      c.mark('HLS_RESTART', {'run': run, 'position': p, 'path': path, 'eligible': eligible,
+        'pause': await native.getProperty('pause')});
+    });
+  });
+  c.screen.value = a;
+  await c.settle(400);
+  await a.open(MovaSource('http://127.0.0.1:18084/master.m3u8?t=${DateTime.now().microsecondsSinceEpoch}'));
+  await nativeUntil(() async => a.state.rendered && await position() >= 8000, seconds: 40);
+  await a.loadQualities();
+  await nativeUntil(() => a.state.qualities.where((q) => !q.isAuto).length >= 2);
+  final variants = a.state.qualities.where((q) => !q.isAuto).toList()
+    ..sort((a, b) => b.label.compareTo(a.label));
+  c.mark('HLS_QUALITIES', {'qualities': variants.map((q) => {'label': q.label, 'uri': q.uri}).toList(),
+    'cutoverEnabled': a.options.cutover.enabled, 'video': true});
+  if (paused) await a.pause();
+  for (var i = 0; i < count; i++) {
+    iteration = i;
+    // Reset far from EOF; every target must first have real native progress >=8s.
+    // 远离EOF重设进度；每次target须先由原生读回确认至少8秒。
+    if (await position() > 20000 || await position() < 8000) {
+      await a.seek(const Duration(seconds: 9));
+      await nativeUntil(() async => (await position() - 9000).abs() <= 250);
+    }
+    // Wait until the engine's source progress stream catches the native readback.
+    // 等引擎所读进度与原生值对齐，避免旧锚点造成验证工具误报。
+    await nativeUntil(() async => (player.state.position.inMilliseconds - await position()).abs() <= 100);
+    await pending;
+    restarts = <int>[];
+    final target = await position();
+    final q = variants[i % 2];
+    expectedUri = q.uri; qualitySeen = false; gateMs = -1;
+    observedRestarts = <int>[];
+    c.mark('HLS_SWITCH', {'run': i, 'cutover':proxy, 'paused':paused, 'target': target, 'quality': q.label, 'uri': q.uri,
+      'streamPosition': player.state.position.inMilliseconds, 'pause': await native.getProperty('pause')});
+
+    await a.switchQuality(q);
+    try { await nativeUntil(variantReady, seconds: 6); }
+    on TimeoutException { /* Retain as harness-invalid, never count as a result. */ }
+    final harnessInvalid = gateMs < 0;
+    var landed = -1;
+    try {
+      await nativeUntil(() async {
+        await pending;
+        final matches = observedRestarts.where((p) => (p - target).abs() <= 500);
+        if (matches.isNotEmpty) { landed = matches.first; return true; }
+        return false;
+      }, seconds: 6);
+    } on TimeoutException { /* Failure is retained with the complete journal. */ }
+    var continued = await position();
+    var continues = false;
+    if (!paused && landed >= 0) {
+      try {
+        await nativeUntil(() async { continued = await position(); return continued >= landed + 250; }, seconds: 6);
+        continues = true;
+      } on TimeoutException { continues = false; }
+    } else if (paused) {
+      continues = (continued - target).abs() <= 500 && await native.getProperty('pause') == 'yes';
+    }
+    await pending;
+    c.mark('HLS_RESULT', {'run': i, 'cutover':proxy, 'paused':paused, 'target': target, 'landed': landed, 'continued': continued,
+      'gateMs': gateMs, 'harnessInvalid': harnessInvalid,
+      'observedRestarts': List<int>.of(observedRestarts),
+      'restarts': List<int>.of(restarts), 'resumed': landed >= 0, 'continuedOk': continues,
+      'pass': !harnessInvalid && landed >= 0 && continues && await native.getProperty('path') == q.uri, 'pause': await native.getProperty('pause'),
+      'path': await native.getProperty('path')});
+  }
+  iteration = -1;
+  await pending;
+  await sub.cancel(); await eventSub.cancel(); await progressSub.cancel();
   c.screen.value=null; await c.settle(200); await a.dispose();
 }
 
