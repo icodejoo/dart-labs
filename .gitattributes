@@ -12,3 +12,6 @@ mova/packages/**/Mpv filter=lfs diff=lfs merge=lfs -text
 
 mova/example/tool/rerun-sources/codec/*.mp4 filter=lfs diff=lfs merge=lfs -text
 mova/example/tool/rerun-sources/codec/*.webm filter=lfs diff=lfs merge=lfs -text
+
+# shell 脚本强制 LF，避免 Windows autocrlf 破坏 shebang
+*.sh text eol=lf
