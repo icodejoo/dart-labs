@@ -1,0 +1,1 @@
+27/27 source hashes match B5a; dependency declarations/locks and B6 reserved files unchanged; no tool/__pycache__; no temporary bench worktree directory; legacy/pipeline benchmark JSON both have six measured scenarios.

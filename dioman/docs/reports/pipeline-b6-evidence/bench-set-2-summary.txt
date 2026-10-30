@@ -1,0 +1,6 @@
+S1 legacy: 18570.1 ops/s, mean 53.28 us p99 282.70 us range 25.97% pipeline: 18425.3 ops/s, mean 53.71 us p99 309.90 us range 59.39%
+S2 legacy: 22153.7 ops/s, mean 44.63 us p99 213.20 us range 27.14% pipeline: 17628.0 ops/s, mean 56.21 us p99 298.10 us range 83.95%
+S3 legacy: 1967.9 ops/s, mean 507.42 us p99 1562.10 us range 29.48% pipeline: 2916.3 ops/s, mean 342.25 us p99 2693.60 us range 40.22%
+S4 legacy: 5149.3 ops/s, mean 193.49 us p99 687.50 us range 38.63% pipeline: 12817.9 ops/s, mean 77.56 us p99 337.30 us range 64.04%
+S5 legacy: 208.9 ops/s, mean 4784.55 us p99 8766.90 us range 57.07% pipeline: 523.4 ops/s, mean 1908.72 us p99 5770.80 us range 30.38%
+S6 legacy: 14577.3 ops/s, mean 67.94 us p99 285.50 us range 14.98% pipeline: 18349.0 ops/s, mean 54.16 us p99 159.80 us range 72.87%

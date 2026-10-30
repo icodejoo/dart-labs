@@ -1,0 +1,16 @@
+00:00 +0: loading test/unit/response_test.dart
+00:00 +0: [DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态
+00:00 +0 -1: [DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态 [E]
+  Expected: DiomanKind:<DiomanKind.ok>
+    Actual: DiomanKind:<DiomanKind.biz>
+  
+  package:matcher                    expect
+  test\unit\response_test.dart 91:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/unit/response_test.dart: [DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

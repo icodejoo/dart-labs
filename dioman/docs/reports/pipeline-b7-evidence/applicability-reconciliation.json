@@ -1,0 +1,824 @@
+{
+  "beforePlanned": 6202,
+  "beforeExecuted": 6202,
+  "beforeInterrupted": false,
+  "matched": 41,
+  "expected": 41,
+  "extra": [],
+  "missing": [],
+  "entries": [
+    {
+      "cell": "cache.business-failure-not-cached|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "cache.business-failure-not-cached|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "faults.bad-json|normal@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.bad-json|normal@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.bad-json|weak@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.bad-json|weak@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.status-with-business|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "faults.status-with-business|weak@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "faults.non2xx-business-safe|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "faults.non2xx-business-safe|weak@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "notify.business-error-once|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "notify.business-error-once|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "notify.parse-error-once|normal@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "notify.parse-error-once|normal@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "normalize.business-fail|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-fail|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.http-error-wins|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-fail|weak@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-fail|weak@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@http",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@business",
+      "before": "失败",
+      "reason": "现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决"
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@http",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@business",
+      "before": "失败",
+      "reason": "现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决"
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@http",
+      "before": "失败",
+      "reason": "共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决"
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@business",
+      "before": "失败",
+      "reason": "共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决"
+    }
+  ],
+  "failures": [
+    {
+      "cell": "auth.code-only-401-no-refresh-token|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.code-only-401-no-refresh-token|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.no-refresh-user-expired|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.no-refresh-user-expired|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-garbage-refresh-none|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-garbage-refresh-none|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-bad-signature-refresh-none|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-bad-signature-refresh-none|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-tampered-payload-refresh-none|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-tampered-payload-refresh-none|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-wrong-scheme-refresh-none|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-wrong-scheme-refresh-none|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-garbage-concurrent-no-refresh|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-garbage-concurrent-no-refresh|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-no-refresh-user-garbage|normal@http",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "auth.token-no-refresh-user-garbage|normal@business",
+      "reasons": [
+        "client.refresh=1，预期 {\"eq\":0}",
+        "server.by_path./t/auth/refresh=1，预期 {\"eq\":0}"
+      ]
+    },
+    {
+      "cell": "cache.business-failure-not-cached|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200",
+        "r2: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "cache.business-failure-not-cached|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200",
+        "r2: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200",
+        "r2: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "combo.normalize-business-retry-notify-cache|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200",
+        "r2: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "conc.barrier-64-desc-order|normal@http",
+      "reasons": [
+        "order=[\"r63\",\"r62\",\"r61\",\"r60\",\"r59\",\"r58\",\"r56\",\"r57\",\"r55\",\"r54\",\"r53\",\"r52\",\"r51\",\"r50\",\"r49\",\"r48\",\"r47\",\"r46\",\"r45\",\"r44\",\"r43\",\"r42\",\"r41\",\"r40\",\"r39\",\"r38\",\"r37\",\"r36\",\"r35\",\"r34\",\"r33\",\"r32\",\"r31\",\"r30\",\"r29\",\"r28\",\"r27\",\"r26\",\"r25\",\"r24\",\"r23\",\"r22\",\"r21\",\"r20\",\"r19\",\"r18\",\"r17\",\"r16\",\"r15\",\"r14\",\"r13\",\"r12\",\"r11\",\"r10\",\"r9\",\"r8\",\"r7\",\"r6\",\"r5\",\"r4\",\"r3\",\"r2\",\"r1\",\"r0\"]，预期 [\"r63\",\"r62\",\"r61\",\"r60\",\"r59\",\"r58\",\"r57\",\"r56\",\"r55\",\"r54\",\"r53\",\"r52\",\"r51\",\"r50\",\"r49\",\"r48\",\"r47\",\"r46\",\"r45\",\"r44\",\"r43\",\"r42\",\"r41\",\"r40\",\"r39\",\"r38\",\"r37\",\"r36\",\"r35\",\"r34\",\"r33\",\"r32\",\"r31\",\"r30\",\"r29\",\"r28\",\"r27\",\"r26\",\"r25\",\"r24\",\"r23\",\"r22\",\"r21\",\"r20\",\"r19\",\"r18\",\"r17\",\"r16\",\"r15\",\"r14\",\"r13\",\"r12\",\"r11\",\"r10\",\"r9\",\"r8\",\"r7\",\"r6\",\"r5\",\"r4\",\"r3\",\"r2\",\"r1\",\"r0\"]"
+      ]
+    },
+    {
+      "cell": "faults.bad-json|normal@http",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.bad-json|normal@business",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.bad-json|weak@http",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.bad-json|weak@business",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@http",
+      "reasons": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"http\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ]
+    },
+    {
+      "cell": "faults.html-gateway-page|normal@business",
+      "reasons": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"business\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ]
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@http",
+      "reasons": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"http\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ]
+    },
+    {
+      "cell": "faults.html-gateway-page|weak@business",
+      "reasons": [
+        "r1: 预期 ok=false，实际 {\"id\":\"r1\",\"style\":\"business\",\"ok\":true,\"data\":\"<!doctype html><html><body>gateway error</body></html>\",\"status\":200}",
+        "r1: 预期错误 [parse]，实际 成功"
+      ]
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@http",
+      "reasons": [
+        "a: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.recovery-after-bad|normal@business",
+      "reasons": [
+        "a: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.status-with-business|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:9]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "faults.status-with-business|weak@business",
+      "reasons": [
+        "r1: 预期错误 [business:9]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@http",
+      "reasons": [
+        "a: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.recovery-after-bad|weak@business",
+      "reasons": [
+        "a: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "faults.non2xx-business-safe|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:9]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "faults.non2xx-business-safe|weak@business",
+      "reasons": [
+        "r1: 预期错误 [business:9]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "notify.business-error-once|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "notify.business-error-once|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "notify.parse-error-once|normal@http",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "notify.parse-error-once|normal@business",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "normalize.business-fail|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-fail|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:-1]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-negative-code|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:-1]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@http",
+      "reasons": [
+        "a: 预期错误 [business:1001]，实际 business:200",
+        "b: 预期错误 [business:2002]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-multi-codes|normal@business",
+      "reasons": [
+        "a: 预期错误 [business:1001]，实际 business:200",
+        "b: 预期错误 [business:2002]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.http-error-wins|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-fail|weak@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-fail|weak@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "normalize.business-notify-retry-combo|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|offline@http",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|offline@business",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|blackhole@http",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|blackhole@business",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.recovers-after-online|offline@http",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果",
+        "server.total=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "offline.recovers-after-online|offline@business",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果",
+        "server.total=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|dns@http",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.probe-fails-fast|dns@business",
+      "reasons": [
+        "场景总超时",
+        "r1: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.parallel-all-offline|offline@http",
+      "reasons": [
+        "场景总超时",
+        "r0: 预期错误 [offline]，实际 canceled",
+        "r1: 预期错误 [offline]，实际 canceled",
+        "r2: 预期错误 [offline]，实际 canceled",
+        "r3: 预期错误 [offline]，实际 canceled",
+        "r4: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.parallel-all-offline|offline@business",
+      "reasons": [
+        "场景总超时",
+        "r0: 预期错误 [offline]，实际 canceled",
+        "r1: 预期错误 [offline]，实际 canceled",
+        "r2: 预期错误 [offline]，实际 canceled",
+        "r3: 预期错误 [offline]，实际 canceled",
+        "r4: 预期错误 [offline]，实际 canceled"
+      ]
+    },
+    {
+      "cell": "offline.flap-recovers|flap@http",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果"
+      ]
+    },
+    {
+      "cell": "offline.flap-recovers|flap@business",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果"
+      ]
+    },
+    {
+      "cell": "plugins.full-workflow|normal@http",
+      "reasons": [
+        "client.refresh=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "plugins.full-workflow|normal@business",
+      "reasons": [
+        "client.refresh=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "plugins.full-workflow|weak@http",
+      "reasons": [
+        "client.refresh=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "plugins.full-workflow|weak@business",
+      "reasons": [
+        "client.refresh=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "offline.then-online-no-stale-state|offline@business",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果",
+        "server.total=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "offline.then-online-no-stale-state|offline@http",
+      "reasons": [
+        "场景总超时",
+        "a: 预期错误 [offline]，实际 canceled",
+        "b: 缺少请求结果",
+        "server.total=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "key.share-without-key-not-merged|normal@http",
+      "reasons": [
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ]
+    },
+    {
+      "cell": "key.share-without-key-not-merged|normal@business",
+      "reasons": [
+        "server.by_path./t/echo=1，预期 {\"eq\":2}"
+      ]
+    },
+    {
+      "cell": "plugins.full-flap-workflow|flap@http",
+      "reasons": [
+        "场景总超时",
+        "access: 缺少请求结果",
+        "refresh: 缺少请求结果",
+        "retry: 缺少请求结果",
+        "cache-first: 缺少请求结果",
+        "cache-hit: 缺少请求结果",
+        "share-a: 缺少请求结果",
+        "share-b: 缺少请求结果",
+        "cancel: 缺少请求结果",
+        "notify: 缺少请求结果",
+        "during-flap: 预期错误 [offline]，实际 canceled",
+        "client.refresh=0，预期 {\"eq\":1}",
+        "client.notify=0，预期 {\"eq\":1}",
+        "server.by_key.matrix-cache=0，预期 {\"eq\":1}",
+        "server.by_key.matrix-share=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "plugins.full-flap-workflow|flap@business",
+      "reasons": [
+        "场景总超时",
+        "access: 缺少请求结果",
+        "refresh: 缺少请求结果",
+        "retry: 缺少请求结果",
+        "cache-first: 缺少请求结果",
+        "cache-hit: 缺少请求结果",
+        "share-a: 缺少请求结果",
+        "share-b: 缺少请求结果",
+        "cancel: 缺少请求结果",
+        "notify: 缺少请求结果",
+        "during-flap: 预期错误 [offline]，实际 canceled",
+        "client.refresh=0，预期 {\"eq\":1}",
+        "client.notify=0，预期 {\"eq\":1}",
+        "server.by_key.matrix-cache=0，预期 {\"eq\":1}",
+        "server.by_key.matrix-share=0，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@http",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "retry.business-code-not-retried|normal@business",
+      "reasons": [
+        "r1: 预期错误 [business:5001]，实际 business:200"
+      ]
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@http",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "retry.parse-error-not-retried|normal@business",
+      "reasons": [
+        "r1: 预期错误 [parse]，实际 unknown:FormatException: Unexpected character (at offset 1)"
+      ]
+    },
+    {
+      "cell": "share.no-key-no-share|normal@http",
+      "reasons": [
+        "server.by_path./t/echo=1，预期 {\"eq\":3}"
+      ]
+    },
+    {
+      "cell": "share.no-key-no-share|normal@business",
+      "reasons": [
+        "server.by_path./t/echo=1，预期 {\"eq\":3}"
+      ]
+    },
+    {
+      "cell": "share.none-policy|normal@http",
+      "reasons": [
+        "r1: 预期 ok=true，实际 {\"id\":\"r1\",\"style\":\"http\",\"ok\":false,\"error\":\"unknown:Bad state: share.policy 未映射: none\",\"message\":\"Bad state: share.policy 未映射: none\"}",
+        "r2: 预期 ok=true，实际 {\"id\":\"r2\",\"style\":\"http\",\"ok\":false,\"error\":\"unknown:Bad state: share.policy 未映射: none\",\"message\":\"Bad state: share.policy 未映射: none\"}",
+        "server.by_path./t/echo=0，预期 {\"eq\":2}"
+      ]
+    },
+    {
+      "cell": "share.none-policy|normal@business",
+      "reasons": [
+        "r1: 预期 ok=true，实际 {\"id\":\"r1\",\"style\":\"business\",\"ok\":false,\"error\":\"unknown:Bad state: share.policy 未映射: none\",\"message\":\"Bad state: share.policy 未映射: none\"}",
+        "r2: 预期 ok=true，实际 {\"id\":\"r2\",\"style\":\"business\",\"ok\":false,\"error\":\"unknown:Bad state: share.policy 未映射: none\",\"message\":\"Bad state: share.policy 未映射: none\"}",
+        "server.by_path./t/echo=0，预期 {\"eq\":2}"
+      ]
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@http",
+      "reasons": [
+        "a: 预期 ok=false，实际 {\"id\":\"a\",\"style\":\"http\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3629,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5894\",\"ts\":1793242376234},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5894\",\"x-test-style\":\"http\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "a: 预期错误 [timeout]，实际 成功",
+        "b: 预期 ok=false，实际 {\"id\":\"b\",\"style\":\"http\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3629,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5894\",\"ts\":1793242376234},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5894\",\"x-test-style\":\"http\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "b: 预期错误 [timeout]，实际 成功",
+        "c: 预期 ok=false，实际 {\"id\":\"c\",\"style\":\"http\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3629,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5894\",\"ts\":1793242376234},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5894\",\"x-test-style\":\"http\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "c: 预期错误 [timeout]，实际 成功",
+        "server.aborted=0，预期 {\"min\":1}"
+      ]
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@business",
+      "reasons": [
+        "a: 预期 ok=false，实际 {\"id\":\"a\",\"style\":\"business\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3631,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5895\",\"ts\":1793242376264},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5895\",\"x-test-style\":\"business\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "a: 预期错误 [timeout]，实际 成功",
+        "b: 预期 ok=false，实际 {\"id\":\"b\",\"style\":\"business\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3631,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5895\",\"ts\":1793242376264},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5895\",\"x-test-style\":\"business\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "b: 预期错误 [timeout]，实际 成功",
+        "c: 预期 ok=false，实际 {\"id\":\"c\",\"style\":\"business\",\"ok\":true,\"data\":{\"meta\":{\"auth\":null,\"conn\":3631,\"hit\":1,\"key\":\"GET /t/echo\",\"method\":\"GET\",\"path\":\"/t/echo\",\"run\":\"dioman-1793241831318762-3184-5895\",\"ts\":1793242376264},\"pad\":\"\",\"payload\":null,\"request\":{\"body\":{\"json\":null,\"raw\":\"\"},\"headers\":{\"x-test-run\":\"dioman-1793241831318762-3184-5895\",\"x-test-style\":\"business\"},\"method\":\"GET\",\"path\":\"/t/echo\",\"query\":{\"delay_ms\":\"5000\"}}},\"status\":200}",
+        "c: 预期错误 [timeout]，实际 成功",
+        "server.aborted=0，预期 {\"min\":1}"
+      ]
+    }
+  ]
+}

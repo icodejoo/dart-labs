@@ -1,0 +1,73 @@
+The Dart VM service is listening on http://127.0.0.1:2915/
+The Dart DevTools debugger and profiler is available at: http://127.0.0.1:2915/devtools/?uri=ws://127.0.0.1:2915/ws
+{
+  "implementation": "pipeline",
+  "runtime": "3.13.0 (stable) (Wed Aug 5 00:28:05 2026 -0700) on \"windows_x64\"",
+  "os": "\"Windows 10 专业版\" 10.0 (Build 19045)",
+  "processors": 20,
+  "mode": "JIT (dart run)",
+  "warmupMillis": 500,
+  "measurementMillis": 2000,
+  "results": [
+    {
+      "scenario": "S1",
+      "operations": 26316,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000156,
+      "opsPerSecond": 13157.897368400527,
+      "meanMicros": 75.16375588995288,
+      "p99Micros": 551.6,
+      "sends": 26316
+    },
+    {
+      "scenario": "S2",
+      "operations": 44226,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000429,
+      "opsPerSecond": 22112.52568632403,
+      "meanMicros": 44.793062904174015,
+      "p99Micros": 200.5,
+      "sends": 44226
+    },
+    {
+      "scenario": "S3",
+      "operations": 6622,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0104149,
+      "opsPerSecond": 3293.847454075276,
+      "meanMicros": 303.007686499547,
+      "p99Micros": 2254.9,
+      "sends": 6622
+    },
+    {
+      "scenario": "S4",
+      "operations": 32821,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000315,
+      "opsPerSecond": 16410.241538695765,
+      "meanMicros": 60.57063465464185,
+      "p99Micros": 287.90000000000003,
+      "sends": 0
+    },
+    {
+      "scenario": "S5",
+      "operations": 871,
+      "requestsPerOperation": 100,
+      "elapsedSeconds": 2.0009199,
+      "opsPerSecond": 435.29978386441155,
+      "meanMicros": 2294.5205510907003,
+      "p99Micros": 7619.200000000001,
+      "sends": 871
+    },
+    {
+      "scenario": "S6",
+      "operations": 25908,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000096,
+      "opsPerSecond": 12953.93782109846,
+      "meanMicros": 76.69879187895631,
+      "p99Micros": 350.1,
+      "sends": 25908
+    }
+  ]
+}

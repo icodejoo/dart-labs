@@ -1,0 +1,13 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":11276,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/rule/b8_regression_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/rule/b8_regression_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":1,"time":13,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":902}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":2,"line":null,"column":null,"url":null},"type":"group","time":908}
+{"test":{"id":3,"name":"[DiomanCache.clone] B8 命中返回边界重查取消 disk=false","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":68,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":910}
+{"testID":3,"error":"Expected: DiomanKind:<DiomanKind.cancel>\n  Actual: DiomanKind:<DiomanKind.ok>\n","stackTrace":"package:matcher                         expect\ntest\\rule\\b8_regression_test.dart 91:7  main.<fn>\n","isFailure":true,"type":"error","time":1012}
+{"testID":3,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":1013}
+{"test":{"id":4,"name":"[DiomanCache.clone] B8 命中返回边界重查取消 disk=true","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":68,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":1014}
+{"testID":4,"error":"Expected: DiomanKind:<DiomanKind.cancel>\n  Actual: DiomanKind:<DiomanKind.ok>\n","stackTrace":"package:matcher                         expect\ntest\\rule\\b8_regression_test.dart 91:7  main.<fn>\n","isFailure":true,"type":"error","time":1026}
+{"testID":4,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":1027}
+{"success":false,"type":"done","time":1050}

@@ -1,0 +1,164 @@
+{
+  "clock.dart": [
+    5,
+    5,
+    3,
+    3
+  ],
+  "plugin.dart": [
+    5,
+    5,
+    5,
+    5
+  ],
+  "response.dart": [
+    110,
+    110,
+    28,
+    28
+  ],
+  "client.dart": [
+    129,
+    129,
+    65,
+    65
+  ],
+  "context.dart": [
+    78,
+    78,
+    44,
+    44
+  ],
+  "key.dart": [
+    54,
+    54,
+    27,
+    27
+  ],
+  "options.dart": [
+    10,
+    10,
+    8,
+    8
+  ],
+  "pipeline.dart": [
+    32,
+    32,
+    22,
+    22
+  ],
+  "request.dart": [
+    50,
+    50,
+    25,
+    25
+  ],
+  "transport.dart": [
+    18,
+    18,
+    11,
+    11
+  ],
+  "plugins/loading.dart": [
+    58,
+    58,
+    32,
+    32
+  ],
+  "plugins/notify.dart": [
+    19,
+    19,
+    12,
+    12
+  ],
+  "plugins/repath.dart": [
+    50,
+    50,
+    23,
+    23
+  ],
+  "plugins/filter.dart": [
+    39,
+    39,
+    19,
+    19
+  ],
+  "plugins/timeout.dart": [
+    22,
+    22,
+    13,
+    13
+  ],
+  "plugins/envs.dart": [
+    11,
+    11,
+    8,
+    8
+  ],
+  "plugins/retry.dart": [
+    94,
+    94,
+    39,
+    39
+  ],
+  "plugins/breaker.dart": [
+    112,
+    112,
+    48,
+    48
+  ],
+  "plugins/auth.dart": [
+    122,
+    122,
+    59,
+    59
+  ],
+  "plugins/mock.dart": [
+    44,
+    44,
+    19,
+    19
+  ],
+  "plugins/share.dart": [
+    101,
+    101,
+    49,
+    49
+  ],
+  "plugins/cache.dart": [
+    145,
+    145,
+    63,
+    63
+  ],
+  "plugins/offline.dart": [
+    63,
+    63,
+    28,
+    28
+  ],
+  "config.dart": [
+    36,
+    36,
+    22,
+    22
+  ],
+  "token_manager.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "cache_store.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "stages.dart": [
+    0,
+    0,
+    0,
+    0
+  ]
+}

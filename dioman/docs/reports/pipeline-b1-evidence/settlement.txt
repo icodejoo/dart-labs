@@ -1,0 +1,55 @@
+00:00 +0: loading test/rule/client_rule_test.dart
+00:00 +0: [Dioman.send] 九格落定 debug=false kind=DiomanKind.ok
+00:00 +1: [Dioman.send] 九格落定 debug=false kind=DiomanKind.http
+00:00 +1 -1: [Dioman.send] 九格落定 debug=false kind=DiomanKind.http [E]
+  Expected: throws <Instance of 'DiomanResponse'>
+    Actual: <Instance of 'Future<int>'>
+     Which: threw _TypeError:<type 'Null' is not a subtype of type 'int' in type cast>
+            stack package:dioman/src/pipeline/client.dart 216:24  Dioman.request
+                  ===== asynchronous gap ===========================
+                  test\rule\client_rule_test.dart 76:13           main.<fn>
+                  
+            which is not an instance of 'DiomanResponse'
+  
+  test\rule\client_rule_test.dart 76:13  main.<fn>
+  
+00:00 +1 -1: [Dioman.send] 九格落定 debug=false kind=DiomanKind.internal
+00:00 +2 -1: [Dioman.send] 九格落定 debug=true kind=DiomanKind.ok
+00:00 +3 -1: [Dioman.send] 九格落定 debug=true kind=DiomanKind.http
+00:00 +3 -2: [Dioman.send] 九格落定 debug=true kind=DiomanKind.http [E]
+  Expected: throws <Instance of 'DiomanResponse'>
+    Actual: <Instance of 'Future<int>'>
+     Which: threw _TypeError:<type 'Null' is not a subtype of type 'int' in type cast>
+            stack package:dioman/src/pipeline/client.dart 216:24  Dioman.request
+                  ===== asynchronous gap ===========================
+                  test\rule\client_rule_test.dart 76:13           main.<fn>
+                  
+            which is not an instance of 'DiomanResponse'
+  
+  test\rule\client_rule_test.dart 76:13  main.<fn>
+  
+00:00 +3 -2: [Dioman.send] 九格落定 debug=true kind=DiomanKind.internal
+00:00 +4 -2: [Dioman.send] 九格落定 debug=logger kind=DiomanKind.ok
+00:00 +5 -2: [Dioman.send] 九格落定 debug=logger kind=DiomanKind.http
+00:00 +5 -3: [Dioman.send] 九格落定 debug=logger kind=DiomanKind.http [E]
+  Expected: throws <Instance of 'DiomanResponse'>
+    Actual: <Instance of 'Future<int>'>
+     Which: threw _TypeError:<type 'Null' is not a subtype of type 'int' in type cast>
+            stack package:dioman/src/pipeline/client.dart 216:24  Dioman.request
+                  ===== asynchronous gap ===========================
+                  test\rule\client_rule_test.dart 76:13           main.<fn>
+                  
+            which is not an instance of 'DiomanResponse'
+  
+  test\rule\client_rule_test.dart 76:13  main.<fn>
+  
+00:00 +5 -3: [Dioman.send] 九格落定 debug=logger kind=DiomanKind.internal
+00:00 +6 -3: Some tests failed.
+
+Failing tests:
+  test/rule/client_rule_test.dart: [Dioman.send] 九格落定 debug=false kind=DiomanKind.http
+  test/rule/client_rule_test.dart: [Dioman.send] 九格落定 debug=logger kind=DiomanKind.http
+  test/rule/client_rule_test.dart: [Dioman.send] 九格落定 debug=true kind=DiomanKind.http
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

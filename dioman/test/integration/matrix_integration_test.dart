@@ -3,27 +3,20 @@ import 'dart:io';
 import 'package:test/test.dart';
 import '../accept/lib/matrix.dart';
 
-/// 默认运行静态闸门，基线同时禁止新增和遗留已修复缺口。
+/// 默认测试直接拦截静态缺口，基线不允许掩盖新 API 或遗留旧引用。
 void main() {
-  test('[matrix.repositoryGaps] 总账静态闸门棘轮', () {
+  test('[matrix.repositoryGaps] 总账 G0/G2/G3/G5 单测侧无缺口', () {
     final rows = (readMatrixJson('$matrixDirectory/matrix.json', []) as List)
-        .map((r) => MatrixRow.fromJson((r as Map).cast<String, dynamic>()))
+        .map((row) => MatrixRow.fromJson((row as Map).cast<String, dynamic>()))
         .toList();
+    final gaps = repositoryGaps(Directory.current, rows)
+        .where((gap) => staticGates.any(gap.startsWith))
+        .toList()
+      ..sort();
+    expect(gaps, isEmpty, reason: gaps.join('\n'));
     final baseline =
         (readMatrixJson('$matrixDirectory/matrix-baseline.json', []) as List)
-            .cast<String>()
-            .toSet();
-    final gaps = repositoryGaps(Directory.current, rows);
-
-    /// 真实侧只在 gates 命令中比较。
-    Set<String> staticOnly(Set<String> values) =>
-        values.where((g) => !g.startsWith('G5:real-')).toSet();
-    final delta =
-        ratchet(staticOnly(gaps), staticOnly(baseline), required: staticGates);
-    expect(delta.added, isEmpty,
-        reason: '新增缺口：${delta.added.toList()..sort()}；请补测。');
-    expect(delta.fixed, isEmpty,
-        reason:
-            '已修复缺口：${delta.fixed.toList()..sort()}；运行 gates --update-baseline。');
+            .cast<String>();
+    expect(baseline.where((gap) => staticGates.any(gap.startsWith)), isEmpty);
   });
 }

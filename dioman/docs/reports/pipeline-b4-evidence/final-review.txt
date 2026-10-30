@@ -1,0 +1,3452 @@
+OpenAI Codex v0.163.0
+--------
+workdir: E:\workspaces\dart-labs-pipeline\dioman
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: none
+reasoning summaries: none
+session id: 01a18404-31a7-7cc3-8006-18a3cac0ce15
+--------
+user
+current changes
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Location; git status --short; Get-ChildItem -Force -Name AGENTS*; git diff --stat; git diff --cached --stat' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 814ms:
+
+ M docs/design/pipeline-plugin-spec.md
+ M lib/pipeline.dart
+ M lib/src/pipeline/context.dart
+ M lib/src/pipeline/response.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/2026-10-29-pipeline-b4.md
+?? docs/reports/pipeline-b4-evidence/
+?? lib/src/pipeline/cache_store.dart
+?? lib/src/pipeline/plugins/cache.dart
+?? lib/src/pipeline/plugins/mock.dart
+?? lib/src/pipeline/plugins/offline.dart
+?? lib/src/pipeline/plugins/share.dart
+?? test/boundary/b4_final_review_boundary_test.dart
+?? test/boundary/cache_persist_boundary_test.dart
+?? test/boundary/mock_cancel_boundary_test.dart
+?? test/boundary/share_replay_boundary_test.dart
+?? test/boundary/source_boundary_test.dart
+?? test/boundary/source_lifecycle_boundary_test.dart
+?? test/boundary/source_options_boundary_test.dart
+?? test/boundary/source_review_boundary_test.dart
+?? test/combo/b4_auth_migration_combo_test.dart
+?? test/combo/b4_retry_migration_combo_test.dart
+?? test/combo/source_combo_test.dart
+?? test/combo/source_migration_combo_test.dart
+?? test/integration/source_transport_integration_test.dart
+?? test/rule/source_rule_test.dart
+?? test/support/pipeline/b4_constants.dart
+?? test/support/pipeline/b4_helpers.dart
+?? test/support/pipeline/b4_migration_scenarios.dart
+?? test/support/pipeline/b4_retry_migration_scenarios.dart
+?? tool/pipeline_b4_migration.py
+?? tool/pipeline_b4_mutations.py
+warning: in the working copy of 'dioman/docs/design/pipeline-plugin-spec.md', LF will be replaced by CRLF the next time Git touches it
+ dioman/docs/design/pipeline-plugin-spec.md | 11 +++++++++++
+ dioman/lib/pipeline.dart                   |  8 +++++++-
+ dioman/lib/src/pipeline/context.dart       | 26 ++++++++++++++++++++++++--
+ dioman/lib/src/pipeline/response.dart      | 18 ++++++++++++++++++
+ dioman/tool/pipeline_b1_coverage.py        |  7 +++++++
+ 5 files changed, 67 insertions(+), 3 deletions(-)
+Path
+----
+E:\workspaces\dart-labs-pipeline\dioman
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-ChildItem -Path E:\\AGENTS*,E:\\workspaces\\AGENTS*,E:\\workspaces\\dart-labs-pipeline\\AGENTS* -ErrorAction SilentlyContinue; Get-ChildItem -Recurse -Force -Filter AGENTS*.md | Select-Object -ExpandProperty FullName; git diff; Get-Content lib/src/pipeline/cache_store.dart,lib/src/pipeline/plugins/cache.dart" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 812ms:
+warning: in the working copy of 'dioman/docs/design/pipeline-plugin-spec.md', LF will be replaced by CRLF the next time Git touches it
+diff --git a/dioman/docs/design/pipeline-plugin-spec.md b/dioman/docs/design/pipeline-plugin-spec.md
+index 5e43b8d..74fee58 100644
+--- a/dioman/docs/design/pipeline-plugin-spec.md
++++ b/dioman/docs/design/pipeline-plugin-spec.md
+@@ -146,6 +146,17 @@ B3 终审补充：
+ | 旧 `DiomanBreakerOpenException` 的 `retryableAt`、`bucketKey` | 失败载体仍是 `kind: breaker, reason: 'open'`；两项信息改由 `DiomanBreakerApi.keyOf(request)` 与 `retryableAt(key)` 提供，只读，不触发状态迁移 |
+ | 依赖 share/cache/mock 的 39 条组合迁移行 | B3 只验证自己这一侧的边界，真实组合由 B4 承接，B4 报告逐行关闭 |
+ 
++B4 终审补充：
++
++| 缺口 | 裁决 |
++|---|---|
++| share start 订阅者的"自己的超时"怎么由 Dio 三个阶段超时合成 | 上限 = connect + receive，请求带请求体时再加 send；参与计算的任一项为 null 或 ≤0 就不设上限（与 Dio 对 null/零的语义一致）。不取最小值：connect 5s、receive 30s 时，最小值会把正常的慢下载判成超时 |
++| cache 的时钟 | 插件级 `clock` 保留，只管 TTL，省略时用客户端时钟；请求级 `now` 仍删除 |
++| cache `remove(key)` 的失效范围 | 只作废该 key 的在途读写，`clear()` 才作废全部；旧版提升全局代次，属行为变化 |
++| 持久化条目格式 | 写入时增加 result 元信息（`shouldStore` 允许存失败结果时要保留分类），旧的两字段格式仍可读 |
++| offline 判定顺序 | 选项关闭 → 在线直接放行 → 再调用 `shouldQueue`，在线时不调用判定回调 |
++| 迁移承接用例 | 标题写 `[API id]` 加行为，不写迁移行号；行号对应只留在报告证据里 |
++
+ ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
+ 
+ | # | 变化 | 原因 |
+diff --git a/dioman/lib/pipeline.dart b/dioman/lib/pipeline.dart
+index f982e25..fa121ee 100644
+--- a/dioman/lib/pipeline.dart
++++ b/dioman/lib/pipeline.dart
+@@ -3,7 +3,7 @@ library;
+ 
+ export 'src/pipeline/client.dart';
+ export 'src/pipeline/clock.dart';
+-export 'src/pipeline/context.dart';
++export 'src/pipeline/context.dart' hide cancellationFailure;
+ export 'src/pipeline/key.dart';
+ export 'src/pipeline/options.dart';
+ export 'src/pipeline/pipeline.dart';
+@@ -22,3 +22,9 @@ export 'src/pipeline/plugins/retry.dart';
+ export 'src/pipeline/plugins/breaker.dart';
+ export 'src/pipeline/plugins/auth.dart';
+ export 'src/pipeline/token_manager.dart';
++export 'src/pipeline/cache_store.dart';
++export 'src/pipeline/plugins/mock.dart'
++    show DiomanMock, DiomanMockOptions, DiomanMockRoute;
++export 'src/pipeline/plugins/share.dart';
++export 'src/pipeline/plugins/cache.dart';
++export 'src/pipeline/plugins/offline.dart';
+diff --git a/dioman/lib/src/pipeline/context.dart b/dioman/lib/src/pipeline/context.dart
+index fc1fabd..22d1b22 100644
+--- a/dioman/lib/src/pipeline/context.dart
++++ b/dioman/lib/src/pipeline/context.dart
+@@ -9,6 +9,9 @@ import 'response.dart';
+ /// debug 日志回调；关闭 debug 时不会调用。
+ typedef DiomanLogger = void Function(String message);
+ 
++/// 生命周期收尾的取消结果覆盖；离线销毁须保留 disposed 原因。
++final cancellationFailure = StateKey<DiomanFailure>('cancellation outcome');
++
+ /// 逻辑请求状态键；使用非 const 实例保证按身份隔离。
+ final class StateKey<T> {
+   /// 创建键，例如 `final attempt = StateKey<int>('attempt')`。
+@@ -65,6 +68,21 @@ class DiomanContextState {
+   /// 是否需要克隆发送体。
+   bool replayable = false;
+ 
++  /// 脱离首发调用方但仍在执行的共享传输数。
++  int _retained = 0;
++
++  /// 逻辑调用方是否已完成。
++  bool _released = false;
++
++  /// 保持共享传输使用的状态；每次调用必须对应一次 release。
++  void retain() => _retained++;
++
++  /// 共享传输完成后释放；最后一个持有者负责最终清理。
++  void release() {
++    _retained--;
++    if (_released && _retained == 0) dispose();
++  }
++
+   /// 通知副本，允许回调在执行中退订。
+   void _notify() {
+     for (final entry in listeners.entries.toList()) {
+@@ -80,6 +98,8 @@ class DiomanContextState {
+ 
+   /// 释放桥并结束剩余等待。
+   void dispose() {
++    _released = true;
++    if (_retained > 0) return;
+     _link.dispose();
+     for (final listener in listeners.keys.toList()) {
+       listener();
+@@ -160,8 +180,10 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
+   void markReplayable() => state.replayable = true;
+ 
+   /// 已取消则造 cancel 结果，否则返回 null；每次 await 后应调用。
+-  DiomanResponse<dynamic>? cancelled() =>
+-      isCancelled ? fail(const DiomanFailure(kind: DiomanKind.cancel)) : null;
++  DiomanResponse<dynamic>? cancelled() => isCancelled
++      ? fail(get(cancellationFailure) ??
++          const DiomanFailure(kind: DiomanKind.cancel))
++      : null;
+ 
+   /// 派生请求视图，保留所有逻辑服务与共享状态。
+   DiomanContext<R> derive(RequestPatch patch) => DiomanContext(
+diff --git a/dioman/lib/src/pipeline/response.dart b/dioman/lib/src/pipeline/response.dart
+index cc77d9f..98d5bdc 100644
+--- a/dioman/lib/src/pipeline/response.dart
++++ b/dioman/lib/src/pipeline/response.dart
+@@ -191,6 +191,24 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
+           DiomanResponse<dynamic> result, StackTrace callSite) =>
+       _finish(result.copy<dynamic>(callSite: callSite));
+ 
++  /// 用 [data] 派生 [result] 并经扩展工厂；例如缓存克隆保持业务元信息。
++  DiomanResponse<dynamic> derive(
++          DiomanResponse<dynamic> result, Object? data) =>
++      _finish(DiomanResponse<dynamic>(
++          ok: result.ok,
++          kind: result.kind,
++          status: result.status,
++          httpStatus: result.httpStatus,
++          code: result.code,
++          message: result.message,
++          data: data,
++          reason: result.reason,
++          request: result.request,
++          raw: result.raw,
++          error: result.error,
++          errorStack: result.errorStack,
++          callSite: result.callSite));
++
+   /// 直接构造不依赖用户回调的 internal。
+   static DiomanResponse<dynamic> _internal(
+           DiomanRequest request, Object error, StackTrace stack) =>
+diff --git a/dioman/tool/pipeline_b1_coverage.py b/dioman/tool/pipeline_b1_coverage.py
+index 2085680..474ab15 100644
+--- a/dioman/tool/pipeline_b1_coverage.py
++++ b/dioman/tool/pipeline_b1_coverage.py
+@@ -4,6 +4,9 @@ import sys
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ FILES = ('client', 'pipeline', 'context', 'request', 'response', 'transport')
++if '--b4' in sys.argv:
++    FILES += ('plugins/mock', 'plugins/share', 'plugins/cache', 'plugins/offline')
++    sys.argv.remove('--b4')
+ if '--b3' in sys.argv:
+     FILES += ('plugins/retry', 'plugins/breaker', 'plugins/auth', 'options')
+     sys.argv.remove('--b3')
+@@ -46,6 +49,10 @@ def inspect(path):
+         interface = ROOT / 'lib/src/pipeline/token_manager.dart'
+         assert interface.is_file() and 'abstract interface class DiomanTokenManager' in interface.read_text(encoding='utf-8')
+         print('token_manager.dart 0 0 0 0 (abstract interface: no executable lines/branches; source verified)')
++    if 'plugins/cache' in FILES:
++        interface = ROOT / 'lib/src/pipeline/cache_store.dart'
++        assert interface.is_file() and 'abstract interface class DiomanCachePersist' in interface.read_text(encoding='utf-8')
++        print('cache_store.dart 0 0 0 0 (abstract interface: no executable lines/branches; source verified)')
+     print(f'{len(FILES)} files present; nonzero counters; lines=100%; branches=100%; PASS')
+ 
+ 
+import 'dart:async';
+
+/// 持久化后端；格式为 data、expiresAt（epoch 毫秒），兼容 0.7。
+/// 例如实现 read/write/remove/erase 后传给 `DiomanCache(persist: store)`。
+abstract interface class DiomanCachePersist {
+  /// 读取 [key]，不存在返回 null；可同步或异步。
+  FutureOr<dynamic> read(String key);
+
+  /// 写入 JSON 可编码的 [value]；包含 data、expiresAt 及可选 result 元信息。
+  /// 后端应完整保存 Map，返回持久化完成信号。
+  Future<void> write(String key, Map<String, dynamic> value);
+
+  /// 删除 [key]，不存在也成功。
+  Future<void> remove(String key);
+
+  /// 清空该后端。
+  Future<void> erase();
+}
+import 'package:dio/dio.dart';
+import '../cache_store.dart';
+import '../client.dart';
+import '../clock.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+import 'mock.dart';
+
+/// 响应数据的克隆策略；也可直接提供自定义函数。
+enum DiomanClonePolicy {
+  /// 返回只读引用。
+  none,
+
+  /// 复制顶层 Map/List。
+  shallow,
+
+  /// 递归复制 Map/List。
+  deep,
+}
+
+/// 缓存存储层；关闭缓存使用请求级 false。
+enum DiomanCachePolicy {
+  /// 仅内存。
+  memo,
+
+  /// 仅持久化。
+  persist,
+
+  /// 两层，持久化命中后提升到内存。
+  both,
+}
+
+/// 请求级缓存覆盖；null 字段沿用插件级值。
+class DiomanCacheOptions {
+  /// 例如 `DiomanCacheOptions(expires: Duration(seconds: 10))`。
+  const DiomanCacheOptions(
+      {this.enabled,
+      this.expires,
+      this.clone,
+      this.shouldCache,
+      this.shouldStore,
+      this.cachePolicy});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 有效期，非正数表示立即过期。
+  final Duration? expires;
+
+  /// DiomanClonePolicy 或 Object? Function(Object?)。
+  final Object? clone;
+
+  /// 请求缓存判定；抛错按 bug 处理。
+  final bool Function(DiomanRequest)? shouldCache;
+
+  /// 结果写入判定；默认 r.ok，抛错按 bug 处理。
+  final bool Function(DiomanResponse<dynamic>)? shouldStore;
+
+  /// 存储层覆盖。
+  final DiomanCachePolicy? cachePolicy;
+}
+
+/// 缓存管理能力；通过 `api.plugin<DiomanCacheApi>()` 获取。
+abstract interface class DiomanCacheApi {
+  /// 删除 [key] 并作废该键在途写入；等待持久化删除完成。
+  Future<void> remove(String key);
+
+  /// 清空缓存并立即作废所有在途写入；返回持久化清理完成信号。
+  Future<void> clear();
+
+  /// 在途屏障数，只读诊断；所有请求结束后为零。
+  int get pendingWrites;
+
+  /// 内存物理条目数，包含尚未惰性过期的条目。
+  int get entryCount;
+}
+
+/// 按请求开启的缓存；命中不触网，业务失败默认不存储。
+class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 默认 memo、一分钟、浅克隆、GET/HEAD；例如选项 `{DiomanCache.option: true}`。
+  const DiomanCache(
+      {this.persist,
+      this.maxEntries = 500,
+      this.cachePolicy = DiomanCachePolicy.memo,
+      this.expires = const Duration(minutes: 1),
+      this.clone = DiomanClonePolicy.shallow,
+      this.clock,
+      this.shouldCache,
+      this.shouldStore,
+      this.enabled = true});
+
+  /// 内存 LRU 上限，非正数不限；请求级不支持覆盖。
+  final int maxEntries;
+
+  /// 可选持久化存储；persist/both 策略要求提供。
+  final DiomanCachePersist? persist;
+
+  /// 默认存储层。
+  final DiomanCachePolicy cachePolicy;
+
+  /// 默认有效期。
+  final Duration expires;
+
+  /// 默认克隆策略或自定义函数。
+  final Object clone;
+
+  /// 默认请求判定，缺省 GET/HEAD。
+  final bool Function(DiomanRequest)? shouldCache;
+
+  /// 默认写入判定，缺省 r.ok。
+  final bool Function(DiomanResponse<dynamic>)? shouldStore;
+
+  /// 可选 TTL 时钟；默认客户端 DiomanClock，请求级不支持覆盖。
+  final DiomanClock? clock;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:cache';
+
+  /// 请求级 bool、Duration 或配置键。
+  static final option = DiomanOptionKey<DiomanCacheOptions>(pluginName);
+
+  /// 名称。
+  @override
+  String get name => pluginName;
+
+  /// 结果来源阶段。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 状态按客户端隔离，时钟统一使用客户端时钟。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Cache<R>(
+      persist,
+      maxEntries,
+      clock ?? client.clock,
+      DiomanCacheOptions(
+          cachePolicy: cachePolicy,
+          expires: expires,
+          clone: clone,
+          shouldCache: shouldCache,
+          shouldStore: shouldStore));
+}
+
+/// 内存缓存条目。
+class _Entry {
+  /// 保存响应及绝对到期时刻。
+  _Entry(this.response, this.expiresAt);
+
+  /// 来源响应。
+  final DiomanResponse<dynamic> response;
+
+  /// epoch 毫秒。
+  final int expiresAt;
+}
+
+/// 在途期间的已写入顺序屏障。
+class _Barrier {
+  /// 当前在途数量。
+  int pending = 0;
+
+  /// 已发布的最大序号。
+  int latest = 0;
+}
+
+/// 每客户端内存和串行持久化通道。
+class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
+    implements DiomanCacheApi {
+  /// 保存存储与配置。
+  _Cache(this.persist, this.maxEntries, this.clock, this.base);
+
+  /// TTL 时钟。
+  final DiomanClock clock;
+
+  /// 内存容量。
+  final int maxEntries;
+
+  /// 外部持久化后端。
+  final DiomanCachePersist? persist;
+
+  /// 基础选项。
+  final DiomanCacheOptions base;
+
+  /// 内存条目。
+  final entries = <String, _Entry>{};
+
+  /// 只在在途期间存在的屏障。
+  final barriers = <String, _Barrier>{};
+
+  /// 单调请求序号。
+  int sequence = 0;
+
+  /// 最近 clear 的失效下界。
+  int floor = 0;
+
+  /// 所有落盘变更串行，clear 不会被旧 write 越过。
+  Future<void> tail = Future<void>.value();
+
+  /// 数据字段名，兼容旧存储。
+  static const dataField = 'data';
+
+  /// 到期字段名。
+  static const expiresField = 'expiresAt';
+
+  /// 新格式保存归一化元信息，旧格式仍按原始 HTTP 200 读取。
+  static const resultField = 'result';
+
+  /// 结果类别字段。
+  static const kindField = 'kind';
+
+  /// 逻辑状态字段。
+  static const statusField = 'status';
+
+  /// 原始 HTTP 状态字段。
+  static const httpField = 'httpStatus';
+
+  /// 业务码字段。
+  static const codeField = 'code';
+
+  /// 消息字段。
+  static const messageField = 'message';
+
+  /// 细分原因字段。
+  static const reasonField = 'reason';
+
+  /// 从新格式恢复归一化结果，老格式继续交给工厂识别信封。
+  DiomanResponse<dynamic> restore(DiomanContext<R> ctx, Map saved) {
+    final meta = saved[resultField];
+    if (meta is! Map) {
+      return ctx.factory.normalize(ctx.request,
+          raw: Response<dynamic>(
+              requestOptions: ctx.request.toRequestOptions(),
+              statusCode: 200,
+              data: saved[dataField]));
+    }
+    final kind = DiomanKind.values.byName(meta[kindField] as String);
+    final init = DiomanResponse<dynamic>(
+        ok: kind == DiomanKind.ok,
+        kind: kind,
+        status: meta[statusField] as int,
+        httpStatus: meta[httpField] as int,
+        code: meta[codeField],
+        message: meta[messageField] as String,
+        reason: meta[reasonField] as String?,
+        data: meta[dataField],
+        request: ctx.request);
+    return ctx.factory.derive(init, init.data);
+  }
+
+  /// 在途屏障诊断。
+  @override
+  int get pendingWrites => barriers.length;
+
+  /// 内存条目诊断。
+  @override
+  int get entryCount => entries.length;
+
+  /// 写入并按最近使用顺序淘汰，屏障不随淘汰删除。
+  void put(String key, _Entry entry) {
+    entries.remove(key);
+    entries[key] = entry;
+    if (maxEntries > 0) {
+      while (entries.length > maxEntries) {
+        entries.remove(entries.keys.first);
+      }
+    }
+  }
+
+  /// 入队持久化变更；异常交给调用方，同时保持通道可继续使用。
+  Future<void> enqueue(Future<void> Function() action) {
+    final pending = tail.then((_) => action());
+    tail = pending.then((_) {}, onError: (Object _, StackTrace __) {});
+    return pending;
+  }
+
+  /// 删除也抬高本键屏障，阻止旧响应复活。
+  @override
+  Future<void> remove(String key) {
+    entries.remove(key);
+    barriers[key]?.latest = ++sequence;
+    return persist == null
+        ? Future<void>.value()
+        : enqueue(() => persist!.remove(key));
+  }
+
+  /// 同步失效，随后串行清理后端。
+  @override
+  Future<void> clear() {
+    floor = sequence;
+    entries.clear();
+    return persist == null
+        ? Future<void>.value()
+        : enqueue(() => persist!.erase());
+  }
+
+  /// 递归复制 Map/List；其余载荷按引用保留。
+  Object? deep(Object? data) {
+    if (data is Map) return data.map((k, v) => MapEntry(k, deep(v)));
+    if (data is List) return data.map(deep).toList();
+    return data;
+  }
+
+  /// 数据副本经扩展工厂创建，保留所有响应元信息。
+  DiomanResponse<dynamic> clone(
+      DiomanContext<R> ctx, DiomanResponse<dynamic> r, Object strategy) {
+    if (strategy == DiomanClonePolicy.none) return r;
+    final data = r.data;
+    Object? copied;
+    if (strategy is Object? Function(Object?)) {
+      copied = strategy(data);
+    } else if (strategy == DiomanClonePolicy.deep) {
+      copied = deep(data);
+    } else if (strategy == DiomanClonePolicy.shallow) {
+      copied = data is Map
+          ? Map.of(data)
+          : data is List
+              ? List.of(data)
+              : data;
+    } else {
+      throw ArgumentError.value(strategy, 'clone');
+    }
+    return ctx.factory.derive(r, copied);
+  }
+
+  /// 查缓存、登记屏障、只写入仍新鲜的结果，并在 finally 回收。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanCacheOptions>(
+        ctx.request.call.options[DiomanCache.option],
+        base: base,
+        optIn: true,
+        shorthand: (v) => v is Duration ? DiomanCacheOptions(expires: v) : null,
+        merge: (a, b) => DiomanCacheOptions(
+            enabled: b.enabled,
+            expires: b.expires ?? a.expires,
+            clone: b.clone ?? a.clone,
+            shouldCache: b.shouldCache ?? a.shouldCache,
+            shouldStore: b.shouldStore ?? a.shouldStore,
+            cachePolicy: b.cachePolicy ?? a.cachePolicy));
+    if (o == null || o.enabled == false || ctx.get(sourceProbe) == true) {
+      return next();
+    }
+    if (!(o.shouldCache?.call(ctx.request) ??
+        sourceSafeMethods.contains(ctx.request.method))) {
+      return next();
+    }
+    final key = ctx.key();
+    if (key == null) return next();
+    final memo = o.cachePolicy != DiomanCachePolicy.persist;
+    final disk = o.cachePolicy != DiomanCachePolicy.memo;
+    if (disk && persist == null) throw StateError('persist/both 策略需要 persist');
+    final barrier = barriers.putIfAbsent(key, _Barrier.new);
+    barrier.pending++;
+    final ticket = ++sequence;
+    bool valid() => ticket > floor && ticket > barrier.latest;
+    try {
+      var hit = memo ? entries[key] : null;
+      if (hit != null && hit.expiresAt <= clock.now().millisecondsSinceEpoch) {
+        entries.remove(key);
+        hit = null;
+      }
+      if (hit == null && disk) {
+        await ctx.wait(tail);
+        final cancel = ctx.cancelled();
+        if (cancel != null) return cancel;
+        final saved = await ctx.wait(Future.sync(() => persist!.read(key)));
+        final cancelled = ctx.cancelled();
+        if (cancelled != null) return cancelled;
+        if (saved is Map && saved[expiresField] is int) {
+          final expiry = saved[expiresField] as int;
+          if (expiry > clock.now().millisecondsSinceEpoch && valid()) {
+            hit = _Entry(restore(ctx, saved), expiry);
+            if (memo) put(key, hit);
+          } else {
+            await ctx.wait(enqueue(() async {
+              if (valid()) await persist!.remove(key);
+            }));
+            final cancel = ctx.cancelled();
+            if (cancel != null) return cancel;
+          }
+        }
+      }
+      if (hit != null) {
+        if (memo) put(key, hit);
+        return clone(ctx, hit.response, o.clone!);
+      }
+      final r = await next();
+      final cancel = ctx.cancelled();
+      if (cancel != null) return cancel;
+      if (valid() && (o.shouldStore?.call(r) ?? r.ok)) {
+        barrier.latest = ticket;
+        final entry = _Entry(r.ok ? clone(ctx, r, o.clone!) : r,
+            clock.now().add(o.expires!).millisecondsSinceEpoch);
+        if (memo) put(key, entry);
+        if (disk) {
+          await ctx.wait(enqueue(() => persist!.write(key, {
+                dataField: r.raw?.data ?? r.data,
+                expiresField: entry.expiresAt,
+                resultField: {
+                  kindField: r.kind.name,
+                  statusField: r.status,
+                  httpField: r.httpStatus,
+                  codeField: r.code,
+                  messageField: r.message,
+                  reasonField: r.reason,
+                  dataField: entry.response.data
+                }
+              })));
+          final cancel = ctx.cancelled();
+          if (cancel != null) return cancel;
+        }
+      }
+      return r.ok ? clone(ctx, r, o.clone!) : r;
+    } finally {
+      if (--barrier.pending == 0) barriers.remove(key);
+    }
+  }
+
+  /// 作废在途写入并清空自有内存，外部持久化后端不归插件销毁。
+  @override
+  void dispose() {
+    floor = sequence;
+    entries.clear();
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content lib/src/pipeline/plugins/share.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 687ms:
+import 'dart:async';
+import 'package:dio/dio.dart';
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+import 'mock.dart';
+
+/// 同 key 并发结果归属策略；关闭使用请求级 false。
+enum DiomanSharePolicy {
+  /// 首发共享一次传输。
+  start,
+
+  /// 最新发起的结果胜出。
+  end,
+
+  /// 首个成功胜出，全部失败取最后一个。
+  race,
+
+  /// 首发在内部重试，共享最终结果。
+  retry,
+}
+
+/// 共享活动表诊断；例如 `api.plugin<DiomanShareApi>()!.activeEntries`。
+abstract interface class DiomanShareApi {
+  /// 四种策略当前活动轮次总数，结束或销毁后为零。
+  int get activeEntries;
+}
+
+/// 请求级共享配置；null 字段沿用插件配置。
+class DiomanShareOptions {
+  /// 例如 `DiomanShareOptions(policy: DiomanSharePolicy.race)`。
+  const DiomanShareOptions(
+      {this.enabled, this.policy, this.retries, this.interval, this.methods});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 归属策略。
+  final DiomanSharePolicy? policy;
+
+  /// 内部重试次数。
+  final int? retries;
+
+  /// 内部重试间隔。
+  final Duration? interval;
+
+  /// 允许共享的方法。
+  final Set<String>? methods;
+}
+
+/// 请求级开启的共享插件；跟随者得到同一个只读结果。
+class DiomanShare<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 默认 start、GET/HEAD；例如调用选项 `{DiomanShare.option: true}`。
+  const DiomanShare(
+      {this.policy = DiomanSharePolicy.start,
+      this.retries = 3,
+      this.interval = Duration.zero,
+      this.methods = sourceSafeMethods,
+      this.enabled = true});
+
+  /// 默认策略。
+  final DiomanSharePolicy policy;
+
+  /// retry 策略的额外次数。
+  final int retries;
+
+  /// retry 策略的等待间隔。
+  final Duration interval;
+
+  /// 方法硬白名单。
+  final Set<String> methods;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:share';
+
+  /// 请求级 bool、策略枚举或配置键。
+  static final option = DiomanOptionKey<DiomanShareOptions>(pluginName);
+
+  /// 名称。
+  @override
+  String get name => pluginName;
+
+  /// 结果来源阶段。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 每客户端独立建表。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Share<R>(DiomanShareOptions(
+          policy: policy,
+          retries: retries,
+          interval: interval,
+          methods: Set.of(methods)));
+}
+
+/// 一轮共享，不含逻辑请求的结算登记。
+class _Shared {
+  /// 保留与客户端工厂一致的销毁结果。
+  _Shared(this.cancelled);
+
+  /// 销毁时发布给尚在等待的订阅者。
+  final DiomanResponse<dynamic> cancelled;
+
+  /// 共享结果。
+  final result = Completer<DiomanResponse<dynamic>>();
+
+  /// 首发或 retry 的独立传输令牌。
+  final token = CancelToken();
+
+  /// 共享传输使用独立令牌并关闭 Dio 阶段超时，由订阅者各自限时。
+  RequestPatch get transportPatch => RequestPatch(
+      cancelToken: token,
+      connectTimeout: Duration.zero,
+      receiveTimeout: Duration.zero,
+      sendTimeout: Duration.zero);
+
+  /// 订阅者数。
+  int subscribers = 0;
+
+  /// 发起序号。
+  int sequence = 0;
+
+  /// 未结束的传输数。
+  int pending = 0;
+}
+
+/// 每客户端按策略隔离的活动表。
+class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
+    implements DiomanShareApi {
+  /// 保存配置。
+  _Share(this.base);
+
+  /// 预合并配置。
+  final DiomanShareOptions base;
+
+  /// 每种策略一张表。
+  final tables = {
+    for (final p in DiomanSharePolicy.values) p: <String, _Shared>{}
+  };
+
+  /// 活动轮次总数。
+  @override
+  int get activeEntries =>
+      tables.values.fold(0, (n, table) => n + table.length);
+
+  /// 仅移除仍属于本轮的条目。
+  void detach(Map<String, _Shared> table, String key, _Shared entry) {
+    if (identical(table[key], entry)) table.remove(key);
+  }
+
+  /// 结果发布前先摘表，外层 retry 可立即重新入表。
+  void finish(Map<String, _Shared> table, String key, _Shared entry,
+      DiomanResponse<dynamic> r) {
+    if (entry.result.isCompleted) return;
+    detach(table, key, entry);
+    entry.result.complete(r);
+  }
+
+  /// 订阅者整体上限为连接与接收之和；有请求体时再加发送阶段。
+  /// 任一参与阶段为 null 或非正数时不限时，不模拟 Dio 的阶段进度。
+  Duration? timeout(DiomanRequest request) {
+    var total = Duration.zero;
+    for (final stage in [
+      request.connectTimeout,
+      request.receiveTimeout,
+      if (request.data != null) request.sendTimeout
+    ]) {
+      if (stage == null || stage <= Duration.zero) return null;
+      total += stage;
+    }
+    return total;
+  }
+
+  /// 首发传输脱离首发调用方，最后一个订阅者离开才取消。
+  Future<void> run(
+      DiomanContext<R> ctx,
+      DiomanNext<R> next,
+      DiomanShareOptions o,
+      Map<String, _Shared> table,
+      String key,
+      _Shared entry) async {
+    final shared = ctx.derive(entry.transportPatch);
+    ctx.state.retain();
+    try {
+      var r = await next(entry.transportPatch);
+      if (o.policy == DiomanSharePolicy.retry) {
+        for (var i = 0;
+            i < o.retries! &&
+                !r.ok &&
+                r.kind != DiomanKind.internal &&
+                !shared.isCancelled;
+            i++) {
+          if (o.interval! > Duration.zero) {
+            await shared.wait(Completer<void>().future, timeout: o.interval);
+          }
+          if (shared.isCancelled) break;
+          r = await next(entry.transportPatch);
+        }
+      }
+      finish(table, key, entry, r);
+    } catch (error, stack) {
+      finish(
+          table,
+          key,
+          entry,
+          ctx.fail(DiomanFailure(
+              kind: DiomanKind.internal, error: error, errorStack: stack)));
+    } finally {
+      ctx.state.release();
+    }
+  }
+
+  /// end/race 的底层请求各自独立，订阅者离开不会取消其它传输。
+  Future<void> compete(
+      DiomanContext<R> ctx,
+      DiomanNext<R> next,
+      DiomanShareOptions o,
+      Map<String, _Shared> table,
+      String key,
+      _Shared entry) async {
+    final sequence = ++entry.sequence;
+    entry.pending++;
+    ctx.state.retain();
+    try {
+      final r = await next();
+      entry.pending--;
+      if (o.policy == DiomanSharePolicy.end
+          ? sequence == entry.sequence
+          : r.ok || entry.pending == 0) {
+        finish(table, key, entry, r);
+      }
+    } finally {
+      ctx.state.release();
+    }
+  }
+
+  /// 解析 optIn 后订阅；wait 自行清理取消监听和计时器。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanShareOptions>(
+        ctx.request.call.options[DiomanShare.option],
+        base: base,
+        optIn: true,
+        shorthand: (v) =>
+            v is DiomanSharePolicy ? DiomanShareOptions(policy: v) : null,
+        merge: (a, b) => DiomanShareOptions(
+            enabled: b.enabled,
+            policy: b.policy ?? a.policy,
+            retries: b.retries ?? a.retries,
+            interval: b.interval ?? a.interval,
+            methods: b.methods ?? a.methods));
+    if (o == null ||
+        o.enabled == false ||
+        ctx.get(sourceProbe) == true ||
+        !o.methods!.contains(ctx.request.method)) {
+      return next();
+    }
+    final cancel = ctx.cancelled();
+    if (cancel != null) return cancel;
+    final key = ctx.key();
+    if (key == null) return next();
+    final table = tables[o.policy]!;
+    final existing = table[key];
+    final entry = existing ??
+        (table[key] =
+            _Shared(ctx.fail(const DiomanFailure(kind: DiomanKind.cancel))));
+    final shared = o.policy == DiomanSharePolicy.start ||
+        o.policy == DiomanSharePolicy.retry;
+    entry.subscribers++;
+    if (shared) {
+      if (existing == null) {
+        if (o.policy == DiomanSharePolicy.retry) ctx.markReplayable();
+        unawaited(run(ctx, next, o, table, key, entry));
+      }
+    } else {
+      unawaited(compete(ctx, next, o, table, key, entry));
+    }
+    try {
+      final r =
+          await ctx.wait(entry.result.future, timeout: timeout(ctx.request));
+      return ctx.cancelled() ??
+          r ??
+          ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+    } finally {
+      if (--entry.subscribers == 0) {
+        detach(table, key, entry);
+        if (shared && !entry.result.isCompleted) entry.token.cancel();
+      }
+    }
+  }
+
+  /// 清空所有策略表并取消共享底层传输。
+  @override
+  void dispose() {
+    for (final table in tables.values) {
+      for (final entry in table.values) {
+        entry.token.cancel();
+        if (!entry.result.isCompleted) entry.result.complete(entry.cancelled);
+      }
+      table.clear();
+    }
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content lib/src/pipeline/plugins/offline.dart,lib/src/pipeline/plugins/mock.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 740ms:
+import 'dart:async';
+import 'dart:collection';
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 销毁出口的稳定原因。
+const _disposedReason = 'disposed';
+
+/// 队列满的稳定原因。
+const _queueFullReason = 'queueFull';
+
+/// 等待超时的稳定原因。
+const _timeoutReason = 'timeout';
+
+/// 所有销毁出口使用同一个离线失败值。
+const _disposedFailure =
+    DiomanFailure(kind: DiomanKind.offline, reason: _disposedReason);
+
+/// 离线请求级配置；省略字段沿用插件级值。
+class DiomanOfflineOptions {
+  /// 例如 `DiomanOfflineOptions(maxWait: Duration(seconds: 10))`。
+  const DiomanOfflineOptions(
+      {this.enabled, this.shouldQueue, this.maxQueueSize, this.maxWait});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 是否排队；false 直接放行，异常按 bug 处理。
+  final bool Function(DiomanRequest)? shouldQueue;
+
+  /// 入队时上限，0 表示不限。
+  final int? maxQueueSize;
+
+  /// 最长排队时间，null 沿用默认值。
+  final Duration? maxWait;
+}
+
+/// 通过 `api.plugin<DiomanOfflineApi>()` 获取离线管理能力。
+abstract interface class DiomanOfflineApi {
+  /// 当前排队数。
+  int get pending;
+
+  /// 立即恢复全部排队请求，不重复查询在线状态。
+  void flush();
+}
+
+/// source 最内层的离线队列；缓存命中时不会到达这里。
+class DiomanOffline<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 宿主提供 [isOnline] 与连通流；默认最多排队 50 条，例如恢复时流发送 true。
+  const DiomanOffline(
+      {required this.isOnline,
+      required this.onConnectivityChanged,
+      this.shouldQueue,
+      this.maxQueueSize = defaultMaxQueueSize,
+      this.maxWait,
+      this.enabled = true});
+
+  /// 在线状态判定；异常按 bug 处理。
+  final bool Function() isOnline;
+
+  /// true 事件自动 flush；流错误隔离并记日志。
+  final Stream<bool> onConnectivityChanged;
+
+  /// 默认全部排队，false 放行。
+  final bool Function(DiomanRequest)? shouldQueue;
+
+  /// 队列上限，非正数不限；满时挤出最早条目。
+  final int maxQueueSize;
+
+  /// 默认无最长等待。
+  final Duration? maxWait;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 默认上限。
+  static const defaultMaxQueueSize = 50;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:offline';
+
+  /// 请求级 bool 或配置键。
+  static final option = DiomanOptionKey<DiomanOfflineOptions>(pluginName);
+
+  /// 名称。
+  @override
+  String get name => pluginName;
+
+  /// 来源阶段最内层。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 每客户端独立队列和流订阅。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Offline<R>(this, client);
+}
+
+/// 队列条目，null 信号表示恢复，其余为离线失败原因。
+class _Queued {
+  /// 恰好完成一次的出队信号。
+  final ready = Completer<String?>();
+}
+
+/// 客户端专属 FIFO 队列。
+class _Offline<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> implements DiomanOfflineApi {
+  /// 订阅宿主连通流，流错误归通知类隔离。
+  _Offline(this.config, Dioman<R> client) {
+    subscription = config.onConnectivityChanged.listen((online) {
+      if (online) flush();
+    }, onError: (Object error, StackTrace stack) {
+      client.logError('[offline] 连通通知失败: $error');
+    });
+    base = DiomanOfflineOptions(
+        shouldQueue: config.shouldQueue,
+        maxQueueSize: config.maxQueueSize,
+        maxWait: config.maxWait);
+  }
+
+  /// 安装配置。
+  final DiomanOffline<R> config;
+
+  /// 预合并请求默认值。
+  late final DiomanOfflineOptions base;
+
+  /// 宿主订阅。
+  late final StreamSubscription<bool> subscription;
+
+  /// 按入队顺序排列。
+  final queue = ListQueue<_Queued>();
+
+  /// 是否已释放，dispose 的原因优先于客户端同时发出的取消。
+  bool disposed = false;
+
+  /// 当前排队数量。
+  @override
+  int get pending => queue.length;
+
+  /// 清队列后发信号，保证重入安全。
+  void drain(String? reason) {
+    final entries = queue.toList();
+    queue.clear();
+    for (final entry in entries) {
+      entry.ready.complete(reason);
+    }
+  }
+
+  /// 手动或流通知恢复。
+  @override
+  void flush() => drain(null);
+
+  /// 离线等待统一使用 ctx.wait，finally 摘掉队列条目。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanOfflineOptions>(
+        ctx.request.call.options[DiomanOffline.option],
+        base: base,
+        merge: (a, b) => DiomanOfflineOptions(
+            enabled: b.enabled,
+            shouldQueue: b.shouldQueue ?? a.shouldQueue,
+            maxQueueSize: b.maxQueueSize ?? a.maxQueueSize,
+            maxWait: b.maxWait ?? a.maxWait));
+    if (o == null ||
+        o.enabled == false ||
+        config.isOnline() ||
+        !(o.shouldQueue?.call(ctx.request) ?? true)) {
+      return next();
+    }
+    if (disposed) {
+      ctx.set(cancellationFailure, _disposedFailure);
+      return ctx.fail(_disposedFailure);
+    }
+    final cancel = ctx.cancelled();
+    if (cancel != null) return cancel;
+    final max = o.maxQueueSize!;
+    if (max > 0) {
+      while (queue.length >= max) {
+        queue.removeFirst().ready.complete(_queueFullReason);
+      }
+    }
+    final entry = _Queued();
+    queue.add(entry);
+    try {
+      final ready = await ctx.wait(
+          entry.ready.future.then((reason) => (reason,)),
+          timeout: o.maxWait);
+      if (disposed) {
+        ctx.set(cancellationFailure, _disposedFailure);
+        return ctx.fail(_disposedFailure);
+      }
+      final cancel = ctx.cancelled();
+      if (cancel != null) return cancel;
+      if (ready == null) {
+        return ctx.fail(const DiomanFailure(
+            kind: DiomanKind.offline, reason: _timeoutReason));
+      }
+      final reason = ready.$1;
+      return reason == null
+          ? await next()
+          : ctx.fail(DiomanFailure(kind: DiomanKind.offline, reason: reason));
+    } finally {
+      queue.remove(entry);
+    }
+  }
+
+  /// 排队请求以 disposed 结束，退订宿主流。
+  @override
+  void dispose() {
+    disposed = true;
+    unawaited(subscription.cancel());
+    drain(_disposedReason);
+  }
+}
+import 'dart:async';
+import 'package:dio/dio.dart';
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// source 默认安全方法白名单。
+const sourceSafeMethods = {'GET', 'HEAD'};
+
+/// mock 探测期间绕过共享和缓存；只在当前 next 调用期间置位。
+final sourceProbe = StateKey<bool>('mock probe');
+
+/// 内联路由处理器；返回原始数据（HTTP 200）或 Dio Response，由工厂归一化。
+typedef DiomanMockRoute = FutureOr<Object?> Function(DiomanRequest request);
+
+/// 请求级 mock 配置；null 字段沿用插件配置。
+class DiomanMockOptions {
+  /// 例如 `DiomanMockOptions(mockUrl: 'https://mock.example')`。
+  const DiomanMockOptions(
+      {this.enabled, this.routes, this.mockUrl, this.fallbackWhen});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// METHOD:path 到处理器的映射。
+  final Map<String, DiomanMockRoute>? routes;
+
+  /// 探测服务地址。
+  final String? mockUrl;
+
+  /// 探测结果是否回落；抛错按程序错误处理。
+  final bool Function(DiomanResponse<dynamic>)? fallbackWhen;
+}
+
+/// source 最外层 mock；内联命中直接经工厂返回，否则探测后按条件回落。
+class DiomanMock<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// [routes] 优先于 [mockUrl]，例如 `DiomanMock(routes: {'GET:/pets': (_) => []})`。
+  const DiomanMock(
+      {this.enabled = true,
+      this.routes = const {},
+      this.mockUrl,
+      this.fallbackWhen});
+
+  /// 安装期开关，默认装上即生效。
+  @override
+  final bool enabled;
+
+  /// 内联路由。
+  final Map<String, DiomanMockRoute> routes;
+
+  /// 转发服务地址。
+  final String? mockUrl;
+
+  /// 回落判定，默认 HTTP 404 或网络失败。
+  final bool Function(DiomanResponse<dynamic>)? fallbackWhen;
+
+  /// 稳定插件名。
+  static const pluginName = 'dioman:mock';
+
+  /// 请求级 bool 或配置键。
+  static final option = DiomanOptionKey<DiomanMockOptions>(pluginName);
+
+  /// 稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 结果来源阶段。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 为客户端复制路由表。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Mock<R>(DiomanMockOptions(
+      routes: Map.of(routes), mockUrl: mockUrl, fallbackWhen: fallbackWhen));
+}
+
+/// 客户端独立配置。
+class _Mock<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
+  /// 保存预合并配置。
+  _Mock(this.base);
+
+  /// 插件配置。
+  final DiomanMockOptions base;
+
+  /// 探测状态只包围一次 next，回落恢复共享与缓存。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanMockOptions>(
+        ctx.request.call.options[DiomanMock.option],
+        base: base,
+        merge: (a, b) => DiomanMockOptions(
+            enabled: b.enabled,
+            routes: {...a.routes!, ...?b.routes},
+            mockUrl: b.mockUrl ?? a.mockUrl,
+            fallbackWhen: b.fallbackWhen ?? a.fallbackWhen));
+    if (o == null || o.enabled == false) return next();
+    final cancelled = ctx.cancelled();
+    if (cancelled != null) return cancelled;
+    final route = o.routes!['${ctx.request.method}:${ctx.request.uri.path}'];
+    if (route != null) {
+      final data = await ctx.wait(Future.sync(() => route(ctx.request)));
+      return ctx.cancelled() ??
+          ctx.factory.normalize(ctx.request,
+              raw: data is Response<dynamic>
+                  ? data
+                  : Response<dynamic>(
+                      requestOptions: ctx.request.toRequestOptions(),
+                      statusCode: 200,
+                      data: data));
+    }
+    final url = o.mockUrl;
+    if (url == null || url.isEmpty) {
+      ctx.log('[mock] 缺少 mockUrl，跳过探测');
+      return next();
+    }
+    ctx.markReplayable();
+    late DiomanResponse<dynamic> probe;
+    ctx.set(sourceProbe, true);
+    try {
+      final path = ctx.request.uri.path;
+      final original = Uri.parse(ctx.request.path);
+      final query = original.hasQuery ? '?${original.query}' : '';
+      probe = await next(RequestPatch(
+          path: '${url.replaceFirst(RegExp(r'/+$'), '')}$path$query'));
+    } finally {
+      ctx.set(sourceProbe, false);
+    }
+    final cancel = ctx.cancelled();
+    if (cancel != null) return cancel;
+    final fallback = o.fallbackWhen?.call(probe) ??
+        (probe.httpStatus == 404 || probe.kind == DiomanKind.network);
+    return fallback ? next() : probe;
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content lib/src/pipeline/context.dart,lib/src/pipeline/pipeline.dart,lib/src/pipeline/client.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 702ms:
+import 'dart:async';
+import 'package:dio/dio.dart';
+import 'client.dart';
+import 'clock.dart';
+import 'key.dart';
+import 'request.dart';
+import 'response.dart';
+
+/// debug 日志回调；关闭 debug 时不会调用。
+typedef DiomanLogger = void Function(String message);
+
+/// 生命周期收尾的取消结果覆盖；离线销毁须保留 disposed 原因。
+final cancellationFailure = StateKey<DiomanFailure>('cancellation outcome');
+
+/// 逻辑请求状态键；使用非 const 实例保证按身份隔离。
+final class StateKey<T> {
+  /// 创建键，例如 `final attempt = StateKey<int>('attempt')`。
+  const StateKey(this.description);
+
+  /// 调试说明。
+  final String description;
+}
+
+/// 可解除目标的 Dio 取消桥；Dio Future 自身没有退订接口。
+class DiomanCancelLink {
+  /// 将 [source] 联动到 [target]，已取消时同步传递。
+  DiomanCancelLink(CancelToken source, void Function(Object?) target)
+      : _target = target {
+    if (source.isCancelled) {
+      target(source.cancelError);
+    } else {
+      source.whenCancel.then(_deliver);
+    }
+  }
+
+  /// 可清除的订阅目标，清理后不再引用请求状态。
+  void Function(Object?)? _target;
+
+  /// 转发用户取消。
+  void _deliver(Object? reason) => _target?.call(reason);
+
+  /// 解除逻辑订阅；迟到的取消不再触及请求。
+  void dispose() => _target = null;
+}
+
+/// 一个逻辑请求的共享状态和取消订阅登记。
+class DiomanContextState {
+  /// 创建状态并监听内核令牌；测试也可独立构造上下文。
+  DiomanContextState(this.token) {
+    _link = DiomanCancelLink(token, (_) => _notify());
+  }
+
+  /// 内核逻辑取消令牌。
+  final CancelToken token;
+
+  /// Dio 到内核订阅表的桥。
+  late final DiomanCancelLink _link;
+
+  /// 惰性分配的类型化值。
+  Map<Object, Object?>? values;
+
+  /// 按请求身份缓存 key。
+  final keys = Map<DiomanRequest, String?>.identity();
+
+  /// 等待取消的订阅表。
+  final listeners = <void Function(), CancelToken>{};
+
+  /// 是否需要克隆发送体。
+  bool replayable = false;
+
+  /// 脱离首发调用方但仍在执行的共享传输数。
+  int _retained = 0;
+
+  /// 逻辑调用方是否已完成。
+  bool _released = false;
+
+  /// 保持共享传输使用的状态；每次调用必须对应一次 release。
+  void retain() => _retained++;
+
+  /// 共享传输完成后释放；最后一个持有者负责最终清理。
+  void release() {
+    _retained--;
+    if (_released && _retained == 0) dispose();
+  }
+
+  /// 通知副本，允许回调在执行中退订。
+  void _notify() {
+    for (final entry in listeners.entries.toList()) {
+      if (identical(entry.value, token)) entry.key();
+    }
+  }
+
+  /// 同步取消内核请求并通知等待者。
+  void cancel([Object? reason]) {
+    token.cancel(reason);
+    _notify();
+  }
+
+  /// 释放桥并结束剩余等待。
+  void dispose() {
+    _released = true;
+    if (_retained > 0) return;
+    _link.dispose();
+    for (final listener in listeners.keys.toList()) {
+      listener();
+    }
+    listeners.clear();
+  }
+}
+
+/// 每层的固定形状上下文；派生请求共享逻辑状态。
+class DiomanContext<R extends DiomanResponse<dynamic>> {
+  /// 注入内核服务；例如测试可直接构造而不发起请求。
+  DiomanContext(
+      {required this.id,
+      required this.client,
+      required this.request,
+      required this.state,
+      required this.factory,
+      required this.keyService,
+      required this.clock,
+      required this.log});
+
+  /// 请求序号。
+  final int id;
+
+  /// 所属客户端。
+  final Dioman<R> client;
+
+  /// 本层请求视图。
+  final DiomanRequest request;
+
+  /// 共享状态。
+  final DiomanContextState state;
+
+  /// 结果服务。
+  final DiomanResponseFactory<R> factory;
+
+  /// 构键服务。
+  final DiomanKeyService keyService;
+
+  /// 注入时钟。
+  final DiomanClock clock;
+
+  /// 受 debug 开关控制的日志器。
+  final DiomanLogger log;
+
+  /// 当前传输的取消令牌，补丁可以覆盖。
+  CancelToken get cancelToken => request.cancelToken ?? state.token;
+
+  /// 逻辑请求或当前传输是否取消。
+  bool get isCancelled => cancelToken.isCancelled;
+
+  /// 当前逻辑请求残留的等待订阅数。
+  int get cancellationSubscriptions => state.listeners.length;
+
+  /// 是否保护重放请求体。
+  bool get replayable => state.replayable;
+
+  /// 惰性构键并按请求身份缓存；false 选项返回 null。
+  String? key() {
+    if (!state.keys.containsKey(request)) {
+      state.keys[request] =
+          keyService.build(request.toRequestOptions(), request.call.key);
+    }
+    return state.keys[request];
+  }
+
+  /// 读取 [key] 的类型化值，未设置返回 null。
+  T? get<T>(StateKey<T> key) => state.values?[key] as T?;
+
+  /// 写入 [key] 的类型化 [value]，各层共享。
+  void set<T>(StateKey<T> key, T value) => (state.values ??= {})[key] = value;
+
+  /// 经工厂生成结果；坏扩展工厂回退基础 internal，以保证 next 不抛错。
+  DiomanResponse<dynamic> fail(DiomanFailure failure) =>
+      factory.fail(request, failure);
+
+  /// 声明可能重放；后续每次发送均独立克隆请求体。
+  void markReplayable() => state.replayable = true;
+
+  /// 已取消则造 cancel 结果，否则返回 null；每次 await 后应调用。
+  DiomanResponse<dynamic>? cancelled() => isCancelled
+      ? fail(get(cancellationFailure) ??
+          const DiomanFailure(kind: DiomanKind.cancel))
+      : null;
+
+  /// 派生请求视图，保留所有逻辑服务与共享状态。
+  DiomanContext<R> derive(RequestPatch patch) => DiomanContext(
+      id: id,
+      client: client,
+      request: request.patch(patch),
+      state: state,
+      factory: factory,
+      keyService: keyService,
+      clock: clock,
+      log: log);
+
+  /// 等待 [pending]、取消或 [timeout]；后两者返回 null，结束后无订阅及计时器。
+  /// 已取消立即返回；迟到的值或异常被消费且不会改变结局。
+  Future<T?> wait<T>(Future<T> pending, {Duration? timeout}) {
+    final result = Completer<T?>();
+    Timer? timer;
+    DiomanCancelLink? localLink;
+    late void Function() cancel;
+    void clean() {
+      timer?.cancel();
+      localLink?.dispose();
+      state.listeners.remove(cancel);
+    }
+
+    void finish(T? value) {
+      if (result.isCompleted) return;
+      clean();
+      result.complete(value);
+    }
+
+    cancel = () => finish(null);
+    // 即使已经取消，也消费输入的迟到异常。
+    pending.then((value) => finish(value),
+        onError: (Object error, StackTrace stack) {
+      if (result.isCompleted) return;
+      clean();
+      result.completeError(error, stack);
+    });
+    if (isCancelled) {
+      finish(null);
+      return result.future;
+    }
+    state.listeners[cancel] = cancelToken;
+    if (!identical(cancelToken, state.token)) {
+      localLink = DiomanCancelLink(cancelToken, (_) => cancel());
+    }
+    if (timeout != null) timer = clock.createTimer(timeout, cancel);
+    return result.future;
+  }
+}
+import 'context.dart';
+import 'plugin.dart';
+import 'response.dart';
+import 'stages.dart';
+
+/// 插件校验错误的参数名。
+const _nameArgument = 'name';
+
+/// 编译后的上下文执行器。
+typedef DiomanRunner<R extends DiomanResponse<dynamic>>
+    = Future<DiomanResponse<dynamic>> Function(DiomanContext<R> ctx);
+
+/// 已安装的配置及实例。
+class DiomanRegistration<R extends DiomanResponse<dynamic>> {
+  /// 保存配置与客户端实例。
+  const DiomanRegistration(this.plugin, this.instance);
+
+  /// 插件配置。
+  final DiomanPlugin<R> plugin;
+
+  /// setup 返回的独立状态。
+  final DiomanPluginInstance<R>? instance;
+}
+
+/// 按名称确定位置；自定义插件位于同阶段内置插件前后。
+(int, int) _position(DiomanPlugin plugin) {
+  for (final entry in diomanBuiltinStages.entries) {
+    final index = entry.value.indexOf(plugin.name);
+    if (index >= 0) return (entry.key.index, index);
+  }
+  if (plugin.name.startsWith('dioman:')) {
+    throw ArgumentError.value(plugin.name, _nameArgument, '保留前缀');
+  }
+  return (plugin.stage.index, plugin.enforce == DiomanEnforce.pre ? -1 : 100);
+}
+
+/// 在 setup 前验证重名和保留前缀，拒绝非法配置且不产生副作用。
+void validateDiomanPlugins(Iterable<DiomanPlugin> plugins) {
+  final names = <String>{};
+  for (final plugin in plugins) {
+    if (!names.add(plugin.name)) {
+      throw ArgumentError.value(plugin.name, _nameArgument, '插件重名');
+    }
+    if (!diomanSetupPlugins.contains(plugin.name)) _position(plugin);
+  }
+}
+
+/// 稳定排序已启用且有 handle 的插件；不修改输入。
+List<DiomanRegistration<R>>
+    sortDiomanPipeline<R extends DiomanResponse<dynamic>>(
+        List<DiomanRegistration<R>> registrations) {
+  final indexed =
+      registrations.indexed.where((e) => e.$2.instance != null).toList();
+  indexed.sort((a, b) {
+    final x = _position(a.$2.plugin);
+    final y = _position(b.$2.plugin);
+    final stage = x.$1.compareTo(y.$1);
+    if (stage != 0) return stage;
+    final order = x.$2.compareTo(y.$2);
+    return order == 0 ? a.$1.compareTo(b.$1) : order;
+  });
+  return indexed.map((e) => e.$2).toList();
+}
+
+/// 从内到外编译一次；每层含一个异常边界，无补丁复用上下文。
+DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
+    List<DiomanRegistration<R>> layers, DiomanRunner<R> transport) {
+  var run = transport;
+  for (final layer in layers.reversed) {
+    final inner = run;
+    run = (ctx) async {
+      try {
+        return await layer.instance!.handle(ctx, ([patch]) async {
+          DiomanContext<R> target;
+          try {
+            target = patch == null ? ctx : ctx.derive(patch);
+          } catch (e, s) {
+            return ctx.fail(DiomanFailure(
+                kind: DiomanKind.internal, error: e, errorStack: s));
+          }
+          return inner(target);
+        });
+      } catch (e, s) {
+        return ctx.fail(
+            DiomanFailure(kind: DiomanKind.internal, error: e, errorStack: s));
+      }
+    };
+  }
+  return run;
+}
+import 'package:dio/dio.dart';
+import 'clock.dart';
+import 'config.dart';
+import 'context.dart';
+import 'key.dart';
+import 'options.dart';
+import 'pipeline.dart';
+import 'plugin.dart';
+import 'request.dart';
+import 'response.dart';
+import 'stages.dart';
+import 'transport.dart';
+
+/// 关闭 debug 时复用的空日志器。
+void _noLog(String _) {}
+
+/// 以 Dio 为引擎的洋葱管线客户端；旧入口与本库完全独立。
+class Dioman<R extends DiomanResponse<dynamic>> {
+  /// 创建客户端，例如 `Dioman(dio: Dio(), debug: true)`。
+  /// [response] 控制归一化，[reject] 只转换动词方法的可预期失败。
+  Dioman(
+      {required this.dio,
+      List<DiomanPlugin<R>> plugins = const [],
+      DiomanResponseFactory<R>? response,
+      this.key = const DiomanKeyOptions(),
+      this.reject,
+      Object? debug,
+      this.clock = const DiomanClock.system()})
+      : response = response ?? DiomanResponseFactory<R>(),
+        _debug = debug != null && debug != false,
+        _logger =
+            debug is DiomanLogger ? debug : (debug == true ? print : _noLog) {
+    if (debug != null && debug is! bool && debug is! DiomanLogger) {
+      throw ArgumentError.value(debug, 'debug');
+    }
+    validateDiomanPlugins(plugins);
+    try {
+      for (final plugin in plugins) {
+        _registrations.add(DiomanRegistration(
+            plugin, plugin.enabled ? plugin.setup(this) : null));
+      }
+      _compile();
+    } catch (_) {
+      for (final registration in _registrations.reversed) {
+        try {
+          registration.instance?.dispose();
+        } catch (_) {/* 保留安装时首次异常。 */}
+      }
+      rethrow;
+    }
+  }
+
+  /// 底层 Dio；用户拦截器在每次传输时运行。
+  final Dio dio;
+
+  /// 客户端的归一化服务。
+  final DiomanResponseFactory<R> response;
+
+  /// 客户端构键配置。
+  final DiomanKeyOptions key;
+
+  /// 可预期失败的最终异常转换器。
+  final Object Function(R)? reject;
+
+  /// 可注入时间服务。
+  final DiomanClock clock;
+
+  /// 是否记录调用点。
+  final bool _debug;
+
+  /// 用户日志器或默认输出。
+  final DiomanLogger _logger;
+
+  /// 注册顺序，供生命周期和 extend 使用。
+  final _registrations = <DiomanRegistration<R>>[];
+
+  /// 已排序的执行层快照。
+  List<DiomanRegistration<R>> _layers = [];
+
+  /// 编译后的链，在途请求捕获当前值。
+  late DiomanRunner<R> _run;
+
+  /// 活跃逻辑请求。
+  final _pending = <DiomanContextState>{};
+
+  /// 请求序号。
+  int _sequence = 0;
+
+  /// 生命周期状态。
+  bool _disposed = false;
+
+  /// 当前活跃逻辑请求数。
+  int get pending => _pending.length;
+
+  /// 活跃的内核取消等待订阅总数，供不变量检查。
+  int get cancellationSubscriptions =>
+      _pending.fold(0, (n, s) => n + s.listeners.length);
+
+  /// 隔离日志回调异常，避免 debug 改变请求结果。
+  void _log(String message) {
+    try {
+      _logger(message);
+    } catch (_) {/* 日志通知不影响请求。 */}
+  }
+
+  /// 记录插件通知故障；[message] 交给用户日志器或默认输出，日志器异常会隔离。
+  /// 例如插件捕获回调错误后调用 `client.logError('通知失败')`，不受 debug 开关抑制。
+  void logError(String message) {
+    if (_debug) {
+      _log(message);
+    } else {
+      try {
+        print(message);
+      } catch (_) {/* 输出通知不影响请求。 */}
+    }
+  }
+
+  /// 拒绝销毁后的操作。
+  void _checkAlive() {
+    if (_disposed) throw StateError('客户端已销毁');
+  }
+
+  /// 在配置变动时编译链，不在请求期间排序。
+  void _compile() {
+    _layers = sortDiomanPipeline(_registrations);
+    _run = compileDiomanPipeline(_layers, (ctx) => diomanTransport(dio, ctx));
+  }
+
+  /// 添加插件；先校验再 setup，安装失败不修改当前链。
+  void use(DiomanPlugin<R> plugin) {
+    _checkAlive();
+    validateDiomanPlugins([..._registrations.map((r) => r.plugin), plugin]);
+    final instance = plugin.enabled ? plugin.setup(this) : null;
+    _registrations.add(DiomanRegistration(plugin, instance));
+    _compile();
+  }
+
+  /// 按 [name] 移除并释放插件；不存在返回 false，在途保留原链。
+  bool eject(String name) {
+    final index = _registrations.indexWhere((r) => r.plugin.name == name);
+    if (index < 0) return false;
+    final removed = _registrations.removeAt(index);
+    _compile();
+    removed.instance?.dispose();
+    return true;
+  }
+
+  /// 返回实现 [A] 的第一个实例，例如 `api.plugin<CacheApi>()`。
+  A? plugin<A>() {
+    for (final r in _registrations) {
+      if (r.instance is A) return r.instance as A;
+    }
+    return null;
+  }
+
+  /// 返回解析后的固定阶段和名称顺序，返回列表不可修改。
+  List<(DiomanStage, String)> inspect() => List.unmodifiable(_layers.map((r) {
+        final fixed = diomanBuiltinStages.entries
+            .where((e) => e.value.contains(r.plugin.name));
+        return (
+          fixed.isEmpty ? r.plugin.stage : fixed.single.key,
+          r.plugin.name
+        );
+      }));
+
+  /// 中止尚未取消的逻辑请求，返回本次中止数。
+  int cancelAll([Object? reason]) {
+    var count = 0;
+    for (final state in _pending.toList()) {
+      if (!state.token.isCancelled) {
+        count++;
+        state.cancel(reason);
+      }
+    }
+    return count;
+  }
+
+  /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
+  /// [options] 在 setup 后合并非空、非默认字段，显式覆盖优先；容器按键合并。
+  /// BaseOptions 不记录省略信息，不能用默认值重置已有非默认值。
+  /// 例如 `api.extend(options: BaseOptions(baseUrl: 'https://child.example'))`。
+  Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
+    _checkAlive();
+    final child = Dioman<R>(
+        dio: Dio(cloneDiomanOptions(dio.options)),
+        plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
+        response: response,
+        key: key,
+        reject: reject,
+        debug: _debug ? _logger : false,
+        clock: clock);
+    if (options != null) mergeDiomanOptions(child.dio.options, options);
+    return child;
+  }
+
+  /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    cancelAll();
+    final errors = <(Object, StackTrace)>[];
+    for (final r in _registrations.reversed) {
+      try {
+        r.instance?.dispose();
+      } catch (e, s) {
+        errors.add((e, s));
+      }
+    }
+    if (errors.isNotEmpty) {
+      Error.throwWithStackTrace(errors.first.$1, errors.first.$2);
+    }
+  }
+
+  /// 执行请求并返回结果；可预期失败不抛，internal 原异常原栈抛出。
+  /// 例如 `await api.send<Object?>('GET', '/pets')`。
+  Future<DiomanResponse<T>> send<T>(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    final result =
+        await _dispatch(method, path, query: query, data: data, call: call);
+    if (result is DiomanResponse<T>) return result;
+    return result.copy<T>();
+  }
+
+  /// 执行任意 [method] 并返回数据；可预期失败经 reject 后抛出。
+  Future<T> request<T>(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    final result =
+        await _dispatch(method, path, query: query, data: data, call: call);
+    if (!result.ok) throw (reject?.call(result as R) ?? result);
+    return result.data as T;
+  }
+
+  /// 发送 GET 并返回数据；参数与 request 相同，例如 `api.get<Object?>('/pets')`。
+  Future<T> get<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('GET', path, query: query, data: data, call: call);
+
+  /// 发送 POST 并返回数据；参数与 request 相同，例如 `api.post<Object?>('/pets')`。
+  Future<T> post<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('POST', path, query: query, data: data, call: call);
+
+  /// 发送 PUT 并返回数据；参数与 request 相同，例如 `api.put<Object?>('/pets')`。
+  Future<T> put<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('PUT', path, query: query, data: data, call: call);
+
+  /// 发送 PATCH 并返回数据；参数与 request 相同，例如 `api.patch<Object?>('/pets')`。
+  Future<T> patch<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('PATCH', path, query: query, data: data, call: call);
+
+  /// 发送 DELETE 并返回数据；参数与 request 相同，例如 `api.delete<Object?>('/pets')`。
+  Future<T> delete<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('DELETE', path, query: query, data: data, call: call);
+
+  /// 发送 HEAD 并返回数据；参数与 request 相同，例如 `api.head<Object?>('/pets')`。
+  Future<T> head<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('HEAD', path, query: query, data: data, call: call);
+
+  /// 入口仅 compose 一次；登记后所有可能抛错的构造都在 finally 保护内。
+  Future<DiomanResponse<dynamic>> _dispatch(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    _checkAlive();
+    final run = _run;
+    final site = _debug ? StackTrace.current : null;
+    final state = DiomanContextState(CancelToken());
+    DiomanCancelLink? userLink;
+    _pending.add(state);
+    try {
+      final c = call ?? const DiomanCall();
+      if (c.cancelToken != null) {
+        userLink = DiomanCancelLink(c.cancelToken!, state.cancel);
+      }
+      final options = Options(
+              method: method,
+              headers: c.headers,
+              sendTimeout: c.sendTimeout,
+              receiveTimeout: c.receiveTimeout)
+          .compose(dio.options, path, queryParameters: query, data: data);
+      if (c.connectTimeout != null) options.connectTimeout = c.connectTimeout;
+      final ctx = DiomanContext<R>(
+          id: ++_sequence,
+          client: this,
+          request: DiomanRequest(options, call: c),
+          state: state,
+          factory: response,
+          keyService: DiomanKeyService(key),
+          clock: clock,
+          log: _log);
+      var result = await run(ctx);
+      if (result.kind != DiomanKind.internal) {
+        result = ctx.cancelled() ?? result;
+      }
+      if (!result.ok && site != null && result.kind != DiomanKind.internal) {
+        result = response.withCallSite(result, site);
+      }
+      if (result.kind == DiomanKind.internal) {
+        Error.throwWithStackTrace(
+            result.error ?? StateError('internal result without error'),
+            result.errorStack ?? StackTrace.current);
+      }
+      return result;
+    } finally {
+      userLink?.dispose();
+      state.dispose();
+      _pending.remove(state);
+    }
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content docs/design/pipeline-plugin-spec.md; Get-Content pubspec.yaml; Get-Command dart,flutter -ErrorAction SilentlyContinue | Select-Object Source; Get-Content test/boundary/share_replay_boundary_test.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 583ms:
+---
+title: dioman 内置插件与内核服务规格（洋葱管线）
+status: active
+updated: 2026-10-29
+summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认值、行为、内核依赖，以及相对 0.7 的行为变化汇总
+---
+## TL;DR
+
+- 12 个内置插件：outer 阶段 loading、notify；prepare 阶段 repath、filter、timeout；attempt 阶段 retry、breaker；credential 阶段 auth；source 阶段 mock、share、cache、offline。envs 只有 `setup`，不进链。
+- key、cancel、normalize、log 降为内核能力（见[核心架构](pipeline-architecture.md)）。
+- 现有功能全部保留，只改写法；行为变化集中列在 §9，CHANGELOG 和迁移指南按它写。
+
+## 0. 插件约定
+
+1. 工厂即类：`DiomanRetry(…)` 等，`name` 为 `dioman:<名字>`。插件对象只放配置，可以是 const；状态建在 `setup` 返回的实例里。
+2. **插件级 `enabled: false`**：内核在编译链时直接跳过，不调 `setup`，`inspect()` 不列出。
+3. **请求级选项统一四种写法**，由 `resolveOption` 一个函数解析：省略、`true`（用插件级配置）、`false`（本次关闭）、插件自己的选项对象（字段为 null 的沿用插件级）。部分插件另有一种简写（retry 的整数 = `max`，cache 的 `Duration` = `expires`，share 的策略枚举）。不认识的类型按 bug 抛 `ArgumentError`。插件级配置在 `setup` 时预合并；请求级 `true` 或省略时复用同一份。
+4. **装上即生效**，只有改变数据新鲜度的 **cache、share 要在请求级开启**（optIn）。
+5. **改请求只用 `next(patch)`**，不改 `ctx.request`。
+6. 用户回调抛错：通知类隔离并输出错误日志；判定类按 bug 处理；`onRefresh` 抛错算刷新失败（见核心架构 §7）。
+7. **每个 await 之后用 `ctx.cancelled()` 重查取消**；等待一律用 `ctx.wait`。
+8. 会重发请求的插件（retry、auth、mock、share 的 retry 策略）在第一次 `next()` 之前调用 `ctx.markReplayable()`。
+
+## 1. outer
+
+### loading
+- 选项：`onChanged(bool visible)` 必填；`delay`（0→1 之后延迟显示，期间回落就不显示）、`delayClose`（1→0 之后延迟隐藏，期间有新请求就不隐藏），默认都是 `Duration.zero`。请求级：`false`、`true`、`DiomanLoadingOptions`。
+- 模型：计数加一；`try { return await next(); } finally { 计数减一 }`。一个逻辑请求恰好一对，重试和重放都包在里面。按回调身份分开计数：请求级换了回调的请求，计入自己那个回调。
+- `dispose`：取消未触发的计时器；对已显示的回调立即发一次 `false`；在途请求不再通知。
+- 内核依赖：outer 阶段位置、`DiomanClock`。
+
+### notify
+- 选项：`notify(String message, R r)` 必填；`stringify(R r, DiomanContext ctx)`，默认在 `r.ok`、`kind == cancel`、`ctx.request.silent` 时返回空串，否则返回 `r.message`，为空时返回 `'<kind> <status>'`。空串表示不通知。请求级只有开关。
+- 模型：`final r = await next(); 通知; return r;`。每个逻辑请求最多一次，天然只在最终失败时通知，刷新成功不通知。
+- 内核依赖：outer 阶段、`request.silent`。
+
+## 2. prepare
+
+### repath
+- 选项不变：`pattern`（默认匹配 `{id}`、`:id`、`[id]`）、`removeKey`（默认 true）。只处理路径部分，先找 query（含 BaseOptions 的 queryParameters）再找 Map 形式的 data；值按路径段编码；同名占位符多次出现全部替换。算出新的 path/query/data 后 `next(patch)`；没有变化直接 `next()`。
+
+### filter
+- 选项：`predicate(key, value)`，默认剔除 null、NaN、空白字符串，保留 0 与 false；`ignoreKeys`、`ignoreValues`。剥 query 和 Map 形式的 data 的顶层字段；FormData、Stream 原样。没有可剔除的字段时不打补丁。
+- 变化：**装上即生效**（0.7 也是），默认谓词新增剔除 NaN（testkit 中立语义，且 `jsonEncode(double.nan)` 会抛错）。
+
+### timeout
+- 选项不变：`timeouts`（按 `NetworkQuality` 档位的 connect/receive/send）、`probe`（返回当前网络档位）。请求级：`false`、`DiomanTimeoutOptions`。
+- 模型：读出本次档位对应的超时，`next(patch)` 写入请求的超时字段。只改配置，真正计时由 Dio 执行（假设 H5，已在本地回环核对）。
+
+## 3. attempt
+
+### retry
+- 选项沿用 0.7：`max`、`methods`（硬否决）、`statusCodes`（默认 408/429/500/502/503/504，读**逻辑状态** `r.status`）、`shouldRetry(R r, int attempt)`、`delay`、`jitter`、`delayMax`、`respectRetryAfter`（默认 true，命中 `afterStatusCodes` 默认 413/429/503 时按 `Retry-After` 的秒数或 HTTP 日期等待，上限 `retryAfterMax`，不叠 jitter、不受 delayMax 限制）、`onRetry(attempt)`。请求级：整数 = max、`false`、`true`、`DiomanRetryOptions`。
+- 判定顺序：请求级关闭 → 方法不在白名单 → `kind` 属于 cancel、auth、internal、parse、breaker、offline 时不重试 → `shouldRetry` 返回布尔就采用 → network、timeout 重试 → `statusCodes` 包含 `r.status` 时重试。
+- 模型：`markReplayable()`；`var r = await next(); for (attempt = 1..max) { 判定; 等待 ctx.wait(delay); 取消则返回; r = await next(); } return r;`。次数用完返回最后一次结果，由落定决定抛不抛。每次尝试都会穿过 breaker、auth 和 source 阶段。
+- 删除：重放交接、认领判断（`_notAdmitted`）、`share`/`cancel` 兼容 setter、`breaker` 字段。
+
+### breaker
+- 选项沿用 0.7：`failureThreshold`、`resetDuration`、`halfOpenMaxCalls`、`shouldTrip(R r)`（默认：`kind` 是 network/timeout，或逻辑状态 ≥500 或 429 时计失败；cancel、internal 不计）、`keyBuilder(request)`（默认 `METHOD:path`）、`onStateChange`、`idleTtl`、`maxBuckets`、`clock`。
+- 模型：先申请放行；熔断打开或半开名额已满时，直接返回 `ctx.fail(kind: breaker, reason: 'open')`。放行后 `r = await next()`；按 `shouldTrip` 记一次成或败；cancel 只归还名额、不计成败。在 retry 之内，所以每次尝试都会计数；熔断打开时 retry 遇到 `kind: breaker` 不再重试，不需要接线。
+- 删除：`admit/recordResponse/recordError` 公开方法（原本只为 retry 接线而存在）、`DiomanBreakerOpenException`（改为 `kind: breaker`）。
+
+## 4. credential：auth
+
+- 选项沿用 0.7：`tokenManager`、`onRefresh`、`onAccessExpired` 必填；`onAccessDenied`（缺省回退 expired）；`onFailure(R r, tokenManager)`，默认见下；`isProtected(request)`；`ready(tokenManager, request)` 返回 `RequestPatch`，默认写 `Authorization: Bearer <token>`（`headerKey`、`buildHeader` 保留为便捷写法）；`expiresAt`、`refreshLeeway`、`clock` 用于主动刷新。请求级：`false`、`DiomanAuthOptions`。
+- 默认失败判定（读逻辑状态，所以 business 风格里的业务 401 自动适用）：`r.status == 401` 时，本地没有 token → expired；**本次注入的 token 不等于当前 token → replay**（说明已被并发刷新）；否则 refresh。`403` → deny；其余 → others。本次注入的 token 记在状态键里，不去解析请求头。
+- 模型：
+  1. 不受保护，直接 `return next()`；`markReplayable()`。
+  2. 如果正在刷新，`ctx.wait` 等刷新结果；取消就返回；刷新失败返回 `ctx.fail(kind: auth, reason: 'expired')`。
+  3. 循环：本地没有 token → 通知 denied，返回 `reason: 'unauthenticated'`；即将过期且配了 `expiresAt` → 先主动刷新；注入 token 并 `r = await next(patch)`；ok、internal、cancel 直接返回；`action = await onFailure(r)`，回来**先查取消**；refresh/replay：已经重放过一次就按 expired 处理（防止循环），否则 refresh 时加入或发起单飞刷新，然后再循环一次；deny → 通知并返回 `reason: 'denied'`；expired → 清会话、通知、返回 `reason: 'expired'`；others → 原样返回。
+- **会话判定**沿用 2026-10-28 的修复：按失败请求实际携带的 token 判断属于哪个会话，旧请求的失败不清新会话，每个会话只通知一次过期；单飞刷新以 `Future(() => onRefresh(…))` 强制异步发起，同步抛错也不会卡死刷新窗口。
+- **重放前重查本地凭证**：刷新成功后、重放之前使用者登出，就不再重放（axp B3 抓到的缺陷）。
+- 删除：重放交接、认领结算、`DiomanAuth.dio`/`share` setter。
+
+## 5. source：mock → share → cache → offline
+
+### mock
+- 选项：`enabled`（默认 true，装上即生效）、`routes`（`METHOD:path` → 处理函数，内联 mock）、`mockUrl`（转发到 mock 服务）、`fallbackWhen(R r)`，默认 `r.httpStatus == 404 || r.kind == network`。请求级：`false`、`true`、`DiomanMockOptions`。
+- 模型：命中内联路由 → 用处理函数的结果经工厂造 `R`，直接返回。配了 `mockUrl` → `markReplayable()`，`probe = await next(patch: 改写到 mockUrl，并带"不走 cache、不参与 share"的状态标记)`；`fallbackWhen(probe)` 为真时再 `next()` 打真实接口。
+- 变化：从传输层 adapter（2026-10-28）回到 source 阶段，`DiomanMockAdapter` 删除，cache 的 `x-dioman-mock` 规则删除。具备 testkit 的 `mock-in-chain` 能力。
+
+### share
+- 选项：`policy`（start、end、race、retry，默认 start）、`retries`、`interval`（retry 策略用）、`methods`（默认 GET、HEAD）。请求级（optIn）：`true`、策略枚举、`DiomanShareOptions`、`false`。`ctx.key()` 为 null 时直接放行。
+- 模型：
+  - start：首发 `next(patch: cancelToken = 共享 token，并去掉 Dio 层超时)`；每个订阅者用 `ctx.wait(共享结果, timeout: 自己的超时)`，各自离开只结束自己；最后一个订阅者离开时才取消共享请求。首发取消不连累跟随者。
+  - end：每次都发，只有序号最新的结果落定。
+  - race：每次都发，第一个 `r.ok` 的结果胜出，全部失败时用最后一个。
+  - retry：共享同一个结果，失败时在内部按 `retries`、`interval` 重试，调用方只看到最终一次。
+- 跟随者拿到同一个只读的 `R`。共享以"一次尝试"为单位；retry 在外层，每次重试都会重新进入 share。共享表按策略分开存放。
+- 删除：结算登记簿、`hasMultipleDownstreamSettlers`、`registerDownstreamSettler`、`isJoined`。
+
+### cache
+- 选项沿用 0.7：`persist`（存储接口）、`cachePolicy`（memo、persist、both）、`expires`、`clone`、`maxEntries`、`shouldCache(request)`（默认 GET、HEAD）、`shouldStore(R r)`（默认 `r.ok`）、`clock`。请求级（optIn）：`true`、`Duration` = expires、`DiomanCacheOptions`、`false`。
+- 模型：方法不允许、key 为 null、或带 mock 探测标记时直接放行；命中（惰性检查过期）直接返回，不触网；未命中时登记新鲜度屏障，`r = await next()`，屏障允许且 `shouldStore(r)` 才写入，`finally` 回收屏障记录。管理操作 `api.plugin<DiomanCacheApi>()` 提供 `remove`、`clear`；`clear()` 会作废在途的写入。
+- 变化：`shouldStore` 默认就是 `r.ok`（归一化之后业务失败天然不会进缓存），不再需要和 normalize 接线。
+
+### offline
+- 选项沿用 0.7：`isOnline()`、`onConnectivityChanged`、`shouldQueue(request)`、`maxQueueSize`、`maxWait`。请求级：`false`、`DiomanOfflineOptions`。
+- 模型：在线 → `next()`。离线：不排队或队列已满 → `ctx.fail(kind: offline, reason: …)`；排队 → `ctx.wait(恢复在线, timeout: maxWait)`，恢复后 `next()`，超时返回 `kind: offline, reason: 'timeout'`，取消返回 cancel。位于 source 最内层，所以缓存命中在离线时照常返回。
+- 删除：`DiomanOfflineException`（改为 `kind: offline`）。
+
+## 6. envs
+
+只有 `setup`，不进链：按 `rules` 选第一个命中的配置写进 `client.dio.options`（写入前克隆，不与规则模板共享容器）。
+
+## 7. 内核服务
+
+- **key**：算法沿用 0.7（深模式递归排序 Map、List 保序、`ignores`、`namespace`），由客户端级 `DiomanKeyOptions` 配置。请求级 `call.key`：省略为自动；字符串为显式 key；`false` 表示不参与 cache/share。在 prepare 阶段之后惰性求值。
+- **取消**：`api.cancelAll(reason)` 返回本次中止的逻辑请求数；`api.pending`。
+- **debug**：`Dioman(debug: true)` 使用默认日志器；记录调用点、插件告警（例如请求体无法克隆、mock 缺少 `mockUrl`）。
+
+## 8. TokenManager
+
+保留 `DiomanTokenManager` 接口（`accessToken`、`refreshToken`、`setTokens`、`clear` 等），删除 `canRefresh`：是否已判过期的状态收进 auth 的实例内部。
+
+## 8.1 B0 终审裁决（2026-10-29，补规格缺口）
+
+B0 迁移清单标出 54 条存疑，归为下列规格缺口，按"现有功能能保留就保留"裁决：
+
+| 缺口 | 裁决 |
+|---|---|
+| 请求级时钟覆盖（`DiomanAuthOptions.now`、`DiomanCacheOptions.now`） | 删除；时钟统一由客户端 `DiomanClock` 注入。auth 的 `expiresAt`、`refreshLeeway` 请求级覆盖保留 |
+| key 细粒度选项 | 客户端 `DiomanKeyOptions(fastMode, ignores, builder, namespace)` 全部保留；请求级 `call.key` 接受 `String`、`false` 或 `DiomanKeyOptions`（ignores 与客户端取并集）；优先级：请求级 builder > 请求级 key > 客户端 builder > 计算 |
+| 插件状态与管理 API | 保留，经 `api.plugin<…Api>()` 取得：`DiomanBreakerApi`（`stateOf`、`isOpen`、`bucketCount`）、`DiomanLoadingApi`（`activeCount`）、`DiomanOfflineApi`（`pending`、`flush`）、`DiomanCacheApi`（`remove`、`clear`）；默认值常量（如 `DiomanBreaker.defaultIdleTtl`、`defaultMaxBuckets`）放在插件类上。offline 在 dispose 时让排队请求以 `kind: offline, reason: disposed` 结束 |
+| `onRetry` 抛错 | 归通知类：隔离并记日志，不影响请求结果 |
+| 信封识别 | 沿用旧规则：Map 含 `code`，且含 `data` 或 `message` 之一即为信封；工厂另提供 `isEnvelope(Map)` 钩子；请求级 `call.envelope: false` 表示本次按非信封处理（替代旧的 `shouldNormalize`） |
+| offline 队列满 | 沿用旧语义：挤出最早的请求（`reason: queueFull`）；`maxQueueSize` 为 0 表示不限，默认 50；`shouldQueue` 返回 false 的请求直接放行 |
+| cache `cachePolicy.none`、`DiomanCacheOptions.maxEntries` 占位字段 | 删除：cache 已按请求开启，`none` 多余，默认策略改为 memo；占位字段本来不被读取 |
+| `DiomanSharePolicy.none` | 删除：关闭共享用请求级 `false` |
+| loading 请求级回调的触发、envs 合并 | 按新规格：按回调身份分开计数；envs 合并时克隆容器 |
+
+B2 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| `BaseOptions` 分不清"省略"与"显式写了默认值" | envs 与 `extend` 共用"非空、非默认字段覆盖"合并，三个 Map 容器深克隆后按顶层键合并。已继承的非默认值**不能**靠写默认值重置回去，此限制写进 `extend` 契约；确有需要再加显式重置 API，不预做 |
+| timeout 的真实连接计时 | 单测注入 `connectionTimeout` 只证明归类正确；真实计时归 B7，按 testkit D22 结论 connect 档仍不可黑盒验证，G4 留作唯一缺口 |
+| 旧套件首轮并发跑出两处 RangeError（loading_share/end、retry_share/race） | 不归因 B2：B2 没碰旧源码与 `test_legacy/`，串行复验 580 全绿；旧套件在 B5 删除，不再投入 |
+
+B3 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| auth 的 `ready` 连续 3 次期间 token 都在变 | 不抛错（token 轮换是正常竞态，不是使用者 bug）。与 axp 一致，以最后一次为准：注入最后一次 ready 的补丁，状态键记最后一次调用前的快照；之后若 401，默认判定发现注入值与当前值不同，走 replay 自行纠正 |
+| breaker 清桶 | `DiomanBreakerApi` 额外保留 `reset()`（旧版能力）；清表不取消已放行的传输，旧窗口的结算不写进新桶 |
+| 旧 `DiomanBreakerOpenException` 的 `retryableAt`、`bucketKey` | 失败载体仍是 `kind: breaker, reason: 'open'`；两项信息改由 `DiomanBreakerApi.keyOf(request)` 与 `retryableAt(key)` 提供，只读，不触发状态迁移 |
+| 依赖 share/cache/mock 的 39 条组合迁移行 | B3 只验证自己这一侧的边界，真实组合由 B4 承接，B4 报告逐行关闭 |
+
+B4 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| share start 订阅者的"自己的超时"怎么由 Dio 三个阶段超时合成 | 上限 = connect + receive，请求带请求体时再加 send；参与计算的任一项为 null 或 ≤0 就不设上限（与 Dio 对 null/零的语义一致）。不取最小值：connect 5s、receive 30s 时，最小值会把正常的慢下载判成超时 |
+| cache 的时钟 | 插件级 `clock` 保留，只管 TTL，省略时用客户端时钟；请求级 `now` 仍删除 |
+| cache `remove(key)` 的失效范围 | 只作废该 key 的在途读写，`clear()` 才作废全部；旧版提升全局代次，属行为变化 |
+| 持久化条目格式 | 写入时增加 result 元信息（`shouldStore` 允许存失败结果时要保留分类），旧的两字段格式仍可读 |
+| offline 判定顺序 | 选项关闭 → 在线直接放行 → 再调用 `shouldQueue`，在线时不调用判定回调 |
+| 迁移承接用例 | 标题写 `[API id]` 加行为，不写迁移行号；行号对应只留在报告证据里 |
+
+## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
+
+| # | 变化 | 原因 |
+|---|---|---|
+| C1 | 入口改为 `Dioman` 客户端，插件不再是 Dio 拦截器，裸调 `dio.get` 不经过插件 | D1 |
+| C2 | 可预期的失败抛 `DiomanResponse`（不再是 `DioException`），bug 原样抛出 | D6 |
+| C3 | `DiomanNormalize`、`DiomanKey`、`DiomanCancel`、`DiomanLog` 删除，能力进内核或改用 Dio 自带的 `LogInterceptor` | D3、D7 |
+| C4 | 顺序由固定阶段决定，`DiomanPluginOrder`、`Dioman.sort/validate`、`install` 删除 | D2 |
+| C5 | 请求级选项改为类型化的键，`extra[...]` 协议删除 | D8 |
+| C6 | `DiomanException`、`DiomanBreakerOpenException`、`DiomanOfflineException` 删除，改为 `kind` 与 `reason` | D5 |
+| C7 | mock 回到 source 阶段，`DiomanMockAdapter` 删除 | D9 |
+| C8 | retry、breaker、auth、cache 一律读逻辑状态，business 风格自动适用 | D3 |
+| C9 | filter 默认谓词新增剔除 NaN | testkit 中立语义 |
+| C10 | loading 从逻辑请求一开始就显示，包括等待 token 刷新的时间 | 洋葱最外层的自然结果 |
+| C11 | `DiomanTokenManager.canRefresh` 删除 | §8 |
+| C12 | 判定类回调抛错按 bug 原样抛出（0.7 部分被吞掉）；`onRetry` 归通知类，抛错不再变成请求失败 | 核心架构 §7、§8.1 |
+| C13 | 删除请求级时钟覆盖、cache `cachePolicy.none` 与 `maxEntries` 占位字段、`DiomanSharePolicy.none`；cache 默认策略改为 memo | §8.1 |
+name: dioman
+description: "Composable, self-contained Dio interceptor plugins (auth, cache, retry, dedup, mock, normalize, ...) plus the correct install order to wire them together."
+version: 0.7.2
+repository: https://github.com/icodejoo/dart-labs/tree/main/dioman
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  dio: ^5.0.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0
+
+Source
+------
+E:\sdk\flutter\bin\dart.bat
+E:\sdk\flutter\bin\flutter.bat
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/b3_helpers.dart';
+import '../support/pipeline/b4_helpers.dart';
+import '../support/pipeline/fake_clock.dart';
+import '../support/pipeline/fake_network.dart';
+import '../support/pipeline/helpers.dart';
+import '../support/pipeline/invariant_harness.dart';
+
+/// 内部重试独立于外层 retry 的重放保护和首发配置归属。
+void main() {
+  test('[DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖', () async {
+    final clock = FakeClock();
+    final first = Completer<void>();
+    final net = FakeNetwork()
+      ..routes['POST:$b4Path'] = [
+        FakeReply(status: 500, gate: first.future),
+        const FakeReply(status: 500),
+        const FakeReply()
+      ];
+    final h = InvariantHarness(net, clock);
+    final api = testClient(network: net, clock: clock, plugins: [
+      ...h.probes(),
+      const DiomanShare<Result>(methods: {b4LiteralPOST})
+    ]);
+    api.dio.transformer = B3Transformer();
+    final body = {
+      b4LiteralItems: [
+        {b4LiteralN: 0}
+      ]
+    };
+    final a = h.track(
+        1,
+        api.send<Object?>(b4LiteralPOST, b4Path,
+            data: body,
+            call: DiomanCall(key: b4Key, headers: {
+              invariantRequestHeader: 1
+            }, options: {
+              DiomanShare.option: const DiomanShareOptions(
+                  policy: DiomanSharePolicy.retry, retries: 2, interval: b4Tick)
+            })));
+    final b = h.track(
+        2,
+        api.send<Object?>(b4LiteralPOST, b4Path,
+            data: body,
+            call: b4Call(
+                share: const DiomanShareOptions(
+                    policy: DiomanSharePolicy.retry,
+                    retries: 0,
+                    interval: Duration(days: 1)))));
+    await b4Turn();
+    first.complete();
+    await b4Turn();
+    expect(clock.pendingTimers, 1);
+    clock.elapse(b4Tick);
+    await b4Turn();
+    expect(net.sends.length, 2);
+    clock.elapse(b4Tick);
+    expect((await b3Finish(a, clock)).ok, isTrue);
+    expect((await b).ok, isTrue);
+    expect(net.sends.length, 3);
+    expect(body, {
+      b4LiteralItems: [
+        {b4LiteralN: 0}
+      ]
+    });
+    h.assertAll(api);
+  });
+  test('[DiomanShare.retries] 默认内部重试三次，零负次数不重发', () async {
+    for (final count in <int?>[null, 0, -1]) {
+      final net = FakeNetwork()
+        ..routes[b4Route] = [const FakeReply(status: 500)];
+      final api =
+          testClient(network: net, plugins: [const DiomanShare<Result>()]);
+      expect(
+          (await api.send<Object?>(b4Get, b4Path,
+                  call: b4Call(
+                      share: DiomanShareOptions(
+                          policy: DiomanSharePolicy.retry, retries: count))))
+              .httpStatus,
+          500);
+      expect(net.sends.length, count == null ? 4 : 1);
+    }
+  });
+}
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content lib/src/pipeline/response.dart,lib/src/pipeline/transport.dart; Get-Content test/boundary/source_lifecycle_boundary_test.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 569ms:
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'request.dart';
+
+/// 空消息与缺省头值。
+const _emptyMessage = '';
+
+/// 链内统一使用的结果类别。
+enum DiomanKind {
+  ok,
+  http,
+  biz,
+  network,
+  timeout,
+  cancel,
+  parse,
+  auth,
+  breaker,
+  offline,
+  internal
+}
+
+/// 业务信封字段；含 code 且含 data/message 之一才默认识别。
+class Envelope {
+  /// 定制字段，例如 `Envelope(code: 'status')`。
+  const Envelope(
+      {this.code = 'code', this.data = 'data', this.message = 'message'});
+
+  /// 业务码字段。
+  final String code;
+
+  /// 数据字段。
+  final String data;
+
+  /// 消息字段。
+  final String message;
+}
+
+/// 不可变归一化结果，同时是可预期失败的异常载体。
+class DiomanResponse<D> implements Exception {
+  /// 创建已分类的结果；插件通常通过 ctx.fail 构造。
+  const DiomanResponse(
+      {required this.ok,
+      required this.kind,
+      required this.status,
+      required this.httpStatus,
+      this.code,
+      this.message = _emptyMessage,
+      required this.data,
+      this.reason,
+      required this.request,
+      this.raw,
+      this.error,
+      this.errorStack,
+      this.callSite});
+
+  /// 是否成功。
+  final bool ok;
+
+  /// 结果类别。
+  final DiomanKind kind;
+
+  /// 插件读取的逻辑状态。
+  final int status;
+
+  /// 原始 HTTP 状态，未收到为零。
+  final int httpStatus;
+
+  /// 原始业务码。
+  final Object? code;
+
+  /// 结果消息。
+  final String message;
+
+  /// 已拆包的数据。
+  final D? data;
+
+  /// 插件失败的细分原因。
+  final String? reason;
+
+  /// 产生此结果的请求。
+  final DiomanRequest request;
+
+  /// Dio 原始响应。
+  final Response<dynamic>? raw;
+
+  /// 首次程序异常或传输异常。
+  final Object? error;
+
+  /// 原始异常栈。
+  final StackTrace? errorStack;
+
+  /// debug 模式下的调用点。
+  final StackTrace? callSite;
+
+  /// 派生指定数据类型及调用点；原对象不会被修改。
+  DiomanResponse<T> copy<T>({StackTrace? callSite}) => DiomanResponse<T>(
+      ok: ok,
+      kind: kind,
+      status: status,
+      httpStatus: httpStatus,
+      code: code,
+      message: message,
+      data: ok ? data as T? : (data is T ? data as T : null),
+      reason: reason,
+      request: request,
+      raw: raw,
+      error: error,
+      errorStack: errorStack,
+      callSite: callSite ?? this.callSite);
+
+  /// 安全描述只包含标量，避免 raw、data 或 error 的循环引用及自定义 toString。
+  @override
+  String toString() => 'DiomanResponse(${kind.name}, $status, $message)';
+}
+
+/// 插件凭空生成失败的输入。
+class DiomanFailure {
+  /// 指定 [kind] 和细分字段，例如 `DiomanFailure(kind: DiomanKind.offline)`。
+  const DiomanFailure(
+      {required this.kind,
+      this.status = 0,
+      this.message = _emptyMessage,
+      this.reason,
+      this.data,
+      this.error,
+      this.errorStack});
+
+  /// 类别。
+  final DiomanKind kind;
+
+  /// 逻辑状态。
+  final int status;
+
+  /// 消息。
+  final String message;
+
+  /// 细分原因。
+  final String? reason;
+
+  /// 失败附带数据。
+  final Object? data;
+
+  /// 原始异常。
+  final Object? error;
+
+  /// 原始栈。
+  final StackTrace? errorStack;
+}
+
+/// 响应判定服务；钩子只在收到适用响应时执行。
+class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
+  /// 定制信封与判定，例如 `DiomanResponseFactory(envelope: null)`。
+  const DiomanResponseFactory(
+      {this.envelope = const Envelope(),
+      this.isEnvelope,
+      this.isSuccess,
+      this.logicalStatus,
+      this.expectJson = false,
+      this.create});
+
+  /// null 关闭信封识别。
+  final Envelope? envelope;
+
+  /// 自定义信封识别，call.envelope=false 优先。
+  final bool Function(Map<dynamic, dynamic>)? isEnvelope;
+
+  /// 只对 2xx 信封调用的成功判定。
+  final bool Function(Object?)? isSuccess;
+
+  /// 收到响应后的逻辑状态映射。
+  final int Function(DiomanResponse<dynamic>)? logicalStatus;
+
+  /// 声明 JSON 但仍是非空字符串时判 parse。
+  final bool expectJson;
+
+  /// 构造扩展结果；抛错时内核使用基础结果，避免再次调用坏钩子。
+  final R Function(DiomanResponse<dynamic>)? create;
+
+  /// 经扩展构造器创建结果；坏工厂回退 internal 并保留首次程序异常。
+  DiomanResponse<dynamic> _finish(DiomanResponse<dynamic> init) {
+    try {
+      return create == null ? init : create!(init);
+    } catch (e, s) {
+      return _internal(init.request, init.error ?? e, init.errorStack ?? s);
+    }
+  }
+
+  /// 带调用点派生结果并重新经过扩展构造器；不修改共享结果。
+  DiomanResponse<dynamic> withCallSite(
+          DiomanResponse<dynamic> result, StackTrace callSite) =>
+      _finish(result.copy<dynamic>(callSite: callSite));
+
+  /// 用 [data] 派生 [result] 并经扩展工厂；例如缓存克隆保持业务元信息。
+  DiomanResponse<dynamic> derive(
+          DiomanResponse<dynamic> result, Object? data) =>
+      _finish(DiomanResponse<dynamic>(
+          ok: result.ok,
+          kind: result.kind,
+          status: result.status,
+          httpStatus: result.httpStatus,
+          code: result.code,
+          message: result.message,
+          data: data,
+          reason: result.reason,
+          request: result.request,
+          raw: result.raw,
+          error: result.error,
+          errorStack: result.errorStack,
+          callSite: result.callSite));
+
+  /// 直接构造不依赖用户回调的 internal。
+  static DiomanResponse<dynamic> _internal(
+          DiomanRequest request, Object error, StackTrace stack) =>
+      DiomanResponse(
+          ok: false,
+          kind: DiomanKind.internal,
+          status: 0,
+          httpStatus: 0,
+          data: null,
+          request: request,
+          error: error,
+          errorStack: stack);
+
+  /// 将 [failure] 经过扩展点创建结果；例如 `factory.fail(request, failure)`。
+  DiomanResponse<dynamic> fail(DiomanRequest request, DiomanFailure failure) =>
+      _finish(DiomanResponse(
+          ok: failure.kind == DiomanKind.ok,
+          kind: failure.kind,
+          status: failure.status,
+          httpStatus: 0,
+          message: failure.message,
+          data: failure.data,
+          request: request,
+          reason: failure.reason,
+          error: failure.error,
+          errorStack: failure.errorStack));
+
+  /// 分类响应或异常；[cancelled] 的优先级最高，任何钩子异常都归 internal。
+  DiomanResponse<dynamic> normalize(DiomanRequest request,
+      {Response<dynamic>? raw,
+      Object? error,
+      StackTrace? stack,
+      bool cancelled = false}) {
+    try {
+      if (cancelled) {
+        return fail(
+            request,
+            DiomanFailure(
+                kind: DiomanKind.cancel, error: error, errorStack: stack));
+      }
+      if (error != null) {
+        var kind = DiomanKind.internal;
+        var status = 0;
+        if (error is DioException) {
+          switch (error.type) {
+            case DioExceptionType.connectionTimeout:
+            case DioExceptionType.sendTimeout:
+            case DioExceptionType.receiveTimeout:
+              kind = DiomanKind.timeout;
+            case DioExceptionType.connectionError:
+            case DioExceptionType.badCertificate:
+              kind = DiomanKind.network;
+            case DioExceptionType.badResponse:
+              kind = DiomanKind.http;
+              status = error.response?.statusCode ?? 0;
+            case DioExceptionType.unknown:
+              final cause = error.error;
+              if (cause is SocketException ||
+                  cause is HttpException ||
+                  cause is TlsException) {
+                kind = DiomanKind.network;
+              }
+            case DioExceptionType.cancel:
+              return fail(
+                  request,
+                  DiomanFailure(
+                      kind: DiomanKind.cancel,
+                      error: error,
+                      errorStack: stack));
+            default:
+              break;
+          }
+        }
+        final cause = error is DioException ? error.error ?? error : error;
+        return _finish(DiomanResponse(
+            ok: false,
+            kind: kind,
+            status: status,
+            httpStatus: status,
+            data: null,
+            request: request,
+            error: cause,
+            errorStack: error is DioException
+                ? error.stackTrace
+                : stack ?? StackTrace.current,
+            raw: error is DioException ? error.response : null));
+      }
+      final response = raw!;
+      final http = response.statusCode ?? 0;
+      final httpOk = http >= 200 && http < 300;
+      final body = response.data;
+      if (httpOk &&
+          expectJson &&
+          body is String &&
+          body.isNotEmpty &&
+          (response.headers.value(Headers.contentTypeHeader) ?? _emptyMessage)
+              .toLowerCase()
+              .contains('json')) {
+        return _finish(DiomanResponse(
+            ok: false,
+            kind: DiomanKind.parse,
+            status: http,
+            httpStatus: http,
+            data: body,
+            request: request,
+            raw: response));
+      }
+      final env = envelope;
+      final wrapped = request.call.envelope != false &&
+          env != null &&
+          body is Map &&
+          (isEnvelope?.call(body) ??
+              (body.containsKey(env.code) &&
+                  (body.containsKey(env.data) ||
+                      body.containsKey(env.message))));
+      final code = wrapped ? (body)[env.code] : null;
+      final ok = httpOk &&
+          (!wrapped ||
+              (isSuccess?.call(code) ??
+                  (code == null || code == 0 || code == '0')));
+      final status = !ok && httpOk && code is int && code >= 400 && code <= 599
+          ? code
+          : http;
+      var result = DiomanResponse<dynamic>(
+          ok: ok,
+          kind:
+              ok ? DiomanKind.ok : (httpOk ? DiomanKind.biz : DiomanKind.http),
+          status: status,
+          httpStatus: http,
+          code: code,
+          message: wrapped
+              ? '${(body)[env.message] ?? _emptyMessage}'
+              : _emptyMessage,
+          data: wrapped ? (body)[env.data] : body,
+          request: request,
+          raw: response);
+      if (logicalStatus != null) {
+        result = DiomanResponse(
+            ok: result.ok,
+            kind: result.kind,
+            status: logicalStatus!(result),
+            httpStatus: http,
+            code: code,
+            message: result.message,
+            data: result.data,
+            request: request,
+            raw: response);
+      }
+      return _finish(result);
+    } catch (e, s) {
+      return _internal(request, e, s);
+    }
+  }
+}
+import 'dart:async';
+import 'package:dio/dio.dart';
+import 'context.dart';
+import 'response.dart';
+
+/// 全部 HTTP 状态交给工厂，不让 Dio 构造 badResponse。
+bool _acceptStatus(int? _) => true;
+
+/// 递归克隆 JSON 请求体；FormData 使用 Dio 的 clone，其他类型保留身份。
+Object? _clone(Object? value, DiomanLogger log) {
+  if (value is Map) return value.map((k, v) => MapEntry(k, _clone(v, log)));
+  if (value is List) return value.map((v) => _clone(v, log)).toList();
+  if (value is FormData) return value.clone();
+  if (value != null && value is! num && value is! bool && value is! String) {
+    log('请求体无法克隆，回退原引用');
+  }
+  return value;
+}
+
+/// 执行一次发送；传输构造、Dio 及工厂异常都在本边界归一化。
+Future<DiomanResponse<dynamic>>
+    diomanTransport<R extends DiomanResponse<dynamic>>(
+        Dio dio, DiomanContext<R> ctx) async {
+  try {
+    final cancelled = ctx.cancelled();
+    if (cancelled != null) return cancelled;
+    final options = ctx.request.toRequestOptions()
+      ..validateStatus = _acceptStatus
+      ..cancelToken = ctx.cancelToken;
+    if (ctx.replayable) options.data = _clone(options.data, ctx.log);
+    final raw = await dio.fetch<dynamic>(options);
+    return ctx.factory
+        .normalize(ctx.request, raw: raw, cancelled: ctx.isCancelled);
+  } catch (e, s) {
+    return ctx.factory
+        .normalize(ctx.request, error: e, stack: s, cancelled: ctx.isCancelled);
+  }
+}
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/b4_helpers.dart';
+import '../support/pipeline/fake_clock.dart';
+import '../support/pipeline/fake_network.dart';
+import '../support/pipeline/helpers.dart';
+
+/// 每客户端隔离、取消结果归属及在途生命周期。
+void main() {
+  test('[DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布', () async {
+    final old = Completer<void>();
+    final latest = Completer<void>();
+    final token = CancelToken();
+    final net = FakeNetwork()
+      ..routes[b4Route] = [
+        FakeReply(gate: old.future),
+        FakeReply(gate: latest.future)
+      ];
+    final api =
+        testClient(network: net, plugins: [const DiomanShare<Result>()]);
+    final a = api.send<Object?>(b4Get, b4Path,
+        call: b4Call(share: DiomanSharePolicy.end));
+    final b = api.send<Object?>(b4Get, b4Path,
+        call: DiomanCall(
+            key: b4Key,
+            cancelToken: token,
+            options: {DiomanShare.option: DiomanSharePolicy.end}));
+    await b4Turn();
+    token.cancel();
+    expect((await b).kind, DiomanKind.cancel);
+    expect((await a).kind, DiomanKind.cancel);
+    old.complete();
+    latest.complete();
+    await b4Turn();
+    expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
+  });
+  test('[DiomanCache.shouldStore] 取消的在途响应不缓存且屏障回收', () async {
+    final gate = Completer<void>();
+    final net = FakeNetwork()..routes[b4Route] = [FakeReply(gate: gate.future)];
+    final api = testClient(network: net, plugins: [
+      DiomanCache<Result>(shouldStore: (_) => throw StateError(b4LiteralEmpty))
+    ]);
+    final pending = api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
+    await b4Turn();
+    api.cancelAll();
+    expect((await pending).kind, DiomanKind.cancel);
+    gate.complete();
+    await b4Turn();
+    expect(api.plugin<DiomanCacheApi>()!.entryCount, 0);
+    expect(api.plugin<DiomanCacheApi>()!.pendingWrites, 0);
+  });
+  test('[DiomanPlugin.setup] 同一 source 配置装两客户端，活动表缓存队列独立', () async {
+    var online = true;
+    final stream = StreamController<bool>.broadcast(sync: true);
+    addTearDown(stream.close);
+    final plugins = <DiomanPlugin<Result>>[
+      const DiomanShare<Result>(),
+      const DiomanCache<Result>(),
+      DiomanOffline<Result>(
+          isOnline: () => online, onConnectivityChanged: stream.stream)
+    ];
+    final n1 = FakeNetwork();
+    final n2 = FakeNetwork();
+    final a = testClient(network: n1, plugins: plugins);
+    final b = testClient(network: n2, plugins: plugins);
+    await a.send<Object?>(b4Get, b4Path,
+        call: b4Call(cache: true, share: true));
+    await b.send<Object?>(b4Get, b4Path,
+        call: b4Call(cache: true, share: true));
+    expect(n1.sends.length, 1);
+    expect(n2.sends.length, 1);
+    await a.plugin<DiomanCacheApi>()!.clear();
+    expect(b.plugin<DiomanCacheApi>()!.entryCount, 1);
+    online = false;
+    final pausedA = a.send<Object?>(b4Get, b4Path);
+    final pausedB = b.send<Object?>(b4Get, b4Path);
+    await b4Turn();
+    a.eject(DiomanOffline.pluginName);
+    expect((await pausedA).reason, b4LiteralDisposed);
+    expect(b.plugin<DiomanOfflineApi>()!.pending, 1);
+    stream.add(true);
+    expect((await pausedB).ok, isTrue);
+    a.dispose();
+    b.dispose();
+  });
+  test('[DiomanSharePolicy.end × DiomanOffline.maxWait] 订阅者超时后自己的底层排队仍等恢复',
+      () async {
+    final clock = FakeClock();
+    final stream = StreamController<bool>.broadcast(sync: true);
+    addTearDown(stream.close);
+    final net = FakeNetwork();
+    final api = testClient(network: net, clock: clock, plugins: [
+      const DiomanShare<Result>(),
+      DiomanOffline<Result>(
+          isOnline: () => false,
+          onConnectivityChanged: stream.stream,
+          maxWait: const Duration(seconds: 5))
+    ]);
+    final pending = api.send<Object?>(b4Get, b4Path,
+        call: DiomanCall(
+            connectTimeout: b4Tick,
+            receiveTimeout: b4Tick,
+            options: {DiomanShare.option: DiomanSharePolicy.end}));
+    await b4Turn();
+    clock.elapse(b4Tick * 2);
+    expect((await pending).kind, DiomanKind.timeout);
+    expect(api.plugin<DiomanOfflineApi>()!.pending, 1);
+    stream.add(true);
+    await b4Turn();
+    expect(net.sends.length, 1);
+    expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
+    expect(clock.pendingTimers, 0);
+  });
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'dart test test/boundary test/combo test/rule test/integration --reporter compact > $env:TEMP'"\\dioman-review-tests.txt 2>&1; Get-Content "'$env:TEMP'"\\dioman-review-tests.txt -Tail 4" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 7250ms:
+00:03 +241: test/integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio                                                                                   
+00:04 +241: test/integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio                                                                                   
+00:04 +242: test/integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio                                                                                   
+00:04 +242: All tests passed!                                                                                                                                                                          
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content lib/src/pipeline/request.dart -TotalCount 120; Get-Content test/support/pipeline/helpers.dart,test/support/pipeline/fake_network.dart -TotalCount 130; Get-ChildItem -Force E:\\workspaces\\dart-labs-pipeline -Name; Get-Content tool/pipeline_b4_migration.py -TotalCount 70" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 626ms:
+import 'dart:collection';
+import 'package:dio/dio.dart';
+import 'options.dart';
+
+/// 区分未提供和显式 null 的补丁哨兵。
+const _absent = Object();
+
+/// 有效 Dio 配置的不可变请求视图；入口合并一次后构造。
+class DiomanRequest {
+  /// 从 [options] 拷贝有效配置；[call] 保存调用选项，例如 `DiomanRequest(ro)`。
+  DiomanRequest(RequestOptions options, {DiomanCall call = const DiomanCall()})
+      : _options = options.copyWith(),
+        data = options.data,
+        headers = Map.unmodifiable(options.headers),
+        query = Map.unmodifiable(options.queryParameters),
+        extra = Map.unmodifiable(options.extra),
+        call = DiomanCall(
+            key: call.key,
+            envelope: call.envelope,
+            silent: call.silent,
+            options: Map.unmodifiable(call.options));
+
+  /// 完整有效配置的私有副本，永不交给 Dio 修改。
+  final RequestOptions _options;
+
+  /// 请求体引用；不透明载荷由传输按需克隆，插件通过补丁替换。
+  final Object? data;
+
+  /// 不可修改的请求头。
+  final Map<String, dynamic> headers;
+
+  /// 不可修改的查询参数。
+  final Map<String, dynamic> query;
+
+  /// 不可修改的用户扩展字段。
+  final Map<String, dynamic> extra;
+
+  /// 调用配置。
+  final DiomanCall call;
+
+  /// 有效路径。
+  String get path => _options.path;
+
+  /// 有效方法。
+  String get method => _options.method;
+
+  /// 有效基础地址。
+  String get baseUrl => _options.baseUrl;
+
+  /// 有效 URI。
+  Uri get uri => toRequestOptions().uri;
+
+  /// 连接超时。
+  Duration? get connectTimeout => _options.connectTimeout;
+
+  /// 发送超时。
+  Duration? get sendTimeout => _options.sendTimeout;
+
+  /// 接收超时。
+  Duration? get receiveTimeout => _options.receiveTimeout;
+
+  /// 当前传输令牌；未指定时内核使用逻辑请求令牌。
+  CancelToken? get cancelToken => _options.cancelToken;
+
+  /// 通知静默标记。
+  bool get silent => call.silent;
+
+  /// 返回可独立修改的有效 Dio 配置，例如 `dio.fetch(r.toRequestOptions())`。
+  RequestOptions toRequestOptions() => _options.copyWith(
+      headers: Map.from(headers),
+      queryParameters: Map.from(query),
+      extra: Map.from(extra))
+    ..data = data;
+
+  /// 合并 [patch] 并返回独立视图；不修改基准请求。
+  DiomanRequest patch(RequestPatch patch) {
+    final o = toRequestOptions();
+    final h = LinkedHashMap<String, dynamic>.from(o.headers);
+    for (final key in patch.removeHeaders) {
+      h.removeWhere((k, _) => k.toLowerCase() == key.toLowerCase());
+    }
+    for (final e in patch.headers.entries) {
+      h.removeWhere((k, _) => k.toLowerCase() == e.key.toLowerCase());
+      h[e.key] = e.value;
+    }
+    o.headers = h;
+    o.queryParameters.removeWhere((k, _) => patch.removeQuery.contains(k));
+    o.queryParameters.addAll(patch.query);
+    o.extra.addAll(patch.extra);
+    if (!identical(patch.data, _absent)) o.data = patch.data;
+    if (patch.path != null) o.path = patch.path!;
+    if (patch.method != null) o.method = patch.method!;
+    if (!identical(patch.connectTimeout, _absent)) {
+      o.connectTimeout = patch.connectTimeout as Duration?;
+    }
+    if (!identical(patch.sendTimeout, _absent)) {
+      o.sendTimeout = patch.sendTimeout as Duration?;
+    }
+    if (!identical(patch.receiveTimeout, _absent)) {
+      o.receiveTimeout = patch.receiveTimeout as Duration?;
+    }
+    if (!identical(patch.cancelToken, _absent)) {
+      o.cancelToken = patch.cancelToken as CancelToken?;
+    }
+    return DiomanRequest(o, call: call);
+  }
+}
+
+/// 内层请求的改动；集合按键合并，删除必须显式提供删除集合。
+class RequestPatch {
+  /// 创建补丁，例如 `RequestPatch(data: null, removeHeaders: {'Authorization'})`。
+  const RequestPatch(
+      {this.headers = const {},
+      this.query = const {},
+      this.extra = const {},
+      this.removeHeaders = const {},
+      this.removeQuery = const {},
+      this.data = _absent,
+      this.path,
+      this.method,
+import 'constants.dart';
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'fake_clock.dart';
+import 'fake_network.dart';
+
+/// 测试共用结果类型。
+typedef Result = DiomanResponse<dynamic>;
+
+/// 测试中间件回调。
+typedef Handler = Future<Result> Function(
+    DiomanContext<Result>, DiomanNext<Result>);
+
+/// 可观察 setup 和 dispose 的插件配置。
+class TestPlugin extends DiomanPlugin<Result> {
+  /// 创建测试插件。
+  TestPlugin(this.name,
+      {this.handler,
+      this.stage = DiomanStage.attempt,
+      this.enforce = DiomanEnforce.post,
+      this.enabled = true,
+      this.onSetup,
+      this.onDispose,
+      this.setupOnly = false});
+
+  /// 唯一名称。
+  @override
+  final String name;
+
+  /// 挂载阶段。
+  @override
+  final DiomanStage stage;
+
+  /// 阶段内位置。
+  @override
+  final DiomanEnforce enforce;
+
+  /// 开关。
+  @override
+  final bool enabled;
+
+  /// 中间件。
+  final Handler? handler;
+
+  /// 安装观察器。
+  final void Function()? onSetup;
+
+  /// 释放观察器。
+  final void Function()? onDispose;
+
+  /// 是否只有 setup。
+  final bool setupOnly;
+
+  /// 安装次数。
+  int setups = 0;
+
+  /// 创建隔离状态实例。
+  @override
+  TestInstance? setup(Dioman<Result> client) {
+    setups++;
+    onSetup?.call();
+    return setupOnly ? null : TestInstance(handler, onDispose);
+  }
+}
+
+/// 独立测试实例，counter 可用于证明 extend 无共享状态。
+class TestInstance extends DiomanPluginInstance<Result> {
+  /// 保存回调。
+  TestInstance(this.handler, this.onDispose);
+
+  /// 执行处理器。
+  final Handler? handler;
+
+  /// 生命周期回调。
+  final void Function()? onDispose;
+
+  /// 当前实例执行数。
+  int count = 0;
+
+  /// 执行或直通。
+  @override
+  Future<Result> handle(DiomanContext<Result> ctx, DiomanNext<Result> next) {
+    count++;
+    return handler == null ? next() : handler!(ctx, next);
+  }
+
+  /// 释放本实例。
+  @override
+  void dispose() => onDispose?.call();
+}
+
+/// 创建使用假网络的客户端。
+Dioman<Result> testClient(
+        {FakeNetwork? network,
+        List<DiomanPlugin<Result>> plugins = const [],
+        DiomanResponseFactory<Result>? response,
+        Object? debug,
+        FakeClock? clock,
+        Object Function(Result)? reject,
+        DiomanKeyOptions key = const DiomanKeyOptions()}) =>
+    Dioman<Result>(
+        dio: Dio(BaseOptions(baseUrl: pipelineTestHttpsExampleTest))
+          ..httpClientAdapter = network ?? FakeNetwork(),
+        plugins: plugins,
+        response: response,
+        debug: debug,
+        reject: reject,
+        key: key,
+        clock: clock ?? FakeClock());
+
+/// 创建纯单元上下文，不执行客户端发送。
+DiomanContext<Result> testContext(
+        {CancelToken? token,
+        FakeClock? clock,
+        DiomanRequest? request,
+        DiomanResponseFactory<Result>? factory,
+        DiomanKeyOptions key = const DiomanKeyOptions(),
+        DiomanLogger? log}) =>
+    DiomanContext(
+        id: 1,
+        client: testClient(),
+        request:
+            request ?? DiomanRequest(RequestOptions(path: pipelineTestUnit)),
+        state: DiomanContextState(token ?? CancelToken()),
+        factory: factory ?? const DiomanResponseFactory<Result>(),
+        keyService: DiomanKeyService(key),
+        clock: clock ?? FakeClock(),
+        log: log ?? (_) {});
+
+import 'constants.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
+
+/// 不变量请求标记头。
+const invariantRequestHeader = 'x-invariant-request';
+
+/// 一次可脚本化的网络回复。
+class FakeReply {
+  /// 创建响应，可用 gate 阻塞，也可抛出 error。
+  const FakeReply(
+      {this.status = 200,
+      this.body = const {pipelineTestCode: 0, pipelineTestData: pipelineTestOk},
+      this.error,
+      this.gate});
+
+  /// HTTP 状态。
+  final int status;
+
+  /// 原始 JSON 载荷。
+  final Object? body;
+
+  /// 指定失败异常。
+  final Object? error;
+
+  /// 人工控制响应时机。
+  final Future<void>? gate;
+}
+
+/// 捕获发送时快照，避免 Transformer 后续原地修改记录。
+class FakeSend {
+  /// 捕获实际有效配置与线上请求体。
+  FakeSend(this.options, this.body, this.invariant);
+
+  /// 实际 Dio 请求配置。
+  final RequestOptions options;
+
+  /// 发送时解码后的请求体。
+  final Object? body;
+
+  /// 逻辑请求标记。
+  final Object? invariant;
+}
+
+/// 按方法路径路由、序列和第 n 次失败的假 adapter。
+class FakeNetwork implements HttpClientAdapter {
+  /// 创建空路由 adapter，缺省返回成功信封。
+  FakeNetwork({this.onSend});
+
+  /// 发送已记录时通知测试，避免猜测微任务次数。
+  final void Function(FakeSend send)? onSend;
+
+  /// 路由表，例如 GET:/pets。
+  final routes = <String, List<FakeReply>>{};
+
+  /// 每个路由的已发送次数。
+  final counts = <String, int>{};
+
+  /// 第 n 次发送覆盖脚本。
+  final failOn = <int, Object>{};
+
+  /// 所有实际发送。
+  final sends = <FakeSend>[];
+
+  /// 是否已关闭。
+  bool closed = false;
+
+  /// 执行假网络发送，读取 Dio 已转换的线上请求体。
+  @override
+  Future<ResponseBody> fetch(RequestOptions options,
+      Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    final bytes = requestStream == null
+        ? <int>[]
+        : await requestStream.expand((b) => b).toList();
+    Object? body;
+    if (bytes.isNotEmpty) {
+      final text = utf8.decode(bytes, allowMalformed: true);
+      try {
+        body = jsonDecode(text);
+      } catch (_) {
+        body = text;
+      }
+    }
+    sends.add(FakeSend(options, body, options.headers[invariantRequestHeader]));
+    final sendIndex = sends.length;
+    onSend?.call(sends.last);
+    final route = '${options.method}:${options.path}';
+    final index = counts.update(route, (n) => n + 1, ifAbsent: () => 1) - 1;
+    final replies = routes[route] ?? const [FakeReply()];
+    final reply = replies[index < replies.length ? index : replies.length - 1];
+    if (reply.gate != null) await reply.gate;
+    final error = failOn[sendIndex] ?? reply.error;
+    if (error != null) throw error;
+    return ResponseBody.fromString(jsonEncode(reply.body), reply.status,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType]
+        });
+  }
+
+  /// 记录 adapter 被关闭。
+  @override
+  void close({bool force = false}) => closed = true;
+}
+.claude
+.githooks
+.github
+cacheman
+countman
+curved_dual_tab_bar
+dioman
+ffuzzy
+flutter_stompsocket
+getx-query
+json_annotation_lenient
+layerman
+mova
+mova_stt
+mova-libmpv
+roadsman
+svgx
+sync_scroll_library_patched
+xlru
+.git
+.gitattributes
+.gitignore
+lefthook.yml
+setup-remotes.bat
+setup-remotes.sh
+"""B4 按原行号核对 source keep/change，并独立关闭 B3 的 39 条组合承接。"""
+from pathlib import Path
+from collections import Counter
+import json
+import re
+
+ROOT = Path(__file__).resolve().parents[1]
+DEST = ROOT / 'docs/reports/pipeline-b4-evidence'
+CATALOG = []
+for path in (ROOT / 'test').rglob('*test.dart'):
+    source = path.read_text(encoding='utf-8')
+    for match in re.finditer(r"test\(\s*'([^']+)'", source):
+        CATALOG.append((path.relative_to(ROOT).as_posix(), source[:match.start()].count('\n') + 1, match.group(1)))
+
+
+def target(needle):
+    """定位唯一存在的测试，拒绝不存在、歧义或泛指文件。"""
+    rows = [r for r in CATALOG if needle in r[2]]
+    assert len(rows) == 1, (needle, rows)
+    return rows[0]
+
+
+def choose(file, number, row):
+    """根据来源行的具体语义选择已有规则、边界或组合断言。"""
+    if file == 'combo.md' and number in B3:
+        return target(B3_TITLES[number])
+    if file == 'integration.md':
+        return target('四 source 安装禁用与固定位置')
+    if any(w in row for w in ['namespace', 'sorted queryParameters', 'Map body']):
+        return target('账号隔离和 prepare 后请求体区分')
+    if 'cache_normalize' in row or 'INV-16' in row:
+        return target('归一化判定表与请求级覆盖优先级' if any(w in row for w in ['shouldStore 优先级', '请求级覆盖插件级', '显式 shouldStore']) else '信封开关自定义成功和单层解包')
+    if 'loading' in row.lower() and 'DiomanMock' not in row:
+        return target('缓存命中和跟随者均计逻辑请求')
+    if 'FormData' in row and 'DiomanShare' in row:
+        return target('FormData 首发取消跟随者沿用传输')
+    if 'normalize_share' in row:
+        return target('FormData 首发取消跟随者沿用传输' if '只解一层' in row or '解一层' in row else '每次尝试重新进入，失败不缓存')
+    if 'cache_offline' in row or 'INV-20' in row:
+        return target('离线缓存命中照常返回')
+    if 'cache_share' in row:
+        return target('并发一次发送缓存一次')
+    if any(w in row for w in ['share → auth', 'mock_adapter_combo']):
+        if 'retry' in row.lower():
+            return target('每次尝试探测回落且 I7')
+        return target('探测不缓存不共享' if '回落' in row else '内联优先于 share 每个逻辑调用')
+    if 'DiomanOffline' in row or 'offline_' in row:
+        if any(w in row for w in ['queueFull', 'QueueSize', '队列满']):
+            return target('队满挤出最早')
+        if any(w in row for w in ['dispose', 'timeout', 'maxWait', '取消']):
+            return target('timeout cancel flush dispose')
+        if any(w in row for w in ['.name', '.ordering', '.pluginName', '.enabled']):
+            return target('四 source 安装禁用与固定位置')
+        return target('离线排队恢复和手动 flush')
+    if 'DiomanMock' in row or 'mock_adapter' in row or 'defaultFallback' in row:
+        if any(w in row for w in ['inline errors', '内联处理器抛']):
+            return target('内联处理器异常原样抛出')
+        if any(w in row for w in ['body', 'POST', 'transport error']):
+            return target('每次尝试探测回落且 I7')
+        if any(w in row for w in ['cancel', '取消', 'interrupted', 'close', '关闭']):
+            return target('探测取消不回落不调用判定')
+        if any(w in row for w in ['401', 'refresh']):
+            return target(B3_TITLES[29])
+        if '500 retries' in row:
+            return target(B3_TITLES[102])
+        if any(w in row for w in ['query', 'queryParameters']):
+            return target('自审：path 内嵌')
+        if any(w in row for w in ['抛', 'errors', 'error decisions', 'fallbackWhen', 'mockUrl', 'URL override', 'routes merge', 'Options.routes']):
+            return target('请求级路由地址覆盖')
+        if 'concurrent' in row:
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '$probe = Join-Path $env:TEMP '"'dioman_review_probe.dart'; @'
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'file:///E:/workspaces/dart-labs-pipeline/dioman/test/support/pipeline/helpers.dart';
+import 'file:///E:/workspaces/dart-labs-pipeline/dioman/test/support/pipeline/fake_network.dart';
+Future<void> turn() => Future.delayed(Duration(milliseconds: 15));
+Future<void> main() async {
+  final gate = Completer<void>();
+  final net = FakeNetwork()..routes['GET:/x'] = [FakeReply(gate:gate.future), FakeReply()];
+  final api = testClient(network:net, plugins:[DiomanShare<Result>()]);
+  final call = DiomanCall(key:'x',options:{DiomanShare.option:DiomanSharePolicy.end});
+  final a = api.send<Object?>('GET','/x',call:call);
+  await turn();
+  final b = api.send<Object?>('GET','/x',call:call);
+  await Future.wait([a,b]);
+  api.dispose();
+  print('detached transport cancelled after dispose: "'${net.sends.first.options.cancelToken!.isCancelled}'"');
+  gate.complete(); await turn();
+  final n2 = FakeNetwork()..routes['GET:/x']=[FakeReply(body:{'code':400,'data':{'n':1}})];
+  final c2 = testClient(network:n2,plugins:[DiomanCache<Result>(shouldStore:(_)=>true)]);
+  final cached = DiomanCall(key:'x',options:{DiomanCache.option:true});
+  final first = await c2.send<Object?>('GET','/x',call:cached);
+  (first.data as Map)['n']=9;
+  final second = await c2.send<Object?>('GET','/x',call:cached);
+  print('cached failure data after caller mutation: "'${second.data}'"');
+  c2.dispose();
+}
+'@ | Set-Content -LiteralPath "'$probe; dart --packages=.dart_tool/package_config.json $probe; Remove-Item -LiteralPath $probe' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 2545ms:
+detached transport cancelled after dispose: false
+cached failure data after caller mutation: {n: 9}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '$i=0; Get-Content lib/src/pipeline/plugins/share.dart | ForEach-Object { $i++; if($i -ge 270 -and $i -le 300){"${i}: $_"} }; $i=0; Get-Content lib/src/pipeline/plugins/cache.dart | ForEach-Object { $i++; if($i -ge 457 -and $i -le 495){"${i}: $_"} }; git status --short' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 649ms:
+270:     final key = ctx.key();
+271:     if (key == null) return next();
+272:     final table = tables[o.policy]!;
+273:     final existing = table[key];
+274:     final entry = existing ??
+275:         (table[key] =
+276:             _Shared(ctx.fail(const DiomanFailure(kind: DiomanKind.cancel))));
+277:     final shared = o.policy == DiomanSharePolicy.start ||
+278:         o.policy == DiomanSharePolicy.retry;
+279:     entry.subscribers++;
+280:     if (shared) {
+281:       if (existing == null) {
+282:         if (o.policy == DiomanSharePolicy.retry) ctx.markReplayable();
+283:         unawaited(run(ctx, next, o, table, key, entry));
+284:       }
+285:     } else {
+286:       unawaited(compete(ctx, next, o, table, key, entry));
+287:     }
+288:     try {
+289:       final r =
+290:           await ctx.wait(entry.result.future, timeout: timeout(ctx.request));
+291:       return ctx.cancelled() ??
+292:           r ??
+293:           ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+294:     } finally {
+295:       if (--entry.subscribers == 0) {
+296:         detach(table, key, entry);
+297:         if (shared && !entry.result.isCompleted) entry.token.cancel();
+298:       }
+299:     }
+300:   }
+ M docs/design/pipeline-plugin-spec.md
+ M lib/pipeline.dart
+ M lib/src/pipeline/context.dart
+ M lib/src/pipeline/response.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/2026-10-29-pipeline-b4.md
+?? docs/reports/pipeline-b4-evidence/
+?? lib/src/pipeline/cache_store.dart
+?? lib/src/pipeline/plugins/cache.dart
+?? lib/src/pipeline/plugins/mock.dart
+?? lib/src/pipeline/plugins/offline.dart
+?? lib/src/pipeline/plugins/share.dart
+?? test/boundary/b4_final_review_boundary_test.dart
+?? test/boundary/cache_persist_boundary_test.dart
+?? test/boundary/mock_cancel_boundary_test.dart
+?? test/boundary/share_replay_boundary_test.dart
+?? test/boundary/source_boundary_test.dart
+?? test/boundary/source_lifecycle_boundary_test.dart
+?? test/boundary/source_options_boundary_test.dart
+?? test/boundary/source_review_boundary_test.dart
+?? test/combo/b4_auth_migration_combo_test.dart
+?? test/combo/b4_retry_migration_combo_test.dart
+?? test/combo/source_combo_test.dart
+?? test/combo/source_migration_combo_test.dart
+?? test/integration/source_transport_integration_test.dart
+?? test/rule/source_rule_test.dart
+?? test/support/pipeline/b4_constants.dart
+?? test/support/pipeline/b4_helpers.dart
+?? test/support/pipeline/b4_migration_scenarios.dart
+?? test/support/pipeline/b4_retry_migration_scenarios.dart
+?? tool/pipeline_b4_migration.py
+?? tool/pipeline_b4_mutations.py
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '$i=0; Get-Content lib/src/pipeline/plugins/cache.dart | ForEach-Object { $i++; if($i -ge 405){"${i}: $_"} }; $i=0; Get-Content lib/src/pipeline/plugins/share.dart | ForEach-Object { $i++; if($i -ge 215 -and $i -le 245){"${i}: $_"} }' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 567ms:
+405:                 dataField: r.raw?.data ?? r.data,
+406:                 expiresField: entry.expiresAt,
+407:                 resultField: {
+408:                   kindField: r.kind.name,
+409:                   statusField: r.status,
+410:                   httpField: r.httpStatus,
+411:                   codeField: r.code,
+412:                   messageField: r.message,
+413:                   reasonField: r.reason,
+414:                   dataField: entry.response.data
+415:                 }
+416:               })));
+417:           final cancel = ctx.cancelled();
+418:           if (cancel != null) return cancel;
+419:         }
+420:       }
+421:       return r.ok ? clone(ctx, r, o.clone!) : r;
+422:     } finally {
+423:       if (--barrier.pending == 0) barriers.remove(key);
+424:     }
+425:   }
+426: 
+427:   /// 作废在途写入并清空自有内存，外部持久化后端不归插件销毁。
+428:   @override
+429:   void dispose() {
+430:     floor = sequence;
+431:     entries.clear();
+432:   }
+433: }
+215:           ctx.fail(DiomanFailure(
+216:               kind: DiomanKind.internal, error: error, errorStack: stack)));
+217:     } finally {
+218:       ctx.state.release();
+219:     }
+220:   }
+221: 
+222:   /// end/race 的底层请求各自独立，订阅者离开不会取消其它传输。
+223:   Future<void> compete(
+224:       DiomanContext<R> ctx,
+225:       DiomanNext<R> next,
+226:       DiomanShareOptions o,
+227:       Map<String, _Shared> table,
+228:       String key,
+229:       _Shared entry) async {
+230:     final sequence = ++entry.sequence;
+231:     entry.pending++;
+232:     ctx.state.retain();
+233:     try {
+234:       final r = await next();
+235:       entry.pending--;
+236:       if (o.policy == DiomanSharePolicy.end
+237:           ? sequence == entry.sequence
+238:           : r.ok || entry.pending == 0) {
+239:         finish(table, key, entry, r);
+240:       }
+241:     } finally {
+242:       ctx.state.release();
+243:     }
+244:   }
+245: 
+
+codex
+The 242 tests run passed, but targeted reproductions confirmed uncancellable detached transports and mutable cached failure data. Both issues affect supported plugin configurations.
+
+Full review comments:
+
+- [P2] Keep detached competing transfers cancellable during disposal — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\share.dart:232-239
+  With `end` or `race`, a winning response can finish every subscriber while another transport remains pending. Those logical requests are then removed from the client's pending registry, and the shared entry is detached, so neither `cancelAll()` nor `dispose()` can cancel the remaining transport. Reproducing this with a blocked older `end` request leaves its transport token uncancelled after disposal. Track retained transports independently until completion so lifecycle cancellation still reaches them.
+
+- [P2] Clone explicitly cached failures before exposing their data — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\cache.dart:421-421
+  When `shouldStore` accepts a failed response, the cache stores and returns the original response without applying the configured clone policy. Mutating the first caller's failure data therefore changes subsequent cache hits, even with `clone: DiomanClonePolicy.deep`. For example, changing a cached business failure's `{n: 1}` payload to `{n: 9}` makes the next request receive `{n: 9}`. Apply cloning to stored failures as well as successes.
+The 242 tests run passed, but targeted reproductions confirmed uncancellable detached transports and mutable cached failure data. Both issues affect supported plugin configurations.
+
+Full review comments:
+
+- [P2] Keep detached competing transfers cancellable during disposal — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\share.dart:232-239
+  With `end` or `race`, a winning response can finish every subscriber while another transport remains pending. Those logical requests are then removed from the client's pending registry, and the shared entry is detached, so neither `cancelAll()` nor `dispose()` can cancel the remaining transport. Reproducing this with a blocked older `end` request leaves its transport token uncancelled after disposal. Track retained transports independently until completion so lifecycle cancellation still reaches them.
+
+- [P2] Clone explicitly cached failures before exposing their data — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\cache.dart:421-421
+  When `shouldStore` accepts a failed response, the cache stores and returns the original response without applying the configured clone policy. Mutating the first caller's failure data therefore changes subsequent cache hits, even with `clone: DiomanClonePolicy.deep`. For example, changing a cached business failure's `{n: 1}` payload to `{n: 9}` makes the next request receive `{n: 9}`. Apply cloning to stored failures as well as successes.

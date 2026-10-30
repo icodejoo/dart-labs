@@ -1,0 +1,4 @@
+00:00 +0: loading test/unit/key_parity_test.dart
+00:00 +0: [DiomanKeyService.build] 固定种子 2400 组与旧 key 固定基准逐字节一致
+00:00 +1: [DiomanKeyService.build] 开关、显式键、异常及不可序列化回退
+00:00 +2: All tests passed!

@@ -8,7 +8,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "auth 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "auth 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-auth-http",
+    "method": "单体",
+    "plugins": [
+      "auth"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "auth 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-breaker",
@@ -19,7 +36,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "breaker 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "breaker 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-breaker-http",
+    "method": "单体",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-cache",
@@ -30,7 +64,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "cache 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "cache 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-cache-http",
+    "method": "单体",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-cancel",
@@ -41,7 +92,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "cancel 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "cancel 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-cancel-http",
+    "method": "单体",
+    "plugins": [
+      "cancel"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cancel 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-envs",
@@ -52,7 +120,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "envs 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "envs 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-envs-http",
+    "method": "单体",
+    "plugins": [
+      "envs"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "envs 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-filter",
@@ -63,7 +148,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "filter 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "filter 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-filter-http",
+    "method": "单体",
+    "plugins": [
+      "filter"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "filter 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-key",
@@ -74,7 +176,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "key 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "key 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-key-http",
+    "method": "单体",
+    "plugins": [
+      "key"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "key 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-loading",
@@ -85,7 +204,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "loading 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "loading 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-loading-http",
+    "method": "单体",
+    "plugins": [
+      "loading"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "loading 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-log",
@@ -96,7 +232,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "log 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "log 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-log-http",
+    "method": "单体",
+    "plugins": [
+      "log"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "log 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-mock",
@@ -107,7 +260,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "mock 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "mock 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-mock-http",
+    "method": "单体",
+    "plugins": [
+      "mock"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "mock 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-normalize",
@@ -129,7 +299,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "notify 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "notify 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-notify-http",
+    "method": "单体",
+    "plugins": [
+      "notify"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "notify 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-offline",
@@ -140,7 +327,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "offline 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "offline 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-offline-http",
+    "method": "单体",
+    "plugins": [
+      "offline"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "offline 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-repath",
@@ -151,7 +355,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "repath 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "repath 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-repath-http",
+    "method": "单体",
+    "plugins": [
+      "repath"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "repath 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-retry",
@@ -162,7 +383,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "retry 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "retry 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-retry-http",
+    "method": "单体",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-share",
@@ -173,7 +411,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "share 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "share 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-share-http",
+    "method": "单体",
+    "plugins": [
+      "share"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "share 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.single-timeout",
@@ -184,7 +439,24 @@
     "networks": [
       "normal"
     ],
-    "purpose": "timeout 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+    "purpose": "timeout 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "business"
+    ]
+  },
+  {
+    "scenario": "plugins.single-timeout-http",
+    "method": "单体",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。",
+    "styles": [
+      "http"
+    ]
   },
   {
     "scenario": "plugins.pair-0",

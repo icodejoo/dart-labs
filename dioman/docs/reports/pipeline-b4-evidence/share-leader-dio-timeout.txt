@@ -1,0 +1,17 @@
+00:00 +0: loading test/boundary/source_boundary_test.dart
+00:00 +0: [DiomanSharePolicy.start] 首发三个 Dio 超时清零，各订阅者独立超时 kind timeout
+00:00 +0 -1: [DiomanSharePolicy.start] 首发三个 Dio 超时清零，各订阅者独立超时 kind timeout [E]
+  Expected: every element(Duration:<0:00:00.000000>)
+    Actual: [Duration:0:00:03.000000, Duration:0:00:00.000000, Duration:0:00:00.000000]
+     Which: has value Duration:<0:00:03.000000> which doesn't match Duration:<0:00:00.000000> at index 0
+  
+  package:matcher                               expect
+  test\boundary\source_boundary_test.dart 75:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/source_boundary_test.dart: [DiomanSharePolicy.start] 首发三个 Dio 超时清零，各订阅者独立超时 kind timeout
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

@@ -1,93 +1,87 @@
-// ignore_for_file: avoid_relative_lib_imports
-// 规则层：envs
-import 'package:dio/dio.dart';
+import '../support/b2_constants.dart';
 import 'package:dioman/dioman.dart';
+import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../accept/lib/literals.dart';
+import '../support/helpers.dart';
 
-/// 注册本文件的规则层用例。
+/// 环境地址模板。
+const envUrl = 'https://env.example.test';
+
+/// 显式覆盖地址。
+const overrideUrl = 'https://override.example.test';
+
+/// 环境超时。
+const envTime = Duration(seconds: 3);
+
+/// 环境容器中的字段名。
+const envNested = b2Nested;
+
+/// 核对安装期配置契约。
 void main() {
-  group(tkDiomanEnvs, () {
-    test(
-        '[DiomanEnvs.new(dio)][EnvRule.rule] the first matching rule wins and its BaseOptions fields are '
-        'shallow-merged into dio.options; a later, also-matching rule is '
-        'never even evaluated', () {
-      final dio = Dio();
-      var secondRuleEvaluated = false;
-      DiomanEnvs([
+  test('[DiomanEnvs.pluginName]' '[DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链',
+      () async {
+    final visits = <int>[];
+    final rules = [
+      for (var i = 0; i < 3; i++)
         EnvRule(
-          rule: () => true,
-          config: BaseOptions(
-            baseUrl: tkHttpsProdExampleCom,
-            connectTimeout: const Duration(seconds: 5),
-            receiveTimeout: const Duration(seconds: 6),
-            sendTimeout: const Duration(seconds: 7),
-            headers: {tkXEnv: tkProd},
-          ),
-        ),
-        EnvRule(
-          rule: () {
-            secondRuleEvaluated = true;
-            return true;
-          },
-          config: BaseOptions(baseUrl: 'https://staging.example.com'),
-        ),
-      ], dio: dio);
+            rule: () {
+              visits.add(i);
+              return i > 0;
+            },
+            config: BaseOptions(
+                baseUrl: envUrl,
+                connectTimeout: envTime,
+                receiveTimeout: envTime,
+                sendTimeout: envTime,
+                headers: {b2Env: i},
+                queryParameters: {b2Env: i},
+                extra: {b2Env: i},
+                responseType: ResponseType.bytes))
+    ];
+    final plugin = DiomanEnvs<Result>(rules);
+    expect(plugin.rules, same(rules));
+    expect(plugin.config.enabled, isTrue);
+    final api = testClient(plugins: [plugin]);
+    final options = api.dio.options;
+    expect(visits, [0, 1]);
+    expect(options.baseUrl, envUrl);
+    expect(options.connectTimeout, envTime);
+    expect(options.receiveTimeout, envTime);
+    expect(options.sendTimeout, envTime);
+    expect(options.headers[b2Env], 1);
+    expect(options.queryParameters[b2Env], 1);
+    final extras = options.extra;
+    expect(extras[b2Env], 1);
+    expect(options.responseType, ResponseType.bytes);
+    expect(api.inspect(), isEmpty);
+    options.headers.remove(b2Env);
+    await api.send<Object?>(b2Get, b2EnvPath);
+    await api.send<Object?>(b2Get, b2EnvPath);
+    expect(visits, [0, 1]);
+    expect(options.headers, isNot(contains(b2Env)));
+    api.eject(DiomanEnvs.pluginName);
+    api.dispose();
+    expect(options.baseUrl, envUrl);
+  });
 
-      expect(dio.options.baseUrl, tkHttpsProdExampleCom);
-      expect(dio.options.connectTimeout, const Duration(seconds: 5));
-      expect(dio.options.receiveTimeout, const Duration(seconds: 6));
-      expect(dio.options.sendTimeout, const Duration(seconds: 7));
-      expect(dio.options.headers[tkXEnv], tkProd);
-      expect(secondRuleEvaluated, isFalse,
-          reason: 'first match wins — later rules are never evaluated');
-    });
-    test(
-        '[EnvRule.rule] no matching rule leaves dio.options completely untouched',
-        () {
-      final dio = Dio(BaseOptions(baseUrl: tkHttpsDefaultExampleCom));
-      DiomanEnvs([
-        EnvRule(rule: () => false, config: BaseOptions(baseUrl: tkHttpsX)),
-      ], dio: dio);
-
-      expect(dio.options.baseUrl, tkHttpsDefaultExampleCom);
-    });
-    test(
-        '[EnvRule.config][EnvRule.rule] a rule that only sets responseType to something other than the '
-        'json default applies it; one that never touches responseType '
-        "never resets a caller's own bytes/stream setting back to json", () {
-      final dio1 = Dio();
-      DiomanEnvs([
-        EnvRule(
-          rule: () => true,
-          config: BaseOptions(responseType: ResponseType.bytes),
-        ),
-      ], dio: dio1);
-      expect(dio1.options.responseType, ResponseType.bytes);
-
-      final dio2 = Dio(BaseOptions(responseType: ResponseType.stream));
-      DiomanEnvs([
-        EnvRule(rule: () => true, config: BaseOptions(baseUrl: tkHttpsX)),
-      ], dio: dio2);
-      expect(dio2.options.responseType, ResponseType.stream,
-          reason: 'the rule never set responseType, so the pre-existing '
-              'stream setting must survive — not get reset to the '
-              "BaseOptions default of json");
-    });
-    test(
-        '[DiomanEnvs.new(enabled)][EnvRule.rule][DiomanEnvs.apply] a constructor-level disabled DiomanEnvs makes apply() a permanent '
-        'no-op even with a matching rule', () {
-      final dio = Dio(BaseOptions(baseUrl: tkHttpsDefaultExampleCom));
-      final envs = DiomanEnvs(
-        [EnvRule(rule: () => true, config: BaseOptions(baseUrl: tkHttpsX))],
-        enabled: false,
-      );
-      envs.apply(dio);
-      expect(dio.options.baseUrl, tkHttpsDefaultExampleCom);
-    });
-    test('[DiomanEnvs.pluginName][DiomanEnvs.name] name identifies the plugin',
-        () {
-      expect(DiomanEnvs(const []).name, tkDiomanEnvs2);
-    });
+  test(
+      '[DiomanEnvs.new(enabled)][DiomanEnvs.rules][DiomanEnvsOptions.enabled]'
+      '[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改', () {
+    for (final rules in <List<EnvRule>>[
+      [],
+      [EnvRule(rule: () => false, config: BaseOptions(baseUrl: envUrl))]
+    ]) {
+      final api = testClient();
+      final base = api.dio.options;
+      api.use(DiomanEnvs(rules));
+      expect(api.dio.options, same(base));
+    }
+    final api = testClient();
+    api.dio.options.responseType = ResponseType.stream;
+    final original = api.dio.options.baseUrl;
+    api.use(DiomanEnvs([EnvRule(rule: () => true, config: BaseOptions())]));
+    expect(api.dio.options.baseUrl, original);
+    expect(api.dio.options.responseType, ResponseType.stream);
+    expect(const DiomanEnvsOptions(enabled: false).enabled, isFalse);
   });
 }

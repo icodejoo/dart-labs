@@ -1,0 +1,16 @@
+00:00 +0: loading test/boundary/client_boundary_test.dart
+00:00 +0: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +0 -1: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅 [E]
+  Expected: <0>
+    Actual: <2>
+  
+  package:matcher                               expect
+  test\boundary\client_boundary_test.dart 73:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/client_boundary_test.dart: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

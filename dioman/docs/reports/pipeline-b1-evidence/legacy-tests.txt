@@ -1,0 +1,586 @@
+00:00 +0: loading test_legacy\boundary\auth_concurrent_boundary_test.dart
+00:00 +0: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +1: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +2: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +3: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +4: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +5: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +6: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +7: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +8: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +9: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +10: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +11: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +12: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +13: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +14: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +15: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +16: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +17: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +18: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +19: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +20: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +21: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +22: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +23: test_legacy\boundary\auth_replay_boundary_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] a network-level error with no HTTP response at all is cleared and passed through, not misclassified
+00:00 +24: test_legacy\boundary\auth_replay_boundary_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] a network-level error with no HTTP response at all is cleared and passed through, not misclassified
+00:00 +25: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +26: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +27: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +28: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +29: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +30: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:00 +31: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:01 +32: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +33: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +34: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +35: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +36: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +37: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +38: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +39: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +40: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +41: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +42: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:01 +43: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 同会话并发过期仅通知一次，重新登录后允许再次通知
+00:01 +44: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 同会话并发过期仅通知一次，重新登录后允许再次通知
+00:01 +45: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker [DiomanBreaker.reset][DiomanBreaker.failureThreshold] a cancelled request does not reset the failure count
+00:01 +46: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +47: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +48: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +49: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +50: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +51: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +52: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +53: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +54: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:01 +55: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE (single shared window); late 401s replay instead of re-refreshing
+00:01 +56: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE (single shared window); late 401s replay instead of re-refreshing
+00:01 +57: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE (single shared window); late 401s replay instead of re-refreshing
+00:01 +58: test_legacy\boundary\key_boundary_test.dart: DiomanKey non-serialisable body [DiomanKey.onRequest] two requests with distinct non-map bodies get distinct keys (never falsely deduped/cached as one)
+00:01 +59: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:01 +60: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:01 +61: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +62: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +63: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +64: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +65: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +66: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +67: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:02 +68: test_legacy\boundary\offline_boundary_test.dart: DiomanOffline [DiomanOfflineReason.disposed][DiomanOfflineException.reason][DiomanOffline.pending][DiomanOffline.new(isOnline)] dispose rejects every pending request (no perma-hang)
+00:02 +69: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:02 +70: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:02 +71: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:02 +72: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:02 +73: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:02 +74: test_legacy\boundary\offline_boundary_test.dart: DiomanOffline [DiomanOfflineReason.queueFull][DiomanOffline.maxQueueSize] queue full evicts the oldest with a queueFull rejection
+00:02 +75: test_legacy\boundary\retry_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.methods][DiomanRetryOptions.methods] FormData 请求体重试时被克隆，可重复发送
+00:02 +76: test_legacy\boundary\retry_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.methods][DiomanRetryOptions.methods] FormData 请求体重试时被克隆，可重复发送
+00:02 +77: test_legacy\boundary\retry_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.methods][DiomanRetryOptions.methods] FormData 请求体重试时被克隆，可重复发送
+00:02 +78: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:02 +79: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:02 +80: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:02 +81: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:02 +82: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:03 +83: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:03 +84: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +85: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +86: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +87: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +88: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +89: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +90: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +91: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +92: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +93: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +94: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +95: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +96: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +97: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +98: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +99: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +100: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +101: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +102: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +103: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:03 +104: test_legacy\combo\auth_retry_cancel_combo_test.dart: 认证恢复期间取消（#1） [DiomanRetry.max × DiomanAuth.new(onRefresh) × DiomanShare.policy] 错误阶段：首发在重试等刷新时被取消，follower 不拿到 401
+00:03 +105: test_legacy\combo\auth_retry_cancel_combo_test.dart: 认证恢复期间取消（#1） [DiomanRetry.max × DiomanAuth.new(onRefresh) × DiomanShare.policy] 错误阶段：首发在重试等刷新时被取消，follower 不拿到 401
+00:03 +106: test_legacy\combo\auth_retry_combo_test.dart: [DiomanAuth.new(onAccessExpired) × DiomanRetry.delay] 重试遇到 401 交回原 auth 刷新，恢复数据只归一化一次
+00:03 +107: test_legacy\combo\auth_retry_combo_test.dart: [DiomanAuth.new(onAccessExpired) × DiomanRetry.delay] 重试遇到 401 交回原 auth 刷新，恢复数据只归一化一次
+00:03 +108: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:03 +109: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:03 +110: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +111: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +112: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +113: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +114: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +115: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +116: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:04 +117: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.breaker] 重试的每次失败计入熔断，不重复记最终失败
+00:04 +118: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.breaker] 重试的每次失败计入熔断，不重复记最终失败
+00:04 +119: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.breaker] 重试的每次失败计入熔断，不重复记最终失败
+00:04 +120: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.breaker] 重试的每次失败计入熔断，不重复记最终失败
+00:04 +121: test_legacy\combo\cache_cancel_combo_test.dart: pairwise: cache + cancel [DiomanCache.cachePolicy × DiomanCancel.onRequest] a cache hit never allocates a CancelToken via DiomanCancel
+00:04 +122: test_legacy\combo\cache_cancel_combo_test.dart: pairwise: cache + cancel [DiomanCache.cachePolicy × DiomanCancel.onRequest] a cache hit never allocates a CancelToken via DiomanCancel
+00:04 +123: test_legacy\combo\cache_cancel_combo_test.dart: pairwise: cache + cancel [DiomanCache.cachePolicy × DiomanCancel.onRequest] a cache hit never allocates a CancelToken via DiomanCancel
+00:04 +124: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:04 +125: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:04 +126: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:04 +127: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:04 +128: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:04 +129: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +130: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +131: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +132: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +133: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +134: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +135: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +136: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +137: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +138: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +139: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +140: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +141: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +142: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +143: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +144: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +145: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +146: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +147: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +148: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +149: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +150: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +151: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +152: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +153: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +154: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:04 +155: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +156: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +157: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +158: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +159: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +160: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +161: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +162: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +163: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +164: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +165: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +166: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +167: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +168: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +169: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +170: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +171: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:05 +172: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanAuth.new(onRefresh)] 接手请求遇 401：auth 刷新并重放成功，首发仍拿到取消
+00:05 +173: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanAuth.new(onRefresh)] 接手请求遇 401：auth 刷新并重放成功，首发仍拿到取消
+00:05 +174: test_legacy\combo\full_stack_combo_test.dart: full stateful stack (all 6): cache+share+cancel+loading+auth+retry [Dioman.install] a network-level failure (500) still retries and eventually succeeds through the entire stack — cleanly, since DiomanRetry's bare-dio re-issue never touches cache/share/cancel/loading/auth/log along the way
+00:05 +175: test_legacy\combo\loading_retry_combo_test.dart: pairwise: loading + retry [DiomanLoading.delay × DiomanRetry.delay] the loading counter stays steady at 1 across a retry — the re-issue never touches DiomanLoading, so there's no 0→1 flicker mid-retry
+00:05 +176: test_legacy\combo\loading_retry_combo_test.dart: pairwise: loading + retry [DiomanLoading.delay × DiomanRetry.delay] the loading counter stays steady at 1 across a retry — the re-issue never touches DiomanLoading, so there's no 0→1 flicker mid-retry
+00:05 +177: test_legacy\combo\loading_retry_combo_test.dart: pairwise: loading + retry [DiomanLoading.delay × DiomanRetry.delay] the loading counter stays steady at 1 across a retry — the re-issue never touches DiomanLoading, so there's no 0→1 flicker mid-retry
+00:05 +178: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +179: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +180: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +181: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +182: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +183: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +184: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +185: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +186: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +187: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:05 +188: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +189: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +190: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +191: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +192: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +193: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:06 +194: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +195: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +196: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +197: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +198: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +199: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +200: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +201: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +202: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +203: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +204: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +205: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +206: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +207: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +208: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +209: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +210: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +211: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +212: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +213: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +214: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +215: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +216: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +217: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +218: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +219: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +220: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +221: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +222: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +223: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +224: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +225: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +226: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +227: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +228: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +229: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +230: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +231: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +232: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +233: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +234: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +235: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +236: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +237: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +238: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +239: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +240: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +241: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +242: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +243: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +244: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +245: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +246: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +247: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +248: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +249: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +250: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +251: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +252: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +253: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:06 +254: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +255: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +256: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +257: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +258: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +259: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +260: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +261: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +262: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +263: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +264: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +265: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +266: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +267: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +268: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +269: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +270: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +271: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +272: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +273: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +274: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +275: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +276: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +277: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +278: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +279: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +280: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +281: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +282: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +283: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +284: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +285: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +286: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +287: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +288: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +289: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +290: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +291: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +292: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +293: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +294: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +295: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +296: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +297: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +298: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +299: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +300: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +301: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +302: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +303: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +304: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +305: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +306: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +307: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +308: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +309: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +310: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +311: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +312: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +313: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +314: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +315: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +316: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +317: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +318: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +319: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +320: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +321: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +322: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +323: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +324: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:07 +325: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +326: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +327: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +328: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +329: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +330: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +331: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +332: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +333: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +334: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +335: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +336: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +337: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +338: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +339: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +340: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +341: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +342: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +343: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +344: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +345: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +346: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +347: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +348: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +349: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +350: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +351: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +352: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +353: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +354: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +355: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +356: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +357: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +358: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:08 +359: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +360: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +361: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +362: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +363: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +364: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +365: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +366: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +367: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +368: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +369: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +370: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +371: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +372: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +373: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +374: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +375: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +376: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +377: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +377: test_legacy\rule\log_rule_test.dart: DiomanLog [DiomanLog.writer][DiomanLogOptions.writer] with no writer given, falls back to the default sink without throwing
+[dioman:log] → GET http://127.0.0.1:4631/data
+[dioman:log] ← 200 GET http://127.0.0.1:4631/data
+  Body: {v: 1}
+00:09 +378: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +379: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +380: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +381: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +382: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +383: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +384: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +385: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +386: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +387: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +388: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +389: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +390: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +391: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +392: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +393: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +394: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +395: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +396: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +397: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +398: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +399: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +400: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +401: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +402: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +403: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +404: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +405: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +406: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +407: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +408: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +409: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +410: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +411: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +412: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +413: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +414: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +415: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +416: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +417: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +418: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +419: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:09 +420: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +421: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +422: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +423: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +424: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +425: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +426: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +427: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +428: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +429: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +430: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +431: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +432: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +433: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +434: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +435: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +436: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +437: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +438: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +439: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +440: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +441: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +442: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +443: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +444: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +445: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +446: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +447: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +448: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +449: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +450: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +451: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +452: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +453: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +454: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +455: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +456: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +457: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +458: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +459: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +460: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +461: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +462: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +463: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +464: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +465: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +466: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +467: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +468: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +469: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:10 +470: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +471: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +472: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +473: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +474: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +475: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +476: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +477: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +478: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +479: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +480: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +481: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +482: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +483: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +484: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +485: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +486: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +487: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +488: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +489: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +490: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +491: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +492: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +493: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +494: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +495: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +496: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +497: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +498: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +499: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +500: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +501: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +502: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +503: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +504: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +505: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +506: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +507: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +508: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +509: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +510: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +511: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +512: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +513: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +514: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +515: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +516: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +517: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +518: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +519: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +520: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +521: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +522: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +523: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +524: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +525: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +526: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +527: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +528: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +529: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +530: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +531: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +532: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +533: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +534: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +535: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +536: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +537: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +538: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +539: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +540: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +541: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +542: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +543: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +544: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +545: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +546: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:11 +547: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +548: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +549: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +550: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +551: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +552: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +553: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +554: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +555: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +556: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +557: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +558: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:12 +559: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +560: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +561: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +562: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +563: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +564: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:15 +565: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +566: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +567: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +568: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +569: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +570: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +571: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +572: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +573: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +574: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +575: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +576: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +577: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:16 +578: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+00:39 +579: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 12 plugins (4095 combinations) recovers correctly from a 500, a cache-populating round trip, and a 401 refresh+replay — paced to stay under the local ephemeral-port budget (see the file doc; this sweep takes several minutes)
+04:52 +580: All tests passed!

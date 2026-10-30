@@ -1,0 +1,29 @@
+00:00 +0: loading test/combo/b8_share_withdrawal_test.dart
+00:00 +0: test/combo/b8_share_withdrawal_test.dart: [DiomanShare.policy] B8 撤回 DiomanSharePolicy.start leader timeout=false
+00:00 +1: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +2: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +3: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +4: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +5: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +6: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +7: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +8: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +9: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +10: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +11: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +12: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +13: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +14: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +15: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +16: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +17: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +18: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +19: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +20: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +21: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +22: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +23: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +24: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +25: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.race
+00:01 +26: test/integration/b8_decode_integration_test.dart: [DiomanResponseFactory.expectJson][DiomanResponseFactory.normalize] B8 真实坏 JSON 与 HTML 解码口径
+00:01 +27: All tests passed!

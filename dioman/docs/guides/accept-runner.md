@@ -1,7 +1,7 @@
 ---
 title: dioman testkit 验收执行器手册
 status: active
-updated: 2026-10-28
+updated: 2026-10-29
 summary: 怎么连 47080/47090（或新端口实例）跑 testkit 场景、插件矩阵和维护工具。
 ---
 # dioman testkit 执行器
@@ -58,7 +58,7 @@ node E:/workspaces/api-ws-demo/testkit/tools/gen-index.mjs
 node E:/workspaces/api-ws-demo/testkit/tools/validate.mjs --check-index
 dart run test/accept/bin/inventory.dart
 dart run test/accept/bin/hoist_literals.dart
-dart format test accept
+dart format test
 dart run test/accept/bin/share_prepare_probe.dart
 dart run test/accept/bin/audit.dart coverage/accept/normal-http.json
 ```
@@ -66,3 +66,7 @@ dart run test/accept/bin/audit.dart coverage/accept/normal-http.json
 生成器将单体和边界写回相应领域，plugins.json 保留配对和全量；矩阵执行器从全部领域加载 id。两组缺省等价零值边界已合并，详情见 [测试分层](test-layers.md)。`share_prepare_probe.dart` 保留用于 multipart 重放准备失败的双风格专项复验；`hoist_literals.dart` 保留为可重复执行的维护工具，相邻字符串按完整值提取。历史一次性 review_skips.py / write_review_report.py 已删除，历史证据保持原样。
 
 能力与错误映射见 [testkit 映射](../reference/testkit-mapping.md)，历史五方法结果见 [插件五方法矩阵](../reports/2026-10-27-plugin-matrix.md)，源码复核见 [源码复核](../reports/2026-10-27-library-review.md)。API 构造/读取/调用登记、选项值覆盖和 lib 行覆盖分别报告，不能互相替代。历史未声明组合、未穷尽的单体选项及边界不因本次结构整理变为已完成。
+
+## 管线切换后
+
+请求装配使用 Dioman 客户端，固定阶段由内核决定；cache/share 的中立默认由执行器显式开启。旧插件名只作为 testkit 能力标签，不能据此推断仍有同名插件类。当前字段和结果映射见 [映射](../reference/testkit-mapping.md)。默认真实测试数和历史 PASS 只描述对应记录，当前运行以实际输出为准。

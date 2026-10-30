@@ -1,0 +1,71 @@
+{
+  "implementation": "legacy-895d959",
+  "runtime": "3.13.0 (stable) (Wed Aug 5 00:28:05 2026 -0700) on \"windows_x64\"",
+  "os": "\"Windows 10 \u4e13\u4e1a\u7248\" 10.0 (Build 19045)",
+  "processors": 20,
+  "mode": "JIT (dart run)",
+  "warmupMillis": 500,
+  "measurementMillis": 2000,
+  "results": [
+    {
+      "scenario": "S1",
+      "operations": 43959,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0002974,
+      "opsPerSecond": 21976.232134281632,
+      "meanMicros": 45.047289519779795,
+      "p99Micros": 222.3,
+      "sends": 43959
+    },
+    {
+      "scenario": "S2",
+      "operations": 48219,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000619,
+      "opsPerSecond": 24108.753834068837,
+      "meanMicros": 41.09888840498559,
+      "p99Micros": 197.20000000000002,
+      "sends": 48219
+    },
+    {
+      "scenario": "S3",
+      "operations": 4119,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0002506,
+      "opsPerSecond": 2059.2419769802846,
+      "meanMicros": 484.94158776402037,
+      "p99Micros": 1721.5,
+      "sends": 4119
+    },
+    {
+      "scenario": "S4",
+      "operations": 13238,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0001185,
+      "opsPerSecond": 6618.6078474850365,
+      "meanMicros": 150.54238555673064,
+      "p99Micros": 557.2,
+      "sends": 0
+    },
+    {
+      "scenario": "S5",
+      "operations": 373,
+      "requestsPerOperation": 100,
+      "elapsedSeconds": 2.0018028,
+      "opsPerSecond": 186.3320402988746,
+      "meanMicros": 5362.528954423593,
+      "p99Micros": 14830.300000000001,
+      "sends": 373
+    },
+    {
+      "scenario": "S6",
+      "operations": 39146,
+      "requestsPerOperation": 1,
+      "elapsedSeconds": 2.0000187,
+      "opsPerSecond": 19572.816994161105,
+      "meanMicros": 50.7749527410208,
+      "p99Micros": 173.20000000000002,
+      "sends": 39146
+    }
+  ]
+}

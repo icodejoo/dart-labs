@@ -1,344 +1,217 @@
-// ignore_for_file: avoid_relative_lib_imports
-// 规则层：breaker
-import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
-import 'package:dioman/src/breaker_plugin.dart';
+import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../accept/lib/literals.dart';
-import '../support/fixtures.dart';
-import '../support/test_server.dart';
+import '../support/b3_helpers.dart';
+import '../support/fake_clock.dart';
+import '../support/fake_network.dart';
+import '../support/helpers.dart';
 
-/// 注册本文件的规则层用例。
+/// 熔断状态机与请求级配置规则。
 void main() {
-  group('DiomanBreaker bucket GC', () {
-    late BucketAdapter adapter;
-    late Dio dio;
-    late DateTime now;
-
-    /// make 的测试辅助入口。
-    DiomanBreaker make({
-      int failureThreshold = 2,
-      Duration idleTtl = const Duration(minutes: 10),
-      int maxBuckets = 1000,
-    }) {
-      final b = DiomanBreaker(
-        failureThreshold: failureThreshold,
-        resetDuration: const Duration(seconds: 30),
-        idleTtl: idleTtl,
-        maxBuckets: maxBuckets,
-        clock: () => now,
-      );
-      dio.interceptors.add(b);
-      addTearDown(b.dispose);
-      return b;
-    }
-
-    /// hit 的测试辅助入口。
-    Future<void> hit(String path) async {
-      try {
-        await dio.get<dynamic>(path);
-      } on DioException {
-        // 失败请求也算一次访问
-      }
-    }
-
-    setUp(() {
-      adapter = BucketAdapter();
-      now = DateTime(2026, 1, 1);
-      dio = Dio(BaseOptions(baseUrl: tkHttpFake))..httpClientAdapter = adapter;
-    });
-    test(
-        '[DiomanBreaker.idleTtl][DiomanBreakerState.closed] 空闲超过 idleTtl 的 closed 桶在新桶创建时被回收',
-        () async {
-      final b = make();
-      await hit(tkA3);
-      await hit(tkB);
-      expect(b.bucketCount, 2);
-
-      now = now.add(const Duration(minutes: 11));
-      await hit(tkC2);
-      expect(b.bucketCount, 1, reason: '/a、/b 已过期，只剩 /c');
-    });
-    test('[DiomanBreaker.maxBuckets] 达到 maxBuckets 时淘汰最久未用的安全桶', () async {
-      final b = make(maxBuckets: 3);
-      await hit(tkA3);
-      now = now.add(const Duration(seconds: 1));
-      await hit(tkB);
-      now = now.add(const Duration(seconds: 1));
-      await hit(tkC2);
-      expect(b.bucketCount, 3);
-
-      now = now.add(const Duration(seconds: 1));
-      await hit('/d'); // 未过 ttl，但已达上限 → 淘汰最旧的 /a
-      expect(b.bucketCount, 3);
-
-      // /a 被淘汰后重新建桶会再触发淘汰；用计数验证上限始终生效
-      await hit('/e');
-      expect(b.bucketCount, 3);
-    });
-  });
-
-  group(tkDiomanBreaker, () {
-    test(
-        '[DiomanBreakerOpenException.bucketKey][DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] trips after N consecutive failures, then fails fast (no network)',
-        () async {
-      var hits = 0;
-      final server = await TestServer.start((req) async {
-        hits++;
-        await respondJson(req, {tkOk: false}, 500);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final breaker = DiomanBreaker(
-        failureThreshold: 3,
-        resetDuration: const Duration(seconds: 10),
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      // Three genuine failures trip the breaker.
-      for (var i = 0; i < 3; i++) {
-        await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      }
-      expect(hits, 3, reason: 'all three failing requests hit the server');
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-
-      // Fourth request is rejected fast — never reaches the server.
-      DioException? caught;
-      try {
-        await dio.get<dynamic>(tkX);
-      } on DioException catch (e) {
-        caught = e;
-      }
-      expect(caught, isNotNull);
-      expect(caught!.error, isA<DiomanBreakerOpenException>());
-      expect((caught.error as DiomanBreakerOpenException).bucketKey, tkGETX);
-      expect(hits, 3,
-          reason: 'fail-fast: the open breaker did NOT hit the server');
-    });
-    test(
-        '[DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] a success resets the consecutive-failure count',
-        () async {
-      var status = 500;
-      final server = await TestServer.start((req) async {
-        await respondJson(req, {tkOk: status == 200}, status);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final breaker = DiomanBreaker(
-        failureThreshold: 3,
-        resetDuration: const Duration(seconds: 10),
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      // Two failures, then a success (resets), then two more failures — never
-      // three IN A ROW, so the breaker must stay closed.
-      status = 500;
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      status = 200;
-      await dio.get<dynamic>(tkX);
-      status = 500;
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.closed);
-    });
-    test(
-        '[DiomanBreakerState.closed][DiomanBreakerState.halfOpen] cooldown → halfOpen probe succeeds → closed',
-        () async {
-      var status = 500;
-      var hits = 0;
-      final server = await TestServer.start((req) async {
-        hits++;
-        await respondJson(req, {tkOk: status == 200}, status);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final transitions = <String>[];
-      final breaker = DiomanBreaker(
-        failureThreshold: 2,
-        resetDuration: const Duration(milliseconds: 150),
-        halfOpenMaxCalls: 1,
-        onStateChange: (k, from, to) =>
-            transitions.add('${from.name}->${to.name}'),
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      // Trip it.
-      status = 500;
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-      final hitsAtOpen = hits;
-
-      // Still cooling down → fail fast, server untouched.
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      expect(hits, hitsAtOpen, reason: 'rejected before cooldown, no network');
-
-      // Wait out the cooldown, server now healthy → probe succeeds → closed.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      status = 200;
-      await dio.get<dynamic>(tkX);
-      expect(hits, hitsAtOpen + 1, reason: 'exactly one probe went to network');
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.closed);
-      expect(transitions, [tkClosedOpen, tkOpenHalfOpen, 'halfOpen->closed']);
-    });
-    test(
-        '[DiomanBreakerState.halfOpen][DiomanBreaker.failureThreshold] cooldown → halfOpen probe fails → re-opens',
-        () async {
-      final server = await TestServer.start((req) async {
-        await respondJson(req, {tkOk: false}, 500);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final transitions = <String>[];
-      final breaker = DiomanBreaker(
-        failureThreshold: 2,
-        resetDuration: const Duration(milliseconds: 150),
-        halfOpenMaxCalls: 1,
-        onStateChange: (k, from, to) =>
-            transitions.add('${from.name}->${to.name}'),
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      // Probe hits the still-broken server, fails → back to open.
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-      expect(transitions, [tkClosedOpen, tkOpenHalfOpen, 'halfOpen->open']);
-    });
-    test(
-        '[DiomanBreaker.shouldTrip][DiomanBreakerOptions.shouldTrip] custom shouldTrip counts a 200 business failure',
-        () async {
-      final server = await TestServer.start((req) async {
-        // HTTP 200 but a business-level failure code.
-        await respondJson(req, {tkCode: 1, tkMsg: 'nope'}, 200);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final breaker = DiomanBreaker(
-        failureThreshold: 2,
-        resetDuration: const Duration(seconds: 10),
-        shouldTrip: (resp, err) {
-          final data = resp?.data;
-          if (data is Map && data[tkCode] != 0) return true;
-          return null;
-        },
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      // Both are HTTP 200 (no throw), but the breaker counts them as failures.
-      await dio.get<dynamic>(tkX);
-      await dio.get<dynamic>(tkX);
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-
-      DioException? caught;
-      try {
-        await dio.get<dynamic>(tkX);
-      } on DioException catch (e) {
-        caught = e;
-      }
-      expect(caught?.error, isA<DiomanBreakerOpenException>());
-    });
-    test(
-        '[DiomanBreaker.enabled][DiomanBreakerOptions.enabled] per-request enabled:false bypasses the open breaker',
-        () async {
-      var hits = 0;
-      final server = await TestServer.start((req) async {
-        hits++;
-        await respondJson(req, {tkOk: false}, 500);
-      });
-      addTearDown(server.close);
-
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final breaker = DiomanBreaker(
-        failureThreshold: 2,
-        resetDuration: const Duration(seconds: 10),
-      );
-      dio.interceptors.add(breaker);
-      addTearDown(breaker.dispose);
-
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      await expectLater(dio.get<dynamic>(tkX), throwsA(isA<DioException>()));
-      expect(breaker.stateOf(tkGETX), DiomanBreakerState.open);
-      final hitsAtOpen = hits;
-
-      // Opted-out request must still reach the server (real 500, not a
-      // fast-fail breaker rejection).
-      DioException? caught;
-      try {
-        await dio.get<dynamic>(tkX,
-            options: Options(extra: {
-              DiomanBreaker.pluginName:
-                  const DiomanBreakerOptions(enabled: false),
-            }));
-      } on DioException catch (e) {
-        caught = e;
-      }
-      expect(caught?.error, isNot(isA<DiomanBreakerOpenException>()));
-      expect(hits, hitsAtOpen + 1,
-          reason: 'the opted-out request hit the server');
-    });
-  });
-
   test(
-      '[DiomanBreaker.failureThreshold][DiomanBreaker.halfOpenMaxCalls] breaker 半开达到并发预算时拒绝额外探测',
-      () async {
-    var now = DateTime.utc(2026);
-    final plugin = DiomanBreaker(
-        failureThreshold: 1,
-        halfOpenMaxCalls: 1,
-        resetDuration: replayTick,
-        clock: () => now);
-    final initial = RequestOptions(path: replayPath);
-    plugin.onRequest(initial, RequestInterceptorHandler());
-    final failed = ErrorInterceptorHandler();
-    final failureCheck =
-        expectLater(handlerCompletion(failed), throwsA(anything));
-    plugin.onError(
-        DioException(
-            requestOptions: initial, type: DioExceptionType.connectionError),
-        failed);
-    await failureCheck;
-    now = now.add(replayTick);
-    plugin.onRequest(
-        RequestOptions(path: replayPath), RequestInterceptorHandler());
-    final rejected = RequestInterceptorHandler();
-    final rejectCheck =
-        expectLater(handlerCompletion(rejected), throwsA(anything));
-    plugin.onRequest(RequestOptions(path: replayPath), rejected);
-    await rejectCheck;
-    expect(plugin.stateOf('GET:$replayPath'), DiomanBreakerState.halfOpen);
-    plugin.dispose();
+      '[DiomanBreaker.keyBuilder][DiomanBreakerApi.bucketCount][DiomanBreakerOptions.enabled][DiomanBreakerOptions.keyBuilder][DiomanRequest.call]'
+      '[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态', () async {
+    for (final custom in [false, true]) {
+      final api = testClient(plugins: [
+        DiomanBreaker(keyBuilder: custom ? (_) => b3ValueKey : null)
+      ]);
+      final m = api.plugin<DiomanBreakerApi>()!;
+      for (final option in [
+        null,
+        false,
+        true,
+        const DiomanBreakerOptions(enabled: false),
+        DiomanBreakerOptions(enabled: false, keyBuilder: (_) => b3ValueCustom)
+      ]) {
+        final r = DiomanRequest(
+            RequestOptions(method: b3ValueGet, path: b3Path),
+            call: DiomanCall(options: {DiomanBreaker.option: option}));
+        expect(
+            m.keyOf(r),
+            option is DiomanBreakerOptions && option.keyBuilder != null
+                ? b3ValueCustom
+                : custom
+                    ? b3ValueKey
+                    : b3Route);
+        expect(m.bucketCount, 0);
+        expect(m.retryableAt(m.keyOf(r)), isNull);
+      }
+      api.dispose();
+    }
   });
-
   test(
-      '[DiomanBreaker.shouldTrip][DiomanBreakerOptions.shouldTrip] breaker 非依赖异常视作成功并可重置全部桶',
-      () async {
-    final plugin = DiomanBreaker(shouldTrip: (_, __) => false);
-    final options = RequestOptions(path: replayPath);
-    plugin.onRequest(options, RequestInterceptorHandler());
-    final handler = ErrorInterceptorHandler();
-    final future = handlerCompletion(handler)..ignore();
-    plugin.onError(DioException(requestOptions: options), handler);
-    await expectLater(future, throwsA(anything));
-    plugin.reset();
-    expect(plugin.stateOf('GET:$replayPath'), DiomanBreakerState.closed);
-    plugin.dispose();
+      '[DiomanBreaker.defaultIdleTtl]'
+      '[DiomanBreaker.defaultMaxBuckets] 默认回收一小时和一千桶软上限', () {
+    expect(DiomanBreaker.defaultIdleTtl, const Duration(hours: 1));
+    expect(DiomanBreaker.defaultMaxBuckets, 1000);
+  });
+  test('[DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致', () async {
+    for (final business in [false, true]) {
+      for (final recover in [false, true]) {
+        final clock = FakeClock();
+        final net = FakeNetwork();
+        var status = 500;
+        final changes = <DiomanBreakerState>[];
+        final api = testClient(clock: clock, network: net, plugins: [
+          DiomanBreaker(
+              failureThreshold: 2,
+              resetDuration: b3Tick,
+              onStateChange: (key, from, to) {
+                expect(key, b3Route);
+                changes.add(to);
+              }),
+          TestPlugin(b3ValueResult, stage: DiomanStage.source,
+              handler: (ctx, next) async {
+            net.routes[b3Route] = [
+              FakeReply(status: business ? 200 : status, body: {
+                b3ValueCode: business && status != 200 ? status : 0,
+                b3ValueData: null
+              })
+            ];
+            return next();
+          })
+        ]);
+        final management = api.plugin<DiomanBreakerApi>()!;
+        final request = DiomanRequest(
+            (await api.send<Object?>(b3ValueGet, b3Path))
+                .request
+                .toRequestOptions());
+        expect(management.stateOf('unknown'), DiomanBreakerState.closed);
+        expect(management.isOpen(request), isFalse);
+        await api.send<Object?>(b3ValueGet, b3Path);
+        expect(management.stateOf(b3Route), DiomanBreakerState.open);
+        expect(management.isOpen(request), isTrue);
+        expect(
+            (await api.send<Object?>(b3ValueGet, b3Path)).reason, b3ValueOpen);
+        expect(net.sends.length, 2);
+        clock.elapse(b3Tick);
+        expect(management.isOpen(request), isFalse);
+        status = recover ? 200 : 500;
+        final r = await api.send<Object?>(b3ValueGet, b3Path);
+        expect(r.ok, recover);
+        expect(management.stateOf(b3Route),
+            recover ? DiomanBreakerState.closed : DiomanBreakerState.open);
+        expect(changes, [
+          DiomanBreakerState.open,
+          DiomanBreakerState.halfOpen,
+          recover ? DiomanBreakerState.closed : DiomanBreakerState.open
+        ]);
+        management.reset();
+        expect(management.bucketCount, 0);
+        api.dispose();
+        expect(management.bucketCount, 0);
+      }
+    }
+  });
+  test(
+      '[DiomanBreakerState.open]'
+      '[DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null', () async {
+    for (final custom in [null, true, false]) {
+      for (final kind in [
+        DiomanKind.network,
+        DiomanKind.timeout,
+        DiomanKind.parse,
+        DiomanKind.http,
+        DiomanKind.biz
+      ]) {
+        for (final status in [0, 200, 429, 500]) {
+          final api = testClient(plugins: [
+            DiomanBreaker(failureThreshold: 1, shouldTrip: (r) => custom),
+            TestPlugin(b3ValueResult,
+                stage: DiomanStage.source,
+                handler: (ctx, next) async =>
+                    ctx.fail(DiomanFailure(kind: kind, status: status)))
+          ]);
+          await api.send<Object?>(b3ValueGet, b3Path);
+          final failed = custom ??
+              ([DiomanKind.network, DiomanKind.timeout].contains(kind) ||
+                  status >= 500 ||
+                  status == 429);
+          expect(api.plugin<DiomanBreakerApi>()!.stateOf(b3Route),
+              failed ? DiomanBreakerState.open : DiomanBreakerState.closed);
+          api.dispose();
+        }
+      }
+    }
+  });
+  test(
+      '[DiomanBreakerOptions.failureThreshold][DiomanBreakerOptions.halfOpenMaxCalls][DiomanBreakerOptions.resetDuration][DiomanBreakerOptions.shouldTrip]'
+      '[DiomanBreaker.defaultFailureThreshold]'
+      '[DiomanBreaker.defaultHalfOpenMaxCalls]'
+      '[DiomanBreaker.defaultResetDuration]'
+      '[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭', () async {
+    expect(const DiomanBreaker().idleTtl, DiomanBreaker.defaultIdleTtl);
+    expect(const DiomanBreaker().maxBuckets, DiomanBreaker.defaultMaxBuckets);
+    expect(const DiomanBreaker().failureThreshold, 10);
+    expect(const DiomanBreaker().halfOpenMaxCalls, 3);
+    expect(const DiomanBreaker().resetDuration, const Duration(seconds: 30));
+    for (final option in <Object?>[
+      null,
+      true,
+      false,
+      const DiomanBreakerOptions(enabled: false),
+      const DiomanBreakerOptions(
+          failureThreshold: 1,
+          resetDuration: Duration.zero,
+          halfOpenMaxCalls: 0,
+          keyBuilder: _key,
+          shouldTrip: _trip),
+      b3ValueBad
+    ]) {
+      final net = FakeNetwork()
+        ..routes[b3Route] = [const FakeReply(status: 500)];
+      final api = testClient(
+          network: net, plugins: [const DiomanBreaker(failureThreshold: 1)]);
+      final call = DiomanCall(options: {DiomanBreaker.option: option});
+      final p = api.send<Object?>(b3ValueGet, b3Path, call: call);
+      if (option == b3ValueBad) {
+        await expectLater(p, throwsArgumentError);
+      } else {
+        final request = (await p).request;
+        final m = api.plugin<DiomanBreakerApi>()!;
+        if (option == false ||
+            option is DiomanBreakerOptions && option.enabled == false) {
+          expect(m.bucketCount, 0);
+          expect(m.isOpen(request), isFalse);
+        } else {
+          expect(m.bucketCount, 1);
+          await api.send<Object?>(b3ValueGet, b3Path, call: call);
+          expect(net.sends.length, 1);
+        }
+      }
+      api.dispose();
+    }
+    final api = testClient(plugins: [const DiomanBreaker(enabled: false)]);
+    expect(api.inspect(), isEmpty);
+    api.dispose();
+  });
+  test('[DiomanBreaker.onStateChange] 通知异常隔离，判定与 keyBuilder 异常原样落定', () async {
+    final bug = StateError('breaker');
+    for (final mode in [b3ValueNotice, b3ValueTrip, b3ValueKey]) {
+      final logs = <String>[];
+      final net = FakeNetwork()
+        ..routes[b3Route] = [const FakeReply(status: 500)];
+      final api = testClient(network: net, debug: logs.add, plugins: [
+        DiomanBreaker(
+            failureThreshold: 1,
+            onStateChange: (k, f, t) => throw bug,
+            shouldTrip: mode == b3ValueTrip ? (r) => throw bug : null,
+            keyBuilder: mode == b3ValueKey ? (r) => throw bug : null)
+      ]);
+      final p = api.send<Object?>(b3ValueGet, b3Path);
+      if (mode == b3ValueNotice) {
+        expect((await p).status, 500);
+        expect(logs.where((s) => s.contains('状态通知失败')), hasLength(1));
+      } else {
+        await expectLater(p, throwsA(same(bug)));
+      }
+      api.dispose();
+    }
   });
 }
+
+/// 固定分桶覆盖。
+String _key(DiomanRequest request) => b3ValueCustom;
+
+/// 自定义计失败。
+bool _trip(DiomanResponse<dynamic> result) => true;

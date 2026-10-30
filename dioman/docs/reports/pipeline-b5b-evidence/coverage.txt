@@ -1,0 +1,37 @@
+file LF LH BRF BRH
+cache_store.dart 0 0 0 0
+client.dart 127 127 63 63
+client_internal.dart 2 2 2 2
+clock.dart 5 5 3 3
+config.dart 36 36 22 22
+context.dart 52 52 26 26
+context_internal.dart 5 5 4 4
+context_state.dart 26 26 17 17
+diagnostics.dart 0 0 0 0
+key.dart 54 54 27 27
+options.dart 10 10 8 8
+pipeline.dart 32 32 22 22
+plugin.dart 5 5 5 5
+plugins/auth.dart 122 122 59 59
+plugins/breaker.dart 112 112 48 48
+plugins/cache.dart 141 141 61 61
+plugins/cache_internal.dart 2 2 2 2
+plugins/envs.dart 11 11 8 8
+plugins/filter.dart 39 39 19 19
+plugins/loading.dart 58 58 32 32
+plugins/mock.dart 44 44 19 19
+plugins/notify.dart 19 19 12 12
+plugins/offline.dart 63 63 28 28
+plugins/repath.dart 50 50 23 23
+plugins/retry.dart 94 94 39 39
+plugins/share.dart 99 99 47 47
+plugins/share_internal.dart 2 2 2 2
+plugins/timeout.dart 22 22 13 13
+request.dart 50 50 25 25
+response.dart 108 108 27 27
+response_internal.dart 2 2 1 1
+stages.dart 0 0 0 0
+token_manager.dart 0 0 0 0
+transport.dart 18 18 11 11
+34 source files accounted for; all executable lines/branches 100%; PASS
+cache_store/token_manager: abstract contracts; stages: enums/const tables; diagnostics: export-only; no executable denominator

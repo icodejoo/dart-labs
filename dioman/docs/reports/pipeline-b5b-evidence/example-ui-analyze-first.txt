@@ -1,0 +1,8 @@
+Analyzing lib...
+
+  error - main.dart:9:8 - Target of URI doesn't exist: '../dioman_example.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - main.dart:350:80 - The method 'toOptions' isn't defined for the type 'DiomanRequest'. Try correcting the name to the name of an existing method, or defining a method named 'toOptions'. - undefined_method
+warning - main.dart:117:43 - A value for optional parameter 'headers' isn't ever given. Try removing the unused parameter. - unused_element_parameter
+warning - main.dart:117:65 - A value for optional parameter 'body' isn't ever given. Try removing the unused parameter. - unused_element_parameter
+
+4 issues found.

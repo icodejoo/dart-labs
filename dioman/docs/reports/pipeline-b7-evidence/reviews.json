@@ -1,0 +1,31 @@
+{
+  "dioman": [
+    {
+      "severity": "P2",
+      "finding": "整场景 raw-business-code 声明错误地丢失有效 HTTP 单体覆盖",
+      "resolution": "拆出16个 -http 场景并同步生成器、执行计划、总账；对应HTTP格真实通过。",
+      "fixed": true
+    },
+    {
+      "severity": "P2",
+      "finding": "key 单体与 pairwise 未显式设置开关，配置与声明覆盖不一致",
+      "resolution": "成功/配对请求按是否安装中立key显式设置 options.key；同步源生成器，重跑完整156格。",
+      "fixed": true
+    }
+  ],
+  "testkit": [
+    {
+      "severity": "P2",
+      "finding": "正则扫描请求体会误识别取消控制",
+      "resolution": "只遍历契约step控制结构；普通同名JSON、嵌套取消均有正反例。",
+      "fixed": true
+    },
+    {
+      "severity": "P2",
+      "finding": "重复请求 r#i 的预期无法反推 raw-business-code",
+      "resolution": "按walkStep展开ID，覆盖repeat与id_suffix=false。",
+      "fixed": true
+    }
+  ],
+  "logs": "coverage/accept/b7/review-*.log（原始日志本地保留，不入库）"
+}

@@ -1,0 +1,286 @@
+{
+  "Dioman.delete": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行'"
+  },
+  "Dioman.head": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行'"
+  },
+  "Dioman.patch": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行'"
+  },
+  "Dioman.post": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行'"
+  },
+  "Dioman.put": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行'"
+  },
+  "Dioman.eject": {
+    "file": "test/boundary/client_boundary_test.dart",
+    "title": "'[Dioman.inspect] 内置按名定位和在途保留链快照'"
+  },
+  "DiomanTokenManager.accessToken": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanTokenManager] setTokens 与 clear 管理原始凭证，不提供 canRefresh'"
+  },
+  "DiomanTokenManager.clear": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanTokenManager] setTokens 与 clear 管理原始凭证，不提供 canRefresh'"
+  },
+  "DiomanTokenManager.setTokens": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanTokenManager] setTokens 与 clear 管理原始凭证，不提供 canRefresh'"
+  },
+  "DiomanAuth.defaultBuildHeader": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanAuth.onRefresh] HTTP 与 business 401 默认 Bearer 刷新重放一次，非鉴权失败原样'"
+  },
+  "DiomanAuth.name": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanAuth.onRefresh] HTTP 与 business 401 默认 Bearer 刷新重放一次，非鉴权失败原样'"
+  },
+  "DiomanAuth.pluginName": {
+    "file": "test/rule/auth_rule_test.dart",
+    "title": "'[DiomanAuth.onRefresh] HTTP 与 business 401 默认 Bearer 刷新重放一次，非鉴权失败原样'"
+  },
+  "DiomanBreaker.defaultFailureThreshold": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreaker.defaultHalfOpenMaxCalls": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanBreaker.defaultResetDuration": {
+    "file": "test/rule/breaker_rule_test.dart",
+    "title": "'[DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭'"
+  },
+  "DiomanCancelLink.dispose": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanCancelLink.new(source)": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanCancelLink.new(target)": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContextState.cancel": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContextState.dispose": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContextState.listeners": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContextState.token": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.cancellationSubscriptions": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.derive": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.isCancelled": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.state": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.cancelToken": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享'"
+  },
+  "DiomanContext.get": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanContext.set": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanContext.keyService": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanKeyService.options": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanContextState.keys": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanContextState.values": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.key] 每请求缓存、派生重算、类型状态共享及按身份隔离'"
+  },
+  "DiomanContextState.retain": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "title": "'[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁'"
+  },
+  "DiomanContextState.release": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "title": "'[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁'"
+  },
+  "DiomanContextState.new(onDispose)": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "title": "'[DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁'"
+  },
+  "DiomanContext.replayable": {
+    "file": "test/rule/transport_rule_test.dart",
+    "title": "'[diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离'"
+  },
+  "DiomanContextState.replayable": {
+    "file": "test/rule/transport_rule_test.dart",
+    "title": "'[diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离'"
+  },
+  "DiomanContext.clock": {
+    "file": "test/unit/context_test.dart",
+    "title": "'[DiomanContext.wait] 正常值、异常、超时、取消均清理且忽略迟到结果'"
+  },
+  "DiomanContext.id": {
+    "file": "test/unit/fixtures_test.dart",
+    "title": "'[Dioman.send] InvariantHarness 拒绝空跑、重复落定和泄漏证据'"
+  },
+  "DiomanContext.factory": {
+    "file": "test/rule/response_extension_rule_test.dart",
+    "title": "'[DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段'"
+  },
+  "DiomanContext.log": {
+    "file": "test/rule/transport_rule_test.dart",
+    "title": "'[diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离'"
+  },
+  "DiomanCachePersist.erase": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "title": "'[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填'"
+  },
+  "DiomanCachePersist.remove": {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "title": "'[DiomanCachePersist.read] 慢读取被 clear remove dispose 作废，旧读取不回填'"
+  },
+  "DiomanNotify.defaultStringify": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "title": "'[DiomanNotify.stringify] 默认忽略成功、取消和 silent，失败消息与空消息回退'"
+  },
+  "DiomanResponse.message": {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "title": "'[DiomanNotify.stringify] 默认忽略成功、取消和 silent，失败消息与空消息回退'"
+  },
+  "DiomanOffline.defaultMaxQueueSize": {
+    "file": "test/rule/source_rule_test.dart",
+    "title": "'[DiomanOfflineApi.flush] 离线排队恢复和手动 flush，shouldQueue false 放行'"
+  },
+  "DiomanOfflineOptions.maxWait": {
+    "file": "test/boundary/source_boundary_test.dart",
+    "title": "'[DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3'"
+  },
+  "DiomanRegistration.instance": {
+    "file": "test/unit/pipeline_test.dart",
+    "title": "'[DiomanPlugin.setup] 默认接口、空日志器与独立实例'"
+  },
+  "DiomanPlugin.enforce": {
+    "file": "test/unit/pipeline_test.dart",
+    "title": "'[DiomanPlugin.setup] 默认接口、空日志器与独立实例'"
+  },
+  "DiomanPluginInstance.dispose": {
+    "file": "test/boundary/client_boundary_test.dart",
+    "title": "'[Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求'"
+  },
+  "DiomanPluginInstance.handle": {
+    "file": "test/boundary/client_boundary_test.dart",
+    "title": "'[Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求'"
+  },
+  "DiomanFilter.pluginName": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanRepath.pluginName": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanResponseFactory.derive": {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "title": "'[DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据'"
+  },
+  "DiomanResponseFactory.withCallSite": {
+    "file": "test/rule/client_rule_test.dart",
+    "title": "'[DiomanResponseFactory.create] debug 派生工厂抛错不进入 reject，原栈抛出'"
+  },
+  "DiomanRetry.defaultAfterStatusCodes": {
+    "file": "test/rule/retry_rule_test.dart",
+    "title": "'[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试'"
+  },
+  "DiomanRetry.defaultMethods": {
+    "file": "test/rule/retry_rule_test.dart",
+    "title": "'[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试'"
+  },
+  "DiomanTimeout.defaultConnect": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次'"
+  },
+  "DiomanTimeout.defaultTimeouts": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次'"
+  },
+  "DiomanBreaker.setup": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanRetry.setup": {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "title": "'[DiomanPlugin.stage] B3 固定阶段、名称和每客户端独立状态'"
+  },
+  "DiomanCache.setup": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanMock.setup": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanOffline.setup": {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "title": "'[DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项'"
+  },
+  "DiomanLoading.setup": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanNotify.setup": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanRepath.setup": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanFilter.setup": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "DiomanTimeout.setup": {
+    "file": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "'[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键'"
+  },
+  "diomanSetupPlugins": {
+    "file": "test/unit/pipeline_test.dart",
+    "title": "'[DiomanStage] 内置位置按名称、pre/post 稳定排序及空链'"
+  }
+}

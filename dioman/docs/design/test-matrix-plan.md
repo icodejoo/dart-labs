@@ -78,7 +78,7 @@ dioman 的替身分两类，处理方式不同：
   "apis": ["DiomanRetry.respectRetryAfter", "DiomanRetry.new(respectRetryAfter)"],
   "real": ["retry.503-retry-after"],
   "assumptions": ["H6"],
-  "result": {"status": "BLOCKED", "source": "test/accept/evidence/2026-10-27-summary.json", "passed": 0, "total": 28},
+  "result": {"status": "BLOCKED", "source": "docs/reference/pipeline-migration/raw/accept-evidence/2026-10-27-summary.json", "passed": 0, "total": 28},
   "blocked": "真实侧被执行器跳过……解锁：给注入场景开白名单"
 }
 ```

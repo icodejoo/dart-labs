@@ -1,0 +1,10 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":31536,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/rule/b8_regression_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/rule/b8_regression_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":1}
+{"count":1,"time":7,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":679}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":681}
+{"test":{"id":3,"name":"[DiomanContext.canReplay] B8 一次性体 retry 只发送一次","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":224,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":681}
+{"testID":3,"error":"Bad state: 插件错误：不可重放请求体被重复发送","stackTrace":"package:dioman/src/transport.dart 34:7        diomanTransport\npackage:dioman/src/client.dart 128:52         Dioman._compile.<fn>\npackage:dioman/src/pipeline.dart 81:23        compileDiomanPipeline.<fn>.<fn>\npackage:dioman/src/plugins/retry.dart 338:21  _Retry.handle\n===== asynchronous gap ===========================\npackage:dioman/src/pipeline.dart 73:16        compileDiomanPipeline.<fn>\n===== asynchronous gap ===========================\npackage:dioman/src/client.dart 298:20         Dioman._dispatch\n===== asynchronous gap ===========================\npackage:dioman/src/client.dart 221:9          Dioman.send\n===== asynchronous gap ===========================\ntest\\support\\b3_helpers.dart 66:22            b3Finish.<fn>\n","isFailure":false,"type":"error","time":744}
+{"testID":3,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":745}
+{"success":false,"type":"done","time":755}

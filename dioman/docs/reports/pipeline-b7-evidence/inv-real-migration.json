@@ -1,0 +1,925 @@
+{
+  "original": 153,
+  "api": 150,
+  "invariant": 3,
+  "entries": [
+    {
+      "from": "INV-REAL-auth.code-only-401-concurrent",
+      "scenario": "auth.code-only-401-concurrent",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.code-only-401-no-refresh-token",
+      "scenario": "auth.code-only-401-no-refresh-token",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.code-only-401-refresh-once-then-expired",
+      "scenario": "auth.code-only-401-refresh-once-then-expired",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.expired-multipart-replay",
+      "scenario": "auth.expired-multipart-replay",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.garbage-then-relogin",
+      "scenario": "auth.garbage-then-relogin",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.logout-inflight",
+      "scenario": "auth.logout-inflight",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.natural-expiry-refresh",
+      "scenario": "auth.natural-expiry-refresh",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.network-failure-keeps-session",
+      "scenario": "auth.network-failure-keeps-session",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.offline-refresh-keeps-session",
+      "scenario": "auth.offline-refresh-keeps-session",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.post-replay-body-intact",
+      "scenario": "auth.post-replay-body-intact",
+      "to": "DiomanContext.markReplayable",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.relogin-after-expired",
+      "scenario": "auth.relogin-after-expired",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.relogin-other-user",
+      "scenario": "auth.relogin-other-user",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-all-concurrent",
+      "scenario": "auth.revoke-all-concurrent",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-all-expired",
+      "scenario": "auth.revoke-all-expired",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-all-previous-tokens",
+      "scenario": "auth.revoke-all-previous-tokens",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-all-then-relogin",
+      "scenario": "auth.revoke-all-then-relogin",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-default-scope-is-all",
+      "scenario": "auth.revoke-default-scope-is-all",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.revoke-kicked",
+      "scenario": "auth.revoke-kicked",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.slow-refresh-cancel",
+      "scenario": "auth.slow-refresh-cancel",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.slow-refresh-cancel-all",
+      "scenario": "auth.slow-refresh-cancel-all",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.strict-rotation-two-rounds",
+      "scenario": "auth.strict-rotation-two-rounds",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.style-switch-concurrent",
+      "scenario": "auth.style-switch-concurrent",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.style-switch-expired",
+      "scenario": "auth.style-switch-expired",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-bad-signature-refresh-bad",
+      "scenario": "auth.token-bad-signature-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-bad-signature-refresh-none",
+      "scenario": "auth.token-bad-signature-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-bad-signature-refresh-ok",
+      "scenario": "auth.token-bad-signature-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-empty-refresh-bad",
+      "scenario": "auth.token-empty-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-empty-refresh-none",
+      "scenario": "auth.token-empty-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-empty-refresh-ok",
+      "scenario": "auth.token-empty-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-garbage-concurrent-no-refresh",
+      "scenario": "auth.token-garbage-concurrent-no-refresh",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-garbage-concurrent-refresh-bad",
+      "scenario": "auth.token-garbage-concurrent-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-garbage-concurrent-refresh-ok",
+      "scenario": "auth.token-garbage-concurrent-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-garbage-refresh-bad",
+      "scenario": "auth.token-garbage-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-garbage-refresh-none",
+      "scenario": "auth.token-garbage-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-no-refresh-user-garbage",
+      "scenario": "auth.token-no-refresh-user-garbage",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-no-refresh-user-none",
+      "scenario": "auth.token-no-refresh-user-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-none-concurrent",
+      "scenario": "auth.token-none-concurrent",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-none-refresh-bad",
+      "scenario": "auth.token-none-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-none-refresh-none",
+      "scenario": "auth.token-none-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-none-refresh-ok",
+      "scenario": "auth.token-none-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-nonstrict-previous-access",
+      "scenario": "auth.token-nonstrict-previous-access",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-previous-after-logout",
+      "scenario": "auth.token-previous-after-logout",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-previous-after-revoke",
+      "scenario": "auth.token-previous-after-revoke",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-previous-refresh-reuse",
+      "scenario": "auth.token-previous-refresh-reuse",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-strict-previous-access",
+      "scenario": "auth.token-strict-previous-access",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-tampered-payload-refresh-bad",
+      "scenario": "auth.token-tampered-payload-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-tampered-payload-refresh-none",
+      "scenario": "auth.token-tampered-payload-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-tampered-payload-refresh-ok",
+      "scenario": "auth.token-tampered-payload-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-wrong-scheme-refresh-bad",
+      "scenario": "auth.token-wrong-scheme-refresh-bad",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-wrong-scheme-refresh-none",
+      "scenario": "auth.token-wrong-scheme-refresh-none",
+      "to": "DiomanAuth.new(onAccessExpired)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.token-wrong-scheme-refresh-ok",
+      "scenario": "auth.token-wrong-scheme-refresh-ok",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-auth.two-rounds-refresh-chain",
+      "scenario": "auth.two-rounds-refresh-chain",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-breaker.half-open-probe-cancel",
+      "scenario": "breaker.half-open-probe-cancel",
+      "to": "DiomanBreakerState.halfOpen",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-breaker.open-fast-fail",
+      "scenario": "breaker.open-fast-fail",
+      "to": "DiomanBreaker.failureThreshold",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-breaker.retry-halts-on-trip",
+      "scenario": "breaker.retry-halts-on-trip",
+      "to": "DiomanBreaker.failureThreshold",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-breaker.success-resets-count",
+      "scenario": "breaker.success-resets-count",
+      "to": "DiomanBreaker.failureThreshold",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.cancel-not-cached",
+      "scenario": "cache.cancel-not-cached",
+      "to": "DiomanCacheOptions.shouldStore",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.clear",
+      "scenario": "cache.clear",
+      "to": "DiomanCacheApi.clear",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.concurrent-no-share-all-miss",
+      "scenario": "cache.concurrent-no-share-all-miss",
+      "to": "DiomanCachePolicy.memo",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.diff-body-no-mixup",
+      "scenario": "cache.diff-body-no-mixup",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.diff-query-no-mixup",
+      "scenario": "cache.diff-query-no-mixup",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.failure-then-success-cached",
+      "scenario": "cache.failure-then-success-cached",
+      "to": "DiomanCacheOptions.shouldStore",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.http-error-not-cached",
+      "scenario": "cache.http-error-not-cached",
+      "to": "DiomanCacheOptions.shouldStore",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.large-response",
+      "scenario": "cache.large-response",
+      "to": "DiomanCachePolicy.memo",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.offline-miss-then-recover",
+      "scenario": "cache.offline-miss-then-recover",
+      "to": "DiomanCachePolicy.memo",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.single-clear-cache",
+      "scenario": "cache.single-clear-cache",
+      "to": "DiomanCacheApi.clear",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.timeout-not-cached",
+      "scenario": "cache.timeout-not-cached",
+      "to": "DiomanCacheOptions.shouldStore",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.user-scope-no-leak",
+      "scenario": "cache.user-scope-no-leak",
+      "to": "DiomanKeyOptions.namespace",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cache.user-scope-same-user-hits",
+      "scenario": "cache.user-scope-same-user-hits",
+      "to": "DiomanKeyOptions.namespace",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.after-complete-noop",
+      "scenario": "cancel.after-complete-noop",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.all",
+      "scenario": "cancel.all",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.all-then-new-works",
+      "scenario": "cancel.all-then-new-works",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.all-with-nothing-inflight",
+      "scenario": "cancel.all-with-nothing-inflight",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.before-reach-server",
+      "scenario": "cancel.before-reach-server",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.blackhole-cancel-before-timeout",
+      "scenario": "cancel.blackhole-cancel-before-timeout",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.double-cancel",
+      "scenario": "cancel.double-cancel",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.hang-is-canceled-not-timeout",
+      "scenario": "cancel.hang-is-canceled-not-timeout",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.one-of-many",
+      "scenario": "cancel.one-of-many",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.parallel-32",
+      "scenario": "cancel.parallel-32",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.single",
+      "scenario": "cancel.single",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-cancel.slow-body",
+      "scenario": "cancel.slow-body",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-combo.filter-repath-path-var-first",
+      "scenario": "combo.filter-repath-path-var-first",
+      "to": "INV-01",
+      "reason": "固定阶段先后次序为跨插件不变量，无对应单项 API"
+    },
+    {
+      "from": "INV-REAL-combo.loading-mock-fallback-single-pair",
+      "scenario": "combo.loading-mock-fallback-single-pair",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-combo.mock-share-fallback-single-flight",
+      "scenario": "combo.mock-share-fallback-single-flight",
+      "to": "DiomanMock.fallbackWhen",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-faults.html-gateway-page",
+      "scenario": "faults.html-gateway-page",
+      "to": "DiomanResponse.kind",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-faults.no-envelope",
+      "scenario": "faults.no-envelope",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-key.filter-before-key",
+      "scenario": "key.filter-before-key",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-key.method-diff-not-merged",
+      "scenario": "key.method-diff-not-merged",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-key.share-diff-query-not-merged",
+      "scenario": "key.share-diff-query-not-merged",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-key.share-without-key-not-merged",
+      "scenario": "key.share-without-key-not-merged",
+      "to": "DiomanCall.key",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.big-parallel-20",
+      "scenario": "loading.big-parallel-20",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.cancel-closes",
+      "scenario": "loading.cancel-closes",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.failure-closes",
+      "scenario": "loading.failure-closes",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.flap-recovers-single-pair",
+      "scenario": "loading.flap-recovers-single-pair",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.network-switch-pairs",
+      "scenario": "loading.network-switch-pairs",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.parallel-partial-fail",
+      "scenario": "loading.parallel-partial-fail",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.retry-exhausted-closes",
+      "scenario": "loading.retry-exhausted-closes",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.retry-no-flicker",
+      "scenario": "loading.retry-no-flicker",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-loading.timeout-closes",
+      "scenario": "loading.timeout-closes",
+      "to": "DiomanLoading.new(onChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-mock.fallback-to-real-on-404",
+      "scenario": "mock.fallback-to-real-on-404",
+      "to": "DiomanMock.fallbackWhen",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-mock.mock-then-retry-untouched",
+      "scenario": "mock.mock-then-retry-untouched",
+      "to": "DiomanMock.mockUrl",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-mock.query-and-body-forwarded",
+      "scenario": "mock.query-and-body-forwarded",
+      "to": "DiomanMock.mockUrl",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-mock.routes-to-mock-server",
+      "scenario": "mock.routes-to-mock-server",
+      "to": "DiomanMock.mockUrl",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-mock.single-fallback-disabled",
+      "scenario": "mock.single-fallback-disabled",
+      "to": "DiomanMock.fallbackWhen",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.blackhole-cancel-all",
+      "scenario": "network.blackhole-cancel-all",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.flap-parallel-retry",
+      "scenario": "network.flap-parallel-retry",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.flap-retry-recovers",
+      "scenario": "network.flap-retry-recovers",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.lossy-parallel-retry",
+      "scenario": "network.lossy-parallel-retry",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.offline-immediate",
+      "scenario": "network.offline-immediate",
+      "to": "Dioman.send",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-network.offline-share-loading",
+      "scenario": "network.offline-share-loading",
+      "to": "INV-19",
+      "reason": "离线/共享/loading 的跨阶段协作为组合不变量"
+    },
+    {
+      "from": "INV-REAL-network.recovery-state-clean",
+      "scenario": "network.recovery-state-clean",
+      "to": "INV-05",
+      "reason": "网络恢复后多类状态一起归零为生命周期不变量"
+    },
+    {
+      "from": "INV-REAL-network.switch-offline-online",
+      "scenario": "network.switch-offline-online",
+      "to": "Dioman.send",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.business-fail",
+      "scenario": "normalize.business-fail",
+      "to": "DiomanResponse.status",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.business-multi-codes",
+      "scenario": "normalize.business-multi-codes",
+      "to": "DiomanResponse.status",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.business-negative-code",
+      "scenario": "normalize.business-negative-code",
+      "to": "DiomanResponse.status",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.business-notify-retry-combo",
+      "scenario": "normalize.business-notify-retry-combo",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.envelope-unwrap",
+      "scenario": "normalize.envelope-unwrap",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.http-error-wins",
+      "scenario": "normalize.http-error-wins",
+      "to": "DiomanResponse.status",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.no-envelope-passthrough",
+      "scenario": "normalize.no-envelope-passthrough",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.per-request-off",
+      "scenario": "normalize.per-request-off",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-normalize.style-switch",
+      "scenario": "normalize.style-switch",
+      "to": "DiomanResponse.data",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-notify.parallel-failures-each",
+      "scenario": "notify.parallel-failures-each",
+      "to": "DiomanNotify.notify",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-notify.parse-error-once",
+      "scenario": "notify.parse-error-once",
+      "to": "DiomanNotify.notify",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-notify.retry-exhausted-once",
+      "scenario": "notify.retry-exhausted-once",
+      "to": "DiomanNotify.notify",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-notify.retry-recovered-silent",
+      "scenario": "notify.retry-recovered-silent",
+      "to": "DiomanNotify.notify",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-notify.timeout-once",
+      "scenario": "notify.timeout-once",
+      "to": "DiomanNotify.notify",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-offline.cancel-while-probing",
+      "scenario": "offline.cancel-while-probing",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-offline.then-online-no-stale-state",
+      "scenario": "offline.then-online-no-stale-state",
+      "to": "DiomanOffline.new(onConnectivityChanged)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-repath.key-after-repath",
+      "scenario": "repath.key-after-repath",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-repath.key-cache-no-mixup",
+      "scenario": "repath.key-cache-no-mixup",
+      "to": "DiomanKeyService.build",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-repath.same-var-twice",
+      "scenario": "repath.same-var-twice",
+      "to": "DiomanRepath.pattern",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-repath.zero-value",
+      "scenario": "repath.zero-value",
+      "to": "DiomanRepath.removeKey",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.401-goes-refresh-first",
+      "scenario": "retry.401-goes-refresh-first",
+      "to": "DiomanAuth.new(onRefresh)",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.attempt-is-new-connection-friendly",
+      "scenario": "retry.attempt-is-new-connection-friendly",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.blackhole-timeout",
+      "scenario": "retry.blackhole-timeout",
+      "to": "DiomanRetry.shouldRetry",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.cancel-all-during-wait",
+      "scenario": "retry.cancel-all-during-wait",
+      "to": "Dioman.cancelAll",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.cancel-during-wait",
+      "scenario": "retry.cancel-during-wait",
+      "to": "DiomanCall.cancelToken",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.fail-every-all-recover",
+      "scenario": "retry.fail-every-all-recover",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.fail-on-gap-exhausts",
+      "scenario": "retry.fail-on-gap-exhausts",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.fail-on-noncontiguous-retried",
+      "scenario": "retry.fail-on-noncontiguous-retried",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.fail-on-union-fail-times",
+      "scenario": "retry.fail-on-union-fail-times",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.flap-recovers",
+      "scenario": "retry.flap-recovers",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.hang-timeout-retried",
+      "scenario": "retry.hang-timeout-retried",
+      "to": "DiomanRetry.shouldRetry",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.lossy-converges",
+      "scenario": "retry.lossy-converges",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.offline-exhausts",
+      "scenario": "retry.offline-exhausts",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.parallel-independent",
+      "scenario": "retry.parallel-independent",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.post-network-no-retry",
+      "scenario": "retry.post-network-no-retry",
+      "to": "DiomanRetry.shouldRetry",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-retry.style-switch",
+      "scenario": "retry.style-switch",
+      "to": "DiomanRetry.max",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-share.all-cancelled-aborts-server",
+      "scenario": "share.all-cancelled-aborts-server",
+      "to": "DiomanShare.policy",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-share.network-failure-all-fail",
+      "scenario": "share.network-failure-all-fail",
+      "to": "DiomanShare.policy",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-share.reuse-after-failure",
+      "scenario": "share.reuse-after-failure",
+      "to": "DiomanShare.policy",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-share.single-all-timeout-aborts-server",
+      "scenario": "share.single-all-timeout-aborts-server",
+      "to": "DiomanShare.policy",
+      "reason": "按实际断言改挂公开 API"
+    },
+    {
+      "from": "INV-REAL-share.single-start-explicit-key",
+      "scenario": "share.single-start-explicit-key",
+      "to": "DiomanSharePolicy.start",
+      "reason": "按实际断言改挂公开 API"
+    }
+  ]
+}

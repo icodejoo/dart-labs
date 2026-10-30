@@ -1,0 +1,3 @@
+00:00 +0: loading test/integration/example_integration_test.dart
+00:00 +0: [INV-example] 示例遇到预期 404 后继续完成覆盖与释放断言
+00:04 +1: All tests passed!

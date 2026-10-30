@@ -57,9 +57,6 @@ void main() {
         final owner = declaration.namePart.typeName.lexeme;
         if (owner.startsWith(tkUnderscore)) continue;
         add(tkEmpty, owner, tkClass, declaration);
-        if (owner == tkDiomanNotifyOptions) {
-          add(owner, tkNew, tkConstructor, declaration);
-        }
         for (final member in declaration.body.members) {
           if (member is ConstructorDeclaration) {
             add(owner, member.name?.lexeme ?? tkNew, tkConstructor, member);
@@ -105,14 +102,6 @@ void main() {
       }
     }
   }
-  // plugin_order.dart 只导出三个类型，其余顶层函数不在公开入口。
-  rows.removeWhere((r) =>
-      r[tkFile] == 'lib/src/plugin_order.dart' &&
-      ![
-        tkDiomanPluginOrder,
-        tkDiomanPluginOrderException,
-        tkDiomanPluginOrderIssue
-      ].any((n) => r[tkApi] == n || '${r[tkApi]}'.startsWith('$n.')));
   final file = File(tkAcceptApiInventoryJson);
   file.writeAsStringSync(
       const JsonEncoder.withIndent(tkJsonIndent).convert(rows));

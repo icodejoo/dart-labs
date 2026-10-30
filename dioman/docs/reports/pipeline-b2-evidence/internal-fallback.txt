@@ -1,0 +1,23 @@
+00:00 +0: loading test/boundary/internal_settlement_boundary_test.dart
+00:00 +0: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +0 -1: [Dioman.send] internal 缺 error 时抛明确 StateError [E]
+  Expected: throws <Instance of 'StateError'> with `message`: 'internal result without error'
+    Actual: <Instance of 'Future<DiomanResponse<Object?>>'>
+     Which: threw _TypeError:<Null check operator used on a null value>
+            stack package:dioman/src/pipeline/client.dart 302:25             Dioman._dispatch
+                  ===== asynchronous gap ===========================
+                  package:dioman/src/pipeline/client.dart 219:9              Dioman.send
+                  ===== asynchronous gap ===========================
+                  test\boundary\internal_settlement_boundary_test.dart 14:5  main.<fn>
+                  
+            which is not an instance of 'StateError'
+  
+  test\boundary\internal_settlement_boundary_test.dart 14:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

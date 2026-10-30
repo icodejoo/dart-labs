@@ -1,0 +1,27 @@
+00:00 +0: loading test/unit/pipeline_test.dart
+00:00 +0: [DiomanNext] 同步中间件异常转 internal，外层继续收尾
+00:00 +0 -1: [DiomanNext] 同步中间件异常转 internal，外层继续收尾 [E]
+  Expected: ['pre', 'internal']
+    Actual: ['pre', 'offline']
+     Which: at location [1] is 'offline' instead of 'internal'
+  
+  package:matcher                     expect
+  test\unit\pipeline_test.dart 106:7  main.<fn>
+  
+00:00 +0 -1: [DiomanNext] 异步中间件异常转 internal，外层继续收尾
+00:00 +0 -2: [DiomanNext] 异步中间件异常转 internal，外层继续收尾 [E]
+  Expected: ['pre', 'internal']
+    Actual: ['pre', 'offline']
+     Which: at location [1] is 'offline' instead of 'internal'
+  
+  package:matcher                     expect
+  test\unit\pipeline_test.dart 106:7  main.<fn>
+  
+00:00 +0 -2: Some tests failed.
+
+Failing tests:
+  test/unit/pipeline_test.dart: [DiomanNext] 同步中间件异常转 internal，外层继续收尾
+  test/unit/pipeline_test.dart: [DiomanNext] 异步中间件异常转 internal，外层继续收尾
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

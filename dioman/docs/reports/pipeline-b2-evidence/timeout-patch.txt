@@ -1,0 +1,16 @@
+00:00 +0: loading test/rule/stateless_prepare_rule_test.dart
+00:00 +0: [DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭
+00:00 +0 -1: [DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭 [E]
+  Expected: Duration:<0:00:07.000000>
+    Actual: <null>
+  
+  package:matcher                                   expect
+  test\rule\stateless_prepare_rule_test.dart 169:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/stateless_prepare_rule_test.dart: [DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

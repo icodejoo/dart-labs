@@ -110,7 +110,8 @@ void main(List<String> args) {
   ];
   final triage = [
     for (final failed
-        in (readJson('test/accept/results/all-resume.json')[tkResults] as List? ??
+        in (readJson('test/accept/results/all-resume.json')[tkResults]
+                    as List? ??
                 [])
             .map(obj)
             .where((r) => r[tkStatus] == tkFailed))

@@ -1,0 +1,33 @@
+ M docs/design/pipeline-plugin-spec.md
+ M lib/pipeline.dart
+ M lib/src/pipeline/client.dart
+ M lib/src/pipeline/context.dart
+ M lib/src/pipeline/response.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/2026-10-29-pipeline-b4.md
+?? docs/reports/pipeline-b4-evidence/
+?? lib/src/pipeline/cache_store.dart
+?? lib/src/pipeline/plugins/cache.dart
+?? lib/src/pipeline/plugins/mock.dart
+?? lib/src/pipeline/plugins/offline.dart
+?? lib/src/pipeline/plugins/share.dart
+?? test/boundary/b4_final_review_boundary_test.dart
+?? test/boundary/cache_persist_boundary_test.dart
+?? test/boundary/mock_cancel_boundary_test.dart
+?? test/boundary/share_replay_boundary_test.dart
+?? test/boundary/source_boundary_test.dart
+?? test/boundary/source_lifecycle_boundary_test.dart
+?? test/boundary/source_options_boundary_test.dart
+?? test/boundary/source_review_boundary_test.dart
+?? test/combo/b4_auth_migration_combo_test.dart
+?? test/combo/b4_retry_migration_combo_test.dart
+?? test/combo/source_combo_test.dart
+?? test/combo/source_migration_combo_test.dart
+?? test/integration/source_transport_integration_test.dart
+?? test/rule/source_rule_test.dart
+?? test/support/pipeline/b4_constants.dart
+?? test/support/pipeline/b4_helpers.dart
+?? test/support/pipeline/b4_migration_scenarios.dart
+?? test/support/pipeline/b4_retry_migration_scenarios.dart
+?? tool/pipeline_b4_migration.py
+?? tool/pipeline_b4_mutations.py

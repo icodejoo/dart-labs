@@ -1,0 +1,16 @@
+00:00 +0: loading test/combo/source_combo_test.dart
+00:00 +0: [DiomanRetry.max × DiomanMock.mockUrl] 每次尝试探测回落且 I7 嵌套请求体独立
+00:00 +0 -1: [DiomanRetry.max × DiomanMock.mockUrl] 每次尝试探测回落且 I7 嵌套请求体独立 [E]
+  Expected: <0>
+    Actual: <2>
+  
+  package:matcher                          expect
+  test\combo\source_combo_test.dart 261:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/source_combo_test.dart: [DiomanRetry.max × DiomanMock.mockUrl] 每次尝试探测回落且 I7 嵌套请求体独立
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

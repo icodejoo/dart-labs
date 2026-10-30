@@ -1,0 +1,1552 @@
+[
+  {
+    "api": "Dioman.install",
+    "rename": null,
+    "basis": "change Dioman.install (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "Dioman.installPlugins",
+    "rename": null,
+    "basis": "change Dioman.installPlugins (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "Dioman.sort",
+    "rename": null,
+    "basis": "drop Dioman.sort (C4)：删除公开拓扑排序与校验；改用固定阶段，inspect 只查询已编译顺序。"
+  },
+  {
+    "api": "Dioman.validate",
+    "rename": null,
+    "basis": "drop Dioman.validate (C4)：删除公开拓扑排序与校验；改用固定阶段，inspect 只查询已编译顺序。"
+  },
+  {
+    "api": "DiomanAuth.cancel",
+    "rename": null,
+    "basis": "drop DiomanAuth.cancel (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanAuth.dio",
+    "rename": null,
+    "basis": "drop DiomanAuth.dio (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。；keep DiomanAuth.dio#transport-reuse (keep)：保留重放复用客户端 Dio adapter/连接且不关闭宿主的行为；删除 setter 不删除复用能力。"
+  },
+  {
+    "api": "DiomanAuth.dispose",
+    "rename": null,
+    "basis": "change DiomanAuth.dispose (C1)：生命周期改由客户端实例管理，不再释放旧版兜底重放 Dio；客户端 dispose 后拒绝新请求。"
+  },
+  {
+    "api": "DiomanAuth.new(now)",
+    "rename": null,
+    "basis": "keep DiomanAuth.new(now) (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanAuth.onError",
+    "rename": null,
+    "basis": "change DiomanAuth.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanAuth.onError#body-replay (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanAuth.onError#multipart-replay (C1)：markReplayable 对不可克隆 Stream 回退原引用并 debug 告警；不再保留旧版拒绝重放断言。"
+  },
+  {
+    "api": "DiomanAuth.onRequest",
+    "rename": null,
+    "basis": "change DiomanAuth.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanAuth.onRequest#cancel-refresh (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanAuth.onResponse",
+    "rename": null,
+    "basis": "change DiomanAuth.onResponse (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanAuth.share",
+    "rename": null,
+    "basis": "drop DiomanAuth.share (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanAuthOptions.new(now)",
+    "rename": null,
+    "basis": "drop DiomanAuthOptions.now (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanAuthOptions.now",
+    "rename": null,
+    "basis": "drop DiomanAuthOptions.now (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanBreaker.admit",
+    "rename": null,
+    "basis": "drop DiomanBreaker.admit (C1,C4)：删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。"
+  },
+  {
+    "api": "DiomanBreaker.bucketCount",
+    "rename": "DiomanBreakerApi.bucketCount",
+    "basis": "change DiomanBreaker.bucketCount (C1,C5)：暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanBreaker.dispose",
+    "rename": null,
+    "basis": "keep DiomanBreaker.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanBreaker.isOpen",
+    "rename": "DiomanBreakerApi.isOpen",
+    "basis": "change DiomanBreaker.isOpen (C1,C5)：暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanBreaker.onError",
+    "rename": null,
+    "basis": "change DiomanBreaker.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanBreaker.onError#cancel-probe (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanBreaker.onError#network-classification (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanBreaker.onRequest",
+    "rename": null,
+    "basis": "change DiomanBreaker.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanBreaker.onResponse",
+    "rename": null,
+    "basis": "change DiomanBreaker.onResponse (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanBreaker.ordering",
+    "rename": null,
+    "basis": "change DiomanBreaker.ordering (C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanBreaker.recordError",
+    "rename": null,
+    "basis": "drop DiomanBreaker.recordError (C1,C4)：删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。"
+  },
+  {
+    "api": "DiomanBreaker.recordResponse",
+    "rename": null,
+    "basis": "drop DiomanBreaker.recordResponse (C1,C4)：删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。"
+  },
+  {
+    "api": "DiomanBreaker.reset",
+    "rename": "DiomanBreakerApi.reset",
+    "basis": "keep DiomanBreaker.reset (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanBreaker.stateOf",
+    "rename": "DiomanBreakerApi.stateOf",
+    "basis": "change DiomanBreaker.stateOf (C1,C5)：暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanBreakerOpenException",
+    "rename": null,
+    "basis": "drop DiomanBreakerOpenException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.bucketKey",
+    "rename": null,
+    "basis": "change DiomanBreakerOpenException.bucketKey (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.new",
+    "rename": null,
+    "basis": "drop DiomanBreakerOpenException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.new(bucketKey)",
+    "rename": null,
+    "basis": "change DiomanBreakerOpenException.bucketKey (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.new(retryableAt)",
+    "rename": null,
+    "basis": "change DiomanBreakerOpenException.retryableAt (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.retryableAt",
+    "rename": null,
+    "basis": "change DiomanBreakerOpenException.retryableAt (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanBreakerOpenException.toString",
+    "rename": null,
+    "basis": "drop DiomanBreakerOpenException.toString (C2,C6)：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanCache.clear",
+    "rename": "DiomanCacheApi.clear",
+    "basis": "keep DiomanCache.clear (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanCache.dispose",
+    "rename": null,
+    "basis": "keep DiomanCache.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanCache.new(now)",
+    "rename": null,
+    "basis": "keep DiomanCache.new(now) (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanCache.onRequest",
+    "rename": null,
+    "basis": "change DiomanCache.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanCache.onResponse",
+    "rename": null,
+    "basis": "change DiomanCache.onResponse (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。；change DiomanCache.onResponse#canceled-response (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanCache.ordering",
+    "rename": null,
+    "basis": "change DiomanCache.ordering (C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanCache.remove",
+    "rename": "DiomanCacheApi.remove",
+    "basis": "keep DiomanCache.remove (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanCacheOptions.maxEntries",
+    "rename": null,
+    "basis": "drop DiomanCacheOptions.maxEntries (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanCacheOptions.new(maxEntries)",
+    "rename": null,
+    "basis": "drop DiomanCacheOptions.maxEntries (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanCacheOptions.new(now)",
+    "rename": null,
+    "basis": "drop DiomanCacheOptions.now (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanCacheOptions.now",
+    "rename": null,
+    "basis": "drop DiomanCacheOptions.now (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanCachePolicy.none",
+    "rename": null,
+    "basis": "drop DiomanCachePolicy.none (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanCancel",
+    "rename": null,
+    "basis": "drop DiomanCancel.onRequest：删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。"
+  },
+  {
+    "api": "DiomanCancel.cancelAll",
+    "rename": null,
+    "basis": "change DiomanCancel.cancelAll (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。；change DiomanCancel.cancelAll#completion (C2,C3)：落定时可预期失败抛 DiomanResponse；send 返回失败结果，bug 保留原异常和 stack。；change DiomanCancel.cancelAll#transport-release (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.config",
+    "rename": null,
+    "basis": "change DiomanCancel.config (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.dispose",
+    "rename": null,
+    "basis": "change DiomanCancel.dispose (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。；change DiomanCancel.dispose#inflight (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.name",
+    "rename": null,
+    "basis": "change DiomanCancel.name (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.new",
+    "rename": null,
+    "basis": "drop DiomanCancel.onRequest：删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。"
+  },
+  {
+    "api": "DiomanCancel.new(enabled)",
+    "rename": null,
+    "basis": "change DiomanCancel.new(enabled) (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.onError",
+    "rename": null,
+    "basis": "change DiomanCancel.onError (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。；change DiomanCancel.onError#caller-cancel (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.onRequest",
+    "rename": null,
+    "basis": "drop DiomanCancel.onRequest (C3)：删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。"
+  },
+  {
+    "api": "DiomanCancel.onResponse",
+    "rename": null,
+    "basis": "change DiomanCancel.onResponse (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancel.ordering",
+    "rename": null,
+    "basis": "change DiomanCancel.ordering (C3,C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanCancel.pluginName",
+    "rename": null,
+    "basis": "change DiomanCancel.pluginName (C3,C5)：保留稳定插件名用于查找；请求级开关改用类型化选项键，不再将名称作为 extra 协议。"
+  },
+  {
+    "api": "DiomanCancel.track",
+    "rename": null,
+    "basis": "drop DiomanCancel.track (C3)：删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。"
+  },
+  {
+    "api": "DiomanCancel.untrack",
+    "rename": null,
+    "basis": "drop DiomanCancel.untrack (C3)：删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。"
+  },
+  {
+    "api": "DiomanCancelOptions",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanCancelOptions.enabled",
+    "rename": null,
+    "basis": "change DiomanCancelOptions.enabled (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanCancelOptions.new",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanCancelOptions.new(enabled)",
+    "rename": null,
+    "basis": "change DiomanCancelOptions.enabled (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "DiomanEnvs.apply",
+    "rename": null,
+    "basis": "change DiomanEnvs.apply (C1)：envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。"
+  },
+  {
+    "api": "DiomanEnvs.new(dio)",
+    "rename": null,
+    "basis": "change DiomanEnvs.new(dio) (C1)：envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。"
+  },
+  {
+    "api": "DiomanEnvs.onRequest",
+    "rename": null,
+    "basis": "change DiomanEnvs.onRequest (C1)：envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。"
+  },
+  {
+    "api": "DiomanException",
+    "rename": "DiomanResponse",
+    "basis": "drop DiomanException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanException.code",
+    "rename": "DiomanResponse.code",
+    "basis": "change DiomanException.code (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.data",
+    "rename": "DiomanResponse.data",
+    "basis": "change DiomanException.data (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.message",
+    "rename": "DiomanResponse.message",
+    "basis": "change DiomanException.message (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.new",
+    "rename": "DiomanResponse.new",
+    "basis": "drop DiomanException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanException.new(code)",
+    "rename": "DiomanResponse.new(code)",
+    "basis": "change DiomanException.code (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.new(data)",
+    "rename": "DiomanResponse.new(data)",
+    "basis": "change DiomanException.data (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.new(message)",
+    "rename": "DiomanResponse.new(message)",
+    "basis": "change DiomanException.message (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanException.toString",
+    "rename": "DiomanResponse.toString",
+    "basis": "drop DiomanException.toString (C2,C6)：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanExtraKey",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.config(name)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.config",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.config(name)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.config(description)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.description (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.config(name)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.config(name) (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.config(valueType)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.valueType (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.description",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.description (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.key",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.key (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.kind",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.kind (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.config(name)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new(description)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.description (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new(key)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.key (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new(kind)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.kind (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new(owner)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.owner (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.new(valueType)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.valueType (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.owner",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.owner (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.state",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.config(name)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.state(description)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.description (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.state(key)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.key (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.state(owner)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.owner (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.state(valueType)",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.valueType (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.toString",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.toString (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKey.valueType",
+    "rename": null,
+    "basis": "drop DiomanExtraKey.valueType (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeyKind",
+    "rename": null,
+    "basis": "drop DiomanExtraKeyKind.config：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeyKind.config",
+    "rename": null,
+    "basis": "drop DiomanExtraKeyKind.config (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeyKind.protocol",
+    "rename": null,
+    "basis": "drop DiomanExtraKeyKind.protocol (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeyKind.state",
+    "rename": null,
+    "basis": "drop DiomanExtraKeyKind.state (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.all：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.all",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.all (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.assertNoSharedState",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.assertNoSharedState (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.builtIn",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.builtIn (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.findSharedState",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.findSharedState (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.lookup",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.lookup (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.mockAdapterOwner",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.mockAdapterOwner (C5,C7)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.ofKind",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.ofKind (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.ofOwner",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.ofOwner (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.register",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.register (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.toMarkdown",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.toMarkdown (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanExtraKeys.unregister",
+    "rename": null,
+    "basis": "drop DiomanExtraKeys.unregister (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanFilter.onRequest",
+    "rename": null,
+    "basis": "change DiomanFilter.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanHandle",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanHandle.append",
+    "rename": null,
+    "basis": "change DiomanHandle.append (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.diagnoseSharedStateKeys",
+    "rename": null,
+    "basis": "change DiomanHandle.diagnoseSharedStateKeys (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.dispose",
+    "rename": "Dioman.dispose",
+    "basis": "change DiomanHandle.dispose (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.insertAfter",
+    "rename": null,
+    "basis": "change DiomanHandle.insertAfter (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.insertBefore",
+    "rename": null,
+    "basis": "change DiomanHandle.insertBefore (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.plugin",
+    "rename": "Dioman.plugin",
+    "basis": "change DiomanHandle.plugin (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.plugins",
+    "rename": null,
+    "basis": "change DiomanHandle.plugins (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.prepend",
+    "rename": null,
+    "basis": "change DiomanHandle.prepend (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanHandle.remove",
+    "rename": null,
+    "basis": "change DiomanHandle.remove (C1,C4)：用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。"
+  },
+  {
+    "api": "DiomanKey",
+    "rename": "DiomanKeyService",
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanKey.builder",
+    "rename": null,
+    "basis": "change DiomanKey.builder (C1,C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanKey.enabled",
+    "rename": null,
+    "basis": "change DiomanKey.enabled (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.fastMode",
+    "rename": null,
+    "basis": "change DiomanKey.fastMode (C1,C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanKey.ignores",
+    "rename": null,
+    "basis": "change DiomanKey.ignores (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.name",
+    "rename": null,
+    "basis": "change DiomanKey.name (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.namespace",
+    "rename": null,
+    "basis": "change DiomanKey.namespace (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.new",
+    "rename": "DiomanKeyService.new",
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanKey.new(builder)",
+    "rename": null,
+    "basis": "change DiomanKey.builder (C1,C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanKey.new(enabled)",
+    "rename": null,
+    "basis": "change DiomanKey.enabled (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.new(fastMode)",
+    "rename": null,
+    "basis": "change DiomanKey.fastMode (C1,C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanKey.new(ignores)",
+    "rename": null,
+    "basis": "change DiomanKey.ignores (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.new(namespace)",
+    "rename": null,
+    "basis": "change DiomanKey.namespace (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.onRequest",
+    "rename": null,
+    "basis": "change DiomanKey.onRequest (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKey.ordering",
+    "rename": null,
+    "basis": "change DiomanKey.ordering (C3,C4,C5)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanKey.pluginName",
+    "rename": null,
+    "basis": "change DiomanKey.pluginName (C3,C5)：保留稳定插件名用于查找；请求级开关改用类型化选项键，不再将名称作为 extra 协议。"
+  },
+  {
+    "api": "DiomanKeyOptions.enabled",
+    "rename": null,
+    "basis": "change DiomanKeyOptions.enabled (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanKeyOptions.new(enabled)",
+    "rename": null,
+    "basis": "change DiomanKeyOptions.enabled (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  },
+  {
+    "api": "DiomanLoading.activeCount",
+    "rename": "DiomanLoadingApi.activeCount",
+    "basis": "change DiomanLoading.activeCount (C1,C5)：暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanLoading.dispose",
+    "rename": null,
+    "basis": "keep DiomanLoading.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanLoading.onError",
+    "rename": null,
+    "basis": "change DiomanLoading.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanLoading.onRequest",
+    "rename": null,
+    "basis": "change DiomanLoading.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanLoading.onResponse",
+    "rename": null,
+    "basis": "change DiomanLoading.onResponse (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanLoading.ordering",
+    "rename": null,
+    "basis": "change DiomanLoading.ordering (C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanLog",
+    "rename": null,
+    "basis": "drop DiomanLog.enabled：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.enabled",
+    "rename": null,
+    "basis": "drop DiomanLog.enabled (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.logBody",
+    "rename": null,
+    "basis": "drop DiomanLog.logBody (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.logError",
+    "rename": null,
+    "basis": "drop DiomanLog.logError (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.logHeaders",
+    "rename": null,
+    "basis": "drop DiomanLog.logHeaders (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.logRequest",
+    "rename": null,
+    "basis": "drop DiomanLog.logRequest (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.logResponse",
+    "rename": null,
+    "basis": "drop DiomanLog.logResponse (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.maxBodyLength",
+    "rename": null,
+    "basis": "drop DiomanLog.maxBodyLength (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.name",
+    "rename": null,
+    "basis": "drop DiomanLog.name (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new",
+    "rename": null,
+    "basis": "drop DiomanLog.enabled：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(enabled)",
+    "rename": null,
+    "basis": "drop DiomanLog.enabled (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(logBody)",
+    "rename": null,
+    "basis": "drop DiomanLog.logBody (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(logError)",
+    "rename": null,
+    "basis": "drop DiomanLog.logError (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(logHeaders)",
+    "rename": null,
+    "basis": "drop DiomanLog.logHeaders (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(logRequest)",
+    "rename": null,
+    "basis": "drop DiomanLog.logRequest (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(logResponse)",
+    "rename": null,
+    "basis": "drop DiomanLog.logResponse (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(maxBodyLength)",
+    "rename": null,
+    "basis": "drop DiomanLog.maxBodyLength (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.new(writer)",
+    "rename": null,
+    "basis": "drop DiomanLog.writer (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.onError",
+    "rename": null,
+    "basis": "drop DiomanLog.onError (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.onRequest",
+    "rename": null,
+    "basis": "drop DiomanLog.onRequest (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.onResponse",
+    "rename": null,
+    "basis": "drop DiomanLog.onResponse (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.pluginName",
+    "rename": null,
+    "basis": "drop DiomanLog.pluginName (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLog.writer",
+    "rename": null,
+    "basis": "drop DiomanLog.writer (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.enabled：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.enabled",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.enabled (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.logBody",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logBody (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.logError",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logError (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.logHeaders",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logHeaders (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.logRequest",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logRequest (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.logResponse",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logResponse (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.maxBodyLength",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.maxBodyLength (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.enabled：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(enabled)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.enabled (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(logBody)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logBody (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(logError)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logError (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(logHeaders)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logHeaders (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(logRequest)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logRequest (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(logResponse)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.logResponse (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(maxBodyLength)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.maxBodyLength (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.new(writer)",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.writer (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanLogOptions.writer",
+    "rename": null,
+    "basis": "drop DiomanLogOptions.writer (C3)：删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。"
+  },
+  {
+    "api": "DiomanMockAdapter",
+    "rename": "DiomanMock",
+    "basis": "drop DiomanMockAdapter.close：删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。"
+  },
+  {
+    "api": "DiomanMockAdapter.close",
+    "rename": null,
+    "basis": "drop DiomanMockAdapter.close (C7)：删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。"
+  },
+  {
+    "api": "DiomanMockAdapter.extraKey",
+    "rename": null,
+    "basis": "change DiomanMockAdapter.extraKey (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanMockAdapter.fetch",
+    "rename": null,
+    "basis": "change DiomanMockAdapter.fetch (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanMockAdapter.markerHeader",
+    "rename": null,
+    "basis": "drop DiomanMockAdapter.markerHeader (C7)：删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。"
+  },
+  {
+    "api": "DiomanMockAdapter.new",
+    "rename": "DiomanMock.new",
+    "basis": "drop DiomanMockAdapter.close：删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。"
+  },
+  {
+    "api": "DiomanMockAdapter.new(enabled)",
+    "rename": "DiomanMock.new(enabled)",
+    "basis": "change DiomanMockAdapter.new(enabled) (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanMockAdapter.new(fallbackWhen)",
+    "rename": "DiomanMock.new(fallbackWhen)",
+    "basis": "change DiomanMockAdapter.new(fallbackWhen) (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanMockAdapter.new(inner)",
+    "rename": null,
+    "basis": "drop DiomanMockAdapter.new(inner) (C7)：删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。"
+  },
+  {
+    "api": "DiomanMockAdapter.new(mockUrl)",
+    "rename": "DiomanMock.new(mockUrl)",
+    "basis": "change DiomanMockAdapter.new(mockUrl) (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanMockAdapter.new(routes)",
+    "rename": "DiomanMock.new(routes)",
+    "basis": "change DiomanMockAdapter.new(routes) (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "DiomanNormalize",
+    "rename": null,
+    "basis": "drop DiomanNormalize.enabled：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.codeKey",
+    "rename": null,
+    "basis": "change DiomanNormalize.codeKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.dataKey",
+    "rename": null,
+    "basis": "change DiomanNormalize.dataKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.enabled",
+    "rename": null,
+    "basis": "drop DiomanNormalize.enabled (C3,C8)：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.isSuccess",
+    "rename": null,
+    "basis": "change DiomanNormalize.isSuccess (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.messageKey",
+    "rename": null,
+    "basis": "change DiomanNormalize.messageKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.name",
+    "rename": null,
+    "basis": "drop DiomanNormalize.name (C3,C8)：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.new",
+    "rename": null,
+    "basis": "drop DiomanNormalize.enabled：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.new(codeKey)",
+    "rename": null,
+    "basis": "change DiomanNormalize.codeKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.new(dataKey)",
+    "rename": null,
+    "basis": "change DiomanNormalize.dataKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.new(enabled)",
+    "rename": null,
+    "basis": "drop DiomanNormalize.enabled (C3,C8)：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.new(isSuccess)",
+    "rename": null,
+    "basis": "change DiomanNormalize.isSuccess (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.new(messageKey)",
+    "rename": null,
+    "basis": "change DiomanNormalize.messageKey (C3,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。"
+  },
+  {
+    "api": "DiomanNormalize.new(shouldNormalize)",
+    "rename": null,
+    "basis": "change DiomanNormalize.shouldNormalize (C1,C3,C5,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanNormalize.onResponse",
+    "rename": null,
+    "basis": "change DiomanNormalize.onResponse (C2,C3,C6,C8)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanNormalize.ordering",
+    "rename": null,
+    "basis": "change DiomanNormalize.ordering (C3,C4,C8)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanNormalize.pluginName",
+    "rename": null,
+    "basis": "drop DiomanNormalize.pluginName (C3,C5,C8)：删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。"
+  },
+  {
+    "api": "DiomanNormalize.shouldNormalize",
+    "rename": null,
+    "basis": "change DiomanNormalize.shouldNormalize (C1,C3,C5,C8)：归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanNormalizeOptions",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.codeKey：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.codeKey",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.codeKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.dataKey",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.dataKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.enabled",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.enabled (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.isSuccess",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.isSuccess (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.messageKey",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.messageKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.codeKey：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(codeKey)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.codeKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(dataKey)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.dataKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(enabled)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.enabled (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(isSuccess)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.isSuccess (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(messageKey)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.messageKey (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.new(shouldNormalize)",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.shouldNormalize (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNormalizeOptions.shouldNormalize",
+    "rename": null,
+    "basis": "drop DiomanNormalizeOptions.shouldNormalize (C3,C8)：删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。"
+  },
+  {
+    "api": "DiomanNotify.onError",
+    "rename": null,
+    "basis": "change DiomanNotify.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanNotify.onRequest",
+    "rename": null,
+    "basis": "change DiomanNotify.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanNotify.onResponse",
+    "rename": null,
+    "basis": "change DiomanNotify.onResponse (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanNotify.ordering",
+    "rename": null,
+    "basis": "change DiomanNotify.ordering (C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanNotifyOptions",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanNotifyOptions.new",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C1/C3/C4/C5：旧安装/拦截器声明删除，由客户端、固定阶段和类型化选项/状态键替代。"
+  },
+  {
+    "api": "DiomanOffline.dispose",
+    "rename": null,
+    "basis": "keep DiomanOffline.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanOffline.flush",
+    "rename": "DiomanOfflineApi.flush",
+    "basis": "change DiomanOffline.flush (C1,C2,C5)：落定时可预期失败抛 DiomanResponse；send 返回失败结果，bug 保留原异常和 stack。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanOffline.onRequest",
+    "rename": null,
+    "basis": "change DiomanOffline.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanOffline.ordering",
+    "rename": null,
+    "basis": "change DiomanOffline.ordering (C4)：固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。"
+  },
+  {
+    "api": "DiomanOffline.pending",
+    "rename": "DiomanOfflineApi.pending",
+    "basis": "change DiomanOffline.pending (C1,C5)：暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanOfflineException",
+    "rename": null,
+    "basis": "drop DiomanOfflineException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanOfflineException.new",
+    "rename": null,
+    "basis": "drop DiomanOfflineException.toString：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanOfflineException.new(reason)",
+    "rename": null,
+    "basis": "change DiomanOfflineException.reason (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanOfflineException.reason",
+    "rename": null,
+    "basis": "change DiomanOfflineException.reason (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanOfflineException.toString",
+    "rename": null,
+    "basis": "drop DiomanOfflineException.toString (C2,C6)：删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。"
+  },
+  {
+    "api": "DiomanOfflineReason",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C2/C6：旧失败/异常声明删除，统一使用 DiomanResponse.kind/reason/status。"
+  },
+  {
+    "api": "DiomanOfflineReason.disposed",
+    "rename": null,
+    "basis": "change DiomanOfflineReason.disposed (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanOfflineReason.queueFull",
+    "rename": null,
+    "basis": "change DiomanOfflineReason.queueFull (C1,C2,C5,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。"
+  },
+  {
+    "api": "DiomanOfflineReason.timeout",
+    "rename": null,
+    "basis": "change DiomanOfflineReason.timeout (C2,C6)：可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。"
+  },
+  {
+    "api": "DiomanPlugin.dispose",
+    "rename": null,
+    "basis": "keep DiomanPlugin.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanPlugin.ordering",
+    "rename": null,
+    "basis": "drop DiomanPlugin.ordering (C4)：删除 ordering 声明，改用 stage/enforce。"
+  },
+  {
+    "api": "DiomanPluginOrder",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.after：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.after",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.after (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.before",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.before (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.new",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.after：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.new(after)",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.after (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.new(before)",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.before (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.new(requires)",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.requires (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.none",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.none (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrder.requires",
+    "rename": null,
+    "basis": "drop DiomanPluginOrder.requires (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.message：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.issue",
+    "rename": null,
+    "basis": "change DiomanPluginOrderException.issue (C4)：保留重复名拒绝行为，改由构造/use 抛 ArgumentError，并验证客户端链不变。"
+  },
+  {
+    "api": "DiomanPluginOrderException.message",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.message (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.new",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.message：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.new(issue)",
+    "rename": null,
+    "basis": "change DiomanPluginOrderException.issue (C4)：保留重复名拒绝行为，改由构造/use 抛 ArgumentError，并验证客户端链不变。"
+  },
+  {
+    "api": "DiomanPluginOrderException.new(message)",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.message (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.new(plugins)",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.plugins (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.plugins",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.plugins (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderException.toString",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderException.toString (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderIssue",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderIssue.cycle：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderIssue.cycle",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderIssue.cycle (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderIssue.duplicateName",
+    "rename": null,
+    "basis": "change DiomanPluginOrderIssue.duplicateName (C4)：保留重复名拒绝行为，改由构造/use 抛 ArgumentError，并验证客户端链不变。"
+  },
+  {
+    "api": "DiomanPluginOrderIssue.misordered",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderIssue.misordered (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanPluginOrderIssue.missingDependency",
+    "rename": null,
+    "basis": "drop DiomanPluginOrderIssue.missingDependency (C4)：删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。"
+  },
+  {
+    "api": "DiomanRepath.onRequest",
+    "rename": null,
+    "basis": "change DiomanRepath.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanRetry.breaker",
+    "rename": null,
+    "basis": "drop DiomanRetry.breaker (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanRetry.cancel",
+    "rename": null,
+    "basis": "drop DiomanRetry.cancel (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanRetry.dio",
+    "rename": null,
+    "basis": "drop DiomanRetry.dio (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanRetry.dispose",
+    "rename": null,
+    "basis": "change DiomanRetry.dispose (C1)：生命周期改由客户端实例管理，不再释放旧版兜底重放 Dio；客户端 dispose 后拒绝新请求。"
+  },
+  {
+    "api": "DiomanRetry.onError",
+    "rename": null,
+    "basis": "change DiomanRetry.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanRetry.onRequest",
+    "rename": null,
+    "basis": "change DiomanRetry.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanRetry.onResponse",
+    "rename": null,
+    "basis": "change DiomanRetry.onResponse (C8)：auth/retry/breaker/cache 统一消费归一化后的逻辑状态和 ok，增加 business 风格断言。"
+  },
+  {
+    "api": "DiomanRetry.share",
+    "rename": null,
+    "basis": "drop DiomanRetry.share (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanShare.dio",
+    "rename": null,
+    "basis": "drop DiomanShare.dio (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanShare.dispose",
+    "rename": null,
+    "basis": "keep DiomanShare.dispose (keep)：行为保持；按新 API 重写，并用新响应/请求夹具验证。"
+  },
+  {
+    "api": "DiomanShare.hasMultipleDownstreamSettlers",
+    "rename": null,
+    "basis": "drop DiomanShare.hasMultipleDownstreamSettlers (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanShare.onError",
+    "rename": null,
+    "basis": "change DiomanShare.onError (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanShare.onRequest",
+    "rename": null,
+    "basis": "change DiomanShare.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanShare.onResponse",
+    "rename": null,
+    "basis": "change DiomanShare.onResponse (C1,C3)：share 按一次尝试共享同一个只读 R；首发离场保留共享传输，最后订阅者离开才取消；不再要求安装 key。"
+  },
+  {
+    "api": "DiomanShare.registerDownstreamSettler",
+    "rename": null,
+    "basis": "drop DiomanShare.registerDownstreamSettler (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanShare.settle",
+    "rename": null,
+    "basis": "drop DiomanShare.settle (C1,C4)：删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。"
+  },
+  {
+    "api": "DiomanSharePolicy.none",
+    "rename": null,
+    "basis": "drop DiomanSharePolicy.none (C13)：B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。"
+  },
+  {
+    "api": "DiomanSharedStateKey",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.count：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.count",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.count (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.key",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.key (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.new",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.count：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.new(count)",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.count (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.new(key)",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.key (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanSharedStateKey.toString",
+    "rename": null,
+    "basis": "drop DiomanSharedStateKey.toString (C5)：删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。"
+  },
+  {
+    "api": "DiomanTimeout.onRequest",
+    "rename": null,
+    "basis": "change DiomanTimeout.onRequest (C1)：旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。"
+  },
+  {
+    "api": "DiomanTokenManager.canRefresh",
+    "rename": null,
+    "basis": "drop DiomanTokenManager.canRefresh (C11)：删除 canRefresh 契约；刷新是否失效由 auth 实例管理，保留 accessToken/refreshToken/clear 用例。"
+  },
+  {
+    "api": "LogWriter",
+    "rename": "DiomanLogger",
+    "basis": "pipeline-plugin-spec §9 C3：删除 log 插件，改用内核 DiomanLogger/debug 或 Dio LogInterceptor。"
+  },
+  {
+    "api": "MockFallbackDecider",
+    "rename": null,
+    "basis": "pipeline-plugin-spec §9 C7：mock 回 source，路由改 DiomanMockRoute，回落读取 DiomanResponse。"
+  },
+  {
+    "api": "MockHandler",
+    "rename": "DiomanMockRoute",
+    "basis": "pipeline-plugin-spec §9 C7：mock 回 source，路由改 DiomanMockRoute，回落读取 DiomanResponse。"
+  },
+  {
+    "api": "cancelAll",
+    "rename": "Dioman.cancelAll",
+    "basis": "change cancelAll (C3)：取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。"
+  },
+  {
+    "api": "defaultFallback",
+    "rename": null,
+    "basis": "change defaultFallback (C7)：改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。"
+  },
+  {
+    "api": "kKey",
+    "rename": null,
+    "basis": "change kKey (C3,C5)：key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。"
+  }
+]

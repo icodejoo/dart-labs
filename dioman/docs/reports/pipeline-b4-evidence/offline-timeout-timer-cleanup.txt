@@ -1,0 +1,16 @@
+00:00 +0: loading test/boundary/source_boundary_test.dart
+00:00 +0: [DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3
+00:00 +0 -1: [DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3 [E]
+  Expected: <0>
+    Actual: <1>
+  
+  package:matcher                                expect
+  test\boundary\source_boundary_test.dart 262:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/source_boundary_test.dart: [DiomanOffline.maxWait] timeout cancel flush dispose 全出口清计时与订阅 I3
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

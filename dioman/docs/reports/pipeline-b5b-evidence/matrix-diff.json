@@ -1,0 +1,4629 @@
+{
+  "removed": [
+    {
+      "id": "Dioman.install",
+      "migration": {
+        "key": "Dioman.install",
+        "capability": "按规范候选序排序安装并返回管理句柄",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "Dioman.installPlugins",
+      "migration": {
+        "key": "Dioman.installPlugins",
+        "capability": "先排序后安装，绑定宿主并接线重试熔断",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "Dioman.sort",
+      "migration": {
+        "key": "Dioman.sort",
+        "capability": "返回稳定拓扑顺序，重复名依赖缺失或环报错",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除公开拓扑排序与校验；改用固定阶段，inspect 只查询已编译顺序。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "Dioman.validate",
+      "migration": {
+        "key": "Dioman.validate",
+        "capability": "校验重复名依赖环及给定链的顺序违规",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除公开拓扑排序与校验；改用固定阶段，inspect 只查询已编译顺序。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.cancel",
+      "migration": {
+        "key": "DiomanAuth.cancel",
+        "capability": "兼容取消接线的 setter，不执行操作",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.dio",
+      "migration": {
+        "key": "DiomanAuth.dio",
+        "capability": "绑定或解绑重放所借用的宿主传输层",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.dio#transport-reuse",
+      "migration": {
+        "key": "DiomanAuth.dio#transport-reuse",
+        "capability": "重放借用宿主连接且不关闭宿主适配器",
+        "layer": "integration",
+        "action": "keep",
+        "codes": [],
+        "reason": "保留重放复用客户端 Dio adapter/连接且不关闭宿主的行为；删除 setter 不删除复用能力。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/integration/transport_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.dispose",
+      "migration": {
+        "key": "DiomanAuth.dispose",
+        "capability": "清空刷新窗口引用并释放兜底重放客户端",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "生命周期改由客户端实例管理，不再释放旧版兜底重放 Dio；客户端 dispose 后拒绝新请求。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.new(now)",
+      "migration": {
+        "key": "DiomanAuth.new(now)",
+        "capability": "注入主动到期判断时钟，默认当前时间",
+        "layer": "rule",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.clock"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onError",
+      "migration": {
+        "key": "DiomanAuth.onError",
+        "capability": "按失败动作刷新或重放，并交出结算认领",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onError#body-replay",
+      "migration": {
+        "key": "DiomanAuth.onError#body-replay",
+        "capability": "认证恢复重放保留已发送请求的结构化请求体",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onError#multipart-replay",
+      "migration": {
+        "key": "DiomanAuth.onError#multipart-replay",
+        "capability": "认证重放克隆 FormData，流请求体不自动重放",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "markReplayable 对不可克隆 Stream 回退原引用并 debug 告警；不再保留旧版拒绝重放断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onRequest",
+      "migration": {
+        "key": "DiomanAuth.onRequest",
+        "capability": "判定保护范围，等待刷新并注入令牌",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onRequest#cancel-refresh",
+      "migration": {
+        "key": "DiomanAuth.onRequest#cancel-refresh",
+        "capability": "刷新等待期间取消及时结束当前调用",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.onResponse",
+      "migration": {
+        "key": "DiomanAuth.onResponse",
+        "capability": "受保护请求清临时标记并交出结算认领",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuth.share",
+      "migration": {
+        "key": "DiomanAuth.share",
+        "capability": "兼容共享接线的 setter，不执行操作",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanAuthOptions.now",
+      "migration": {
+        "key": "DiomanAuthOptions.now",
+        "capability": "单请求覆盖主动到期判断时钟",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C13"
+        ],
+        "reason": "B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。",
+        "doubt": "",
+        "new_api": [
+          "DiomanClock"
+        ],
+        "location": "test/rule/clock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.admit",
+      "migration": {
+        "key": "DiomanBreaker.admit",
+        "capability": "重发前申请半开凭据，供 retry 等不经 handler 的调用方计数",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.bucketCount",
+      "migration": {
+        "key": "DiomanBreaker.bucketCount",
+        "capability": "返回当前保留的桶数，不主动触发回收",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C5"
+        ],
+        "reason": "暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.bucketCount"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.dispose",
+      "migration": {
+        "key": "DiomanBreaker.dispose",
+        "capability": "清空全部熔断桶",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.isOpen",
+      "migration": {
+        "key": "DiomanBreaker.isOpen",
+        "capability": "只读判断当前是否会拒绝，不改变桶状态",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C5"
+        ],
+        "reason": "暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.isOpen"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.onError",
+      "migration": {
+        "key": "DiomanBreaker.onError",
+        "capability": "消费放行凭据，取消不计成败，其余分类记账",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.onError#cancel-probe",
+      "migration": {
+        "key": "DiomanBreaker.onError#cancel-probe",
+        "capability": "真实取消半开探测归还槽位且不计成败",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.onError#network-classification",
+      "migration": {
+        "key": "DiomanBreaker.onError#network-classification",
+        "capability": "内置分类把连接和三类超时错误记为失败",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.onRequest",
+      "migration": {
+        "key": "DiomanBreaker.onRequest",
+        "capability": "按桶状态与冷却放行，超探测预算立即拒绝",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.onResponse",
+      "migration": {
+        "key": "DiomanBreaker.onResponse",
+        "capability": "只统计有当前窗口凭据的响应并归还名额",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.ordering",
+      "migration": {
+        "key": "DiomanBreaker.ordering",
+        "capability": "声明必须在已安装的 retry 之后",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.recordError",
+      "migration": {
+        "key": "DiomanBreaker.recordError",
+        "capability": "记录一次失败尝试，按 shouldTrip 计入熔断阈值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.recordResponse",
+      "migration": {
+        "key": "DiomanBreaker.recordResponse",
+        "capability": "记录一次响应尝试，成功关闭桶、失败按规则计数",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除为 retry 接线公开的放行/记账方法；改从 DiomanBreaker.setup 后的中间件验证每次尝试。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.reset",
+      "migration": {
+        "key": "DiomanBreaker.reset",
+        "capability": "清空所有桶，旧凭据不再改变新桶",
+        "layer": "rule",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.reset"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreaker.stateOf",
+      "migration": {
+        "key": "DiomanBreaker.stateOf",
+        "capability": "只读查询状态，未知桶返回 closed",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C5"
+        ],
+        "reason": "暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanBreaker.stateOf"
+        ],
+        "location": "test/rule/breaker_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreakerOpenException.bucketKey",
+      "migration": {
+        "key": "DiomanBreakerOpenException.bucketKey",
+        "capability": "保存触发快速拒绝的桶键",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreakerOpenException.retryableAt",
+      "migration": {
+        "key": "DiomanBreakerOpenException.retryableAt",
+        "capability": "保存冷却结束时间，可为空",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanBreakerOpenException.toString",
+      "migration": {
+        "key": "DiomanBreakerOpenException.toString",
+        "capability": "输出桶键和可探测时间",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.clear",
+      "migration": {
+        "key": "DiomanCache.clear",
+        "capability": "提升代次并清内存，串行等待持久层清空",
+        "layer": "rule",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCacheApi.clear"
+        ],
+        "location": "test/rule/cacheapi_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.dispose",
+      "migration": {
+        "key": "DiomanCache.dispose",
+        "capability": "提升代次并清内存，不清持久层",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.new(now)",
+      "migration": {
+        "key": "DiomanCache.new(now)",
+        "capability": "注入缓存到期时钟，默认当前时间",
+        "layer": "rule",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCache.clock"
+        ],
+        "location": "test/rule/cache_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.onRequest",
+      "migration": {
+        "key": "DiomanCache.onRequest",
+        "capability": "按策略读缓存，缺键放行，命中响应继续下游",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCache.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/cache_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.onResponse",
+      "migration": {
+        "key": "DiomanCache.onResponse",
+        "capability": "仅对同代次标记请求缓存原始 2xx 负载",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCache.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/cache_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.onResponse#canceled-response",
+      "migration": {
+        "key": "DiomanCache.onResponse#canceled-response",
+        "capability": "真实取消响应不走成功写缓存路径",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCache.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/cache_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.ordering",
+      "migration": {
+        "key": "DiomanCache.ordering",
+        "capability": "声明必须在已安装的 offline 之前",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCache.remove",
+      "migration": {
+        "key": "DiomanCache.remove",
+        "capability": "删指定键并提升全局代次，等待持久层删除",
+        "layer": "rule",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCacheApi.remove"
+        ],
+        "location": "test/rule/cacheapi_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCacheOptions.maxEntries",
+      "migration": {
+        "key": "DiomanCacheOptions.maxEntries",
+        "capability": "弃用占位字段，单请求设置不被读取",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C13"
+        ],
+        "reason": "B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCacheOptions.maxEntries"
+        ],
+        "location": "test/rule/cacheoptions_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCacheOptions.now",
+      "migration": {
+        "key": "DiomanCacheOptions.now",
+        "capability": "单请求覆盖到期时钟，空值继承",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C13"
+        ],
+        "reason": "B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。",
+        "doubt": "",
+        "new_api": [
+          "DiomanClock"
+        ],
+        "location": "test/rule/clock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCachePolicy.none",
+      "migration": {
+        "key": "DiomanCachePolicy.none",
+        "capability": "跳过缓存读取和写入",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C13"
+        ],
+        "reason": "B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCachePolicy.none"
+        ],
+        "location": "test/rule/cachepolicy_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.cancelAll",
+      "migration": {
+        "key": "DiomanCancel.cancelAll",
+        "capability": "取消登记的全部令牌并清表，返回登记数",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.cancelAll#completion",
+      "migration": {
+        "key": "DiomanCancel.cancelAll#completion",
+        "capability": "已追踪请求取消后及时以取消错误落定",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C3"
+        ],
+        "reason": "落定时可预期失败抛 DiomanResponse；send 返回失败结果，bug 保留原异常和 stack。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.cancelAll#transport-release",
+      "migration": {
+        "key": "DiomanCancel.cancelAll#transport-release",
+        "capability": "批量取消在途传输并释放连接资源",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/transport_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.config",
+      "migration": {
+        "key": "DiomanCancel.config",
+        "capability": "保存构造期启用选项，无单请求覆盖",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.dispose",
+      "migration": {
+        "key": "DiomanCancel.dispose",
+        "capability": "以 plugin ejected 原因取消已登记令牌",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.dispose#inflight",
+      "migration": {
+        "key": "DiomanCancel.dispose#inflight",
+        "capability": "移除取消插件时取消它仍追踪的在途请求",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.name",
+      "migration": {
+        "key": "DiomanCancel.name",
+        "capability": "返回固定插件名 dioman:cancel",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.new(enabled)",
+      "migration": {
+        "key": "DiomanCancel.new(enabled)",
+        "capability": "默认启用，关闭后不注入或登记令牌",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.onError",
+      "migration": {
+        "key": "DiomanCancel.onError",
+        "capability": "出错时按认领和落败等待延迟注销令牌",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.onError#caller-cancel",
+      "migration": {
+        "key": "DiomanCancel.onError#caller-cancel",
+        "capability": "调用方令牌取消后释放取消链路记账",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.onRequest",
+      "migration": {
+        "key": "DiomanCancel.onRequest",
+        "capability": "无令牌则注入，自带令牌不自动登记",
+        "layer": "integration",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.onResponse",
+      "migration": {
+        "key": "DiomanCancel.onResponse",
+        "capability": "响应时按认领和落败等待延迟注销令牌",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.ordering",
+      "migration": {
+        "key": "DiomanCancel.ordering",
+        "capability": "在缓存共享模拟之后，在认证重试之前",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.pluginName",
+      "migration": {
+        "key": "DiomanCancel.pluginName",
+        "capability": "公开插件名固定为 dioman:cancel",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "保留稳定插件名用于查找；请求级开关改用类型化选项键，不再将名称作为 extra 协议。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.track",
+      "migration": {
+        "key": "DiomanCancel.track",
+        "capability": "启用时手工登记令牌，集合自动去重",
+        "layer": "integration",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancel.untrack",
+      "migration": {
+        "key": "DiomanCancel.untrack",
+        "capability": "移除指定令牌，不取消它",
+        "layer": "integration",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除可禁用/多实例取消插件及手工 track/untrack；内核统一登记，dispose 取消全部请求。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanCancelOptions.enabled",
+      "migration": {
+        "key": "DiomanCancelOptions.enabled",
+        "capability": "默认启用，仅控制构造期注入与登记",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll; Dioman.pending; DiomanCall.cancelToken"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanEnvs.apply",
+      "migration": {
+        "key": "DiomanEnvs.apply",
+        "capability": "首个匹配规则合并支持字段，不匹配不改配置",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。",
+        "doubt": "",
+        "new_api": [
+          "DiomanEnvs.setup"
+        ],
+        "location": "test/rule/envs_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanEnvs.new(dio)",
+      "migration": {
+        "key": "DiomanEnvs.new(dio)",
+        "capability": "传宿主则构造时立即应用规则",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。",
+        "doubt": "",
+        "new_api": [
+          "DiomanEnvs.setup"
+        ],
+        "location": "test/rule/envs_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanEnvs.onRequest",
+      "migration": {
+        "key": "DiomanEnvs.onRequest",
+        "capability": "请求阶段只放行，不重新计算环境规则",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "envs 只在 setup 自动应用克隆后的规则配置，不再手工 apply，也不进入请求链。",
+        "doubt": "",
+        "new_api": [
+          "DiomanEnvs.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/envs_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanException.code",
+      "migration": {
+        "key": "DiomanException.code",
+        "capability": "信封里的业务码，由 normalize 非成功时抛出",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.code"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanException.data",
+      "migration": {
+        "key": "DiomanException.data",
+        "capability": "信封里的原始 data，可为空",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.data"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanException.message",
+      "migration": {
+        "key": "DiomanException.message",
+        "capability": "信封里的提示文本",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.message"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanException.toString",
+      "migration": {
+        "key": "DiomanException.toString",
+        "capability": "输出 DiomanException(code, message) 文本",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.toString"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.config(name)",
+      "migration": {
+        "key": "DiomanExtraKey.config(name)",
+        "capability": "配置键简写，键与归属都取插件名",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.description",
+      "migration": {
+        "key": "DiomanExtraKey.description",
+        "capability": "保存键用途的说明文本",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.key",
+      "migration": {
+        "key": "DiomanExtraKey.key",
+        "capability": "保存 extra 键字符串",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.kind",
+      "migration": {
+        "key": "DiomanExtraKey.kind",
+        "capability": "保存配置、协议或状态类别",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.owner",
+      "migration": {
+        "key": "DiomanExtraKey.owner",
+        "capability": "保存键归属插件名，不做运行期校验",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.toString",
+      "migration": {
+        "key": "DiomanExtraKey.toString",
+        "capability": "输出键、归属和类别名",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKey.valueType",
+      "migration": {
+        "key": "DiomanExtraKey.valueType",
+        "capability": "保存值类型说明字符串，不作类型检查",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeyKind.config",
+      "migration": {
+        "key": "DiomanExtraKeyKind.config",
+        "capability": "表示调用方可写的公开选项键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeyKind.protocol",
+      "migration": {
+        "key": "DiomanExtraKeyKind.protocol",
+        "capability": "表示插件间使用的协议键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeyKind.state",
+      "migration": {
+        "key": "DiomanExtraKeyKind.state",
+        "capability": "表示单插件在请求上的记账键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.all",
+      "migration": {
+        "key": "DiomanExtraKeys.all",
+        "capability": "返回内置与自定义登记项的只读快照",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.assertNoSharedState",
+      "migration": {
+        "key": "DiomanExtraKeys.assertNoSharedState",
+        "capability": "仅 assert 开启时拒绝重复实例共享状态键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.builtIn",
+      "migration": {
+        "key": "DiomanExtraKeys.builtIn",
+        "capability": "集中列出内置配置、协议及状态键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.findSharedState",
+      "migration": {
+        "key": "DiomanExtraKeys.findSharedState",
+        "capability": "按插件名计数，仅报告已登记状态键冲突",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.lookup",
+      "migration": {
+        "key": "DiomanExtraKeys.lookup",
+        "capability": "按键查首个登记项，未登记返回空",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.mockAdapterOwner",
+      "migration": {
+        "key": "DiomanExtraKeys.mockAdapterOwner",
+        "capability": "登记 dioman:mock 配置键归属于 DiomanMockAdapter",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5",
+          "C7"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.ofKind",
+      "migration": {
+        "key": "DiomanExtraKeys.ofKind",
+        "capability": "按类别筛选登记项",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.ofOwner",
+      "migration": {
+        "key": "DiomanExtraKeys.ofOwner",
+        "capability": "按归属插件名筛选登记项",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.register",
+      "migration": {
+        "key": "DiomanExtraKeys.register",
+        "capability": "拒绝重复键，否则追加自定义登记",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.toMarkdown",
+      "migration": {
+        "key": "DiomanExtraKeys.toMarkdown",
+        "capability": "仅把内置键生成含中文类别的 Markdown 表",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanExtraKeys.unregister",
+      "migration": {
+        "key": "DiomanExtraKeys.unregister",
+        "capability": "只删除自定义键，返回是否实际移除",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanFilter.onRequest",
+      "migration": {
+        "key": "DiomanFilter.onRequest",
+        "capability": "过滤 query 并复制 Map body 后过滤顶层字段",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanFilter.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/filter_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.append",
+      "migration": {
+        "key": "DiomanHandle.append",
+        "capability": "校验后追加插件并绑定宿主",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.use"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.diagnoseSharedStateKeys",
+      "migration": {
+        "key": "DiomanHandle.diagnoseSharedStateKeys",
+        "capability": "诊断宿主链含绕过句柄安装的共享状态键",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.setup; StateKey"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.dispose",
+      "migration": {
+        "key": "DiomanHandle.dispose",
+        "capability": "移除所管插件并逐一解绑及调用释放",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.dispose"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.insertAfter",
+      "migration": {
+        "key": "DiomanHandle.insertAfter",
+        "capability": "校验后插到锚点之后，缺锚点报参数错误",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.use"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.insertBefore",
+      "migration": {
+        "key": "DiomanHandle.insertBefore",
+        "capability": "校验后插到锚点之前，缺锚点报参数错误",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.use"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.plugin",
+      "migration": {
+        "key": "DiomanHandle.plugin",
+        "capability": "按类型返回所管的首个插件，缺失为空",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.plugin"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.plugins",
+      "migration": {
+        "key": "DiomanHandle.plugins",
+        "capability": "返回安装顺序的只读列表快照",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.prepend",
+      "migration": {
+        "key": "DiomanHandle.prepend",
+        "capability": "校验后插到宿主链最前并绑定宿主",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.use"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanHandle.remove",
+      "migration": {
+        "key": "DiomanHandle.remove",
+        "capability": "按类型移除首个插件，校验依赖并解绑释放",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "用 Dioman 构造/use/eject/inspect/plugin/dispose 重写装配；在途保留链快照，禁止按锚点插拦截器。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.eject"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.builder",
+      "migration": {
+        "key": "DiomanKey.builder",
+        "capability": "请求级 builder 与 key 都没给时，用插件级构键器",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.enabled",
+      "migration": {
+        "key": "DiomanKey.enabled",
+        "capability": "默认启用，禁用不写入也不删除已有键",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCall.key"
+        ],
+        "location": "test/rule/call_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.fastMode",
+      "migration": {
+        "key": "DiomanKey.fastMode",
+        "capability": "默认深模式，快速模式只编码方法来源路径",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.ignores",
+      "migration": {
+        "key": "DiomanKey.ignores",
+        "capability": "默认空列表，排除 query 与 body 顶层字段",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanKeyOptions.ignores"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.name",
+      "migration": {
+        "key": "DiomanKey.name",
+        "capability": "返回配置名 dioman:qid",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.namespace",
+      "migration": {
+        "key": "DiomanKey.namespace",
+        "capability": "每次启用请求调用一次，非空账号独立编码",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanKeyOptions.namespace"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.onRequest",
+      "migration": {
+        "key": "DiomanKey.onRequest",
+        "capability": "按请求builder>请求key>插件builder>计算生成键，深模式递归排序",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.ordering",
+      "migration": {
+        "key": "DiomanKey.ordering",
+        "capability": "在路径过滤之后，在缓存共享之前",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C4",
+          "C5"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKey.pluginName",
+      "migration": {
+        "key": "DiomanKey.pluginName",
+        "capability": "公开配置名固定为 dioman:qid",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "保留稳定插件名用于查找；请求级开关改用类型化选项键，不再将名称作为 extra 协议。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanKeyOptions.enabled",
+      "migration": {
+        "key": "DiomanKeyOptions.enabled",
+        "capability": "单请求覆盖构键开关，空值继承",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanCall.key"
+        ],
+        "location": "test/rule/call_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.activeCount",
+      "migration": {
+        "key": "DiomanLoading.activeCount",
+        "capability": "当前在途请求数；opt-out 的请求不计入",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C5"
+        ],
+        "reason": "暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanLoading.activeCount"
+        ],
+        "location": "test/rule/loading_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.dispose",
+      "migration": {
+        "key": "DiomanLoading.dispose",
+        "capability": "释放：取消定时器、计数清零，已显示则补发 false",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.onError",
+      "migration": {
+        "key": "DiomanLoading.onError",
+        "capability": "失败/取消/超时出口递减计数，归零时关闭 loading",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanLoading.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/loading_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.onRequest",
+      "migration": {
+        "key": "DiomanLoading.onRequest",
+        "capability": "未 opt-out 的请求计数加一，0→1 触发显示（可延迟）",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanLoading.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/loading_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.onResponse",
+      "migration": {
+        "key": "DiomanLoading.onResponse",
+        "capability": "成功出口递减计数；没加过计数的请求不递减",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanLoading.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/loading_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLoading.ordering",
+      "migration": {
+        "key": "DiomanLoading.ordering",
+        "capability": "排在 cache/share/mock 之后、auth/retry 之前",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.enabled",
+      "migration": {
+        "key": "DiomanLog.enabled",
+        "capability": "总开关，false 时永不记录",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.logBody",
+      "migration": {
+        "key": "DiomanLog.logBody",
+        "capability": "是否输出请求/响应/错误体，默认 true",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.logError",
+      "migration": {
+        "key": "DiomanLog.logError",
+        "capability": "是否记录错误行（状态码或错误类型），默认 true",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.logHeaders",
+      "migration": {
+        "key": "DiomanLog.logHeaders",
+        "capability": "是否输出请求/响应头，默认 false",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.logRequest",
+      "migration": {
+        "key": "DiomanLog.logRequest",
+        "capability": "是否记录发出的请求，默认 true",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.logResponse",
+      "migration": {
+        "key": "DiomanLog.logResponse",
+        "capability": "是否记录成功响应，默认 true",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.maxBodyLength",
+      "migration": {
+        "key": "DiomanLog.maxBodyLength",
+        "capability": "body 超长则截断并附剩余字数，-1 不限，默认 1000",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.name",
+      "migration": {
+        "key": "DiomanLog.name",
+        "capability": "插件名固定为 dioman:log",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.onError",
+      "migration": {
+        "key": "DiomanLog.onError",
+        "capability": "按需记录错误行与错误体后放行",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.onRequest",
+      "migration": {
+        "key": "DiomanLog.onRequest",
+        "capability": "按需记录 方法+URL（可含头与 body）后放行",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.onResponse",
+      "migration": {
+        "key": "DiomanLog.onResponse",
+        "capability": "按需记录 状态+方法+URL（可含头与 body）后放行",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.pluginName",
+      "migration": {
+        "key": "DiomanLog.pluginName",
+        "capability": "静态常量 dioman:log，同时是 extra 键",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLog.writer",
+      "migration": {
+        "key": "DiomanLog.writer",
+        "capability": "自定义输出函数，缺省用 print",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.enabled",
+      "migration": {
+        "key": "DiomanLogOptions.enabled",
+        "capability": "单请求覆盖 enabled；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.logBody",
+      "migration": {
+        "key": "DiomanLogOptions.logBody",
+        "capability": "单请求覆盖 logBody；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.logError",
+      "migration": {
+        "key": "DiomanLogOptions.logError",
+        "capability": "单请求覆盖 logError；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.logHeaders",
+      "migration": {
+        "key": "DiomanLogOptions.logHeaders",
+        "capability": "单请求覆盖 logHeaders；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.logRequest",
+      "migration": {
+        "key": "DiomanLogOptions.logRequest",
+        "capability": "单请求覆盖 logRequest；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.logResponse",
+      "migration": {
+        "key": "DiomanLogOptions.logResponse",
+        "capability": "单请求覆盖 logResponse；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.maxBodyLength",
+      "migration": {
+        "key": "DiomanLogOptions.maxBodyLength",
+        "capability": "单请求覆盖 maxBodyLength；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanLogOptions.writer",
+      "migration": {
+        "key": "DiomanLogOptions.writer",
+        "capability": "单请求覆盖 writer；null 沿用插件值",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C3"
+        ],
+        "reason": "删除自带报文日志插件及请求级格式开关；使用 Dio LogInterceptor，debug 只负责调用点和告警。",
+        "doubt": "",
+        "new_api": [
+          "LogInterceptor (Dio); Dioman.debug"
+        ],
+        "location": "test/rule/loginterceptordiodioman_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.close",
+      "migration": {
+        "key": "DiomanMockAdapter.close",
+        "capability": "关闭时把 force 透传给被包住的真实 adapter",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C7"
+        ],
+        "reason": "删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.extraKey",
+      "migration": {
+        "key": "DiomanMockAdapter.extraKey",
+        "capability": "请求级覆盖的 extra 键，值为 DiomanMockOptions 或 false",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.fetch",
+      "migration": {
+        "key": "DiomanMockAdapter.fetch",
+        "capability": "命中路由返回 mock、转发 mockUrl 并按判定回落，未命中透传",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.markerHeader",
+      "migration": {
+        "key": "DiomanMockAdapter.markerHeader",
+        "capability": "mock 响应带标记头，cache 据此一律不写入",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C7"
+        ],
+        "reason": "删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.new(enabled)",
+      "migration": {
+        "key": "DiomanMockAdapter.new(enabled)",
+        "capability": "插件级总开关，关闭时所有请求直接透传",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock.enabled"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.new(fallbackWhen)",
+      "migration": {
+        "key": "DiomanMockAdapter.new(fallbackWhen)",
+        "capability": "判定转发结果是否回落真实接口，默认 defaultFallback",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock.fallbackWhen"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.new(inner)",
+      "migration": {
+        "key": "DiomanMockAdapter.new(inner)",
+        "capability": "被包住的真实传输层，未命中与回落都交给它",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C7"
+        ],
+        "reason": "删除 adapter 包装、关闭委托或标记头协议；由客户端管理 Dio，mock 短路天然不入 cache。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.new(mockUrl)",
+      "migration": {
+        "key": "DiomanMockAdapter.new(mockUrl)",
+        "capability": "把请求改写到 mock 服务地址后经 inner 发出",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock.mockUrl"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanMockAdapter.new(routes)",
+      "migration": {
+        "key": "DiomanMockAdapter.new(routes)",
+        "capability": "按 METHOD:path 匹配的内联 mock 处理器",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock.routes"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.codeKey",
+      "migration": {
+        "key": "DiomanNormalize.codeKey",
+        "capability": "信封状态码键，默认 code",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.code"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.dataKey",
+      "migration": {
+        "key": "DiomanNormalize.dataKey",
+        "capability": "信封内容键，默认 data",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.data"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.enabled",
+      "migration": {
+        "key": "DiomanNormalize.enabled",
+        "capability": "总开关，false 时信封原样不拆",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.isSuccess",
+      "migration": {
+        "key": "DiomanNormalize.isSuccess",
+        "capability": "判定业务成功的函数，默认 code == 0",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory.isSuccess"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.messageKey",
+      "migration": {
+        "key": "DiomanNormalize.messageKey",
+        "capability": "信封提示键，默认 message",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.message"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.name",
+      "migration": {
+        "key": "DiomanNormalize.name",
+        "capability": "插件名固定为 dioman:normalize",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.onResponse",
+      "migration": {
+        "key": "DiomanNormalize.onResponse",
+        "capability": "成功信封换成内层 data；非成功码以 DiomanException 拒绝",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C3",
+          "C6",
+          "C8"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.ordering",
+      "migration": {
+        "key": "DiomanNormalize.ordering",
+        "capability": "排在所有内置插件之后（链末），其余插件看到原始响应",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C4",
+          "C8"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.pluginName",
+      "migration": {
+        "key": "DiomanNormalize.pluginName",
+        "capability": "静态常量 dioman:normalize，同时是 extra 键",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C5",
+          "C8"
+        ],
+        "reason": "删除可安装/禁用的 normalize 插件身份；替代为客户端 DiomanResponseFactory.envelope 配置。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalize.shouldNormalize",
+      "migration": {
+        "key": "DiomanNormalize.shouldNormalize",
+        "capability": "是否拆包的判定，默认 Map 且含 code 及 data/message",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C3",
+          "C5",
+          "C8"
+        ],
+        "reason": "归一化移到传输边界，由客户端工厂配置；插件读取逻辑状态，成功数据只解包一次。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory.envelope"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.codeKey",
+      "migration": {
+        "key": "DiomanNormalizeOptions.codeKey",
+        "capability": "单请求覆盖 codeKey；null 沿用插件值",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.code"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.dataKey",
+      "migration": {
+        "key": "DiomanNormalizeOptions.dataKey",
+        "capability": "单请求覆盖 dataKey；null 沿用插件值",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.data"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.enabled",
+      "migration": {
+        "key": "DiomanNormalizeOptions.enabled",
+        "capability": "false 时本请求不拆信封；null 沿用插件",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.isSuccess",
+      "migration": {
+        "key": "DiomanNormalizeOptions.isSuccess",
+        "capability": "单请求覆盖成功判定；null 沿用插件值",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory.isSuccess"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.messageKey",
+      "migration": {
+        "key": "DiomanNormalizeOptions.messageKey",
+        "capability": "单请求覆盖 messageKey；null 沿用插件值",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "Envelope.message"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNormalizeOptions.shouldNormalize",
+      "migration": {
+        "key": "DiomanNormalizeOptions.shouldNormalize",
+        "capability": "单请求覆盖拆包判定；null 沿用插件值",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C3",
+          "C8"
+        ],
+        "reason": "删除请求级 normalize 配置；不同信封/成功码改用独立客户端的 DiomanResponseFactory。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponseFactory.envelope"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNotify.onError",
+      "migration": {
+        "key": "DiomanNotify.onError",
+        "capability": "失败时调 stringify 取文本并通知，同请求只通知一次",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanNotify.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/notify_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNotify.onRequest",
+      "migration": {
+        "key": "DiomanNotify.onRequest",
+        "capability": "每次分发前清除上一轮的已通知标记",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanNotify.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/notify_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNotify.onResponse",
+      "migration": {
+        "key": "DiomanNotify.onResponse",
+        "capability": "响应也经 stringify，文本非空才通知且去重",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanNotify.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/notify_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanNotify.ordering",
+      "migration": {
+        "key": "DiomanNotify.ordering",
+        "capability": "排在 normalize 之前，读到拆包前的信封",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOffline.dispose",
+      "migration": {
+        "key": "DiomanOffline.dispose",
+        "capability": "释放：退订连通性流，排队请求以 disposed 拒绝",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOffline.flush",
+      "migration": {
+        "key": "DiomanOffline.flush",
+        "capability": "重放全部排队请求；已取消的以取消错误结束",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C2",
+          "C5"
+        ],
+        "reason": "落定时可预期失败抛 DiomanResponse；send 返回失败结果，bug 保留原异常和 stack。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanOffline.flush"
+        ],
+        "location": "test/rule/offline_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOffline.onRequest",
+      "migration": {
+        "key": "DiomanOffline.onRequest",
+        "capability": "在线放行；离线则入队挂起（挤出最早/定时拒绝）",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanOffline.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/offline_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOffline.ordering",
+      "migration": {
+        "key": "DiomanOffline.ordering",
+        "capability": "排在 share/cancel/loading 之前，挂起时不遗留括号",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "固定阶段和内置位置取代 before/after，改测 inspect 及 prepare 后惰性 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOffline.pending",
+      "migration": {
+        "key": "DiomanOffline.pending",
+        "capability": "当前挂起的请求数，只读",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C5"
+        ],
+        "reason": "暂保留行为并迁入新客户端选项/实例；公开面命名以终审为准。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanOffline.pending"
+        ],
+        "location": "test/rule/offline_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOfflineException.reason",
+      "migration": {
+        "key": "DiomanOfflineException.reason",
+        "capability": "携带被拒绝原因：queueFull/timeout/disposed",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOfflineException.toString",
+      "migration": {
+        "key": "DiomanOfflineException.toString",
+        "capability": "输出 DiomanOfflineException(原因名)",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "删除旧异常专属字符串格式；替代为 DiomanResponse 字段断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOfflineReason.disposed",
+      "migration": {
+        "key": "DiomanOfflineReason.disposed",
+        "capability": "插件释放时请求仍在排队",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOfflineReason.queueFull",
+      "migration": {
+        "key": "DiomanOfflineReason.queueFull",
+        "capability": "队列满，最早的请求被挤出",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C2",
+          "C5",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanOfflineReason.timeout",
+      "migration": {
+        "key": "DiomanOfflineReason.timeout",
+        "capability": "排队超过 maxWait 仍未恢复在线",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C2",
+          "C6"
+        ],
+        "reason": "可预期失败改断言 DiomanResponse.kind/reason；保留业务字段，去掉旧异常类型断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanResponse.kind; DiomanResponse.reason"
+        ],
+        "location": "test/unit/response_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPlugin.dispose",
+      "migration": {
+        "key": "DiomanPlugin.dispose",
+        "capability": "默认释放钩子为空操作",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPlugin.ordering",
+      "migration": {
+        "key": "DiomanPlugin.ordering",
+        "capability": "默认无约束，子类可声明顺序及依赖",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除 ordering 声明，改用 stage/enforce。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrder.after",
+      "migration": {
+        "key": "DiomanPluginOrder.after",
+        "capability": "要求排在已安装的指定插件之后",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrder.before",
+      "migration": {
+        "key": "DiomanPluginOrder.before",
+        "capability": "要求排在已安装的指定插件之前",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrder.none",
+      "migration": {
+        "key": "DiomanPluginOrder.none",
+        "capability": "三个集合均为空的常量顺序声明",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrder.requires",
+      "migration": {
+        "key": "DiomanPluginOrder.requires",
+        "capability": "只要求指定名字存在，不隐含顺序",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderException.issue",
+      "migration": {
+        "key": "DiomanPluginOrderException.issue",
+        "capability": "保存重复名、缺依赖、环或顺序问题类别",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "保留重复名拒绝行为，改由构造/use 抛 ArgumentError，并验证客户端链不变。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderException.message",
+      "migration": {
+        "key": "DiomanPluginOrderException.message",
+        "capability": "保存可读的顺序问题说明",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderException.plugins",
+      "migration": {
+        "key": "DiomanPluginOrderException.plugins",
+        "capability": "保存与问题类别对应的涉事插件名列表",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderException.toString",
+      "migration": {
+        "key": "DiomanPluginOrderException.toString",
+        "capability": "输出异常类别名及问题说明",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderIssue.cycle",
+      "migration": {
+        "key": "DiomanPluginOrderIssue.cycle",
+        "capability": "约束含环或自指时报告环上的名字",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderIssue.duplicateName",
+      "migration": {
+        "key": "DiomanPluginOrderIssue.duplicateName",
+        "capability": "输入同名插件时报告重复名字",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C4"
+        ],
+        "reason": "保留重复名拒绝行为，改由构造/use 抛 ArgumentError，并验证客户端链不变。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderIssue.misordered",
+      "migration": {
+        "key": "DiomanPluginOrderIssue.misordered",
+        "capability": "实际顺序违规时报告应在前后的两个名字",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanPluginOrderIssue.missingDependency",
+      "migration": {
+        "key": "DiomanPluginOrderIssue.missingDependency",
+        "capability": "缺少必需插件时报告依赖方及缺失名",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C4"
+        ],
+        "reason": "删除拓扑排序、before/after/requires 与环/缺依赖诊断；阶段排序与重复名改在新 pipeline 单测。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.stage; DiomanPlugin.enforce; Dioman.inspect"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRepath.onRequest",
+      "migration": {
+        "key": "DiomanRepath.onRequest",
+        "capability": "用 query/body 同名值替换路径变量，值已 URL 编码",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanRepath.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/repath_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.breaker",
+      "migration": {
+        "key": "DiomanRetry.breaker",
+        "capability": "每次重发前查熔断器；插拔后随链重接，不清手动外部实例",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.cancel",
+      "migration": {
+        "key": "DiomanRetry.cancel",
+        "capability": "已弃用的 no-op setter，无任何效果",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.dio",
+      "migration": {
+        "key": "DiomanRetry.dio",
+        "capability": "绑定宿主 Dio，重发借用其 adapter/transformer",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.dispose",
+      "migration": {
+        "key": "DiomanRetry.dispose",
+        "capability": "释放重放用的传输层",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "生命周期改由客户端实例管理，不再释放旧版兜底重放 Dio；客户端 dispose 后拒绝新请求。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.onError",
+      "migration": {
+        "key": "DiomanRetry.onError",
+        "capability": "错误阶段按判定重试：退避等待可取消，重放请求体后交接",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanRetry.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/retry_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.onRequest",
+      "migration": {
+        "key": "DiomanRetry.onRequest",
+        "capability": "可能被重试的请求在此登记结算认领，供 share/cancel 使用",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanRetry.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/retry_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.onResponse",
+      "migration": {
+        "key": "DiomanRetry.onResponse",
+        "capability": "2xx 业务失败按 shouldRetry 重试，重放请求体、可被取消",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C8"
+        ],
+        "reason": "auth/retry/breaker/cache 统一消费归一化后的逻辑状态和 ok，增加 business 风格断言。",
+        "doubt": "",
+        "new_api": [
+          "DiomanRetry.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/retry_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanRetry.share",
+      "migration": {
+        "key": "DiomanRetry.share",
+        "capability": "已弃用的 no-op setter，无任何效果",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.dio",
+      "migration": {
+        "key": "DiomanShare.dio",
+        "capability": "绑定宿主 Dio，policy=retry 的内部重发借用其 adapter",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.dispose",
+      "migration": {
+        "key": "DiomanShare.dispose",
+        "capability": "释放：未结算的共享条目以错误结算，避免跟随者悬挂",
+        "layer": "unit",
+        "action": "keep",
+        "codes": [],
+        "reason": "行为保持；按新 API 重写，并用新响应/请求夹具验证。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.dispose"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.hasMultipleDownstreamSettlers",
+      "migration": {
+        "key": "DiomanShare.hasMultipleDownstreamSettlers",
+        "capability": "已弃用兼容 getter，不影响结算行为",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.onError",
+      "migration": {
+        "key": "DiomanShare.onError",
+        "capability": "失败分发给同 key 各方；取消落败者脱离；retry 策略内部重试",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanShare.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/share_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.onRequest",
+      "migration": {
+        "key": "DiomanShare.onRequest",
+        "capability": "按 key 登记首发/跟随者；无 key 或关闭则直接放行",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanShare.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/share_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.onResponse",
+      "migration": {
+        "key": "DiomanShare.onResponse",
+        "capability": "成功结算共享条目，跟随者与落败者各拿独立副本",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1",
+          "C3"
+        ],
+        "reason": "share 按一次尝试共享同一个只读 R；首发离场保留共享传输，最后订阅者离开才取消；不再要求安装 key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanShare.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/share_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.registerDownstreamSettler",
+      "migration": {
+        "key": "DiomanShare.registerDownstreamSettler",
+        "capability": "已弃用兼容方法，仅计数，无任何效果",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanShare.settle",
+      "migration": {
+        "key": "DiomanShare.settle",
+        "capability": "按 key 显式结算共享条目并摘除，无条目时无操作",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C1",
+          "C4"
+        ],
+        "reason": "删除宿主/settler/兼容 setter/手工结算接线能力；重发由 next 及固定阶段天然组合。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPluginInstance.handle; DiomanNext"
+        ],
+        "location": "test/unit/pipeline_test.dart"
+      }
+    },
+    {
+      "id": "DiomanSharePolicy.none",
+      "migration": {
+        "key": "DiomanSharePolicy.none",
+        "capability": "不共享，请求各自独立发出",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C13"
+        ],
+        "reason": "B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。",
+        "doubt": "",
+        "new_api": [
+          "DiomanShareOptions.enabled"
+        ],
+        "location": "test/rule/shareoptions_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanSharedStateKey.count",
+      "migration": {
+        "key": "DiomanSharedStateKey.count",
+        "capability": "保存共享同一状态键的插件实例数",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanSharedStateKey.key",
+      "migration": {
+        "key": "DiomanSharedStateKey.key",
+        "capability": "保存被共享的登记项",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanSharedStateKey.toString",
+      "migration": {
+        "key": "DiomanSharedStateKey.toString",
+        "capability": "输出键名与实例数",
+        "layer": "unit",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除字符串 extra 注册表、描述表和重复状态键诊断；替代为 StateKey<T> 及每客户端 setup 隔离状态。",
+        "doubt": "",
+        "new_api": [
+          "StateKey; DiomanContext.get; DiomanContext.set"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    },
+    {
+      "id": "DiomanTimeout.onRequest",
+      "migration": {
+        "key": "DiomanTimeout.onRequest",
+        "capability": "按档位把非空 connect/receive/send 写进请求，缺档不动",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C1"
+        ],
+        "reason": "旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。",
+        "doubt": "",
+        "new_api": [
+          "DiomanTimeout.setup; DiomanPluginInstance.handle"
+        ],
+        "location": "test/rule/timeout_rule_test.dart"
+      }
+    },
+    {
+      "id": "DiomanTokenManager.canRefresh",
+      "migration": {
+        "key": "DiomanTokenManager.canRefresh",
+        "capability": "暴露可刷新契约，默认认证路由不读取",
+        "layer": "rule",
+        "action": "drop",
+        "codes": [
+          "C11"
+        ],
+        "reason": "删除 canRefresh 契约；刷新是否失效由 auth 实例管理，保留 accessToken/refreshToken/clear 用例。",
+        "doubt": "",
+        "new_api": [
+          "DiomanAuth.setup"
+        ],
+        "location": "test/rule/auth_rule_test.dart"
+      }
+    },
+    {
+      "id": "INV-04",
+      "migration": {
+        "key": "INV-04",
+        "capability": "内置 extra 键唯一且状态键有归属前缀",
+        "layer": "combo",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除 extra 注册表/重复键机制；由 StateKey 和 setup 隔离替代。",
+        "doubt": "",
+        "new_api": [
+          "StateKey"
+        ],
+        "location": "test/combo/invariants_combo_test.dart"
+      }
+    },
+    {
+      "id": "INV-06",
+      "migration": {
+        "key": "INV-06",
+        "capability": "重复实例只对已登记状态键报告共享冲突",
+        "layer": "combo",
+        "action": "drop",
+        "codes": [
+          "C5"
+        ],
+        "reason": "删除 extra 注册表/重复键机制；由 StateKey 和 setup 隔离替代。",
+        "doubt": "",
+        "new_api": [
+          "DiomanPlugin.setup"
+        ],
+        "location": "test/combo/invariants_combo_test.dart"
+      }
+    },
+    {
+      "id": "cancelAll",
+      "migration": {
+        "key": "cancelAll",
+        "capability": "调用 Dio 上首个取消插件，未安装则返回零",
+        "layer": "integration",
+        "action": "change",
+        "codes": [
+          "C3"
+        ],
+        "reason": "取消由内核覆盖每个逻辑请求，改测 Dioman.cancelAll/pending 和调用级 cancelToken。",
+        "doubt": "",
+        "new_api": [
+          "Dioman.cancelAll"
+        ],
+        "location": "test/integration/client_integration_test.dart"
+      }
+    },
+    {
+      "id": "defaultFallback",
+      "migration": {
+        "key": "defaultFallback",
+        "capability": "404 响应或非取消的网络层错误时回落",
+        "layer": "rule",
+        "action": "change",
+        "codes": [
+          "C7"
+        ],
+        "reason": "改测 source 阶段 DiomanMock：命中短路，不进入 share/cache/offline；探测回落用 next。",
+        "doubt": "",
+        "new_api": [
+          "DiomanMock.fallbackWhen"
+        ],
+        "location": "test/rule/mock_rule_test.dart"
+      }
+    },
+    {
+      "id": "kKey",
+      "migration": {
+        "key": "kKey",
+        "capability": "跨插件请求键槽固定为 dioman:key",
+        "layer": "unit",
+        "action": "change",
+        "codes": [
+          "C3",
+          "C5"
+        ],
+        "reason": "key 算法迁入 DiomanContext.key，客户端配置 DiomanKeyOptions；显式 key/false 用 DiomanCall.key。",
+        "doubt": "",
+        "new_api": [
+          "DiomanContext.key"
+        ],
+        "location": "test/unit/context_test.dart"
+      }
+    }
+  ],
+  "added": [
+    "Dioman.cancelAll",
+    "Dioman.cancellationSubscriptions",
+    "Dioman.clock",
+    "Dioman.delete",
+    "Dioman.dio",
+    "Dioman.dispose",
+    "Dioman.eject",
+    "Dioman.extend",
+    "Dioman.get",
+    "Dioman.head",
+    "Dioman.inspect",
+    "Dioman.key",
+    "Dioman.logError",
+    "Dioman.new(debug)",
+    "Dioman.new(plugins)",
+    "Dioman.patch",
+    "Dioman.pending",
+    "Dioman.plugin",
+    "Dioman.post",
+    "Dioman.put",
+    "Dioman.reject",
+    "Dioman.request",
+    "Dioman.response",
+    "Dioman.send",
+    "Dioman.use",
+    "DiomanAuth.defaultBuildHeader",
+    "DiomanAuth.injectedToken",
+    "DiomanAuth.option",
+    "DiomanAuth.readyStableAttempts",
+    "DiomanAuth.setup",
+    "DiomanAuth.stage",
+    "DiomanBreaker.defaultFailureThreshold",
+    "DiomanBreaker.defaultHalfOpenMaxCalls",
+    "DiomanBreaker.defaultResetDuration",
+    "DiomanBreaker.option",
+    "DiomanBreaker.setup",
+    "DiomanBreaker.stage",
+    "DiomanBreakerApi.bucketCount",
+    "DiomanBreakerApi.isOpen",
+    "DiomanBreakerApi.keyOf",
+    "DiomanBreakerApi.reset",
+    "DiomanBreakerApi.retryableAt",
+    "DiomanBreakerApi.stateOf",
+    "DiomanCache.clock",
+    "DiomanCache.option",
+    "DiomanCache.setup",
+    "DiomanCache.stage",
+    "DiomanCacheApi.clear",
+    "DiomanCacheApi.entryCount",
+    "DiomanCacheApi.pendingWrites",
+    "DiomanCacheApi.remove",
+    "DiomanCall.cancelToken",
+    "DiomanCall.connectTimeout",
+    "DiomanCall.envelope",
+    "DiomanCall.headers",
+    "DiomanCall.key",
+    "DiomanCall.options",
+    "DiomanCall.receiveTimeout",
+    "DiomanCall.sendTimeout",
+    "DiomanCall.silent",
+    "DiomanCancelLink.dispose",
+    "DiomanCancelLink.new(source)",
+    "DiomanCancelLink.new(target)",
+    "DiomanClock.createTimer",
+    "DiomanClock.now",
+    "DiomanContext.cancelToken",
+    "DiomanContext.cancellationSubscriptions",
+    "DiomanContext.cancelled",
+    "DiomanContext.client",
+    "DiomanContext.clock",
+    "DiomanContext.derive",
+    "DiomanContext.factory",
+    "DiomanContext.fail",
+    "DiomanContext.get",
+    "DiomanContext.id",
+    "DiomanContext.isCancelled",
+    "DiomanContext.key",
+    "DiomanContext.keyService",
+    "DiomanContext.log",
+    "DiomanContext.markReplayable",
+    "DiomanContext.replayable",
+    "DiomanContext.request",
+    "DiomanContext.set",
+    "DiomanContext.state",
+    "DiomanContext.wait",
+    "DiomanContextState.cancel",
+    "DiomanContextState.dispose",
+    "DiomanContextState.keys",
+    "DiomanContextState.listeners",
+    "DiomanContextState.new(onDispose)",
+    "DiomanContextState.release",
+    "DiomanContextState.replayable",
+    "DiomanContextState.retain",
+    "DiomanContextState.token",
+    "DiomanContextState.values",
+    "DiomanEnforce.post",
+    "DiomanEnforce.pre",
+    "DiomanEnvs.setup",
+    "DiomanFailure.data",
+    "DiomanFailure.error",
+    "DiomanFailure.errorStack",
+    "DiomanFailure.kind",
+    "DiomanFailure.message",
+    "DiomanFailure.reason",
+    "DiomanFailure.status",
+    "DiomanFilter.defaultPredicate",
+    "DiomanFilter.option",
+    "DiomanFilter.setup",
+    "DiomanFilter.stage",
+    "DiomanKeyOptions.namespace",
+    "DiomanKeyService.build",
+    "DiomanKeyService.options",
+    "DiomanKind.auth",
+    "DiomanKind.biz",
+    "DiomanKind.breaker",
+    "DiomanKind.cancel",
+    "DiomanKind.http",
+    "DiomanKind.internal",
+    "DiomanKind.network",
+    "DiomanKind.offline",
+    "DiomanKind.ok",
+    "DiomanKind.parse",
+    "DiomanKind.timeout",
+    "DiomanLoading.option",
+    "DiomanLoading.setup",
+    "DiomanLoading.stage",
+    "DiomanLoadingApi.activeCount",
+    "DiomanMock.enabled",
+    "DiomanMock.fallbackWhen",
+    "DiomanMock.mockUrl",
+    "DiomanMock.name",
+    "DiomanMock.option",
+    "DiomanMock.pluginName",
+    "DiomanMock.routes",
+    "DiomanMock.setup",
+    "DiomanMock.stage",
+    "DiomanNotify.defaultStringify",
+    "DiomanNotify.enabled",
+    "DiomanNotify.option",
+    "DiomanNotify.setup",
+    "DiomanNotify.stage",
+    "DiomanOffline.defaultMaxQueueSize",
+    "DiomanOffline.option",
+    "DiomanOffline.setup",
+    "DiomanOffline.stage",
+    "DiomanOfflineApi.flush",
+    "DiomanOfflineApi.pending",
+    "DiomanOptionKey.description",
+    "DiomanPlugin pairs",
+    "DiomanPlugin powerset",
+    "DiomanPlugin.enabled",
+    "DiomanPlugin.enforce",
+    "DiomanPlugin.setup",
+    "DiomanPlugin.stage",
+    "DiomanPluginInstance.dispose",
+    "DiomanPluginInstance.handle",
+    "DiomanRegistration.instance",
+    "DiomanRegistration.plugin",
+    "DiomanRepath.defaultPattern",
+    "DiomanRepath.option",
+    "DiomanRepath.setup",
+    "DiomanRepath.stage",
+    "DiomanRequest.baseUrl",
+    "DiomanRequest.call",
+    "DiomanRequest.cancelToken",
+    "DiomanRequest.connectTimeout",
+    "DiomanRequest.data",
+    "DiomanRequest.extra",
+    "DiomanRequest.headers",
+    "DiomanRequest.method",
+    "DiomanRequest.new(options)",
+    "DiomanRequest.patch",
+    "DiomanRequest.path",
+    "DiomanRequest.query",
+    "DiomanRequest.receiveTimeout",
+    "DiomanRequest.sendTimeout",
+    "DiomanRequest.silent",
+    "DiomanRequest.toRequestOptions",
+    "DiomanRequest.uri",
+    "DiomanResponse.callSite",
+    "DiomanResponse.code",
+    "DiomanResponse.copy",
+    "DiomanResponse.data",
+    "DiomanResponse.error",
+    "DiomanResponse.errorStack",
+    "DiomanResponse.httpStatus",
+    "DiomanResponse.kind",
+    "DiomanResponse.message",
+    "DiomanResponse.ok",
+    "DiomanResponse.raw",
+    "DiomanResponse.reason",
+    "DiomanResponse.request",
+    "DiomanResponse.status",
+    "DiomanResponse.toString",
+    "DiomanResponseFactory.create",
+    "DiomanResponseFactory.derive",
+    "DiomanResponseFactory.envelope",
+    "DiomanResponseFactory.expectJson",
+    "DiomanResponseFactory.fail",
+    "DiomanResponseFactory.isEnvelope",
+    "DiomanResponseFactory.isSuccess",
+    "DiomanResponseFactory.logicalStatus",
+    "DiomanResponseFactory.normalize",
+    "DiomanResponseFactory.withCallSite",
+    "DiomanRetry.defaultAfterStatusCodes",
+    "DiomanRetry.defaultDelay",
+    "DiomanRetry.defaultMethods",
+    "DiomanRetry.defaultStatusCodes",
+    "DiomanRetry.option",
+    "DiomanRetry.setup",
+    "DiomanRetry.stage",
+    "DiomanRetryOptions.onRetry",
+    "DiomanShare.methods",
+    "DiomanShare.option",
+    "DiomanShare.setup",
+    "DiomanShare.stage",
+    "DiomanShareApi.activeEntries",
+    "DiomanShareOptions.methods",
+    "DiomanStage.attempt",
+    "DiomanStage.credential",
+    "DiomanStage.outer",
+    "DiomanStage.prepare",
+    "DiomanStage.source",
+    "DiomanTimeout.defaultConnect",
+    "DiomanTimeout.defaultTimeouts",
+    "DiomanTimeout.option",
+    "DiomanTimeout.setup",
+    "DiomanTimeout.stage",
+    "DiomanTokenManager.setTokens",
+    "Envelope.code",
+    "Envelope.data",
+    "Envelope.message",
+    "INV-REAL-auth.code-only-401-concurrent",
+    "INV-REAL-auth.code-only-401-no-refresh-token",
+    "INV-REAL-auth.code-only-401-refresh-once-then-expired",
+    "INV-REAL-auth.expired-multipart-replay",
+    "INV-REAL-auth.garbage-then-relogin",
+    "INV-REAL-auth.logout-inflight",
+    "INV-REAL-auth.natural-expiry-refresh",
+    "INV-REAL-auth.network-failure-keeps-session",
+    "INV-REAL-auth.offline-refresh-keeps-session",
+    "INV-REAL-auth.post-replay-body-intact",
+    "INV-REAL-auth.relogin-after-expired",
+    "INV-REAL-auth.relogin-other-user",
+    "INV-REAL-auth.revoke-all-concurrent",
+    "INV-REAL-auth.revoke-all-expired",
+    "INV-REAL-auth.revoke-all-previous-tokens",
+    "INV-REAL-auth.revoke-all-then-relogin",
+    "INV-REAL-auth.revoke-default-scope-is-all",
+    "INV-REAL-auth.revoke-kicked",
+    "INV-REAL-auth.slow-refresh-cancel",
+    "INV-REAL-auth.slow-refresh-cancel-all",
+    "INV-REAL-auth.strict-rotation-two-rounds",
+    "INV-REAL-auth.style-switch-concurrent",
+    "INV-REAL-auth.style-switch-expired",
+    "INV-REAL-auth.token-bad-signature-refresh-bad",
+    "INV-REAL-auth.token-bad-signature-refresh-none",
+    "INV-REAL-auth.token-bad-signature-refresh-ok",
+    "INV-REAL-auth.token-empty-refresh-bad",
+    "INV-REAL-auth.token-empty-refresh-none",
+    "INV-REAL-auth.token-empty-refresh-ok",
+    "INV-REAL-auth.token-garbage-concurrent-no-refresh",
+    "INV-REAL-auth.token-garbage-concurrent-refresh-bad",
+    "INV-REAL-auth.token-garbage-concurrent-refresh-ok",
+    "INV-REAL-auth.token-garbage-refresh-bad",
+    "INV-REAL-auth.token-garbage-refresh-none",
+    "INV-REAL-auth.token-no-refresh-user-garbage",
+    "INV-REAL-auth.token-no-refresh-user-none",
+    "INV-REAL-auth.token-none-concurrent",
+    "INV-REAL-auth.token-none-refresh-bad",
+    "INV-REAL-auth.token-none-refresh-none",
+    "INV-REAL-auth.token-none-refresh-ok",
+    "INV-REAL-auth.token-nonstrict-previous-access",
+    "INV-REAL-auth.token-previous-after-logout",
+    "INV-REAL-auth.token-previous-after-revoke",
+    "INV-REAL-auth.token-previous-refresh-reuse",
+    "INV-REAL-auth.token-strict-previous-access",
+    "INV-REAL-auth.token-tampered-payload-refresh-bad",
+    "INV-REAL-auth.token-tampered-payload-refresh-none",
+    "INV-REAL-auth.token-tampered-payload-refresh-ok",
+    "INV-REAL-auth.token-wrong-scheme-refresh-bad",
+    "INV-REAL-auth.token-wrong-scheme-refresh-none",
+    "INV-REAL-auth.token-wrong-scheme-refresh-ok",
+    "INV-REAL-auth.two-rounds-refresh-chain",
+    "INV-REAL-breaker.half-open-probe-cancel",
+    "INV-REAL-breaker.open-fast-fail",
+    "INV-REAL-breaker.retry-halts-on-trip",
+    "INV-REAL-breaker.success-resets-count",
+    "INV-REAL-cache.cancel-not-cached",
+    "INV-REAL-cache.clear",
+    "INV-REAL-cache.concurrent-no-share-all-miss",
+    "INV-REAL-cache.diff-body-no-mixup",
+    "INV-REAL-cache.diff-query-no-mixup",
+    "INV-REAL-cache.failure-then-success-cached",
+    "INV-REAL-cache.http-error-not-cached",
+    "INV-REAL-cache.large-response",
+    "INV-REAL-cache.offline-miss-then-recover",
+    "INV-REAL-cache.single-clear-cache",
+    "INV-REAL-cache.timeout-not-cached",
+    "INV-REAL-cache.user-scope-no-leak",
+    "INV-REAL-cache.user-scope-same-user-hits",
+    "INV-REAL-cancel.after-complete-noop",
+    "INV-REAL-cancel.all",
+    "INV-REAL-cancel.all-then-new-works",
+    "INV-REAL-cancel.all-with-nothing-inflight",
+    "INV-REAL-cancel.before-reach-server",
+    "INV-REAL-cancel.blackhole-cancel-before-timeout",
+    "INV-REAL-cancel.double-cancel",
+    "INV-REAL-cancel.hang-is-canceled-not-timeout",
+    "INV-REAL-cancel.one-of-many",
+    "INV-REAL-cancel.parallel-32",
+    "INV-REAL-cancel.single",
+    "INV-REAL-cancel.slow-body",
+    "INV-REAL-combo.filter-repath-path-var-first",
+    "INV-REAL-combo.loading-mock-fallback-single-pair",
+    "INV-REAL-combo.mock-share-fallback-single-flight",
+    "INV-REAL-faults.html-gateway-page",
+    "INV-REAL-faults.no-envelope",
+    "INV-REAL-key.filter-before-key",
+    "INV-REAL-key.method-diff-not-merged",
+    "INV-REAL-key.share-diff-query-not-merged",
+    "INV-REAL-key.share-without-key-not-merged",
+    "INV-REAL-loading.big-parallel-20",
+    "INV-REAL-loading.cancel-closes",
+    "INV-REAL-loading.failure-closes",
+    "INV-REAL-loading.flap-recovers-single-pair",
+    "INV-REAL-loading.network-switch-pairs",
+    "INV-REAL-loading.parallel-partial-fail",
+    "INV-REAL-loading.retry-exhausted-closes",
+    "INV-REAL-loading.retry-no-flicker",
+    "INV-REAL-loading.timeout-closes",
+    "INV-REAL-mock.fallback-to-real-on-404",
+    "INV-REAL-mock.mock-then-retry-untouched",
+    "INV-REAL-mock.query-and-body-forwarded",
+    "INV-REAL-mock.routes-to-mock-server",
+    "INV-REAL-mock.single-fallback-disabled",
+    "INV-REAL-network.blackhole-cancel-all",
+    "INV-REAL-network.flap-parallel-retry",
+    "INV-REAL-network.flap-retry-recovers",
+    "INV-REAL-network.lossy-parallel-retry",
+    "INV-REAL-network.offline-immediate",
+    "INV-REAL-network.offline-share-loading",
+    "INV-REAL-network.recovery-state-clean",
+    "INV-REAL-network.switch-offline-online",
+    "INV-REAL-normalize.business-fail",
+    "INV-REAL-normalize.business-multi-codes",
+    "INV-REAL-normalize.business-negative-code",
+    "INV-REAL-normalize.business-notify-retry-combo",
+    "INV-REAL-normalize.envelope-unwrap",
+    "INV-REAL-normalize.http-error-wins",
+    "INV-REAL-normalize.no-envelope-passthrough",
+    "INV-REAL-normalize.per-request-off",
+    "INV-REAL-normalize.style-switch",
+    "INV-REAL-notify.parallel-failures-each",
+    "INV-REAL-notify.parse-error-once",
+    "INV-REAL-notify.retry-exhausted-once",
+    "INV-REAL-notify.retry-recovered-silent",
+    "INV-REAL-notify.timeout-once",
+    "INV-REAL-offline.cancel-while-probing",
+    "INV-REAL-offline.then-online-no-stale-state",
+    "INV-REAL-repath.key-after-repath",
+    "INV-REAL-repath.key-cache-no-mixup",
+    "INV-REAL-repath.same-var-twice",
+    "INV-REAL-repath.zero-value",
+    "INV-REAL-retry.401-goes-refresh-first",
+    "INV-REAL-retry.attempt-is-new-connection-friendly",
+    "INV-REAL-retry.blackhole-timeout",
+    "INV-REAL-retry.cancel-all-during-wait",
+    "INV-REAL-retry.cancel-during-wait",
+    "INV-REAL-retry.fail-every-all-recover",
+    "INV-REAL-retry.fail-on-gap-exhausts",
+    "INV-REAL-retry.fail-on-noncontiguous-retried",
+    "INV-REAL-retry.fail-on-union-fail-times",
+    "INV-REAL-retry.flap-recovers",
+    "INV-REAL-retry.hang-timeout-retried",
+    "INV-REAL-retry.lossy-converges",
+    "INV-REAL-retry.offline-exhausts",
+    "INV-REAL-retry.parallel-independent",
+    "INV-REAL-retry.post-network-no-retry",
+    "INV-REAL-retry.style-switch",
+    "INV-REAL-share.all-cancelled-aborts-server",
+    "INV-REAL-share.network-failure-all-fail",
+    "INV-REAL-share.reuse-after-failure",
+    "INV-REAL-share.single-all-timeout-aborts-server",
+    "INV-REAL-share.single-start-explicit-key",
+    "INV-example",
+    "RequestPatch.cancelToken",
+    "RequestPatch.connectTimeout",
+    "RequestPatch.data",
+    "RequestPatch.extra",
+    "RequestPatch.headers",
+    "RequestPatch.method",
+    "RequestPatch.path",
+    "RequestPatch.query",
+    "RequestPatch.receiveTimeout",
+    "RequestPatch.removeHeaders",
+    "RequestPatch.removeQuery",
+    "RequestPatch.sendTimeout",
+    "StateKey.description",
+    "compileDiomanPipeline",
+    "diomanBuiltinStages",
+    "diomanSetupPlugins",
+    "diomanTransport",
+    "replaceOption",
+    "resolveOption",
+    "sortDiomanPipeline",
+    "validateDiomanPlugins"
+  ],
+  "retained": [
+    "DiomanAuth.enabled",
+    "DiomanAuth.name",
+    "DiomanAuth.new(buildHeader)",
+    "DiomanAuth.new(expiresAt)",
+    "DiomanAuth.new(headerKey)",
+    "DiomanAuth.new(isProtected)",
+    "DiomanAuth.new(onAccessDenied)",
+    "DiomanAuth.new(onAccessExpired)",
+    "DiomanAuth.new(onFailure)",
+    "DiomanAuth.new(onRefresh)",
+    "DiomanAuth.new(ready)",
+    "DiomanAuth.new(refreshLeeway)",
+    "DiomanAuth.new(tokenManager)",
+    "DiomanAuth.pluginName",
+    "DiomanAuthFailureAction.deny",
+    "DiomanAuthFailureAction.expired",
+    "DiomanAuthFailureAction.others",
+    "DiomanAuthFailureAction.refresh",
+    "DiomanAuthFailureAction.replay",
+    "DiomanAuthOptions.buildHeader",
+    "DiomanAuthOptions.enabled",
+    "DiomanAuthOptions.expiresAt",
+    "DiomanAuthOptions.headerKey",
+    "DiomanAuthOptions.isProtected",
+    "DiomanAuthOptions.onAccessDenied",
+    "DiomanAuthOptions.onAccessExpired",
+    "DiomanAuthOptions.onFailure",
+    "DiomanAuthOptions.ready",
+    "DiomanAuthOptions.refreshLeeway",
+    "DiomanBreaker.defaultIdleTtl",
+    "DiomanBreaker.defaultMaxBuckets",
+    "DiomanBreaker.enabled",
+    "DiomanBreaker.failureThreshold",
+    "DiomanBreaker.halfOpenMaxCalls",
+    "DiomanBreaker.idleTtl",
+    "DiomanBreaker.keyBuilder",
+    "DiomanBreaker.maxBuckets",
+    "DiomanBreaker.name",
+    "DiomanBreaker.new(clock)",
+    "DiomanBreaker.onStateChange",
+    "DiomanBreaker.pluginName",
+    "DiomanBreaker.resetDuration",
+    "DiomanBreaker.shouldTrip",
+    "DiomanBreakerOptions.enabled",
+    "DiomanBreakerOptions.failureThreshold",
+    "DiomanBreakerOptions.halfOpenMaxCalls",
+    "DiomanBreakerOptions.keyBuilder",
+    "DiomanBreakerOptions.resetDuration",
+    "DiomanBreakerOptions.shouldTrip",
+    "DiomanBreakerState.closed",
+    "DiomanBreakerState.halfOpen",
+    "DiomanBreakerState.open",
+    "DiomanCache.cachePolicy",
+    "DiomanCache.clone",
+    "DiomanCache.enabled",
+    "DiomanCache.expires",
+    "DiomanCache.maxEntries",
+    "DiomanCache.name",
+    "DiomanCache.new(shouldCache)",
+    "DiomanCache.persist",
+    "DiomanCache.pluginName",
+    "DiomanCacheOptions.cachePolicy",
+    "DiomanCacheOptions.clone",
+    "DiomanCacheOptions.enabled",
+    "DiomanCacheOptions.expires",
+    "DiomanCacheOptions.shouldCache",
+    "DiomanCacheOptions.shouldStore",
+    "DiomanCachePersist.erase",
+    "DiomanCachePersist.read",
+    "DiomanCachePersist.remove",
+    "DiomanCachePersist.write",
+    "DiomanCachePolicy.both",
+    "DiomanCachePolicy.memo",
+    "DiomanCachePolicy.persist",
+    "DiomanClonePolicy.deep",
+    "DiomanClonePolicy.none",
+    "DiomanClonePolicy.shallow",
+    "DiomanEnvs.config",
+    "DiomanEnvs.name",
+    "DiomanEnvs.new(enabled)",
+    "DiomanEnvs.pluginName",
+    "DiomanEnvs.rules",
+    "DiomanEnvsOptions.enabled",
+    "DiomanFilter.enabled",
+    "DiomanFilter.ignoreKeys",
+    "DiomanFilter.ignoreValues",
+    "DiomanFilter.name",
+    "DiomanFilter.pluginName",
+    "DiomanFilter.predicate",
+    "DiomanFilterOptions.enabled",
+    "DiomanFilterOptions.ignoreKeys",
+    "DiomanFilterOptions.ignoreValues",
+    "DiomanFilterOptions.predicate",
+    "DiomanKeyOptions.builder",
+    "DiomanKeyOptions.fastMode",
+    "DiomanKeyOptions.ignores",
+    "DiomanKeyOptions.key",
+    "DiomanLoading.delay",
+    "DiomanLoading.delayClose",
+    "DiomanLoading.enabled",
+    "DiomanLoading.name",
+    "DiomanLoading.new(onChanged)",
+    "DiomanLoading.pluginName",
+    "DiomanLoadingOptions.delay",
+    "DiomanLoadingOptions.delayClose",
+    "DiomanLoadingOptions.enabled",
+    "DiomanLoadingOptions.onChanged",
+    "DiomanMockOptions.enabled",
+    "DiomanMockOptions.fallbackWhen",
+    "DiomanMockOptions.mockUrl",
+    "DiomanMockOptions.routes",
+    "DiomanNotify.name",
+    "DiomanNotify.notify",
+    "DiomanNotify.pluginName",
+    "DiomanNotify.stringify",
+    "DiomanOffline.enabled",
+    "DiomanOffline.maxQueueSize",
+    "DiomanOffline.maxWait",
+    "DiomanOffline.name",
+    "DiomanOffline.new(isOnline)",
+    "DiomanOffline.new(onConnectivityChanged)",
+    "DiomanOffline.new(shouldQueue)",
+    "DiomanOffline.pluginName",
+    "DiomanOfflineOptions.enabled",
+    "DiomanOfflineOptions.maxQueueSize",
+    "DiomanOfflineOptions.maxWait",
+    "DiomanOfflineOptions.shouldQueue",
+    "DiomanPlugin.name",
+    "DiomanRepath.enabled",
+    "DiomanRepath.name",
+    "DiomanRepath.pattern",
+    "DiomanRepath.pluginName",
+    "DiomanRepath.removeKey",
+    "DiomanRepathOptions.enabled",
+    "DiomanRepathOptions.pattern",
+    "DiomanRepathOptions.removeKey",
+    "DiomanRetry.afterStatusCodes",
+    "DiomanRetry.delay",
+    "DiomanRetry.delayMax",
+    "DiomanRetry.enabled",
+    "DiomanRetry.jitter",
+    "DiomanRetry.max",
+    "DiomanRetry.methods",
+    "DiomanRetry.name",
+    "DiomanRetry.onRetry",
+    "DiomanRetry.pluginName",
+    "DiomanRetry.respectRetryAfter",
+    "DiomanRetry.respectRetryAfter#real-header",
+    "DiomanRetry.retryAfterMax",
+    "DiomanRetry.shouldRetry",
+    "DiomanRetry.statusCodes",
+    "DiomanRetry.statusCodes#network-type",
+    "DiomanRetryOptions.afterStatusCodes",
+    "DiomanRetryOptions.delay",
+    "DiomanRetryOptions.delayMax",
+    "DiomanRetryOptions.enabled",
+    "DiomanRetryOptions.jitter",
+    "DiomanRetryOptions.max",
+    "DiomanRetryOptions.methods",
+    "DiomanRetryOptions.respectRetryAfter",
+    "DiomanRetryOptions.retryAfterMax",
+    "DiomanRetryOptions.shouldRetry",
+    "DiomanRetryOptions.statusCodes",
+    "DiomanShare.enabled",
+    "DiomanShare.interval",
+    "DiomanShare.name",
+    "DiomanShare.pluginName",
+    "DiomanShare.policy",
+    "DiomanShare.retries",
+    "DiomanShareOptions.enabled",
+    "DiomanShareOptions.interval",
+    "DiomanShareOptions.policy",
+    "DiomanShareOptions.retries",
+    "DiomanSharePolicy.end",
+    "DiomanSharePolicy.race",
+    "DiomanSharePolicy.retry",
+    "DiomanSharePolicy.start",
+    "DiomanTimeout.enabled",
+    "DiomanTimeout.name",
+    "DiomanTimeout.new(probe)",
+    "DiomanTimeout.pluginName",
+    "DiomanTimeout.timeouts",
+    "DiomanTimeoutOptions.enabled",
+    "DiomanTimeoutOptions.timeouts",
+    "DiomanTimeouts.connect",
+    "DiomanTimeouts.connect#effective",
+    "DiomanTimeouts.receive",
+    "DiomanTimeouts.receive#effective",
+    "DiomanTimeouts.send",
+    "DiomanTimeouts.send#effective",
+    "DiomanTokenManager.accessToken",
+    "DiomanTokenManager.clear",
+    "DiomanTokenManager.refreshToken",
+    "EnvRule.config",
+    "EnvRule.rule",
+    "INV-01",
+    "INV-02",
+    "INV-03",
+    "INV-05",
+    "INV-07",
+    "INV-08",
+    "INV-09",
+    "INV-10",
+    "INV-11",
+    "INV-12",
+    "INV-13",
+    "INV-14",
+    "INV-15",
+    "INV-16",
+    "INV-17",
+    "INV-18",
+    "INV-19",
+    "INV-20",
+    "INV-21",
+    "INV-22",
+    "INV-23",
+    "INV-24",
+    "INV-25",
+    "INV-26",
+    "NetworkQuality.excellent",
+    "NetworkQuality.good",
+    "NetworkQuality.none",
+    "NetworkQuality.poor",
+    "defaultAuthFailure"
+  ],
+  "rebuilt_same_id": [
+    "DiomanCache.cachePolicy"
+  ]
+}

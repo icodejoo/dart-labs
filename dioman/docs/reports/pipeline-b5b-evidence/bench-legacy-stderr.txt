@@ -1,0 +1,131 @@
+Preparing worktree (detached HEAD 895d959)
+Updating files:  35% (1036/2894)
+Updating files:  36% (1042/2894)
+Updating files:  37% (1071/2894)
+Updating files:  38% (1100/2894)
+Updating files:  39% (1129/2894)
+Updating files:  40% (1158/2894)
+Updating files:  41% (1187/2894)
+Updating files:  42% (1216/2894)
+Updating files:  43% (1245/2894)
+Updating files:  44% (1274/2894)
+Updating files:  45% (1303/2894)
+Updating files:  46% (1332/2894)
+Updating files:  47% (1361/2894)
+Updating files:  48% (1390/2894)
+Updating files:  49% (1419/2894)
+Updating files:  50% (1447/2894)
+Updating files:  51% (1476/2894)
+Updating files:  52% (1505/2894)
+Updating files:  53% (1534/2894)
+Updating files:  54% (1563/2894)
+Updating files:  55% (1592/2894)
+Updating files:  56% (1621/2894)
+Updating files:  57% (1650/2894)
+Updating files:  58% (1679/2894)
+Updating files:  59% (1708/2894)
+Updating files:  60% (1737/2894)
+Updating files:  61% (1766/2894)
+Updating files:  61% (1784/2894)
+Updating files:  62% (1795/2894)
+Updating files:  63% (1824/2894)
+Updating files:  64% (1853/2894)
+Updating files:  65% (1882/2894)
+Updating files:  66% (1911/2894)
+Updating files:  67% (1939/2894)
+Updating files:  68% (1968/2894)
+Updating files:  69% (1997/2894)
+Updating files:  70% (2026/2894)
+Updating files:  71% (2055/2894)
+Updating files:  71% (2077/2894)
+Updating files:  72% (2084/2894)
+Updating files:  73% (2113/2894)
+Updating files:  74% (2142/2894)
+Updating files:  75% (2171/2894)
+Updating files:  76% (2200/2894)
+Updating files:  77% (2229/2894)
+Updating files:  78% (2258/2894)
+Updating files:  79% (2287/2894)
+Updating files:  80% (2316/2894)
+Updating files:  81% (2345/2894)
+Updating files:  82% (2374/2894)
+Updating files:  83% (2403/2894)
+Updating files:  84% (2431/2894)
+Updating files:  85% (2460/2894)
+Updating files:  86% (2489/2894)
+Updating files:  87% (2518/2894)
+Updating files:  88% (2547/2894)
+Updating files:  89% (2576/2894)
+Updating files:  90% (2605/2894)
+Updating files:  91% (2634/2894)
+Updating files:  92% (2663/2894)
+Updating files:  93% (2692/2894)
+Updating files:  94% (2721/2894)
+Updating files:  95% (2750/2894)
+Updating files:  96% (2779/2894)
+Updating files:  97% (2808/2894)
+Updating files:  98% (2837/2894)
+Updating files:  99% (2866/2894)
+Updating files: 100% (2894/2894)
+Updating files: 100% (2894/2894), done.
+HEAD is now at 895d959 test(dioman): B5a powerset 与成对组合补齐
+Resolving dependencies...
+Downloading packages...
++ _fe_analyzer_shared 110.0.0
++ analyzer 14.6.0
++ args 2.7.0
++ async 2.13.1
++ boolean_selector 2.1.2
++ cli_config 0.2.0
++ cli_util 0.6.0
++ collection 1.19.1
++ convert 3.1.2
++ coverage 1.16.0
++ crypto 3.0.8
++ dio 5.11.1
++ dio_web_adapter 2.2.2
++ ffi 2.2.0
++ file 7.0.1
++ frontend_server_client 4.2.0
++ glob 2.2.0
++ http_multi_server 3.2.3
++ http_parser 4.1.2
++ io 1.1.0
++ lints 5.1.1 (6.1.0 available)
++ logging 1.3.0
++ matcher 0.12.20
++ meta 1.19.0
++ mime 2.1.0
++ node_preamble 2.0.2
++ package_config 3.0.0
++ path 1.9.1
++ pool 1.5.3
++ pub_semver 2.2.1
++ shelf 1.4.3
++ shelf_packages_handler 3.0.2
++ shelf_static 1.2.0
++ shelf_web_socket 3.0.0
++ source_map_stack_trace 2.1.2
++ source_maps 0.10.14
++ source_span 1.10.2
++ stack_trace 1.12.2
++ stream_channel 2.1.4
++ string_scanner 1.4.1
++ term_glyph 1.2.2
++ test 1.33.0
++ test_api 0.7.15
++ test_core 0.6.21
++ typed_data 1.4.0
++ vm_service 15.4.0
++ watcher 1.2.1
++ web 1.1.2
++ web_socket 1.0.1
++ web_socket_channel 3.0.3
++ webkit_inspection_protocol 1.2.1
++ yaml 3.1.4
+Changed 52 dependencies!
+1 package has newer versions incompatible with dependency constraints.
+Try `dart pub outdated` for more information.
+Resolving dependencies in `.\example`...
+Downloading packages...
+Got dependencies in `.\example`.

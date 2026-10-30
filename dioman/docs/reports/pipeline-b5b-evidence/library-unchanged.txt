@@ -1,0 +1,1 @@
+27/27 source files identical to 895d959 after LF normalization; 27/27 hashes match B5a worktree source hashes; no library behavior changes.

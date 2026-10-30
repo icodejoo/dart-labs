@@ -1,0 +1,20 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":41212,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/unit/accept_runner_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/unit/accept_runner_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":1}
+{"count":1,"time":6,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":572}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":6,"line":null,"column":null,"url":null},"type":"group","time":574}
+{"test":{"id":3,"name":"[ScenarioClient] 服务停止只读归一化逻辑状态，在重试前阻止非注入 429/503","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":12,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":575}
+{"testID":3,"error":"Expected: throws <Instance of 'StateError'>\n  Actual: <Instance of 'Future<DiomanResponse<dynamic>>'>\n   Which: emitted DiomanResponse<dynamic>:<DiomanResponse(biz, 429, )>\n","stackTrace":"test\\unit\\accept_runner_test.dart 20:9  main.<fn>\n","isFailure":true,"type":"error","time":623}
+{"testID":3,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":623}
+{"test":{"id":4,"name":"[ScenarioClient] 注入 HTTP/business 503 正常交给库重试","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":29,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":624}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":628}
+{"test":{"id":5,"name":"[ScenarioClient] total_ms 没有库实现，显式拒绝配置，不能静默失效","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":47,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":628}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":630}
+{"test":{"id":6,"name":"[client.classify] 归类只读取 kind reason status，原始数据不参与判断","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":51,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":630}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":631}
+{"test":{"id":7,"name":"[common.missingCapabilities] mock 在链内，raw-business-code 未声明","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":66,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":632}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":634}
+{"test":{"id":8,"name":"[ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":71,"column":3,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/unit/accept_runner_test.dart"},"type":"testStart","time":634}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":639}
+{"success":false,"type":"done","time":646}

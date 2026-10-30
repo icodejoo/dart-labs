@@ -1,0 +1,21 @@
+00:00 +0: loading test/boundary/auth_boundary_test.dart
+00:00 +0: [DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新
+00:00 +0 -1: [DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新 [E]
+  Bad state: unstable
+  package:dioman/src/pipeline/plugins/auth.dart 346:54  _Auth.handle
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/pipeline.dart 73:16       compileDiomanPipeline.<fn>
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/client.dart 293:20        Dioman._dispatch
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/client.dart 219:9         Dioman.send
+  ===== asynchronous gap ===========================
+  test\boundary\auth_boundary_test.dart 66:15           main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] 三次都不稳定以最后快照发出，401 replay 不触发刷新
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

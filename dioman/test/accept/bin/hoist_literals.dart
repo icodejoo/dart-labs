@@ -102,12 +102,13 @@ void main() {
       changed = true;
     }
     if (changed) {
-      final importPath =
-          entry.key.path.replaceAll('\\', '/').startsWith('test/accept/lib/')
-              ? 'literals.dart'
-              : entry.key.path.replaceAll('\\', '/').startsWith('test/accept/bin/')
-                  ? '../lib/literals.dart'
-                  : '../accept/lib/literals.dart';
+      final importPath = entry.key.path
+              .replaceAll('\\', '/')
+              .startsWith('test/accept/lib/')
+          ? 'literals.dart'
+          : entry.key.path.replaceAll('\\', '/').startsWith('test/accept/bin/')
+              ? '../lib/literals.dart'
+              : '../accept/lib/literals.dart';
       if (!RegExp(r'^part of ', multiLine: true).hasMatch(source) &&
           !source.contains("import '$importPath';")) {
         final directive = "import '$importPath';\n";

@@ -1,0 +1,16 @@
+00:00 +0: loading test/combo/source_combo_test.dart
+00:00 +0: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:00 +0 -1: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者 [E]
+  Expected: <2>
+    Actual: <1>
+  
+  package:matcher                         expect
+  test\combo\source_combo_test.dart 32:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

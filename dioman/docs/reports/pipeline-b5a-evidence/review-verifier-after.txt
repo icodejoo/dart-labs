@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "E:\workspaces\dart-labs-pipeline\dioman\tool\pipeline_b5a_coverage.py", line 60, in <module>
+    inspect(ROOT / (sys.argv[1] if len(sys.argv) > 1 else
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   'docs/reports/pipeline-b5a-evidence/coverage.info'))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\workspaces\dart-labs-pipeline\dioman\tool\pipeline_b5a_coverage.py", line 31, in inspect
+    assert rows and branches, f'{name}: missing line/branch instrumentation'
+           ^^^^^^^^^^^^^^^^^
+AssertionError: clock.dart: missing line/branch instrumentation
+
+exit: 1

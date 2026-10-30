@@ -6,10 +6,18 @@
 
 - [当前状态](status.md) — 测试体系进度、闸门现状、待拍板的产品问题、P2 补测清单。active。
 
+## 决策
+
+- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定。active。
+
 ## 设计
 
-- [测试体系方案](design/test-matrix-plan.md) — 三档 + 总账矩阵 + 五道闸门 + 分阶段计划。active。
-- [架构](design/architecture.md) — 执行模型、插件职责、安装顺序、extra 键表（测试会核对键表）。active。
+- [洋葱管线核心架构](design/pipeline-architecture.md) — 内核模块、数据流、阶段排序、上下文与取消原语、归一化响应与落定、插件接口、客户端 API、性能设计。active。
+- [洋葱管线插件规格](design/pipeline-plugin-spec.md) — 12 个内置插件与内核服务的选项、行为、内核依赖，行为变化汇总 C1–C13。active。
+- [洋葱管线测试方案](design/pipeline-test-plan.md) — 六层、不变量 I1–I7、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移。active。
+- [洋葱管线实施计划](design/pipeline-implementation-plan.md) — B0–B7 分批、完成标准、Codex 派发约束、终审关卡与风险。active。
+- [测试体系方案](design/test-matrix-plan.md) — 三档 + 总账矩阵 + 五道闸门（G0–G5、基线棘轮、定档规则）。active。
+- [架构](design/architecture.md) — 现行客户端、阶段、边界与贡献入口。active。
 
 ## 操作手册
 
@@ -18,10 +26,12 @@
 
 ## 参考
 
+- [洋葱管线旧行为迁移总表](reference/pipeline-migration/README.md) — B0 运行时用例与总账逐条 keep/change/drop，分层新位置及存疑项。active。
 - [testkit 字段映射](reference/testkit-mapping.md) — testkit schema 字段 → dioman 参数或宿主职责。active。
 
 ## 报告
 
+- [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。
 - [插件五方法真实矩阵 2026-10-27](reports/2026-10-27-plugin-matrix.md) — 156 格结论，"待补"项将由总账接管。active。
 - [行覆盖逐行复核 2026-10-27](reports/2026-10-27-coverage-review.md) — 1788/1793，剩余 5 行兜底理由。active。
@@ -40,16 +50,17 @@
 | 要找 | 路径 |
 |---|---|
 | 各层用例 | `test/{unit,rule,boundary,combo,integration}/` |
-| 夹具：假适配器、TestTokens、组合安装 | `test/support/fixtures.dart` |
-| 本地真实 HTTP 服务夹具 | `test/support/test_server.dart` |
+| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,b3_helpers,helpers}.dart` |
+| 本地真实 HTTP 回环 | `test/integration/{b3_transport,source_transport,timeout_effective}_integration_test.dart` |
 | 本地全量组合（powerset） | `test/combo/powerset_combo_test.dart` |
-| 真实服务白盒入口（`real` 标签） | `test/integration/real_service_integration_test.dart` |
+| 整形插件成对组合 | `test/combo/prepare_pairs_combo_test.dart` |
+| 唯一入口与旧 key 固定基准 | `lib/dioman.dart`、`test/support/key_baseline.json` |
 | 验收执行器源码 | `test/accept/bin/`（入口）、`test/accept/lib/`（实现） |
-| 公开 API 台账（691 项） | `test/accept/lib/api-inventory.json` |
+| 公开 API 台账（744 项） | `test/accept/lib/api-inventory.json` |
 | 真实 pairwise 执行计划 | `test/accept/lib/plugin_matrix_plan.json` |
 | 总账矩阵 / 缺口基线 / 行覆盖白名单 | `test/accept/lib/matrix.json`、`matrix-baseline.json`、`matrix-lcov-whitelist.json` |
 | 闸门、证据汇总、结论回填 | `dart run test/accept/bin/matrix.dart gates / evidence / results`；静态闸门 `test/integration/matrix_integration_test.dart` |
-| 入库的真实验收证据汇总 | `test/accept/evidence/` |
+| 新版入库验收证据 / 切换前历史汇总 | `test/accept/evidence/`；`docs/reference/pipeline-migration/raw/accept-evidence/` |
 | 假设清单（H 编号） | `test/ASSUMPTIONS.md` |
 | 给 testkit 的提议（外部仓库，已落地为 testkit D20–D23，顶部有各节去向） | `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md` |
 | 历史验收日志 / 结果（本地，不入库） | `test/accept/*.log`、`test/accept/results/` |
@@ -58,3 +69,36 @@
 ## 约束
 
 - 改 `lib/src/` 前必读：`.claude/skills/dioman/SKILL.md`
+
+## 批次报告、分层迁移与证据索引
+
+- [reference/pipeline-migration/boundary.md](reference/pipeline-migration/boundary.md)
+- [reference/pipeline-migration/combo.md](reference/pipeline-migration/combo.md)
+- [reference/pipeline-migration/integration.md](reference/pipeline-migration/integration.md)
+- [reference/pipeline-migration/rule.md](reference/pipeline-migration/rule.md)
+- [reference/pipeline-migration/unit.md](reference/pipeline-migration/unit.md)
+- [dioman 洋葱管线 B1 内核](reports/2026-10-29-pipeline-b1.md)
+- [dioman 洋葱管线 B2 无状态插件](reports/2026-10-29-pipeline-b2.md)
+- [dioman 洋葱管线 B3 重试与鉴权](reports/2026-10-29-pipeline-b3.md)
+- [dioman 洋葱管线 B4 结果来源](reports/2026-10-29-pipeline-b4.md)
+- [dioman 洋葱管线 B5a powerset、成对组合与全库覆盖率](reports/2026-10-29-pipeline-b5a.md)
+- [dioman 洋葱管线 B5b 删除与切换报告](reports/2026-10-29-pipeline-b5b.md)
+- [reports/pipeline-b2-evidence/migration.md](reports/pipeline-b2-evidence/migration.md)
+- [reports/pipeline-b3-evidence/migration.md](reports/pipeline-b3-evidence/migration.md)
+- [reports/pipeline-b4-evidence/b3-39.md](reports/pipeline-b4-evidence/b3-39.md)
+- [reports/pipeline-b4-evidence/migration.md](reports/pipeline-b4-evidence/migration.md)
+- [reports/pipeline-b5a-evidence/pairs.md](reports/pipeline-b5a-evidence/pairs.md)
+- [测试总账矩阵缺口报告](reports/pipeline-b5b-evidence/gates.md)
+
+## B6 使用文档与归档
+
+- [guides/migrating-to-pipeline.md](guides/migrating-to-pipeline.md)
+- [reports/2026-10-29-pipeline-b6.md](reports/2026-10-29-pipeline-b6.md)
+- [archive/architecture-before-pipeline.md](archive/architecture-before-pipeline.md)
+- [archive/testkit-mapping-before-pipeline.md](archive/testkit-mapping-before-pipeline.md)
+- [B5b 最终闸门](reports/pipeline-b5b-evidence/final-review-gates.md)
+
+## B7/B8 验收与终审补修
+
+- [B7 真实验收](reports/2026-10-29-pipeline-b7.md)
+- [B8 对照终审补修](reports/2026-10-29-pipeline-b8.md)

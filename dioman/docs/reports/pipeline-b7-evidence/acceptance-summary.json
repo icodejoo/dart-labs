@@ -1,0 +1,86 @@
+{
+  "sources": [
+    {
+      "path": "coverage/accept/b7/full-final.json",
+      "sha256": "e8a2f65ca0605a4fc4f05f70df7db883cb96a14d9fea0ef1b088a7f9def123e1",
+      "bytes": 10227018,
+      "session": "dioman-1793242768551243-23592",
+      "planned": 6426,
+      "executed": 6426,
+      "interrupted": false,
+      "counts": {
+        "通过": 1241,
+        "跳过": 5183,
+        "失败": 2
+      }
+    },
+    {
+      "path": "coverage/accept/b7/notify-final.json",
+      "sha256": "dc4375bb5851422c8a0d063be486ae1a36d76f9fcc991c80d4247f9e15891f37",
+      "bytes": 4815,
+      "session": "dioman-1793243273154980-3868",
+      "planned": 14,
+      "executed": 14,
+      "interrupted": false,
+      "counts": {
+        "跳过": 14
+      }
+    },
+    {
+      "path": "coverage/accept/plugin-matrix-final.json",
+      "sha256": "79b40ca7f6884cc38c750c0e3d849b92e66e2954bd1a63e498d84a4b1507c4b4",
+      "bytes": 525651,
+      "session": "dioman-methods-1793243951879154-49796",
+      "planned": 156,
+      "executed": 156,
+      "interrupted": false,
+      "counts": {
+        "跳过": 18,
+        "通过": 138
+      }
+    }
+  ],
+  "uniqueCells": 6426,
+  "counts": {
+    "passed": 1241,
+    "missing-capability": 406,
+    "not-applicable": 4779,
+    "failed": 0
+  },
+  "skipReasons": {
+    "不适用：场景未声明此网络或风格；不推断未定义的正确预期": 4720,
+    "skipped: missing raw-business-code": 252,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，9 个并发请求里总有请求以 network 失败，与状态码分类无关，无法确定性断言；状态码分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关；断网恢复由 retry.flap-recovers 覆盖": 2,
+    "不适用：现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决": 23,
+    "不适用：现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决": 16,
+    "不适用：lossy 对每条连接以 15% 概率注入 RST，单发无重试请求可能以 network 失败，无法确定性断言状态码分类；分类由 normal、weak 覆盖": 2,
+    "不适用：本场景没有重试，请求落在 flap 前 1500ms 的离线窗口内，只会得到 network，与状态码分类无关": 2,
+    "不适用：outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决": 2,
+    "不适用：本场景重试预算（3 次、每次 100ms 退避）短于 flap 前 1500ms 的离线窗口，首发请求落在窗口内会以 network 耗尽重试，不是重试能恢复的有效对照；flap 下的重试恢复由 retry.flap-recovers 覆盖": 6,
+    "不适用：lossy 的随机 RST 会额外消耗重试次数，而本场景只比必需的 3 次多 1 次预算，最终是否成功取决于随机决策，无法确定性断言": 2,
+    "不适用：共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决": 2,
+    "skipped: missing timeout-total": 154
+  },
+  "invariants": {
+    "executed": 1241,
+    "failures": [],
+    "allPassed": true
+  },
+  "pairwise": {
+    "planned": 64,
+    "executed": 64,
+    "counts": {
+      "通过": 64
+    }
+  },
+  "methodMatrix": {
+    "跳过": 18,
+    "通过": 138
+  },
+  "ownedProxies": {
+    "created": 2631,
+    "deleted": 2631,
+    "remaining": []
+  }
+}

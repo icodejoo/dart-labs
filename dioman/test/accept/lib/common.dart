@@ -79,7 +79,7 @@ bool isInjectedResponse(List<int> body) =>
 /// business 风格下注入的 429/503 以 HTTP 200 加业务码返回，到不了传输层的字节
 /// 检查；拦截器和转换器拿到的是解析后的 [data]，用它判定。
 bool isInjectedData(dynamic data) {
-  final reason = obj(obj(data)[tkData])['reason'];
+  final reason = obj(data)[tkReason] ?? obj(obj(data)[tkData])[tkReason];
   return reason is String && reason.startsWith('injected');
 }
 
@@ -188,16 +188,80 @@ const capabilities = {
 
 /// 细分能力：声明某个具体行为，不对应独立插件，不参与插件矩阵与幂集。
 ///
-/// dioman 的 mock 在传输层（DiomanMockAdapter），没有 `mock-in-chain`，不声明。
+/// mock 已在 source 管线中；业务信封始终归一化，不声明 raw-business-code。
 const subCapabilities = {
   tkMultipart,
   'keep-alive',
   'share-retry',
   'timeout-send',
+  'mock-in-chain',
 };
 
 /// 执行器声明的全部能力；场景 requires 里不在其中的按"缺能力"跳过。
 const supportedCapabilities = {...capabilities, ...subCapabilities};
+
+/// 始终归一化业务信封，且没有整体预算；两项均不声明为支持。
+const rawBusinessCodeCapability = 'raw-business-code';
+
+/// 整体预算独立于 Dio 的连接、发送、接收超时。
+const timeoutTotalCapability = 'timeout-total';
+
+/// 在客户端装配前识别缺能力；旧场景漏写 requires 时也不模拟整体预算。
+List<String> missingCapabilities(Map<String, dynamic> scenario) {
+  final required = {
+    ...(scenario[tkRequires] as List? ?? const []).cast<String>(),
+    if (obj(obj(obj(scenario[tkClient])[tkPlugins])[tkTimeout])[tkTotalMs] !=
+        null)
+      timeoutTotalCapability,
+  };
+  return required
+      .where((capability) => !supportedCapabilities.contains(capability))
+      .toList();
+}
+
+/// 从场景字段判定设计语义不适用；不使用场景 id 清单。
+/// 原因只描述现行设计差异，不能替代终审对设计的裁决。
+String? designInapplicability(
+    Map<String, dynamic> scenario, Map<String, dynamic> expectation) {
+  final plugins = obj(obj(scenario[tkClient])[tkPlugins]);
+  final results = obj(expectation[tkResults]).values.map(obj).toList();
+  final notices = obj(obj(expectation[tkClient])[tkNotify])[tkEq];
+  if (plugins.containsKey(tkNotify) &&
+      plugins.containsKey(tkOffline) &&
+      notices is num &&
+      results.any((result) => result[tkError] == tkOffline) &&
+      notices <
+          results
+              .where((result) =>
+                  result[tkOk] == false && result[tkError] != tkCanceled)
+              .length) {
+    return 'outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决';
+  }
+  return null;
+}
+
+/// 只遍历真正的场景控制结构，普通请求体不是 step。
+Iterable<Map<String, dynamic>> scenarioSteps(dynamic node) sync* {
+  if (node is List) {
+    for (final child in node) {
+      yield* scenarioSteps(child);
+    }
+  } else if (node is Map) {
+    final step = obj(node);
+    yield step;
+    for (final key in [tkParallel, 'sequence', 'fire']) {
+      if (step[key] != null) yield* scenarioSteps(step[key]);
+    }
+    final repeated = obj(step['repeat'])['step'];
+    if (repeated != null) yield* scenarioSteps(repeated);
+  }
+}
+
+/// 检查实际取消控制，不扫描任意 JSON 负载。
+bool usesScenarioCancellation(dynamic steps) =>
+    scenarioSteps(steps).any((step) =>
+        step.containsKey(tkCancelAll) ||
+        obj(step[tkRequest])[tkCancelAfterMs] != null);
 
 /// 中立插件允许字段，未知字段必须报错。
 const pluginFields = <String, Set<String>>{
@@ -207,7 +271,7 @@ const pluginFields = <String, Set<String>>{
   tkShare: {tkPolicy},
   tkLoading: {tkDelayMs, tkDelayCloseMs},
   tkKey: {tkScope},
-  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs, tkTotalMs},
+  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs},
   tkBreaker: {tkThreshold, tkOpenMs},
   tkOffline: {tkProbe},
   tkMock: {tkFallbackOn404},
@@ -366,42 +430,7 @@ Dio ioClient(String base, {int budget = defaultBudget}) {
       ServiceGuardAdapter(IOHttpClientAdapter(createHttpClient: () {
     return HttpClient()..findProxy = (_) => 'DIRECT';
   }));
-  d.interceptors.add(InterceptorsWrapper(onResponse: (response, handler) {
-    try {
-      checkServiceStatus(logical(response), data: response.data);
-      handler.next(response);
-    } catch (error) {
-      handler.reject(DioException(
-          requestOptions: response.requestOptions,
-          response: response,
-          type: DioExceptionType.cancel,
-          error: error));
-    }
-  }, onError: (error, handler) {
-    try {
-      checkServiceStatus(logical(error.response), data: error.response?.data);
-      handler.next(error);
-    } catch (cause) {
-      handler.next(DioException(
-          requestOptions: error.requestOptions,
-          response: error.response,
-          type: DioExceptionType.cancel,
-          error: cause));
-    }
-  }));
   return d;
-}
-
-/// logical 的测试辅助入口。
-/// 确定逻辑状态，HTTP 失败优先。
-int logical(Response<dynamic>? r) {
-  final status = r?.statusCode ?? 0;
-  final code = obj(r?.data)[tkCode];
-  return status >= 400
-      ? status
-      : code is int && code != 0
-          ? code
-          : status;
 }
 
 /// subset 的测试辅助入口。

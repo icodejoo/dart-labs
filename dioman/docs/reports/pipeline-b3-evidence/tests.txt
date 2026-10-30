@@ -1,0 +1,172 @@
+00:00 +0: loading test\boundary\auth_boundary_test.dart
+00:00 +0: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +1: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +1: test\boundary\b3_await_boundary_test.dart: [DiomanContext.wait] 取消未完成的 ready onFailure denied expired 回调立即收尾，迟到异常被消费
+[dioman:auth] 鉴权通知失败: Bad state: late callback
+
+[dioman:auth] 鉴权通知失败: Bad state: late callback
+
+00:00 +2: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +3: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +4: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +5: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +6: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +7: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +8: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +9: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +10: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +11: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +12: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +13: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +14: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +15: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +16: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +17: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +18: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +19: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +20: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 发起者等待者取消和 cancelAll 不终止刷新，成功写 token 失败清会话
+00:00 +21: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 发起者等待者取消和 cancelAll 不终止刷新，成功写 token 失败清会话
+00:00 +22: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 发起者等待者取消和 cancelAll 不终止刷新，成功写 token 失败清会话
+00:00 +23: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 发起者等待者取消和 cancelAll 不终止刷新，成功写 token 失败清会话
+00:00 +24: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +25: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +26: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +27: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +28: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +29: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +30: test\boundary\client_boundary_test.dart: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +31: test\boundary\client_boundary_test.dart: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +32: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.idleTtl] open halfOpen 与 closed 在途桶不回收，安全桶回收后同键从 closed 开始
+00:00 +33: test\boundary\envs_boundary_test.dart: [DiomanEnvs.setup] 写前深克隆宿主和模板容器，多客户端互不污染
+00:00 +34: test\boundary\envs_boundary_test.dart: [DiomanEnvs.setup] 写前深克隆宿主和模板容器，多客户端互不污染
+00:00 +35: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.shouldTrip] Dio 连接与三种超时只计一次，成功清连续失败且非正数不钳制
+00:00 +36: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.shouldTrip] Dio 连接与三种超时只计一次，成功清连续失败且非正数不钳制
+00:00 +37: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.shouldTrip] Dio 连接与三种超时只计一次，成功清连续失败且非正数不钳制
+00:00 +38: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +39: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +40: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +41: test\boundary\retry_boundary_test.dart: [DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶
+00:00 +42: test\boundary\retry_boundary_test.dart: [DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶
+00:00 +43: test\boundary\retry_options_boundary_test.dart: [DiomanRetryOptions.delay] afterStatusCodes respectRetryAfter delay jitter 与双上限逐字段生效
+00:00 +44: test\boundary\retry_boundary_test.dart: [DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头
+00:00 +45: test\boundary\retry_boundary_test.dart: [DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头
+00:00 +46: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +47: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +48: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +49: test\boundary\retry_boundary_test.dart: [DiomanRetry.shouldRetry] shouldRetry delay jitter 程序错误原样落定，internal 不重试
+00:00 +50: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +51: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +52: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +53: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +54: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +55: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:00 +56: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:00 +57: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:00 +58: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:00 +59: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +60: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +61: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +62: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +63: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +64: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +65: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +66: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +67: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +68: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +69: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +70: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +71: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +72: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +73: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +74: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +75: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +76: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +77: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +78: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +79: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +80: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +81: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +82: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +83: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +84: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +85: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +86: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +87: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +88: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +89: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +90: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +91: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +92: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +93: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +94: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +95: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +96: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +97: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +98: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +99: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +100: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +101: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +102: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +103: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +104: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +105: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +106: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +107: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +108: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +109: test\integration\b3_transport_integration_test.dart: [DiomanNext] JSON FormData Stream 重发复用宿主 adapter，不关闭宿主
+00:01 +110: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +111: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] stall 停顿按插件值超时
+00:01 +112: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] stall 停顿按插件值超时
+00:01 +113: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] stall 停顿按插件值超时
+00:01 +114: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:01 +115: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:01 +116: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:01 +117: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:02 +118: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:02 +119: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:02 +120: test\rule\retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:02 +121: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +122: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +123: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +124: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +125: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +126: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +127: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +128: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +129: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +130: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +131: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +132: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +133: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +134: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +135: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +136: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +137: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:02 +138: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:02 +139: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:02 +140: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:02 +141: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:02 +142: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:02 +143: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:02 +144: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:02 +145: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:02 +146: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:02 +147: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +148: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +149: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +150: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +151: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +152: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +153: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +154: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +155: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +156: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +157: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +158: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +159: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +160: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +161: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:02 +162: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:03 +163: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 发送缓冲阻塞时真实超时
+00:03 +164: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 正常读取小请求体时成功
+00:03 +165: All tests passed!

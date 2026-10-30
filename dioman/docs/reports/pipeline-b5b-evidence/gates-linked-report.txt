@@ -1,0 +1,589 @@
+---
+title: 测试总账矩阵缺口报告
+status: active
+updated: 2026-10-29
+summary: 总账五道闸门的当前缺口清单与按插件分布，是补测的基线。
+---
+
+G1 未检查：未提供 lcov。
+
+| 闸门 | 缺口数 |
+|---|---:|
+| G0 | 252 |
+| G1 | 未检查 |
+| G2 | 0 |
+| G3 | 72 |
+| G4 | 19 |
+| G5 | 159 |
+
+## 按插件汇总
+
+| 插件 | G2 | G3 | G0 |
+|---|---:|---:|---:|
+| auth | 0 | 5 | 6 |
+| breaker | 0 | 4 | 12 |
+| cache | 0 | 3 | 9 |
+| client | 0 | 6 | 25 |
+| clock | 0 | 0 | 2 |
+| combo | 0 | 1 | 0 |
+| context | 0 | 26 | 34 |
+| envs | 0 | 0 | 1 |
+| filter | 0 | 2 | 4 |
+| key | 0 | 1 | 3 |
+| loading | 0 | 1 | 4 |
+| mock | 0 | 1 | 9 |
+| notify | 0 | 2 | 5 |
+| offline | 0 | 3 | 6 |
+| options | 0 | 0 | 12 |
+| pipeline | 0 | 1 | 5 |
+| plugin | 0 | 3 | 6 |
+| repath | 0 | 2 | 4 |
+| request | 0 | 0 | 29 |
+| response | 0 | 3 | 46 |
+| retry | 0 | 3 | 8 |
+| share | 0 | 0 | 6 |
+| stages | 0 | 1 | 9 |
+| timeout | 0 | 3 | 5 |
+| token_manager | 0 | 1 | 1 |
+| transport | 0 | 0 | 1 |
+
+## 完整缺口
+
+<details>
+<summary>G0（252）</summary>
+
+- `G0:Dioman.cancelAll`
+- `G0:Dioman.cancellationSubscriptions`
+- `G0:Dioman.clock`
+- `G0:Dioman.delete`
+- `G0:Dioman.dio`
+- `G0:Dioman.dispose`
+- `G0:Dioman.eject`
+- `G0:Dioman.extend`
+- `G0:Dioman.get`
+- `G0:Dioman.head`
+- `G0:Dioman.inspect`
+- `G0:Dioman.key`
+- `G0:Dioman.logError`
+- `G0:Dioman.new(debug)`
+- `G0:Dioman.new(plugins)`
+- `G0:Dioman.patch`
+- `G0:Dioman.pending`
+- `G0:Dioman.plugin`
+- `G0:Dioman.post`
+- `G0:Dioman.put`
+- `G0:Dioman.reject`
+- `G0:Dioman.request`
+- `G0:Dioman.response`
+- `G0:Dioman.send`
+- `G0:Dioman.use`
+- `G0:DiomanAuth.defaultBuildHeader`
+- `G0:DiomanAuth.injectedToken`
+- `G0:DiomanAuth.option`
+- `G0:DiomanAuth.readyStableAttempts`
+- `G0:DiomanAuth.setup`
+- `G0:DiomanAuth.stage`
+- `G0:DiomanBreaker.defaultFailureThreshold`
+- `G0:DiomanBreaker.defaultHalfOpenMaxCalls`
+- `G0:DiomanBreaker.defaultResetDuration`
+- `G0:DiomanBreaker.option`
+- `G0:DiomanBreaker.setup`
+- `G0:DiomanBreaker.stage`
+- `G0:DiomanBreakerApi.bucketCount`
+- `G0:DiomanBreakerApi.isOpen`
+- `G0:DiomanBreakerApi.keyOf`
+- `G0:DiomanBreakerApi.reset`
+- `G0:DiomanBreakerApi.retryableAt`
+- `G0:DiomanBreakerApi.stateOf`
+- `G0:DiomanCache.cachePolicy`
+- `G0:DiomanCache.clock`
+- `G0:DiomanCache.option`
+- `G0:DiomanCache.setup`
+- `G0:DiomanCache.stage`
+- `G0:DiomanCacheApi.clear`
+- `G0:DiomanCacheApi.entryCount`
+- `G0:DiomanCacheApi.pendingWrites`
+- `G0:DiomanCacheApi.remove`
+- `G0:DiomanCall.cancelToken`
+- `G0:DiomanCall.connectTimeout`
+- `G0:DiomanCall.envelope`
+- `G0:DiomanCall.headers`
+- `G0:DiomanCall.key`
+- `G0:DiomanCall.options`
+- `G0:DiomanCall.receiveTimeout`
+- `G0:DiomanCall.sendTimeout`
+- `G0:DiomanCall.silent`
+- `G0:DiomanCancelLink.dispose`
+- `G0:DiomanCancelLink.new(source)`
+- `G0:DiomanCancelLink.new(target)`
+- `G0:DiomanClock.createTimer`
+- `G0:DiomanClock.now`
+- `G0:DiomanContext.cancelToken`
+- `G0:DiomanContext.cancellationSubscriptions`
+- `G0:DiomanContext.cancelled`
+- `G0:DiomanContext.client`
+- `G0:DiomanContext.clock`
+- `G0:DiomanContext.derive`
+- `G0:DiomanContext.factory`
+- `G0:DiomanContext.fail`
+- `G0:DiomanContext.get`
+- `G0:DiomanContext.id`
+- `G0:DiomanContext.isCancelled`
+- `G0:DiomanContext.key`
+- `G0:DiomanContext.keyService`
+- `G0:DiomanContext.log`
+- `G0:DiomanContext.markReplayable`
+- `G0:DiomanContext.replayable`
+- `G0:DiomanContext.request`
+- `G0:DiomanContext.set`
+- `G0:DiomanContext.state`
+- `G0:DiomanContext.wait`
+- `G0:DiomanContextState.cancel`
+- `G0:DiomanContextState.dispose`
+- `G0:DiomanContextState.keys`
+- `G0:DiomanContextState.listeners`
+- `G0:DiomanContextState.new(onDispose)`
+- `G0:DiomanContextState.release`
+- `G0:DiomanContextState.replayable`
+- `G0:DiomanContextState.retain`
+- `G0:DiomanContextState.token`
+- `G0:DiomanContextState.values`
+- `G0:DiomanEnforce.post`
+- `G0:DiomanEnforce.pre`
+- `G0:DiomanEnvs.setup`
+- `G0:DiomanFailure.data`
+- `G0:DiomanFailure.error`
+- `G0:DiomanFailure.errorStack`
+- `G0:DiomanFailure.kind`
+- `G0:DiomanFailure.message`
+- `G0:DiomanFailure.reason`
+- `G0:DiomanFailure.status`
+- `G0:DiomanFilter.defaultPredicate`
+- `G0:DiomanFilter.option`
+- `G0:DiomanFilter.setup`
+- `G0:DiomanFilter.stage`
+- `G0:DiomanKeyOptions.namespace`
+- `G0:DiomanKeyService.build`
+- `G0:DiomanKeyService.options`
+- `G0:DiomanKind.auth`
+- `G0:DiomanKind.biz`
+- `G0:DiomanKind.breaker`
+- `G0:DiomanKind.cancel`
+- `G0:DiomanKind.http`
+- `G0:DiomanKind.internal`
+- `G0:DiomanKind.network`
+- `G0:DiomanKind.offline`
+- `G0:DiomanKind.ok`
+- `G0:DiomanKind.parse`
+- `G0:DiomanKind.timeout`
+- `G0:DiomanLoading.option`
+- `G0:DiomanLoading.setup`
+- `G0:DiomanLoading.stage`
+- `G0:DiomanLoadingApi.activeCount`
+- `G0:DiomanMock.enabled`
+- `G0:DiomanMock.fallbackWhen`
+- `G0:DiomanMock.mockUrl`
+- `G0:DiomanMock.name`
+- `G0:DiomanMock.option`
+- `G0:DiomanMock.pluginName`
+- `G0:DiomanMock.routes`
+- `G0:DiomanMock.setup`
+- `G0:DiomanMock.stage`
+- `G0:DiomanNotify.defaultStringify`
+- `G0:DiomanNotify.enabled`
+- `G0:DiomanNotify.option`
+- `G0:DiomanNotify.setup`
+- `G0:DiomanNotify.stage`
+- `G0:DiomanOffline.defaultMaxQueueSize`
+- `G0:DiomanOffline.option`
+- `G0:DiomanOffline.setup`
+- `G0:DiomanOffline.stage`
+- `G0:DiomanOfflineApi.flush`
+- `G0:DiomanOfflineApi.pending`
+- `G0:DiomanOptionKey.description`
+- `G0:DiomanPlugin.enabled`
+- `G0:DiomanPlugin.enforce`
+- `G0:DiomanPlugin.setup`
+- `G0:DiomanPlugin.stage`
+- `G0:DiomanPluginInstance.dispose`
+- `G0:DiomanPluginInstance.handle`
+- `G0:DiomanRegistration.instance`
+- `G0:DiomanRegistration.plugin`
+- `G0:DiomanRepath.defaultPattern`
+- `G0:DiomanRepath.option`
+- `G0:DiomanRepath.setup`
+- `G0:DiomanRepath.stage`
+- `G0:DiomanRequest.baseUrl`
+- `G0:DiomanRequest.call`
+- `G0:DiomanRequest.cancelToken`
+- `G0:DiomanRequest.connectTimeout`
+- `G0:DiomanRequest.data`
+- `G0:DiomanRequest.extra`
+- `G0:DiomanRequest.headers`
+- `G0:DiomanRequest.method`
+- `G0:DiomanRequest.new(options)`
+- `G0:DiomanRequest.patch`
+- `G0:DiomanRequest.path`
+- `G0:DiomanRequest.query`
+- `G0:DiomanRequest.receiveTimeout`
+- `G0:DiomanRequest.sendTimeout`
+- `G0:DiomanRequest.silent`
+- `G0:DiomanRequest.toRequestOptions`
+- `G0:DiomanRequest.uri`
+- `G0:DiomanResponse.callSite`
+- `G0:DiomanResponse.code`
+- `G0:DiomanResponse.copy`
+- `G0:DiomanResponse.data`
+- `G0:DiomanResponse.error`
+- `G0:DiomanResponse.errorStack`
+- `G0:DiomanResponse.httpStatus`
+- `G0:DiomanResponse.kind`
+- `G0:DiomanResponse.message`
+- `G0:DiomanResponse.ok`
+- `G0:DiomanResponse.raw`
+- `G0:DiomanResponse.reason`
+- `G0:DiomanResponse.request`
+- `G0:DiomanResponse.status`
+- `G0:DiomanResponse.toString`
+- `G0:DiomanResponseFactory.create`
+- `G0:DiomanResponseFactory.derive`
+- `G0:DiomanResponseFactory.envelope`
+- `G0:DiomanResponseFactory.expectJson`
+- `G0:DiomanResponseFactory.fail`
+- `G0:DiomanResponseFactory.isEnvelope`
+- `G0:DiomanResponseFactory.isSuccess`
+- `G0:DiomanResponseFactory.logicalStatus`
+- `G0:DiomanResponseFactory.normalize`
+- `G0:DiomanResponseFactory.withCallSite`
+- `G0:DiomanRetry.defaultAfterStatusCodes`
+- `G0:DiomanRetry.defaultDelay`
+- `G0:DiomanRetry.defaultMethods`
+- `G0:DiomanRetry.defaultStatusCodes`
+- `G0:DiomanRetry.option`
+- `G0:DiomanRetry.setup`
+- `G0:DiomanRetry.stage`
+- `G0:DiomanRetryOptions.onRetry`
+- `G0:DiomanShare.methods`
+- `G0:DiomanShare.option`
+- `G0:DiomanShare.setup`
+- `G0:DiomanShare.stage`
+- `G0:DiomanShareApi.activeEntries`
+- `G0:DiomanShareOptions.methods`
+- `G0:DiomanStage.attempt`
+- `G0:DiomanStage.credential`
+- `G0:DiomanStage.outer`
+- `G0:DiomanStage.prepare`
+- `G0:DiomanStage.source`
+- `G0:DiomanTimeout.defaultConnect`
+- `G0:DiomanTimeout.defaultTimeouts`
+- `G0:DiomanTimeout.option`
+- `G0:DiomanTimeout.setup`
+- `G0:DiomanTimeout.stage`
+- `G0:DiomanTokenManager.setTokens`
+- `G0:Envelope.code`
+- `G0:Envelope.data`
+- `G0:Envelope.message`
+- `G0:RequestPatch.cancelToken`
+- `G0:RequestPatch.connectTimeout`
+- `G0:RequestPatch.data`
+- `G0:RequestPatch.extra`
+- `G0:RequestPatch.headers`
+- `G0:RequestPatch.method`
+- `G0:RequestPatch.path`
+- `G0:RequestPatch.query`
+- `G0:RequestPatch.receiveTimeout`
+- `G0:RequestPatch.removeHeaders`
+- `G0:RequestPatch.removeQuery`
+- `G0:RequestPatch.sendTimeout`
+- `G0:StateKey.description`
+- `G0:compileDiomanPipeline`
+- `G0:diomanBuiltinStages`
+- `G0:diomanSetupPlugins`
+- `G0:diomanTransport`
+- `G0:replaceOption`
+- `G0:resolveOption`
+- `G0:sortDiomanPipeline`
+- `G0:validateDiomanPlugins`
+
+</details>
+
+<details>
+<summary>G1（0）</summary>
+
+
+</details>
+
+<details>
+<summary>G2（0）</summary>
+
+
+</details>
+
+<details>
+<summary>G3（72）</summary>
+
+- `G3:Dioman.delete`
+- `G3:Dioman.eject`
+- `G3:Dioman.head`
+- `G3:Dioman.patch`
+- `G3:Dioman.post`
+- `G3:Dioman.put`
+- `G3:DiomanAuth.defaultBuildHeader`
+- `G3:DiomanAuth.name`
+- `G3:DiomanAuth.pluginName`
+- `G3:DiomanBreaker.defaultFailureThreshold`
+- `G3:DiomanBreaker.defaultHalfOpenMaxCalls`
+- `G3:DiomanBreaker.defaultResetDuration`
+- `G3:DiomanBreaker.setup`
+- `G3:DiomanCache.setup`
+- `G3:DiomanCachePersist.erase`
+- `G3:DiomanCachePersist.remove`
+- `G3:DiomanCancelLink.dispose`
+- `G3:DiomanCancelLink.new(source)`
+- `G3:DiomanCancelLink.new(target)`
+- `G3:DiomanContext.cancelToken`
+- `G3:DiomanContext.cancellationSubscriptions`
+- `G3:DiomanContext.clock`
+- `G3:DiomanContext.derive`
+- `G3:DiomanContext.factory`
+- `G3:DiomanContext.get`
+- `G3:DiomanContext.id`
+- `G3:DiomanContext.isCancelled`
+- `G3:DiomanContext.keyService`
+- `G3:DiomanContext.log`
+- `G3:DiomanContext.replayable`
+- `G3:DiomanContext.set`
+- `G3:DiomanContext.state`
+- `G3:DiomanContextState.cancel`
+- `G3:DiomanContextState.dispose`
+- `G3:DiomanContextState.keys`
+- `G3:DiomanContextState.listeners`
+- `G3:DiomanContextState.new(onDispose)`
+- `G3:DiomanContextState.release`
+- `G3:DiomanContextState.replayable`
+- `G3:DiomanContextState.retain`
+- `G3:DiomanContextState.token`
+- `G3:DiomanContextState.values`
+- `G3:DiomanFilter.pluginName`
+- `G3:DiomanFilter.setup`
+- `G3:DiomanKeyService.options`
+- `G3:DiomanLoading.setup`
+- `G3:DiomanMock.setup`
+- `G3:DiomanNotify.defaultStringify`
+- `G3:DiomanNotify.setup`
+- `G3:DiomanOffline.defaultMaxQueueSize`
+- `G3:DiomanOffline.setup`
+- `G3:DiomanOfflineOptions.maxWait`
+- `G3:DiomanPlugin.enforce`
+- `G3:DiomanPluginInstance.dispose`
+- `G3:DiomanPluginInstance.handle`
+- `G3:DiomanRegistration.instance`
+- `G3:DiomanRepath.pluginName`
+- `G3:DiomanRepath.setup`
+- `G3:DiomanResponse.message`
+- `G3:DiomanResponseFactory.derive`
+- `G3:DiomanResponseFactory.withCallSite`
+- `G3:DiomanRetry.defaultAfterStatusCodes`
+- `G3:DiomanRetry.defaultMethods`
+- `G3:DiomanRetry.setup`
+- `G3:DiomanTimeout.defaultConnect`
+- `G3:DiomanTimeout.defaultTimeouts`
+- `G3:DiomanTimeout.setup`
+- `G3:DiomanTokenManager.accessToken`
+- `G3:DiomanTokenManager.clear`
+- `G3:DiomanTokenManager.setTokens`
+- `G3:INV-14`
+- `G3:diomanSetupPlugins`
+
+</details>
+
+<details>
+<summary>G4（19）</summary>
+
+- `G4:DiomanLoading.delay:no-result`
+- `G4:DiomanLoading.delayClose:no-result`
+- `G4:DiomanRetry.respectRetryAfter#real-header:no-result`
+- `G4:DiomanRetry.statusCodes#network-type:no-result`
+- `G4:DiomanSharePolicy.retry:no-result`
+- `G4:DiomanTimeouts.connect#effective:no-real`
+- `G4:DiomanTimeouts.connect#effective:no-result`
+- `G4:DiomanTimeouts.receive#effective:no-result`
+- `G4:DiomanTimeouts.send#effective:no-result`
+- `G4:INV-09:no-result`
+- `G4:INV-10:no-result`
+- `G4:INV-11:no-result`
+- `G4:INV-15:no-result`
+- `G4:INV-18:no-result`
+- `G4:INV-19:no-result`
+- `G4:INV-23:no-result`
+- `G4:INV-24:no-result`
+- `G4:INV-25:no-result`
+- `G4:INV-26:no-result`
+
+</details>
+
+<details>
+<summary>G5（159）</summary>
+
+- `G5:DiomanOffline.dispose`
+- `G5:DiomanPlugin powerset`
+- `G5:real-orphan:auth.code-only-401-concurrent`
+- `G5:real-orphan:auth.code-only-401-no-refresh-token`
+- `G5:real-orphan:auth.code-only-401-refresh-once-then-expired`
+- `G5:real-orphan:auth.expired-multipart-replay`
+- `G5:real-orphan:auth.garbage-then-relogin`
+- `G5:real-orphan:auth.logout-inflight`
+- `G5:real-orphan:auth.natural-expiry-refresh`
+- `G5:real-orphan:auth.network-failure-keeps-session`
+- `G5:real-orphan:auth.offline-refresh-keeps-session`
+- `G5:real-orphan:auth.post-replay-body-intact`
+- `G5:real-orphan:auth.relogin-after-expired`
+- `G5:real-orphan:auth.relogin-other-user`
+- `G5:real-orphan:auth.revoke-all-concurrent`
+- `G5:real-orphan:auth.revoke-all-expired`
+- `G5:real-orphan:auth.revoke-all-previous-tokens`
+- `G5:real-orphan:auth.revoke-all-then-relogin`
+- `G5:real-orphan:auth.revoke-default-scope-is-all`
+- `G5:real-orphan:auth.revoke-kicked`
+- `G5:real-orphan:auth.slow-refresh-cancel`
+- `G5:real-orphan:auth.slow-refresh-cancel-all`
+- `G5:real-orphan:auth.strict-rotation-two-rounds`
+- `G5:real-orphan:auth.style-switch-concurrent`
+- `G5:real-orphan:auth.style-switch-expired`
+- `G5:real-orphan:auth.token-bad-signature-refresh-bad`
+- `G5:real-orphan:auth.token-bad-signature-refresh-none`
+- `G5:real-orphan:auth.token-bad-signature-refresh-ok`
+- `G5:real-orphan:auth.token-empty-refresh-bad`
+- `G5:real-orphan:auth.token-empty-refresh-none`
+- `G5:real-orphan:auth.token-empty-refresh-ok`
+- `G5:real-orphan:auth.token-garbage-concurrent-no-refresh`
+- `G5:real-orphan:auth.token-garbage-concurrent-refresh-bad`
+- `G5:real-orphan:auth.token-garbage-concurrent-refresh-ok`
+- `G5:real-orphan:auth.token-garbage-refresh-bad`
+- `G5:real-orphan:auth.token-garbage-refresh-none`
+- `G5:real-orphan:auth.token-no-refresh-user-garbage`
+- `G5:real-orphan:auth.token-no-refresh-user-none`
+- `G5:real-orphan:auth.token-none-concurrent`
+- `G5:real-orphan:auth.token-none-refresh-bad`
+- `G5:real-orphan:auth.token-none-refresh-none`
+- `G5:real-orphan:auth.token-none-refresh-ok`
+- `G5:real-orphan:auth.token-nonstrict-previous-access`
+- `G5:real-orphan:auth.token-previous-after-logout`
+- `G5:real-orphan:auth.token-previous-after-revoke`
+- `G5:real-orphan:auth.token-previous-refresh-reuse`
+- `G5:real-orphan:auth.token-strict-previous-access`
+- `G5:real-orphan:auth.token-tampered-payload-refresh-bad`
+- `G5:real-orphan:auth.token-tampered-payload-refresh-none`
+- `G5:real-orphan:auth.token-tampered-payload-refresh-ok`
+- `G5:real-orphan:auth.token-wrong-scheme-refresh-bad`
+- `G5:real-orphan:auth.token-wrong-scheme-refresh-none`
+- `G5:real-orphan:auth.token-wrong-scheme-refresh-ok`
+- `G5:real-orphan:auth.two-rounds-refresh-chain`
+- `G5:real-orphan:breaker.half-open-probe-cancel`
+- `G5:real-orphan:breaker.open-fast-fail`
+- `G5:real-orphan:breaker.retry-halts-on-trip`
+- `G5:real-orphan:breaker.success-resets-count`
+- `G5:real-orphan:cache.cancel-not-cached`
+- `G5:real-orphan:cache.clear`
+- `G5:real-orphan:cache.concurrent-no-share-all-miss`
+- `G5:real-orphan:cache.diff-body-no-mixup`
+- `G5:real-orphan:cache.diff-query-no-mixup`
+- `G5:real-orphan:cache.failure-then-success-cached`
+- `G5:real-orphan:cache.http-error-not-cached`
+- `G5:real-orphan:cache.large-response`
+- `G5:real-orphan:cache.offline-miss-then-recover`
+- `G5:real-orphan:cache.single-clear-cache`
+- `G5:real-orphan:cache.timeout-not-cached`
+- `G5:real-orphan:cache.user-scope-no-leak`
+- `G5:real-orphan:cache.user-scope-same-user-hits`
+- `G5:real-orphan:cancel.after-complete-noop`
+- `G5:real-orphan:cancel.all`
+- `G5:real-orphan:cancel.all-then-new-works`
+- `G5:real-orphan:cancel.all-with-nothing-inflight`
+- `G5:real-orphan:cancel.before-reach-server`
+- `G5:real-orphan:cancel.blackhole-cancel-before-timeout`
+- `G5:real-orphan:cancel.double-cancel`
+- `G5:real-orphan:cancel.hang-is-canceled-not-timeout`
+- `G5:real-orphan:cancel.one-of-many`
+- `G5:real-orphan:cancel.parallel-32`
+- `G5:real-orphan:cancel.single`
+- `G5:real-orphan:cancel.slow-body`
+- `G5:real-orphan:combo.filter-repath-path-var-first`
+- `G5:real-orphan:combo.loading-mock-fallback-single-pair`
+- `G5:real-orphan:combo.mock-share-fallback-single-flight`
+- `G5:real-orphan:faults.html-gateway-page`
+- `G5:real-orphan:faults.no-envelope`
+- `G5:real-orphan:key.filter-before-key`
+- `G5:real-orphan:key.method-diff-not-merged`
+- `G5:real-orphan:key.share-diff-query-not-merged`
+- `G5:real-orphan:key.share-without-key-not-merged`
+- `G5:real-orphan:loading.big-parallel-20`
+- `G5:real-orphan:loading.cancel-closes`
+- `G5:real-orphan:loading.failure-closes`
+- `G5:real-orphan:loading.flap-recovers-single-pair`
+- `G5:real-orphan:loading.network-switch-pairs`
+- `G5:real-orphan:loading.parallel-partial-fail`
+- `G5:real-orphan:loading.retry-exhausted-closes`
+- `G5:real-orphan:loading.retry-no-flicker`
+- `G5:real-orphan:loading.timeout-closes`
+- `G5:real-orphan:mock.fallback-to-real-on-404`
+- `G5:real-orphan:mock.mock-then-retry-untouched`
+- `G5:real-orphan:mock.query-and-body-forwarded`
+- `G5:real-orphan:mock.routes-to-mock-server`
+- `G5:real-orphan:mock.single-fallback-disabled`
+- `G5:real-orphan:network.blackhole-cancel-all`
+- `G5:real-orphan:network.flap-parallel-retry`
+- `G5:real-orphan:network.flap-retry-recovers`
+- `G5:real-orphan:network.lossy-parallel-retry`
+- `G5:real-orphan:network.offline-immediate`
+- `G5:real-orphan:network.offline-share-loading`
+- `G5:real-orphan:network.recovery-state-clean`
+- `G5:real-orphan:network.switch-offline-online`
+- `G5:real-orphan:normalize.business-fail`
+- `G5:real-orphan:normalize.business-multi-codes`
+- `G5:real-orphan:normalize.business-negative-code`
+- `G5:real-orphan:normalize.business-notify-retry-combo`
+- `G5:real-orphan:normalize.envelope-unwrap`
+- `G5:real-orphan:normalize.http-error-wins`
+- `G5:real-orphan:normalize.no-envelope-passthrough`
+- `G5:real-orphan:normalize.per-request-off`
+- `G5:real-orphan:normalize.style-switch`
+- `G5:real-orphan:notify.parallel-failures-each`
+- `G5:real-orphan:notify.parse-error-once`
+- `G5:real-orphan:notify.retry-exhausted-once`
+- `G5:real-orphan:notify.retry-recovered-silent`
+- `G5:real-orphan:notify.timeout-once`
+- `G5:real-orphan:offline.cancel-while-probing`
+- `G5:real-orphan:offline.then-online-no-stale-state`
+- `G5:real-orphan:repath.key-after-repath`
+- `G5:real-orphan:repath.key-cache-no-mixup`
+- `G5:real-orphan:repath.same-var-twice`
+- `G5:real-orphan:repath.zero-value`
+- `G5:real-orphan:retry.401-goes-refresh-first`
+- `G5:real-orphan:retry.attempt-is-new-connection-friendly`
+- `G5:real-orphan:retry.blackhole-timeout`
+- `G5:real-orphan:retry.cancel-all-during-wait`
+- `G5:real-orphan:retry.cancel-during-wait`
+- `G5:real-orphan:retry.fail-every-all-recover`
+- `G5:real-orphan:retry.fail-on-gap-exhausts`
+- `G5:real-orphan:retry.fail-on-noncontiguous-retried`
+- `G5:real-orphan:retry.fail-on-union-fail-times`
+- `G5:real-orphan:retry.flap-recovers`
+- `G5:real-orphan:retry.hang-timeout-retried`
+- `G5:real-orphan:retry.lossy-converges`
+- `G5:real-orphan:retry.offline-exhausts`
+- `G5:real-orphan:retry.parallel-independent`
+- `G5:real-orphan:retry.post-network-no-retry`
+- `G5:real-orphan:retry.style-switch`
+- `G5:real-orphan:share.all-cancelled-aborts-server`
+- `G5:real-orphan:share.network-failure-all-fail`
+- `G5:real-orphan:share.reuse-after-failure`
+- `G5:real-orphan:share.single-all-timeout-aborts-server`
+- `G5:real-orphan:share.single-start-explicit-key`
+- `G5:real-unknown:local:test/boundary/timeout_effective_boundary_test.dart`
+- `G5:real-unknown:local:test/combo/auth_retry_keep_alive_combo_test.dart`
+- `G5:row-unit:INV-09:test/combo/prepare_pairs_combo_test.dart`
+- `G5:row-unit:INV-14:test/combo/auth_retry_combo_test.dart`
+
+</details>
+

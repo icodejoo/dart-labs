@@ -45,13 +45,15 @@ Future<void> main() async {
   var sequence = 0;
   var planned = 0;
   for (final raw in plan) {
-    planned += (obj(raw)[tkNetworks] as List).length * 2;
+    planned += (obj(raw)[tkNetworks] as List).length *
+        (obj(raw)[tkStyles] as List? ?? [tkHttp, tkBusiness]).length;
   }
   try {
     for (final raw in plan) {
       final item = obj(raw);
       for (final network in item[tkNetworks] as List) {
-        for (final style in [tkHttp, tkBusiness]) {
+        for (final style in (item[tkStyles] as List? ?? [tkHttp, tkBusiness])
+            .cast<String>()) {
           final result = await ScenarioRun(byId[item[tkScenario]]!,
                   network as String, style, '$session-${sequence++}')
               .execute();

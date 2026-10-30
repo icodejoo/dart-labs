@@ -1,0 +1,14 @@
+{"protocolVersion":"0.1.1","runnerVersion":"1.33.0","pid":11900,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"test/rule/b8_regression_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading test/rule/b8_regression_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":6}
+{"count":1,"time":25,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":1105}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":3,"line":null,"column":null,"url":null},"type":"group","time":1110}
+{"test":{"id":3,"name":"[DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 61","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":172,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":1112}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1176}
+{"test":{"id":4,"name":"[DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 Thu, 01 Jan 1970 00:01:01 GMT","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":172,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":1177}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":1180}
+{"test":{"id":5,"name":"[DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 60","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":172,"column":5,"url":"file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/b8_regression_test.dart"},"type":"testStart","time":1180}
+{"testID":5,"error":"Expected: <2>\n  Actual: <1>\n","stackTrace":"package:matcher                          expect\ntest\\rule\\b8_regression_test.dart 197:7  main.<fn>\n","isFailure":true,"type":"error","time":1192}
+{"testID":5,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":1192}
+{"success":false,"type":"done","time":1209}

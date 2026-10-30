@@ -1,0 +1,29 @@
+git status --short | wc -l (PowerShell 等价)
+310
+git log --oneline -1
+895d959 test(dioman): B5a powerset 与成对组合补齐
+dart analyze 末尾
+Analyzing dioman...
+No issues found!
+指定目录 analyze 末尾
+Analyzing example, accept, benchmark...
+No issues found!
+dart test 末尾
+00:12 +5014: All tests passed!
+分支覆盖 test 末尾
+00:15 +5014: All tests passed!
+gates
+G0: 0
+G1: 0
+G2: 0
+G3: 0
+G4: 190
+  G4:Dioman.cancelAll:no-real
+  G4:Dioman.cancelAll:no-result
+  G4:Dioman.delete:no-real
+  G4:Dioman.delete:no-result
+  G4:Dioman.get:no-real
+G5: 0
+依赖与 SDK diff
+tool/__pycache__
+False

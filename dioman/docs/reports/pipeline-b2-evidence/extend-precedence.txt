@@ -1,0 +1,21 @@
+00:00 +0: loading test/combo/stateless_combo_test.dart
+00:00 +0: [Dioman.extend × DiomanEnvs] 先 setup 再显式覆盖，父子与规则模板容器隔离
+00:00 +0 -1: [Dioman.extend × DiomanEnvs] 先 setup 再显式覆盖，父子与规则模板容器隔离 [E]
+  Expected: 'https://override.example.test'
+    Actual: 'https://env.example.test'
+     Which: is different.
+            Expected: https://override.e ...
+              Actual: https://env.exampl ...
+                              ^
+             Differ at offset 8
+  
+  package:matcher                             expect
+  test\combo\stateless_combo_test.dart 262:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/stateless_combo_test.dart: [Dioman.extend × DiomanEnvs] 先 setup 再显式覆盖，父子与规则模板容器隔离
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

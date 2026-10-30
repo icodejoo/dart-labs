@@ -1,0 +1,99 @@
+00:00 +0: loading test\boundary\client_boundary_test.dart
+00:00 +0: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +1: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +2: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +3: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +4: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +5: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +6: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +7: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +8: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +9: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +10: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +11: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +12: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +13: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +14: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +15: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +16: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +17: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +18: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +19: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +20: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +21: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +22: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +23: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:00 +24: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +25: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +26: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +27: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +28: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +29: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +30: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +31: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +32: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +33: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +34: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +35: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +36: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +37: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +38: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +39: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +40: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +41: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +42: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +43: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +44: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +45: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +46: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +47: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +48: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +49: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +50: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +51: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +52: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] stall 停顿按插件值超时
+00:00 +53: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +54: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +55: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +56: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +57: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +58: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +59: test\rule\transport_rule_test.dart: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈
+00:01 +60: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +61: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +62: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +63: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +64: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +65: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +66: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +67: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +68: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +69: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +70: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效
+00:01 +71: test\unit\fixtures_test.dart: [DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟
+00:01 +72: test\unit\fixtures_test.dart: [DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟
+00:01 +73: test\unit\fixtures_test.dart: [DiomanClock] FakeClock 到期顺序、取消、重入和系统时钟
+00:01 +74: test\rule\transport_rule_test.dart: [diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离
+00:01 +75: test\rule\transport_rule_test.dart: [diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离
+00:01 +76: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +77: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +78: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +79: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +80: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +81: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +82: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +83: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +84: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +85: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +86: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +87: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +88: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +89: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +90: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +91: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +92: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +93: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:01 +94: test\unit\key_parity_test.dart: [DiomanKeyService.build] 开关、显式键、异常及不可序列化回退
+00:01 +95: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 发送缓冲阻塞时真实超时
+00:02 +96: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 正常读取小请求体时成功
+00:02 +97: All tests passed!

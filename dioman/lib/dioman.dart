@@ -1,32 +1,69 @@
-/// dioman — a set of composable, self-contained [Dio] interceptor plugins,
-/// plus the *correct* install order to wire them together.
-///
-/// Every plugin extends [DiomanPlugin] (a named [Interceptor]) and can be used on
-/// its own. See the README for the recommended ordering and why it matters.
+/// 洋葱管线客户端及内置插件的公开入口。
 library;
 
-export 'src/dioman_plugin.dart';
-export 'src/dioman.dart';
-export 'src/extra_keys.dart';
-export 'src/plugin_order.dart'
+export 'src/client.dart' show Dioman;
+export 'src/clock.dart' show DiomanClock;
+export 'src/context.dart' show DiomanLogger, StateKey, DiomanContext;
+export 'src/key.dart' show DiomanKeyOptions, DiomanKeyService;
+export 'src/options.dart'
+    show replaceOption, DiomanOptionKey, resolveOption, DiomanCall;
+
+export 'src/plugin.dart' show DiomanNext, DiomanPlugin, DiomanPluginInstance;
+export 'src/request.dart' show DiomanRequest, RequestPatch;
+export 'src/response.dart'
     show
-        DiomanPluginOrder,
-        DiomanPluginOrderException,
-        DiomanPluginOrderIssue;
-export 'src/envs_plugin.dart';
-export 'src/timeout_plugin.dart';
-export 'src/repath_plugin.dart';
-export 'src/filter_plugin.dart';
-export 'src/key_plugin.dart';
-export 'src/normalize_plugin.dart' hide diomanNormalizeFailureProbe;
-export 'src/cache_plugin.dart' hide diomanCacheWireStoreJudge;
-export 'src/offline_plugin.dart';
-export 'src/share_plugin.dart';
-export 'src/mock_adapter.dart';
-export 'src/cancel_plugin.dart';
-export 'src/loading_plugin.dart';
-export 'src/auth_plugin.dart';
-export 'src/retry_plugin.dart';
-export 'src/breaker_plugin.dart';
-export 'src/log_plugin.dart';
-export 'src/notify_plugin.dart';
+        DiomanKind,
+        Envelope,
+        DiomanResponse,
+        DiomanFailure,
+        DiomanResponseFactory;
+export 'src/stages.dart' show DiomanStage, DiomanEnforce;
+
+export 'src/plugins/loading.dart'
+    show DiomanLoadingOptions, DiomanLoadingApi, DiomanLoading;
+export 'src/plugins/notify.dart' show DiomanNotify;
+export 'src/plugins/repath.dart' show DiomanRepathOptions, DiomanRepath;
+export 'src/plugins/filter.dart'
+    show DiomanFilterPredicate, DiomanFilterOptions, DiomanFilter;
+export 'src/plugins/timeout.dart'
+    show NetworkQuality, DiomanTimeouts, DiomanTimeoutOptions, DiomanTimeout;
+export 'src/plugins/envs.dart' show EnvRule, DiomanEnvsOptions, DiomanEnvs;
+export 'src/plugins/retry.dart'
+    show
+        DiomanShouldRetry,
+        DiomanRetryDelay,
+        DiomanJitter,
+        DiomanRetryOptions,
+        DiomanRetry;
+export 'src/plugins/breaker.dart'
+    show
+        DiomanBreakerState,
+        DiomanShouldTrip,
+        DiomanBreakerApi,
+        DiomanBreakerOptions,
+        DiomanBreaker;
+export 'src/plugins/auth.dart'
+    show
+        DiomanAuthFailureAction,
+        DiomanAuthNotice,
+        DiomanAuthRefresh,
+        DiomanAuthFailure,
+        DiomanAuthReady,
+        defaultAuthFailure,
+        DiomanAuthOptions,
+        DiomanAuth;
+export 'src/token_manager.dart' show DiomanTokenManager;
+export 'src/cache_store.dart' show DiomanCachePersist;
+export 'src/plugins/mock.dart'
+    show DiomanMockRoute, DiomanMockOptions, DiomanMock;
+export 'src/plugins/share.dart'
+    show DiomanSharePolicy, DiomanShareOptions, DiomanShare;
+export 'src/plugins/cache.dart'
+    show
+        DiomanClonePolicy,
+        DiomanCachePolicy,
+        DiomanCacheOptions,
+        DiomanCacheApi,
+        DiomanCache;
+export 'src/plugins/offline.dart'
+    show DiomanOfflineOptions, DiomanOfflineApi, DiomanOffline;

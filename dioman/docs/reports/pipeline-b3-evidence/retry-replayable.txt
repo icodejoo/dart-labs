@@ -1,0 +1,20 @@
+00:00 +0: loading test/combo/b3_combo_test.dart
+00:00 +0: [DiomanContext.markReplayable] retry 与 auth 各自保护嵌套请求体，Transformer 原地修改不污染重放
+00:00 +0 -1: [DiomanContext.markReplayable] retry 与 auth 各自保护嵌套请求体，Transformer 原地修改不污染重放 [E]
+  Expected: [{'items': [{'n': 1}]}, {'items': [{'n': 1}]}]
+    Actual: MappedListIterable<FakeSend, Object?>:[
+              {'items': [{'n': 1}]},
+              {'items': [{'n': 2}]}
+            ]
+     Which: at location [1]['items'][0]['n'] is <2> instead of <1>
+  
+  package:matcher                      expect
+  test\combo\b3_combo_test.dart 150:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/b3_combo_test.dart: [DiomanContext.markReplayable] retry 与 auth 各自保护嵌套请求体，Transformer 原地修改不污染重放
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

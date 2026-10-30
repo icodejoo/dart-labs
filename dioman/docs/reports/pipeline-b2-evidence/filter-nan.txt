@@ -1,0 +1,16 @@
+00:00 +0: loading test/rule/stateless_prepare_rule_test.dart
+00:00 +0: [DiomanFilter.defaultPredicate] C9 剔除空值与 NaN，保留零 false 和嵌套字段
+00:00 +0 -1: [DiomanFilter.defaultPredicate] C9 剔除空值与 NaN，保留零 false 和嵌套字段 [E]
+  Converting object to an encodable object failed: NaN
+  package:dio/src/options.dart 352:56               Options.compose
+  package:dioman/src/pipeline/client.dart 282:12    Dioman._dispatch
+  package:dioman/src/pipeline/client.dart 219:15    Dioman.send
+  test\rule\stateless_prepare_rule_test.dart 79:15  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/stateless_prepare_rule_test.dart: [DiomanFilter.defaultPredicate] C9 剔除空值与 NaN，保留零 false 和嵌套字段
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

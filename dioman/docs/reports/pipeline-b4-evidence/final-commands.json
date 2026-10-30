@@ -1,0 +1,11 @@
+{
+  "dart analyze": 0,
+  "dart test --reporter expanded": 0,
+  "dart test test_legacy --concurrency=1 --reporter expanded": 0,
+  "dart test --coverage-path=coverage/b4.info --branch-coverage --reporter expanded": 0,
+  "python tool/pipeline_b1_coverage.py --b4 --b3 --b2 coverage/b4.info": 0,
+  "python tool/pipeline_b4_mutations.py": 0,
+  "python tool/pipeline_b4_migration.py": 0,
+  "codex review --uncommitted": 0,
+  "dart test test/boundary/b4_final_review_boundary_test.dart --reporter expanded": 0
+}

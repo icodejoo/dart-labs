@@ -1,0 +1,18 @@
+{
+  "inventory_before": 693,
+  "inventory_after": 785,
+  "added": 402,
+  "removed": 310,
+  "retained": 383,
+  "renamed_pairs": 31,
+  "matrix_before": 442,
+  "matrix_after": 631,
+  "matrix_removed": 218,
+  "matrix_added": 407,
+  "matrix_retained": 224,
+  "tier": {
+    "1": 450,
+    "2": 171,
+    "3": 10
+  }
+}

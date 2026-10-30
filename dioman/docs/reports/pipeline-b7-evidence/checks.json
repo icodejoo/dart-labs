@@ -1,0 +1,53 @@
+{
+  "dartTest": {
+    "command": "dart test",
+    "result": "00:19 +5022: All tests passed!",
+    "sha256": "5cdab66c4eb770d136e522aced3f2c61829d96c646db0aed43347d5573922b45"
+  },
+  "dartAnalyze": {
+    "result": "No issues found!"
+  },
+  "cargoTest": {
+    "unit": 38,
+    "netemIntegration": 4,
+    "testkitIntegration": 15,
+    "failed": 0,
+    "logSha256": "7b4c7d8a0a3db7f8f0a004f4348e841f29df9272b6115808a07c7186998037af"
+  },
+  "scenarioValidation": {
+    "scenarios": 459,
+    "files": 19,
+    "index": "PASS",
+    "coverage": "PASS",
+    "nodeTests": 5
+  },
+  "library": {
+    "modified": false,
+    "coverageSource": "docs/reports/pipeline-b5b-evidence/coverage.info",
+    "executableLines": [
+      1410,
+      1410
+    ],
+    "branches": [
+      675,
+      675
+    ],
+    "files": 34
+  },
+  "baseline": {
+    "before": 190,
+    "after": 1,
+    "added": 0,
+    "remaining": [
+      "G4:DiomanTimeouts.connect#effective:no-real"
+    ]
+  },
+  "buildCleanup": {
+    "path": "E:/workspaces/api-ws-demo/target-b7",
+    "deleted": false,
+    "reason": "Automatic approval review rejected both native PowerShell cleanup attempts: blocked by policy. Processes have been closed; generated artifacts remain untracked."
+  },
+  "ownedProcessesClosed": true,
+  "ownedListenersRemaining": 0,
+  "ownedProxiesCreatedAndDeleted": 2631
+}

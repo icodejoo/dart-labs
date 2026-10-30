@@ -1,0 +1,17 @@
+00:00 +0: loading test/boundary/b3_options_boundary_test.dart
+00:00 +0: [DiomanAuthOptions.enabled] true 强制保护优先于公开谓词，省略与 call.true 沿用谓词
+00:00 +0 -1: [DiomanAuthOptions.enabled] true 强制保护优先于公开谓词，省略与 call.true 沿用谓词 [E]
+  Expected: 'unauthenticated'
+    Actual: <null>
+     Which: not an <Instance of 'String'>
+  
+  package:matcher                                   expect
+  test\boundary\b3_options_boundary_test.dart 93:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/b3_options_boundary_test.dart: [DiomanAuthOptions.enabled] true 强制保护优先于公开谓词，省略与 call.true 沿用谓词
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

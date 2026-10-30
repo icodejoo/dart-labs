@@ -1,0 +1,63 @@
+dioman git status --short
+ M .claude/skills/dioman/SKILL.md
+ M CHANGELOG.md
+ M README.md
+ M README.zh-CN.md
+ M docs/README.md
+ M docs/design/pipeline-architecture.md
+ M docs/design/pipeline-implementation-plan.md
+ M docs/design/pipeline-plugin-spec.md
+ M docs/design/pipeline-test-plan.md
+ M docs/guides/migrating-to-pipeline.md
+ M docs/reference/testkit-mapping.md
+ M lib/src/context.dart
+ M lib/src/context_internal.dart
+ M lib/src/context_state.dart
+ M lib/src/key.dart
+ M lib/src/plugins/auth.dart
+ M lib/src/plugins/cache.dart
+ M lib/src/plugins/mock.dart
+ M lib/src/plugins/notify.dart
+ M lib/src/plugins/retry.dart
+ M lib/src/plugins/share.dart
+ M lib/src/response.dart
+ M lib/src/transport.dart
+ M test/accept/evidence/2026-10-29-summary.json
+ M test/accept/lib/api-inventory.json
+ M test/accept/lib/client.dart
+ M test/accept/lib/common.dart
+ M test/accept/lib/matrix.json
+ M test/accept/lib/probes_fields.dart
+ M test/boundary/auth_boundary_test.dart
+ M test/boundary/b4_final_review_boundary_test.dart
+ M test/boundary/retry_boundary_test.dart
+ M test/boundary/retry_options_boundary_test.dart
+ M test/boundary/source_lifecycle_boundary_test.dart
+ M test/boundary/stateless_outer_boundary_test.dart
+ M test/integration/b3_transport_integration_test.dart
+ M test/rule/transport_rule_test.dart
+ M test/support/b5_powerset.dart
+ M test/support/invariant_harness.dart
+ M test/unit/accept_runner_test.dart
+ M test/unit/key_parity_test.dart
+ M test/unit/response_test.dart
+?? docs/reports/2026-10-29-pipeline-b8.md
+?? docs/reports/pipeline-b8-evidence/
+?? test/combo/b8_share_withdrawal_test.dart
+?? test/integration/b8_decode_integration_test.dart
+?? test/rule/b8_regression_test.dart
+?? test/unit/b8_core_test.dart
+?? tool/pipeline_b8_evidence.py
+?? tool/pipeline_b8_mutations.py
+
+dioman git log --oneline -1
+099a786 test(dioman): B7 新实例全量真实验收与总账回填
+
+api-ws-demo git status --short
+ M testkit/DECISIONS.md
+ M testkit/scenarios/share.json
+
+api-ws-demo git log --oneline -1
+2d698f8 feat(testkit): D24 新增 raw-business-code、timeout-total 能力，补 cancel 声明与 blackhole 超时
+
+Owned PIDs 22160/48744 closed; listeners 47180/47190 absent.

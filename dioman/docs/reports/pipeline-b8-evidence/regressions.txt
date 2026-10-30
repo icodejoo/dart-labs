@@ -1,0 +1,23 @@
+00:00 +0: loading test/unit/b8_core_test.dart
+00:00 +0: test/unit/b8_core_test.dart: [DiomanKeyService.maxBodyBytes][DiomanKeyService.build] B8 安全内容键
+00:00 +1: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 auth ready 的实际体决定重放 useStream=false
+00:00 +2: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 auth ready 的实际体决定重放 useStream=false
+00:00 +3: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 auth ready 的实际体决定重放 useStream=false
+00:00 +4: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 auth ready 的实际体决定重放 useStream=false
+00:00 +5: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 auth ready 的实际体决定重放 useStream=true
+00:00 +6: test/rule/b8_regression_test.dart: [DiomanCache.clone] B8 命中返回边界重查取消 disk=false
+00:00 +7: test/rule/b8_regression_test.dart: [DiomanCache.clone] B8 命中返回边界重查取消 disk=true
+00:00 +8: test/rule/b8_regression_test.dart: [DiomanAuth.refreshTimeout][DiomanAuthOptions.refreshTimeout] B8 刷新超时 replace=false override=false
+00:00 +9: test/rule/b8_regression_test.dart: [DiomanAuth.refreshTimeout][DiomanAuthOptions.refreshTimeout] B8 刷新超时 replace=false override=true
+00:00 +10: test/rule/b8_regression_test.dart: [DiomanAuth.refreshTimeout][DiomanAuthOptions.refreshTimeout] B8 刷新超时 replace=true override=false
+00:00 +11: test/rule/b8_regression_test.dart: [DiomanAuth.refreshTimeout][DiomanAuthOptions.refreshTimeout] B8 刷新超时 replace=true override=true
+00:00 +12: test/rule/b8_regression_test.dart: [DiomanAuth.refreshTimeout] B8 刷新异常遇到新登录继续当前 token
+00:00 +13: test/rule/b8_regression_test.dart: [DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 61
+00:00 +14: test/rule/b8_regression_test.dart: [DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 Thu, 01 Jan 1970 00:01:01 GMT
+00:00 +15: test/rule/b8_regression_test.dart: [DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 60
+00:00 +16: test/rule/b8_regression_test.dart: [DiomanCache.clone] B8 命中 clone 时取消不能返回成功
+00:00 +17: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 一次性体 retry 只发送一次
+00:00 +18: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 一次性体 auth 只发送一次
+00:00 +19: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 一次性体 mock 只发送一次
+00:00 +20: test/rule/b8_regression_test.dart: [DiomanContext.canReplay] B8 一次性体 share 只发送一次
+00:00 +21: All tests passed!

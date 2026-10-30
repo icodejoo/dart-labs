@@ -1,0 +1,15 @@
+file LF LH BRF BRH
+client.dart 127 127 64 64
+pipeline.dart 32 32 22 22
+context.dart 70 70 39 39
+request.dart 50 50 25 25
+response.dart 96 96 27 27
+transport.dart 18 18 11 11
+config.dart 36 36 22 22
+plugins/loading.dart 58 58 32 32
+plugins/notify.dart 19 19 12 12
+plugins/repath.dart 50 50 21 21
+plugins/filter.dart 39 39 19 19
+plugins/timeout.dart 22 22 13 13
+plugins/envs.dart 11 11 8 8
+13 files present; nonzero counters; lines=100%; branches=100%; PASS

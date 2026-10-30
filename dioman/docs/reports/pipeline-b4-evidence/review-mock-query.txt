@@ -1,0 +1,17 @@
+00:00 +0: loading test/boundary/source_review_boundary_test.dart
+00:00 +0: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+00:00 +0 -1: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留 [E]
+  Expected: {'inline': 'yes', 'separate': 'also'}
+    Actual: {'separate': 'also'}
+     Which: has different length and is missing map key 'inline'
+  
+  package:matcher                                      expect
+  test\boundary\source_review_boundary_test.dart 18:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/source_review_boundary_test.dart: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

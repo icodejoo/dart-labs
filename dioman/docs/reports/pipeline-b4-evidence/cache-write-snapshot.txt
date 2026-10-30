@@ -1,0 +1,17 @@
+00:00 +0: loading test/boundary/cache_persist_boundary_test.dart
+00:00 +0: [DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记
+00:00 +0 -1: [DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记 [E]
+  Expected: {1: [2]}
+    Actual: {1: [9]}
+     Which: at location ['1'][0] is <9> instead of <2>
+  
+  package:matcher                                       expect
+  test\boundary\cache_persist_boundary_test.dart 192:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/cache_persist_boundary_test.dart: [DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

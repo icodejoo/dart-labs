@@ -1,0 +1,24 @@
+00:00 +0: loading test/unit/response_test.dart
+00:00 +0: test/unit/response_test.dart: [DiomanResponseFactory.normalize] 分类规则逐行：取消、超时、网络、HTTP、bug
+00:00 +1: test/unit/response_test.dart: [Envelope.message][DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态
+00:00 +2: test/unit/response_test.dart: [DiomanKind.http][DiomanKind.parse][DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse
+00:00 +3: test/unit/response_test.dart: [DiomanFailure.errorStack][DiomanResponseFactory.isEnvelope][DiomanResponseFactory.isSuccess][DiomanResponseFactory.logicalStatus][DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常
+00:00 +4: test/unit/response_test.dart: [DiomanResponse.callSite][DiomanResponse.code][DiomanResponse.copy][DiomanResponse.data][DiomanResponse.error][DiomanResponse.httpStatus][DiomanResponse.kind][DiomanResponse.ok][DiomanResponse.reason][DiomanResponse.request][DiomanResponse.status][DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生
+00:00 +5: test/unit/accept_runner_test.dart: [client.classify] B8 业务编号读取原始 code，不读取 status 或 data
+00:00 +6: test/unit/accept_runner_test.dart: [ScenarioClient] 安装 cache 后省略请求覆盖仍缓存，false 明确关闭
+00:00 +7: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +8: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +9: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +10: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +11: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +12: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +13: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +14: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +15: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +16: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +17: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +18: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +19: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.end
+00:00 +20: test/integration/b8_decode_integration_test.dart: [DiomanShare.policy] B8 真实阶段超时不会污染其他订阅者 DiomanSharePolicy.race
+00:01 +21: test/integration/b8_decode_integration_test.dart: [DiomanResponseFactory.expectJson][DiomanResponseFactory.normalize] B8 真实坏 JSON 与 HTML 解码口径
+00:01 +22: All tests passed!

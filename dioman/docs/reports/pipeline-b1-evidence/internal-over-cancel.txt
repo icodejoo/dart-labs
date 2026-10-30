@@ -1,0 +1,16 @@
+00:00 +0: loading test/boundary/client_boundary_test.dart
+00:00 +0: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +0 -1: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈 [E]
+  Expected: same instance as StateError:<Bad state: bug>
+    Actual: TestFailure:<必须抛出程序异常>
+  
+  package:matcher                               expect
+  test\boundary\client_boundary_test.dart 23:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

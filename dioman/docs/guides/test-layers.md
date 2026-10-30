@@ -1,13 +1,13 @@
 ---
 title: dioman 测试六层分类指南
 status: active
-updated: 2026-10-28
+updated: 2026-10-29
 summary: dioman 测试六层归档规则、三档可信度标注、总账矩阵与闸门的日常用法、Dart 目录命名、标题约定、运行方式。
 ---
 
 # dioman 测试分层指南
 
-分层规则照搬 axp：[`apps/axp/docs/guides/test-layers.md`](../../../../codejoo/apps/axp/docs/guides/test-layers.md)（判定顺序、去重规则、映射记录字段都以它为准）。这里只写 Dart 上不一样的地方和 dioman 自己的落地细节。
+分层以 [洋葱管线测试方案](../design/pipeline-test-plan.md) 为准，目录回答测试范围，可信度另行登记。
 
 一句话：**一个行为只在最低的、能证明它的那一层测一次；按"测什么"分层，不按"从哪轮修复来"命名。**
 
@@ -15,11 +15,11 @@ summary: dioman 测试六层归档规则、三档可信度标注、总账矩阵�
 
 | 层 | 测什么 | 依赖 | 目录 |
 |---|---|---|---|
-| 单元 `unit` | 单个纯对象/函数：`DiomanException`、extra 键注册表、`Dioman.sort/validate`、重放/认领基础设施、pairwise 生成器 | 不装 Dio 插件链 | `test/unit/` |
-| 规则 `rule` | **单个插件**对外 API 的声明行为：每个选项、请求级开关、回调的正常路径 | `Dioman.install` + 假 adapter / 本地 `TestServer` | `test/rule/` |
+| 单元 `unit` | 单个纯对象/函数：`DiomanResponse`、类型化选项、固定阶段排序、请求补丁与取消原语、pairwise 生成器 | 不装 Dio 插件链 | `test/unit/` |
+| 规则 `rule` | **单个插件**对外 API 的声明行为：每个选项、请求级开关、回调的正常路径 | `Dioman(dio: ..., plugins: ...)` + 假传输 / 本地 HttpServer | `test/rule/` |
 | 边界 `boundary` | **单个插件**的极端输入、并发时序、取消时机、容量溢出、异常回调 | 同规则层 | `test/boundary/` |
 | 组合 `combo` | **两个及以上插件**的语义交互，含全栈冒烟和 powerset 扫描 | 同规则层，装多个插件 | `test/combo/` |
-| 集成 `integration` | 装配（install 顺序、动态插拔）、源码/文档一致性、连真实服务 47080/47090 的白盒入口 | 真实 Dio、仓库文件、真实服务 | `test/integration/` |
+| 集成 `integration` | 装配（固定阶段、动态插拔）、源码/文档一致性、连真实服务 47080/47090 的白盒入口 | 真实 Dio、仓库文件、真实服务 | `test/integration/` |
 | 验收 `acceptance` | 黑盒：testkit 场景 × 网络 × 风格，真实服务 + netem | api-ws-demo、netem | `test/accept/`（执行器，无 `_test.dart`，`dart test` 不会跑它）+ testkit 场景 |
 
 `test/support/` 只放夹具，不放用例。
@@ -28,7 +28,7 @@ summary: dioman 测试六层归档规则、三档可信度标注、总账矩阵�
 
 ## 三档与总账（和六层正交）
 
-六层回答"放哪"，三档回答"这条绿灯能不能信"。完整方案见 [测试体系方案](../design/test-matrix-plan.md)。
+六层回答"放哪"，三档回答"这条绿灯能不能信"。完整方案见 [测试体系方案](../design/test-matrix-plan.md)；不变量与 powerset 见 [洋葱管线测试方案](../design/pipeline-test-plan.md)。
 
 | 档 | 判定 | 要做的 |
 |---|---|---|
@@ -66,12 +66,12 @@ Dart 的测试文件必须以 `_test.dart` 结尾，且是 `lower_case_with_unde
 
 ```
 test/
-├── unit/          <模块>_test.dart                 例：extra_keys_test.dart
+├── unit/          <模块>_test.dart                 例：options_unit_test.dart
 ├── rule/          <插件>_rule_test.dart            例：retry_rule_test.dart
 ├── boundary/      <插件>_boundary_test.dart        例：cache_boundary_test.dart
 ├── combo/         <a>_<b>_combo_test.dart          插件名字母序；另有 powerset_combo_test.dart、full_stack_combo_test.dart
-├── integration/   <主题>_integration_test.dart     例：install_integration_test.dart
-└── support/       夹具（fixtures.dart、test_server.dart、fake_cache_persist.dart）
+├── integration/   <主题>_integration_test.dart     例：source_transport_integration_test.dart
+└── support/       夹具（fake_network.dart、fake_clock.dart、invariant_harness.dart、helpers.dart）
 ```
 
 - 文件名只写主题，不出现 fix / review / coverage / dioman 这类来源字样。
@@ -80,7 +80,7 @@ test/
 
 ## 用例标题
 
-标题以 `[API id]` 开头，id 取自 [`test/accept/lib/api-inventory.json`](../../test/accept/lib/api-inventory.json)（691 项公开 API 台账）：
+标题以 `[API id]` 开头，id 取自 [`test/accept/lib/api-inventory.json`](../../test/accept/lib/api-inventory.json)（744 项公开声明、成员与参数）：
 
 ```dart
 test('[DiomanRetry.respectRetryAfter] Retry-After 数字、日期……', () async { ... });
@@ -88,7 +88,7 @@ test('[DiomanRetry.respectRetryAfter] Retry-After 数字、日期……', () asy
 
 - 一条用例涉及多个 API 就写多个：`[DiomanCache.maxEntries][DiomanCache.clone]`。
 - 组合层用 `×`：`[DiomanAuth.onRefresh × DiomanRetry.max]`。
-- unit 层没有台账 id 时写 `[模块.函数]`，如 `[cancellableDelay]`、`[ReplayClient.finishRecovered]`。
+- unit 层没有台账 id 时写 夹具对应的现有符号或总账 INV 行 id；不要写仓库中不存在的 id。
 - 现有标题里的 id 是**按正文自动推荐 + 人工覆盖**出来的，粒度和准确度没有逐条审计；后续补台账缺口时顺手校正。映射里标"无台账 id"的用例见 [迁移映射](../archive/test-migration-2026-10-27.md)。
 
 ## 怎么跑
@@ -116,7 +116,7 @@ dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info   # 顺带
 
 ## 去重要点（摘自 §3）
 
-同层 + 同 API id + 同输入 + 同期望 = 重复，删后者；同 id 不同输入是变体，保留。`DiomanRetry.share` 兼容 setter 接线和自动接线是两种输入，所以不算重复。跨层重复保留最低层。`drop` 必须在 [迁移映射](../archive/test-migration-2026-10-27.md) 里指向保留者的新位置。
+同层 + 同 API id + 同输入 + 同期望 = 重复，删后者；同 id 不同输入是变体，保留。例如请求级 true 与显式选项对象是两种输入，不应只因 API id 相同而合并。跨层重复保留最低层。`drop` 必须在 [迁移映射](../archive/test-migration-2026-10-27.md) 里指向保留者的新位置。
 
 ## 相关
 

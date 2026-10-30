@@ -1,0 +1,24 @@
+{
+  "matched": 2,
+  "expected": 2,
+  "extra": [],
+  "missing": [],
+  "entries": [
+    {
+      "cell": "plugins.full-flap-workflow|flap@http",
+      "before": "失败",
+      "reason": "outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决",
+      "failures": [
+        "client.notify=2，预期 {\"eq\":1}"
+      ]
+    },
+    {
+      "cell": "plugins.full-flap-workflow|flap@business",
+      "before": "失败",
+      "reason": "outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决",
+      "failures": [
+        "client.notify=2，预期 {\"eq\":1}"
+      ]
+    }
+  ]
+}

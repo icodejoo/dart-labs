@@ -1,0 +1,3 @@
+00:00 +0: loading test\unit\pipeline_skeleton_test.dart
+00:00 +0: test\unit\pipeline_skeleton_test.dart: [Dioman]
+00:00 +1: All tests passed!

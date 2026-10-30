@@ -1,0 +1,274 @@
+00:00 +0: loading test\boundary\auth_boundary_test.dart
+00:00 +0: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +1: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +2: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +3: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +4: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +5: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +6: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +7: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +8: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +9: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +9: test\boundary\b3_await_boundary_test.dart: [DiomanContext.wait] 取消未完成的 ready onFailure denied expired 回调立即收尾，迟到异常被消费
+[dioman:auth] 鉴权通知失败: Bad state: late callback
+
+[dioman:auth] 鉴权通知失败: Bad state: late callback
+
+00:00 +10: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +11: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +12: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +13: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +14: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +15: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +16: test\boundary\auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +17: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +18: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +19: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +20: test\boundary\b3_options_boundary_test.dart: [DiomanAuth.onAccessExpired] 刷新后仍为 401 的并发请求全部 expired，每会话只通知一次
+00:00 +21: test\boundary\b3_await_boundary_test.dart: [DiomanNext] 重发之后 internal 原样抛出，取消禁止第三次尝试
+00:00 +22: test\boundary\b3_await_boundary_test.dart: [DiomanNext] 重发之后 internal 原样抛出，取消禁止第三次尝试
+00:00 +23: test\boundary\b3_await_boundary_test.dart: [DiomanNext] 重发之后 internal 原样抛出，取消禁止第三次尝试
+00:00 +24: test\boundary\b4_final_review_boundary_test.dart: [DiomanShare.option] 连接接收或有请求体的发送阶段为无限时则整体不限时
+00:00 +25: test\boundary\cache_persist_boundary_test.dart: [DiomanCachePersist.write] clear 等待在途持久化写入后 erase，错误原样且尾链可恢复
+00:00 +26: test\boundary\b3_options_boundary_test.dart: [defaultAuthFailure] 刷新窗口关闭后旧请求的 401 直接重放，整轮仅刷新一次
+00:00 +27: test\boundary\b3_options_boundary_test.dart: [defaultAuthFailure] 刷新窗口关闭后旧请求的 401 直接重放，整轮仅刷新一次
+00:00 +28: test\boundary\client_boundary_test.dart: [Dioman.inspect] 内置按名定位和在途保留链快照
+00:00 +29: test\boundary\auth_boundary_test.dart: [DiomanContext.cancelled] ready 与 onFailure 异步返回后重查取消，不通知不进入内层
+00:00 +30: test\boundary\b4_final_review_boundary_test.dart: [DiomanShare.option] 请求体非空时累计发送超时且无请求体时忽略发送阶段
+00:00 +31: test\boundary\b4_final_review_boundary_test.dart: [DiomanShare.option] 请求体非空时累计发送超时且无请求体时忽略发送阶段
+00:00 +32: test\boundary\cache_persist_boundary_test.dart: [DiomanCachePersist.read] 旧过期慢读取不得删除较新写入，持久命中按容量提升
+00:00 +33: test\boundary\b3_options_boundary_test.dart: [DiomanTokenManager.refreshToken] auth 不直接读取刷新凭证，onRefresh 自行决定能否刷新
+00:00 +34: test\boundary\client_boundary_test.dart: [Dioman.extend] 重新 setup，配置深拷贝和实例状态隔离
+00:00 +35: test\boundary\client_boundary_test.dart: [Dioman.extend] 重新 setup，配置深拷贝和实例状态隔离
+00:00 +36: test\boundary\auth_boundary_test.dart: [DiomanAuthFailureAction.replay] 刷新成功后登出不重放，ready 期间登出也本地拒绝
+00:00 +37: test\boundary\b4_final_review_boundary_test.dart: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调
+00:00 +38: test\boundary\b4_final_review_boundary_test.dart: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调
+00:00 +39: test\boundary\cache_persist_boundary_test.dart: [DiomanCachePersist.read × DiomanContext.wait] 取消读取、过期清理、尾链、写入均清理订阅
+00:00 +40: test\boundary\client_boundary_test.dart: [Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求
+00:00 +41: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +42: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +43: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +44: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +45: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +46: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 同步与异步抛错释放窗口，失败清会话只通知一次并可同名重登
+00:00 +47: test\boundary\b4_final_review_boundary_test.dart: [DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据
+00:00 +48: test\boundary\b4_final_review_boundary_test.dart: [DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据
+00:00 +49: test\boundary\auth_boundary_test.dart: [DiomanAuth.onRefresh] 发起者等待者取消和 cancelAll 不终止刷新，成功写 token 失败清会话
+00:00 +50: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.idleTtl] open halfOpen 与 closed 在途桶不回收，安全桶回收后同键从 closed 开始
+00:00 +51: test\boundary\auth_boundary_test.dart: [DiomanAuth.onAccessExpired] 旧请求的 expired 与刷新失败均不清新会话，迟到 401 直接 replay
+00:00 +52: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.shouldTrip] Dio 连接与三种超时只计一次，成功清连续失败且非正数不钳制
+00:00 +53: test\boundary\b3_options_boundary_test.dart: [DiomanBreaker.shouldTrip] Dio 连接与三种超时只计一次，成功清连续失败且非正数不钳制
+00:00 +54: test\boundary\auth_boundary_test.dart: [DiomanAuth.onAccessExpired] 通知同步异步抛错隔离，判定和 ready 异常原样抛出
+00:00 +55: loading test\boundary\retry_boundary_test.dart
+00:00 +55: test\boundary\retry_boundary_test.dart: [DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶
+00:00 +56: test\boundary\retry_options_boundary_test.dart: [DiomanRetryOptions.delay] afterStatusCodes respectRetryAfter delay jitter 与双上限逐字段生效
+00:00 +57: test\boundary\retry_boundary_test.dart: [DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头
+00:00 +58: test\boundary\retry_boundary_test.dart: [DiomanRetry.delay] 抖动正负、随机、负退避与上限，关闭服务器头
+00:00 +59: test\boundary\share_replay_boundary_test.dart: [DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖
+00:00 +60: test\boundary\share_replay_boundary_test.dart: [DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖
+00:00 +61: test\boundary\share_replay_boundary_test.dart: [DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖
+00:00 +62: test\boundary\share_replay_boundary_test.dart: [DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖
+00:00 +63: test\boundary\share_replay_boundary_test.dart: [DiomanShare.retries] 内部重放独立保护 I7 嵌套请求体，首发次数与间隔覆盖
+00:00 +64: test\boundary\source_boundary_test.dart: [DiomanSharePolicy.start] 首发取消不连累跟随者，最后离开才取消且清理 I3
+00:00 +65: test\boundary\source_boundary_test.dart: [DiomanSharePolicy.start] 首发取消不连累跟随者，最后离开才取消且清理 I3
+00:00 +66: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +67: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +68: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +69: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +70: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +71: test\boundary\source_lifecycle_boundary_test.dart: [DiomanSharePolicy.end] 最新调用取消时所有订阅者拿 cancel，旧响应不得重新发布
+00:00 +72: test\boundary\source_options_boundary_test.dart: [DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项
+00:00 +73: test\boundary\source_options_boundary_test.dart: [DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项
+00:00 +74: test\boundary\source_options_boundary_test.dart: [DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项
+00:00 +75: test\boundary\source_options_boundary_test.dart: [DiomanPlugin.enabled] 四 source 安装禁用与固定位置和非法请求选项
+00:00 +76: test\boundary\source_review_boundary_test.dart: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+00:00 +77: test\boundary\source_review_boundary_test.dart: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+00:00 +78: test\boundary\source_review_boundary_test.dart: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+00:00 +79: test\boundary\source_review_boundary_test.dart: [DiomanMock.mockUrl] 自审：path 内嵌 query 和独立 query 均保留
+00:00 +80: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +81: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +82: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +83: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +84: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +85: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +86: test\boundary\stateless_outer_boundary_test.dart: [Dioman.logError] debug 关闭仍记录通知错误，默认输出抛错也隔离
+00:00 +87: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +88: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +89: test\boundary\stateless_prepare_boundary_test.dart: [DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类
+00:00 +90: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delayClose] 新请求取消隐藏窗口，1→0 请求决定关闭延迟
+00:00 +91: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +92: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +93: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +94: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +95: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:01 +96: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] 无路径绝对 URL 的 query 与 fragment 不参与替换
+00:01 +97: test\boundary\stateless_prepare_boundary_test.dart: [DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁
+00:01 +98: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:01 +99: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:01 +100: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:01 +101: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线
+00:01 +102: test\combo\b3_combo_test.dart: [DiomanRetry.max × DiomanAuth.onRefresh] 刷新不占重试预算，isProtected 每次尝试一次，重放不重算
+00:01 +103: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +104: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +105: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +106: test\combo\b3_outer_combo_test.dart: [DiomanLoadingApi.activeCount × DiomanNotify.notify × DiomanRetry.max] 重试全过程 loading 一对，最终失败一次通知成功零次
+00:01 +107: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanCache.option] 刷新后缓存只保存最终成功并供后续调用命中
+00:01 +108: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:01 +109: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:01 +110: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:01 +111: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:01 +112: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 传输失败后刷新期间首发取消不影响跟随者
+00:01 +113: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 共享重试成功后再次调用命中缓存且不重复发送
+00:01 +114: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 业务失败后刷新期间首发取消不影响跟随者
+00:01 +115: test\combo\b4_retry_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 刷新前取消首发后跟随者仍完成刷新
+00:01 +116: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 刷新后传输失败仍重试并携带新凭据
+00:01 +117: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 失败响应前取消首发后跟随者仍外层重试成功
+00:01 +118: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 就绪回调异常使所有共享调用保留原错误落定
+00:01 +119: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 鉴权与缓存共享组合在外层重试后正确结算
+00:01 +120: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 到期回调异常使所有共享调用保留原错误落定
+00:01 +121: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 模拟探测回落在每次外层重试重新执行
+00:01 +122: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 模拟探测回落在每次外层重试重新执行
+00:01 +123: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 模拟探测回落在每次外层重试重新执行
+00:01 +124: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 并发鉴权失败只刷新一次并共享重放成功
+00:01 +125: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 内联模拟传输失败由外层重试恢复成功
+00:01 +126: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 单调用刷新重放后共享活动表与逻辑状态归零
+00:01 +127: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 内联模拟业务失败由自定义重试判定恢复
+00:01 +128: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 失败回调异常使竞速调用保留原错误落定
+00:01 +129: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下模拟探测回落仍逐次重试执行
+00:01 +130: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 公开请求没有凭据仍可共享一次传输
+00:01 +131: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下内联模拟传输失败仍由外层重试恢复
+00:01 +132: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 内联模拟在共享之前为每个逻辑调用执行
+00:01 +133: test\combo\b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下内联模拟业务失败仍由自定义判定恢复
+00:01 +134: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 内部重试与鉴权组合保持逻辑状态完整
+00:01 +135: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 外层重试中最新成功覆盖较早成功并统一结果
+00:01 +136: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 重装共享插件后刷新重放仍正确结算
+00:01 +137: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 重装共享插件后刷新重放仍正确结算
+00:01 +138: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 竞速重试通知异常被隔离且各调用均正确落定
+00:01 +139: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 竞速重试通知异常被隔离且各调用均正确落定
+00:01 +140: test\combo\b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 最新成功覆盖旧鉴权失败且不提前刷新
+00:01 +141: test\combo\b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 最新策略重试判定异常保留原错误并清理
+00:01 +142: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +143: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +144: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +145: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +146: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +147: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +148: test\combo\source_combo_test.dart: [DiomanMock.mockUrl × DiomanCache.option × DiomanShare.option] 探测不缓存不共享，回落恢复两者
+00:01 +149: test\combo\source_migration_combo_test.dart: [DiomanCache.shouldStore] 归一化判定表与请求级覆盖优先级
+00:01 +150: test\combo\source_migration_combo_test.dart: [DiomanCache.shouldStore] 归一化判定表与请求级覆盖优先级
+00:01 +151: test\combo\source_migration_combo_test.dart: [DiomanCache.shouldStore] 归一化判定表与请求级覆盖优先级
+00:01 +152: test\combo\source_migration_combo_test.dart: [DiomanCache.shouldStore] 归一化判定表与请求级覆盖优先级
+00:01 +153: test\combo\stateless_combo_test.dart: [DiomanLoadingApi.activeCount] 并发成功失败各自落定，任何请求都不能遗留括号
+00:01 +154: test\combo\source_combo_test.dart: [DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3
+00:01 +155: test\combo\source_migration_combo_test.dart: [DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包
+00:01 +156: test\combo\source_migration_combo_test.dart: [DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包
+00:01 +157: test\combo\source_migration_combo_test.dart: [DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包
+00:01 +158: test\combo\source_combo_test.dart: [DiomanRetry.max × DiomanShare.option × DiomanCache.option] 每次尝试重新进入，失败不缓存，跟随者最终恢复
+00:01 +159: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:01 +160: test\combo\source_migration_combo_test.dart: [DiomanKeyOptions.namespace × DiomanCache.option × DiomanShare.option] 账号隔离和 prepare 后请求体区分
+00:01 +161: test\combo\source_migration_combo_test.dart: [DiomanKeyOptions.namespace × DiomanCache.option × DiomanShare.option] 账号隔离和 prepare 后请求体区分
+00:01 +162: test\combo\source_migration_combo_test.dart: [DiomanKeyOptions.namespace × DiomanCache.option × DiomanShare.option] 账号隔离和 prepare 后请求体区分
+00:01 +163: test\combo\source_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option × DiomanCache.option] 并发 business401 单飞刷新后重放穿过来源
+00:01 +164: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +165: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +166: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +167: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +168: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +169: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +170: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +171: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +172: test\integration\b3_transport_integration_test.dart: [DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新
+00:01 +173: test\integration\source_transport_integration_test.dart: [DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网
+00:01 +174: test\integration\source_transport_integration_test.dart: [DiomanMock.mockUrl × DiomanCache.option] 回环转发保留方法路径查询，回落后缓存零触网
+00:01 +175: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +176: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +177: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +178: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +179: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +180: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +181: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +182: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +183: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +184: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +185: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +186: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +187: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +188: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +189: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +190: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +191: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +192: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +193: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +194: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +195: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +196: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +197: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +198: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +199: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +200: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:01 +201: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +202: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +203: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +204: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +205: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +206: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +207: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +208: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +209: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +210: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +211: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +212: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +213: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +214: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +215: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +216: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +217: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +218: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +219: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +220: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +221: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +222: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +223: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +224: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +225: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +226: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +227: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +228: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +229: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +230: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +231: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +232: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +233: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +234: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +235: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +236: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +237: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +238: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +239: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +240: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +241: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +242: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +243: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +244: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +245: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +246: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +247: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +248: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +249: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +250: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +251: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +252: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +253: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +254: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +255: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +256: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +257: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +258: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +259: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +260: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +261: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:02 +262: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:03 +263: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:03 +264: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:03 +265: test\integration\source_transport_integration_test.dart: [DiomanSharePolicy.start] 回环首发取消及订阅者超时不终止共享 Dio
+00:04 +266: All tests passed!

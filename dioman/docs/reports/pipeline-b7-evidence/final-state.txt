@@ -1,0 +1,89 @@
+dioman: E:\workspaces\dart-labs-pipeline\dioman
+
+> git branch --show-current
+jelon/dioman-pipeline
+exit=0
+
+> git status --short
+ M docs/design/pipeline-implementation-plan.md
+ M docs/reference/testkit-mapping.md
+ M test/accept/bin/build_plugin_matrix.dart
+ M test/accept/bin/run_plugin_matrix.dart
+ M test/accept/lib/client.dart
+ M test/accept/lib/common.dart
+ M test/accept/lib/matrix-baseline.json
+ M test/accept/lib/matrix.dart
+ M test/accept/lib/matrix.json
+ M test/accept/lib/plugin_matrix_plan.json
+ M test/accept/lib/runner.dart
+ M test/unit/accept_runner_test.dart
+ M test/unit/matrix_test.dart
+?? docs/reports/2026-10-29-pipeline-b7.md
+?? docs/reports/pipeline-b7-evidence/
+?? test/accept/evidence/
+?? test/integration/client_methods_real_integration_test.dart
+exit=0
+
+> git log --oneline -1
+402a6b3 docs(dioman): B6 文档、迁移指南与 example 切到洋葱管线
+exit=0
+
+> git diff --check
+exit=0
+
+
+
+testkit: E:/workspaces/api-ws-demo
+
+> git branch --show-current
+main
+exit=0
+
+> git status --short
+ M testkit/CONTRACT.md
+ M testkit/COVERAGE.md
+ M testkit/DECISIONS.md
+ M testkit/MATRIX.md
+ M testkit/scenario.schema.json
+ M testkit/scenarios/README.md
+ M testkit/scenarios/auth.json
+ M testkit/scenarios/basic.json
+ M testkit/scenarios/breaker.json
+ M testkit/scenarios/cache.json
+ M testkit/scenarios/cancel.json
+ M testkit/scenarios/concurrency.json
+ M testkit/scenarios/loading.json
+ M testkit/scenarios/mock.json
+ M testkit/scenarios/notify-normalize.json
+ M testkit/scenarios/offline.json
+ M testkit/scenarios/plugins.json
+ M testkit/scenarios/repath-key-filter.json
+ M testkit/scenarios/retry.json
+ M testkit/scenarios/share.json
+ M testkit/scenarios/timeout.json
+ M testkit/tools/validate.mjs
+?? target-b7/
+?? testkit/tools/validate.test.mjs
+exit=0
+
+> git log --oneline -1
+8669ae0 merge: axp 台账按洋葱管线新 API 重建
+exit=0
+
+> git diff --check
+exit=0
+
+
+
+Final checks
+00:19 +5022: All tests passed!
+Analyzing dioman...
+No issues found!
+G0: 0
+G1: 0
+G2: 0
+G3: 0
+G4: 1
+  G4:DiomanTimeouts.connect#effective:no-real
+G5: 0
+owned processes=0; 47180/47190 listeners=0; 2631/2631 proxies deleted

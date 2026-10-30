@@ -1,0 +1,73 @@
+00:00 +0: loading test/combo/prepare_pairs_combo_test.dart
+00:00 +0: [DiomanPlugin pairs] loading+repath 补丁穿透发送
+00:00 +1: [DiomanPlugin pairs] loading+filter 补丁穿透发送
+00:00 +2: [DiomanPlugin pairs] loading+timeout 补丁穿透发送
+00:00 +3: [DiomanPlugin pairs] loading+envs 补丁穿透发送
+00:00 +4: [DiomanPlugin pairs] notify+repath 补丁穿透发送
+00:00 +5: [DiomanPlugin pairs] notify+filter 补丁穿透发送
+00:00 +6: [DiomanPlugin pairs] notify+timeout 补丁穿透发送
+00:00 +7: [DiomanPlugin pairs] notify+envs 补丁穿透发送
+00:00 +8: [DiomanPlugin pairs] retry+repath 补丁穿透发送
+00:00 +9: [DiomanPlugin pairs] retry+filter 补丁穿透发送
+00:00 +10: [DiomanPlugin pairs] retry+timeout 补丁穿透发送
+00:00 +11: [DiomanPlugin pairs] retry+envs 补丁穿透发送
+00:00 +12: [DiomanPlugin pairs] breaker+repath 补丁穿透发送
+00:00 +13: [DiomanPlugin pairs] breaker+filter 补丁穿透发送
+00:00 +14: [DiomanPlugin pairs] breaker+timeout 补丁穿透发送
+00:00 +15: [DiomanPlugin pairs] breaker+envs 补丁穿透发送
+00:00 +16: [DiomanPlugin pairs] auth+repath 补丁穿透发送
+00:00 +17: [DiomanPlugin pairs] auth+filter 补丁穿透发送
+00:00 +18: [DiomanPlugin pairs] auth+timeout 补丁穿透发送
+00:00 +19: [DiomanPlugin pairs] auth+envs 补丁穿透发送
+00:00 +20: [DiomanPlugin pairs] mock+repath 补丁穿透发送
+00:00 +21: [DiomanPlugin pairs] mock+filter 补丁穿透发送
+00:00 +21 -1: [DiomanPlugin pairs] mock+filter 补丁穿透发送 [E]
+  Expected: <2>
+    Actual: <1>
+  
+  package:matcher                                 expect
+  test\combo\prepare_pairs_combo_test.dart 77:11  main.<fn>
+  
+00:00 +21 -1: [DiomanPlugin pairs] mock+timeout 补丁穿透发送
+00:00 +21 -2: [DiomanPlugin pairs] mock+timeout 补丁穿透发送 [E]
+  Expected: <2>
+    Actual: <1>
+  
+  package:matcher                                 expect
+  test\combo\prepare_pairs_combo_test.dart 77:11  main.<fn>
+  
+00:00 +21 -2: [DiomanPlugin pairs] mock+envs 补丁穿透发送
+00:00 +21 -3: [DiomanPlugin pairs] mock+envs 补丁穿透发送 [E]
+  Expected: <2>
+    Actual: <1>
+  
+  package:matcher                                 expect
+  test\combo\prepare_pairs_combo_test.dart 77:11  main.<fn>
+  
+00:00 +21 -3: [DiomanPlugin pairs] share+repath 补丁穿透发送
+00:00 +22 -3: [DiomanPlugin pairs] share+filter 补丁穿透发送
+00:00 +23 -3: [DiomanPlugin pairs] share+timeout 补丁穿透发送
+00:00 +24 -3: [DiomanPlugin pairs] share+envs 补丁穿透发送
+00:00 +25 -3: [DiomanPlugin pairs] cache+repath 补丁穿透发送
+00:00 +26 -3: [DiomanPlugin pairs] cache+filter 补丁穿透发送
+00:00 +27 -3: [DiomanPlugin pairs] cache+timeout 补丁穿透发送
+00:00 +28 -3: [DiomanPlugin pairs] cache+envs 补丁穿透发送
+00:00 +29 -3: [DiomanPlugin pairs] offline+repath 补丁穿透发送
+00:00 +30 -3: [DiomanPlugin pairs] offline+filter 补丁穿透发送
+00:00 +31 -3: [DiomanPlugin pairs] offline+timeout 补丁穿透发送
+00:00 +32 -3: [DiomanPlugin pairs] offline+envs 补丁穿透发送
+00:00 +33 -3: [DiomanPlugin pairs] repath+filter 补丁穿透发送
+00:00 +34 -3: [DiomanPlugin pairs] repath+timeout 补丁穿透发送
+00:00 +35 -3: [DiomanPlugin pairs] repath+envs 补丁穿透发送
+00:00 +36 -3: [DiomanPlugin pairs] filter+timeout 补丁穿透发送
+00:00 +37 -3: [DiomanPlugin pairs] filter+envs 补丁穿透发送
+00:00 +38 -3: [DiomanPlugin pairs] timeout+envs 补丁穿透发送
+00:00 +39 -3: Some tests failed.
+
+Failing tests:
+  test/combo/prepare_pairs_combo_test.dart: [DiomanPlugin pairs] mock+envs 补丁穿透发送
+  test/combo/prepare_pairs_combo_test.dart: [DiomanPlugin pairs] mock+filter 补丁穿透发送
+  test/combo/prepare_pairs_combo_test.dart: [DiomanPlugin pairs] mock+timeout 补丁穿透发送
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

@@ -40,6 +40,9 @@ const _assumptions = 'assumptions';
 /// 本文件共用的字面量 'result'。
 const _result = 'result';
 
+/// 明确登记的外部阻塞，不表示已执行或通过。
+const _blockedStatus = 'BLOCKED';
+
 /// 行的可选字段：没有 API 可反查时直接列单测文件（仅 INV-xx 等不变量行用）。
 const _unit = 'unit';
 
@@ -175,6 +178,12 @@ List<String> titleIdsFromSource(String source) {
   final title = RegExp(r'''\btest\(\s*((?:r?(['"])(?:\\.|(?!\2).)*\2\s*)+),''',
       dotAll: true);
   final literal = RegExp(r'''r?(['"])((?:\\.|(?!\1).)*)\1''', dotAll: true);
+  final constants = <String, String>{
+    for (final match in RegExp(
+            r'''\bconst\s+(?:String\s+)?(\w+)\s*=\s*(['"])([^\r\n]*?)\2\s*;''')
+        .allMatches(source))
+      match[1]!: match[3]!,
+  };
   final ids = <String>[];
   var offset = 0;
   while (offset < source.length) {
@@ -192,8 +201,11 @@ List<String> titleIdsFromSource(String source) {
         ? title.matchAsPrefix(source, offset)
         : null;
     if (match != null) {
-      ids.addAll(parseTitleIds(
-          literal.allMatches(match[1]!).map((m) => m[2]!).join()));
+      var value = literal.allMatches(match[1]!).map((m) => m[2]!).join();
+      for (final entry in constants.entries) {
+        value = value.replaceAll(r'$' + entry.key, entry.value);
+      }
+      ids.addAll(parseTitleIds(value));
       offset = match.end;
       continue;
     }
@@ -216,7 +228,7 @@ List<String> titleIdsFromSource(String source) {
 /// 从源码 [sources] 收集粗粒度符号；返回内部 id 集合，例如 `symbolsFromSources({'matrix': 'void sync() {}'})`。
 Set<String> symbolsFromSources(Map<String, String> sources) {
   final result = <String>{};
-  final names = RegExp(r'\b([A-Za-z_$][\w$]*)\s*(?:<[^;{}]*>)?\s*\(');
+  final names = RegExp(r'\b([A-Za-z_$][\w$]*)\s*(?:<[^<>;{}()]*>)?\s*\(');
   final fields = RegExp(
       r'\b(?:get|set|final|var|const|late|bool|int|String)\s+(?:[\w<>?,]+\s+)?([A-Za-z_$][\w$]*)\s*(?:[;=({]|=>)');
   for (final entry in sources.entries) {
@@ -262,24 +274,10 @@ Set<String> internalSymbols(List<Directory> directories) => symbolsFromSources({
                 file.readAsStringSync(),
     });
 
-/// 非插件源文件到分组的固定映射：安装/排序归 install，extra 键注册表归 extra，传输层 mock 归 mock。
-const _fileGroups = {
-  'dioman.dart': 'install',
-  'dioman_plugin.dart': 'install',
-  'plugin_order.dart': 'install',
-  'extra_keys.dart': 'extra',
-  'mock_adapter.dart': 'mock',
-};
-
-/// 按台账里的源文件推导分组，未知文件返回 core。
-///
-/// [file] 为台账 `file` 字段（如 `lib/src/retry_plugin.dart`）；返回分组名。
-/// 例：`pluginForFile('lib/src/timeout_plugin.dart')` 返回 `timeout`。
+/// 按归位后的源路径分组；plugins 下每个文件就是独立能力。
 String pluginForFile(String? file) {
-  final name = (file ?? _empty).split(_slash).last;
-  return _fileGroups[name] ??
-      RegExp(r'^(\w+)_plugin\.dart$').firstMatch(name)?.group(1) ??
-      _core;
+  final normalized = (file ?? _empty).replaceAll(_backslash, _slash);
+  return normalized.split(_slash).last.replaceAll(_dart, _empty);
 }
 
 /// 为 [inventory] 追加未覆盖草稿，保留 [existingRows]；例如 `draftRows(inventory, [])` 返回排序矩阵。
@@ -365,7 +363,8 @@ Set<String> computeGaps({
     final api = item[_api] as String;
     if (behaviorKinds.contains(item[_kind])
         ? !covered.contains(api)
-        : evidenceHits != null && !evidenceHits.contains(api)) {
+        : !titles.containsKey(api) &&
+            (evidenceHits == null || !evidenceHits.contains(api))) {
       gaps.add('G2:$api');
     }
   }
@@ -373,7 +372,10 @@ Set<String> computeGaps({
   final testFiles = titles.values.expand((files) => files).toSet();
   for (final row in rows) {
     if (row.tier == null) gaps.add('G0:${row.id}');
-    final unit = _strings(row.extra[_unit]);
+    final unit = _strings(row.extra.entries
+        .firstWhere((entry) => entry.key == _unit,
+            orElse: () => const MapEntry(_unit, null))
+        .value);
     for (final file in unit.where((f) => !testFiles.contains(f))) {
       gaps.add('G5:row-unit:${row.id}:$file');
     }
@@ -394,7 +396,7 @@ Set<String> computeGaps({
     }
     // 只要挂了真实结论就要守住：FAIL 必须被看见；BLOCKED 必须写明原因。
     if (row.result?['status'] == 'FAIL') gaps.add('G4:${row.id}:fail');
-    if (row.result?['status'] == 'BLOCKED' &&
+    if (row.result?['status'] == _blockedStatus &&
         (row.blocked?.trim().isEmpty ?? true)) {
       gaps.add('G4:${row.id}:blocked-no-reason');
     }
@@ -528,6 +530,7 @@ const localRealPrefix = 'local:';
 ///
 /// 任一格失败 → FAIL；无失败且至少一格通过 → PASS；其余（全跳过）→ BLOCKED。
 /// [notApplicable] 的格子先剔除；剔除后一格不剩也返回 null。
+/// 唯独明确登记外部阻塞且无 real 的②③行保留 BLOCKED、0/0，不伪造执行证据。
 /// `local:` 本地真实核对各计一格"通过"（见 [localRealPrefix]）。
 /// 返回 `{status, source, passed, total}`，passed/total 按格子计数（跳过计入 total）。
 /// 例：`rowResult(row, cases, 'test/accept/evidence/x.json')?['status']`。
@@ -541,13 +544,25 @@ Map<String, dynamic>? rowResult(
         ...((cases[id] as Map?)?.values.cast<String>() ?? const <String>[])
             .where((s) => s != notApplicable)
   ];
-  if (statuses.isEmpty) return null;
+  if (statuses.isEmpty) {
+    if (row.real.isNotEmpty ||
+        !const {2, 3}.contains(row.tier) ||
+        (row.blocked?.trim().isEmpty ?? true)) {
+      return null;
+    }
+    return {
+      'status': _blockedStatus,
+      'source': source,
+      'passed': 0,
+      'total': 0,
+    };
+  }
   final passed = statuses.where((s) => s == _passed).length;
   final status = statuses.contains(_failed)
       ? 'FAIL'
       : passed > 0
           ? 'PASS'
-          : 'BLOCKED';
+          : _blockedStatus;
   return {
     'status': status,
     'source': source,

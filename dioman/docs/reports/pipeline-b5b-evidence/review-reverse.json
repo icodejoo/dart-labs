@@ -1,0 +1,17 @@
+[
+  {
+    "fix": "service-guard",
+    "runtime_failures_without_fix": 1,
+    "restored": true
+  },
+  {
+    "fix": "total-budget",
+    "runtime_failures_without_fix": 1,
+    "restored": true
+  },
+  {
+    "fix": "example-settlement",
+    "runtime_failures_without_fix": 1,
+    "restored": true
+  }
+]
