@@ -149,16 +149,16 @@ CssTransformOp? _parseFunction(String name, String body) {
           : CssTransformOp(CssTransformKind.scale, [1, v[0]]);
     case 'rotate':
     case 'rotatez':
-      v = _values(raw, 1, 1, _angle);
+      v = _values(raw, 1, 1, parseCssAngleDegrees);
       return v == null ? null : CssTransformOp(CssTransformKind.rotate, v);
     case 'skewx':
-      v = _values(raw, 1, 1, _angle);
+      v = _values(raw, 1, 1, parseCssAngleDegrees);
       return v == null ? null : CssTransformOp(CssTransformKind.skewX, v);
     case 'skewy':
-      v = _values(raw, 1, 1, _angle);
+      v = _values(raw, 1, 1, parseCssAngleDegrees);
       return v == null ? null : CssTransformOp(CssTransformKind.skewY, v);
     case 'skew':
-      v = _values(raw, 1, 2, _angle);
+      v = _values(raw, 1, 2, parseCssAngleDegrees);
       return v == null
           ? null
           : CssTransformOp(CssTransformKind.matrix, [
@@ -200,8 +200,12 @@ double? _length(String token) {
   return d.unit == 'px' || (d.unit.isEmpty && d.value == 0) ? d.value : null;
 }
 
-/// 解析角度并换算为度：无单位只接受零。
-double? _angle(String token) {
+/// 解析角度并换算为度：无单位只接受零，非有限数返回空。
+///
+/// ```dart
+/// parseCssAngleDegrees('0.25turn'); // 90.0
+/// ```
+double? parseCssAngleDegrees(String token) {
   final d = parseCssDimension(token);
   if (d == null) return null;
   final degrees = switch (d.unit) {

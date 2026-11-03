@@ -183,9 +183,15 @@ String smilColorToHex(int argb) {
       r = (argb >> 16) & 0xFF,
       g = (argb >> 8) & 0xFF,
       b = argb & 0xFF;
-  return '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'
-      .toUpperCase();
+  return '#${_hexBytes[r]}${_hexBytes[g]}${_hexBytes[b]}${_hexBytes[a]}';
 }
+
+/// 0~255 对应的两位大写十六进制，供逐帧转换颜色时查表，免去临时字符串。
+final List<String> _hexBytes = List.generate(
+  256,
+  (i) => i.toRadixString(16).padLeft(2, '0').toUpperCase(),
+  growable: false,
+);
 
 /// Resamples [def]'s animated geometry/stops at global timeline time [time],
 /// returning a fresh [SvgGradientDef]. A def with no [SvgGradientDef.animatedNode]

@@ -206,18 +206,6 @@ void main() {
       );
       _expectList(_at(a, 1250), [12.5, 25]);
     });
-
-    test('isActiveAt 与 sample 是否为 null 一致', () {
-      for (final freeze in [false, true]) {
-        for (final direction in SmilDirection.values) {
-          final a = _list(beginMs: 200, freeze: freeze, direction: direction);
-          for (var ms = 0; ms <= 1600; ms += 50) {
-            final t = Duration(milliseconds: ms);
-            expect(a.isActiveAt(t), a.sample(t) != null, reason: '$ms');
-          }
-        }
-      }
-    });
   });
 
   group('返回值独立性', () {

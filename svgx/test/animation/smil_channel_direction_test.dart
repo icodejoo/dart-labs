@@ -389,14 +389,12 @@ void main() {
           final reason = '${combo.mode}/$repeat/$freeze/$begin/$time';
           if (p == null) {
             expect(got, isNull, reason: reason);
-            expect(a.isActiveAt(time), isFalse, reason: reason);
             return;
           }
           final expected = _refScalar(combo, scalars, p);
           _expectClose(got![0], expected, reason);
           _expectClose(got[1], -2 * expected, reason);
           expect(got[2], 5, reason: reason);
-          expect(a.isActiveAt(time), isTrue, reason: reason);
         });
       });
     });

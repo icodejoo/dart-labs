@@ -337,6 +337,67 @@ abstract interface class SmilTimed {
   SmilRepeatCount get repeatCount;
 }
 
+/// 六类 SMIL 动画共用的时序字段与采样入口，保留同步基准解析所需的可写开始时刻。
+///
+/// 例如：`SmilTimeline timeline = SmilAnimation(attributeName: 'opacity',
+/// values: [0, 1], duration: const Duration(seconds: 1), begin: Duration.zero,
+/// fillFreeze: true);`，之后可用 `timeline.begin = Duration.zero` 回写开始时刻。
+abstract class SmilTimeline implements SmilTimed {
+  /// 创建共享时间线；子类通过 super 参数转发时序配置。
+  ///
+  /// 例如：`MyTimeline({required super.duration, required super.begin,
+  /// required super.fillFreeze});`。
+  SmilTimeline({
+    required this.duration,
+    required this.begin,
+    required this.fillFreeze,
+    this.repeatCount = SmilRepeatCount.once,
+    this.direction = SmilDirection.normal,
+    this.elementId,
+    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+  });
+
+  /// 动画元素自身的 `id`（同步基准所引用的对象），可能为 null。
+  @override
+  final String? elementId;
+
+  /// 尚未解析同步基准引用的原始 `begin` 属性。
+  @override
+  final SmilBeginSpec beginSpec;
+
+  /// 单次迭代总时长（SMIL `dur`）。
+  @override
+  final Duration duration;
+
+  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
+  ///
+  /// 可写是为了让 [resolveSmilBeginTimes] 在解析完成后、任何一帧被采样之前
+  /// 一次性填入同步基准解析结果。
+  @override
+  Duration begin;
+
+  /// 完成后是否定格末值（`fill="freeze"`）。有限 [repeatCount] 时定格在最后
+  /// 一次重复结束时的值；无限重复时不使用此值，因为动画永不结束。
+  final bool fillFreeze;
+
+  /// 动画重复次数（SMIL `repeatCount`）。
+  @override
+  final SmilRepeatCount repeatCount;
+
+  /// 迭代的播放方向，默认正向。
+  final SmilDirection direction;
+
+  /// 解析全局时刻 [t] 的迭代进度；未开始或已结束且不定格时返回 null。
+  _Timing? _timingAt(Duration t) => _resolveTiming(
+    t: t,
+    begin: begin,
+    duration: duration,
+    repeatCount: repeatCount,
+    fillFreeze: fillFreeze,
+    direction: direction,
+  );
+}
+
 /// Resolves every syncbase `begin` in [animations] into an absolute time, in
 /// place.
 ///
@@ -473,33 +534,27 @@ SmilBeginSpec parseSmilBeginSpec(String? raw) {
 ///
 /// **不支持**（明确声明而非静默忽略）：事件型 `begin`（如 `begin="click"`）
 /// ——按零偏移解析。
-class SmilAnimation implements SmilTimed {
+class SmilAnimation extends SmilTimeline {
   /// Creates a fully-parsed animation timeline.
   ///
   /// 创建一个已完整解析的动画时间线。
   SmilAnimation({
     required this.attributeName,
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
-    this.direction = SmilDirection.normal,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
          'an <animate> needs at least two keyframe values',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// The presentation attribute being animated, e.g. `stroke-dashoffset`.
   ///
@@ -510,41 +565,6 @@ class SmilAnimation implements SmilTimed {
   ///
   /// 关键帧数值，按 [calcMode]/[keyTimes] 分布在 [duration] 内。
   final List<double> values;
-
-  /// Total duration of one iteration (SMIL `dur`). / 单次迭代总时长（SMIL `dur`）。
-  @override
-  final Duration duration;
-
-  /// Delay before the animation starts on the global timeline (SMIL `begin`).
-  ///
-  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
-  ///
-  /// Mutable only so `resolveSmilBeginTimes` can fill in a syncbase reference
-  /// once, right after parsing, before any frame is sampled.
-  ///
-  /// 可写仅仅是为了让 `resolveSmilBeginTimes` 在解析完成后、任何一帧被采样之前
-  /// 一次性填入同步基准解析结果。
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion (`fill="freeze"`). With a
-  /// finite [repeatCount] this freezes at the value reached after the last
-  /// repeat; with [SmilRepeatCount.indefinite] this is never consulted since
-  /// the animation never ends.
-  ///
-  /// 完成后是否定格末值（`fill="freeze"`）。有限 [repeatCount] 时定格在最后
-  /// 一次重复结束时的值；[SmilRepeatCount.indefinite] 时永不参考此值，因为
-  /// 动画永不结束。
-  final bool fillFreeze;
-
-  /// Number of times the animation repeats (SMIL `repeatCount`).
-  ///
-  /// 动画重复次数（SMIL `repeatCount`）。
-  @override
-  final SmilRepeatCount repeatCount;
-
-  /// 迭代的播放方向，默认保持既有正向行为。
-  final SmilDirection direction;
 
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
@@ -579,14 +599,7 @@ class SmilAnimation implements SmilTimed {
   /// 若动画尚未开始，或已结束且未设置 `fill="freeze"`，返回 null——两种
   /// 情况下调用方都应使用元素自身的静态属性值，而非覆盖值。
   double? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     final segments = values.length - 1;
@@ -660,34 +673,28 @@ enum SmilTransformType {
 ///
 /// 时序语义（`begin`/`duration`/`fillFreeze`/`repeatCount`/`calcMode`/
 /// `keyTimes`）与 [SmilAnimation] 完全一致。
-class SmilTransformAnimation implements SmilTimed {
+class SmilTransformAnimation extends SmilTimeline {
   /// Creates a fully-parsed transform animation timeline.
   ///
   /// 创建一个已完整解析的变换动画时间线。
   SmilTransformAnimation({
     required this.type,
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
-    this.direction = SmilDirection.normal,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
     this.replacesStaticTransform = false,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
          'an <animateTransform> needs at least two keyframe values',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// Which transform this drives. / 驱动的变换种类。
   final SmilTransformType type;
@@ -696,36 +703,6 @@ class SmilTransformAnimation implements SmilTimed {
   ///
   /// 关键帧数值，每个是归一化后的 3 分量列表（见类注释）。
   final List<List<double>> values;
-
-  /// Total duration of one iteration (SMIL `dur`). / 单次迭代总时长（SMIL `dur`）。
-  @override
-  final Duration duration;
-
-  /// Delay before the animation starts on the global timeline (SMIL `begin`).
-  ///
-  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
-  ///
-  /// Mutable for the same reason as [SmilAnimation.begin] — filled in once by
-  /// `resolveSmilBeginTimes` right after parsing.
-  ///
-  /// 可写的原因同 [SmilAnimation.begin]——由 `resolveSmilBeginTimes` 在解析后
-  /// 一次性填入。
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion (`fill="freeze"`).
-  ///
-  /// 完成后是否定格末值（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  /// Number of times the animation repeats (SMIL `repeatCount`).
-  ///
-  /// 动画重复次数（SMIL `repeatCount`）。
-  @override
-  final SmilRepeatCount repeatCount;
-
-  /// 迭代的播放方向，默认保持既有正向行为。
-  final SmilDirection direction;
 
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
@@ -744,16 +721,7 @@ class SmilTransformAnimation implements SmilTimed {
   /// 此刻是否产出变换值；只解析时序，不分配采样列表或执行插值。
   ///
   /// 例如：`animation.isActiveAt(const Duration(seconds: 1))`。
-  bool isActiveAt(Duration t) =>
-      _resolveTiming(
-        t: t,
-        begin: begin,
-        duration: duration,
-        repeatCount: repeatCount,
-        fillFreeze: fillFreeze,
-        direction: direction,
-      ) !=
-      null;
+  bool isActiveAt(Duration t) => _timingAt(t) != null;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -770,14 +738,7 @@ class SmilTransformAnimation implements SmilTimed {
   /// 返回 null 的条件与 [SmilAnimation.sample] 相同——此时调用方应将该变换
   /// 视为单位变换（即跳过）。
   List<double>? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     final segments = values.length - 1;
@@ -852,23 +813,23 @@ class SmilMotionSample {
 /// **不支持**（明确记录）：`<animateMotion>` 上的
 /// `keyPoints`/`keyTimes`/`calcMode`（运动始终按弧长匀速），以及指向 `<path>`
 /// 的 `d` 之外任何东西的 `<mpath>`。
-class SmilMotionAnimation implements SmilTimed {
+class SmilMotionAnimation extends SmilTimeline {
   /// Creates a motion timeline from a precomputed sample table.
   ///
   /// 用预计算好的采样表创建一条运动时间线。
   SmilMotionAnimation({
     required this.samples,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.keyPoints,
     this.keyTimes,
     this.keySplines,
     this.calcMode = SmilCalcMode.linear,
-    this.direction = SmilDirection.normal,
+    super.direction = SmilDirection.normal,
     this.interpolateAngle = false,
   }) : assert(samples.length >= 2, 'a motion path needs at least two samples'),
        assert(
@@ -909,31 +870,8 @@ class SmilMotionAnimation implements SmilTimed {
   /// [keyPoints] 的插值模式；仅在设置了 [keyPoints] 时生效。
   final SmilCalcMode calcMode;
 
-  /// 迭代的播放方向，默认保持既有正向行为。
-  final SmilDirection direction;
-
   /// 是否在相邻采样点之间线性插值角度（含 ±180° 绕回）；默认取段起点角度。
   final bool interpolateAngle;
-
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// Whether the final position is held after completion (`fill="freeze"`).
-  ///
-  /// 完成后是否定格在末位置（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -946,14 +884,7 @@ class SmilMotionAnimation implements SmilTimed {
   /// 在全局时间线时刻 [t] 采样元素位置（以及 `rotate="auto"` 的角度）；动画未
   /// 激活时返回 null——约定与 [SmilAnimation.sample] 相同。
   SmilMotionSample? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     // With no keyPoints, arc-length fraction == time fraction — the exact
@@ -1041,31 +972,25 @@ const double _colorNoneFlipAt = 0.5;
 /// 头注释）无需引入颜色类型。时序语义（`begin`/`duration`/`fillFreeze`/
 /// `repeatCount`/`calcMode`/`keyTimes`/`keySplines`）与 [SmilAnimation] 完全
 /// 一致，复用同一套区间定位/缓动辅助函数。
-class SmilColorAnimation implements SmilTimed {
+class SmilColorAnimation extends SmilTimeline {
   /// Creates a fully-parsed colour timeline. / 创建一个已完整解析的颜色时间线。
   SmilColorAnimation({
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.attributeName = 'stop-color',
-    this.direction = SmilDirection.normal,
+    super.direction = SmilDirection.normal,
   }) : assert(
          values.length >= 2,
          'a colour <animate> needs at least two keyframe values',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// Keyframe colours packed as `0xAARRGGBB`; may hold [kSmilColorNone].
   ///
@@ -1074,21 +999,6 @@ class SmilColorAnimation implements SmilTimed {
 
   /// 被驱动的颜色属性名，例如 `stop-color` 或 `fill`。
   final String attributeName;
-
-  /// 迭代的播放方向，默认保持既有正向行为。
-  final SmilDirection direction;
-
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion. / 完成后是否定格末值。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
 
   /// Keyframe interpolation mode. / 关键帧插值模式。
   final SmilCalcMode calcMode;
@@ -1113,14 +1023,7 @@ class SmilColorAnimation implements SmilTimed {
   /// 在全局时间线时刻 [t] 采样动画颜色（`0xAARRGGBB`）；空值约定同
   /// [SmilAnimation.sample]。
   int? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     final segments = values.length - 1;
@@ -1174,21 +1077,21 @@ class SmilColorAnimation implements SmilTimed {
 /// );
 /// a.sample(const Duration(milliseconds: 500)); // [15, 30]
 /// ```
-class SmilListAnimation implements SmilTimed {
+class SmilListAnimation extends SmilTimeline {
   /// 创建列表时间线；[values] 至少两帧且各帧等长。
   SmilListAnimation({
     required this.attributeName,
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
-    this.direction = SmilDirection.normal,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
          'a list <animate> needs at least two keyframe values',
@@ -1198,32 +1101,11 @@ class SmilListAnimation implements SmilTimed {
          'all keyframe lists must have the same length',
        );
 
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
-
   /// 被驱动的属性名，例如 `stroke-dasharray`。
   final String attributeName;
 
   /// 各关键帧的列表值，长度相同。
   final List<List<double>> values;
-
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// 结束后是否定格末值（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
-
-  /// 迭代的播放方向，默认正向。
-  final SmilDirection direction;
 
   /// 插值模式；`paced` 按 `linear` 处理。
   final SmilCalcMode calcMode;
@@ -1237,30 +1119,11 @@ class SmilListAnimation implements SmilTimed {
   /// 每个关键帧列表的长度。
   int get width => values.first.length;
 
-  /// 此刻是否产出列表值；只解析时序，不分配采样列表。
-  bool isActiveAt(Duration t) =>
-      _resolveTiming(
-        t: t,
-        begin: begin,
-        duration: duration,
-        repeatCount: repeatCount,
-        fillFreeze: fillFreeze,
-        direction: direction,
-      ) !=
-      null;
-
   /// 在全局时刻 [t] 采样；未开始或已结束且不定格时返回 null。
   ///
   /// 返回的列表每次都是新实例，调用方可自由持有。
   List<double>? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     final segment = _locateSegment(
@@ -1327,32 +1190,26 @@ class PathMorphData {
 /// 用一个数字做变化检测，也不必每帧分配采样对象。
 ///
 /// `calcMode="paced"` 对路径没有定义，按 `linear` 处理。
-class SmilPathAnimation implements SmilTimed {
+class SmilPathAnimation extends SmilTimeline {
   /// 创建路径时间线；[frames] 至少一项（`<set>` 只有一个）。
   SmilPathAnimation({
     required this.frames,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
     this.morph,
-    this.repeatCount = SmilRepeatCount.once,
+    super.repeatCount = SmilRepeatCount.once,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-    this.direction = SmilDirection.normal,
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.direction = SmilDirection.normal,
   }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),
        assert(
          morph == null || morph.frames.length == frames.length,
          'morph frames must match path frames',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// 各关键帧的原始 `d` 字符串；离散显示时直接用它（同一实例，几何缓存可命中）。
   final List<String> frames;
@@ -1360,23 +1217,8 @@ class SmilPathAnimation implements SmilTimed {
   /// 形状兼容时的数值数据；为 null 表示只能离散切换。
   final PathMorphData? morph;
 
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// 结束后是否定格末帧（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
-
   /// 插值模式；`paced` 按 `linear` 处理。
   final SmilCalcMode calcMode;
-
-  /// 迭代的播放方向，默认保持既有正向行为。
-  final SmilDirection direction;
 
   /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
   final List<double>? keyTimes;
@@ -1390,14 +1232,7 @@ class SmilPathAnimation implements SmilTimed {
   /// 在全局时刻 [t] 采样「位置」；未开始或已结束且不定格时返回 null，
   /// 此时调用方应显示元素自身静态的 `d`。
   double? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-      direction: direction,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     final count = frames.length;

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'css_animation_values.dart';
 import 'css_stylesheet.dart';
 import 'css_transform_list.dart';
@@ -8,9 +6,6 @@ import 'css_values.dart';
 import 'smil_animation.dart';
 
 part 'css_keyframes_compiler_channels.dart';
-
-/// 保留供旧调用方引用；本阶段已没有延后编译的属性。
-const Set<String> kCssDeferredProperties = <String>{};
 
 /// 由解析器注入依赖图形运行时的能力，空值表示不可用。
 ///
@@ -80,9 +75,6 @@ enum CssCompileSkipReason {
 
   /// 零时长且结束后不保留结果。
   zeroDurationWithoutForwards,
-
-  /// 属性留给后续阶段。
-  deferredProperty,
 
   /// 属性不在支持范围内。
   unsupportedProperty,
@@ -288,7 +280,6 @@ CssCompileResult compileCssAnimations({
       skip(a, reason);
       continue;
     }
-    final intervals = <_Intervals, _Intervals>{};
     for (final entry in properties.entries) {
       final property = entry.key;
       if (property == _transform) {
@@ -302,7 +293,7 @@ CssCompileResult compileCssAnimations({
           continue;
         }
         final stops = parsed.stops!;
-        final timing = _intervals(stops, a.timing, intervals);
+        final timing = _intervals(stops, a.timing);
         final splines = timing.keySplines;
         final signature = stops.first.value;
         for (var slot = 0; slot < signature.length; slot++) {
@@ -318,37 +309,32 @@ CssCompileResult compileCssAnimations({
               direction: timeline.direction,
               replacesStaticTransform: true,
               keyTimes: timing.keyTimes,
-              calcMode: splines == null
-                  ? SmilCalcMode.linear
-                  : SmilCalcMode.spline,
+              calcMode: timing.calcMode,
               keySplines: splines,
             ),
           );
         }
       } else if (_numericProperties.contains(property)) {
-        final stops = <_Stop<double>>[];
-        for (final stop in entry.value) {
-          final value = parseCssLengthPx(stop.value);
-          if (value != null) stops.add(_Stop(stop.offset, value, stop.easing));
-        }
-        if (stops.isEmpty) {
-          skip(a, CssCompileSkipReason.noValidValue, property);
+        final channel = _Channel(
+          a,
+          property,
+          entry.value,
+          timeline,
+          attributes,
+          cssProperties,
+          hooks,
+        );
+        final parsed = _channelStops<double>(channel, parseCssLengthPx, () {
+          final raw = attributes[property];
+          return (raw == null ? null : parseCssLengthPx(raw)) ??
+              _defaults[property];
+        });
+        if (parsed.reason != null) {
+          skip(a, parsed.reason!, property);
           continue;
         }
-        if (_needsEndpoints(stops)) {
-          final raw = attributes[property];
-          final base =
-              (raw == null ? null : parseCssLengthPx(raw)) ??
-              _defaults[property];
-          if (base == null) {
-            skip(a, CssCompileSkipReason.impliedEndpointUnavailable, property);
-            continue;
-          }
-          _addEndpoints(stops, base);
-        }
-        if (stops.length < 2) continue;
-        final timing = _intervals(stops, a.timing, intervals);
-        final splines = timing.keySplines;
+        final stops = parsed.stops!;
+        final timing = channel.intervals(stops);
         numeric.add(
           SmilAnimation(
             attributeName: property,
@@ -360,10 +346,8 @@ CssCompileResult compileCssAnimations({
             repeatCount: timeline.repeatCount,
             direction: timeline.direction,
             keyTimes: timing.keyTimes,
-            calcMode: splines == null
-                ? SmilCalcMode.linear
-                : SmilCalcMode.spline,
-            keySplines: splines,
+            calcMode: timing.calcMode,
+            keySplines: timing.keySplines,
           ),
         );
       } else if (_channelProperties.contains(property)) {
@@ -375,7 +359,6 @@ CssCompileResult compileCssAnimations({
           attributes,
           cssProperties,
           hooks,
-          intervals,
         );
         final result = switch (property) {
           _offsetDistance => _compileMotion(channel),
@@ -521,41 +504,17 @@ class _Intervals {
       ? null
       : [for (final timing in easings) _easing(timing)];
 
-  /// 对整个序列计算散列，支持线性成本的复用查找。
-  @override
-  late final int hashCode = Object.hash(
-    Object.hashAll(keyTimes),
-    Object.hashAll(easings),
-  );
-
-  /// 只有时间点和全部区间缓动一致时才共享数据。
-  @override
-  bool operator ==(Object other) {
-    if (other is! _Intervals || keyTimes.length != other.keyTimes.length) {
-      return false;
-    }
-    for (var i = 0; i < keyTimes.length; i++) {
-      if (keyTimes[i] != other.keyTimes[i]) return false;
-    }
-    for (var i = 0; i < easings.length; i++) {
-      if (easings[i] != other.easings[i]) return false;
-    }
-    return true;
-  }
+  /// 有逐段缓动时为样条模式，否则线性。
+  SmilCalcMode get calcMode =>
+      keySplines == null ? SmilCalcMode.linear : SmilCalcMode.spline;
 }
 
-/// 保持各属性独立序列，同时复用相同的时间点与缓动。
-_Intervals _intervals<T>(
-  List<_Stop<T>> stops,
-  CssTimingFunction fallback,
-  Map<_Intervals, _Intervals> pool,
-) {
-  final candidate = _Intervals(
-    [for (final stop in stops) stop.offset],
-    [for (var i = 0; i < stops.length - 1; i++) stops[i].easing ?? fallback],
-  );
-  return pool.putIfAbsent(candidate, () => candidate);
-}
+/// 由关键帧序列算出时间点与逐段缓动（缺省回退到动画级缓动）。
+_Intervals _intervals<T>(List<_Stop<T>> stops, CssTimingFunction fallback) =>
+    _Intervals(
+      [for (final stop in stops) stop.offset],
+      [for (var i = 0; i < stops.length - 1; i++) stops[i].easing ?? fallback],
+    );
 
 /// 将 CSS 缓动转换为引擎区间缓动。
 SmilSegmentEasing _easing(CssTimingFunction timing) {

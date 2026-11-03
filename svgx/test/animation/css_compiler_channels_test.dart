@@ -667,7 +667,7 @@ void main() {
     });
   });
 
-  test('同块共享 keyTimes 和逐段缓动，多个动画按列表顺序追加', () {
+  test('同块各通道 keyTimes 和逐段缓动一致，多个动画按列表顺序追加', () {
     final start = [for (final e in _values.entries) '${e.key}:${e.value[0]}']
         .join(';');
     final end = [for (final e in _values.entries) '${e.key}:${e.value[1]}']
@@ -680,8 +680,8 @@ void main() {
     expect(r.skipped, isEmpty);
     final first = r.motion.first;
     for (final dynamic t in [r.color.first, r.paths.first, r.lists.first]) {
-      expect(identical(t.keyTimes, first.keyTimes), isTrue);
-      expect(identical(t.keySplines, first.keySplines), isTrue);
+      expect(t.keyTimes, first.keyTimes);
+      expect(t.keySplines?.length, first.keySplines?.length);
     }
     for (final tracks in [r.motion, r.color, r.paths, r.lists]) {
       expect(tracks.map((t) => t.duration), [
@@ -691,7 +691,7 @@ void main() {
     }
   });
 
-  test('空结果新字段均为空且不产出 deferredProperty', () {
+  test('空结果新字段均为空', () {
     const r = CssCompileResult.empty;
     expect(
       [
@@ -703,7 +703,6 @@ void main() {
       ].every((e) => e.isEmpty),
       isTrue,
     );
-    expect(kCssDeferredProperties, isEmpty);
   });
 
   test('固定种子随机畸形 stop 字符串不抛异常', () {

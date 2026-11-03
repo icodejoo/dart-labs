@@ -26,15 +26,12 @@ const _channelProperties = {
 /// 补齐后的列表最大宽度，限制公共倍数的内存成本。
 const _maxListLength = 32;
 
-/// 角度换算使用的一周度数。
-const _fullTurn = 360.0;
-
 /// 数值列表中允许的空白分隔符。
 final _listWhitespace = RegExp(r'\s+');
 
 /// 一个属性的编译上下文，只在本次纯函数调用中使用。
 class _Channel {
-  /// 保存属性、时序、静态基准、注入能力和区间复用池。
+  /// 保存属性、时序、静态基准和注入能力。
   const _Channel(
     this.animation,
     this.property,
@@ -43,7 +40,6 @@ class _Channel {
     this.attributes,
     this.cssProperties,
     this.hooks,
-    this.pool,
   );
 
   /// 当前动画配置。
@@ -67,17 +63,14 @@ class _Channel {
   /// 外部注入的路径处理能力。
   final CssCompileHooks hooks;
 
-  /// 同一动画内共享的区间数据。
-  final Map<_Intervals, _Intervals> pool;
-
   /// 构建当前属性的跳过结果。
   CssCompileResult skip(CssCompileSkipReason reason) => CssCompileResult(
     skipped: [CssCompileSkip(animation.name, reason, property)],
   );
 
-  /// 为当前属性计算逐段缓动并复用相同的时间点。
+  /// 为当前属性计算时间点与逐段缓动。
   _Intervals intervals<T>(List<_Stop<T>> stops) =>
-      _intervals(stops, animation.timing, pool);
+      _intervals(stops, animation.timing);
 }
 
 /// 解析属性序列，忽略无效值，并按需从静态基准补齐端点。
@@ -135,7 +128,7 @@ CssCompileResult _compileMotion(_Channel c) {
         keyPoints: [for (final stop in stops) stop.value],
         keyTimes: intervals.keyTimes,
         keySplines: intervals.keySplines,
-        calcMode: _channelCalcMode(intervals),
+        calcMode: intervals.calcMode,
         interpolateAngle: rotate == _auto || rotate == _autoReverse,
         duration: t.duration,
         begin: t.begin,
@@ -153,23 +146,11 @@ String? _motionRotate(String raw) {
   final text = raw.trim().toLowerCase();
   if (text == _auto) return _auto;
   if (text == 'reverse') return _autoReverse;
-  final angle = parseCssDimension(text);
-  if (angle == null) return null;
-  final degrees = switch (angle.unit) {
-    'deg' => angle.value,
-    'grad' => angle.value * (_fullTurn / 400),
-    'rad' => angle.value * (_fullTurn / (2 * math.pi)),
-    'turn' => angle.value * _fullTurn,
-    '' when angle.value == 0 => 0.0,
-    _ => null,
-  };
-  if (degrees == null || !degrees.isFinite) return null;
-  final result = degrees.toString();
-  return degrees == 0
-      ? '0'
-      : result.endsWith('.0')
-      ? result.substring(0, result.length - 2)
-      : result;
+  final degrees = parseCssAngleDegrees(text);
+  if (degrees == null) return null;
+  return degrees == degrees.truncateToDouble()
+      ? degrees.toInt().toString()
+      : degrees.toString();
 }
 
 /// 解析颜色或表示无绘制的哨兵，保留与透明色的区别。
@@ -193,7 +174,7 @@ CssCompileResult _compileColor(_Channel c) {
         values: [for (final stop in stops) stop.value],
         keyTimes: intervals.keyTimes,
         keySplines: intervals.keySplines,
-        calcMode: _channelCalcMode(intervals),
+        calcMode: intervals.calcMode,
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
@@ -226,9 +207,7 @@ CssCompileResult _compilePath(_Channel c) {
         morph: morph,
         keyTimes: intervals.keyTimes,
         keySplines: intervals.keySplines,
-        calcMode: morph == null
-            ? SmilCalcMode.discrete
-            : _channelCalcMode(intervals),
+        calcMode: morph == null ? SmilCalcMode.discrete : intervals.calcMode,
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
@@ -291,7 +270,7 @@ CssCompileResult _compileList(_Channel c) {
         ],
         keyTimes: intervals.keyTimes,
         keySplines: intervals.keySplines,
-        calcMode: _channelCalcMode(intervals),
+        calcMode: intervals.calcMode,
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
@@ -304,5 +283,3 @@ CssCompileResult _compileList(_Channel c) {
 }
 
 /// 与数值通道一致，全线性时不用样条模式。
-SmilCalcMode _channelCalcMode(_Intervals intervals) =>
-    intervals.keySplines == null ? SmilCalcMode.linear : SmilCalcMode.spline;

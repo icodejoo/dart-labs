@@ -520,20 +520,12 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
         }
       }
     }
-    if (css.animations.isNotEmpty && context.cssKeyframes.isNotEmpty) {
-      final compiled = compileCssAnimations(
-        animations: css.animations,
-        keyframes: context.cssKeyframes,
-        attributes: attributes,
-        cssProperties: css.properties,
-        hooks: cssCompileHooks,
-      );
-      numericAnimations.addAll(compiled.numeric);
-      colorAnimations.addAll(compiled.color);
-      context.animations
-        ..addAll(compiled.numeric)
-        ..addAll(compiled.color);
-    }
+    final compiled = _compileNodeCss(css, attributes, context);
+    numericAnimations.addAll(compiled.numeric);
+    colorAnimations.addAll(compiled.color);
+    context.animations
+      ..addAll(compiled.numeric)
+      ..addAll(compiled.color);
     nodes.add(
       SvgNode(
         kind: SvgNodeKind.group,
@@ -836,28 +828,20 @@ SvgNode _parseElement(
   }
 
   // 按节点编译，不依赖 id；CSS 变换槽位先于 SMIL 变换。
-  if (css.animations.isNotEmpty && context.cssKeyframes.isNotEmpty) {
-    final compiled = compileCssAnimations(
-      animations: css.animations,
-      keyframes: context.cssKeyframes,
-      attributes: attributes,
-      cssProperties: css.properties,
-      hooks: cssCompileHooks,
-    );
-    animations.addAll(compiled.numeric);
-    transformAnimations.insertAll(0, compiled.transforms);
-    motionAnimations.addAll(compiled.motion);
-    pathAnimations.addAll(compiled.paths);
-    colorAnimations.addAll(compiled.color);
-    listAnimations.addAll(compiled.lists);
-    context.animations
-      ..addAll(compiled.numeric)
-      ..addAll(compiled.transforms)
-      ..addAll(compiled.motion)
-      ..addAll(compiled.paths)
-      ..addAll(compiled.color)
-      ..addAll(compiled.lists);
-  }
+  final compiled = _compileNodeCss(css, attributes, context);
+  animations.addAll(compiled.numeric);
+  transformAnimations.insertAll(0, compiled.transforms);
+  motionAnimations.addAll(compiled.motion);
+  pathAnimations.addAll(compiled.paths);
+  colorAnimations.addAll(compiled.color);
+  listAnimations.addAll(compiled.lists);
+  context.animations
+    ..addAll(compiled.numeric)
+    ..addAll(compiled.transforms)
+    ..addAll(compiled.motion)
+    ..addAll(compiled.paths)
+    ..addAll(compiled.color)
+    ..addAll(compiled.lists);
 
   if (markedSelfId) context.resolvingUseTargets.remove(selfId);
 
@@ -959,6 +943,21 @@ final _stdDeviationSeparator = RegExp(r'[\s,]+');
 /// 相邻采样点间线性插值对图标尺度的运动而言视觉上无误差；也足够便宜（几百个
 /// double），可为每条动画构建一次。
 const _motionSampleCount = 128;
+
+/// 编译 [css] 里的动画配置；没有动画或文档没有 `@keyframes` 时返回空结果。
+CssCompileResult _compileNodeCss(
+  CssComputed css,
+  Map<String, String> attributes,
+  _ParseContext context,
+) => css.animations.isEmpty || context.cssKeyframes.isEmpty
+    ? CssCompileResult.empty
+    : compileCssAnimations(
+        animations: css.animations,
+        keyframes: context.cssKeyframes,
+        attributes: attributes,
+        cssProperties: css.properties,
+        hooks: cssCompileHooks,
+      );
 
 /// 从根元素属性取背景色：`background-color` 优先，其次 `background` 里的纯色。
 ///

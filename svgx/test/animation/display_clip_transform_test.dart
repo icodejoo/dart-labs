@@ -94,4 +94,14 @@ type="translate" from="0 0" to="60 0" dur="1s" fill="freeze"/>
     expect(alphaAt(end, 65, 5), 255);
     expect(alphaAt(end, 5, 5), 0);
   });
+
+  test('clipPath 子形状上的 animateMotion 也参与裁剪区域', () async {
+    final doc = parsePixelDoc('''
+<defs><clipPath id="c"><rect width="10" height="10">
+<animateMotion path="M0 0 L60 0" dur="1s" fill="freeze"/></rect></clipPath></defs>
+<rect width="100" height="30" fill="#f00" clip-path="url(#c)"/>''');
+    final end = await renderAt(doc, const Duration(seconds: 2));
+    expect(alphaAt(end, 65, 5), 255);
+    expect(alphaAt(end, 5, 5), 0);
+  });
 }
