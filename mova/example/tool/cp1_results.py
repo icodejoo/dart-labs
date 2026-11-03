@@ -1,6 +1,8 @@
 """Render CP1 checkpoint ledger only from this session's original evidence."""
 import json
 import shutil
+import argparse
+from datetime import datetime
 from collections import Counter
 from pathlib import Path
 
@@ -64,6 +66,11 @@ CONFIG = {
 
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--stage',choices=['0','1','2','3','4'])
+    parser.add_argument('--state',default='COMPLETE')
+    parser.add_argument('--final',action='store_true')
+    args=parser.parse_args()
     # Per-batch 135-ID reports are raw tool output, not CP1 product verdicts.
     # Keep them with the run evidence; the checkpoint report is the tracked table.
     for generated in (ROOT/'doc/plans').glob('2026-11-03-matrix-run-cp1-*'):
@@ -118,7 +125,8 @@ def main():
             data['rows'].append(row)
             data['failures'].extend(dict(row=row['id'],**issue) for issue in issues if issue['status']=='FAIL')
     from cp1_reduce_extra import rows as extra_rows
-    data['additionalRows']=extra_rows()+prior.get('supplementRows',[])
+    from cp1_reduce_supplement import rows as supplement_rows
+    data['additionalRows']=extra_rows()+supplement_rows()+prior.get('supplementRows',[])
     data['supplementRows']=prior.get('supplementRows',[])
     data['rows'].extend(data['additionalRows'])
     data['failures'].extend(dict(row=r['id'],**issue) for r in data['additionalRows'] for issue in r.get('issues',[]) if issue.get('status')=='FAIL')
@@ -149,12 +157,27 @@ def main():
         data['masterRows'].append(dict(id=title,status=status,subrows=ids,
             planned=sum(r['planned'] for r in members),executed=sum(r['executed'] for r in members)))
     data['masterCounts']=dict(Counter(r['status'] for r in data['masterRows']))
+    data['comparisonSummary']=[]
+    for mode in ('normal','paused','cutover'):
+        row=byid['F3/A17 precise.'+mode]
+        data['comparisonSummary'].append(f"precise.{mode}：{row['executed']}/{row['planned']}；{row['difference']}")
+    post=byid['p02.postLoad']
+    data['comparisonSummary'].append('P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 '+str(post.get('metrics',{})))
+    data['comparisonSummary'].append('manageAuto：'+byid['manageauto.managed']['result']+'；默认关闭 '+byid['manageauto.default']['result']+'。CP0默认关时限速仍停最高档；本次夹具/观察窗不同。')
+    data['comparisonSummary'].append('dispose120：'+byid['dispose120.round']['result'])
+    data['comparisonSummary'].append('404：'+byid['errclass.fatal']['result']+'；保留独立采样缺口导致的原始FAIL，未把UI终结成功改写成完整CHECK成功。')
+    if args.stage:
+        data['stages'][args.stage]=dict(status=args.state,recordedAt=datetime.now().astimezone().isoformat(),
+            detail='本阶段已收口；失败与缺测保留，不代表全部产品判据通过')
+    if args.final:data['status']='COMPLETE_WITH_FAILURES_AND_BLOCKERS' if any(r['status']!='PASS' for r in data['rows']) else 'PASS'
     Path(str(TARGET)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
-    lines=['# CP1 真机检查点结果','',f"状态：{data['status']}。本人执行，未转派；lib/test 未改。",
+    displayStatus='已收口（存在FAIL与BLOCKED，CP1未通过）' if data['status']=='COMPLETE_WITH_FAILURES_AND_BLOCKERS' else data['status']
+    lines=['# CP1 真机检查点结果','',f"状态：{displayStatus}。本人执行，未转派；lib/test 未改。",
         '',f"设备：{data['device']}。",'',
         'APK SHA-256：`'+stage0.get('metadata',{}).get('sha256',{}).get('signed','待构建')+'`。构建一次，后续复用，安装后拉回逐值核验。',
         '', '证据目录：`example/tool/coverage_evidence/`（gitignored）；记录下标为 JSON records 的零基下标。',
         '',f"总计划16行：{data['masterCounts']}；细分行：{data['counts']}。RUNNING 时未执行行不代表产品失败。",'',
+        '## 与CP0的关键差异','',*[('- '+s) for s in data['comparisonSummary']],'',
         '|总计划CP1行|完成/计划|结论|','|---|---:|---|',
         *[f"|{r['id']}|{r['executed']}/{r['planned']}|{r['status']}|" for r in data['masterRows']],
         '',
@@ -169,7 +192,11 @@ def main():
     lines += ['', '## 静态画面复核','',json.dumps(data['visualReview'],ensure_ascii=False,indent=2),
         '', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
     for defect in data['defects']:
-        lines.append('- '+json.dumps(defect,ensure_ascii=False))
+        lines += ['### '+defect['id']+'：'+defect.get('classification',''),'',
+            '现象：'+defect.get('phenomenon',''),'','复现条件：'+defect.get('reproduction',''),'',
+            '证据：`'+defect.get('evidence','')+'`；记录下标：'+str(defect.get('recordIndices',[]))+'。','',
+            '疑似位置：'+'、'.join('`'+s+'`' for s in defect.get('suspectedLocations',[]))+'。','',
+            '建议：'+defect.get('suggestion',''),'']
     lines += ['', 'Windows：开工时安静模式验证记录不存在，四组均待安静模式验证，没有启动 Windows 应用。','']
     Path(str(TARGET)+'.md').write_text('\n'.join(lines),encoding='utf-8')
     print(data['counts'])

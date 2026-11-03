@@ -35,7 +35,9 @@ def rows():
             deltaPercentagePoints=None if pct is None else pct-basepct,fromStart=len(fromstart),newWrongPath=len(wrong),newContinuedFailure=len(continued),newNonTransportLandingFailure=len(landing),
             harness=[d.get('harness') for p,d in datasets],errors=[d.get('errors') for p,d in datasets])
         issues=[dict(evidence=rel(p),recordArray='results',recordIndex=i,id='precise-'+mode+'.'+str(r.get('run')),status='FAIL',
-            reason='CP0同口径落点/地址不满足，保留原始样本',numbers=r) for p,i,r in samples if not r.get('cp0Pass')]
+            reason='落点/地址/续播判据不满足，或<200ms占比下降超过5百分点的原始样本',numbers=r) for p,i,r in samples
+            if not r.get('cp0Pass') or not r.get('continuedOk',False)
+            or pct is not None and pct<basepct-5 and (r.get('cp0DeltaMs') is None or abs(r['cp0DeltaMs'])>=200)]
         add('F3/A17 precise.'+mode,n,len(samples),status,'失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点',
             f'{n-basefail}/{n}，<200ms={basepct}%，失败{basefail}',metrics,[rel(p) for p,d in datasets],issues)
     for group,prefix,n,baseline in [('cp0-h28','H28.default.playing',30,'30/30 PASS'),('cp0-h28','H28.default.paused',30,'30/30 PASS'),

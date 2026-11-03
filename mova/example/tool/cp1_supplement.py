@@ -54,7 +54,7 @@ def extract(run_id):
     from coverage_gap import GapDriver
     from coverage_gap_media import Handler
     manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
-    manifest['ports']=[18082,18083,18084]
+    manifest['ports']=[18080,18082,18083,18084]
     d=GapDriver(SimpleNamespace(run_id=run_id),manifest)
     d.logical_run_id=run_id;d.gsm=False
     servers=[];results=[]
@@ -65,8 +65,9 @@ def extract(run_id):
         shutil.copyfile(extra.FIX/'long.mp4',fixtures/'vod.mp4')
         extra.Selector.scene='rerun6'
         servers.append(extra.serve(18082,extra.Selector))
+        servers.append(extra.serve(18080,functools.partial(Handler,directory=str(fixtures))))
         servers.append(extra.serve(18084,functools.partial(Handler,directory=str(fixtures))))
-        for port in (18082,18084):
+        for port in (18080,18082,18084):
             d.adb('reverse',f'tcp:{port}',f'tcp:{port}');d.mappings.append(('reverse',port))
         d.adb('forward','tcp:18083','tcp:18083');d.mappings.append(('forward',18083))
         d.screen();d.adb('shell','am','force-stop',matrix.PACKAGE)
