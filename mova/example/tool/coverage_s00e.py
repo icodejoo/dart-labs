@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+import socket
 import time
 import urllib.parse
 
@@ -82,6 +83,39 @@ def compare(ident, before, after, fields, *, changed=False):
                 numbers=dict(before=before, after=after), **{'pass': passed})
 
 
+def ipc_properties(adb, path):
+    """Read mpv's JSON IPC exposed through public source mpvOptions.
+
+    No renderHandle access is needed for audioOnly. Unsupported IPC builds,
+    forwarding failures and absent properties stay distinguishable from vid=no.
+    """
+    properties, wire = {}, []
+    port = None
+    try:
+        forwarded = adb('forward', 'tcp:0', 'localfilesystem:'+path).strip()
+        if not re.fullmatch(r'\d+', forwarded): return properties, [forwarded]
+        port = int(forwarded)
+        with socket.create_connection(('127.0.0.1', port), timeout=5) as connection:
+            connection.settimeout(5)
+            with connection.makefile('rwb') as stream:
+                for ident, key in enumerate(['vid', 'video-codec', 'video-dec-params', 'time-pos', 'client-list']):
+                    stream.write((json.dumps(dict(command=['get_property', key], request_id=ident))+'\n').encode())
+                    stream.flush()
+                    for _ in range(100):
+                        line = stream.readline()
+                        if not line: raise EOFError('mpv IPC closed')
+                        wire.append(line.decode(errors='replace').strip())
+                        reply = json.loads(line)
+                        if reply.get('request_id') == ident:
+                            properties[key] = dict(error=reply.get('error'), data=reply.get('data'))
+                            break
+    except (OSError, ValueError, EOFError) as error:
+        wire.append('COLLECTOR_ERROR: '+str(error))
+    finally:
+        if port is not None: adb('forward', '--remove', 'tcp:'+str(port))
+    return properties, wire
+
+
 class Host:
     def __init__(self, name):
         from coverage_device import adb, request, unlocked
@@ -139,6 +173,10 @@ class Host:
                     if row.get('phase', '').endswith('-foreground'):
                         self.adb('shell', 'am', 'start', '-n', PACKAGE+'/com.icodejoo.mova.mova_example.MainActivity')
                     sample = self.snapshot(token)
+                    if row.get('socketPath'):
+                        properties, wire = ipc_properties(self.adb, row['socketPath'])
+                        sample['properties'] = properties
+                        (self.out/(self.name+'.'+token+'.ipc.txt')).write_text('\n'.join(wire), encoding='utf-8')
                     query = urllib.parse.urlencode(dict(token=token, sample=json.dumps(sample)))
                     self.request('/s00e-ack?' + query)
             time.sleep(.1)  # Poll scheduling only, never a product verdict.

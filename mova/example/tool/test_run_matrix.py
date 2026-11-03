@@ -69,6 +69,60 @@ class MatrixTests(unittest.TestCase):
             changed=copy.deepcopy(row); del changed['actual']
             self.assertEqual(Evidence.assertions(changed,clauses), 'BLOCKED', row['id'])
 
+    def test_s00e_resource_and_texture_rules_reject_spoofed_totals(self):
+        from matrix_evidence import Evidence
+        clauses=[dict(field='numbers.calls',op='count_where',other='numbers.created',where={'method':'VideoOutputManager.Create','replied':True})]
+        row=dict(numbers=dict(calls=[dict(method='VideoOutputManager.Create',replied=True)],created=1))
+        self.assertEqual(Evidence.assertions(row,clauses),'PASS')
+        row['numbers']['created']=2
+        self.assertEqual(Evidence.assertions(row,clauses),'FAIL')
+        row=dict(numbers=dict(before=dict(rss=100),after=dict(rss=121)))
+        clauses=[dict(field='numbers.after.rss',op='delta_le',baseline='numbers.before.rss',value=20)]
+        self.assertEqual(Evidence.assertions(row,clauses),'FAIL')
+        row['numbers']['before']['rss']=None
+        self.assertEqual(Evidence.assertions(row,clauses),'BLOCKED')
+        def sample(cpu):
+            return dict(before=dict(cpuTicks=10,properties={'time-pos':dict(error='success',data=1)}),
+                        after=dict(cpuTicks=10+cpu,properties={'time-pos':dict(error='success',data=3)}))
+        row=dict(numbers=dict(audio=sample(12),video=sample(10)))
+        clauses=[dict(field='numbers.audio',other='numbers.video',op='cpu_per_media_le',scale=1.1,minimum_media_seconds=2)]
+        self.assertEqual(Evidence.assertions(row,clauses),'FAIL')
+        row['numbers']['audio']['after']['cpuTicks']=15
+        self.assertEqual(Evidence.assertions(row,clauses),'PASS')
+        row['numbers']['audio']['after']['properties']['time-pos']['data']=1.2
+        self.assertEqual(Evidence.assertions(row,clauses),'BLOCKED')
+
+    def test_s00e_ipc_parser_uses_real_reply_ids_without_device(self):
+        import coverage_s00e as host
+        class Stream:
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def write(self,data):self.command=json.loads(data)
+            def flush(self):pass
+            def readline(self):
+                key=self.command['command'][1]
+                return (json.dumps(dict(request_id=self.command['request_id'],
+                    error='property unavailable' if key=='video-dec-params' else 'success',
+                    data='no' if key=='vid' else None))+'\n').encode()
+        class Connection:
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def settimeout(self,value):pass
+            def makefile(self,*args):return Stream()
+        commands=[]
+        def adb(*args):
+            commands.append(args);return '18084' if args[0]=='forward' and args[1]=='tcp:0' else ''
+        with patch.object(host.socket,'create_connection',return_value=Connection()):
+            properties,wire=host.ipc_properties(adb,'/data/user/0/test/cache/probe.sock')
+        self.assertEqual(properties['vid'],dict(error='success',data='no'))
+        self.assertEqual(properties['video-dec-params']['error'],'property unavailable')
+        self.assertEqual(len(wire),5)
+        self.assertEqual(commands[-1],('forward','--remove','tcp:18084'))
+        with patch.object(host.socket,'create_connection',side_effect=OSError('unavailable')):
+            properties,wire=host.ipc_properties(adb,'/data/user/0/test/cache/probe.sock')
+        self.assertEqual(properties,{})
+        self.assertIn('COLLECTOR_ERROR:',wire[-1])
+
     def test_s00d_rule_inventory_rejects_absence_and_recomputes_observations(self):
         from matrix_evidence import Evidence
         rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))

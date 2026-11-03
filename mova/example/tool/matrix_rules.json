@@ -12851,11 +12851,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "F9.coverage1",
-        "missing": "audioOnly 无视频解码及真实皮肤/封面/手势 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "F9.nativeAudio",
         "assertions": [
           {
@@ -12887,6 +12882,104 @@
             "field": "numbers.progressSamples",
             "op": "ge",
             "value": 10
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F9.native.ui",
+        "assertions": [
+          {
+            "field": "numbers.handleNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.width",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.height",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.textures",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.coverLabels",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.skinIcons",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.beforeVolume",
+            "op": "lt",
+            "other": "numbers.afterVolume"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F9.native.decoder",
+        "assertions": [
+          {
+            "field": "numbers.properties.vid.error",
+            "op": "eq",
+            "value": "success"
+          },
+          {
+            "field": "numbers.properties.vid.data",
+            "op": "one_of",
+            "value": [
+              "no",
+              false
+            ]
+          },
+          {
+            "field": "numbers.properties.video-dec-params.error",
+            "op": "eq",
+            "value": "property unavailable"
+          },
+          {
+            "field": "numbers.properties.video-dec-params.data",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "numbers.progressSamples",
+            "op": "ge",
+            "value": 16
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F9.native.comparison",
+        "assertions": [
+          {
+            "field": "numbers.audio",
+            "op": "cpu_per_media_le",
+            "other": "numbers.video",
+            "minimum_media_seconds": 2,
+            "scale": 1.1
+          },
+          {
+            "field": "numbers.audio.after.rss",
+            "op": "le",
+            "other": "numbers.video.after.rss"
+          },
+          {
+            "field": "numbers.audio.after.rss",
+            "op": "ge",
+            "value": 1
           }
         ]
       }
@@ -13215,11 +13308,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "F12.coverage1",
-        "missing": "音频会话/后台资源与耗电完整 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "F12.audioCounters",
         "assertions": [
           {
@@ -13243,6 +13331,89 @@
             "other": "numbers.before.cpuTicks"
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "F12.native.background",
+        "assertions": [
+          {
+            "field": "numbers.playing",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.after.audioSession.states",
+            "op": "contains",
+            "value": "started"
+          },
+          {
+            "field": "numbers.positions",
+            "op": "nonempty",
+            "value": null
+          },
+          {
+            "field": "numbers.firstPosition",
+            "op": "lt",
+            "other": "numbers.lastPosition"
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.pss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.cpuTicks",
+            "op": "ge",
+            "other": "numbers.before.cpuTicks"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F12.power.external",
+        "assertions": [
+          {
+            "field": "numbers.meterSerial",
+            "op": "nonempty",
+            "value": null
+          },
+          {
+            "field": "numbers.audioJ",
+            "op": "le",
+            "other": "numbers.videoJ"
+          },
+          {
+            "field": "numbers.mediaSeconds",
+            "op": "ge",
+            "value": 120
+          },
+          {
+            "field": "numbers.sameControls",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      }
+    ],
+    "manual_parts": [
+      {
+        "check": "F12.power.external",
+        "reason": "缺受控外置功率计/校准电荷能量计及音视频同条件对照。CPU/RSS/batterystats 估算不能证明物理耗电；仅此子项人工，自动后台资源与会话规则仍必需。"
       }
     ]
   },

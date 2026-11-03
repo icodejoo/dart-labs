@@ -131,6 +131,18 @@ class Evidence:
                     baseline = field(clause['baseline'])
                     if baseline is None: return 'BLOCKED'
                     ok = actual - baseline <= expected
+                elif op == 'one_of': ok = any(type(actual) is type(v) and actual == v for v in expected)
+                elif op == 'cpu_per_media_le':
+                    def rate(sample):
+                        before, after = sample['before'], sample['after']
+                        p0, p1 = before['properties']['time-pos'], after['properties']['time-pos']
+                        if p0['error'] != 'success' or p1['error'] != 'success': return None
+                        span = p1['data'] - p0['data']
+                        if span < clause['minimum_media_seconds']: return None
+                        return (after['cpuTicks'] - before['cpuTicks']) / span
+                    left, right = rate(actual), rate(expected)
+                    if left is None or right is None: return 'BLOCKED'
+                    ok = left >= 0 and right >= 0 and left <= right * clause['scale']
                 elif op == 'contains': ok = expected in actual
                 elif op == 'list_length': ok = isinstance(actual, list) and len(actual) == expected
                 elif op == 'quality_shape': ok = actual is None or quality_shape(actual)

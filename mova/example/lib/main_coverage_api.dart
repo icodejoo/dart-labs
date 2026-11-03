@@ -16,7 +16,7 @@ import 'verify_auto/coverage_widgets.dart' as widgets;
 /// 真机验证入口，通过 adb forward 18083 接受命令，不修改库实现。
 void main() {
   runZonedGuarded(() {
-    S00eBinding();
+    S00eBinding.ensureTracing();
     MovaEngine.ensureInitialized();
     runApp(MaterialApp(navigatorObservers:[widgets.coverageRouteObserver],builder:(context,child)=>MovaMiniHost(ctl:mini,child:child!),home:const CoverageHome()));
   }, (e, s) => mark('UNCAUGHT', {'error': '$e', 'stack': '$s'}));

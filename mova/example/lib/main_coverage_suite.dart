@@ -7,6 +7,7 @@ import 'main_cp1_bblock_verify.dart' as cp1_bblock;
 import 'main_cp1_pool_verify.dart' as cp1_pool;
 import 'main_cp1_danmaku_verify.dart' as cp1_danmaku;
 import 'main_cp0_p02_verify.dart' as cp0_p02;
+import 'verify_auto/s00e_trace.dart';
 import 'main_cp0_pod2_verify.dart' as cp0_pod2;
 import 'main_cp0_bgpause_verify.dart' as cp0_bgpause;
 import 'main_cp0_pauseload_verify.dart' as cp0_pauseload;
@@ -32,7 +33,7 @@ import 'main_hwdec_matrix_verify.dart' as hwdec;
 ///
 /// 由本地服务选择已有验证页，复用原始事件判据。
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  S00eBinding.ensureTracing();
   final client = HttpClient();
   var group = 'api';
   try {

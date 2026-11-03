@@ -6,6 +6,12 @@ import 'package:flutter/widgets.dart';
 final videoCalls = <Map<String, Object?>>[];
 
 class S00eBinding extends WidgetsFlutterBinding {
+  static WidgetsBinding ensureTracing() {
+    // Coverage suite and standalone API entry both call this before runApp.
+    // Reuse an existing binding; never replace a live ServicesBinding.
+    try { return WidgetsBinding.instance; }
+    on Object { return S00eBinding(); }
+  }
   @override
   BinaryMessenger createBinaryMessenger() => TraceMessenger(super.createBinaryMessenger());
 }

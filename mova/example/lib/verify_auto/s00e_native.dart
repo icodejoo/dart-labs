@@ -19,10 +19,10 @@ void acknowledge(String token, String? sample) {
   waiter.complete(Map<String, Object?>.from(jsonDecode(sample) as Map));
 }
 
-Future<Map<String, Object?>> host(String phase) async {
+Future<Map<String, Object?>> host(String phase, {String? socketPath}) async {
   final token = '$phase-${sequence++}';
   final waiter = Completer<Map<String, Object?>>(); pending[token] = waiter;
-  c.mark('S00E_HOST_REQUEST', {'token': token, 'phase': phase});
+  c.mark('S00E_HOST_REQUEST', {'token': token, 'phase': phase, 'socketPath': socketPath});
   try { return await waiter.future.timeout(const Duration(seconds: 30)); }
   on TimeoutException { return {}; }
   finally { pending.remove(token); }
@@ -156,11 +156,80 @@ Future<void> seekTrace() async {
 }
 
 Future<void> run() async {
-  for (final work in [locks, ownership, nativeLifecycle, boundedPool, nativeIsolation, lateFiles, lazyVideo, seekTrace]) {
+  for (final work in [locks, ownership, nativeLifecycle, audioVideo, boundedPool, nativeIsolation, lateFiles, lazyVideo, seekTrace]) {
     try { await work(); }
     on Object catch (error, stack) { c.mark('S00E_SCRIPT_ERROR', {'error': '$error', 'stack': '$stack'}); }
   }
   c.mark('S00E_PLATFORM', {'platform': Platform.operatingSystem});
+}
+
+Future<void> audioVideo() async {
+  final comparisons = <bool, Map<String, Object?>>{};
+  final source = c.source();
+  for (final audio in [true, false]) {
+    final socket = '${Directory.systemTemp.path}/s00e-${audio ? 'audio' : 'video'}.sock';
+    final a = createMovaEngine(audioOnly: audio);
+    final positions = <int>[];
+    final sub = a.progress.listen((p) => positions.add(p.position.inMilliseconds));
+    try {
+      await show(MovaPlayer(api: a, poster: const Center(child: Text('S00E audio cover'))));
+      await a.open(MovaSource(source.uri, mpvOptions: {'input-ipc-server': socket}));
+      await c.until(() => a.state.playing && positions.length >= 6);
+      a.showControls(sticky: true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (audio) {
+        await a.setVolume(30);
+        final beforeVolume = a.state.volume;
+        final element = n.elements((w) => w is MovaPlayer).single;
+        final box = element.findRenderObject() as RenderBox;
+        await drag(box.localToGlobal(Offset(box.size.width * .8, box.size.height * .6)), Offset(0, -box.size.height * .2));
+        final covers = n.elements((w) => w is Text && w.data == 'S00E audio cover').length;
+        check('F9.native.ui', {'handleNull': a.renderHandle == null, 'width': a.state.width, 'height': a.state.height,
+          'coverLabels': covers, 'skinIcons': n.elements((w) => w is Icon).length,
+          'beforeVolume': beforeVolume, 'afterVolume': a.state.volume, 'textures': n.elements((w) => w is Texture).length},
+          a.renderHandle == null && covers == 1 && a.state.volume != beforeVolume);
+      }
+      final before = await host('audio-$audio-before', socketPath: socket);
+      positions.clear(); await c.until(() => positions.length >= 16);
+      final after = await host('audio-$audio-after', socketPath: socket);
+      final properties = after['properties'] as Map?;
+      final vid = properties?['vid'] as Map?;
+      final decoder = properties?['video-dec-params'] as Map?;
+      if (audio) {
+        final known = vid?['error'] == 'success' && decoder != null;
+        check('F9.native.decoder', {'properties': properties, 'progressSamples': positions.length,
+          'positions': List.of(positions)}, !known ? null :
+          (vid!['data'] == 'no' || vid['data'] == false) && decoder['error'] == 'property unavailable');
+        final background = await host('audio-background', socketPath: socket);
+        positions.clear(); await c.until(() => positions.length >= 6);
+        final backgroundAfter = await host('audio-background-sample', socketPath: socket);
+        await host('audio-foreground', socketPath: socket);
+        final session = backgroundAfter['audioSession'] as Map?;
+        final states = session?['states'] as List?;
+        check('F12.native.background', {'before': background, 'after': backgroundAfter,
+          'playing': a.state.playing, 'positions': List.of(positions),
+          'firstPosition': positions.isEmpty ? null : positions.first, 'lastPosition': positions.isEmpty ? null : positions.last},
+          states == null ? null : a.state.playing && states.contains('started') && positions.last > positions.first);
+      }
+      num? number(Map<String, Object?> row, String key) => row[key] is num ? row[key] as num : null;
+      final cpu0 = number(before, 'cpuTicks'), cpu1 = number(after, 'cpuTicks');
+      final props0 = before['properties'] as Map?;
+      final props1 = after['properties'] as Map?;
+      final pos0 = (props0?['time-pos'] as Map?)?['data'];
+      final pos1 = (props1?['time-pos'] as Map?)?['data'];
+      comparisons[audio] = {'before': before, 'after': after,
+        'cpuPerMediaSecond': cpu0 != null && cpu1 != null && pos0 is num && pos1 is num && pos1 > pos0 ? (cpu1 - cpu0) / (pos1 - pos0) : null,
+        'mediaSeconds': pos0 is num && pos1 is num ? pos1 - pos0 : null};
+    } finally {
+      if (audio) { await host('audio-foreground'); }
+      await sub.cancel(); await show(null); await a.dispose();
+    }
+  }
+  final audio = comparisons[true]!, video = comparisons[false]!;
+  final acpu = audio['cpuPerMediaSecond'] as num?, vcpu = video['cpuPerMediaSecond'] as num?;
+  final arss = (audio['after'] as Map)['rss'] as num?, vrss = (video['after'] as Map)['rss'] as num?;
+  check('F9.native.comparison', {'audio': audio, 'video': video, 'cpuMargin': 1.1,
+    'cpuLimit': vcpu == null ? null : vcpu * 1.1}, acpu == null || vcpu == null || arss == null || vrss == null ? null : acpu <= vcpu * 1.1 && arss <= vrss);
 }
 
 Future<void> show(Widget? widget) async {
