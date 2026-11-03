@@ -1,0 +1,108 @@
+{
+  "item": "F3-normal-1",
+  "pid": 11436,
+  "completed": true,
+  "crashed": false,
+  "focus": [
+    {
+      "atMonotonicNs": 12911999084300,
+      "atUtc": "2026-11-03T07:35:00Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12913004169500,
+      "atUtc": "2026-11-03T07:35:01Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12914018723700,
+      "atUtc": "2026-11-03T07:35:02Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12915021263400,
+      "atUtc": "2026-11-03T07:35:03Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12916239802800,
+      "atUtc": "2026-11-03T07:35:04Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12917246818000,
+      "atUtc": "2026-11-03T07:35:05Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12918254791200,
+      "atUtc": "2026-11-03T07:35:06Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12919259500800,
+      "atUtc": "2026-11-03T07:35:07Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12920264317500,
+      "atUtc": "2026-11-03T07:35:08Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12921272029800,
+      "atUtc": "2026-11-03T07:35:09Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12922292112800,
+      "atUtc": "2026-11-03T07:35:10Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12923307971500,
+      "atUtc": "2026-11-03T07:35:11Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 12924316083700,
+      "atUtc": "2026-11-03T07:35:12Z",
+      "violation": false
+    }
+  ],
+  "exeSha256": "bf00b2687ff121517188f415887569cb90d9234d9353dced0d8671409771e343",
+  "focusSampleCount": 13,
+  "foregroundViolations": [],
+  "ready": true,
+  "measurements": [
+    {
+      "seq": 246,
+      "ms": 9367,
+      "kind": "HLS_RESULT",
+      "build": "cp0-formal-20261103",
+      "mode": "normal",
+      "iteration": 0,
+      "target": 8023,
+      "landed": 8023,
+      "continued": 8303,
+      "gateMs": 8706,
+      "harnessInvalid": false,
+      "eligibleRestarts": [
+        23,
+        8023
+      ],
+      "restarts": [
+        23,
+        8023
+      ],
+      "resumed": true,
+      "continuedOk": true,
+      "expectedPath": "http://127.0.0.1:18094/hls/high/index.m3u8?t=1793691302756584",
+      "pass": true,
+      "pause": "no",
+      "path": "http://127.0.0.1:18094/hls/high/index.m3u8?t=1793691302756584"
+    }
+  ],
+  "verdict": "PASS",
+  "status": "PASS"
+}
