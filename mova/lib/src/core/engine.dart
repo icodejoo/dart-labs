@@ -59,6 +59,9 @@ class _AbrLease {
 
   /// 获取租约时的加载尝试号。
   final int attemptId;
+
+  /// 本租约是否已观察到加载开始的缓冲信号。
+  bool sawBuffering = false;
 }
 
 /// The production [MovaApi] implementation: reduces a [MovaKernel]'s raw streams
@@ -2841,7 +2844,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       // [_applyParkedSeek] 补发后校验。
       await _seekOrPark(pos, forcePark: !_variantLanded);
       if (_parkedSeek != null) _holdParkUntilLanding();
-    } else {
+    } else if (!live) {
       _releaseAbrHold(lease);
     }
   }
@@ -3300,8 +3303,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     if (state.keepAlivePhase == MovaKeepAlivePhase.holding) return;
     final lease = _abrLease;
     if (lease != null) {
-      // 直播 seek 没有点播续播校验链，缓冲结束即归还租约。
-      if (!buffering && state.type != MovaStreamType.vod) {
+      // open 内部 stop 会先发 false；直播须等本次 true → false 才归还。
+      if (buffering) lease.sawBuffering = true;
+      if (!buffering && lease.sawBuffering && state.type != MovaStreamType.vod) {
         _releaseAbrHold(lease);
       }
       return;

@@ -25,7 +25,7 @@ class _Policy implements MovaAbrPolicy {
 /// ABR 租约测试的真实引擎夹具。
 class _Rig {
   /// 使用 [clock] 的假时钟，并注入不触网的测试端口。
-  _Rig(this.clock, {bool recovery = false}) {
+  _Rig(this.clock, {bool recovery = false, bool live = false}) {
     e = createMovaEngine(
       kernel: k,
       brightness: MovaFallbackBrightnessPort(),
@@ -35,9 +35,15 @@ class _Rig {
         controls: const MovaCtrlsConfig(autoHide: false),
         abr: MovaAbrConfig(policy: policy),
         recovery: MovaRecoveryConfig(enabled: recovery),
+        live: MovaLiveConfig(
+          seekMode: MovaLiveSeekMode.timeshift,
+          dvrWindow: const Duration(minutes: 10),
+          urlBuilder: (uri, behind, now) => '$uri?behind=${behind.inSeconds}',
+        ),
       ),
     );
-    e.open(const MovaSource('https://h/video.mp4'));
+    e.open(MovaSource('https://h/video.mp4',
+        type: live ? MovaStreamType.live : MovaStreamType.vod));
     clock.flushMicrotasks();
     k.emitDuration(const Duration(minutes: 5));
     k.emitPosition(const Duration(seconds: 41));
@@ -85,6 +91,54 @@ class _Rig {
 }
 
 void main() {
+  for (final quality in [false, true]) {
+    test('F-E live ${quality ? "quality" : "timeshift"} ignores stop false until true then false', () {
+      fakeAsync((clock) {
+        final r = _Rig(clock, live: true);
+        if (quality) {
+          r.quality('live');
+        } else {
+          r.e.seek(const Duration(minutes: 7));
+          clock.flushMicrotasks();
+        }
+        r.k.emitBuffering(false);
+        clock.flushMicrotasks();
+        expect(r.policy.values, isEmpty);
+        r.k.emitBuffering(true);
+        clock.flushMicrotasks();
+        expect(r.policy.values, isEmpty);
+        r.k.emitBuffering(false);
+        clock.flushMicrotasks();
+        expect(r.policy.values, isEmpty);
+        r.buffer();
+        expect(r.policy.values, [true, false]);
+        r.close();
+      });
+    });
+
+    test('F-E live ${quality ? "quality" : "timeshift"} without true releases at ten seconds', () {
+      fakeAsync((clock) {
+        final r = _Rig(clock, live: true);
+        if (quality) {
+          r.quality('live');
+        } else {
+          r.e.seek(const Duration(minutes: 7));
+          clock.flushMicrotasks();
+        }
+        r.k.emitBuffering(false);
+        clock.flushMicrotasks();
+        clock.elapse(const Duration(seconds: 9));
+        r.k.emitBuffering(false);
+        clock.flushMicrotasks();
+        expect(r.policy.values, isEmpty);
+        clock.elapse(const Duration(seconds: 1));
+        r.buffer();
+        expect(r.policy.values, [true, false]);
+        r.close();
+      });
+    });
+  }
+
   test('A11 old successful quality completion cannot release newer lease', () {
     fakeAsync((clock) {
       final r = _Rig(clock);
