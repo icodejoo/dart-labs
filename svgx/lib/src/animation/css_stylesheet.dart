@@ -178,6 +178,7 @@ const _keyframeKeywords = {
 
 /// 扫描使用的字符编码。
 const _lf = 10,
+    _formFeed = 12,
     _cr = 13,
     _slash = 47,
     _star = 42,
@@ -207,7 +208,7 @@ String _clean(String source) {
     }
     if (quote != 0) {
       out.writeCharCode(c);
-      if (c == quote) quote = 0;
+      if (c == quote || c == _lf || c == _cr || c == _formFeed) quote = 0;
       i++;
       continue;
     }
@@ -315,6 +316,7 @@ class _Reader {
     final quote = take();
     final out = StringBuffer();
     while (!end && current != quote) {
+      if (current == _lf || current == _cr || current == _formFeed) return null;
       if (current == _escape) {
         out.write(escape());
       } else {
@@ -338,9 +340,13 @@ class _Reader {
         continue;
       }
       if (quote != 0) {
-        if (c == quote) quote = 0;
+        if (c == quote || c == _lf || c == _cr || c == _formFeed) quote = 0;
       } else if (c == _single || c == _double) {
         quote = c;
+      } else if ((c == _closeBrace || c == _openBrace) &&
+          delimiters.contains(String.fromCharCode(c))) {
+        // A malformed unclosed function cannot swallow subsequent rule blocks.
+        break;
       } else if (parentheses == 0 &&
           brackets == 0 &&
           delimiters.contains(String.fromCharCode(c))) {

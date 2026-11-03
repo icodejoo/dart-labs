@@ -322,6 +322,13 @@ ui.Shader? buildGradientShader(
     offsets.add(1);
   }
 
+  if (def.radial && def.r <= 0) {
+    // SVG's degenerate radial gradient is the last stop's solid color.
+    return ui.Gradient.linear(Offset.zero, const Offset(1, 0), [
+      colors.last,
+      colors.last,
+    ]);
+  }
   final matrix = _shaderMatrix(def, bounds);
   if (def.radial) {
     final focalX = def.fx ?? def.cx;

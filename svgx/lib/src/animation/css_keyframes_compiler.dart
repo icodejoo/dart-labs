@@ -16,7 +16,15 @@ part 'css_keyframes_compiler_channels.dart';
 /// ```
 class CssCompileHooks {
   /// 保存可选的路径采样及变形构建函数。
-  const CssCompileHooks({this.sampleMotionPath, this.buildPathMorph});
+  const CssCompileHooks({
+    this.sampleMotionPath,
+    this.buildPathMorph,
+    this.resolveColorToHex,
+  });
+
+  /// 解析期颜色归一化，复用文档解析器的原生/Dart 回退能力。
+  /// Parse-time color normalization, sharing the document parser's native/Dart fallback.
+  final String? Function(String value)? resolveColorToHex;
 
   /// 路径文本与旋转值（auto、auto-reverse 或度数字符串）转换为采样表。
   final List<SmilMotionSample>? Function(String pathData, String rotate)?
@@ -34,6 +42,10 @@ class CssCompileHooks {
 enum CssCompileApproximationReason {
   /// 不兼容路径按关键帧时刻切换，近似 CSS 的段中点切换。
   pathIncompatibleDiscrete,
+
+  /// 延迟的 backwards/both 填充无法用 SMIL remove/freeze 表达。
+  /// Delayed backwards/both fill cannot be represented by the SMIL remove/freeze model.
+  backwardsFillUnsupported,
 }
 
 /// 保存已编译但语义近似的动画名、属性和原因。
@@ -66,6 +78,14 @@ class CssCompileApproximation {
 enum CssCompileSkipReason {
   /// 没有对应的关键帧定义。
   unknownKeyframes,
+
+  /// 模型只存打包的颜色字面量，无法逐帧解析主题颜色。
+  /// Colors in this model are packed literals and cannot resolve a theme per frame.
+  currentColorRuntimeUnsupported,
+
+  /// 显式变换原点/参考框需要坐标空间或包围盒解析。
+  /// Explicit transform origin/box requires coordinate-space or bbox resolution.
+  transformOriginUnsupported,
 
   /// 暂不编译暂停状态。
   paused,
@@ -179,7 +199,9 @@ class CssCompileResult {
 }
 
 /// 多处使用的属性名与声明前缀。
-const _transform = 'transform',
+const _transformOrigin = 'transform-origin',
+    _transformBox = 'transform-box',
+    _transform = 'transform',
     _timingProperty = 'animation-timing-function',
     _animationPrefix = 'animation-',
     _transitionPrefix = 'transition';
@@ -265,7 +287,15 @@ CssCompileResult compileCssAnimations({
     final frames = keyframes[name];
     if (frames == null) continue;
     final properties = collected.putIfAbsent(name, () => _collectStops(frames));
-    if (properties.containsKey(_transform)) lastTransform = i;
+    final rawTransform = properties[_transform];
+    final timingReason = _Timing(animations[i]).reason;
+    // 只有浏览器也不应用的后续动画才允许回落；编译器不支持仍应覆盖。
+    if ((timingReason == null || timingReason == CssCompileSkipReason.paused) &&
+        rawTransform != null &&
+        _parseTransforms(rawTransform, attributes, cssProperties).reason !=
+            CssCompileSkipReason.noValidValue) {
+      lastTransform = i;
+    }
   }
   for (var i = 0; i < animations.length; i++) {
     final a = animations[i];
@@ -280,16 +310,33 @@ CssCompileResult compileCssAnimations({
       skip(a, reason);
       continue;
     }
+    if (a.delay > Duration.zero &&
+        (a.fillMode == CssAnimationFillMode.backwards ||
+            a.fillMode == CssAnimationFillMode.both)) {
+      approximations.add(
+        CssCompileApproximation(
+          a.name,
+          'animation-fill-mode',
+          CssCompileApproximationReason.backwardsFillUnsupported,
+        ),
+      );
+    }
     for (final entry in properties.entries) {
       final property = entry.key;
       if (property == _transform) {
-        if (i != lastTransform) {
-          skip(a, CssCompileSkipReason.overriddenByLaterAnimation, property);
+        if (properties.containsKey(_transformOrigin) ||
+            properties.containsKey(_transformBox)) {
+          skip(a, CssCompileSkipReason.transformOriginUnsupported, property);
           continue;
         }
+        // 后续变换独立报告失败原因；覆盖优先级已由预扫描确定。
         final parsed = _parseTransforms(entry.value, attributes, cssProperties);
         if (parsed.reason != null) {
           skip(a, parsed.reason!, property);
+          continue;
+        }
+        if (i != lastTransform) {
+          skip(a, CssCompileSkipReason.overriddenByLaterAnimation, property);
           continue;
         }
         final stops = parsed.stops!;
@@ -551,6 +598,25 @@ _TransformResult _parseTransforms(
   Map<String, String> attributes,
   Map<String, String> cssProperties,
 ) {
+  final rawOrigin =
+      cssProperties[_transformOrigin] ?? attributes[_transformOrigin];
+  List<double>? origin;
+  if (rawOrigin != null) {
+    final tokens = rawOrigin.trim().split(RegExp(r'\s+'));
+    if (tokens.length == 2) {
+      final x = parseCssLengthPx(tokens[0]);
+      final y = parseCssLengthPx(tokens[1]);
+      if (x != null && y != null) origin = [x, y];
+    }
+  }
+  if (cssProperties.containsKey(_transformBox) ||
+      attributes.containsKey(_transformBox) ||
+      (rawOrigin != null && origin == null)) {
+    return (
+      stops: null,
+      reason: CssCompileSkipReason.transformOriginUnsupported,
+    );
+  }
   final stops = <_Stop<List<CssTransformOp>>>[];
   List<CssTransformOp>? signature;
   for (final stop in raw) {
@@ -605,6 +671,16 @@ _TransformResult _parseTransforms(
       );
     }
     _addEndpoints(stops, parsed == null || parsed.isEmpty ? identity : parsed);
+  }
+  if (origin != null) {
+    for (var i = 0; i < stops.length; i++) {
+      final stop = stops[i];
+      stops[i] = _Stop(stop.offset, [
+        CssTransformOp(CssTransformKind.translate, origin),
+        ...stop.value,
+        CssTransformOp(CssTransformKind.translate, [-origin[0], -origin[1]]),
+      ], stop.easing);
+    }
   }
   return (stops: stops, reason: null);
 }

@@ -444,7 +444,9 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
     final spec = animation.beginSpec;
     final targetId = spec.syncbaseId;
     final target = targetId == null ? null : byId[targetId];
-    if (target == null) {
+    if (spec.offset == kSmilNeverBegins) {
+      animation.begin = kSmilNeverBegins;
+    } else if (target == null) {
       animation.begin = spec.offset; // plain offset, or a dangling reference
     } else {
       final base = resolve(target);
@@ -509,10 +511,15 @@ SmilBeginSpec parseSmilBeginSpec(String? raw) {
 
   final match = RegExp(r'^([^\s;]+?)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
       .firstMatch(value);
-  if (match == null) return SmilBeginSpec.offset(parseSmilDuration(value));
+  if (match == null) {
+    return SmilBeginSpec.offset(parseSmilDuration(value, forBegin: true));
+  }
 
-  final magnitude = parseSmilDuration(match.group(4));
-  final offset = match.group(3) == '-' ? -magnitude : magnitude;
+  final rawOffset = match.group(4);
+  final offset = parseSmilDuration(
+    rawOffset == null ? null : '${match.group(3) ?? ''}$rawOffset',
+    forBegin: true,
+  );
   return SmilBeginSpec(
     offset: offset,
     syncbaseId: match.group(1),
@@ -1532,26 +1539,48 @@ Duration addSmilTime(Duration a, Duration b) => Duration(
 ///
 /// 解析 SMIL `dur`/`begin` 时间字符串（如 `"0.5s"`、`"600ms"`、`"2"`）为
 /// [Duration]。无单位数字按秒处理（SMIL 默认单位）。无法解析时返回
-/// [Duration.zero]；非有限数及绝对值超过 1e7 秒（约 115 天）的值同样非法，
-/// 在 round 前拒绝非法单值；重复乘积和时间线加法另由饱和运算限制。
-Duration parseSmilDuration(String? raw) {
+/// [Duration.zero]；非有限字面值仍回退为零；有限超长时长饱和到 1e7 秒。
+/// [forBegin] 用于开始偏移，正向超限返回 [kSmilNeverBegins]。
+/// 支持完整/部分时钟、h/min/s/ms 与默认秒单位。
+Duration parseSmilDuration(String? raw, {bool forBegin = false}) {
   if (raw == null) return Duration.zero;
   final value = raw.trim();
   if (value.isEmpty || value == 'indefinite') return Duration.zero;
   double? seconds;
-  if (value.endsWith('ms')) {
-    final n = double.tryParse(value.substring(0, value.length - 2));
-    if (n != null) seconds = n / 1000;
-  } else if (value.endsWith('s')) {
-    seconds = double.tryParse(value.substring(0, value.length - 1));
+  if (value.contains(':')) {
+    final match = RegExp(r'^([+-])?(?:(\d+):)?(\d{2}):(\d{2}(?:\.\d+)?)$')
+        .firstMatch(value);
+    if (match == null) return Duration.zero;
+    final hours = double.tryParse(match.group(2) ?? '0');
+    final minutes = double.parse(match.group(3)!);
+    final tail = double.parse(match.group(4)!);
+    if (hours == null || minutes >= 60 || tail >= 60) return Duration.zero;
+    seconds =
+        (hours * 3600 + minutes * 60 + tail) * (match.group(1) == '-' ? -1 : 1);
   } else {
-    seconds = double.tryParse(value);
+    final match = RegExp(
+      r'^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)(h|min|ms|s)?$',
+    ).firstMatch(value);
+    if (match == null) return Duration.zero;
+    final number = double.tryParse(match.group(1)!);
+    if (number == null || !number.isFinite) return Duration.zero;
+    seconds =
+        number *
+        switch (match.group(2)) {
+          'h' => 3600.0,
+          'min' => 60.0,
+          'ms' => 0.001,
+          _ => 1.0,
+        };
   }
-  final micros = (seconds ?? 0) * Duration.microsecondsPerSecond;
-  if (!micros.isFinite || micros.abs() > _maxSmilMicros) {
-    return Duration.zero;
-  }
-  return Duration(microseconds: micros.round());
+  if (seconds.isNaN) return Duration.zero;
+  final maximum = _maxSmilMicros / Duration.microsecondsPerSecond;
+  if (forBegin && seconds > maximum) return kSmilNeverBegins;
+  return Duration(
+    microseconds:
+        (seconds.clamp(-maximum, maximum) * Duration.microsecondsPerSecond)
+            .round(),
+  );
 }
 
 /// Parses a SMIL `repeatCount` attribute: `"indefinite"`, a positive number,

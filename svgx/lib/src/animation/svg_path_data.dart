@@ -369,10 +369,21 @@ ui.Path dashPath(
   final segments = dashArray.length;
   var cycle = 0.0;
   for (var i = 0; i < segments; i++) {
+    if (!dashArray[i].isFinite || dashArray[i] < 0) return source;
     cycle += dashArray[i];
   }
   if (segments.isOdd) cycle *= 2;
-  if (cycle <= 0) return source;
+  if (cycle <= 0 || !cycle.isFinite || !dashOffset.isFinite) return source;
+  final metrics = source.computeMetrics().toList();
+  var estimatedSegments = 0.0;
+  for (final metric in metrics) {
+    estimatedSegments +=
+        (metric.length / cycle + 2) * segments * (segments.isOdd ? 2 : 1);
+    // 5000 是划线与间隙合计的段数，约对应 2500 段实际划线。
+    if (estimatedSegments > 5000) return source;
+  }
+  // Zero-length dashes still produce no geometry here. Round-cap dots require
+  // explicit circle geometry and are deliberately outside this repair batch.
 
   // The union path is materialized only once a *second* dash has to be
   // appended. A reveal-style animation — `stroke-dasharray` at least as long
@@ -388,7 +399,7 @@ ui.Path dashPath(
   // 并把整段虚线逐线段拷进去的开销。
   ui.Path? single;
   ui.Path? union;
-  for (final metric in source.computeMetrics()) {
+  for (final metric in metrics) {
     // Normalize the offset into [0, cycle) then walk backwards from zero so
     // a positive dashOffset pushes the pattern's start forward past the
     // path start, matching SVG's "dashoffset hides more of the start" look.

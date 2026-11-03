@@ -180,7 +180,7 @@ void main() {
           AnimationDetector.hasAnimations('<svg><${tag}Widget /></svg>'),
           isFalse,
         );
-        expect(AnimationDetector.hasAnimations('<svg><$tag/></svg>'), isFalse);
+        expect(AnimationDetector.hasAnimations('<svg><$tag/></svg>'), isTrue);
         expect(AnimationDetector.hasAnimations('<svg><$tag'), isFalse);
       }
     });

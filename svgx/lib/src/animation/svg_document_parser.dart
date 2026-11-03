@@ -71,6 +71,7 @@ class SvgDocument {
     this.clipPaths = const {},
     this.masks = const {},
     this.usesOffscreenLayers = false,
+    this.useExpansionTruncated = false,
     this.backgroundColor,
   });
 
@@ -95,6 +96,9 @@ class SvgDocument {
   /// 它的用途是让 `SvgxAnimationQuality` 里的帧率降级对这类文档比对廉价文档
   /// 更激进。
   final bool usesOffscreenLayers;
+
+  /// 是否有整个 `<use>` 实例因累计展开节点预算不足而被跳过。
+  final bool useExpansionTruncated;
 
   /// 根元素 `background-color`（或 `background` 里的纯色），没有则为空。
   ///
@@ -204,7 +208,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   List<String>? styleBlocks;
   for (final element in document.descendants.whereType<XmlElement>()) {
     final id = element.getAttribute('id');
-    if (id != null) elementsById[id] = element;
+    if (id != null) elementsById.putIfAbsent(id, () => element);
     if (element.name.local != _styleAttribute) continue;
     final type = element.getAttribute('type')?.trim().toLowerCase();
     final media = element.getAttribute('media')?.trim().toLowerCase();
@@ -266,6 +270,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     clipPaths: clipPaths,
     masks: masks,
     usesOffscreenLayers: context.sawOffscreenLayer,
+    useExpansionTruncated: context.useExpansionTruncated,
     backgroundColor: _parseRootBackground(root.attributes),
   );
 }
@@ -331,8 +336,9 @@ SvgGradientDef? _buildGradient(
   final attributes = _attributesOf(element);
   final css = _cascadeAttributes(element, context, attributes);
   if (css.attributes.isNotEmpty) _normalizeColorAttributes(attributes);
-  var stops = _parseStops(element, context);
-  var stopNodes = _parseStopNodes(element, context);
+  final parsedStops = _parseStopsAndNodes(element, context);
+  var stops = parsedStops.stops;
+  var stopNodes = parsedStops.nodes;
 
   // Walks the full href chain (not just the immediate parent) merging each
   // ancestor's own attributes, so a geometry attribute (x1/y1/.../fy) missing
@@ -349,7 +355,7 @@ SvgGradientDef? _buildGradient(
   final chainVisited = <String>{?id};
   var current = element;
   while (true) {
-    final h = current.getAttribute('href')?.trim();
+    final h = _attributesOf(current)['href']?.trim();
     if (h == null || !h.startsWith('#')) break;
     final parentId = h.substring(1);
     if (!chainVisited.add(parentId)) break; // href cycle
@@ -484,23 +490,33 @@ SvgNode _parseGradientAttributeAnimations(
 }
 
 /// Builds one [SvgNode] per `<stop>` child, parallel to (and in the same
-/// order as) [_parseStops]' output, carrying each stop's own `<animate>`
+/// order as) [_parseStopsAndNodes]' output, carrying each stop's own `<animate>`
 /// children — numeric ones (`stop-opacity`/`offset`) via [SvgNode.animations],
 /// `stop-color` via [SvgNode.colorAnimations] (see [_parseAnimateColor]).
 /// Resampled every frame by `svg_gradient.dart`'s `resampleGradientAtTime`.
 ///
-/// 为每个 `<stop>` 子元素构建一个 [SvgNode]，与 [_parseStops] 的输出并行对应
+/// 为每个 `<stop>` 子元素构建一个 [SvgNode]，与 [_parseStopsAndNodes] 的输出并行对应
 /// （顺序一致），携带该色标自身的 `<animate>` 子元素——数值型
 /// （`stop-opacity`/`offset`）经 [SvgNode.animations]，`stop-color` 经
 /// [SvgNode.colorAnimations]（见 [_parseAnimateColor]）。由 `svg_gradient.dart`
 /// 的 `resampleGradientAtTime` 逐帧重采样。
-List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
+({List<SvgGradientStop> stops, List<SvgNode> nodes}) _parseStopsAndNodes(
+  XmlElement element,
+  _ParseContext context,
+) {
   final nodes = <SvgNode>[];
+  final stops = <SvgGradientStop>[];
+  var previous = 0.0;
   for (final child in element.childElements) {
     if (child.name.local != 'stop') continue;
     final attributes = _attributesOf(child);
     final css = _cascadeAttributes(child, context, attributes);
     _normalizeColorAttributes(attributes);
+    final stop = stopFromAttributes(attributes);
+    if (stop == null) continue;
+    previous = math.max(previous, stop.offset);
+    stops.add(SvgGradientStop(previous, stop.color));
+    attributes['offset'] = previous.toString();
     final numericAnimations = <SmilAnimation>[];
     final colorAnimations = <SmilColorAnimation>[];
     for (final grandchild in child.childElements) {
@@ -537,7 +553,7 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
       ),
     );
   }
-  return nodes;
+  return (stops: stops, nodes: nodes);
 }
 
 /// Parses an `<animate attributeName="stop-color">` timeline: each keyframe
@@ -590,25 +606,6 @@ SmilColorAnimation? _parseAnimateColor(XmlElement element) {
     keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
     keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
   );
-}
-
-/// Reads a gradient's `<stop>` children (`offset`, `stop-color`,
-/// `stop-opacity`), skipping any stop whose colour can't be resolved.
-///
-/// 读取渐变的 `<stop>` 子元素（`offset`、`stop-color`、`stop-opacity`），
-/// 颜色无法解析的色标会被跳过。
-List<SvgGradientStop> _parseStops(XmlElement element, _ParseContext context) {
-  final stops = <SvgGradientStop>[];
-  for (final child in element.childElements) {
-    if (child.name.local != 'stop') continue;
-    final attributes = _attributesOf(child);
-    _cascadeAttributes(child, context, attributes);
-    _normalizeColorAttributes(attributes);
-    final stop = stopFromAttributes(attributes);
-    if (stop != null) stops.add(stop);
-  }
-  stops.sort((a, b) => a.offset.compareTo(b.offset));
-  return stops;
 }
 
 /// Whether [document] has any `<image>` node awaiting decode — lets callers
@@ -745,6 +742,21 @@ class _ParseContext {
   final Set<String> resolvingUseTargets = <String>{};
   int useDepth = 0;
 
+  // 所有 <use> 分支共用累计实例节点预算，单靠深度上限无法防止指数展开。
+  // Global instantiated-node budget, shared across all <use> branches.
+  // A depth limit alone cannot bound exponentially branching references.
+  int instantiatedNodes = 0;
+
+  // 动画、不支持的元素和未生成包装节点的 use 也有遍历成本。
+  // 单独计费，保留 SvgNode 计数；两者合计使用同一个预算上限。
+  int instantiatedExtraUnits = 0;
+
+  /// 累计实例节点上限，包含包装分组与被引用子树。
+  static const maxInstantiatedNodes = 100000;
+
+  /// 是否曾因剩余预算不足跳过整个实例。
+  bool useExpansionTruncated = false;
+
   /// Set true as soon as any parsed element carries a `mask` reference or a
   /// blur `filter` — i.e. something `AnimatedSvgPainter` can only draw by
   /// opening a `canvas.saveLayer` offscreen render target. Collected here,
@@ -763,6 +775,7 @@ SvgNode _parseElement(
   SvgNodeKind kind,
   _ParseContext context,
 ) {
+  if (context.useDepth > 0) context.instantiatedNodes++;
   final attributes = _attributesOf(element);
   final css = _cascadeAttributes(element, context, attributes);
   _normalizeColorAttributes(attributes);
@@ -786,6 +799,11 @@ SvgNode _parseElement(
   final children = <SvgNode>[];
   for (final child in element.childElements) {
     final localName = child.name.local;
+    if (context.useDepth > 0 &&
+        localName != 'use' &&
+        !_tagToKind.containsKey(localName)) {
+      context.instantiatedExtraUnits += _extraElementUnits(child);
+    }
     if (localName == 'animate' || localName == 'set') {
       final isSet = localName == 'set';
       final isPath = child.getAttribute('attributeName') == _pathAttribute;
@@ -823,6 +841,9 @@ SvgNode _parseElement(
     if (localName == 'use') {
       final resolved = _resolveUse(child, context);
       if (resolved != null) children.add(resolved);
+      if (resolved == null && context.useDepth > 0) {
+        context.instantiatedExtraUnits++;
+      }
       continue;
     }
     final childKind = _tagToKind[localName];
@@ -879,20 +900,20 @@ SvgNode _parseElement(
   );
 }
 
-final _cssBlurPattern = RegExp(r'blur\(\s*([\d.]+)(px)?\s*\)');
+final _cssBlurPattern = RegExp(r'^blur\(\s*([\d.]+)(px)?\s*\)$');
 
 /// Parses `filter="blur(Npx)"` (CSS `filter` shorthand syntax, as emitted by
 /// some SVG tools) or `filter="url(#id)"` pointing at a top-level
 /// `<filter id="..."><feGaussianBlur stdDeviation="N"/></filter>` into a
 /// Gaussian blur sigma. Returns null for no `filter` attribute, an
-/// unsupported filter (anything but a single `feGaussianBlur` primitive), or
+/// unsupported filter (except a single blur or transparent Figma prefix), or
 /// a dangling/malformed reference — matching this engine's silent-degradation
 /// convention rather than throwing.
 ///
 /// 把 `filter="blur(Npx)"`（部分 SVG 工具产出的 CSS `filter` 简写语法）或指向
 /// 顶层 `<filter id="..."><feGaussianBlur stdDeviation="N"/></filter>` 的
 /// `filter="url(#id)"` 解析为高斯模糊 sigma。无 `filter` 属性、不支持的滤镜
-/// （除单个 `feGaussianBlur` 图元外的任何内容）、或悬空/格式错误的引用均返回
+/// （除单个模糊或 Figma 透明前缀之外的组合）、或悬空/格式错误的引用均返回
 /// null——与本引擎"静默降级"的一贯约定一致，不抛错。
 double? _parseBlurSigma(String? raw, _ParseContext context) {
   if (raw == null) return null;
@@ -906,11 +927,47 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
   if (filterElement == null || filterElement.name.local != 'filter') {
     return null;
   }
-  for (final child in filterElement.childElements) {
-    if (child.name.local != 'feGaussianBlur') continue;
-    return _parseStdDeviation(child.getAttribute('stdDeviation'));
+  final primitives = filterElement.childElements.toList();
+  XmlElement child;
+  String expectedInput;
+  if (primitives.length == 1) {
+    child = primitives.single;
+    expectedInput = _sourceGraphicInput;
+  } else if (primitives.length == 3) {
+    // Figma 图层模糊：透明 flood 与 SourceGraphic 正常混合仍等于本体。
+    final flood = primitives[0];
+    final blend = primitives[1];
+    if (flood.name.local != 'feFlood' ||
+        blend.name.local != 'feBlend' ||
+        blend.getAttribute('mode')?.trim() != 'normal' ||
+        blend.getAttribute('in')?.trim() != _sourceGraphicInput) {
+      return null;
+    }
+    final opacity = double.tryParse(
+      flood.getAttribute('flood-opacity')?.trim() ?? '1',
+    );
+    final rawColor = flood.getAttribute('flood-color')?.trim();
+    final color = rawColor == null
+        ? null
+        : parseSvgHexColor(resolveColorToHex(rawColor) ?? rawColor);
+    if (opacity != 0 && color?.a != 0) return null;
+    // 显式 in2 必须指向该透明 flood，避免误认其它输入的投影链。
+    final in2 = blend.getAttribute('in2')?.trim();
+    final floodResult = flood.getAttribute('result')?.trim();
+    if (in2 != null &&
+        in2.isNotEmpty &&
+        (floodResult == null || floodResult.isEmpty || in2 != floodResult)) {
+      return null;
+    }
+    child = primitives[2];
+    expectedInput = blend.getAttribute('result')?.trim() ?? '';
+  } else {
+    return null;
   }
-  return null;
+  if (child.name.local != 'feGaussianBlur') return null;
+  final input = child.getAttribute('in')?.trim();
+  if (input != null && input.isNotEmpty && input != expectedInput) return null;
+  return _parseStdDeviation(child.getAttribute('stdDeviation'));
 }
 
 /// 解析 `feGaussianBlur` 的 `stdDeviation`：单个数值，或 `x,y` / `x y` 两个数值
@@ -979,6 +1036,7 @@ const _cssMotionMaxSamples = 2048;
 /// 注入编译器的能力：CSS 运动路径按长度自适应采样，路径变形复用现有构建。
 /// 解析器内部使用，测试里重编译时也用它以保持一致。
 final CssCompileHooks cssCompileHooks = CssCompileHooks(
+  resolveColorToHex: resolveColorToHex,
   sampleMotionPath: (pathData, rotate) {
     final path = parseSvgPathData(pathData);
     var length = 0.0;
@@ -1159,12 +1217,13 @@ void _normalizeColorAttributes(Map<String, String> attributes) {
     final raw = attributes[key];
     if (raw == null) continue;
     final value = raw.trim();
+    final keyword = value.toLowerCase();
     if (value.isEmpty ||
         value.startsWith('#') ||
         value.startsWith('url(') ||
-        value == 'none' ||
-        value == 'currentColor' ||
-        value == 'inherit') {
+        keyword == 'none' ||
+        keyword == 'currentcolor' ||
+        keyword == 'inherit') {
       continue;
     }
     final hex = resolveColorToHex(value);
@@ -1187,6 +1246,99 @@ const _usePlacementAttributes = {
   'transform',
   'id',
 };
+
+const _sourceGraphicInput = 'SourceGraphic';
+const _symbolTag = 'symbol';
+const _svgTag = 'svg';
+
+/// 预估与实际展开共享目标标签规则；symbol/svg 暂按普通分组处理。
+SvgNodeKind? _useTargetKind(XmlElement target) {
+  final tag = target.name.local;
+  return tag == _symbolTag || tag == _svgTag
+      ? SvgNodeKind.group
+      : _tagToKind[tag];
+}
+
+/// 非 SvgNode 元素本身，以及 animateMotion 查找 mpath 时访问的子元素。
+/// 与实际遍历采用相同计费，避免动画内容成为展开预算的盲区。
+int _extraElementUnits(XmlElement element) {
+  var units = 1;
+  if (element.name.local == 'animateMotion' &&
+      parseSmilDuration(element.getAttribute('dur')) > Duration.zero &&
+      element.getAttribute('path') == null) {
+    for (final child in element.childElements) {
+      units++;
+      if (child.name.local == 'mpath') {
+        final href = _attributesOf(child)['href']?.trim();
+        if (href != null && href.startsWith('#')) break;
+      }
+    }
+  }
+  return units;
+}
+
+/// 饱和估算整个实例的节点数；一旦超出剩余预算就停止，无需展开指数子树。
+/// 环检测、可渲染标签和引用深度与实际解析一致，且不产生动画/样式副作用。
+int _estimateUseNodes(
+  XmlElement use,
+  _ParseContext context,
+  int depth,
+  Set<String> resolving,
+  int limit,
+) {
+  if (limit < 1 || depth >= _maxUseDepth) return 1;
+  final href = _attributesOf(use)['href'];
+  final value = href?.trim();
+  if (value == null || !value.startsWith('#')) return 1;
+  final id = value.substring(1);
+  if (id.isEmpty || resolving.contains(id)) return 1;
+  final target = context.elementsById[id];
+  if (target == null || _useTargetKind(target) == null) return 1;
+  resolving.add(id);
+  final count =
+      1 +
+      _estimateElementNodes(target, context, depth + 1, resolving, limit - 1);
+  resolving.remove(id);
+  return count;
+}
+
+/// SvgNode 与额外遍历元素合计计费，超限即停止；不改变实际节点数量。
+int _estimateElementNodes(
+  XmlElement element,
+  _ParseContext context,
+  int depth,
+  Set<String> resolving,
+  int limit,
+) {
+  var count = 1;
+  if (count > limit) return count;
+  final id = _attributesOf(element)['id'];
+  final marked = id != null && resolving.add(id);
+  for (final child in element.childElements) {
+    if (child.name.local == 'use') {
+      count += _estimateUseNodes(
+        child,
+        context,
+        depth,
+        resolving,
+        limit - count,
+      );
+    } else if (_tagToKind.containsKey(child.name.local)) {
+      count += _estimateElementNodes(
+        child,
+        context,
+        depth,
+        resolving,
+        limit - count,
+      );
+    } else {
+      count += _extraElementUnits(child);
+    }
+    if (count > limit) break;
+  }
+  if (marked) resolving.remove(id);
+  return count;
+}
 
 /// Resolves `<use href="#id">` into a real subtree.
 ///
@@ -1229,20 +1381,38 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
   if (id.isEmpty) return null;
   if (context.resolvingUseTargets.contains(id)) return null; // reference cycle
   if (context.useDepth >= _maxUseDepth) return null;
+  // 只在最外层实例预检全部后代；内层无需重复估算，也不会画出半个 symbol。
+  if (context.useDepth == 0) {
+    final remaining =
+        _ParseContext.maxInstantiatedNodes -
+        context.instantiatedNodes -
+        context.instantiatedExtraUnits;
+    final needed = _estimateUseNodes(
+      useElement,
+      context,
+      0,
+      Set.of(context.resolvingUseTargets),
+      remaining,
+    );
+    if (needed > remaining) {
+      context.useExpansionTruncated = true;
+      return null;
+    }
+  }
 
   final target = context.elementsById[id];
   if (target == null) return null; // dangling reference: render nothing
-  final targetTag = target.name.local;
   // <symbol>/<svg> targets are treated as plain groups: their own
   // width/height/viewBox scaling is NOT applied (documented simplification).
   //
   // <symbol>/<svg> 目标按普通分组处理：不应用其自身的
   // width/height/viewBox 缩放（明确记录的简化）。
-  final targetKind = (targetTag == 'symbol' || targetTag == 'svg')
-      ? SvgNodeKind.group
-      : _tagToKind[targetTag];
+  final targetKind = _useTargetKind(target);
   if (targetKind == null) return null;
 
+  // 包装分组与被引用目标都计入预算。
+  // Reserve the <use> wrapper as well as its target.
+  context.instantiatedNodes++;
   context.resolvingUseTargets.add(id);
   context.useDepth++;
   final instance = _parseElement(target, targetKind, context);

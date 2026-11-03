@@ -115,20 +115,30 @@ void main() {
       '-1e300s',
       '1e300',
     ]) {
-      expect(parseSmilDuration(raw), Duration.zero, reason: raw);
-      expect(parseSmilBeginSpec(raw).offset, Duration.zero, reason: raw);
+      expect(
+        parseSmilDuration(raw).abs(),
+        const Duration(seconds: 10000000),
+        reason: raw,
+      );
+      expect(
+        parseSmilBeginSpec(raw).offset,
+        raw.startsWith('-')
+            ? const Duration(seconds: -10000000)
+            : kSmilNeverBegins,
+        reason: raw,
+      );
     }
     expect(parseSmilDuration('10000000s'), const Duration(seconds: 10000000));
   });
 
-  test('超大 dur 不生成动画且不溢出 begin', () {
+  test('超大 dur 饱和且保留动画', () {
     if (needsNative()) return;
     expect(
       _node(
         '<animate attributeName="opacity" values="0;1" '
         'dur="1e300s" begin="1s"/>',
-      ).animations,
-      isEmpty,
+      ).animations.single.duration,
+      const Duration(seconds: 10000000),
     );
   });
 

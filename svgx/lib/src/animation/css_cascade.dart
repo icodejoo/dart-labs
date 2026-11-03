@@ -56,10 +56,26 @@ bool _hasClass(String source, String name) {
 /// // cssSelectorMatches(selector, element);
 /// ```
 bool cssSelectorMatches(CssSelector selector, CssElement element) =>
-    _matchesAt(selector, selector.compounds.length - 1, element);
+    _matchesAt(selector, selector.compounds.length - 1, element, {});
 
 /// 递归验证一段条件，后代关系允许回溯祖先链。
-bool _matchesAt(CssSelector selector, int position, CssElement element) {
+bool _matchesAt(
+  CssSelector selector,
+  int position,
+  CssElement element,
+  Map<(CssElement, int), bool> memo,
+) {
+  final key = (element, position);
+  return memo[key] ??= _matchesUncached(selector, position, element, memo);
+}
+
+/// 在当前选择器位置执行匹配，递归子问题由外层记忆化避免重复遍历祖先。
+bool _matchesUncached(
+  CssSelector selector,
+  int position,
+  CssElement element,
+  Map<(CssElement, int), bool> memo,
+) {
   final part = selector.compounds[position];
   if (part.tag != null && part.tag != element.localName) return false;
   if (part.id != null && part.id != element.attribute(_idAttribute)) {
@@ -75,10 +91,10 @@ bool _matchesAt(CssSelector selector, int position, CssElement element) {
   if (position == 0) return true;
   var parent = element.parent;
   if (selector.combinators[position - 1] == CssCombinator.child) {
-    return parent != null && _matchesAt(selector, position - 1, parent);
+    return parent != null && _matchesAt(selector, position - 1, parent, memo);
   }
   while (parent != null) {
-    if (_matchesAt(selector, position - 1, parent)) return true;
+    if (_matchesAt(selector, position - 1, parent, memo)) return true;
     parent = parent.parent;
   }
   return false;
@@ -297,7 +313,16 @@ const _cssOnly = {
 const _globalValues = {'initial', 'unset', 'revert', 'revert-layer', 'inherit'};
 
 /// 不支持的值函数。
-final _unsupportedFunction = RegExp(r'(var|calc|env)\(', caseSensitive: false);
+final _unsupportedFunction = RegExp(r'(var|env)\(', caseSensitive: false);
+
+/// calc 不在本引擎支持范围，按解析期非法声明忽略。
+final _calcFunction = RegExp(r'calc\(', caseSensitive: false);
+
+/// 自定义属性的逗号回退不求值，保留此前有效声明。
+final _varWithFallback = RegExp(
+  r'var\(\s*--[^,\s()]+\s*,',
+  caseSensitive: false,
+);
 
 /// 可去掉单位的完整像素数值。
 final _pixels = RegExp(r'^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)px$');
@@ -328,10 +353,21 @@ CssComputed computeCssStyle(
   for (final declaration in declarations) {
     final property = declaration.property;
     final value = declaration.value;
+    if (_calcFunction.hasMatch(value) || _varWithFallback.hasMatch(value)) {
+      continue;
+    }
     if (property.startsWith('transition') ||
         property.startsWith('--') ||
         _globalValues.contains(value.toLowerCase()) ||
         _unsupportedFunction.hasMatch(value)) {
+      attributes?.remove(property);
+      properties?.remove(property);
+      animations?.removeWhere(
+        (d) => property == _animation
+            ? d.property == _animation ||
+                  d.property.startsWith(_animationPrefix)
+            : d.property == property,
+      );
       continue;
     }
     if (property == _animation || property.startsWith(_animationPrefix)) {

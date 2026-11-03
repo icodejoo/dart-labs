@@ -598,7 +598,7 @@ void main() {
       expect(r.transforms.single.type, SmilTransformType.scale);
     });
 
-    test('最后含变换动画即使暂停也覆盖前者，不回退早先轨道', () {
+    test('暂停的后续变换会覆盖前面轨道', () {
       final r = _compile(
         _transformFrames,
         animation: 'a 1s, b 2s paused',
@@ -612,6 +612,79 @@ void main() {
         CssCompileSkipReason.paused,
       ]);
     });
+
+    for (final c in [
+      (
+        'unknownKeyframes',
+        'missing 1s',
+        'from {transform:scale(2)} to {transform:scale(4)}',
+        true,
+      ),
+      (
+        'noValidValue',
+        'b 1s',
+        'from {transform:translate(1em)} to {transform:translate(2em)}',
+        true,
+      ),
+      (
+        'zeroDurationWithoutForwards',
+        'b 0s',
+        'from {transform:scale(2)} to {transform:scale(4)}',
+        true,
+      ),
+      (
+        'iterationCountZero',
+        'b 1s 0',
+        'from {transform:scale(2)} to {transform:scale(4)}',
+        true,
+      ),
+      (
+        'paused',
+        'b 1s paused',
+        'from {transform:scale(2)} to {transform:scale(4)}',
+        false,
+      ),
+      (
+        'transformSignatureMismatch',
+        'b 1s',
+        'from {transform:scale(2)} to {transform:rotate(90deg)}',
+        false,
+      ),
+      (
+        'transformUnsupportedFunction',
+        'b 1s',
+        'from {transform:matrix(1,0,0,1,0,0)} to {transform:matrix(1,0,0,1,10,0)}',
+        false,
+      ),
+      (
+        'transformAllNone',
+        'b 1s',
+        'from {transform:none} to {transform:none}',
+        false,
+      ),
+      (
+        'transformOriginUnsupported',
+        'b 1s',
+        'from {transform:scale(2);transform-origin:50% 50%} to {transform:scale(4)}',
+        false,
+      ),
+    ]) {
+      test('后续 transform 覆盖规则 ${c.$1}', () {
+        final r = _compile(
+          _transformFrames,
+          animation: 'a 1s, ${c.$2}',
+          extra: '@keyframes b {${c.$3}}',
+        );
+        expect(r.transforms, hasLength(c.$4 ? 1 : 0));
+        expect(r.skipped.any((s) => s.reason.name == c.$1), isTrue);
+        expect(
+          r.skipped.any(
+            (s) => s.reason == CssCompileSkipReason.overriddenByLaterAnimation,
+          ),
+          !c.$4,
+        );
+      });
+    }
 
     test('只有重要变换声明的后者不覆盖前者', () {
       final r = _compile(

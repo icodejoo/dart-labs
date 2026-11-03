@@ -106,9 +106,9 @@ class ResolvedStyle {
   /// [theme] 解析 `currentColor`。
   ResolvedStyle inherit(Map<String, String> attributes, SvgxTheme theme) {
     Color? parseColor(String raw) {
-      final v = raw.trim();
+      final v = raw.trim().toLowerCase();
       if (v == 'none') return null;
-      if (v == 'currentColor') return theme.currentColor;
+      if (v == 'currentcolor') return theme.currentColor;
       return parseSvgHexColor(v);
     }
 
@@ -125,8 +125,7 @@ class ResolvedStyle {
       strokeGradientId: attributes.containsKey('stroke')
           ? parseUrlId(attributes['stroke'])
           : strokeGradientId,
-      strokeWidth:
-          double.tryParse(attributes['stroke-width'] ?? '') ?? strokeWidth,
+      strokeWidth: _parsePixels(attributes['stroke-width']) ?? strokeWidth,
       strokeLinecap: switch (attributes['stroke-linecap']) {
         'round' => StrokeCap.round,
         'square' => StrokeCap.square,
@@ -143,8 +142,7 @@ class ResolvedStyle {
           ? _parseDasharray(attributes['stroke-dasharray']!)
           : strokeDasharray,
       strokeDashoffset:
-          double.tryParse(attributes['stroke-dashoffset'] ?? '') ??
-          strokeDashoffset,
+          _parsePixels(attributes['stroke-dashoffset']) ?? strokeDashoffset,
       opacity: _parseUnitOpacity(attributes['opacity'], opacity),
       fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
       strokeOpacity: _parseUnitOpacity(
@@ -255,7 +253,9 @@ List<double> _parseDasharrayUncached(String raw) {
         };
     if (isSeparator) {
       if (start >= 0) {
-        values.add(double.tryParse(v.substring(start, i)) ?? 0);
+        final value = _parsePixels(v.substring(start, i));
+        if (value == null || !value.isFinite || value < 0) return const [];
+        values.add(value);
         start = -1;
       }
     } else if (start < 0) {
@@ -348,4 +348,14 @@ int _hexByte(String v, int start, int byteCount) {
     value = (value << 4) | digit;
   }
   return value;
+}
+
+/// 表现属性长度接受无单位值或 px，列表词元也使用相同规则。
+/// Presentation lengths accept unitless user units or px, including list tokens.
+double? _parsePixels(String? raw) {
+  if (raw == null) return null;
+  final text = raw.trim().toLowerCase();
+  return double.tryParse(
+    text.endsWith('px') ? text.substring(0, text.length - 2) : text,
+  );
 }

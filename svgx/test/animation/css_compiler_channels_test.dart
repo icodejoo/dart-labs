@@ -479,7 +479,9 @@ void main() {
             attributes: attrs,
             properties: const {_color: '#000'},
           ),
-          CssCompileSkipReason.impliedEndpointUnavailable,
+          attrs[_color] == 'currentColor'
+              ? CssCompileSkipReason.currentColorRuntimeUnsupported
+              : CssCompileSkipReason.impliedEndpointUnavailable,
           _color,
         );
       }
@@ -491,12 +493,20 @@ void main() {
         [kSmilColorNone, _white, kSmilColorNone],
       );
     });
-    test('具名、hsl、currentColor、url 均忽略', () {
+    test('无颜色钩子时具名、hsl、url 忽略，currentColor 明确跳过', () {
       final r = _compile(
         '${_frames(_color)} 10% {fill:red} 20% {fill:hsl(0,0%,0%)} '
         '30% {fill:currentColor} 40% {fill:url(#g)}',
       );
-      expect(r.color.single.values, [_black, _white]);
+      expect(r.color, isEmpty);
+      _skip(r, CssCompileSkipReason.currentColorRuntimeUnsupported, _color);
+      expect(
+        _compile(
+          '${_frames(_color)} 10% {fill:red} '
+          '20% {fill:hsl(0,0%,0%)} 40% {fill:url(#g)}',
+        ).color.single.values,
+        [_black, _white],
+      );
     });
     test('225 颜色到 none 平台再到颜色的翻转点', () {
       const orange = 0xffdd753d;

@@ -159,9 +159,23 @@ int? _channelColor(String raw) =>
 
 /// 把填充、描边或渐变站点颜色编译为颜色时间线。
 CssCompileResult _compileColor(_Channel c) {
-  final parsed = _channelStops(c, _channelColor, () {
+  bool currentColor(String value) =>
+      value.trim().toLowerCase() == 'currentcolor';
+  if (c.raw.any((stop) => currentColor(stop.value)) ||
+      ((_needsEndpoints(c.raw)) &&
+          currentColor(c.attributes[c.property] ?? ''))) {
+    return c.skip(CssCompileSkipReason.currentColorRuntimeUnsupported);
+  }
+  int? color(String raw) {
+    final literal = _channelColor(raw);
+    if (literal != null) return literal;
+    final hex = c.hooks.resolveColorToHex?.call(raw);
+    return hex == null ? null : parseCssColor(hex);
+  }
+
+  final parsed = _channelStops(c, color, () {
     final raw = c.attributes[c.property];
-    return raw == null ? null : _channelColor(raw);
+    return raw == null ? null : color(raw);
   });
   if (parsed.reason != null) return c.skip(parsed.reason!);
   final stops = parsed.stops!;

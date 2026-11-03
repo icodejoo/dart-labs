@@ -71,7 +71,7 @@ class AnimationDetector {
   // 单图标 1.142us -> 0.351us。
   /// 合并 SMIL 与 CSS 标记，一次扫描；各分支以字面量前缀加速跳过静态内容。
   static final RegExp _animationPattern = RegExp(
-    r'<(?:animateTransform|animateMotion|animate|set)[\s>]|@(?:-(?:webkit|moz|o|ms)-)?keyframes',
+    r'<(?:[\w-]+:)?(?:animateTransform|animateMotion|animate|set)[\s/>]|@(?:-(?:webkit|moz|o|ms)-)?keyframes',
     caseSensitive: false,
   );
   // `<animateMotion>` hits the exact same "animate" + immediately-following
@@ -144,6 +144,9 @@ class AnimationDetector {
   /// AnimationDetector.hasAnimations('<svg><animate dur="1s"/></svg>'); // true
   /// ```
   static bool hasAnimations(String source) {
+    // Do not retain large source strings; small keys preserve exact equality
+    // without introducing hash-collision false negatives in dispatch.
+    if (source.length > 4096) return _animationPattern.hasMatch(source);
     final memoized = _memo[source];
     if (memoized != null) return memoized;
     final result = _animationPattern.hasMatch(source);

@@ -193,16 +193,34 @@ void main() {
     'revert',
     'revert-layer',
   ]) {
-    test('忽略不支持值 $value 并保留先前声明', () {
+    test('不支持的高优先级值 $value 按类别忽略或清除', () {
       final result = _compute(
         '*{fill:#abc;fill:$value;animation:$value;transform:$value}',
         rect,
       );
-      expect(result.attributes, {'fill': '#abc'});
+      expect(
+        result.attributes,
+        value.startsWith('calc(') ? {'fill': '#abc'} : isEmpty,
+      );
       expect(result.properties, isEmpty);
       expect(result.animations, isEmpty);
     });
   }
+  test('var 逗号回退保留先前值且不套用 fallback', () {
+    expect(
+      _compute('*{fill:red;fill:var(--c, red)}', rect).attributes['fill'],
+      'red',
+    );
+    expect(
+      _compute('*{fill:blue;fill:VAR(--c, red)}', rect).attributes['fill'],
+      'blue',
+    );
+    expect(_compute('*{fill:var(--c, red)}', rect).attributes, isEmpty);
+  });
+  test('无回退 var/env 清除后回落到表现属性', () {
+    expect(_compute('*{fill:red;fill:var(--c)}', rect).attributes, isEmpty);
+    expect(_compute('*{fill:red;fill:env(x)}', rect).attributes, isEmpty);
+  });
   test('丢弃 transition 和自定义属性', () {
     expect(
       identical(
