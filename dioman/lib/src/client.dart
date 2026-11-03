@@ -177,14 +177,20 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     return count;
   }
 
-  /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
-  /// [options] 在 setup 后合并非空、非默认字段，显式覆盖优先；容器按键合并。
-  /// BaseOptions 不记录省略信息，不能用默认值重置已有非默认值。
-  /// 例如 `api.extend(options: BaseOptions(baseUrl: 'https://child.example'))`。
-  Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
+  /// 创建继承配置的子客户端并返回它，各自重新安装插件、管理请求与链。
+  /// 省略 [dio] 时克隆父 BaseOptions（容器不共用），新建默认引擎，
+  /// 不复制拦截器、adapter、transformer；传入时直接使用并保留其配置。
+  /// [options] 在安装后合并非空、非默认字段，容器按顶层键合并；
+  /// 不能用默认值重置继承的非默认值，覆盖会修改传入引擎。
+  /// [plugins] 替换继承列表；工厂、key、reject、debug、clock 继承引用。
+  /// 相同 TokenManager 的 auth 会话、相等回调的 loading 状态共享。
+  /// 传父客户端的引擎会共享可变配置，覆盖也影响父客户端。
+  /// 示例：`api.extend(dio: Dio(), options: BaseOptions(baseUrl: 'https://child.example'))`。
+  Dioman<R> extend(
+      {Dio? dio, BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
     _checkAlive();
     final child = Dioman<R>(
-        dio: Dio(cloneDiomanOptions(dio.options)),
+        dio: dio ?? Dio(cloneDiomanOptions(this.dio.options)),
         plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
         response: response,
         key: key,

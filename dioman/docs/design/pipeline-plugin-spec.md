@@ -69,7 +69,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
   1. 不受保护，直接 `return next()`；`markReplayable()`。
   2. 如果正在刷新，`ctx.wait` 等刷新结果；取消就返回；刷新失败返回 `ctx.fail(DiomanFailureKind.auth, reason: 'expired')`（R2a）。
   3. 循环：本地没有 token → 每轮会话只通知一次 denied（R1），返回 `reason: 'unauthenticated'`；即将过期且配了 `expiresAt` → 先主动刷新；注入 token 并 `r = await next(patch)`；ok、internal、cancel 直接返回；`action = await onFailure(r)`，回来**先查取消**；refresh/replay：已经重放过一次就按 expired 处理（防止循环），否则 refresh 时加入或发起单飞刷新，然后再循环一次；deny → 通知并返回 `reason: 'denied'`；expired → 清会话、通知、返回 `reason: 'expired'`；others → 原样返回。
-- **R1 会话作用域与卸载**：单飞刷新、过期标记、无 token 通知去重按 TokenManager 共享，使用 `Expando<_AuthSession>` 并维护持有者计数；最后一个持有者释放时清除关联。父子客户端使用同一 TokenManager 时只刷新一次。`_Auth.dispose()` 后，该实例迟到的刷新失败变成空操作，不清 token、不通知、不影响其他持有者；无 token 每轮会话只通知一次，写入新 token 后复位。
+- **R1 会话作用域与卸载**：单飞刷新、过期标记、无 token 通知去重按 TokenManager 共享，使用 `Expando<_AuthSession>` 并维护持有者计数；最后一个持有者释放时清除关联。父子客户端使用同一 TokenManager 时只刷新一次。`_Auth.dispose()` 只注销本实例的持有：仍有其他持有者时，共享刷新的迟到失败按会话规则只处理一次（清会话、只通知一次）；最后一个持有者卸载后，迟到失败变成空操作，不清 token、不通知。无 token 时每轮会话只通知一次；复位时机是下一次受保护请求看到当前有 token（TokenManager 没有写入事件）。单飞刷新沿用首个发起者的回调、超时和时钟。
 - **会话判定**沿用 2026-10-28 的修复：按失败请求实际携带的 token 判断属于哪个会话，旧请求的失败不清新会话，每个会话只通知一次过期；单飞刷新以 `Future(() => onRefresh(…))` 强制异步发起，同步抛错也不会卡死刷新窗口。
 - **重放前重查本地凭证**：刷新成功后、重放之前使用者登出，就不再重放（axp B3 抓到的缺陷）。
 - 删除：重放交接、认领结算、`DiomanAuth.dio`/`share` setter。

@@ -71,6 +71,8 @@ Install the plugins your app needs, then adjust a call with DiomanCall(options: 
 
 Loading keeps one display cycle around a logical call, including token refresh, cache hits, shared requests and offline waits. Your UI receives a paired open and close even when the call is cancelled.
 
+Equal (`==`) display callbacks share one true/false cycle across clients, including instance method tear-offs. `activeCount` counts only the current client. Disposal releases its own occupancy; a new client takes over a pending hide window, and disposing its owner sends the final false.
+
 Options: `delay, delayClose`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
 ```dart
@@ -243,7 +245,7 @@ Future<void> main() async {
 
 `refreshTimeout` is available on the plugin and `DiomanAuthOptions` (default 30 seconds, measured with `DiomanClock`). Timeout follows the refresh failure path and notifies expiration once per session. If a new login replaces the token while refresh fails, waiting calls continue with the current token. When `onRefresh` sends through the same client, disable auth for that call: `call: DiomanCall(options: {DiomanAuth.option: false})`. A consumed stream or opaque body cannot be replayed; the original result is returned.
 
-Auth protects all requests by default and shares one refresh operation within a client. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
+Auth protects all requests by default and shares one refresh operation across clients using the same TokenManager. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
 
 Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
@@ -381,6 +383,23 @@ Future<void> main() async {
   }
 }
 ```
+
+## Extension and resource lifetimes
+
+`api.extend(dio: engine, options: overrides, plugins: replacements)` returns a child client. Omitting `plugins` inherits the configuration list and runs setup again. `dispose()` leaves the caller's engine open.
+
+| Resource | Default extend | Explicit dio |
+|---|---|---|
+| BaseOptions | Cloned with separate Map containers | Uses the supplied engine options |
+| options override | Merges non-null, non-default fields after setup; Maps merge by top-level key | Same merge, mutating the supplied engine |
+| Interceptors, adapter, transformer | Omitted; new Dio defaults apply | Preserved |
+| Instances, pending requests, pipeline | Created for the child | Same |
+| Auth session, loading display | Shared by TokenManager / equal callback | Same |
+| Factory, key, reject, debug, clock | Configuration or callback references inherited | Same |
+
+BaseOptions cannot distinguish omitted fields from defaults, so defaults cannot reset inherited non-default values. Passing the parent's `dio` shares a mutable engine; option overrides also affect the parent.
+
+Auth refresh, expiration and missing-token notices follow the TokenManager. Missing credentials notify once per session, resetting when a new token is observed. The last owner releases the association: late refresh failures then leave tokens and notices untouched. With remaining owners, the shared failure is handled once.
 
 ## Environment
 

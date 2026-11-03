@@ -9,7 +9,7 @@ summary: 安装、结果、插件、扩展、测试与旧 API 逐项替代
 
 ## 安装方式
 
-将安装到 Dio 的拦截器改为持有 Dioman 客户端。裸调 Dio 不经过管线。动态安装用 use，移除用 eject，查看顺序用 inspect；extend 重新 setup，不共享插件状态。dispose 不关闭调用方持有的 Dio。
+将安装到 Dio 的拦截器改为持有 Dioman 客户端。裸调 Dio 不经过管线。动态安装用 use，移除用 eject，查看顺序用 inspect；extend 重新 setup，auth 会话和 loading 显示按资源共享。dispose 不关闭调用方持有的 Dio。
 
 旧写法（仅供识别，不参与编译）：
 
@@ -48,7 +48,17 @@ Future<void> main() async {
 
 - 通过 api 发起逻辑请求；底层 Dio 的拦截器仍负责实际传输。
 - 固定阶段决定执行顺序，重复插件名在构造或 use 时拒绝；不再手工 sort/validate。
-- use/eject/inspect 管理当前客户端，extend 重新 setup 独立状态；dispose 不关闭调用方的 Dio。
+- use/eject/inspect 管理当前客户端，extend 重新 setup；auth 会话按 TokenManager、loading 按相等回调共享；dispose 不关闭调用方的 Dio。
+
+## 生命周期与作用域（C19–C21）
+
+Auth 按 TokenManager 共享单飞刷新、过期和无 token 通知状态；无 token 每轮只通知一次，观察到登录 token 后复位。最后一个持有者卸载时解除关联，迟到失败不清 token、不通知；还有持有者时共享失败仍只处理一次。
+
+Loading 按回调 `==` 跨客户端共享，实例方法 tear-off 也归入同一项。`activeCount` 只统计自身占用。卸载只释放自身占用；新请求接管延迟隐藏窗口，旧客户端卸载不关闭已交接的 spinner。窗口归属方卸载取消计时并补发 false，窗口使用安排它的客户端时钟。
+
+`extend(dio: engine)` 直接使用传入引擎，保留拦截器、adapter、transformer。默认 extend 只克隆 BaseOptions，新建 Dio，不复制这些扩展。options 在 setup 后按非空、非默认字段覆盖，Map 按顶层键合并；不能用默认值重置继承的非默认值。显式传父引擎时会共享可变配置，覆盖同时影响父客户端。
+
+插件配置列表默认继承，显式 plugins 则替换；实例、在途请求和链重新建立。工厂、key、reject、debug、clock 继承引用；auth/loading 按资源共享。两份 README 的扩展章节提供完整边界表。
 
 ## 请求与结果
 
@@ -1051,7 +1061,7 @@ Future<void> main() async {
 | `DiomanSharedStateKey.new(key)` | 删除字符串共享状态描述表；逻辑状态用非 const 的 StateKey，客户端状态用 setup 实例。 |
 | `DiomanSharedStateKey.toString` | 删除字符串共享状态描述表；逻辑状态用非 const 的 StateKey，客户端状态用 setup 实例。 |
 | `DiomanTimeout.onRequest` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |
-| `DiomanTokenManager.canRefresh` | canRefresh 删除；onRefresh 决定能否刷新，失效状态由 auth 实例保存。 |
+| `DiomanTokenManager.canRefresh` | canRefresh 删除；onRefresh 决定能否刷新，失效状态由 TokenManager 对应的共享会话保存。 |
 | `LogWriter` | `DiomanLogger`。 |
 | `MockFallbackDecider` | 使用 DiomanMock.fallbackWhen，接收归一化结果；默认仅 HTTP 404 或 network 回落。 |
 | `MockHandler` | `DiomanMockRoute`。 |

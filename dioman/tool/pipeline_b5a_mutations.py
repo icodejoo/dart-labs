@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/pipeline-b5b-evidence'
+DEST = ROOT / 'coverage/r1-powerset-mutations'
 TEST = 'test/combo/powerset_combo_test.dart'
 CASES = [
     ('leave-listener', 'context', 'state.listeners.remove(cancel);', ''),
@@ -16,7 +16,7 @@ CASES = [
      'if (text.isNotEmpty) config.notify(text, result);',
      'if (text.isNotEmpty) { config.notify(text, result); config.notify(text, result); }'),
     ('auth-singleflight', 'plugins/auth',
-     'return _refreshing ??= (() async {', 'return (() async {'),
+     'return session.refreshing ??= (() async {', 'return (() async {'),
     ('retry-replayable', 'plugins/retry', 'ctx.markReplayable();', ''),
     ('cache-barrier', 'plugins/cache',
      'if (--barrier.pending == 0) barriers.remove(key);', 'barrier.pending--;'),
@@ -26,6 +26,7 @@ CASES = [
 
 def run():
     """逐项原字节恢复，不把编译、加载错误或超时当成击中。"""
+    DEST.mkdir(parents=True, exist_ok=True)
     results = []
     for name, module, old, new in CASES:
         path = ROOT / f'lib/src/{module}.dart'

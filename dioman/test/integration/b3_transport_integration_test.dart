@@ -19,10 +19,10 @@ const _field = 'upload';
 
 /// 验证真实传输复用、载荷重发和管理 API 动态装配。
 void main() {
-  test('[DiomanAuth.setup] 同配置不同客户端刷新窗口隔离，dispose 后新客户端正常刷新', () async {
+  test('[DiomanAuth.setup] 同配置客户端共享窗口，卸载首发客户端后等待者继续', () async {
     final tm = TestTokens();
-    final gates = List.generate(2, (_) => Completer<void>());
-    final starts = List.generate(2, (_) => Completer<void>());
+    final gates = List.generate(1, (_) => Completer<void>());
+    final starts = List.generate(1, (_) => Completer<void>());
     var calls = 0;
     final auth = b3Auth(tm, refresh: (tokens, r) async {
       final index = calls++;
@@ -41,13 +41,12 @@ void main() {
     final first = a.send<Object?>(b3ValueGet, b3Path);
     await starts[0].future;
     final second = b.send<Object?>(b3ValueGet, b3Path);
-    await starts[1].future;
-    expect(calls, 2);
+    await b3Turn();
+    expect(calls, 1);
     a.dispose();
     expect((await first).kind, DiomanKind.cancel);
     await expectLater(a.send<Object?>(b3ValueGet, b3Path), throwsStateError);
     gates[0].complete();
-    gates[1].complete();
     expect((await second).ok, isTrue);
     b.dispose();
   });

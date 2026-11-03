@@ -6,3 +6,6 @@ export 'context.dart' show DiomanContextInternal;
 export 'plugins/cache.dart' show DiomanCacheDiagnostics;
 export 'plugins/share.dart' show DiomanShareApi, DiomanShareDiagnostics;
 export 'response.dart' show DiomanResponseFactoryInternal;
+
+export 'plugins/auth.dart' show DiomanAuthDiagnostics;
+export 'plugins/loading.dart' show DiomanLoadingDiagnostics;

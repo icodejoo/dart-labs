@@ -6,7 +6,17 @@ import 'fake_clock.dart';
 import 'fake_network.dart';
 import 'helpers.dart';
 
-/// 启用 I1–I9，刷新按调用方声明的轮次统计。
+/// 观察显式清理后的资源，不依赖 Expando 的垃圾回收。
+abstract final class SharedResourceProbe {
+  /// 每个用例收尾必须没有会话持有者或显示窗口。
+  static void assertEmpty() {
+    expect(DiomanAuthDiagnostics.sessions, 0, reason: 'I10 auth 会话');
+    expect(DiomanAuthDiagnostics.owners, 0, reason: 'I10 auth 持有者');
+    expect(DiomanLoadingDiagnostics.entries, 0, reason: 'I10 loading 条目');
+  }
+}
+
+/// 启用 I1–I10，刷新按调用方声明的轮次统计。
 class InvariantHarness {
   /// 绑定网络和时钟。
   InvariantHarness(this.network, this.clock);
@@ -111,6 +121,9 @@ class InvariantHarness {
   Future<T> track<T>(int id, Future<T> pending) => pending.whenComplete(() {
         settlements.update(id, (n) => n + 1, ifAbsent: () => 1);
       });
+
+  /// 客户端全部释放后检查共享资源。
+  void assertResourcesReleased() => SharedResourceProbe.assertEmpty();
 
   /// 统一断言不变量；测试夹具自身的坏证据也必须被拒绝。
   void assertAll(Dioman<Result> api) {

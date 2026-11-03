@@ -78,6 +78,12 @@ void main() {
                         : tkMethod,
                 member,
                 isStatic: member.isStatic);
+            // extend 的引擎边界单独登记参数，避免只覆盖方法名。
+            if (owner == 'Dioman' && member.name.lexeme == 'extend') {
+              for (final p in member.parameters!.parameters) {
+                add(owner, 'extend(${p.name!.lexeme})', 'parameter', p);
+              }
+            }
           } else if (member is FieldDeclaration) {
             for (final v in member.fields.variables) {
               add(owner, v.name.lexeme, tkField, v, isStatic: member.isStatic);

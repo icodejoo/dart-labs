@@ -99,7 +99,7 @@ void main() {
       }
     }
   });
-  test('[DiomanAuth.onAccessDenied] 本地无 token 每请求通知一次，空串等价未登录，默认回退 expired',
+  test('[DiomanAuth.onAccessDenied] 本地无 token 每轮会话通知一次，空串等价未登录，默认回退 expired',
       () async {
     for (final empty in <String?>[null, b3ValueEmpty]) {
       for (final own in [false, true]) {
@@ -123,7 +123,7 @@ void main() {
           final r = await api.send<Object?>(b3ValueGet, b3Path);
           expect(r.reason, b3ValueUnauthenticated);
         }
-        expect(notices, 2);
+        expect(notices, 1);
         expect(net.sends, isEmpty);
         expect(tm.clears, 0);
         api.dispose();

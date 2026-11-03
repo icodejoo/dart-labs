@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **C19**: Share auth refresh and expiration state by TokenManager with explicit owner counts. Release the association on the last disposal; late refresh failures then neither clear credentials nor notify. Remaining owners handle a shared failure once.
+- **C20**: Notify missing credentials once per session, reset when a login token is observed. Share loading by callback equality across clients, track each client's occupancy, and transfer pending hide windows to new owners. Disposing a window owner completes its final false.
+- **C21**: Add `extend(dio: engine)` to retain a supplied engine's interceptors, adapter and transformer. Default extend still clones BaseOptions into a fresh Dio and omits those extensions. Passing the parent's engine shares mutable options; overrides affect both clients.
+
+
 - **Behavior change (B8)**: Auth adds plugin/call `refreshTimeout` (30s, `DiomanClock`); timeout follows refresh failure and session notification deduplication. Failed refresh after a new login continues with the new token. Refresh requests through the same client must set `DiomanAuth.option: false` for that call.
 - **Behavior change (B8)**: `retryAfterMax` defaults to 60s; larger server waits return the current result without retry. Use an explicitly very large Duration to honor practically unlimited Retry-After. No jitter or `delayMax` is applied to server waits.
 - **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. Map/String keys remain compatible; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.

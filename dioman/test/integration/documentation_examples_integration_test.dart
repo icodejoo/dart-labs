@@ -55,7 +55,7 @@ void main() {
           .convert(output)
           .where((line) => line.startsWith('ERROR|'))
           .toList();
-      final evidence = Directory('docs/reports/pipeline-b6-evidence')
+      final evidence = Directory('coverage')
         ..createSync(recursive: true);
       File('${evidence.path}/documentation-examples.json')
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert({

@@ -8,6 +8,49 @@ import '../response.dart';
 import '../stages.dart';
 import '../token_manager.dart';
 
+/// 按凭证管理器关联会话，最后一个持有者卸载时显式解除。
+final _sessions = Expando<_AuthSession>();
+
+/// 共享资源诊断，不从公开入口导出，也不依赖垃圾回收。
+abstract final class DiomanAuthDiagnostics {
+  /// 活跃关联数。
+  static int sessions = 0;
+
+  /// 活跃持有者总数。
+  static int owners = 0;
+}
+
+/// 同一凭证管理器的刷新与通知状态。
+class _AuthSession {
+  /// 不随单个调用方取消的刷新窗口。
+  Future<bool>? refreshing;
+
+  /// 已通知过期的会话凭证。
+  String? expiredSession;
+
+  /// 是否已结束会话，包括空凭证会话。
+  bool expired = false;
+
+  /// 本轮无凭证是否已通知。
+  bool notified = false;
+
+  /// 尚未卸载的实例数。
+  int owners = 0;
+}
+
+/// 登记持有者，复用相同管理器的会话。
+_AuthSession _acquire(DiomanTokenManager tokens) {
+  var session = _sessions[tokens];
+  if (session == null) {
+    session = _AuthSession();
+    _sessions[tokens] = session;
+    DiomanAuthDiagnostics.sessions++;
+  }
+  session.owners++;
+  DiomanAuthDiagnostics.owners++;
+  return session;
+}
+
 /// 鉴权失败后的处理动作。
 enum DiomanAuthFailureAction {
   /// 加入或发起单飞刷新。
@@ -107,7 +150,7 @@ class DiomanAuthOptions {
   final String Function(String token)? buildHeader;
 }
 
-/// 凭证注入、会话判定与每客户端单飞刷新。
+/// 凭证注入与按 TokenManager 共享的单飞刷新。
 class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// onRefresh 写入新凭证；抛错算刷新失败，通知回调抛错不改变结果。
   /// 示例：`DiomanAuth(tokenManager: store, onRefresh: refresh, onAccessExpired: logout)`。
@@ -189,7 +232,7 @@ class DiomanAuth<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   @override
   DiomanStage get stage => DiomanStage.credential;
 
-  /// 每次安装新建刷新窗口与过期标记。
+  /// 安装时登记共享会话的持有者。
   @override
   DiomanPluginInstance<R> setup(Dioman<R> client) => _Auth<R>(
       this,
@@ -221,10 +264,10 @@ DiomanAuthOptions _merge(DiomanAuthOptions a, DiomanAuthOptions b) =>
         headerKey: b.headerKey ?? a.headerKey,
         buildHeader: b.buildHeader ?? a.buildHeader);
 
-/// 每客户端的刷新窗口与失败会话标记。
+/// 客户端配置与共享会话的持有关系。
 class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
   /// 保存预合并配置。
-  _Auth(this.config, this.base);
+  _Auth(this.config, this.base) : session = _acquire(config.tokenManager);
 
   /// 插件配置。
   final DiomanAuth<R> config;
@@ -232,11 +275,24 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
   /// 预合并配置。
   final DiomanAuthOptions base;
 
-  /// 不随调用方取消的刷新窗口。
-  Future<bool>? _refreshing;
+  /// 当前实例持有的共享会话。
+  final _AuthSession session;
 
-  /// 已通知过期的会话凭证。
-  String? _expiredSession;
+  /// 防止重复释放持有者。
+  bool _disposed = false;
+
+  /// 最后一个持有者卸载后解除关联，旧窗口只保留旧会话。
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    session.owners--;
+    DiomanAuthDiagnostics.owners--;
+    if (session.owners == 0) {
+      _sessions[_tokens] = null;
+      DiomanAuthDiagnostics.sessions--;
+    }
+  }
 
   /// 稳定的失败原因。
   static const _expired = 'expired';
@@ -259,19 +315,23 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
 
   /// 只结束失败请求所属会话，旧请求不能清新凭证。
   Future<void> _expire(DiomanContext<R> ctx, DiomanAuthOptions o,
-      DiomanResponse<dynamic> r, String? session) async {
+      DiomanResponse<dynamic> r, String? credential) async {
+    // 仍有持有者时迟到失败只处理一次；无人持有时不清凭证、不通知。
+    if (session.owners == 0) return;
     final current = _tokens.accessToken;
-    if (_hasToken && current != session) return;
-    if (!_hasToken && session == _expiredSession) return;
-    _expiredSession = session;
+    if (_hasToken && current != credential) return;
+    if (!_hasToken && session.expired) return;
+    session.expiredSession = credential;
+    session.expired = true;
+    session.notified = true;
     _tokens.clear();
     await _notice(ctx, o.onAccessExpired!, r);
   }
 
   /// 启动强制异步刷新；窗口发布先于用户回调，同步抛错也必释放。
   Future<bool> _refresh(DiomanContext<R> ctx, DiomanAuthOptions o,
-      DiomanResponse<dynamic> r, String? session) {
-    return _refreshing ??= (() async {
+      DiomanResponse<dynamic> r, String? credential) {
+    return session.refreshing ??= (() async {
       final snapshot = _tokens.accessToken;
       try {
         final done = Completer<void>();
@@ -292,10 +352,10 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
       } catch (e, s) {
         ctx.log('[${DiomanAuth.pluginName}] 刷新失败: $e\n$s');
         if (_tokens.accessToken != snapshot) return true;
-        await _expire(ctx, o, r, session);
+        await _expire(ctx, o, r, credential);
         return false;
       } finally {
-        _refreshing = null;
+        session.refreshing = null;
       }
     })();
   }
@@ -325,8 +385,13 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
         (o.enabled != true && o.isProtected?.call(ctx.request) == false)) {
       return next();
     }
+    if (_hasToken) {
+      session.notified = false;
+      session.expired = false;
+      session.expiredSession = null;
+    }
     ctx.markReplayable();
-    final pending = _refreshing;
+    final pending = session.refreshing;
     if (pending != null) {
       final failure = await _join(ctx, pending);
       final cancelled = ctx.cancelled();
@@ -339,11 +404,17 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
       // 重放前必须重查凭证，刷新成功也可能已被使用者登出。
       if (!_hasToken) {
         final r = _fail(ctx, 'unauthenticated');
-        await ctx.wait(_notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r));
+        if (!session.notified && !session.expired && session.owners > 0) {
+          session.notified = true;
+          await ctx
+              .wait(_notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r));
+        }
         return ctx.cancelled() ?? r;
       }
       // 登录（包括拿到同名凭证）之后允许新一轮过期通知。
-      _expiredSession = null;
+      session.expiredSession = null;
+      session.expired = false;
+      session.notified = false;
       final at = o.expiresAt?.call(_tokens.accessToken!);
       if (!proactive &&
           at != null &&

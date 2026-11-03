@@ -1,3 +1,5 @@
+import 'package:test/test.dart';
+import 'invariant_harness.dart' show SharedResourceProbe;
 import 'package:dioman/src/diagnostics.dart';
 import 'package:dioman/src/context_state.dart';
 import 'constants.dart';
@@ -92,24 +94,37 @@ class TestInstance extends DiomanPluginInstance<Result> {
   void dispose() => onDispose?.call();
 }
 
+/// 当前用例创建的客户端，统一在收尾释放。
+final _clients = <Dioman<Result>>[];
+
 /// 创建使用假网络的客户端。
 Dioman<Result> testClient(
-        {FakeNetwork? network,
-        List<DiomanPlugin<Result>> plugins = const [],
-        DiomanResponseFactory<Result>? response,
-        Object? debug,
-        FakeClock? clock,
-        Object Function(Result)? reject,
-        DiomanKeyOptions key = const DiomanKeyOptions()}) =>
-    Dioman<Result>(
-        dio: Dio(BaseOptions(baseUrl: pipelineTestHttpsExampleTest))
-          ..httpClientAdapter = network ?? FakeNetwork(),
-        plugins: plugins,
-        response: response,
-        debug: debug,
-        reject: reject,
-        key: key,
-        clock: clock ?? FakeClock());
+    {FakeNetwork? network,
+    List<DiomanPlugin<Result>> plugins = const [],
+    DiomanResponseFactory<Result>? response,
+    Object? debug,
+    FakeClock? clock,
+    Object Function(Result)? reject,
+    DiomanKeyOptions key = const DiomanKeyOptions()}) {
+  final api = Dioman<Result>(
+      dio: Dio(BaseOptions(baseUrl: pipelineTestHttpsExampleTest))
+        ..httpClientAdapter = network ?? FakeNetwork(),
+      plugins: plugins,
+      response: response,
+      debug: debug,
+      reject: reject,
+      key: key,
+      clock: clock ?? FakeClock());
+  _clients.add(api);
+  addTearDown(() {
+    for (final client in _clients) {
+      client.dispose();
+    }
+    _clients.clear();
+    SharedResourceProbe.assertEmpty();
+  });
+  return api;
+}
 
 /// 创建纯单元上下文，不执行客户端发送。
 DiomanContext<Result> testContext(

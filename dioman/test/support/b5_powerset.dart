@@ -310,5 +310,6 @@ class PowerFixture {
   Future<void> dispose() async {
     api.dispose();
     await connectivity.close();
+    h.assertResourcesReleased();
   }
 }

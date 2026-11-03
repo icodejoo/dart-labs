@@ -71,6 +71,8 @@ kind：`ok`, `http`, `biz`, `network`, `timeout`, `cancel`, `parse`, `auth`, `br
 
 Loading 为整个逻辑调用维持一个显示周期，包含 token 刷新、缓存命中、共享请求和离线等待。即使调用被取消，界面也会收到成对的开启与关闭回调。
 
+相等（`==`）的显示回调跨客户端共享一对 true/false，实例方法 tear-off 也会合并；`activeCount` 只统计本客户端占用。卸载只释放自身占用，延迟隐藏窗口由接入的新客户端接管；归属方卸载会补齐 false。
+
 选项：`delay, delayClose`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
 
 ```dart
@@ -243,7 +245,7 @@ Future<void> main() async {
 
 插件与 `DiomanAuthOptions` 新增 `refreshTimeout`，默认 30 秒，使用 `DiomanClock` 计时；超时走刷新失败路径，同一失败会话只通知一次。刷新期间重新登录替换了 token 时，失败等待者按当前 token 继续。`onRefresh` 经同一客户端请求时必须本次关闭 auth：`call: DiomanCall(options: {DiomanAuth.option: false})`。一次性流及不透明体不能重放，返回本次结果。
 
-Auth 默认保护所有请求，同一客户端的并发请求会共享一次刷新。请在 onRefresh 中通过独立客户端获取并保存新 token；下面的 renewed 只演示如何更新存储。
+Auth 默认保护所有请求，使用同一 TokenManager 的客户端共享一次刷新。请在 onRefresh 中通过独立客户端获取并保存新 token；下面的 renewed 只演示如何更新存储。
 
 选项：`tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
 
@@ -381,6 +383,23 @@ Future<void> main() async {
   }
 }
 ```
+
+## 扩展与资源生命周期
+
+`api.extend(dio: engine, options: overrides, plugins: replacements)` 返回子客户端。省略 `plugins` 时继承配置列表，各自重新 setup；`dispose()` 不关闭调用方引擎。
+
+| 资源 | 默认 extend | 显式 dio |
+|---|---|---|
+| BaseOptions | 克隆，Map 容器不共用 | 使用传入引擎的配置 |
+| options 覆盖 | 安装后合并非空、非默认字段，Map 按顶层键合并 | 同左，直接修改传入引擎 |
+| 拦截器、adapter、transformer | 不复制，使用新 Dio 默认值 | 原样保留 |
+| 实例、在途请求、链 | 子客户端新建 | 同左 |
+| auth 会话、loading 显示 | 同 TokenManager / 相等回调按资源共享 | 同左 |
+| 工厂、key、reject、debug、clock | 继承配置或回调引用 | 同左 |
+
+BaseOptions 无法区分省略和默认值，因此不能用默认值重置继承的非默认值。传入父客户端的 `dio` 会共享可变引擎，options 覆盖也影响父客户端。
+
+Auth 的刷新、过期和无 token 通知状态跟随 TokenManager。无 token 每轮只通知一次，观察到新 token 后复位。最后一个持有者卸载时解除会话关联，迟到刷新失败不清 token、不通知；仍有持有者时按共享会话处理一次。
 
 ## 环境配置
 

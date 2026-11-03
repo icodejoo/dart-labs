@@ -2,7 +2,7 @@
 title: dioman 当前状态
 status: active
 updated: 2026-11-03
-summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0 契约定稿完成，下一批 R1
+summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0、R1 完成，下一批 R2a
 ---
 
 # 当前状态
@@ -14,8 +14,8 @@ summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/diom
 | 批 | 内容 | 状态 |
 |---|---|---|
 | R0 | 契约定稿：0002、设计文档改成目标状态 | 完成 |
-| R1 | 生命周期与作用域（auth 会话、loading 共享、extend(dio:)） | 下一批 |
-| R2a | 契约对齐 axp 0002 | 未开始 |
+| R1 | 生命周期与作用域（auth 会话、loading 共享、extend(dio:)） | 完成，见 [R1 报告](reports/2026-11-03-round2-r1.md) |
+| R2a | 契约对齐 axp 0002 | 下一批 |
 | R2b | 收口与发版前必修（去掉 dart:io 直接依赖等） | 未开始 |
 | R3 | 原生数据瘦身 | 未开始 |
 | R4 | 性能（先补 B6 欠下的复测） | 未开始 |

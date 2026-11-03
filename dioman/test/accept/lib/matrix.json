@@ -1910,10 +1910,49 @@
   {
     "id": "Dioman.extend",
     "plugin": "client",
-    "capability": "Dioman.extend：公开契约及配置解析",
+    "capability": "extend 默认复制选项；显式 dio 保留引擎扩展并作用 options 覆盖",
     "tier": 1,
     "apis": [
       "Dioman.extend"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.extend(dio)",
+    "plugin": "client",
+    "apis": [
+      "Dioman.extend(dio)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "tier": 1,
+    "capability": "直接使用传入引擎并保留扩展，允许显式共享父引擎"
+  },
+  {
+    "id": "Dioman.extend(options)",
+    "plugin": "client",
+    "capability": "安装后覆盖引擎配置并保持选项克隆边界",
+    "tier": 1,
+    "apis": [
+      "Dioman.extend(options)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "Dioman.extend(plugins)",
+    "plugin": "client",
+    "capability": "替换继承插件列表并重新 setup",
+    "tier": 1,
+    "apis": [
+      "Dioman.extend(plugins)"
     ],
     "real": [],
     "assumptions": [],

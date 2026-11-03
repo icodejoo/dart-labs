@@ -33,6 +33,7 @@
 
 ## 报告
 
+- [第二轮 R1 生命周期与作用域 2026-11-03](reports/2026-11-03-round2-r1.md) — auth 会话按 TokenManager 共享、loading 按回调共享、extend(dio:)；先红后绿与 I10。active。
 - [axp 重构复盘与参照评估 2026-10-31](reports/2026-10-31-axp-refactor-lessons.md) — axp 要点、踩坑、TS→Dart 映射与 dioman 评估；第二轮方案的输入，顶部有终审更正。active。
 - [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。

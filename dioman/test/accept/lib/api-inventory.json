@@ -154,66 +154,87 @@
     "static": false
   },
   {
+    "api": "Dioman.extend(dio)",
+    "kind": "parameter",
+    "file": "lib/src/client.dart",
+    "line": 190,
+    "static": false
+  },
+  {
+    "api": "Dioman.extend(options)",
+    "kind": "parameter",
+    "file": "lib/src/client.dart",
+    "line": 190,
+    "static": false
+  },
+  {
+    "api": "Dioman.extend(plugins)",
+    "kind": "parameter",
+    "file": "lib/src/client.dart",
+    "line": 190,
+    "static": false
+  },
+  {
     "api": "Dioman.dispose",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 198,
+    "line": 204,
     "static": false
   },
   {
     "api": "Dioman.send",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 216,
+    "line": 222,
     "static": false
   },
   {
     "api": "Dioman.request",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 226,
+    "line": 232,
     "static": false
   },
   {
     "api": "Dioman.get",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 235,
+    "line": 241,
     "static": false
   },
   {
     "api": "Dioman.post",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 240,
+    "line": 246,
     "static": false
   },
   {
     "api": "Dioman.put",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 245,
+    "line": 251,
     "static": false
   },
   {
     "api": "Dioman.patch",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 250,
+    "line": 256,
     "static": false
   },
   {
     "api": "Dioman.delete",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 255,
+    "line": 261,
     "static": false
   },
   {
     "api": "Dioman.head",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 260,
+    "line": 266,
     "static": false
   },
   {
@@ -3685,497 +3706,497 @@
     "api": "DiomanAuthFailureAction",
     "kind": "enum",
     "file": "lib/src/plugins/auth.dart",
-    "line": 11,
+    "line": 54,
     "static": false
   },
   {
     "api": "DiomanAuthFailureAction.refresh",
     "kind": "enumValue",
     "file": "lib/src/plugins/auth.dart",
-    "line": 13,
+    "line": 56,
     "static": false
   },
   {
     "api": "DiomanAuthFailureAction.replay",
     "kind": "enumValue",
     "file": "lib/src/plugins/auth.dart",
-    "line": 16,
+    "line": 59,
     "static": false
   },
   {
     "api": "DiomanAuthFailureAction.deny",
     "kind": "enumValue",
     "file": "lib/src/plugins/auth.dart",
-    "line": 19,
+    "line": 62,
     "static": false
   },
   {
     "api": "DiomanAuthFailureAction.expired",
     "kind": "enumValue",
     "file": "lib/src/plugins/auth.dart",
-    "line": 22,
+    "line": 65,
     "static": false
   },
   {
     "api": "DiomanAuthFailureAction.others",
     "kind": "enumValue",
     "file": "lib/src/plugins/auth.dart",
-    "line": 25,
+    "line": 68,
     "static": false
   },
   {
     "api": "DiomanAuthNotice",
     "kind": "typedef",
     "file": "lib/src/plugins/auth.dart",
-    "line": 29,
+    "line": 72,
     "static": false
   },
   {
     "api": "DiomanAuthRefresh",
     "kind": "typedef",
     "file": "lib/src/plugins/auth.dart",
-    "line": 33,
+    "line": 76,
     "static": false
   },
   {
     "api": "DiomanAuthFailure",
     "kind": "typedef",
     "file": "lib/src/plugins/auth.dart",
-    "line": 37,
+    "line": 80,
     "static": false
   },
   {
     "api": "DiomanAuthReady",
     "kind": "typedef",
     "file": "lib/src/plugins/auth.dart",
-    "line": 41,
+    "line": 84,
     "static": false
   },
   {
     "api": "defaultAuthFailure",
     "kind": "function",
     "file": "lib/src/plugins/auth.dart",
-    "line": 45,
+    "line": 88,
     "static": false
   },
   {
     "api": "DiomanAuthOptions",
     "kind": "class",
     "file": "lib/src/plugins/auth.dart",
-    "line": 60,
+    "line": 103,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new",
     "kind": "constructor",
     "file": "lib/src/plugins/auth.dart",
-    "line": 62,
+    "line": 105,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(enabled)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 64,
+    "line": 107,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(onAccessDenied)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 65,
+    "line": 108,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(onAccessExpired)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 66,
+    "line": 109,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(onFailure)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 67,
+    "line": 110,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(isProtected)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 68,
+    "line": 111,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(ready)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 69,
+    "line": 112,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(expiresAt)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 70,
+    "line": 113,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(refreshLeeway)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 71,
+    "line": 114,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(refreshTimeout)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 72,
+    "line": 115,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(headerKey)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 73,
+    "line": 116,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.new(buildHeader)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 74,
+    "line": 117,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.enabled",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 77,
+    "line": 120,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.onAccessDenied",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 80,
+    "line": 123,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.onAccessExpired",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 83,
+    "line": 126,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.onFailure",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 86,
+    "line": 129,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.isProtected",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 89,
+    "line": 132,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.ready",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 92,
+    "line": 135,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.expiresAt",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 95,
+    "line": 138,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.refreshLeeway",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 98,
+    "line": 141,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.refreshTimeout",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 101,
+    "line": 144,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.headerKey",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 104,
+    "line": 147,
     "static": false
   },
   {
     "api": "DiomanAuthOptions.buildHeader",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 107,
+    "line": 150,
     "static": false
   },
   {
     "api": "DiomanAuth",
     "kind": "class",
     "file": "lib/src/plugins/auth.dart",
-    "line": 110,
+    "line": 153,
     "static": false
   },
   {
     "api": "DiomanAuth.new",
     "kind": "constructor",
     "file": "lib/src/plugins/auth.dart",
-    "line": 112,
+    "line": 155,
     "static": false
   },
   {
     "api": "DiomanAuth.new(tokenManager)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 115,
+    "line": 158,
     "static": false
   },
   {
     "api": "DiomanAuth.new(onRefresh)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 116,
+    "line": 159,
     "static": false
   },
   {
     "api": "DiomanAuth.new(enabled)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 117,
+    "line": 160,
     "static": false
   },
   {
     "api": "DiomanAuth.new(onAccessDenied)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 118,
+    "line": 161,
     "static": false
   },
   {
     "api": "DiomanAuth.new(onAccessExpired)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 119,
+    "line": 162,
     "static": false
   },
   {
     "api": "DiomanAuth.new(onFailure)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 120,
+    "line": 163,
     "static": false
   },
   {
     "api": "DiomanAuth.new(isProtected)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 121,
+    "line": 164,
     "static": false
   },
   {
     "api": "DiomanAuth.new(ready)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 122,
+    "line": 165,
     "static": false
   },
   {
     "api": "DiomanAuth.new(expiresAt)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 123,
+    "line": 166,
     "static": false
   },
   {
     "api": "DiomanAuth.new(refreshLeeway)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 124,
+    "line": 167,
     "static": false
   },
   {
     "api": "DiomanAuth.new(refreshTimeout)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 125,
+    "line": 168,
     "static": false
   },
   {
     "api": "DiomanAuth.new(headerKey)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 126,
+    "line": 169,
     "static": false
   },
   {
     "api": "DiomanAuth.new(buildHeader)",
     "kind": "parameter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 127,
+    "line": 170,
     "static": false
   },
   {
     "api": "DiomanAuth.tokenManager",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 130,
+    "line": 173,
     "static": false
   },
   {
     "api": "DiomanAuth.onRefresh",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 133,
+    "line": 176,
     "static": false
   },
   {
     "api": "DiomanAuth.enabled",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 137,
+    "line": 180,
     "static": false
   },
   {
     "api": "DiomanAuth.onAccessDenied",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 140,
+    "line": 183,
     "static": false
   },
   {
     "api": "DiomanAuth.onAccessExpired",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 143,
+    "line": 186,
     "static": false
   },
   {
     "api": "DiomanAuth.onFailure",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 146,
+    "line": 189,
     "static": false
   },
   {
     "api": "DiomanAuth.isProtected",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 149,
+    "line": 192,
     "static": false
   },
   {
     "api": "DiomanAuth.ready",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 152,
+    "line": 195,
     "static": false
   },
   {
     "api": "DiomanAuth.expiresAt",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 155,
+    "line": 198,
     "static": false
   },
   {
     "api": "DiomanAuth.refreshLeeway",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 158,
+    "line": 201,
     "static": false
   },
   {
     "api": "DiomanAuth.refreshTimeout",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 161,
+    "line": 204,
     "static": false
   },
   {
     "api": "DiomanAuth.headerKey",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 164,
+    "line": 207,
     "static": false
   },
   {
     "api": "DiomanAuth.buildHeader",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 167,
+    "line": 210,
     "static": false
   },
   {
     "api": "DiomanAuth.readyStableAttempts",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 170,
+    "line": 213,
     "static": true
   },
   {
     "api": "DiomanAuth.pluginName",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 173,
+    "line": 216,
     "static": true
   },
   {
     "api": "DiomanAuth.option",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 176,
+    "line": 219,
     "static": true
   },
   {
     "api": "DiomanAuth.injectedToken",
     "kind": "field",
     "file": "lib/src/plugins/auth.dart",
-    "line": 179,
+    "line": 222,
     "static": true
   },
   {
     "api": "DiomanAuth.defaultBuildHeader",
     "kind": "method",
     "file": "lib/src/plugins/auth.dart",
-    "line": 181,
+    "line": 224,
     "static": true
   },
   {
     "api": "DiomanAuth.name",
     "kind": "getter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 184,
+    "line": 227,
     "static": false
   },
   {
     "api": "DiomanAuth.stage",
     "kind": "getter",
     "file": "lib/src/plugins/auth.dart",
-    "line": 188,
+    "line": 231,
     "static": false
   },
   {
     "api": "DiomanAuth.setup",
     "kind": "method",
     "file": "lib/src/plugins/auth.dart",
-    "line": 192,
+    "line": 235,
     "static": false
   },
   {
