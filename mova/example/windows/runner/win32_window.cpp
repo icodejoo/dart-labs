@@ -134,8 +134,11 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+  // 安静模式下不可激活且不进任务栏/Alt-Tab，避免抢用户桌面焦点。
+  const DWORD ex_style =
+      quiet_ ? (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) : 0;
+  HWND window = CreateWindowEx(
+      ex_style, window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
@@ -150,7 +153,25 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
+  if (quiet_) {
+    // 放到虚拟屏幕（含副显示器）右下角、压到最底，再不激活地显示。
+    RECT rect;
+    GetWindowRect(window_handle_, &rect);
+    const int width = rect.right - rect.left;
+    const int height = rect.bottom - rect.top;
+    const int x = GetSystemMetrics(SM_XVIRTUALSCREEN) +
+                  GetSystemMetrics(SM_CXVIRTUALSCREEN) - width - 8;
+    const int y = GetSystemMetrics(SM_YVIRTUALSCREEN) +
+                  GetSystemMetrics(SM_CYVIRTUALSCREEN) - height - 48;
+    SetWindowPos(window_handle_, HWND_BOTTOM, x, y, 0, 0,
+                 SWP_NOSIZE | SWP_NOACTIVATE);
+    return ShowWindow(window_handle_, SW_SHOWNOACTIVATE);
+  }
   return ShowWindow(window_handle_, SW_SHOWNORMAL);
+}
+
+void Win32Window::SetQuiet(bool quiet) {
+  quiet_ = quiet;
 }
 
 // static

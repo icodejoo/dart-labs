@@ -781,6 +781,12 @@ def main(argv=None):
             '-Pkotlin.compiler.execution.strategy=in-process']
         manifest['ports']=[18082,18190,18194] if any(b.get('cp1_driver') for b in selected) else [18082,18190,18192]
     if args.check:
+        import win_focus_gate
+        gate=win_focus_gate.scan(TOOL)
+        if gate:
+            print('WIN FOCUS GATE FAIL: 发现抢焦点/绕过统一入口的写法（见 win_policy.py / win_focus_gate.py）')
+            print(win_focus_gate.format_problems(gate))
+            return 1
         print(f'CHECK PASS: {len(manifest["batches"])} batches / 135 IDs / {len(manifest["manual"])} manual; 无设备操作')
         return 0
     if args.list:
