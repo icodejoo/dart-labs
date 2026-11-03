@@ -1,0 +1,12 @@
+[MOVA-HE] 15:38:47.413 AUTORUN start runs=1 base=http://127.0.0.1:18080 gop=50 startTimeout=4s stallTimeout=4s only=V6 mode=release os=windows "Windows 10 Pro" 10.0 (Build 19045)
+[MOVA-HE] 15:38:47.429 --- V6 stall timeout + resume run 1/1
+[MOVA-HE] 15:38:47.437 LIFECYCLE resumed
+[MOVA-HE] 15:38:54.951 V6 stateAtFailure type=vod rendered=true duration=40000ms buffering=true
+[MOVA-HE] 15:39:01.867 V6 bufferEdges=[0ms:true] continuousBufferToFailure=4009ms active=true
+[MOVA-HE] 15:39:01.871 V6 kind=stallTimeout bufferingTrueToFailure=4009ms (stallTimeout=4000ms, offset=9ms) posBefore=2720ms posAfterRetry=2720ms diff=0ms recovered=1 samplesAfterRetryFirstFrame=[+62ms:2720 +882ms:3480 +1691ms:4320 +2505ms:5120 +3312ms:5920 +4122ms:6720 +4936ms:7560]
+[MOVA-HE] 15:39:01.873 VERDICT V6 PASS offset=9ms posDiff=0ms
+[MOVA-HE] 15:39:02.580 === SUMMARY (samples in ms) ===
+[MOVA-HE] 15:39:02.584 SUMMARY V6.failureMinusBufferingMinusTimeoutMs values=[9] n=1 min=9 max=9 avg=9.0 median=9.0
+[MOVA-HE] 15:39:02.586 SUMMARY V6.resumePositionDiffMs values=[0] n=1 min=0 max=0 avg=0.0 median=0.0
+[MOVA-HE] 15:39:02.588 SUMMARY V6 pass=1 fail=0
+[MOVA-HE] 15:39:02.589 AUTORUN DONE

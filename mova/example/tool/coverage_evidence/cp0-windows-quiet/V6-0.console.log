@@ -1,0 +1,29 @@
+[IMPORTANT:flutter/shell/platform/embedder/embedder_surface_gl_impeller.cc(126)] Using the Impeller rendering backend (OpenGLESSDF).
+package:media_kit_libs_windows_video (mova slim fork) registered.
+[MOVA-HE] 15:38:06.047 AUTORUN start runs=1 base=http://127.0.0.1:18080 gop=50 startTimeout=4s stallTimeout=4s only=V6 mode=release os=windows "Windows 10 Pro" 10.0 (Build 19045)
+[MOVA-HE] 15:38:06.070 --- V6 stall timeout + resume run 1/1
+[MOVA-HE] 15:38:06.076 LIFECYCLE resumed
+media_kit: ANGLESurfaceManager: Direct3D Feature Level: 11_0
+1 1
+media_kit: VideoOutput: Create Texture: 2219882227744
+media_kit: VideoOutput: Using H/W rendering.
+VideoOutput.Resize
+{handle: 2219856958048, id: 2219882227744, rect: {height: 0, left: 0, top: 0, width: 0}}
+NativeVideoController: Texture ID: 2219882227744
+640 360
+media_kit: VideoOutput: Free Texture: 2219882227744
+media_kit: ANGLESurfaceManager: Direct3D Feature Level: 11_0
+media_kit: VideoOutput: Create Texture: 2219882228992
+VideoOutput.Resize
+{handle: 2219856958048, id: 2219882228992, rect: {height: 360, left: 0, top: 0, width: 640}}
+[MOVA-HE] 15:38:16.339 V6 stateAtFailure type=vod rendered=true duration=40000ms buffering=true
+[MOVA-HE] 15:38:23.904 V6 bufferEdges=[0ms:true] continuousBufferToFailure=4021ms active=true
+[MOVA-HE] 15:38:23.918 V6 kind=stallTimeout bufferingTrueToFailure=4021ms (stallTimeout=4000ms, offset=21ms) posBefore=2720ms posAfterRetry=2720ms diff=0ms recovered=1 samplesAfterRetryFirstFrame=[+0ms:2720 +813ms:3440 +1645ms:4280 +2458ms:5080 +3269ms:5880 +4082ms:6720 +4889ms:7480]
+[MOVA-HE] 15:38:23.921 VERDICT V6 PASS offset=21ms posDiff=0ms
+media_kit: VideoOutput: Free Texture: 2219882228992
+VideoOutput::~VideoOutput: 2219856958048
+[MOVA-HE] 15:38:24.635 === SUMMARY (samples in ms) ===
+[MOVA-HE] 15:38:24.640 SUMMARY V6.failureMinusBufferingMinusTimeoutMs values=[21] n=1 min=21 max=21 avg=21.0 median=21.0
+[MOVA-HE] 15:38:24.642 SUMMARY V6.resumePositionDiffMs values=[0] n=1 min=0 max=0 avg=0.0 median=0.0
+[MOVA-HE] 15:38:24.644 SUMMARY V6 pass=1 fail=0
+[MOVA-HE] 15:38:24.646 AUTORUN DONE
