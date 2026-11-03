@@ -186,6 +186,10 @@ def main():
     if args.stage:
         data['stages'][args.stage]=dict(status=args.state,recordedAt=datetime.now().astimezone().isoformat(),
             detail='本阶段已收口；失败与缺测保留，不代表全部产品判据通过')
+        if args.stage=='4':data['stages']['4'].update(reason='待安静模式验证：开工时验证记录缺失',
+            gateRecord='doc/plans/2026-11-03-win-quiet-mode.md',
+            gateRecordExistsAtClose=(ROOT/'doc/plans/2026-11-03-win-quiet-mode.md').is_file(),
+            windowsAppsLaunched=0,plannedRunsPerItem=3)
     if args.final:data['status']='COMPLETE_WITH_FAILURES_AND_BLOCKERS' if any(r['status']!='PASS' for r in data['rows']) else 'PASS'
     Path(str(TARGET)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
     displayStatus='已收口（存在FAIL与BLOCKED，CP1未通过）' if data['status']=='COMPLETE_WITH_FAILURES_AND_BLOCKERS' else data['status']
