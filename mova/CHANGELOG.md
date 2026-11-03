@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 新增 `MovaSession` 多条目、按集广告与加载结果，直接构造自动识别已启用的切换能力；`MovaPlaylistItem.adBreaks` 可覆盖排期，`MovaAds.session` 提供共享访问口。
+
 - 修复嵌套不同 API 的 MovaAutoPause 遮住外层守卫的问题；MovaPlayer 按 API 查找完整祖先链，尊重外层配置的后台继续播放。
 
 - 修复被后继切换取代的内部暂停污染播放意图；等待型广告通过包内能力传递显式起播意图。广告首次打开在钩子中失败后，重试保留本次加载意图，并让位于之后的用户播放或暂停命令。

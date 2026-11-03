@@ -23,7 +23,11 @@ import '../session/timeline.dart';
 ///
 /// 纯函数，使中插触发规则可单独单测。最早到期者优先；调用方将其标记为已播，
 /// 下一个 tick 便浮现下一条。
-MovaAdBreak? dueMidRoll(List<MovaAdBreak> breaks, Duration position, Set<MovaAdBreak> played) {
+MovaAdBreak? dueMidRoll(
+  List<MovaAdBreak> breaks,
+  Duration position,
+  Set<MovaAdBreak> played,
+) {
   return movaDueMidRoll(breaks, position, played);
 }
 
@@ -79,9 +83,14 @@ class MovaAds {
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
   MovaAds(MovaApi api, {MovaCutover? cutover})
-    : _session = MovaSession(api, cutover: cutover);
+    : _session = movaSessionForAds(api, cutover);
 
   final MovaSession _session;
+
+  /// 返回共享会话；新代码推荐直接使用 MovaSession。
+  /// 经此入口 load/jumpTo 与广告入口等价，dispose 任一入口即销毁同一会话。
+  /// 示例：`await ads.session.load(source);`。
+  MovaSession get session => _session;
 
   /// 广告时钟取时；测试注入随 fakeAsync 推进的函数，返回当前时刻。
   /// 示例：`ads.debugClock = () => origin.add(async.elapsed)`。
@@ -211,7 +220,8 @@ class MovaAds {
   ///   return MovaSource(play.url, title: play.title);
   /// });
   /// ```
-  Future<void> loadDeferred(MovaSourceResolver resolve) => _session.loadDeferred(resolve);
+  Future<void> loadDeferred(MovaSourceResolver resolve) =>
+      _session.loadDeferred(resolve);
 
   /// Immediately interrupts the content to play [ad] at an arbitrary point,
   /// then resumes the content where it was interrupted. For ads scheduled at

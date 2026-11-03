@@ -122,3 +122,6 @@ export 'src/platform_impl/brightness_impl.dart';
 export 'src/platform_impl/orientation_impl.dart';
 export 'src/platform_impl/pip_impl.dart';
 export 'src/platform_impl/volume_impl.dart';
+
+export 'src/core/session/session.dart' show MovaSession, MovaLoadOutcome;
+export 'src/core/session/cursor.dart';
