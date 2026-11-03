@@ -47,13 +47,32 @@ def main():
     def run(stem,case=None,mode=None,count=None,he=None):
         nonlocal app
         print('START WINDOWS',stem,'retain event/native/focus evidence',flush=True)
-        env=dict(os.environ,MOVA_WIN_PAGE='he' if he else '',MOVA_ONLY=he or '',MOVA_RUNS='1',MOVA_LOG=str(OUT/(stem+'.he.log')))
+        env=dict(os.environ,MOVA_WIN_PAGE='he' if he else '',MOVA_ONLY=he or '',MOVA_RUNS=str(win_policy.clamp_runs(1)),MOVA_LOG=str(OUT/(stem+'.he.log')))
         console=(OUT/(stem+'.console.log')).open('wb')
         app=win_policy.launch(EXE, EXE.parent, env, console)
         result=dict(item=stem,pid=app.pid,completed=False,crashed=False,focus=[],exeSha256=hashlib.sha256(EXE.read_bytes()).hexdigest())
+        stop_observing=threading.Event()
+        def observe():
+            with (OUT/(stem+'.foreground.jsonl')).open('a',encoding='utf-8',buffering=1) as journal:
+                while not stop_observing.is_set() and app.poll() is None:
+                    violation=app.sample_foreground()
+                    row=dict(atMonotonicNs=time.monotonic_ns(),atUtc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),violation=violation)
+                    result['focus'].append(row)
+                    result['focusSampleCount']=len(result['focus'])
+                    result['foregroundViolations']=list(app.foreground_violations)
+                    journal.write(json.dumps(row)+'\n')
+                    (OUT/(stem+'.progress.json')).write_text(json.dumps(result),encoding='utf-8')
+                    if violation:
+                        result.update(status='BLOCKED',reason='focus-violation')
+                        app.terminate()
+                        return
+                    stop_observing.wait(1)
+        observer=threading.Thread(target=observe,daemon=True)
+        observer.start()
         try:
             ready=False;started=False;deadline=time.monotonic()+(240 if he else 600);last_focus=0;data={};terminal_at=None
             while time.monotonic()<deadline:
+                if result.get('reason')=='focus-violation':break
                 if app.poll() is not None:
                     result['exitCode']=app.poll()
                     result['crashed']=app.poll()!=0
@@ -63,17 +82,6 @@ def main():
                         result['completed']='=== SUMMARY' in text and ('VERDICT '+he+' ') in text
                     if result['crashed']:crash_evidence(stem)
                     break
-                if time.monotonic()-last_focus>=1:
-                    violation=app.sample_foreground()
-                    result['focus'].append(dict(atMonotonicNs=time.monotonic_ns(),atUtc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),violation=violation))
-                    result['focusSampleCount']=len(result['focus'])
-                    result['foregroundViolations']=list(app.foreground_violations)
-                    (OUT/(stem+'.progress.json')).write_text(json.dumps(result),encoding='utf-8')
-                    last_focus=time.monotonic()
-                    if violation:
-                        app.terminate()
-                        result.update(status='BLOCKED',reason='focus-violation')
-                        break
                 if not ready:
                     if he:ready=(OUT/(stem+'.he.log')).exists()
                     else:
@@ -108,9 +116,22 @@ def main():
         except Exception as e:
             result['error']=repr(e)
         finally:
-            if app.poll() is None:app.terminate()
+            stop_observing.set()
+            observer.join(timeout=21)
             app.terminate()
-            result.setdefault('status','PASS' if result['completed'] else 'FAIL')
+            if he:
+                lp=OUT/(stem+'.he.log')
+                text=lp.read_text(encoding='utf-8',errors='replace') if lp.exists() else ''
+                result['verdict']='PASS' if 'VERDICT '+he+' PASS' in text else 'FAIL' if 'VERDICT '+he+' FAIL' in text else 'MISSING'
+            elif case=='hls':
+                measurements=[r for r in data.get('rows',[]) if r['kind']=='HLS_RESULT']
+                result['measurements']=measurements
+                result['verdict']='PASS' if len(measurements)==count and all(r['pass'] for r in measurements) else 'FAIL'
+            else:
+                calls=[r for r in data.get('rows',[]) if r['kind']=='DISPOSE_RETURN']
+                result['disposeReturns']=calls
+                result['verdict']='PASS' if len(calls)==4 and all(r.get('exception') is None for r in calls) else 'FAIL'
+            result.setdefault('status','PASS' if result['completed'] and result['verdict']=='PASS' else 'FAIL')
             console.close();app=None
             (OUT/(stem+'.result.json')).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
             print('WINDOWS RESULT',stem,'completed',result['completed'],'crashed',result['crashed'],'foregroundViolations',len(result.get('foregroundViolations',[])),flush=True)
