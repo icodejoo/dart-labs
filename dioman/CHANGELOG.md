@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Dependency:** minimum `dio` raised from 5.0.0 to 5.4.0 (earlier versions lack `BaseOptions.preserveHeaderCase`, so lower-bound analysis failed).
+
 - 新增客户端与请求级 `deadline: Duration?`：以 `DiomanClock` 计时，覆盖逻辑请求的排队、重试、共享等待与完整传输；到期为 timeout/deadline，独立于 Dio 阶段超时。share 保持调用方自身预算归属，落定清理计时器；testkit 执行器声明 timeout-total 并映射原生预算。
 
 
