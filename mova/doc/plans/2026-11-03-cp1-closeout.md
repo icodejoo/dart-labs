@@ -28,3 +28,13 @@
 `flutter test --concurrency=3 test/ui/skin_test.dart test/ui/bilibili_skin_test.dart test/ui/b14_test.dart`：24 PASS，证据 `example/tool/coverage_evidence/cp1-close-skin-tests.log`。
 
 真机三轮 `cp1-close-skin-1825`：原 12 条快照 **12/12 PASS**。证据 `example/tool/coverage_evidence/matrix-cp1-close-skin-1825-skin/cp0-result.json`、`matrix-cp1-close-skin-1825-1-skin/cp0-result.json`、`matrix-cp1-close-skin-1825-2-skin/cp0-result.json`，每份 verdicts[6,8,56,61]。三轮完整 skin 各 68 PASS / 0 FAIL / 6 BLOCKED（人工布局/PiP/全屏视觉项），harness=[]；不把这些人工项当作 PASS。快照修正不证明 B03 专属底栏刺激已执行，底栏覆盖仍单独列项。构建拉回 SHA256=`9a9e047da9bcec323ad51ca88cd0b7097f5ec8fb54e86fc4caa70a52fe12e78c`。原 12 条 FAIL 保留在旧证据。
+
+## 3. 独立 END_FILE 采样
+
+旧 `matrix-cp1-errclass-20261103-1544` records[259] 已有真实核心 END_FILE 转成的 fatal=MovaEndFileReason.error，us=3990447；records[262] 在 us=4023689 CHECK（仅晚 33.242ms），records[263] 在 us=4024503 即释放。独立客户端使用 `pollInDebug:true` 的 100ms 周期泵，尚未来得及消费即被 dispose。根因为验证器释放时序，不是核心漏发。
+
+修正：核心错误出现后，最多 5 秒等待独立客户端原始 END_FILE(reason=4)，随后才 CHECK/释放；仍要求独立数组非空，超时保持 FAIL 并保存 endFileWaitTimedOut，不用核心事件填造独立样本。
+
+真机 `cp1-close-errclass-1832`：fatal 5/5 PASS，独立 END_FILE 各 1 条，等待超时 0/5；CHECK 位于 `example/tool/coverage_evidence/matrix-cp1-close-errclass-1832/matrix-cp1-close-errclass-1832-cp1-errclass.json` records[211,235,259,283,307]。同轮 nonfatal/poster 各 5/5 PASS，completed=true，harness=[]，run_matrix 返回 0，设备设置已恢复。APK SHA256=`2a791b777537739248bcbb4cdbe844fd6c7ed68e204048284c13faeb75ae05ed`。
+
+事件泵回归 `flutter test --concurrency=3 test/core/kernel/mpv_event_pump_test.dart`：24 PASS（`cp1-close-errclass-tests.log`）。本项无产品修改/新增产品测试，原 records[262] FAIL 保留。

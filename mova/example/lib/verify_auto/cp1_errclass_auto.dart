@@ -42,6 +42,15 @@ Future<void> runErrclass(Cp1Harness h) async {
           h.mark('OPEN_ERROR', {'error': '$e'});
         }
         await h.until(() => a.state.error != null);
+        // The independent observer polls every 100ms. Core fatal/UI readiness
+        // can precede its next poll; don't dispose its client in that gap.
+        var endFileWaitTimedOut = false;
+        try {
+          await h.until(() => h.records.skip(begin).any(
+            (r) => r['kind'] == 'END_FILE' && r['reason'] == 4), seconds: 5);
+        } catch (_) {
+          endFileWaitTimedOut = true;
+        }
         await h.frame();
         final errors = h.events('MovaErrorEvent', begin);
         final endFile = h.records
@@ -55,6 +64,7 @@ Future<void> runErrclass(Cp1Harness h) async {
           'fatal.$run',
           {
             'endFile': endFile,
+            'endFileWaitTimedOut': endFileWaitTimedOut,
             'errors': errors,
             'state': h.snapshot(),
             'overlay': h.errorVisible(),
