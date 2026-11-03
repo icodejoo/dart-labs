@@ -10,7 +10,9 @@ python tool/pipeline_b6_bench_summary.py --out coverage/bench-recheck
 
 交错脚本每次运行 A1 B1 A2 B2 A3 B3，A 使用 tool/bench_legacy.py 固定的 895d959 临时 worktree，B 使用当前新版。临时 worktree 创建在本工作区，finally 删除；不移动主工作区分支。重复完整一组可用 --set 2；汇总脚本使用同样的 --set 和 --out 参数，独立目录避免覆盖历史证据。
 
-R4 起，每个独立进程前后用 Get-Counter 采样三次 CPU 总占用，记录同期进程 CPU 秒增量和工作集。启动前平均占用超过 30% 时先等 15 秒、重新采样，再照常运行；等待与采样不计入场景计时。load-before、load-before-retry、load-after JSON 与基准 JSON 同目录。
+R4b 起，两个 runner 共用 `tool/dioman_bench_load.py`：独立进程运行中逐秒使用 Windows GetSystemTimes 与独立作业对象累计 CPU 时间差（包含已退出子进程），按同一系统分母扣除基准树占用。外部均值须 ≤20%，不得连续三个一秒采样点 >35%；丢点或间隔 >2s 作废。起跑前须连续三个采样点均值 ≤15%、最大 ≤25%。任一成员污染则整对 A/B 作废并重跑，每轮最多五次，任务预算 30 分钟；超时保留已有曲线，停止测量，不降低规则、不跨时段拼轮。
+
+原始输出、每秒负载点与等待曲线保存在 `coverage/r4b-raw/`；证据只保留逐次污染原因、接受标记与小摘要。优先级须先做普通/高优先级旧版自身干净三轮试验，只有六场景极差的中位数降低才使用 `--high-priority`；以 dart run 的相同参数直接启动同 Flutter SDK 的 dartvm.exe，避免启动器另启普通优先级 VM，旧版 runner 同样显式传递 HIGH_PRIORITY_CLASS，不使用实时优先级。先前仅因启动器优先级传递不完整而中止的未完成试验组整体留在 coverage，不参与优先级比较。预登记规则见 [R4b harness](../docs/reports/round2-r4b-evidence/preregistered-harness.json)。
 
 每场景先验证发送数，再预热 500ms、正式测量至少 2s。每次独立 JIT 进程。mean 是操作端到端均值，p99 使用最近秩，ops/s 包含采样 bookkeeping。构造与释放不计时。S5 一次操作是 100 个并发请求，单位为组/秒。
 
@@ -23,7 +25,7 @@ R4 起，每个独立进程前后用 Get-Counter 采样三次 CPU 总占用，�
 | S5 | share(start)，100 并发同 key，每组一次传输 |
 | S6 | 嵌套 Map/List POST，retry(max=2) 安装但不触发 |
 
-三轮吞吐极差为 (max/min-1)×100%，必须小于 10%。按吞吐中位数选整行，不能拼接不同轮的延迟。S2/S3 先逐轮计算 mean(Sn)/mean(S1)-1，再取三个比例的中位数；汇总 JSON 同时保存三个比例与选中轮次。整组不稳定时 gates JSON 的 passed 为 null，不从不同时段裸 Dio 绝对延迟相减；其它门槛与限制见 [测试方案 §6](../docs/design/pipeline-test-plan.md)。不稳定数字仅留档。
+三轮吞吐极差为 (max/min-1)×100%，必须小于 10%。按吞吐中位数选整行，不能拼接不同轮的延迟。S2/S3 先逐轮计算 mean(Sn)/mean(S1)-1，再取三个比例的中位数；汇总 JSON 同时保存三个比例与选中轮次。R4b 按场景依赖判定稳定性：S2/S3 另需 S1 稳定，S4/S5/S6 检查自身；依赖不稳定时 gates JSON 的 passed 为 null，同时保留 groupStable 整组标记，不从不同时段裸 Dio 绝对延迟相减；其它门槛与限制见 [测试方案 §6](../docs/design/pipeline-test-plan.md)。不稳定数字仅留档。
 
 简单热点计时：dart run benchmark/pipeline_profile.dart。它在阶段 pre/post 插入探针，先预热 1000 次，再计 5000 次。时间差含探针开销，source:post 包含 Dio 与响应归一化；只作热点线索，不参与性能门槛。
 

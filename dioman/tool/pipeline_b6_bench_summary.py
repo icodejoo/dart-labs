@@ -6,6 +6,11 @@ args=parser.parse_args()
 prefix="bench" if args.set==1 else f"bench-set-{args.set}"
 from pathlib import Path
 D=Path(args.out)
+audit=D/(prefix+'-load-audit.json')
+if audit.exists():
+ accepted=[row for row in json.loads(audit.read_text(encoding='utf-8')) if row['accepted']]
+ assert len(accepted)==3 and [row['round'] for row in accepted]==[1,2,3]
+ assert all(len(row['members'])==2 and all(v['clean'] for v in row['members']) for row in accepted)
 data={k:[json.loads((D/f'{prefix}-{i}-{k}.json').read_text()) for i in range(1,4)] for k in ['legacy','pipeline']}
 for rounds in data.values():
  for run in rounds:
@@ -30,10 +35,12 @@ for s in range(6):
 (D/(prefix+'-summary.json')).write_text(json.dumps(result,indent=2)+'\n')
 for s,r in result.items():
  print(s,*(f"{k}: {v['median']['opsPerSecond']:.1f} ops/s, mean {v['median']['meanMicros']:.2f} us p99 {v['median']['p99Micros']:.2f} us range {v['spreadPercent']:.2f}%" for k,v in r.items()))
-eligible=all(value['stable'] for row in result.values() for value in row.values())
+group_stable=all(value['stable'] for row in result.values() for value in row.values())
 gates={}
 for scenario in ('S2','S3','S4','S5','S6'):
  row=result[scenario]
+ dependencies=('S1',scenario) if scenario in ('S2','S3') else (scenario,)
+ eligible=all(value['stable'] for dependency in dependencies for value in result[dependency].values())
  if scenario in ('S2','S3'):
   a=row['legacy']['medianOverheadRatio']
   b=row['pipeline']['medianOverheadRatio']
@@ -43,4 +50,6 @@ for scenario in ('S2','S3','S4','S5','S6'):
   a=row['legacy']['median']['opsPerSecond']
   b=row['pipeline']['median']['opsPerSecond']
   gates[scenario]={'eligible':eligible,'throughputChangePercent':(b/a-1)*100,'passed':b>=a if eligible else None}
+ gates[scenario]['groupStable']=group_stable
+ gates[scenario]['dependencies']=dependencies
 (D/(prefix+'-gates.json')).write_text(json.dumps(gates,indent=2)+'\n')

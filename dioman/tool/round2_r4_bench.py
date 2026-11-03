@@ -3,16 +3,14 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
 sys.dont_write_bytecode = True
-from pipeline_b6_bench import sample_load
+from dioman_bench_load import DiomanBenchGate, benchmark_command
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / 'docs/reports/round2-r4-evidence'
-DART = shutil.which('dart')
+EVIDENCE = ROOT / 'docs/reports/round2-r4b-evidence'
 
 
 def run(command, log):
@@ -46,30 +44,22 @@ def paired(name, files, micro):
     final = {path: path.read_bytes() for path in paths}
     digests = {str(path.relative_to(ROOT)): hashlib.sha256(data).hexdigest()
                for path, data in final.items()}
+    def prepare(variant):
+        """仅替换已登记候选文件。"""
+        for path in paths:
+            snapshot = ROOT / 'coverage/r4-variants' / name / variant / path.relative_to(ROOT)
+            path.write_bytes(snapshot.read_bytes())
+
     try:
-        for round_id in range(1, 4):
-            for variant in ('before', 'after'):
-                for path in paths:
-                    snapshot = ROOT / 'coverage/r4-variants' / name / variant / path.relative_to(ROOT)
-                    path.write_bytes(snapshot.read_bytes())
-                stem = dest / f'{round_id}-{variant}'
-                sample_load(stem, 'before')
-                command = [DART, 'run', 'benchmark/pipeline.dart']
-                if micro:
-                    command = [DART, 'run', 'benchmark/round2_r4_micro.dart', *micro]
-                proc = subprocess.run(command, cwd=ROOT, capture_output=True,
-                                      text=True, encoding='utf-8', errors='replace')
-                sample_load(stem, 'after')
-                (ROOT / f'coverage/r4-{name}-{round_id}-{variant}.stderr.log').write_text(proc.stderr, encoding='utf-8')
-                assert proc.returncode == 0, proc.stderr
-                data = json.loads(proc.stdout.strip())
-                assert data['warmupMillis'] >= 500 and data['measurementMillis'] >= 2000
-                for row in data['results']:
-                    assert row['elapsedSeconds'] >= 2
-                    if not micro:
-                        assert row['sends'] == (0 if row['scenario'] == 'S4' else row['operations'])
-                stem.with_suffix('.json').write_text(json.dumps(data, indent=2)+'\n', encoding='utf-8')
-                print(f'{name} {round_id} {variant} complete', flush=True)
+        command = benchmark_command('benchmark/pipeline.dart')
+        if micro:
+            command = benchmark_command('benchmark/round2_r4_micro.dart', *micro)
+        gate = DiomanBenchGate(ROOT / 'coverage/r4b-raw' / name / ('micro' if micro else 'pipeline'))
+        data = gate.pairs(name, {'before': command, 'after': command}, prepare)
+        for variant, rounds in data.items():
+            for index, result in enumerate(rounds, 1):
+                (dest / f'{index}-{variant}.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
+        (dest / 'load-audit.json').write_text(json.dumps(gate.records, indent=2)+'\n', encoding='utf-8')
     finally:
         for path, content in final.items():
             path.write_bytes(content)
@@ -81,16 +71,13 @@ def clone():
     """克隆开关三轮交错；库策略不变。"""
     dest = EVIDENCE / 'clone'
     dest.mkdir(parents=True, exist_ok=True)
-    for round_id in range(1, 4):
-        for mode in ('clone-off', 'clone-on'):
-            stem = dest / f'{round_id}-{mode}'
-            sample_load(stem, 'before')
-            proc = subprocess.run([DART, 'run', 'benchmark/round2_r4_micro.dart', mode],
-                                  cwd=ROOT, capture_output=True, text=True)
-            sample_load(stem, 'after')
-            assert proc.returncode == 0, proc.stderr
-            stem.with_suffix('.json').write_text(proc.stdout.strip()+'\n', encoding='utf-8')
-            print(f'{round_id} {mode} complete', flush=True)
+    gate = DiomanBenchGate(ROOT / 'coverage/r4b-raw/clone')
+    data = gate.pairs('clone', {mode: benchmark_command('benchmark/round2_r4_micro.dart', mode)
+                                for mode in ('clone-off', 'clone-on')})
+    for mode, rounds in data.items():
+        for index, result in enumerate(rounds, 1):
+            (dest / f'{index}-{mode}.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
+    (dest / 'load-audit.json').write_text(json.dumps(gate.records, indent=2)+'\n', encoding='utf-8')
 
 
 def main():
@@ -99,7 +86,7 @@ def main():
     parser.add_argument('mode', choices=['sets', 'paired', 'clone'])
     parser.add_argument('--name', default='baseline')
     parser.add_argument('--start', type=int, default=1)
-    parser.add_argument('--maximum', type=int, default=4)
+    parser.add_argument('--maximum', type=int, default=3)
     parser.add_argument('--files', nargs='*', default=[])
     parser.add_argument('--micro', nargs='*', default=[])
     args = parser.parse_args()
