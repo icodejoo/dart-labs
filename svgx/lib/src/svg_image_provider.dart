@@ -545,7 +545,7 @@ class MemorySvgx extends ImageProvider<MemorySvgx> {
   @override
   ImageStreamCompleter loadImage(MemorySvgx key, ImageDecoderCallback decode) =>
       _svgImageStreamCompleter(
-        sourceFuture: SynchronousFuture<String>(utf8.decode(bytes)),
+        sourceFuture: Future<String>.sync(() => utf8.decode(bytes)),
         width: width,
         height: height,
         colorFilter: colorFilter,
@@ -594,6 +594,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     required this.animationFrameRate,
   }) {
     addOnLastListenerRemovedCallback(() {
+      _listenerGeneration++;
       _timer?.cancel();
       _timer = null;
       // Pausing the clock alongside the timer, not just stopping the ticks,
@@ -608,16 +609,13 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
       // 暂停的地方接着播。
       _stopwatch?.stop();
     });
-    sourceFuture.then(
-      _start,
-      onError: (Object error, StackTrace stackTrace) {
-        reportError(
-          context: ErrorDescription('while loading an SVG image'),
-          exception: error,
-          stack: stackTrace,
-        );
-      },
-    );
+    Future<String>.value(sourceFuture)
+        .then((source) {
+          if (!_disposed) _start(source);
+        })
+        .catchError((Object error, StackTrace stack) {
+          _report(error, stack);
+        });
   }
 
   final double? width;
@@ -627,6 +625,30 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   final int animationFrameRate;
 
   Timer? _timer;
+  bool _disposed = false;
+  bool _rendering = false;
+  int _listenerGeneration = 0;
+
+  /// Reports loading/rendering errors while this completer is alive.
+  /// 在补全器存活时报告加载或渲染错误。
+  void _report(Object error, StackTrace stack) {
+    if (_disposed) return;
+    reportError(
+      context: ErrorDescription('while loading or rendering an SVG image'),
+      exception: error,
+      stack: stack,
+    );
+  }
+
+  /// Publishes a frame to current listeners, disposing stale frames.
+  /// 向当前监听者发布帧，并释放已过期的帧。
+  void _publish(ui.Image image, double scale, int generation) {
+    if (_disposed || !hasListeners || generation != _listenerGeneration) {
+      image.dispose();
+      return;
+    }
+    setImage(ImageInfo(image: image, scale: scale));
+  }
 
   /// The animated path's timeline clock — null for a static source. Held at
   /// this level (not just inside [_startAnimated]'s closure) so
@@ -675,13 +697,16 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
         height: h,
         colorFilter: colorFilter,
       );
-      setImage(ImageInfo(image: image, scale: scale));
+      // A static image has no resume loop: retain it for later listeners
+      // while a keepAlive handle owns this completer, even after a pause.
+      // 静态图没有恢复循环；keepAlive 持有期间即使暂停监听，也保存结果供补发。
+      if (_disposed) {
+        image.dispose();
+      } else {
+        setImage(ImageInfo(image: image, scale: scale));
+      }
     } catch (error, stackTrace) {
-      reportError(
-        context: ErrorDescription('while rasterizing a static SVG image'),
-        exception: error,
-        stack: stackTrace,
-      );
+      _report(error, stackTrace);
     }
   }
 
@@ -691,57 +716,72 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     final ready = parsed.hasImages
         ? resolveImageNodes(document)
         : SynchronousFuture<void>(null);
-    ready.then((_) {
-      // The load can resolve after the last listener already left (e.g. the
-      // DecorationImage scrolled away before the parse/decode finished) — in
-      // that case there is nothing to burn frames rendering for, so this
-      // skips straight to "paused", the same state
-      // `addOnLastListenerRemovedCallback` puts it in. `_resumeTicking` is
-      // still wired up below so a listener arriving later starts it for
-      // real.
-      //
-      // 加载可能在最后一个监听者已经离开之后才完成（比如 DecorationImage 在
-      // 解析/解码结束前就滚出了视口）——这种情况下没有观众可供渲染帧，于是直接
-      // 跳到"已暂停"状态，与 `addOnLastListenerRemovedCallback` 会置入的状态
-      // 相同。下面仍会设好 `_resumeTicking`，之后真有监听者出现时能正常启动。
-      final intrinsicSize = Size(document.width, document.height);
-      final (w, h, scale) = _resolveSize(intrinsicSize);
-      final stopwatch = _stopwatch = Stopwatch()..start();
-      final clock = ValueNotifier<Duration>(Duration.zero);
-      final painter = AnimatedSvgPainter(
-        root: document.root,
-        intrinsicSize: intrinsicSize,
-        clock: clock,
-        theme: theme ?? const SvgxTheme(),
-        fit: BoxFit.contain,
-        alignment: Alignment.center,
-        gradients: document.gradients,
-        clipPaths: document.clipPaths,
-        masks: document.masks,
-        backgroundColor: document.backgroundColor,
-      );
-      Future<void> renderFrame() async {
-        clock.value = stopwatch.elapsed;
-        final image = await _rasterizePainter(painter, w, h, colorFilter);
-        setImage(ImageInfo(image: image, scale: scale));
-      }
+    Future<void>.value(ready)
+        .then((_) {
+          if (_disposed) return;
+          // The load can resolve after the last listener already left (e.g. the
+          // DecorationImage scrolled away before the parse/decode finished) — in
+          // that case there is nothing to burn frames rendering for, so this
+          // skips straight to "paused", the same state
+          // `addOnLastListenerRemovedCallback` puts it in. `_resumeTicking` is
+          // still wired up below so a listener arriving later starts it for
+          // real.
+          //
+          // 加载可能在最后一个监听者已经离开之后才完成（比如 DecorationImage 在
+          // 解析/解码结束前就滚出了视口）——这种情况下没有观众可供渲染帧，于是直接
+          // 跳到"已暂停"状态，与 `addOnLastListenerRemovedCallback` 会置入的状态
+          // 相同。下面仍会设好 `_resumeTicking`，之后真有监听者出现时能正常启动。
+          final intrinsicSize = Size(document.width, document.height);
+          final (w, h, scale) = _resolveSize(intrinsicSize);
+          final stopwatch = _stopwatch = Stopwatch()..start();
+          final clock = ValueNotifier<Duration>(Duration.zero);
+          final painter = AnimatedSvgPainter(
+            root: document.root,
+            intrinsicSize: intrinsicSize,
+            clock: clock,
+            theme: theme ?? const SvgxTheme(),
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            gradients: document.gradients,
+            clipPaths: document.clipPaths,
+            masks: document.masks,
+            backgroundColor: document.backgroundColor,
+          );
+          Future<void> renderFrame() async {
+            if (_rendering || _disposed || !hasListeners) return;
+            _rendering = true;
+            final generation = _listenerGeneration;
+            try {
+              clock.value = stopwatch.elapsed;
+              final image = await _rasterizePainter(painter, w, h, colorFilter);
+              _publish(image, scale, generation);
+            } catch (error, stack) {
+              _report(error, stack);
+            } finally {
+              _rendering = false;
+            }
+          }
 
-      final interval = Duration(
-        milliseconds: (1000 / animationFrameRate).round(),
-      );
-      void restart() {
-        stopwatch.start();
-        unawaited(renderFrame());
-        _timer = Timer.periodic(interval, (_) => unawaited(renderFrame()));
-      }
+          final interval = Duration(
+            milliseconds: (1000 / animationFrameRate).round(),
+          );
+          void restart() {
+            if (_disposed || !hasListeners) return;
+            stopwatch.start();
+            unawaited(renderFrame());
+            _timer = Timer.periodic(interval, (_) => unawaited(renderFrame()));
+          }
 
-      _resumeTicking = restart;
-      if (hasListeners) {
-        restart();
-      } else {
-        stopwatch.stop();
-      }
-    });
+          _resumeTicking = restart;
+          if (hasListeners) {
+            restart();
+          } else {
+            stopwatch.stop();
+          }
+        })
+        .catchError((Object error, StackTrace stack) {
+          _report(error, stack);
+        });
   }
 
   /// Resolution order for the *logical* raster size: explicit [width]/[height]
@@ -785,9 +825,12 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     double? h = height;
     if (w != null && h == null) h = w / aspect;
     if (h != null && w == null) w = h * aspect;
-    final view = SchedulerBinding.instance.platformDispatcher.views.first;
+    final views = SchedulerBinding.instance.platformDispatcher.views;
+    final view = views.isEmpty ? null : views.first;
     if (w == null || h == null) {
-      w ??= view.physicalSize.width / view.devicePixelRatio;
+      w ??= view == null
+          ? intrinsicSize.width
+          : view.physicalSize.width / view.devicePixelRatio;
       h ??= w / aspect;
     }
     // Oversample by [_supersample] beyond the device's own pixel density,
@@ -809,20 +852,29 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     // 临时搭建的离屏目标本就按单样本（即有锯齿）光栅化每一帧的矢量边缘，跟它整体
     // 像素*密度*对不对没关系——只把密度提高（上面乘 devicePixelRatio 那步）能让
     // 图像更清晰，但不会让一条压根没做多重采样的边缘变平滑。
-    final dpr = view.devicePixelRatio * _supersample;
-    return (
-      (w * dpr).round().clamp(1, 4096),
-      (h * dpr).round().clamp(1, 4096),
-      dpr,
-    );
+    final dpr = (view?.devicePixelRatio ?? 1) * _supersample;
+    final pw = w * dpr;
+    final ph = h * dpr;
+    final largest = pw > ph ? pw : ph;
+    final reduction = largest > 4096 ? 4096 / largest : 1.0;
+    final pixelWidth = (pw * reduction).round().clamp(1, 4096);
+    final pixelHeight = (ph * reduction).round().clamp(1, 4096);
+    return (pixelWidth, pixelHeight, pixelWidth / w);
   }
 
   @override
   void onDisposed() {
+    _disposed = true;
+    _stopwatch?.stop();
     _timer?.cancel();
     super.onDisposed();
   }
 }
+
+// 测试可阻塞光栅化 future，验证在途帧的重入与销毁竞态。
+@visibleForTesting
+Future<ui.Image> Function(CustomPainter, int, int, ColorFilter?)?
+debugSvgRasterize;
 
 /// Rasterizes one frame of [painter] into a [width]x[height] [ui.Image],
 /// applying [colorFilter] first if given — the animated-path counterpart to
@@ -841,6 +893,8 @@ Future<ui.Image> _rasterizePainter(
   int height,
   ColorFilter? colorFilter,
 ) async {
+  final override = debugSvgRasterize;
+  if (override != null) return override(painter, width, height, colorFilter);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   final w = width.toDouble();

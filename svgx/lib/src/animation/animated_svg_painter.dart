@@ -1596,6 +1596,7 @@ class AnimatedSvgPainter extends CustomPainter {
       painter = node.cachedTextPainter! as TextPainter;
     } else {
       final fontSize = double.tryParse(attributes['font-size'] ?? '') ?? 16;
+      (node.cachedTextPainter as TextPainter?)?.dispose();
       painter = TextPainter(
         text: TextSpan(
           text: content,
