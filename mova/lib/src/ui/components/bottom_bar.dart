@@ -1,3 +1,4 @@
+import '../chrome/chrome.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -372,7 +373,7 @@ class _SeekBarState extends State<_SeekBar> {
       _dragValue = v;
       _awaitingSeek = false;
     });
-    widget.api.setDragging(true, previewAt: Duration(milliseconds: v.round()));
+    movaUiOf(context).setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
   /// Commits the dragged position via [MovaApi.seek] and clears the drag
@@ -397,7 +398,7 @@ class _SeekBarState extends State<_SeekBar> {
   /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
   void _onChangeEnd(double v) {
     widget.api.seek(Duration(milliseconds: v.round()));
-    widget.api.setDragging(false);
+    movaUiOf(context).setDragging(false);
     setState(() => _awaitingSeek = true);
   }
 }

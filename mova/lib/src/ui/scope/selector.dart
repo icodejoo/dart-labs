@@ -4,6 +4,7 @@ import '../../core/state/progress.dart';
 import '../../core/state/state.dart';
 import '../../core/state/ui_state.dart';
 import 'scope.dart';
+import '../chrome/chrome.dart';
 
 /// Rebuilds [builder] only when the field picked by [selector] out of the
 /// current [MovaState] changes.
@@ -122,10 +123,10 @@ class MovaUiSelect<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final api = MovaScope.of(context);
+    final ui = movaUiOf(context, listen: true);
     return StreamBuilder<T>(
-      stream: api.uiStates.map(selector).distinct(),
-      initialData: selector(api.uiState),
+      stream: ui.uiStates.map(selector).distinct(),
+      initialData: selector(ui.uiState),
       builder: (context, snapshot) => builder(context, snapshot.data as T),
     );
   }

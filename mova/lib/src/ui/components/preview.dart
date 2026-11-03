@@ -1,3 +1,4 @@
+import '../chrome/chrome.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -112,13 +113,13 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     // correct and flicker-free.
     //
     // 同步从当前快照播种，不走 setState——首帧尚未构建，直接赋值既正确又不闪。
-    final at = widget.api.uiState.previewAt;
+    final at = movaUiOf(context).uiState.previewAt;
     if (at != null) {
       _at = at;
       _thumb = widget.api.preview.peekAt(at);
       widget.api.preview.requestAt(at);
     }
-    _uiSub = widget.api.uiStates.listen((s) => _apply(s.previewAt));
+    _uiSub = movaUiOf(context).uiStates.listen((s) => _apply(s.previewAt));
     _subscribeThumbs();
     _epoch = widget.api.state.renderEpoch;
     _epochSub = widget.api.states.listen((s) {

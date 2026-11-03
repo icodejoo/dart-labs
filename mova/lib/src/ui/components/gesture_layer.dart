@@ -1,3 +1,4 @@
+import '../chrome/chrome.dart';
 import '../../core/state/progress.dart';
 import 'package:flutter/widgets.dart';
 
@@ -223,17 +224,17 @@ class _GestureLayerState extends State<_GestureLayer>
     final step = cfg.doubleTapStep;
     final target = _lastPosition + (backward ? -step : step);
     _api.seek(target);
-    _api.showHud(MovaHud.seek, text: formatDuration(target));
+    movaUiOf(context).showHud(MovaHud.seek, text: formatDuration(target));
   }
 
   /// Toggles control-bar visibility on a plain (non-double) tap.
   ///
   /// 单击（非双击）时切换控制条显隐。
   void _onTap() {
-    if (_api.uiState.controlsVisible) {
-      _api.hideControls();
+    if (movaUiOf(context).uiState.controlsVisible) {
+      movaUiOf(context).hide();
     } else {
-      _api.showControls();
+      movaUiOf(context).show();
     }
   }
 
@@ -347,20 +348,20 @@ class _GestureLayerState extends State<_GestureLayer>
     switch (_mode) {
       case _DragMode.seek:
         final target = _seekTargetFromCum();
-        _api.setDragging(true, previewAt: target);
-        _api.showHud(MovaHud.seek);
+        movaUiOf(context).setDragging(true, previewAt: target);
+        movaUiOf(context).showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
         final frac = _axisFrac() *
             (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
-        _api.showHud(MovaHud.volume);
+        movaUiOf(context).showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
         final frac = _axisFrac() *
             (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
-        _api.showHud(MovaHud.brightness);
+        movaUiOf(context).showHud(MovaHud.brightness);
         break;
       case _DragMode.undecided:
       case _DragMode.zoom:
@@ -376,7 +377,7 @@ class _GestureLayerState extends State<_GestureLayer>
   void _onScaleEnd(ScaleEndDetails d) {
     if (_mode == _DragMode.seek) {
       _api.seek(_seekTargetFromCum());
-      _api.setDragging(false);
+      movaUiOf(context).setDragging(false);
     }
     _mode = _DragMode.undecided;
   }
