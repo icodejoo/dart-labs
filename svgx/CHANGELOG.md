@@ -1,5 +1,31 @@
 ## Unreleased
 
+* Parser/CSS/SMIL review fixes: first duplicate id wins; namespaced gradient
+  inheritance and stop/animation alignment preserve document order; degenerate
+  radial gradients use the final stop; only single source blurs and transparent
+  Figma layer-blur prefixes are accepted, while shadow chains remain ignored.
+* Normalize paint keywords and px stroke lengths/dash tokens; reject invalid dash
+  lists, cap dash expansion at 5000 dash-plus-gap segments (about 2500 drawn
+  dashes) and `<use>` instances at 100000 nodes. Preflight each whole instance;
+  skip it atomically on budget exhaustion and internally flag `useExpansionTruncated`.
+  Preflight uses the same namespace-collapsed href/id attributes as expansion;
+  animation elements, unsupported children and unresolved uses share the budget.
+* CSS keyframe colors share the parser color hook; runtime `currentColor`, delayed
+  backwards fill, and unsupported transform origins/boxes now have explicit
+  diagnostics. Two-length pixel transform origins wrap the transform list;
+  later transforms still suppress earlier tracks when paused or unsupported.
+  Only unknown keyframes, no valid values, zero duration without forwards fill,
+  and zero iterations allow earlier transform tracks to survive.
+* Bound malformed CSS string/function recovery and memoize descendant selectors;
+  ignore unsupported `calc()` and fallback-bearing `var()` declarations while
+  preserving earlier CSS values (without applying the fallback). Plain `var()`,
+  `env()` and CSS-wide keywords clear accumulated CSS values, falling back to
+  presentation attributes and then inherited/default values.
+  Detect self-closing/namespaced SMIL and avoid caching large source strings.
+* SMIL clocks accept full/partial clocks and h/min/s/ms units. Oversized durations
+  saturate at 1e7 seconds and oversized positive begins never start; begin lists
+  remain unsupported and fall back to zero offset.
+
 * CSS animation support on the animated path (SVGator CSS exports and a general
   subset): `@keyframes` with `animation` shorthand/longhand, per-keyframe
   `cubic-bezier`/`steps` easing, all four `direction` values, `transform`
