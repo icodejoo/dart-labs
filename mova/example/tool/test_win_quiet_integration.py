@@ -40,7 +40,8 @@ def windows(pid):
             U.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
             cls = ctypes.create_unicode_buffer(256)
             U.GetClassNameW(hwnd, cls, 256)
-            rows.append(dict(hwnd=int(hwnd), pid=owner.value, windowClass=cls.value))
+            ex = int(U.GetWindowLongPtrW(hwnd, -20)) & 0xFFFFFFFF
+            rows.append(dict(hwnd=int(hwnd), pid=owner.value, windowClass=cls.value, exStyle=hex(ex)))
         return True
     U.EnumWindows(CALLBACK(visit), 0)  # top to bottom, including shell surfaces
     for index, row in enumerate(rows):
@@ -134,7 +135,13 @@ class QuietIntegration(unittest.TestCase):
         self.assertLessEqual(abs(stable['rightGap']-8), 16)
         self.assertLessEqual(abs(stable['bottomGap']-48), 16)
         self.assertEqual(int(stable['exStyle'],16) & 0x08000080, 0x08000080)
-        self.assertEqual(stable['below'], [], 'visible top-level windows below runner')
+        # 判据修订：桌面外壳（Progman/WorkerW/任务栏）永远在最底，输入法等辅助浮层带
+        # WS_EX_TOOLWINDOW 或 WS_EX_NOACTIVATE；它们不是用户应用窗口，测试窗口只需在应用窗口之下。
+        shell = {'Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd'}
+        app_below = [w for w in stable['below']
+                     if w['windowClass'] not in shell
+                     and not (int(w['exStyle'], 16) & (0x80 | 0x08000000))]
+        self.assertEqual(app_below, [], 'user application windows below runner')
         if not bare:
             self.assertTrue(log.exists(), 'missing HE log')
             self.assertIn('VERDICT V10 PASS', log.read_text(encoding='utf-8', errors='replace'))
