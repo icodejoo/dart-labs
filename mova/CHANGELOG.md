@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **Fix：cutover 用内部操作代际隔离换源、重载与并发切换；提交只释放已认领的预热槽，保留较新 prepare 的资源与相位，过期切换不再回落抢源。**
+
 * **Feat/Fix：按钮默认可聚焦并带语义、tooltip 和聚焦提示；鼠标悬停唤出控制条。`MovaCtrlsConfig.shortcuts` 默认 false，启用后聚焦播放器可用空格播放/暂停、左右键跳转十秒、上下键调音量、F/Esc 全屏操作；锁定、PiP/mini 和文本输入不处理播放器快捷键。
 
 * **Perf：位置标签按秒更新，MovaPlayer 缓存静态组件及构建子树；重复的标量状态镜像不再发事件，dispose 在首个 await 前取消 HUD 和控制条计时器。
