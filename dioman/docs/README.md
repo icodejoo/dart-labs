@@ -4,11 +4,13 @@
 
 ## 续做
 
-- [当前状态](status.md) — 测试体系进度、闸门现状、待拍板的产品问题、P2 补测清单。active。
+- [当前状态](status.md) — 第二轮各批进度、验证入口与当前约束。active。
+- [洋葱管线第二轮方案](design/pipeline-round2-plan.md) — 对照 axp 新版的终审结论、响应契约对齐 0002（已拍板）、R0–R6 分批与推翻的旧约定。active。
 
 ## 决策
 
-- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定。active。
+- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定；D3/D5 部分已被 0002 取代。active。
+- [0002 响应契约：HTTP 状态与内核失败事实](decisions/0002-response-contract.md) — 对齐 axp 0002：失败标记与 failureOf、status 只表示 HTTP、statusOf、parse 钩子、字段归属表。active。
 
 ## 设计
 
@@ -31,6 +33,7 @@
 
 ## 报告
 
+- [axp 重构复盘与参照评估 2026-10-31](reports/2026-10-31-axp-refactor-lessons.md) — axp 要点、踩坑、TS→Dart 映射与 dioman 评估；第二轮方案的输入，顶部有终审更正。active。
 - [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。
 - [插件五方法真实矩阵 2026-10-27](reports/2026-10-27-plugin-matrix.md) — 156 格结论，"待补"项将由总账接管。active。

@@ -1,7 +1,7 @@
 ---
 title: dioman 核心架构（洋葱管线 + 归一化响应）
 status: active
-updated: 2026-10-29
+updated: 2026-11-03
 summary: 新内核的模块划分、一次请求的数据流、阶段排序、上下文与取消原语、归一化响应与落定、插件接口、客户端 API 和性能设计
 ---
 ## TL;DR
@@ -10,6 +10,7 @@ summary: 新内核的模块划分、一次请求的数据流、阶段排序、�
 - 传输边界把 Dio 的响应或异常判定成 `DiomanResponse`；链路里只流转它，`next()` 不抛错。最外层落定：`get` 成功返回数据、失败抛出；`send` 返回结果对象；程序 bug 原样抛出原始异常。
 - 插件 = `DiomanPlugin`（名字、阶段、`setup` 或 `handle`）。内置插件位置固定，自定义插件只选阶段。
 - 请求不可变，内层改请求用 `next(patch)`；重试、重放就是再调一次 `next()`。
+- 本文是第二轮目标状态；新增条款标注 R1 / R2a / R2b / R3，尚未落地的批次以代码为准。响应契约原文见 [0002](../decisions/0002-response-contract.md)，分批见[第二轮方案](pipeline-round2-plan.md)。
 - 决策依据见 [0001](../decisions/0001-pipeline-redesign.md)，插件细则见 [插件规格](pipeline-plugin-spec.md)。
 
 ## 1. 结构
@@ -38,9 +39,9 @@ api.get<Pet>('/pet/{id}', query: {'id': 1})
 | `context.dart` | `DiomanContext`：请求视图、取消、状态键、`key()`、`fail()`、`markReplayable()`、`canReplay()`、`wait()`、`cancelled()` |
 | `request.dart` | 不可变的 `DiomanRequest`、`RequestPatch`、与 `RequestOptions` 互转 |
 | `transport.dart` | 按需克隆请求体、调用 `dio.fetch`（`validateStatus` 全部放行）、交给工厂判定 |
-| `response.dart` | `DiomanKind`、`DiomanResponse`、`DiomanResponseFactory`、`Envelope` |
+| `response.dart` | `DiomanFailureKind`、`DiomanFailure`、`DiomanResponse`、`DiomanResponseFactory`、`failureOf`（R2a） |
 | `options.dart` | 请求级插件选项的统一解析（`resolveOption`） |
-| `key.dart` | key 服务（由旧 `key_plugin.dart` 的算法迁来，行为不变） |
+| `key.dart` | key 服务（R2b 并入 responseType、Map 键类型标签；保留 B8 无损字节校验） |
 | `clock.dart` | `DiomanClock`：当前时间与计时器工厂，可注入 |
 | `plugins/*.dart` | 12 个内置插件 |
 | `token_manager.dart` | `DiomanTokenManager` 接口（去掉 `canRefresh`，见插件规格 auth） |
@@ -52,9 +53,9 @@ api.get<Pet>('/pet/{id}', query: {'id': 1})
 1. 动词方法把 path、query、data、调用级配置交给内核。内核用 `Options.compose(dio.options, path, …)` **合并一次**，得到有效的 `RequestOptions`，再包成不可变的 `DiomanRequest`（保留有效配置的全部字段）。`dio.fetch` 不会再合并 BaseOptions（dio 5.11.1 已核对）。
 2. 内核建逻辑请求级上下文：分配 `id`；建内核 `CancelToken`，并与使用者传入的 token 联动；登记到在途集合（供 `cancelAll`、`pending` 使用）。
 3. 按编译好的链从外到内执行。每层拿到的 `ctx.request` 是外层交给它的版本。
-4. 到达传输层：如果有层调用过 `markReplayable()`，就按类型克隆请求体（见 §8 P4）；把 `DiomanRequest` 转成 `RequestOptions`，设置 `validateStatus: (_) => true` 和内核 `cancelToken`，调用 `dio.fetch`。
+4. 到达传输层：如果有层调用过 `markReplayable()`，就按类型克隆请求体（见 §9 P4）；把 `DiomanRequest` 转成 `RequestOptions`，设置 `validateStatus: (_) => true` 和内核 `cancelToken`，调用 `dio.fetch`。
 5. 工厂把响应或异常判定成 `R`，原路返回。每层可以读它、替换它，或者再次调用 `next()`。
-6. 最外层落定：从在途集合注销、解除取消联动，然后按 §6 返回数据、返回 `R`、抛出 `R`，或抛出原始异常。
+6. 最外层落定：从在途集合注销、解除取消联动，然后按 §6 返回数据、返回 `R`、抛出 `R`，或抛出原始异常；R3 在覆盖所有落定路径的 finally 中清空并封闭原生槽。
 
 ## 3. 阶段与排序
 
@@ -87,11 +88,13 @@ abstract class DiomanContext<R extends DiomanResponse> {
   String? key();                                // 惰性计算，按 request 缓存；不可哈希或 key:false 时为 null
   T? get<T>(StateKey<T> key);                   // 逻辑请求级状态
   void set<T>(StateKey<T> key, T value);
-  R fail(DiomanFailure init);                   // 凭空造结果，必须经工厂
+  DiomanResponse<dynamic> fail(DiomanFailureKind kind, {String? reason}); // R2a：经工厂造失败
+  int statusOf(DiomanResponse<dynamic> r);       // R2a：客户端有效状态
+  DiomanNative? get native;                     // R3 落地：本层当前结果匹配的原生槽只读视图
   bool canReplay();                             // 最近实际发送的请求体能否安全重放
   void markReplayable();                        // 声明本请求可能被重发，传输层据此克隆请求体
   Future<T?> wait<T>(Future<T> pending, {Duration? timeout});  // 取消原语一，见下
-  R? cancelled();                               // 取消原语二：已取消则返回 cancel 结果
+  DiomanResponse<dynamic>? cancelled();                               // 取消原语二：已取消则返回 cancel 结果
 }
 typedef DiomanNext<R> = Future<R> Function([RequestPatch? patch]);
 final class StateKey<T> { const StateKey(this.description); final String description; }
@@ -101,56 +104,55 @@ final class StateKey<T> { const StateKey(this.description); final String descrip
 
 **取消原语**（每个 await 之后都要重查）：
 - `ctx.wait(pending, timeout:)`：等 `pending` 完成、等取消、等超时三者之一。无论哪种结局，都要取消计时器、摘掉对 token 的监听，并忽略迟到的结果。调用时如果已经取消，立即返回 `null`，不挂任何监听。返回 `null` 表示被取消或超时，调用方用 `ctx.cancelled()` 区分。
-- `ctx.cancelled()`：已取消就返回 `kind: cancel` 的结果，否则返回 `null`。
+- `ctx.cancelled()`：已取消就返回带 cancel 失败标记的结果（R2a），否则返回 `null`。R2b 在 next 入口检查取消并短路。
 - Dio 的 `CancelToken` 没有"摘掉监听"的接口，内核用自己的订阅登记实现 `wait`，保证测试里能断言"没有残留的监听和计时器"（不变量 I3）。
+
+**原生槽（R3 落地）**：公开只读视图命名 `DiomanNative`，通过 `ctx.native` 读取；字段为 `response`（关联的归一化结果）、`raw`（Dio Response）、`error`（原始异常）。内部单槽放在逻辑请求共享状态里，不能放在派生 ctx 的实例字段上；传输层每次尝试写入，成功时清空 error。仅当结果身份匹配槽内 response 时可读，结果派生必须维护身份关联；缓存命中、本地拒绝、share 跟随者没有自身原生槽。mock 探测经过真实传输时照常有槽。
+
+落定先读取与最终结果匹配的原生数据，再按 call.raw 生成副本；最后在覆盖 return、throw、reject 的 finally 中清空并封闭槽。落定后拒绝迟到写入，包括 share 尚未结束的传输（I11）。原生字段随副本附带的规则见 [0002 字段表](../decisions/0002-response-contract.md#字段归属与最终处置)。
 
 ## 5. 归一化响应
 
-```dart
-enum DiomanKind { ok, http, biz, network, timeout, cancel, parse, auth, breaker, offline, internal }
+契约原文、缺省值、失败集合及每个字段的归属只在 [0002](../decisions/0002-response-contract.md) 定义；本节列出内核装配视图。
 
-/// 归一化响应：成功、失败、被抛出的都是它。字段在构造时由工厂算好。
-class DiomanResponse<D> implements Exception {
-  final bool ok;
-  final DiomanKind kind;
-  final int status;            // 逻辑状态：插件判断 401/403/5xx 一律读它
-  final int httpStatus;        // 原始 HTTP 状态，没收到响应时为 0
-  final Object? code;          // 业务码，非信封响应为 null
-  final String message;
-  final D data;
-  final String? reason;        // 细分原因，如 auth 的 expired / denied / unauthenticated
-  final DiomanRequest request; // 实际发出的请求；share/cache 时是发出那一次的
-  final Response<dynamic>? raw;
-  final Object? error;         // 原始异常
-  final StackTrace? errorStack;
-  final StackTrace? callSite;  // 仅 debug：发起请求那一刻的调用点
-}
-```
+| 目标字段集 | 落地 |
+|---|---|
+| ok（合成 getter）、status（HTTP）、code、message、data | R2a，按 0002 的解析与缺省值 |
+| 私有 _failure；failureOf 返回只读 DiomanFailure（kind、reason） | R2a；ok/http/biz 没有标记 |
+| request、callSite | 保留；R3 缓存命中重新绑定当前调用方，share 不变 |
+| raw、error | R3 仅 call.raw 时由落定附到副本，默认 null |
+| failure.error、failure.errorStack | R3 仅 internal 保留，以便原栈重抛；删除顶层 errorStack |
+| retryAfter（库私有） | R3，传输边界抽取原始头字符串，随结果流转；retry 经内部入口读取，不进公开 API |
 
-**工厂 `DiomanResponseFactory`**（每个客户端一份）：
+`httpStatus`、顶层 `kind` / `reason` 在 R2a 删除，旧 `DiomanFailure` 失败输入改为只读失败标记；插件经 §4 的 fail 入口造失败。使用者不填写内部标记。
+
+**工厂 `DiomanResponseFactory`**（每个客户端一份，R2a）：
 
 | 选项 | 默认 | 说明 |
 |---|---|---|
-| `envelope` | `Envelope(code: 'code', data: 'data', message: 'message')` | 信封字段名；`null` 关闭信封识别。`code` 和 `data` 两个键都在才算信封 |
-| `isSuccess(code)` | `code == null \|\| code == 0 \|\| code == '0'` | 业务码判定，只在收到 2xx 响应且是信封时调用 |
-| `logicalStatus(response)` | 失败、2xx、业务码是 400–599 的整数 → 业务码；否则 httpStatus | 使用者可以把 `'TOKEN_EXPIRED'` 映射成 401 |
-| `expectJson` | `false` | 声明 JSON 却解析失败时判为 `parse` |
-| `create(init)` | `DiomanResponse.new` | 扩展点：返回带额外字段的子类 |
+| `parse` | 见 0002 解析表 | 函数钩子转换业务字段，取代信封配置 |
+| `isSuccess(code)` | 见 0002 默认成功规则 | 仅收到适用的 2xx 响应时执行 |
+| `expectJson` | false | 严格 JSON 判定；R2b 尊重显式 responseType，文本/字节/流不被误判 |
+| `create(init)` | DiomanResponse.new | 扩展对象构造；返回后内核写入失败事实，无法把内核失败改成成功 |
 
-**分类规则**（按优先级）：
+**客户端选项（R2a）**：`statusOf(r) => int` 与工厂分离；内置插件通过 `ctx.statusOf(r)` 调用。未配置时取 HTTP status，不自动解释业务码。详情见 [0002 决定](../decisions/0002-response-contract.md#决定)。
 
-| 输入 | kind | status |
+**分类规则**（按优先级，R2a；status 列始终是 HTTP 状态）：
+
+| 输入 | 失败类别 | status（HTTP） |
 |---|---|---|
-| 内核 token 已取消，或 `DioExceptionType.cancel` | cancel | 0 |
-| `connectionTimeout` / `sendTimeout` / `receiveTimeout` | timeout | 0 |
-| `unknown` 且 cause 为解码 `FormatException` | parse | HTTP 状态（传输解码闭包保留元信息） |
-| `connectionError`、`badCertificate`，或 `unknown` 且 `error` 是 `SocketException`/`HttpException`/`TlsException` | network | 0 |
-| `badResponse`（只会来自使用者的 Dio 拦截器主动 reject） | http | 取响应状态 |
-| 其余 `DioException.unknown`、非 Dio 异常（使用者拦截器或 Transformer 里的 bug） | internal | 0 |
-| 2xx、`expectJson`、数据是非空字符串（不依赖 MIME） | parse | httpStatus |
-| 收到响应 | ok / biz / http，按 `isSuccess` 与 2xx 判定 | 按 `logicalStatus` |
+| 内核 token 已取消，或 DioExceptionType.cancel | cancel | 无响应为 0，有响应取 HTTP 状态 |
+| connectionTimeout / sendTimeout / receiveTimeout | timeout | 同上 |
+| unknown 且 cause 为解码 FormatException | parse | HTTP 状态（解码闭包保留元信息），无响应为 0 |
+| connectionError、badCertificate 或识别出的底层连接异常 | network | 无响应为 0，有响应取 HTTP 状态 |
+| badResponse（使用者 Dio 拦截器主动 reject） | 无（HTTP 失败） | 取响应状态，无响应为 0 |
+| 其余 DioException.unknown、非 Dio 异常（拦截器或 Transformer 的 bug） | internal | 无响应为 0，有响应取 HTTP 状态 |
+| 2xx、expectJson、非空文本，且非显式文本/字节/流模式（R2b） | parse | HTTP 状态 |
+| 收到正常响应，由 2xx 与 isSuccess 判定 ok | 无（成功、HTTP 失败或业务失败） | HTTP 状态 |
 
-内核负责：工厂自己抛错时，改用内置工厂造 `internal` 结果，并保留第一次的异常，保证外层照常收尾。
+R2b 移除 response.dart 对 dart:io 的直接依赖，保留分类精度，并在 VM、dart2js、dart2wasm 核对一致性；条件导入还是 Dio 类型判定由该批验证后决定。
+
+内核负责：工厂自己抛错时，改用内置工厂造 internal 结果，保留第一次异常，保证外层照常收尾。R2a 同时保护 create 返回后的失败标记与 ok。
 
 ## 6. 落定
 
@@ -158,9 +160,10 @@ class DiomanResponse<D> implements Exception {
 |---|---|---|
 | 成功 | `r.data` | `r` |
 | 可预期的失败 | `throw r` | `r`（`ok == false`） |
-| 程序 bug（`kind: internal`） | `Error.throwWithStackTrace(r.error, r.errorStack)` | 同左 |
+| 程序 bug（`failureOf(r)?.kind == DiomanFailureKind.internal`，R2a） | R3：`Error.throwWithStackTrace(failureOf(r)!.error!, failureOf(r)!.errorStack!)` | 同左 |
 
 - **bug 不伪装成请求失败**：中间件、判定类回调、使用者 Dio 拦截器或 Transformer 抛出的异常，链内包成 internal 交给外层，保证 `next()` 不出错、外层的计数和注销照常完成；落定时抛出原始异常。
+- **R3 异常来源**：internal 的原始异常和栈从失败标记读取，不依赖 call.raw。缺 error 时抛 StateError，缺 stack 时用 StackTrace.current（沿用 B2 防御口径）。
 - **调用点**：debug 开启时，内核在发起请求那一刻记下 `StackTrace.current`；失败落定时派生一个带 `callSite` 的副本再抛，不修改被 share/cache 共享的原对象。生产环境不记录，零开销。
 - **`reject`**：`Dioman(reject: (r) => …)` 在抛出前转换可预期的失败，用来适配需要特定异常类型的生态。默认原样抛出 `r`。
 
@@ -171,7 +174,7 @@ abstract class DiomanPlugin<R extends DiomanResponse> {
   String get name;                              // 内置插件以 dioman: 开头
   DiomanStage get stage => DiomanStage.attempt; // 自定义插件的默认阶段
   DiomanEnforce get enforce => DiomanEnforce.post;
-  /// 每个客户端调用一次；状态建在返回的实例里。只有 setup、没有 handle 的插件不进链。
+  /// 每个客户端调用一次；状态通常建在返回的实例里，资源例外见下。只有 setup、没有 handle 的插件不进链。
   DiomanPluginInstance<R> setup(Dioman<R> client);
 }
 abstract class DiomanPluginInstance<R extends DiomanResponse> {
@@ -181,9 +184,10 @@ abstract class DiomanPluginInstance<R extends DiomanResponse> {
 ```
 
 约定：
-- **状态必须建在 `setup` 返回的实例里**，不能放在插件对象上。插件对象只是配置（可以是 const），同一个插件对象可以装进多个客户端，各自一份状态。
+- **状态通常建在 `setup` 返回的实例里**，不能放在插件对象上。插件对象只是配置（可以是 const），同一个插件对象可以装进多个客户端。
+- **外部资源例外（R1）**：会话跟随 TokenManager，以 `Expando<_AuthSession>` 共享并维护持有者计数，最后一个持有者释放时清除关联；loading 跟随回调，以模块级 Map 按 `==` 比较共享。每个客户端只清理自己的占用与生命周期，交接规则见[插件规格](pipeline-plugin-spec.md)。
 - 插件暴露给使用者的操作（例如 cache 的 `clear`），通过 `api.plugin<DiomanCacheApi>()` 取得。
-- 用户回调分两类：**通知类**（loading、notify、onAccessExpired、onAccessDenied、onStateChange、onConnectivityChanged）抛错会被隔离，并输出到 `debugPrint` 级别的错误日志；**判定类**（shouldRetry、delay、onFailure、isProtected、fallbackWhen、shouldCache、shouldTrip、keyBuilder）抛错按 bug 处理。`onRefresh` 例外：它抛错算刷新失败。
+- 用户回调分两类：**通知类**（loading、notify、onAccessExpired、onAccessDenied、onStateChange、onConnectivityChanged）抛错会被隔离，并输出到 `debugPrint` 级别的错误日志；**判定类**（shouldRetry、delay、onFailure、isProtected、fallbackWhen、shouldCache、shouldTrip、keyBuilder；R2a 新增的 parse、isSuccess、statusOf）抛错按 bug 处理。`onRefresh` 例外：它抛错算刷新失败。
 
 ## 8. 客户端 API
 
@@ -191,6 +195,7 @@ abstract class DiomanPluginInstance<R extends DiomanResponse> {
 class Dioman<R extends DiomanResponse<dynamic>> {
   Dioman({required Dio dio, List<DiomanPlugin<R>> plugins = const [],
           DiomanResponseFactory<R>? response, DiomanKeyOptions key = const DiomanKeyOptions(),
+          int Function(DiomanResponse<dynamic> r)? statusOf, // R2a
           Object Function(R r)? reject, Object? debug /* bool | DiomanLogger */,
           DiomanClock clock = const DiomanClock.system()});
   Dio get dio;
@@ -203,16 +208,34 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   List<(DiomanStage, String)> inspect();
   int cancelAll([Object? reason]);
   int get pending;
-  Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins});
+  bool isCancel(Object? e);             // R2a；顶层还有 isDiomanCancel(e)
+  Dioman<R> extend({Dio? dio, BaseOptions? options, List<DiomanPlugin<R>>? plugins}); // R1
   void dispose();
 }
 ```
 
 - `DiomanCall`：调用级配置，包含 headers、超时、使用者的 `cancelToken`、`key`、`silent`、以及各插件的请求级选项（以插件导出的选项键为键）。
-- `extend()` 克隆 Dio 的 BaseOptions，默认继承插件列表并各自重新 `setup`，状态不共享。
+- `DiomanCall(raw: true)`（R3）：按 [0002](../decisions/0002-response-contract.md#字段归属与最终处置)在落定副本附带自身原生数据；send 返回该副本，internal 仍原栈抛出。
+- `extend(dio: …)`（R1）可显式传入新引擎；省略时沿用克隆 BaseOptions 后新建 Dio 的行为。复制与共享边界如下：
+
+| 项 | 默认 extend | 显式 dio | 批次 |
+|---|---|---|---|
+| BaseOptions | 克隆父配置，Map 容器不共用 | 使用传入引擎的配置 | R1 |
+| options 覆盖 | setup 后合并非空、非默认字段，Map 按顶层键合并；不能用默认值重置继承的非默认值 | 同左，修改传入引擎配置 | R1，保留 B2 限制 |
+| Dio 拦截器、adapter、transformer | 不复制，采用新 Dio 默认值 | 保留传入引擎上的配置 | R1 |
+| 插件配置列表 | 默认继承；传 plugins 则替换，各自重新 setup | 同左 | R1 |
+| 实例状态、在途请求、链 | 不复制，子客户端新建 | 同左 | R1 |
+| auth 会话、loading 显示状态 | 同 TokenManager / 相等回调按资源共享 | 同左 | R1 |
+| 工厂、key 配置、reject、debug、clock | 继承配置/回调引用 | 同左 | 保留；R1 明示 |
+| statusOf | 继承回调 | 同左 | R2a |
+
+传 dio 时应为子客户端新建引擎；传父客户端的 dio 会共享可变引擎，options 覆盖也会影响父客户端（R1）。
+
 - `dispose()`：先 `cancelAll()`，再按注册的逆序调用各插件实例的 `dispose`（尽力执行完，最后抛出第一个异常）；之后拒绝新的请求和 `use`。
 
 ## 8.1 B1 终审裁决（2026-10-29）
+
+历史裁决保留；其中 raw/error/errorStack 的位置已被 [0002](../decisions/0002-response-contract.md) 修订，按 R3 字段表与 §6 执行。
 
 - **链内返回类型为 `DiomanResponse<dynamic>`**，不是使用者的子类 `R`：使用者工厂自身抛错时，内核只能用内置工厂造基础的 internal 结果；如果强转成 `R`，会在运行时抛 TypeError，打破"`next()` 不出错"。`R` 约束的是客户端正常工厂 `create` 的产出；插件要用扩展字段时用 `is` 判断。
 - **`ctx.wait` 的错误传递**：被等待的 future 自身出错时，`wait` 把错误交给调用方，不转成 internal；取消与超时返回 `null`，用 `ctx.cancelled()` 区分。

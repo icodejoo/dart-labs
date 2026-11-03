@@ -1,13 +1,13 @@
 ---
 title: dioman 洋葱管线测试方案
 status: active
-updated: 2026-10-29
-summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移
+updated: 2026-11-03
+summary: 六层测试、不变量 I1–I11 与夹具、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移
 ---
 ## TL;DR
 
 - 沿用六层（unit / rule / boundary / combo / integration / acceptance）和标题 `[API id]` 约定，**按新 API 重写，不搬旧断言**。
-- 不变量 I1–I9 做成夹具，从内核批次起生效；powerset 枚举 9 个有交互的插件（512 个子集）× 10 条流程，只断言不变量。
+- 不变量 I1–I9 从内核批次起生效，I10 在 R1、I11 在 R3 加入共享夹具；powerset 枚举 9 个有交互的插件（512 个子集）× 10 条流程，只断言不变量。
 - 门槛：内核 6 个文件行覆盖与分支覆盖 100%；全库行 ≥ 95%；总账闸门 G0–G5 全绿；每批做变异验证。
 - 性能用 `Stopwatch` 自写 bench，和旧版交错对比；验收用 testkit 全量场景在新服务端实例上跑。
 
@@ -17,12 +17,14 @@ summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总
 
 | 层 | 测什么 | 用什么 |
 |---|---|---|
-| unit | 纯函数与纯类：工厂判定、`resolveOption`、key 算法、patch 合并、阶段排序、时钟与取消原语 | 不建 `Dioman` |
+| unit | R2a 契约（见下）；纯函数与纯类：工厂判定、`resolveOption`、key 算法、patch 合并、阶段排序、时钟与取消原语 | 不建 `Dioman` |
 | rule | 单个插件文档写明的行为 | `Dioman` + 假传输（见 §2） |
-| boundary | 单个插件的极端输入与时序 | 同上 + 假时钟 |
-| combo | 两个及以上插件的交互、powerset | 同上 |
+| boundary | 单个插件的极端输入与时序；R1 dispose 迟到回调、loading 隐藏窗口交接；R3 落定后拒绝迟到原生写入 | 同上 + 假时钟 |
+| combo | 两个及以上插件的交互、powerset；R1 父子客户端共享 TokenManager/回调；R3 share 跟随者 Retry-After | 同上 |
 | integration | 装配（inspect、use、eject、extend、dispose）、真实 IO（本地回环 HttpServer）、文档与源码一致性、总账闸门 | 真实 Dio |
 | acceptance | testkit 场景 × 网络 × 风格 | `test/accept/` 执行器 + 真实服务 |
+
+R2a 的 unit 契约回归以 [0002](../decisions/0002-response-contract.md) 为准：覆盖失败标记与取消判别、HTTP status 与有效状态分离、parse/缺省值、默认成功规则；明确验证**自定义 create 不能把内核失败改成成功**，即使 create 返回 ok 为 true，failureOf 仍保留内核事实且最终 ok 为 false。该项同时做变异验证，去掉 create 后的标记保护必须使回归失败。rule 层分别验证 retry/auth/breaker 的 ctx.statusOf 和 notify 文案，不重复纯工厂断言。
 
 约束：
 - **假传输优先**：rule、boundary、combo 用替换 Dio `httpClientAdapter` 的假 adapter（夹具 `FakeNetwork`：按路由返回状态码、延迟、业务码，记录每次发送的请求体），不起真服务器。
@@ -35,7 +37,9 @@ summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总
 |---|---|
 | `FakeNetwork` | 假 adapter：路由表、可脚本化的响应序列、`fail_on` 式的第 n 次失败、业务码信封、记录每次发送（含请求体与 `x-invariant-request` 标记） |
 | `FakeClock` | 可推进的时钟与计时器，`pendingTimers` 供 I3 断言 |
-| `InvariantHarness` | 每个逻辑请求登记、最外层与每阶段的直通探针、发送记录、取消订阅追踪；`assertAll()` 一次检查 I1–I9 |
+| `InvariantHarness` | 每个逻辑请求登记、最外层与每阶段的直通探针、发送记录、取消订阅追踪；`assertAll()` 一次检查 I1–I11 |
+| `SharedResourceProbe`（R1） | 观察活跃会话关联/持有者与 loading 全局条目；Expando 不能枚举，使用内部测试计数，不用 GC 证明清理 |
+| `NativeSlotProbe`（R3） | 观察落定 finally 后原生槽为空、封闭且迟到写入被拒绝 |
 | `TestTokens` | 可变 token 管理器（沿用） |
 
 ## 3. 不变量
@@ -51,21 +55,23 @@ summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总
 | I7 | 同一逻辑请求的每次发送，请求体一致 | 按 `x-invariant-request` 标记分组比较各次发送的请求体。**用嵌套结构**（如 `{'items': [{'n': 0}]}`）并让 Transformer 原地改它，确认去掉 `markReplayable()` 时用例会失败（axp B3 的教训：浅对象会被浅拷贝掩盖） |
 | I8 | 结果归属：他人取消或超时不改变本调用结果类别 | 落定时比对自身取消状态与结果；combo 增加 share 三策略 × 四种角色 × 取消/超时共 24 格 |
 | I9 | 来源一致：实际请求与调用方请求一致 | 带体流程逐发送比对调用方快照，并比对 FakeNetwork 回显；提前失败无回显时仍检查已有发送 |
+| I10 | 每个用例结束后全局会话表和 loading 表都为空（R1） | teardown 释放所有客户端、推进/取消延迟窗口，检查活跃会话关联和持有者计数为 0、loading Map 为空；不依赖 Expando 的 GC |
+| I11 | 落定后原生槽为空且拒绝写入（R3） | 覆盖 return、throw、reject；落定后注入迟到传输，确认槽仍为空且不能重写 |
 
 ## 4. powerset（`test/combo/powerset_combo_test.dart`）
 
 - **插件表驱动**：9 个有交互的插件——loading、notify、retry、breaker、auth、mock、share、cache、offline。repath、filter、timeout 只做请求整形，和其余插件没有时序交互，放在成对组合里测，不进 powerset。
 - 位掩码枚举 512 个子集，跳过依赖不满足的组合。
 - **10 条流程**：成功（并再命中一次）、HTTP 500、500 两次后成功、business 401 刷新（3 个并发、其中 2 个同 key）、网络错误、并发同 key、中途 `cancelAll`、首发取消（看 share 跟随者）、离线后恢复、PUT 带体重发（retry，请求级开 cache/share，FakeNetwork 回显真实请求）。每条流程只发请求、推进假时钟，最后统一 `assertAll()`。
-- 每条流程有 baseline（不装插件时每个请求应得到的 kind），单独一组用例核对它，防止脚本空转。
-- 每次运行用全新的插件对象和全新的夹具。规模 512 × 10 = 5120 条，目标在 2 分钟内跑完（powerset 用假传输，不受本地端口限制）。
+- 每条流程有 baseline（R2a 按 failureOf、ok、status、code 判断未装插件时的结果），单独一组用例核对它，防止脚本空转。
+- 每次运行用全新的插件对象和全新的夹具；R1 起必须 dispose 所有客户端并检查 I10，R3 起检查 I11。规模 512 × 10 = 5120 条，目标在 2 分钟内跑完（powerset 用假传输，不受本地端口限制）。
 - 另外保留 3 条元测试：子集互不相同、包含空集与全集；恰好 512 个；依赖缺失的子集不生成。
 
 ## 5. 覆盖率与总账
 
 - **内核 6 个文件**（`pipeline`、`context`、`request`、`response`、`transport`、`client`）：行覆盖与分支覆盖 100%（`dart test --coverage-path … --branch-coverage`）。从 B1 起生效。
 - **全库**：行覆盖 ≥ 95%，B5 起生效。走不到的防御分支要么删掉，要么在终审时说明理由并登记进 G1 白名单，不加忽略注释。
-- **总账**：B5 重新生成台账、`sync` 矩阵、重新定档；闸门 G0–G5 全绿后才能切换入口。G4 的真实证据来自 B7 的验收。
+- **总账**：R2a 按 B5 做法重建 API 台账、sync 矩阵并重新定档，G0–G5 全绿；normal 网络 × http/business 全量 0 失败。历史 B5 重新生成台账、`sync` 矩阵、重新定档；闸门 G0–G5 全绿后才能切换入口。G4 的真实证据来自 B7 的验收。
 - **变异验证**：每批改坏 `lib/src` 的若干处，确认有用例失败，再原样恢复；报告里列出变异项与结果。
 
 ## 6. 性能
@@ -87,7 +93,7 @@ summary: 六层测试、不变量 I1–I9 与夹具、powerset、覆盖率与总
 
 ## 7. 验收矩阵
 
-- 执行器 `test/accept/` 改用新 API。**执行器里不许有任何替库补能力的代码**：业务码判定、retry/breaker 的 `shouldRetry`/`shouldTrip` 适配、信封转换器都删掉，归类只读 `DiomanResponse` 的 `kind`、`reason`、`status`。
+- **R2a**：执行器 `test/accept/` 按 [0002](../decisions/0002-response-contract.md) 归类，读取 failureOf、ok、HTTP status、code；business 风格像使用者一样配置客户端 statusOf。显式业务配置不算替库补能力；禁止另写 retry/breaker 的补丁规则或替库执行信封转换。
 - 能力名按实际能力登记：新增 `mock-in-chain`；`raw-business-code`（D21 的"未装 normalize 时业务码透传"）dioman 不具备，相关场景按缺能力跳过——testkit 侧要先加这个能力名（见实施计划 B7）。
 - 跳过分两类：缺能力（`skipped: missing <cap>`）与不适用（原因以"不适用："开头，从场景字段通用识别，不靠场景 id 清单）。新增的不适用规则上线前，要和规则出现之前的失败格逐格对账，多跳 0、漏跳 0。
 - 通过标准：可执行格全部通过；每格的通用断言成立（`pending_after == 0`、loading 成对且最后为 false、服务端 `inflight == 0`）；报告写明通过、跳过的数量与理由。
