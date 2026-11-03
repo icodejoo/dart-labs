@@ -475,7 +475,19 @@ class MovaErrorEvent extends MovaEvent {
   /// Creates the event with [error] and optional [stack].
   ///
   /// 用 [error] 及可选的 [stack] 创建事件。
-  const MovaErrorEvent(this.error, [this.stack]);
+  const MovaErrorEvent(this.error, [this.stack]) : fatal = true, code = null;
+
+  /// 是否终结播放；A13 起内核错误带分级，false 仍发事件并调用错误钩子。
+  /// 自 A14b 起，false 的错误将不再写入 state.error；A13 保留既有写入行为。
+  final bool fatal;
+
+  /// 与 QoE 前缀映射一致的稳定错误码；旧构造器创建的事件为 null。
+  final String? code;
+
+  /// 创建分级事件；[error] 为原错误，[stack] 为可选栈，
+  /// [fatal] 表示是否终结，[code] 为可选稳定码。
+  /// 示例：`MovaErrorEvent.classified('reset', fatal: false, code: 'network')`。
+  const MovaErrorEvent.classified(this.error, {this.stack, required this.fatal, this.code});
 }
 
 /// A playback attempt failed and recovery decided what to do. Only fires when

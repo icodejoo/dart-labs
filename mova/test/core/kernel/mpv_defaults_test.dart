@@ -51,6 +51,12 @@ class _FakeStream extends Fake implements PlayerStream {
 
   @override
   Stream<String> get error => _errors;
+
+  /// 模拟 media_kit 对同一诊断行同时提供日志，供可选错误能力读取前缀。
+  @override
+  Stream<PlayerLog> get log => _errors.map(
+    (text) => PlayerLog(prefix: 'cplayer', level: 'error', text: text),
+  );
   @override
   Stream<int?> get width => const Stream.empty();
   @override

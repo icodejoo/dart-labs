@@ -8,6 +8,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../report/stats_probe.dart';
 import '../keep_alive/keep_alive.dart';
 import 'kernel.dart';
+import 'classified_error_kernel.dart';
+import '../model/playback_error.dart';
 import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
@@ -59,7 +61,7 @@ const String _kVidAuto = 'auto';
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -793,6 +795,12 @@ class MovaMpvKernel
   @override
   Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
 
+  /// 按 media_kit 1.2.6 的错误过滤保留日志前缀，与旧 error 逐行对应。
+  @override
+  Stream<MovaKernelError> get kernelErrors => _player.stream.log
+      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text))
+      .map((log) => MovaKernelError(log.text, log.prefix));
+
   @override
   Object? get renderHandle {
     if (audioOnly || _disposed) return _controller;
@@ -1055,4 +1063,13 @@ class MovaMpvKernel
     }
     return restarted;
   }
+}
+
+/// 判断日志是否对应 media_kit 1.2.6 的 stream.error，并排除已知良性诊断。
+/// [prefix]/[level]/[text] 为 PlayerLog 已裁剪的原字段；返回 true 才转发错误。
+/// 示例：`isMovaMpvErrorLog(prefix: 'ffmpeg', level: 'error', text: 'tcp: reset')`。
+bool isMovaMpvErrorLog({required String prefix, required String level, required String text}) {
+  if (level != 'error' || isBenignMpvError(text)) return false;
+  return const {'file', 'vd', 'ad', 'cplayer', 'stream'}.contains(prefix) ||
+      (prefix == 'ffmpeg' && text.startsWith('tcp:'));
 }

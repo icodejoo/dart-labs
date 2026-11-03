@@ -659,6 +659,28 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 回退实现验证：仅临时替换 engine.dart 为对应提交前版本，A06/A07/A08/A10 的新增专项分别实测 3/4/4/8 条变红，随后逐字节还原当前实现；A09 为记录测试，不改既有断言。最终全量在还原实现后执行。
 - 计划外配套文件仅各提交新增回归测试、行为提交的 CHANGELOG、A10 的两处既有测试断言及本落地记录，原因随各提交正文列出。新功能开关默认值不变，未新增成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他仓库文件均未纳入提交，未触碰其他 worktree。本记录不代表 A11 以后或 CP1 真机检查已完成。
 
+#### A1 块第三批落地记录（2026-11-03）
+
+本批仅 A11 → A12 → A13，起点为本分支现有 1981 项；上一批记录的 1923 是当批历史实测数，本次以已包含后续提交及终审拣回的当前代码为准。由当前执行者亲自完成，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 为 0 issues；本批完整测试均使用 `flutter test --concurrency=6`。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| A11（`7b5d6caf`） | 1987 | +6 | 无；尝试号与租约身份防止旧换档收尾释放新租约，用户 seek 缓冲不计入 ABR |
+| A12（`00699976`） | 1993 | +6 | 两个用例共 3 个断言，详见下文；自动探测、手选保护、同会话去重及 noop HTTP |
+| A13（随本记录提交） | 2003 | +10 | 无；可选内核错误能力、分类表、事件增量及 state.error 行为不变 |
+
+验证方式与计划差异：
+- 共新增 22 项，与 +6/+6/+10 一致；未删减、未跳过用例，未降并发或按目录分片，未结束其他进程。专项覆盖后均以完整并发 6 测试作为提交闸门。
+- A12 改写 `test/core/engine_load_spec_replay_test.dart` 的 public reload 用例：① `currentQuality isNull` 改为 `currentQuality.isAuto isTrue`，旧断言忽略 reload 是新会话、就绪后会从内存 master 自动重新探测；② `qualities isEmpty` 改为 `hasLength(3)`，旧断言忽略探测恢复完整列表。时长/进度归零及 SourceChange/Ready 次数断言保留。
+- A12 改写 `test/ui/review_regression_test.dart` 的 #3：③ `probes == 0` 改为 `1`。旧断言把 View 跳过过期探测等同于引擎不能自主探测；延迟 open 被接受且就绪后引擎仍探一次，View 置空后的暂停意图、补发 pause 断言保留。
+- A12 另外调整三处测试准备，断言不改：engine_test.dart 与 audio_only_scenarios_test.dart 的 ABR 用例先等待 noop 探测完成再种档，避免把并行探测的清空当作 ABR 行为；engine_test.dart 的显式探测失败用例关闭自动探测，确保断言的是显式那一次失败，而非要求同会话第二次 HTTP 请求。
+- A12 采用已拍板的默认开启 probeVariants，未实现 A16 的 auto 接管。逐项核对全部既有 `.m3u8` 出现位置：真实 MovaEngine 夹具补默认 noop fetcher（nullable 注入也兜底），显式内存 fetcher 保留；MovaTesting 的工厂接缝亦用 noop。模型、广告 FakeMovaApi、QoE 及独立 mpv 用例不走引擎 HTTP，保持原路径。noop 不创建连接或 timeout，新增测试验证 get/close、接缝默认与 pendingTimers。
+- A13 采用用户定稿的可选 `MovaClassifiedErrorKernel`，接口独立位于 core/kernel/classified_error_kernel.dart、不进主 barrel；`MovaKernel` 抽象零新增成员，因此无需修改计划列出的 kernel.dart。分类 code 直接复用 MovaPrefixError，因此 error_policy.dart 与 QoE collector 均不改。MovaErrorEvent 默认构造器签名保留，增加 classified 命名构造器；非终结错误仍写 state.error，END_FILE 的新订阅及 state 收窄仍由 A14/A14b 承接。
+- A13 核对本地 media_kit 1.2.6 `real.dart:2068–2116`：stream.log 与 error 同行产生，以同一 prefix/level/text 过滤直接映射，不配对两条流。良性过滤实际在 mpv_defaults.dart，沿用原函数；已知终结文本为解码器耗尽与格式识别失败。新增表测试覆盖全部 code、首帧前后、已知终结文本及 END_FILE/error 与恢复放弃。原有 mpv_defaults_test.dart 的假 PlayerStream 补 log getter，模拟同一诊断行，全部原断言保留。
+- 回退验证：A11 仅回退 engine 实现时 4 条新增专项变红；A12 同样回退时 6 条全部变红；A13 回退 engine 接线时 4 条变红，临时放宽 mpv 日志过滤时另 2 条变红。每次均以 finally 逐字节还原，最终检查在还原后执行。
+- 生产差异均小于计划规模估计，复用现有首帧/seek 校验、就绪公告及 QoE code 映射，不为凑规模搬迁代码。计划外配套文件为新增回归、CHANGELOG、A12 的测试接缝与夹具、上述既有断言及 A13 的旧播放器替身、本落地记录，逐项原因写入对应提交正文。
+- 用户本次明确要求不改 CLAUDE.md，优先于 §3.1 的基线回写规则，故仅追加本记录。未加成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他目录均未纳入提交，未触碰其他 worktree。本记录不代表 A14 以后或 CP1 真机核对已完成。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

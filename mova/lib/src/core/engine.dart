@@ -9,6 +9,8 @@ import 'events/events.dart';
 import 'engine/load_spec.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
+import 'kernel/classified_error_kernel.dart';
+import 'model/playback_error.dart';
 import 'kernel/mpv_kernel.dart';
 import 'kernel/player_mute.dart';
 import 'kernel/source_options_kernel.dart';
@@ -837,11 +839,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
         (gate) => gate.onSize(v.width, v.height, nativeLive: _nativeLive),
       );
     });
-    _errorSub = _kernel.error.listen((e) {
-      _state.emit(state.copyWith(error: e));
-      _emitEvent(MovaErrorEvent(e));
-      _chain.onError(e, StackTrace.current);
-    });
+    final errorKernel = _kernel;
+    _errorSub = errorKernel is MovaClassifiedErrorKernel
+        ? (errorKernel as MovaClassifiedErrorKernel).kernelErrors.listen(
+            (e) => _onKernelError(e.error, subsystem: e.subsystem),
+          )
+        : errorKernel.error.listen(_onKernelError);
     final restartKernel = _kernel;
     if (restartKernel is MovaStatsProbe) {
       _restartSub = (restartKernel as MovaStatsProbe).playbackRestarts.listen((
@@ -1708,6 +1711,21 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _announceReady();
   }
 
+  /// 将 [error] 的分级写入事件；[subsystem] 保留日志前缀，state 写入行为不变。
+  void _onKernelError(Object error, {String? subsystem}) {
+    _state.emit(state.copyWith(error: error));
+    _emitClassifiedError(error, subsystem: subsystem);
+    _chain.onError(error, StackTrace.current);
+  }
+
+  /// 发出带分级的 [error]，与 [subsystem] 对应的 code 沿用 QoE 映射。
+  void _emitClassifiedError(Object error, {String? subsystem}) {
+    final verdict = classifyMovaPlaybackError(
+      error, subsystem: subsystem, afterFirstFrame: state.rendered,
+    );
+    _emitEvent(MovaErrorEvent.classified(error, fatal: verdict.fatal, code: verdict.code));
+  }
+
   /// Recovery is exhausted: surface [MovaGiveUpError] through state, the event
   /// stream and the interceptor chain, and pause the kernel so a dead live
   /// source does not keep reconnecting in the background.
@@ -1724,7 +1742,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     final wasBuffering = state.buffering;
     _state.emit(state.copyWith(error: err, buffering: false));
     if (wasBuffering) _emitEvent(const MovaBufferChange(false));
-    _emitEvent(MovaErrorEvent(err));
+    _emitClassifiedError(err);
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));
   }

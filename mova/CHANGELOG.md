@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。本次仍将所有内核错误写入 `state.error`；END_FILE 接线及非终结错误不写 state 的行为分别由 A14、A14b 承接，QoE 结算口径不变。
+
 * **Fix：引擎就绪后默认自行探测 HLS 清晰度**（`MovaAbrConfig.probeVariants: true`）。同一会话的自动与显式探测共用一次请求，迟到结果更新列表但不覆盖手选档；可关闭自动探测，由宿主显式调用。auto ABR 接管仍未开启。
 
 * **Fix：ABR 屏蔽改为带加载尝试号的租约**。旧换档的迟到收尾不能释放新换档或 seek 的屏蔽；用户 seek 引起的缓冲不计入 ABR 卡顿，10 秒兜底上限保持不变。
