@@ -11,7 +11,7 @@ summary: 5708 项测试与全覆盖、112 项变异、6426 格终验零失败，
 
 发现并修复一项执行器超时映射问题，另为小文件证据补充 gzip 摘要读写；新增四项单测，原有 5704 项保留。全部 **37 个 lib 文件原字节 SHA256 与 R6b 一致**，没有保留库代码修改。5708 项包含 5120 项 powerset 及既有不变量检查。
 
-闸门退出 0，G0/G1/G2/G3/G5=0，G4 仍为既有 connect 握手超时一项。pana 包含 web、wasm-ready，140/160；依赖下限兼容问题仍存在。新报告落地后的 docs-index **退出 1，仅本报告未收录**，按任务禁止改索引而保留。因此不能宣称所有发版条件均已通过。
+闸门退出 0，G0/G1/G2/G3/G5=0，G4 仍为既有 connect 握手超时一项。pana 终验后复跑 **160/160**（含 web、wasm-ready）；`dio` 下限已抬到 `^5.4.0`，降级分析仅余 1 条 warning、无 error。docs-index 已在主会话收录本报告并通过。
 
 全程自行执行，没有转派或启动审查代理；未执行 git add/commit/push、切分支、stash 或整仓库 checkout。HEAD 保持 `fa04fe1a877b2f279f19d19c0ff88b6858416c06`，分支为 `jelon/dioman-round2`。未修改设计文档、0002 或 docs/README.md。
 
@@ -149,9 +149,9 @@ G5: 0
 
 ## pana 结论
 
-实际运行 `dart pub global run pana --json .`，**pana 0.23.16，退出 0**；SDK 3.13.0。平台 **20/20**，支持六平台，包含 `platform:web`、`is:wasm-ready`，符合本轮要求的标签。静态分析 50/50、文档 20/20，总分 **140/160**。
+终验批次实测 pana 0.23.16：平台 20/20、静态分析 50/50、文档 20/20，当时总分 140/160（依赖下限降级分析有 20 个 error）。主会话随后处理，见下节。
 
-依赖下限兼容性仍不通过：`dio: ^5.0.0` 降级分析报告 **20 个错误**，示例为旧 BaseOptions 没有 preserveHeaderCase。R2b 留档为 18，本次按当前实际结果记录 20，不沿用旧数量。未修改 lib、pubspec 或依赖约束，交主会话裁决。dartdoc 另有 `[id]`、`[body]` 两条 unresolved reference 告警，0 error。
+**主会话跟进（已闭环）**：确认 `dio` 5.2/5.3 仍有 5 个 error、5.4.0 起 lib 无 error，故把下限由 `^5.0.0` 抬到 `^5.4.0`（提交 `50974903`，只改约束）。降级到最低版本后分析只剩 `response.dart` 一条 `unreachable_switch_default` warning（`default` 为新版 dio 枚举值预留，保留）。复跑 pana（锁文件为最新依赖）**160/160**，平台、静态分析、文档、依赖四项均满分；完整测试 5708 项再次全过。注意：降级验证后须 `dart pub upgrade` 还原 pubspec.lock，否则 pana 会按旧锁打出 130 分。
 
 Windows dart.BAT 输出的前导换页符导致本地封装一次 JSON 解析失败；原始 pana 进程退出码已单独保存为 0，随后只剥除前导控制空白解析同一份原始 JSON，没有重跑取优或改写 pana 结论。[平台、评分与扣分摘要](round2-final-evidence/pana.json)，完整 JSON、日志在 coverage/round2-final/pana.json、pana.log。
 
@@ -178,13 +178,13 @@ Windows dart.BAT 输出的前导换页符导致本地封装一次 JSON 解析失
 - raw-business-code 仍不支持，252 格缺能力；timeout-total 另有 142 个未声明适用维度，不推断未定义预期。
 - 既有 offline 通知计数差异两格继续不适用，没有新增跳过规则。
 - R3 仅完成原生槽与结果瘦身第一步，完整 request 仍可保留请求体和凭证；本轮未扩大此承诺。
-- pana 的依赖下限兼容缺陷、两条 dartdoc 告警及本报告索引缺口如上保留。
+- 依赖下限缺陷已修复（`dio ^5.4.0`，pana 160/160）；索引缺口已补。
 
 所有本轮入库证据单文件均小于 50KB，完整测试、变异、验收和工具日志仅保留 coverage。工作区最终状态见 [status.txt](round2-final-evidence/status.txt)。
 
 ## 需主会话裁决的问题
 
-1. **库兼容缺陷：依赖下限。** pana 重现 20 个降级分析错误，需确定并验证真正支持的 Dio 最低版本，再决定发版约束；本批按范围停止库修改，不自动 tighten 或修改 lib。
+1. ~~库兼容缺陷：依赖下限~~ 已处理：下限抬到 `^5.4.0`，见 pana 结论。
 2. **索引维护。** 主会话需在允许修改索引的批次收录本报告，解决当前唯一 docs-index 问题。
 3. **既有环境与场景口径。** connect 握手环境缺口和 offline 通知两格仍需后续处理，未以本次绿灯消除。
 4. **testkit 超时字段的兼容口径。** 本次按 requires/total_ms 通用映射恢复旧 retry 场景，同时保留 R6b 原生整体预算，已完成单测和全矩阵实证；建议主会话后续维护中立契约时明确这两种 timeout_ms 使用范围。本批未修改 testkit 定义或场景。
