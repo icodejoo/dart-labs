@@ -444,10 +444,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 正在从哪种待机组合唤醒；从 fallback 暂停唤醒时为 null。
   MovaKeepAliveMode? _resumeFrom;
 
-  /// Whether the first-frame gate is currently armed in resume mode.
+  /// Independent gate for keepAlive wake-up measurement.
   ///
-  /// 首帧闸门当前是否处于恢复武装。
-  bool _resumeGateArmed = false;
+  /// 待机唤醒测量的独立闸门，不重置源首帧尝试。
+  final MovaFirstFrameGate _resumeGate = MovaFirstFrameGate();
 
   /// The kernel's keepAlive capability, or null when it has none.
   ///
@@ -725,7 +725,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       _handleAbrBuffering(v);
       _maybeAutoBackToLive(v);
       _watchdog?.onBuffering(v);
-      _feedGate(() => _frameGate.onBuffering(v, nativeLive: _nativeLive));
+      _feedGate((gate) => gate.onBuffering(v, nativeLive: _nativeLive));
     });
     _completedSub = _kernel.completed.listen((v) {
       if (v == state.completed) return;
@@ -764,7 +764,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       _sttService.updatePosition(v);
       _qoe?.onPosition(v);
       _progressRaw.add(MovaProg(position: v, buffer: _lastBuffer));
-      _feedGate(() => _frameGate.onProgress(v, nativeLive: _nativeLive));
+      _feedGate((gate) => gate.onProgress(v, nativeLive: _nativeLive));
     });
     _bufferSub = _kernel.buffer.listen((v) {
       _lastBuffer = v;
@@ -796,7 +796,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
         unawaited(_applyOrientation());
       }
       _feedGate(
-        () => _frameGate.onSize(v.width, v.height, nativeLive: _nativeLive),
+        (gate) => gate.onSize(v.width, v.height, nativeLive: _nativeLive),
       );
     });
     _errorSub = _kernel.error.listen((e) {
@@ -809,7 +809,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       _restartSub = (restartKernel as MovaStatsProbe).playbackRestarts.listen((
         _,
       ) {
-        _feedGate(_frameGate.onRestart);
+        _feedGate((gate) => gate.onRestart());
       });
       if (rec.enabled) {
         _endFileSub = (restartKernel as MovaStatsProbe).endFiles.listen((r) {
@@ -1010,7 +1010,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // 暂停加载的尺寸信号可能早于 open 返回；防御性补喂已知尺寸，真机待 Task 16 验证。
     if (!play) {
       _feedGate(
-        () => _frameGate.onSize(
+        (gate) => gate.onSize(
           state.width,
           state.height,
           nativeLive: _nativeLive,
@@ -1023,7 +1023,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// Arms a fresh first-frame attempt without touching [MovaState.rendered].
   ///
   /// 武装一次新的首帧尝试，不动 [MovaState.rendered]。
-  void _armAttempt({required bool autoPlay}) {
+  /// [partOfResume] 为 true 时保留本次唤醒测量，否则以 reloaded 结束。
+  void _armAttempt({required bool autoPlay, bool partOfResume = false}) {
+    if (!partOfResume && state.keepAlivePhase == MovaKeepAlivePhase.resuming) {
+      _cancelResume();
+      _setKeepAlivePhase(MovaKeepAlivePhase.off, MovaKeepAliveReason.reloaded);
+    }
     _recoverTimer?.cancel();
     _recoverTimer = null;
     _attemptId++;
@@ -1037,14 +1042,16 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// Feeds one observation to the gate, starting the grace timer if asked to.
   ///
   /// 向闸门喂一次观测；闸门要求时起宽限计时器。
-  void _feedGate(MovaFirstFrameSignal? Function() observe) {
+  void _feedGate(MovaFirstFrameSignal? Function(MovaFirstFrameGate) observe) {
     if (_disposed || _kernelOpening > 0 || _events.isClosed) return;
-    final landed = observe();
+    final resumed = observe(_resumeGate);
+    final landed = observe(_frameGate);
+    if (resumed != null) _finishResume(resumed);
     if (landed != null) return _onAttemptLanded(landed);
     if (_frameGate.awaitingGrace && _graceTimer == null) {
       _graceTimer = Timer(_firstFrameGrace, () {
         _graceTimer = null;
-        _feedGate(_frameGate.onGraceExpired);
+        _feedGate((gate) => gate.onGraceExpired());
       });
     }
   }
@@ -1098,7 +1105,9 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _graceTimer = null;
     _variantLanded = true;
     _releaseParkHold();
-    if (state.keepAlivePhase == MovaKeepAlivePhase.resuming) _finishResume(signal);
+    if (state.keepAlivePhase == MovaKeepAlivePhase.resuming && !_resumeGate.armed) {
+      _finishResume(signal);
+    }
     // A landing that arrives for an attempt already declared failed (the retry
     // is pending) must not reset the failure counters.
     //
@@ -1763,8 +1772,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   void _cancelResume() {
     _resumeTimer?.cancel();
     _resumeTimer = null;
-    if (_resumeGateArmed) _frameGate.reset();
-    _resumeGateArmed = false;
+    _resumeGate.reset();
   }
 
   /// Leaves keepAlive without waking: undoes the hold if there is one, phase to off.
@@ -1892,7 +1900,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
             : null;
         _beginResume(from: null);
         if (seekTo == null) _forgetMediaProgress();
-        _armAttempt(autoPlay: _loadPlays);
+        _armAttempt(autoPlay: _loadPlays, partOfResume: true);
         final attempt = _attemptId;
         final uri = _activeUri;
         deferReload(() => _reloadKeepAlive(attempt, uri, edge: edge, seekTo: seekTo));
@@ -1940,7 +1948,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _resumeTimer?.cancel();
     _resumeTimer = Timer(options.keepAlive.resumeTimeout, () {
       _resumeTimer = null;
-      if (_resumeGateArmed) _frameGate.reset();
+      _resumeGate.reset();
       _finishResume(MovaFirstFrameSignal.grace);
     });
     _setKeepAlivePhase(MovaKeepAlivePhase.resuming, MovaKeepAliveReason.woke, mode: from);
@@ -1950,10 +1958,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   ///
   /// 以恢复模式武装首帧闸门（只认新画面，别的都不算）。
   void _armResumeGate() {
-    _graceTimer?.cancel();
-    _graceTimer = null;
-    _frameGate.arm(autoPlay: true, resume: true);
-    _resumeGateArmed = true;
+    _resumeGate.arm(autoPlay: true, resume: true);
   }
 
   /// Ends a wake-up: reports how long it took and returns to off. No-op unless
@@ -1966,7 +1971,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (state.keepAlivePhase != MovaKeepAlivePhase.resuming) return;
     _resumeTimer?.cancel();
     _resumeTimer = null;
-    _resumeGateArmed = false;
+    _resumeGate.reset();
     final at = _resumeAt;
     if (!_events.isClosed) {
       _emitEvent(
