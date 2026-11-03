@@ -1,0 +1,52 @@
+{"kind": "CHECK", "id": "U5.fit.contract", "pass": true, "origin": "public-widget-tree", "expected": [], "actual": [], "numbers": null}
+{"kind": "CHECK", "id": "U5.quality.contract", "pass": true, "origin": "public-widget-tree", "expected": [], "actual": [], "numbers": null}
+{"kind": "CHECK", "id": "U6.map.none.false.false", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": false, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.none.false.true", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": false, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.none.true.false", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": true, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.none.true.true", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": true, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.volume.false.false", "pass": true, "origin": "public-widget-tree", "expected": [true, false, false], "actual": [true, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [42.5, 0.25, 0], "live": false, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.volume.false.true", "pass": true, "origin": "public-widget-tree", "expected": [true, false, false], "actual": [true, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [42.5, 0.25, 0], "live": false, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.volume.true.false", "pass": true, "origin": "public-widget-tree", "expected": [true, false, false], "actual": [true, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [42.5, 0.25, 0], "live": true, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.volume.true.true", "pass": true, "origin": "public-widget-tree", "expected": [true, false, false], "actual": [true, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [42.5, 0.25, 0], "live": true, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.brightness.false.false", "pass": true, "origin": "public-widget-tree", "expected": [false, true, false], "actual": [false, true, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.425, 0], "live": false, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.brightness.false.true", "pass": true, "origin": "public-widget-tree", "expected": [false, true, false], "actual": [false, true, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.425, 0], "live": false, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.brightness.true.false", "pass": true, "origin": "public-widget-tree", "expected": [false, true, false], "actual": [false, true, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.425, 0], "live": true, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.brightness.true.true", "pass": true, "origin": "public-widget-tree", "expected": [false, true, false], "actual": [false, true, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.425, 0], "live": true, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.seek.false.false", "pass": true, "origin": "public-widget-tree", "expected": [false, false, true], "actual": [false, false, true], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 1], "live": false, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.seek.false.true", "pass": true, "origin": "public-widget-tree", "expected": [false, false, true], "actual": [false, false, true], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 1], "live": false, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.map.seek.true.false", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": true, "allowWhenLive": false}}
+{"kind": "CHECK", "id": "U6.map.seek.true.true", "pass": true, "origin": "public-widget-tree", "expected": [false, false, false], "actual": [false, false, false], "numbers": {"before": [25.0, 0.25, 0], "after": [25.0, 0.25, 0], "live": true, "allowWhenLive": true}}
+{"kind": "CHECK", "id": "U6.douyin.tap", "pass": true, "origin": "public-widget-tree", "expected": 1, "actual": 1, "numbers": null}
+{"kind": "CHECK", "id": "U6.douyin.double", "pass": true, "origin": "public-widget-tree", "expected": [true, 6, 1, 1], "actual": [true, 6, 1, 1], "numbers": null}
+{"kind": "CHECK", "id": "U6.douyin.drag", "pass": true, "origin": "public-widget-tree", "expected": ["open", "pause"], "actual": ["open", "pause"], "numbers": null}
+{"kind": "CHECK", "id": "U7.like.render", "pass": true, "origin": "public-widget-tree", "expected": ["6"], "actual": ["6"], "numbers": null}
+{"kind": "CHECK", "id": "U7.like.click", "pass": true, "origin": "public-widget-tree", "expected": [false, 5, 2], "actual": [false, 5, 2], "numbers": null}
+{"kind": "CHECK", "id": "U7.comment.render", "pass": true, "origin": "public-widget-tree", "expected": ["42"], "actual": ["42"], "numbers": null}
+{"kind": "CHECK", "id": "U7.share.render", "pass": true, "origin": "public-widget-tree", "expected": ["7"], "actual": ["7"], "numbers": null}
+{"kind": "CHECK", "id": "U7.social.clicks", "pass": true, "origin": "public-widget-tree", "expected": [1, 1, 1, 1], "actual": [1, 1, 1, 1], "numbers": null}
+{"kind": "CHECK", "id": "U7.info", "pass": true, "origin": "public-widget-tree", "expected": ["@S00E"], "actual": ["@S00E"], "numbers": null}
+{"kind": "CHECK", "id": "U7.subtitle.empty", "pass": true, "origin": "public-widget-tree", "expected": [], "actual": [], "numbers": null}
+{"kind": "CHECK", "id": "U7.subtitle.cue", "pass": true, "origin": "public-widget-tree", "expected": ["S00E 字幕"], "actual": ["S00E 字幕"], "numbers": null}
+{"kind": "CHECK", "id": "U7.subtitle.expired", "pass": true, "origin": "public-widget-tree", "expected": [], "actual": [], "numbers": null}
+{"kind": "CHECK", "id": "U7.ad.countdown", "pass": true, "origin": "public-widget-tree", "expected": ["广告", "5"], "actual": ["广告", "5"], "numbers": null}
+{"kind": "CHECK", "id": "U7.ad.remaining", "pass": true, "origin": "public-widget-tree", "expected": ["广告", "3"], "actual": ["广告", "3"], "numbers": null}
+{"kind": "CHECK", "id": "U7.ad.click", "pass": true, "origin": "public-widget-tree", "expected": ["https://s00e.invalid/click"], "actual": ["https://s00e.invalid/click"], "numbers": null}
+{"kind": "CHECK", "id": "U7.ad.skippable", "pass": true, "origin": "public-widget-tree", "expected": ["广告", "跳过广告"], "actual": ["广告", "跳过广告"], "numbers": null}
+{"kind": "CHECK", "id": "U7.ad.skipped", "pass": true, "origin": "public-widget-tree", "expected": [false, "s00e://content", []], "actual": [false, "s00e://content", []], "numbers": null}
+{"kind": "CHECK", "id": "U4.live.false.edge", "pass": true, "origin": "public-widget-tree", "expected": [1, 0], "actual": [1, 0], "numbers": null}
+{"kind": "CHECK", "id": "U4.live.true.edge", "pass": true, "origin": "public-widget-tree", "expected": [1, 1], "actual": [1, 1], "numbers": null}
+{"kind": "CHECK", "id": "U4.live.span", "pass": true, "origin": "public-widget-tree", "expected": 300000.0, "actual": 300000.0, "numbers": null}
+{"kind": "CHECK", "id": "U4.live.behind", "pass": true, "origin": "public-widget-tree", "expected": [1, 1], "actual": [1, 1], "numbers": null}
+{"kind": "CHECK", "id": "U4.live.back", "pass": true, "origin": "public-widget-tree", "expected": 300000, "actual": 300000, "numbers": null}
+{"kind": "CHECK", "id": "U4.preview.render", "pass": true, "origin": "public-widget-tree", "expected": [1, 160.0, 90.0], "actual": [1, 160.0, 90.0], "numbers": null}
+{"kind": "CHECK", "id": "U4.preview.release", "pass": true, "origin": "public-widget-tree", "expected": [0, 0], "actual": [0, 0], "numbers": null}
+{"kind": "CHECK", "id": "U4.throttle.window", "pass": true, "origin": "public-widget-tree", "expected": [["00:11"], ["00:11"], ["00:13"]], "actual": [["00:11"], ["00:11"], ["00:13"]], "numbers": null}
+{"kind": "CHECK", "id": "U9.ticker.none", "pass": true, "origin": "public-widget-tree", "expected": [1, 1], "actual": [1, 1], "numbers": {"reasons": [["tickerOff"], []], "pip": false, "mini": false}}
+{"kind": "CHECK", "id": "U9.route.none", "pass": true, "origin": "public-widget-tree", "expected": [1, 1], "actual": [1, 1], "numbers": {"reasons": [["tickerOff"], [], ["routeCovered"], []]}}
+{"kind": "CHECK", "id": "U9.inactive.none", "pass": true, "origin": "public-widget-tree", "expected": 1, "actual": 1, "numbers": {"calls": ["pause", "play"], "reasons": [["tickerOff"], [], ["routeCovered"], [], ["background"], []]}}
+{"kind": "CHECK", "id": "U9.ticker.pip", "pass": true, "origin": "public-widget-tree", "expected": [0, 0], "actual": [0, 0], "numbers": {"reasons": [["tickerOff"], []], "pip": true, "mini": false}}
+{"kind": "CHECK", "id": "U9.route.pip", "pass": true, "origin": "public-widget-tree", "expected": [0, 0], "actual": [0, 0], "numbers": {"reasons": [["tickerOff"], [], ["routeCovered"], []]}}
+{"kind": "CHECK", "id": "U9.inactive.pip", "pass": true, "origin": "public-widget-tree", "expected": 0, "actual": 0, "numbers": {"calls": [], "reasons": [["tickerOff"], [], ["routeCovered"], [], ["background"], []]}}
+{"kind": "CHECK", "id": "U9.ticker.mini", "pass": true, "origin": "public-widget-tree", "expected": [0, 0], "actual": [0, 0], "numbers": {"reasons": [["tickerOff"], []], "pip": false, "mini": true}}
+{"kind": "CHECK", "id": "U9.route.mini", "pass": true, "origin": "public-widget-tree", "expected": [0, 0], "actual": [0, 0], "numbers": {"reasons": [["tickerOff"], [], ["routeCovered"], []]}}
+{"kind": "CHECK", "id": "U9.inactive.mini", "pass": true, "origin": "public-widget-tree", "expected": 0, "actual": 0, "numbers": {"calls": [], "reasons": [["tickerOff"], [], ["routeCovered"], [], ["background"], []]}}
