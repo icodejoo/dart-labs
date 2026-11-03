@@ -23,17 +23,10 @@ import 'fail.dart';
 ///
 /// 纯函数，使中插触发规则可单独单测。最早到期者优先；调用方将其标记为已播，
 /// 下一个 tick 便浮现下一条。
-MovaAdBreak? dueMidRoll(
-  List<MovaAdBreak> breaks,
-  Duration position,
-  Set<MovaAdBreak> played,
-) {
+MovaAdBreak? dueMidRoll(List<MovaAdBreak> breaks, Duration position, Set<MovaAdBreak> played) {
   return _firstWhere(
     breaks,
-    (b) =>
-        b.kind == MovaAdBreakKind.mid &&
-        !played.contains(b) &&
-        b.offset <= position,
+    (b) => b.kind == MovaAdBreakKind.mid && !played.contains(b) && b.offset <= position,
   );
 }
 
@@ -166,10 +159,8 @@ class MovaAds {
   StreamSubscription<MovaEvent>? _eventSub;
   StreamSubscription<MovaProg>? _progressSub;
   final StreamController<void> _changes = StreamController<void>.broadcast();
-  final StreamController<void> _contentEnded =
-      StreamController<void>.broadcast();
-  final StreamController<Object> _contentError =
-      StreamController<Object>.broadcast();
+  final StreamController<void> _contentEnded = StreamController<void>.broadcast();
+  final StreamController<Object> _contentError = StreamController<Object>.broadcast();
 
   /// The resolved content source, memoised; null until it has been resolved.
   ///
@@ -450,6 +441,13 @@ class MovaAds {
   /// [load] 与 [loadDeferred] 共用的起播路径：重置每次加载的簿记，然后播放第一条
   /// 前贴片或正片。
   Future<void> _beginLoad() async {
+    if (_disposed) return;
+    // 换集的同步前缀先取消旧计时与影子，避免新正片提交到旧源。
+    _cancelAllTimers();
+    _pending = null;
+    _resuming = false;
+    _landingAd = false;
+    unawaited(_cutover?.abandon());
     _played.clear();
     _attempts.clear();
     _contentResumeAt = Duration.zero;
@@ -602,10 +600,7 @@ class MovaAds {
   MovaAdBreak? _nextPodMid() {
     return _firstWhere(
       _breaks,
-      (b) =>
-          b.kind == MovaAdBreakKind.mid &&
-          !_played.contains(b) &&
-          b.offset <= _contentResumeAt,
+      (b) => b.kind == MovaAdBreakKind.mid && !_played.contains(b) && b.offset <= _contentResumeAt,
     );
   }
 
@@ -695,10 +690,13 @@ class MovaAds {
   /// [MovaAdConfig.notReadyAction] 在硬切（今天的行为，降级必须重现它）与丢弃该
   /// 广告位（正片完全不被打断）之间裁决。
   Future<void> _beginAd(MovaAdBreak b) async {
+    final gen = _gen;
+    if (_disposed) return;
     _cancelDelayTimer();
     if (!_wantsWait(b)) {
       _pending = null;
       await _playAd(b);
+      if (gen != _gen || _disposed) return;
       return;
     }
     // Make sure a warm-up actually exists before committing. With a countdown
@@ -710,15 +708,20 @@ class MovaAds {
     // 是空操作；没有倒计时时（中插的默认形态），这里*就是*那次预热，随后整段等待
     // 都发生在下面的 commit 里。
     await _cutover!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
-    if (await _cutover.commit(waitForReady: true)) {
+    if (gen != _gen || _disposed) return;
+    final committed = await _cutover.commit(waitForReady: true);
+    if (gen != _gen || _disposed) return;
+    if (committed) {
       _pending = null;
       await _playAd(b, alreadyOnScreen: true);
+      if (gen != _gen || _disposed) return;
       return;
     }
     switch (_cfg.notReadyAction) {
       case MovaAdNotReady.hardCut:
         _pending = null;
         await _playAd(b);
+        if (gen != _gen || _disposed) return;
       case MovaAdNotReady.dropBreak:
         // Deliberately not routed through the failure policy: notReadyAction
         // is already the verdict at this layer, and stacking two policies here
@@ -757,6 +760,8 @@ class MovaAds {
   /// 不下发 `open()`、也不拆掉该影子——但所有阶段簿记照常执行，因为走了无缝路径
   /// 绝不能悄悄漏掉任何一个事件或状态更新。
   Future<void> _playAd(MovaAdBreak b, {bool alreadyOnScreen = false}) async {
+    final gen = _gen;
+    if (_disposed) return;
     _cancelSlotTimer();
     _cancelLoadTimer();
     // A break that wants to wait but never had a pending window to warm up in
@@ -770,8 +775,7 @@ class MovaAds {
     // 调用形式。`cutoverTo` 本身*就是*立即预热 + commit(waitForReady: true) + 回落
     // open()，语义严丝合缝，因此一行新逻辑都不用写。它会自行回落，下面的阶段
     // 簿记两种情况下都照常执行。
-    final oneShot =
-        !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
+    final oneShot = !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
     // Suppress content-side STT while the ad plays; restore it on resume only
     // if the host actually had it running (attach() does not reset it). Only
     // sample `stt.isRunning` on the *first* ad of a pod (_phase isn't already
@@ -831,15 +835,19 @@ class MovaAds {
       _landingAd = true;
       try {
         await _cutover!.cutoverTo(b.source, rate: 1.0);
+        if (gen != _gen || _disposed) return;
       } finally {
-        _landingAd = false;
+        if (gen == _gen && !_disposed) _landingAd = false;
       }
     } else if (!alreadyOnScreen) {
       unawaited(_cutover?.abandon());
       try {
         await _api.open(b.source);
+        if (gen != _gen || _disposed) return;
       } catch (e) {
+        if (gen != _gen || _disposed) return;
         await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+        if (gen != _gen || _disposed) return;
         return;
       }
     }
@@ -976,11 +984,9 @@ class MovaAds {
   /// 这里，使宿主的策略看到的是一串一致的尝试记录。重试的广告位会重新获得完整的
   /// [MovaAdBreak.duration]：广告主买的是那么多*可见*秒数，而失败的那次一秒都没
   /// 给到。
-  Future<void> _onAdFailure(
-    MovaAdBreak b,
-    MovaAdFailKind kind, [
-    Object? error,
-  ]) async {
+  Future<void> _onAdFailure(MovaAdBreak b, MovaAdFailKind kind, [Object? error]) async {
+    final gen = _gen;
+    if (_disposed) return;
     _cancelLoadTimer();
     _cancelSlotTimer();
     final attempt = (_attempts[b] ?? 0) + 1;
@@ -999,11 +1005,14 @@ class MovaAds {
         // 曝光尝试，因此宿主看到的是 started → failed → started，而不是一次静默的
         // 第二次尝试。
         await _playAd(b);
+        if (gen != _gen || _disposed) return;
       case MovaAdFailAction.skipBreak:
         await _resumeAfterAd(b);
+        if (gen != _gen || _disposed) return;
       case MovaAdFailAction.abandonPod:
         _markPodPlayed(b);
         await _resumeAfterAd(b);
+        if (gen != _gen || _disposed) return;
     }
   }
 
@@ -1063,15 +1072,20 @@ class MovaAds {
     } else {
       if (gen != _gen || _disposed) return;
       await _api.open(c);
+      if (gen != _gen || _disposed) return;
       if (at > Duration.zero) await _api.seek(at);
     }
+    if (gen != _gen || _disposed) return;
     // The content warm-up already carries the rate the user had before the ad
     // (MovaWarmPlan.rate); this is the safety net for hand-offs that bypass it,
     // e.g. a content shadow that was not warmed, or a plain open() fallback.
     //
     // 正片预热已携带广告前用户的倍速（MovaWarmPlan.rate）；这里是绕过它的换指
     // 的兜底，例如没来得及预热的正片影子，或回落的普通 open()。
-    if (cutover != null && cutover.cutoverEnabled && _contentRate != 1.0 && _api.state.rate != _contentRate) {
+    if (cutover != null &&
+        cutover.cutoverEnabled &&
+        _contentRate != 1.0 &&
+        _api.state.rate != _contentRate) {
       unawaited(_api.setRate(_contentRate));
     }
     // Restore STT only if it was running before the ad interrupted content.
@@ -1135,6 +1149,7 @@ class MovaAds {
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
     _cancelAllTimers();
+    unawaited(_cutover?.abandon());
     _phase = _Phase.idle;
     _current = null;
     _pending = null;
@@ -1148,6 +1163,8 @@ class MovaAds {
   /// 广告 [finished] 结束后续播正确内容：前贴片 → 正片从头，中插 → 正片从保存
   /// 位置，后贴片 → 空闲（结束）。
   Future<void> _resumeAfterAd(MovaAdBreak finished) async {
+    final gen = _gen;
+    if (_disposed) return;
     if (_resuming) return;
     _resuming = true;
     _cancelSlotTimer();
@@ -1169,8 +1186,10 @@ class MovaAds {
           final nextPre = _firstOfKind(MovaAdBreakKind.pre);
           if (nextPre != null) {
             await _playAd(nextPre);
+            if (gen != _gen || _disposed) return;
           } else {
             await _playContent();
+            if (gen != _gen || _disposed) return;
           }
         case MovaAdBreakKind.mid:
           // Ad pod: chain straight into the next mid-roll inserted at the same
@@ -1187,8 +1206,10 @@ class MovaAds {
           final nextMid = _nextPodMid();
           if (nextMid != null) {
             await _playAd(nextMid);
+            if (gen != _gen || _disposed) return;
           } else {
             await _playContent(at: _contentResumeAt);
+            if (gen != _gen || _disposed) return;
           }
         case MovaAdBreakKind.post:
           // Ad pod: chain any further post-rolls before going idle.
@@ -1197,12 +1218,13 @@ class MovaAds {
           final nextPost = _firstOfKind(MovaAdBreakKind.post);
           if (nextPost != null) {
             await _playAd(nextPost);
+            if (gen != _gen || _disposed) return;
           } else {
             _goIdleAfterContent();
           }
       }
     } finally {
-      _resuming = false;
+      if (gen == _gen && !_disposed) _resuming = false;
     }
   }
 
@@ -1349,6 +1371,8 @@ class MovaAds {
   /// 地丢掉那么多秒正片。真机实测（STG AL00）：续播目标 6006ms、实际落点
   /// 8842ms——2.8 秒的缺口，恰好等于预热开始后广告还剩的时长。
   Future<void> _warmContentBehindAd(MovaCutover cutover, MovaWarmCue cue) async {
+    // 后贴片之后没有正片可返回：这是预热方向判断，与等待就绪策略无关。
+    if (_current?.kind == MovaAdBreakKind.post) return;
     final gen = _gen;
     final content = await _contentSource();
     if (content == null || gen != _gen || _disposed) return;
