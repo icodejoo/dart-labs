@@ -64,6 +64,15 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(ev.check('A4',sources=['a.json','b.json'])[0],'BLOCKED')
             self.assertTrue(ev.errors)
 
+    def test_cp0_completion_and_batch_registration(self):
+        result=dict(run_id='unit',group='pod2',completed=True,harness=[],records=[],
+                    verdicts=[dict(case='CP0.pod2.ad2.0',status='PASS')])
+        self.assertEqual(matrix.cp0_result_kind(result,'unit','pod2',0),'OK')
+        result['harness']=['script error']
+        self.assertEqual(matrix.cp0_result_kind(result,'unit','pod2',0),'HARNESS')
+        with self.assertRaises(ValueError):matrix.cp0_result_kind(result,'old','pod2',0)
+        names={b['id'] for b in self.manifest['batches']}
+        self.assertTrue({'cp0-p02','cp0-pod2','cp0-bgpause','cp0-pauseload','cp0-timeshift','cp0-pageview'}<=names)
 
     def test_rate_sequence_uses_actual_events_and_hls_requires_modes(self):
         from matrix_evidence import Evidence
@@ -78,6 +87,15 @@ class MatrixTests(unittest.TestCase):
             (out/'unit-hls.json').write_text(json.dumps(dict(status='done',records=[dict(kind='HLS_RESULT',cutover=False,paused=False,**{'pass':True})])))
             self.assertEqual(Evidence(out,'unit-').hls(variants=[dict(cutover=True,paused=False)])[0],'BLOCKED')
 
+    def test_cp0_requires_all_measurements_without_product_threshold(self):
+        from coverage_cp0 import validate_checks
+        read=dict(path='http://local/ad2.mp4',timePosMs=40)
+        check=dict(id='CP0.pod2.ad2.0',status='PASS',numbers=dict(epoch1=0,epoch2=0,epochDelta=0,
+                   first=read,second=read,firstFrameGapUs=100,doneEvents=[1]),**{'pass':True})
+        self.assertEqual(validate_checks('pod2',1,[check]),[])
+        self.assertTrue(validate_checks('pod2',2,[check]))
+        del check['numbers']['second']
+        self.assertTrue(validate_checks('pod2',1,[check]))
 
     def test_rule_and_raw_schema_errors_block_without_crashing(self):
         from matrix_evidence import reduce_evidence
@@ -91,7 +109,32 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(result['status'],'BLOCKED')
             self.assertIn('证据解析错误',result['evidence'])
 
+    def test_cp0_events_cannot_poison_legacy_event_verdicts(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            event=dict(kind='EVENT',ms=100,event='MovaDurationChange',payload=dict(duration=9),state=dict(duration=9))
+            (out/'unit-legacy.json').write_text(json.dumps(dict(status='done',records=[event])))
+            event=dict(kind='EVENT',us=100,event='MovaDurationChange',payload=dict(duration=9),state=dict(durationMs=9))
+            (out/'unit-cp0-pod2.json').write_text(json.dumps(dict(completed=True,records=[event])))
+            self.assertEqual(Evidence(out,'unit-').event('MovaDurationChange')[0],'PASS')
 
+    def test_cp0_child_mapping_ownership(self):
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            driver=object.__new__(matrix.Driver)
+            driver.out=out;driver.prefix='matrix-unit-';driver.mappings=[];driver.results={};driver.env={}
+            driver.args=argparse.Namespace(run_id='unit');driver.screen=lambda:None;driver.note=lambda *args:None
+            path=out/'result.json'
+            path.write_text(json.dumps(dict(run_id='unit',group='pod2',completed=True,harness=[],records=[],
+                           verdicts=[dict(case='CP0.pod2.ad2.0',status='PASS')])))
+            job=dict(id='cp0-pod2',description='measurement',why='record evidence',timeout=5,
+                     native_driver=True,cp0_driver=True,result_path=str(path),argv=[sys.executable,'unused.py'])
+            from unittest.mock import Mock
+            child=Mock();child.wait.return_value=0
+            with patch.object(matrix.subprocess,'Popen',return_value=child), patch.object(matrix,'subcheck_observations',return_value=[]):
+                self.assertTrue(driver.batch(job))
+            self.assertEqual(driver.mappings,[])
 
     def test_real_manifest(self):
         """Require exactly the canonical 135 IDs / 必须覆盖规范的135编号。"""

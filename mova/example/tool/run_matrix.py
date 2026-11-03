@@ -189,8 +189,8 @@ def cp0_result_kind(result, run_id, group, code):
         raise ValueError('CP0 identity mismatch')
     if not isinstance(result.get('harness'),list) or not isinstance(result.get('records'),list):
         raise ValueError('CP0 schema mismatch')
-    if code or result['harness']:return 'HARNESS'
-    if result.get('completed') is not True or not result.get('verdicts'):return 'BLOCKED'
+    if code not in (0,1) or result['harness']:return 'HARNESS'
+    if result.get('missing') or result.get('completed') is not True or not result.get('verdicts'):return 'BLOCKED'
     return 'OK'
 
 
@@ -280,7 +280,7 @@ def render_summary(run_id, rows, comparison, results, baseline):
             lines.append(f"| {sub['id']} | {sub['status']} | {sub['evidence'].replace('|', '/')} |")
     gap_results = [(name,r['gap_result']) for name,r in results.items() if 'gap_result' in r]
     if gap_results:
-        lines += ['', 'Gap 扩展子项（不改变上方 v1 135 编号台账；完整证据见独立 gap.json）：', '',
+        lines += ['', 'Gap / CP0 扩展子项（不改变上方 v1 135 编号台账；完整数字见独立批次 JSON）：', '',
                   '| 批次 | case | 结论 | 原因 |', '|---|---|---|---|']
         for name,result in gap_results:
             for verdict in result.get('verdicts',[]):
@@ -629,7 +629,8 @@ class Driver:
         """Run a bounded process tree and preserve harness failures / 有界执行进程树并留存错误。"""
         case = job['id']
         self.screen()
-        self.mappings.append(('reverse',18082))
+        if not job.get('cp0_driver'):
+            self.mappings.append(('reverse',18082))
         self.note('BEGIN',f'{job["description"]}；为什么：{job["why"]}',case)
         path = self.out/(self.prefix+case+'.driver.log')
         start=time.monotonic()
@@ -758,6 +759,13 @@ def main(argv=None):
         parser.error(str(error))
     if not selected and not args.check and not args.list:
         parser.error('所选条件没有匹配批次')
+    if selected and all(b.get('cp0_driver') for b in selected):
+        manifest['build']=dict(manifest['build'])
+        manifest['build']['argv']=[*manifest['build']['argv'][:2],'lib/main_cp0_suite_verify.dart',
+            '--no-daemon','--max-workers=1',
+            '-Dorg.gradle.jvmargs=-Xms128m -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=96m -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2 -XX:+UseSerialGC -XX:HeapBaseMinAddress=0x100000000',
+            '-Pkotlin.compiler.execution.strategy=in-process']
+        manifest['ports']=[18082,18190,18192]
     if args.check:
         print(f'CHECK PASS: {len(manifest["batches"])} batches / 135 IDs / {len(manifest["manual"])} manual; 无设备操作')
         return 0
@@ -775,10 +783,11 @@ def main(argv=None):
         def preview(cmd,case):
             """Print the actual compatibility wrapper without creating it / 不创建目录，只打印实际包装命令。"""
             return [sys.executable,str(TOOL/'matrix_compat.py'),str(out),prefix,case,*cmd[1:]]
-        for cmd in ([sys.executable,str(TOOL/'coverage_build.py'),'lib/main_coverage_suite.dart'],[sys.executable,str(TOOL/'coverage_repack.py')]):
+        for cmd in (expand(manifest['build']['argv'],args.run_id),expand(manifest['build']['repack_argv'],args.run_id)):
             print(subprocess.list2cmdline(preview(cmd,'build' if 'coverage_build.py' in cmd[1] else 'repack')))
         print('随后 zipalign、apksigner、adb install、拉回 APK sha256 / lastUpdateTime 核验')
-        for job in manifest['services']+selected:
+        services=[] if all(b.get('cp0_driver') for b in selected) else manifest['services']
+        for job in services+selected:
             command=expand(job['argv'],args.run_id)
             print(job['id']+': '+subprocess.list2cmdline(command if job.get('native_driver') else preview(command,job['id'])))
         print('finally：force-stop、恢复媒体音量/USB 常亮、移除自有映射、终止自有服务树；生成 MD/JSON')

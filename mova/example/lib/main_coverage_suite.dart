@@ -1,3 +1,9 @@
+import 'main_cp0_p02_verify.dart' as cp0_p02;
+import 'main_cp0_pod2_verify.dart' as cp0_pod2;
+import 'main_cp0_bgpause_verify.dart' as cp0_bgpause;
+import 'main_cp0_pauseload_verify.dart' as cp0_pauseload;
+import 'main_cp0_timeshift_verify.dart' as cp0_timeshift;
+import 'main_cp0_pageview_verify.dart' as cp0_pageview;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -34,6 +40,12 @@ Future<void> main() async {
   kit.coverageRunsOverride = parts.length > 2 ? int.parse(parts[2]) : 5;
   MovaEngine.ensureInitialized();
   switch (parts.first) {
+    case 'cp0-p02': cp0_p02.main();
+    case 'cp0-pod2': cp0_pod2.main();
+    case 'cp0-bgpause': cp0_bgpause.main();
+    case 'cp0-pauseload': cp0_pauseload.main();
+    case 'cp0-timeshift': cp0_timeshift.main();
+    case 'cp0-pageview': cp0_pageview.main();
     case 'he': runApp(const MaterialApp(home: he.HeAutoPage()));
     case 'keepAlive': runApp(const MaterialApp(home: keep_alive.KeepAliveAutoPage()));
     case 'mute': mute.main();

@@ -999,6 +999,168 @@
       "fast": false
     },
     {
+      "id": "cp0-p02",
+      "description": "CP0 p02 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "p02",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-p02",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-p02.json"
+    },
+    {
+      "id": "cp0-pod2",
+      "description": "CP0 pod2 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pod2",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pod2",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pod2.json"
+    },
+    {
+      "id": "cp0-bgpause",
+      "description": "CP0 bgpause 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "bgpause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-bgpause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-bgpause.json"
+    },
+    {
+      "id": "cp0-pauseload",
+      "description": "CP0 pauseload 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pauseload",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pauseload",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pauseload.json"
+    },
+    {
+      "id": "cp0-timeshift",
+      "description": "CP0 timeshift 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "timeshift",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-timeshift",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-timeshift.json"
+    },
+    {
+      "id": "cp0-pageview",
+      "description": "CP0 pageview 独立基线场景",
+      "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "pageview",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "3",
+        "--timeout",
+        "1800"
+      ],
+      "evidence_prefix": "{prefix}cp0-pageview",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 1900,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-pageview.json"
+    },
+    {
       "id": "gap-prepare",
       "description": "生成长 GOP/HLS/裁剪格式夹具，构建独立 gap release 包",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
