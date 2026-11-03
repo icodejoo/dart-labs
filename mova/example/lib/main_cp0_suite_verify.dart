@@ -9,6 +9,7 @@ import 'verify_auto/cp0_bgpause_auto.dart';
 import 'verify_auto/cp0_pauseload_auto.dart';
 import 'verify_auto/cp0_timeshift_auto.dart';
 import 'verify_auto/cp0_pageview_auto.dart';
+import 'verify_auto/cp0_autotier_auto.dart';
 
 /// Small release dispatcher used only when running CP0 batches in isolation.
 Future<void> main() async {
@@ -20,7 +21,7 @@ Future<void> main() async {
     coverageRunsOverride=int.parse(parts[2]);
     final scene=parts[0].replaceFirst('cp0-','');
     final scripts=<String,Cp0Script>{'p02':runP02,'pod2':runPod2,'bgpause':runBgPause,
-      'pauseload':runPauseLoad,'timeshift':runTimeshift,'pageview':runPageView};
+      'pauseload':runPauseLoad,'timeshift':runTimeshift,'pageview':runPageView,'autotier':runAutoTier};
     cp0Main(scene,scripts[scene]!,automatic:true);
   } finally {client.close();}
 }

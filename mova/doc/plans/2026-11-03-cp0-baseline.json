@@ -1,0 +1,531 @@
+{
+  "date": "2026-11-03",
+  "status": "BLOCKED",
+  "completed": false,
+  "serial": "7NQBB23606003715",
+  "stages": [
+    {
+      "stage": 1,
+      "items": [
+        {
+          "item": "P1-3 限速 auto",
+          "planned": 5,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "P1-3 不限速对照",
+          "planned": 1,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        }
+      ]
+    },
+    {
+      "stage": 2,
+      "items": [
+        {
+          "item": "p02.contentWarm",
+          "planned": 10,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "p02.midPending",
+          "planned": 10,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "p02.postLoad",
+          "planned": 10,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pod2",
+          "planned": 10,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "bgpause.true",
+          "planned": 5,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "bgpause.false",
+          "planned": 5,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pauseload.loading",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pauseload.ready",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pauseload.firstFrame",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "timeshift.dvr",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "timeshift.timeshift",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pageview.horizontal",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "pageview.vertical",
+          "planned": 3,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        }
+      ]
+    },
+    {
+      "stage": 3,
+      "items": [
+        {
+          "item": "F3/A17 precise.normal",
+          "planned": 60,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "F3/A17 precise.paused",
+          "planned": 60,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "F3/A17 precise.cutover",
+          "planned": 160,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H28 default.playing",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H28 default.paused",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H28 default.cutover",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H20.hlsSeek",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H50.hlsSeek",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H7.lateError",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H14.manualSeek",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H17.mp4",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H17.m3u8",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.direct.404",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.direct.refused",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.direct.dns",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.recovery.404",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.recovery.refused",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H33.recovery.dns",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H42.wake",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "A15.miniPip",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "H37.dispose",
+          "planned": "按现有用例次数",
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        }
+      ]
+    },
+    {
+      "stage": 4,
+      "items": [
+        {
+          "item": "Windows F3",
+          "planned": 30,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "Windows A23/F13 dispose",
+          "planned": 20,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "Windows HE V6",
+          "planned": 5,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        },
+        {
+          "item": "Windows HE V10",
+          "planned": 20,
+          "executed": 0,
+          "status": "BLOCKED",
+          "failures": null,
+          "metrics": null,
+          "reason": "指定 Android 设备连续10分钟不可见；按阶段顺序停止，不跳过阶段1",
+          "deviceApkSha256": null,
+          "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+        }
+      ]
+    }
+  ],
+  "apk": {
+    "localPath": "example\\build\\app\\outputs\\flutter-apk\\app-release.apk",
+    "localSha256": "88fe7912ca9c9604419bac63ad04635adb5bb91419296da2f869a79aabbe8a18",
+    "deviceSha256": null,
+    "installed": false
+  },
+  "preflight": {
+    "firstUtc": "2026-11-03T04:17:59.032370+00:00",
+    "lastUtc": "2026-11-03T04:27:58.905630+00:00",
+    "elapsedSeconds": 600.2144811000001,
+    "checks": 21,
+    "readyCount": 0,
+    "evidence": "example/tool/coverage_evidence/cp0-formal-device-preflight.json"
+  },
+  "fixturePreflight": {
+    "variants": [
+      [
+        256,
+        144,
+        160000
+      ],
+      [
+        640,
+        360,
+        700000
+      ],
+      [
+        1280,
+        720,
+        2400000
+      ]
+    ],
+    "rates": {
+      "limited": {
+        "bytes": 1423536,
+        "elapsedSeconds": 12.707349400000112,
+        "bytesPerSecond": 112024.6209646197
+      },
+      "unlimited": {
+        "bytes": 1423536,
+        "elapsedSeconds": 0.00562620000005154,
+        "bytesPerSecond": 253019089.25863984
+      }
+    },
+    "evidence": "example/tool/coverage_evidence/cp0-autotier-fixture-preflight.json"
+  },
+  "restoration": {
+    "mediaVolume": "未修改；设备不可见，无法读取原值",
+    "usbStayAwake": "未修改",
+    "adbReverse": "未修改",
+    "adbForward": "未修改"
+  },
+  "validation": {
+    "dartAnalyze": "No issues found",
+    "matrixCheck": "49 batches / 135 IDs / 6 manual",
+    "matrixUnitTests": "31 passed",
+    "releaseBuild": "BUILD SUCCESSFUL; local APK only"
+  },
+  "excluded": [
+    "音频焦点 manual BLOCKED",
+    "全量48批",
+    "coverage1规则"
+  ]
+}

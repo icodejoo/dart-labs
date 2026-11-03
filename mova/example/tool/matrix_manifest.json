@@ -1029,6 +1029,21 @@
       "fast": false
     },
     {
+      "id": "cp0-autotier",
+      "description": "CP0 P1-3 mpv auto 三档 HLS 限速五轮及不限速对照",
+      "why": "默认引擎，不手选 ABR；记录原生档位和缓存状态，无产品通过线",
+      "covers": [],
+      "dependencies": ["build"],
+      "argv": ["{python}", "{tool}/coverage_cp0.py", "autotier", "--run-id", "{run_id}", "--runs", "5", "--timeout", "1200"],
+      "evidence_prefix": "{prefix}cp0-autotier",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 2400,
+      "native_driver": true,
+      "cp0_driver": true,
+      "result_path": "{evidence}/{prefix}cp0-autotier.json"
+    },
+    {
       "id": "cp0-p02",
       "description": "CP0 p02 独立基线场景",
       "why": "统一编排计划 §4.0；只记录真实事件数字，无产品通过线",

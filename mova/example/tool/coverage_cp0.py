@@ -27,11 +27,27 @@ PKG='com.icodejoo.mova.mova_example.coverage'
 ACTIVITY=PKG+'/com.icodejoo.mova.mova_example.MainActivity'
 sys.path.insert(0,str(TOOL/'verify_sources'))
 from range_server import Handler as RangeHandler
-SCENES=('p02','pod2','bgpause','pauseload','timeshift','pageview')
+SCENES=('p02','pod2','bgpause','pauseload','timeshift','pageview','autotier')
 
 
 def validate_checks(scene, runs, checks):
     """Require every planned measurement; no numerical product pass line."""
+    if scene=='autotier':
+        missing=[]
+        for mode,count in [('limited',runs),('unlimited',1)]:
+            for run in range(count):
+                ident=f'CP0.autotier.{mode}.{run}'
+                rows=[r for r in checks if r.get('id')==ident]
+                if len(rows)!=1 or rows[0].get('status')!='PASS':
+                    missing.append(ident+': missing measurement');continue
+                samples=rows[0].get('numbers',{}).get('samples',[])
+                if [s.get('scheduledSeconds') for s in samples]!=list(range(91)):
+                    missing.append(ident+': incomplete sample schedule')
+                for key in ('path','time-pos','hls-bitrate','video-params','video-params/w','video-params/h',
+                            'vid','track-list','demuxer-cache-state','paused-for-cache'):
+                    if not any(isinstance(s.get('properties',{}).get(key),str) and s['properties'][key] for s in samples):
+                        missing.append(ident+': native property unavailable: '+key)
+        return missing
     variants={'p02':['contentWarm','midPending','postLoad'],'pod2':['wait.ad2','nowait.ad2'],
       'bgpause':['video.true','video.false'],'pauseload':['loading','ready','firstFrame'],
       'timeshift':['dvr','timeshift'],'pageview':['horizontal','vertical']}[scene]
@@ -84,8 +100,12 @@ def main():
         return text
     def adb(*cmd):return command(['adb','-s',SERIAL,*cmd])
     def unlocked():
-        window=adb('shell','dumpsys','window')
-        if 'isKeyguardShowing=false' not in window or 'isKeyguardShowing=true' in window or 'mScreenOnFully=true' not in window:raise RuntimeError('设备锁屏/熄屏；停止，需要机主解锁')
+        deadline=time.monotonic()+600
+        while True:
+            window=adb('shell','dumpsys','window')
+            if 'isKeyguardShowing=false' in window and 'isKeyguardShowing=true' not in window and 'mScreenOnFully=true' in window:return
+            if time.monotonic()>=deadline:raise RuntimeError('设备锁屏/熄屏满10分钟；停止，需要机主解锁')
+            print('等待解锁亮屏；5秒后复查',flush=True);time.sleep(5)
     def fetch(path='/'):
         with urllib.request.urlopen('http://127.0.0.1:18083'+path,timeout=4) as r:return json.load(r)
     def serve(server):
@@ -147,6 +167,12 @@ def main():
                 self.send_response(200);self.end_headers();self.wfile.write(f'cp0-{args.scene}||{args.runs}'.encode())
             def log_message(self,*args):pass
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18082),Selector))
+        if args.scene=='autotier':
+            from cp0_autotier import prepare,handler
+            hls=TOOL/'verify_sources'/stem
+            info=prepare(hls,command)
+            (out/(stem+'.fixtures.json')).write_text(json.dumps(info,indent=2),encoding='utf-8')
+            serve(http.server.ThreadingHTTPServer(('127.0.0.1',18192),handler(hls,out/(stem+'.requests.jsonl'))))
         if args.scene=='timeshift':
             hls=fixtures/'hls';hls.mkdir(exist_ok=True)
             stream=(out/(stem+'.hls.log')).open('w')
@@ -229,6 +255,9 @@ def main():
         missing=validate_checks(args.scene,args.runs,checks)
         result=dict(run_id=args.run_id,group=args.scene,completed=completed,harness=harness,missing=missing,records=records,
           verdicts=[dict(case=r['id'],status=r.get('status','BLOCKED'),numbers=r.get('numbers'),reason=r.get('missing')) for r in checks])
+        if args.scene=='autotier':
+            from cp0_autotier import summarize
+            result['summary']=summarize(records)
         target=out/(stem+'.json');target.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
         print('CP0 RESULT',target,'completed',completed,'CHECK',len(checks),'harness',harness,'missing',missing,flush=True)
         for r in checks:print(json.dumps(r,ensure_ascii=False),flush=True)
