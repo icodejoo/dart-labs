@@ -28,7 +28,8 @@ import 'skins/douyin_skin.dart';
 /// Returns the placeholder widget to paint behind the page's chrome.
 ///
 /// 返回要绘制在该页 chrome 之下的占位组件。
-typedef MovaFeedHolderBuilder = Widget Function(BuildContext context, MovaFeedItem item);
+typedef MovaFeedHolderBuilder =
+    Widget Function(BuildContext context, MovaFeedItem item);
 
 /// A vertical, douyin-style "swipe for next video" feed backed by a pool of
 /// playback engines — one per warm page, rather than one shared by all.
@@ -179,11 +180,11 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 支撑纵向"上滑下一个视频"翻页的控制器。
   final PageController _pageController = PageController();
 
-  /// Like-state notifiers, keyed by feed index, kept alive for this
-  /// [State]'s whole lifetime so double-tap (gesture layer) and the social
+  /// Like-state notifiers, keyed by feed index, kept alive within the current
+  /// retained window so double-tap (gesture layer) and the social
   /// rail's like button never drift out of sync across page rebuilds.
   ///
-  /// 按 feed 索引存放的点赞状态 notifier，在本 [State] 整个生命周期内存活，
+  /// 按 feed 索引存放的点赞状态 notifier，在当前滑窗内跨重建存活，
   /// 使双击（手势层）与社交竖排的点赞按钮在历次页面重建间永不失步。
   final Map<int, ValueNotifier<({bool liked, int count})>> _likeNotifiers =
       <int, ValueNotifier<({bool liked, int count})>>{};
@@ -201,7 +202,29 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// `build` 发起请求，请求完成但没有任何东西可缓存，`setState` 触发重建，
   /// `build` 又发起同一个请求。加载失败的索引会被移出集合，使后续重建仍会
   /// 重试它们。
-  final Set<int> _requested = <int>{};
+  final Map<int, Object> _requested = <int, Object>{};
+
+  /// 当前缓存的逐页请求和点赞状态总数，供回归检查。
+  int get debugPageStateCount => _requested.length + _likeNotifiers.length;
+
+  /// 激活 [index] 并同步收缩页面状态窗口；返回激活结果。
+  Future<void> _activate(int index) {
+    final result = _controller.activate(index);
+    _prunePageState();
+    return result;
+  }
+
+  /// 回收窗口外的页面状态，等子树在本帧卸载后再释放 notifier。
+  void _prunePageState() {
+    _requested.removeWhere((index, _) => !_controller.retains(index));
+    final expired = _likeNotifiers.keys
+        .where((index) => !_controller.retains(index))
+        .toList();
+    for (final index in expired) {
+      final notifier = _likeNotifiers.remove(index)!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => notifier.dispose());
+    }
+  }
 
   @override
   void initState() {
@@ -218,7 +241,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
       prefetchDepth: widget.prefetchDepth,
       prefetcher: widget.prefetcher,
     );
-    _controller.activate(0);
+    _activate(0);
   }
 
   /// Rebuilds when a pool slot binds, unbinds, or becomes ready — that is
@@ -228,6 +251,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 视频画面的时机。
   void _onPoolChanged() {
     if (!mounted) return;
+    _prunePageState();
     setState(() {});
   }
 
@@ -240,7 +264,10 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// - [index]: the feed index the notifier belongs to / 该 notifier 所属的
   ///   feed 索引
   ValueNotifier<({bool liked, int count})> _likeNotifierFor(int index) {
-    return _likeNotifiers.putIfAbsent(index, () => ValueNotifier(_controller.likeStateOf(index)));
+    return _likeNotifiers.putIfAbsent(
+      index,
+      () => ValueNotifier(_controller.likeStateOf(index)),
+    );
   }
 
   /// Builds one feed page: its own pooled engine's video surface once that
@@ -255,15 +282,25 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   Widget _buildPage(BuildContext context, int index) {
     final item = _controller.peek(index);
     if (item == null) {
-      if (_requested.add(index)) {
-        _controller.ensure(index).then(
-          (_) {
-            if (mounted) setState(() {});
-          },
-          onError: (Object _) {
-            _requested.remove(index);
-          },
-        );
+      if (!_requested.containsKey(index) && _controller.retains(index)) {
+        final ticket = Object();
+        _requested[index] = ticket;
+        _controller
+            .ensure(index)
+            .then(
+              (_) {
+                if (mounted &&
+                    _controller.retains(index) &&
+                    identical(_requested[index], ticket)) {
+                  setState(() {});
+                }
+              },
+              onError: (Object _) {
+                if (identical(_requested[index], ticket)) {
+                  _requested.remove(index);
+                }
+              },
+            );
       }
       return const ColoredBox(color: Color(0xFF000000));
     }
@@ -282,7 +319,8 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
         skin: skin,
         autoLoadQualities: false,
         poster: widget.posterUntilFirstFrame
-            ? (widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000)))
+            ? (widget.placeholderBuilder?.call(context, item) ??
+                  const ColoredBox(color: Color(0xFF000000)))
             : null,
       );
     }
@@ -299,7 +337,8 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     // 非空即可。
     final scopeApi = slot?.api ?? _fallbackScopeApi(index);
     final placeholder =
-        widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000));
+        widget.placeholderBuilder?.call(context, item) ??
+        const ColoredBox(color: Color(0xFF000000));
     if (scopeApi == null) return placeholder;
 
     // Route through MovaPlayer with the placeholder as its surface rather than
@@ -312,7 +351,12 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     // MovaScope + buildSlots + assemble：MovaPlayer 按 api 身份给组件树做 key，
     // 于是当本页自己的引擎打开完成、scopeApi 从借来的 fallback 切成自己的引擎时，
     // chrome 会干净地重新挂载，而不是悄悄复用绑在旧 api 上的 State。
-    return MovaPlayer(api: scopeApi, skin: skin, autoLoadQualities: false, surface: placeholder);
+    return MovaPlayer(
+      api: scopeApi,
+      skin: skin,
+      autoLoadQualities: false,
+      surface: placeholder,
+    );
   }
 
   /// Returns any live engine to scope a not-yet-bound page's chrome against:
@@ -345,7 +389,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     return PageView.builder(
       controller: _pageController,
       scrollDirection: Axis.vertical,
-      onPageChanged: _controller.activate,
+      onPageChanged: _activate,
       itemBuilder: _buildPage,
     );
   }
