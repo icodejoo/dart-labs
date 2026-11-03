@@ -27,6 +27,27 @@ def frame_summary(rows):
     return result
 
 
+def result_text(scene,variant,samples):
+    numbers=[r.get('numbers',{}) for p,i,r in samples]
+    if not numbers:return '无正式CHECK；见阻塞/宿主证据'
+    if scene=='dispose120':
+        gaps=[n['maxFrameIntervalUs'] for n in numbers if isinstance(n.get('maxFrameIntervalUs'),int)]
+        return f"最大dispose区间帧间隔={max(gaps) if gaps else None}us；最大dispose={max(n.get('disposeUs',0) for n in numbers)}us"
+    if scene=='manageauto':return '降档次数='+str([n.get('downShiftCount') for n in numbers])
+    if scene=='probe':return '探测总数='+str([n.get('probeTotal') for n in numbers])+'；列表长度='+str([len(n.get('qualities',[])) for n in numbers])
+    if scene=='pool' and variant=='feed':
+        return '观测缓存上界='+str([max([n.get('maxCache',0)]+[s.get('cacheCount',0) for s in n.get('samples',[])]) for n in numbers])+'；PSS斜率KB/100条='+str([round(n['pssSlopeKbPer100Items'],2) if n.get('pssSlopeKbPer100Items') is not None else None for n in numbers])
+    if scene=='danmaku':return json.dumps(frame_summary([f for n in numbers for f in n.get('frameTimings',[])]),ensure_ascii=False)
+    if scene=='errclass' and variant=='fatal':
+        return '独立END_FILE='+str(sum(bool(n.get('endFile')) for n in numbers))+'/'+str(len(numbers))+'；UI终结无转圈='+str(sum(n.get('overlay') is True and n.get('spinnerCount')==0 and not n.get('state',{}).get('buffering') for n in numbers))+'/'+str(len(numbers))
+    if scene=='errclass' and variant=='poster':return '首帧信号='+str([n.get('frames',[{}])[0].get('signal') if n.get('frames') else None for n in numbers])
+    if scene=='recovery':return '续播误差ms='+str([n.get('resumePositionDiffMs') for n in numbers])
+    if scene=='bblock' and variant=='preview':return 'dispose耗时us='+str([n.get('disposeUs') for n in numbers])
+    if scene=='bblock' and variant=='restore':return 'settings brightness前后='+str([(n.get('before',{}).get('brightness'),n.get('after',{}).get('brightness')) for n in numbers])
+    if scene=='keepalive-s7s14':return '原生VERDICT='+str([n.get('nativeVerdicts') for n in numbers])+'；完整视觉判据未关闭'
+    return 'CHECK结果及原生读回见JSON measurements与原始records'
+
+
 CONFIG = {
     'wakeswap': [('swap',10,'新 URI MovaFirstFrame 10/10，原生 path 正确','CP0 无此交错基线')],
     'edgepause': [('pause',10,'网络重开窗口中 pause 后保持暂停','CP0 无此交错基线'),('fallback',10,'fallback 回边缘不补播','CP0 无此交错基线')],
@@ -54,6 +75,7 @@ def main():
         device='7NQBB23606003715 / STG-AL00 / Android 12 arm64 release', stage0=stage0,
         stages=prior.get('stages',{}), rows=[], failures=[], defects=prior.get('defects',[]),
         incidents=prior.get('incidents',[]),
+        visualReview=prior.get('visualReview',[]),
         restoration=prior.get('restoration',{}), validations=prior.get('validations',[]))
     for scene, variants in CONFIG.items():
         files = sorted(E.glob('matrix-cp1-*/matrix-*-cp1-'+scene+'.json'))
@@ -64,12 +86,23 @@ def main():
                 if r.get('kind')=='CHECK' and r.get('id','').startswith(prefix)]
             counts = Counter(r.get('status','BLOCKED') for _,_,r in samples)
             status = 'FAIL' if counts['FAIL'] else 'PASS' if len(samples)==planned and counts['PASS']==planned else 'BLOCKED'
+            summaries=[(p,i,r) for p,d in sources for i,r in enumerate(d.get('records',[]))
+                if scene=='dispose120' and r.get('id')=='CP1.dispose120.summary.0']
+            if scene=='dispose120':
+                if any(r.get('status')=='FAIL' for p,i,r in summaries): status='FAIL'
+                elif len(summaries)!=1 or summaries[0][2].get('status')!='PASS': status='BLOCKED'
             issues = [dict(evidence=rel(p),recordIndex=i,id=r['id'],status=r.get('status'),
                 reason=r.get('missing'),numbers=r.get('numbers')) for p,i,r in samples if r.get('status')!='PASS']
+            issues.extend(dict(evidence=rel(p),recordIndex=i,id=r['id'],status=r.get('status'),
+                reason=r.get('missing'),numbers={k:v for k,v in r.get('numbers',{}).items() if k!='rounds'})
+                for p,i,r in summaries if r.get('status')!='PASS')
             row = dict(id=scene+'.'+variant,stage=1,planned=planned,executed=len(samples),
                 counts=dict(counts),status=status,criterion=criterion,cp0=baseline,
-                difference='待本轮证据' if not samples else '见实测数字；CP0 无相同样本时不推断改善',
+                result=result_text(scene,variant,samples),
+                difference='待本轮证据' if not samples else '本次开启5/5真实降档，CP0默认关不降档；参数不同，不作性能倍数比较' if scene=='manageauto' and variant=='managed' else '默认关闭均无降档，与CP0同方向；夹具/时长不同' if scene=='manageauto' and variant=='default' else 'CP0无同口径独立基线，不推断改善',
                 evidence=[rel(p) for p,_ in sources],issues=issues,
+                summary=[dict(evidence=rel(p),recordIndex=i,status=r.get('status'),
+                    values={k:v for k,v in r.get('numbers',{}).items() if k!='rounds'}) for p,i,r in summaries],
                 measurements=[dict(evidence=rel(p),recordIndex=i,id=r['id'],
                     frameDistribution=frame_summary(r.get('numbers',{}).get('frameTimings',[])),
                     pssSamples=r.get('numbers',{}).get('samples') if scene=='pool' and variant=='feed' else None,
@@ -128,12 +161,13 @@ def main():
         '|项目|计划/完成|结论|通过标准|CP0 基线及差异|原始证据|','|---|---:|---|---|---|---|']
     for r in data['rows']:
         ev='；'.join(r.get('evidence',[]))
-        lines.append(f"|{r['id']}|{r['planned']}/{r['executed']}|{r['status']} {r.get('counts',{})}|{r['criterion']}|{r['cp0']}；{r['difference']}|{ev}|")
+        lines.append(f"|{r['id']}|{r['planned']}/{r['executed']}|{r['status']} {r.get('counts',{})}；{r.get('result','')}|{r['criterion']}|{r['cp0']}；{r['difference']}|{ev}|")
     lines += ['', '## 失败特征与证据','']
     for f in data['failures']:
         lines.append(f"- {f['row']} / {f['id']}：{f.get('reason') or 'CHECK 产品判据不满足'}；`{f['evidence']}` {f.get('recordArray','records')}[{f['recordIndex']}]；完整数字见 JSON。")
     if not data['failures']: lines.append('当前尚无已记录的产品 FAIL；缺证据仍为 BLOCKED。')
-    lines += ['', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
+    lines += ['', '## 静态画面复核','',json.dumps(data['visualReview'],ensure_ascii=False,indent=2),
+        '', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
     for defect in data['defects']:
         lines.append('- '+json.dumps(defect,ensure_ascii=False))
     lines += ['', 'Windows：开工时安静模式验证记录不存在，四组均待安静模式验证，没有启动 Windows 应用。','']

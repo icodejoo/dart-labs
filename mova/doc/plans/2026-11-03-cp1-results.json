@@ -42,11 +42,13 @@
       "status": "BLOCKED",
       "criterion": "新 URI MovaFirstFrame 10/10，原生 path 正确",
       "cp0": "CP0 无此交错基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [],
       "harness": [
         {
@@ -80,11 +82,13 @@
       "status": "BLOCKED",
       "criterion": "网络重开窗口中 pause 后保持暂停",
       "cp0": "CP0 无此交错基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
@@ -177,11 +181,13 @@
       "status": "BLOCKED",
       "criterion": "fallback 回边缘不补播",
       "cp0": "CP0 无此交错基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [],
       "harness": [
         {
@@ -220,11 +226,13 @@
       "status": "PASS",
       "criterion": "真实非终结 error 日志不遮罩且播放推进",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
@@ -281,7 +289,8 @@
       "status": "FAIL",
       "criterion": "404 END_FILE(error) 终结，遮罩显示，转圈消失",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "独立END_FILE=4/5；UI终结无转圈=5/5",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
       ],
@@ -401,6 +410,7 @@
           }
         }
       ],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
@@ -456,11 +466,13 @@
       "status": "PASS",
       "criterion": "首帧 restart，撤封面不早于首帧",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "首帧信号=['restart', 'restart', 'restart', 'restart', 'restart']",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
@@ -526,11 +538,13 @@
       "status": "PASS",
       "criterion": "列表非空",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
@@ -715,11 +729,13 @@
       "status": "PASS",
       "criterion": "手选 720p 保持，原生地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
@@ -904,11 +920,13 @@
       "status": "PASS",
       "criterion": "每会话探测一次",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
@@ -1091,11 +1109,13 @@
       "status": "BLOCKED",
       "criterion": "换备用源重新探测且每地址一次",
       "cp0": "CP0 无独立定量基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [],
       "harness": [
         {
@@ -1127,11 +1147,13 @@
       "status": "BLOCKED",
       "criterion": "关闭探测时请求为零",
       "cp0": "CP0 无独立定量基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [],
       "harness": [
         {
@@ -1165,11 +1187,13 @@
       "status": "PASS",
       "criterion": "真实降档且降档后可手选 720p",
       "cp0": "CP0 限速五次均停最高档、不降档",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "降档次数=[1, 1, 1, 1, 1]",
+      "difference": "本次开启5/5真实降档，CP0默认关不降档；参数不同，不作性能倍数比较",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
@@ -1245,11 +1269,13 @@
       "status": "PASS",
       "criterion": "默认关闭无降档",
       "cp0": "CP0 默认限速五次均不降档；夹具/观察窗不同",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "降档次数=[0, 0, 0, 0, 0]",
+      "difference": "默认关闭均无降档，与CP0同方向；夹具/时长不同",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
@@ -1325,11 +1351,13 @@
       "status": "PASS",
       "criterion": "ABR 关闭无降档",
       "cp0": "CP0 无该对照",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "降档次数=[0, 0, 0, 0, 0]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
@@ -1405,11 +1433,13 @@
       "status": "PASS",
       "criterion": "手选档缓冲 true→false，租约不降档",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "降档次数=[0, 0, 0, 0, 0]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
@@ -1485,7 +1515,8 @@
       "status": "BLOCKED",
       "criterion": "亮度播种/还原、竖屏、系统栏原生对账",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "settings brightness前后=[(27, 62), (42, 52), (41, 42), (42, 42), (33, 63)]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
       ],
@@ -1776,6 +1807,7 @@
           }
         }
       ],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
@@ -1843,11 +1875,13 @@
       "status": "PASS",
       "criterion": "404 挂起 body 时 dispose≤5s 且 NativePlayer 释放",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "dispose耗时us=[5113, 6880, 79158, 9078, 83083]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
@@ -1935,11 +1969,13 @@
       "status": "PASS",
       "criterion": "拒绝后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
@@ -2015,11 +2051,13 @@
       "status": "PASS",
       "criterion": "抛错后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
@@ -2095,11 +2133,13 @@
       "status": "PASS",
       "criterion": "每轮 1000 条，缓存≤7，十点 PSS 不单调上升",
       "cp0": "CP0 无独立定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "观测缓存上界=[5, 5, 5]；PSS斜率KB/100条=[-1980.85, 430.73, 817.3]",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
@@ -2370,11 +2410,13 @@
       "status": "PASS",
       "criterion": "5000 条弹幕四次跳转，保留帧耗时分布，不设硬线",
       "cp0": "CP0 无 5000 条定量基线",
-      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "result": "{\"buildUs\": {\"count\": 853, \"p50\": 412, \"p95\": 3306, \"p99\": 5610, \"maximum\": 8562}, \"rasterUs\": {\"count\": 853, \"p50\": 10958, \"p95\": 18396, \"p99\": 21817, \"maximum\": 27872}, \"totalUs\": {\"count\": 853, \"p50\": 14414, \"p95\": 27008, \"p99\": 42620, \"maximum\": 159062}}",
+      "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json"
       ],
       "issues": [],
+      "summary": [],
       "measurements": [
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
@@ -2553,11 +2595,44 @@
       "status": "BLOCKED",
       "criterion": "真实 stallTimeout 重试，续播误差≤500ms 且地址正确",
       "cp0": "CP0 无此定量基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json"
+      ],
       "issues": [],
+      "summary": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 122727270, 'scene': 'recovery', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=recovery', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runRecovery (package:mova_example/verify_auto/cp1_recovery_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.recovery.resume.0: CHECK count=0",
+            "CP1.recovery.resume.1: CHECK count=0",
+            "CP1.recovery.resume.2: CHECK count=0",
+            "CP1.recovery.resume.3: CHECK count=0",
+            "CP1.recovery.resume.4: CHECK count=0",
+            "CP1.recovery.resume.5: CHECK count=0",
+            "CP1.recovery.resume.6: CHECK count=0",
+            "CP1.recovery.resume.7: CHECK count=0",
+            "CP1.recovery.resume.8: CHECK count=0",
+            "CP1.recovery.resume.9: CHECK count=0",
+            "CP1.recovery.manual720.0: CHECK count=0",
+            "CP1.recovery.manual720.1: CHECK count=0",
+            "CP1.recovery.manual720.2: CHECK count=0",
+            "CP1.recovery.manual720.3: CHECK count=0",
+            "CP1.recovery.manual720.4: CHECK count=0",
+            "CP1.recovery.manual720.5: CHECK count=0",
+            "CP1.recovery.manual720.6: CHECK count=0",
+            "CP1.recovery.manual720.7: CHECK count=0",
+            "CP1.recovery.manual720.8: CHECK count=0",
+            "CP1.recovery.manual720.9: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "recovery.manual720",
@@ -2568,25 +2643,1662 @@
       "status": "BLOCKED",
       "criterion": "重试保持 720p，续播误差≤500ms 且地址正确",
       "cp0": "CP0 无此定量基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json"
+      ],
       "issues": [],
+      "summary": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 122727270, 'scene': 'recovery', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=recovery', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runRecovery (package:mova_example/verify_auto/cp1_recovery_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.recovery.resume.0: CHECK count=0",
+            "CP1.recovery.resume.1: CHECK count=0",
+            "CP1.recovery.resume.2: CHECK count=0",
+            "CP1.recovery.resume.3: CHECK count=0",
+            "CP1.recovery.resume.4: CHECK count=0",
+            "CP1.recovery.resume.5: CHECK count=0",
+            "CP1.recovery.resume.6: CHECK count=0",
+            "CP1.recovery.resume.7: CHECK count=0",
+            "CP1.recovery.resume.8: CHECK count=0",
+            "CP1.recovery.resume.9: CHECK count=0",
+            "CP1.recovery.manual720.0: CHECK count=0",
+            "CP1.recovery.manual720.1: CHECK count=0",
+            "CP1.recovery.manual720.2: CHECK count=0",
+            "CP1.recovery.manual720.3: CHECK count=0",
+            "CP1.recovery.manual720.4: CHECK count=0",
+            "CP1.recovery.manual720.5: CHECK count=0",
+            "CP1.recovery.manual720.6: CHECK count=0",
+            "CP1.recovery.manual720.7: CHECK count=0",
+            "CP1.recovery.manual720.8: CHECK count=0",
+            "CP1.recovery.manual720.9: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "dispose120.round",
       "stage": 1,
       "planned": 120,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 120,
+      "counts": {
+        "PASS": 120
+      },
+      "status": "PASS",
       "criterion": "逐轮首帧/dispose 完成，dispose 帧间隔<100ms",
       "cp0": "CP0 无 120 轮联合基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "result": "最大dispose区间帧间隔=95957us；最大dispose=112595us",
+      "difference": "CP0无同口径独立基线，不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "summary": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2414,
+          "status": "PASS",
+          "values": {
+            "successful": 120,
+            "failedRounds": [],
+            "pssSamples": [
+              {
+                "round": 20,
+                "pssKb": 126757
+              },
+              {
+                "round": 40,
+                "pssKb": 126470
+              },
+              {
+                "round": 60,
+                "pssKb": 131016
+              },
+              {
+                "round": 80,
+                "pssKb": 135091
+              },
+              {
+                "round": 100,
+                "pssKb": 136273
+              },
+              {
+                "round": 120,
+                "pssKb": 138648
+              }
+            ],
+            "criterion": "120/120 && every(disposeFrameIntervalUs<100000) && six PSS samples"
+          }
+        }
+      ],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 21,
+          "id": "CP1.dispose120.round.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 1,
+            "disposeUs": 19509,
+            "maxFrameIntervalUs": 16866,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 41,
+          "id": "CP1.dispose120.round.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 2,
+            "disposeUs": 10525,
+            "maxFrameIntervalUs": 16682,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 61,
+          "id": "CP1.dispose120.round.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 3,
+            "disposeUs": 37504,
+            "maxFrameIntervalUs": 17021,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 81,
+          "id": "CP1.dispose120.round.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 4,
+            "disposeUs": 13105,
+            "maxFrameIntervalUs": 16613,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 101,
+          "id": "CP1.dispose120.round.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 5,
+            "disposeUs": 7939,
+            "maxFrameIntervalUs": 16833,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 121,
+          "id": "CP1.dispose120.round.5",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 6,
+            "disposeUs": 36361,
+            "maxFrameIntervalUs": 16770,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 141,
+          "id": "CP1.dispose120.round.6",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 7,
+            "disposeUs": 28730,
+            "maxFrameIntervalUs": 16752,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 161,
+          "id": "CP1.dispose120.round.7",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 8,
+            "disposeUs": 58672,
+            "maxFrameIntervalUs": 19429,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 181,
+          "id": "CP1.dispose120.round.8",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 9,
+            "disposeUs": 92905,
+            "maxFrameIntervalUs": 17300,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 201,
+          "id": "CP1.dispose120.round.9",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 10,
+            "disposeUs": 9971,
+            "maxFrameIntervalUs": 15947,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 221,
+          "id": "CP1.dispose120.round.10",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 11,
+            "disposeUs": 6085,
+            "maxFrameIntervalUs": 23448,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 241,
+          "id": "CP1.dispose120.round.11",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 12,
+            "disposeUs": 59752,
+            "maxFrameIntervalUs": 29067,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 261,
+          "id": "CP1.dispose120.round.12",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 13,
+            "disposeUs": 23322,
+            "maxFrameIntervalUs": 18222,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 281,
+          "id": "CP1.dispose120.round.13",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 14,
+            "disposeUs": 55332,
+            "maxFrameIntervalUs": 38090,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 301,
+          "id": "CP1.dispose120.round.14",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 15,
+            "disposeUs": 9138,
+            "maxFrameIntervalUs": 16739,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 321,
+          "id": "CP1.dispose120.round.15",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 16,
+            "disposeUs": 58090,
+            "maxFrameIntervalUs": 28829,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 341,
+          "id": "CP1.dispose120.round.16",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 17,
+            "disposeUs": 20454,
+            "maxFrameIntervalUs": 20590,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 361,
+          "id": "CP1.dispose120.round.17",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 18,
+            "disposeUs": 26245,
+            "maxFrameIntervalUs": 19879,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 381,
+          "id": "CP1.dispose120.round.18",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 19,
+            "disposeUs": 28496,
+            "maxFrameIntervalUs": 16929,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 401,
+          "id": "CP1.dispose120.round.19",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 20,
+            "disposeUs": 54004,
+            "maxFrameIntervalUs": 32181,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 423,
+          "id": "CP1.dispose120.round.20",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 21,
+            "disposeUs": 11893,
+            "maxFrameIntervalUs": 15373,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 443,
+          "id": "CP1.dispose120.round.21",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 22,
+            "disposeUs": 42783,
+            "maxFrameIntervalUs": 17135,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 463,
+          "id": "CP1.dispose120.round.22",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 23,
+            "disposeUs": 12031,
+            "maxFrameIntervalUs": 16638,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 483,
+          "id": "CP1.dispose120.round.23",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 24,
+            "disposeUs": 9147,
+            "maxFrameIntervalUs": 18429,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 503,
+          "id": "CP1.dispose120.round.24",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 25,
+            "disposeUs": 5844,
+            "maxFrameIntervalUs": 15192,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 523,
+          "id": "CP1.dispose120.round.25",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 26,
+            "disposeUs": 57802,
+            "maxFrameIntervalUs": 17024,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 543,
+          "id": "CP1.dispose120.round.26",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 27,
+            "disposeUs": 85087,
+            "maxFrameIntervalUs": 33228,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 563,
+          "id": "CP1.dispose120.round.27",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 28,
+            "disposeUs": 33502,
+            "maxFrameIntervalUs": 17820,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 583,
+          "id": "CP1.dispose120.round.28",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 29,
+            "disposeUs": 42151,
+            "maxFrameIntervalUs": 32918,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 603,
+          "id": "CP1.dispose120.round.29",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 30,
+            "disposeUs": 32352,
+            "maxFrameIntervalUs": 17296,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 623,
+          "id": "CP1.dispose120.round.30",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 31,
+            "disposeUs": 58504,
+            "maxFrameIntervalUs": 40838,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 643,
+          "id": "CP1.dispose120.round.31",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 32,
+            "disposeUs": 15277,
+            "maxFrameIntervalUs": 16823,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 663,
+          "id": "CP1.dispose120.round.32",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 33,
+            "disposeUs": 34985,
+            "maxFrameIntervalUs": 19079,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 683,
+          "id": "CP1.dispose120.round.33",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 34,
+            "disposeUs": 24981,
+            "maxFrameIntervalUs": 16683,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 703,
+          "id": "CP1.dispose120.round.34",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 35,
+            "disposeUs": 13144,
+            "maxFrameIntervalUs": 17631,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 723,
+          "id": "CP1.dispose120.round.35",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 36,
+            "disposeUs": 32860,
+            "maxFrameIntervalUs": 16646,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 743,
+          "id": "CP1.dispose120.round.36",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 37,
+            "disposeUs": 45453,
+            "maxFrameIntervalUs": 46794,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 763,
+          "id": "CP1.dispose120.round.37",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 38,
+            "disposeUs": 9394,
+            "maxFrameIntervalUs": 15851,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 783,
+          "id": "CP1.dispose120.round.38",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 39,
+            "disposeUs": 46146,
+            "maxFrameIntervalUs": 18490,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 803,
+          "id": "CP1.dispose120.round.39",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 40,
+            "disposeUs": 5655,
+            "maxFrameIntervalUs": 6302,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 825,
+          "id": "CP1.dispose120.round.40",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 41,
+            "disposeUs": 24371,
+            "maxFrameIntervalUs": 26130,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 845,
+          "id": "CP1.dispose120.round.41",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 42,
+            "disposeUs": 47201,
+            "maxFrameIntervalUs": 18053,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 865,
+          "id": "CP1.dispose120.round.42",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 43,
+            "disposeUs": 58978,
+            "maxFrameIntervalUs": 59838,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 885,
+          "id": "CP1.dispose120.round.43",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 44,
+            "disposeUs": 9099,
+            "maxFrameIntervalUs": 17030,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 905,
+          "id": "CP1.dispose120.round.44",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 45,
+            "disposeUs": 18492,
+            "maxFrameIntervalUs": 18273,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 925,
+          "id": "CP1.dispose120.round.45",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 46,
+            "disposeUs": 24178,
+            "maxFrameIntervalUs": 16806,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 945,
+          "id": "CP1.dispose120.round.46",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 47,
+            "disposeUs": 112595,
+            "maxFrameIntervalUs": 55201,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 965,
+          "id": "CP1.dispose120.round.47",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 48,
+            "disposeUs": 25978,
+            "maxFrameIntervalUs": 59716,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 985,
+          "id": "CP1.dispose120.round.48",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 49,
+            "disposeUs": 26750,
+            "maxFrameIntervalUs": 17540,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1005,
+          "id": "CP1.dispose120.round.49",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 50,
+            "disposeUs": 33827,
+            "maxFrameIntervalUs": 17062,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1025,
+          "id": "CP1.dispose120.round.50",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 51,
+            "disposeUs": 49083,
+            "maxFrameIntervalUs": 17841,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1045,
+          "id": "CP1.dispose120.round.51",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 52,
+            "disposeUs": 45102,
+            "maxFrameIntervalUs": 20679,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1065,
+          "id": "CP1.dispose120.round.52",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 53,
+            "disposeUs": 45011,
+            "maxFrameIntervalUs": 18521,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1085,
+          "id": "CP1.dispose120.round.53",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 54,
+            "disposeUs": 40152,
+            "maxFrameIntervalUs": 20576,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1105,
+          "id": "CP1.dispose120.round.54",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 55,
+            "disposeUs": 46134,
+            "maxFrameIntervalUs": 18985,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1125,
+          "id": "CP1.dispose120.round.55",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 56,
+            "disposeUs": 26560,
+            "maxFrameIntervalUs": 17892,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1145,
+          "id": "CP1.dispose120.round.56",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 57,
+            "disposeUs": 18934,
+            "maxFrameIntervalUs": 18367,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1165,
+          "id": "CP1.dispose120.round.57",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 58,
+            "disposeUs": 24983,
+            "maxFrameIntervalUs": 16393,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1185,
+          "id": "CP1.dispose120.round.58",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 59,
+            "disposeUs": 54467,
+            "maxFrameIntervalUs": 17627,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1205,
+          "id": "CP1.dispose120.round.59",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 60,
+            "disposeUs": 20293,
+            "maxFrameIntervalUs": 18287,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1227,
+          "id": "CP1.dispose120.round.60",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 61,
+            "disposeUs": 24174,
+            "maxFrameIntervalUs": 17519,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1247,
+          "id": "CP1.dispose120.round.61",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 62,
+            "disposeUs": 33300,
+            "maxFrameIntervalUs": 18108,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1267,
+          "id": "CP1.dispose120.round.62",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 63,
+            "disposeUs": 23415,
+            "maxFrameIntervalUs": 17588,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1287,
+          "id": "CP1.dispose120.round.63",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 64,
+            "disposeUs": 61369,
+            "maxFrameIntervalUs": 16922,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1307,
+          "id": "CP1.dispose120.round.64",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 65,
+            "disposeUs": 59721,
+            "maxFrameIntervalUs": 17629,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1327,
+          "id": "CP1.dispose120.round.65",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 66,
+            "disposeUs": 17422,
+            "maxFrameIntervalUs": 16959,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1347,
+          "id": "CP1.dispose120.round.66",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 67,
+            "disposeUs": 61683,
+            "maxFrameIntervalUs": 23984,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1367,
+          "id": "CP1.dispose120.round.67",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 68,
+            "disposeUs": 42652,
+            "maxFrameIntervalUs": 17628,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1387,
+          "id": "CP1.dispose120.round.68",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 69,
+            "disposeUs": 22023,
+            "maxFrameIntervalUs": 18415,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1407,
+          "id": "CP1.dispose120.round.69",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 70,
+            "disposeUs": 20162,
+            "maxFrameIntervalUs": 19046,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1427,
+          "id": "CP1.dispose120.round.70",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 71,
+            "disposeUs": 7694,
+            "maxFrameIntervalUs": 17228,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1447,
+          "id": "CP1.dispose120.round.71",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 72,
+            "disposeUs": 60166,
+            "maxFrameIntervalUs": 17233,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1467,
+          "id": "CP1.dispose120.round.72",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 73,
+            "disposeUs": 58388,
+            "maxFrameIntervalUs": 17365,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1487,
+          "id": "CP1.dispose120.round.73",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 74,
+            "disposeUs": 37643,
+            "maxFrameIntervalUs": 18302,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1507,
+          "id": "CP1.dispose120.round.74",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 75,
+            "disposeUs": 10278,
+            "maxFrameIntervalUs": 16650,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1527,
+          "id": "CP1.dispose120.round.75",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 76,
+            "disposeUs": 32817,
+            "maxFrameIntervalUs": 17802,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1547,
+          "id": "CP1.dispose120.round.76",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 77,
+            "disposeUs": 10142,
+            "maxFrameIntervalUs": 19104,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1567,
+          "id": "CP1.dispose120.round.77",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 78,
+            "disposeUs": 36224,
+            "maxFrameIntervalUs": 17047,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1587,
+          "id": "CP1.dispose120.round.78",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 79,
+            "disposeUs": 40200,
+            "maxFrameIntervalUs": 17768,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1607,
+          "id": "CP1.dispose120.round.79",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 80,
+            "disposeUs": 19528,
+            "maxFrameIntervalUs": 18673,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1629,
+          "id": "CP1.dispose120.round.80",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 81,
+            "disposeUs": 5924,
+            "maxFrameIntervalUs": 17472,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1649,
+          "id": "CP1.dispose120.round.81",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 82,
+            "disposeUs": 14246,
+            "maxFrameIntervalUs": 16491,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1669,
+          "id": "CP1.dispose120.round.82",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 83,
+            "disposeUs": 42002,
+            "maxFrameIntervalUs": 16503,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1689,
+          "id": "CP1.dispose120.round.83",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 84,
+            "disposeUs": 51665,
+            "maxFrameIntervalUs": 19102,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1709,
+          "id": "CP1.dispose120.round.84",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 85,
+            "disposeUs": 51835,
+            "maxFrameIntervalUs": 19035,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1729,
+          "id": "CP1.dispose120.round.85",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 86,
+            "disposeUs": 36744,
+            "maxFrameIntervalUs": 17256,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1749,
+          "id": "CP1.dispose120.round.86",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 87,
+            "disposeUs": 15583,
+            "maxFrameIntervalUs": 18808,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1769,
+          "id": "CP1.dispose120.round.87",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 88,
+            "disposeUs": 42332,
+            "maxFrameIntervalUs": 17335,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1789,
+          "id": "CP1.dispose120.round.88",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 89,
+            "disposeUs": 19222,
+            "maxFrameIntervalUs": 16185,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1809,
+          "id": "CP1.dispose120.round.89",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 90,
+            "disposeUs": 53171,
+            "maxFrameIntervalUs": 26382,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1829,
+          "id": "CP1.dispose120.round.90",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 91,
+            "disposeUs": 24766,
+            "maxFrameIntervalUs": 18544,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1849,
+          "id": "CP1.dispose120.round.91",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 92,
+            "disposeUs": 60921,
+            "maxFrameIntervalUs": 17778,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1869,
+          "id": "CP1.dispose120.round.92",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 93,
+            "disposeUs": 24408,
+            "maxFrameIntervalUs": 19199,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1889,
+          "id": "CP1.dispose120.round.93",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 94,
+            "disposeUs": 9033,
+            "maxFrameIntervalUs": 16760,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1909,
+          "id": "CP1.dispose120.round.94",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 95,
+            "disposeUs": 21200,
+            "maxFrameIntervalUs": 19479,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1929,
+          "id": "CP1.dispose120.round.95",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 96,
+            "disposeUs": 62238,
+            "maxFrameIntervalUs": 18644,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1949,
+          "id": "CP1.dispose120.round.96",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 97,
+            "disposeUs": 19848,
+            "maxFrameIntervalUs": 16006,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1969,
+          "id": "CP1.dispose120.round.97",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 98,
+            "disposeUs": 16759,
+            "maxFrameIntervalUs": 18902,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 1989,
+          "id": "CP1.dispose120.round.98",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 99,
+            "disposeUs": 12794,
+            "maxFrameIntervalUs": 15712,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2009,
+          "id": "CP1.dispose120.round.99",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 100,
+            "disposeUs": 80804,
+            "maxFrameIntervalUs": 81186,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2031,
+          "id": "CP1.dispose120.round.100",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 101,
+            "disposeUs": 24155,
+            "maxFrameIntervalUs": 17303,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2051,
+          "id": "CP1.dispose120.round.101",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 102,
+            "disposeUs": 40271,
+            "maxFrameIntervalUs": 18099,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2071,
+          "id": "CP1.dispose120.round.102",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 103,
+            "disposeUs": 35270,
+            "maxFrameIntervalUs": 17914,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2091,
+          "id": "CP1.dispose120.round.103",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 104,
+            "disposeUs": 51080,
+            "maxFrameIntervalUs": 17018,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2111,
+          "id": "CP1.dispose120.round.104",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 105,
+            "disposeUs": 21649,
+            "maxFrameIntervalUs": 16749,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2131,
+          "id": "CP1.dispose120.round.105",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 106,
+            "disposeUs": 94931,
+            "maxFrameIntervalUs": 95957,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2151,
+          "id": "CP1.dispose120.round.106",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 107,
+            "disposeUs": 25799,
+            "maxFrameIntervalUs": 16813,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2171,
+          "id": "CP1.dispose120.round.107",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 108,
+            "disposeUs": 6237,
+            "maxFrameIntervalUs": 17011,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2191,
+          "id": "CP1.dispose120.round.108",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 109,
+            "disposeUs": 43185,
+            "maxFrameIntervalUs": 20408,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2211,
+          "id": "CP1.dispose120.round.109",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 110,
+            "disposeUs": 28392,
+            "maxFrameIntervalUs": 16900,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2231,
+          "id": "CP1.dispose120.round.110",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 111,
+            "disposeUs": 12867,
+            "maxFrameIntervalUs": 15575,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2251,
+          "id": "CP1.dispose120.round.111",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 112,
+            "disposeUs": 28170,
+            "maxFrameIntervalUs": 18574,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2271,
+          "id": "CP1.dispose120.round.112",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 113,
+            "disposeUs": 22393,
+            "maxFrameIntervalUs": 19011,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2291,
+          "id": "CP1.dispose120.round.113",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 114,
+            "disposeUs": 68667,
+            "maxFrameIntervalUs": 18386,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2311,
+          "id": "CP1.dispose120.round.114",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 115,
+            "disposeUs": 44280,
+            "maxFrameIntervalUs": 17445,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2331,
+          "id": "CP1.dispose120.round.115",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 116,
+            "disposeUs": 9794,
+            "maxFrameIntervalUs": 16585,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2351,
+          "id": "CP1.dispose120.round.116",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 117,
+            "disposeUs": 10487,
+            "maxFrameIntervalUs": 16281,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2371,
+          "id": "CP1.dispose120.round.117",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 118,
+            "disposeUs": 20132,
+            "maxFrameIntervalUs": 19298,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2391,
+          "id": "CP1.dispose120.round.118",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 119,
+            "disposeUs": 8992,
+            "maxFrameIntervalUs": 18317,
+            "disposed": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json",
+          "recordIndex": 2411,
+          "id": "CP1.dispose120.round.119",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "round": 120,
+            "disposeUs": 34091,
+            "maxFrameIntervalUs": 17458,
+            "disposed": true
+          }
+        }
+      ],
       "harness": []
     },
     {
@@ -2598,11 +4310,35 @@
       "status": "BLOCKED",
       "criterion": "20 次 vid 循环，mediacodec-copy，黑屏/运动复核",
       "cp0": "CP0 无完整像素/时序复核基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json"
+      ],
       "issues": [],
+      "summary": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json",
+          "errors": [
+            "[Errno 2] No such file or directory: 'E:\\\\workspaces\\\\wt-mova-cp1\\\\mova\\\\example\\\\tool\\\\coverage_sources\\\\stall.mp4'",
+            "mapping cleanup: command failed: ['adb', '-s', '7NQBB23606003715', 'reverse', '--remove', 'tcp:18080'], exit=1"
+          ],
+          "missing": [
+            "CP1.keepalive-s7s14.S7.0: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.1: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.2: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.3: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.4: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.0: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.1: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.2: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.3: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "keepalive-s7s14.S14",
@@ -2613,11 +4349,35 @@
       "status": "BLOCKED",
       "criterion": "vid=no 窗口及恢复画面复核",
       "cp0": "CP0 无完整像素/时序复核基线",
+      "result": "无正式CHECK；见阻塞/宿主证据",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json"
+      ],
       "issues": [],
+      "summary": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json",
+          "errors": [
+            "[Errno 2] No such file or directory: 'E:\\\\workspaces\\\\wt-mova-cp1\\\\mova\\\\example\\\\tool\\\\coverage_sources\\\\stall.mp4'",
+            "mapping cleanup: command failed: ['adb', '-s', '7NQBB23606003715', 'reverse', '--remove', 'tcp:18080'], exit=1"
+          ],
+          "missing": [
+            "CP1.keepalive-s7s14.S7.0: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.1: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.2: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.3: CHECK count=0",
+            "CP1.keepalive-s7s14.S7.4: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.0: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.1: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.2: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.3: CHECK count=0",
+            "CP1.keepalive-s7s14.S14.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "F3/A17 precise.normal",
@@ -3064,7 +4824,112 @@
       }
     }
   ],
-  "defects": [],
+  "defects": [
+    {
+      "id": "CP1-H01",
+      "classification": "验证器缺陷；保留原始FAIL",
+      "phenomenon": "404第3轮独立END_FILE数组为空；fatal事件、错误遮罩均已出现，buffering=false、spinnerCount=0",
+      "reproduction": "快速404；核心终结后约35ms即CHECK并dispose，而独立FFI泵按100ms轮询",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+      "recordIndices": [
+        255,
+        259,
+        262,
+        263,
+        264
+      ],
+      "suspectedLocations": [
+        "example/lib/verify_auto/cp1_errclass_auto.dart:45",
+        "lib/src/platform_impl/mpv_event_backend_ffi.dart:172"
+      ],
+      "suggestion": "先等待独立END_FILE(reason=4)或明确采样超时再判定/释放；不得用核心fatal事件伪造原生证据；本轮不改判或补跑"
+    },
+    {
+      "id": "CP1-H02",
+      "classification": "夹具刺激冲突；BLOCKED",
+      "phenomenon": "wakeswap新源HTTP约5s超时，无法获得新首帧",
+      "reproduction": "有意延迟新源响应超过6s，超过当前原生网络超时",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json",
+      "recordIndices": [
+        65,
+        66,
+        74,
+        75
+      ],
+      "suspectedLocations": [
+        "example/lib/verify_auto/cp1_wakeswap_auto.dart:34",
+        "example/tool/cp1_sources.py:71"
+      ],
+      "suggestion": "新源单独设置明确大于刺激窗的网络超时，同时保留旧恢复5s竞争窗口；先证明新源实际可加载再验证7a"
+    },
+    {
+      "id": "CP1-H03",
+      "classification": "夹具/FFmpeg地址解析异常；BLOCKED，产品归因未定",
+      "phenomenon": "edgepause前5次通过，第6次出现No protocol handler found to open URL /720/index20.ts及后续分片，随后path/time-pos不可读",
+      "reproduction": "同一滑动HLS服务串行第6次重开暂停",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+      "recordIndices": [
+        1256,
+        1258,
+        1281,
+        1539,
+        1540
+      ],
+      "suspectedLocations": [
+        "example/tool/cp1_sources.py:99",
+        "example/lib/verify_auto/cp1_edgepause_auto.dart:42"
+      ],
+      "suggestion": "夹具输出完整http://host:port分片URI并保留实际响应正文；排除根相对URI上下文丢失后再调查lib重开路径；不凭本轮断言暂停意图回归"
+    },
+    {
+      "id": "CP1-H04",
+      "classification": "恢复刺激未成立；BLOCKED",
+      "phenomenon": "recovery等待120s后仍segmentEntered=false，已有63条媒体请求，无续播CHECK",
+      "reproduction": "本地120s HLS可被快速预缓冲；播放2秒后才arm分片挂起",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json",
+      "recordIndices": [
+        993,
+        994
+      ],
+      "suspectedLocations": [
+        "example/lib/verify_auto/cp1_recovery_auto.dart:39",
+        "example/tool/cp1_sources.py:74"
+      ],
+      "suggestion": "在预缓冲完成前布置可确认的后续分片闸门，限制媒体预读；必须先证实segmentEntered及真实buffering，再等待stallTimeout/retry"
+    },
+    {
+      "id": "CP1-H05",
+      "classification": "原生系统字段覆盖缺口；BLOCKED",
+      "phenomenon": "STG-AL00的seedBrightness/application override/displayBrightness/InsetsSource解析不完整；首轮settings brightness 27→62，归因未定",
+      "reproduction": "系统竖屏、视频左侧亮度手势、进出全屏再释放",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+      "recordIndices": [],
+      "suspectedLocations": [
+        "example/tool/cp1_sources.py:133",
+        "lib/src/platform_impl/brightness_impl.dart:43"
+      ],
+      "suggestion": "适配真实OEM字段并同时记录自动亮度模式/系统值漂移；区分应用覆盖还原和系统自动亮度，不在缺字段时宣称B04通过或盲改lib"
+    },
+    {
+      "id": "CP1-H06",
+      "classification": "备用源刺激/恢复链未证实；BLOCKED",
+      "phenomenon": "primary失效刺激后出现MovaDone，sourceIndex仍0，90s内未切备用源，disabled组随页面中止未执行",
+      "reproduction": "先成功播放/探测primary，再fail-primary",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+      "recordIndices": [
+        1560,
+        1564,
+        1568,
+        1569
+      ],
+      "suspectedLocations": [
+        "example/lib/verify_auto/cp1_probe_auto.dart:39",
+        "example/tool/cp1_sources.py:87",
+        "lib/src/core/engine.dart:882"
+      ],
+      "suggestion": "增加HTTP响应状态/分片失败证据，确认真实终结失败而非自然结束；分别验证错误到恢复、恢复到重探测两段，不能把未切源直接归为探测bug"
+    }
+  ],
   "incidents": [
     {
       "kind": "host setup",
@@ -3090,6 +4955,35 @@
         1539,
         1540
       ]
+    },
+    {
+      "kind": "keepalive fixture preflight",
+      "detail": "首个S7/S14 run在启动页面前因本树gitignored stall.mp4缺失退出，正式样本为0；使用原live_server.ensure_media补齐后以新run-id首次正式执行，原前置错误和清理错误均保留",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json",
+      "fixtureEvidence": "example/tool/coverage_evidence/cp1-legacy-fixtures.json"
+    }
+  ],
+  "visualReview": [
+    {
+      "scene": "S14 round2",
+      "status": "BLOCKED",
+      "normal": {
+        "path": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-1793694301079520700.png",
+        "observation": "彩条画面，烧入时间00:00:04.520，屏幕日志处于S14 normal"
+      },
+      "holding1": {
+        "path": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-1793694304715023300.png",
+        "observation": "视频区域黑块；屏幕日志明确holding1 entered=true vid=no"
+      },
+      "holding2": {
+        "path": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-1793694310481265500.png",
+        "observation": "实际截图已进入S7，新源POSTER与转圈；不能作为S14 holding2画面"
+      },
+      "restored": {
+        "path": "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-1793694319679949600.png",
+        "observation": "实际截图已进入S7且烧入时间00:00:02.160；不能作为S14恢复后持续运动证据"
+      },
+      "conclusion": "黑块是本机观测事实，S14原设计为记录黑/末帧；CP0 Android无完整对应画面基线。SHOT读取/采图存在滞后，S7/S14完整视觉与运动判据未关闭。"
     }
   ],
   "restoration": {},
@@ -3380,8 +5274,8 @@
   ],
   "supplementRows": [],
   "counts": {
-    "BLOCKED": 28,
-    "PASS": 14,
+    "BLOCKED": 27,
+    "PASS": 15,
     "FAIL": 1
   },
   "masterRows": [
@@ -3526,12 +5420,12 @@
     },
     {
       "id": "A23/F13 dispose120",
-      "status": "BLOCKED",
+      "status": "PASS",
       "subrows": [
         "dispose120.round"
       ],
       "planned": 120,
-      "executed": 0
+      "executed": 120
     },
     {
       "id": "B块亮度/全屏/预览/抽帧/底栏/弹幕",
@@ -3560,8 +5454,8 @@
     }
   ],
   "masterCounts": {
-    "BLOCKED": 12,
+    "BLOCKED": 11,
     "FAIL": 1,
-    "PASS": 3
+    "PASS": 4
   }
 }
