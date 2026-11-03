@@ -32,6 +32,19 @@ def main():
     if (E/'cp0-device-disconnect.json').exists():
         ledger['incidents']=[dict(kind='Android transport lost',detail='precise.cutover 第24个结果后ADB掉线，约5分20秒后观察到重连；恢复自有映射，原批最终读回26个结果/1失败及后续重定位超时；保留原批并补134次。',evidence=['example/tool/coverage_evidence/cp0-device-disconnect.json','example/tool/coverage_evidence/cp0-reconnect.jsonl','example/tool/coverage_evidence/cp0-cutover-reconnected.json']),
           dict(kind='host driver error',detail='新宿主调用gap时漏传timeout；初次H28/parked报AttributeError，不计为产品失败或正式样本。保存现场并修正后重跑。',evidence=['example/tool/coverage_evidence/cp0-gap-host-error-snapshot.json','example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-1353-cp0-h28/cp0-result.json','example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-1353-cp0-parked/cp0-result.json'])]
+    if (E/'cp0-windows-unexpected-install-manifest.txt').exists():
+        ledger.setdefault('incidents',[]).append(dict(kind='workspace boundary violation',detail='Windows CMake默认安装前缀导致运行包被写入 C:/Program Files/mova_example，违反仅在本树mova内写文件的约束；初次修正配置失败后顺序命令仍执行了一次旧安装脚本，记录于install-in-tree.log。随后以Python参数数组重新配置，检查全部安装脚本不含旧前缀后才重新安装，本树27个安装目标均核验通过。外部路径先前内容未备份，未擅自删除，无法声称恢复。',evidence=['example/tool/coverage_evidence/cp0-windows-unexpected-install-manifest.txt','example/tool/coverage_evidence/cp0-windows-install-in-tree.log','example/tool/coverage_evidence/cp0-windows-configure-prefix-fixed.log','example/tool/coverage_evidence/cp0-windows-install-in-tree-fixed.log']))
+        ledger['windowsBuild']=dict(mode='release',entry='example/lib/main_win_retest.dart',cmakeParallel=4,
+          compatibility=['生成CMakeCache设置CMAKE_POLICY_VERSION_MINIMUM:STRING=3.5','构建进程CL=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS','CMAKE_INSTALL_PREFIX明确设置为本树example/build/windows/x64/runner/Release'],
+          buildEvidence=['example/tool/coverage_evidence/cp0-windows-build-attempt1.log','example/tool/coverage_evidence/cp0-windows-build-attempt2.log','example/tool/coverage_evidence/win-build-cp0-formal-20261103-complete.log'],
+          startupFailureEvidence='example/tool/coverage_evidence/cp0-windows-startup-failure/results.json',startupFailureExitCode='0xC0000135',startupFailuresExcludedFromFormal=48)
+    if (E/'cp0-windows-first-cleanup-hang').exists():
+        ledger.setdefault('incidents',[]).append(dict(kind='Windows diagnostic teardown hang',detail='一次Windows F3普通诊断轮已获10个通过落点，但HTTP仍为running、收尾超过120秒无END；主动终止自启进程。焦点轨迹未持续落盘，该轮不计正式30；现象不抹去，尚不能归因内核或验证页。',evidence=['example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.watchdog.json','example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.json']))
+    if (E/'cp0-windows-focus-invalid').exists():
+        ledger.setdefault('incidents',[]).append(dict(kind='Windows foreground interruptions',detail='记录到termarx/Chrome抢占前台。未满足焦点条件的轮次保留并排除，修正开跑前PID握手、隐藏截图辅助进程、持续记录焦点；每项最多补跑5次，最终只统计无焦点中断的样本。',evidence=['example/tool/coverage_evidence/cp0-windows-focus-invalid/','example/tool/coverage_evidence/cp0-windows-formal/focus-retries/','example/tool/coverage_evidence/cp0-windows-final-monitor.json']))
+    if (E/'cp0-windows-desktop-blocked.json').exists():
+        ledger['windowsInputDesktop']=dict(observed=read(E/'cp0-windows-desktop-blocked.json'),checksEvidence='example/tool/coverage_evidence/cp0-windows-input-desktop.jsonl',finalMonitor=read(E/'cp0-windows-final-monitor.json') if (E/'cp0-windows-final-monitor.json').exists() else None)
+        ledger.setdefault('incidents',[]).append(dict(kind='Windows input desktop unavailable, recovered',detail='曾观察到GetForegroundWindow=NULL、OpenInputDesktop错误5；没有假定是锁屏或UAC，也未操纵安全桌面。按30秒检查、10分钟上限等待，输入桌面恢复后补齐有真实前台采样且无中断的全部正式次数。',evidence=['example/tool/coverage_evidence/cp0-windows-desktop-blocked.json','example/tool/coverage_evidence/cp0-windows-input-desktop.jsonl','example/tool/coverage_evidence/cp0-windows-final-monitor.json']))
     for stage in ledger['stages']:
         for item in stage['items']:
             if item['item']=='pod2':
@@ -158,7 +171,7 @@ def main():
         below200=sum(r.get('cp0PathCorrect') and r.get('cp0DeltaMs') is not None and abs(r['cp0DeltaMs'])<200 for r in results)
         summary=dict(executed=n,passes=passes,below200=below200,below200Percent=100*below200/n if n else None,
           deltaMs=nums([r.get('cp0DeltaMs') for r in results]),
-          failureFeatures=dict(noEligibleLanding=sum(r.get('landed',-1)<0 for r in results),wrongPath=sum(not r.get('cp0PathCorrect') for r in results),harnessInvalid=sum(bool(r.get('harnessInvalid')) for r in results),continuedFailed=sum(not r.get('continuedOk',False) for r in results)),
+          failureFeatures=dict(noEligibleLanding=sum(r.get('landed',-1)<0 for r in results),pathMismatchOrUnavailable=sum(not r.get('cp0PathCorrect') for r in results),unavailablePath=sum(not r.get('path') for r in results),harnessInvalid=sum(bool(r.get('harnessInvalid')) for r in results),continuedFailed=sum(not r.get('continuedOk',False) for r in results)),
           batches=[dict(evidence=rel(p),executed=d.get('executed'),completed=d['completed'],errors=d.get('errors'),harness=d.get('harness')) for p,d in batches],
           failedIterations=[dict(evidence=rel(p),iteration=r.get('run'),target=r.get('target'),landed=r.get('landed'),continued=r.get('continued'),path=r.get('path')) for p,d in batches for r in d.get('results',[]) if not r.get('cp0Pass')])
         expected=160 if mode=='cutover' else 60
@@ -166,15 +179,20 @@ def main():
     win=E/'cp0-windows-formal'
     if (win/'results.json').exists():
         wr=read(win/'results.json')
+        if (win/'build.json').exists():ledger['windowsBinaryHashes']=read(win/'build.json')
+        ledger['windowsFocusRetryArchives']=dict(count=sum(p.is_dir() for p in (win/'focus-retries').glob('*')),path='example/tool/coverage_evidence/cp0-windows-formal/focus-retries/',note='每个目录保留一次未满足前台采样条件的尝试；不计正式次数')
         for item,prefix,planned in [('Windows F3','F3-',30),('Windows A23/F13 dispose','dispose-',20),('Windows HE V6','V6-',5),('Windows HE V10','V10-',20)]:
-            runs=[r for r in wr if r['item'].startswith(prefix)]
-            metrics=dict(runs=runs,crashes=sum(r['crashed'] for r in runs),focusMismatchCount=sum(r.get('focusMismatchCount',0) for r in runs))
+            all_runs=[r for r in wr if r['item'].startswith(prefix)]
+            runs=[r for r in all_runs if not r.get('focusMismatchCount') and not r.get('focusInterruptions') and (r.get('focus') or r.get('crashed'))]
+            metrics=dict(runs=[{k:v for k,v in r.items() if k!='focus'} for r in runs],crashes=sum(r['crashed'] for r in runs),focusMismatchCount=sum(r.get('focusMismatchCount',0) or 0 for r in runs),focusExcludedItems=[r['item'] for r in all_runs if r not in runs],watchdogsTotal=sum(bool(r.get('watchdog')) for r in runs))
             if prefix=='F3-':
                 rs=[]
                 for run in runs:
                     jp=win/(run['item']+'.json')
                     if jp.exists():rs += [r for r in read(jp)['rows'] if r['kind']=='HLS_RESULT']
-                metrics['results']=rs;metrics['below200']=sum(r.get('landed',-1)>=0 and abs(r['landed']-r['target'])<200 and r.get('path')==r.get('expectedPath') for r in rs)
+                metrics['deltaMs']=nums([r['landed']-r['target'] for r in rs if r.get('landed',-1)>=0])
+                metrics['below200']=sum(r.get('landed',-1)>=0 and abs(r['landed']-r['target'])<200 and r.get('path')==r.get('expectedPath') for r in rs)
+                metrics['below200Percent']=100*metrics['below200']/len(rs) if rs else None
                 failures=sum(not (r.get('landed',-1)>=0 and abs(r['landed']-r['target'])<=500 and r.get('path')==r.get('expectedPath')) for r in rs)
                 executed=len(rs)
             elif prefix=='dispose-':
@@ -191,9 +209,11 @@ def main():
                     if lp.exists():
                         text=lp.read_text(encoding='utf-8',errors='replace');logs.append(rel(lp))
                         vs += re.findall(r'VERDICT (V\d+) (PASS|FAIL) ([^\n]*)',text)
-                metrics.update(verdicts=vs,logs=logs,verdictCount=len(vs))
+                metrics.update(verdicts=[dict(case=v[0],status=v[1],detail=v[2]) for v in vs],logs=logs,verdictCount=len(vs))
                 executed=len(runs);failures=sum(v[1]=='FAIL' for v in vs)+metrics['crashes']
-            put(item,executed,metrics,rel(win/'results.json'),failures,executed==planned and all(r['completed'] or r['crashed'] for r in runs))
+            metrics['measurementFailures']=failures
+            failures+=metrics['watchdogsTotal']
+            put(item,executed,metrics,rel(win/'results.json'),failures,executed==planned and all(r['completed'] or r['crashed'] or r.get('watchdog') for r in runs),None if executed==planned else '输入桌面不可访问或前台采样缺失/中断；无有效前台证据的脚本轮次不计正式次数')
     ledger['restorationEvidence']='example/tool/coverage_evidence/cp0-session-restored.json' if (E/'cp0-session-restored.json').exists() else None
     if 'final' in sys.argv:
         ledger['status']='COMPLETE_WITH_GAPS' if any(i['status'] in ('PENDING','PARTIAL') for s in ledger['stages'] for i in s['items']) else 'COMPLETE'
@@ -201,7 +221,7 @@ def main():
     Path(str(P)+'.json').write_text(json.dumps(ledger,ensure_ascii=False,indent=2),encoding='utf-8')
     lines=['# CP0 真机基线（2026-11-03）','',f'状态：**{ledger["status"]}**。CP0 不设产品通过线；测得故障原样保留。',
            '',f'Android release APK SHA-256：`{sha}`。阶段1构建一次，后续复用；安装拉回哈希一致。',
-           '', '基线 detached a5c317f6；只在本树 mova/example、mova/doc 修改，lib/test 不改。',
+           '', '基线 detached a5c317f6；版本控制改动仅本树 mova/example、mova/doc，lib/test 不改。Windows构建曾意外写到默认安装前缀，详见末尾事件记录，不声称满足全部目录写入约束。',
            '', 'cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→0 推断 cutover 回落。音频焦点 manual BLOCKED；全量49批不在本轮。',
            '', '## P1-3 与 A16 文档措辞', '',
            '本次三档 HLS、默认配置下，限速5轮和不限速1轮均首个有效尺寸为1280×720，原生hls-bitrate=max；每轮90秒内观测切档0次，无切档时刻可报告。限速五轮有反复缓冲，不限速对照无起播后再缓冲。A16可据此写“当前默认配置在本次限速夹具下停留最高档，未自动降档”；结论限于此版本、夹具和90秒观察窗，不外推所有mpv版本/源。',
@@ -215,6 +235,7 @@ def main():
                 brief['issues']=[dict(status=v['status'],reason=v.get('reason'),difference=v.get('difference')) for v in m['verdicts'] if v['status']!='PASS']
             for key in ('wakeElapsedMs','wakeSignals','explicitDisposeCalls','openReturns','openThrows','asyncErrors','bufferingEdges','downshifts'):
                 if key in m:brief[key]=m[key]
+            if 'visualReview' in m:brief['holdBlack']=m['visualReview']['observedHoldBlack']
             lines.append(f'|{s["stage"]}|{i["item"]}|{i["planned"]}|{i["executed"]}|{i.get("failures")}|{i["status"]} '+json.dumps(brief,ensure_ascii=False).replace('|','/')+'|'+str(i.get('evidence'))+'|')
     lines+=['','## 口径与证据边界','', 'P1-3：默认 createMovaEngine、auto、不手选；三档120秒HLS，共享900kbit/s限速。每秒原生读回档位、hls-bitrate、视频轨、缓存；切换时刻报告相邻采样区间，次数为观测下界。事件戳来自单调事件记录；卡顿结合原生 time-pos/paused-for-cache 与 MovaBufferChange，不以墙钟估算。完整逐轮数字在同名 JSON。',
             '', 'precise 沿用 rerun6 合格 RESTART/目标档位门槛，另算 CP0：目标与原生 time-pos 误差≤500ms 且 path 正确；<200ms 占比以已执行次数为分母。保留原续播/暂停判据与 harnessInvalid，不将缺样本算作成功。H28 默认配置不开泵。H20 使用 open 后立即seek(15s)，H50使用 cutoverTo(hls,at:12s)。',

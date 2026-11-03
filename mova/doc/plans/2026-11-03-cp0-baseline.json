@@ -1,7 +1,7 @@
 {
   "date": "2026-11-03",
-  "status": "RUNNING",
-  "completed": false,
+  "status": "COMPLETE",
+  "completed": true,
   "serial": "7NQBB23606003715",
   "stages": [
     {
@@ -1555,7 +1555,8 @@
             },
             "failureFeatures": {
               "noEligibleLanding": 0,
-              "wrongPath": 0,
+              "pathMismatchOrUnavailable": 0,
+              "unavailablePath": 0,
               "harnessInvalid": 0,
               "continuedFailed": 0
             },
@@ -1594,7 +1595,8 @@
             },
             "failureFeatures": {
               "noEligibleLanding": 0,
-              "wrongPath": 0,
+              "pathMismatchOrUnavailable": 0,
+              "unavailablePath": 0,
               "harnessInvalid": 0,
               "continuedFailed": 0
             },
@@ -1633,7 +1635,8 @@
             },
             "failureFeatures": {
               "noEligibleLanding": 1,
-              "wrongPath": 1,
+              "pathMismatchOrUnavailable": 1,
+              "unavailablePath": 1,
               "harnessInvalid": 1,
               "continuedFailed": 1
             },
@@ -3678,46 +3681,674 @@
         {
           "item": "Windows F3",
           "planned": 30,
-          "executed": 0,
-          "status": "PENDING",
-          "failures": null,
-          "metrics": null,
-          "reason": "本轮待执行",
+          "executed": 30,
+          "status": "MEASURED",
+          "failures": 0,
+          "metrics": {
+            "runs": [
+              {
+                "item": "F3-normal",
+                "pid": 13776,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "F3-paused",
+                "pid": 41584,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "F3-cutover",
+                "pid": 40044,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              }
+            ],
+            "crashes": 0,
+            "focusMismatchCount": 0,
+            "focusExcludedItems": [],
+            "watchdogsTotal": 0,
+            "deltaMs": {
+              "min": 0,
+              "median": 0.0,
+              "max": 0
+            },
+            "below200": 30,
+            "below200Percent": 100.0,
+            "measurementFailures": 0
+          },
+          "reason": null,
           "deviceApkSha256": null,
-          "evidence": null
+          "evidence": "example/tool/coverage_evidence/cp0-windows-formal/results.json"
         },
         {
           "item": "Windows A23/F13 dispose",
           "planned": 20,
-          "executed": 0,
-          "status": "PENDING",
-          "failures": null,
-          "metrics": null,
-          "reason": "本轮待执行",
+          "executed": 20,
+          "status": "MEASURED",
+          "failures": 0,
+          "metrics": {
+            "runs": [
+              {
+                "item": "dispose-0",
+                "pid": 35048,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-1",
+                "pid": 24788,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-2",
+                "pid": 41616,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-3",
+                "pid": 9896,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-4",
+                "pid": 21716,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-5",
+                "pid": 28576,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-6",
+                "pid": 2212,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-7",
+                "pid": 26800,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-8",
+                "pid": 8680,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-9",
+                "pid": 32484,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-10",
+                "pid": 26692,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-11",
+                "pid": 17364,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-12",
+                "pid": 21580,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-13",
+                "pid": 41664,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-14",
+                "pid": 39532,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-15",
+                "pid": 33536,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-16",
+                "pid": 40088,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-17",
+                "pid": 9844,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-18",
+                "pid": 40568,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "dispose-19",
+                "pid": 9164,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "focusMismatchCount": 0
+              }
+            ],
+            "crashes": 0,
+            "focusMismatchCount": 0,
+            "focusExcludedItems": [],
+            "watchdogsTotal": 0,
+            "disposeCallCount": 80,
+            "exceptions": [],
+            "measurementFailures": 0
+          },
+          "reason": null,
           "deviceApkSha256": null,
-          "evidence": null
+          "evidence": "example/tool/coverage_evidence/cp0-windows-formal/results.json"
         },
         {
           "item": "Windows HE V6",
           "planned": 5,
-          "executed": 0,
-          "status": "PENDING",
-          "failures": null,
-          "metrics": null,
-          "reason": "本轮待执行",
+          "executed": 5,
+          "status": "MEASURED",
+          "failures": 0,
+          "metrics": {
+            "runs": [
+              {
+                "item": "V6-0",
+                "pid": 41356,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V6-1",
+                "pid": 39956,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V6-2",
+                "pid": 14260,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V6-3",
+                "pid": 31372,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 16
+              },
+              {
+                "item": "V6-4",
+                "pid": 13532,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 16
+              }
+            ],
+            "crashes": 0,
+            "focusMismatchCount": 0,
+            "focusExcludedItems": [],
+            "watchdogsTotal": 0,
+            "verdicts": [
+              {
+                "case": "V6",
+                "status": "PASS",
+                "detail": "offset=14ms posDiff=80ms"
+              },
+              {
+                "case": "V6",
+                "status": "PASS",
+                "detail": "offset=6ms posDiff=0ms"
+              },
+              {
+                "case": "V6",
+                "status": "PASS",
+                "detail": "offset=9ms posDiff=0ms"
+              },
+              {
+                "case": "V6",
+                "status": "PASS",
+                "detail": "offset=5ms posDiff=40ms"
+              },
+              {
+                "case": "V6",
+                "status": "PASS",
+                "detail": "offset=1ms posDiff=0ms"
+              }
+            ],
+            "logs": [
+              "example/tool/coverage_evidence/cp0-windows-formal/V6-0.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V6-1.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V6-2.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V6-3.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V6-4.he.log"
+            ],
+            "verdictCount": 5,
+            "measurementFailures": 0
+          },
+          "reason": null,
           "deviceApkSha256": null,
-          "evidence": null
+          "evidence": "example/tool/coverage_evidence/cp0-windows-formal/results.json"
         },
         {
           "item": "Windows HE V10",
           "planned": 20,
-          "executed": 0,
-          "status": "PENDING",
-          "failures": null,
-          "metrics": null,
-          "reason": "本轮待执行",
+          "executed": 20,
+          "status": "MEASURED",
+          "failures": 0,
+          "metrics": {
+            "runs": [
+              {
+                "item": "V10-0",
+                "pid": 35512,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-1",
+                "pid": 28600,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-2",
+                "pid": 14956,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-3",
+                "pid": 6572,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-4",
+                "pid": 3424,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-5",
+                "pid": 39980,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-6",
+                "pid": 29184,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-7",
+                "pid": 40492,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-8",
+                "pid": 10636,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-9",
+                "pid": 10804,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-10",
+                "pid": 12596,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-11",
+                "pid": 4532,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-12",
+                "pid": 40928,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 7
+              },
+              {
+                "item": "V10-13",
+                "pid": 39540,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-14",
+                "pid": 28452,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-15",
+                "pid": 20928,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-16",
+                "pid": 26160,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-17",
+                "pid": 39064,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0,
+                "focusAcquired": true,
+                "focusSampleCount": 8
+              },
+              {
+                "item": "V10-18",
+                "pid": 41348,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              },
+              {
+                "item": "V10-19",
+                "pid": 25784,
+                "completed": true,
+                "crashed": false,
+                "exeSha256": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+                "exitCode": 0,
+                "focusMismatchCount": 0
+              }
+            ],
+            "crashes": 0,
+            "focusMismatchCount": 0,
+            "focusExcludedItems": [],
+            "watchdogsTotal": 0,
+            "verdicts": [
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              },
+              {
+                "case": "V10",
+                "status": "PASS",
+                "detail": "route=true ticker=true guard=true"
+              }
+            ],
+            "logs": [
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-0.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-1.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-2.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-3.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-4.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-5.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-6.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-7.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-8.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-9.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-10.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-11.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-12.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-13.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-14.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-15.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-16.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-17.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-18.he.log",
+              "example/tool/coverage_evidence/cp0-windows-formal/V10-19.he.log"
+            ],
+            "verdictCount": 20,
+            "measurementFailures": 0
+          },
+          "reason": null,
           "deviceApkSha256": null,
-          "evidence": null
+          "evidence": "example/tool/coverage_evidence/cp0-windows-formal/results.json"
         }
       ]
     }
@@ -3773,6 +4404,105 @@
         "example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-1353-cp0-h28/cp0-result.json",
         "example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-1353-cp0-parked/cp0-result.json"
       ]
+    },
+    {
+      "kind": "workspace boundary violation",
+      "detail": "Windows CMake默认安装前缀导致运行包被写入 C:/Program Files/mova_example，违反仅在本树mova内写文件的约束；初次修正配置失败后顺序命令仍执行了一次旧安装脚本，记录于install-in-tree.log。随后以Python参数数组重新配置，检查全部安装脚本不含旧前缀后才重新安装，本树27个安装目标均核验通过。外部路径先前内容未备份，未擅自删除，无法声称恢复。",
+      "evidence": [
+        "example/tool/coverage_evidence/cp0-windows-unexpected-install-manifest.txt",
+        "example/tool/coverage_evidence/cp0-windows-install-in-tree.log",
+        "example/tool/coverage_evidence/cp0-windows-configure-prefix-fixed.log",
+        "example/tool/coverage_evidence/cp0-windows-install-in-tree-fixed.log"
+      ]
+    },
+    {
+      "kind": "Windows diagnostic teardown hang",
+      "detail": "一次Windows F3普通诊断轮已获10个通过落点，但HTTP仍为running、收尾超过120秒无END；主动终止自启进程。焦点轨迹未持续落盘，该轮不计正式30；现象不抹去，尚不能归因内核或验证页。",
+      "evidence": [
+        "example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.watchdog.json",
+        "example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.json"
+      ]
+    },
+    {
+      "kind": "Windows foreground interruptions",
+      "detail": "记录到termarx/Chrome抢占前台。未满足焦点条件的轮次保留并排除，修正开跑前PID握手、隐藏截图辅助进程、持续记录焦点；每项最多补跑5次，最终只统计无焦点中断的样本。",
+      "evidence": [
+        "example/tool/coverage_evidence/cp0-windows-focus-invalid/",
+        "example/tool/coverage_evidence/cp0-windows-formal/focus-retries/",
+        "example/tool/coverage_evidence/cp0-windows-final-monitor.json"
+      ]
+    },
+    {
+      "kind": "Windows input desktop unavailable, recovered",
+      "detail": "曾观察到GetForegroundWindow=NULL、OpenInputDesktop错误5；没有假定是锁屏或UAC，也未操纵安全桌面。按30秒检查、10分钟上限等待，输入桌面恢复后补齐有真实前台采样且无中断的全部正式次数。",
+      "evidence": [
+        "example/tool/coverage_evidence/cp0-windows-desktop-blocked.json",
+        "example/tool/coverage_evidence/cp0-windows-input-desktop.jsonl",
+        "example/tool/coverage_evidence/cp0-windows-final-monitor.json"
+      ]
     }
-  ]
+  ],
+  "windowsBuild": {
+    "mode": "release",
+    "entry": "example/lib/main_win_retest.dart",
+    "cmakeParallel": 4,
+    "compatibility": [
+      "生成CMakeCache设置CMAKE_POLICY_VERSION_MINIMUM:STRING=3.5",
+      "构建进程CL=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS",
+      "CMAKE_INSTALL_PREFIX明确设置为本树example/build/windows/x64/runner/Release"
+    ],
+    "buildEvidence": [
+      "example/tool/coverage_evidence/cp0-windows-build-attempt1.log",
+      "example/tool/coverage_evidence/cp0-windows-build-attempt2.log",
+      "example/tool/coverage_evidence/win-build-cp0-formal-20261103-complete.log"
+    ],
+    "startupFailureEvidence": "example/tool/coverage_evidence/cp0-windows-startup-failure/results.json",
+    "startupFailureExitCode": "0xC0000135",
+    "startupFailuresExcludedFromFormal": 48
+  },
+  "windowsInputDesktop": {
+    "observed": {
+      "at": 1793689716.2506962,
+      "OpenInputDesktopHandle": null,
+      "error": 5,
+      "GetForegroundWindow": null,
+      "reason": "input desktop inaccessible; cannot establish foreground, no assumption whether lock/UAC/desktop switch"
+    },
+    "checksEvidence": "example/tool/coverage_evidence/cp0-windows-input-desktop.jsonl",
+    "finalMonitor": {
+      "resultCount": 48,
+      "crashes": 0,
+      "completed": 48,
+      "focusAffected": [],
+      "watchdogs": [],
+      "latest": {
+        "item": "V10-17",
+        "focusInterruptions": 0
+      }
+    }
+  },
+  "windowsBinaryHashes": {
+    "binaries": {
+      "connectivity_plus_plugin.dll": "7c1e2f1a5e05e3c8b377099eae8726fa6620013f719a2e584bd1d777eefcd4bc",
+      "dartjni.dll": "7cc4e998611cf1703c90bd6a16c346eecf0e7cdfd0e78fcf00c095abd80cac44",
+      "flutter_windows.dll": "8f989f1255d14d8521c20d8869484e65a9661dab5e90dc00b7da97490eaed220",
+      "just_audio_windows_plugin.dll": "c911f9283e4f42a6bede9799e7924019093c1261612173c1b755e391b0971d7f",
+      "libEGL.dll": "b2590bd0692f0381fc45c20bf1c7f7f713c9ea19c7ea6bab62efdd1fadc4eaac",
+      "libGLESv2.dll": "620bb6e38d7ed6c760a0cf4a8eb6a8f64b259b96ff286551cd32cefc6c35ca39",
+      "libmpv-2.dll": "601c7eb2c02aa9f55df7ed90ac2a31a71e861fc198488ca38d2b1bbe2275d67a",
+      "media_kit_libs_windows_video_plugin.dll": "01f754779ba924e55296a455cfdea587befcda691fec7e068d1c7c6962072a13",
+      "media_kit_video_plugin.dll": "c1c4f790ceb65d2504fc9ef012bfe4e579b8980ab1ff62c131830a6dc0f56335",
+      "mova_example.exe": "544718862af2ca3e705604b6dcc46976fe91467d5a9fea37e3191097d16360cf",
+      "mova_plugin.dll": "43e2bc969283097111f8e1e9e4abb8e0aa7d7046803f5c3fe2b409ec768d7c07",
+      "screen_brightness_windows_plugin.dll": "bf62264f0eee045c57b10750560e26efe6ba16de455f3f9b7dbe0f3fda9f0c1c",
+      "data\\app.so": "c6e432d635a5f9b51a80a686d6023a6cf05405acacaeb25363741cdb4397248a"
+    },
+    "entry": "lib/main_win_retest.dart",
+    "mode": "release"
+  },
+  "windowsFocusRetryArchives": {
+    "count": 59,
+    "path": "example/tool/coverage_evidence/cp0-windows-formal/focus-retries/",
+    "note": "每个目录保留一次未满足前台采样条件的尝试；不计正式次数"
+  }
 }
