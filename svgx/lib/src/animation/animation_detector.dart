@@ -7,19 +7,17 @@
 import 'dart:collection';
 
 /// Detects SMIL animation markers (`<animate>`, `<animateTransform>`,
-/// `<set>`) in raw SVG source.
+/// `<animateMotion>`, `<set>`) and CSS `@keyframes` in raw SVG source.
 ///
-/// Only SMIL is detected — CSS `@keyframes`/`animation-*`/`transition-*`
-/// driven animation is **not supported** by this engine yet (see project
-/// `CLAUDE.md`); an SVG that only uses CSS animation is treated as static and
-/// will render its resting state without animating.
+/// CSS animation is routed to the animated engine too (see below); only
+/// `transition-*` is not supported.
 ///
-/// 检测原始 SVG 源中的 SMIL 动画标记（`<animate>`、`<animateTransform>`、
-/// `<set>`）。
+/// 检测原始 SVG 源中的 SMIL 动画标签（`<animate>`、`<animateTransform>`、
+/// `<animateMotion>`、`<set>`）和 CSS `@keyframes`，不区分大小写。
 ///
-/// 仅检测 SMIL——CSS `@keyframes`/`animation-*`/`transition-*` 驱动的动画
-/// **本引擎尚不支持**（见项目 `CLAUDE.md`）；仅含 CSS 动画的 SVG 会被当作
-/// 静态渲染，展示其静止状态而不播放动画。
+/// CSS 同时识别 webkit、moz、o、ms 厂商前缀。只要出现 `@keyframes` 就走
+/// 动画路径，即使没有 `animation:` 引用；未引用的关键帧较少见，接受这类
+/// 保守误判，以免把 CSS 动画交给静态解析器而丢失动画。上方英文说明为历史记录。
 class AnimationDetector {
   AnimationDetector._();
 
@@ -71,8 +69,9 @@ class AnimationDetector {
   // 扫四遍。用 `--dart-define=LIB=micro` 实测
   // （`detect_animations_static_sources`，1000 个真实 Mdi 图标）：
   // 单图标 1.142us -> 0.351us。
+  /// 合并 SMIL 与 CSS 标记，一次扫描；各分支以字面量前缀加速跳过静态内容。
   static final RegExp _animationPattern = RegExp(
-    r'<(?:animateTransform|animateMotion|animate|set)[\s>]',
+    r'<(?:animateTransform|animateMotion|animate|set)[\s>]|@(?:-(?:webkit|moz|o|ms)-)?keyframes',
     caseSensitive: false,
   );
   // `<animateMotion>` hits the exact same "animate" + immediately-following
@@ -133,9 +132,12 @@ class AnimationDetector {
   /// The answer is memoized per source string — see [maximumMemoSize].
   ///
   /// 若 [source] 含 SMIL `<animate>`、`<animateTransform>`、`<animateMotion>`
-  /// 或 `<set>` 标签则返回 true。
+  /// 或 `<set>` 标签，或 CSS `@keyframes`（含厂商前缀），则返回 true。
+  /// 不区分大小写；无需同时存在 `animation:` 声明。
   ///
   /// 结果按源字符串记忆——见 [maximumMemoSize]。
+  /// CSS 示例：`AnimationDetector.hasAnimations('<style>@keyframes a{}</style>')`
+  /// 返回 true。
   ///
   /// Example:
   /// ```dart
