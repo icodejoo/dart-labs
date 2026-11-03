@@ -116,6 +116,8 @@ class MovaAbrConfig {
   /// 开启后卡顿触发时从 auto 转到列表次高档，后续沿用既有降档策略。
   /// 不推断 mpv 当前实际选档；仍需 [enabled] 开启，且探测到至少两个具体档位。
   /// 示例：`MovaAbrConfig(manageAuto: true)`。
+  /// CP0 真机实测（STG-AL00、默认配置、限速夹具、90 秒窗口）：mpv 的 auto 档停留最高档、
+  /// 未自动降档，限速下反复缓冲；开启本开关由 mova 的 ABR 接管降档。仍为实验性，默认关。
   final bool manageAuto;
 
   /// Custom downshift policy; null selects the default [MovaBufferAbr].

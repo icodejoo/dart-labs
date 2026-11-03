@@ -68,8 +68,87 @@ class _AttemptKernel extends FakeStatsKernel implements MovaAttemptEventKernel {
   }
 }
 
+/// 同时支持待机和带加载身份的结束通知。
+class _KeepAliveAttemptKernel extends _AttemptKernel with KeepAliveKernelStub {}
+
 /// 验证 END_FILE 与终结日志共用尝试及待机处理。
 void main() {
+  for (final holding in [true, false]) {
+    test('F-A current END_FILE after hiding again stays quiet holding=$holding', () {
+      fakeAsync((async) {
+        final k = _KeepAliveAttemptKernel();
+        final r = KeepAliveRig(async, k)..playLive();
+        r.land();
+        r.keepAlive(true);
+        expect(r.keepAlive(false), MovaKeepAlivePhase.resuming);
+        final loadedAttempt = k.attempt;
+        final opens = k.openedUris.length;
+        if (!holding) {
+          k.media = const MovaKeepAliveMedia(audio: MovaAudioPresence.unknown);
+        }
+        expect(r.keepAlive(true),
+            holding ? MovaKeepAlivePhase.holding : MovaKeepAlivePhase.fallback);
+        expect(k.openedUris.length, opens);
+        expect(k.attempt, loadedAttempt);
+        k.ends.add((attempt: loadedAttempt, reason: MovaEndFileReason.error));
+        r.settle();
+        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
+        if (holding) expect(r.changes.last.reason, MovaKeepAliveReason.failed);
+        expect(r.engine.state.error, isNull);
+        expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
+        expect(r.events.whereType<MovaPlayFailure>(), isEmpty);
+        // 短暂停播通常只续播；failed 必须使唤醒重新加载。
+        r.keepAlive(false);
+        expect(k.openedUris.length, opens + 1);
+        r.engine.dispose();
+        r.settle();
+      });
+    });
+  }
+
+  for (final recovery in [false, true]) {
+    test('current END_FILE after seek wake reports failure recovery=$recovery', () {
+      fakeAsync((async) {
+        final k = _KeepAliveAttemptKernel();
+        final r = KeepAliveRig(async, k,
+          options: const MovaOpts(live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.dvr,
+            dvrWindow: Duration(minutes: 1),
+          )),
+          recovery: MovaRecoveryConfig(enabled: recovery),
+        )..playLive();
+        r.land();
+        r.keepAlive(true);
+        async.elapse(const Duration(seconds: 30));
+        r.settle();
+        expect(r.engine.state.keepAlivePhase, MovaKeepAlivePhase.fallback);
+        final loadedAttempt = k.attempt;
+        final opens = k.openedUris.length;
+        expect(r.keepAlive(false), MovaKeepAlivePhase.resuming);
+        expect(k.lastSeek, const Duration(minutes: 1));
+        expect(k.openedUris.length, opens);
+        expect(k.attempt, loadedAttempt);
+        k.ends.add((attempt: loadedAttempt, reason: MovaEndFileReason.error));
+        r.settle();
+        if (recovery) {
+          expect(r.events.whereType<MovaPlayFailure>().single.fail.kind,
+              MovaPlayFailKind.nativeEndError);
+          expect(r.events.whereType<MovaErrorEvent>(), isEmpty);
+        } else {
+          expect(r.engine.state.error, MovaEndFileReason.error);
+          expect(r.events.whereType<MovaErrorEvent>().single.fatal, isTrue);
+          expect(k.calls.last, 'pause');
+          // 同一操作尝试仍只结算一次终结错误。
+          k.ends.add((attempt: loadedAttempt, reason: MovaEndFileReason.error));
+          r.settle();
+          expect(r.events.whereType<MovaErrorEvent>(), hasLength(1));
+        }
+        r.engine.dispose();
+        r.settle();
+      });
+    });
+  }
+
   test('F-J delivered A END_FILE with captured attempt cannot terminate B', () async {
     final k = _AttemptKernel();
     await k.pump.start(Future.value());

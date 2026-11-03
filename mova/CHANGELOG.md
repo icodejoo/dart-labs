@@ -10,7 +10,7 @@
 
 ### Changes
 
-- 新增实验性 `MovaAbrConfig.manageAuto`（默认 false）：显式开启后，auto 卡顿时由 mova 降到列表次高档，再沿用具体档位降档逻辑；遵守 ABR 总开关与 seek/换档租约。默认行为不变，mpv auto 的真机选档结论仍待 CP0。
+- 新增实验性 `MovaAbrConfig.manageAuto`（默认 false）：显式开启后，auto 卡顿时由 mova 降到列表次高档，再沿用具体档位降档逻辑；遵守 ABR 总开关与 seek/换档租约。CP0 真机实测（STG-AL00、默认配置、限速夹具、90 秒窗口）：mpv 的 auto 档停留最高档、未自动降档，限速下反复缓冲；开启本开关由 mova 的 ABR 接管降档。仍为实验性，默认关。
 
 - 广告失败策略和影子放弃预热仅响应 `MovaErrorEvent.fatal == true`；非终结内核日志不再中断广告或预热，原有尝试去重及 cutover 接受结果契约不变。
 

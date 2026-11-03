@@ -317,6 +317,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 每武装一次尝试（打开、重试、重载）就自增。
   int _attemptId = 0;
 
+  /// 最近一次实际交给内核的加载尝试编号，不随作废操作或纯 seek 推进。
+  int _loadedAttemptId = 0;
+
   /// A failure reported while the kernel was still opening (e.g. a native
   /// `END_FILE(error)` for a 404). Replayed once the open returns, so a
   /// deterministic failure does not have to wait for the start timeout.
@@ -878,7 +881,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       }
       _endFileSub = restartKernel is MovaAttemptEventKernel
           ? (restartKernel as MovaAttemptEventKernel).attemptEnds.listen((event) {
-              if (event.attempt == _attemptId) onEnd(event.reason);
+              if (event.attempt == _loadedAttemptId) onEnd(event.reason);
             })
           : (restartKernel as MovaStatsProbe).endFiles.listen(onEnd);
     }
@@ -1042,6 +1045,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
           (_source ?? MovaSource(uri)).mpvOptionsFor(uri, timeouts: options.recovery.timeouts),
         );
       }
+      _loadedAttemptId = attempt;
       if (kernel is MovaAttemptEventKernel) {
         (kernel as MovaAttemptEventKernel).prepareAttempt(attempt);
       }
