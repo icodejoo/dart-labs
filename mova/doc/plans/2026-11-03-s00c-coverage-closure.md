@@ -1,5 +1,8 @@
 # S00c：自动判据补充与 r1030 FAIL 定性
 
+> 后续状态见 [S00d 报告](2026-11-03-s00d-coverage-closure.md)：本轮 17 项接入整项规则，15 项验证器仍未补齐；本文保留 S00c 历史分布。
+
+
 **本次未完成 S00c 主任务，也未达到总计划 §3.2 的 S00 完成判据。** 已补下表列出的具名判据、原生宿主取证和验证器修正；仍有 **32 个编号未补齐验证器**（含仍 FAIL 的 A2，其余 31 个 BLOCKED），逐项列在末节。不能把这些缺口称为真缺环境。
 
 离线重放：**PASS 69 / FAIL 5 / BLOCKED 61**，共 135 个编号。完整逐子项原始定位见 [S00c 重放 JSON](2026-11-03-s00c-matrix-replay-r1030.json)。S00b 的 JSON/MD 原件保留。
@@ -82,10 +85,10 @@
 
 ### 产品缺陷 D01：事件投递与接收快照不同步
 
-- 复现：真实 HLS 换档/ABR/重载中同步记录事件 payload 与该同一 api 的接收时 snapshot。普通引擎和代理来源均有差异，不能只修 cutover 转发层。
+- 复现：真实 HLS 换档/ABR/重载中同步记录事件 payload 与该同一 api 的接收时 snapshot。已确认 cutover 代理存在差异。原始证据无法区分普通引擎与代理，普通引擎是否也有差异待上机区分；S00c 原“普通引擎和代理均有差异”证据不足。
 - 证据：`matrix-r1030-final-hls.json:records[961]`（engine=273633813，ms=84557，buffer false→state true）；`matrix-r1030-final-abr.json:records[1208]`（engine=888527077，ms=117577，size 0x360→state 0x0）；同文件 records[1193]（ms=108308，quality 自动→state 360p）。这是接收快照违约，不能推导画面一定错误或近期才回归。
-- 疑似位置：`lib/src/core/engine.dart:319` 的异步 broadcast 事件队列；`:689`/`:693` 的同步 state 更新后异步发事件；`:751`/`:752` 的 size；`:2404`/`:2412` 的 quality；`:1243` 的 _emitEvent。代理的 `lib/src/core/cutover/cutover_engine.dart:207` 与 `:209` 又分别转发 state/events。
-- 建议修法：主会话先按 H77 确认投递事务语义，再把状态快照与事件放进同一串行提交/投递单元，或明确携带并公开该事件对应的不可变快照；代理同时携带 epoch。不要直接用一次全局 sync=true 改动而不验证重入、双订阅和重建顺序。新增密集 buffer 边沿、尺寸归零/恢复、自动档→手动档的接收时逐条断言。本树未改 lib。
+- 已确认原因：cutover 代理的 state 与 events 走两条独立订阅链，事件可领先 state。
+- 建议修法：**A28：代理把 state 与 events 合并为同一投递序列 + 普通引擎一致性单测**。本树不改 lib；A2、E.MovaBufferChange、E.MovaSizeChange、E.MovaQualityChange 保持严格 FAIL，预期 A28 后转 PASS。普通引擎新增独立对账 CHECK，未上机区分。
 
 ### 产品缺陷 D02：严格 TLS 拒绝正确 IP SAN
 
