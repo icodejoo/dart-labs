@@ -83,7 +83,15 @@ class _AbrLease {
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
+/// 应用请通过 `createMovaEngine()` 创建并接入真实平台端口。
+/// 裸构造默认使用空亮度/PiP/方向端口，供测试或自行注入端口的宿主使用；
+/// debug 下首次缺省这些端口时提示一次。例如：`final api = createMovaEngine();`。
 class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
+  /// 测试用的一次性提示开关；设为 false 可重新观察裸构造提示。
+  /// 示例：`MovaEngine.debugBareConstructorWarningShown = false;`。
+  @visibleForTesting
+  static bool debugBareConstructorWarningShown = false;
+
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -748,6 +756,15 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
        _reporter =
            reporter // ignore: prefer_initializing_formals
            {
+    assert(() {
+      if (brightness == null && pip == null && orientation == null &&
+          !debugBareConstructorWarningShown) {
+        debugBareConstructorWarningShown = true;
+        // ignore: avoid_print
+        print('MovaEngine 使用空平台端口；应用请使用 createMovaEngine() 或注入端口。');
+      }
+      return true;
+    }());
     _abrPolicy =
         options.abr.policy ??
         MovaBufferAbr(threshold: options.abr.stallThreshold);

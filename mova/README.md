@@ -102,12 +102,20 @@ class _PageState extends State<Page> {
   @override
   void initState() {
     super.initState();
-    engine = MovaEngine();
-    engine.open(const MovaSource(
+    engine = createMovaEngine();
+    _open();
+  }
+
+  Future<void> _open() async {
+    try {
+      await engine.open(const MovaSource(
       'https://example.com/master.m3u8',
       type: MovaStreamType.live, // 或 MovaStreamType.vod
       title: '示例',
-    ));
+      ));
+    } catch (error, stack) {
+      FlutterError.reportError(FlutterErrorDetails(exception: error, stack: stack));
+    }
   }
 
   @override
@@ -123,11 +131,9 @@ class _PageState extends State<Page> {
 }
 ```
 
-> **提示**：`MovaEngine()` 裸构造默认走 noop 平台端口（亮度手势不生效、`enterPip()` 恒
-> `false`、全屏不转屏，仅供纯 Dart 单测使用）。应用代码应改用
-> `lib/src/platform_impl/wiring.dart` 导出的 `createMovaEngine()`，它默认接好真实的
-> 亮度/PiP/方向端口。上面示例为了突出最小用法用了 `MovaEngine()`，实际项目里请换成
-> `createMovaEngine()`。
+> **提示**：应用使用 `package:mova/mova.dart` 导出的 `createMovaEngine()`，默认接好
+> 亮度/PiP/方向端口。`MovaEngine()` 裸构造默认使用空平台端口，适合测试或自行注入端口，
+> debug 下会一次性提示。
 
 自定义手势侧别→动作/开关，通过 `MovaOpts` 传入 `MovaEngine`。侧别与动作解耦，可自由
 重映射（把亮度放右侧、或用 `MovaGestureAction.none` 禁用某一侧）：
@@ -349,14 +355,14 @@ MovaPlayer(
 
 ```dart
 // DVR：不换源，在服务端滑动窗口内拖动
-final engine = MovaEngine(
+final engine = createMovaEngine(
   options: const MovaOpts(
     live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
   ),
 );
 
 // 时移：拖动时用你自己的 URL 方案重开源
-final engine = MovaEngine(
+final engine = createMovaEngine(
   options: MovaOpts(
     live: MovaLiveConfig(
       seekMode: MovaLiveSeekMode.timeshift,
@@ -791,7 +797,7 @@ class AuthGate extends MovaHook {
   void onError(Object error, StackTrace stack) => reportToSentry(error, stack);
 }
 
-final engine = MovaEngine(interceptors: [AuthGate()]);
+final engine = createMovaEngine(interceptors: [AuthGate()]);
 ```
 
 ## 项目结构（面向想深入了解或贡献代码的开发者）

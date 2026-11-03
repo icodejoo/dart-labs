@@ -23,6 +23,24 @@ import 'package:mova/src/core/stt/port.dart';
 import '../support/fake_kernel.dart';
 
 void main() {
+  test('bare constructor warns once and testing switch can reset', () async {
+    final messages = <String>[];
+    MovaEngine.debugBareConstructorWarningShown = false;
+    await runZoned(() async {
+      final first = MovaEngine(kernel: FakeKernel());
+      final second = MovaEngine(kernel: FakeKernel());
+      await first.dispose();
+      await second.dispose();
+      expect(messages.where((m) => m.contains('createMovaEngine')), hasLength(1));
+      MovaEngine.debugBareConstructorWarningShown = false;
+      final third = MovaEngine(kernel: FakeKernel());
+      await third.dispose();
+      expect(messages.where((m) => m.contains('createMovaEngine')), hasLength(2));
+    }, zoneSpecification: ZoneSpecification(print: (_, _, _, message) {
+      messages.add(message);
+    }));
+  });
+
   late FakeKernel k;
   late MovaEngine e;
 

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- README 应用示例统一使用 createMovaEngine，首例等待并捕获打开失败；裸 MovaEngine 缺省平台端口时在 debug 下一次性提示。
+
 - 宿主抢源导致会话让位时，为已开始的原节点补发一次 MovaNodeEnd(superseded)，保持原 epoch，不报告节点失败，也不放弃宿主新影子。
 
 - 会话重新 load、jumpTo、setItems 或销毁时取消自己持有的预热凭据，连已认领、等待旧引擎暂停的事务也释放影子并禁止换指；宿主的新影子不受影响。
