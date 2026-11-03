@@ -1,0 +1,1 @@
+{"warmupMillis":500,"measurementMillis":2000,"results":[{"scenario":"clone-off","operations":39985,"elapsedSeconds":2.0000323,"meanMicros":50.01956483681381}]}

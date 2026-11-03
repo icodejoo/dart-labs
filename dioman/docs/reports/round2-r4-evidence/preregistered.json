@@ -1,0 +1,10 @@
+{
+  "recorded_at": "2026-11-03T12:32:25.721850+08:00",
+  "report_sha256": "e03b97bf97e2e71c5ae58b976b58c3bc6c05840f082623968a05f1fb880ec43e",
+  "target_min_micros": 2,
+  "target_min_percent": 5,
+  "other_max_regression_percent": 3,
+  "spread_less_than_percent": 10,
+  "request_target": "S3",
+  "strict_target": "strict-json"
+}

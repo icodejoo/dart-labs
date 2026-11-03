@@ -1,0 +1,16 @@
+{
+  "processes": [
+    {
+      "pid": 32492,
+      "exit": 1
+    },
+    {
+      "pid": 33044,
+      "exit": 1
+    }
+  ],
+  "ports_free": {
+    "47280": true,
+    "47290": true
+  }
+}

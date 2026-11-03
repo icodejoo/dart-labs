@@ -4,11 +4,13 @@
 
 ```powershell
 dart run benchmark/pipeline.dart
-python tool/pipeline_b6_bench.py
-python tool/pipeline_b6_bench_summary.py
+python tool/pipeline_b6_bench.py --out coverage/bench-recheck
+python tool/pipeline_b6_bench_summary.py --out coverage/bench-recheck
 ```
 
-交错脚本每次运行 A1 B1 A2 B2 A3 B3，A 使用 tool/bench_legacy.py 固定的 895d959 临时 worktree，B 使用当前新版。临时 worktree 创建在本工作区，finally 删除；不移动主工作区分支。重复完整一组可用 --set 2；汇总脚本使用同样参数。
+交错脚本每次运行 A1 B1 A2 B2 A3 B3，A 使用 tool/bench_legacy.py 固定的 895d959 临时 worktree，B 使用当前新版。临时 worktree 创建在本工作区，finally 删除；不移动主工作区分支。重复完整一组可用 --set 2；汇总脚本使用同样的 --set 和 --out 参数，独立目录避免覆盖历史证据。
+
+R4 起，每个独立进程前后用 Get-Counter 采样三次 CPU 总占用，记录同期进程 CPU 秒增量和工作集。启动前平均占用超过 30% 时先等 15 秒、重新采样，再照常运行；等待与采样不计入场景计时。load-before、load-before-retry、load-after JSON 与基准 JSON 同目录。
 
 每场景先验证发送数，再预热 500ms、正式测量至少 2s。每次独立 JIT 进程。mean 是操作端到端均值，p99 使用最近秩，ops/s 包含采样 bookkeeping。构造与释放不计时。S5 一次操作是 100 个并发请求，单位为组/秒。
 
@@ -21,8 +23,20 @@ python tool/pipeline_b6_bench_summary.py
 | S5 | share(start)，100 并发同 key，每组一次传输 |
 | S6 | 嵌套 Map/List POST，retry(max=2) 安装但不触发 |
 
-三轮吞吐极差为 (max/min-1)×100%，必须小于 10%。按吞吐中位数选整行，不能拼接不同轮的延迟。S2/S3 比较相对本轮 S1 的比例开销，不从不同时段裸 Dio 绝对延迟相减；其它门槛与限制见 [测试方案 §6](../docs/design/pipeline-test-plan.md)。不稳定数字仅留档。
+三轮吞吐极差为 (max/min-1)×100%，必须小于 10%。按吞吐中位数选整行，不能拼接不同轮的延迟。S2/S3 先逐轮计算 mean(Sn)/mean(S1)-1，再取三个比例的中位数；汇总 JSON 同时保存三个比例与选中轮次。整组不稳定时 gates JSON 的 passed 为 null，不从不同时段裸 Dio 绝对延迟相减；其它门槛与限制见 [测试方案 §6](../docs/design/pipeline-test-plan.md)。不稳定数字仅留档。
 
 简单热点计时：dart run benchmark/pipeline_profile.dart。它在阶段 pre/post 插入探针，先预热 1000 次，再计 5000 次。时间差含探针开销，source:post 包含 Dio 与响应归一化；只作热点线索，不参与性能门槛。
 
 [B6 报告](../docs/reports/2026-10-29-pipeline-b6.md) 保存两组交错数据与结论；B0 历史基线不替代同期 A/B。
+
+[R4 报告](../docs/reports/2026-11-03-round2-r4.md) 保存四组补测、两项优化实验、克隆开关和最终旧版对照。两项候选均因无法证明满足事前阈值而撤回，快照行为回归保留；运行时与 R3 相同。
+
+针对性微基准：
+
+```powershell
+dart run benchmark/round2_r4_micro.dart
+dart run benchmark/round2_r4_micro.dart clone-off
+dart run benchmark/round2_r4_micro.dart clone-on
+```
+
+同步诊断每批 100 次操作，分别测请求构造、patch、导出、URI、严格 JSON 与构键。克隆实验使用相同的 S6 类嵌套 POST 与 attempt 探针，只切换 markReplayable，避免关闭 retry 时同时移除其余插件成本。均预热 500ms、正式至少 2s；mean 使用总时间/次数，包含循环 bookkeeping，只用于同一入口内的对照，不替代标准 S1–S6 门槛。
