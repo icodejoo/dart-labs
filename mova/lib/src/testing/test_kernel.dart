@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+
 import '../core/kernel/kernel.dart';
 import '../core/kernel/source_options_kernel.dart';
 import '../core/kernel/keep_alive_kernel.dart';
 import '../core/report/stats_probe.dart';
 import '../core/keep_alive/keep_alive.dart';
+
+part 'test_step.dart';
 
 /// A scriptable [MovaKernel] (+ [MovaStatsProbe]) for widget tests: records
 /// calls and lets the test push any kernel signal, so a real `MovaEngine` can
@@ -32,7 +35,60 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   ///   live. `false` (default) makes buffering/position fallbacks land the
   ///   first frame immediately, with no grace timer left pending / 假装原生 RESTART
   ///   订阅在工作。默认 `false`：buffering/位置兜底会立刻落地首帧，不会留下挂起的宽限计时器
-  MovaTestKernel({this.renderHandle, this.nativeRestartAvailable = false});
+  /// [script] 为可选行为脚本；省略时继续完全被动，由宿主手工 emit。
+  /// 每次成功 open 从头执行，换源或 dispose 取消旧脚本；返回测试内核。
+  /// 示例：`MovaTestKernel(script: [MovaTestStep.ready()])`。
+  MovaTestKernel({this.renderHandle, this.nativeRestartAvailable = false, List<MovaTestStep>? script})
+      : _script = List.unmodifiable(script ?? const []);
+
+  /// 创建自动就绪的脚本内核；[script] 默认只有就绪一步，[renderHandle] 为渲染句柄。
+  /// 返回无需手工拼首帧信号的测试内核；仅通过本构造或显式 script 启用。
+  /// 示例：`MovaTesting.useTestKernels(() => MovaTestKernel.scripted())`。
+  MovaTestKernel.scripted({List<MovaTestStep> script = const [MovaTestStep.ready()], Object? renderHandle})
+      : this(script: script, renderHandle: renderHandle, nativeRestartAvailable: true);
+
+  final List<MovaTestStep> _script;
+  final List<Timer> _scriptTimers = [];
+  int _scriptGeneration = 0;
+  bool _disposed = false;
+
+  void _cancelScript() {
+    _scriptGeneration++;
+    for (final timer in _scriptTimers) { timer.cancel(); }
+    _scriptTimers.clear();
+  }
+
+  void _startScript(bool play) {
+    final generation = _scriptGeneration;
+    var elapsed = Duration.zero;
+    for (final step in _script) {
+      elapsed += step.after;
+      void run() {
+        if (_disposed || generation != _scriptGeneration) return;
+        step._dispatch(
+          ready: (width, height, duration) {
+            emitCompleted(false);
+            emitSize(width, height);
+            emitDuration(duration);
+            emitBuffer(duration);
+            emitPlaying(play);
+            emitRestart();
+          },
+          buffering: emitBuffering,
+          position: emitPosition,
+          error: emitError,
+          completed: () { emitPlaying(false); emitCompleted(true); },
+        );
+      }
+      if (elapsed == Duration.zero) {
+        scheduleMicrotask(run);
+      } else {
+        late final Timer timer;
+        timer = Timer(elapsed, () { _scriptTimers.remove(timer); run(); });
+        _scriptTimers.add(timer);
+      }
+    }
+  }
 
   /// Names of the methods called on this kernel, in order (`open`, `play`, ...).
   ///
@@ -136,11 +192,13 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
 
   @override
   Future<void> open(String uri, {bool play = true}) async {
+    _cancelScript();
     calls.add('open');
     lastUri = uri;
     lastPlay = play;
     final err = openError;
     if (err != null) throw err;
+    if (!_disposed) _startScript(play);
   }
 
   @override
@@ -169,6 +227,9 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
 
   @override
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _cancelScript();
     calls.add('dispose');
     for (final c in <StreamController<Object?>>[
       _playing,
