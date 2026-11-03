@@ -4,6 +4,7 @@ import '../model/source.dart';
 import '../options/stt_config.dart';
 import 'api.dart';
 import 'cue.dart';
+import 'port.dart';
 
 /// The production [MovaSttApi]: forwards cues from the configured
 /// [MovaSttConfig.engine], tracks which cue covers the current playback
@@ -20,16 +21,36 @@ class MovaSttService implements MovaSttApi {
   ///
   /// - [config]: the resolved STT configuration / 已解析的 STT 配置
   /// - [onBlocked]: refusal callback / 被拒回调
-  MovaSttService({required this.config, this.onBlocked}) {
+  MovaSttService({
+    required this.config,
+    this.onBlocked,
+    this.audioOnly = false,
+  }) {
     final engine = config.engine;
-    if (engine != null) {
+    if (engine != null && !audioOnly) {
       _cueSub = engine.cues.listen((cue) {
+        if (_disposed || _source == null) return;
+        if (cue.sessionEpoch != null) {
+          if (cue.sessionEpoch != _sessionEpoch) return;
+        } else if (_sessionEpoch > 1) {
+          // 换源后的无标记结果无法证明归属，宁可丢弃也不污染新内容。
+          return;
+        }
         _recent.add(cue);
         if (_recent.length > _maxRecent) _recent.removeAt(0);
         if (!_cues.isClosed) _cues.add(cue);
       });
     }
   }
+
+  /// 仅音频引擎禁止启动识别；示例：`MovaSttService(config: config, audioOnly: true)`。
+  final bool audioOnly;
+
+  /// 每次 attach 递增，识别结果必须归属当前代际。
+  int _sessionEpoch = 0;
+
+  /// 资源释放后拒绝迟到结果。
+  bool _disposed = false;
 
   /// The resolved STT configuration.
   ///
@@ -54,8 +75,10 @@ class MovaSttService implements MovaSttApi {
   /// Broadcast sink for [cues].
   ///
   /// [cues] 的广播出口。
-  final StreamController<MovaSttCue> _cues = StreamController<MovaSttCue>.broadcast();
+  final StreamController<MovaSttCue> _cues =
+      StreamController<MovaSttCue>.broadcast();
 
+  /// 当前识别器的字幕订阅。
   StreamSubscription<MovaSttCue>? _cueSub;
 
   /// The media currently open, or null before [attach].
@@ -68,6 +91,7 @@ class MovaSttService implements MovaSttApi {
   /// 通过 [updatePosition] 报告的最近播放位置。
   Duration _position = Duration.zero;
 
+  /// 宿主的识别启用状态；换源不重置。
   bool _started = false;
 
   @override
@@ -89,7 +113,10 @@ class MovaSttService implements MovaSttApi {
 
   @override
   Future<void> start() async {
-    if (!config.enabled) return _blocked(MovaSttBlockReason.disabled);
+    if (_disposed) return;
+    if (audioOnly || !config.enabled) {
+      return _blocked(MovaSttBlockReason.disabled);
+    }
     final engine = config.engine;
     if (engine == null) return _blocked(MovaSttBlockReason.noEngine);
     if (_source == null) return _blocked(MovaSttBlockReason.noSource);
@@ -118,10 +145,20 @@ class MovaSttService implements MovaSttApi {
   /// 记录当前打开的媒体；由 `MovaEngine.open` 调用。
   ///
   /// - [source]: the media now open / 当前打开的媒体
+  /// 换源后识别保持开启，不改变 isRunning、不调用 stop。
+  /// 新识别器应实现 MovaSttSessionEngine 并给 cue 带 sessionEpoch；
+  /// 旧识别器的无标记 cue 仅兼容首源，后续换源时过滤以免串字幕。
+  /// 无返回值；示例：`service.attach(MovaSource('https://host/b.mp4'))`。
   void attach(MovaSource source) {
+    if (_disposed) return;
+    _sessionEpoch++;
     _source = source;
     _recent.clear();
     _position = Duration.zero;
+    final engine = config.engine;
+    if (!audioOnly && engine is MovaSttSessionEngine) {
+      (engine as MovaSttSessionEngine).bindSession(_sessionEpoch);
+    }
   }
 
   /// Updates the tracked playback position so [current] stays accurate;
@@ -134,6 +171,7 @@ class MovaSttService implements MovaSttApi {
     _position = position;
   }
 
+  /// 通知宿主当前启动请求被拒绝。
   void _blocked(MovaSttBlockReason reason) {
     onBlocked?.call(reason);
   }
@@ -142,6 +180,7 @@ class MovaSttService implements MovaSttApi {
   ///
   /// 释放资源；引擎销毁时调用一次即可。
   Future<void> dispose() async {
+    _disposed = true;
     await _cueSub?.cancel();
     await _cues.close();
     await config.engine?.dispose();

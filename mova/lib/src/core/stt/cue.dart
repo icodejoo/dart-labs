@@ -25,7 +25,16 @@ class MovaSttCue {
   /// Creates a subtitle cue.
   ///
   /// 创建一条字幕。
-  const MovaSttCue({required this.text, required this.start, required this.end});
+  const MovaSttCue({
+    required this.text,
+    required this.start,
+    required this.end,
+    this.sessionEpoch,
+  });
+
+  /// 识别任务捕获的会话代际；旧端口可省略，仅兼容首源。
+  /// 示例：`MovaSttCue(text: '你好', start: Duration.zero, end: Duration(seconds: 1), sessionEpoch: epoch)`。
+  final int? sessionEpoch;
 
   /// The recognized text.
   ///
@@ -52,8 +61,12 @@ class MovaSttCue {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaSttCue && text == other.text && start == other.start && end == other.end;
+      other is MovaSttCue &&
+          text == other.text &&
+          start == other.start &&
+          end == other.end &&
+          sessionEpoch == other.sessionEpoch;
 
   @override
-  int get hashCode => Object.hash(text, start, end);
+  int get hashCode => Object.hash(text, start, end, sessionEpoch);
 }

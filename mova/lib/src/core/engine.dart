@@ -696,7 +696,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       _progressRaw.stream,
       const Duration(milliseconds: 200),
     );
-    _sttService = MovaSttService(config: options.stt, onBlocked: _onSttBlocked);
+    _sttService = MovaSttService(config: options.stt, onBlocked: _onSttBlocked, audioOnly: _audioOnly);
     final rec = options.recovery;
     if (rec.enabled) {
       rec.assertValid();
