@@ -204,6 +204,31 @@ void main() {
       events.whereType<MovaNodeEnd>().single.reason,
       MovaNodeEndReason.skipped,
     );
+
+    // 钩子同步重载同一节点，旧 skip 的尾部不得续播新尝试。
+    late final MovaSession reentrant;
+    final reentrantApi = FakeMovaApi(
+      options: MovaOpts(
+        ads: MovaAdConfig(
+          enabled: true,
+          breaks: const [ad],
+          onAdEvent: (event) {
+            if (event.type == MovaAdEventType.skipped) {
+              unawaited(reentrant.load(a));
+            }
+          },
+        ),
+      ),
+    );
+    reentrant = sessionFor(reentrantApi);
+    await reentrant.load(a);
+    final oldEpoch = reentrant.cursor.epoch;
+    reentrant.skip();
+    await settleOperations();
+    expect(reentrant.cursor.epoch, oldEpoch + 1);
+    expect(reentrant.isShowingAd, isTrue);
+    expect(reentrant.currentBreak, same(ad));
+    expect(reentrantApi.source, ad.source);
   });
 
   test('游标节点随 content pending ad 更新', () {

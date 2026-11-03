@@ -398,10 +398,24 @@ await playlist.jumpTo(0); // 打开第一条
 ```
 
 初值（条目列表/初始下标/是否自动连播）取自 `MovaOpts.playlist`
-（`MovaPlaylistConfig`）。**与广告组合时注意**：`MovaPlaylist` 与
-`MovaAds` 都响应 `MovaDone`，不要在同一播放器上同时启用两者的自动行为——
-应把 `MovaPlaylistConfig.autoPlayNext` 设为 `false`，改由
-`MovaAds.contentEnded` 驱动 `playlist.next()`。
+（`MovaPlaylistConfig`）。与广告组合时共享会话，换集会加载对应排期，
+自动连播等待正片及全部后贴片结束（需配置 `playlist.enabled: true`）：
+
+```dart
+final ads = MovaAds(engine, cutover: engine); // engine 为同一个 MovaCutoverEngine
+final playlist = MovaPlaylist(engine, ads: ads);
+await playlist.jumpTo(0);
+```
+
+新代码也可直接使用 `MovaSession`（借用播放器，`autoAdvance` 默认关闭）：
+
+```dart
+final api = createMovaEngine();
+final session = MovaSession(api, items: episodes, autoAdvance: true);
+final outcome = await session.jumpTo(0);
+// episodes 中每项的 adBreaks 覆盖该集广告；null 回落到 api.options.ads.breaks。
+// outcome == MovaLoadOutcome.accepted 表示首段已被接受，不保证首帧。
+```
 
 ## 沉浸式 Feed 流播放（可选）
 

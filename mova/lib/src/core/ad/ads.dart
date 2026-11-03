@@ -4,7 +4,6 @@ import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../api.dart';
 import '../cutover/ctl.dart';
-import '../events/events.dart';
 import '../model/ad.dart';
 import '../model/source.dart';
 import '../options/ad_config.dart';
@@ -42,12 +41,6 @@ MovaAdBreak? dueMidRoll(
 /// Click-through is never navigated here — it is surfaced via
 /// [MovaAdConfig.onAdEvent].
 ///
-/// **Composing with a `MovaPlaylist`:** both react to [MovaDone], so
-/// naively wiring both to the same player makes them race on the next
-/// `open()`. To combine them, set the playlist's `autoPlayNext: false` and
-/// advance it from [contentEnded] (which fires only after the content *and* its
-/// post-rolls finish) instead.
-///
 /// 在 [MovaApi] 之上编排前/中/后贴片广告：在正片与各广告位之间切换正在播放的源。
 ///
 /// 纯 Dart（无 Flutter 依赖），可单测并归属核心层。由宿主构造并注入——用 [load]
@@ -55,9 +48,8 @@ MovaAdBreak? dueMidRoll(
 /// （依赖 engine 的 seek 寄存，使续播位置在被续播源尚未报告时长前也能落地）。
 /// 点击跳转不会在此处执行——经 [MovaAdConfig.onAdEvent] 暴露给宿主。
 ///
-/// **与 `MovaPlaylist` 组合：** 二者都响应 [MovaDone]，裸挂到同一播放器
-/// 会争抢 `open()`。组合时应把播放列表的 `autoPlayNext` 设为 `false`，改由本控制器的
-/// [contentEnded]（只在正片**及其**后贴片都播完后才触发）来驱动换集。
+/// 与播放列表组合时使用 `MovaPlaylist(api, ads: ads)` 共享会话。
+/// 新代码推荐直接使用 [MovaSession]；本类长期保留为薄适配器。
 class MovaAds {
   /// Creates a controller bound to [api], seeded from [MovaOpts.ads].
   ///
@@ -158,14 +150,9 @@ class MovaAds {
   /// 重建。
   Stream<void> get changes => _session.changes;
 
-  /// Fires once the content has fully finished — after it completes and any
-  /// post-rolls have played. The composition seam for advancing a
-  /// `MovaPlaylist` (with its own `autoPlayNext` off) without racing on
-  /// [MovaDone].
-  ///
-  /// 在正片彻底结束后触发一次——即正片播完且所有后贴片也播完之后。用作在不与
-  /// [MovaDone] 争抢的前提下推进 `MovaPlaylist`（其 `autoPlayNext` 关闭）
-  /// 的组合接缝。
+  /// 正片及全部后贴片结束时发出一次通知；返回广播流。
+  /// `MovaPlaylist(api, ads: ads)` 使用此信号自动连播。
+  /// 示例：`ads.contentEnded.listen((_) => showFinished());`。
   Stream<void> get contentEnded => _session.contentEnded;
 
   /// Reports resolver and content-open failures as thrown objects.
@@ -183,9 +170,9 @@ class MovaAds {
   ///
   /// - [content]: the main content source / 正片源
   ///
-  /// 返回本次起播操作完成的 Future；正片异常通过 [contentError] 通知。
+  /// 返回是否被接受为当前内容；接受不等于出首帧，正片异常通过 [contentError] 通知。
   /// 示例：`await ads.load(const MovaSource('https://host/movie.mp4'));`
-  Future<void> load(MovaSource content) => _session.load(content);
+  Future<bool> load(MovaSource content) => movaAdsLoad(_session, content);
 
   /// Loads content whose source is resolved lazily, with its scheduled ads.
   ///
@@ -211,7 +198,7 @@ class MovaAds {
   ///
   /// - [resolve]: resolves the content source on demand / 按需解析正片源
   ///
-  /// 返回本次起播操作完成的 Future；解析与正片打开异常通过 [contentError] 通知。
+  /// 返回是否被接受为当前内容；接受不等于出首帧，解析与正片打开异常通过 [contentError] 通知。
   ///
   /// Example / 示例:
   /// ```dart
@@ -220,8 +207,8 @@ class MovaAds {
   ///   return MovaSource(play.url, title: play.title);
   /// });
   /// ```
-  Future<void> loadDeferred(MovaSourceResolver resolve) =>
-      _session.loadDeferred(resolve);
+  Future<bool> loadDeferred(MovaSourceResolver resolve) =>
+      movaAdsLoadDeferred(_session, resolve);
 
   /// Immediately interrupts the content to play [ad] at an arbitrary point,
   /// then resumes the content where it was interrupted. For ads scheduled at

@@ -43,6 +43,21 @@ enum MovaLoadOutcome {
 MovaSession movaSessionForAds(MovaApi api, MovaCutover? cutover) =>
     MovaSession._(api, cutover: cutover);
 
+/// 广告薄适配器直接映射首段结果，不增加异步包装或 then 链。
+Future<bool> movaAdsLoad(MovaSession session, MovaSource content) => session
+    ._loadCore(content, null, null, (o) => o == MovaLoadOutcome.accepted);
+
+/// 惰性广告入口共用相同调用层级与布尔结果映射。
+Future<bool> movaAdsLoadDeferred(
+  MovaSession session,
+  MovaSourceResolver resolve,
+) => session._loadCore(
+  null,
+  resolve,
+  null,
+  (o) => o == MovaLoadOutcome.accepted,
+);
+
 /// 一次广告尝试的结算与续播标记，重试同一广告也必须新建。
 class _AdAttempt {
   /// 绑定本次尝试的广告位。
@@ -577,8 +592,9 @@ class MovaSession {
   void skip() {
     if (_phase != MovaSessionPhase.ad || !canSkip) return;
     final b = _current!;
+    final seq = _adAttempt!.seq;
     _fire(MovaAdEventType.skipped, b);
-    unawaited(_resumeAfterAd(b));
+    unawaited(_resumeAfterAd(b, attemptSeq: seq));
   }
 
   /// 通知当前广告的点击钩子，无返回值；示例：`session.notifyClicked();`。
@@ -994,7 +1010,7 @@ class MovaSession {
   /// 可靠地把播放器卡死。
   void _armSlotTimer(MovaTimelineNode node) {
     final b = node.adBreak!;
-    final seq = _adAttempt?.seq;
+    final seq = _adAttempt!.seq;
     final d = b.duration;
     if (d == null || _slotClock.remaining != null) return;
     _slotClock.start(d, () {
@@ -1007,7 +1023,7 @@ class MovaSession {
       //
       // 广告主买下的这段时长已经足额交付，因此这是"播完"，不是"跳过"。
       _fire(MovaAdEventType.completed, node);
-      unawaited(_resumeAfterAd(node));
+      unawaited(_resumeAfterAd(node, attemptSeq: seq));
     });
     _holdIfPaused(_slotClock);
   }
@@ -1023,7 +1039,7 @@ class MovaSession {
   ///
   /// 为 [b] 起"始终没有首帧"的判定期限。
   void _armLoadTimer(MovaTimelineNode node) {
-    final seq = _adAttempt?.seq;
+    final seq = _adAttempt!.seq;
     _cancelLoadTimer();
     _loadTimer = Timer(_cfg.loadTimeout, () {
       if (_phase != MovaSessionPhase.ad ||
@@ -1069,7 +1085,7 @@ class MovaSession {
     }
     attempt.failed = true;
     _fire(MovaAdEventType.failed, node);
-    await _resumeAfterAd(node);
+    await _resumeAfterAd(node, attemptSeq: attempt.seq);
   }
 
   /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
@@ -1131,11 +1147,11 @@ class MovaSession {
         );
         if (gen != _gen || _disposed) return;
       case MovaAdFailAction.skipBreak:
-        await _resumeAfterAd(node);
+        await _resumeAfterAd(node, attemptSeq: owned.seq);
         if (gen != _gen || _disposed) return;
       case MovaAdFailAction.abandonPod:
         _markPodPlayed(node);
-        await _resumeAfterAd(node);
+        await _resumeAfterAd(node, attemptSeq: owned.seq);
         if (gen != _gen || _disposed) return;
     }
   }
@@ -1283,7 +1299,7 @@ class MovaSession {
         return;
       }
       _fire(MovaAdEventType.completed, finished);
-      unawaited(_resumeAfterAd(finished));
+      unawaited(_resumeAfterAd(finished, attemptSeq: attempt.seq));
     } else if (_phase == MovaSessionPhase.content ||
         _phase == MovaSessionPhase.pending) {
       _endNode(MovaNodeEndReason.completed);
@@ -1326,14 +1342,18 @@ class MovaSession {
   ///
   /// 广告 [finished] 结束后续播正确内容：前贴片 → 正片从头，中插 → 正片从保存
   /// 位置，后贴片 → 空闲（结束）。
-  Future<void> _resumeAfterAd(MovaTimelineNode finished) async {
+  /// [attemptSeq] 必须在发钩子之前捕获，防止钩子重载同一节点后误续播新尝试。
+  Future<void> _resumeAfterAd(
+    MovaTimelineNode finished, {
+    required int attemptSeq,
+  }) async {
     final resume = _api.state.playbackIntent;
     final gen = _gen;
     if (_disposed) return;
     final attempt = _adAttempt;
     if (attempt == null ||
         attempt.node.id != finished.id ||
-        attempt.seq != _attemptSeq ||
+        attempt.seq != attemptSeq ||
         attempt.resumed) {
       return;
     }

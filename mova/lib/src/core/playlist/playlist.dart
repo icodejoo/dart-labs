@@ -1,3 +1,6 @@
+import '../ad/ads.dart';
+import '../session/session.dart';
+import '../session/registry.dart';
 import 'dart:async';
 
 import '../api.dart';
@@ -21,19 +24,14 @@ import '../model/playlist.dart';
 /// 从不持有它，"下一集"卡片直接读该控制器而非经 [MovaApi]。其项/下标/自动续播取自
 /// [MovaOpts.playlist]；首次 [MovaApi.open]（或调用 [jumpTo]）仍由宿主执行。
 ///
-/// **Composing with ads:** both this controller and a `MovaAds` react to
-/// [MovaDone]; do not enable both against one player at once. Set
-/// [MovaPlaylistConfig.autoPlayNext] to `false` and drive [next] from
-/// `MovaAds.contentEnded` instead so ads and content-advance don't race.
-///
-/// **与广告组合：** 本控制器与 `MovaAds` 都响应 [MovaDone]；不要在同一
-/// 播放器上同时启用二者的自动行为。应把 [MovaPlaylistConfig.autoPlayNext] 设为
-/// `false`，改由 `MovaAds.contentEnded` 驱动 [next]，避免广告与换集争抢。
+/// 与广告组合时传入 `ads:` 共享会话，在正片及后贴片结束后自动连播。
+/// 新代码推荐直接使用 MovaSession；本类作为薄适配器长期保留。
 class MovaPlaylist {
   /// Creates a controller bound to [api], seeded from [MovaOpts.playlist].
   ///
   /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.playlist]。
   ///
+  /// - [ads]: 可选广告控制器，传入后换集走共享会话并遵守 enabled。
   /// - [api]: the player capability surface to drive / 要驱动的播放器能力面
   ///
   /// Example / 示例:
@@ -41,13 +39,33 @@ class MovaPlaylist {
   /// final playlist = MovaPlaylist(api);
   /// await playlist.jumpTo(0); // open the first item
   /// ```
-  MovaPlaylist(this._api)
+  /// [ads] 非空时共享其会话，换集带广告，全部后贴片结束后自动下一集。
+  /// 返回新控制器；不销毁借用的会话。示例：`MovaPlaylist(api, ads: ads)`。
+  MovaPlaylist(this._api, {MovaAds? ads})
       : _items = _api.options.playlist.items,
-        _autoPlayNext = _api.options.playlist.autoPlayNext {
+        _autoPlayNext = _api.options.playlist.autoPlayNext,
+        _enabled = _api.options.playlist.enabled,
+        _session = ads?.session {
     final start = _api.options.playlist.initialIndex;
     _index = _items.isEmpty ? 0 : start.clamp(0, _items.length - 1);
-    _sub = _api.events.listen(_onEvent);
+    final session = _session;
+    if (session == null) {
+      _sub = _api.events.listen(_onEvent);
+    } else {
+      movaPlaylistSessions[this] = session;
+      session.setItems(_items, initialIndex: _index);
+      _endSub = session.contentEnded.listen((_) {
+        if (_enabled && _autoPlayNext && hasNext) unawaited(next());
+      });
+    }
   }
+
+  /// 会话路径遵守的播放列表开关；旧直连路径保持原行为。
+  final bool _enabled;
+  /// 广告适配器借出的共享会话。
+  final MovaSession? _session;
+  /// 会话路径只订阅全部后贴片结束信号。
+  StreamSubscription<void>? _endSub;
 
   final MovaApi _api;
   final List<MovaPlaylistItem> _items;
@@ -142,6 +160,16 @@ class MovaPlaylist {
   ///
   /// - [index]: the target item index / 目标项下标
   Future<void> jumpTo(int index) async {
+    final session = _session;
+    if (session != null) {
+      if (_disposed || !_enabled || index < 0 || index >= _items.length) return;
+      final gen = ++_jumpGen;
+      final outcome = await session.jumpTo(index);
+      if (outcome != MovaLoadOutcome.accepted || gen != _jumpGen || _disposed) return;
+      _index = index;
+      _indexChanges.add(index);
+      return;
+    }
     if (index < 0 || index >= _items.length) return;
     final gen = ++_jumpGen;
     final accepted = await _api.open(_items[index].source);
@@ -185,6 +213,10 @@ class MovaPlaylist {
   /// 释放事件订阅并关闭下标流；宿主销毁控制器时调用一次。
   Future<void> dispose() async {
     _disposed = true;
+    if (_session != null) {
+      await _endSub?.cancel();
+      movaPlaylistSessions[this] = null;
+    }
     await _sub?.cancel();
     await _indexChanges.close();
   }

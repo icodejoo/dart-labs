@@ -266,6 +266,7 @@ void main() {
     final session = MovaSession(api);
     await session.load(a);
     await session.dispose();
+    expect(api.disposeCount, 0);
     expect(await api.open(b), isTrue);
     expect(api.source, b);
     await api.dispose();

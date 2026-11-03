@@ -1,6 +1,9 @@
 ## Unreleased
 
-- 会话新增带纪元与节点身份的事件；按节点独立记录广告，修复 pod 中同参数 const 广告被合并的问题。
+- `MovaPlaylist(api, ads:)` 共享会话，换集携带按集广告，自动连播等待全部后贴片；此路径遵守 `playlist.enabled`，旧直连构造保持原行为。
+- `MovaAds.load/loadDeferred` 返回 `Future<bool>` 表示首段是否接受，完成微任务时序保持不变；`Future<bool>` 可用于原 `Future<void>` 调用点，继承并覆写加载方法的子类需同步返回类型。
+
+- 会话新增带纪元与节点身份的事件；按节点独立记录广告，修复 pod 中同参数 const 广告被合并的问题。广告钩子同步重载同一节点时，旧结束入口不再误续播新尝试。
 
 - 新增 `MovaSession` 多条目、按集广告与加载结果，直接构造自动识别已启用的切换能力；`MovaPlaylistItem.adBreaks` 可覆盖排期，`MovaAds.session` 提供共享访问口。
 
