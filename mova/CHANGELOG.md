@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 会话自动连播消费结束通知时校验 epoch，手动换集不再被旧通知覆盖；替换列表使在途跳转失效，广告共享列表下标及 indexChanges 跟随会话导航。跳过加载中的前贴片时，加载结果等待同一 epoch 的续播请求结算。
+
 - `MovaPlaylist(api, ads:)` 共享会话，换集携带按集广告，自动连播等待全部后贴片；此路径遵守 `playlist.enabled`，旧直连构造保持原行为。
 - `MovaAds.load/loadDeferred` 返回 `Future<bool>` 表示首段是否接受，完成微任务时序保持不变；`Future<bool>` 可用于原 `Future<void>` 调用点，继承并覆写加载方法的子类需同步返回类型。
 

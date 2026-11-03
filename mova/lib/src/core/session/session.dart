@@ -58,6 +58,10 @@ Future<bool> movaAdsLoadDeferred(
   (o) => o == MovaLoadOutcome.accepted,
 );
 
+/// 包内结束通知携带发出时纪元，消费者须与当前游标比较。
+Stream<int> movaContentEndEpochs(MovaSession session) =>
+    session._endedEpochs.stream;
+
 /// 一次广告尝试的结算与续播标记，重试同一广告也必须新建。
 class _AdAttempt {
   /// 绑定本次尝试的广告位。
@@ -83,6 +87,9 @@ class _AdAttempt {
 
   /// 打开已接受并落定；此前的首帧和结束属于旧媒体。
   bool opened = false;
+
+  /// 被跳过时仍在途的续播，加载结果须等它结算。
+  Future<void>? continuation;
 }
 
 /// 编排同一播放器的多条正片及其广告；借用播放器，销毁会话不会销毁播放器。
@@ -122,8 +129,8 @@ class MovaSession {
        _enabled = (ads ?? _api.options.ads).enabled {
     setItems(items, initialIndex: initialIndex);
     if (autoAdvance) {
-      _endSub = contentEnded.listen((_) {
-        if (_index + 1 < _items.length) unawaited(next());
+      _endSub = _endedEpochs.stream.listen((epoch) {
+        if (epoch == _gen && _index + 1 < _items.length) unawaited(next());
       });
     }
     _eventSub = _api.events.listen(_onEvent);
@@ -147,6 +154,7 @@ class MovaSession {
   final StreamController<void> _changes = StreamController<void>.broadcast();
   final StreamController<void> _contentEnded =
       StreamController<void>.broadcast();
+  final StreamController<int> _endedEpochs = StreamController<int>.broadcast();
   final StreamController<Object> _contentError =
       StreamController<Object>.broadcast();
 
@@ -373,6 +381,13 @@ class MovaSession {
     _breaks = List.unmodifiable(breaks ?? _cfg.breaks);
     _nodes = movaBuildNodes(_epochItem, _breaks);
     await _beginLoad();
+    while (gen == _gen && !_disposed) {
+      final attempt = _adAttempt;
+      final continuation = attempt?.continuation;
+      if (continuation == null) break;
+      await continuation;
+      if (identical(attempt, _adAttempt)) break;
+    }
     return map(
       _disposed
           ? MovaLoadOutcome.disposed
@@ -401,6 +416,7 @@ class MovaSession {
   /// 以 [items] 替换列表，将 [initialIndex] 夹到有效范围；不打开内容，无返回值。
   /// 示例：`session.setItems(episodes, initialIndex: 1);`。
   void setItems(List<MovaPlaylistItem> items, {int initialIndex = 0}) {
+    _itemsGeneration++;
     _items = List.unmodifiable(items);
     _index = items.isEmpty ? 0 : initialIndex.clamp(0, items.length - 1);
   }
@@ -410,6 +426,7 @@ class MovaSession {
   Future<MovaLoadOutcome> jumpTo(int index) async {
     if (_disposed) return MovaLoadOutcome.disposed;
     if (index < 0 || index >= _items.length) return MovaLoadOutcome.rejected;
+    final itemsGeneration = _itemsGeneration;
     final item = _items[index];
     final loading = _loadCore(
       item.source,
@@ -420,6 +437,7 @@ class MovaSession {
     );
     final gen = _gen;
     final outcome = await loading;
+    if (itemsGeneration != _itemsGeneration) return MovaLoadOutcome.superseded;
     if (outcome == MovaLoadOutcome.accepted && gen == _gen && !_disposed) {
       _index = index;
       _sessionEvents.add(MovaItemChange(_gen, index));
@@ -465,13 +483,14 @@ class MovaSession {
   /// 条目快照与已接受下标。
   List<MovaPlaylistItem> _items = const [];
   int _index = 0;
+  int _itemsGeneration = 0;
 
   /// 本次已接受或失败的纪元；跨加载不复用。
   int _acceptedEpoch = -1;
   int _failedEpoch = -1;
 
   /// 直接构造时可选的自动前进订阅。
-  StreamSubscription<void>? _endSub;
+  StreamSubscription<int>? _endSub;
 
   /// The shared start-of-playback path for [load] and [loadDeferred]: resets
   /// per-load bookkeeping, then plays the first pre-roll or the content.
@@ -1334,6 +1353,7 @@ class MovaSession {
     _current = null;
     _pending = null;
     _changes.add(null);
+    _endedEpochs.add(_gen);
     _contentEnded.add(null);
   }
 
@@ -1344,6 +1364,18 @@ class MovaSession {
   /// 位置，后贴片 → 空闲（结束）。
   /// [attemptSeq] 必须在发钩子之前捕获，防止钩子重载同一节点后误续播新尝试。
   Future<void> _resumeAfterAd(
+    MovaTimelineNode finished, {
+    required int attemptSeq,
+  }) {
+    final attempt = _adAttempt;
+    final future = _resumeAdCore(finished, attemptSeq: attemptSeq);
+    if (attempt != null && attempt.seq == attemptSeq) {
+      attempt.continuation ??= future;
+    }
+    return future;
+  }
+
+  Future<void> _resumeAdCore(
     MovaTimelineNode finished, {
     required int attemptSeq,
   }) async {
@@ -1612,6 +1644,7 @@ class MovaSession {
     await _stateSub?.cancel();
     await _cutover?.abandon();
     await _changes.close();
+    await _endedEpochs.close();
     await _contentEnded.close();
     await _contentError.close();
     await _sessionEvents.close();

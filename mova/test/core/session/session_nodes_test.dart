@@ -69,17 +69,47 @@ void main() {
       final session = MovaSession(api)
         ..debugClock = () => DateTime.utc(2026).add(clock.elapsed);
       final events = <MovaSessionEvent>[];
-      session.events.listen(events.add);
+      final endTimes = <Duration>[];
+      session.events.listen((event) {
+        events.add(event);
+        if (event is MovaNodeEnd) endTimes.add(clock.elapsed);
+      });
       unawaited(session.load(b));
+      clock.flushMicrotasks();
+      api.pushEvent(
+        const MovaFirstFrame(
+          sinceOpen: Duration.zero,
+          signal: MovaFirstFrameSignal.restart,
+        ),
+      );
       clock.flushMicrotasks();
       clock.elapse(const Duration(seconds: 5));
       api.pushEvent(const MovaDone());
+      clock.flushMicrotasks();
+      api.pushEvent(
+        const MovaFirstFrame(
+          sinceOpen: Duration.zero,
+          signal: MovaFirstFrameSignal.restart,
+        ),
+      );
       clock.flushMicrotasks();
       expect(session.cursor.node, const MovaNodeId(0, MovaNodeKind.pre, 1));
       clock.elapse(const Duration(seconds: 5));
       expect(session.isShowingAd, isTrue);
       expect(events.whereType<MovaNodeEnd>(), hasLength(1));
-      clock.elapse(const Duration(seconds: 5));
+      clock.elapse(const Duration(seconds: 4, milliseconds: 999));
+      expect(events.whereType<MovaNodeEnd>(), hasLength(1));
+      clock.elapse(const Duration(milliseconds: 1));
+      expect(endTimes, [
+        const Duration(seconds: 5),
+        const Duration(seconds: 15),
+      ]);
+      expect(
+        events.whereType<MovaNodeEnd>().every(
+          (event) => event.reason == MovaNodeEndReason.completed,
+        ),
+        isTrue,
+      );
       expect(events.whereType<MovaNodeEnd>().map((e) => e.node.ordinal), [
         0,
         1,

@@ -66,6 +66,109 @@ Future<void> reachMid(FakeMovaApi api) async {
 }
 
 void main() {
+  for (final standalone in [false, true]) {
+    test('结束通知不能覆盖节点监听器手动换集 standalone=$standalone', () async {
+      final f = fixture();
+      final session = standalone
+          ? MovaSession(f.api, items: episodes, autoAdvance: true)
+          : f.ads.session;
+      if (standalone) addTearDown(session.dispose);
+      await session.jumpTo(0);
+      final gate = Completer<void>();
+      f.api.openGate = gate;
+      session.events.listen((event) {
+        if (event is MovaNodeEnd &&
+            event.node.kind == MovaNodeKind.content &&
+            event.reason == MovaNodeEndReason.completed) {
+          unawaited(session.jumpTo(2));
+        }
+      });
+      f.api.pushEvent(const MovaDone());
+      await settleOperations();
+      gate.complete();
+      await settleOperations();
+      expect(f.api.openedUris, [a.uri, c.uri]);
+      expect(session.cursor.item, 2);
+    });
+  }
+
+  for (final naturalEnd in [false, true]) {
+    test('公开会话换集同步列表并从会话导航 naturalEnd=$naturalEnd', () async {
+      final f = fixture();
+      final changes = <int>[];
+      f.playlist.indexChanges.listen(changes.add);
+      await f.playlist.jumpTo(0);
+      await f.ads.session.jumpTo(2);
+      await settleOperations();
+      expect(f.playlist.currentIndex, 2);
+      expect(f.playlist.currentItem, episodes[2]);
+      expect(f.playlist.hasNext, isFalse);
+      expect(f.playlist.previousItem, episodes[1]);
+      if (naturalEnd) {
+        await done(f.api);
+      } else {
+        await f.playlist.next();
+      }
+      expect(f.api.openedUris, [a.uri, c.uri]);
+      expect(changes, [0, 2]);
+      await f.playlist.previous();
+      await settleOperations();
+      expect(changes, [0, 2, 1]);
+    });
+  }
+
+  test('替换列表使在途跳转失效且不提交越界下标', () async {
+    final f = fixture();
+    final gate = Completer<void>();
+    f.api.openGate = gate;
+    final events = <MovaSessionEvent>[];
+    f.ads.session.events.listen(events.add);
+    final loading = f.ads.session.jumpTo(2);
+    await settleOperations();
+    f.ads.session.setItems(const [MovaPlaylistItem(source: b)]);
+    gate.complete();
+    expect(await loading, MovaLoadOutcome.superseded);
+    await settleOperations();
+    expect(f.ads.session.cursor.item, 0);
+    expect(events.whereType<MovaItemChange>(), isEmpty);
+  });
+
+  for (final entry in ['load', 'jumpTo', 'ads']) {
+    test('跳过加载中的前贴片等待续播结算 $entry', () async {
+      const skippable = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: c,
+        skippableAfter: Duration.zero,
+      );
+      final f = fixture(breaks: [skippable]);
+      final adGate = Completer<void>();
+      final contentGate = Completer<void>();
+      f.api.openGate = adGate;
+      var settled = false;
+      final Future<Object> loading = switch (entry) {
+        'load' => f.ads.session.load(b),
+        'jumpTo' => f.ads.session.jumpTo(1),
+        _ => f.ads.load(b),
+      };
+      unawaited(
+        loading.then((_) {
+          settled = true;
+        }),
+      );
+      await settleOperations();
+      f.api.openGate = contentGate;
+      f.ads.skip();
+      await settleOperations();
+      adGate.complete();
+      await settleOperations();
+      expect(settled, isFalse);
+      contentGate.complete();
+      expect(await loading, entry == 'ads' ? true : MovaLoadOutcome.accepted);
+      expect(f.ads.session.cursor.phase, MovaSessionPhase.content);
+      if (entry == 'jumpTo') expect(f.playlist.currentIndex, 1);
+    });
+  }
+
   test('三集自动连播，每集前贴片中插与 contentEnded 各一次', () async {
     final f = fixture(breaks: [pre, mid]);
     final starts = <MovaNodeId>[];

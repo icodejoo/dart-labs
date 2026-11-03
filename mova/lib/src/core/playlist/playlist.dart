@@ -1,5 +1,6 @@
 import '../ad/ads.dart';
 import '../session/session.dart';
+import '../session/events.dart';
 import '../session/registry.dart';
 import 'dart:async';
 
@@ -42,10 +43,10 @@ class MovaPlaylist {
   /// [ads] 非空时共享其会话，换集带广告，全部后贴片结束后自动下一集。
   /// 返回新控制器；不销毁借用的会话。示例：`MovaPlaylist(api, ads: ads)`。
   MovaPlaylist(this._api, {MovaAds? ads})
-      : _items = _api.options.playlist.items,
-        _autoPlayNext = _api.options.playlist.autoPlayNext,
-        _enabled = _api.options.playlist.enabled,
-        _session = ads?.session {
+    : _items = _api.options.playlist.items,
+      _autoPlayNext = _api.options.playlist.autoPlayNext,
+      _enabled = _api.options.playlist.enabled,
+      _session = ads?.session {
     final start = _api.options.playlist.initialIndex;
     _index = _items.isEmpty ? 0 : start.clamp(0, _items.length - 1);
     final session = _session;
@@ -54,18 +55,31 @@ class MovaPlaylist {
     } else {
       movaPlaylistSessions[this] = session;
       session.setItems(_items, initialIndex: _index);
-      _endSub = session.contentEnded.listen((_) {
-        if (_enabled && _autoPlayNext && hasNext) unawaited(next());
+      _endSub = movaContentEndEpochs(session).listen((epoch) {
+        if (epoch == session.cursor.epoch &&
+            _enabled &&
+            _autoPlayNext &&
+            hasNext) {
+          unawaited(next());
+        }
+      });
+      _itemSub = session.events.listen((event) {
+        if (event is MovaItemChange && !_disposed) {
+          _indexChanges.add(event.index);
+        }
       });
     }
   }
 
   /// 会话路径遵守的播放列表开关；旧直连路径保持原行为。
   final bool _enabled;
+
   /// 广告适配器借出的共享会话。
   final MovaSession? _session;
+
   /// 会话路径只订阅全部后贴片结束信号。
-  StreamSubscription<void>? _endSub;
+  StreamSubscription<int>? _endSub;
+  StreamSubscription<MovaSessionEvent>? _itemSub;
 
   final MovaApi _api;
   final List<MovaPlaylistItem> _items;
@@ -96,32 +110,32 @@ class MovaPlaylist {
   /// The index currently playing.
   ///
   /// 当前正在播放的下标。
-  int get currentIndex => _index;
+  int get currentIndex => _session?.cursor.item ?? _index;
 
   /// The item currently playing, or null when the list is empty.
   ///
   /// 当前正在播放的项；列表为空时为 null。
-  MovaPlaylistItem? get currentItem => _at(_index);
+  MovaPlaylistItem? get currentItem => _at(currentIndex);
 
   /// The item that [next] would open, or null when at the end.
   ///
   /// [next] 将打开的项；已在末尾时为 null。
-  MovaPlaylistItem? get nextItem => _at(_index + 1);
+  MovaPlaylistItem? get nextItem => _at(currentIndex + 1);
 
   /// The item that [previous] would open, or null when at the start.
   ///
   /// [previous] 将打开的项；已在开头时为 null。
-  MovaPlaylistItem? get previousItem => _at(_index - 1);
+  MovaPlaylistItem? get previousItem => _at(currentIndex - 1);
 
   /// Whether a next item exists.
   ///
   /// 是否存在下一项。
-  bool get hasNext => _index + 1 < _items.length;
+  bool get hasNext => currentIndex + 1 < _items.length;
 
   /// Whether a previous item exists.
   ///
   /// 是否存在上一项。
-  bool get hasPrevious => _index - 1 >= 0;
+  bool get hasPrevious => currentIndex - 1 >= 0;
 
   /// Emits the new index whenever navigation changes the current item.
   ///
@@ -135,7 +149,11 @@ class MovaPlaylist {
   /// Returns once the open request has been issued (no-op at the end).
   ///
   /// 在打开请求发出后返回（已在末尾时为空操作）。
-  Future<void> next() => hasNext ? jumpTo(_index + 1) : Future<void>.value();
+  Future<void> next() => _session != null
+      ? _navigateSession(forward: true)
+      : hasNext
+      ? jumpTo(_index + 1)
+      : Future<void>.value();
 
   /// Goes back to the previous item, if any.
   ///
@@ -144,8 +162,20 @@ class MovaPlaylist {
   /// Returns once the open request has been issued (no-op at the start).
   ///
   /// 在打开请求发出后返回（已在开头时为空操作）。
-  Future<void> previous() =>
-      hasPrevious ? jumpTo(_index - 1) : Future<void>.value();
+  Future<void> previous() => _session != null
+      ? _navigateSession(forward: false)
+      : hasPrevious
+      ? jumpTo(_index - 1)
+      : Future<void>.value();
+
+  Future<void> _navigateSession({required bool forward}) async {
+    if (_disposed || !_enabled) return;
+    if (forward) {
+      await _session!.next();
+    } else {
+      await _session!.previous();
+    }
+  }
 
   /// Jumps to [index] and opens its source; out-of-range indices are ignored.
   ///
@@ -163,11 +193,7 @@ class MovaPlaylist {
     final session = _session;
     if (session != null) {
       if (_disposed || !_enabled || index < 0 || index >= _items.length) return;
-      final gen = ++_jumpGen;
-      final outcome = await session.jumpTo(index);
-      if (outcome != MovaLoadOutcome.accepted || gen != _jumpGen || _disposed) return;
-      _index = index;
-      _indexChanges.add(index);
+      await session.jumpTo(index);
       return;
     }
     if (index < 0 || index >= _items.length) return;
@@ -215,6 +241,7 @@ class MovaPlaylist {
     _disposed = true;
     if (_session != null) {
       await _endSub?.cancel();
+      await _itemSub?.cancel();
       movaPlaylistSessions[this] = null;
     }
     await _sub?.cancel();
