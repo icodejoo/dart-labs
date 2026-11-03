@@ -8,6 +8,7 @@ import 'package:mova/src/core/cutover/trigger.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
+import 'package:mova/src/core/state/state.dart';
 
 import '../../support/fake_api.dart';
 import '../../support/gated.dart';
@@ -22,13 +23,14 @@ Future<void> settleOperations() async {
 /// 使用 S01 命令日志与门控替身运行真实切换代理。
 class OperationRig {
   /// 创建启用切换的测试环境；所有影子保留在工厂记录中。
-  OperationRig() {
+  OperationRig({void Function(DetachGatedApi engine)? configure}) {
     api = MovaCutoverEngine(
       engineFactory: () {
-        final engine = FakeMovaApi(
+        final engine = DetachGatedApi(
           options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
           commandLog: factory.log,
         );
+        configure?.call(engine);
         factory.engines.add(engine);
         return engine;
       },
@@ -65,6 +67,35 @@ class OperationRig {
   }
 }
 
+/// 在真实转发订阅取消处设置门闩，不替换切换逻辑。
+class DetachGatedApi extends FakeMovaApi {
+  /// 沿用共享日志与选项。
+  DetachGatedApi({super.options, super.commandLog});
+
+  /// 转发状态订阅取消时等待的门闩。
+  Completer<void>? detachGate;
+
+  /// 可选的释放错误，用于验证代理最终关闭全部流。
+  bool throwOnDispose = false;
+
+  /// 用可等待的取消回调暴露 detach 的 await 点。
+  @override
+  Stream<MovaState> get states => Stream<MovaState>.multi((controller) {
+    final sub = super.states.listen(controller.add, onDone: controller.close);
+    controller.onCancel = () async {
+      await sub.cancel();
+      await detachGate?.future;
+    };
+  });
+
+  /// 先释放资源，再模拟内核释放错误。
+  @override
+  Future<void> dispose() async {
+    await super.dispose();
+    if (throwOnDispose) throw StateError('dispose failed');
+  }
+}
+
 /// 验证提交事务与较新的加载、预热和销毁之间的交错。
 void main() {
   late OperationRig rig;
@@ -72,6 +103,129 @@ void main() {
   tearDown(() async {
     await rig.api.dispose();
     await settleOperations();
+  });
+
+  for (final point in ['pause', 'holding', 'play', 'detach']) {
+    for (final releaseCFirst in [true, false]) {
+      test('F1 提交独占 $point，C 门闩先释放=$releaseCFirst', () async {
+        final old = rig.engines.first as DetachGatedApi;
+        old.pushPlayingOnVerbs = true;
+        await old.play();
+        final a = await rig.warm('A', readyNow: false, hold: point == 'holding');
+        a.pushPlayingOnVerbs = true;
+        final gate = Completer<void>();
+        addTearDown(() {
+          if (!gate.isCompleted) gate.complete();
+        });
+        if (point == 'pause') old.pauseGate = gate;
+        if (point == 'holding') a.pauseGate = gate;
+        await rig.ready(a);
+        if (point == 'play') a.playGate = gate;
+        if (point == 'detach') old.detachGate = gate;
+        final first = rig.api.commit();
+        await settleOperations();
+        final c = await rig.warm('C');
+        c.pushPlayingOnVerbs = true;
+        final cGate = c.playGate = Completer<void>();
+        addTearDown(() {
+          if (!cGate.isCompleted) cGate.complete();
+        });
+        var cFinished = false;
+        final second = rig.api.commit().then((ok) {
+          cFinished = true;
+          return ok;
+        });
+        if (releaseCFirst) cGate.complete();
+        await settleOperations();
+        expect(cFinished, isFalse, reason: 'C 不得越过 A 的换指事务');
+        gate.complete();
+        expect(await first, isTrue);
+        if (!releaseCFirst) cGate.complete();
+        expect(await second, isTrue);
+        await settleOperations();
+        expect(rig.api.active, same(c));
+        expect(rig.api.cutoverPhase, MovaCutoverPhase.idle);
+        expect(old.disposeCount, 1);
+        expect(a.disposeCount, 1);
+        expect(c.disposeCount, 0);
+        expect(rig.engines.where((e) => !e.disposed && e.state.playing), [c]);
+        c.push(c.state.copyWith(volume: 23));
+        c.pushProgress(const MovaProg(position: Duration(seconds: 7)));
+        await settleOperations();
+        expect(rig.api.state.volume, 23);
+        expect(rig.api.progressValue.position, const Duration(seconds: 7));
+      });
+    }
+  }
+
+  test('F6 cutoverTo 的 open 挂起时 prepare 换槽，只回落自己的源', () async {
+    final gate = Completer<void>();
+    var count = 0;
+    final local = OperationRig(
+      configure: (engine) {
+        if (count++ == 1) engine.openGate = gate;
+      },
+    );
+    final switching = local.api.cutoverTo(const MovaSource('https://host/X.mp4'));
+    await settleOperations();
+    final x = local.engines.last;
+    final c = await local.warm('C');
+    gate.complete();
+    expect(await switching, isFalse);
+    expect(local.api.active, same(local.engines.first));
+    expect(local.engines.first.source!.uri, 'https://host/X.mp4');
+    expect(c.calls.where((v) => v == 'play'), isEmpty);
+    expect(x.disposeCount, 1);
+    await local.api.dispose();
+    expect(c.disposeCount, 1);
+  });
+
+  for (final point in ['pause', 'seek']) {
+    for (final ending in ['commit', 'abandon', 'dispose']) {
+      test('F3 holding $point 抛错不阻断 $ending 和释放', () async {
+        final shadow = await rig.warm('A', readyNow: false, hold: true);
+        final gate = Completer<void>();
+        if (point == 'pause') shadow.pauseGate = gate;
+        if (point == 'seek') shadow.seekGate = gate;
+        await rig.ready(shadow);
+        gate.completeError(StateError('holding failed'));
+        await settleOperations();
+        if (ending == 'commit') {
+          expect(await rig.api.commit(), isTrue);
+          await rig.api.dispose();
+        } else if (ending == 'abandon') {
+          await rig.api.abandon();
+          expect(rig.api.cutoverPhase, MovaCutoverPhase.idle);
+          await rig.api.dispose();
+        } else {
+          await rig.api.dispose();
+        }
+        expect(shadow.disposeCount, 1);
+        expect(rig.engines.first.disposeCount, 1);
+        await rig.api.dispose();
+      });
+    }
+  }
+
+  test('F3 槽释放抛错仍释放 active 并关闭全部流', () async {
+    final shadow = await rig.warm('A') as DetachGatedApi;
+    shadow.throwOnDispose = true;
+    final closed = <String>[];
+    final subscriptions = [
+      rig.api.states.listen((_) {}, onDone: () => closed.add('state')),
+      rig.api.uiStates.listen((_) {}, onDone: () => closed.add('ui')),
+      rig.api.progress.listen((_) {}, onDone: () => closed.add('progress')),
+      rig.api.events.listen((_) {}, onDone: () => closed.add('events')),
+      rig.api.cutoverPhases.listen((_) {}, onDone: () => closed.add('phases')),
+    ];
+    await expectLater(rig.api.dispose(), throwsStateError);
+    await settleOperations();
+    expect(rig.engines.first.disposeCount, 1);
+    expect(shadow.disposeCount, 1);
+    expect(closed, hasLength(5));
+    for (final sub in subscriptions) {
+      await sub.cancel();
+    }
   });
 
   for (final command in ['open', 'reload', 'dispose']) {
