@@ -480,7 +480,7 @@ class LoadSpec { final int sourceIndex; final String uri; final MovaQuality? qua
 | `MovaEngine` 内各加载路径的局部 uri（`switchQuality` 的 `playUri` :2438、时移 builder 结果 :2197-2199） | `LoadSpec? _currentLoad` | A09 记录、A10 重放 |
 | `_abrHold`、`_abrHoldTimer`（engine.dart:553-563） | `_AbrLease{attemptId}` | A11 |
 | `_resumeGateArmed` + 共享 `_frameGate`（:197、:429） | 独立 `_resumeGate` 实例 | A08 |
-| `MovaApi.showControls/hideControls/showHud/setDragging/uiStates`（api.dart:302-345） | `MovaChrome`，旧成员 `@Deprecated` 桥接一个版本 | C04 |
+| `MovaApi.showControls/hideControls/showHud/setDragging/uiStates`（api.dart:302-345） | `MovaChrome`，旧成员以 dartdoc + CHANGELOG 公告桥接一个版本（不加成员级注解） | C04 |
 | `MovaOpts.theme/strings/gesture/controls/danmaku`（options.dart:62-102） | `MovaPlayerStyle`，旧字段 `@Deprecated` 兜底 | C06 |
 
 ### 2.5 命令三分法（落到具体命令）
@@ -869,7 +869,7 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 | C01 | `docs(mova): 示例统一用 createMovaEngine，MovaEngine() 构造说明与 debug 提示` | 文档/行为（仅 debug） | `README.md`、`engine.dart` 类注释 | 50–100 | — | +1 | README 首例、时移、拦截器示例全部改；**首例 `engine.open()` 补 `await` 与 `catch`**（README:106 [已核]，现在未 await 未 catch，`open` 抛出即未处理异常）；裸构造在 debug 下打一次提示 |
 | C02 | `fix(mova): MovaMini.show 遵守 enabled，修正无缝切换示例` | 行为 | `ui/mini/mini.dart`、`README.md`、`platform_impl/wiring.dart`、`core/stt/service.dart`（debug 提示） | 60–120 | — | +4 | Codex 异议 2：补 cutover 关闭、STT 无引擎的 debug 一次性提示与只读状态（getter 命名 [待核]）；[已核] `show()`（mini.dart:121）不查 enabled，`showInPage`（:174）查；README:478 的示例得到关闭的直通代理 |
 | C03 | `fix(mova): MovaView 只比较引擎实际读取的配置节` | 行为 | `ui/view.dart`、`core/options/options.dart`（`engineSectionsEqual`） | 100–200 | — | +5：父组件重建、内联 `MovaOpts` 不再重建引擎；debug 下连续 N 帧 options 不等时提示 | [已核] view.dart:188 |
-| C04 | `feat(mova): MovaChrome 承接每视图 UI 交互态，旧引擎接口桥接一个版本` | 新增/API | 新 `ui/chrome/`、组件、`core/api.dart`（弃用公告，是否加成员级注解见待拍板 18）、`engine.dart`、`cutover_engine.dart` | 600–1000 | B01、B14、B15、B16 | +25；拖动与按钮交互续期（P1-13）；同一引擎挂两个视图互不串扰 | 旧 `api.uiStates/showControls` 在一个版本内仍可用（镜像） |
+| C04 | `feat(mova): MovaChrome 承接每视图 UI 交互态，旧引擎接口桥接一个版本` | 新增/API | 新 `ui/chrome/`、组件、`core/api.dart`（dartdoc + CHANGELOG 公告，不加成员级注解）、`engine.dart`、`cutover_engine.dart` | 600–1000 | B01、B14、B15、B16 | 已落地 C04a–C04d；实测 +32 → 2301；拖动与按钮续期（P1-13）；多视图互不串扰 | 旧接口一个版本内保留；无视图行为不变；详见文末 C04 落地记录 |
 | C05 | `feat(mova): 应用内全屏路由与返回键处理（默认关）` | 新增 | 新 `ui/fullscreen/`、`ui/player.dart` | 300–500 | C04、B04 | +8 | Windows 转场快照路径要经过 `MovaSnapshotGuard`（Flutter 3.47.0/3.47.1 #190774） |
 | C06 | `feat(mova): MovaPlayerStyle，主题文案手势弹幕样式挪出 MovaOpts` | API | 新 `ui/style/`、`options.dart`（弃用公告，是否加成员级注解见待拍板 18）、组件、`core/model/quality.dart`（去写死中文） | 600–900 | C04 | +15 | 查找顺序：widget 参数 > ThemeExtension > `api.options.*`（deprecated）> 默认；切主题不重建引擎 |
 | C07 | `feat(mova): MovaSource 支持请求头、UA 与起播位置，旁路请求统一带头` | 新增 | `core/model/source.dart`、`engine.dart`（start 走寄存）、`preview/fetcher.dart`、抽帧器、`feed_prefetcher.dart` | 250–400 | B12 | +10 | `start` 放在 `MovaSource` 上，不改 `MovaApi.open` 签名；**`MovaHttpFetch.get(Uri)` 加 headers 是对宿主实现的破坏**（待拍板 17）：推荐新增可选能力接口 `MovaHeaderedHttpFetch`、原抽象签名不动，旧 fetcher 退化为不带头并 debug 提示 |
@@ -1353,3 +1353,29 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 每笔提交前 `flutter analyze lib test` 均为 0 issues；所有 `flutter test` 使用 `--concurrency=2`，每轮开跑前执行指定 flutter_tester 清理。验证期间反复出现随机旧套件的 `Connection closed before test suite loaded` 或 `did not complete`，单独复核通过，未通过删测试、改断言或增加 skip 处理。第一笔最终单轮全量 2271 绿；第二笔改为四分片串行执行（`--total-shards=4 --shard-index=0..3`），仅重跑加载中断的失败分片，最终四片 599 + 594 + 549 + 541 = 2283 全绿；第三笔最终单轮全量 2287 绿。
 
 CHANGELOG 已补三项行为变化。功能范围无偏差；请求身份与控制信号均在内部传递，宿主来源、HTTP 和抽帧端口签名保持原约定。执行偏差仅为测试环境加载中断造成重试及第二笔改用串行分片，未降低指定并发或遗漏全量覆盖。
+## C04 落地记录（2026-11-04）
+
+本次从 detached HEAD `f0b66780`、2269 项基线开始，由主会话亲自执行 C04a → C04b → C04c → C04d，每个 Task 验证后立即提交；只修改本 worktree 的 mova 目录。按会话要求不改 CLAUDE.md，不转派、不 push、不切分支、不 stash/reset，不启动应用、不做真机验证。
+
+| Task | 提交 | 新增 | 回退红 / 恢复绿 | 提交前 flutter test 实测 | analyze |
+|---|---|---:|---|---:|---|
+| C04a | `316a2f11` | 8 | 8 / 8：移除状态机行为的兼容空壳 | 2277 | 0 issues |
+| C04b | `98e1f9be` | 8 | 8 / 8：关闭连接能力 | 2285（215 文件） | 0 issues |
+| C04c | `8c96f4d2` | 11 | 11 / 11：回退绑定及组件迁移；另单独移除纪元判断，换指用例 1 红 | 2296（217 文件） | 0 issues |
+| C04d | 本记录同提交 | 5 | 5 / 5：拖动与续期 3 红；常显及旧路径空操作 2 红 | 2301（218 文件） | 0 issues |
+
+**落地行为与兼容性**：MovaChrome 管理每视图控制条、HUD、拖动和预览；桥接引擎默认每个 MovaPlayer 创建一份，借入实例只绑定/解绑，宿主负责销毁。换 API 保留适用的 chrome 实例并重新播种，换 chrome 时组件按 `(api, chrome)` 重挂订阅。旧 UI 动词有视图时广播，旧读者镜像以后写者为准；无视图时继续原计时与就绪路径。非桥接 MovaApi 默认沿用旧接口，显式传入 chrome 可启用独立交互态。拖动期间强制可见并暂停自动隐藏，松手重新计时；控制栏按下和按钮指针、键盘、语义激活会续期，隐式悬停/焦点/快捷键唤出保留常显标记。
+
+**公开 API**：新增 `kMovaHudDuration`；导出 `MovaChrome`（ValueListenable、value/uiState/uiStates、show/hide/toggle/showHud/setDragging、maybeOf/of、dispose、touch）；新增 `MovaPlayer.chrome`。新增入口和成员均有中文 dartdoc。`MovaApi` 零新增成员；MovaEngine/MovaCutoverEngine 的 `uiReady/linkUi` 实现包内 MovaUiBridge，桥及连接集合不从公开入口导出。六个旧 UI 成员只补 dartdoc 与 Unreleased 公告，不加成员级 @Deprecated；core 不导入 Flutter，purity_test 原样保留。
+
+**既有断言改写：0**。view_test 仍保留 C03 对样式节的保守重建断言，本次不做 C06；旧核心及非桥接 UI 断言原样运行。子计划 C04d 断言 5 若把键盘聚焦也计入“按钮交互”，原有 B16 聚焦唤出就会产生一次 showControls；新增用例分别验证指针激活零新增调用、聚焦后的键盘激活不增加调用，未删除原行为。
+
+**与子计划的差异及验证方式**：
+
+1. 计划基于 `7275bd5c` 的行号已失效；按当前符号定位，保留第一批 engine/cutover/player/view 改动。A28 已在换指时重放影子 MovaReady，照抄“每次 Ready 都显隐”会重新显示已隐藏控制条。本次在 chrome 按 renderEpoch 跳过该次初始化，额外用独立回退确认，不改 `_commitNow`。
+2. 引擎和代理共用包内纯 Dart 连接集合，统一广播、镜像、首连/末次断开及同步关闭；无视图旧路径未改。按钮可能像 B16 测试那样独立挂载，不存在 MovaScope，因此激活续期用可空的 chrome 查找；指针与语义激活也覆盖续期。
+3. 初次基线 2262 绿、7 条因 `.dart_tool/b09` 父目录缺失失败；只预建忽略目录，无测试断言改写。C04a 标准单轮全量 2277 绿。此后标准长轮次随机出现“Connection closed before test suite loaded”或“did not complete”，无相应断言栈；曾观察到评审 worktree 同时有 tester，但因果未确定。VM service 试跑也有中断；实验快测模式报告忽略 concurrency 且路径解析失败，已弃用，其结果不计验证。
+4. C04b 起使用完整 `rg --files test -g '*_test.dart'` 清单分批串行运行，每批都执行 `Get-Process flutter_tester -ErrorAction SilentlyContinue | Stop-Process` 后 `flutter test ... --concurrency=2 --reporter expanded`；中断批次在源码不变时重试，真实断言失败立即停止。清单核对无遗漏，汇报数量取每批成功轮的实测和，不把中断或编译错误算作功能红测。analyze 与完整清单测试串行；每提交均为 0 issues + 全部文件通过。各批日志、清单及累计结果保存在忽略的 `.dart_tool/c04*-results.json` 等本地验证产物中。
+5. 同步/异步测试按实际 Stream.multi 与 widget 测试时钟推进：流关闭在真实异步区核实，代理提交和取消订阅用 pump 与真实微任务交替推进，避免假内核测试等待自己的暂停时钟；既有测试不改。
+
+C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、公告及记录均落地；CP3 真机/Windows 应用验证按会话约束未做，C05/C06/C17 不在本次任务范围。锁定、缩放、fit 等 MovaState 仍共享，旧镜像多视图以后写者为准，均为计划保留的限制。未暂存或提交 generated_plugin、doc/notes、matrix-run 计划或兄弟工程文件。

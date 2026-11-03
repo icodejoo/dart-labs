@@ -135,14 +135,31 @@ class MovaChrome extends ChangeNotifier
     });
   }
 
-  /// 标记拖动与预览位置；结束拖动时清空预览位置。
+  /// 拖动时保持控制条可见并暂停自动隐藏；结束后清空预览并重新计时。
+  /// 常显状态不受拖动结束影响。
   void setDragging(bool v, {Duration? previewAt}) {
     if (_disposed) return;
-    _emit(
-      v
-          ? value.copyWith(dragging: true, previewAt: previewAt)
-          : value.copyWith(dragging: false, clearPreview: true),
-    );
+    if (v) {
+      _cancelAutoHide();
+      _emit(
+        value.copyWith(
+          controlsVisible: true,
+          dragging: true,
+          previewAt: previewAt,
+        ),
+      );
+    } else {
+      _emit(value.copyWith(dragging: false, clearPreview: true));
+      if (value.controlsVisible && !_sticky) _armAutoHide();
+    }
+  }
+
+  /// 有操作发生时续期自动隐藏；隐藏、常显或拖动期间不启动计时。
+  void touch() {
+    if (_disposed || !value.controlsVisible || _sticky || value.dragging) {
+      return;
+    }
+    _armAutoHide();
   }
 
   void _cancelAutoHide() {
@@ -151,6 +168,10 @@ class MovaChrome extends ChangeNotifier
   }
 
   void _armAutoHide() {
+    _cancelAutoHide();
+    if (_disposed || _sticky || value.dragging || !value.controlsVisible) {
+      return;
+    }
     if (_controls.autoHide) {
       _autoHideTimer = Timer(_controls.autoHideDelay, hide);
     }
@@ -227,10 +248,13 @@ class MovaUiPort {
   /// 变化流。
   Stream<MovaUiState> get uiStates => _chrome?.uiStates ?? _api.uiStates;
 
-  /// 显示控制条。
+  /// 显示控制条，并保留当前视图已有的常显标记。
   void show({bool sticky = false}) => _chrome != null
-      ? _chrome.show(sticky: sticky)
+      ? _chrome.show(sticky: sticky || _chrome._sticky)
       : _api.showControls(sticky: sticky);
+
+  /// 有交互时续期；非桥接旧路径保持空操作。
+  void touch() => _chrome?.touch();
 
   /// 隐藏控制条。
   void hide() => _chrome != null ? _chrome.hide() : _api.hideControls();

@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/options/theme.dart';
+import '../chrome/chrome.dart';
 
 /// A compact themed icon button used across the control bars.
 ///
-/// Presentation-only and reusable: it never reads MovaApi itself, only the
-/// [MovaTheme] it is given — the calling component is responsible for reading
+/// Reusable with or without a player scope: it never reads MovaApi itself.
+/// Activation renews a nearby [MovaChrome]; appearance uses the given
+/// [MovaTheme] — the calling component is responsible for reading
 /// `api.options.theme` and passing it down.
 ///
 /// 控制条中通用的带主题小图标按钮。
 ///
-/// 仅负责展示、可复用：它自身从不读取 MovaApi，只使用传入的 [MovaTheme]——由
+/// 可复用且不读取 MovaApi；播放器内激活时会续期交互态。主题使用传入的 [MovaTheme]，由
 /// 调用方组件负责读取 `api.options.theme` 并向下传递。
 class MovaIconButton extends StatefulWidget {
   /// The glyph to show.
@@ -61,6 +63,12 @@ class _MovaIconButtonState extends State<MovaIconButton> {
   /// 是否显示键盘聚焦边框。
   bool _highlight = false;
 
+  /// 播放器内的按钮续期交互态；没有播放器作用域时仍可独立使用。
+  void _activate() {
+    MovaChrome.maybeOf(context)?.touch();
+    widget.onPressed?.call();
+  }
+
   /// 返回带语义、提示和 Enter/空格操作的按钮。
   @override
   Widget build(BuildContext context) {
@@ -80,7 +88,7 @@ class _MovaIconButtonState extends State<MovaIconButton> {
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
-              widget.onPressed?.call();
+              _activate();
               return null;
             },
           ),
@@ -89,14 +97,14 @@ class _MovaIconButtonState extends State<MovaIconButton> {
           button: true,
           enabled: enabled,
           label: label,
-          onTap: widget.onPressed,
+          onTap: enabled ? _activate : null,
           excludeSemantics: true,
           child: Tooltip(
             // 持久小窗可能位于 Navigator/Overlay 之上，此时保留语义并跳过浮层。
             message: Overlay.maybeOf(context) == null ? '' : label,
             excludeFromSemantics: true,
             child: GestureDetector(
-              onTap: widget.onPressed,
+              onTap: enabled ? _activate : null,
               behavior: HitTestBehavior.opaque,
               child: DecoratedBox(
                 decoration: BoxDecoration(

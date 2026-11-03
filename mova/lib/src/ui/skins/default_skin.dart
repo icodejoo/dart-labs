@@ -12,6 +12,7 @@ import '../components/top_bar.dart';
 import '../../core/api.dart';
 import '../../core/state/state.dart';
 import '../scope/scope.dart';
+import '../chrome/chrome.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/patch.dart';
@@ -294,7 +295,11 @@ class _BarVisibility extends StatelessWidget {
           child: AnimatedOpacity(
             opacity: visible ? 1 : 0,
             duration: fadeDuration,
-            child: child,
+            child: Listener(
+              behavior: HitTestBehavior.deferToChild,
+              onPointerDown: (_) => movaUiOf(context).touch(),
+              child: child,
+            ),
           ),
         );
       },
