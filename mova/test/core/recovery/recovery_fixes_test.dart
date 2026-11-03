@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -17,7 +18,7 @@ import '../../support/fake_kernel.dart';
 class _Rig {
   _Rig({MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)})
     : kernel = FakeStatsKernel() {
-    engine = MovaEngine(
+    engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: kernel,
       options: MovaOpts(recovery: recovery, controls: const MovaCtrlsConfig(autoHide: false)),
     );
@@ -101,7 +102,7 @@ void main() {
   });
 
   group('3. 确定性失败不必等满 startTimeout', () {
-    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
       enabled: true,
       policy: MovaRetryThenFailover(maxRetries: 5),
     );

@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
@@ -32,7 +33,7 @@ void main() {
 
       fakeAsync((async) {
         final k = FakeStatsKernel();
-        final engine = MovaEngine(kernel: k, options: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)));
+        final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, options: const MovaOpts(controls: MovaCtrlsConfig(autoHide: false)));
         engine.open(const MovaSource('https://h/a.m3u8'));
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 10));
@@ -48,7 +49,7 @@ void main() {
       expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaDefaultRecovery>());
       fakeAsync((async) {
         final policy = _RecordingPolicy();
-        final engine = MovaEngine(
+        final engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
           kernel: FakeKernel(),
           options: MovaOpts(
             controls: const MovaCtrlsConfig(autoHide: false),

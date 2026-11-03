@@ -205,7 +205,7 @@ MovaEngine createMovaEngine({
       orientation: orientation,
       thumbDir: thumbDir,
       extractor: extractor,
-      fetcher: fetcher,
+      fetcher: fetcher ?? const MovaTestHttpFetch(),
       reporter: reporter,
       fit: fit,
     );

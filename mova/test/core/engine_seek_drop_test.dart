@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -49,7 +50,7 @@ int _seeks(FakeKernel k) => k.calls.where((c) => c == 'seek').length;
 /// 在 `fakeAsync` 内调用。
 MovaEngine _ready(FakeAsync async, FakeKernel k) {
   k.echoSeeks = true;
-  final e = MovaEngine(kernel: k);
+  final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
   e.open(_master);
   async.flushMicrotasks();
   k.emitDuration(_total);
@@ -180,7 +181,7 @@ void main() {
     test('a parked user seek is re-sent by the verify chain and then settles', () {
       fakeAsync((async) {
         final k = FakeKernel()..echoSeeks = true;
-        final e = MovaEngine(kernel: k)..debugResumeVerifyDelay = _verify;
+        final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k)..debugResumeVerifyDelay = _verify;
         final events = <MovaEvent>[];
         e.events.listen(events.add);
         e.open(_master);
@@ -222,7 +223,7 @@ void main() {
       Duration? delay,
       bool playing = true,
     }) {
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       if (delay != null) e.debugResumeVerifyDelay = delay;
       e.open(_master);
       async.flushMicrotasks();
@@ -367,7 +368,7 @@ void main() {
     test('a live source never seeks, so no verify chain starts', () {
       fakeAsync((async) {
         final k = FakeKernel()..echoSeeks = true;
-        final e = MovaEngine(kernel: k);
+        final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
         e.open(const MovaSource('https://host/live.flv', type: MovaStreamType.live));
         async.flushMicrotasks();
         k.calls.clear();

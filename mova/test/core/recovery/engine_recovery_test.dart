@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -30,7 +31,7 @@ class _Rig {
   _Rig(
     this.kernel, {
     MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
-  }) : engine = MovaEngine(
+  }) : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
          kernel: kernel,
          options: MovaOpts(
            recovery: recovery,
@@ -270,7 +271,7 @@ void main() {
         final k2 = FakeKernel();
         final quiet = _Rig(
           k2,
-          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
             enabled: true,
             liveEndIsFailure: false,
           ),
@@ -358,7 +359,7 @@ void main() {
         final k = FakeKernel();
         final r = _Rig(
           k,
-          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
+          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10),
             enabled: true,
             policy: _ThrowingPolicy(),
           ),

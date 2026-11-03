@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -110,7 +111,7 @@ void main() {
 
   setUp(() {
     k = FakeKernel();
-    e = MovaEngine(kernel: k);
+    e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
     events = <MovaEvent>[];
     e.events.listen(events.add);
   });
@@ -337,7 +338,7 @@ void main() {
 
     test('setFullscreen(true) then (false) restores state and resets the orientation port', () async {
       final spy = _SpyOrientation();
-      final e2 = MovaEngine(kernel: k, orientation: spy);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, orientation: spy);
       final seen = <MovaEvent>[];
       e2.events.listen(seen.add);
       await e2.setFullscreen(true);
@@ -429,7 +430,7 @@ void main() {
     /// 在 fakeAsync 里用 [controls] 配置的新引擎执行 [body]。
     void withEngine(MovaCtrlsConfig controls, void Function(MovaEngine e, FakeAsync async) body) {
       fakeAsync((async) {
-        final e2 = MovaEngine(kernel: FakeKernel(), options: MovaOpts(controls: controls));
+        final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), options: MovaOpts(controls: controls));
         body(e2, async);
         unawaited(e2.dispose());
         async.flushMicrotasks();
@@ -528,7 +529,7 @@ void main() {
 
   group('G3.5 reopening a different stream type starts clean', () {
     test('live (seekable, timeshifted) then VOD drops every live-only field', () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k,
         options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
       );

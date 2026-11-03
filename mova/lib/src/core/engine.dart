@@ -331,6 +331,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 本会话是否已发过 [MovaSourceChange]/[MovaReady]。
   bool _readyAnnounced = false;
 
+  /// 当前清晰度手选修订，保护在途探测不覆盖用户操作。
+  int _qualityRevision = 0;
+
+  /// 已启动探测的会话，同会话只拉取一次。
+  int _qualityProbeSession = -1;
+
+  /// 当前会话的探测任务，显式调用与就绪探测共用。
+  Future<void>? _qualityProbe;
+
   /// Index into the source's addresses currently playing.
   ///
   /// 当前正在播放的地址下标。
@@ -1409,6 +1418,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _recoverTimer?.cancel();
     _recoverTimer = null;
     final session = ++_sessionGen;
+    _qualityRevision = 0;
     _recoveryPosition = null;
     _state.emit(state.copyWith(playbackIntent: autoPlay));
     _addrFailures.clear();
@@ -1529,6 +1539,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (source == null) return;
     _emitEvent(MovaSourceChange(source));
     _emitEvent(const MovaReady());
+    if (options.abr.probeVariants) unawaited(loadQualities());
   }
 
   /// Handles one failed attempt: asks the policy, announces the decision, then
@@ -2630,43 +2641,45 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   }
 
   @override
-  Future<void> loadQualities() async {
-    // Disposed: silent no-op.
-    //
-    // 已销毁：静默空操作。
-    if (_disposed) return;
-    final s = _source;
+  Future<void> loadQualities() {
+    if (_disposed || _source == null) return Future<void>.value();
+    if (_qualityProbeSession == _sessionGen) return _qualityProbe!;
+    _qualityProbeSession = _sessionGen;
+    return _qualityProbe = _probeQualities();
+  }
+
+  /// 拉取当前会话的 HLS 列表；仅在 [switchQuality] 尚未改档时更新当前档。
+  Future<void> _probeQualities() async {
     final base = _activeUri;
     final session = _sessionGen;
     final index = _sourceIndex;
+    final revision = _qualityRevision;
     bool current() =>
         !_disposed && session == _sessionGen && index == _sourceIndex;
-    if (s == null || !base.toLowerCase().contains('.m3u8')) {
-      _state.emit(state.copyWith(qualities: const [], clearQuality: true));
-      return;
-    }
+    bool untouched() => revision == 0 && revision == _qualityRevision;
+    if (!base.toLowerCase().contains('.m3u8')) return;
     try {
       final bytes = await _fetcher.get(Uri.parse(base));
       if (!current()) return;
       if (bytes == null) {
-        _state.emit(state.copyWith(qualities: const [], clearQuality: true));
+        _state.emit(state.copyWith(qualities: const [], clearQuality: untouched()));
         return;
       }
       final content = const Utf8Decoder().convert(bytes);
       final qs = parseHlsMasterPlaylist(content, base: Uri.parse(base));
-      final cur = qs.isNotEmpty ? qs.first : null;
+      final cur = untouched() && qs.isNotEmpty ? qs.first : null;
       _state.emit(
         state.copyWith(
           qualities: qs,
           currentQuality: cur,
-          clearQuality: cur == null,
+          clearQuality: untouched() && cur == null,
         ),
       );
       _emitEvent(MovaQualityListChange(qs));
       if (cur != null) _emitEvent(MovaQualityChange(cur));
     } catch (_) {
       if (!current()) return;
-      _state.emit(state.copyWith(qualities: const [], clearQuality: true));
+      _state.emit(state.copyWith(qualities: const [], clearQuality: untouched()));
     }
   }
 
@@ -2691,6 +2704,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (_disposed) return;
     final playUri = q.isAuto ? _activeUri : q.uri;
     if (playUri.isEmpty) return;
+    _qualityRevision++;
     // 第一档仍在 open 时尚未寄存续播点；优先继承用户 seek 或上次规格的目标。
     final pos = _resumeTarget;
     final live = state.type == MovaStreamType.live;

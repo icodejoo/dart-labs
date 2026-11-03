@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -27,7 +28,7 @@ void main() {
 
   setUp(() {
     k = FakeKernel();
-    e = MovaEngine(kernel: k);
+    e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
   });
 
   tearDown(() => e.dispose());
@@ -48,7 +49,7 @@ void main() {
   });
 
   test('constructor fit seeds state.fit without emitting MovaFitChange', () async {
-    final seeded = MovaEngine(kernel: FakeKernel(), fit: MovaFit.cover);
+    final seeded = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), fit: MovaFit.cover);
     final events = <MovaEvent>[];
     final sub = seeded.events.listen(events.add);
     await Future<void>.delayed(Duration.zero);
@@ -93,7 +94,7 @@ void main() {
   test(
     'seek is allowed for live sources in dvr mode and clamped to the window',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k,
         options: const MovaOpts(
           live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
@@ -112,7 +113,7 @@ void main() {
   );
 
   test('beforeSeek can cancel a seek', () async {
-    final e2 = MovaEngine(kernel: k, interceptors: [_CancelSeek()]);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_CancelSeek()]);
     await e2.open(const MovaSource('https://host/a.mp4'));
     k.calls.clear();
     await e2.seek(const Duration(seconds: 5));
@@ -367,6 +368,8 @@ void main() {
       height: 480,
     );
     await e.open(const MovaSource('https://host/master.m3u8'));
+    // 自动探测结算后再种入本用例的 ABR 档位。
+    await e.loadQualities();
     e.debugSetQualities(const [high, mid, low], current: high);
 
     final events = <MovaEvent>[];
@@ -503,7 +506,7 @@ void main() {
 
   test('a pause() during an async beforePlay is not overridden by the late play', () async {
     final hook = _GatedHook();
-    final e2 = MovaEngine(kernel: k, interceptors: [hook]);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [hook]);
     await e2.open(const MovaSource('https://host/a.mp4'));
     k.calls.clear();
     final f = e2.play();
@@ -517,7 +520,7 @@ void main() {
 
   test('a source change during an async beforeSeek drops the stale seek', () async {
     final hook = _GatedHook();
-    final e2 = MovaEngine(kernel: k, interceptors: [hook]);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [hook]);
     await e2.open(const MovaSource('https://host/a.mp4'));
     k.emitDuration(const Duration(minutes: 2));
     await Future<void>.delayed(Duration.zero);
@@ -537,12 +540,12 @@ void main() {
 
   test('open() reports whether the source was accepted', () async {
     expect(await e.open(const MovaSource('https://host/a.mp4')), isTrue);
-    final denied = MovaEngine(kernel: FakeKernel(), interceptors: [_DenyOpen()]);
+    final denied = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), interceptors: [_DenyOpen()]);
     expect(await denied.open(const MovaSource('https://host/b.mp4')), isFalse);
     await denied.dispose();
     // A later open() supersedes an earlier one that is still in a hook.
     final hook = _GatedHook();
-    final e2 = MovaEngine(kernel: FakeKernel(), interceptors: [hook]);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), interceptors: [hook]);
     final first = e2.open(const MovaSource('https://host/c.mp4'));
     final second = e2.open(const MovaSource('https://host/d.mp4'));
     hook.gate.complete();
@@ -552,7 +555,7 @@ void main() {
   });
 
   test('beforePlay can veto playback', () async {
-    final e2 = MovaEngine(kernel: k, interceptors: [_DenyPlay()]);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_DenyPlay()]);
     k.calls.clear();
     await e2.play();
     expect(k.calls, isEmpty);
@@ -594,7 +597,7 @@ void main() {
   test(
     'open() arms the auto-hide timer per showOnStart/autoHideDelay (regression)',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k,
         options: const MovaOpts(
           controls: MovaCtrlsConfig(autoHideDelay: Duration(milliseconds: 10)),
@@ -636,7 +639,7 @@ void main() {
   });
 
   test('open() leaves controls hidden when showOnStart is false', () async {
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: k,
       options: const MovaOpts(controls: MovaCtrlsConfig(showOnStart: false)),
     );
@@ -787,7 +790,7 @@ void main() {
   test('setFullscreen re-applies orientation when size arrives later while '
       'fullscreen', () async {
     final spy = _SpyOrientationPort();
-    final e2 = MovaEngine(kernel: k, orientation: spy);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, orientation: spy);
 
     // Enter fullscreen before the kernel has reported any real size.
     //
@@ -813,7 +816,7 @@ void main() {
     'size changes while NOT fullscreen do not re-apply orientation',
     () async {
       final spy = _SpyOrientationPort();
-      final e2 = MovaEngine(kernel: k, orientation: spy);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, orientation: spy);
 
       k.emitSize(1280, 720);
       await Future<void>.delayed(Duration.zero);
@@ -827,7 +830,7 @@ void main() {
     'setOrientation forces the orientation, updates state, and emits an event',
     () async {
       final spy = _SpyOrientationPort();
-      final e2 = MovaEngine(kernel: k, orientation: spy);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, orientation: spy);
       final events = <MovaEvent>[];
       final sub = e2.events.listen(events.add);
 
@@ -849,7 +852,7 @@ void main() {
     'forced orientation is carried into the fullscreen apply call',
     () async {
       final spy = _SpyOrientationPort();
-      final e2 = MovaEngine(kernel: k, orientation: spy);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, orientation: spy);
 
       await e2.setOrientation(MovaOrientation.portrait);
       await e2.setFullscreen(true);
@@ -883,7 +886,7 @@ void main() {
   test(
     'a disabled preview config emits MovaPreviewBlock on the event stream',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: const MovaOpts(
           preview: MovaPreviewConfig(
@@ -910,7 +913,7 @@ void main() {
 
   test('the configured onBlocked callback also fires', () async {
     final reasons = <MovaPreviewBlockReason>[];
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: FakeKernel(),
       options: MovaOpts(
         preview: MovaPreviewConfig(
@@ -929,7 +932,7 @@ void main() {
   });
 
   test('disposing the engine disposes the preview service', () async {
-    final e2 = MovaEngine(kernel: FakeKernel());
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
     await e2.dispose();
     // A closed preview stream is the observable proof the service was torn
     // down; requesting after dispose must be a silent no-op.
@@ -948,7 +951,7 @@ void main() {
   test(
     'starting stt with no engine configured emits MovaSttBlock(noEngine)',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: const MovaOpts(stt: MovaSttConfig(enabled: true)),
       );
@@ -969,7 +972,7 @@ void main() {
   test(
     'starting stt before a source is open emits MovaSttBlock(noSource)',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: MovaOpts(
           stt: MovaSttConfig(enabled: true, engine: _FakeSttEngine()),
@@ -991,7 +994,7 @@ void main() {
   test(
     'a disabled stt config emits MovaSttBlock(disabled) even with an engine configured',
     () async {
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: MovaOpts(stt: MovaSttConfig(engine: _FakeSttEngine())),
       );
@@ -1011,7 +1014,7 @@ void main() {
 
   test('the configured stt onBlocked callback also fires', () async {
     final reasons = <MovaSttBlockReason>[];
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: FakeKernel(),
       options: MovaOpts(stt: MovaSttConfig(onBlocked: reasons.add)),
     );
@@ -1025,7 +1028,7 @@ void main() {
     'a configured engine reports languages and forwards cues once started',
     () async {
       final engine = _FakeSttEngine();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
       );
@@ -1058,7 +1061,7 @@ void main() {
     () async {
       final k2 = FakeKernel();
       final engine = _FakeSttEngine();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
       );
@@ -1094,7 +1097,7 @@ void main() {
     'disposing the engine disposes the stt service and its engine',
     () async {
       final engine = _FakeSttEngine();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
       );
@@ -1113,7 +1116,7 @@ void main() {
 
   test('a dvr live stream reports how far behind the edge it is', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: k2,
       options: const MovaOpts(
         live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
@@ -1135,7 +1138,7 @@ void main() {
     'inside the edge threshold clears timeshiftBehind and announces the edge',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
@@ -1162,7 +1165,7 @@ void main() {
     'MovaTimeShiftChange fires only when the whole-second lag changes',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
@@ -1196,7 +1199,7 @@ void main() {
 
   test('an injected windowResolver overrides the kernel duration', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: k2,
       options: MovaOpts(
         live: MovaLiveConfig(
@@ -1218,7 +1221,7 @@ void main() {
     'timeshift seek reopens the stream at the url the builder returns',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: MovaOpts(
           live: MovaLiveConfig(
@@ -1244,7 +1247,7 @@ void main() {
 
   test('timeshift seek is a no-op when no urlBuilder is supplied', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: k2,
       options: const MovaOpts(
         live: MovaLiveConfig(
@@ -1266,7 +1269,7 @@ void main() {
     'a timeshift seek landing inside the edge threshold reports the edge',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: MovaOpts(
           live: MovaLiveConfig(
@@ -1294,7 +1297,7 @@ void main() {
     'a live seek is clamped to the window even when duration is unknown',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(
@@ -1315,7 +1318,7 @@ void main() {
 
   test('beforeSeek still gates a timeshift seek', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
       kernel: k2,
       interceptors: [_CancelSeek()],
       options: MovaOpts(
@@ -1339,7 +1342,7 @@ void main() {
     'backToLiveEdge in dvr mode seeks to the window end without reopening',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
@@ -1364,7 +1367,7 @@ void main() {
     'backToLiveEdge in timeshift mode reopens the original live url',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: MovaOpts(
           live: MovaLiveConfig(
@@ -1397,7 +1400,7 @@ void main() {
     'an explicit backToLive strategy overrides the mode-derived one',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(
@@ -1430,7 +1433,7 @@ void main() {
     'autoBackToLiveOnStall jumps back only while time-shifted and only when on',
     () async {
       final k2 = FakeKernel();
-      final e2 = MovaEngine(
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: k2,
         options: const MovaOpts(
           live: MovaLiveConfig(
@@ -1469,7 +1472,7 @@ void main() {
 
   test('pipSupported starts false and flips once the port answers', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(kernel: k2, pip: _YesPip());
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k2, pip: _YesPip());
     expect(e2.pipSupported, isFalse);
     await Future<void>.delayed(Duration.zero);
     expect(e2.pipSupported, isTrue);
@@ -1479,7 +1482,7 @@ void main() {
 
   test('state.pip follows PiP changes pushed by the port', () async {
     final pip = _ObservablePip();
-    final e2 = MovaEngine(kernel: FakeKernel(), pip: pip);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), pip: pip);
     final events = <MovaEvent>[];
     final sub = e2.events.listen(events.add);
     await Future<void>.delayed(Duration.zero);
@@ -1505,7 +1508,7 @@ void main() {
 
   test('pipSupported stays false when the port throws', () async {
     final k2 = FakeKernel();
-    final e2 = MovaEngine(kernel: k2, pip: _ThrowingPip());
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k2, pip: _ThrowingPip());
     await Future<void>.delayed(Duration.zero);
     expect(e2.pipSupported, isFalse);
     await e2.dispose();
@@ -1584,14 +1587,14 @@ void main() {
   });
 
   test('dispose is idempotent: a second call neither throws nor re-disposes the kernel', () async {
-    final e2 = MovaEngine(kernel: FakeKernel());
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
     await e2.dispose();
     await e2.dispose();
   });
 
   test('setBrightness clamps out-of-range values to 0–1 in port, state and event', () async {
     final port = _RecordingBrightPort();
-    final e2 = MovaEngine(kernel: FakeKernel(), brightness: port);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), brightness: port);
     final events = <MovaEvent>[];
     final sub = e2.events.listen(events.add);
     await e2.setBrightness(2);
@@ -1618,7 +1621,7 @@ void main() {
 
   test('setBrightness clamps out-of-range values to 0–1 in port, state and event', () async {
     final port = _RecordingBrightPort();
-    final e2 = MovaEngine(kernel: FakeKernel(), brightness: port);
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), brightness: port);
     final events = <MovaEvent>[];
     final sub = e2.events.listen(events.add);
     await e2.setBrightness(2);
@@ -1636,7 +1639,7 @@ void main() {
     () async {
       final port = _RecordingVolumePort(current: 100);
       final k2 = FakeKernel();
-      final e2 = MovaEngine(kernel: k2, volume: port);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k2, volume: port);
       final events = <MovaEvent>[];
       final sub = e2.events.listen(events.add);
       await e2.setVolume(30);
@@ -1659,7 +1662,7 @@ void main() {
     'a wired volume port seeds the gesture baseline into state.volume',
     () async {
       final port = _RecordingVolumePort(current: 45);
-      final e2 = MovaEngine(kernel: FakeKernel(), volume: port);
+      final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), volume: port);
       // Seeding is async (like the pip probe); let it settle.
       // 播种是异步的（同 pip 探测），等它落定。
       await Future<void>.delayed(Duration.zero);
@@ -1717,7 +1720,10 @@ void main() {
     () async {
       final fetcher = _FakeHttpFetch(null);
       final k2 = FakeKernel();
-      final engine = MovaEngine(kernel: k2, fetcher: fetcher);
+      final engine = MovaEngine(
+        kernel: k2, fetcher: fetcher,
+        options: const MovaOpts(abr: MovaAbrConfig(probeVariants: false)),
+      );
       addTearDown(engine.dispose);
 
       await engine.open(const MovaSource('https://host/media/master.m3u8'));
@@ -1753,7 +1759,7 @@ void main() {
       // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MovaMpvKernel，
       // `Player()` 会需要真实 libmpv，本测试根本跑不起来。
       final kernel = FakeKernel.audioOnly();
-      final engine = MovaEngine(kernel: kernel, audioOnly: true);
+      final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: kernel, audioOnly: true);
       addTearDown(engine.dispose);
 
       expect(engine.renderHandle, isNull);
@@ -1777,7 +1783,7 @@ void main() {
 
   test('the audioOnly parameter changes nothing when left at its default', () {
     final kernel = FakeKernel();
-    final engine = MovaEngine(kernel: kernel);
+    final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: kernel);
     addTearDown(engine.dispose);
 
     expect(engine.renderHandle, isNotNull);
@@ -1847,7 +1853,7 @@ void main() {
       final pip = _YesPip();
       final orientation = _SpyOrientationPort();
       final volume = _RecordingVolumePort(current: 50);
-      final engine = MovaEngine(
+      final engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
         kernel: FakeKernel(),
         pip: pip,
         orientation: orientation,
@@ -1863,7 +1869,7 @@ void main() {
     test(
       'dispose() while state.mini is true triggers a debug assert',
       () async {
-        final engine = MovaEngine(kernel: FakeKernel());
+        final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
         await engine.setMini(true);
         expect(() => engine.dispose(), throwsA(isA<AssertionError>()));
         await engine.setMini(false);
@@ -1872,7 +1878,7 @@ void main() {
     );
 
     test('dispose() after setMini(false) again disposes normally', () async {
-      final engine = MovaEngine(kernel: FakeKernel());
+      final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       await engine.setMini(true);
       await engine.setMini(false);
       await engine.dispose();

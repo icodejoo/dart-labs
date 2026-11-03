@@ -105,6 +105,10 @@ class MovaAbrConfig {
   /// 是否启用 ABR 降档。
   final bool enabled;
 
+  /// 就绪后是否自动探测 HLS 档位；默认开启，不代表接管 auto ABR。
+  /// 示例：`MovaAbrConfig(probeVariants: false)` 由宿主手动探测。
+  final bool probeVariants;
+
   /// Custom downshift policy; null selects the default [MovaBufferAbr].
   ///
   /// 自定义降档策略；为 null 时选用默认的 [MovaBufferAbr]。
@@ -116,6 +120,7 @@ class MovaAbrConfig {
   const MovaAbrConfig({
     this.stallThreshold = 3,
     this.enabled = true,
+    this.probeVariants = true,
     this.policy,
   });
 
@@ -126,8 +131,9 @@ class MovaAbrConfig {
           runtimeType == other.runtimeType &&
           stallThreshold == other.stallThreshold &&
           enabled == other.enabled &&
+          probeVariants == other.probeVariants &&
           policy == other.policy;
 
   @override
-  int get hashCode => Object.hash(stallThreshold, enabled, policy);
+  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, policy);
 }

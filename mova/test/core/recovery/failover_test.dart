@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -20,7 +21,7 @@ const _c = 'https://h/c.m3u8';
 /// recovery。
 class _Rig {
   _Rig(this.kernel, {bool enabled = true, MovaLiveConfig live = const MovaLiveConfig()})
-      : engine = MovaEngine(
+      : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
           kernel: kernel,
           options: MovaOpts(
             recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: enabled, policy: const MovaFailoverOnly()),

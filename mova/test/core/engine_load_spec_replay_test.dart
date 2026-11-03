@@ -359,15 +359,15 @@ void main() {
     });
   });
 
-  test('A10 public reload stays a new open clearing quality list and duration', () {
+  test('A10 public reload stays a new open resetting duration and reprobes qualities', () {
     fakeAsync((clock) {
       final r = _Rig(clock)..open()..position()..quality(_q)..land();
       r.e.reload();
       clock.flushMicrotasks();
       expect(r.k.lastUri, 'https://h/master.m3u8');
       expect(r.e.debugCurrentLoad!.reason, LoadReason.open);
-      expect(r.e.state.currentQuality, isNull);
-      expect(r.e.state.qualities, isEmpty);
+      expect(r.e.state.currentQuality!.isAuto, isTrue);
+      expect(r.e.state.qualities, hasLength(3));
       expect(r.e.state.duration, Duration.zero);
       expect(r.e.progressValue.position, Duration.zero);
       expect(r.events.whereType<MovaSourceChange>(), hasLength(2));
