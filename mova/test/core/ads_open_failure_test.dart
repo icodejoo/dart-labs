@@ -93,11 +93,14 @@ void main() {
   );
 
   test('广告 cutoverTo/prepare/commit 异常均交给失败策略并回正片', () async {
-    for (final stage in ['cutoverTo', 'prepare', 'commit']) {
+    for (final (stage, kind) in [
+      ('prepare', MovaAdBreakKind.pre), ('commit', MovaAdBreakKind.pre),
+      ('prepare', MovaAdBreakKind.mid), ('commit', MovaAdBreakKind.mid),
+    ]) {
       final policy = RecordingAdPolicy();
       final cutover = ThrowingAdCutover(stage);
       final ad = MovaAdBreak(
-        kind: stage == 'cutoverTo' ? MovaAdBreakKind.pre : MovaAdBreakKind.mid,
+        kind: kind,
         source: const MovaSource('https://host/ad.mp4'),
         waitForReady: true,
         offset: const Duration(seconds: 1),
@@ -108,9 +111,9 @@ void main() {
         ),
       );
       final ads = MovaAds(api, cutover: cutover);
-      if (stage == 'cutoverTo') cutover.armed = true;
+      if (kind == MovaAdBreakKind.pre) cutover.armed = true;
       await ads.load(content);
-      if (stage != 'cutoverTo') {
+      if (kind == MovaAdBreakKind.mid) {
         cutover.armed = true;
         api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
       }
@@ -128,7 +131,7 @@ void main() {
 
   test('一次性切换异常遵守 retry 策略，随后成功进入广告', () async {
     final policy = RecordingAdPolicy(MovaAdFailAction.retry);
-    final cutover = ThrowingAdCutover('cutoverTo')..armed = true;
+    final cutover = ThrowingAdCutover('prepare')..armed = true;
     const ad = MovaAdBreak(
       kind: MovaAdBreakKind.pre,
       source: MovaSource('https://host/ad.mp4'),
@@ -142,7 +145,8 @@ void main() {
     final ads = MovaAds(api, cutover: cutover);
     await ads.load(content);
     expect(policy.failures, hasLength(1));
-    expect(cutover.calls.where((call) => call == 'cutoverTo'), hasLength(2));
+    expect(cutover.remaining, 0);
+    expect(cutover.calls.where((call) => call == 'prepare'), hasLength(1));
     expect(ads.currentBreak, same(ad));
     expect(ads.isShowingAd, isTrue);
     await ads.dispose();

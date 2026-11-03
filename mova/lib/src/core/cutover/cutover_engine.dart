@@ -49,6 +49,7 @@ class _WarmSlot {
 
   /// 本槽是否已达到就绪判据。
   bool ready = false;
+  MovaWarmTicket? ticket;
 
   /// 包内调用方指定的起播意图，用户新命令到达后失效。
   bool? play;
@@ -132,7 +133,7 @@ class _WarmSlot {
 /// 换指按旧引擎的 playbackIntent 决定是否开播；自写引擎须维护该字段。
 /// 意图恒为假时，影子换指后保持暂停。
 class MovaCutoverEngine
-    implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaCutoverAcceptance {
+    implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaWarmOwner {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -564,6 +565,40 @@ class MovaCutoverEngine
   }) async {
     final slot = await _startWarm(source, at: at, cue: cue, plan: plan);
     return slot?.rejected != true;
+  }
+
+  /// 按 [source]、位置 [at]、提示 [cue] 与 [plan] 预热，返回只认本槽的凭据。
+  /// [play] 可指定起播意图，后续用户命令优先；未触发时返回 null。
+  /// 示例：`final ticket = await engine.prepareOwned(source);`。
+  @override
+  Future<MovaWarmTicket?> prepareOwned(MovaSource source, {
+    Duration at = Duration.zero, MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(), bool? play,
+  }) async {
+    final op = _op;
+    final command = movaPlaybackCommand(this);
+    final slot = await _startWarm(source, at: at, cue: cue, plan: plan);
+    // 即使 prepare 尚未返回槽，旧操作也必须能报告 superseded，禁止硬切抢回宿主源。
+    if (_disposed || op != _op) return MovaWarmTicket(null, op);
+    if (slot == null) return null;
+    if (play != null) {
+      slot.play = play;
+      slot.playCommand = command;
+    }
+    return slot.ticket ??= MovaWarmTicket(slot, op, rejected: slot.rejected);
+  }
+
+  /// 只提交 [ticket] 的槽，[waitForReady] 控制等待；返回已提交、未就绪或被取代。
+  /// 示例：`await engine.commitOwned(ticket, waitForReady: true);`。
+  @override
+  Future<MovaWarmCommit> commitOwned(MovaWarmTicket ticket, {bool waitForReady = false}) async {
+    if (_disposed || ticket.operation != _op) return MovaWarmCommit.superseded;
+    final slot = ticket.slot;
+    if (slot is! _WarmSlot) return MovaWarmCommit.notReady;
+    final ok = await _commitSlot(slot, ticket.operation, waitForReady: waitForReady);
+    if (ok) return MovaWarmCommit.committed;
+    return _disposed || ticket.operation != _op
+        ? MovaWarmCommit.superseded : MovaWarmCommit.notReady;
   }
 
   /// Shared shadow-creation path for [prepare] and [cutoverTo]; [plan] is

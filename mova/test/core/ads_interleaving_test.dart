@@ -111,7 +111,7 @@ void main() {
     await loading;
     expect(rig.api.active, same(shadow));
     expect(shadow.calls, contains('play'));
-    expect(shadow.calls, isNot(contains('pause')));
+    expect(shadow.calls, containsAllInOrder(['pause', 'seek', 'play']));
     expect(shadow.state.playbackIntent, isTrue);
     expect(rig.ads.isShowingAd, isTrue);
   });

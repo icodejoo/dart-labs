@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 广告 pod 的每条等待型广告改走 prepare + 凭据提交，统一采用广告方向计划（默认 1x、就绪后停首帧、adReadyTimeout）；被宿主新 open 取代时会话让位，槽被替换时只按未就绪回落。落地窗口丢弃旧媒体的结束、错误与进度，正片预热同时考虑广告位和素材剩余时长。公开 cutoverTo 保留。
+
 - 会话对同一 epoch、节点和尝试的失败只裁决一次：广告仍由广告失败策略处理，recovery 开启时非终结诊断交给引擎；正片终结错误（恢复开启时等待 giveUp）发出 MovaNodeFail(failItem)、contentError 并回 idle，不自动换集。这扩展了 A05 刚确定的 contentError 契约，原先仅包含解析失败与正片 open 异常。
 
 - 会话自动连播消费结束通知时校验 epoch，手动换集不再被旧通知覆盖；替换列表使在途跳转失效，广告共享列表下标及 indexChanges 跟随会话导航。跳过加载中的前贴片时，加载结果等待同一 epoch 的续播请求结算。

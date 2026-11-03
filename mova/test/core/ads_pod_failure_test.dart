@@ -323,14 +323,14 @@ void main() {
     expect(rig.active.source, same(_content));
   });
 
-  test('F5 同次 open 的 ErrorEvent 与迟到抛错只结算一次，不打断 retry', () async {
+  test('F5 落地窗口忽略旧 ErrorEvent，open 抛错只结算一次后 retry', () async {
     final rig = PodFailureRig(fault: 'eventAndThrow', action: MovaAdFailAction.retry, third: false);
     addTearDown(rig.dispose);
     await rig.start();
     rig.active.emitDone();
     await rig.drain();
-    expect(rig.secondOpens, 2);
-    expect(rig.policy.failures.map((e) => e.attempt), [1]);
+    expect(rig.secondOpens, 1);
+    expect(rig.policy.failures, isEmpty);
     rig.firstErrorGate.complete();
     await rig.drain();
     expect(rig.secondOpens, 2);
@@ -346,17 +346,14 @@ void main() {
   });
 
   for (final action in [MovaAdFailAction.skipBreak, MovaAdFailAction.abandonPod]) {
-    test('F5 $action 事件已结算后迟到 open 抛错不打断下一条或正片', () async {
+    test('F5 $action 落地窗口旧错误不结算，open 抛错后续播下一条或正片', () async {
       final rig = PodFailureRig(fault: 'eventAndThrow', action: action);
       addTearDown(rig.dispose);
       await rig.start();
       rig.active.emitDone();
       await rig.drain();
-      expect(rig.policy.failures, hasLength(1));
-      expect(rig.ads.isShowingAd, action == MovaAdFailAction.skipBreak);
-      if (action == MovaAdFailAction.skipBreak) {
-        expect(rig.ads.currentBreak, same(rig.breaks[2]));
-      }
+      expect(rig.policy.failures, isEmpty);
+      expect(rig.ads.currentBreak, same(rig.breaks[1]));
       rig.firstErrorGate.complete();
       await rig.drain();
       expect(rig.policy.failures, hasLength(1));

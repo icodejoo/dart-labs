@@ -20,3 +20,29 @@ abstract interface class MovaCutoverAcceptance {
     bool? play,
   });
 }
+
+/// 包内预热凭据；空槽仍保留操作代际，以识别 prepare 期间的宿主抢源。
+final class MovaWarmTicket {
+  MovaWarmTicket(this.slot, this.operation, {this.rejected = false});
+  final Object? slot;
+  final int operation;
+  final bool rejected;
+}
+
+/// 包内提交结果：未就绪允许回落，被取代必须让位。
+enum MovaWarmCommit { committed, notReady, superseded }
+
+/// 在原接受能力上扩展凭据提交，公开 MovaCutover 不增加成员。
+abstract interface class MovaWarmOwner implements MovaCutoverAcceptance {
+  Future<MovaWarmTicket?> prepareOwned(
+    MovaSource source, {
+    Duration at = Duration.zero,
+    MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(),
+    bool? play,
+  });
+  Future<MovaWarmCommit> commitOwned(
+    MovaWarmTicket ticket, {
+    bool waitForReady = false,
+  });
+}
