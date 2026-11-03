@@ -30,7 +30,7 @@ import 'dart:ui' as ui;
 /// **不支持**：超出标准端点参数化范围的畸形/残缺圆弧，一律用 Flutter 的
 /// [ui.Path.arcToPoint] 近似处理；不追求与参考 SVG 光栅器逐像素一致。
 ui.Path parseSvgPathData(String d) {
-  final tokens = _tokenize(d);
+  final tokens = tokenizeSvgPathData(d);
   final path = ui.Path();
   var i = 0;
 
@@ -211,8 +211,9 @@ ui.Path parseSvgPathData(String d) {
 /// Splits path data into an alternating stream of command-letter [String]s
 /// and numeric [double]s.
 ///
-/// 把路径数据拆分为命令字母 [String] 与数值 [double] 交替出现的流。
-List<Object> _tokenize(String d) {
+/// 把路径数据拆分为命令字母 [String] 与数值 [double] 交替出现的流；
+/// 路径变形的规范化也复用它。
+List<Object> tokenizeSvgPathData(String d) {
   final tokens = <Object>[];
   final length = d.length;
   var i = 0;

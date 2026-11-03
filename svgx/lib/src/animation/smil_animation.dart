@@ -8,6 +8,7 @@
 // svgx CLAUDE.md "参考对象"表（借鉴 svg-rs / F 的思路，非代码）。
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 /// How many times an animation repeats (SMIL `repeatCount`).
 ///
@@ -975,6 +976,154 @@ class SmilColorAnimation implements SmilTimed {
   }
 }
 
+/// 路径变形的指令码：绝对 `M`。
+const int kMorphMove = 0;
+
+/// 路径变形的指令码：绝对 `L`（`H`/`V` 也规范化为它）。
+const int kMorphLine = 1;
+
+/// 路径变形的指令码：绝对 `C`（`S` 也规范化为它）。
+const int kMorphCubic = 2;
+
+/// 路径变形的指令码：绝对 `Q`（`T` 也规范化为它）。
+const int kMorphQuad = 3;
+
+/// 路径变形的指令码：绝对 `A`，参数为 `rx ry rot large sweep x y`。
+const int kMorphArc = 4;
+
+/// 路径变形的指令码：`Z`。
+const int kMorphClose = 5;
+
+/// 各指令码对应的参数个数，下标即指令码。
+const List<int> kMorphArity = <int>[2, 2, 6, 4, 7, 0];
+
+/// 路径变形的数值数据：所有关键帧规范化为绝对坐标后，指令序列与参数个数
+/// 完全一致，才能逐参数插值。解析期一次构建，逐帧只读。
+///
+/// 由 `svg_path_morph.dart` 的 `buildPathMorphData` 构建。
+class PathMorphData {
+  /// 创建变形数据。
+  const PathMorphData({required this.ops, required this.frames});
+
+  /// 各关键帧共享的指令码序列（`kMorph*`）。
+  final List<int> ops;
+
+  /// 每个关键帧的扁平参数表，按 [ops] 顺序排布，长度彼此相等。逐帧热路径只读，
+  /// 用 [Float64List] 避免装箱；构建后不得修改。
+  final List<Float64List> frames;
+}
+
+/// 单个 `<animate attributeName="d">` 或作用于 `d` 的 `<set>` 的时间线。
+///
+/// 路径字符串在解析期保留为 [frames]；各帧规范化后形状兼容时另附数值数据
+/// [morph]，此时线性/spline 可插值，否则退化为离散（按 SMIL 规范，不可插值的
+/// 值在 `values` 个区间内等分切换）。时序复用 [_resolveTiming] 等既有设施。
+///
+/// [sample] 返回单个 double「位置」：整数部分是起始关键帧下标，小数部分是段内
+/// 进度（已按 `keySplines` 缓动并钳制到 `[0, 1]`）。离散时恒为整数。这样既能
+/// 用一个数字做变化检测，也不必每帧分配采样对象。
+///
+/// `calcMode="paced"` 对路径没有定义，按 `linear` 处理。
+class SmilPathAnimation implements SmilTimed {
+  /// 创建路径时间线；[frames] 至少一项（`<set>` 只有一个）。
+  SmilPathAnimation({
+    required this.frames,
+    required this.duration,
+    required this.begin,
+    required this.fillFreeze,
+    this.morph,
+    this.repeatCount = SmilRepeatCount.once,
+    this.calcMode = SmilCalcMode.linear,
+    this.keyTimes,
+    this.keySplines,
+    this.elementId,
+    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+  }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),
+       assert(
+         morph == null || morph.frames.length == frames.length,
+         'morph frames must match path frames',
+       );
+
+  @override
+  final String? elementId;
+
+  @override
+  final SmilBeginSpec beginSpec;
+
+  /// 各关键帧的原始 `d` 字符串；离散显示时直接用它（同一实例，几何缓存可命中）。
+  final List<String> frames;
+
+  /// 形状兼容时的数值数据；为 null 表示只能离散切换。
+  final PathMorphData? morph;
+
+  @override
+  final Duration duration;
+
+  @override
+  Duration begin;
+
+  /// 结束后是否定格末帧（`fill="freeze"`）。
+  final bool fillFreeze;
+
+  @override
+  final SmilRepeatCount repeatCount;
+
+  /// 插值模式；`paced` 按 `linear` 处理。
+  final SmilCalcMode calcMode;
+
+  /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
+  final List<double>? keyTimes;
+
+  /// 每段缓动曲线；见 [SmilAnimation.keySplines]。
+  final List<CubicBezier>? keySplines;
+
+  /// 当前是否会插值（有数值数据且不是 discrete）。
+  bool get interpolates => morph != null && calcMode != SmilCalcMode.discrete;
+
+  /// 在全局时刻 [t] 采样「位置」；未开始或已结束且不定格时返回 null，
+  /// 此时调用方应显示元素自身静态的 `d`。
+  double? sample(Duration t) {
+    final timing = _resolveTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+    );
+    if (timing == null) return null;
+
+    final count = frames.length;
+    if (count == 1) return 0;
+    if (!interpolates) {
+      return _discreteIndex(timing.progress, count, keyTimes).toDouble();
+    }
+    final segment = _locateSegment(timing.progress, count - 1, keyTimes);
+    final eased = _easedSegmentT(calcMode, keySplines, segment);
+    return segment.index + eased.clamp(0.0, 1.0);
+  }
+}
+
+/// 离散模式下 [progress] 对应的关键帧下标：有合法 [keyTimes]（长度等于 [count]）
+/// 时按其切换，否则把时长等分为 [count] 个区间（SMIL 规范）。
+///
+/// 注意：这是有意按规范实现的，与 `_locateSegment` 切成 `count - 1` 段的既有
+/// 数值/变换/运动/颜色通道的 discrete 语义不同，修那几个通道属于另一件事。
+int _discreteIndex(double progress, int count, List<double>? keyTimes) {
+  if (keyTimes != null && keyTimes.length == count) {
+    var index = 0;
+    for (var i = 1; i < count; i++) {
+      if (progress >= keyTimes[i]) {
+        index = i;
+      } else {
+        break;
+      }
+    }
+    return index;
+  }
+  final index = (progress * count).floor();
+  return index >= count ? count - 1 : index;
+}
+
 double _argbDistance(int a, int b) {
   var sumSquares = 0.0;
   for (var shift = 0; shift < 32; shift += 8) {
@@ -1244,6 +1393,18 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
     if (f == null || t == null) return null;
     return [f, t];
   }
+  return null;
+}
+
+/// 解析作用于 `d` 的 `values="path1;path2;..."`（或 `from`/`to` 简写）为路径
+/// 字符串列表；空项（如末尾多余的分号）丢弃。不足两项时返回 null。
+List<String>? parseSmilPathValues({String? values, String? from, String? to}) {
+  if (values != null && values.trim().isNotEmpty) {
+    final frames = [for (final part in values.split(';')) part.trim()]
+      ..removeWhere((part) => part.isEmpty);
+    return frames.length < 2 ? null : frames;
+  }
+  if (from != null && to != null) return [from.trim(), to.trim()];
   return null;
 }
 

@@ -134,6 +134,7 @@ class SvgNode {
     this.animations = const [],
     this.transformAnimations = const [],
     this.motionAnimations = const [],
+    this.pathAnimations = const [],
     this.colorAnimations = const [],
     this.transform,
     this.clipPathId,
@@ -245,6 +246,17 @@ class SvgNode {
   ///
   /// 直接挂载在本节点上的 `<animate>` 时间线。
   final List<SmilAnimation> animations;
+
+  /// 直接挂载在本节点上、作用于 `d` 的路径时间线（`<animate attributeName="d">`
+  /// 与 `<set attributeName="d">`）。与 [animations] 分开存放，因为它的采样值是
+  /// 路径位置而非可直接写回属性表的数值。
+  final List<SmilPathAnimation> pathAnimations;
+
+  /// 路径变形在当前采样下的几何路径；仅当某条 [pathAnimations] 正处于可插值的
+  /// 非整数位置时非空。完全由 `animated_svg_painter.dart` 的
+  /// `_effectiveAttributes` 与 `_geometryPath` 持有，与
+  /// [cachedAnimatedAttributes] 同步更新。
+  ui.Path? animatedMorphPath;
 
   /// `<animateTransform>` timelines attached directly to this node.
   ///
@@ -471,6 +483,9 @@ class SvgNode {
 
   /// The values every entry of [animations] sampled to when
   /// [cachedAnimatedAttributes] was built, positionally — see that field.
+  ///
+  /// 布局：`[animations..., pathAnimations...]`——数值动画在前，路径动画在后；
+  /// 路径段存的是 [SmilPathAnimation.sample] 的「位置」，不是属性值。
   ///
   /// A timeline that produced no value (not started, or ended without
   /// freezing) is recorded as negative infinity, so "absent" can never collide

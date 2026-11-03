@@ -26,6 +26,8 @@ class ResolvedStyle {
     required this.strokeDasharray,
     required this.strokeDashoffset,
     required this.opacity,
+    this.fillOpacity = 1,
+    this.strokeOpacity = 1,
     this.fillGradientId,
     this.strokeGradientId,
   });
@@ -80,6 +82,19 @@ class ResolvedStyle {
   /// Element opacity in `[0, 1]`. / 元素不透明度，范围 `[0, 1]`。
   final double opacity;
 
+  /// `fill-opacity`：填充（纯色、渐变、文字）的不透明度，范围 `[0, 1]`。
+  /// 与 [opacity] 不同，它是继承属性；最终 alpha = 颜色 alpha × 它 × [opacity]。
+  final double fillOpacity;
+
+  /// `stroke-opacity`：描边的不透明度，范围 `[0, 1]`，继承；见 [fillOpacity]。
+  final double strokeOpacity;
+
+  /// 填充的最终 alpha 系数：[fillOpacity] × [opacity]，再乘上颜色自身的 alpha。
+  double get fillAlpha => opacity * fillOpacity;
+
+  /// 描边的最终 alpha 系数：[strokeOpacity] × [opacity]，再乘上颜色自身的 alpha。
+  double get strokeAlpha => opacity * strokeOpacity;
+
   /// Returns a copy with attributes found in [attributes] overriding the
   /// inherited ones in `this`, resolving `currentColor` against [theme].
   ///
@@ -127,9 +142,19 @@ class ResolvedStyle {
           double.tryParse(attributes['stroke-dashoffset'] ?? '') ??
           strokeDashoffset,
       opacity: double.tryParse(attributes['opacity'] ?? '') ?? opacity,
+      fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
+      strokeOpacity: _parseUnitOpacity(
+        attributes['stroke-opacity'],
+        strokeOpacity,
+      ),
     );
   }
 }
+
+/// 解析 `fill-opacity`/`stroke-opacity` 取值并钳制到 `[0, 1]`；缺失或无法解析
+/// 时返回继承来的 [inherited]。
+double _parseUnitOpacity(String? raw, double inherited) =>
+    double.tryParse(raw ?? '')?.clamp(0.0, 1.0) ?? inherited;
 
 /// Memo for [_parseDasharray], keyed by the raw attribute string.
 ///

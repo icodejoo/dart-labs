@@ -25,7 +25,10 @@
 
 **SMIL 动画**:
 
-- `<animate>`:`values`/`from-to`、`dur`、`begin`(数值偏移 **与 syncbase**)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+- `<animate>`:`values`/`from-to`、`dur`、`begin`(数值偏移 **与 syncbase**)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。`fill-opacity`/`stroke-opacity` 已是真正生效的展示属性(见下一条)。
+- `fill-opacity`/`stroke-opacity`(静态属性与 `<animate>`/`<set>` 驱动均支持):**继承属性**(与不继承的 `opacity` 不同),取值钳制到 `[0, 1]`;最终 alpha = 颜色自身 alpha × `fill-opacity`(描边为 `stroke-opacity`)× `opacity`;纯色、渐变着色器、`<text>` 填充都生效。`opacity` 自身语义不变(继承后逐元素淡化,嵌套时覆盖而非相乘)。
+- `<animate attributeName="d">`(路径变形):各关键帧的 `d` 在**解析期**规范化为绝对 `M`/`L`/`C`/`Q`/`A`/`Z`(相对坐标转绝对、`H`/`V`→`L`、`S`→`C`、`T`→`Q`),命令序列与参数个数完全一致时逐参数插值,逐帧直接用数值构建 `ui.Path`(不再解析字符串);不一致则退化为**离散**(按规范,`n` 个值把时长等分为 `n` 段切换)。支持 `values`/`from-to`、`keyTimes`、`calcMode`(`linear`/`discrete`/`spline`+`keySplines`;`paced` 对路径无定义,按 `linear` 处理)、`begin`(偏移与 syncbase)、`dur`、`repeatCount`、`fill="freeze"`,计时与数值动画共用同一套设施(`SmilTimed`/`_resolveTiming`/`_locateSegment`)。
+- `<set>`:单值离散动画。`begin` 之前不覆盖(显示静态属性);**无 `dur` = 活动期无限**,从 `begin` 起一直保持;有 `dur` 且无 `fill="freeze"` 时结束后撤销覆盖。数值属性(`opacity`/`fill-opacity` 等,`to` 必须是纯数字)复用数值通道,`d` 复用路径通道;无 `dur` 的 `<set>` 忽略 `repeatCount`,其结束时刻按 `begin` 计,不会让 Ticker 一直跑。
 - `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上。
 - `<animateMotion>`:自身 `path="..."` 与 `<mpath href="#id">`;弧长参数化用 `dart:ui` 的 `Path.computeMetrics()`+`getTangentForOffset()`(129 个等弧长采样点,逐帧线性插值);`rotate="auto"`/`"auto-reverse"`/固定角度;`keyPoints`/`keyTimes`/`keySplines`/`calcMode`(无 `keyPoints` 时行为等价默认 `paced`,有 `keyPoints` 但未指定 `calcMode` 时默认 `linear`,是与 SVG 规范默认值不同的已知简化)。
 - `<use href>`/`xlink:href`:解析阶段从源 XML 重新解析目标(SVG2"影子树"读法,含目标自身动画),前向引用/环检测均支持(`_maxUseDepth = 10` 兜底)。
@@ -37,13 +40,15 @@
 - `<image>`:`resolvedImage` 异步解码 `data:` URI(base64),ticker 等解码完成后才启动,避免动画偷跑进度。
 - `feGaussianBlur`(通过 `filter="blur(Npx)"` 或 `filter="url(#id)"` 指向单个 `<feGaussianBlur>`):`canvas.saveLayer` + `ui.ImageFilter.blur` 包裹节点子树。
 
-**驱动方式**:原始 `Ticker`(非绑定 `[0,1]` 的 `AnimationController`)——文档含 `repeatCount="indefinite"` 时永久 ticking,否则在所有动画的 `begin + dur * repeatCount` 都结束后自动停止,不白白消耗帧。
+**驱动方式**:原始 `Ticker`(非绑定 `[0,1]` 的 `AnimationController`)——文档含 `repeatCount="indefinite"` 时永久 ticking,否则在所有动画的 `begin + dur * repeatCount` 都结束后自动停止,不白白消耗帧(无 `dur` 的 `<set>` 在 `begin` 之后值即恒定,按 `begin` 计结束)。
 
 **明确不支持**:
 
-- CSS `@keyframes`/`animation-*`/`transition-*`(有数据支撑的"不做",见 `CLAUDE.md`"CSS 动画支持"结论)。
+- CSS `@keyframes`/`animation-*`:**当前尚未实现**,但已在 2026-11-03 纳入范围(推翻此前"不做"),动画路径现在只认 SMIL,CSS 导出的文件会被当成静态图。范围与差距清单见 `doc/svgator-positioning.md`。`transition-*` 暂不纳入(243 个 SVGator 样本里 0 次出现)。
 - 事件类 `begin`(`begin="click"`/`"id.click"`)——已评估,不做:需要"事件监听 + 时间线动态重触发",与当前"一次性建好全时间线、之后纯按 elapsed 驱动"的架构相冲突,属于架构级改动,建议单独排期。当前行为:解析为零偏移(立即开始)。
 - `<tspan>`、textPath。
+- `<set>` 只支持数值属性与 `d`:`to` 为非数字(如 `visibility="hidden"`、`fill="red"`、带单位的 `"2px"`)的 `<set>` 解析期丢弃。`<animate>` 驱动 `fill`/`stroke` 颜色同样仍是缺口。
+- 路径变形的已知限制:各帧命令序列/参数个数不同,或圆弧的 large/sweep 标志位不同,退化为离散(不做点重采样、不做子路径对齐);`keySplines` 的 y 值超出 `[0, 1]`(过冲)时进度被钳制在 `[0, 1]`;不支持 `by`/`additive`/`accumulate`;`fill-opacity`/`stroke-opacity` 不支持百分比写法。
 - 动画渐变以外的"作用在渐变属性/`<stop>` 上无效"仅限 `<animate>`;OKLCH 等感知色彩空间插值不支持,只做逐字节 ARGB 插值。
 - `<use>` 指向 `<symbol>`/`<svg>` 时,不应用其 `width`/`height`/`viewBox` 缩放(按普通 `<g>` 处理);`<use>` 自身的 `width`/`height` 同样忽略。
 - 不支持嵌套 mask/clip(嵌套内容里的 `clip-path`/`mask` 属性被忽略);mask 内容里的 `<image>` 不支持。

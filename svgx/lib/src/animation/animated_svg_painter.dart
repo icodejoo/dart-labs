@@ -19,6 +19,7 @@ import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_gradient.dart';
 import 'svg_path_data.dart';
+import 'svg_path_morph.dart';
 import 'svg_style.dart';
 import 'svg_theme.dart';
 import 'svgx_animation_quality.dart';
@@ -321,7 +322,8 @@ class AnimatedSvgPainter extends CustomPainter {
   ///   返回叠加了采样覆盖值的只读属性表。
   Map<String, String> _effectiveAttributes(SvgNode node) {
     final animations = node.animations;
-    if (animations.isEmpty) return node.attributes;
+    final pathAnimations = node.pathAnimations;
+    if (animations.isEmpty && pathAnimations.isEmpty) return node.attributes;
     // Sample every timeline into the node's sample key, noting whether any of
     // them moved since the last frame. Sampling has to happen either way — it
     // is the only way to know whether anything changed — so the comparison
@@ -331,7 +333,9 @@ class AnimatedSvgPainter extends CustomPainter {
     // 把每条时间线采样进本节点的采样键，同时记录是否有任何一条相对上一帧发生了
     // 变化。无论如何都得采样——这是判断"有没有变"的唯一途径——因此比较只是搭在
     // 一趟本来就要走的遍历上，每条动画多付一次 double 比较。
-    final count = animations.length;
+    // 采样键布局：数值动画在前、路径动画在后，见 [SvgNode.animatedSampleKey]。
+    final numericCount = animations.length;
+    final count = numericCount + pathAnimations.length;
     var key = node.animatedSampleKey;
     var changed = false;
     if (key == null || key.length != count) {
@@ -349,7 +353,11 @@ class AnimatedSvgPainter extends CustomPainter {
       // 见 [SvgNode.animatedSampleKey]：负无穷标记"该时间线在此刻没有产出值"。
       // 它必须是非有限值，因为任何有限数都是合法采样；又必须用无穷而不是 NaN，
       // 因为 NaN 与自身比较不相等，会导致每一帧都被判为"有变化"。
-      final sampled = animations[i].sample(time) ?? double.negativeInfinity;
+      final sampled =
+          (i < numericCount
+              ? animations[i].sample(time)
+              : pathAnimations[i - numericCount].sample(time)) ??
+          double.negativeInfinity;
       if (sampled != key[i]) {
         key[i] = sampled;
         changed = true;
@@ -358,8 +366,28 @@ class AnimatedSvgPainter extends CustomPainter {
     final cached = node.cachedAnimatedAttributes;
     if (!changed && cached != null) return cached;
 
-    final overlaid = Map<String, String>.of(node.attributes);
-    for (var i = 0; i < count; i++) {
+    // 只在真要改属性（数值覆盖，或整数位置的 `d`）时才拷贝属性表；纯路径变形
+    // 的插值帧属性内容不变，直接复用节点自己的表，不击穿 [_resolveStyle] 的缓存。
+    Map<String, String>? overlaid;
+    // 路径动画：整数位置（离散，或恰在关键帧上）直接覆盖为原始 `d` 字符串，
+    // 同一实例使几何缓存可命中；可插值的非整数位置则现建路径，放在
+    // [SvgNode.animatedMorphPath]，由 [_geometryPath] 优先使用。
+    ui.Path? morphPath;
+    for (var i = 0; i < pathAnimations.length; i++) {
+      final position = key[numericCount + i];
+      if (position == double.negativeInfinity) continue;
+      final animation = pathAnimations[i];
+      final index = position.floor();
+      if (animation.interpolates && position != index) {
+        morphPath = buildMorphedPath(animation.morph!, position);
+      } else {
+        morphPath = null;
+        (overlaid ??= Map<String, String>.of(node.attributes))['d'] =
+            animation.frames[index];
+      }
+    }
+    node.animatedMorphPath = morphPath;
+    for (var i = 0; i < numericCount; i++) {
       final sampled = key[i];
       // A timeline with no value at this instant contributes no override, so
       // the element's own static attribute shows through — this is what makes
@@ -370,11 +398,15 @@ class AnimatedSvgPainter extends CustomPainter {
       // 一个结束时*未*设置 `fill="freeze"` 的 `<animate>` 会弹回静态值、而不是
       // 残留最后一次采样值的原因。
       if (sampled != double.negativeInfinity) {
-        overlaid[animations[i].attributeName] = sampled.toString();
+        (overlaid ??= Map<String, String>.of(
+          node.attributes,
+        ))[animations[i].attributeName] = sampled
+            .toString();
       }
     }
-    node.cachedAnimatedAttributes = overlaid;
-    return overlaid;
+    final result = overlaid ?? node.attributes;
+    node.cachedAnimatedAttributes = result;
+    return result;
   }
 
   /// Paints [node] at its position in the tree, resolving its animated style
@@ -981,6 +1013,9 @@ class AnimatedSvgPainter extends CustomPainter {
         final sampled = animation.sample(time);
         signature.add(sampled ?? absent);
       }
+      for (final pathAnimation in node.pathAnimations) {
+        signature.add(pathAnimation.sample(time) ?? absent);
+      }
       for (final transformAnimation in node.transformAnimations) {
         final sampled = transformAnimation.sample(time);
         if (sampled == null) {
@@ -1247,6 +1282,8 @@ class AnimatedSvgPainter extends CustomPainter {
     // 文档在多个控件间共享（见 `SvgxDocumentCache`）时的正确性：两个键都与时间
     // 无关，所以在不同时间线位置绘制同一文档的两个控件，要么共享一个有效条目，
     // 要么未命中后重建——绝不会读到过期结果。
+    final morphPath = node.animatedMorphPath;
+    if (morphPath != null && node.kind == SvgNodeKind.path) return morphPath;
     final Object? cacheKey = node.kind == SvgNodeKind.path
         ? attributes['d']
         : attributes;
@@ -1367,7 +1404,8 @@ class AnimatedSvgPainter extends CustomPainter {
     Map<String, String> attributes,
   ) {
     final content = node.textContent;
-    if (content == null || content.isEmpty || style.opacity <= 0) return;
+    final fillAlpha = style.fillAlpha;
+    if (content == null || content.isEmpty || fillAlpha <= 0) return;
     final fill = style.fill;
     if (fill == null) return; // fill="none": SVG renders no glyphs
 
@@ -1387,7 +1425,7 @@ class AnimatedSvgPainter extends CustomPainter {
           style: TextStyle(
             fontSize: fontSize,
             fontFamily: attributes['font-family'],
-            color: _fade(fill, style.opacity),
+            color: _fade(fill, fillAlpha),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -1495,30 +1533,31 @@ class AnimatedSvgPainter extends CustomPainter {
     ResolvedStyle style,
   ) {
     if (style.opacity <= 0) return;
-    final fillShader = _gradientShader(
-      style.fillGradientId,
-      path,
-      style.opacity,
-    );
-    if (fillShader != null) {
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.fill
-          ..shader = fillShader,
-      );
-    } else if (style.fill != null) {
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = _fade(style.fill!, style.opacity),
-      );
+    final fillAlpha = style.fillAlpha;
+    if (fillAlpha > 0) {
+      final fillShader = _gradientShader(style.fillGradientId, path, fillAlpha);
+      if (fillShader != null) {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.fill
+            ..shader = fillShader,
+        );
+      } else if (style.fill != null) {
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.fill
+            ..color = _fade(style.fill!, fillAlpha),
+        );
+      }
     }
+    final strokeAlpha = style.strokeAlpha;
+    if (strokeAlpha <= 0) return;
     final strokeShader = _gradientShader(
       style.strokeGradientId,
       path,
-      style.opacity,
+      strokeAlpha,
     );
     if (strokeShader != null && style.strokeWidth > 0) {
       canvas.drawPath(
@@ -1537,7 +1576,7 @@ class AnimatedSvgPainter extends CustomPainter {
         _strokePath(node, path, style),
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = _fade(style.stroke!, style.opacity)
+          ..color = _fade(style.stroke!, strokeAlpha)
           ..strokeWidth = style.strokeWidth
           ..strokeCap = style.strokeLinecap
           ..strokeJoin = style.strokeLinejoin,

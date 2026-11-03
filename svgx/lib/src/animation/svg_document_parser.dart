@@ -39,6 +39,7 @@ import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_gradient.dart';
 import 'svg_path_data.dart';
+import 'svg_path_morph.dart';
 import 'svg_style.dart';
 
 /// [element]'s attributes as a `local-name -> value` map, dropping any
@@ -703,14 +704,25 @@ SvgNode _parseElement(
   final animations = <SmilAnimation>[];
   final transformAnimations = <SmilTransformAnimation>[];
   final motionAnimations = <SmilMotionAnimation>[];
+  final pathAnimations = <SmilPathAnimation>[];
   final children = <SvgNode>[];
   for (final child in element.childElements) {
     final localName = child.name.local;
-    if (localName == 'animate') {
-      final anim = _parseAnimate(child);
-      if (anim != null) {
-        animations.add(anim);
-        context.animations.add(anim);
+    if (localName == 'animate' || localName == 'set') {
+      final isSet = localName == 'set';
+      final isPath = child.getAttribute('attributeName') == _pathAttribute;
+      if (isPath) {
+        final anim = isSet ? _parseSetPath(child) : _parseAnimatePath(child);
+        if (anim != null) {
+          pathAnimations.add(anim);
+          context.animations.add(anim);
+        }
+      } else {
+        final anim = isSet ? _parseSetNumeric(child) : _parseAnimate(child);
+        if (anim != null) {
+          animations.add(anim);
+          context.animations.add(anim);
+        }
       }
       continue;
     }
@@ -756,6 +768,7 @@ SvgNode _parseElement(
     animations: animations,
     transformAnimations: transformAnimations,
     motionAnimations: motionAnimations,
+    pathAnimations: pathAnimations,
     transform: rawTransform == null ? null : parseTransformMatrix(rawTransform),
     clipPathId: parseUrlId(attributes['clip-path']),
     maskId: maskId,
@@ -1120,6 +1133,82 @@ SmilAnimation? _parseAnimate(XmlElement element) {
     keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
   );
 }
+
+/// 路径几何属性名；作用于它的 `<animate>`/`<set>` 走路径通道。
+const String _pathAttribute = 'd';
+
+/// 解析 `<animate attributeName="d">`：各帧形状兼容时可插值，否则离散。
+/// `values`/`from`-`to` 缺失或不足两帧时返回 null。
+SmilPathAnimation? _parseAnimatePath(XmlElement element) {
+  final frames = parseSmilPathValues(
+    values: element.getAttribute('values'),
+    from: element.getAttribute('from'),
+    to: element.getAttribute('to'),
+  );
+  if (frames == null) return null;
+  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  return SmilPathAnimation(
+    frames: frames,
+    morph: buildPathMorphData(frames),
+    duration: parseSmilDuration(element.getAttribute('dur')),
+    elementId: element.getAttribute('id'),
+    beginSpec: beginSpec,
+    begin: beginSpec.offset,
+    fillFreeze: element.getAttribute('fill') == 'freeze',
+    repeatCount: parseSmilRepeatCount(element.getAttribute('repeatCount')),
+    calcMode: parseSmilCalcMode(element.getAttribute('calcMode')),
+    keyTimes: parseSmilKeyTimes(element.getAttribute('keyTimes')),
+    keySplines: parseSmilKeySplines(element.getAttribute('keySplines')),
+  );
+}
+
+/// 解析作用于 `d` 的 `<set>`：单值离散动画。无 `dur` 时活动期无限（从 begin
+/// 起一直保持）；有 `dur` 且无 `fill="freeze"` 时结束后撤销覆盖。缺 `to` 时
+/// 返回 null。
+SmilPathAnimation? _parseSetPath(XmlElement element) {
+  final to = element.getAttribute('to')?.trim();
+  if (to == null || to.isEmpty) return null;
+  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  return SmilPathAnimation(
+    frames: [to],
+    duration: duration,
+    elementId: element.getAttribute('id'),
+    beginSpec: beginSpec,
+    begin: beginSpec.offset,
+    fillFreeze: element.getAttribute('fill') == 'freeze',
+    repeatCount: _setRepeatCount(element, duration),
+    calcMode: SmilCalcMode.discrete,
+  );
+}
+
+/// 解析作用于数值属性的 `<set>`（`opacity`、`fill-opacity` 等）：复用数值通道，
+/// 用两个相同关键帧的离散 [SmilAnimation] 表达。`to` 不是纯数字时返回 null。
+SmilAnimation? _parseSetNumeric(XmlElement element) {
+  final attributeName = element.getAttribute('attributeName');
+  final to = double.tryParse(element.getAttribute('to')?.trim() ?? '');
+  if (attributeName == null || to == null) return null;
+  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  return SmilAnimation(
+    attributeName: attributeName,
+    values: [to, to],
+    duration: duration,
+    elementId: element.getAttribute('id'),
+    beginSpec: beginSpec,
+    begin: beginSpec.offset,
+    fillFreeze: element.getAttribute('fill') == 'freeze',
+    repeatCount: _setRepeatCount(element, duration),
+    calcMode: SmilCalcMode.discrete,
+  );
+}
+
+/// `<set>` 的重复次数：没有 `dur`（活动期本就无限）时忽略 `repeatCount`，
+/// 避免一个恒定不变的 `<set>` 被算成无限循环而让 Ticker 停不下来。
+SmilRepeatCount _setRepeatCount(XmlElement element, Duration duration) =>
+    duration == Duration.zero
+    ? SmilRepeatCount.once
+    : parseSmilRepeatCount(element.getAttribute('repeatCount'));
 
 const _transformTypes = {
   'translate': SmilTransformType.translate,
