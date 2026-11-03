@@ -281,9 +281,29 @@ Widget _buildRecursive(
 ) {
   final builtChildren = [
     for (final child in component.children)
-      _buildRecursive(context, api, child),
+      MovaBuiltChild(name: child.name, child: _buildRecursive(context, api, child)),
   ];
   return component.build(context, api, builtChildren);
+}
+
+/// 带组件名的已构建子节点，供组合组件按名称布局。
+///
+/// 示例：`children.whereType<MovaBuiltChild>().first.name` 读取首个名称。
+class MovaBuiltChild extends StatelessWidget {
+  /// 用 [name] 标记 [child]，返回保留原组件内容的包装节点。
+  ///
+  /// 示例：`MovaBuiltChild(name: 'title', child: Text('标题'))`。
+  const MovaBuiltChild({super.key, required this.name, required this.child});
+
+  /// 原组件名称；示例：`node.name == 'seekBar'`。
+  final String name;
+
+  /// 原组件构建的 widget；示例：`node.child`。
+  final Widget child;
+
+  /// 返回 [child]；[context] 为当前构建上下文。
+  @override
+  Widget build(BuildContext context) => child;
 }
 
 /// A built top-level widget plus the bookkeeping [buildSlots] needs to sort
@@ -322,3 +342,4 @@ class _BuiltEntry {
   /// 该顶层组件已构建好的 widget。
   final Widget widget;
 }
+

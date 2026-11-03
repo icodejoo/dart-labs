@@ -9,6 +9,7 @@ import '../format.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+import '../slots/tree.dart';
 import 'common.dart';
 
 /// Adaptive composite for the bottom control bar, serving both VOD and live
@@ -58,6 +59,26 @@ class MovaBottomBarComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = api.options.theme;
+    // 自定义插入节点跟随前一个已知节点；移除后不再依赖任何列表下标。
+    final groups = <String, List<Widget>>{};
+    final names = this.children.map((child) => child.name).toSet();
+    String? anchor;
+    for (final child in children) {
+      if (child is MovaBuiltChild && names.contains(child.name)) anchor = child.name;
+      if (anchor != null) groups.putIfAbsent(anchor, () => []).add(child);
+    }
+
+    /// 返回 [name] 对应节点及紧随其后的自定义节点，缺失时返回空列表。
+    List<Widget> group(String name) => groups[name] ?? const [];
+
+    /// 只将名为 seekBar 的节点撑开，保留自定义插入内容的自然宽度。
+    List<Widget> seekWidgets() => [
+      for (final child in group(MovaSeekBarComponent.componentName))
+        if (child is MovaBuiltChild && child.name == MovaSeekBarComponent.componentName)
+          Expanded(child: child)
+        else
+          child,
+    ];
     return MovaSelect<({MovaStreamType type, bool seekable})>(
       selector: (s) => (type: s.type, seekable: s.liveSeekable),
       builder: (context, v) {
@@ -65,22 +86,22 @@ class MovaBottomBarComponent extends MovaComponent {
             ? Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[1], // liveBadge
+                  ...group(MovaLiveBadgeComponent.componentName),
                   if (v.seekable)
-                    Expanded(child: children[2])
+                    ...seekWidgets()
                   else
                     const Spacer(),
-                  children[3], // timeshift
-                  children[5], // backToLive
+                  ...group(MovaTimeshiftLabelComponent.componentName),
+                  ...group(MovaBackToLiveComponent.componentName),
                   const SizedBox(width: 4),
                 ],
               )
             : Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[0], // positionLabel
-                  Expanded(child: children[2]), // seekBar
-                  children[4], // durationLabel
+                  ...group(MovaPositionLabelComponent.componentName),
+                  ...seekWidgets(),
+                  ...group(MovaDurationLabelComponent.componentName),
                   const SizedBox(width: 8),
                 ],
               );
