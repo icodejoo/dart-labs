@@ -59,7 +59,7 @@ class _WarmMuteFailurePolicy {
 ///
 /// [MovaCutoverConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
-class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
+class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -204,8 +204,17 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
   /// 订阅 [engine] 的流并转发到本代理自己的流上，把当前 [_epoch] 合并进每个
   /// 转发出的状态。
   void _attach(MovaApi engine) {
-    _activeStateSub = engine.states.listen((s) => _state.emit(s.copyWith(renderEpoch: _epoch)));
-    _activeProgressSub = engine.progress.listen(_progress.add);
+    _lastProgress = engine is MovaProgressSource
+        ? (engine as MovaProgressSource).progressValue
+        : const MovaProg();
+    _progress.add(_lastProgress);
+    _activeStateSub = engine.states.listen(
+      (s) => _state.emit(s.copyWith(renderEpoch: _epoch)),
+    );
+    _activeProgressSub = engine.progress.listen((p) {
+      _lastProgress = p;
+      _progress.add(p);
+    });
     _activeEventSub = engine.events.listen(_events.add);
     _activeUiSub = engine.uiStates.listen(_uiState.emit);
   }
@@ -248,7 +257,27 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
   Stream<MovaState> get states => _state.stream;
 
   @override
-  Stream<MovaProg> get progress => _progress.stream;
+  Stream<MovaProg> get progress => _replayedProgress;
+
+  /// 保持流身份稳定，并在每次订阅时播种最新快照。
+  late final Stream<MovaProg> _replayedProgress = Stream<MovaProg>.multi((controller) {
+    controller.add(progressValue);
+    final sub = _progress.stream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.onCancel = sub.cancel;
+  }, isBroadcast: true);
+
+  /// 不支持同步快照的宿主引擎使用最近一次转发的进度。
+  MovaProg _lastProgress = const MovaProg();
+
+  /// 返回当前生效引擎的快照，换指后立即跟随新引擎。
+  @override
+  MovaProg get progressValue => _active is MovaProgressSource
+      ? (_active as MovaProgressSource).progressValue
+      : _lastProgress;
 
   @override
   Stream<MovaUiState> get uiStates => _uiState.stream;

@@ -47,13 +47,13 @@ class MovaBottomBarComponent extends MovaComponent {
 
   @override
   List<MovaComponent> get children => [
-        MovaPositionLabelComponent(), // 0 VOD
-        MovaLiveBadgeComponent(), // 1 live
-        MovaSeekBarComponent(), // 2 shared
-        MovaTimeshiftLabelComponent(), // 3 live
-        MovaDurationLabelComponent(), // 4 VOD
-        MovaBackToLiveComponent(), // 5 live
-      ];
+    MovaPositionLabelComponent(), // 0 VOD
+    MovaLiveBadgeComponent(), // 1 live
+    MovaSeekBarComponent(), // 2 shared
+    MovaTimeshiftLabelComponent(), // 3 live
+    MovaDurationLabelComponent(), // 4 VOD
+    MovaBackToLiveComponent(), // 5 live
+  ];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
@@ -66,7 +66,10 @@ class MovaBottomBarComponent extends MovaComponent {
                 children: [
                   const SizedBox(width: 8),
                   children[1], // liveBadge
-                  if (v.seekable) Expanded(child: children[2]) else const Spacer(),
+                  if (v.seekable)
+                    Expanded(child: children[2])
+                  else
+                    const Spacer(),
                   children[3], // timeshift
                   children[5], // backToLive
                   const SizedBox(width: 4),
@@ -115,7 +118,10 @@ class MovaPositionLabelComponent extends MovaComponent {
       builder: (context, position) {
         return Text(
           formatDuration(position ?? Duration.zero),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -150,7 +156,10 @@ class MovaDurationLabelComponent extends MovaComponent {
       builder: (context, duration) {
         return Text(
           formatDuration(duration),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -280,6 +289,14 @@ class _SeekBarState extends State<_SeekBar> {
   @override
   void initState() {
     super.initState();
+    final api = widget.api;
+    if (api is MovaProgressSource) {
+      _position = (api as MovaProgressSource)
+          .progressValue
+          .position
+          .inMilliseconds
+          .toDouble();
+    }
     _sub = widget.api.progress.listen((p) {
       setState(() {
         _position = p.position.inMilliseconds.toDouble();
@@ -309,7 +326,9 @@ class _SeekBarState extends State<_SeekBar> {
     return Material(
       type: MaterialType.transparency,
       child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(trackHeight: theme.progressHeight),
+        data: SliderTheme.of(
+          context,
+        ).copyWith(trackHeight: theme.progressHeight),
         child: Slider(
           value: value,
           min: 0,
@@ -400,7 +419,9 @@ class MovaLiveBadgeComponent extends MovaComponent {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: Color(atEdge ? theme.accentColor : theme.timeshiftBadgeColor),
+            color: Color(
+              atEdge ? theme.accentColor : theme.timeshiftBadgeColor,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(

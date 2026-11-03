@@ -64,7 +64,7 @@ import 'stt/service.dart';
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
+class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -1086,7 +1086,23 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   Stream<MovaState> get states => _state.stream;
 
   @override
-  Stream<MovaProg> get progress => _progress;
+  Stream<MovaProg> get progress => _replayedProgress;
+
+  /// 保持流身份稳定，并在每次订阅时播种最新快照。
+  late final Stream<MovaProg> _replayedProgress = Stream<MovaProg>.multi((controller) {
+    controller.add(progressValue);
+    final sub = _progress.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.onCancel = sub.cancel;
+  }, isBroadcast: true);
+
+  /// 返回最新进度快照，包含尚未经过节流窗口的内核回声。
+  @override
+  MovaProg get progressValue =>
+      MovaProg(position: _lastPosition, buffer: _lastBuffer);
 
   @override
   Stream<MovaUiState> get uiStates => _ui.stream;

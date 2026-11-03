@@ -58,7 +58,11 @@ class MovaProgSelect<T> extends StatelessWidget {
   ///
   /// [selector] 将完整 [MovaProg] 投影为被观察字段。[builder] 依据该
   /// 字段当前值渲染组件。
-  const MovaProgSelect({required this.selector, required this.builder, super.key});
+  const MovaProgSelect({
+    required this.selector,
+    required this.builder,
+    super.key,
+  });
 
   /// Projects the full progress snapshot down to the field this widget
   /// watches.
@@ -67,11 +71,9 @@ class MovaProgSelect<T> extends StatelessWidget {
   final T Function(MovaProg progress) selector;
 
   /// Renders the widget for the current value of the watched field, or
-  /// `null` before the first tick arrives (progress has no synchronous
-  /// snapshot to seed with).
+  /// `null` before the first tick for APIs without MovaProgressSource.
   ///
-  /// 依据被观察字段的当前值渲染组件；在首个 tick 到达前为 `null`（进度
-  /// 无同步快照可用作初值）。
+  /// 依据被观察字段的当前值渲染组件；未实现同步进度能力时，首个 tick 到达前为 `null`。
   final Widget Function(BuildContext context, T? value) builder;
 
   @override
@@ -79,6 +81,9 @@ class MovaProgSelect<T> extends StatelessWidget {
     final api = MovaScope.of(context);
     return StreamBuilder<T>(
       stream: api.progress.map(selector).distinct(),
+      initialData: api is MovaProgressSource
+          ? selector((api as MovaProgressSource).progressValue)
+          : null,
       builder: (context, snapshot) => builder(context, snapshot.data),
     );
   }
@@ -99,7 +104,11 @@ class MovaUiSelect<T> extends StatelessWidget {
   ///
   /// [selector] 将完整 [MovaUiState] 投影为被观察字段。[builder] 依据该
   /// 字段当前值渲染组件。
-  const MovaUiSelect({required this.selector, required this.builder, super.key});
+  const MovaUiSelect({
+    required this.selector,
+    required this.builder,
+    super.key,
+  });
 
   /// Projects the full UI state down to the field this widget watches.
   ///

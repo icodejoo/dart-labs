@@ -135,7 +135,8 @@ void main() {
         // 比 200ms 的限流窗口长，让每一个都送达。
         await Future<void>.delayed(const Duration(milliseconds: 260));
       }
-      expect(a, [const Duration(seconds: 1), const Duration(seconds: 2), const Duration(seconds: 3)]);
+      // 新订阅者先收到当前零位置，再收到后续进度。
+      expect(a, [Duration.zero, const Duration(seconds: 1), const Duration(seconds: 2), const Duration(seconds: 3)]);
       expect(b, a);
       await e.dispose();
     });

@@ -1,3 +1,4 @@
+import '../../core/state/progress.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -107,7 +108,8 @@ class _GestureLayer extends StatefulWidget {
 ///
 /// [_GestureLayer] 的状态机；手势数学与 0.1.0 的
 /// `_MovaGestDetectState` 完全一致，只是出口改为 [MovaApi] 调用。
-class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLayer> {
+class _GestureLayerState extends State<_GestureLayer>
+    with MovaPlugin<_GestureLayer> {
   /// Which intent the current one-finger drag is driving, if decided.
   ///
   /// 当前单指拖动正在驱动的意图（若已判定）。
@@ -169,6 +171,10 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
     // dispose without a manual override.
     //
     // 订阅生命周期交给 [MovaPlugin.bind]——无需手写 dispose 即会在销毁时取消。
+    final api = _api;
+    if (api is MovaProgressSource) {
+      _lastPosition = (api as MovaProgressSource).progressValue.position;
+    }
     bind(_api.progress, (p) => _lastPosition = p.position);
   }
 
@@ -189,7 +195,8 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// Records the tap position so double-tap can tell left from right.
   ///
   /// 记录点击位置，供双击判定左/右半屏。
-  void _onDoubleTapDown(TapDownDetails d) => _lastDoubleTapDx = d.localPosition.dx;
+  void _onDoubleTapDown(TapDownDetails d) =>
+      _lastDoubleTapDx = d.localPosition.dx;
 
   /// Applies a double-tap seek toward the tapped side, gated the same way
   /// as horizontal drag-seek.
@@ -313,7 +320,8 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// own axis: rightwards or upwards is positive.
   ///
   /// 锁定拖动沿自身轴相对手势面的带符号进度比例：向右或向上为正。
-  double _axisFrac() => _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
+  double _axisFrac() =>
+      _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
 
   /// Maps the drag accumulated so far onto a target position, scaled by
   /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
@@ -326,7 +334,9 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 的实时预览与 [_onScaleEnd] 的提交共用，使二者对拖动落点的判断绝不会
   /// 不一致。
   Duration _seekTargetFromCum() {
-    final seconds = _axisFrac() * _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
+    final seconds =
+        _axisFrac() *
+        _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
     return _lastPosition + Duration(seconds: seconds.round());
   }
 
