@@ -143,7 +143,11 @@ class GapRunner {
     }
   }
 
-  void verdict(bool ok, Object expected, Object actual, {String? blocked}) {
+  void verdict(bool ok, Object expected, Object actual, {String? blocked, String? checkId}) {
+    if (checkId != null) {
+      log('CHECK', {'id': checkId, 'pass': blocked == null ? ok : null,
+        'expected': expected, 'actual': actual, 'blocked': blocked});
+    }
     log('EXPECT', expected);
     log('ACTUAL', actual);
     final token = !ok && blocked == null ? 'failure-${rows.length}' : null;

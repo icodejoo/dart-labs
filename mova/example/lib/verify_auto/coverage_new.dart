@@ -12,12 +12,14 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import '../main_coverage_api.dart' as c;
+import 's00c_contract.dart' as s00c;
 
 /// Tests newly introduced APIs on the native player, retaining raw readbacks.
 ///
 /// 在原生播放器测试新增接口，并保留属性读回证据。
 Future<void> runNew(Map<String, String> args) async {
   switch (args['case']) {
+    case 's00c': await s00c.run();
     case 'options': await options();
     case 'recovery': await recovery(args);
     case 'live': await live(args);
@@ -156,6 +158,11 @@ Future<void> abr() async {
     await c.until(()=>local.whereType<MovaAbrDownShift>().isNotEmpty,seconds:60);
     final down=local.whereType<MovaAbrDownShift>().first;
     c.mark('ABR_REAL',{'before':before,'from':down.from.label,'to':down.to.label,'resets':policy.resets,'state':c.snapshot(a)});
+    await c.until(() => a.state.currentQuality?.uri == down.to.uri);
+    c.mark('CHECK', {'id': 'C4.abrDown', 'pass': down.from.bandwidth == null || down.to.bandwidth == null ? null :
+      down.to.bandwidth! < down.from.bandwidth! && a.state.currentQuality?.uri == down.to.uri,
+      'numbers': {'fromBandwidth': down.from.bandwidth, 'toBandwidth': down.to.bandwidth,
+        'eventUri': down.to.uri, 'stateUri': a.state.currentQuality?.uri, 'policyResets': policy.resets}});
     policy.armed=false;await throttle(false);await a.switchQuality(high);
     await c.until(()=>a.state.duration>Duration.zero&&!a.state.buffering);await c.settle(400);
     c.check('F3.abrBackToBack',c.latest.position.inMilliseconds>=before-200,'beforeStall=$before afterSwitch=${c.latest.position.inMilliseconds}');
@@ -367,7 +374,11 @@ Future<void> feed() async {
   c.check('A29.final',controller.activeIndex==120 && made.length==3,'active=${controller.activeIndex} engines=${made.length}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
   controller.dispose(); await pool.dispose().timeout(const Duration(seconds:20));
-  c.check('A29.dispose',true,'controller and 3 native engines disposed');
+  final accepts = <bool>[];
+  for (final engine in made) { accepts.add(await engine.open(c.source())); }
+  c.mark('CHECK', {'id': 'A29.poolReclaimed', 'pass': pool.engineCount == 0 && accepts.every((v) => !v),
+    'numbers': {'engineCount': pool.engineCount, 'accepts': accepts}});
+  c.check('A29.dispose',pool.engineCount == 0 && accepts.every((v) => !v),'pool=${pool.engineCount} postDisposeOpen=$accepts');
 }
 
 /// Exercises real VTT and frame extraction paths with retained images.
@@ -387,13 +398,31 @@ Future<void> preview(Map<String,String> args) async {
       network:blocked?MovaPreviewNet.never:probe==null?MovaPreviewNet.always:MovaPreviewNet.wifiOnly,
       vttUrl:args['mode']=='offline'?'http://127.0.0.1:9/unreachable.vtt':'http://127.0.0.1:18084/${args['mode']=='fallback'?'missing.vtt':'thumbs.vtt'}',vttEnabled:args['mode']!='extract',extractFallback:extract,
       bucket:const Duration(seconds:2),cache:cache)));
-  c.observe(a); await a.open(c.source(),autoPlay:false);
+  c.observe(a);
+  File? localVideo;
+  try {
+  if (args['mode'] == 'offline') {
+    localVideo = File('${Directory.systemTemp.path}/s00c-preview-offline.mp4');
+    final client = HttpClient();
+    try {
+      final response = await (await client.getUrl(Uri.parse(c.source().uri))).close();
+      await response.pipe(localVideo.openWrite());
+    } finally {
+      client.close(force: true);
+    }
+  }
+  final media = localVideo == null ? c.source() : MovaSource(localVideo.uri.toString());
+  await a.open(media,autoPlay:false);
   final thumbs=<MovaThumb?>[]; a.preview.thumbs.listen(thumbs.add);
+  final observed = <int>[];
+  final byteCounts = <int>[];
   for(final sec in [4,8,12,4]) {
     a.preview.requestAt(Duration(seconds:sec));
     if(blocked){await c.settle(500);continue;}
     await c.until(()=>a.preview.current!=null && a.preview.current!.at.inSeconds==sec,seconds:25);
     final t=a.preview.current!;
+    observed.add(t.at.inMilliseconds);
+    byteCounts.add(t.bytes.length);
     c.mark('THUMB',{'requested':sec,'at':t.at.inMilliseconds,'bytes':t.bytes.length,'crop':'${t.crop}','peek':a.preview.peekAt(Duration(seconds:sec))!=null});
     await File('${Directory.systemTemp.path}/coverage-thumb-$sec.jpg').writeAsBytes(t.bytes);
     a.preview.cancel();
@@ -402,7 +431,22 @@ Future<void> preview(Map<String,String> args) async {
     'extractCalls':puller.calls,'writes':cache.writes,'diskHits':cache.diskHits,'memoryHits':cache.memoryHits});
   if(extract){c.check('A30.diskHit',puller.calls==3 && cache.diskHits>=1,'extractCalls=${puller.calls} diskHits=${cache.diskHits}');}
   if(!extract&&!blocked){c.check('N22.crop',cache.writes==0,'cropped VTT writes=${cache.writes}');}
-  await a.preview.clear(); await a.dispose();
+  final mode = args['mode'] ?? 'vtt';
+  final modePass = blocked ? thumbs.whereType<MovaThumb>().isEmpty && puller.calls == 0 :
+    observed.length == 4 && byteCounts.every((n) => n > 0) && memory.length <= 2;
+  c.mark('CHECK', {'id': 'A30.mode.$mode', 'pass': modePass,
+    'numbers': {'observedMs': observed, 'byteCounts': byteCounts,
+      'nonempty': byteCounts.where((n) => n > 0).length, 'memoryEntries': memory.length,
+      'extractCalls': puller.calls, 'diskHits': cache.diskHits, 'writes': cache.writes,
+      'thumbCount': thumbs.whereType<MovaThumb>().length, 'mediaUri': media.uri,
+      'localExists': localVideo == null ? null : await localVideo.exists()}});
+  await a.preview.clear();
+  c.mark('CHECK', {'id': 'A30.clear.$mode', 'pass': a.preview.current == null && memory.length == 0,
+    'numbers': {'currentNull': a.preview.current == null, 'memoryEntries': memory.length}});
+  } finally {
+    await a.dispose();
+    if (localVideo != null && await localVideo.exists()) await localVideo.delete();
+  }
 }
 
 /// Counts real extraction calls while delegating to the native extractor.

@@ -12,8 +12,123 @@
       },
       {
         "kind": "check",
-        "ident": "A1.coverage1",
-        "missing": "四流多订阅者同序列；broadcast 标志不是现行契约"
+        "ident": "A1.events.sequence",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ],
+        "assertions": [
+          {
+            "field": "numbers.leftCount",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.leftCount",
+            "op": "eq",
+            "other": "numbers.rightCount"
+          },
+          {
+            "field": "numbers.equal",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "left",
+            "op": "eq",
+            "other": "right"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A1.states.sequence",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ],
+        "assertions": [
+          {
+            "field": "numbers.leftCount",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.leftCount",
+            "op": "eq",
+            "other": "numbers.rightCount"
+          },
+          {
+            "field": "numbers.equal",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "left",
+            "op": "eq",
+            "other": "right"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A1.progress.sequence",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ],
+        "assertions": [
+          {
+            "field": "numbers.leftCount",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.leftCount",
+            "op": "eq",
+            "other": "numbers.rightCount"
+          },
+          {
+            "field": "numbers.equal",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "left",
+            "op": "eq",
+            "other": "right"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A1.uiStates.sequence",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ],
+        "assertions": [
+          {
+            "field": "numbers.leftCount",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.leftCount",
+            "op": "eq",
+            "other": "numbers.rightCount"
+          },
+          {
+            "field": "numbers.equal",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "left",
+            "op": "eq",
+            "other": "right"
+          }
+        ]
       }
     ]
   },
@@ -110,8 +225,24 @@
       },
       {
         "kind": "check",
-        "ident": "A5.coverage1",
-        "missing": "recovery 关闭时内核 open 抛出异常的真机用例（404 accepted 不是同步 open 异常）"
+        "ident": "A5.openThrows",
+        "assertions": [
+          {
+            "field": "numbers.sameError",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.openCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.recoveryEnabled",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -128,8 +259,87 @@
       },
       {
         "kind": "check",
-        "ident": "A6.coverage1",
-        "missing": "重复 play/pause 幂等与 playOrPause 两方向独立 CHECK"
+        "ident": "A6.togglePlay",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.togglePause",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.repeatPlay",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.repeatPause",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.intentIndependent",
+        "assertions": [
+          {
+            "field": "numbers.intent",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.playing",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.branchPlay",
+        "assertions": [
+          {
+            "field": "numbers.calls",
+            "op": "eq",
+            "value": [
+              "play"
+            ]
+          },
+          {
+            "field": "numbers.playing",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.branchPause",
+        "assertions": [
+          {
+            "field": "numbers.calls",
+            "op": "eq",
+            "value": [
+              "pause"
+            ]
+          },
+          {
+            "field": "numbers.playing",
+            "op": "eq",
+            "value": true
+          }
+        ]
       }
     ]
   },
@@ -394,8 +604,50 @@
       },
       {
         "kind": "check",
-        "ident": "A14.coverage1",
-        "missing": "原生窗口方向及系统栏恢复对账"
+        "ident": "A14.window.enter",
+        "assertions": [
+          {
+            "field": "numbers.fullscreen",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.status",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.navigation",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A14.window.restore",
+        "assertions": [
+          {
+            "field": "numbers.fullscreen",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.status",
+            "op": "eq",
+            "other": "numbers.baselineStatus"
+          },
+          {
+            "field": "numbers.navigation",
+            "op": "eq",
+            "other": "numbers.baselineNavigation"
+          },
+          {
+            "field": "numbers.rotation",
+            "op": "eq",
+            "other": "numbers.baselineRotation"
+          }
+        ]
       }
     ]
   },
@@ -404,8 +656,104 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "A15.coverage1",
-        "missing": "MiniHost→PiP→展开的小窗可见性与状态自动对账"
+        "ident": "A15.miniStable",
+        "minimum": 2,
+        "assertions": [
+          {
+            "field": "numbers.changes",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.entered",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.sameHandle",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A15.exit",
+        "minimum": 2,
+        "assertions": [
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.changes",
+            "op": "eq",
+            "value": 2
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A15.miniHostToPip",
+        "assertions": [
+          {
+            "field": "numbers.showingBefore",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mountBefore",
+            "op": "eq",
+            "value": "host"
+          },
+          {
+            "field": "numbers.showingAfter",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.epochAfter",
+            "op": "eq",
+            "other": "numbers.epochBefore"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A15.pipExpanded",
+        "assertions": [
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.showing",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -414,8 +762,66 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "A16.coverage1",
-        "missing": "landscape/portrait/auto 原生方向对账"
+        "ident": "A16.window.landscape",
+        "assertions": [
+          {
+            "field": "numbers.stateOrientation",
+            "op": "eq",
+            "value": "landscape"
+          },
+          {
+            "field": "numbers.focused",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.landscape",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A16.window.portrait",
+        "assertions": [
+          {
+            "field": "numbers.stateOrientation",
+            "op": "eq",
+            "value": "portrait"
+          },
+          {
+            "field": "numbers.focused",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.landscape",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A16.window.auto",
+        "assertions": [
+          {
+            "field": "numbers.stateOrientation",
+            "op": "eq",
+            "value": "auto"
+          },
+          {
+            "field": "numbers.focused",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.landscape",
+            "op": "eq",
+            "other": "numbers.videoLandscape"
+          }
+        ]
       }
     ]
   },
@@ -447,8 +853,87 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "A18.coverage1",
-        "missing": "进入/展开/真正点 X 后原生 pinned 与 PipChange 对账"
+        "ident": "A18.pinned.enter",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.returned",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A18.pinned.expand",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A18.pinned.close",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.closeLocated",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.enteredPinned",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N9.transitions",
+        "assertions": [
+          {
+            "field": "numbers.values",
+            "op": "eq",
+            "value": [
+              true,
+              false,
+              true,
+              false
+            ]
+          }
+        ]
       }
     ]
   },
@@ -534,8 +1019,77 @@
       },
       {
         "kind": "check",
-        "ident": "A21.coverage1",
-        "missing": "show/sticky/dragging/previewAt CHECK"
+        "ident": "A21.sticky",
+        "assertions": [
+          {
+            "field": "numbers.visible",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A21.autoHide",
+        "assertions": [
+          {
+            "field": "numbers.visible",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.sawVisible",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A21.dragging",
+        "assertions": [
+          {
+            "field": "numbers.dragging",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.previewAt",
+            "op": "eq",
+            "value": 7000
+          },
+          {
+            "field": "numbers.hud",
+            "op": "eq",
+            "value": "seek"
+          },
+          {
+            "field": "numbers.text",
+            "op": "eq",
+            "value": "s00c"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A21.hudCleared",
+        "assertions": [
+          {
+            "field": "numbers.hud",
+            "op": "eq",
+            "value": "none"
+          },
+          {
+            "field": "numbers.text",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "numbers.dragging",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -614,10 +1168,7 @@
         "ident": "A25.pause"
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S1",
-        "minimum": 3
+        "kind": "keepalive_wake"
       },
       {
         "kind": "log",
@@ -632,10 +1183,36 @@
         "minimum": 3
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S6",
-        "minimum": 3
+        "kind": "check",
+        "ident": "S6.publicFallback",
+        "minimum": 3,
+        "assertions": [
+          {
+            "field": "numbers.audio",
+            "op": "eq",
+            "value": "absent"
+          },
+          {
+            "field": "numbers.phase",
+            "op": "eq",
+            "value": "fallback"
+          },
+          {
+            "field": "numbers.reason",
+            "op": "eq",
+            "value": "silentStream"
+          },
+          {
+            "field": "numbers.mute",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.videoEnabled",
+            "op": "eq",
+            "value": true
+          }
+        ]
       },
       {
         "kind": "log",
@@ -704,8 +1281,39 @@
       },
       {
         "kind": "check",
-        "ident": "A29.coverage1",
-        "missing": "prefetcher 预取命中与池回收完整 CHECK"
+        "ident": "A29.rangeWarm",
+        "assertions": [
+          {
+            "field": "numbers.requestCount",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.range",
+            "op": "eq",
+            "value": "bytes=0-64"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A29.poolReclaimed",
+        "assertions": [
+          {
+            "field": "numbers.engineCount",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.accepts",
+            "op": "eq",
+            "value": [
+              false,
+              false,
+              false
+            ]
+          }
+        ]
       }
     ]
   },
@@ -718,8 +1326,295 @@
       },
       {
         "kind": "check",
-        "ident": "A30.coverage1",
-        "missing": "VTT/抽帧/断网/取消/过期请求全部模式自动对账"
+        "ident": "A30.mode.vtt",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.writes",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.vtt",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.extract",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.extract",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.fallback",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.fallback",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.offline",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.localExists",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mediaUri",
+            "op": "contains",
+            "value": "file:"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.offline",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.blocked",
+        "assertions": [
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.thumbCount",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.blocked",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.cancelResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.staleResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
       }
     ]
   },
@@ -766,8 +1661,295 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "C1.coverage1",
-        "missing": "预览全部配置及 VTT/抽帧/断网/取消判据"
+        "ident": "A30.mode.vtt",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.writes",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.vtt",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.extract",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.extract",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.fallback",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.fallback",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.offline",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.localExists",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mediaUri",
+            "op": "contains",
+            "value": "file:"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.offline",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.blocked",
+        "assertions": [
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.thumbCount",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.blocked",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.cancelResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.staleResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
       }
     ]
   },
@@ -790,8 +1972,24 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "C4.coverage1",
-        "missing": "ABR policy 配置与真实限速降档自动对账"
+        "ident": "C4.abrDown",
+        "assertions": [
+          {
+            "field": "numbers.toBandwidth",
+            "op": "lt",
+            "other": "numbers.fromBandwidth"
+          },
+          {
+            "field": "numbers.eventUri",
+            "op": "eq",
+            "other": "numbers.stateUri"
+          },
+          {
+            "field": "numbers.policyResets",
+            "op": "ge",
+            "value": 1
+          }
+        ]
       }
     ]
   },
@@ -847,8 +2045,116 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "C10.coverage1",
-        "missing": "strings/theme 替换及缓冲三字段渲染量化 CHECK"
+        "ident": "C10.theme.default",
+        "assertions": [
+          {
+            "field": "actual.mismatches",
+            "op": "eq",
+            "value": []
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.theme.bilibili",
+        "assertions": [
+          {
+            "field": "actual.mismatches",
+            "op": "eq",
+            "value": []
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.theme.douyin",
+        "assertions": [
+          {
+            "field": "actual.mismatches",
+            "op": "eq",
+            "value": []
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.strings.default",
+        "assertions": [
+          {
+            "field": "actual.beforeFound",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "actual.afterFound",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.strings.bilibili",
+        "assertions": [
+          {
+            "field": "actual.beforeFound",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "actual.afterFound",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.accent.douyin",
+        "assertions": [
+          {
+            "field": "actual.color",
+            "op": "eq",
+            "other": "expected.expected.accentColor"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.buffering",
+        "assertions": [
+          {
+            "field": "actual.color",
+            "op": "eq",
+            "other": "expected.expected.color"
+          },
+          {
+            "field": "actual.strokeWidth",
+            "op": "eq",
+            "other": "expected.expected.strokeWidth"
+          },
+          {
+            "field": "actual.size",
+            "op": "eq",
+            "other": "expected.expected.size"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.theme.mini",
+        "assertions": [
+          {
+            "field": "actual.color",
+            "op": "eq",
+            "other": "expected.expected.color"
+          },
+          {
+            "field": "actual.size",
+            "op": "eq",
+            "other": "expected.expected.size"
+          }
+        ]
       }
     ]
   },
@@ -894,6 +2200,22 @@
         "kind": "check",
         "ident": "C13.coverage1",
         "missing": "heartbeat 默认无定时器及 qoe 开启四分结算 CHECK"
+      },
+      {
+        "kind": "check",
+        "ident": "C13.defaultHeartbeat",
+        "assertions": [
+          {
+            "field": "numbers.periodicTimers",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.heartbeatUs",
+            "op": "eq",
+            "value": null
+          }
+        ]
       }
     ]
   },
@@ -934,10 +2256,7 @@
         "ident": "C15.maxDuration"
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S1",
-        "minimum": 3
+        "kind": "keepalive_wake"
       },
       {
         "kind": "log",
@@ -952,10 +2271,36 @@
         "minimum": 3
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S6",
-        "minimum": 3
+        "kind": "check",
+        "ident": "S6.publicFallback",
+        "minimum": 3,
+        "assertions": [
+          {
+            "field": "numbers.audio",
+            "op": "eq",
+            "value": "absent"
+          },
+          {
+            "field": "numbers.phase",
+            "op": "eq",
+            "value": "fallback"
+          },
+          {
+            "field": "numbers.reason",
+            "op": "eq",
+            "value": "silentStream"
+          },
+          {
+            "field": "numbers.mute",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.videoEnabled",
+            "op": "eq",
+            "value": true
+          }
+        ]
       },
       {
         "kind": "log",
@@ -1007,6 +2352,27 @@
         "kind": "check",
         "ident": "C17.coverage1",
         "missing": "sameAs/请求头原生读回自动对账"
+      },
+      {
+        "kind": "check",
+        "ident": "C17.sameAs",
+        "assertions": [
+          {
+            "field": "numbers.same",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.changedHeaders",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.changedAlternatives",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -1250,6 +2616,22 @@
       {
         "kind": "event",
         "name": "MovaPreviewBlock"
+      },
+      {
+        "kind": "check",
+        "ident": "E.MovaPreviewBlock.network",
+        "assertions": [
+          {
+            "field": "numbers.reason",
+            "op": "eq",
+            "value": "network"
+          },
+          {
+            "field": "numbers.count",
+            "op": "ge",
+            "value": 1
+          }
+        ]
       }
     ]
   },
@@ -1373,8 +2755,324 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "U2.coverage1",
-        "missing": "全部皮肤组件树逐槽检查"
+        "ident": "U2.componentNames",
+        "assertions": [
+          {
+            "field": "actual.mismatches",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.checked",
+            "op": "ge",
+            "value": 30
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.tree.default",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.default",
+        "assertions": [
+          {
+            "field": "actual.missingIcons",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "other": "expected.MovaGradBar"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.tree.bilibili",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.bilibili",
+        "assertions": [
+          {
+            "field": "actual.missingIcons",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "other": "expected.MovaGradBar"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.tree.douyin",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.douyin",
+        "assertions": [
+          {
+            "field": "actual.missingIcons",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "other": "expected.MovaGradBar"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.tree.minimal",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.minimal",
+        "assertions": [
+          {
+            "field": "actual.missingIcons",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "other": "expected.MovaGradBar"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.tree.mini",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.mini",
+        "assertions": [
+          {
+            "field": "actual.missingIcons",
+            "op": "eq",
+            "value": []
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "other": "expected.MovaGradBar"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchNoop",
+        "assertions": [
+          {
+            "field": "actual.thrown",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "actual.afterTree",
+            "op": "eq",
+            "other": "expected.expected.tree"
+          },
+          {
+            "field": "actual.inputAfter",
+            "op": "eq",
+            "other": "expected.expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchTree.default",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchMounted.default",
+        "assertions": [
+          {
+            "field": "actual.fullscreenIcons",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchClick.default.gapAdd",
+        "assertions": [
+          {
+            "field": "actual.mounted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "actual.rate",
+            "op": "eq",
+            "other": "expected.rate"
+          },
+          {
+            "field": "actual.events",
+            "op": "contains",
+            "value": "MovaRateChange"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchClick.default.gapReplace",
+        "assertions": [
+          {
+            "field": "actual.mounted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "actual.rate",
+            "op": "eq",
+            "other": "expected.rate"
+          },
+          {
+            "field": "actual.events",
+            "op": "contains",
+            "value": "MovaRateChange"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchClick.default.gapInsert",
+        "assertions": [
+          {
+            "field": "actual.mounted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "actual.rate",
+            "op": "eq",
+            "other": "expected.rate"
+          },
+          {
+            "field": "actual.events",
+            "op": "contains",
+            "value": "MovaRateChange"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchTree.bilibili",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchMounted.bilibili",
+        "assertions": [
+          {
+            "field": "actual.fullscreenIcons",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchClick.bilibili.gapInsert",
+        "assertions": [
+          {
+            "field": "actual.mounted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "actual.rate",
+            "op": "eq",
+            "other": "expected.rate"
+          },
+          {
+            "field": "actual.events",
+            "op": "contains",
+            "value": "MovaRateChange"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.patchClick.bilibili.gapOverlay",
+        "assertions": [
+          {
+            "field": "actual.mounted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "actual.rate",
+            "op": "eq",
+            "other": "expected.rate"
+          },
+          {
+            "field": "actual.events",
+            "op": "contains",
+            "value": "MovaRateChange"
+          }
+        ]
       }
     ]
   },
@@ -1570,8 +3268,101 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "F5.coverage1",
-        "missing": "真实 MiniHost 与 PiP 互斥及唤醒保活联合 CHECK"
+        "ident": "F5.pipWake",
+        "assertions": [
+          {
+            "field": "numbers.phaseBefore",
+            "op": "eq",
+            "value": "holding"
+          },
+          {
+            "field": "numbers.phaseAfter",
+            "op": "eq",
+            "value": "off"
+          },
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.resumeEvents",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A15.miniHostToPip",
+        "assertions": [
+          {
+            "field": "numbers.showingBefore",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mountBefore",
+            "op": "eq",
+            "value": "host"
+          },
+          {
+            "field": "numbers.showingAfter",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.epochAfter",
+            "op": "eq",
+            "other": "numbers.epochBefore"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A15.pipExpanded",
+        "assertions": [
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.showing",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -1579,10 +3370,7 @@
     "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F6",
     "requires": [
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S1",
-        "minimum": 3
+        "kind": "keepalive_wake"
       },
       {
         "kind": "log",
@@ -1597,10 +3385,36 @@
         "minimum": 3
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S6",
-        "minimum": 3
+        "kind": "check",
+        "ident": "S6.publicFallback",
+        "minimum": 3,
+        "assertions": [
+          {
+            "field": "numbers.audio",
+            "op": "eq",
+            "value": "absent"
+          },
+          {
+            "field": "numbers.phase",
+            "op": "eq",
+            "value": "fallback"
+          },
+          {
+            "field": "numbers.reason",
+            "op": "eq",
+            "value": "silentStream"
+          },
+          {
+            "field": "numbers.mute",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.videoEnabled",
+            "op": "eq",
+            "value": true
+          }
+        ]
       },
       {
         "kind": "log",
@@ -1670,8 +3484,295 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "F10.coverage1",
-        "missing": "预览各模式完整 CHECK"
+        "ident": "A30.mode.vtt",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.writes",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.vtt",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.extract",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.extract",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.fallback",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.fallback",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.offline",
+        "assertions": [
+          {
+            "field": "numbers.observedMs",
+            "op": "eq",
+            "value": [
+              4000,
+              8000,
+              12000,
+              4000
+            ]
+          },
+          {
+            "field": "numbers.nonempty",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "le",
+            "value": 2
+          },
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.diskHits",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.localExists",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mediaUri",
+            "op": "contains",
+            "value": "file:"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.offline",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.mode.blocked",
+        "assertions": [
+          {
+            "field": "numbers.extractCalls",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.thumbCount",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.clear.blocked",
+        "assertions": [
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.memoryEntries",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.cancelResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A30.staleResult",
+        "assertions": [
+          {
+            "field": "numbers.sourceCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.currentNull",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.latePublished",
+            "op": "eq",
+            "value": 0
+          }
+        ]
       }
     ]
   },
@@ -1878,8 +3979,87 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "N9.coverage1",
-        "missing": "PiP 展开与真正点 X 的原生 pinned/state 对账"
+        "ident": "A18.pinned.enter",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.mini",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.returned",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A18.pinned.expand",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A18.pinned.close",
+        "assertions": [
+          {
+            "field": "numbers.pinned",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.pip",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.closeLocated",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.enteredPinned",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N9.transitions",
+        "assertions": [
+          {
+            "field": "numbers.values",
+            "op": "eq",
+            "value": [
+              true,
+              false,
+              true,
+              false
+            ]
+          }
+        ]
       }
     ]
   },
@@ -1972,6 +4152,43 @@
         "kind": "check",
         "ident": "N12.coverage1",
         "missing": "换源归零与旧 RESTART 隔离逐事件 CHECK"
+      },
+      {
+        "kind": "check",
+        "ident": "N12.openReset",
+        "assertions": [
+          {
+            "field": "numbers.rendered",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.width",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.height",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N12.freshRestart",
+        "assertions": [
+          {
+            "field": "numbers.rendered",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.firstFrames",
+            "op": "eq",
+            "value": 2
+          }
+        ]
       }
     ]
   },
@@ -2037,8 +4254,84 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "N16.coverage1",
-        "missing": "MinimalSkin 与缓冲三字段可见性量化 CHECK"
+        "ident": "N16.variants.false.false",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N16.variants.false.true",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N16.variants.true.false",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N16.variants.true.true",
+        "assertions": [
+          {
+            "field": "actual.tree",
+            "op": "eq",
+            "other": "expected.tree"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C10.buffering",
+        "assertions": [
+          {
+            "field": "actual.color",
+            "op": "eq",
+            "other": "expected.expected.color"
+          },
+          {
+            "field": "actual.strokeWidth",
+            "op": "eq",
+            "other": "expected.expected.strokeWidth"
+          },
+          {
+            "field": "actual.size",
+            "op": "eq",
+            "other": "expected.expected.size"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U2.mounted.minimal",
+        "assertions": [
+          {
+            "field": "actual.iconCount",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "actual.MovaGradBar",
+            "op": "eq",
+            "value": 0
+          }
+        ]
       }
     ]
   },
@@ -2101,10 +4394,7 @@
     "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N20",
     "requires": [
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S1",
-        "minimum": 3
+        "kind": "keepalive_wake"
       },
       {
         "kind": "log",
@@ -2119,10 +4409,36 @@
         "minimum": 3
       },
       {
-        "kind": "log",
-        "file": "keepalive-core.log",
-        "name": "S6",
-        "minimum": 3
+        "kind": "check",
+        "ident": "S6.publicFallback",
+        "minimum": 3,
+        "assertions": [
+          {
+            "field": "numbers.audio",
+            "op": "eq",
+            "value": "absent"
+          },
+          {
+            "field": "numbers.phase",
+            "op": "eq",
+            "value": "fallback"
+          },
+          {
+            "field": "numbers.reason",
+            "op": "eq",
+            "value": "silentStream"
+          },
+          {
+            "field": "numbers.mute",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.videoEnabled",
+            "op": "eq",
+            "value": true
+          }
+        ]
       },
       {
         "kind": "log",

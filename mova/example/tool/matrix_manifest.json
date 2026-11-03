@@ -214,6 +214,35 @@
       "fast": true
     },
     {
+      "id": "s00c-native",
+      "description": "S00c 原生窗口方向、系统栏与 PiP pinned 读回",
+      "why": "逐阶段保留 dumpsys 与真实关闭控件定位；未知格式不推断 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00c.py",
+        "--name",
+        "{prefix}s00c-native",
+        "--pip"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A14",
+        "A16",
+        "A18",
+        "N9",
+        "A15",
+        "F5"
+      ],
+      "evidence_prefix": "{prefix}s00c-native",
+      "screen_on": true,
+      "fast": false
+    },
+    {
       "id": "api",
       "description": "运行普通/代理 API、hooks、恢复、预览、QoE 等批量子项",
       "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
@@ -293,7 +322,8 @@
         "E.MovaRateChange",
         "E.MovaPreviewBlock",
         "E.MovaSttBlock",
-        "E.MovaErrorEvent"
+        "E.MovaErrorEvent",
+        "A15"
       ],
       "evidence_prefix": "{prefix}rerun-batch15-",
       "screen_on": true,
@@ -1492,7 +1522,11 @@
         "build",
         "gap-prepare"
       ],
-      "covers": [],
+      "covers": [
+        "U2",
+        "C10",
+        "N16"
+      ],
       "covers_ext": [
         "S1",
         "S2",

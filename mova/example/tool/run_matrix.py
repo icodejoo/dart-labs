@@ -241,9 +241,9 @@ def make_rows(manifest, results, explicit):
             detail = '覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。'
         if ident not in manual and ident in explicit and (completed or explicit[ident].get('evidence_only')):
             status, detail = explicit[ident]['status'], explicit[ident]['evidence']
-            bad=[n for n in names if n in results and results[n]['kind'] not in ('OK',)]
-            if explicit[ident].get('evidence_only') and bad and status!='FAIL':
-                status='BLOCKED';detail='验证器错误/批次未完成 '+', '.join(bad)+'；'+detail
+            # Evidence reducers require each source/command to be complete.
+            # A different child of a legacy umbrella batch (e.g. subtitles)
+            # must not invalidate a complete cutover command's own CHECKs.
         rows.append(dict(id=ident, status=status, evidence=detail, batches=names,
                          reproduction='python example/tool/run_matrix.py --only ' + ','.join(names) if names else 'manual',
                          pointers=evidence, subitems=explicit.get(ident, {}).get('subitems', [])))

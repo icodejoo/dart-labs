@@ -70,7 +70,12 @@ void observe(MovaApi api) {
   api.progress.listen((p) {latest = p;progressOf[api]=p;});
   api.events.listen((e) {
     events.add(e);
-    final payload = switch (e) {
+    final payload = eventPayload(e);
+    mark('EVENT', {'engine':identityHashCode(api),'event': e.runtimeType.toString(), 'payload': payload, 'state': snapshot(api)});
+  });
+}
+
+Map<String, Object?> eventPayload(MovaEvent e) => switch (e) {
       MovaSourceChange() => {'uri': e.source.uri},
       MovaSeek() => {'target': e.target.inMilliseconds},
       MovaSeeked() => {'position': e.position.inMilliseconds},
@@ -102,10 +107,7 @@ void observe(MovaApi api) {
       MovaKeepAliveChange() => {'phase': e.phase.name, 'reason': e.reason.name, 'mode': '${e.mode}'},
       MovaKeepAliveResume() => {'elapsed': e.elapsed.inMilliseconds, 'signal': '${e.signal}'},
       _ => <String, Object?>{},
-    };
-    mark('EVENT', {'engine':identityHashCode(api),'event': e.runtimeType.toString(), 'payload': payload, 'state': snapshot(api)});
-  });
-}
+};
 
 Map<String, Object?> snapshot(MovaApi a) => {
   'playing': a.state.playing, 'intent': a.state.playbackIntent, 'buffering': a.state.buffering,
@@ -123,6 +125,24 @@ Map<String, Object?> snapshot(MovaApi a) => {
   'previewCurrent':a.preview.current?.at.inMilliseconds,
   'timeshiftBehind':a.state.timeshiftBehind?.inMilliseconds,'liveSeekable':a.state.liveSeekable,'seekableWindow':a.state.seekableWindow.inMilliseconds,
   'hudText':a.uiState.hudText,'dragging':a.uiState.dragging,'previewAt':a.uiState.previewAt?.inMilliseconds,
+};
+
+Object? streamValue(Object? value) => switch (value) {
+  MovaEvent() => {'event': value.runtimeType.toString(), 'payload': eventPayload(value)},
+  MovaProg() => {'position': value.position.inMicroseconds, 'buffer': value.buffer.inMicroseconds},
+  MovaUiState() => {'controls': value.controlsVisible, 'dragging': value.dragging,
+    'hud': value.hud.name, 'text': value.hudText, 'previewAt': value.previewAt?.inMicroseconds},
+  MovaState() => {'playing': value.playing, 'intent': value.playbackIntent, 'buffering': value.buffering,
+    'duration': value.duration.inMicroseconds, 'width': value.width, 'height': value.height,
+    'volume': value.volume, 'brightness': value.brightness, 'rate': value.rate, 'fit': value.fit.name,
+    'zoom': value.zoom, 'locked': value.locked, 'fullscreen': value.fullscreen, 'pip': value.pip,
+    'mini': value.mini, 'orientation': value.orientation.name, 'rendered': value.rendered,
+    'epoch': value.renderEpoch, 'sourceIndex': value.sourceIndex, 'keepAlive': value.keepAlivePhase.name,
+    'quality': value.currentQuality?.uri, 'qualities': value.qualities.map((q) => '${q.label}:${q.uri}').toList(),
+    'type': value.type.name, 'title': value.sourceTitle, 'error': '${value.error}',
+    'completed': value.completed, 'pipSupported': value.pipSupported, 'liveSeekable': value.liveSeekable,
+    'timeshiftBehind': value.timeshiftBehind?.inMicroseconds, 'seekableWindow': value.seekableWindow.inMicroseconds},
+  _ => '$value',
 };
 
 void check(String id, bool pass, Object detail) => mark('CHECK', {'id': id, 'pass': pass, 'detail': '$detail'});
@@ -199,15 +219,18 @@ class _CoverageHomeState extends State<CoverageHome> {
     final streams = <Stream<dynamic>>[a.events, a.states, a.progress, a.uiStates];
     mark('STREAM_FLAGS',{'broadcast':streams.map((s)=>s.isBroadcast).toList(),'types':streams.map((s)=>s.runtimeType.toString()).toList(),'cutover':cutover});
     final counts = List.filled(8, 0);
+    final sequences = List.generate(8, (_) => <Object?>[]);
     final closed = List.filled(8, false);
     final subscriptions = <StreamSubscription<dynamic>>[];
     for (var i = 0; i < 4; i++) {
       for (var j = 0; j < 2; j++) {
         final n = i * 2 + j;
-        subscriptions.add(streams[i].listen((_) => counts[n]++, onDone: () => closed[n] = true));
+        subscriptions.add(streams[i].listen((value) {
+          counts[n]++;
+          sequences[n].add(value);
+        }, onDone: () => closed[n] = true));
       }
     }
-    check('A1.broadcast', streams.every((s) => s.isBroadcast), 'all streams broadcast cutover=$cutover');
     check('A3.audio', a.renderHandle == null, 'handle=${a.renderHandle}');
     final accepted = await a.open(source(), autoPlay: false);
     await until(() => a.state.duration > Duration.zero);
@@ -221,7 +244,13 @@ class _CoverageHomeState extends State<CoverageHome> {
     await a.pause(); await a.pause(); await settle();
     check('A6.pause', !a.state.playing && !a.state.playbackIntent, snapshot(a));
     await a.playOrPause(); await until(() => a.state.playing);
+    check('A6.togglePlay', a.state.playbackIntent && a.state.playing, snapshot(a));
     await a.playOrPause(); await until(() => !a.state.playing);
+    check('A6.togglePause', !a.state.playbackIntent && !a.state.playing, snapshot(a));
+    await a.play(); await a.play(); await until(() => a.state.playing);
+    check('A6.repeatPlay', a.state.playbackIntent && a.state.playing, snapshot(a));
+    await a.pause(); await a.pause(); await until(() => !a.state.playing);
+    check('A6.repeatPause', !a.state.playbackIntent && !a.state.playing, snapshot(a));
     for (final sec in [5, 10, 15, 5, 10]) {
       final n = events.whereType<MovaSeeked>().length;
       await a.seek(Duration(seconds: sec));
@@ -271,6 +300,20 @@ class _CoverageHomeState extends State<CoverageHome> {
     check('C13.off', !reports.any((r) => [MovaReportName.firstFrame, MovaReportName.sessionStart, MovaReportName.sessionEnd, MovaReportName.rebuffer].contains(r.name)), 'QoE reports=${reports.length}');
     await a.dispose().timeout(const Duration(seconds: 15)); await settle();
     check('A1.closed', closed.every((b) => b), 'counts=$counts closed=$closed');
+    for (var i = 0; i < 4; i++) {
+      final left = sequences[i * 2], right = sequences[i * 2 + 1];
+      final equal = left.length == right.length &&
+          List.generate(left.length, (n) => left[n] == right[n]).every((v) => v);
+      mark('CHECK', {
+        'id': 'A1.${['events', 'states', 'progress', 'uiStates'][i]}.sequence',
+        'pass': left.isNotEmpty && equal,
+        'numbers': {'leftCount': left.length, 'rightCount': right.length,
+          'equal': equal, 'cutover': cutover},
+        // Values are compared before serialization: no hash collisions.
+        'left': left.map(streamValue).toList(),
+        'right': right.map(streamValue).toList(),
+      });
+    }
     try {await a.dispose().timeout(const Duration(seconds: 5));check('A23.doubleDispose',true,'completed');}
     catch(e){check('A23.doubleDispose',false,'$e');}
     check('A23.postOpen', !await a.open(source()), 'disposed open=false');

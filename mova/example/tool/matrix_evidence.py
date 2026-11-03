@@ -74,15 +74,63 @@ class Evidence:
             if '.driver.' in path.name: continue
             content = path.read_text(encoding='utf-8', errors='replace')
             self.logs[path.name[len(prefix):]] = (content,path.name)
+            for line_no, line in enumerate(content.splitlines(), 1):
+                match = re.search(r'MATRIX_RECORD (\{.*\})', line)
+                if not match: continue
+                try:
+                    row = json.loads(match[1])
+                    if not isinstance(row, dict): raise ValueError('record 非对象')
+                except ValueError as error:
+                    self.errors.append(f'{path.name}:line[{line_no}]: {error}'); continue
+                # Only completed scripts may contribute structured log records.
+                if not any(s in content for s in ('AUTORUN DONE', 'ALL_DONE', '|DONE|')): continue
+                pointer = f'{path.name}:line[{line_no}]'
+                self.records.append((row, pointer))
+                if row.get('kind') == 'CHECK':
+                    self.checks.setdefault(row.get('id'), []).append((row, pointer))
 
-    def check(self, ident, minimum=1, missing=None, sources=None, **kw):
+    def check(self, ident, minimum=1, missing=None, sources=None, assertions=None, **kw):
         samples = self.checks.get(ident, [])
         if not samples: return 'BLOCKED', f'缺 CHECK {ident}'+('：'+missing if missing else '')
         vals = ['PASS' if r.get('pass') is True else 'FAIL' if r.get('pass') is False else 'BLOCKED' for r,_ in samples]
+        # New CHECKs retain numeric inputs. Recompute their declared predicates
+        # rather than trusting a producer's boolean alone.
+        if assertions:
+            vals += [self.assertions(r, assertions) if type(r.get('pass')) is bool else 'BLOCKED'
+                     for r, _ in samples]
         if len(samples)<minimum:vals.append('BLOCKED')
         absent=[f for f in (sources or []) if not any(fnmatch.fnmatch(p.split(':records')[0], '*'+f) for _,p in samples)]
         if absent:vals.append('BLOCKED')
         return status(vals), ('缺来源 '+str(absent)+'；' if absent else '')+'; '.join(f'{p}: {json.dumps(r,ensure_ascii=False)}' for r,p in samples)
+
+    @staticmethod
+    def assertions(record, assertions):
+        def field(key):
+            value = record
+            for part in key.split('.'):
+                value = value[part]
+            return value
+        try:
+            for clause in assertions:
+                actual = field(clause['field'])
+                expected = field(clause['other']) if 'other' in clause else clause.get('value')
+                # Native producers use null for an unparsed observation. A
+                # comparison to a missing baseline is also unknown. Explicit
+                # null contracts (e.g. heartbeat disabled) remain comparable.
+                if (actual is None and expected is not None) or ('other' in clause and expected is None):
+                    return 'BLOCKED'
+                op = clause['op']
+                if op == 'eq': ok = actual == expected
+                elif op == 'ge': ok = actual >= expected
+                elif op == 'le': ok = actual <= expected
+                elif op == 'lt': ok = actual < expected
+                elif op == 'near': ok = abs(actual - expected) <= clause.get('tolerance', 0)
+                elif op == 'contains': ok = expected in actual
+                else: return 'BLOCKED'
+                if not ok: return 'FAIL'
+        except (KeyError, TypeError, ValueError):
+            return 'BLOCKED'
+        return 'PASS'
 
     def event(self, name, **kw):
         name = ALIASES.get(name,name)
@@ -110,6 +158,18 @@ class Evidence:
         vals = [re.search(r'\b(PASS|FAIL|BLOCKED)\b',l).group(1) for l in lines]
         if len(lines)<minimum:vals.append('BLOCKED')
         return status(vals), f'{pointer}: {name} 样本={len(lines)}/{minimum}; '+'; '.join(lines)
+
+    def keepalive_wake(self, file='keepalive-core.log', minimum=9, **kw):
+        """H42 is undecided: grace alone cannot establish a decoded wake."""
+        content, pointer = self.logs.get(file, ('', file))
+        rows = re.findall(r'S1 gop=.*?phase=(\w+).*?signal=(\w+).*?decodedProp=(\w+)ms vid=(\S+) mute=(\S+)', content)
+        values = []
+        for phase, signal, decoded, vid, mute in rows:
+            if phase != 'holding' or vid in ('no', '0') or mute != 'no': values.append('FAIL')
+            elif signal in ('grace', 'timeout', 'null') or not decoded.isdigit(): values.append('BLOCKED')
+            else: values.append('PASS')
+        if len(rows) < minimum or 'AUTORUN DONE' not in content: values.append('BLOCKED')
+        return status(values), f'{pointer}: S1 raw={rows}; H42 grace/elapsed 语义待决，需 RESTART/size 与原生解码事件关联'
 
     def record(self, name, assertions, files='*', where=None, minimum=1, **kw):
         def field(r,key):
@@ -229,9 +289,8 @@ def reduce_evidence(manifest, out, prefix, rules=None):
         missing=rule.get('missing',[])
         for clause in missing:
             subs.append(dict(id=ident+'/missing',status='BLOCKED',evidence='缺用例/判据：'+clause))
-        for key,reason in rules.get('_invalid_checks',{}).items():
-            if key==ident or key.startswith(ident+'.'):
-                if key in ev.checks:subs.append(dict(id=key,status='BLOCKED',evidence='验证器旧预期：'+reason+'；'+ev.check(key)[1]))
+        # Invalid historical assertions are excluded. Their replacement is a
+        # required rule; keeping the invalid boolean must not poison a rerun.
         if ev.errors:
             subs.append(dict(id=ident+'/evidence-errors',status='BLOCKED',evidence='证据解析错误：'+'; '.join(ev.errors)))
         if ident in manual:

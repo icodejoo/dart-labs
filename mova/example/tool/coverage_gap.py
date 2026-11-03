@@ -23,6 +23,16 @@ class Blocked(Exception):
     pass
 
 
+def canonical_checks(rows):
+    """Expose named raw CHECKs from completed, error-free gap cases only."""
+    ended = {r['case'] for r in rows if r.get('kind') == 'END'}
+    errors = {r['case'] for r in rows if r.get('kind') == 'ERROR'}
+    return [dict(r['data'], kind='CHECK', originGapIndex=i,
+                 originGapCase=r['case'], originGapRun=r.get('run'))
+            for i, r in enumerate(rows) if r.get('kind') == 'CHECK'
+            and r.get('case') in ended-errors and isinstance(r.get('data'), dict)]
+
+
 class GapDriver(matrix.Driver):
     def screen(self):
         window=self.adb('shell','dumpsys','window')
@@ -239,6 +249,14 @@ class GapDriver(matrix.Driver):
                         self.mark('late-error-sent')
             if data['phase'] == 'done':
                 (self.out / 'gap.json').write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+                # Canonical CHECKs are raw observations, not the derived gap
+                # verdict list. Preserve their original row index and only
+                # export a case after its END and without a harness ERROR.
+                canonical = canonical_checks(data['rows'])
+                destination = matrix.TOOL/'coverage_evidence'/('matrix-'+args.run_id)
+                destination.mkdir(parents=True, exist_ok=True)
+                (destination/('matrix-'+args.run_id+'-gap-'+args.group+'-checks.json')).write_text(
+                    json.dumps(dict(status='done', records=canonical), ensure_ascii=False, indent=2), encoding='utf-8')
                 if not product_rows:
                     raise RuntimeError('no per-case verdicts')
                 harness = [r for r in data['rows'] if r['kind'] == 'ERROR']

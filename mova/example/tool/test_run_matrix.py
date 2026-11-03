@@ -27,6 +27,103 @@ class MatrixTests(unittest.TestCase):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
 
+    def test_s00c_checks_recompute_arithmetic_and_require_readbacks(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            path=out/'unit-source.json'
+            row=dict(kind='CHECK',id='C4.abrDown',numbers=dict(before=100,after=80),**{'pass':True})
+            def verdict():
+                path.write_text(json.dumps(dict(status='done',records=[row])))
+                return Evidence(out,'unit-').check('C4.abrDown',assertions=[
+                    dict(field='numbers.after',op='lt',other='numbers.before')])[0]
+            self.assertEqual(verdict(),'PASS')
+            row['numbers']['after']=120
+            self.assertEqual(verdict(),'FAIL')
+            del row['numbers']['before']
+            self.assertEqual(verdict(),'BLOCKED')
+            row.update(numbers=dict(pinned=None),**{'pass':None})
+            path.write_text(json.dumps(dict(status='done',records=[row])))
+            self.assertEqual(Evidence(out,'unit-').check('C4.abrDown',assertions=[
+                dict(field='numbers.pinned',op='eq',value=True)])[0],'BLOCKED')
+
+    def test_completed_command_is_independent_of_an_unrelated_suite_error(self):
+        manifest=dict(ids=['A24'],manual=[],batches=[dict(id='existing-pages',covers=['A24'])])
+        explicit=dict(A24=dict(status='PASS',evidence='complete cutover command',evidence_only=True))
+        results={'existing-pages':dict(kind='HARNESS',driver='subtitles.driver.log')}
+        self.assertEqual(matrix.make_rows(manifest,results,explicit)[0]['status'],'PASS')
+        self.assertEqual(results['existing-pages']['kind'],'HARNESS')
+        explicit['A24']['status']='BLOCKED'
+        self.assertEqual(matrix.make_rows(manifest,results,explicit)[0]['status'],'BLOCKED')
+
+    def test_retired_broadcast_assertion_cannot_poison_sequence_replacement(self):
+        from matrix_evidence import reduce_evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            records=[dict(kind='CHECK',id='A1.broadcast',**{'pass':False}),
+                     dict(kind='CHECK',id='A1.events.sequence',**{'pass':True})]
+            (out/'unit-basic.json').write_text(json.dumps(dict(status='done',records=records)))
+            rules={'A1':dict(requires=[dict(kind='check',ident='A1.events.sequence')]),
+                   '_invalid_checks':{'A1.broadcast':'retired requirement'}}
+            manifest=dict(ids=['A1'],manual=[])
+            self.assertEqual(reduce_evidence(manifest,out,'unit-',rules)['A1']['status'],'PASS')
+
+    def test_structured_log_records_require_completion(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            path=Path(folder)/'unit-keepalive-core.log'
+            row=dict(kind='CHECK',id='S6.publicFallback',numbers=dict(phase='fallback'),**{'pass':True})
+            content='[STANDBY] MATRIX_RECORD '+json.dumps(row)+'\n'
+            path.write_text(content)
+            self.assertEqual(Evidence(folder,'unit-').check('S6.publicFallback')[0],'BLOCKED')
+            path.write_text(content+'AUTORUN DONE\n')
+            value,detail=Evidence(folder,'unit-').check('S6.publicFallback')
+            self.assertEqual(value,'PASS')
+            self.assertIn('line[1]',detail)
+
+    def test_keepalive_grace_is_unresolved_and_bad_native_readback_fails(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            path=Path(folder)/'unit-keepalive-core.log'
+            sample='S1 gop=25f hold=3s phase=holding mode=muted resume=5001ms signal=grace from=muted decodedProp=158ms vid=1 mute=no\n'
+            path.write_text(sample*9+'AUTORUN DONE\n')
+            self.assertEqual(Evidence(folder,'unit-').keepalive_wake()[0],'BLOCKED')
+            path.write_text(sample.replace('signal=grace','signal=size')*9+'AUTORUN DONE\n')
+            self.assertEqual(Evidence(folder,'unit-').keepalive_wake()[0],'PASS')
+            path.write_text(sample.replace('mute=no','mute=yes')*9+'AUTORUN DONE\n')
+            self.assertEqual(Evidence(folder,'unit-').keepalive_wake()[0],'FAIL')
+
+    def test_gap_named_checks_require_case_end_and_preserve_original_index(self):
+        from coverage_gap import canonical_checks
+        rows=[dict(kind='CHECK',case='gap:open',data=dict(id='U2.tree.default',**{'pass':True})),
+              dict(kind='CHECK',case='gap:done',data=dict(id='U2.tree.mini',**{'pass':True})),
+              dict(kind='END',case='gap:done'),
+              dict(kind='CHECK',case='gap:error',data=dict(id='U2.tree.douyin',**{'pass':True})),
+              dict(kind='ERROR',case='gap:error'),dict(kind='END',case='gap:error')]
+        checks=canonical_checks(rows)
+        self.assertEqual([r['id'] for r in checks],['U2.tree.mini'])
+        self.assertEqual(checks[0]['originGapIndex'],1)
+
+    def test_native_window_parsers_fail_closed_and_scope_pip_to_target(self):
+        from coverage_s00c import window_values,pinned_value,close_bounds,observation,PACKAGE
+        window='mDisplayFrames=DisplayFrames w=2400 h=1080 r=1\n'+\
+            'InsetsSource: type=statusBars frame=[0,0][2400,90] visible=false\n'+\
+            'InsetsSource: type=navigationBars frame=[0,1000][2400,1080] visible=false\n'+\
+            'mCurrentFocus=Window{123 '+PACKAGE+'/MainActivity}\n'
+        values=window_values(window)
+        self.assertEqual(values,dict(width=2400,height=1080,rotation=1,status=False,navigation=False,focused=True))
+        self.assertIsNone(observation('A14',{},dict(status=False))['pass'])
+        self.assertIsNone(observation('A14',dict(status=False),dict(status=None))['pass'])
+        self.assertFalse(observation('A14',dict(status=True),dict(status=False))['pass'])
+        self.assertNotIn('status',window_values(window+'InsetsSource: type=statusBars visible=true\n'))
+        self.assertIsNone(pinned_value('Task{123 A=other.app mode=pinned}'))
+        self.assertFalse(pinned_value('Task{123 A='+PACKAGE+' mode=fullscreen}'))
+        self.assertTrue(pinned_value('Task{123 A='+PACKAGE+' mode=pinned}'))
+        xml='<hierarchy><node package="other.app" content-desc="Close" bounds="[0,0][20,20]"/></hierarchy>'
+        self.assertIsNone(close_bounds(xml))
+        self.assertEqual(close_bounds(xml.replace('other.app','com.android.systemui')),[10,10])
+        self.assertIsNone(close_bounds('broken'))
+
     def test_evidence_reducer_failure_missing_alias_and_no_ledger(self):
         from matrix_evidence import reduce_evidence
         with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:

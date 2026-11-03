@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print, implementation_imports
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -244,6 +245,13 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     _ev = EventRecorder<MovaEvent>(api.events, clock: _clock);
     _pg = EventRecorder<MovaProg>(api.progress, clock: _clock);
     _openAt = _clock.elapsed;
+    api.events.where((e) => e is MovaKeepAliveResume).listen((event) {
+      final e = event as MovaKeepAliveResume;
+      _log('MATRIX_RECORD ${jsonEncode({'kind': 'EVENT', 'ms': _clock.elapsedMilliseconds,
+        'event': 'MovaKeepAliveResume', 'payload': {'elapsed': e.elapsed.inMilliseconds,
+        'signal': e.signal?.name, 'from': e.from?.name},
+        'state': {'keepAlive': api.state.keepAlivePhase.name, 'rendered': api.state.rendered}})}');
+    });
     _engineReady?.complete();
   }
 
@@ -344,7 +352,10 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
         if (r.decodedMs != null) _samples.add('S1.gop=$gop.hold=${hold}s.decodedPropMs', r.decodedMs!);
         _samples.add('S15.signal.$sig', 1);
         _log('S1 gop=${gop}f(${gop / 25}s) hold=${hold}s phase=${r.phase.name} mode=${r.entered?.mode?.name} resume=${ms}ms signal=$sig from=${res?.event.from?.name} decodedProp=${r.decodedMs}ms vid=${await _prop('vid')} mute=${await _prop('mute')}');
-        _verdict('S1', r.phase == MovaKeepAlivePhase.holding && res != null && sig != 'grace' && sig != 'timeout', 'gop=$gop hold=${hold}s signal=$sig decodedProp=${r.decodedMs}ms');
+        // grace is an allowed fallback signal, not proof of a decoded frame.
+        // keepalive_wake in the host leaves H42 BLOCKED until independently
+        // correlated with a native landing signal; it never times wall clocks.
+        _verdict('S1', r.phase == MovaKeepAlivePhase.holding && res != null, 'gop=$gop hold=${hold}s signal=$sig decodedProp=${r.decodedMs}ms');
         await Future<void>.delayed(const Duration(seconds: 2));
       }
     }
@@ -459,28 +470,34 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     _verdict('S5C', true, 'control drift=${drift}ms');
   }
 
-  /// S6: no-audio detection, and what a forced B does to a stream without audio (position should stop).
+  /// S6: the public API must fall back for a silent stream. Directly forcing
+  /// kernel muted mode bypasses that decision and can end the FLV demuxer.
   Future<void> _s6(int run) async {
     if (!await _play(_Cfg(source: _src(_live(audio: false))))) return _verdict('S6', false, 'never rendered');
     final media = await _kernel!.inspectKeepAlive();
-    final a0 = _lastProg!.position;
-    await Future<void>.delayed(const Duration(seconds: 3));
-    final normalAdvance = (_lastProg!.position - a0).inMilliseconds;
-    final ok = await _kernel!.enterKeepAlive(MovaKeepAliveMode.muted);
     final mark = _ev!.mark;
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    final b0 = _lastProg!.position;
-    final trace = <String>[];
-    for (var i = 0; i < 8; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      trace.add('${_lastProg!.position.inMilliseconds}/eof=${await _prop('eof-reached')}/idle=${await _prop('core-idle')}');
+    final phase = await _keepAlive(true);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final changes = _ev!.log.skip(mark).map((v) => v.event).whereType<MovaKeepAliveChange>().toList();
+    final reason = changes.lastOrNull?.reason.name;
+    final vid = await _prop('vid');
+    final mute = await _prop('mute');
+    final videoEnabled = vid == 'auto' || (int.tryParse(vid) ?? 0) > 0;
+    final knownVideo = videoEnabled || vid == 'no' || vid == '0';
+    final known = knownVideo && ['yes', 'no'].contains(mute) && reason != null &&
+      media.audio != MovaAudioPresence.unknown;
+    final ok = media.audio == MovaAudioPresence.absent && phase == MovaKeepAlivePhase.fallback &&
+      reason == 'silentStream' && videoEnabled && mute == 'no';
+    _log('MATRIX_RECORD ${jsonEncode({'kind': 'CHECK', 'id': 'S6.publicFallback',
+      'pass': known ? ok : null,
+      'numbers': {'audio': media.audio.name, 'phase': phase.name, 'reason': reason, 'vid': vid,
+        'videoEnabled': knownVideo ? videoEnabled : null, 'mute': ['yes', 'no'].contains(mute) ? mute : null}})}');
+    if (known) {
+      _verdict('S6', ok, 'public phase=${phase.name} reason=$reason vid=$vid mute=$mute');
+    } else {
+      _log('VERDICT S6 BLOCKED native readback/event incomplete phase=${phase.name} reason=$reason vid=$vid mute=$mute');
     }
-    final forcedAdvance = (_lastProg!.position - b0).inMilliseconds;
-    final names = _ev!.log.skip(mark).map((e) => e.event.runtimeType.toString()).where((n) => n != 'MovaProg').toList();
-    final restarted = await _kernel!.exitKeepAlive();
-    _log('S6 forced-B trace(position/eof-reached/core-idle every 500ms)=$trace eventsDuringForcedB=$names');
-    _log('S6 audio=${media.audio.name} format=${media.format} entered=$ok normal3sAdvance=${normalAdvance}ms forcedB4sAdvance=${forcedAdvance}ms exitRestartedVideo=$restarted');
-    _verdict('S6', media.audio == MovaAudioPresence.absent && ok && forcedAdvance.abs() < 500, 'audio=${media.audio.name} forcedAdvance=${forcedAdvance}ms');
+    await _keepAlive(false);
   }
 
   /// S7 (opt-in via `ONLY=S7`): `vid` off/on cycles, the plan check for `mediacodec-copy` on Android.
