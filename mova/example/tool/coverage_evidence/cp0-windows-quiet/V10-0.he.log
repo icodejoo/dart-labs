@@ -1,0 +1,19 @@
+[MOVA-HE] 15:39:05.901 AUTORUN start runs=1 base=http://127.0.0.1:18080 gop=50 startTimeout=4s stallTimeout=4s only=V10 mode=release os=windows "Windows 10 Pro" 10.0 (Build 19045)
+[MOVA-HE] 15:39:05.907 --- V10 route + TickerMode pause run 1/1
+[MOVA-HE] 15:39:05.909 LIFECYCLE resumed
+[MOVA-HE] 15:39:09.182 V10 action: push covering route
+[MOVA-HE] 15:39:09.193 V10 route covered; pause=true
+[MOVA-HE] 15:39:09.798 V10 action: pop covering route
+[MOVA-HE] 15:39:10.819 V10 route: pauseAfter=9ms playAfter=15ms
+[MOVA-HE] 15:39:10.824 V10 action: TickerMode off
+[MOVA-HE] 15:39:10.848 V10 ticker off; pause=true
+[MOVA-HE] 15:39:11.456 V10 action: TickerMode on
+[MOVA-HE] 15:39:11.475 V10 tickerMode: pauseAfter=21ms playAfter=16ms liveEdgeReach=0
+[MOVA-HE] 15:39:11.477 VERDICT V10 PASS route=true ticker=true guard=true
+[MOVA-HE] 15:39:12.179 === SUMMARY (samples in ms) ===
+[MOVA-HE] 15:39:12.182 SUMMARY V10.route.pauseMs values=[9] n=1 min=9 max=9 avg=9.0 median=9.0
+[MOVA-HE] 15:39:12.184 SUMMARY V10.route.playMs values=[15] n=1 min=15 max=15 avg=15.0 median=15.0
+[MOVA-HE] 15:39:12.186 SUMMARY V10.ticker.pauseMs values=[21] n=1 min=21 max=21 avg=21.0 median=21.0
+[MOVA-HE] 15:39:12.187 SUMMARY V10.ticker.playMs values=[16] n=1 min=16 max=16 avg=16.0 median=16.0
+[MOVA-HE] 15:39:12.189 SUMMARY V10 pass=1 fail=0
+[MOVA-HE] 15:39:12.191 AUTORUN DONE

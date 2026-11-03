@@ -1,0 +1,36 @@
+[IMPORTANT:flutter/shell/platform/embedder/embedder_surface_gl_impeller.cc(126)] Using the Impeller rendering backend (OpenGLESSDF).
+package:media_kit_libs_windows_video (mova slim fork) registered.
+[MOVA-HE] 15:39:28.021 AUTORUN start runs=1 base=http://127.0.0.1:18080 gop=50 startTimeout=4s stallTimeout=4s only=V10 mode=release os=windows "Windows 10 Pro" 10.0 (Build 19045)
+[MOVA-HE] 15:39:28.027 --- V10 route + TickerMode pause run 1/1
+[MOVA-HE] 15:39:28.035 LIFECYCLE resumed
+media_kit: ANGLESurfaceManager: Direct3D Feature Level: 11_0
+1 1
+media_kit: VideoOutput: Create Texture: 2133935812928
+media_kit: VideoOutput: Using H/W rendering.
+VideoOutput.Resize
+{handle: 2133925886336, id: 2133935812928, rect: {height: 0, left: 0, top: 0, width: 0}}
+NativeVideoController: Texture ID: 2133935812928
+640 360
+media_kit: ANGLESurfaceManager: Direct3D Feature Level: 11_0
+media_kit: VideoOutput: Free Texture: 2133935812928
+media_kit: VideoOutput: Create Texture: 2133935258608
+VideoOutput.Resize
+{handle: 2133925886336, id: 2133935258608, rect: {height: 360, left: 0, top: 0, width: 640}}
+[MOVA-HE] 15:39:32.394 V10 action: push covering route
+[MOVA-HE] 15:39:32.422 V10 route covered; pause=true
+[MOVA-HE] 15:39:33.036 V10 action: pop covering route
+[MOVA-HE] 15:39:34.068 V10 route: pauseAfter=24ms playAfter=17ms
+[MOVA-HE] 15:39:34.072 V10 action: TickerMode off
+[MOVA-HE] 15:39:34.082 V10 ticker off; pause=true
+[MOVA-HE] 15:39:34.703 V10 action: TickerMode on
+[MOVA-HE] 15:39:34.717 V10 tickerMode: pauseAfter=7ms playAfter=8ms liveEdgeReach=0
+[MOVA-HE] 15:39:34.720 VERDICT V10 PASS route=true ticker=true guard=true
+media_kit: VideoOutput: Free Texture: 2133935258608
+VideoOutput::~VideoOutput: 2133925886336
+[MOVA-HE] 15:39:35.424 === SUMMARY (samples in ms) ===
+[MOVA-HE] 15:39:35.428 SUMMARY V10.route.pauseMs values=[24] n=1 min=24 max=24 avg=24.0 median=24.0
+[MOVA-HE] 15:39:35.430 SUMMARY V10.route.playMs values=[17] n=1 min=17 max=17 avg=17.0 median=17.0
+[MOVA-HE] 15:39:35.432 SUMMARY V10.ticker.pauseMs values=[7] n=1 min=7 max=7 avg=7.0 median=7.0
+[MOVA-HE] 15:39:35.434 SUMMARY V10.ticker.playMs values=[8] n=1 min=8 max=8 avg=8.0 median=8.0
+[MOVA-HE] 15:39:35.438 SUMMARY V10 pass=1 fail=0
+[MOVA-HE] 15:39:35.440 AUTORUN DONE
