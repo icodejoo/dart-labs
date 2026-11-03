@@ -7375,18 +7375,20 @@
       "DiomanTimeouts.connect",
       "DiomanTimeouts.new(connect)"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/timeout_effective_integration_test.dart"
+    ],
     "assumptions": [
       "H5"
     ],
     "result": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 0,
-      "total": 0
+      "passed": 1,
+      "total": 1
     },
-    "blocked": "BLOCKED：testkit D22 的用户态 netem 无法丢弃 SYN；blackhole 只能测握手后接收超时。解锁：提供独立、稳定可控的握手不完成端点，或经授权使用平台包过滤，再补真实 connect 场景。",
-    "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
+    "blocked": null,
+    "note": "用不 accept 且队列占满的本地监听端点，让 SYN 被丢弃，真实触发连接超时；H5 在 connect 上的落点。"
   },
   {
     "id": "DiomanTimeouts.receive",

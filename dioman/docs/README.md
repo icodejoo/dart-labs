@@ -4,7 +4,7 @@
 
 ## 续做
 
-- [当前状态](status.md) — 重构 B0–B8 已完成，闸门现状（仅 G4 connect 超时受环境限制）、遗留项。active。
+- [当前状态](status.md) — 重构 B0–B8 已完成，闸门全部为 0。active。
 
 ## 决策
 
