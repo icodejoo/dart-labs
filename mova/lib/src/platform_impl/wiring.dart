@@ -235,7 +235,7 @@ MovaEngine createMovaEngine({
     volume: volume ?? _defaultVolumePort(),
     pip: pip ?? MovaChannelPipPort(),
     orientation: orientation ?? MovaSystemChromeOrientationPort(config: orientationConfig),
-    thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
+    thumbDir: thumbDir ?? MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,
     reporter: reporter,

@@ -292,13 +292,17 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
         key: const ValueKey('movaPrevHolder'),
         width: width,
         height: height,
-        decoration: BoxDecoration(color: Color(theme.barGradientColor), border: border),
+        decoration: BoxDecoration(
+          color: Color(theme.barGradientColor),
+          border: border,
+        ),
       );
     }
 
     final Widget image = crop == null
         ? Image.memory(
             thumb.bytes,
+            cacheWidth: (width * MediaQuery.devicePixelRatioOf(context)).ceil(),
             width: width,
             height: height,
             fit: BoxFit.cover,
