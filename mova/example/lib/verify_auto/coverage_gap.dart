@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'seek_landing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart' show NativePlayer, Player;
@@ -451,13 +452,26 @@ class GapRunner {
         'targetMs': target,
         'iteration': i,
       }, () => a.switchQuality(q));
-      await until(
-        () async =>
-            await native('path') == q.uri &&
-            (await pos() - target).abs() <= 500,
-      );
-      final landed = await pos();
-      if (mode != 'paused') await until(() async => await pos() > landed + 300);
+      final landing = SeekLanding(target, playing: mode != 'paused');
+      final clock = Stopwatch()..start();
+      var landed = 0;
+      await until(() async {
+        final path = await native('path');
+        final seeking = await native('seeking');
+        final position = await pos();
+        final accepted = landing.sample(elapsedMs: clock.elapsedMilliseconds,
+          positionMs: position, seeking: seeking != 'no',
+          buffering: a.state.buffering, pathMatches: path == q.uri);
+        log('ACTUAL', {'landingSample': true, 'elapsedMs': clock.elapsedMilliseconds,
+          'nativeMs': position, 'seeking': seeking, 'path': path,
+          'buffering': a.state.buffering, 'accepted': accepted});
+        if (accepted) landed = landing.landedMs!;
+        return accepted;
+      });
+      if (mode != 'paused') await until(() async {
+        final p = await pos();
+        return p > landed + 300 && p >= target - 500;
+      });
       final actual = {
         'iteration': i,
         'targetMs': target,

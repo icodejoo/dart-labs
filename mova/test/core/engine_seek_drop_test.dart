@@ -90,6 +90,32 @@ void _teardown(FakeAsync async, MovaEngine e) {
 /// seek 之后只回声约 23 ms）。`FakeKernel.echoSeeks` + `dropNextSeeks` 复现这一点，
 /// 这些用例检查引擎的重发/校验链在此情形下能收敛。
 void main() {
+  for (final paused in [false, true]) {
+    test('CP1 H28 transient target echo then reset recovers (${paused ? "paused" : "playing"})', () {
+      fakeAsync((async) {
+        final k = FakeKernel();
+        final e = _ready(async, k);
+        if (paused) {
+          e.pause();
+          async.flushMicrotasks();
+        }
+        k.calls.clear();
+        _switchAndLand(async, e, k);
+        // mpv briefly reports the requested target, then drops back to zero.
+        // The CP1 verifier previously advanced to the next seek in this gap.
+        k.emitPosition(Duration.zero);
+        async.flushMicrotasks();
+        expect(_seeks(k), 1);
+        async.elapse(_verify);
+        async.flushMicrotasks();
+        expect(_seeks(k), 2);
+        expect(k.lastSeek, _resumeAt);
+        async.elapse(const Duration(seconds: 5));
+        expect(_seeks(k), 2);
+        _teardown(async, e);
+      });
+    });
+  }
   group('H19: the seek sent right after a variant lands is discarded', () {
     test('the verify chain re-sends once and the second, accepted seek settles', () {
       fakeAsync((async) {
