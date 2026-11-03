@@ -1689,7 +1689,9 @@ class MovaSession {
       // 不能覆盖此前保存的正片倍速。
       if (!_resuming) _contentRate = _api.state.rate;
       if (_enabled) {
-        final due = movaDueMid(_nodes, p.position, _played);
+        final selection = movaSnapback(_nodes, p.position, _played, _cfg.midRollSnapback);
+        _played.addAll(selection.skip);
+        final due = selection.play;
         if (due != null) {
           _contentResumeAt = p.position;
           // A countdown, a background warm-up, or both, put the break through

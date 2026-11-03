@@ -1,3 +1,4 @@
+import '../options/ad_config.dart';
 import 'package:meta/meta.dart';
 import '../model/ad.dart';
 
@@ -162,3 +163,37 @@ MovaTimelineNode? movaDueMid(
       !played.contains(n.id) &&
       n.offset <= position,
 );
+
+/// 选择到期中插；默认 all 原样委托旧查找，单点不触发补播策略。
+({MovaTimelineNode? play, Set<MovaNodeId> skip}) movaSnapback(
+  List<MovaTimelineNode> nodes,
+  Duration position,
+  Set<MovaNodeId> played,
+  MovaAdSnapback mode,
+) {
+  final first = movaDueMid(nodes, position, played);
+  if (first == null || mode == MovaAdSnapback.all) {
+    return (play: first, skip: {});
+  }
+  final due = nodes
+      .where(
+        (node) =>
+            node.id.kind == MovaNodeKind.mid &&
+            !played.contains(node.id) &&
+            node.offset <= position,
+      )
+      .toList();
+  final offsets = due.map((node) => node.offset).toSet();
+  if (offsets.length < 2) return (play: first, skip: {});
+  if (mode == MovaAdSnapback.none) {
+    return (play: null, skip: due.map((node) => node.id).toSet());
+  }
+  final last = offsets.reduce((a, b) => a > b ? a : b);
+  return (
+    play: movaFirstWhere(due, (node) => node.offset == last),
+    skip: due
+        .where((node) => node.offset < last)
+        .map((node) => node.id)
+        .toSet(),
+  );
+}
