@@ -1,3 +1,4 @@
+import 'package:mova/mova.dart' show MovaRecoveryConfig, MovaPlayFailure, MovaPlayFail, MovaPlayFailKind, MovaRecoveryAction, MovaErrorEvent;
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +52,7 @@ class PodFailureRig {
           this,
           options: MovaOpts(
             cutover: const MovaCutoverConfig(enabled: true, readyTimeout: Duration(hours: 1)),
+            recovery: MovaRecoveryConfig(enabled: fault == 'giveUpReturn'),
             ads: MovaAdConfig(
               enabled: true,
               breaks: breaks,
@@ -182,6 +184,19 @@ class PodFaultApi extends FakeMovaApi {
     final shadow = !identical(this, rig.factory.engines.first);
     if (second) {
       rig.secondOpens++;
+      if (rig.fault == 'giveUpReturn') {
+        if (rig.secondOpens == 1) {
+          pushEvent(MovaPlayFailure(MovaPlayFail(
+            kind: MovaPlayFailKind.openThrew, sourceIndex: 0,
+            uri: source.uri, sourceCount: 1, attempt: 1, streak: 1,
+            error: 'giveUp before open returns',
+          ), MovaRecoveryAction.giveUp));
+          pushEvent(MovaErrorEvent.classified('duplicate fatal', fatal: true, source: source));
+          await rig.firstErrorGate.future;
+          return true;
+        }
+        await rig.retryGate.future;
+      }
       if (rig.fault == 'eventAndThrow') {
         if (rig.secondOpens == 1) {
           emitError(StateError('event failed'));
@@ -323,8 +338,9 @@ void main() {
     expect(rig.active.source, same(_content));
   });
 
-  test('F5 落地窗口忽略旧 ErrorEvent，open 抛错只结算一次后 retry', () async {
-    final rig = PodFailureRig(fault: 'eventAndThrow', action: MovaAdFailAction.retry, third: false);
+  for (final fault in ['eventAndThrow', 'giveUpReturn']) {
+  test('F5 $fault 落地窗口忽略旧 ErrorEvent，open 落定只结算一次后 retry', () async {
+    final rig = PodFailureRig(fault: fault, action: MovaAdFailAction.retry, third: false);
     addTearDown(rig.dispose);
     await rig.start();
     rig.active.emitDone();
@@ -346,8 +362,8 @@ void main() {
   });
 
   for (final action in [MovaAdFailAction.skipBreak, MovaAdFailAction.abandonPod]) {
-    test('F5 $action 落地窗口旧错误不结算，open 抛错后续播下一条或正片', () async {
-      final rig = PodFailureRig(fault: 'eventAndThrow', action: action);
+    test('F5 $fault $action 落地窗口旧错误不结算，open 落定后续播下一条或正片', () async {
+      final rig = PodFailureRig(fault: fault, action: action);
       addTearDown(rig.dispose);
       await rig.start();
       rig.active.emitDone();
@@ -366,6 +382,8 @@ void main() {
       expect(rig.ads.isShowingAd, isFalse);
       expect(rig.active.source, same(_content));
     });
+  }
+
   }
 
   testWidgets('F4 旧正片仍 rendered 和出进度时不启动广告计时，影子拒绝立即回正片', (tester) async {

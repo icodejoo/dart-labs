@@ -3,6 +3,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
 import '../../support/fake_api.dart';
+import '../../support/fake_kernel.dart';
 import '../ads_open_failure_test.dart' show RecordingAdPolicy;
 import '../cutover/cutover_operation_test.dart' show settleOperations;
 import 'session_test.dart' show a, b, pre, sessionFor;
@@ -21,7 +22,60 @@ const giveUp = MovaPlayFailure(
   MovaRecoveryAction.giveUp,
 );
 
+class TerminalOpenApi extends FakeMovaApi {
+  TerminalOpenApi() : super(options: const MovaOpts(recovery: MovaRecoveryConfig(enabled: true)));
+  @override
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
+    final accepted = await super.open(source, autoPlay: autoPlay);
+    pushEvent(MovaPlayFailure(MovaPlayFail(
+      kind: MovaPlayFailKind.openThrew, sourceIndex: 0, uri: source.uri,
+      sourceCount: 1, attempt: 1, streak: 1, error: 'initial failure',
+    ), MovaRecoveryAction.giveUp));
+    pushEvent(MovaErrorEvent.classified('duplicate', fatal: true, source: source));
+    await settleOperations();
+    return accepted;
+  }
+}
+
 void main() {
+  test('落地窗口 giveUp 在 open 正常返回前到达仍结算正片失败', () async {
+    final api = TerminalOpenApi();
+    final session = sessionFor(api);
+    final errors = <Object>[];
+    final failures = <MovaNodeFail>[];
+    session.contentError.listen(errors.add);
+    session.events.listen((e) { if (e is MovaNodeFail) failures.add(e); });
+    expect(await session.load(a), MovaLoadOutcome.failed);
+    await settleOperations();
+    expect(errors, hasLength(1));
+    expect(failures.single.verdict, MovaNodeFailVerdict.failItem);
+    expect(session.cursor.phase, MovaSessionPhase.idle);
+  });
+
+  test('落地窗口真实引擎首次加载 giveUp 正常返回仍结算正片失败', () async {
+    final kernel = FakeKernel()..openError = StateError('initial load');
+    final api = createMovaEngine(
+      kernel: kernel, brightness: MovaFallbackBrightnessPort(),
+      pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(),
+      options: const MovaOpts(
+        controls: MovaCtrlsConfig(autoHide: false),
+        abr: MovaAbrConfig(probeVariants: false),
+        recovery: MovaRecoveryConfig(enabled: true, policy: MovaRetryThenFailover(maxRetries: 0)),
+      ),
+    );
+    final session = MovaSession(api);
+    addTearDown(() async { await session.dispose(); await api.dispose(); });
+    final errors = <Object>[];
+    final failures = <MovaNodeFail>[];
+    session.contentError.listen(errors.add);
+    session.events.listen((e) { if (e is MovaNodeFail) failures.add(e); });
+    expect(await session.load(a), MovaLoadOutcome.accepted);
+    await settleOperations();
+    expect(errors, hasLength(1));
+    expect(failures.single.verdict, MovaNodeFailVerdict.failItem);
+    expect(session.cursor.phase, MovaSessionPhase.idle);
+  });
+
   test('同一广告错误与超时及迟到 open 抛出只裁决一次', () {
     fakeAsync((clock) {
       final policy = RecordingAdPolicy();

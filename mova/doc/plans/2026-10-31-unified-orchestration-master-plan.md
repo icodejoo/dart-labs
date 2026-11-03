@@ -820,6 +820,12 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 
 本次实现、本地分析、完整测试及回退验证已完成；CP2/真机/应用运行按本次约束未做，本记录不把本地验证当成 CP2 结论。
 
+##### 终审修复
+
+1. P1 落地窗口丢失 giveUp：按失败 URI / fatal 事件媒体身份识别新媒体，将终结事件缓存到 open 落定后走既有失败仲裁；缓存限定当前加载与广告尝试，正片失败回 idle 并发 contentError、MovaNodeFail。fatal 分级事件增加可选 source，真实引擎填写所属媒体。回退 session 修复后 **4 条变红**（正片返回前 giveUp + F5 retry/skipBreak/abandonPod 正常返回变体），恢复后专项 53 条通过。另用真实引擎内核首次 open 异常验证异步 giveUp 最终只失败一次。
+   - F5 既有三条断言保留，扩成 eventAndThrow / giveUpReturn 两种驱动；标题改成“open 落定”。旧兜底仅靠 open 抛出结算，正常返回时不会经过，不能证明窗口正确。既有“旧 ErrorEvent 在窗口内不结算”断言没错，不能把新媒体 giveUp 也当作旧事件；本次没有删减或放宽既有断言。
+   - 分析范围偏差：根目录 flutter analyze 有 49 条既有问题，分布于 example、packages、HarmonyOS 试验目录；不修改无关代码。flutter analyze lib test 为 0 issues；全量测试 --concurrency=3：**2218 条通过**。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

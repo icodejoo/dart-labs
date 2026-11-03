@@ -255,6 +255,22 @@ class MovaSession {
 
   /// 打开或提交落定前，旧媒体的结束、错误、首帧和进度不归新节点所有。
   bool _landing = false;
+  MovaSource? _landingSource;
+  final List<MovaEvent> _landingFailures = [];
+
+  /// 缓存归属当前媒体的终结事件；结算仍走统一仲裁与尝试去重。
+  void _settleLanding() {
+    final events = List<MovaEvent>.of(_landingFailures);
+    _landingFailures.clear();
+    final gen = _gen;
+    final attempt = _adAttempt;
+    final phase = _phase;
+    for (final event in events) {
+      if (gen != _gen || phase != _phase || !identical(attempt, _adAttempt)) break;
+      _onEvent(event);
+    }
+  }
+
   Future<_SessionWarm?>? _adWarm;
   Future<_SessionWarm?>? _contentWarm;
   int _supersededEpoch = -1;
@@ -965,6 +981,8 @@ class MovaSession {
     _played.add(node.id);
     _changes.add(null);
     _fire(MovaAdEventType.started, node);
+    _landingSource = b.source;
+    _landingFailures.clear();
     _landing = !alreadyOnScreen;
     try {
       if (oneShot) {
@@ -1017,6 +1035,7 @@ class MovaSession {
     } finally {
       if (gen == _gen && identical(_adAttempt, attempt)) _landing = false;
     }
+    _settleLanding();
     // Nothing on screen yet: give the ad a bounded window to produce its first
     // frame, cancelled by that frame's own progress tick.
     //
@@ -1291,6 +1310,8 @@ class MovaSession {
   }) async {
     _cancelAllTimers();
     _landing = true;
+    _landingSource = null;
+    _landingFailures.clear();
     final contentAttempt = ++_contentAttempt;
     _phase = MovaSessionPhase.toContent;
     _current = null;
@@ -1303,6 +1324,7 @@ class MovaSession {
       _contentUnavailable();
       return;
     }
+    _landingSource = c;
     final cutover = _cutover;
     try {
       // 回正片无独立起播请求；由提交读取底层当前意图，避开代理流的转发延迟。
@@ -1337,6 +1359,7 @@ class MovaSession {
     } finally {
       if (gen == _gen) _landing = false;
     }
+    _settleLanding();
     if (_settled.contains((
       gen,
       MovaNodeId(_epochItem, MovaNodeKind.content, 0),
@@ -1392,6 +1415,15 @@ class MovaSession {
             e is MovaErrorEvent ||
             e is MovaPlayFailure ||
             e is MovaFirstFrame)) {
+      final source = _landingSource;
+      final belongs = source != null && switch (e) {
+        MovaPlayFailure() => source.uris.contains(e.fail.uri),
+        MovaErrorEvent() => identical(e.source, source),
+        _ => false,
+      };
+      if (belongs && (e is MovaPlayFailure || e is MovaErrorEvent)) {
+        _landingFailures.add(e);
+      }
       return;
     }
     if (e is MovaErrorEvent || e is MovaPlayFailure) {

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 会话落地窗口按媒体归属缓存终结失败；即使 recovery giveUp 后 open 正常返回，仍结算广告失败或正片 contentError、MovaNodeFail 并回 idle。
+
 - MovaPlaylist(ads:) 的 NextUp 仅在正片会话节点显示，进出广告及转场时立即隐藏旧卡片；旧直连播放列表保持原判据。广告覆盖层直接读取控制器 canSkip/skipIn，避免 pod 落地窗口的旧进度提前显示跳过按钮；倒计时按微秒精度向上取整。
 
 - 新增 MovaAdConfig.midRollSnapback：同一进度 tick 跨过多个不同中插点时，可全部补播（默认 all）、仅补播最后插入点的完整 pod（last），或全部略过并记为已播（none）；单个到期插入点及同点 pod 保持正常播放。

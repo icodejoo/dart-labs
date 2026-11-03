@@ -507,11 +507,14 @@ class MovaErrorEvent extends MovaEvent {
   /// Creates the event with [error] and optional [stack].
   ///
   /// 用 [error] 及可选的 [stack] 创建事件。
-  const MovaErrorEvent(this.error, [this.stack]) : fatal = true, code = null;
+  const MovaErrorEvent(this.error, [this.stack]) : fatal = true, code = null, source = null;
 
   /// 是否终结播放；A13 起内核错误带分级，false 仍发事件并调用错误钩子。
   /// false 的错误不写入 state.error，也不触发默认错误遮罩。
   final bool fatal;
+
+  /// 失败所属的媒体；旧构造器未知归属，落地窗口内不认领。
+  final MovaSource? source;
 
   /// 与 QoE 前缀映射一致的稳定错误码；旧构造器创建的事件为 null。
   final String? code;
@@ -523,6 +526,7 @@ class MovaErrorEvent extends MovaEvent {
     this.error, {
     this.stack,
     required this.fatal,
+    this.source,
     this.code,
   });
 }

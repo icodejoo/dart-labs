@@ -1850,7 +1850,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _state.emit(state.copyWith(error: err, buffering: false));
     if (wasBuffering) _emitEvent(const MovaBufferChange(false));
     final verdict = classifyMovaPlaybackError(err, subsystem: subsystem, afterFirstFrame: state.rendered);
-    _emitEvent(MovaErrorEvent.classified(err, fatal: true, code: verdict.code));
+    _emitEvent(MovaErrorEvent.classified(err, fatal: true, code: verdict.code, source: _source));
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));
   }
