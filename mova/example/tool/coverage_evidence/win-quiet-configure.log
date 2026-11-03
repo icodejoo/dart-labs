@@ -1,0 +1,33 @@
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.19045.
+-- [mova slim] Using E:/workspaces/wt-mova-cp0/mova/libmpv/windows-x64/libmpv-2.dll
+-- [mova slim] Populated E:/workspaces/wt-mova-cp0/mova/example/build/windows/x64/libmpv for media_kit_video's link step
+CMake Deprecation Warning at E:/workspaces/wt-mova-cp0/mova/example/build/windows/x64/_deps/googletest-src/CMakeLists.txt:4 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at E:/workspaces/wt-mova-cp0/mova/example/build/windows/x64/_deps/googletest-src/googlemock/CMakeLists.txt:45 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at E:/workspaces/wt-mova-cp0/mova/example/build/windows/x64/_deps/googletest-src/googletest/CMakeLists.txt:56 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Configuring done (3.5s)
+-- Generating done (0.8s)
+-- Build files have been written to: E:/workspaces/wt-mova-cp0/mova/example/build/windows/x64
