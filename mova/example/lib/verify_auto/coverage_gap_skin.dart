@@ -439,6 +439,7 @@ List<String> _defaultTree({required bool bilibili}) => [
       'buffering@center',
       'error@center',
       'lockMask@overlay',
+      'lockToggle@overlay',
       if (bilibili) 'danmakuTrack@overlay',
     ];
 
@@ -1151,10 +1152,13 @@ Future<void> patchCase(SkinRun r) async {
       : 'title@top,gapInsert@top,pipButton@top,qualityButton@top,subtitleButton@top,gapReplace@top,orientationButton@top';
   final want = bilibili
       ? [
-          ..._defaultTree(bilibili: true).sublist(0, 2),
-          'topBar@top[$topKids]',
-          ..._defaultTree(bilibili: true).sublist(3, 10),
-          'gapOverlay@overlay',
+          for (final node in _defaultTree(bilibili: true))
+            if (node.startsWith('topBar@'))
+              'topBar@top[$topKids]'
+            else if (node == 'danmakuTrack@overlay')
+              'gapOverlay@overlay'
+            else
+              node,
         ]
       : [
           'gestureLayer@gesture',
@@ -1166,6 +1170,7 @@ Future<void> patchCase(SkinRun r) async {
           'buffering@center',
           'error@center',
           'lockMask@overlay',
+          'lockToggle@overlay',
           'gapAdd@top',
         ];
   gap.verdict(listEquals(tree, want), {'tree': want}, {'tree': tree}, checkId: 'U2.patchTree.${r.name}');
