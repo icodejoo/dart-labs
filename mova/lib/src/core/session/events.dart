@@ -1,3 +1,4 @@
+import 'arbiter.dart';
 import 'timeline.dart';
 
 /// 独立于引擎事件的会话事件；示例：`session.events.listen((e) => print(e.epoch));`。
@@ -55,4 +56,20 @@ enum MovaNodeEndReason {
 
   /// 被新加载取代。
   superseded,
+}
+
+/// 一次节点失败裁决；示例：`event is MovaNodeFail`。
+final class MovaNodeFail extends MovaSessionEvent {
+  /// 以纪元 [epoch]、节点 [node]、裁决 [verdict] 及原始 [error] 创建事件。
+  /// 返回新事件；示例：`MovaNodeFail(1, id, MovaNodeFailVerdict.failItem, error: e)`。
+  const MovaNodeFail(super.epoch, this.node, this.verdict, {this.error});
+
+  /// 返回失败的节点；示例：`event.node.kind`。
+  final MovaNodeId node;
+
+  /// 返回唯一裁决；示例：`event.verdict == MovaNodeFailVerdict.skipNode`。
+  final MovaNodeFailVerdict verdict;
+
+  /// 返回原始异常，超时等无异常场景为 null；示例：`event.error`。
+  final Object? error;
 }

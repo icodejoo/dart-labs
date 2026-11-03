@@ -128,3 +128,5 @@ export 'src/core/session/cursor.dart';
 
 export 'src/core/session/events.dart';
 export 'src/core/session/timeline.dart' show MovaNodeKind, MovaNodeId;
+
+export 'src/core/session/arbiter.dart' show MovaNodeFailVerdict;

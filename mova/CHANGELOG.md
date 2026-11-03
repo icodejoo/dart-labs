@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 会话对同一 epoch、节点和尝试的失败只裁决一次：广告仍由广告失败策略处理，recovery 开启时非终结诊断交给引擎；正片终结错误（恢复开启时等待 giveUp）发出 MovaNodeFail(failItem)、contentError 并回 idle，不自动换集。这扩展了 A05 刚确定的 contentError 契约，原先仅包含解析失败与正片 open 异常。
+
 - 会话自动连播消费结束通知时校验 epoch，手动换集不再被旧通知覆盖；替换列表使在途跳转失效，广告共享列表下标及 indexChanges 跟随会话导航。跳过加载中的前贴片时，加载结果等待同一 epoch 的续播请求结算。
 
 - `MovaPlaylist(api, ads:)` 共享会话，换集携带按集广告，自动连播等待全部后贴片；此路径遵守 `playlist.enabled`，旧直连构造保持原行为。

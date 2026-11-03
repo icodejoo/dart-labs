@@ -1,3 +1,5 @@
+import '../recovery/fail.dart';
+import 'arbiter.dart';
 import '../playback_commands.dart';
 import 'dart:async';
 
@@ -345,7 +347,8 @@ class MovaSession {
   /// 返回正片及全部后贴片结束的广播流；示例：`session.contentEnded.listen((_) => next());`。
   Stream<void> get contentEnded => _contentEnded.stream;
 
-  /// 返回解析与正片打开异常的广播流；示例：`session.contentError.listen(showRetry);`。
+  /// 返回解析失败、正片 open 异常与终结错误的广播流；恢复开启时等待放弃恢复。
+  /// 示例：`session.contentError.listen(showRetry);`。
   Stream<Object> get contentError => _contentError.stream;
 
   /// 加载 [content]，使用 [breaks] 或配置排期，返回本次首段接受结果。
@@ -489,6 +492,10 @@ class MovaSession {
   int _acceptedEpoch = -1;
   int _failedEpoch = -1;
 
+  /// 同一纪元、节点、尝试的失败仅允许结算一次。
+  final Set<(int, MovaNodeId, int)> _settled = {};
+  int _contentAttempt = 0;
+
   /// 直接构造时可选的自动前进订阅。
   StreamSubscription<int>? _endSub;
 
@@ -508,6 +515,7 @@ class MovaSession {
     unawaited(_cutover?.abandon());
     _played.clear();
     _attempts.clear();
+    _settled.clear();
     _contentResumeAt = Duration.zero;
     _lastContentPosition = Duration.zero;
     // Fail loudly on a misconfigured schedule, on developer machines only.
@@ -565,8 +573,7 @@ class MovaSession {
     } catch (e) {
       if (gen != _gen || _disposed) return null;
       _resolve = null;
-      _failedEpoch = gen;
-      if (!_contentError.isClosed) _contentError.add(e);
+      _contentUnavailable(e);
       return null;
     } finally {
       if (gen == _gen) _resolving = null;
@@ -1138,6 +1145,7 @@ class MovaSession {
         owned.resumed) {
       return;
     }
+    if (!_settled.add((gen, node.id, owned.seq))) return;
     // 同步认领失败结算，事件、抛错和超时只允许第一个入口生效。
     owned.failed = true;
     _failedEpoch = gen;
@@ -1145,12 +1153,23 @@ class MovaSession {
     _cancelSlotTimer();
     final attempt = (_attempts[node.id] ?? 0) + 1;
     _attempts[node.id] = attempt;
-    _fire(MovaAdEventType.failed, node, error: error);
-    final action = _cfg.effectiveFailPolicy.onFailure(
-      MovaAdFail(adBreak: b, kind: kind, attempt: attempt, error: error),
+    final verdict = movaArbitrate(
+      MovaNodeFailure(
+        node: node.id,
+        kind: kind,
+        attempt: attempt,
+        fatal: true,
+        error: error,
+        adBreak: b,
+      ),
+      ads: _cfg,
+      engineRecovering: _api.options.recovery.enabled,
     );
-    switch (action) {
-      case MovaAdFailAction.retry:
+    _sessionEvents.add(MovaNodeFail(gen, node.id, verdict, error: error));
+    _fire(MovaAdEventType.failed, node, error: error);
+    if (gen != _gen || _disposed || !identical(_adAttempt, owned)) return;
+    switch (verdict) {
+      case MovaNodeFailVerdict.retryNode:
         // A retry re-announces `started`: each real attempt to put the ad on
         // screen is its own impression attempt, so the host sees
         // started → failed → started rather than a silent second try.
@@ -1165,13 +1184,16 @@ class MovaSession {
               : _api.state.playbackIntent,
         );
         if (gen != _gen || _disposed) return;
-      case MovaAdFailAction.skipBreak:
+      case MovaNodeFailVerdict.skipNode:
         await _resumeAfterAd(node, attemptSeq: owned.seq);
         if (gen != _gen || _disposed) return;
-      case MovaAdFailAction.abandonPod:
+      case MovaNodeFailVerdict.abandonPod:
         _markPodPlayed(node);
         await _resumeAfterAd(node, attemptSeq: owned.seq);
         if (gen != _gen || _disposed) return;
+      case MovaNodeFailVerdict.ignore:
+      case MovaNodeFailVerdict.failItem:
+        break;
     }
   }
 
@@ -1222,6 +1244,7 @@ class MovaSession {
   }) async {
     _cancelAllTimers();
     _landingAd = false;
+    final contentAttempt = ++_contentAttempt;
     _phase = MovaSessionPhase.toContent;
     _current = null;
     _pending = null;
@@ -1256,6 +1279,13 @@ class MovaSession {
       _contentUnavailable(e);
       return;
     }
+    if (_settled.contains((
+      gen,
+      MovaNodeId(_epochItem, MovaNodeKind.content, 0),
+      contentAttempt,
+    ))) {
+      return;
+    }
     _acceptedEpoch = gen;
     _startNode(MovaNodeId(_epochItem, MovaNodeKind.content, 0));
     _phase = MovaSessionPhase.content;
@@ -1276,7 +1306,16 @@ class MovaSession {
 
   /// 正片未能接管时回到空闲；仅异常上报 contentError，不发 contentEnded。
   void _contentUnavailable([Object? error]) {
-    if (error != null) _failedEpoch = _gen;
+    if (error != null) {
+      final node = MovaNodeId(_epochItem, MovaNodeKind.content, 0);
+      if (!_settled.add((_gen, node, _contentAttempt))) return;
+      _failedEpoch = _gen;
+      _sessionEvents.add(
+        MovaNodeFail(_gen, node, MovaNodeFailVerdict.failItem, error: error),
+      );
+      _endNode(MovaNodeEndReason.failed);
+    }
+    _cancelAllTimers();
     unawaited(_cutover?.abandon());
     _onScreen = null;
     _phase = MovaSessionPhase.idle;
@@ -1289,16 +1328,36 @@ class MovaSession {
   ///
   /// 响应媒体播放结束：广告播完则续播正片；正片播完则播后贴片（若有）再转空闲。
   void _onEvent(MovaEvent e) {
-    // Playback errors are only this controller's business while an ad is on
-    // screen; a content-side error belongs to the host and flows on untouched.
-    //
-    // 播放错误只在广告在屏时归本控制器管；正片侧的错误属于宿主，原样继续流出。
-    if (e is MovaErrorEvent) {
-      // 非终结日志仍给宿主诊断，不结算当前广告尝试。
-      if (!e.fatal) return;
+    if (e is MovaErrorEvent || e is MovaPlayFailure) {
+      final giveUp =
+          e is MovaPlayFailure && e.action == MovaRecoveryAction.giveUp;
+      final fatal = e is MovaErrorEvent && e.fatal;
+      // 非终结内核日志保持 A13 的诊断语义，不成为节点失败。
+      if (!fatal && !giveUp) return;
+      final error = e is MovaErrorEvent
+          ? e.error
+          : (e as MovaPlayFailure).fail.error;
       final playing = _current;
       if (_phase == MovaSessionPhase.ad && playing != null) {
-        unawaited(_onAdFailure(playing, MovaAdFailKind.playerError, e.error));
+        unawaited(_onAdFailure(playing, MovaAdFailKind.playerError, error));
+      } else if (_phase == MovaSessionPhase.content ||
+          _phase == MovaSessionPhase.pending ||
+          _phase == MovaSessionPhase.toContent) {
+        final verdict = movaArbitrate(
+          MovaNodeFailure(
+            node: MovaNodeId(_epochItem, MovaNodeKind.content, 0),
+            kind: MovaAdFailKind.playerError,
+            attempt: _contentAttempt,
+            fatal: fatal,
+            giveUp: giveUp,
+            error: error,
+          ),
+          ads: _cfg,
+          engineRecovering: _api.options.recovery.enabled,
+        );
+        if (verdict == MovaNodeFailVerdict.failItem) {
+          _contentUnavailable(error ?? StateError('正片恢复已放弃'));
+        }
       }
       return;
     }

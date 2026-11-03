@@ -155,9 +155,10 @@ class MovaAds {
   /// 示例：`ads.contentEnded.listen((_) => showFinished());`。
   Stream<void> get contentEnded => _session.contentEnded;
 
-  /// Reports resolver and content-open failures as thrown objects.
+  /// Reports resolver, content-open and terminal content failures.
   ///
-  /// 返回正片源解析或打开/切换失败的异常流；控制器回到 idle，由宿主决定重试。
+  /// 返回正片源解析、打开/切换失败与正片终结错误的异常流；回 idle，由宿主决定重试。
+  /// recovery 开启时等待引擎 giveUp，非终结诊断不触发本流。
   /// 宿主钩子拒绝 open、或已过期加载的迟到异常不触发本流；不代表所有播放错误。
   ///
   /// 示例：`ads.contentError.listen((error) => showRetry(error));`
