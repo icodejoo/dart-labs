@@ -451,14 +451,17 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
       if (base == kSmilNeverBegins) {
         animation.begin = kSmilNeverBegins;
       } else if (!spec.onSyncbaseEnd) {
-        animation.begin = base + spec.offset;
+        animation.begin = addSmilTime(base, spec.offset);
       } else if (target.repeatCount.indefinite) {
         animation.begin = kSmilNeverBegins; // an end that never arrives
       } else {
-        final activeMicros =
-            (target.duration.inMicroseconds * target.repeatCount.count).round();
-        animation.begin =
-            base + Duration(microseconds: activeMicros) + spec.offset;
+        animation.begin = addSmilTime(
+          addSmilTime(
+            base,
+            smilActiveDuration(target.duration, target.repeatCount),
+          ),
+          spec.offset,
+        );
       }
     }
 
@@ -483,7 +486,7 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
 /// animation starts immediately, which is this engine's existing behaviour for
 /// anything it can't read.
 ///
-/// 把 SMIL `begin` 属性解析为 [SmilBeginSpec]。
+/// 把 SMIL `begin` 属性解析为 [SmilBeginSpec]；`indefinite` 表示永不开始。
 ///
 /// 支持：纯时钟值（`"0.6s"`、`"600ms"`、`"2"`），以及带可选 `+`/`-` 时钟偏移的
 /// 同步基准引用 `"id.begin"`/`"id.end"`（如 `"ring.end+0.2s"`）。
@@ -499,8 +502,12 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
 SmilBeginSpec parseSmilBeginSpec(String? raw) {
   final value = raw?.trim() ?? '';
   if (value.isEmpty) return const SmilBeginSpec.offset(Duration.zero);
+  if (value == 'indefinite') {
+    return const SmilBeginSpec.offset(kSmilNeverBegins);
+  }
+  if (value.contains(';')) return const SmilBeginSpec.offset(Duration.zero);
 
-  final match = RegExp(r'^([^\s.+-]+)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
+  final match = RegExp(r'^([^\s;]+?)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
       .firstMatch(value);
   if (match == null) return SmilBeginSpec.offset(parseSmilDuration(value));
 
@@ -602,6 +609,9 @@ class SmilAnimation extends SmilTimeline {
     final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
@@ -614,7 +624,6 @@ class SmilAnimation extends SmilTimeline {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -741,6 +750,9 @@ class SmilTransformAnimation extends SmilTimeline {
     final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<List<double>>(
@@ -753,7 +765,6 @@ class SmilTransformAnimation extends SmilTimeline {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -897,7 +908,10 @@ class SmilMotionAnimation extends SmilTimeline {
     // 缓动机制，只是产出的是弧长比例而非数值。
     var arcFraction = timing.progress;
     final points = keyPoints;
-    if (points != null) {
+    if (points != null && calcMode == SmilCalcMode.discrete) {
+      arcFraction =
+          points[_discreteIndex(timing.progress, points.length, keyTimes)];
+    } else if (points != null) {
       final segments = points.length - 1;
       final effectiveKeyTimes = calcMode == SmilCalcMode.paced
           ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
@@ -910,14 +924,10 @@ class SmilMotionAnimation extends SmilTimeline {
         segments,
         effectiveKeyTimes,
       );
-      if (calcMode == SmilCalcMode.discrete) {
-        arcFraction = points[segment.index];
-      } else {
-        final a = points[segment.index];
-        final b = points[segment.index + 1];
-        final segT = _easedSegmentT(calcMode, keySplines, segment);
-        arcFraction = a + (b - a) * segT;
-      }
+      final a = points[segment.index];
+      final b = points[segment.index + 1];
+      final segT = _easedSegmentT(calcMode, keySplines, segment);
+      arcFraction = a + (b - a) * segT;
     }
 
     final scaled = (arcFraction * (samples.length - 1)).clamp(
@@ -1026,6 +1036,9 @@ class SmilColorAnimation extends SmilTimeline {
     final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<int>(values, _argbDistance))
@@ -1035,7 +1048,6 @@ class SmilColorAnimation extends SmilTimeline {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -1126,14 +1138,16 @@ class SmilListAnimation extends SmilTimeline {
     final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return List<double>.of(
+        values[_discreteIndex(timing.progress, values.length, keyTimes)],
+      );
+    }
     final segment = _locateSegment(
       timing.progress,
       values.length - 1,
       keyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) {
-      return List<double>.of(values[segment.index]);
-    }
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -1249,8 +1263,7 @@ class SmilPathAnimation extends SmilTimeline {
 /// 离散模式下 [progress] 对应的关键帧下标：有合法 [keyTimes]（长度等于 [count]）
 /// 时按其切换，否则把时长等分为 [count] 个区间（SMIL 规范）。
 ///
-/// 注意：这是有意按规范实现的，与 `_locateSegment` 切成 `count - 1` 段的既有
-/// 数值/变换/运动/颜色通道的 discrete 语义不同，修那几个通道属于另一件事。
+/// 所有离散通道（含运动 keyPoints）共用此规则；插值通道仍按 `count - 1` 段定位。
 int _discreteIndex(double progress, int count, List<double>? keyTimes) {
   if (keyTimes != null && keyTimes.length == count) {
     var index = 0;
@@ -1264,7 +1277,7 @@ int _discreteIndex(double progress, int count, List<double>? keyTimes) {
     return index;
   }
   final index = (progress * count).floor();
-  return index >= count ? count - 1 : index;
+  return index.clamp(0, count - 1);
 }
 
 /// 把角度差折回 `[-180, 180)`，使插值走短弧；例如 `_wrap180(358)` 得 `-2`。
@@ -1360,11 +1373,10 @@ _Timing? _resolveNormalTiming({
     return _Timing((localMicros % durationMicros) / durationMicros);
   }
 
-  final totalMicros = (durationMicros * repeatCount.count).round();
+  final totalMicros = smilActiveDuration(duration, repeatCount).inMicroseconds;
   if (localMicros >= totalMicros) {
     if (!fillFreeze) return null;
-    final wholeIterations = repeatCount.count.floor();
-    final fractional = repeatCount.count - wholeIterations;
+    final fractional = repeatCount.count % 1;
     return _Timing(fractional == 0 ? 1 : fractional);
   }
   return _Timing((localMicros % durationMicros) / durationMicros);
@@ -1383,10 +1395,10 @@ _Timing? _resolveDirectedTiming({
   if (durationMicros == 0) return _Timing(_directed(direction, 0, 1));
   final localMicros = local.inMicroseconds;
   if (!repeatCount.indefinite &&
-      localMicros >= (durationMicros * repeatCount.count).round()) {
+      localMicros >= smilActiveDuration(duration, repeatCount).inMicroseconds) {
     if (!fillFreeze) return null;
     final wholeIterations = repeatCount.count.floor();
-    final fractional = repeatCount.count - wholeIterations;
+    final fractional = repeatCount.count % 1;
     return _Timing(
       fractional == 0
           ? _directed(direction, wholeIterations - 1, 1)
@@ -1495,13 +1507,33 @@ List<double> _pacedKeyTimes<T>(
   return [for (final c in cumulative) c / total];
 }
 
+// 统一限制到约 115 天；先钳制浮点乘积再 round，时间线相加也使用同一边界。
+const _maxSmilMicros = 10000000 * Duration.microsecondsPerSecond;
+
+/// 有限重复的活动时长；超大乘积饱和到约 115 天，避免 Infinity.round()。
+Duration smilActiveDuration(Duration duration, SmilRepeatCount repeatCount) =>
+    Duration(
+      microseconds: (duration.inMicroseconds * repeatCount.count)
+          .clamp(0, _maxSmilMicros)
+          .round(),
+    );
+
+/// 时间线饱和加法。先限制两个操作数，确保相加本身也不会发生整数回绕。
+Duration addSmilTime(Duration a, Duration b) => Duration(
+  microseconds:
+      (a.inMicroseconds.clamp(-_maxSmilMicros, _maxSmilMicros) +
+              b.inMicroseconds.clamp(-_maxSmilMicros, _maxSmilMicros))
+          .clamp(-_maxSmilMicros, _maxSmilMicros),
+);
+
 /// Parses a SMIL `dur`/`begin` time string (e.g. `"0.5s"`, `"600ms"`, `"2"`)
 /// into a [Duration]. Unitless numbers are treated as seconds, matching the
 /// SMIL default. Unparsable input maps to [Duration.zero].
 ///
 /// 解析 SMIL `dur`/`begin` 时间字符串（如 `"0.5s"`、`"600ms"`、`"2"`）为
 /// [Duration]。无单位数字按秒处理（SMIL 默认单位）。无法解析时返回
-/// [Duration.zero]。
+/// [Duration.zero]；非有限数及绝对值超过 1e7 秒（约 115 天）的值同样非法，
+/// 在 round 前拒绝非法单值；重复乘积和时间线加法另由饱和运算限制。
 Duration parseSmilDuration(String? raw) {
   if (raw == null) return Duration.zero;
   final value = raw.trim();
@@ -1515,23 +1547,24 @@ Duration parseSmilDuration(String? raw) {
   } else {
     seconds = double.tryParse(value);
   }
-  seconds ??= 0;
-  return Duration(
-    microseconds: (seconds * Duration.microsecondsPerSecond).round(),
-  );
+  final micros = (seconds ?? 0) * Duration.microsecondsPerSecond;
+  if (!micros.isFinite || micros.abs() > _maxSmilMicros) {
+    return Duration.zero;
+  }
+  return Duration(microseconds: micros.round());
 }
 
 /// Parses a SMIL `repeatCount` attribute: `"indefinite"`, a positive number,
 /// or absent/unparsable (defaults to [SmilRepeatCount.once]).
 ///
 /// 解析 SMIL `repeatCount` 属性：`"indefinite"`、正数，或缺失/无法解析（默认
-/// [SmilRepeatCount.once]）。
+/// [SmilRepeatCount.once]）；非有限数也回退为一次。
 SmilRepeatCount parseSmilRepeatCount(String? raw) {
   if (raw == null) return SmilRepeatCount.once;
   final value = raw.trim();
   if (value == 'indefinite') return const SmilRepeatCount.indefinite();
   final n = double.tryParse(value);
-  if (n == null || n <= 0) return SmilRepeatCount.once;
+  if (n == null || !n.isFinite || n <= 0) return SmilRepeatCount.once;
   return SmilRepeatCount.finite(n);
 }
 
@@ -1567,7 +1600,9 @@ List<CubicBezier>? parseSmilKeySplines(String? raw) {
         .split(RegExp(r'[\s,]+'))
         .map(double.tryParse)
         .toList();
-    if (parts.length != 4 || parts.any((v) => v == null)) return null;
+    if (parts.length != 4 || parts.any((v) => v == null || !v.isFinite)) {
+      return null;
+    }
     splines.add(CubicBezier(parts[0]!, parts[1]!, parts[2]!, parts[3]!));
   }
   return splines.isEmpty ? null : splines;
@@ -1580,8 +1615,13 @@ List<CubicBezier>? parseSmilKeySplines(String? raw) {
 /// （调用方回退到均匀分布）。
 List<double>? parseSmilKeyTimes(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
-  final parts = raw.split(';').map((s) => double.tryParse(s.trim())).toList();
-  if (parts.any((v) => v == null)) return null;
+  final parts = raw
+      .split(';')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .map(double.tryParse)
+      .toList();
+  if (parts.isEmpty || parts.any((v) => v == null || !v.isFinite)) return null;
   return parts.cast<double>();
 }
 
@@ -1601,15 +1641,19 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
   if (values != null && values.trim().isNotEmpty) {
     final parts = values
         .split(';')
-        .map((s) => double.tryParse(s.trim()))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map(double.tryParse)
         .toList();
-    if (parts.any((v) => v == null) || parts.length < 2) return null;
+    if (parts.any((v) => v == null || !v.isFinite) || parts.length < 2) {
+      return null;
+    }
     return parts.cast<double>();
   }
   if (from != null && to != null) {
     final f = double.tryParse(from.trim());
     final t = double.tryParse(to.trim());
-    if (f == null || t == null) return null;
+    if (f == null || t == null || !f.isFinite || !t.isFinite) return null;
     return [f, t];
   }
   return null;
@@ -1648,6 +1692,7 @@ List<List<double>>? parseSmilTransformKeyframes({
   String? from,
   String? to,
 }) {
+  // 变换分量只接受有限数，避免采样运算传播 NaN/Infinity。
   List<double>? parseComponents(String raw) {
     final parts = raw
         .trim()
@@ -1655,12 +1700,19 @@ List<List<double>>? parseSmilTransformKeyframes({
         .where((s) => s.isNotEmpty)
         .map(double.tryParse)
         .toList();
-    if (parts.isEmpty || parts.any((v) => v == null)) return null;
+    if (parts.isEmpty || parts.any((v) => v == null || !v.isFinite)) {
+      return null;
+    }
     return parts.cast<double>();
   }
 
   if (values != null && values.trim().isNotEmpty) {
-    final frames = values.split(';').map((s) => parseComponents(s)).toList();
+    final frames = values
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map(parseComponents)
+        .toList();
     if (frames.any((f) => f == null) || frames.length < 2) return null;
     return frames.cast<List<double>>();
   }

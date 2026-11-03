@@ -248,10 +248,10 @@ SvgDocument parseAnimatedSvgDocument(String source) {
       hasIndefiniteLoop = true;
       continue;
     }
-    final activeMicros =
-        (animation.duration.inMicroseconds * animation.repeatCount.count)
-            .round();
-    final end = animation.begin + Duration(microseconds: activeMicros);
+    final end = addSmilTime(
+      animation.begin,
+      smilActiveDuration(animation.duration, animation.repeatCount),
+    );
     if (end > maxEnd) maxEnd = end;
   }
 
@@ -549,6 +549,9 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
 /// 颜色（`_normalizeColorAttributes` 接受的任意形式），在此一次性解析为十六进制，
 /// 再打包为 [SmilColorAnimation] 的 `0xAARRGGBB` 整数。
 SmilColorAnimation? _parseAnimateColor(XmlElement element) {
+  // 普通动画仅接受有效正时长；零时长语义留给 <set>。
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
   final valuesRaw = element.getAttribute('values');
   final from = element.getAttribute('from');
   final to = element.getAttribute('to');
@@ -577,7 +580,7 @@ SmilColorAnimation? _parseAnimateColor(XmlElement element) {
   final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
   return SmilColorAnimation(
     values: packed,
-    duration: parseSmilDuration(element.getAttribute('dur')),
+    duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate
@@ -1016,6 +1019,9 @@ SmilMotionAnimation? _parseAnimateMotion(
   XmlElement element,
   _ParseContext context,
 ) {
+  // 普通动画仅接受有效正时长；零时长语义留给 <set>。
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
   var pathData = element.getAttribute('path');
   if (pathData == null) {
     for (final child in element.childElements) {
@@ -1037,7 +1043,7 @@ SmilMotionAnimation? _parseAnimateMotion(
   final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
   return SmilMotionAnimation(
     samples: samples,
-    duration: parseSmilDuration(element.getAttribute('dur')),
+    duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate
@@ -1060,8 +1066,15 @@ SmilMotionAnimation? _parseAnimateMotion(
 /// 一致。
 List<double>? _parseKeyPoints(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
-  final parts = raw.split(';').map((s) => double.tryParse(s.trim())).toList();
-  if (parts.any((v) => v == null) || parts.length < 2) return null;
+  final parts = raw
+      .split(';')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .map(double.tryParse)
+      .toList();
+  if (parts.any((v) => v == null || !v.isFinite) || parts.length < 2) {
+    return null;
+  }
   return parts.cast<double>();
 }
 
@@ -1082,7 +1095,10 @@ List<SmilMotionSample>? _sampleMotionPath(
 
   final autoRotate = rotate == 'auto' || rotate == 'auto-reverse';
   final reverse = rotate == 'auto-reverse';
-  final fixedAngle = autoRotate ? 0.0 : (double.tryParse(rotate ?? '') ?? 0.0);
+  final parsedAngle = double.tryParse(rotate ?? '');
+  final fixedAngle = !autoRotate && parsedAngle != null && parsedAngle.isFinite
+      ? parsedAngle
+      : 0.0;
 
   final samples = <SmilMotionSample>[];
   for (var i = 0; i <= sampleCount; i++) {
@@ -1271,7 +1287,11 @@ List<double>? _usePlacementTransform(Map<String, String> attributes) {
   return parseTransformMatrix(x == 0 && y == 0 ? raw : '$raw translate($x,$y)');
 }
 
+/// 解析数值动画；缺少正时长或有效关键帧时忽略。
 SmilAnimation? _parseAnimate(XmlElement element) {
+  // 普通动画仅接受有效正时长；零时长语义留给 <set>。
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
   final attributeName = element.getAttribute('attributeName');
   if (attributeName == null) return null;
   final values = parseSmilValues(
@@ -1285,7 +1305,7 @@ SmilAnimation? _parseAnimate(XmlElement element) {
   return SmilAnimation(
     attributeName: attributeName,
     values: values,
-    duration: parseSmilDuration(element.getAttribute('dur')),
+    duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     // Provisional: overwritten by resolveSmilBeginTimes for syncbase refs.
@@ -1305,6 +1325,9 @@ const String _pathAttribute = 'd';
 /// 解析 `<animate attributeName="d">`：各帧形状兼容时可插值，否则离散。
 /// `values`/`from`-`to` 缺失或不足两帧时返回 null。
 SmilPathAnimation? _parseAnimatePath(XmlElement element) {
+  // 普通动画仅接受有效正时长；零时长语义留给 <set>。
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
   final frames = parseSmilPathValues(
     values: element.getAttribute('values'),
     from: element.getAttribute('from'),
@@ -1315,7 +1338,7 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
   return SmilPathAnimation(
     frames: frames,
     morph: buildPathMorphData(frames),
-    duration: parseSmilDuration(element.getAttribute('dur')),
+    duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset,
@@ -1337,7 +1360,7 @@ SmilPathAnimation? _parseSetPath(XmlElement element) {
   final duration = parseSmilDuration(element.getAttribute('dur'));
   return SmilPathAnimation(
     frames: [to],
-    duration: duration,
+    duration: duration.isNegative ? Duration.zero : duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset,
@@ -1352,13 +1375,13 @@ SmilPathAnimation? _parseSetPath(XmlElement element) {
 SmilAnimation? _parseSetNumeric(XmlElement element) {
   final attributeName = element.getAttribute('attributeName');
   final to = double.tryParse(element.getAttribute('to')?.trim() ?? '');
-  if (attributeName == null || to == null) return null;
+  if (attributeName == null || to == null || !to.isFinite) return null;
   final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
   final duration = parseSmilDuration(element.getAttribute('dur'));
   return SmilAnimation(
     attributeName: attributeName,
     values: [to, to],
-    duration: duration,
+    duration: duration.isNegative ? Duration.zero : duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset,
@@ -1368,10 +1391,10 @@ SmilAnimation? _parseSetNumeric(XmlElement element) {
   );
 }
 
-/// `<set>` 的重复次数：没有 `dur`（活动期本就无限）时忽略 `repeatCount`，
+/// `<set>` 的重复次数：没有正时长（恒定的 set 语义）时忽略 `repeatCount`，
 /// 避免一个恒定不变的 `<set>` 被算成无限循环而让 Ticker 停不下来。
 SmilRepeatCount _setRepeatCount(XmlElement element, Duration duration) =>
-    duration == Duration.zero
+    duration <= Duration.zero
     ? SmilRepeatCount.once
     : parseSmilRepeatCount(element.getAttribute('repeatCount'));
 
@@ -1383,7 +1406,11 @@ const _transformTypes = {
   'skewY': SmilTransformType.skewY,
 };
 
+/// 解析变换动画；仅保留正时长及受支持的变换类型。
 SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
+  // 普通动画仅接受有效正时长；零时长语义留给 <set>。
+  final duration = parseSmilDuration(element.getAttribute('dur'));
+  if (duration <= Duration.zero) return null;
   final type = _transformTypes[element.getAttribute('type')];
   if (type == null) return null; // unknown type: skip, render as no transform
   final rawFrames = parseSmilTransformKeyframes(
@@ -1399,7 +1426,7 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
     values: [
       for (final frame in rawFrames) _normalizeTransformComponents(type, frame),
     ],
-    duration: parseSmilDuration(element.getAttribute('dur')),
+    duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
     begin: beginSpec.offset, // provisional, see _parseAnimate

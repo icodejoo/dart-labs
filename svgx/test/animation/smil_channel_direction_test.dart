@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/smil_animation.dart';
 
+import 'discrete_reference.dart';
+
 /// 独立贝塞尔参考求值所允许的数值误差。
 const _tolerance = 1e-5;
 
@@ -154,10 +156,12 @@ double _refEase(_Combo combo, int index, double fraction) {
   return ((fraction * n).floor() + extra).clamp(0, divisor) / divisor;
 }
 
-/// 标量通道参考值：discrete 取段起点，否则线性插值缓动后的比例。
+/// 标量参考值：离散按每帧切换时间取值，其余模式按段插值。
 double _refScalar(_Combo combo, List<double> values, double progress) {
+  if (combo.mode == SmilCalcMode.discrete) {
+    return values[referenceDiscreteIndex(progress, values.length, combo.times)];
+  }
   final (index, fraction) = _refLocate(combo, progress);
-  if (combo.mode == SmilCalcMode.discrete) return values[index];
   final eased = _refEase(combo, index, fraction);
   return values[index] + (values[index + 1] - values[index]) * eased;
 }
@@ -229,6 +233,16 @@ void _expectClose(double? actual, double? expected, String reason) {
 
 /// 在四个通道上，对比引擎与独立的 CSS 方向参考。
 void main() {
+  test('discrete 标量参考忽略长度不匹配的 keyTimes', () {
+    for (final times in [
+      [0.0, 1.0],
+      [0.0, 0.1, 0.2, 1.0],
+    ]) {
+      final combo = _Combo(3, SmilCalcMode.discrete, times, null);
+      expect(_refScalar(combo, [0, 10, 20], 0.5), 10);
+      expect(_refScalar(combo, [0, 10, 20], 0.9), 20);
+    }
+  });
   for (final direction in SmilDirection.values) {
     group('$direction', () {
       test('motion（keyPoints 路径）', () {

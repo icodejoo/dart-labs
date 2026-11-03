@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/smil_animation.dart';
 
+import 'discrete_reference.dart';
+
 /// 独立贝塞尔参考求值所允许的数值误差。
 const _referenceTolerance = 1e-5;
 
@@ -286,7 +288,7 @@ void main() {
       }
     }
   });
-  test('normal 固定种子 24000 组参数逐位保持旧行为', () {
+  test('normal 固定种子 24000 组：discrete 按规范，其余逐位保持旧行为', () {
     final random = math.Random(0x534d494c);
     for (var trial = 0; trial < 24000; trial++) {
       final size = 2 + random.nextInt(5);
@@ -488,7 +490,7 @@ List<double> _oldPacedKeyTimes<T>(
   return [for (final c in cumulative) c / total];
 }
 
-/// 使用旧时序、定位、缓动和插值顺序的回归采样器。
+/// 离散分支使用独立规范参考；其余保留旧时序、定位、缓动和插值顺序。
 double? _oldScalar(SmilAnimation animation, Duration t) {
   final begin = animation.begin;
   final duration = animation.duration;
@@ -507,6 +509,13 @@ double? _oldScalar(SmilAnimation animation, Duration t) {
   );
   if (timing == null) return null;
 
+  if (calcMode == SmilCalcMode.discrete) {
+    return values[referenceDiscreteIndex(
+      timing.progress,
+      values.length,
+      keyTimes,
+    )];
+  }
   final segments = values.length - 1;
   final effectiveKeyTimes = calcMode == SmilCalcMode.paced
       ? (_oldPacedKeyTimes<double>(values, (a, b) => (b - a).abs()))
@@ -516,7 +525,6 @@ double? _oldScalar(SmilAnimation animation, Duration t) {
     segments,
     effectiveKeyTimes,
   );
-  if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
   final a = values[segment.index];
   final b = values[segment.index + 1];
@@ -524,7 +532,7 @@ double? _oldScalar(SmilAnimation animation, Duration t) {
   return a + (b - a) * segT;
 }
 
-/// 使用旧时序、定位、缓动和插值顺序的回归采样器。
+/// 离散分支使用独立规范参考；其余保留旧时序、定位、缓动和插值顺序。
 List<double>? _oldVector(SmilTransformAnimation animation, Duration t) {
   final begin = animation.begin;
   final duration = animation.duration;
@@ -543,6 +551,13 @@ List<double>? _oldVector(SmilTransformAnimation animation, Duration t) {
   );
   if (timing == null) return null;
 
+  if (calcMode == SmilCalcMode.discrete) {
+    return values[referenceDiscreteIndex(
+      timing.progress,
+      values.length,
+      keyTimes,
+    )];
+  }
   final segments = values.length - 1;
   final effectiveKeyTimes = calcMode == SmilCalcMode.paced
       ? (_oldPacedKeyTimes<List<double>>(values, _oldVectorDistance))
@@ -552,7 +567,6 @@ List<double>? _oldVector(SmilTransformAnimation animation, Duration t) {
     segments,
     effectiveKeyTimes,
   );
-  if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
   final a = values[segment.index];
   final b = values[segment.index + 1];

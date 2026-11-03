@@ -16,6 +16,14 @@
   system, and so is `mask`.
 * Fix: `opacity` is now clamped to `[0, 1]`; `cubic-bezier` easing falls back to
   bisection when Newton's method does not converge.
+* Fix (SMIL): `calcMode="discrete"` now splits the duration into `n` equal steps
+  so the last value is reachable; trailing `;` in `values`/`keyTimes` no longer
+  drops the animation; `begin` accepts ids containing `-` and `begin="indefinite"`
+  never starts; an `<animate>` with a missing, `indefinite` or non-positive `dur`
+  has no effect instead of overriding the target forever; `NaN`/`Infinity` and
+  huge `repeatCount` values no longer make the whole document fail to parse or
+  wrap a syncbase `begin` negative; `<set dur="-1s" repeatCount="indefinite">`
+  no longer keeps the ticker running.
 * Security: the static parser no longer resolves `<image href>` against the
   local file system (or UNC paths). Only embedded `data:` URIs are decoded, so
   an untrusted SVG cannot read files such as `/dev/zero` or probe private

@@ -109,16 +109,16 @@ void main() {
   });
 
   group('discrete 模式', () {
-    test('值表可含哨兵，直接取段起点值', () {
+    test('值表可含哨兵，按帧数等分切换且可达末帧', () {
       final a = _color(const [
         _red,
         kSmilColorNone,
         _blue,
       ], mode: SmilCalcMode.discrete);
       expect(_at(a, 100), _red);
-      expect(_at(a, 400), _red);
+      expect(_at(a, 400), kSmilColorNone);
       expect(_at(a, 600), kSmilColorNone);
-      expect(_at(a, 900), kSmilColorNone);
+      expect(_at(a, 900), _blue);
     });
 
     test('keyTimes 控制切换点', () {
@@ -130,6 +130,7 @@ void main() {
       expect(_at(a, 100), kSmilColorNone);
       expect(_at(a, 300), _blue);
       expect(_at(a, 700), kSmilColorNone);
+      expect(_at(a, 1000), _red);
     });
   });
 

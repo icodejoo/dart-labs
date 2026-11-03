@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/smil_animation.dart' as nw;
 
 import '_oracle/smil_animation_oracle.dart' as old;
+import 'discrete_reference.dart';
 
 /// 每个通道的随机参数组数。
 const _casesPerChannel = 12000;
@@ -80,6 +81,15 @@ class _Spec {
   old.SmilRepeatCount get oldRepeat => repeatKind == 3
       ? const old.SmilRepeatCount.indefinite()
       : old.SmilRepeatCount.finite(repeatValue);
+  double? referenceProgress(Duration t) => referenceNormalProgress(
+    time: t,
+    begin: begin,
+    duration: duration,
+    indefinite: newRepeat.indefinite,
+    repeatCount: repeatValue,
+    freeze: freeze,
+  );
+
   old.SmilCalcMode get oldMode => old.SmilCalcMode.values[mode.index];
 
   List<nw.CubicBezier>? get newSplines => splines == null
@@ -130,9 +140,9 @@ void _expectBits(double? actual, double? expected, String reason) {
 double _rand(math.Random r, double lo, double hi) =>
     lo + r.nextDouble() * (hi - lo);
 
-/// 新旧实现在默认参数下的逐位回归；旧实现是改动前的完整库拷贝。
+/// 离散 motion/color 按独立规范参考比对，其余按改动前的完整库逐位回归。
 void main() {
-  test('motion：默认参数下与旧实现逐位相同', () {
+  test('motion：discrete 按规范，其余与旧实现逐位相同', () {
     final r = math.Random(_seed);
     var compared = 0;
     for (var c = 0; c < _casesPerChannel; c++) {
@@ -174,7 +184,10 @@ void main() {
       );
       for (final t in spec.times(r)) {
         final x = a.sample(t);
-        final y = b.sample(t);
+        final p = spec.referenceProgress(t);
+        final y = spec.mode == nw.SmilCalcMode.discrete && points != null
+            ? _referenceMotion(raw, points, spec.keyTimes, p)
+            : b.sample(t);
         final reason = 'case $c t=$t';
         if (x == null || y == null) {
           expect(x == null, y == null, reason: reason);
@@ -189,7 +202,7 @@ void main() {
     expect(compared, greaterThan(_casesPerChannel * 4));
   });
 
-  test('color：默认参数下与旧实现逐位相同', () {
+  test('color：discrete 按规范，其余与旧实现逐位相同', () {
     final r = math.Random(_seed + 1);
     var compared = 0;
     for (var c = 0; c < _casesPerChannel; c++) {
@@ -218,7 +231,12 @@ void main() {
       );
       for (final t in spec.times(r)) {
         final x = a.sample(t);
-        final y = b.sample(t);
+        final p = spec.referenceProgress(t);
+        final y = spec.mode == nw.SmilCalcMode.discrete
+            ? (p == null
+                  ? null
+                  : values[referenceDiscreteIndex(p, n, spec.keyTimes)])
+            : b.sample(t);
         expect(x, y, reason: 'case $c t=$t');
         if (x != null) compared++;
       }
@@ -279,4 +297,28 @@ void main() {
     }
     expect(compared, greaterThan(_casesPerChannel * 4));
   });
+}
+
+/// 按规范选取 keyPoint 后，以弧长在采样表上插值；角度保持所在段角度。
+old.SmilMotionSample? _referenceMotion(
+  List<List<double>> samples,
+  List<double> points,
+  List<double>? times,
+  double? progress,
+) {
+  if (progress == null) return null;
+  final point = points[referenceDiscreteIndex(progress, points.length, times)];
+  final scaled = (point * (samples.length - 1)).clamp(
+    0.0,
+    (samples.length - 1).toDouble(),
+  );
+  final index = scaled.floor().clamp(0, samples.length - 2);
+  final fraction = scaled - index;
+  final a = samples[index];
+  final b = samples[index + 1];
+  return old.SmilMotionSample(
+    a[0] + (b[0] - a[0]) * fraction,
+    a[1] + (b[1] - a[1]) * fraction,
+    a[2],
+  );
 }

@@ -129,7 +129,7 @@ void main() {
   });
 
   group('discrete 与 paced', () {
-    test('discrete 取段起点值，与 SmilAnimation 同语义', () {
+    test('discrete 等分为帧数个区间，与 SmilAnimation 同语义', () {
       final a = _list(
         mode: SmilCalcMode.discrete,
         values: const [
@@ -140,7 +140,7 @@ void main() {
       );
       _expectList(_at(a, 100), [1, 1]);
       _expectList(_at(a, 600), [2, 2]);
-      _expectList(_at(a, 1000), [2, 2]);
+      _expectList(_at(a, 1000), [3, 3]);
     });
 
     test('paced 按 linear 处理', () {
