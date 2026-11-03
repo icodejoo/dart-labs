@@ -159,9 +159,9 @@ CSS 动画支持分五个阶段推进,每阶段独立可验证。
 |---|---|---|
 | 1 | 自研 CSS 子集解析器:样式表、`@keyframes`、`animation` 简写与长写、时间与缓动值解析 | 已完成(2026-11-03):`css_stylesheet.dart`、`css_animation_values.dart`、`css_chars.dart`,152 个单测 |
 | 2 | `<style>`(`#id`、`*`,兼顾 class/标签/后代)与 `style=""` 接入动画路径的属性层叠 | 已完成(2026-11-03):`css_cascade.dart`,90 个单测 |
-| 3 | `@keyframes` 编译进时间线:数值属性(逐关键帧 cubic-bezier)、transform 列表、`steps` 缓动、`alternate`/`alternate-reverse` 方向;CSS transform 替换静态 transform 属性 | 进行中(2026-11-03 按样本分析重新划定,见下) |
-| 4 | `offset-path` 运动路径 → `fill` 颜色 → mask 内动画验证 → `d` 变形 → dasharray 列表值 | 值解析器已完成(`css_transform_list.dart`、`css_values.dart`,63 个单测);编译进时间线未开始 |
-| 5 | 检测器分流,以及与浏览器截图的像素对照 | 未开始 |
+| 3 | `@keyframes` 编译进时间线:数值属性(逐关键帧 cubic-bezier)、transform 列表、`steps` 缓动、`alternate`/`alternate-reverse` 方向;CSS transform 替换静态 transform 属性 | 已完成(2026-11-03):`css_keyframes_compiler.dart`,43/54 样本可完整播放 |
+| 4 | `offset-path` 运动路径 → `fill` 颜色 → mask 内动画验证 → `d` 变形 → dasharray 列表值 | 已完成(2026-11-03):`css_keyframes_compiler_channels.dart` + painter 的颜色/列表覆盖通道;54/54 样本可编译且 432/432 帧绘制成功,零跳过 |
+| 5 | 检测器分流,以及与浏览器截图的像素对照 | 已完成(2026-11-03):`AnimationDetector` 识别 `@keyframes`;Chrome 逐帧比对 378 帧,见下 |
 
 第 1 阶段由 Codex 初审实现、主会话终审;终审时把两个文件里重复的字符判断收进了 `css_chars.dart`。解析器是纯 Dart,不依赖 `dart:ui` 与 `package:xml`,与动画引擎解耦。
 
@@ -184,6 +184,17 @@ CSS 动画支持分五个阶段推进,每阶段独立可验证。
 - **R3(最关键的风险)**:CSS 的 `transform` 会**替换**元素静态的 `transform` 属性,而引擎是"先应用静态、再叠加动画"。463 条轨道、49 个样本受影响,其中 452 条静态值恰好等于 0% 关键帧,不处理会位移翻倍。**拍板方案 1**:节点带"替换静态 transform"标记,CSS transform 动画生效期间绘制时跳过静态矩阵,未生效时用静态值(符合 CSS 语义,绘制处改动小)。方案 2(编译期直接丢掉静态 transform)对"有 delay 或无 forwards"的文档不对,否决。
 - **其它风险**(阶段 3/4 设计时逐条对照):38 条孤儿动画必须安静忽略;样本 137 依赖 `*{…!important}` 的层叠;opacity 动画作用在 `<g>` 上,引擎是逐元素近似(保真度折扣);回弹曲线(y 超出 0~1)在 `d` 通道会被钳制;行内样式里的动画元素可能没有 id,绑定要按节点;`alternate` 的编译方式尚未验证。
 - **不用做**:`transform-origin`/`transform-box`、`matrix`/百分比/3D transform、同一属性被多个动画重复驱动、`<use>` 上的动画,语料里都是 0。
+
+### 第 3~5 阶段的结果(2026-11-03)
+
+- **覆盖**:54 个有效样本(111 为孤儿样本)全部编译、八个时刻全部绘制成功(432/432)。接线轨道:transform 471 块/620 槽位、数值 132、运动 33、`d` 变形 10、颜色 89(节点)+6(渐变 stop)、dasharray 11,**无跳过、无近似**。入库期望表 `test/animation/css_real_samples_expected.json`(样本本身不入库,需设 `SVGX_CSS_SAMPLES`)。
+- **渲染保真度缺口(由比对发现并已修)**:`fill-rule`/`clip-rule` evenodd、`mask-type="alpha"`、`feGaussianBlur` 双值、紧凑圆弧标志位、`opacity` 钳制。
+- **与 Chrome 的逐帧比对**(378 帧,256×256,viewBox 为固有尺寸,每样本取 t=1ms 与 ¼/½/¾ 等时刻;指标 diffRatio = 任一通道差 >32 的像素占比):实现根 `<svg style="background-color">` 背景、修复 `display="none"` 与 clip-path/mask 坐标系、比较器补解码 `<image>` 之后,中位数 0.33%、p90 2.6%、p99 25.2%、最大 26.8%;高于 3% 的帧 35 个、高于 6% 的 8 个。未实现根背景色时,中位数 0.34%、p90 5.4%、p99 94%、最大 97%——每个 SVGator 导出都带这个背景,所以它是必须补的一项,现已完成。
+- **比对发现并修复的两个渲染缺口**:`display="none"` 此前完全不处理(样本 159 的整套隐藏场景被画出来);`clip-path` 与 `transform` 在同一节点时,裁剪被放在父坐标系而非节点自身坐标系(按规范应随节点 transform)。修后 159 从最差 48.1% 降到 0.4% 以内。`mask` 与 `transform` 同节点时遮罩同样改为在节点自身坐标系绘制(`_applyOwnTransform` 供内容与遮罩共用)。
+- **样本 156 的 14.7% 不是渲染缺陷**:比较器没调用 `resolveImageNodes`,内嵌截图 `<image>` 没解码;补上后降到 3.4%,剩余差异来自三个 `mix-blend-mode:multiply` 渐变矩形的压暗与一处按钮位置,未深挖。
+- **仍偏差较大的样本**:137(文字用嵌入字体,26.8%)、170(6.0%)、149(4.7%)、131(4.1%)、127(3.8%)、156(3.4%)。
+- **每帧绘制耗时(T9,`flutter test` JIT 环境、只含 Dart 侧录制 `paintAt`,仅作相对参考)**:样本 159 约 90~140µs,104 约 1.0~1.6ms,109 约 0.8~1.2ms,050 约 40~50µs,均远低于 16ms 帧预算;AOT 真机数字另测。
+- 详细限制清单见 `doc/animation-engine-features.md`"明确不支持"。
 
 ### 第 2 阶段的实现要点
 

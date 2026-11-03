@@ -1,3 +1,22 @@
+## Unreleased
+
+* CSS animation support on the animated path (SVGator CSS exports and a general
+  subset): `@keyframes` with `animation` shorthand/longhand, per-keyframe
+  `cubic-bezier`/`steps` easing, all four `direction` values, `transform`
+  lists, `offset-path` motion, `d: path()` morphing, `fill`/`stroke`/`stop-color`
+  and `stroke-dasharray` lists. `Svgx` now routes sources containing
+  `@keyframes` to the animated path. `transition-*`, `var()`/`calc()`, and
+  SVGator's JS export are not supported.
+* Animated path: `fill-rule`/`clip-rule`, `mask-type="alpha"`, two-value
+  `feGaussianBlur stdDeviation`, compact arc flags in path data.
+* The root `<svg>` `background-color` / `background` (solid colour) is painted
+  across the whole canvas on the animated path.
+* Fix: `display="none"` is honoured on the animated path; `clip-path` on an
+  element with its own `transform` is now applied in the element's coordinate
+  system, and so is `mask`.
+* Fix: `opacity` is now clamped to `[0, 1]`; `cubic-bezier` easing falls back to
+  bisection when Newton's method does not converge.
+
 ## 0.1.1
 
 * Docs: completed dartdoc coverage on the full public API surface; README no

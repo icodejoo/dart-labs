@@ -36,6 +36,13 @@
 - 具名 CSS 颜色、`rgb()`/`hsl()`:靠 Rust 侧 `svgtypes` 一次性归一化为 hex(仅解析阶段调用,逐帧仍是纯 Dart 数值插值)。
 - 动画渐变:`<stop>` 的 `stop-color`/`stop-opacity`、渐变自身 `x1/y1/x2/y2/cx/cy/r/fx/fy` 均可被 `<animate>` 驱动,每帧重采样重建 shader(无假设静止的缓存)。
 - 动画 `<clipPath>`/`<mask>`:裁剪路径/遮罩内容按当前帧采样(不是只按静止态生效一次)。
+- **CSS 动画(SVGator CSS 导出 + 通用子集,2026-11-03 起播放)**:检测器识别 `@keyframes`(含 `-webkit-`/`-moz-`/`-o-`/`-ms-` 前缀,只有 `@keyframes` 无引用也走动画路径,属保守误判),解析期把 `@keyframes` 编译进现有时间线,不新增运行期通道。
+  - 层叠:`<style>`(`#id`、class、标签、后代、子代、属性选择器、`*`、`!important`)与 `style=""`,按特异性与顺序层叠覆盖属性表。
+  - `animation` 简写与长写:`duration`/`delay`/`iteration-count`(含 `infinite`)/`fill-mode`/`direction`(`normal`/`reverse`/`alternate`/`alternate-reverse`)/`timing-function`;逐关键帧 `animation-timing-function`(`cubic-bezier`/`steps`/关键字),缺省取 `animation` 级缓动;缺端点按元素静态值补齐。
+  - 数值属性(`opacity`、`stroke-width`、`stroke-dashoffset` 等)、`transform` 列表(`translate`/`rotate`/`scale`/`skew`,按"第 k 个函数各自插值"编译为按序叠加的变换动画;CSS `transform` 生效期间**替换**静态 `transform` 属性,未生效时用静态值)、`offset-path: path()` + `offset-distance`/`offset-rotate`(自适应等弧长采样 128~2048 段)、`d: path()` 变形(命令不兼容时退化为离散并记为近似)、`fill`/`stroke`/`stop-color` 颜色(含与 `none` 之间的切换,按进度 ≥0.5 翻转)、`stroke-dasharray` 列表(各帧补齐到公倍长度,上限 32)。
+  - `alternate`/`reverse` 在全部通道(数值、变换、运动、颜色、路径、列表)按时间反转实现;`steps()` 缓动在各通道一致。
+  - 带颜色动画的节点位于 `<mask>` 内时自动走精确管线;`<mask>` 内的 `transform` 动画经 M2 验证有效。
+- **补齐的渲染保真度(2026-11-03,由浏览器逐帧比对发现)**:`fill-rule`/`clip-rule`(`evenodd`,含继承、`style`/`<style>` 来源,混用规则的 clipPath 经 `Path.combine`)、`<mask mask-type="alpha">`(精确与近似两条管线都按 alpha 判定)、`feGaussianBlur stdDeviation` 双值(`"x y"`,取平均近似,非均匀模糊未实现)、紧凑圆弧标志位(`a1 1 0 011 1` 写法)、`opacity` 钳制到 `[0, 1]`、`display="none"` 整棵子树不绘制、`clip-path`/`mask` 随节点自身 `transform` 生效(此前落在父坐标系)、根 `<svg>` 的 `background-color`/`background` 纯色背景(含 `style=""` 与 `<style>` 规则来源)铺满整个绘制区域(与浏览器一致;只认十六进制、`rgb()`、`transparent`)。
 - `<text>`:`TextPainter` 渲染,支持 `x`/`y`(基线锚点)/`font-size`/`font-family`/`text-anchor`,`fill`/`opacity` 走通用动画机制;不支持 `<tspan>`/textPath,文字内容本身不可被动画驱动。
 - `<image>`:`resolvedImage` 异步解码 `data:` URI(base64),ticker 等解码完成后才启动,避免动画偷跑进度。
 - `feGaussianBlur`(通过 `filter="blur(Npx)"` 或 `filter="url(#id)"` 指向单个 `<feGaussianBlur>`):`canvas.saveLayer` + `ui.ImageFilter.blur` 包裹节点子树。
@@ -44,8 +51,8 @@
 
 **明确不支持**:
 
-- CSS `@keyframes`/`animation-*`:**已解析但尚未播放**。2026-11-03 起纳入范围(推翻此前"不做"),分阶段实现,进度见 `doc/svgator-positioning.md` 第 9 节。目前动画路径已能读取 `<style>` 与 `style=""` 并按 CSS 层叠覆盖静态属性(颜色、不透明度、描边等),`animation*` 声明与 `@keyframes` 已解析进 `SvgNode.cssAnimations`/`SvgDocument.cssKeyframes`,但还没有编译进时间线,检测器也不识别 CSS 动画,所以 CSS 导出的文件仍被当成静态图,不会动。`transition-*` 暂不纳入(243 个 SVGator 样本里 0 次出现)。
-- CSS 的 `transform`/`offset-*`/`d` 声明只被保存、不生效,要等第 4 阶段;含 `var()`、`calc()` 的声明整条忽略。
+- CSS 动画的边界:`transition-*` 不支持(243 个 SVGator 样本里 0 次);含 `var()`、`calc()`、`@media`、`@import` 的声明整条忽略(usvg 上游同样不支持);SVGator **JS 导出**不支持(闭源播放器、无公开规范,见 `doc/svgator-positioning.md`)。
+- CSS 动画的已知限制:`<mask>` 内容元素的 `opacity` 动画虽被正确采样,但遮罩透过区域仍按不透明处理;`d` 动画的缓动 y 值过冲时被钳制在 `[0, 1]`;`offset-path` 与 `transform` 同时存在时的合成顺序未与浏览器逐项核对;嵌入 `@font-face` 的文字不渲染对应字体(回退到系统字体)。
 - 事件类 `begin`(`begin="click"`/`"id.click"`)——已评估,不做:需要"事件监听 + 时间线动态重触发",与当前"一次性建好全时间线、之后纯按 elapsed 驱动"的架构相冲突,属于架构级改动,建议单独排期。当前行为:解析为零偏移(立即开始)。
 - `<tspan>`、textPath。
 - `<set>` 只支持数值属性与 `d`:`to` 为非数字(如 `visibility="hidden"`、`fill="red"`、带单位的 `"2px"`)的 `<set>` 解析期丢弃。`<animate>` 驱动 `fill`/`stroke` 颜色同样仍是缺口。
