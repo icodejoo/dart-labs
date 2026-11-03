@@ -11,6 +11,7 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
       'Dioman.reject':v.reject,
       'Dioman.statusOf':v.statusOf,
       'Dioman.clock':v.clock,
+      'Dioman.deadline':v.deadline,
       'Dioman.pending':v.pending,
     };
     e.mark(snapshot.keys,'property read');
@@ -81,6 +82,7 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
       'DiomanCall.connectTimeout':v.connectTimeout,
       'DiomanCall.sendTimeout':v.sendTimeout,
       'DiomanCall.receiveTimeout':v.receiveTimeout,
+      'DiomanCall.deadline':v.deadline,
       'DiomanCall.cancelToken':v.cancelToken,
       'DiomanCall.key':v.key,
       'DiomanCall.extra':v.extra,

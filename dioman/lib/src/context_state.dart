@@ -39,6 +39,16 @@ class DiomanContextState {
   /// 内核逻辑取消令牌。
   final CancelToken token;
 
+  /// 是否由自身整体预算首先触发取消，不影响独立共享传输令牌。
+  bool deadlineExpired = false;
+
+  /// 整体预算到期；已有取消保留首次原因。
+  void expireDeadline() {
+    if (token.isCancelled) return;
+    deadlineExpired = true;
+    cancel();
+  }
+
   /// Dio 到内核订阅表的桥。
   late final DiomanCancelLink _link;
 

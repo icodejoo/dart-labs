@@ -156,10 +156,12 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
     return false;
   }
 
-  /// 已取消则返回 cancel 结果，否则返回 null；每次 await 后应调用。
+  /// 已取消返回失败，自身截止到期为 timeout/deadline，否则为 cancel。
   /// 单次令牌与 cancelAll 的首次原因转为字符串；省略时为 null。
   DiomanResponse<dynamic>? cancelled() => isCancelled
-      ? get(cancellationFailure) ??
+      ? (identical(cancelToken, state.token) && state.deadlineExpired
+              ? fail(DiomanFailureKind.timeout, reason: 'deadline')
+              : get(cancellationFailure)) ??
           fail(DiomanFailureKind.cancel,
               reason: cancelToken.cancelError?.error?.toString())
       : null;

@@ -30,9 +30,6 @@ const _b7BadJson = 'bad_json';
 const _b7Literal0 = 'id';
 
 /// B7 共用字面量。
-const _b7Literal1 = 'total-budget';
-
-/// B7 共用字面量。
 const _b7Literal2 = 'networks';
 
 /// B7 共用字面量。
@@ -268,22 +265,27 @@ void main() {
       }
     }
   });
-  test('[ScenarioRun.execute] total_ms 缺能力时跳过，不访问服务也不补计时器', () async {
-    for (final declared in [true, false]) {
-      final result = await ScenarioRun({
-        _b7Literal0: _b7Literal1,
-        _literalRequires: [if (declared) timeoutTotalCapability],
-        _b7Literal2: [_literalNormal],
-        _b7Literal3: <String, Object?>{},
-        _literalClient: {
-          _literalPlugins: {
-            _literalTimeout: {'total_ms': 10}
-          }
+  test('[ScenarioClient] total_ms 与请求 timeout_ms 映射原生截止时间', () async {
+    final config = {
+      _literalClient: {
+        _literalPlugins: {
+          _literalTimeout: {'total_ms': 10}
         }
-      }, _literalNormal, _literalHttp, _b7Literal1)
-          .execute();
-      expect(result['status'], '跳过');
-      expect(result[_b7Literal4], ['skipped: missing $timeoutTotalCapability']);
+      }
+    };
+    expect(missingCapabilities(config), isEmpty);
+    expect(supportedCapabilities, contains(timeoutTotalCapability));
+    final client = ScenarioClient(
+        config, _literalGuard, _literalHttpsGuardTest, _literalHttp,
+        transport: FakeNetwork());
+    try {
+      expect(client.api.deadline, const Duration(milliseconds: 10));
+      final call = client.call({'timeout_ms': 20});
+      expect(call.deadline, const Duration(milliseconds: 20));
+      expect(call.receiveTimeout, isNull);
+      expect(client.call({}).deadline, isNull);
+    } finally {
+      await client.dispose();
     }
   });
   test('[client.classify] 归类只读取 kind reason status code，原始数据不参与判断', () {

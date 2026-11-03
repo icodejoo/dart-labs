@@ -188,6 +188,8 @@ class ScenarioClient {
     }
     api = Dioman<DiomanResponse<dynamic>>(
       dio: dio,
+      deadline:
+          timeout[tkTotalMs] == null ? null : ms(timeout[tkTotalMs] as num),
       statusOf: effectiveStatus,
       // 读取使用者配置的有效状态；服务停止守卫不重分类、不改结果。
       response: DiomanResponseFactory(
@@ -386,7 +388,7 @@ class ScenarioClient {
                 ? null
                 : key,
         silent: options[tkSilent] == true,
-        receiveTimeout: options[tkTimeoutMs] == null
+        deadline: options[tkTimeoutMs] == null
             ? null
             : ms(options[tkTimeoutMs] as num),
         options: {

@@ -569,3 +569,28 @@ Dio unknown errors caused by decoding `FormatException` now return `kind: parse`
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 
 Runnable versions: `dart run example/dioman_example.dart` (offline); `dart run example/real_run.dart` uses a public service and requires network.
+
+## Logical request deadline
+
+`Dioman(deadline: ...)` sets a default budget; a non-null `DiomanCall(deadline: ...)` overrides it. If both are null there is no deadline; zero or negative durations expire immediately. The budget starts at logical request entry and includes retry delays, token refresh queues, offline queues, share waits and the entire transfer, including the response body. Expiry returns `timeout` with `reason: 'deadline'`, and is not classified as cancellation. Timers use `DiomanClock` and are cleared on settlement. `extend` inherits the default.
+
+This is separate from the timeout plugin and Dio connect/send/receive timeouts. A share subscriber whose deadline expires leaves independently; the last subscriber leaving cancels shared transport. end/race withdraw that caller under the same B8 ownership rules.
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+/// 默认五秒，本次两秒，覆盖排队、重试和传输。
+Future<void> deadlineExample() async {
+  final api = Dioman(dio: Dio(), deadline: const Duration(seconds: 5));
+  try {
+    final result = await api.send<Object?>('GET', 'https://example.com/pets',
+        call: const DiomanCall(deadline: Duration(seconds: 2)));
+    if (failureOf(result)?.reason == 'deadline') {
+      assert(failureOf(result)?.kind == DiomanFailureKind.timeout);
+    }
+  } finally {
+    await api.dispose();
+  }
+}
+```

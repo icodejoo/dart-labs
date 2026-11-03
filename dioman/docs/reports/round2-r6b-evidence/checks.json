@@ -1,0 +1,16 @@
+{
+  "inventory": 0,
+  "sync": 0,
+  "analyze": 0,
+  "analyze-example": 0,
+  "coverage": 0,
+  "gates": 0,
+  "full_tests_with_branch_coverage": 0,
+  "build_testkit": 0,
+  "real_acceptance": 0,
+  "mutations": 0,
+  "codex_review": 0,
+  "docs_index_and_report_links": 0,
+  "small_evidence_and_lib_hashes": 0,
+  "git_diff_check": 0
+}

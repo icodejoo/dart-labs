@@ -1199,3 +1199,28 @@ Future<void> closeClient(Dioman api) async {
   await api.dispose();
 }
 ```
+
+## 逻辑请求截止时间
+
+`Dioman(deadline: ...)` 设置默认整体预算，请求级 `DiomanCall(deadline: ...)` 非空值优先；均为 null 时不设截止，零或负值立即到期。预算从逻辑请求入口开始，覆盖重试等待、token 刷新排队、离线队列、share 等待和完整传输（含响应体）。到期取消自身内核令牌，结果为 `timeout`、`reason: 'deadline'`，取消判别返回 false。计时使用 `DiomanClock`，所有落定出口均清理计时器。`extend` 继承默认预算。
+
+该能力与 timeout 插件和 Dio connect/send/receive 阶段超时独立。share 订阅者到期只退出自身，最后一人离开才中止共享传输；end/race 按 B8 自身条件撤回，不污染其他调用方。
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+/// 默认五秒，本次两秒，覆盖排队、重试和传输。
+Future<void> deadlineExample() async {
+  final api = Dioman(dio: Dio(), deadline: const Duration(seconds: 5));
+  try {
+    final result = await api.send<Object?>('GET', 'https://example.com/pets',
+        call: const DiomanCall(deadline: Duration(seconds: 2)));
+    if (failureOf(result)?.reason == 'deadline') {
+      assert(failureOf(result)?.kind == DiomanFailureKind.timeout);
+    }
+  } finally {
+    await api.dispose();
+  }
+}
+```

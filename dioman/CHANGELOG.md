@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- 新增客户端与请求级 `deadline: Duration?`：以 `DiomanClock` 计时，覆盖逻辑请求的排队、重试、共享等待与完整传输；到期为 timeout/deadline，独立于 Dio 阶段超时。share 保持调用方自身预算归属，落定清理计时器；testkit 执行器声明 timeout-total 并映射原生预算。
+
+
 - **R5:** get/post/put/patch/delete/head/request/send accept an optional decode callback after successful settlement. Expected failures skip decoding; decoder exceptions bypass plugins and preserve their original stack. Share callers decode independently.
 - **Breaking (R5):** plugin instance dispose returns FutureOr<void>; client dispose returns Future<void>, waits in reverse registration order, attempts all cleanups and rethrows the first error with its original stack. Repeated calls share completion; cancellation and refusal of new requests remain synchronous without await. Without await, a cleanup failure surfaces as an unhandled async error on the returned future instead of a synchronous throw.
 - **R5:** eject keeps its bool return value while client disposal also waits for ejected async instances and reports cleanup errors; ejection after disposal starts is rejected.

@@ -21,6 +21,7 @@ void _noLog(String _) {}
 /// 以 Dio 为引擎的洋葱管线客户端；旧入口与本库完全独立。
 class Dioman<R extends DiomanResponse<dynamic>> {
   /// 创建客户端，例如 `Dioman(dio: Dio(), debug: true)`。
+  /// [deadline] 设置默认整体预算，null 不设截止；请求级非空值优先。
   /// [response] 控制归一化，[reject] 只转换动词方法的可预期失败。
   /// R 非基础响应时必须提供 response.create，否则在 setup 前抛 ArgumentError。
   Dioman(
@@ -30,6 +31,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       this.key = const DiomanKeyOptions(),
       this.reject,
       this.statusOf,
+      this.deadline,
       Object? debug,
       this.clock = const DiomanClock.system()})
       : response = response ?? DiomanResponseFactory<R>(),
@@ -81,6 +83,11 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 
   /// 可注入时间服务。
   final DiomanClock clock;
+
+  /// 默认逻辑请求预算；null 不设截止，由请求级非空值覆盖。
+  /// 含排队、重试、共享等待与传输；零或负值立即到期。
+  /// 例如 `Dioman(dio: Dio(), deadline: Duration(seconds: 5))`。
+  final Duration? deadline;
 
   /// 是否记录调用点。
   final bool _debug;
@@ -220,7 +227,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   /// 不复制拦截器、adapter、transformer；传入时直接使用并保留其配置。
   /// [options] 在安装后合并非空、非默认字段，容器按顶层键合并；
   /// 不能用默认值重置继承的非默认值，覆盖会修改传入引擎。
-  /// [plugins] 替换继承列表；工厂、key、statusOf、reject、debug、clock 继承引用。
+  /// [plugins] 替换继承列表；工厂、key、statusOf、reject、debug、clock 继承引用，deadline 继承值。
   /// 相同 TokenManager 的 auth 会话、相等回调的 loading 状态共享。
   /// 传父客户端的引擎会共享可变配置，覆盖也影响父客户端。
   /// 示例：`api.extend(dio: Dio(), options: BaseOptions(baseUrl: 'https://child.example'))`。
@@ -235,6 +242,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
         key: key,
         reject: reject,
         debug: _debug ? _logger : false,
+        deadline: deadline,
         clock: clock);
     if (options != null) mergeDiomanOptions(child.dio.options, options);
     return child;
@@ -379,9 +387,21 @@ class Dioman<R extends DiomanResponse<dynamic>> {
         onDispose: () => _cancellable.remove(state));
     _cancellable.add(state);
     DiomanCancelLink? userLink;
+    Timer? deadlineTimer;
     _pending.add(state);
     try {
       final c = call ?? const DiomanCall();
+      if (c.cancelToken != null) {
+        userLink = DiomanCancelLink(c.cancelToken!, state.cancel);
+      }
+      final budget = c.deadline ?? deadline;
+      if (budget != null) {
+        if (budget <= Duration.zero) {
+          state.expireDeadline();
+        } else {
+          deadlineTimer = clock.createTimer(budget, state.expireDeadline);
+        }
+      }
       if (_debug) {
         for (final option in c.options.keys) {
           if (!_registrations.any((r) => r.plugin.name == option.description) &&
@@ -389,9 +409,6 @@ class Dioman<R extends DiomanResponse<dynamic>> {
             _log('请求选项 ${option.description} 对应的插件未安装');
           }
         }
-      }
-      if (c.cancelToken != null) {
-        userLink = DiomanCancelLink(c.cancelToken!, state.cancel);
       }
       final options = Options(
               method: method,
@@ -436,6 +453,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       }
       return result;
     } finally {
+      deadlineTimer?.cancel();
       state.closeNative();
       userLink?.dispose();
       state.dispose();

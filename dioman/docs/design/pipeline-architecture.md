@@ -82,7 +82,7 @@ abstract class DiomanContext<R extends DiomanResponse> {
   int get id;                                   // 逻辑请求序号
   Dioman<R> get client;
   DiomanRequest get request;                    // 本层看到的请求，不可变
-  CancelToken get cancelToken;                  // 逻辑请求级：使用者 token ∪ cancelAll
+  CancelToken get cancelToken;                  // 逻辑请求级：使用者 token ∪ cancelAll ∪ 截止时间
   bool get isCancelled;
   DiomanLogger get log;                         // 受 debug 开关控制
   String? key();                                // 惰性计算，按 request 缓存；不可哈希或 key:false 时为 null
@@ -94,7 +94,7 @@ abstract class DiomanContext<R extends DiomanResponse> {
   bool canReplay();                             // 最近实际发送的请求体能否安全重放
   void markReplayable();                        // 声明本请求可能被重发，传输层据此克隆请求体
   Future<T?> wait<T>(Future<T> pending, {Duration? timeout});  // 取消原语一，见下
-  DiomanResponse<dynamic>? cancelled();                               // 取消原语二：已取消则返回 cancel 结果
+  DiomanResponse<dynamic>? cancelled();                               // 取消原语二：自身截止到期返回 timeout/deadline，其余取消返回 cancel
 }
 typedef DiomanNext<R> = Future<R> Function([RequestPatch? patch]);
 final class StateKey<T> { const StateKey(this.description); final String description; }
@@ -104,8 +104,12 @@ final class StateKey<T> { const StateKey(this.description); final String descrip
 
 **取消原语**（每个 await 之后都要重查）：
 - `ctx.wait(pending, timeout:)`：等 `pending` 完成、等取消、等超时三者之一。无论哪种结局，都要取消计时器、摘掉对 token 的监听，并忽略迟到的结果。调用时如果已经取消，立即返回 `null`，不挂任何监听。返回 `null` 表示被取消或超时，调用方用 `ctx.cancelled()` 区分。
-- `ctx.cancelled()`：已取消就返回带 cancel 失败标记的结果（R2a），否则返回 `null`。R2b 在 next 入口检查取消并短路。
+- `ctx.cancelled()`：自身截止到期返回 timeout/deadline，其余取消返回带 cancel 失败标记的结果（R2a），否则返回 `null`。R2b 在 next 入口检查取消并短路。
 - Dio 的 `CancelToken` 没有"摘掉监听"的接口，内核用自己的订阅登记实现 `wait`，保证测试里能断言"没有残留的监听和计时器"（不变量 I3）。
+
+**逻辑请求截止时间（R6b）**：`Dioman(deadline: Duration?)` 提供默认整体预算，`DiomanCall(deadline: Duration?)` 的非空值优先，二者均为 null 时不设截止；零或负值立即到期。从逻辑请求入口开始，用 `DiomanClock` 建立单一计时器，覆盖重试等待、token 刷新排队、离线排队、share 等待和完整传输（含响应体），不会在重试时重置。到期取消自身内核令牌，`ctx.cancelled()` 与最终结果为 `timeout`、`reason: 'deadline'`，取消判别返回 false；已有用户取消保留首次原因。所有落定出口均清理计时器（I3）。
+
+share 的独立传输令牌不继承首发调用方的到期状态：start/retry 中每个订阅者只退出自身，最后一人离开才取消共享传输；end/race 的自身预算到期按 B8 撤回，结果不污染其他调用方（I8）。该预算独立于 timeout 插件与 Dio connect/send/receive 阶段计时，不能用阶段超时之和替代。
 
 **原生槽（R3 落地）**：公开只读视图命名 `DiomanNative`，通过 `ctx.native` 读取；字段为 `response`（关联的归一化结果）、`raw`（Dio Response）、`error`（原始异常）。内部单槽放在逻辑请求共享状态里，不能放在派生 ctx 的实例字段上；传输层每次尝试写入，成功时清空 error。仅当结果身份匹配槽内 response 时可读，结果派生必须维护身份关联；缓存命中、本地拒绝、share 跟随者没有自身原生槽。mock 探测经过真实传输时照常有槽。
 
@@ -197,8 +201,9 @@ class Dioman<R extends DiomanResponse<dynamic>> {
           DiomanResponseFactory<R>? response, DiomanKeyOptions key = const DiomanKeyOptions(),
           int Function(DiomanResponse<dynamic> r)? statusOf, // R2a
           Object Function(R r)? reject, Object? debug /* bool | DiomanLogger */,
-          DiomanClock clock = const DiomanClock.system()});
+          Duration? deadline, DiomanClock clock = const DiomanClock.system()});
   Dio get dio;
+  Duration? get deadline;                       // R6b 默认逻辑请求预算
   Future<T> get<T>(String path, {Map<String, dynamic>? query, Object? data, DiomanCall? call});
   // post / put / patch / delete / head 同形；request<T>(method, path, …)
   Future<DiomanResponse<T>> send<T>(String method, String path, {…});
@@ -214,7 +219,8 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 }
 ```
 
-- `DiomanCall`：调用级配置，包含 headers、超时、使用者的 `cancelToken`、`key`、`silent`、以及各插件的请求级选项（以插件导出的选项键为键）。
+- `DiomanCall`：调用级配置，包含 headers、阶段超时、逻辑截止预算 `deadline`、使用者的 `cancelToken`、`key`、`silent`、以及各插件的请求级选项（以插件导出的选项键为键）。
+- `Dioman(deadline: const Duration(seconds: 5))` 设置默认预算；`DiomanCall(deadline: const Duration(seconds: 2))` 覆盖本次预算。`extend` 继承默认预算；null 的继承规则与计时、分类见 §4。
 - `DiomanCall(raw: true)`（R3）：按 [0002](../decisions/0002-response-contract.md#字段归属与最终处置)在落定副本附带自身原生数据；send 返回该副本，internal 仍原栈抛出。
 - `extend(dio: …)`（R1）可显式传入新引擎；省略时沿用克隆 BaseOptions 后新建 Dio 的行为。复制与共享边界如下：
 

@@ -33,6 +33,8 @@
 
 ## 报告
 
+- [第二轮 R6b：逻辑请求截止时间](reports/2026-11-03-round2-r6b.md) — 5704 项全绿、全库行/分支覆盖 100%、timeout-total 26 格真实通过与 142 格契约不适用、共享归属与 breaker 修复。active。
+
 - [第二轮 R6a 测试按主题改名 2026-11-03](reports/2026-11-03-round2-r6a.md) — 19 个批次文件归入 42 个主题文件与完整改名清单，用例数与 lib 不变。active。
 - [第二轮 R5 Dart 化 API 2026-11-03](reports/2026-11-03-round2-r5.md) — decode 解码钩子、异步 dispose（Future<void>）、debug 选项检查；真实验收 768 通过 0 失败。active。
 - [第二轮 R4 性能与真实验收 2026-11-03](reports/2026-11-03-round2-r4.md) — 真实验收 768 通过 0 失败；两项候选撤回；五项性能门槛因负载未判定，待复测。active。

@@ -195,12 +195,13 @@ const subCapabilities = {
   'share-retry',
   'timeout-send',
   'mock-in-chain',
+  timeoutTotalCapability,
 };
 
 /// 执行器声明的全部能力；场景 requires 里不在其中的按"缺能力"跳过。
 const supportedCapabilities = {...capabilities, ...subCapabilities};
 
-/// 始终归一化业务信封，且没有整体预算；两项均不声明为支持。
+/// 始终归一化业务信封，不声明原业务码透传能力。
 const rawBusinessCodeCapability = 'raw-business-code';
 
 /// 整体预算独立于 Dio 的连接、发送、接收超时。
@@ -271,7 +272,7 @@ const pluginFields = <String, Set<String>>{
   tkShare: {tkPolicy},
   tkLoading: {tkDelayMs, tkDelayCloseMs},
   tkKey: {tkScope},
-  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs},
+  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs, tkTotalMs},
   tkBreaker: {tkThreshold, tkOpenMs},
   tkOffline: {tkProbe},
   tkMock: {tkFallbackOn404},

@@ -21,6 +21,13 @@ Object? _clone(Object? value, DiomanLogger log) {
   return value;
 }
 
+/// 保留程序错误，其余结果由当前传输所属的取消条件覆盖。
+DiomanResponse<dynamic> _outcome(
+        DiomanContext ctx, DiomanResponse<dynamic> result) =>
+    failureOf(result)?.kind == DiomanFailureKind.internal
+        ? result
+        : ctx.cancelled() ?? result;
+
 /// 执行一次发送；传输构造、Dio 及工厂异常都在本边界归一化。
 Future<DiomanResponse<dynamic>>
     diomanTransport<R extends DiomanResponse<dynamic>>(
@@ -58,7 +65,7 @@ Future<DiomanResponse<dynamic>>
     final result = ctx.factory
         .normalize(ctx.request, raw: raw, cancelled: ctx.isCancelled);
     ctx.writeNative(result, raw, null);
-    return result;
+    return _outcome(ctx, result);
   } catch (e, s) {
     final error =
         e is DioException && e.error is FormatException && e.response == null
@@ -69,6 +76,6 @@ Future<DiomanResponse<dynamic>>
     final raw = error is DioException ? error.response : null;
     ctx.writeNative(
         result, raw, error is DioException ? error.error ?? error : error);
-    return result;
+    return _outcome(ctx, result);
   }
 }

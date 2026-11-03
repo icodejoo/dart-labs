@@ -337,7 +337,7 @@ class _Breaker<R extends DiomanResponse<dynamic>>
     final probe = b.state == DiomanBreakerState.halfOpen;
     b.inFlight++;
     if (probe) b.probes++;
-    final r = await next();
+    var r = await next();
     final cancelled = ctx.cancelled();
     b.inFlight--;
     if (generation != b.generation) {
@@ -347,9 +347,8 @@ class _Breaker<R extends DiomanResponse<dynamic>>
     }
     if (probe) b.probes--;
     if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
-    if (cancelled != null || failureOf(r)?.kind == DiomanFailureKind.cancel) {
-      return cancelled ?? r;
-    }
+    r = cancelled ?? r;
+    if (failureOf(r)?.kind == DiomanFailureKind.cancel) return r;
     final failed = o.shouldTrip?.call(r) ??
         (failureOf(r)?.kind == DiomanFailureKind.network ||
             failureOf(r)?.kind == DiomanFailureKind.timeout ||

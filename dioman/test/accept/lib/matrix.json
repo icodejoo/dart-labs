@@ -1848,6 +1848,42 @@
     "blocked": null
   },
   {
+    "id": "Dioman.deadline",
+    "plugin": "client",
+    "capability": "逻辑请求整体预算：覆盖等待与完整传输，timeout/deadline，调用方独立归属",
+    "tier": 2,
+    "apis": [
+      "Dioman.deadline",
+      "Dioman.new(deadline)"
+    ],
+    "real": [
+      "local:test/integration/deadline_transport_integration_test.dart",
+      "share.single-all-timeout-aborts-server",
+      "timeout.total-hang",
+      "timeout.total-over-slow-chunks",
+      "timeout.request-override-shorter",
+      "timeout.request-override-longer",
+      "timeout.within-budget",
+      "timeout.recovers-after-timeout",
+      "timeout.parallel-all-timeout",
+      "timeout.weak-generous-budget",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 27,
+      "total": 27
+    },
+    "blocked": null,
+    "note": "假时钟覆盖重试、刷新排队、离线队列和共享归属；testkit timeout-total 原生映射。"
+  },
+  {
     "id": "Dioman.delete",
     "plugin": "client",
     "capability": "Dioman.delete：公开契约及配置解析",
@@ -1861,7 +1897,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -1988,7 +2024,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2022,7 +2058,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2135,7 +2171,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2195,7 +2231,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2229,7 +2265,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2277,7 +2313,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -2327,9 +2363,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 7,
-      "total": 7
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 1,
+      "total": 1
     },
     "blocked": null
   },
@@ -3364,7 +3400,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -3814,9 +3850,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 1,
-      "total": 85
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 13,
+      "total": 13
     },
     "blocked": null,
     "unit": [
@@ -4885,6 +4921,42 @@
     "assumptions": [],
     "result": null,
     "blocked": null
+  },
+  {
+    "id": "DiomanCall.deadline",
+    "plugin": "options",
+    "capability": "逻辑请求整体预算：覆盖等待与完整传输，timeout/deadline，调用方独立归属",
+    "tier": 2,
+    "apis": [
+      "DiomanCall.deadline",
+      "DiomanCall.new(deadline)"
+    ],
+    "real": [
+      "local:test/integration/deadline_transport_integration_test.dart",
+      "share.single-all-timeout-aborts-server",
+      "timeout.total-hang",
+      "timeout.total-over-slow-chunks",
+      "timeout.request-override-shorter",
+      "timeout.request-override-longer",
+      "timeout.within-budget",
+      "timeout.recovers-after-timeout",
+      "timeout.parallel-all-timeout",
+      "timeout.weak-generous-budget",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 27,
+      "total": 27
+    },
+    "blocked": null,
+    "note": "假时钟覆盖重试、刷新排队、离线队列和共享归属；testkit timeout-total 原生映射。"
   },
   {
     "id": "DiomanCall.extra",
@@ -6957,9 +7029,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 24,
-      "total": 38
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 2,
+      "total": 2
     },
     "blocked": null
   },
@@ -7351,9 +7423,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 10,
-      "total": 80
+      "total": 10
     },
     "blocked": null,
     "note": "probe 是使用者回调（契约替身）；真实执行器的 probe 恒返回 excellent。"
@@ -7438,9 +7510,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 18,
-      "total": 88
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 10,
+      "total": 10
     },
     "blocked": null
   },
@@ -7489,9 +7561,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 4,
-      "total": 18
+      "total": 4
     },
     "blocked": null,
     "note": "只验配置写入；真实连接超时见 DiomanTimeouts.connect#effective。"
@@ -7511,7 +7583,7 @@
     ],
     "result": {
       "status": "BLOCKED",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
       "passed": 0,
       "total": 0
     },
@@ -7563,9 +7635,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 8,
-      "total": 22
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 2,
+      "total": 2
     },
     "blocked": null,
     "note": "单测 rule/timeout_rule_test 用本地 TestServer 断言了 receiveTimeout；真实侧 boundary receive_ms=1 断言 error=timeout，connect-blackhole 断言耗时 700-3500ms。按 H5 要求还应逐格复核每个样本的耗时，不只看 PASS。"
@@ -7603,9 +7675,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 3,
-      "total": 3
+      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "passed": 1,
+      "total": 1
     },
     "blocked": null,
     "note": "send 超时在真实回环上生效（H5）；testkit 侧需要 send_ms 与慢读服务端，见 testkit 提议"

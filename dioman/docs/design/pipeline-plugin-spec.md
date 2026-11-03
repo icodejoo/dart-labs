@@ -112,6 +112,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 
 - **key**：算法沿用 0.7（深模式递归排序 Map、List 保序、`ignores`、`namespace`），由客户端级 `DiomanKeyOptions` 配置。请求级 `call.key`：省略为自动；字符串为显式 key；`false` 表示不参与 cache/share。在 prepare 阶段之后惰性求值。**R2b**：自动 key 并入 responseType，Map 键编码带类型标签，区分数字 1 与字符串 '1'；B8 字节体哈希加完整 base64 无损校验保持，不缩成长度加哈希。
 - **取消**：`api.cancelAll(reason)` 返回本次中止的逻辑请求数；`api.pending`。R2a 提供取消判别函数（见 0002）；R2b 把 cancelAll 的原因写进失败标记 reason，并在 next 入口遇取消时短路。
+- **截止时间（R6b）**：客户端 `deadline` 为默认整体预算，请求级 `DiomanCall.deadline` 非空值优先，均为 null 则不限；零或负值立即到期。入口用 `DiomanClock` 计时，覆盖重试、刷新排队、离线队列、share 等待与响应体传输；到期取消自身内核令牌，返回 timeout/deadline，落定清理计时器。share 按自身条件撤回，独立共享传输仅在最后订阅者退出时中止。与 timeout 插件及 Dio 阶段超时相互独立，详见[架构 §4、§8](pipeline-architecture.md#4-上下文与请求)。
 - **debug**：`Dioman(debug: true)` 使用默认日志器；记录调用点、插件告警（例如请求体无法克隆、mock 缺少 `mockUrl`）。R2b 增加“传了选项但插件没装”的 debug 告警；`Dioman<R>` 未提供 create 时构造期报错。
 
 ## 8. TokenManager
