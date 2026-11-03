@@ -49,6 +49,15 @@ import 'cutover/retirable.dart';
 import 'stt/api.dart';
 import 'stt/service.dart';
 
+/// 单次加载尝试持有的 ABR 屏蔽租约，身份也区分同尝试内的新 seek。
+class _AbrLease {
+  /// 创建归属 [attemptId] 的租约。
+  _AbrLease(this.attemptId);
+
+  /// 获取租约时的加载尝试号。
+  final int attemptId;
+}
+
 /// The production [MovaApi] implementation: reduces a [MovaKernel]'s raw streams
 /// into public state/event/progress streams and implements every capability
 /// method (playback, quality switching + ABR, live-seek gating, HUD/controls
@@ -591,11 +600,11 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   ///
   /// 换档续播链进行期间是否屏蔽 ABR。重载和续播 seek 引起的缓冲是换档自身的
   /// 代价，不是网络卡顿，不能计入降档。
-  bool _abrHold = false;
+  _AbrLease? _abrLease;
 
-  /// Safety cap for [_abrHold], in case the resume chain never reports its end.
+  /// Safety cap for [_abrLease], in case the resume chain never reports its end.
   ///
-  /// [_abrHold] 的兜底计时，防止续播链迟迟不收尾。
+  /// [_abrLease] 的兜底计时，防止续播链迟迟不收尾。
   Timer? _abrHoldTimer;
 
   /// Longest time ABR stays muted after a variant switch.
@@ -1051,6 +1060,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     }
     _recoverTimer?.cancel();
     _recoverTimer = null;
+    _releaseAbrHold();
     _attemptId++;
     _deferredFail = null;
     _recoveryAwaitingFrame = false;
@@ -1079,20 +1089,24 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// Mutes ABR until the switch's resume chain ends (or [_abrHoldCap] elapses).
   ///
   /// 屏蔽 ABR，直到换档续播链结束（或超过 [_abrHoldCap]）。
-  void _holdAbr() {
-    _abrHold = true;
+  _AbrLease _holdAbr() {
+    final lease = _abrLease = _AbrLease(_attemptId);
+    _abrPolicy.reset();
     _abrHoldTimer?.cancel();
-    _abrHoldTimer = Timer(_abrHoldCap, _releaseAbrHold);
+    _abrHoldTimer = Timer(_abrHoldCap, () => _releaseAbrHold(lease));
+    return lease;
   }
 
-  /// Ends the ABR mute and drops the stalls counted around the switch.
-  ///
-  /// 结束 ABR 屏蔽，并清掉换档前后累计的卡顿记忆。
-  void _releaseAbrHold() {
+  /// 结束 [lease] 的屏蔽；省略时强制清理，旧租约不能释放新尝试的租约。
+  void _releaseAbrHold([_AbrLease? lease]) {
+    if (lease != null &&
+        (!identical(lease, _abrLease) || lease.attemptId != _attemptId)) {
+      return;
+    }
     _abrHoldTimer?.cancel();
     _abrHoldTimer = null;
-    if (!_abrHold) return;
-    _abrHold = false;
+    if (_abrLease == null) return;
+    _abrLease = null;
     _abrPolicy.reset();
   }
 
@@ -2209,6 +2223,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _resumeVerifyTimer?.cancel();
     _resumeVerifyTimer = null;
     final chain = ++_seekChain;
+    if (notify) _holdAbr();
     final park =
         !ready &&
         state.type == MovaStreamType.vod &&
@@ -2318,6 +2333,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// - [attempt]: attempts made so far / 已尝试次数
   void _armResumeVerify(Duration target, int attempt) {
     _resumeVerifyTimer?.cancel();
+    final lease = _abrLease;
+    final chain = _seekChain;
     if (attempt >= _resumeVerifyMax) {
       // The last re-sent seek's buffering still lands after this point, so the
       // ABR mute ends one verify interval later. Giving up also disarms the
@@ -2328,16 +2345,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       // 放弃的同时解除回声抑制：内核一直在丢这次 seek，只剩真实位置可信，进度重新跟随它。
       _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
         _resumeVerifyTimer = null;
-        if (_disposed || _events.isClosed) return;
+        if (_disposed || _events.isClosed || chain != _seekChain) return;
         _pendingSeekTarget = null;
-        _releaseAbrHold();
+        if (lease != null) _releaseAbrHold(lease);
       });
       return;
     }
-    final chain = _seekChain;
     _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
       _resumeVerifyTimer = null;
-      if (_disposed || _events.isClosed) return;
+      if (_disposed || _events.isClosed || chain != _seekChain) return;
       // [_pendingSeekTarget] still armed means no echo near the target ever
       // arrived: a discarded seek leaves the kernel echoing the old position,
       // which the position listener suppresses, so [_lastPosition] is just the
@@ -2349,7 +2365,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       if (state.type != MovaStreamType.vod ||
           (_pendingSeekTarget == null &&
               _lastPosition + _seekSettleTolerance >= target)) {
-        _releaseAbrHold();
+        if (lease != null) _releaseAbrHold(lease);
         return;
       }
       if (state.buffering) return _armResumeVerify(target, attempt + 1);
@@ -2398,6 +2414,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _lastPosition = target;
     _emitEvent(MovaSeek(target));
     _armAttempt(autoPlay: _loadPlays);
+    final lease = _holdAbr();
     final uri = builder(_activeUri, behind, DateTime.now());
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
@@ -2407,6 +2424,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       reason: LoadReason.timeshift,
     );
     if (!await _loadKernel(uri, play: _loadPlays)) {
+      _releaseAbrHold(lease);
       return;
     }
     if (behind <= options.live.edgeThreshold) {
@@ -2711,10 +2729,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // 信号时已把计数归零，这里只是额外清掉上升沿记忆，不会吞掉本该发生的降档。
     // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
-    _holdAbr();
     _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     _armAttempt(autoPlay: _loadPlays);
+    final lease = _holdAbr();
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
       uri: playUri,
@@ -2722,9 +2740,14 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       resumeAt: live ? null : pos,
       reason: LoadReason.quality,
     );
-    if (!await _loadKernel(playUri, play: _loadPlays)) {
-      _releaseAbrHold();
-      return;
+    try {
+      if (!await _loadKernel(playUri, play: _loadPlays)) {
+        _releaseAbrHold(lease);
+        return;
+      }
+    } catch (_) {
+      _releaseAbrHold(lease);
+      rethrow;
     }
     // Announce the new variant as soon as the load command is issued: the
     // resume seek may be parked until the duration arrives, and delaying the
@@ -2748,7 +2771,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       await _seekOrPark(pos, forcePark: !_variantLanded);
       if (_parkedSeek != null) _holdParkUntilLanding();
     } else {
-      _releaseAbrHold();
+      _releaseAbrHold(lease);
     }
   }
 
@@ -3203,7 +3226,14 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 自动模式/已是最低档的无操作降档）才发出 [MovaAbrDownShift]。
   void _handleAbrBuffering(bool buffering) {
     if (state.keepAlivePhase == MovaKeepAlivePhase.holding) return;
-    if (_abrHold) return;
+    final lease = _abrLease;
+    if (lease != null) {
+      // 直播 seek 没有点播续播校验链，缓冲结束即归还租约。
+      if (!buffering && state.type != MovaStreamType.vod) {
+        _releaseAbrHold(lease);
+      }
+      return;
+    }
     final shouldDownshift = _abrPolicy.onBuffering(buffering);
     if (!shouldDownshift || !options.abr.enabled) return;
     if (_abrDownshiftInFlight) return;
