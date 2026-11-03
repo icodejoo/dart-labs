@@ -106,6 +106,9 @@ class MovaAbrConfig {
   final bool enabled;
 
   /// 就绪后是否自动探测 HLS 档位；默认开启，不代表接管 auto ABR。
+  /// false 关闭引擎及默认 UI 的全部自动探测；UI 自动入口还要求其
+  /// `autoLoadQualities` 为 true，两者都为 true 才自动探测。
+  /// 宿主显式调用 `api.loadQualities()` 不受这两个开关影响。
   /// 示例：`MovaAbrConfig(probeVariants: false)` 由宿主手动探测。
   final bool probeVariants;
 

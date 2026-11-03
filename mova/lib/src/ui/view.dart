@@ -126,6 +126,8 @@ class MovaView extends StatefulWidget {
   /// Whether to probe HLS quality variants after each successful open.
   ///
   /// 每次打开成功后是否探测 HLS 清晰度档位。
+  /// 本 UI 入口仅在此值与 `api.options.abr.probeVariants` 都为 true 时探测；
+  /// 引擎就绪后的自动探测由后者控制，显式 `api.loadQualities()` 不受两者影响。
   final bool autoLoadQualities;
 
   /// Called with each engine right after it is created (and after a recreate),
@@ -237,7 +239,9 @@ class _MovaViewState extends State<MovaView> {
               }
               return;
             }
-            if (widget.autoLoadQualities && identical(_engine, engine)) {
+            if (widget.autoLoadQualities &&
+                engine.options.abr.probeVariants &&
+                identical(_engine, engine)) {
               return engine.loadQualities();
             }
           })

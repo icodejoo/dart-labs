@@ -67,6 +67,8 @@ class MovaPlayer extends StatefulWidget {
   /// Whether to probe HLS quality variants after opening a source.
   ///
   /// 打开源后是否自动探测 HLS 清晰度档位。
+  /// 本 UI 入口仅在此值与 `api.options.abr.probeVariants` 都为 true 时探测；
+  /// 引擎就绪后的自动探测由后者控制，显式 `api.loadQualities()` 不受两者影响。
   final bool autoLoadQualities;
 
   /// The widget painted underneath the skin's chrome as the video surface;
@@ -143,12 +145,8 @@ class _MovaPlayerState extends State<MovaPlayer> {
   void initState() {
     super.initState();
     _components = widget.skin.components();
-    // `loadQualities()` is a no-op for non-HLS sources (MovaEngine just clears
-    // the quality list), so it's always safe to call unconditionally here.
-    //
-    // 对非 HLS 源，`loadQualities()` 是空操作（MovaEngine 只会清空清晰度
-    // 列表），因此这里无条件调用总是安全的。
-    if (widget.autoLoadQualities) {
+    // UI 自动入口也遵守引擎的自动探测总开关。
+    if (widget.autoLoadQualities && widget.api.options.abr.probeVariants) {
       widget.api.loadQualities();
     }
     _observePosterRestarts();

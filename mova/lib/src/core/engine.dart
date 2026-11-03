@@ -163,6 +163,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 客户端；宿主未注入时默认使用 [MovaIoHttpFetcher]。
   final MovaHttpFetch _fetcher;
 
+  /// 仅引擎自建的 HTTP 端口随引擎关闭。
+  final bool _ownsFetcher;
+
   /// Unified reporting sink; `null` means reporting is off — no translator is
   /// created and [report] is a no-op, so the whole feature costs nothing when
   /// unused (mirrors [MovaCutoverConfig.enabled]'s pass-through-when-off design).
@@ -340,10 +343,13 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 当前清晰度手选修订，保护在途探测不覆盖用户操作。
   int _qualityRevision = 0;
 
-  /// 已启动探测的会话，同会话只拉取一次。
+  /// 已启动探测的会话，与地址下标一起去重。
   int _qualityProbeSession = -1;
 
-  /// 当前会话的探测任务，显式调用与就绪探测共用。
+  /// 已启动探测的有效源地址下标，换档和同地址重试不改变它。
+  int _qualityProbeIndex = -1;
+
+  /// 当前会话及地址的探测任务，显式调用与就绪探测共用。
   Future<void>? _qualityProbe;
 
   /// Index into the source's addresses currently playing.
@@ -724,6 +730,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
        _audioOnly = audioOnly,
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),
+       _ownsFetcher = fetcher == null,
        _chain = MovaHookChain(interceptors),
        _brightness = brightness ?? MovaFallbackBrightnessPort(),
        _volume = volume, // ignore: prefer_initializing_formals
@@ -1349,6 +1356,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       chain.add(
         MovaVttThumbSource(
           fetcher: fetcher ?? MovaIoHttpFetcher(),
+          closeFetcher: _ownsFetcher,
           resolveUrl:
               cfg.vttUrlResolver ??
               (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
@@ -2703,8 +2711,12 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   @override
   Future<void> loadQualities() {
     if (_disposed || _source == null) return Future<void>.value();
-    if (_qualityProbeSession == _sessionGen) return _qualityProbe!;
+    if (_qualityProbeSession == _sessionGen &&
+        _qualityProbeIndex == _sourceIndex) {
+      return _qualityProbe!;
+    }
     _qualityProbeSession = _sessionGen;
+    _qualityProbeIndex = _sourceIndex;
     return _qualityProbe = _probeQualities();
   }
 
@@ -3219,6 +3231,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _resumeTimer?.cancel();
     _resumeTimer = null;
     _watchdog?.dispose();
+    if (_ownsFetcher) await _fetcher.close();
     await _restartSub?.cancel();
     await _endFileSub?.cancel();
     await _pipSub?.cancel();

@@ -16,6 +16,10 @@
 
 * **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。只有终结错误写入 `state.error`；END_FILE 已接线，QoE 结算口径不变。
 
+* **Fix：清晰度探测按会话与有效源地址下标去重**。故障切换后可显式探测新 master，旧地址迟到结果仍丢弃，同地址换档和重试继续共用请求。引擎销毁时关闭自建 fetcher，即使禁用 VTT 或自定义预览来源也取消在途探测；宿主注入的 fetcher（含默认 VTT 借用）由宿主关闭。
+
+* **Fix：`probeVariants: false` 关闭引擎和默认 MovaPlayer / MovaView 的所有自动探测**。UI 自动入口须同时满足 `autoLoadQualities && api.options.abr.probeVariants`；`autoLoadQualities: false` 仅关闭该 UI 入口，显式 `api.loadQualities()` 不受两者影响。
+
 * **Fix：直播换档与时移 seek 的 ABR 租约等待本次缓冲 true → false 后释放**。忽略 open 内部 stop 的前置 false，避免加载自身被计为卡顿；无缓冲信号时仍在 10 秒后释放，点播续播校验与换源/销毁清理保持不变。
 
 * **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。本次仍将所有内核错误写入 `state.error`；END_FILE 接线及非终结错误不写 state 的行为分别由 A14、A14b 承接，QoE 结算口径不变。

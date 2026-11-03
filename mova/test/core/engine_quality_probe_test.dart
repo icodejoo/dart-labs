@@ -21,11 +21,15 @@ const _manual = MovaQuality(label: '720p', uri: 'https://h/720.m3u8');
 
 /// 可逐次门控请求的 HTTP 端口。
 class _Fetch implements MovaHttpFetch {
+  /// 实际请求的 master 地址。
+  final urls = <Uri>[];
+
   /// 每次请求独立的应答门。
   final replies = <Completer<Uint8List?>>[];
 
   @override
   Future<Uint8List?> get(Uri url) {
+    urls.add(url);
     final reply = Completer<Uint8List?>();
     replies.add(reply);
     return reply.future;
@@ -38,7 +42,7 @@ class _Fetch implements MovaHttpFetch {
 /// 带请求门控、事件记录和真实引擎的探测夹具。
 class _Rig {
   /// [probe] 控制是否就绪后自动探测。
-  _Rig(this.clock, {bool probe = true}) {
+  _Rig(this.clock, {bool probe = true, bool recovery = false, int retries = 0}) {
     e = createMovaEngine(
       kernel: k,
       fetcher: fetch,
@@ -48,6 +52,10 @@ class _Rig {
       options: MovaOpts(
         abr: MovaAbrConfig(probeVariants: probe),
         controls: const MovaCtrlsConfig(autoHide: false),
+        recovery: MovaRecoveryConfig(
+          enabled: recovery,
+          policy: MovaRetryThenFailover(maxRetries: retries, retryDelay: Duration.zero),
+        ),
       ),
     );
     e.events.listen(events.add);
@@ -57,7 +65,7 @@ class _Rig {
   final FakeAsync clock;
 
   /// 可注入播放信号的内核。
-  final k = FakeKernel();
+  final k = FakeStatsKernel();
 
   /// 独立控制每次探测返回的 fetcher。
   final fetch = _Fetch();
@@ -93,6 +101,53 @@ class _Rig {
 }
 
 void main() {
+  for (final completed in [false, true]) {
+    test('F-F failover probes new address after ${completed ? "completed" : "pending"} old probe', () {
+      fakeAsync((clock) {
+        final r = _Rig(clock, recovery: true);
+        r.e.open(const MovaSource('https://h/a.m3u8', alternatives: ['https://h/b.m3u8']));
+        clock.flushMicrotasks();
+        final old = r.e.loadQualities();
+        if (completed) r.reply(0, _master);
+        r.k.emitEndFile(MovaEndFileReason.error);
+        clock.flushMicrotasks();
+        clock.elapse(Duration.zero);
+        expect(r.e.state.sourceIndex, 1);
+        final next = r.e.loadQualities();
+        clock.flushMicrotasks();
+        expect(identical(old, next), isFalse);
+        expect(r.fetch.urls.map((u) => u.toString()), ['https://h/a.m3u8', 'https://h/b.m3u8']);
+        r.reply(1, _master);
+        final count = r.events.whereType<MovaQualityListChange>().length;
+        if (!completed) r.reply(0, null);
+        expect(r.e.state.qualities.last.uri, 'https://h/720.m3u8');
+        expect(r.e.state.qualities, hasLength(2));
+        expect(r.events.whereType<MovaQualityListChange>(), hasLength(count));
+        expect(identical(next, r.e.loadQualities()), isTrue);
+        r.close();
+      });
+    });
+  }
+
+  test('F-F same address quality switch and recovery retry reuse probe', () {
+    fakeAsync((clock) {
+      final r = _Rig(clock, recovery: true, retries: 1)..open();
+      final pending = r.e.loadQualities();
+      r.e.switchQuality(_manual);
+      clock.flushMicrotasks();
+      r.k.emitEndFile(MovaEndFileReason.error);
+      clock.flushMicrotasks();
+      clock.elapse(Duration.zero);
+      expect(r.k.lastUri, _manual.uri);
+      expect(r.e.state.sourceIndex, 0);
+      expect(identical(pending, r.e.loadQualities()), isTrue);
+      r.reply(0, _master);
+      expect(identical(pending, r.e.loadQualities()), isTrue);
+      expect(r.fetch.urls, hasLength(1));
+      r.close();
+    });
+  });
+
   test('A12 imperative open probes by default without a mounted player', () {
     fakeAsync((clock) {
       final r = _Rig(clock)..open();

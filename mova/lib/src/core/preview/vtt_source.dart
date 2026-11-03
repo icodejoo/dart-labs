@@ -53,6 +53,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   ///
   /// - [fetcher]: HTTP port used for the track and sprites / 拉取轨与雪碧图的
   ///   HTTP 端口
+  /// - [closeFetcher]: 销毁时是否关闭端口，借用宿主端口时设为 false。
   /// - [resolveUrl]: strategy locating the track, defaults to [defaultVttUrl] /
   ///   定位轨的策略，默认为 [defaultVttUrl]
   /// - [maxSprites]: how many sprite sheets stay memoised / 最多记忆多少张雪碧图
@@ -62,6 +63,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// 示例：`MovaVttThumbSource(fetcher: fetcher, retryDelay: Duration(seconds: 10))`。
   MovaVttThumbSource({
     required this.fetcher,
+    this.closeFetcher = true,
     this.resolveUrl = defaultVttUrl,
     this.maxSprites = 4,
     this.retryDelay = const Duration(seconds: 30),
@@ -81,6 +83,9 @@ class MovaVttThumbSource implements MovaThumbSource {
   ///
   /// 拉取轨及其雪碧图所用的 HTTP 端口。
   final MovaHttpFetch fetcher;
+
+  /// 销毁时是否关闭 HTTP 端口；借用宿主端口时设为 false，默认 true。
+  final bool closeFetcher;
 
   /// Strategy locating the WebVTT track for a media.
   ///
@@ -216,6 +221,6 @@ class MovaVttThumbSource implements MovaThumbSource {
   @override
   Future<void> dispose() async {
     await reset();
-    await fetcher.close();
+    if (closeFetcher) await fetcher.close();
   }
 }
