@@ -1,6 +1,6 @@
 # CP1 逐项收口
 
-本人执行，不转派；只修改 wt-mova-cp1/mova。历史报告中的原始 FAIL 不删除，以下为修正后的独立复测。
+本人执行，不转派；代码改动位于 wt-mova-cp1/mova。Windows 构建曾误写外部既有安装目录，范围偏差见第 5/6 项，不能声称全部写入均在 worktree。历史报告中的原始 FAIL 不删除，以下为修正后的独立复测。
 
 ## 1. H28 落点采样
 
@@ -88,3 +88,9 @@ keepAlive 最终复核：当前 `cp1-close-keepalive-2002` 五轮各 24/24 组�
 四项原生功能各3/3 PASS：F3三模式各1、dispose三轮（普通/代理各两次，共12调用）、V6三轮（误差均0ms）、V10三轮（route/TickerMode、0崩溃）。证据 `example/tool/coverage_evidence/win-cp1-close-2043/result.json`；7次有效启动全部经win_policy、640×360、NOACTIVATE/TOOLWINDOW，逐100ms观察前台违规0。完整安静记录 `2026-11-03-win-quiet-mode.md`。CP0 Windows缺数字基线，F3/dispose/V6比较仍BLOCKED；V10绝对功能线PASS。
 
 本项 Flutter test 0；Python策略11 PASS、静态焦点闸门PASS、matrix --check PASS。构建先遇CMake/VS兼容问题，只改生成cache。首次成功构建因缓存默认prefix误写既有Program Files目录，且本树启动缺DLL失败；无用例样本。无旧备份不能安全回滚外部覆盖，已明确向用户报告，清单保留。现构建前prefix及构建后完整安装路径双重检查，随后构建/采样均限定本树。详见安静记录和 external-install-incident.json，不声称所有写入均符合原范围约束。
+
+## 6. 报告与总计划收口
+
+16行最终 PASS13 / FAIL0 / BLOCKED3，细分49行 PASS39 / BLOCKED10。原15条FAIL原样保留、更新行previous保留旧数字、缺测及归因不被功能PASS覆盖。7b历史协议责任未定；B块仍缺系统字段/有效抽帧/底栏刺激/性能基线；Windows缺CP0数字比较。额外POD2两行FirstFrame公共契约缺测保留，不计入16行。`cp1_closeout_results.py` 从固定原报告revision读取，验证原生CHECK数量、哈希、落点、视觉对照与原始失败数组；逐行输出证据路径及下标。
+
+最终设备恢复 VERIFIED：音量0、常亮7、既有gnirehtet映射与原始值完全一致；当前APK拉回SHA256=a7e4ccc9954a643a4843198ccd50247ff1f357d4b3de1dbd243aa2909875dd7d。原恢复记录另存 `cp1-original-session-restored-before-closeout.json`；未遗留本次Windows应用/源服务/ffmpeg子进程。越界构建写入既有Program Files目录的偏差及不可恢复原因同时写入报告与总计划，没有隐藏。

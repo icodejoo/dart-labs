@@ -1013,6 +1013,42 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 
 设备时间：首轮 Android 3 天 + Windows 0.5 天（含新增 A12/N6、A16、B11–B12 检查行）；预留一轮修复复测 2 天。
 
+#### 2026-11-03 CP1 报告逐项收口
+
+本人独立执行，按六项顺序提交。原报告16行 PASS7/FAIL3/BLOCKED6；本次 **PASS13 / FAIL0 / BLOCKED3，CP1仍未整体通过**。原始15条FAIL及所有中间缺测不回写，完整历史、逐行新下标与构建哈希见 `doc/plans/2026-11-03-cp1-results.md` / `.json`；过程见 `2026-11-03-cp1-closeout.md`。未改 lib，修复集中于验证器、采样时序和夹具。未列为复测的既有PASS保留原APK/证据归属。
+
+|CP1行|实测/计划|新结论|证据路径（相对mova）|
+|---|---:|---|---|
+|F3/A17 precise 三组|280/280|PASS|example/tool/coverage_evidence/matrix-cp1-android-cutover-20261103-1656-precise-cutover/cp0-result.json|
+|H28 默认三组|90/90|PASS|example/tool/coverage_evidence/matrix-cp1-close-h28-r3-1818-cp0-h28/cp0-result.json|
+|H20/H50 HLS|60/60|PASS|example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json|
+|P0-2 三种触发|30/30|PASS|example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json|
+|keepAlive S1/S7/S13/S14|20/20|PASS|example/tool/coverage_evidence/cp1-close-keepalive-review/visual-review.json；example/tool/coverage_evidence/cp1-close-keepalive-core-comparison.json|
+|终审7a|10/10|PASS|example/tool/coverage_evidence/matrix-cp1-close-wakeswap-1838/matrix-cp1-close-wakeswap-1838-cp1-wakeswap.json|
+|终审7b / fallback|20/20|BLOCKED|example/tool/coverage_evidence/matrix-cp1-close-edgepause-relative-2023/matrix-cp1-close-edgepause-relative-2023-cp1-edgepause.json（旧归因见原1542批次 records[1256,1258,1281,1539,1540]）|
+|H35 / 手选720p重试|20/20|PASS|example/tool/coverage_evidence/matrix-cp1-close-recovery-r3-1853/matrix-cp1-close-recovery-r3-1853-cp1-recovery.json|
+|错误分级|10/10|PASS|example/tool/coverage_evidence/matrix-cp1-close-errclass-1832/matrix-cp1-close-errclass-1832-cp1-errclass.json|
+|A14 poster|5/5|PASS|example/tool/coverage_evidence/matrix-cp1-close-errclass-1832/matrix-cp1-close-errclass-1832-cp1-errclass.json|
+|A12/N6 探测|40/40|PASS|example/tool/coverage_evidence/matrix-cp1-close-probe-1858/matrix-cp1-close-probe-1858-cp1-probe.json|
+|A16 / A11|20/20|PASS|example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json|
+|B11/B12 池与feed|13/13|PASS|example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json|
+|A23/F13 dispose120|120/120|PASS|example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json|
+|B块亮度/全屏/预览/抽帧/底栏/弹幕|18/21|BLOCKED|example/tool/coverage_evidence/matrix-cp1-b-extract-20261103-1640/extract-results.json|
+|Windows|12/12|BLOCKED|example/tool/coverage_evidence/win-cp1-close-2043/result.json；doc/plans/2026-11-03-win-quiet-mode.md|
+
+- H28暂停/cutover原0秒读回是在既有链恢复前提前采样，原时序确认下一次seek前已自愈；稳定窗4红→4绿，既有链新增2条回归通过，三模式各30/30。没有产品修复红绿（lib未改）。
+- B14/C06已落地lockToggle，更新完整有序快照；三轮目标12/12 PASS，另立B.skin辅助行。B03底栏专属刺激仍0/3，不拿skin代替。
+- 独立404 END_FILE：原CHECK仅晚于核心fatal33.242ms，早于100ms独立泵，立即释放造成缺采；等待真实END_FILE再释放，新5/5。
+- 7a延迟夹具网络超时调到20s后10/10；恢复限速/预读上限与原生稳定落点后20/20；探测真实滑动直播主源404、备用源和关闭组补齐40/40。
+- 7b/fallback：绝对URI20/20、保留原始相对URI对照20/20，但旧协议错误未复现，服务/产品责任未闭合，因此整行仍BLOCKED。输出形状测试2红→2绿仅证明夹具契约，不能证明旧问题根因。
+- keepAlive：CP0产品revision a5c317f6归档重建同一诊断入口，原生库与原APK哈希一致；S1/S13两版各5轮，S7/S14阶段token、双帧运动、精确ACK及人工联系表齐备。原CP0首轮采图缺失保留BLOCKED并显式补采；当前四场景20/20 PASS。
+- Windows依本次用户约束每项最多3次：F3三模式各1、dispose/V6/V10各3；当前功能12/12 PASS、V10 0崩溃。7次有效启动经win_policy、640×360、NOACTIVATE/TOOLWINDOW，965次只读观察前台违规0。CP0数字基线仍PENDING，F3/dispose/V6“不劣于CP0”仍BLOCKED。本次不能替代原20/30次目标。
+- B块仍缺：OEM系统亮度/Insets字段完整对账、有效抽帧前提、底栏专属刺激、弹幕同口径性能基线/判据。额外POD2公共FirstFrame契约两行仍BLOCKED，不计入本表16行。
+- 检查：Flutter全量2094 PASS，皮肤24、事件泵24、恢复/探测23 PASS，均 --concurrency=3；analyze未与全量并行。Python closeout12、matrix56、Windows策略11 PASS，matrix --check PASS。设备原音量0/常亮7/既有gnirehtet映射已逐值核验恢复，最后APK拉回哈希一致。
+- 执行偏差：Windows首次CMake配置失败留下Program Files默认安装prefix，后续构建误覆盖既有 `C:\Program Files\mova_example`；无旧备份无法安全恢复，已明确告知用户且未删除既有目录。之后固定本树prefix，并在构建前后核验路径。清单 `example/tool/coverage_evidence/win-cp1-close-2039/external-install-incident.json`。此处不能声称本轮所有写入均在worktree内。
+
+前五提交：a0420953、e3879cbb、7140747b、ca071d9d、f3320979；第六提交为本报告/总计划收口，最终hash见git记录。
+
 ### CP2 会话、广告与后台（A30 之后）
 
 | 项 | 次数 | 通过标准 |
