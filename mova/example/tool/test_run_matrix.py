@@ -3,6 +3,7 @@
 纯 Python 回归单测，不连接设备、不运行 Flutter。
 """
 import ast
+import argparse
 import contextlib
 import copy
 import io
@@ -25,6 +26,72 @@ class MatrixTests(unittest.TestCase):
     def setUp(self):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+
+    def test_evidence_reducer_failure_missing_alias_and_no_ledger(self):
+        from matrix_evidence import reduce_evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            m=dict(ids=['A6','A7','E.MovaSwapChange'],manual=[])
+            rules={'A6':dict(requires=[dict(kind='check',ident='A6.pause')]),
+                   'A7':dict(requires=[dict(kind='check',ident='A7.seek')],missing=['seekBy']),
+                   'E.MovaSwapChange':dict(requires=[dict(kind='event',name='MovaSwapChange')])}
+            (out/'unit-ledger.json').write_text(json.dumps(dict(rows=[dict(id='A6',status='PASS')])))
+            records=[dict(kind='CHECK',id='A6.pause',**{'pass':False}),dict(kind='BEGIN'),
+                     dict(kind='CHECK',id='A6.pause',**{'pass':True}),
+                     dict(kind='CHECK',id='A7.seek',**{'pass':False}),
+                     dict(kind='EVENT',ms=123,event='MovaCutoverChange',payload={},state={})]
+            (out/'unit-test.json').write_text(json.dumps(dict(status='done',records=records)))
+            v=reduce_evidence(m,out,'unit-',rules)
+            self.assertEqual(v['A6']['status'],'PASS')
+            self.assertEqual(v['A7']['status'],'FAIL')
+            self.assertEqual(v['E.MovaSwapChange']['status'],'PASS')
+            self.assertTrue(all(r['status']=='BLOCKED' for r in reduce_evidence(m,out,'other-',rules).values()))
+            records[-2]['pass']='false'
+            (out/'unit-test.json').write_text(json.dumps(dict(status='done',records=records)))
+            self.assertEqual(reduce_evidence(m,out,'unit-',rules)['A7']['status'],'BLOCKED')
+
+    def test_evidence_requires_sources_and_boolean_checks(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            (out/'unit-a.json').write_text(json.dumps(dict(status='done',records=[dict(kind='CHECK',id='A4',**{'pass':True})])))
+            ev=Evidence(out,'unit-')
+            self.assertEqual(ev.check('A4',sources=['a.json','b.json'])[0],'BLOCKED')
+            (out/'unit-b.json').write_text(json.dumps(dict(status='done',records=[dict(kind='CHECK',id='A4',**{'pass':False})])))
+            self.assertEqual(Evidence(out,'unit-').check('A4',sources=['a.json','b.json'])[0],'FAIL')
+            (out/'unit-b.json').write_text('{broken')
+            ev=Evidence(out,'unit-')
+            self.assertEqual(ev.check('A4',sources=['a.json','b.json'])[0],'BLOCKED')
+            self.assertTrue(ev.errors)
+
+
+    def test_rate_sequence_uses_actual_events_and_hls_requires_modes(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder)
+            for mode in ('basic','basic-cutover'):
+                records=[dict(kind='RATE',input=v,actual=99) for v in (.5,1,1.5,2,-1,0)]
+                records += [dict(kind='EVENT',event='MovaRateChange',payload=dict(value=v)) for v in (.5,1,1.5,2,.25,.25)]
+                (out/('unit-rerun-batch15-'+mode+'.json')).write_text(json.dumps(dict(status='done',records=records)))
+            ev=Evidence(out,'unit-')
+            self.assertEqual(ev.rate_sequence()[0],'PASS')
+            (out/'unit-hls.json').write_text(json.dumps(dict(status='done',records=[dict(kind='HLS_RESULT',cutover=False,paused=False,**{'pass':True})])))
+            self.assertEqual(Evidence(out,'unit-').hls(variants=[dict(cutover=True,paused=False)])[0],'BLOCKED')
+
+
+    def test_rule_and_raw_schema_errors_block_without_crashing(self):
+        from matrix_evidence import reduce_evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out=Path(folder);m=dict(ids=['A6'],manual=[])
+            rules={'A6':dict(requires=[dict(kind='not_a_validator')])}
+            self.assertEqual(reduce_evidence(m,out,'unit-',rules)['A6']['status'],'BLOCKED')
+            (out/'unit-invalid.json').write_text(json.dumps(dict(records=[None])))
+            rules={'A6':dict(requires=[dict(kind='check',ident='A6.pause')])}
+            result=reduce_evidence(m,out,'unit-',rules)['A6']
+            self.assertEqual(result['status'],'BLOCKED')
+            self.assertIn('证据解析错误',result['evidence'])
+
+
 
     def test_real_manifest(self):
         """Require exactly the canonical 135 IDs / 必须覆盖规范的135编号。"""

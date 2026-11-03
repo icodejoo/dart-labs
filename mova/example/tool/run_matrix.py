@@ -5,6 +5,7 @@ Android 覆盖回归入口；list/check/dry-run 完全离线。
 import argparse
 import ast
 from collections import Counter
+from matrix_evidence import reduce_evidence
 from datetime import datetime
 import hashlib
 import json
@@ -92,7 +93,8 @@ def validate_manifest(manifest, root=ROOT):
                 path=Path(expand([batch['result_path']], 'check', tool)[0])
                 if not path.is_relative_to(tool) or path.suffix!='.json':
                     raise ValueError('result_path 必须在 tool 内并以 .json 结尾')
-                if not isinstance(batch.get('argv'),list) or batch['argv'][1]!='{tool}/coverage_gap.py':
+                expected_script='{tool}/coverage_cp0.py' if batch.get('cp0_driver') else '{tool}/coverage_gap.py'
+                if not isinstance(batch.get('argv'),list) or batch['argv'][1]!=expected_script:
                     raise ValueError('native_driver 仅用于独立 gap 驱动')
             except (KeyError,ValueError,IndexError) as e:
                 errors.append(f'{ident}: 非法 native_driver 元数据: {e}')
@@ -181,6 +183,17 @@ def gap_result_kind(result, run_id, group, code):
     return 'OK' if result['completed'] else 'BLOCKED'
 
 
+def cp0_result_kind(result, run_id, group, code):
+    """CP0 completes on evidence presence, never on a product threshold."""
+    if result.get('run_id')!=run_id or result.get('group')!=group:
+        raise ValueError('CP0 identity mismatch')
+    if not isinstance(result.get('harness'),list) or not isinstance(result.get('records'),list):
+        raise ValueError('CP0 schema mismatch')
+    if code or result['harness']:return 'HARNESS'
+    if result.get('completed') is not True or not result.get('verdicts'):return 'BLOCKED'
+    return 'OK'
+
+
 def read_ledger(data):
     """Normalize existing finalizer ledgers / 兼容已有终审台账格式。"""
     rows = data['rows'] if isinstance(data, dict) else data
@@ -226,12 +239,25 @@ def make_rows(manifest, results, explicit):
         status, detail = 'BLOCKED', manual.get(ident, '缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。')
         if ident not in manual and not completed:
             detail = '覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。'
-        if ident not in manual and completed and ident in explicit:
+        if ident not in manual and ident in explicit and (completed or explicit[ident].get('evidence_only')):
             status, detail = explicit[ident]['status'], explicit[ident]['evidence']
+            bad=[n for n in names if n in results and results[n]['kind'] not in ('OK',)]
+            if explicit[ident].get('evidence_only') and bad and status!='FAIL':
+                status='BLOCKED';detail='验证器错误/批次未完成 '+', '.join(bad)+'；'+detail
         rows.append(dict(id=ident, status=status, evidence=detail, batches=names,
                          reproduction='python example/tool/run_matrix.py --only ' + ','.join(names) if names else 'manual',
                          pointers=evidence, subitems=explicit.get(ident, {}).get('subitems', [])))
     return rows
+
+
+def replay_results(manifest, out, prefix):
+    """Read process completion markers only, never legacy VERDICT lines."""
+    path=Path(out)/(prefix+'driver.log')
+    content=path.read_text(encoding='utf-8',errors='replace') if path.exists() else ''
+    found={name:dict(kind=kind,driver=path.name,error='' if kind=='OK' else '原始批次未成功完成')
+           for name,kind in re.findall(r'<case=([^>]+)> END exit=-?\d+ seconds=[\d.]+ kind=(\w+)',content)}
+    return {b['id']:found.get(b['id'],dict(kind='BLOCKED',driver=path.name,error='缺批次 END 完成记录/批次未执行'))
+            for b in manifest['batches'] if not b.get('cp0_driver')}
 
 
 def render_summary(run_id, rows, comparison, results, baseline):
@@ -634,7 +660,10 @@ class Driver:
             try:
                 result_path=Path(expand([job['result_path']],self.args.run_id)[0])
                 gap_result=json.loads(result_path.read_text(encoding='utf-8'))
-                kind=gap_result_kind(gap_result,self.args.run_id,case.removeprefix('gap-'),code)
+                if job.get('cp0_driver'):
+                    kind=cp0_result_kind(gap_result,self.args.run_id,case.removeprefix('cp0-'),code)
+                else:
+                    kind=gap_result_kind(gap_result,self.args.run_id,case.removeprefix('gap-'),code)
             except (OSError,ValueError,KeyError) as e:
                 kind='HARNESS';error=f'gap completion metadata: {e}'
         self.results[case]=dict(kind=kind,exit=code,seconds=time.monotonic()-start,driver=str(path),error=error or ('子命令失败/缺完成标记' if kind=='HARNESS' else ''))
@@ -646,7 +675,7 @@ class Driver:
         if kind!='OK' or observations:
             self.capture_failure(case)
         # Full-ID product verdicts are independent of the verifier exit code.
-        product_failure=any(v['status']=='FAIL' for v in existing_verdicts(self.out,self.prefix).values())
+        product_failure=bool(observations)
         if gap_result is not None:
             product_failure |= any(v.get('status')=='FAIL' for v in gap_result.get('verdicts',[]))
         if product_failure:
@@ -715,6 +744,7 @@ def main(argv=None):
     parser.add_argument('--from',dest='start')
     parser.add_argument('--run-id',default=datetime.now().strftime('%Y%m%d-%H%M%S'))
     parser.add_argument('--baseline',type=Path,default=BASELINE)
+    parser.add_argument('--replay',type=Path,help='离线重放该目录中的原始证据；不访问设备')
     args=parser.parse_args(argv)
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,79}',args.run_id):
         parser.error('run-id 只允许字母数字、点、下划线和短横线，最多80字符')
@@ -753,6 +783,20 @@ def main(argv=None):
             print(job['id']+': '+subprocess.list2cmdline(command if job.get('native_driver') else preview(command,job['id'])))
         print('finally：force-stop、恢复媒体音量/USB 常亮、移除自有映射、终止自有服务树；生成 MD/JSON')
         return 0
+    if args.replay:
+        baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
+        explicit=reduce_evidence(manifest,args.replay,f'matrix-{args.run_id}-')
+        results=replay_results(manifest,args.replay,f'matrix-{args.run_id}-')
+        rows=make_rows(manifest,results,explicit)
+        comparison=compare_ledgers(rows,baseline)
+        target=ROOT/'doc/plans'/f'{datetime.now():%Y-%m-%d}-matrix-replay-{args.run_id}'
+        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=results,evidence=str(args.replay))
+        Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+        Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,results,args.baseline),encoding='utf-8')
+        print(json.dumps(data['counts']))
+        for row in rows:
+            if row['status']=='BLOCKED':print(row['id']+': '+row['evidence'][:400])
+        return 0
     baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
     read_ledger(baseline)
     driver=Driver(args,manifest)
@@ -761,7 +805,8 @@ def main(argv=None):
     try:
         driver.preflight()
         driver.build()
-        driver.services()
+        if not all(b.get('cp0_driver') for b in selected):
+            driver.services()
         for job in selected:
             bad_dependencies=[d for d in job['dependencies'] if d in driver.results and driver.results[d]['kind']!='OK']
             if bad_dependencies:
@@ -783,10 +828,7 @@ def main(argv=None):
         driver.results['driver']=dict(kind='HARNESS',driver=str(driver.log),error=str(error))
     finally:
         driver.cleanup()
-        explicit={i:dict(status=s,evidence=d) for i,s,d in re.findall(r'^\| (\S+) \| (PASS|FAIL) \| (.*?) \|$',checkpoint.read_text(encoding='utf-8'),re.M)}
-        subitems=subitem_verdicts(driver.out,driver.prefix)
-        explicit={**subitems, **explicit}
-        explicit.update(existing_verdicts(driver.out,driver.prefix))
+        explicit=reduce_evidence(manifest,driver.out,driver.prefix)
         rows=make_rows(manifest,driver.results,explicit)
         for row in rows:
             driver.note('EXPECT','完整本轮编号判据通过；缺判据或验证器错误则 BLOCKED',row['id'])
@@ -798,6 +840,8 @@ def main(argv=None):
         Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,driver.results,args.baseline),encoding='utf-8')
         print(Path(str(target)+'.md'))
+    if all(b.get('cp0_driver') for b in selected):
+        return 1 if any(r['kind']!='OK' for r in driver.results.values()) else 0
     return 1 if any(r['status']!='PASS' for r in rows) or any(r['kind']!='OK' for r in driver.results.values()) else 0
 
 

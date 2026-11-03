@@ -1,0 +1,2168 @@
+{
+  "A1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A1",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A1.closed"
+      },
+      {
+        "kind": "check",
+        "ident": "A1.progress"
+      },
+      {
+        "kind": "check",
+        "ident": "A1.coverage1",
+        "missing": "四流多订阅者同序列；broadcast 标志不是现行契约"
+      }
+    ]
+  },
+  "A2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A2",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaBufferChange"
+      },
+      {
+        "kind": "event",
+        "name": "MovaSizeChange"
+      },
+      {
+        "kind": "event",
+        "name": "MovaQualityChange"
+      },
+      {
+        "kind": "event",
+        "name": "MovaRateChange"
+      },
+      {
+        "kind": "event",
+        "name": "MovaVolumeChange"
+      },
+      {
+        "kind": "event",
+        "name": "MovaBrightChange"
+      },
+      {
+        "kind": "check",
+        "ident": "A2.coverage1",
+        "missing": "position/intent/renderEpoch/sourceIndex 等全部字段逐事件对账"
+      }
+    ]
+  },
+  "A3": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A3",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A3.audio",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A3.lazyBefore"
+      },
+      {
+        "kind": "check",
+        "ident": "A3.lazyOpened"
+      },
+      {
+        "kind": "check",
+        "ident": "A3.lazyRead"
+      }
+    ]
+  },
+  "A4": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A4",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A4",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      }
+    ]
+  },
+  "A5": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A5",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A5.paused"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.accept"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.reject"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.superseded"
+      },
+      {
+        "kind": "check",
+        "ident": "A5.coverage1",
+        "missing": "recovery 关闭时内核 open 抛出异常的真机用例（404 accepted 不是同步 open 异常）"
+      }
+    ]
+  },
+  "A6": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A6",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A6.pause",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A6.coverage1",
+        "missing": "重复 play/pause 幂等与 playOrPause 两方向独立 CHECK"
+      }
+    ]
+  },
+  "A7": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A7",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A7.seek"
+      },
+      {
+        "kind": "check",
+        "ident": "A7.negative"
+      },
+      {
+        "kind": "check",
+        "ident": "A7.live"
+      },
+      {
+        "kind": "record",
+        "name": "SEEK_LOADING",
+        "assertions": [
+          {
+            "field": "position",
+            "op": "near",
+            "value": 7000,
+            "tolerance": 500
+          }
+        ]
+      },
+      {
+        "kind": "record",
+        "name": "SEEK_BY",
+        "assertions": [
+          {
+            "field": "position",
+            "op": "near",
+            "value": 9000,
+            "tolerance": 500
+          }
+        ]
+      },
+      {
+        "kind": "record",
+        "name": "SEEK_BEYOND",
+        "assertions": [
+          {
+            "field": "position",
+            "op": "eq",
+            "other": "duration"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A7.coverage1",
+        "missing": "丢 seek 重发的独立原生调用次数断言"
+      }
+    ]
+  },
+  "A8": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A8",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A8.clamp",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "volume"
+      }
+    ]
+  },
+  "A9": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A9",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A9.clamp",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "record",
+        "name": "BRIGHTNESS_NATIVE",
+        "assertions": [
+          {
+            "field": "native",
+            "op": "clamp",
+            "low": 0,
+            "high": 1,
+            "input": "input",
+            "tolerance": 0.01
+          },
+          {
+            "field": "state",
+            "op": "near",
+            "other": "native",
+            "tolerance": 0.01
+          }
+        ],
+        "minimum": 6
+      }
+    ]
+  },
+  "A10": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A10",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A10.persist",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "rate_sequence"
+      }
+    ]
+  },
+  "A11": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A11",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fit.contain"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fit.contain"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fit.cover"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fit.cover"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fit.fill"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fit.fill"
+      },
+      {
+        "kind": "check",
+        "ident": "A11.coverage1",
+        "missing": "三种 fit 的画面差异自动量化"
+      }
+    ]
+  },
+  "A12": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A12",
+    "requires": [
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.zoom",
+            "op": "eq",
+            "value": 1
+          }
+        ],
+        "files": "rerun-batch3-05-zoom--1.json"
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.zoom",
+            "op": "eq",
+            "value": 1
+          }
+        ],
+        "files": "rerun-batch3-06-zoom-0.json"
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.zoom",
+            "op": "eq",
+            "value": 1
+          }
+        ],
+        "files": "rerun-batch3-07-zoom-1.json"
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.zoom",
+            "op": "eq",
+            "value": 2
+          }
+        ],
+        "files": "rerun-batch3-08-zoom-2.json"
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.zoom",
+            "op": "eq",
+            "value": 100
+          }
+        ],
+        "files": "rerun-batch3-09-zoom-100.json"
+      }
+    ]
+  },
+  "A13": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A13",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.lock"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.lock"
+      },
+      {
+        "kind": "check",
+        "ident": "A13.coverage1",
+        "missing": "锁定前后手势屏蔽的原生亮度/音量对账"
+      }
+    ]
+  },
+  "A14": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A14",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fullscreen.true"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fullscreen.true"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fullscreen.false"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fullscreen.false"
+      },
+      {
+        "kind": "check",
+        "ident": "A14.coverage1",
+        "missing": "原生窗口方向及系统栏恢复对账"
+      }
+    ]
+  },
+  "A15": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A15",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A15.coverage1",
+        "missing": "MiniHost→PiP→展开的小窗可见性与状态自动对账"
+      }
+    ]
+  },
+  "A16": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A16",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A16.coverage1",
+        "missing": "landscape/portrait/auto 原生方向对账"
+      }
+    ]
+  },
+  "A17": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A17",
+    "requires": [
+      {
+        "kind": "hls",
+        "variants": [
+          {
+            "cutover": false,
+            "paused": false
+          },
+          {
+            "cutover": true,
+            "paused": false
+          },
+          {
+            "cutover": false,
+            "paused": true
+          }
+        ],
+        "minimum": 5
+      }
+    ]
+  },
+  "A18": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A18",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A18.coverage1",
+        "missing": "进入/展开/真正点 X 后原生 pinned 与 PipChange 对账"
+      }
+    ]
+  },
+  "A19": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A19",
+    "requires": [
+      {
+        "kind": "record",
+        "name": "RELOAD",
+        "assertions": [
+          {
+            "field": "position",
+            "op": "near",
+            "value": 0,
+            "tolerance": 500
+          },
+          {
+            "field": "duration",
+            "op": "ge",
+            "value": 1
+          }
+        ],
+        "minimum": 2
+      }
+    ]
+  },
+  "A20": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A20",
+    "requires": [
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.timeshiftBehind",
+            "op": "near",
+            "value": 8000,
+            "tolerance": 500
+          },
+          {
+            "field": "state.liveSeekable",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        "files": "rerun-live-*-behind.json",
+        "minimum": 3
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.position",
+            "op": "near",
+            "other": "state.seekableWindow",
+            "tolerance": 500
+          }
+        ],
+        "files": "rerun-live-*-backedge.json",
+        "minimum": 3
+      }
+    ]
+  },
+  "A21": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A21",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A21.hide",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A21.hud",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A21.coverage1",
+        "missing": "show/sticky/dragging/previewAt CHECK"
+      }
+    ]
+  },
+  "A22": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A22",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A22",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      }
+    ]
+  },
+  "A23": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A23",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A23.doubleDispose",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A23.postOpen",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "A23.120"
+      }
+    ]
+  },
+  "A24": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A24",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A24.abandon"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.commit"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.cutoverTo"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.retired"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.short"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.timeout"
+      }
+    ]
+  },
+  "A25": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A25",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A25.pause"
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S13",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S17",
+        "minimum": 3
+      }
+    ]
+  },
+  "A26": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A26",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A26.coverage1",
+        "missing": "mini 拖动/吸边/关闭/转屏钳回自动对账"
+      }
+    ]
+  },
+  "A27": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A27",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A27.rolls"
+      },
+      {
+        "kind": "check",
+        "ident": "C9.waits"
+      }
+    ]
+  },
+  "A28": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A28",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A28.start"
+      },
+      {
+        "kind": "check",
+        "ident": "A28.end"
+      },
+      {
+        "kind": "check",
+        "ident": "A28.auto"
+      }
+    ]
+  },
+  "A29": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A29",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A29.dispose"
+      },
+      {
+        "kind": "check",
+        "ident": "A29.final"
+      },
+      {
+        "kind": "check",
+        "ident": "A29.coverage1",
+        "missing": "prefetcher 预取命中与池回收完整 CHECK"
+      }
+    ]
+  },
+  "A30": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A30",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A30.diskHit"
+      },
+      {
+        "kind": "check",
+        "ident": "A30.coverage1",
+        "missing": "VTT/抽帧/断网/取消/过期请求全部模式自动对账"
+      }
+    ]
+  },
+  "A31": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A31",
+    "requires": []
+  },
+  "A32": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A32",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A32.seekVeto"
+      },
+      {
+        "kind": "check",
+        "ident": "A32.afterThrow"
+      },
+      {
+        "kind": "check",
+        "ident": "A32.onErrorIsolation"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.reject"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.superseded"
+      }
+    ]
+  },
+  "A33": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / A33",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "A33"
+      }
+    ]
+  },
+  "C1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C1",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C1.coverage1",
+        "missing": "预览全部配置及 VTT/抽帧/断网/取消判据"
+      }
+    ]
+  },
+  "C2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C2",
+    "requires": []
+  },
+  "C3": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C3",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C3.coverage1",
+        "missing": "手势双指捏合/单击/锁定/轴重映射完整 CHECK（长按倍速已非契约）"
+      }
+    ]
+  },
+  "C4": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C4",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C4.coverage1",
+        "missing": "ABR policy 配置与真实限速降档自动对账"
+      }
+    ]
+  },
+  "C5": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C5",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C5.coverage1",
+        "missing": "所有 controls 配置的逐项可见性/计时 CHECK"
+      }
+    ]
+  },
+  "C6": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C6",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C6.coverage1",
+        "missing": "弹幕显示开关与 items 滚动自动对账（无发送框是现行契约）"
+      }
+    ]
+  },
+  "C7": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C7",
+    "requires": []
+  },
+  "C8": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C8",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C8.coverage1",
+        "missing": "playlist 配置与 NextUp 取消/立即播放 CHECK"
+      }
+    ]
+  },
+  "C9": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C9",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C9.waits"
+      },
+      {
+        "kind": "check",
+        "ident": "A27.rolls"
+      }
+    ]
+  },
+  "C10": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C10",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C10.coverage1",
+        "missing": "strings/theme 替换及缓冲三字段渲染量化 CHECK"
+      }
+    ]
+  },
+  "C11": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C11",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C11.off"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.commit"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.cutoverTo"
+      }
+    ]
+  },
+  "C12": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C12",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C12.coverage1",
+        "missing": "mini 默认关闭/吸边/转屏钳回 CHECK"
+      }
+    ]
+  },
+  "C13": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C13",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C13.off",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C13.coverage1",
+        "missing": "heartbeat 默认无定时器及 qoe 开启四分结算 CHECK"
+      }
+    ]
+  },
+  "C14": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C14",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V5",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V7",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V8",
+        "minimum": 3
+      }
+    ]
+  },
+  "C15": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C15",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C15.maxDuration"
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S13",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S17",
+        "minimum": 3
+      }
+    ]
+  },
+  "C16": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C16",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C16.matrix"
+      },
+      {
+        "kind": "check",
+        "ident": "C16.probe"
+      }
+    ]
+  },
+  "C17": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / C17",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "C17.pick"
+      },
+      {
+        "kind": "check",
+        "ident": "N4.applied"
+      },
+      {
+        "kind": "check",
+        "ident": "N4.restore"
+      },
+      {
+        "kind": "check",
+        "ident": "N19.failover"
+      },
+      {
+        "kind": "check",
+        "ident": "C17.coverage1",
+        "missing": "sameAs/请求头原生读回自动对账"
+      }
+    ]
+  },
+  "E.MovaReady": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaReady",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaReady"
+      }
+    ]
+  },
+  "E.MovaSourceChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSourceChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSourceChange"
+      }
+    ]
+  },
+  "E.MovaPlay": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaPlay",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaPlay"
+      }
+    ]
+  },
+  "E.MovaPause": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaPause",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaPause"
+      }
+    ]
+  },
+  "E.MovaDone": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaDone",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaDone"
+      }
+    ]
+  },
+  "E.MovaSeek": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSeek",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSeek"
+      }
+    ]
+  },
+  "E.MovaSeeked": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSeeked",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSeeked"
+      }
+    ]
+  },
+  "E.MovaBufferChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaBufferChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaBufferChange"
+      }
+    ]
+  },
+  "E.MovaDurationChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaDurationChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaDurationChange"
+      }
+    ]
+  },
+  "E.MovaFirstFrame": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaFirstFrame",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaFirstFrame"
+      }
+    ]
+  },
+  "E.MovaSizeChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSizeChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSizeChange"
+      }
+    ]
+  },
+  "E.MovaVolumeChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaVolumeChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaVolumeChange"
+      }
+    ]
+  },
+  "E.MovaBrightChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaBrightChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaBrightChange"
+      }
+    ]
+  },
+  "E.MovaRateChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaRateChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaRateChange"
+      }
+    ]
+  },
+  "E.MovaQualityListChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaQualityListChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaQualityListChange"
+      }
+    ]
+  },
+  "E.MovaQualityChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaQualityChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaQualityChange"
+      }
+    ]
+  },
+  "E.MovaAbrDownShift": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaAbrDownShift",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaAbrDownShift"
+      }
+    ]
+  },
+  "E.MovaFitChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaFitChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaFitChange"
+      }
+    ]
+  },
+  "E.MovaZoomChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaZoomChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaZoomChange"
+      }
+    ]
+  },
+  "E.MovaLockChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaLockChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaLockChange"
+      }
+    ]
+  },
+  "E.MovaFullScreenChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaFullScreenChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaFullScreenChange"
+      }
+    ]
+  },
+  "E.MovaOrientationChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaOrientationChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaOrientationChange"
+      }
+    ]
+  },
+  "E.MovaPipChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaPipChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaPipChange"
+      }
+    ]
+  },
+  "E.MovaMiniChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaMiniChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaMiniChange"
+      }
+    ]
+  },
+  "E.MovaTimeShiftChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaTimeShiftChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaTimeShiftChange"
+      }
+    ]
+  },
+  "E.MovaLiveEdgeReach": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaLiveEdgeReach",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaLiveEdgeReach"
+      }
+    ]
+  },
+  "E.MovaPreviewBlock": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaPreviewBlock",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaPreviewBlock"
+      }
+    ]
+  },
+  "E.MovaSttBlock": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSttBlock",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSttBlock"
+      }
+    ]
+  },
+  "E.MovaSwapChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaSwapChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaSwapChange"
+      }
+    ]
+  },
+  "E.MovaErrorEvent": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaErrorEvent",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaErrorEvent"
+      }
+    ]
+  },
+  "E.MovaPlayFailure": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaPlayFailure",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaPlayFailure"
+      }
+    ]
+  },
+  "E.MovaRecovered": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaRecovered",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaRecovered"
+      }
+    ]
+  },
+  "E.MovaFailover": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaFailover",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaFailover"
+      }
+    ]
+  },
+  "E.MovaStandbyChange": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaStandbyChange",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaStandbyChange"
+      }
+    ]
+  },
+  "E.MovaStandbyResume": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E.MovaStandbyResume",
+    "requires": [
+      {
+        "kind": "event",
+        "name": "MovaStandbyResume"
+      }
+    ]
+  },
+  "E1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E1",
+    "requires": [
+      {
+        "kind": "lifecycle"
+      }
+    ]
+  },
+  "E2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / E2",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "E2.disabled",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "C11.off"
+      },
+      {
+        "kind": "check",
+        "ident": "C13.off",
+        "sources": [
+          "rerun-batch15-basic.json",
+          "rerun-batch15-basic-cutover.json"
+        ]
+      }
+    ]
+  },
+  "U1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U1",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U1.coverage1",
+        "missing": "三种 Player/View/FeedPlayer 的挂树/换源/卸载与资源对账"
+      }
+    ]
+  },
+  "U2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U2",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U2.coverage1",
+        "missing": "全部皮肤组件树逐槽检查"
+      }
+    ]
+  },
+  "U3": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U3",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U3.coverage1",
+        "missing": "标题/方向/PiP/fit/quality/fullscreen 各按钮点击 CHECK"
+      }
+    ]
+  },
+  "U4": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U4",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U4.coverage1",
+        "missing": "VOD/直播底栏、seek 提交/禁用/节流/预览气泡 CHECK"
+      }
+    ]
+  },
+  "U5": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U5",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U5.coverage1",
+        "missing": "中心播放/循环倍速/各 HUD 值渲染 CHECK"
+      }
+    ]
+  },
+  "U6": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U6",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U6.coverage1",
+        "missing": "所有手势含双指捏合/锁定/轴重映射 CHECK"
+      }
+    ]
+  },
+  "U7": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U7",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U7.coverage1",
+        "missing": "弹幕/字幕/NextUp/广告/FeedSocial 各渲染与点击 CHECK"
+      }
+    ]
+  },
+  "U8": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U8",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U8.coverage1",
+        "missing": "mini 拖动/吸边/甩动/转屏 CHECK"
+      }
+    ]
+  },
+  "U9": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U9",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "U9.coverage1",
+        "missing": "守卫 route/Ticker/inactive/PiP/mini 联合 CHECK"
+      }
+    ]
+  },
+  "F1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F1",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F1"
+      },
+      {
+        "kind": "record",
+        "name": "LIFECYCLE",
+        "assertions": [
+          {
+            "field": "events",
+            "op": "containsAll",
+            "value": [
+              "MovaPlay",
+              "MovaSeek",
+              "MovaRateChange",
+              "MovaFullScreenChange",
+              "MovaSourceChange",
+              "MovaDone"
+            ]
+          },
+          {
+            "field": "errors",
+            "op": "eq",
+            "value": []
+          }
+        ]
+      }
+    ]
+  },
+  "F2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F2",
+    "requires": [
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.timeshiftBehind",
+            "op": "near",
+            "value": 8000,
+            "tolerance": 500
+          },
+          {
+            "field": "state.liveSeekable",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        "files": "rerun-live-*-behind.json",
+        "minimum": 3
+      },
+      {
+        "kind": "record",
+        "name": "VIDEO",
+        "assertions": [
+          {
+            "field": "state.position",
+            "op": "near",
+            "other": "state.seekableWindow",
+            "tolerance": 500
+          }
+        ],
+        "files": "rerun-live-*-backedge.json",
+        "minimum": 3
+      },
+      {
+        "kind": "duration"
+      }
+    ]
+  },
+  "F3": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F3",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F3.abrBackToBack"
+      },
+      {
+        "kind": "hls",
+        "variants": [
+          {
+            "cutover": false,
+            "paused": false
+          },
+          {
+            "cutover": true,
+            "paused": false
+          },
+          {
+            "cutover": false,
+            "paused": true
+          }
+        ],
+        "minimum": 5
+      }
+    ]
+  },
+  "F4": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F4",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F4.adResume"
+      },
+      {
+        "kind": "check",
+        "ident": "A24.commit"
+      },
+      {
+        "kind": "check",
+        "ident": "A27.rolls"
+      }
+    ]
+  },
+  "F5": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F5",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F5.coverage1",
+        "missing": "真实 MiniHost 与 PiP 互斥及唤醒保活联合 CHECK"
+      }
+    ]
+  },
+  "F6": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F6",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S13",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S17",
+        "minimum": 3
+      }
+    ]
+  },
+  "F7": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F7",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F7.coverage1",
+        "missing": "QoE 四分结算/TTFF/卡顿/truncated/heartbeat 逐字段 CHECK"
+      }
+    ]
+  },
+  "F8": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F8",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V5",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V7",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V8",
+        "minimum": 3
+      }
+    ]
+  },
+  "F9": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F9",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F9.coverage1",
+        "missing": "audioOnly 无视频解码及真实皮肤/封面/手势 CHECK"
+      }
+    ]
+  },
+  "F10": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F10",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F10.coverage1",
+        "missing": "预览各模式完整 CHECK"
+      }
+    ]
+  },
+  "F11": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F11",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F11.ass"
+      },
+      {
+        "kind": "check",
+        "ident": "F11.movtext"
+      },
+      {
+        "kind": "check",
+        "ident": "F11.srt"
+      },
+      {
+        "kind": "check",
+        "ident": "F11.vtt"
+      }
+    ]
+  },
+  "F12": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F12",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F12.coverage1",
+        "missing": "音频会话/后台资源与耗电完整 CHECK"
+      }
+    ]
+  },
+  "F13": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F13",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F13.coverage1",
+        "missing": "多引擎 RSS/线程/句柄有界及 dispose 超时 CHECK"
+      }
+    ]
+  },
+  "F14": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F14",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "F14.coverage1",
+        "missing": "原生泵创建/销毁/稳定性/错误隔离的结构化 CHECK"
+      }
+    ]
+  },
+  "F15": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F15",
+    "requires": []
+  },
+  "F16": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / F16",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V12",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V12b",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V13a",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V13b",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V14",
+        "minimum": 3
+      }
+    ]
+  },
+  "N1": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N1",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N1.network"
+      },
+      {
+        "kind": "check",
+        "ident": "N4.whepOptions"
+      }
+    ]
+  },
+  "N2": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N2",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N2.derived"
+      },
+      {
+        "kind": "check",
+        "ident": "N2.watchoff"
+      }
+    ]
+  },
+  "N3": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N3",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N3.defaultLive"
+      }
+    ]
+  },
+  "N4": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N4",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N4.applied"
+      },
+      {
+        "kind": "check",
+        "ident": "N4.restore"
+      },
+      {
+        "kind": "check",
+        "ident": "N4.whepOptions"
+      }
+    ]
+  },
+  "N5": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N5",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N5.coverage1",
+        "missing": "recovery 仅订阅 END_FILE、observeRestarts 开关的原生事件对账"
+      }
+    ]
+  },
+  "N6": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N6",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N6.clear"
+      },
+      {
+        "kind": "check",
+        "ident": "N6.giveup"
+      }
+    ]
+  },
+  "N7": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N7",
+    "requires": [
+      {
+        "kind": "duration"
+      }
+    ]
+  },
+  "N8": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N8",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N8.accept"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.reject"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.disposed"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.playlistRejected"
+      },
+      {
+        "kind": "check",
+        "ident": "N8.superseded"
+      }
+    ]
+  },
+  "N9": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N9",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N9.coverage1",
+        "missing": "PiP 展开与真正点 X 的原生 pinned/state 对账"
+      }
+    ]
+  },
+  "N10": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N10",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V12",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V12b",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V13a",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V13b",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch11-review.log",
+        "name": "V14",
+        "minimum": 3
+      }
+    ]
+  },
+  "N11": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N11",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "rerun-batch10-mute.log",
+        "name": "Q13A",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch10-mute.log",
+        "name": "Q13B",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "rerun-batch10-mute.log",
+        "name": "Q13C",
+        "minimum": 3
+      }
+    ]
+  },
+  "N12": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N12",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V4",
+        "minimum": 1
+      },
+      {
+        "kind": "check",
+        "ident": "N12.coverage1",
+        "missing": "换源归零与旧 RESTART 隔离逐事件 CHECK"
+      }
+    ]
+  },
+  "N13": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N13",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-firstframe.log",
+        "name": "V4",
+        "minimum": 1
+      },
+      {
+        "kind": "check",
+        "ident": "N13.coverage1",
+        "missing": "弱客户端资源/懒创建计数与 QoE 开关联合 CHECK"
+      }
+    ]
+  },
+  "N14": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N14",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-engine.fitRebuild"
+      },
+      {
+        "kind": "check",
+        "ident": "rerun-batch16-cutover.fitRebuild"
+      }
+    ]
+  },
+  "N15": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N15",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N15.coverage1",
+        "missing": "poster 重盖/渐隐/audioOnly/Feed 的像素与首帧联合 CHECK"
+      }
+    ]
+  },
+  "N16": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N16",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N16.coverage1",
+        "missing": "MinimalSkin 与缓冲三字段可见性量化 CHECK"
+      }
+    ]
+  },
+  "N17": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N17",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N17.coverage1",
+        "missing": "View 所有权/同源/null/options/销毁/异常各分支 CHECK"
+      }
+    ]
+  },
+  "N18": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N18",
+    "requires": []
+  },
+  "N19": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N19",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N19.failover"
+      },
+      {
+        "kind": "check",
+        "ident": "N6.clear"
+      },
+      {
+        "kind": "check",
+        "ident": "N6.giveup"
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V5",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V7",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "he-recovery.log",
+        "name": "V8",
+        "minimum": 3
+      }
+    ]
+  },
+  "N20": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N20",
+    "requires": [
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S1",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S2",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S3",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S6",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S13",
+        "minimum": 3
+      },
+      {
+        "kind": "log",
+        "file": "keepalive-core.log",
+        "name": "S17",
+        "minimum": 3
+      }
+    ]
+  },
+  "N21": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N21",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N21.coverage1",
+        "missing": "Windows SnapshotGuard 专包与 stagedSourceOptions 对账"
+      }
+    ]
+  },
+  "N22": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N22",
+    "requires": []
+  },
+  "N23": {
+    "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / N23",
+    "requires": [
+      {
+        "kind": "check",
+        "ident": "N23.coverage1",
+        "missing": "nativeRestartAvailable/truncatedBelow/error 四分与上报字段完整 CHECK"
+      }
+    ]
+  },
+  "_invalid_checks": {
+    "A1.broadcast": "矩阵 A1 要求多订阅者同序列，不要求 isBroadcast=true"
+  }
+}
