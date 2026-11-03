@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 会话新增带纪元与节点身份的事件；按节点独立记录广告，修复 pod 中同参数 const 广告被合并的问题。
+
 - 新增 `MovaSession` 多条目、按集广告与加载结果，直接构造自动识别已启用的切换能力；`MovaPlaylistItem.adBreaks` 可覆盖排期，`MovaAds.session` 提供共享访问口。
 
 - 修复嵌套不同 API 的 MovaAutoPause 遮住外层守卫的问题；MovaPlayer 按 API 查找完整祖先链，尊重外层配置的后台继续播放。

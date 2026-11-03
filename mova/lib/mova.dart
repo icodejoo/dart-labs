@@ -125,3 +125,6 @@ export 'src/platform_impl/volume_impl.dart';
 
 export 'src/core/session/session.dart' show MovaSession, MovaLoadOutcome;
 export 'src/core/session/cursor.dart';
+
+export 'src/core/session/events.dart';
+export 'src/core/session/timeline.dart' show MovaNodeKind, MovaNodeId;

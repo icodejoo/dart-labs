@@ -18,6 +18,7 @@ import '../cutover/trigger.dart';
 import '../ad/fail.dart';
 import 'timeline.dart';
 import 'cursor.dart';
+import 'events.dart';
 import '../model/playlist.dart';
 
 /// 加载结果；接受只表示首段已接管，不保证首帧。示例：`result == MovaLoadOutcome.accepted`。
@@ -45,7 +46,7 @@ MovaSession movaSessionForAds(MovaApi api, MovaCutover? cutover) =>
 /// 一次广告尝试的结算与续播标记，重试同一广告也必须新建。
 class _AdAttempt {
   /// 绑定本次尝试的广告位。
-  _AdAttempt(this.adBreak, this.play, this.command);
+  _AdAttempt(this.node, this.seq, this.play, this.command);
 
   /// 本次加载请求的起播意图，首次打开失败也不会丢失。
   final bool play;
@@ -54,7 +55,10 @@ class _AdAttempt {
   final int command;
 
   /// 本次尝试所属广告位。
-  final MovaAdBreak adBreak;
+  final MovaTimelineNode node;
+
+  /// 本节点的尝试序号。
+  final int seq;
 
   /// 是否已结算失败或拒绝。
   bool failed = false;
@@ -159,8 +163,8 @@ class MovaSession {
   /// [dispose] 是否已执行；之后到达的异步结果必须丢弃。
   bool _disposed = false;
   MovaSessionPhase _phase = MovaSessionPhase.idle;
-  MovaAdBreak? _current;
-  final Set<MovaAdBreak> _played = <MovaAdBreak>{};
+  MovaTimelineNode? _current;
+  final Set<MovaNodeId> _played = <MovaNodeId>{};
   Duration _contentResumeAt = Duration.zero;
   Duration _adPosition = Duration.zero;
 
@@ -225,7 +229,7 @@ class MovaSession {
   /// The break counting down / warming up in [MovaSessionPhase.pending].
   ///
   /// [MovaSessionPhase.pending] 阶段正在倒计时 / 预热中的广告位。
-  MovaAdBreak? _pending;
+  MovaTimelineNode? _pending;
 
   /// Fires when the pending break's [MovaAdBreak.delay] runs out; null when
   /// the pending break has no visible countdown.
@@ -274,23 +278,23 @@ class MovaSession {
   /// Attempt counter per break, fed to [MovaAdFailPolicy]; cleared per load.
   ///
   /// 每条广告位的尝试次数计数，喂给 [MovaAdFailPolicy]；每次加载时清空。
-  final Map<MovaAdBreak, int> _attempts = <MovaAdBreak, int>{};
+  final Map<MovaNodeId, int> _attempts = <MovaNodeId, int>{};
 
   /// 返回广告是否在屏；示例：`session.isShowingAd`。
   bool get isShowingAd => _phase == MovaSessionPhase.ad;
 
   /// 返回在屏广告，无则 null；示例：`session.currentBreak?.source`。
-  MovaAdBreak? get currentBreak => _current;
+  MovaAdBreak? get currentBreak => _current?.adBreak;
 
   /// 返回是否有待播中插；示例：`session.isAdPending`。
   bool get isAdPending => _phase == MovaSessionPhase.pending;
 
   /// 返回待播广告，无则 null；示例：`session.pendingBreak?.delay`。
-  MovaAdBreak? get pendingBreak => _pending;
+  MovaAdBreak? get pendingBreak => _pending?.adBreak;
 
   /// 返回倒计时剩余，无倒计时则 null；示例：`session.delayRemaining?.inSeconds`。
   Duration? get delayRemaining {
-    final b = _pending;
+    final b = _pending?.adBreak;
     if (b == null || b.delay <= Duration.zero) return null;
     return _delayClock.remaining ?? Duration.zero;
   }
@@ -300,13 +304,13 @@ class MovaSession {
 
   /// 返回当前广告是否可跳过；示例：`if (session.canSkip) session.skip();`。
   bool get canSkip {
-    final after = _current?.skippableAfter;
+    final after = _current?.adBreak?.skippableAfter;
     return after != null && _adPosition >= after;
   }
 
   /// 返回距离可跳过的时长，无跳过能力则 null；示例：`session.skipIn?.inSeconds`。
   Duration? get skipIn {
-    final after = _current?.skippableAfter;
+    final after = _current?.adBreak?.skippableAfter;
     if (after == null) return null;
     final remaining = after - _adPosition;
     return remaining > Duration.zero ? remaining : Duration.zero;
@@ -340,14 +344,19 @@ class MovaSession {
     MovaSource? content,
     MovaSourceResolver? resolve,
     List<MovaAdBreak>? breaks,
-    T Function(MovaLoadOutcome) map,
-  ) async {
+    T Function(MovaLoadOutcome) map, {
+    int? item,
+  }) async {
     if (_disposed) return map(MovaLoadOutcome.disposed);
+    _endNode(MovaNodeEndReason.superseded);
     final gen = ++_gen;
+    _epochItem = item ?? _index;
+    _runtimeOrdinal = 0;
     _resolving = null;
     _content = content;
     _resolve = resolve;
     _breaks = List.unmodifiable(breaks ?? _cfg.breaks);
+    _nodes = movaBuildNodes(_epochItem, _breaks);
     await _beginLoad();
     return map(
       _disposed
@@ -369,6 +378,7 @@ class MovaSession {
   MovaCursor get cursor => MovaCursor(
     epoch: _gen,
     item: _index,
+    node: _phase == MovaSessionPhase.pending ? _pending?.id : _onScreen,
     phase: _phase,
     contentResumeAt: _contentResumeAt,
   );
@@ -386,11 +396,18 @@ class MovaSession {
     if (_disposed) return MovaLoadOutcome.disposed;
     if (index < 0 || index >= _items.length) return MovaLoadOutcome.rejected;
     final item = _items[index];
-    final loading = load(item.source, breaks: item.adBreaks);
+    final loading = _loadCore(
+      item.source,
+      null,
+      item.adBreaks,
+      (o) => o,
+      item: index,
+    );
     final gen = _gen;
     final outcome = await loading;
     if (outcome == MovaLoadOutcome.accepted && gen == _gen && !_disposed) {
       _index = index;
+      _sessionEvents.add(MovaItemChange(_gen, index));
       _changes.add(null);
     }
     return outcome;
@@ -401,6 +418,34 @@ class MovaSession {
 
   /// 打开上一项，返回接受结果；开头返回 rejected。示例：`await session.previous();`。
   Future<MovaLoadOutcome> previous() => jumpTo(_index - 1);
+
+  /// 返回会话节点与条目事件广播流；示例：`session.events.listen(print);`。
+  Stream<MovaSessionEvent> get events => _sessionEvents.stream;
+
+  /// 独立事件控制器与当前在屏身份。
+  final StreamController<MovaSessionEvent> _sessionEvents =
+      StreamController.broadcast();
+  MovaNodeId? _onScreen;
+
+  /// 当前纪元条目、排期节点与插播序号。
+  int _epochItem = 0;
+  int _runtimeOrdinal = 0;
+  int _attemptSeq = 0;
+  List<MovaTimelineNode> _nodes = const [];
+
+  /// 记录节点开始；正片续播与广告尝试均由实际接管点调用。
+  void _startNode(MovaNodeId node) {
+    _onScreen = node;
+    _sessionEvents.add(MovaNodeStart(_gen, node));
+  }
+
+  /// 结束在屏节点，每次开始只发一次结束。
+  void _endNode(MovaNodeEndReason reason) {
+    final node = _onScreen;
+    if (node == null) return;
+    _onScreen = null;
+    _sessionEvents.add(MovaNodeEnd(_gen, node, reason));
+  }
 
   /// 条目快照与已接受下标。
   List<MovaPlaylistItem> _items = const [];
@@ -504,6 +549,15 @@ class MovaSession {
     // 已经有一条在排队时为空操作：同一时刻只允许一条待播广告，而取消一条已排队
     // 的广告是宿主的产品决策，不是播放器的。
     if (_phase != MovaSessionPhase.content) return;
+    final node = MovaTimelineNode(
+      MovaNodeId(_epochItem, switch (ad.kind) {
+        MovaAdBreakKind.pre => MovaNodeKind.pre,
+        MovaAdBreakKind.mid => MovaNodeKind.mid,
+        MovaAdBreakKind.post => MovaNodeKind.post,
+      }, --_runtimeOrdinal),
+      ad,
+      ad.offset,
+    );
     _contentResumeAt = _lastContentPosition;
     // Snapshot the user's rate now: it is otherwise only refreshed by content
     // progress ticks, so a change made since the last tick would be lost.
@@ -513,10 +567,10 @@ class MovaSession {
     // 会丢。从广告返回的过渡期内活动引擎可能仍是 1x 的广告，因此跳过。
     if (!_resuming) _contentRate = _api.state.rate;
     if (ad.delay > Duration.zero || _wantsWait(ad)) {
-      _beginDelay(ad);
+      _beginDelay(node);
       return;
     }
-    await _playAd(ad);
+    await _playAd(node);
   }
 
   /// 跳过可跳过的广告，无返回值；示例：`session.skip();`。
@@ -546,16 +600,16 @@ class MovaSession {
   /// "同一位置"指 offset 不晚于当前续播点——这正是两条广告算作同一个 pod 的
   /// 定义。更晚的中插被刻意排除：串到那些上去就不是 pod 了，而是把剩下的排期
   /// 一口气连播完。
-  MovaAdBreak? _nextPodMid() {
-    return movaNextPodMid(_breaks, _played, _contentResumeAt);
-  }
+  MovaTimelineNode? _nextPodMid() =>
+      movaDueMid(_nodes, _contentResumeAt, _played);
 
   /// Returns the first not-yet-played break of [kind], or null.
   ///
   /// 返回首个尚未播放的、类型为 [kind] 的广告位；没有则为 null。
-  MovaAdBreak? _firstOfKind(MovaAdBreakKind kind) {
-    return movaFirstOfKind(_breaks, _played, kind);
-  }
+  MovaTimelineNode? _firstOfKind(MovaAdBreakKind kind) => movaFirstWhere(
+    _nodes,
+    (n) => n.adBreak?.kind == kind && !_played.contains(n.id),
+  );
 
   /// Whether [b] should be warmed up and cut to only once it is ready.
   ///
@@ -586,12 +640,14 @@ class MovaSession {
   /// 为 [b] 进入 [MovaSessionPhase.pending]：倒计时走动和/或广告后台预热期间，正片继续播放。
   ///
   /// [b] 会被立刻标记为已播，使倒计时窗口内不会每个 tick 都重复命中它。
-  void _beginDelay(MovaAdBreak b) {
+  void _beginDelay(MovaTimelineNode node) {
+    final gen = _gen;
+    final b = node.adBreak!;
     _phase = MovaSessionPhase.pending;
-    _pending = b;
-    _played.add(b);
+    _pending = node;
+    _played.add(node.id);
     _cancelDelayTimer();
-    _fire(MovaAdEventType.pending, b);
+    _fire(MovaAdEventType.pending, node);
     _changes.add(null);
     // Only a host-configured delay produces a countdown timer. With no delay
     // the pending phase is entered and left in one go, and the readiness wait
@@ -603,14 +659,16 @@ class MovaSession {
     // 就绪超时"这条在两种情形下都成立。
     if (b.delay > Duration.zero) {
       _delayClock.start(b.delay, () {
-        if (_phase != MovaSessionPhase.pending || !identical(_pending, b)) {
+        if (gen != _gen ||
+            _phase != MovaSessionPhase.pending ||
+            _pending?.id != node.id) {
           return;
         }
-        unawaited(_beginAd(b));
+        unawaited(_beginAd(node));
       });
       _holdIfPaused(_delayClock);
     } else {
-      unawaited(_beginAd(b));
+      unawaited(_beginAd(node));
     }
   }
 
@@ -636,18 +694,20 @@ class MovaSession {
   /// 提交失败（压根没预热上，或就绪判据超时）时，由
   /// [MovaAdConfig.notReadyAction] 在硬切（今天的行为，降级必须重现它）与丢弃该
   /// 广告位（正片完全不被打断）之间裁决。
-  Future<void> _beginAd(MovaAdBreak b) async {
+  Future<void> _beginAd(MovaTimelineNode node) async {
+    final b = node.adBreak!;
     final gen = _gen;
     if (_disposed) return;
     final attempt = _adAttempt = _AdAttempt(
-      b,
+      node,
+      ++_attemptSeq,
       _api.state.playbackIntent,
       movaPlaybackCommand(_api),
     );
     _cancelDelayTimer();
     if (!_wantsWait(b)) {
       _pending = null;
-      await _playAd(b, ownedAttempt: attempt);
+      await _playAd(node, ownedAttempt: attempt);
       if (gen != _gen || _disposed) return;
       return;
     }
@@ -668,8 +728,8 @@ class MovaSession {
         if (gen != _gen || _disposed || !identical(_adAttempt, attempt)) return;
         if (!accepted) {
           _pending = null;
-          _played.add(b);
-          await _rejectAd(b, attempt);
+          _played.add(node.id);
+          await _rejectAd(node, attempt);
           return;
         }
       } else {
@@ -681,19 +741,19 @@ class MovaSession {
     } catch (e) {
       if (gen != _gen || _disposed) return;
       _pending = null;
-      await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
+      await _onAdFailure(node, MovaAdFailKind.openThrew, e, attempt);
       return;
     }
     if (committed) {
       _pending = null;
-      await _playAd(b, alreadyOnScreen: true, ownedAttempt: attempt);
+      await _playAd(node, alreadyOnScreen: true, ownedAttempt: attempt);
       if (gen != _gen || _disposed) return;
       return;
     }
     switch (_cfg.notReadyAction) {
       case MovaAdNotReady.hardCut:
         _pending = null;
-        await _playAd(b, ownedAttempt: attempt);
+        await _playAd(node, ownedAttempt: attempt);
         if (gen != _gen || _disposed) return;
       case MovaAdNotReady.dropBreak:
         // Deliberately not routed through the failure policy: notReadyAction
@@ -702,7 +762,7 @@ class MovaSession {
         //
         // 刻意不走失败兜底策略：notReadyAction 已经是这一层的裁决，在此叠加第二层
         // 策略会让行为变得无法推理。
-        _fire(MovaAdEventType.failed, b, error: MovaAdFailKind.warmFailed);
+        _fire(MovaAdEventType.failed, node, error: MovaAdFailKind.warmFailed);
         _abandonPending();
     }
   }
@@ -733,17 +793,19 @@ class MovaSession {
   /// 不下发 `open()`、也不拆掉该影子——但所有阶段簿记照常执行，因为走了无缝路径
   /// 绝不能悄悄漏掉任何一个事件或状态更新。
   Future<void> _playAd(
-    MovaAdBreak b, {
+    MovaTimelineNode node, {
     bool alreadyOnScreen = false,
     bool? autoPlay,
     _AdAttempt? ownedAttempt,
   }) async {
+    final b = node.adBreak!;
     final gen = _gen;
     if (_disposed) return;
     // 未指定时继承调用入口的用户播放意图。
     final play = autoPlay ?? _api.state.playbackIntent;
     final attempt = _adAttempt =
-        ownedAttempt ?? _AdAttempt(b, play, movaPlaybackCommand(_api));
+        ownedAttempt ??
+        _AdAttempt(node, ++_attemptSeq, play, movaPlaybackCommand(_api));
     _landingAd = false;
 
     /// 旧尝试的迟到结果不能结算或覆盖新尝试。
@@ -786,14 +848,14 @@ class MovaSession {
       if (_sttWasRunning) unawaited(_api.stt.stop());
     }
     _phase = MovaSessionPhase.ad;
-    _current = b;
+    _current = node;
     _adPosition = Duration.zero;
     _adFramed = false;
     _adLastPos = Duration.zero;
     _adRises = 0;
-    _played.add(b);
+    _played.add(node.id);
     _changes.add(null);
-    _fire(MovaAdEventType.started, b);
+    _fire(MovaAdEventType.started, node);
     // Drop any shadow warmed for a previous ad in the same pod — it targeted
     // the wrong resume point (or the content, mid-pod) and is no longer
     // useful.
@@ -833,7 +895,7 @@ class MovaSession {
               .cutoverToAccepted(b.source, rate: 1.0, play: play);
           if (!current()) return;
           if (!result.accepted) {
-            await _rejectAd(b, attempt);
+            await _rejectAd(node, attempt);
             return;
           }
         } else {
@@ -842,7 +904,7 @@ class MovaSession {
         if (!current()) return;
       } catch (e) {
         if (!current()) return;
-        await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
+        await _onAdFailure(node, MovaAdFailKind.openThrew, e, attempt);
         return;
       } finally {
         if (gen == _gen && !_disposed && identical(_adAttempt, attempt)) {
@@ -856,12 +918,12 @@ class MovaSession {
         if (!current()) return;
         if (!accepted) {
           // 宿主主动拒绝不交给失败策略重试，直接跳过本广告位。
-          await _rejectAd(b, attempt);
+          await _rejectAd(node, attempt);
           return;
         }
       } catch (e) {
         if (!current()) return;
-        await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
+        await _onAdFailure(node, MovaAdFailKind.openThrew, e, attempt);
         if (!current()) return;
         return;
       }
@@ -894,7 +956,7 @@ class MovaSession {
     if (_api.state.rendered) {
       _onAdFirstFrame();
     } else {
-      _armLoadTimer(b);
+      _armLoadTimer(node);
     }
     // An ad must not play sped up. Cutover landings already start the ad at 1x
     // (MovaWarmPlan.rate); this is the safety net for the paths that bypass it
@@ -913,7 +975,7 @@ class MovaSession {
     //
     // durationFromFirstFrame 关闭时广告位从 open() 起算；开启时改由第一个进度
     // tick 起表。
-    if (!_cfg.durationFromFirstFrame) _armSlotTimer(b);
+    if (!_cfg.durationFromFirstFrame) _armSlotTimer(node);
   }
 
   /// Starts the fixed-length slot timer for [b], if it has a
@@ -930,17 +992,22 @@ class MovaSession {
   /// 到期判定是一个普通 [Timer]：完全不查询、不 seek 媒体时间轴，因为大文件的
   /// 时长在真机移动网络下可能很久解析不出来，而靠近真实 EOF 的 seek 在真机上会
   /// 可靠地把播放器卡死。
-  void _armSlotTimer(MovaAdBreak b) {
+  void _armSlotTimer(MovaTimelineNode node) {
+    final b = node.adBreak!;
+    final seq = _adAttempt?.seq;
     final d = b.duration;
     if (d == null || _slotClock.remaining != null) return;
     _slotClock.start(d, () {
-      if (_phase != MovaSessionPhase.ad || !identical(_current, b)) return;
+      if (_phase != MovaSessionPhase.ad ||
+          (_current?.id != node.id || _adAttempt?.seq != seq)) {
+        return;
+      }
       // The slot the advertiser bought has been delivered in full, so this is
       // a completion, not a skip.
       //
       // 广告主买下的这段时长已经足额交付，因此这是"播完"，不是"跳过"。
-      _fire(MovaAdEventType.completed, b);
-      unawaited(_resumeAfterAd(b));
+      _fire(MovaAdEventType.completed, node);
+      unawaited(_resumeAfterAd(node));
     });
     _holdIfPaused(_slotClock);
   }
@@ -955,11 +1022,15 @@ class MovaSession {
   /// Starts the no-first-frame deadline for [b].
   ///
   /// 为 [b] 起"始终没有首帧"的判定期限。
-  void _armLoadTimer(MovaAdBreak b) {
+  void _armLoadTimer(MovaTimelineNode node) {
+    final seq = _adAttempt?.seq;
     _cancelLoadTimer();
     _loadTimer = Timer(_cfg.loadTimeout, () {
-      if (_phase != MovaSessionPhase.ad || !identical(_current, b)) return;
-      unawaited(_onAdFailure(b, MovaAdFailKind.loadTimeout));
+      if (_phase != MovaSessionPhase.ad ||
+          (_current?.id != node.id || _adAttempt?.seq != seq)) {
+        return;
+      }
+      unawaited(_onAdFailure(node, MovaAdFailKind.loadTimeout));
     });
   }
 
@@ -989,7 +1060,7 @@ class MovaSession {
   }
 
   /// 宿主拒绝直接跳过该广告位，和普通 open 的拒绝行为一致。
-  Future<void> _rejectAd(MovaAdBreak b, _AdAttempt attempt) async {
+  Future<void> _rejectAd(MovaTimelineNode node, _AdAttempt attempt) async {
     if (_disposed ||
         !identical(_adAttempt, attempt) ||
         attempt.failed ||
@@ -997,8 +1068,8 @@ class MovaSession {
       return;
     }
     attempt.failed = true;
-    _fire(MovaAdEventType.failed, b);
-    await _resumeAfterAd(b);
+    _fire(MovaAdEventType.failed, node);
+    await _resumeAfterAd(node);
   }
 
   /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
@@ -1016,17 +1087,18 @@ class MovaSession {
   /// [MovaAdBreak.duration]：广告主买的是那么多*可见*秒数，而失败的那次一秒都没
   /// 给到。
   Future<void> _onAdFailure(
-    MovaAdBreak b,
+    MovaTimelineNode node,
     MovaAdFailKind kind, [
     Object? error,
     _AdAttempt? ownedAttempt,
   ]) async {
+    final b = node.adBreak!;
     final gen = _gen;
     final owned = ownedAttempt ?? _adAttempt;
     if (_disposed ||
         owned == null ||
         !identical(_adAttempt, owned) ||
-        !identical(owned.adBreak, b) ||
+        owned.node.id != node.id ||
         owned.failed ||
         owned.resumed) {
       return;
@@ -1036,9 +1108,9 @@ class MovaSession {
     _failedEpoch = gen;
     _cancelLoadTimer();
     _cancelSlotTimer();
-    final attempt = (_attempts[b] ?? 0) + 1;
-    _attempts[b] = attempt;
-    _fire(MovaAdEventType.failed, b, error: error);
+    final attempt = (_attempts[node.id] ?? 0) + 1;
+    _attempts[node.id] = attempt;
+    _fire(MovaAdEventType.failed, node, error: error);
     final action = _cfg.effectiveFailPolicy.onFailure(
       MovaAdFail(adBreak: b, kind: kind, attempt: attempt, error: error),
     );
@@ -1052,18 +1124,18 @@ class MovaSession {
         // 曝光尝试，因此宿主看到的是 started → failed → started，而不是一次静默的
         // 第二次尝试。
         await _playAd(
-          b,
+          node,
           autoPlay: movaPlaybackCommand(_api) == owned.command
               ? owned.play
               : _api.state.playbackIntent,
         );
         if (gen != _gen || _disposed) return;
       case MovaAdFailAction.skipBreak:
-        await _resumeAfterAd(b);
+        await _resumeAfterAd(node);
         if (gen != _gen || _disposed) return;
       case MovaAdFailAction.abandonPod:
-        _markPodPlayed(b);
-        await _resumeAfterAd(b);
+        _markPodPlayed(node);
+        await _resumeAfterAd(node);
         if (gen != _gen || _disposed) return;
     }
   }
@@ -1078,8 +1150,17 @@ class MovaSession {
   ///
   /// 对中插而言，pod 仅指插在同一位置的那几条——把后面几十分钟的中插全吃掉就不是
   /// "放弃这个 pod"，而是"关掉广告"了。
-  void _markPodPlayed(MovaAdBreak b) {
-    _played.addAll(movaPodMembers(_breaks, b, _contentResumeAt));
+  void _markPodPlayed(MovaTimelineNode node) {
+    final b = node.adBreak!;
+    _played.addAll(
+      _nodes
+          .where(
+            (n) =>
+                n.adBreak?.kind == b.kind &&
+                (b.kind != MovaAdBreakKind.mid || n.offset <= _contentResumeAt),
+          )
+          .map((n) => n.id),
+    );
   }
 
   /// Switches playback to the content, optionally resuming at [at]. Tries a
@@ -1141,6 +1222,7 @@ class MovaSession {
       return;
     }
     _acceptedEpoch = gen;
+    _startNode(MovaNodeId(_epochItem, MovaNodeKind.content, 0));
     _phase = MovaSessionPhase.content;
     _changes.add(null);
     // 预热携带广告前的倍速；普通打开与自定义预热计划在此兜底。
@@ -1161,6 +1243,7 @@ class MovaSession {
   void _contentUnavailable([Object? error]) {
     if (error != null) _failedEpoch = _gen;
     unawaited(_cutover?.abandon());
+    _onScreen = null;
     _phase = MovaSessionPhase.idle;
     _changes.add(null);
     if (error != null && !_contentError.isClosed) _contentError.add(error);
@@ -1203,6 +1286,7 @@ class MovaSession {
       unawaited(_resumeAfterAd(finished));
     } else if (_phase == MovaSessionPhase.content ||
         _phase == MovaSessionPhase.pending) {
+      _endNode(MovaNodeEndReason.completed);
       // The content ended while a mid-roll was queued behind it: that break is
       // scheduled *inside* the content, so with the content gone it is moot.
       //
@@ -1229,6 +1313,7 @@ class MovaSession {
   void _goIdleAfterContent() {
     _cancelAllTimers();
     unawaited(_cutover?.abandon());
+    _onScreen = null;
     _phase = MovaSessionPhase.idle;
     _current = null;
     _pending = null;
@@ -1241,13 +1326,14 @@ class MovaSession {
   ///
   /// 广告 [finished] 结束后续播正确内容：前贴片 → 正片从头，中插 → 正片从保存
   /// 位置，后贴片 → 空闲（结束）。
-  Future<void> _resumeAfterAd(MovaAdBreak finished) async {
+  Future<void> _resumeAfterAd(MovaTimelineNode finished) async {
     final resume = _api.state.playbackIntent;
     final gen = _gen;
     if (_disposed) return;
     final attempt = _adAttempt;
     if (attempt == null ||
-        !identical(attempt.adBreak, finished) ||
+        attempt.node.id != finished.id ||
+        attempt.seq != _attemptSeq ||
         attempt.resumed) {
       return;
     }
@@ -1257,7 +1343,7 @@ class MovaSession {
     _cancelSlotTimer();
     _cancelLoadTimer();
     try {
-      switch (finished.kind) {
+      switch (finished.adBreak!.kind) {
         case MovaAdBreakKind.pre:
           // Ad pod: chain any further pre-rolls before the content starts.
           //
@@ -1385,7 +1471,7 @@ class MovaSession {
       _contentResumeAt = p.position;
       _contentRate = _api.state.rate;
       final waiting = _pending;
-      if (waiting != null && _wantsWait(waiting)) {
+      if (waiting != null && _wantsWait(waiting.adBreak!)) {
         // Warm the ad up behind the still-playing content. The plan is the
         // content→ad one: eager (the delay window exists precisely to be spent
         // warming up) and holding at frame zero (an ad that quietly played its
@@ -1398,11 +1484,13 @@ class MovaSession {
         // 自己的开头播起。
         unawaited(
           _cutover!.prepare(
-            waiting.source,
+            waiting.adBreak!.source,
             plan: _cfg.effectiveWarmPlan,
             cue: MovaWarmCue(
               remaining: delayRemaining,
-              total: waiting.delay > Duration.zero ? waiting.delay : null,
+              total: waiting.adBreak!.delay > Duration.zero
+                  ? waiting.adBreak!.delay
+                  : null,
             ),
           ),
         );
@@ -1418,7 +1506,7 @@ class MovaSession {
       // 不能覆盖此前保存的正片倍速。
       if (!_resuming) _contentRate = _api.state.rate;
       if (_enabled) {
-        final due = movaDueMidRoll(_breaks, p.position, _played);
+        final due = movaDueMid(_nodes, p.position, _played);
         if (due != null) {
           _contentResumeAt = p.position;
           // A countdown, a background warm-up, or both, put the break through
@@ -1427,7 +1515,7 @@ class MovaSession {
           //
           // 有倒计时、有后台预热、或两者兼有时，先让该广告位走一遍待播阶段；
           // 否则立刻接管，与一贯行为相同。
-          if (due.delay > Duration.zero || _wantsWait(due)) {
+          if (due.adBreak!.delay > Duration.zero || _wantsWait(due.adBreak!)) {
             _beginDelay(due);
           } else {
             unawaited(_playAd(due));
@@ -1458,7 +1546,7 @@ class MovaSession {
     MovaWarmCue cue,
   ) async {
     // 后贴片之后没有正片可返回：这是预热方向判断，与等待就绪策略无关。
-    if (_current?.kind == MovaAdBreakKind.post) return;
+    if (_current?.adBreak?.kind == MovaAdBreakKind.post) return;
     final gen = _gen;
     final content = await _contentSource();
     if (content == null || gen != _gen || _disposed) return;
@@ -1475,8 +1563,21 @@ class MovaSession {
   /// [error] for failures.
   ///
   /// 就广告位 [b] 的生命周期 [type] 通知宿主钩子；失败时携带 [error]。
-  void _fire(MovaAdEventType type, MovaAdBreak b, {Object? error}) =>
-      _onAdEvent?.call(MovaAdEvent(type, b, error: error));
+  void _fire(MovaAdEventType type, MovaTimelineNode node, {Object? error}) {
+    switch (type) {
+      case MovaAdEventType.started:
+        _startNode(node.id);
+      case MovaAdEventType.completed:
+        _endNode(MovaNodeEndReason.completed);
+      case MovaAdEventType.skipped:
+        _endNode(MovaNodeEndReason.skipped);
+      case MovaAdEventType.failed:
+        if (_onScreen == node.id) _endNode(MovaNodeEndReason.failed);
+      default:
+        break;
+    }
+    _onAdEvent?.call(MovaAdEvent(type, node.adBreak!, error: error));
+  }
 
   /// 释放会话订阅与广告计时，返回清理完成的 Future；借用的播放器仍可用。
   /// 示例：`await session.dispose();`。
@@ -1493,5 +1594,6 @@ class MovaSession {
     await _changes.close();
     await _contentEnded.close();
     await _contentError.close();
+    await _sessionEvents.close();
   }
 }
