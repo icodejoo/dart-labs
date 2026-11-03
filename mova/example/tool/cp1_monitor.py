@@ -50,6 +50,8 @@ try:
         print('last',{k:r.get(k) for k in ('kind','scene','event','action','us')},
             'state',{k:r.get('state',{}).get(k) for k in ('positionMs','playing','buffering','rendered','quality')},flush=True)
     checks=[(i,r) for i,r in enumerate(data.get('records',[])) if r.get('kind') in ('CHECK','ERROR','HLS_RESULT','VERDICT')]
+    hls=[r for r in data.get('records',[]) if r.get('kind')=='HLS_RESULT']
+    if hls:print('HLS_RESULT count',len(hls),'rawFail',sum(r.get('pass') is False for r in hls),'last',str(hls[-1])[:1000],flush=True)
     for i,r in checks:
         if (i,r) in checks[-4:] or r.get('kind')=='ERROR' or r.get('status',r.get('data',{}).get('status'))=='FAIL':
             print(i,r.get('id',r.get('case')),r.get('kind'),r.get('status',r.get('data',{}).get('status')),r.get('run'),r.get('error'),flush=True)

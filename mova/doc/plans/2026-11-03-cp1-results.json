@@ -5672,75 +5672,93 @@
       "id": "F3/A17 precise.normal",
       "stage": 2,
       "planned": 60,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 60,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "60/60，<200ms=100%，失败0",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 60,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 60,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.0,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-normal-20261103-1650-precise-normal/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "F3/A17 precise.paused",
       "stage": 2,
       "planned": 60,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 60,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "60/60，<200ms=100%，失败0",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 60,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 60,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.0,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-paused-20261103-1653-precise-paused/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "F3/A17 precise.cutover",
       "stage": 2,
       "planned": 160,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 160,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "159/160，<200ms=99.375%，失败1",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 160, \"failures\": 0, \"below200\": 160, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.625, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 160,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 160,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.625,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-cutover-20261103-1656-precise-cutover/cp0-result.json"
+      ],
       "issues": []
     },
     {
@@ -8271,6 +8289,11 @@
       "stage": "stage1",
       "passed": true,
       "evidence": "example/tool/coverage_evidence/cp1-validation-stage1-20261103-164803.json"
+    },
+    {
+      "stage": "stage2-precise",
+      "passed": true,
+      "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-precise-20261103-170414.json"
     }
   ],
   "additionalRows": [
@@ -8278,75 +8301,93 @@
       "id": "F3/A17 precise.normal",
       "stage": 2,
       "planned": 60,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 60,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "60/60，<200ms=100%，失败0",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 60,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 60,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.0,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-normal-20261103-1650-precise-normal/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "F3/A17 precise.paused",
       "stage": 2,
       "planned": 60,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 60,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "60/60，<200ms=100%，失败0",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 60,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 60,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.0,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-paused-20261103-1653-precise-paused/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "F3/A17 precise.cutover",
       "stage": 2,
       "planned": 160,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 160,
+      "status": "PASS",
       "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
       "cp0": "159/160，<200ms=99.375%，失败1",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "difference": "{\"passes\": 160, \"failures\": 0, \"below200\": 160, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.625, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
       "metrics": {
-        "passes": 0,
+        "passes": 160,
         "failures": 0,
-        "below200": 0,
-        "below200Percent": null,
-        "deltaPercentagePoints": null,
+        "below200": 160,
+        "below200Percent": 100.0,
+        "deltaPercentagePoints": 0.625,
         "fromStart": 0,
         "newWrongPath": 0,
         "newContinuedFailure": 0,
         "newNonTransportLandingFailure": 0,
-        "harness": [],
-        "errors": []
+        "harness": [
+          []
+        ],
+        "errors": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-cutover-20261103-1656-precise-cutover/cp0-result.json"
+      ],
       "issues": []
     },
     {
@@ -9909,21 +9950,21 @@
   ],
   "supplementRows": [],
   "counts": {
-    "BLOCKED": 30,
-    "PASS": 15,
+    "BLOCKED": 27,
+    "PASS": 18,
     "FAIL": 2
   },
   "masterRows": [
     {
       "id": "F3/A17 precise 三组",
-      "status": "BLOCKED",
+      "status": "PASS",
       "subrows": [
         "F3/A17 precise.normal",
         "F3/A17 precise.paused",
         "F3/A17 precise.cutover"
       ],
       "planned": 280,
-      "executed": 0
+      "executed": 280
     },
     {
       "id": "H28 默认三组",
@@ -10089,14 +10130,14 @@
     }
   ],
   "masterCounts": {
-    "BLOCKED": 10,
-    "FAIL": 2,
-    "PASS": 4
+    "PASS": 5,
+    "BLOCKED": 9,
+    "FAIL": 2
   },
   "comparisonSummary": [
-    "precise.normal：0/60；{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
-    "precise.paused：0/60；{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
-    "precise.cutover：0/160；{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+    "precise.normal：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
+    "precise.paused：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
+    "precise.cutover：160/160；{\"passes\": 160, \"failures\": 0, \"below200\": 160, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.625, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
     "P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 {'passes': 0, 'failures': 0, 'harness': [], 'matchesB': [], 'wrongEpisode': [], 'stillAd': [], 'observationLimit': [], 'epochDelta': [], 'firstFrameGapUs': []}",
     "manageAuto：降档次数=[1, 1, 1, 1, 1]；默认关闭 降档次数=[0, 0, 0, 0, 0]。CP0默认关时限速仍停最高档；本次夹具/观察窗不同。",
     "dispose120：最大dispose区间帧间隔=95957us；最大dispose=112595us",

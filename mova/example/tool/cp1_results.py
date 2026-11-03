@@ -176,6 +176,8 @@ def main():
         '',f"设备：{data['device']}。",'',
         'APK SHA-256：`'+stage0.get('metadata',{}).get('sha256',{}).get('signed','待构建')+'`。构建一次，后续复用，安装后拉回逐值核验。',
         '', '证据目录：`example/tool/coverage_evidence/`（gitignored）；记录下标为 JSON records 的零基下标。',
+        '', '工具汇总显式使用已提交的S00e矩阵台账（默认gitignored旧台账在本树缺失）；CP1产品比较只使用CP0基线定量数字。每批135项工具输出中的未运行BLOCKED不混入本表。',
+        '', '页面原始CHECK的deviceStatus="未上机"是构建前遗留静态标签；本报告以本轮adb命令、安装拉回哈希、原生读回及真实事件为执行证据，不以该标签或AUTORUN DONE判通过。',
         '',f"总计划16行：{data['masterCounts']}；细分行：{data['counts']}。RUNNING 时未执行行不代表产品失败。",'',
         '## 与CP0的关键差异','',*[('- '+s) for s in data['comparisonSummary']],'',
         '|总计划CP1行|完成/计划|结论|','|---|---:|---|',
