@@ -22,6 +22,37 @@ const _route = '$_put:$_path';
 const _second = Duration(seconds: 1);
 
 void main() {
+  for (final cache in [false, true]) {
+    test('[DiomanKeyService.build] 整数列表自动构键后正常发送 cache=$cache', () async {
+      final net = FakeNetwork();
+      final api = testClient(network: net, plugins: [
+        if (cache)
+          DiomanCache<Result>(shouldCache: (_) => true)
+        else
+          const DiomanShare<Result>(methods: {'POST'})
+      ]);
+      addTearDown(api.dispose);
+      for (final body in <List<int>>[
+        [1000],
+        [-1],
+        [1001, 1002]
+      ]) {
+        expect(
+            await api.post<String>(_path,
+                data: body,
+                call: DiomanCall(options: {
+                  if (cache)
+                    DiomanCache.option: true
+                  else
+                    DiomanShare.option: true
+                })),
+            'ok');
+        expect(net.sends.last.body, body);
+      }
+      expect(net.sends, hasLength(3));
+    });
+  }
+
   for (final body in [
     Uint8List.fromList([1, 2]),
     <int>[1, 2]

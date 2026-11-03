@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -41,7 +42,7 @@ void main() {
           true
         ]));
     expect(key(<Object?>[1, 2]), isNot(key(<Object?>[2, 1])));
-    expect(key(<int>[1, 2]), key(Uint8List.fromList([1, 2])));
+    expect(key(<int>[1, 2]), isNot(key(Uint8List.fromList([1, 2]))));
     expect(key(<int>[1, 2]), isNot(key(<int>[2, 1])));
     expect(key(Uint8List.fromList([126, 162, 133, 180, 156, 60, 76, 159])),
         isNot(key(Uint8List.fromList([233, 247, 55, 250, 228, 8, 210, 57]))));
@@ -56,6 +57,29 @@ void main() {
     ]) {
       expect(key(body), isNull);
     }
+  });
+
+  test('[DiomanKeyService.build] 整数列表按 JSON 内容构键且允许越界整数', () {
+    const service = DiomanKeyService(DiomanKeyOptions());
+    for (final body in <List<int>>[
+      [1000],
+      [-1],
+      [1001, 1002],
+      [1, 2]
+    ]) {
+      final key = service.build(RequestOptions(path: _path, data: body));
+      expect(key, isNotNull);
+      expect(jsonDecode(key!)[2], {'list': jsonEncode(body)});
+    }
+  });
+
+  test('[DiomanKeyService.build] Uint8List 保留字节长度、哈希和无损校验', () {
+    const service = DiomanKeyService(DiomanKeyOptions());
+    final key = service
+        .build(RequestOptions(path: _path, data: Uint8List.fromList([1, 2])));
+    expect(jsonDecode(key!)[2], {
+      'bytes': [2, 3983810698, 'AQI=']
+    });
   });
 
   test('[DiomanContext.canReplay] B8 递归判断重放能力', () {

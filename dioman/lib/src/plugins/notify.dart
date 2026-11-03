@@ -1,4 +1,5 @@
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -27,7 +28,7 @@ class DiomanNotify<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = 'dioman:notify';
+  static const pluginName = diomanNotifyName;
 
   /// 请求级只接受 bool；false 关闭。
   static final option = DiomanOptionKey<bool>(pluginName);
