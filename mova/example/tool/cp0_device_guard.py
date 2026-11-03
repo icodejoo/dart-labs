@@ -4,15 +4,21 @@ from pathlib import Path
 import subprocess
 import time
 
+_offline_since=None
+
 def wait_online(serial):
-    deadline=time.monotonic()+900
+    global _offline_since
     while True:
         try:
             r=subprocess.run(['adb','-s',serial,'get-state'],capture_output=True,timeout=15)
             state=r.stdout.decode(errors='replace').strip()
         except subprocess.TimeoutExpired:
             state='get-state timeout'
-        if state=='device':return
+        if state=='device':
+            _offline_since=None
+            return
+        if _offline_since is None:_offline_since=time.monotonic()
+        deadline=_offline_since+900
         row=dict(at=time.time(),serial=serial,state=state)
         with (Path(__file__).parent/'coverage_evidence/cp0-reconnect.jsonl').open('a') as f:
             f.write(json.dumps(row)+'\n')

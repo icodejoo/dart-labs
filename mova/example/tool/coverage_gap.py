@@ -35,10 +35,10 @@ def canonical_checks(rows):
 
 class GapDriver(matrix.Driver):
     def screen(self):
-        window=self.adb('shell','dumpsys','window')
-        if not matrix.is_unlocked(window):
-            raise Blocked('device must be awake and unlocked; rendering evidence blocked')
-        return window
+        try:
+            return super().screen(wait=600)
+        except matrix.DeviceLocked as error:
+            raise Blocked(str(error)) from error
 
     def note(self, kind, detail, case='gap:HARNESS.driver'):
         line = f'[MOVA-COV] {datetime.now().astimezone().isoformat(timespec="milliseconds")} <run={self.logical_run_id}> <case={case}> {kind} {detail}'
