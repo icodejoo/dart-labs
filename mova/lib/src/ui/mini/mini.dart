@@ -119,6 +119,7 @@ class MovaMini extends ChangeNotifier {
   /// 同一个 [api] 重复调用是幂等的。已有小窗时 show 另一个 [api]，会先把前一个
   /// 的 `mini` 置回 false（此处永不 dispose 它）。
   Future<void> show(MovaApi api, {MovaSkin skin = const MovaMiniSkin()}) async {
+    if (!api.options.mini.enabled) return;
     if (identical(_api, api) && _mount == MovaMiniMount.persistent) return;
     await _switchTo(api, skin);
     _detachEntry();

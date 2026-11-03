@@ -62,6 +62,10 @@ class MovaSttConfig {
   /// 接收解码音频的识别器；为空表示不做任何识别（见 [MovaNoopSttEngine]）。
   final MovaSttEngine? engine;
 
+  /// 返回是否已注入识别器；与 [enabled] 一起判断功能是否可启动。
+  /// 示例：`if (!api.options.stt.hasEngine) showSetup();`。
+  bool get hasEngine => engine != null;
+
   /// Called whenever a [start] request is refused; null means stay silent.
   ///
   /// [start] 请求被拒绝时的回调；为 null 表示静默。

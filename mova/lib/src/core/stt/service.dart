@@ -111,6 +111,8 @@ class MovaSttService implements MovaSttApi {
     return null;
   }
 
+  bool _warnedNoEngine = false;
+
   @override
   Future<void> start() async {
     if (_disposed) return;
@@ -118,7 +120,17 @@ class MovaSttService implements MovaSttApi {
       return _blocked(MovaSttBlockReason.disabled);
     }
     final engine = config.engine;
-    if (engine == null) return _blocked(MovaSttBlockReason.noEngine);
+    if (engine == null) {
+      assert(() {
+        if (!_warnedNoEngine) {
+          _warnedNoEngine = true;
+          // ignore: avoid_print
+          print('STT 未配置 stt.engine；可读取 options.stt.hasEngine。');
+        }
+        return true;
+      }());
+      return _blocked(MovaSttBlockReason.noEngine);
+    }
     if (_source == null) return _blocked(MovaSttBlockReason.noSource);
     if (_started) return;
     _started = true;

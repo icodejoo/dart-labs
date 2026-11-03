@@ -515,8 +515,11 @@ MovaAdConfig(
 `MovaEngine` 完全一致。
 
 ```dart
-final api = MovaCutoverEngine(engineFactory: createMovaEngine);
-// 或带上配置：createMovaEngine(options: MovaOpts(cutover: MovaCutoverConfig(enabled: true)))
+final api = MovaCutoverEngine(
+  engineFactory: () => createMovaEngine(
+    options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)),
+  ),
+);
 final ads = MovaAds(api, cutover: api); // cutover 传同一个实例
 runApp(MovaPlayer(api: api));
 ```

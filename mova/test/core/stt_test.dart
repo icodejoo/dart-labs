@@ -76,6 +76,22 @@ MovaSttCue _cue(String text, int from, int to) =>
     MovaSttCue(text: text, start: Duration(seconds: from), end: Duration(seconds: to));
 
 void main() {
+  test('C02 missing recognizer warns once and remains stopped', () async {
+    final messages = <String>[];
+    final reasons = <MovaSttBlockReason>[];
+    await runZoned(() async {
+      final service = MovaSttService(config: const MovaSttConfig(enabled: true), onBlocked: reasons.add);
+      expect(messages, isEmpty);
+      await service.start();
+      await service.start();
+      expect(service.config.hasEngine, isFalse);
+      expect(service.isRunning, isFalse);
+      expect(reasons, [MovaSttBlockReason.noEngine, MovaSttBlockReason.noEngine]);
+      expect(messages.where((m) => m.contains('stt.engine')), hasLength(1));
+      await service.dispose();
+    }, zoneSpecification: ZoneSpecification(print: (_, _, _, m) => messages.add(m)));
+  });
+
   group('MovaSttCue', () {
     test('covers is inclusive of start and exclusive of end', () {
       const cue = MovaSttCue(text: 'hi', start: Duration(seconds: 1), end: Duration(seconds: 2));

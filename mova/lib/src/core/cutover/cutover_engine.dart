@@ -744,6 +744,8 @@ class MovaCutoverEngine
   /// [prepare]、[cutoverTo] 共用的影子创建路径；[plan] 由调用方注入，使
   /// [cutoverTo] 能无视已配置的触发策略、强制立即预热，也使广告方向的预热能停在
   /// 第 0 帧。
+  bool _warnedDisabled = false;
+
   Future<_WarmSlot?> _startWarm(
     MovaSource source, {
     required Duration at,
@@ -753,7 +755,18 @@ class MovaCutoverEngine
     // A disposed proxy must not build a shadow engine nobody would release.
     //
     // 已销毁的代理不能再造一个没人释放的影子引擎。
-    if (_disposed || !cutoverEnabled) return null;
+    if (_disposed) return null;
+    if (!cutoverEnabled) {
+      assert(() {
+        if (!_warnedDisabled) {
+          _warnedDisabled = true;
+          // ignore: avoid_print
+          print('无缝预热已关闭；请设置 cutover.enabled: true，可读取 cutoverEnabled。');
+        }
+        return true;
+      }());
+      return null;
+    }
     final op = _op;
     final trigger = plan.trigger ?? _config.effectiveTrigger;
     if (!trigger.shouldWarm(cue)) return null;

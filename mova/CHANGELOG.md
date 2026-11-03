@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
+
 - README 应用示例统一使用 createMovaEngine，首例等待并捕获打开失败；裸 MovaEngine 缺省平台端口时在 debug 下一次性提示。
 
 - 宿主抢源导致会话让位时，为已开始的原节点补发一次 MovaNodeEnd(superseded)，保持原 epoch，不报告节点失败，也不放弃宿主新影子。
