@@ -90,6 +90,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
           "recordIndex": 286,
           "id": "CP1.edgepause.pause.0",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "pendingAtPause": true,
             "phase": "off"
@@ -99,6 +101,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
           "recordIndex": 519,
           "id": "CP1.edgepause.pause.1",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "pendingAtPause": true,
             "phase": "off"
@@ -108,6 +112,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
           "recordIndex": 754,
           "id": "CP1.edgepause.pause.2",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "pendingAtPause": true,
             "phase": "off"
@@ -117,6 +123,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
           "recordIndex": 977,
           "id": "CP1.edgepause.pause.3",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "pendingAtPause": true,
             "phase": "off"
@@ -126,6 +134,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
           "recordIndex": 1194,
           "id": "CP1.edgepause.pause.4",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "pendingAtPause": true,
             "phase": "off"
@@ -220,30 +230,40 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 39,
           "id": "CP1.errclass.nonfatal.0",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 76,
           "id": "CP1.errclass.nonfatal.1",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 113,
           "id": "CP1.errclass.nonfatal.2",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 154,
           "id": "CP1.errclass.nonfatal.3",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 191,
           "id": "CP1.errclass.nonfatal.4",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         }
       ],
@@ -386,30 +406,40 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 215,
           "id": "CP1.errclass.fatal.0",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 239,
           "id": "CP1.errclass.fatal.1",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 262,
           "id": "CP1.errclass.fatal.2",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 286,
           "id": "CP1.errclass.fatal.3",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         },
         {
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 310,
           "id": "CP1.errclass.fatal.4",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {}
         }
       ],
@@ -436,6 +466,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 342,
           "id": "CP1.errclass.poster.0",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "opacity": 0.0
           }
@@ -444,6 +476,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 374,
           "id": "CP1.errclass.poster.1",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "opacity": 0.0
           }
@@ -452,6 +486,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 409,
           "id": "CP1.errclass.poster.2",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "opacity": 0.0
           }
@@ -460,6 +496,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 441,
           "id": "CP1.errclass.poster.3",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "opacity": 0.0
           }
@@ -468,6 +506,8 @@
           "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
           "recordIndex": 473,
           "id": "CP1.errclass.poster.4",
+          "frameDistribution": {},
+          "pssSamples": null,
           "values": {
             "opacity": 0.0
           }
@@ -479,46 +519,568 @@
       "id": "probe.list",
       "stage": 1,
       "planned": 10,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 10,
+      "counts": {
+        "PASS": 10
+      },
+      "status": "PASS",
       "criterion": "列表非空",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
+      ],
       "issues": [],
-      "measurements": [],
-      "harness": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 44,
+          "id": "CP1.probe.list.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692070052676": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 83,
+          "id": "CP1.probe.list.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692071150730": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 121,
+          "id": "CP1.probe.list.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692072169713": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 177,
+          "id": "CP1.probe.list.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692073256810": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 233,
+          "id": "CP1.probe.list.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692075446301": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 293,
+          "id": "CP1.probe.list.5",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692077583948": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 352,
+          "id": "CP1.probe.list.6",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692079800338": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 404,
+          "id": "CP1.probe.list.7",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692081960295": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 452,
+          "id": "CP1.probe.list.8",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692083998800": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 504,
+          "id": "CP1.probe.list.9",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692086045373": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 147775577, 'scene': 'probe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=probe', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runProbe (package:mova_example/verify_auto/cp1_probe_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.probe.failover.0: CHECK count=0",
+            "CP1.probe.failover.1: CHECK count=0",
+            "CP1.probe.failover.2: CHECK count=0",
+            "CP1.probe.failover.3: CHECK count=0",
+            "CP1.probe.failover.4: CHECK count=0",
+            "CP1.probe.disabled.0: CHECK count=0",
+            "CP1.probe.disabled.1: CHECK count=0",
+            "CP1.probe.disabled.2: CHECK count=0",
+            "CP1.probe.disabled.3: CHECK count=0",
+            "CP1.probe.disabled.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "probe.manual",
       "stage": 1,
       "planned": 10,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 10,
+      "counts": {
+        "PASS": 10
+      },
+      "status": "PASS",
       "criterion": "手选 720p 保持，原生地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
+      ],
       "issues": [],
-      "measurements": [],
-      "harness": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 553,
+          "id": "CP1.probe.manual.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692088287352": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 601,
+          "id": "CP1.probe.manual.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692089661238": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 649,
+          "id": "CP1.probe.manual.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692091144531": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 696,
+          "id": "CP1.probe.manual.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692092477663": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 743,
+          "id": "CP1.probe.manual.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692094087042": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 790,
+          "id": "CP1.probe.manual.5",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692095567077": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 835,
+          "id": "CP1.probe.manual.6",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692096882945": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 881,
+          "id": "CP1.probe.manual.7",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692098327043": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 927,
+          "id": "CP1.probe.manual.8",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692099757052": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 980,
+          "id": "CP1.probe.manual.9",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "720p",
+            "probeCounts": {
+              "/master.m3u8?t=1793692101294824": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 147775577, 'scene': 'probe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=probe', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runProbe (package:mova_example/verify_auto/cp1_probe_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.probe.failover.0: CHECK count=0",
+            "CP1.probe.failover.1: CHECK count=0",
+            "CP1.probe.failover.2: CHECK count=0",
+            "CP1.probe.failover.3: CHECK count=0",
+            "CP1.probe.failover.4: CHECK count=0",
+            "CP1.probe.disabled.0: CHECK count=0",
+            "CP1.probe.disabled.1: CHECK count=0",
+            "CP1.probe.disabled.2: CHECK count=0",
+            "CP1.probe.disabled.3: CHECK count=0",
+            "CP1.probe.disabled.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "probe.once",
       "stage": 1,
       "planned": 10,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 10,
+      "counts": {
+        "PASS": 10
+      },
+      "status": "PASS",
       "criterion": "每会话探测一次",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
+      ],
       "issues": [],
-      "measurements": [],
-      "harness": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1032,
+          "id": "CP1.probe.once.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692102918413": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1082,
+          "id": "CP1.probe.once.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692104900542": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1129,
+          "id": "CP1.probe.once.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692106971965": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1176,
+          "id": "CP1.probe.once.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692109131530": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1230,
+          "id": "CP1.probe.once.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692111205322": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1288,
+          "id": "CP1.probe.once.5",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692113455815": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1340,
+          "id": "CP1.probe.once.6",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692116211556": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1414,
+          "id": "CP1.probe.once.7",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692118169791": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1467,
+          "id": "CP1.probe.once.8",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692120941770": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "recordIndex": 1525,
+          "id": "CP1.probe.once.9",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "currentQuality": "自动",
+            "probeCounts": {
+              "/master.m3u8?t=1793692123330703": 1
+            },
+            "probeTotal": 1,
+            "sourceIndex": 0
+          }
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 147775577, 'scene': 'probe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=probe', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runProbe (package:mova_example/verify_auto/cp1_probe_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.probe.failover.0: CHECK count=0",
+            "CP1.probe.failover.1: CHECK count=0",
+            "CP1.probe.failover.2: CHECK count=0",
+            "CP1.probe.failover.3: CHECK count=0",
+            "CP1.probe.failover.4: CHECK count=0",
+            "CP1.probe.disabled.0: CHECK count=0",
+            "CP1.probe.disabled.1: CHECK count=0",
+            "CP1.probe.disabled.2: CHECK count=0",
+            "CP1.probe.disabled.3: CHECK count=0",
+            "CP1.probe.disabled.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "probe.failover",
@@ -530,10 +1092,31 @@
       "criterion": "换备用源重新探测且每地址一次",
       "cp0": "CP0 无独立定量基线",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
+      ],
       "issues": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 147775577, 'scene': 'probe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=probe', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runProbe (package:mova_example/verify_auto/cp1_probe_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.probe.failover.0: CHECK count=0",
+            "CP1.probe.failover.1: CHECK count=0",
+            "CP1.probe.failover.2: CHECK count=0",
+            "CP1.probe.failover.3: CHECK count=0",
+            "CP1.probe.failover.4: CHECK count=0",
+            "CP1.probe.disabled.0: CHECK count=0",
+            "CP1.probe.disabled.1: CHECK count=0",
+            "CP1.probe.disabled.2: CHECK count=0",
+            "CP1.probe.disabled.3: CHECK count=0",
+            "CP1.probe.disabled.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "probe.disabled",
@@ -545,159 +1128,1420 @@
       "criterion": "关闭探测时请求为零",
       "cp0": "CP0 无独立定量基线",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
+      ],
       "issues": [],
       "measurements": [],
-      "harness": []
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 147775577, 'scene': 'probe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=probe', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runProbe (package:mova_example/verify_auto/cp1_probe_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.probe.failover.0: CHECK count=0",
+            "CP1.probe.failover.1: CHECK count=0",
+            "CP1.probe.failover.2: CHECK count=0",
+            "CP1.probe.failover.3: CHECK count=0",
+            "CP1.probe.failover.4: CHECK count=0",
+            "CP1.probe.disabled.0: CHECK count=0",
+            "CP1.probe.disabled.1: CHECK count=0",
+            "CP1.probe.disabled.2: CHECK count=0",
+            "CP1.probe.disabled.3: CHECK count=0",
+            "CP1.probe.disabled.4: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "manageauto.managed",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "真实降档且降档后可手选 720p",
       "cp0": "CP0 限速五次均停最高档、不降档",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 95,
+          "id": "CP1.manageauto.managed.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 1,
+            "autoTierAfter": "720p",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 197,
+          "id": "CP1.manageauto.managed.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 1,
+            "autoTierAfter": "720p",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 299,
+          "id": "CP1.manageauto.managed.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 1,
+            "autoTierAfter": "720p",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 395,
+          "id": "CP1.manageauto.managed.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 1,
+            "autoTierAfter": "720p",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 493,
+          "id": "CP1.manageauto.managed.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 1,
+            "autoTierAfter": "720p",
+            "manualAfter": "720p"
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "manageauto.default",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "默认关闭无降档",
       "cp0": "CP0 默认限速五次均不降档；夹具/观察窗不同",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 580,
+          "id": "CP1.manageauto.default.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 668,
+          "id": "CP1.manageauto.default.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 762,
+          "id": "CP1.manageauto.default.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 847,
+          "id": "CP1.manageauto.default.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 937,
+          "id": "CP1.manageauto.default.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "manageauto.disabled",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "ABR 关闭无降档",
       "cp0": "CP0 无该对照",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1029,
+          "id": "CP1.manageauto.disabled.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1125,
+          "id": "CP1.manageauto.disabled.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1211,
+          "id": "CP1.manageauto.disabled.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1296,
+          "id": "CP1.manageauto.disabled.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1395,
+          "id": "CP1.manageauto.disabled.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "downShiftCount": 0,
+            "autoTierAfter": "自动",
+            "manualAfter": "720p"
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "manageauto.lease",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "手选档缓冲 true→false，租约不降档",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1467,
+          "id": "CP1.manageauto.lease.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "beforeBuffering": false,
+            "downShiftCount": 0,
+            "quality": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1533,
+          "id": "CP1.manageauto.lease.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "beforeBuffering": false,
+            "downShiftCount": 0,
+            "quality": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1603,
+          "id": "CP1.manageauto.lease.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "beforeBuffering": false,
+            "downShiftCount": 0,
+            "quality": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1671,
+          "id": "CP1.manageauto.lease.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "beforeBuffering": false,
+            "downShiftCount": 0,
+            "quality": "720p"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json",
+          "recordIndex": 1737,
+          "id": "CP1.manageauto.lease.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "beforeBuffering": false,
+            "downShiftCount": 0,
+            "quality": "720p"
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "bblock.restore",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
+      "executed": 5,
+      "counts": {
+        "BLOCKED": 5
+      },
       "status": "BLOCKED",
       "criterion": "亮度播种/还原、竖屏、系统栏原生对账",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
-      "issues": [],
-      "measurements": [],
-      "harness": []
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 261,
+          "id": "CP1.bblock.restore.0",
+          "status": "BLOCKED",
+          "reason": "dumpsys 亮度/rotation/InsetsSource 解析不完整",
+          "numbers": {
+            "seed": 0.10588235408067703,
+            "changed": 0.5428823127859551,
+            "before": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 27,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "after": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 62,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "seedTolerance": 0.02,
+            "changedNative": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 27,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "fullscreen": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 27,
+              "displayBrightness": null,
+              "rotation": null,
+              "insets": []
+            },
+            "exit": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 27,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            }
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 674,
+          "id": "CP1.bblock.restore.1",
+          "status": "BLOCKED",
+          "reason": "dumpsys 亮度/rotation/InsetsSource 解析不完整",
+          "numbers": {
+            "seed": 0.16470588743686676,
+            "changed": 0.7127058593876217,
+            "before": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "after": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 52,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "seedTolerance": 0.02,
+            "changedNative": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "fullscreen": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": null,
+              "insets": []
+            },
+            "exit": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            }
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1141,
+          "id": "CP1.bblock.restore.2",
+          "status": "BLOCKED",
+          "reason": "dumpsys 亮度/rotation/InsetsSource 解析不完整",
+          "numbers": {
+            "seed": 0.15294118225574493,
+            "changed": 0.7019411733734839,
+            "before": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 41,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "after": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "seedTolerance": 0.02,
+            "changedNative": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 32,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "fullscreen": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 32,
+              "displayBrightness": null,
+              "rotation": null,
+              "insets": []
+            },
+            "exit": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 32,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            }
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1603,
+          "id": "CP1.bblock.restore.3",
+          "status": "BLOCKED",
+          "reason": "dumpsys 亮度/rotation/InsetsSource 解析不完整",
+          "numbers": {
+            "seed": 0.15294118225574493,
+            "changed": 0.7009411542064998,
+            "before": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "after": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 42,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "seedTolerance": 0.02,
+            "changedNative": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "fullscreen": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": null,
+              "insets": []
+            },
+            "exit": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            }
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 2083,
+          "id": "CP1.bblock.restore.4",
+          "status": "BLOCKED",
+          "reason": "dumpsys 亮度/rotation/InsetsSource 解析不完整",
+          "numbers": {
+            "seed": 0.12941177189350128,
+            "changed": 0.6774117438442562,
+            "before": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "after": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 63,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "seedTolerance": 0.02,
+            "changedNative": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            },
+            "fullscreen": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": null,
+              "insets": []
+            },
+            "exit": {
+              "parsed": false,
+              "seedBrightness": null,
+              "brightnessOverride": null,
+              "brightness": 33,
+              "displayBrightness": null,
+              "rotation": "0",
+              "insets": []
+            }
+          }
+        }
+      ],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 261,
+          "id": "CP1.bblock.restore.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 674,
+          "id": "CP1.bblock.restore.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1141,
+          "id": "CP1.bblock.restore.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1603,
+          "id": "CP1.bblock.restore.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 2083,
+          "id": "CP1.bblock.restore.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {}
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "errors": [],
+          "missing": [
+            "CP1.bblock.restore.0: missing evidence",
+            "CP1.bblock.restore.1: missing evidence",
+            "CP1.bblock.restore.2: missing evidence",
+            "CP1.bblock.restore.3: missing evidence",
+            "CP1.bblock.restore.4: missing evidence"
+          ]
+        }
+      ]
     },
     {
       "id": "bblock.preview",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "404 挂起 body 时 dispose≤5s 且 NativePlayer 释放",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
+      ],
       "issues": [],
-      "measurements": [],
-      "harness": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 292,
+          "id": "CP1.bblock.preview.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "disposeUs": 5113,
+            "disposeCompleted": true,
+            "nativeReleased": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 713,
+          "id": "CP1.bblock.preview.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "disposeUs": 6880,
+            "disposeCompleted": true,
+            "nativeReleased": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1179,
+          "id": "CP1.bblock.preview.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "disposeUs": 79158,
+            "disposeCompleted": true,
+            "nativeReleased": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 1637,
+          "id": "CP1.bblock.preview.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "disposeUs": 9078,
+            "disposeCompleted": true,
+            "nativeReleased": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "recordIndex": 2117,
+          "id": "CP1.bblock.preview.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "disposeUs": 83083,
+            "disposeCompleted": true,
+            "nativeReleased": true
+          }
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json",
+          "errors": [],
+          "missing": [
+            "CP1.bblock.restore.0: missing evidence",
+            "CP1.bblock.restore.1: missing evidence",
+            "CP1.bblock.restore.2: missing evidence",
+            "CP1.bblock.restore.3: missing evidence",
+            "CP1.bblock.restore.4: missing evidence"
+          ]
+        }
+      ]
     },
     {
       "id": "pool.reject",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "拒绝后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 69,
+          "id": "CP1.pool.reject.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": false,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 123,
+          "id": "CP1.pool.reject.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": false,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 174,
+          "id": "CP1.pool.reject.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": false,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 224,
+          "id": "CP1.pool.reject.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": false,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 273,
+          "id": "CP1.pool.reject.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": false,
+            "ready": true
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "pool.throw",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "抛错后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 321,
+          "id": "CP1.pool.throw.0",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": true,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 380,
+          "id": "CP1.pool.throw.1",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": true,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 427,
+          "id": "CP1.pool.throw.2",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": true,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 475,
+          "id": "CP1.pool.throw.3",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": true,
+            "ready": true
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 523,
+          "id": "CP1.pool.throw.4",
+          "frameDistribution": {},
+          "pssSamples": null,
+          "values": {
+            "hiddenOnReject": true,
+            "threw": true,
+            "ready": true
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "pool.feed",
       "stage": 1,
       "planned": 3,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 3,
+      "counts": {
+        "PASS": 3
+      },
+      "status": "PASS",
       "criterion": "每轮 1000 条，缓存≤7，十点 PSS 不单调上升",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 544,
+          "id": "CP1.pool.feed.0",
+          "frameDistribution": {},
+          "pssSamples": [
+            {
+              "index": 100,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 206850
+            },
+            {
+              "index": 200,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 137185
+            },
+            {
+              "index": 300,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 140967
+            },
+            {
+              "index": 400,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 154583
+            },
+            {
+              "index": 500,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 139582
+            },
+            {
+              "index": 600,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 144214
+            },
+            {
+              "index": 700,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 154904
+            },
+            {
+              "index": 800,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 146730
+            },
+            {
+              "index": 900,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 152602
+            },
+            {
+              "index": 1000,
+              "cacheCount": 4,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 154720
+            }
+          ],
+          "values": {
+            "items": 1000,
+            "maxCache": 4,
+            "cacheBound": 7,
+            "pssSlopeKbPer100Items": -1980.8545454545454,
+            "strictlyIncreasing": false
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 565,
+          "id": "CP1.pool.feed.1",
+          "frameDistribution": {},
+          "pssSamples": [
+            {
+              "index": 100,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 152090
+            },
+            {
+              "index": 200,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 143881
+            },
+            {
+              "index": 300,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 153313
+            },
+            {
+              "index": 400,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 145267
+            },
+            {
+              "index": 500,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 166533
+            },
+            {
+              "index": 600,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 145677
+            },
+            {
+              "index": 700,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 144961
+            },
+            {
+              "index": 800,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 161349
+            },
+            {
+              "index": 900,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 146178
+            },
+            {
+              "index": 1000,
+              "cacheCount": 4,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 156155
+            }
+          ],
+          "values": {
+            "items": 1000,
+            "maxCache": 4,
+            "cacheBound": 7,
+            "pssSlopeKbPer100Items": 430.72727272727275,
+            "strictlyIncreasing": false
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json",
+          "recordIndex": 586,
+          "id": "CP1.pool.feed.2",
+          "frameDistribution": {},
+          "pssSamples": [
+            {
+              "index": 100,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 141072
+            },
+            {
+              "index": 200,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 141344
+            },
+            {
+              "index": 300,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 142424
+            },
+            {
+              "index": 400,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 143692
+            },
+            {
+              "index": 500,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 154216
+            },
+            {
+              "index": 600,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 156196
+            },
+            {
+              "index": 700,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 144984
+            },
+            {
+              "index": 800,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 155418
+            },
+            {
+              "index": 900,
+              "cacheCount": 5,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 146248
+            },
+            {
+              "index": 1000,
+              "cacheCount": 4,
+              "pending": 0,
+              "engineCount": 3,
+              "pssKb": 144372
+            }
+          ],
+          "values": {
+            "items": 1000,
+            "maxCache": 4,
+            "cacheBound": 7,
+            "pssSlopeKbPer100Items": 817.2969696969697,
+            "strictlyIncreasing": false
+          }
+        }
+      ],
       "harness": []
     },
     {
       "id": "danmaku.jump",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "5000 条弹幕四次跳转，保留帧耗时分布，不设硬线",
       "cp0": "CP0 无 5000 条定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json"
+      ],
       "issues": [],
-      "measurements": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+          "recordIndex": 63,
+          "id": "CP1.danmaku.jump.0",
+          "frameDistribution": {
+            "buildUs": {
+              "count": 172,
+              "p50": 366,
+              "p95": 2499,
+              "p99": 4692,
+              "maximum": 7898
+            },
+            "rasterUs": {
+              "count": 172,
+              "p50": 3310,
+              "p95": 16534,
+              "p99": 20579,
+              "maximum": 21521
+            },
+            "totalUs": {
+              "count": 172,
+              "p50": 5273,
+              "p95": 22595,
+              "p99": 28379,
+              "maximum": 159062
+            }
+          },
+          "pssSamples": null,
+          "values": {
+            "items": 5000,
+            "frameCount": 172
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+          "recordIndex": 124,
+          "id": "CP1.danmaku.jump.1",
+          "frameDistribution": {
+            "buildUs": {
+              "count": 169,
+              "p50": 426,
+              "p95": 3221,
+              "p99": 4980,
+              "maximum": 8562
+            },
+            "rasterUs": {
+              "count": 169,
+              "p50": 12311,
+              "p95": 18035,
+              "p99": 22203,
+              "maximum": 27872
+            },
+            "totalUs": {
+              "count": 169,
+              "p50": 15385,
+              "p95": 28859,
+              "p99": 38225,
+              "maximum": 46789
+            }
+          },
+          "pssSamples": null,
+          "values": {
+            "items": 5000,
+            "frameCount": 169
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+          "recordIndex": 184,
+          "id": "CP1.danmaku.jump.2",
+          "frameDistribution": {
+            "buildUs": {
+              "count": 168,
+              "p50": 434,
+              "p95": 3535,
+              "p99": 6226,
+              "maximum": 8451
+            },
+            "rasterUs": {
+              "count": 168,
+              "p50": 11746,
+              "p95": 20547,
+              "p99": 22617,
+              "maximum": 22914
+            },
+            "totalUs": {
+              "count": 168,
+              "p50": 15393,
+              "p95": 29896,
+              "p99": 37655,
+              "maximum": 62342
+            }
+          },
+          "pssSamples": null,
+          "values": {
+            "items": 5000,
+            "frameCount": 168
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+          "recordIndex": 241,
+          "id": "CP1.danmaku.jump.3",
+          "frameDistribution": {
+            "buildUs": {
+              "count": 176,
+              "p50": 395,
+              "p95": 3621,
+              "p99": 6031,
+              "maximum": 8034
+            },
+            "rasterUs": {
+              "count": 176,
+              "p50": 10745,
+              "p95": 16662,
+              "p99": 20357,
+              "maximum": 23845
+            },
+            "totalUs": {
+              "count": 176,
+              "p50": 14452,
+              "p95": 26429,
+              "p99": 45644,
+              "maximum": 73186
+            }
+          },
+          "pssSamples": null,
+          "values": {
+            "items": 5000,
+            "frameCount": 176
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+          "recordIndex": 305,
+          "id": "CP1.danmaku.jump.4",
+          "frameDistribution": {
+            "buildUs": {
+              "count": 168,
+              "p50": 428,
+              "p95": 3227,
+              "p99": 5247,
+              "maximum": 6355
+            },
+            "rasterUs": {
+              "count": 168,
+              "p50": 10736,
+              "p95": 15577,
+              "p99": 20184,
+              "maximum": 23400
+            },
+            "totalUs": {
+              "count": 168,
+              "p50": 14209,
+              "p95": 24983,
+              "p99": 37884,
+              "maximum": 46405
+            }
+          },
+          "pssSamples": null,
+          "values": {
+            "items": 5000,
+            "frameCount": 168
+          }
+        }
+      ],
       "harness": []
     },
     {
@@ -774,6 +2618,281 @@
       "issues": [],
       "measurements": [],
       "harness": []
+    },
+    {
+      "id": "F3/A17 precise.normal",
+      "stage": 2,
+      "planned": 60,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "60/60，<200ms=100%，失败0",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "F3/A17 precise.paused",
+      "stage": 2,
+      "planned": 60,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "60/60，<200ms=100%，失败0",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "F3/A17 precise.cutover",
+      "stage": 2,
+      "planned": 160,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "159/160，<200ms=99.375%，失败1",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.playing",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.paused",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.cutover",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H20.hlsSeek",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H50.hlsSeek",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.contentWarm",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 播B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.midPending",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 播B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.postLoad",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 停广告尾帧，20秒未进B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "pod2.wait.ad2",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
+      "cp0": "CP0 跳过，无等待型基线",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "pod2.nowait.ad2",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
+      "cp0": "CP0 跳过，无等待型基线",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
     },
     {
       "id": "Windows F3",
@@ -982,10 +3101,467 @@
       "test_win_policy": "PASS 11"
     }
   ],
-  "additionalRows": [],
+  "additionalRows": [
+    {
+      "id": "F3/A17 precise.normal",
+      "stage": 2,
+      "planned": 60,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "60/60，<200ms=100%，失败0",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "F3/A17 precise.paused",
+      "stage": 2,
+      "planned": 60,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "60/60，<200ms=100%，失败0",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "F3/A17 precise.cutover",
+      "stage": 2,
+      "planned": 160,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败≤max(CP0失败,1)，无新失败特征；<200ms降幅≤5百分点",
+      "cp0": "159/160，<200ms=99.375%，失败1",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"below200\": 0, \"below200Percent\": null, \"deltaPercentagePoints\": null, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [], \"errors\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "below200": 0,
+        "below200Percent": null,
+        "deltaPercentagePoints": null,
+        "fromStart": 0,
+        "newWrongPath": 0,
+        "newContinuedFailure": 0,
+        "newNonTransportLandingFailure": 0,
+        "harness": [],
+        "errors": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.playing",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.paused",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H28.default.cutover",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H20.hlsSeek",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "H50.hlsSeek",
+      "stage": 2,
+      "planned": 30,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
+      "cp0": "30/30 PASS",
+      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "metrics": {
+        "verdictCounts": {},
+        "deltaMs": [],
+        "harness": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.contentWarm",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 播B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.midPending",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 播B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "p02.postLoad",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
+      "cp0": "10/10 停广告尾帧，20秒未进B",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "pod2.wait.ad2",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
+      "cp0": "CP0 跳过，无等待型基线",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    },
+    {
+      "id": "pod2.nowait.ad2",
+      "stage": 2,
+      "planned": 10,
+      "executed": 0,
+      "status": "BLOCKED",
+      "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
+      "cp0": "CP0 跳过，无等待型基线",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "metrics": {
+        "passes": 0,
+        "failures": 0,
+        "harness": [],
+        "matchesB": [],
+        "wrongEpisode": [],
+        "stillAd": [],
+        "observationLimit": [],
+        "epochDelta": [],
+        "firstFrameGapUs": []
+      },
+      "evidence": [],
+      "issues": []
+    }
+  ],
+  "supplementRows": [],
   "counts": {
-    "BLOCKED": 27,
-    "PASS": 2,
+    "BLOCKED": 28,
+    "PASS": 14,
     "FAIL": 1
+  },
+  "masterRows": [
+    {
+      "id": "F3/A17 precise 三组",
+      "status": "BLOCKED",
+      "subrows": [
+        "F3/A17 precise.normal",
+        "F3/A17 precise.paused",
+        "F3/A17 precise.cutover"
+      ],
+      "planned": 280,
+      "executed": 0
+    },
+    {
+      "id": "H28 默认三组",
+      "status": "BLOCKED",
+      "subrows": [
+        "H28.default.playing",
+        "H28.default.paused",
+        "H28.default.cutover"
+      ],
+      "planned": 90,
+      "executed": 0
+    },
+    {
+      "id": "H20/H50 HLS",
+      "status": "BLOCKED",
+      "subrows": [
+        "H20.hlsSeek",
+        "H50.hlsSeek"
+      ],
+      "planned": 60,
+      "executed": 0
+    },
+    {
+      "id": "P0-2 三种触发",
+      "status": "BLOCKED",
+      "subrows": [
+        "p02.contentWarm",
+        "p02.midPending",
+        "p02.postLoad"
+      ],
+      "planned": 30,
+      "executed": 0
+    },
+    {
+      "id": "keepAlive S1/S7/S13/S14",
+      "status": "BLOCKED",
+      "subrows": [
+        "keepalive-core.S1",
+        "keepalive-s7s14.S7",
+        "keepalive-core.S13",
+        "keepalive-s7s14.S14"
+      ],
+      "planned": 20,
+      "executed": 0
+    },
+    {
+      "id": "终审7a",
+      "status": "BLOCKED",
+      "subrows": [
+        "wakeswap.swap"
+      ],
+      "planned": 10,
+      "executed": 0
+    },
+    {
+      "id": "终审7b / fallback",
+      "status": "BLOCKED",
+      "subrows": [
+        "edgepause.pause",
+        "edgepause.fallback"
+      ],
+      "planned": 20,
+      "executed": 5
+    },
+    {
+      "id": "H35 / 手选720p重试",
+      "status": "BLOCKED",
+      "subrows": [
+        "recovery.resume",
+        "recovery.manual720"
+      ],
+      "planned": 20,
+      "executed": 0
+    },
+    {
+      "id": "错误分级",
+      "status": "FAIL",
+      "subrows": [
+        "errclass.nonfatal",
+        "errclass.fatal"
+      ],
+      "planned": 10,
+      "executed": 10
+    },
+    {
+      "id": "A14 poster",
+      "status": "PASS",
+      "subrows": [
+        "errclass.poster"
+      ],
+      "planned": 5,
+      "executed": 5
+    },
+    {
+      "id": "A12/N6 探测",
+      "status": "BLOCKED",
+      "subrows": [
+        "probe.list",
+        "probe.manual",
+        "probe.once",
+        "probe.failover",
+        "probe.disabled"
+      ],
+      "planned": 40,
+      "executed": 30
+    },
+    {
+      "id": "A16 / A11",
+      "status": "PASS",
+      "subrows": [
+        "manageauto.managed",
+        "manageauto.default",
+        "manageauto.disabled",
+        "manageauto.lease"
+      ],
+      "planned": 20,
+      "executed": 20
+    },
+    {
+      "id": "B11/B12 池与feed",
+      "status": "PASS",
+      "subrows": [
+        "pool.reject",
+        "pool.throw",
+        "pool.feed"
+      ],
+      "planned": 13,
+      "executed": 13
+    },
+    {
+      "id": "A23/F13 dispose120",
+      "status": "BLOCKED",
+      "subrows": [
+        "dispose120.round"
+      ],
+      "planned": 120,
+      "executed": 0
+    },
+    {
+      "id": "B块亮度/全屏/预览/抽帧/底栏/弹幕",
+      "status": "BLOCKED",
+      "subrows": [
+        "bblock.restore",
+        "bblock.preview",
+        "B.extract",
+        "B.bottomPatch",
+        "danmaku.jump"
+      ],
+      "planned": 25,
+      "executed": 15
+    },
+    {
+      "id": "Windows",
+      "status": "BLOCKED",
+      "subrows": [
+        "Windows F3",
+        "Windows dispose",
+        "Windows HE V6",
+        "Windows HE V10"
+      ],
+      "planned": 12,
+      "executed": 0
+    }
+  ],
+  "masterCounts": {
+    "BLOCKED": 12,
+    "FAIL": 1,
+    "PASS": 3
   }
 }

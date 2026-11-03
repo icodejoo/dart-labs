@@ -1,5 +1,6 @@
 """Render CP1 checkpoint ledger only from this session's original evidence."""
 import json
+import shutil
 from collections import Counter
 from pathlib import Path
 
@@ -14,6 +15,16 @@ def read(path):
 
 def rel(path):
     return Path(path).relative_to(ROOT).as_posix()
+
+
+def frame_summary(rows):
+    result={}
+    for key in ('buildUs','rasterUs','totalUs'):
+        values=sorted(r[key] for r in rows if isinstance(r.get(key),(int,float)))
+        if values:
+            result[key]=dict(count=len(values),p50=values[int((len(values)-1)*.5)],
+                p95=values[int((len(values)-1)*.95)],p99=values[int((len(values)-1)*.99)],maximum=values[-1])
+    return result
 
 
 CONFIG = {
@@ -32,6 +43,11 @@ CONFIG = {
 
 
 def main():
+    # Per-batch 135-ID reports are raw tool output, not CP1 product verdicts.
+    # Keep them with the run evidence; the checkpoint report is the tracked table.
+    for generated in (ROOT/'doc/plans').glob('2026-11-03-matrix-run-cp1-*'):
+        if generated.is_file() and generated.suffix in ('.json','.md'):
+            shutil.move(str(generated),str(E/generated.name))
     prior = read(Path(str(TARGET)+'.json')) if Path(str(TARGET)+'.json').exists() else {}
     stage0 = read(E/'cp1-stage0.json') if (E/'cp1-stage0.json').exists() else {}
     data = dict(status=prior.get('status','RUNNING'), sourceHead='047b179c59676033b1392e5e7ccc8f8a39401b10',
@@ -55,6 +71,8 @@ def main():
                 difference='待本轮证据' if not samples else '见实测数字；CP0 无相同样本时不推断改善',
                 evidence=[rel(p) for p,_ in sources],issues=issues,
                 measurements=[dict(evidence=rel(p),recordIndex=i,id=r['id'],
+                    frameDistribution=frame_summary(r.get('numbers',{}).get('frameTimings',[])),
+                    pssSamples=r.get('numbers',{}).get('samples') if scene=='pool' and variant=='feed' else None,
                     values={k:v for k,v in r.get('numbers',{}).items() if k in (
                         'deltaUs','holdingPhase','renderEpoch','pendingAtPause','phase','opacity',
                         'probeCounts','probeTotal','sourceIndex','currentQuality','downShiftCount',
@@ -66,28 +84,54 @@ def main():
                 harness=[dict(evidence=rel(p),errors=d.get('harness'),missing=d.get('missing')) for p,d in sources if d.get('harness') or d.get('missing')])
             data['rows'].append(row)
             data['failures'].extend(dict(row=row['id'],**issue) for issue in issues if issue['status']=='FAIL')
-    # Stage 2 and B supplemental evidence are filled by the same session's reducer.
-    data['rows'].extend(prior.get('additionalRows',[]))
-    data['additionalRows']=prior.get('additionalRows',[])
+    from cp1_reduce_extra import rows as extra_rows
+    data['additionalRows']=extra_rows()+prior.get('supplementRows',[])
+    data['supplementRows']=prior.get('supplementRows',[])
+    data['rows'].extend(data['additionalRows'])
+    data['failures'].extend(dict(row=r['id'],**issue) for r in data['additionalRows'] for issue in r.get('issues',[]) if issue.get('status')=='FAIL')
     for name in ['F3','dispose','HE V6','HE V10']:
         data['rows'].append(dict(id='Windows '+name,stage=4,planned=3,executed=0,status='BLOCKED',
             criterion='经 win_policy，次数 clamp_runs=3；不劣于 CP0，V10 零崩溃',
             cp0='本树 CP0 Windows 基线仍 PENDING',difference='待安静模式验证',
             evidence=['doc/plans/2026-11-03-win-quiet-mode.md（开工时不存在）']))
     data['counts']=dict(Counter(r['status'] for r in data['rows']))
+    groups=[('F3/A17 precise 三组',['F3/A17 precise.normal','F3/A17 precise.paused','F3/A17 precise.cutover']),
+        ('H28 默认三组',['H28.default.playing','H28.default.paused','H28.default.cutover']),
+        ('H20/H50 HLS',['H20.hlsSeek','H50.hlsSeek']),
+        ('P0-2 三种触发',['p02.contentWarm','p02.midPending','p02.postLoad']),
+        ('keepAlive S1/S7/S13/S14',['keepalive-core.S1','keepalive-s7s14.S7','keepalive-core.S13','keepalive-s7s14.S14']),
+        ('终审7a',['wakeswap.swap']),('终审7b / fallback',['edgepause.pause','edgepause.fallback']),
+        ('H35 / 手选720p重试',['recovery.resume','recovery.manual720']),
+        ('错误分级',['errclass.nonfatal','errclass.fatal']),('A14 poster',['errclass.poster']),
+        ('A12/N6 探测',['probe.list','probe.manual','probe.once','probe.failover','probe.disabled']),
+        ('A16 / A11',['manageauto.managed','manageauto.default','manageauto.disabled','manageauto.lease']),
+        ('B11/B12 池与feed',['pool.reject','pool.throw','pool.feed']),('A23/F13 dispose120',['dispose120.round']),
+        ('B块亮度/全屏/预览/抽帧/底栏/弹幕',['bblock.restore','bblock.preview','B.extract','B.bottomPatch','danmaku.jump']),
+        ('Windows',['Windows F3','Windows dispose','Windows HE V6','Windows HE V10'])]
+    byid={r['id']:r for r in data['rows']}
+    data['masterRows']=[]
+    for title,ids in groups:
+        members=[byid.get(i,dict(id=i,status='BLOCKED',planned=5,executed=0)) for i in ids]
+        status='FAIL' if any(r['status']=='FAIL' for r in members) else 'PASS' if all(r['status']=='PASS' for r in members) else 'BLOCKED'
+        data['masterRows'].append(dict(id=title,status=status,subrows=ids,
+            planned=sum(r['planned'] for r in members),executed=sum(r['executed'] for r in members)))
+    data['masterCounts']=dict(Counter(r['status'] for r in data['masterRows']))
     Path(str(TARGET)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
     lines=['# CP1 真机检查点结果','',f"状态：{data['status']}。本人执行，未转派；lib/test 未改。",
         '',f"设备：{data['device']}。",'',
         'APK SHA-256：`'+stage0.get('metadata',{}).get('sha256',{}).get('signed','待构建')+'`。构建一次，后续复用，安装后拉回逐值核验。',
         '', '证据目录：`example/tool/coverage_evidence/`（gitignored）；记录下标为 JSON records 的零基下标。',
-        '',f"逐行计数：{data['counts']}。RUNNING 时未执行行不代表产品失败。",'',
+        '',f"总计划16行：{data['masterCounts']}；细分行：{data['counts']}。RUNNING 时未执行行不代表产品失败。",'',
+        '|总计划CP1行|完成/计划|结论|','|---|---:|---|',
+        *[f"|{r['id']}|{r['executed']}/{r['planned']}|{r['status']}|" for r in data['masterRows']],
+        '',
         '|项目|计划/完成|结论|通过标准|CP0 基线及差异|原始证据|','|---|---:|---|---|---|---|']
     for r in data['rows']:
         ev='；'.join(r.get('evidence',[]))
         lines.append(f"|{r['id']}|{r['planned']}/{r['executed']}|{r['status']} {r.get('counts',{})}|{r['criterion']}|{r['cp0']}；{r['difference']}|{ev}|")
     lines += ['', '## 失败特征与证据','']
     for f in data['failures']:
-        lines.append(f"- {f['row']} / {f['id']}：{f.get('reason') or 'CHECK 产品判据不满足'}；`{f['evidence']}` records[{f['recordIndex']}]；完整数字见 JSON。")
+        lines.append(f"- {f['row']} / {f['id']}：{f.get('reason') or 'CHECK 产品判据不满足'}；`{f['evidence']}` {f.get('recordArray','records')}[{f['recordIndex']}]；完整数字见 JSON。")
     if not data['failures']: lines.append('当前尚无已记录的产品 FAIL；缺证据仍为 BLOCKED。')
     lines += ['', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
     for defect in data['defects']:
