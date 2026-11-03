@@ -128,7 +128,7 @@ svgx 能占的缝:**不走 WebView、能透明背景、不受 Safari 限制的 C
 
 ## 6. 非阻塞默认项
 
-- CSS 解析优先用 dart-lang 官方的 `csslib`(1.0.2 有 `KeyFrameDirective`,能解析 `@keyframes`)。备选是从 F 摘小段代码(MIT,需署名,遵守"不延伸")。
+- CSS 解析:**自研子集解析器**(2026-11-03 拍板,推翻此前"优先用 `csslib`"的默认项)。验证过 `csslib` 1.0.2:能零错误解析 SVGator 风格的 CSS,但键帧的块、百分比、函数参数全是私有字段,只能靠 Visitor 加 `CssPrinter` 回印再拆字符串;`span.text` 只返回首个 token;畸形输入的错误恢复会静默丢掉后面的规则;还要新增 5 个纯 Dart 生产依赖。SVGator 导出是机器生成的规整格式,自研约 1100 行(含大量文档注释),零依赖、结构直接可用。
 - 样本不入库,只保留 `benchmark/svgator_corpus/index.csv`(URL + sha256)作为以后的对照基准。
 
 ## 7. 渲染层方案(待 spike)
@@ -151,7 +151,31 @@ svgx 能占的缝:**不走 WebView、能透明背景、不受 Safari 限制的 C
   - 官网 URL 可能随部署更新,保存的字节与 sha256 才是当时的证据。
 - 取证时的统计脚本和原始统计数据没有入库;要复现,就按 `index.csv` 重新取样本、校验 sha256,再按本节口径重新统计。
 
-## 9. 来源
+## 9. 实施进度
+
+CSS 动画支持分五个阶段推进,每阶段独立可验证。
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| 1 | 自研 CSS 子集解析器:样式表、`@keyframes`、`animation` 简写与长写、时间与缓动值解析 | 已完成(2026-11-03):`css_stylesheet.dart`、`css_animation_values.dart`、`css_chars.dart`,152 个单测 |
+| 2 | `<style>`(`#id`、`*`,兼顾 class/标签/后代)与 `style=""` 接入动画路径的属性层叠 | 未开始 |
+| 3 | `@keyframes` 编译进时间线:逐关键帧 cubic-bezier、`steps` | 未开始 |
+| 4 | transform 列表、`offset-path`、`d: path()`、颜色 | 未开始 |
+| 5 | 检测器分流,以及与浏览器截图的像素对照 | 未开始 |
+
+第 1 阶段由 Codex 初审实现、主会话终审;终审时把两个文件里重复的字符判断收进了 `css_chars.dart`。解析器是纯 Dart,不依赖 `dart:ui` 与 `package:xml`,与动画引擎解耦。
+
+### 第 1 阶段的真实样本验证(55 个 CSS 导出,样本不入库)
+
+- 55/55 下载成功且 sha256 一致,全部解析无异常;共 61 个 `<style>`、84 个行内样式、758 条规则、787 个 `@keyframes`,787 个动画引用全部能找到对应关键帧。关键数字由主会话用 grep 独立复核过。
+- **选择器**:757 个纯 `#id`、1 个 `*`,没有 class、标签、复合、后代、子代。被丢弃的只有 4 个:`#…:hover *` 两个(hover 交互)、`*::before`、`*::after`(重置规则)。
+- **`style=""` 必须处理**:`offset-path`(33)与 `offset-rotate`(33)只出现在行内样式里,另有 `mix-blend-mode`(6)、`isolation`(3)、`stop-color`(24)、`background-color`(10);107、118 两个样本的动画完全由行内样式指定。
+- **关键帧里出现的属性**(声明次数):transform 2608、fill 323、offset-distance 283、opacity 232、stroke-dashoffset 174、fill-opacity 104、stroke-width 75、stroke-dasharray 55、`d` 46、stop-color 36、rx 与 ry 各 15。
+- **transform 列表只有这几个函数**:translate 2036、rotate 718、scale 561、skewX 43、skewY 43,没有 matrix。
+- **缓动**:`cubic-bezier` 1079;`steps(` 4、`step-end` 38、`step-start` 4。
+- **没覆盖**:6 个样本带 `@font-face`(共 7 条,内嵌字体),属于文字渲染,不在本轮范围;2 次 `animation-play-state` 来自被丢弃的 hover 规则。
+
+## 10. 来源
 
 - [SVGator 导出设置](https://www.svgator.com/help/export-and-file-formats/svg-export-settings)
 - [SVGator 浏览器兼容表](https://www.svgator.com/help/integrating-your-animations/browser-support)
