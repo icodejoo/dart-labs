@@ -47,7 +47,7 @@ void main() {
       expect(parent.inherit({'fill-opacity': 'abc'}, theme).fillOpacity, 0.3);
     });
 
-    test('opacity 语义不变：不钳制', () {
+    test('opacity 在 [0, 1] 内原样保留（越界钳制见 opacity_clamp_test）', () {
       final parent = ResolvedStyle.initial.inherit({'opacity': '0.5'}, theme);
       expect(parent.opacity, 0.5);
     });

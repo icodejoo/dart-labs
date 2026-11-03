@@ -141,7 +141,7 @@ class ResolvedStyle {
       strokeDashoffset:
           double.tryParse(attributes['stroke-dashoffset'] ?? '') ??
           strokeDashoffset,
-      opacity: double.tryParse(attributes['opacity'] ?? '') ?? opacity,
+      opacity: _parseUnitOpacity(attributes['opacity'], opacity),
       fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
       strokeOpacity: _parseUnitOpacity(
         attributes['stroke-opacity'],
@@ -151,7 +151,7 @@ class ResolvedStyle {
   }
 }
 
-/// 解析 `fill-opacity`/`stroke-opacity` 取值并钳制到 `[0, 1]`；缺失或无法解析
+/// 解析 `opacity`/`fill-opacity`/`stroke-opacity` 取值并钳制到 `[0, 1]`；缺失或无法解析
 /// 时返回继承来的 [inherited]。
 double _parseUnitOpacity(String? raw, double inherited) =>
     double.tryParse(raw ?? '')?.clamp(0.0, 1.0) ?? inherited;

@@ -102,26 +102,77 @@ class CubicBezier {
   /// Eases progress [t] in `[0, 1]` through this curve.
   ///
   /// 用该曲线为 `[0, 1]` 范围内的进度 [t] 做缓动。
+  ///
+  /// 先牛顿迭代反解 x(s)=t；s 越出 `[0, 1]`、导数过小或步数用尽仍未收敛时，改用
+  /// 二分兜底。x1/x2 在 `[0, 1]` 内时与精确解的误差不超过 1e-5。`t <= 0` 返回 0，
+  /// `t >= 1` 返回 1；输出的 y 不做钳制，回弹曲线可以越出 `[0, 1]`。
   double transform(double t) {
     if (x1 == 0 && y1 == 0 && x2 == 1 && y2 == 1) return t; // linear curve
+    if (!(t > 0)) return 0; // 含 NaN，一并归零
+    if (t >= 1) return 1;
 
-    var x = t;
-    for (var i = 0; i < 8; i++) {
-      final curveX = _bezierComponent(x1, x2, x);
-      final diff = curveX - t;
-      if (diff.abs() < 1e-6) break;
-      final derivative = _bezierDerivative(x1, x2, x);
-      if (derivative.abs() < 1e-6) break;
-      x -= diff / derivative;
+    // x(s) 按 Horner 形式求值，系数只算一次；求解逻辑写在本方法内而不是拆成
+    // 子方法，是为了避免热路径上返回 double 的装箱开销。
+    final a = _a(x1, x2);
+    final b = _b(x1, x2);
+    final c = _c(x1);
+    final a3 = 3 * a;
+    final b2 = 2 * b;
+    var s = t;
+    var converged = false;
+    for (var i = 0; i < _newtonMaxIterations; i++) {
+      final derivative = (a3 * s + b2) * s + c;
+      final slope = derivative.abs();
+      if (slope < _minDerivative) break;
+      final step = (((a * s + b) * s + c) * s - t) / derivative;
+      s -= step;
+      if (s < 0 || s > 1) break;
+      final tolerance = slope >= _healthyDerivative
+          ? _newtonLooseTolerance
+          : _newtonTightTolerance;
+      if (step.abs() < tolerance) {
+        converged = true;
+        break;
+      }
     }
-    return _bezierComponent(y1, y2, x);
+    if (!converged) {
+      // 牛顿失效：在 [0, 1] 上二分，只看符号，与导数无关。
+      var lo = 0.0;
+      var hi = 1.0;
+      for (var i = 0; i < _bisectIterations; i++) {
+        final mid = (lo + hi) / 2;
+        if (((a * mid + b) * mid + c) * mid < t) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      s = (lo + hi) / 2;
+    }
+    return _bezierComponent(y1, y2, s);
   }
+
+  /// 牛顿迭代的最大步数。
+  static const int _newtonMaxIterations = 8;
+
+  /// 导数健康（≥ [_healthyDerivative]）时的收敛阈值：牛顿二次收敛，迈出一步后
+  /// 的残余误差远小于单步修正量，所以单步修正量小于它就够了。
+  static const double _newtonLooseTolerance = 3e-4;
+
+  /// 导数偏小（近重根，仅线性收敛）时的收敛阈值，要收得更紧。
+  static const double _newtonTightTolerance = 1e-7;
+
+  /// 区分"导数健康"与"导数偏小"的分界。
+  static const double _healthyDerivative = 0.3;
+
+  /// 牛顿迭代允许的最小导数绝对值，更小则放弃牛顿改走二分。
+  static const double _minDerivative = 1e-6;
+
+  /// 二分兜底的步数，区间宽度收敛到约 1e-12。
+  static const int _bisectIterations = 40;
 
   static double _bezierComponent(double p1, double p2, double t) =>
       _a(p1, p2) * t * t * t + _b(p1, p2) * t * t + _c(p1) * t;
-
-  static double _bezierDerivative(double p1, double p2, double t) =>
-      3 * _a(p1, p2) * t * t + 2 * _b(p1, p2) * t + _c(p1);
 
   static double _a(double p1, double p2) => 1.0 - 3.0 * p2 + 3.0 * p1;
   static double _b(double p1, double p2) => 3.0 * p2 - 6.0 * p1;
