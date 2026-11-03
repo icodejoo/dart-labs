@@ -79,7 +79,7 @@ Future<void> run() async {
   for (final enabled in [true, false]) {
     final abr = Function.apply(MovaAbrConfig.new, [], {#probeVariants: enabled}) as MovaAbrConfig;
     final fetch = Fetch(), kernel = Kernel();
-    final a = createMovaEngine(kernel: kernel, fetcher: fetch, options: MovaOpts(abr: abr));
+    final a = MovaEngine(kernel: kernel, fetcher: fetch, options: MovaOpts(abr: abr));
     try {
       await a.open(const MovaSource('https://s00e.invalid/master.m3u8'));
       kernel.land(); await drain();
@@ -94,7 +94,7 @@ Future<void> run() async {
 }
 
 Future<void> errors() async {
-  final k = Kernel(); final a = createMovaEngine(kernel: k);
+  final k = Kernel(); final a = MovaEngine(kernel: k);
   final events = <MovaErrorEvent>[];
   final sub = a.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(events.add);
   try {
@@ -111,7 +111,7 @@ Future<void> errors() async {
 
 Future<void> rejected() async {
   final hook = PendingHook(), k = Kernel();
-  final a = createMovaEngine(kernel: k, interceptors: [hook]);
+  final a = MovaEngine(kernel: k, interceptors: [hook]);
   try {
     await a.open(const MovaSource('s00e://accepted'), autoPlay: false); k.land(); await drain();
     final play = a.play(), seek = a.seek(const Duration(seconds: 12));
@@ -128,7 +128,7 @@ Future<void> rejected() async {
 Future<void> replay() async {
   for (final live in [false, true]) {
     final k = Kernel(); final fetch = Fetch();
-    final a = createMovaEngine(kernel: k, fetcher: fetch, options: const MovaOpts(
+    final a = MovaEngine(kernel: k, fetcher: fetch, options: const MovaOpts(
       live: MovaLiveConfig(backToLive: MovaBackToLive.reopen),
       recovery: MovaRecoveryConfig(enabled: true, policy: MovaRetryThenFailover(retryDelay: Duration.zero))));
     try {

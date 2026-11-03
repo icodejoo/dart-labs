@@ -30,7 +30,7 @@ void main() {
     final abr = Function.apply(MovaAbrConfig.new, [], {#probeVariants:false}) as MovaAbrConfig;
     final strings = Function.apply(MovaStrs.new, [], {#playbackError:'S00E friendly error'}) as MovaStrs;
     final fetch = contract.Fetch(), k = contract.Kernel();
-    final a = (await t.runAsync(() async => createMovaEngine(kernel:k,fetcher:fetch,options:MovaOpts(abr:abr,strings:strings))))!;
+    final a = (await t.runAsync(() async => MovaEngine(kernel:k,fetcher:fetch,options:MovaOpts(abr:abr,strings:strings))))!;
     try {
       await t.pumpWidget(MaterialApp(home:MovaView(source:const MovaSource('https://s00e.invalid/master.m3u8'),
         engineFactory:(_) => a)));
