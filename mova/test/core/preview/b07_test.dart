@@ -100,7 +100,7 @@ void main() {
       unawaited(req.response.flush().then((_) => headers.complete()));
     });
     final k = FakeKernel();
-    final engine = createMovaEngine(kernel: k,
+    final engine = createMovaEngine(kernel: k, ownsKernel: true,
       pip: MovaNoopPipPort(), orientation: MovaNoopOrientationPort(), brightness: MovaFallbackBrightnessPort(),
       fetcher: MovaIoHttpFetcher(timeout: const Duration(seconds: 30)),
       options: MovaOpts(preview: MovaPreviewConfig(enabled: true, debounce: Duration.zero,

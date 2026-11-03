@@ -81,7 +81,7 @@ class _Hook extends MovaHook {
 
 /// 创建真实引擎，默认关闭与错误分级无关的计时器。
 MovaEngine _engine(FakeKernel kernel, {_Hook? hook, bool recovery = false}) => createMovaEngine(
-  kernel: kernel,
+  kernel: kernel, ownsKernel: true,
   brightness: MovaFallbackBrightnessPort(),
   pip: MovaNoopPipPort(),
   orientation: MovaNoopOrientationPort(),

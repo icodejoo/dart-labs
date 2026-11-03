@@ -37,7 +37,7 @@ void main() {
             final k = FakeWarmMuteKernel();
             kernels.add(k);
             return MovaEngine(
-              kernel: k,
+              kernel: k, ownsKernel: true,
               volume: MovaCallbackVolumePort(writes.add, onGet: () async => 37),
               options: MovaOpts(
                 cutover: MovaCutoverConfig(enabled: true, muteWhileWarm: mute),
@@ -93,7 +93,7 @@ void main() {
           final k = FakeKernel();
           kernels.add(k);
           return MovaEngine(
-            kernel: k,
+            kernel: k, ownsKernel: true,
             volume: MovaCallbackVolumePort(writes.add, onGet: () async => 37),
             options: const MovaOpts(
               cutover: MovaCutoverConfig(enabled: true),
@@ -124,7 +124,7 @@ void main() {
           final k = FakeWarmMuteKernel();
           kernels.add(k);
           return MovaEngine(
-            kernel: k,
+            kernel: k, ownsKernel: true,
             volume: MovaCallbackVolumePort(writes.add),
             options: const MovaOpts(
               cutover: MovaCutoverConfig(enabled: true),
@@ -176,7 +176,7 @@ void main() {
           final k = FakeWarmMuteKernel();
           kernels.add(k);
           return MovaEngine(
-            kernel: k,
+            kernel: k, ownsKernel: true,
             volume: MovaCallbackVolumePort(writes.add),
             options: const MovaOpts(
               cutover: MovaCutoverConfig(enabled: true),

@@ -60,6 +60,7 @@ class MovaSttConfig {
   /// happens (see [MovaNoopSttEngine]).
   ///
   /// 接收解码音频的识别器；为空表示不做任何识别（见 [MovaNoopSttEngine]）。
+  /// 识别器由宿主持有并销毁，播放引擎只取消自身订阅。
   final MovaSttEngine? engine;
 
   /// 返回是否已注入识别器；与 [enabled] 一起判断功能是否可启动。

@@ -25,7 +25,7 @@ Future<void> tick() => Future<void>.delayed(Duration.zero);
 ({FakeKernel kernel, MovaEngine engine}) buildAudioEngine({MovaOpts? options}) {
   final kernel = FakeKernel.audioOnly();
   final engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
-    kernel: kernel,
+    kernel: kernel, ownsKernel: true,
     audioOnly: true,
     options: options ?? const MovaOpts(),
   );

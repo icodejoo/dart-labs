@@ -1112,7 +1112,7 @@ void main() {
   );
 
   test(
-    'disposing the engine disposes the stt service and its engine',
+    'disposing the engine disposes the stt service while borrowing its recognizer',
     () async {
       final engine = _FakeSttEngine();
       final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(),
@@ -1120,7 +1120,9 @@ void main() {
         options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
       );
       await e2.dispose();
-      expect(engine.disposed, isTrue);
+      // 识别器由宿主持有，旧断言错误地把借用当成转移所有权。
+      expect(engine.disposed, isFalse);
+      await engine.dispose();
     },
   );
 

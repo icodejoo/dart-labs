@@ -51,6 +51,7 @@ typedef MovaPreviewBlockCb = void Function(MovaPreviewBlockReason reason);
 /// mova 替宿主做的每一个决策，在这里都以"默认值 + 配置项"的形式出现；
 /// 若该决策本质是策略而非取值，还额外提供注入点（[probe]、[cache]、
 /// [extractor]、[sources]、[vttUrlResolver]、[cacheKeyBuilder]）。见 DESIGN §6.1。
+/// 注入的缓存、探针、来源和抽帧器由宿主持有；引擎销毁不会销毁它们。
 class MovaPreviewConfig {
   /// Whether the preview feature runs at all.
   ///

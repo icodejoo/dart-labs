@@ -123,7 +123,13 @@ class MovaAbrConfig {
   /// Custom downshift policy; null selects the default [MovaBufferAbr].
   ///
   /// 自定义降档策略；为 null 时选用默认的 [MovaBufferAbr]。
+  /// 此实例由宿主持有；下个版本弃用，推荐改用 [policyFactory] 避免跨引擎共享状态。
   final MovaAbrPolicy? policy;
+
+  /// 每次创建引擎时调用一次，返回该引擎独享的 ABR 策略；优先于 [policy]。
+  /// 不传时继续使用旧实例或默认策略，不会额外创建策略。
+  /// 示例：`MovaAbrConfig(policyFactory: () => MovaBufferAbr(threshold: 2))`。
+  final MovaAbrPolicy Function()? policyFactory;
 
   /// Creates an ABR config; enabled by default with a stall threshold of 3.
   ///
@@ -136,6 +142,7 @@ class MovaAbrConfig {
     this.probeVariants = true,
     this.manageAuto = false,
     this.policy,
+    this.policyFactory,
   });
 
   @override
@@ -147,8 +154,9 @@ class MovaAbrConfig {
           enabled == other.enabled &&
           probeVariants == other.probeVariants &&
           manageAuto == other.manageAuto &&
-          policy == other.policy;
+          policy == other.policy &&
+          policyFactory == other.policyFactory;
 
   @override
-  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, manageAuto, policy);
+  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, manageAuto, policy, policyFactory);
 }

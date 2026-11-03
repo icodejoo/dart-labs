@@ -126,7 +126,8 @@ void main() {
       final engine = _FlakyEngine();
       final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
         ..attach(const MovaSource('https://host/a.mp4'));
-      await expectLater(svc.start(), throwsStateError);
+      // 旧断言要求 rethrow，会让可选识别故障泄漏到播放链；失败现在仅回滚。
+      await svc.start();
       expect(svc.isRunning, isFalse);
       await svc.start();
       expect(engine.starts, 2);
@@ -267,13 +268,15 @@ void main() {
       expect(ready().$1.languages, isEmpty);
     });
 
-    test('dispose closes the cue stream, cancels the engine subscription and disposes the engine', () async {
+    test('dispose closes the cue stream and cancels subscriptions while borrowing the engine', () async {
       final (svc, engine) = ready();
       final done = Completer<void>();
       svc.cues.listen((_) {}, onDone: done.complete);
       await svc.dispose();
       await done.future.timeout(const Duration(seconds: 2));
-      expect(engine.disposed, isTrue);
+      // 旧断言销毁宿主对象，违背借用关系。
+      expect(engine.disposed, isFalse);
+      await engine.dispose();
     });
   });
 

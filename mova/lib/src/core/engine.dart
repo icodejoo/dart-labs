@@ -76,7 +76,7 @@ class _PreviewFramePuller implements MovaFramePuller {
   @override
   Future<void> release() => puller.release();
   @override
-  Future<void> dispose() => puller.dispose();
+  Future<void> dispose() async {} // 抽帧端口由宿主持有。
 }
 
 /// 单次加载尝试持有的 ABR 屏蔽租约，身份也区分同尝试内的新 seek。
@@ -200,6 +200,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
 
   /// 仅引擎自建的 HTTP 端口随引擎关闭。
   final bool _ownsFetcher;
+  final bool _ownsKernel;
   final MovaNetProbe Function()? _previewProbeFactory;
 
   /// Unified reporting sink; `null` means reporting is off — no translator is
@@ -745,6 +746,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// [fit] 是初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是锁定——
   /// 运行时 `setFit()` 与 fit 按钮照常可改，也不会为它发 [MovaFitChange]。
   ///
+  /// 注入的 kernel、HTTP、缓存、探针、来源、抽帧器和 STT 识别器默认由宿主持有，
+  /// 引擎只取消自身订阅、释放自建对象。[ownsKernel] 可显式移交内核所有权；
+  /// 省略时仅自建内核归引擎所有。示例：`MovaEngine(kernel: kernel, ownsKernel: true)`。
+  ///
   /// [previewProbeFactory] 提供默认预览探针工厂，只有 wifiOnly 请求远程资源时才创建。
   /// options.preview.probe 显式注入优先；省略时 core 沿用恒允许探针。
   /// 示例：`MovaEngine(previewProbeFactory: makeProbe)`；返回引擎实例。
@@ -753,6 +758,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 示例：`createMovaEngine(restoreBrightness: false)`。
   MovaEngine({
     MovaKernel? kernel,
+    bool? ownsKernel,
     bool audioOnly = false,
     this.options = const MovaOpts(),
     List<MovaHook> interceptors = const [],
@@ -779,6 +785,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),
        _ownsFetcher = fetcher == null,
+       _ownsKernel = ownsKernel ?? kernel == null,
        _previewProbeFactory = previewProbeFactory, // ignore: prefer_initializing_formals
        _chain = MovaHookChain(interceptors),
        _brightness = brightness ?? MovaFallbackBrightnessPort(),
@@ -798,6 +805,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       return true;
     }());
     _abrPolicy =
+        options.abr.policyFactory?.call() ??
         options.abr.policy ??
         MovaBufferAbr(threshold: options.abr.stallThreshold);
     _brightnessReady = _seedBrightness();
@@ -1406,6 +1414,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       cache: cache,
       probe: probe,
       gateNetwork: cfg.sources != null,
+      ownsCache: cfg.cache == null,
+      ownsProbe: cfg.probe == null,
+      ownsSources: cfg.sources == null,
       sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher, allow),
       onBlocked: _onPreviewBlocked,
     );
@@ -3388,7 +3399,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     await _progressRaw.close();
     await _previewService.dispose();
     await _sttService.dispose();
-    await _kernel.dispose();
+    if (_ownsKernel) await _kernel.dispose();
     await _restoreBrightness();
     await orientationRestore;
   }

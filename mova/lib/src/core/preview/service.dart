@@ -46,6 +46,9 @@ class MovaPreviewService implements MovaPreviewApi {
     this.onBlocked,
     this.audioOnly = false,
     this.gateNetwork = true,
+    this.ownsCache = true,
+    this.ownsProbe = true,
+    this.ownsSources = true,
   });
 
   /// 是否为纯音频引擎；为 true 时不探测预览来源，默认 false。
@@ -55,6 +58,18 @@ class MovaPreviewService implements MovaPreviewApi {
   /// 是否在服务入口统一判网络；默认 true。内置来源在实际 HTTP/抽帧处判定时设为 false，
   /// 避免缓存命中也查询探针。示例：`MovaPreviewService(..., gateNetwork: false)`。
   final bool gateNetwork;
+
+  /// 是否接管 [cache] 的销毁；直接构造服务沿用 true，引擎借用宿主缓存时传 false。
+  /// 示例：`MovaPreviewService(..., ownsCache: false)`；false 时也不自动清空缓存。
+  final bool ownsCache;
+
+  /// 是否接管 [probe] 的销毁；直接构造默认 true，借用探针时传 false。
+  /// 示例：`MovaPreviewService(..., ownsProbe: false)`。
+  final bool ownsProbe;
+
+  /// 是否接管 [sources] 的销毁；直接构造默认 true，借用来源链时传 false。
+  /// 示例：`MovaPreviewService(..., ownsSources: false)`。
+  final bool ownsSources;
 
   /// The resolved preview configuration.
   ///
@@ -421,14 +436,18 @@ class MovaPreviewService implements MovaPreviewApi {
       } catch (_) {}
     }
 
-    for (final s in sources) {
-      await step(s.dispose);
+    if (ownsSources) {
+      for (final s in sources) {
+        await step(s.dispose);
+      }
     }
     // 先关闭来源以中止网络与解码，再等待队列收敛。
     await _queue;
-    if (config.clearOnDispose) await step(cache.clear);
-    await step(cache.dispose);
-    await step(probe.dispose);
+    if (ownsCache) {
+      if (config.clearOnDispose) await step(cache.clear);
+      await step(cache.dispose);
+    }
+    if (ownsProbe) await step(probe.dispose);
     await step(_thumbs.close);
   }
 }

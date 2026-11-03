@@ -141,7 +141,7 @@ class MovaSttService implements MovaSttApi {
       //
       // 回滚，使失败的 start 可直接重试，不必先 stop()。
       _started = false;
-      rethrow;
+      // 失败只回滚状态，宿主可以再次 start；不把识别异常泄漏到播放调用链。
     }
   }
 
@@ -190,11 +190,13 @@ class MovaSttService implements MovaSttApi {
 
   /// Releases resources; safe to call once during engine disposal.
   ///
-  /// 释放资源；引擎销毁时调用一次即可。
+  /// 释放本服务的订阅与字幕流，不销毁宿主注入的识别器；重复调用安全。
   Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
+    _started = false;
     await _cueSub?.cancel();
     await _cues.close();
-    await config.engine?.dispose();
+    // 识别器由宿主注入并持有，服务只释放自己的订阅。
   }
 }

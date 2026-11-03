@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 注入的内核、预览缓存/探针/来源/抽帧器、HTTP 与 STT 识别器由宿主销毁；自建资源仍随引擎释放。需要移交内核时用 `ownsKernel: true`，默认工厂创建的内核自动归引擎所有。STT 启动失败仅回滚，不再向播放链抛出。新增 `MovaAbrConfig.policyFactory`，每引擎创建独立策略，优先于旧 `policy`；旧实例字段下个版本弃用，本版只公告。
+
 - 推翻旧的网络探针不默认接线决定：createMovaEngine 为 wifiOnly 预览按需创建连通性探针；仅实际请求远程 VTT、雪碧图或抽帧时查询，缓存、VTT 冷却、禁用来源和本地资源不查询。测试接缝继续不接平台插件。
 
 - createMovaEngine 在 debug 下提示注入 kernel 时被忽略的默认内核参数；Android 使用默认内核并开启 tlsVerify 时断言必须提供非空 tlsCaFile。抽帧器继续默认 null，文档明确需显式注入。

@@ -140,6 +140,8 @@ MovaVolumePort? _defaultVolumePort() {
 ///   `MovaState.rendered`/`MovaFirstFrame` 落在真正的首帧上（比 buffering/位置兜底
 ///   准，约晚 200ms），复用首次 open 才创建的 END_FILE 弱客户端。
 ///   默认 `false`；传入 [kernel] 时忽略
+/// - [ownsKernel]: 默认只销毁工厂自建内核，注入内核由宿主持有；设为 true 显式移交。
+///   示例：`createMovaEngine(kernel: kernel, ownsKernel: true)`。
 /// - [fit]: the initial `MovaState.fit`; defaults to [MovaFit.contain]. This is
 ///   a starting value, not a lock — `setFit()` and the fit button still change
 ///   it at runtime / 初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是
@@ -150,6 +152,7 @@ MovaVolumePort? _defaultVolumePort() {
 /// 返回一个可供 app 代码直接使用的 [MovaEngine]。
 MovaEngine createMovaEngine({
   MovaKernel? kernel,
+  bool? ownsKernel,
   bool audioOnly = false,
   bool tlsVerify = false,
   String? tlsCaFile,
@@ -199,6 +202,7 @@ MovaEngine createMovaEngine({
   if (kernel == null && testKernel != null) {
     return MovaEngine(
       kernel: testKernel(),
+      ownsKernel: true,
       audioOnly: audioOnly,
       options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
       interceptors: interceptors,
@@ -232,6 +236,7 @@ MovaEngine createMovaEngine({
       observeRestarts: flags.restart,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),
+    ownsKernel: ownsKernel ?? kernel == null,
     audioOnly: audioOnly,
     options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,
