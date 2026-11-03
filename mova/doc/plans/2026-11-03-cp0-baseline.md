@@ -8,25 +8,29 @@ Android release APK SHA-256：`f9df792f6dcc0b68d908906f23026dd5beeacd56d0c2d566c
 
 cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→0 推断 cutover 回落。音频焦点 manual BLOCKED；全量49批不在本轮。
 
+## P1-3 与 A16 文档措辞
+
+本次三档 HLS、默认配置下，限速5轮和不限速1轮均首个有效尺寸为1280×720，原生hls-bitrate=max；每轮90秒内观测切档0次，无切档时刻可报告。限速五轮有反复缓冲，不限速对照无起播后再缓冲。A16可据此写“当前默认配置在本次限速夹具下停留最高档，未自动降档”；结论限于此版本、夹具和90秒观察窗，不外推所有mpv版本/源。
+
 ## 实测台账
 
 |阶段|项目|计划|已执行|失败|状态/关键数字|证据|
 |---|---|---:|---:|---:|---|---|
 |1|P1-3 限速 auto|5|5|0|MEASURED {"harness": [], "missing": [], "runs": [{"case": "CP0.autotier.limited.0", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7006278, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 3.444609, "totalRebufferSeconds": 56.088795, "rebufferCount": 19, "finalNativeTimePos": "27.360000"}, {"case": "CP0.autotier.limited.1", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7189547, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 7.053554, "totalRebufferSeconds": 55.963642, "rebufferCount": 18, "finalNativeTimePos": "26.840000"}, {"case": "CP0.autotier.limited.2", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7272813, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 6.14433, "totalRebufferSeconds": 55.894429, "rebufferCount": 18, "finalNativeTimePos": "27.160000"}, {"case": "CP0.autotier.limited.3", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7257429, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 6.116479, "totalRebufferSeconds": 54.624030000000005, "rebufferCount": 17, "finalNativeTimePos": "27.880000"}, {"case": "CP0.autotier.limited.4", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7357624, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 3.463934, "totalRebufferSeconds": 56.208904, "rebufferCount": 19, "finalNativeTimePos": "27.200000"}]}|example/tool/coverage_evidence/matrix-cp0-autotier-formal-20261103-01/matrix-cp0-autotier-formal-20261103-01-cp0-autotier.json|
 |1|P1-3 不限速对照|1|1|0|MEASURED {"harness": [], "missing": [], "runs": [{"case": "CP0.autotier.unlimited.0", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 2213870, "scheduledSeconds": 2}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 0, "totalRebufferSeconds": 0, "rebufferCount": 0, "finalNativeTimePos": "88.240000"}]}|example/tool/coverage_evidence/matrix-cp0-autotier-formal-20261103-01/matrix-cp0-autotier-formal-20261103-01-cp0-autotier.json|
-|2|p02.contentWarm|10|0|None|PENDING {}|None|
-|2|p02.midPending|10|0|None|PENDING {}|None|
-|2|p02.postLoad|10|0|None|PENDING {}|None|
+|2|p02.contentWarm|10|10|0|MEASURED {"harness": [], "missing": [], "wrongEpisodeTotal": 0, "stillAdTotal": 0, "matchesBTotal": 10, "observationLimitTotal": 0, "renderEpoch": {"min": 1, "median": 1.0, "max": 1}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-p02.json|
+|2|p02.midPending|10|10|0|MEASURED {"harness": [], "missing": [], "wrongEpisodeTotal": 0, "stillAdTotal": 0, "matchesBTotal": 10, "observationLimitTotal": 0, "renderEpoch": {"min": 0, "median": 0.0, "max": 0}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-p02.json|
+|2|p02.postLoad|10|10|10|MEASURED {"harness": [], "missing": [], "wrongEpisodeTotal": 0, "stillAdTotal": 10, "matchesBTotal": 0, "observationLimitTotal": 10, "renderEpoch": {"min": 1, "median": 1.0, "max": 1}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-p02.json|
 |2|pod2|10|0|None|SKIPPED {}|example/tool/coverage_evidence/cp0-formal-device-preflight.json|
-|2|bgpause.true|5|0|None|PENDING {}|None|
-|2|bgpause.false|5|0|None|PENDING {}|None|
-|2|pauseload.loading|3|0|None|PENDING {}|None|
-|2|pauseload.ready|3|0|None|PENDING {}|None|
-|2|pauseload.firstFrame|3|0|None|PENDING {}|None|
-|2|timeshift.dvr|3|0|None|PENDING {}|None|
-|2|timeshift.timeshift|3|0|None|PENDING {}|None|
-|2|pageview.horizontal|3|0|None|PENDING {}|None|
-|2|pageview.vertical|3|0|None|PENDING {}|None|
+|2|bgpause.true|5|5|0|MEASURED {"harness": [], "missing": [], "manualResumeTotal": 5, "afterNativePauseYesTotal": 5, "afterStatePlayingFalseTotal": 5, "nativeAdvanceMs": {"min": 880, "median": 1080, "max": 1400}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-bgpause.json|
+|2|bgpause.false|5|5|0|MEASURED {"harness": [], "missing": [], "manualResumeTotal": 0, "afterNativePauseYesTotal": 0, "afterStatePlayingFalseTotal": 0, "nativeAdvanceMs": {"min": 3960, "median": 4080, "max": 4680}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-bgpause.json|
+|2|pauseload.loading|3|3|0|MEASURED {"harness": [], "missing": [], "playingAfterLoadTotal": 3, "playToFirstFrameUs": {"min": 1034589, "median": 1141011, "max": 1206089}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-pauseload.json|
+|2|pauseload.ready|3|3|0|MEASURED {"harness": [], "missing": [], "playingAfterLoadTotal": 3, "playToFirstFrameUs": {"min": 1120355, "median": 1138902, "max": 1143728}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-pauseload.json|
+|2|pauseload.firstFrame|3|3|0|MEASURED {"harness": [], "missing": [], "playingAfterLoadTotal": 3, "playToFirstFrameUs": {"min": -54529, "median": -26998, "max": -25422}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-pauseload.json|
+|2|timeshift.dvr|3|3|0|MEASURED {"harness": [], "missing": [], "behindStateMs": {"min": 8000, "median": 8000, "max": 8000}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-timeshift.json|
+|2|timeshift.timeshift|3|3|0|MEASURED {"harness": [], "missing": [], "behindStateMs": {"min": 8000, "median": 8000, "max": 8000}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-timeshift.json|
+|2|pageview.horizontal|3|3|0|MEASURED {"harness": [], "missing": [], "seekEventsTotal": 0, "pageEventsTotal": 1, "pageIndex": {"min": 0, "median": 0, "max": 1}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-pageview.json|
+|2|pageview.vertical|3|3|0|MEASURED {"harness": [], "missing": [], "seekEventsTotal": 0, "pageEventsTotal": 0, "pageIndex": {"min": 0, "median": 0, "max": 0}}|example/tool/coverage_evidence/matrix-cp0-formal-20261103-1340/matrix-cp0-formal-20261103-1340-cp0-pageview.json|
 |3|F3/A17 precise.normal|60|0|None|PENDING {}|None|
 |3|F3/A17 precise.paused|60|0|None|PENDING {}|None|
 |3|F3/A17 precise.cutover|160|0|None|PENDING {}|None|

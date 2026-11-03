@@ -83,9 +83,15 @@ def main():
                 if any(key in n for n in numbers):metrics[key+'Total']=sum(n.get(key,0) for n in numbers)
             for key in ['playToFirstFrameUs','renderEpoch','behindStateMs','pageIndex']:
                 if any(key in n for n in numbers):metrics[key]=nums([n.get(key) for n in numbers])
+            if scene=='bgpause':
+                metrics['afterNativePauseYesTotal']=sum(n.get('after',{}).get('pause')=='yes' for n in numbers)
+                metrics['afterStatePlayingFalseTotal']=sum(n.get('after',{}).get('state',{}).get('playing') is False for n in numbers)
+                metrics['nativeAdvanceMs']=nums([n['after']['timePosMs']-n['before']['timePosMs'] for n in numbers if isinstance(n.get('after',{}).get('timePosMs'),int) and isinstance(n.get('before',{}).get('timePosMs'),int)])
+            if scene=='pauseload':metrics['sessionStartReports']=[r for n in numbers for r in n.get('reports',[])]
             anomalies=sum(bool(n.get('wrongEpisode') or n.get('stillAd') or n.get('observationLimit')) for n in numbers)
             metrics['failureCountDefinition']='p02原生错源/仍广告/观测超时样本；其余只计显式异常，不设新产品通过线'
-            put(scene+'.'+variant,len(checks),metrics,rel(p),anomalies, bool(checks) and d['completed'], 'CP0仅测量，不设产品通过线；见原始数字和异常')
+            expected=10 if scene=='p02' else 5 if scene=='bgpause' else 3
+            put(scene+'.'+variant,len(checks),metrics,rel(p),anomalies,len(checks)==expected and d['completed'], 'CP0仅测量，不设产品通过线；见原始数字和异常')
     for p in E.glob('matrix-cp0-android-formal-*/*cp0-result.json'):
         d=read(p);g=d['group']
         if g.startswith('precise-'):
@@ -100,7 +106,18 @@ def main():
                 if not vs:continue
                 executed=len(set(v['case'] for v in vs)) if g=='cp0-parked' else len(vs)
                 failures=sum(v['status']=='FAIL' for v in vs)
-                put(name,executed,dict(verdicts=vs,harness=d['harness']),rel(p),failures,d['completed'])
+                operations=[op for case,ops in d.get('operations',{}).items() if case==prefix or case.startswith(prefix+'.') for op in ops]
+                if name=='H14.manualSeek' or name.startswith('H17.'):
+                    executed=sum(op.get('method')=='seek' for op in operations)
+                elif g not in ('cp0-h28','cp0-parked'):
+                    executed=len(set(v['case'] for v in vs))
+                actual=[v.get('actual') for v in vs if isinstance(v.get('actual'),dict)]
+                metrics=dict(verdicts=vs,harness=d['harness'],actualSamples=actual,verdictCount=len(vs),failureCountUnit='判据FAIL数；执行次数按切档/seek/独立用例区分')
+                for key in ('deltaMs','landingDeltaMs','landedMs','targetMs','nativeMs','progressMs','afterMs','bufferingTrueEdges'):
+                    if any(key in v for v in actual):metrics[key]=nums([v.get(key) for v in actual])
+                if g=='cp0-h28':
+                    metrics['below200']=sum(abs(v['actual'].get('deltaMs',999999))<200 and v.get('expectedPath')==v['actual'].get('path') for v in vs if isinstance(v.get('actual'),dict))
+                put(name,executed,metrics,rel(p),failures,d['completed'])
     win=E/'cp0-windows-formal'
     if (win/'results.json').exists():
         wr=read(win/'results.json')
@@ -141,10 +158,12 @@ def main():
            '',f'Android release APK SHA-256：`{sha}`。阶段1构建一次，后续复用；安装拉回哈希一致。',
            '', '基线 detached a5c317f6；只在本树 mova/example、mova/doc 修改，lib/test 不改。',
            '', 'cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→0 推断 cutover 回落。音频焦点 manual BLOCKED；全量49批不在本轮。',
+           '', '## P1-3 与 A16 文档措辞', '',
+           '本次三档 HLS、默认配置下，限速5轮和不限速1轮均首个有效尺寸为1280×720，原生hls-bitrate=max；每轮90秒内观测切档0次，无切档时刻可报告。限速五轮有反复缓冲，不限速对照无起播后再缓冲。A16可据此写“当前默认配置在本次限速夹具下停留最高档，未自动降档”；结论限于此版本、夹具和90秒观察窗，不外推所有mpv版本/源。',
            '', '## 实测台账','', '|阶段|项目|计划|已执行|失败|状态/关键数字|证据|','|---|---|---:|---:|---:|---|---|']
     for s in ledger['stages']:
         for i in s['items']:
-            m=i.get('metrics') or {};brief={k:v for k,v in m.items() if k.endswith('Total') or k in ('passes','below200','executed','harness','missing')}
+            m=i.get('metrics') or {};brief={k:v for k,v in m.items() if k.endswith('Total') or k in ('passes','below200','executed','harness','missing','deltaMs','landingDeltaMs','landedMs','targetMs','crashes','disposeCallCount','verdictCount','focusMismatchCount','playToFirstFrameUs','renderEpoch','behindStateMs','pageIndex','nativeAdvanceMs')}
             if 'runs' in m:brief['runs']=[{k:v for k,v in r.items() if k in ('case','firstObservedTier','observedSwitchCount','switchIntervals','maxRebufferSeconds','totalRebufferSeconds','rebufferCount','finalNativeTimePos','nativeHlsBitrates','sampleCount')} for r in m['runs']]
             if 'verdicts' in m:brief['verdictCounts']={status:sum(v['status']==status for v in m['verdicts']) for status in ('PASS','FAIL','BLOCKED')}
             lines.append(f'|{s["stage"]}|{i["item"]}|{i["planned"]}|{i["executed"]}|{i.get("failures")}|{i["status"]} '+json.dumps(brief,ensure_ascii=False).replace('|','/')+'|'+str(i.get('evidence'))+'|')
