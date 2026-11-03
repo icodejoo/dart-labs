@@ -335,7 +335,7 @@ void main() {
       expect(e.state.zoom, 1.0);
     });
 
-    test('setFullscreen(true) then (false) restores state and re-applies the orientation port', () async {
+    test('setFullscreen(true) then (false) restores state and resets the orientation port', () async {
       final spy = _SpyOrientation();
       final e2 = MovaEngine(kernel: k, orientation: spy);
       final seen = <MovaEvent>[];
@@ -346,7 +346,9 @@ void main() {
       expect(e2.state.fullscreen, isFalse);
       await _flush();
       expect(seen.whereType<MovaFullScreenChange>().map((x) => x.value), [true, false]);
-      expect(spy.applied, [true, false]);
+      // 离开全屏要还原宿主配置，而不是重新按播放器方向配置。
+      expect(spy.applied, [true]);
+      expect(spy.resets, 1);
       await e2.dispose();
     });
 

@@ -97,6 +97,8 @@ MovaVolumePort? _defaultVolumePort() {
 ///   在 open/seek/play 前咨询的拦截链
 /// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
 ///   覆盖默认的真实 [MovaScreenBrightnessPort]
+/// - [restoreBrightness]: 离场时还原已修改的亮度，默认 true；false 由宿主接管。
+///   示例：`createMovaEngine(restoreBrightness: false)`。
 /// - [volume]: overrides the default volume port. Defaults to the native
 ///   [MovaSystemVolumePort] on Android and `null` (player-volume path) elsewhere;
 ///   pass a [MovaCallbackVolumePort] to drive system volume yourself on any
@@ -107,6 +109,8 @@ MovaVolumePort? _defaultVolumePort() {
 ///   [MovaChannelPipPort]
 /// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
 ///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
+/// - [orientationConfig]: 宿主的方向和系统栏还原声明，仅用于默认方向端口。
+///   示例：`createMovaEngine(orientationConfig: MovaOrientationConfig())`。
 /// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
 ///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
 ///   缓存图缓存目录）
@@ -166,9 +170,11 @@ MovaEngine createMovaEngine({
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
   MovaBrightPort? brightness,
+  bool restoreBrightness = true,
   MovaVolumePort? volume,
   MovaPipPort? pip,
   MovaOrientationPort? orientation,
+  MovaOrientationConfig orientationConfig = const MovaOrientationConfig(),
   MovaThumbDirProvider? thumbDir,
   MovaFramePuller? extractor,
   MovaNetProbe? probe,
@@ -193,6 +199,7 @@ MovaEngine createMovaEngine({
       options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
       interceptors: interceptors,
       brightness: brightness,
+      restoreBrightness: restoreBrightness,
       volume: volume,
       pip: pip,
       orientation: orientation,
@@ -224,9 +231,10 @@ MovaEngine createMovaEngine({
     options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,
     brightness: brightness ?? MovaScreenBrightnessPort(),
+    restoreBrightness: restoreBrightness,
     volume: volume ?? _defaultVolumePort(),
     pip: pip ?? MovaChannelPipPort(),
-    orientation: orientation ?? MovaSystemChromeOrientationPort(),
+    orientation: orientation ?? MovaSystemChromeOrientationPort(config: orientationConfig),
     thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,

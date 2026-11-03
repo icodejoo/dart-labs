@@ -41,6 +41,7 @@ import 'report/stats_probe.dart';
 import 'keep_alive/plan.dart';
 import 'keep_alive/keep_alive.dart';
 import 'state/progress.dart';
+import 'platform/brightness_lease.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
 import 'cutover/retirable.dart';
@@ -97,6 +98,23 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   ///
   /// 读写设备屏幕亮度。
   final MovaBrightPort _brightness;
+
+  /// 离场时是否还原本引擎修改过的亮度；宿主可设为 false 接管。
+  ///
+  /// 示例：`createMovaEngine(restoreBrightness: false)`。
+  final bool restoreBrightness;
+
+  /// 首次读取的亮度，读取失败时保持空值，避免写回错误初值。
+  double? _initialBrightness;
+
+  /// 用户是否已请求修改亮度，用于阻止迟到初值覆盖手势结果。
+  bool _brightnessTouched = false;
+
+  /// 初值读取的完成通知，亮度写入在它之后执行。
+  late final Future<void> _brightnessReady;
+
+  /// 亮度写入尾部，确保销毁还原在最后一次写入之后执行。
+  Future<void> _brightnessWrites = Future<void>.value();
 
   /// Reads/writes system media volume; `null` means the volume gesture drives
   /// the player's own volume via [_kernel] instead of any system volume.
@@ -627,12 +645,16 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   ///
   /// [fit] 是初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是锁定——
   /// 运行时 `setFit()` 与 fit 按钮照常可改，也不会为它发 [MovaFitChange]。
+  ///
+  /// [restoreBrightness] 默认还原修改过的亮度；设为 false 可由宿主接管。
+  /// 示例：`createMovaEngine(restoreBrightness: false)`。
   MovaEngine({
     MovaKernel? kernel,
     bool audioOnly = false,
     this.options = const MovaOpts(),
     List<MovaHook> interceptors = const [],
     MovaBrightPort? brightness,
+    this.restoreBrightness = true,
     MovaVolumePort? volume,
     MovaPipPort? pip,
     MovaOrientationPort? orientation,
@@ -663,6 +685,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _abrPolicy =
         options.abr.policy ??
         MovaBufferAbr(threshold: options.abr.stallThreshold);
+    _brightnessReady = _seedBrightness();
+    MovaBrightnessLease(this, _restoreOriginalBrightness);
     // throttleStream's own controller is already broadcast (see its doc
     // comment for why that matters), so no further wrapping is needed here.
     //
@@ -844,6 +868,44 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
             })
             .catchError((Object _) {}),
       );
+    }
+  }
+
+  /// 读取进入播放器前的亮度，只在用户尚未修改且引擎仍存活时播种状态。
+  Future<void> _seedBrightness() async {
+    try {
+      final value = await _brightness.get();
+      if (!value.isFinite) return;
+      _initialBrightness = value.clamp(0.0, 1.0).toDouble();
+      if (_disposed || _brightnessTouched) return;
+      _state.emit(state.copyWith(brightness: _initialBrightness));
+    } catch (_) {
+      // 初值未知时不写回猜测值，也不把平台读取失败当播放错误。
+    }
+  }
+
+  /// 还原本引擎修改的亮度；退役引擎把平台控制权交给接班引擎。
+  Future<void> _restoreBrightness() async {
+    if (!restoreBrightness || !MovaBrightnessLease.needsRestore(this) || _retired) return;
+    await _brightnessWrites;
+    await MovaBrightnessLease.release(this);
+  }
+
+  /// 按最初进入播放器时的端口与初值还原，允许接班引擎调用。
+  Future<void> _restoreOriginalBrightness() async {
+    await _brightnessWrites;
+    await _brightnessReady;
+    final initial = _initialBrightness;
+    if (initial == null) return;
+    try {
+      final port = _brightness;
+      if (port is MovaBrightRestore) {
+        await (port as MovaBrightRestore).restore(initial);
+      } else {
+        await port.set(initial);
+      }
+    } catch (_) {
+      // 平台端口尽力还原，失败不阻断其余资源销毁。
     }
   }
 
@@ -2284,10 +2346,18 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // leave the real brightness unchanged while state claimed otherwise.
     // 钳到 0–1：平台插件会拒绝越界值，真实亮度不变而 state 却已改变。
     v = v.clamp(0.0, 1.0).toDouble();
-    await _brightness.set(v);
-    if (_disposed) return;
-    _state.emit(state.copyWith(brightness: v));
-    _emitEvent(MovaBrightChange(v));
+    _brightnessTouched = true;
+    MovaBrightnessLease.markChanged(this);
+    final write = _brightnessWrites.then((_) async {
+      await _brightnessReady;
+      if (_disposed) return;
+      await _brightness.set(v);
+      if (_disposed) return;
+      _state.emit(state.copyWith(brightness: v));
+      _emitEvent(MovaBrightChange(v));
+    });
+    _brightnessWrites = write.catchError((Object _) {});
+    await write;
   }
 
   @override
@@ -2343,8 +2413,13 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    final leaving = state.fullscreen && !v;
     _state.emit(state.copyWith(fullscreen: v));
-    await _applyOrientation();
+    if (leaving) {
+      await _orientation.reset();
+    } else {
+      await _applyOrientation();
+    }
     if (_disposed) return;
     _emitEvent(MovaFullScreenChange(v));
   }
@@ -2846,10 +2921,11 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // A retired engine skips it: its successor already owns the orientation.
     //
     // 已退役引擎跳过：方向已由接班引擎接管。
+    Future<void>? orientationRestore;
     if (!_disposed &&
         !_retired &&
         (state.fullscreen || state.orientation != MovaOrientation.auto)) {
-      unawaited(_orientation.reset().catchError((Object _) {}));
+      orientationRestore = _orientation.reset().catchError((Object _) {});
     }
     _disposed = true;
     _abrHoldTimer?.cancel();
@@ -2889,6 +2965,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     await _previewService.dispose();
     await _sttService.dispose();
     await _kernel.dispose();
+    await _restoreBrightness();
+    await orientationRestore;
   }
 
   /// Recomputes [MovaState.liveSeekable]/[MovaState.seekableWindow] from the

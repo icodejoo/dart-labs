@@ -14,6 +14,7 @@ import '../preview/api.dart';
 import '../report/report.dart';
 import '../keep_alive/keep_alive.dart';
 import '../state/progress.dart';
+import '../platform/brightness_lease.dart';
 import '../state/state.dart';
 import '../state/ui_state.dart';
 import '../stt/api.dart';
@@ -737,6 +738,8 @@ class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, Mov
     if (_disposed) return bail();
 
     _active = shadow;
+    // 换指后仍由最终离场的引擎还原整段播放开始前的亮度。
+    MovaBrightnessLease.transfer(old, shadow);
     _shadow = null;
     _epoch++;
     _attach(_active);
@@ -788,6 +791,7 @@ class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, Mov
     await apply(from.fit != to.fit, () => shadow.setFit(from.fit));
     await apply(from.zoom != to.zoom, () => shadow.setZoom(from.zoom));
     await apply(from.volume != to.volume, () => shadow.setVolume(from.volume));
+    await apply(from.brightness != to.brightness, () => shadow.setBrightness(from.brightness));
     await apply(from.locked != to.locked, () => shadow.setLocked(from.locked));
     await apply(from.orientation != to.orientation, () => shadow.setOrientation(from.orientation));
     await apply(from.fullscreen != to.fullscreen, () => shadow.setFullscreen(from.fullscreen));
