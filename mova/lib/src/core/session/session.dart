@@ -347,6 +347,7 @@ class MovaSession {
 
   /// 宿主抢源仅使会话让位，不放弃或覆盖宿主的新影子。
   void _superseded() {
+    _endNode(MovaNodeEndReason.superseded);
     _supersededEpoch = _gen;
     _landing = false;
     _cancelAllTimers();

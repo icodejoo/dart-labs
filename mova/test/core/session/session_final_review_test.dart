@@ -10,6 +10,55 @@ import 'session_test.dart' show a, b;
 const frame = MovaFirstFrame(sinceOpen: Duration.zero, signal: MovaFirstFrameSignal.restart);
 
 void main() {
+  for (final kind in ['pre', 'content']) {
+    test('宿主抢源结束原 $kind 节点一次并保留宿主新影子', () async {
+      final rig = AdOperationRig(breaks: kind == 'pre' ? [waitingPre] : []);
+      addTearDown(rig.dispose);
+      final session = rig.ads.session;
+      final events = <MovaSessionEvent>[];
+      session.events.listen(events.add);
+      Future<MovaLoadOutcome>? loading;
+      if (kind == 'pre') {
+        loading = session.load(a);
+      } else {
+        await session.load(a);
+        await session.playAdNow(MovaAdBreak(kind: MovaAdBreakKind.mid,
+          source: waitingPre.source, waitForReady: true));
+      }
+      await settleOperations();
+      final start = events.whereType<MovaNodeStart>().single;
+      final old = rig.engines.first;
+      final staleShadow = rig.engines.last;
+      final gate = old.pauseGate = Completer<void>();
+      addTearDown(() { if (!gate.isCompleted) gate.complete(); });
+      await rig.ready(staleShadow);
+      await rig.api.open(b);
+      const hostSource = MovaSource('https://host/new-host-shadow.mp4');
+      final hostTicket = (await rig.api.prepareOwned(hostSource,
+        plan: const MovaWarmPlan(trigger: MovaEagerWarm())))!;
+      final hostShadow = rig.engines.last;
+      await rig.ready(hostShadow);
+      gate.complete();
+      if (loading != null) expect(await loading, MovaLoadOutcome.superseded);
+      await settleOperations();
+      final end = events.whereType<MovaNodeEnd>().single;
+      expect(end.node, start.node);
+      expect(end.epoch, start.epoch);
+      expect(end.reason, MovaNodeEndReason.superseded);
+      expect(events.whereType<MovaNodeFail>(), isEmpty);
+      expect(session.cursor.phase, MovaSessionPhase.idle);
+      expect(session.cursor.node, isNull);
+      expect(staleShadow.disposeCount, 1);
+      expect(hostShadow.disposeCount, 0);
+      expect(await rig.api.commitOwned(hostTicket), MovaWarmCommit.committed);
+      expect(rig.api.active, same(hostShadow));
+      expect(hostShadow.source, hostSource);
+      await session.load(b, breaks: []);
+      await settleOperations();
+      expect(events.whereType<MovaNodeEnd>(), hasLength(1), reason: '后续加载不重复结束旧节点');
+      expect(events.whereType<MovaNodeStart>().last.epoch, greaterThan(end.epoch));
+    });
+  }
   for (final command in ['load', 'jumpTo', 'setItems', 'dispose']) {
     test('会话 $command 取消挂在 old.pause 的已认领旧前贴片', () async {
       const nextPre = MovaAdBreak(kind: MovaAdBreakKind.pre,
