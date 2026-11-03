@@ -356,10 +356,10 @@ class MovaPreviewService implements MovaPreviewApi {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _epoch++;
     _debounce?.cancel();
     _debounce = null;
     _wanted = null;
-    await _queue;
     // Each step is isolated: one failing teardown must not skip the rest.
     //
     // 每一步相互隔离：某一步销毁失败不能跳过其余步骤。
@@ -372,6 +372,8 @@ class MovaPreviewService implements MovaPreviewApi {
     for (final s in sources) {
       await step(s.dispose);
     }
+    // 先关闭来源以中止网络与解码，再等待队列收敛。
+    await _queue;
     if (config.clearOnDispose) await step(cache.clear);
     await step(cache.dispose);
     await step(probe.dispose);

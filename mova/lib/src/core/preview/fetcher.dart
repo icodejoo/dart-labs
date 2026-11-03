@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -57,29 +58,73 @@ class MovaIoHttpFetcher implements MovaHttpFetch {
   /// 惰性创建的客户端；首次请求前为 null。
   HttpClient? _client;
 
+  /// 正在执行的取消回调；close 同步唤醒所有等待者。
+  final Set<void Function()> _pending = {};
+
+  /// 已关闭后不再创建新的连接。
+  bool _closed = false;
+
+  /// 拉取 [url]，总期限涵盖连接、响应头及响应体；失败返回 null。
+  ///
+  /// 示例：`await fetcher.get(Uri.parse('https://host/thumb.vtt'))`。
   @override
   Future<Uint8List?> get(Uri url) async {
+    if (_closed) return null;
     final client = _client ??= (HttpClient()..connectionTimeout = timeout);
+    final result = Completer<Uint8List?>();
+    HttpClientRequest? request;
+
+    /// 超时或关闭时中止套接字并唤醒调用方。
+    void cancel() {
+      request?.abort();
+      if (!result.isCompleted) result.complete(null);
+    }
+
+    /// 执行完整请求，迟到的连接立即中止，避免释放后重新挂起。
+    Future<void> run() async {
+      try {
+        final req = await client.getUrl(url);
+        request = req;
+        if (result.isCompleted || _closed) {
+          req.abort();
+          return;
+        }
+        final response = await req.close();
+        if (response.statusCode != HttpStatus.ok) {
+          cancel();
+          return;
+        }
+        final chunks = await response.toList();
+        final out = BytesBuilder(copy: false);
+        for (final chunk in chunks) {
+          out.add(chunk);
+        }
+        if (!result.isCompleted) result.complete(out.takeBytes());
+      } on Object {
+        cancel();
+      }
+    }
+
+    _pending.add(cancel);
+    final timer = Timer(timeout, cancel);
+    unawaited(run());
     try {
-      final request = await client.getUrl(url).timeout(timeout);
-      final response = await request.close().timeout(timeout);
-      if (response.statusCode != HttpStatus.ok) {
-        await response.drain<void>();
-        return null;
-      }
-      final chunks = await response.toList().timeout(timeout);
-      final out = <int>[];
-      for (final c in chunks) {
-        out.addAll(c);
-      }
-      return Uint8List.fromList(out);
-    } on Object {
-      return null;
+      return await result.future;
+    } finally {
+      timer.cancel();
+      _pending.remove(cancel);
     }
   }
 
+  /// 中止在途请求并永久关闭；无参数、无返回值。
+  ///
+  /// 示例：`await fetcher.close()`；重复调用安全。
   @override
   Future<void> close() async {
+    _closed = true;
+    for (final cancel in _pending.toList()) {
+      cancel();
+    }
     _client?.close(force: true);
     _client = null;
   }
