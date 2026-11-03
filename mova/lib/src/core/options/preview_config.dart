@@ -63,10 +63,10 @@ class MovaPreviewConfig {
   final MovaPreviewNet network;
 
   /// Injected connectivity probe; null uses [MovaAlwaysAllowNetProbe] in core and
-  /// the connectivity_plus probe when the host wires one in.
+  /// a lazy connectivity_plus probe when created through createMovaEngine.
   ///
   /// 注入的连通性探针；为 null 时 core 内部使用 [MovaAlwaysAllowNetProbe]，宿主
-  /// 接入时可换成基于 connectivity_plus 的探针。
+  /// 通过 createMovaEngine 创建时默认按需接入 connectivity_plus 探针。
   final MovaNetProbe? probe;
 
   /// Called when a request is refused; null means stay silent.

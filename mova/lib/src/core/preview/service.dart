@@ -37,6 +37,7 @@ class MovaPreviewService implements MovaPreviewApi {
   /// - [sources]: ordered source chain / 有序的来源链
   /// - [onBlocked]: refusal callback / 被拒回调
   /// - [audioOnly]: 纯音频引擎不启动 VTT 或抽帧，默认 false。
+  /// - [gateNetwork]: 默认统一判网络；内置来源在实际资源访问处判定时设为 false。
   MovaPreviewService({
     required this.config,
     required this.cache,
@@ -44,11 +45,16 @@ class MovaPreviewService implements MovaPreviewApi {
     required this.sources,
     this.onBlocked,
     this.audioOnly = false,
+    this.gateNetwork = true,
   });
 
   /// 是否为纯音频引擎；为 true 时不探测预览来源，默认 false。
   /// 示例：`MovaPreviewService(config: config, cache: cache, probe: probe, sources: [], audioOnly: true)`。
   final bool audioOnly;
+
+  /// 是否在服务入口统一判网络；默认 true。内置来源在实际 HTTP/抽帧处判定时设为 false，
+  /// 避免缓存命中也查询探针。示例：`MovaPreviewService(..., gateNetwork: false)`。
+  final bool gateNetwork;
 
   /// The resolved preview configuration.
   ///
@@ -316,18 +322,22 @@ class MovaPreviewService implements MovaPreviewApi {
     // 换 key，也不能让它的结果出现在新媒体上。
     final key = _keyFor(bucket, src);
     if (key == null) return;
-    final allowed = await previewAllowedOn(config.network, probe);
-    if (!_isWanted(epoch, revision)) return;
-    if (!allowed) {
-      _block(MovaPreviewBlockReason.network);
-      return;
-    }
-
     final cached = await cache.read(key);
     if (!_isWanted(epoch, revision)) return;
     if (cached != null) {
       if (_wanted == bucket) _publish(MovaThumb(at: bucket, bytes: cached));
       return;
+    }
+    if (gateNetwork) {
+      final uri = Uri.tryParse(src.uri);
+      final remote = uri?.scheme == 'http' || uri?.scheme == 'https';
+      final allowed = config.network == MovaPreviewNet.wifiOnly && !remote
+          ? true : await previewAllowedOn(config.network, probe);
+      if (!_isWanted(epoch, revision)) return;
+      if (!allowed) {
+        _block(MovaPreviewBlockReason.network);
+        return;
+      }
     }
 
     for (final source in sources) {

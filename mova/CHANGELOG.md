@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 推翻旧的网络探针不默认接线决定：createMovaEngine 为 wifiOnly 预览按需创建连通性探针；仅实际请求远程 VTT、雪碧图或抽帧时查询，缓存、VTT 冷却、禁用来源和本地资源不查询。测试接缝继续不接平台插件。
+
 - createMovaEngine 在 debug 下提示注入 kernel 时被忽略的默认内核参数；Android 使用默认内核并开启 tlsVerify 时断言必须提供非空 tlsCaFile。抽帧器继续默认 null，文档明确需显式注入。
 
 - 新增 movaCapabilityOf<T>(api) 能力查询入口，优先保留代理自身能力，否则穿透多层 cutover 查询当前生效引擎，不修改 MovaApi。

@@ -1,6 +1,7 @@
 import 'playback_commands.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
@@ -53,6 +54,30 @@ import 'state/ui_state.dart';
 import 'cutover/retirable.dart';
 import 'stt/api.dart';
 import 'stt/service.dart';
+
+// 内置来源只在实际访问远程资源时咨询网络策略，VTT 自身的缓存和冷却先执行。
+class _PreviewHttpFetch implements MovaHttpFetch {
+  _PreviewHttpFetch(this.fetcher, this.allow);
+  final MovaHttpFetch fetcher;
+  final Future<bool> Function(Uri) allow;
+  @override
+  Future<Uint8List?> get(Uri url) async => await allow(url) ? fetcher.get(url) : null;
+  @override
+  Future<void> close() async {} // 借用引擎持有的 HTTP 端口。
+}
+
+class _PreviewFramePuller implements MovaFramePuller {
+  _PreviewFramePuller(this.puller, this.allow);
+  final MovaFramePuller puller;
+  final Future<bool> Function(Uri) allow;
+  @override
+  Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async =>
+      await allow(Uri.parse(uri)) ? puller.extract(uri, at, width: width, hwdec: hwdec) : null;
+  @override
+  Future<void> release() => puller.release();
+  @override
+  Future<void> dispose() => puller.dispose();
+}
 
 /// 单次加载尝试持有的 ABR 屏蔽租约，身份也区分同尝试内的新 seek。
 class _AbrLease {
@@ -175,6 +200,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
 
   /// 仅引擎自建的 HTTP 端口随引擎关闭。
   final bool _ownsFetcher;
+  final MovaNetProbe Function()? _previewProbeFactory;
 
   /// Unified reporting sink; `null` means reporting is off — no translator is
   /// created and [report] is a no-op, so the whole feature costs nothing when
@@ -719,6 +745,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// [fit] 是初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是锁定——
   /// 运行时 `setFit()` 与 fit 按钮照常可改，也不会为它发 [MovaFitChange]。
   ///
+  /// [previewProbeFactory] 提供默认预览探针工厂，只有 wifiOnly 请求远程资源时才创建。
+  /// options.preview.probe 显式注入优先；省略时 core 沿用恒允许探针。
+  /// 示例：`MovaEngine(previewProbeFactory: makeProbe)`；返回引擎实例。
+  ///
   /// [restoreBrightness] 默认还原修改过的亮度；设为 false 可由宿主接管。
   /// 示例：`createMovaEngine(restoreBrightness: false)`。
   MovaEngine({
@@ -734,6 +764,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     MovaThumbDirProvider? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
+    MovaNetProbe Function()? previewProbeFactory,
     MovaReporter? reporter,
     MovaFit fit = MovaFit.contain,
   }) : _state = MovaBus<MovaState>(MovaState(fit: fit)),
@@ -748,6 +779,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),
        _ownsFetcher = fetcher == null,
+       _previewProbeFactory = previewProbeFactory, // ignore: prefer_initializing_formals
        _chain = MovaHookChain(interceptors),
        _brightness = brightness ?? MovaFallbackBrightnessPort(),
        _volume = volume, // ignore: prefer_initializing_formals
@@ -1347,6 +1379,14 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     MovaHttpFetch? fetcher,
   }) {
     final cfg = options.preview;
+    final probe = cfg.probe ?? MovaLazyNetProbe(_previewProbeFactory ?? MovaAlwaysAllowNetProbe.new);
+    Future<bool> allow(Uri uri) async {
+      final remote = uri.scheme == 'http' || uri.scheme == 'https';
+      final allowed = cfg.network == MovaPreviewNet.wifiOnly && !remote
+          ? true : await previewAllowedOn(cfg.network, probe);
+      if (!allowed) _onPreviewBlocked(MovaPreviewBlockReason.network);
+      return allowed;
+    }
     final dir =
         cfg.dirProvider ??
         (cfg.diskDir != null
@@ -1364,8 +1404,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       config: cfg,
       audioOnly: _audioOnly,
       cache: cache,
-      probe: cfg.probe ?? MovaAlwaysAllowNetProbe(),
-      sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher),
+      probe: probe,
+      gateNetwork: cfg.sources != null,
+      sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher, allow),
       onBlocked: _onPreviewBlocked,
     );
   }
@@ -1388,14 +1429,15 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     MovaPreviewConfig cfg,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
+    Future<bool> Function(Uri) allow,
   ) {
     final chain = <MovaThumbSource>[];
     if (cfg.vttEnabled) {
       final fixed = cfg.vttUrl;
       chain.add(
         MovaVttThumbSource(
-          fetcher: fetcher ?? MovaIoHttpFetcher(),
-          closeFetcher: _ownsFetcher,
+          fetcher: _PreviewHttpFetch(fetcher ?? _fetcher, allow),
+          closeFetcher: false,
           resolveUrl:
               cfg.vttUrlResolver ??
               (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
@@ -1408,7 +1450,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
         cfg.extractPlatforms.contains(currentPlatformKind())) {
       chain.add(
         MovaPullerThumbSource(
-          extractor: ex,
+          extractor: _PreviewFramePuller(ex, allow),
           width: cfg.frameWidth,
           hwdec: cfg.hwdec,
         ),

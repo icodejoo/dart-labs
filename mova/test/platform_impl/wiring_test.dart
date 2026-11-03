@@ -10,6 +10,7 @@ import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/platform/ports.dart';
 import 'package:mova/src/core/preview/extractor.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
+import 'package:mova/src/core/preview/service.dart';
 import 'package:mova/src/platform_impl/brightness_impl.dart';
 import 'package:mova/src/platform_impl/mpv_extractor_impl.dart';
 import 'package:mova/src/platform_impl/orientation_impl.dart';
@@ -183,14 +184,7 @@ void main() {
     });
 
     test('the frame extractor defaults to null even when audioOnly is off', () {
-      // Changed 2026-09-25: MovaFrameExtractor pulls in media_kit_video as a
-      // statically reachable dependency the moment createMovaEngine()
-      // references it by default, defeating tree-shaking for hosts that
-      // never use scrub preview. Hosts must now opt in explicitly.
-      //
-      // 2026-09-25 变更：MovaFrameExtractor 一旦被 createMovaEngine() 默认引用，
-      // 就会把 media_kit_video 变成静态可达依赖，让从不使用拖动预览的宿主也摇
-      // 不掉它。宿主现在必须显式 opt-in。
+      // 抽帧器仍需宿主显式 opt-in，不自动创建第二条视频管线。
       final engine = createMovaEngine(kernel: FakeKernel());
       addTearDown(engine.dispose);
 
@@ -221,19 +215,13 @@ void main() {
       );
     });
 
-    test('preview.probe defaults to null (core falls back to MovaAlwaysAllowNetProbe)', () {
-      // Changed 2026-09-25: MovaConnectivityNetProbe pulls in connectivity_plus as
-      // a statically reachable dependency the moment createMovaEngine()
-      // references it by default, defeating tree-shaking for hosts that never
-      // enable wifiOnly preview policy. Hosts must now opt in explicitly.
-      //
-      // 2026-09-25 变更：MovaConnectivityNetProbe 一旦被 createMovaEngine() 默认
-      // 引用，就会把 connectivity_plus 变成静态可达依赖，让从不启用 wifiOnly
-      // 预览策略的宿主也摇不掉它。宿主现在必须显式 opt-in。
+    test('preview probe is lazy without mutating the options snapshot', () {
+      // 默认真实探针延迟到远程请求才创建；仅检查 options.probe 为空不足以证明接线。
       final engine = createMovaEngine(kernel: FakeKernel());
       addTearDown(engine.dispose);
 
       expect(engine.options.preview.probe, isNull);
+      expect((engine.preview as MovaPreviewService).probe, isA<MovaLazyNetProbe>());
     });
 
     test('an explicitly injected probe is wired into MovaOpts.preview', () {

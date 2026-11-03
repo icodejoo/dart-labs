@@ -25,6 +25,7 @@ import '../core/kernel/mpv_kernel.dart';
 import '../core/model/fit.dart';
 import '../testing/hooks.dart';
 import 'brightness_impl.dart';
+import 'net_probe_impl.dart';
 import 'frame_yield.dart';
 import 'mpv_event_backend_ffi.dart';
 import 'orientation_impl.dart';
@@ -117,16 +118,10 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [extractor]: 拖动预览抽帧兜底，默认 `null`，不会自动构造第二个视频内核。
 ///   需要抽帧时显式传入 `MovaFrameExtractor()`；仅音频引擎不执行预览抽帧。
 ///   示例：`createMovaEngine(extractor: MovaFrameExtractor())`。
-/// - [probe]: the connectivity probe consulted under `wifiOnly` preview
-///   network policy. `null` by default for the same tree-shaking reason as
-///   [extractor] — the default implementation (`MovaConnectivityNetProbe`) pulls
-///   in `connectivity_plus`; [MovaEngine] itself already falls back to a
-///   pure-Dart `MovaAlwaysAllowNetProbe()` when this stays unset, so `wifiOnly`
-///   preview policy is simply not enforced unless you opt in / `wifiOnly`
-///   预览网络策略要咨询的连通性探针。默认为 `null`，原因与 [extractor] 相同——
-///   默认实现（`MovaConnectivityNetProbe`）会引入 `connectivity_plus`；未设置时
-///   [MovaEngine] 自己会兜底为纯 Dart 的 `MovaAlwaysAllowNetProbe()`，即不显式启用
-///   时 `wifiOnly` 策略不会被强制执行
+/// - [probe]: wifiOnly 预览的显式连通性探针；优先于默认探针。
+///   未注入时按需创建 MovaConnectivityNetProbe，只有实际拉取远程预览资源才查询。
+///   此决定推翻旧的“不默认接线”决定：connectivity_plus 已是硬依赖，旧 tree-shaking
+///   注释不再成立。关闭预览、缓存命中、本地资源不创建或查询默认探针。
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and
 ///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
 ///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
@@ -248,6 +243,7 @@ MovaEngine createMovaEngine({
     thumbDir: thumbDir ?? MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,
+    previewProbeFactory: MovaConnectivityNetProbe.new,
     reporter: reporter,
     fit: fit,
   );
