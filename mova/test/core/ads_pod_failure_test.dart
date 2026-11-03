@@ -412,8 +412,16 @@ void main() {
       reason: '旧正片的 rendered 不能让未接受的广告起表',
     );
     expect(engines.first.source, same(_content));
+    var settled = false;
+    unawaited(loading.then((_) { settled = true; }));
     gate.complete();
-    await tester.pump();
+    // 订阅取消与控制器 close 跨真实/fakeAsync 两个队列，按加载结算条件推进。
+    // 上限只用于让真实挂起快速报错，不以固定 pump 轮数推断加载已完成。
+    for (var turn = 0; !settled && turn < 20; turn++) {
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    }
+    expect(settled, isTrue, reason: '拒绝后正片已接受，加载必须结算');
     await loading;
     expect(ads.isShowingAd, isFalse);
     expect(policy.failures, isEmpty);

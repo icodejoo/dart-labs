@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 切换代理在换指窗口保留旧引擎播放观测，抑制内部暂停事件；换指后依次补发影子期 SourceChange、Ready、FirstFrame，放弃时补回真实状态。MovaCutoverChange 新增可选 reason。代理状态与事件通过带渲染 epoch 的同一队列投递，事件接收时 state 与载荷一致，修复 H77 的缓冲状态滞后。
+
 - 广告 pod 的每条等待型广告改走 prepare + 凭据提交，统一采用广告方向计划（默认 1x、就绪后停首帧、adReadyTimeout）；被宿主新 open 取代时会话让位，槽被替换时只按未就绪回落。落地窗口丢弃旧媒体的结束、错误与进度，正片预热同时考虑广告位和素材剩余时长。公开 cutoverTo 保留。
 
 - 会话对同一 epoch、节点和尝试的失败只裁决一次：广告仍由广告失败策略处理，recovery 开启时非终结诊断交给引擎；正片终结错误（恢复开启时等待 giveUp）发出 MovaNodeFail(failItem)、contentError 并回 idle，不自动换集。这扩展了 A05 刚确定的 contentError 契约，原先仅包含解析失败与正片 open 异常。
