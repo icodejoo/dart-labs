@@ -1,3 +1,6 @@
+import '../../core/session/registry.dart';
+import '../../core/session/cursor.dart';
+import '../../core/session/timeline.dart' show MovaNodeId;
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -93,11 +96,32 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
   ///
   /// 宿主是否已对当前项关闭卡片；切到下一项时清除，使每项各有一次提示。
   bool _dismissed = false;
+  int? _sessionEpoch;
+  MovaNodeId? _sessionNode;
+  MovaSessionPhase? _sessionPhase;
 
   @override
   void initState() {
     super.initState();
     bind(api.progress, _onProgress);
+    final session = movaPlaylistSessions[widget.controller];
+    if (session != null) {
+      _sessionEpoch = session.cursor.epoch;
+      _sessionNode = session.cursor.node;
+      _sessionPhase = session.cursor.phase;
+      bind(session.changes, (_) {
+        final cursor = session.cursor;
+        final changed =
+            cursor.epoch != _sessionEpoch ||
+            cursor.node != _sessionNode ||
+            cursor.phase != _sessionPhase;
+        _sessionEpoch = cursor.epoch;
+        _sessionNode = cursor.node;
+        _sessionPhase = cursor.phase;
+        // 换集、进出广告与落地窗口都须等待下一次正片进度，不能沿用旧卡片。
+        if (changed && _visible) setState(() => _visible = false);
+      });
+    }
     // A new item re-arms the card: clear the dismissal and hide until the
     // next lead-time window is entered.
     //
@@ -120,7 +144,10 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
     final duration = widget.api.state.duration;
     final lead = widget.api.options.playlist.nextUpLeadTime;
     final remaining = duration - p.position;
-    final show = widget.controller.hasNext &&
+    final session = movaPlaylistSessions[widget.controller];
+    final show =
+        (session == null || session.cursor.phase == MovaSessionPhase.content) &&
+        widget.controller.hasNext &&
         !_dismissed &&
         duration > Duration.zero &&
         remaining > Duration.zero &&

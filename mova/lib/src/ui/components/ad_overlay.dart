@@ -1,3 +1,4 @@
+import '../../core/session/events.dart' show MovaNodeStart;
 import 'package:flutter/widgets.dart';
 
 import '../../core/ad/ads.dart';
@@ -79,42 +80,22 @@ class _AdOverlayView extends StatefulWidget {
   State<_AdOverlayView> createState() => _AdOverlayViewState();
 }
 
-/// State for [_AdOverlayView]; owns the last-seen ad position used to derive the
-/// skip countdown independent of controller-callback ordering.
-///
-/// [_AdOverlayView] 的状态；持有最近观测到的广告位置，用于独立于控制器回调顺序地
-/// 推导跳过倒计时。
+/// 阶段、节点与进度变化触发重建；跳过判据由会话控制器统一维护。
 class _AdOverlayViewState extends State<_AdOverlayView>
     with MovaPlugin<_AdOverlayView> {
-  /// Ad elapsed time as of the last progress tick; reset to zero each time an
-  /// ad phase begins.
-  ///
-  /// 最近一次进度 tick 时的广告已播时长；每次进入广告阶段时归零。
-  Duration _adPos = Duration.zero;
-
   @override
   void initState() {
     super.initState();
     bind(api.progress, _onProgress);
-    // A phase change (ad start/end/skip) rebuilds and re-zeros the countdown.
-    //
-    // 阶段变化（广告开始/结束/跳过）触发重建并把倒计时归零。
-    bind(widget.controller.changes, (_) {
-      setState(() => _adPos = Duration.zero);
+    bind(widget.controller.changes, (_) => setState(() {}));
+    bind(widget.controller.session.events, (event) {
+      if (event is MovaNodeStart) setState(() {});
     });
   }
 
-  /// Advances the tracked ad position while an ad is on screen.
-  ///
-  /// 广告在屏期间推进跟踪的广告位置。
+  /// 进度只触发重建，落地窗口内旧媒体的位置由会话过滤。
   void _onProgress(MovaProg p) {
-    if (widget.controller.isShowingAd) {
-      setState(() => _adPos = p.position);
-    } else if (widget.controller.isAdPending) {
-      // The delay countdown is derived from the content position, so it only
-      // moves when a content tick arrives.
-      //
-      // 倒计时由正片位置推导，因此只在正片 tick 到达时才走动。
+    if (widget.controller.isShowingAd || widget.controller.isAdPending) {
       setState(() {});
     }
   }
@@ -159,13 +140,17 @@ class _AdOverlayViewState extends State<_AdOverlayView>
     final b = controller.currentBreak;
     if (!controller.isShowingAd || b == null) return const SizedBox.shrink();
     final after = b.skippableAfter;
-    final canSkip = after != null && _adPos >= after;
+    final canSkip = controller.canSkip;
+    final skipIn = controller.skipIn;
     // Round the remaining time up so a 4.9s remainder reads "5", not "4".
     //
     // 剩余时间向上取整，使 4.9 秒显示为 "5" 而非 "4"。
-    final secondsLeft = after == null
+    final secondsLeft = skipIn == null
         ? 0
-        : ((after - _adPos).inMilliseconds / 1000).ceil().clamp(0, 1 << 31);
+        : (skipIn.inMicroseconds / Duration.microsecondsPerSecond).ceil().clamp(
+            0,
+            1 << 31,
+          );
     return Stack(
       children: [
         // Full-surface click-through: reported only, never navigated here.

@@ -760,6 +760,66 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 时序核对曾临时替换为 A22（1a0b3651）的 ads/session 生产文件实跑，调用方 await 返回瞬间 api.calls 快照是 `[turn:1, open, turn:2]`；A25 相同。显式增加一次 await Future.value 后快照多出 turn:3，测试变红。与子计划动机的实测差异：本机 Dart 对单纯 then 映射的传播会优化，普通成功路径测试仍绿，不能把 then 一概声称为必然增加微任务；生产仍严格采用 D13 泛型核心直接映射，转发无 async/then。
 - 新增回归文件、cursor/events/registry 等包内配套、CHANGELOG 与必要 README 片段均按子计划；A25 额外触及本批 session_test 与 session_nodes_test，仅为上述所有权与回调重入断言补强，续播守卫补全 A24 节点及尝试归属。本记录随 A25 入库。不改 CLAUDE.md，未提交 Windows 插件生成文件、doc/notes、matrix-run 或其他子工程，未触碰其他 worktree。本记录不代表 A26–A30 或 CP2 已完成。
 
+
+#### A2 块第三批落地记录（2026-11-03）
+
+本批起点 2165 项，先修复 A23–A25 初审的五条缺陷，再按 A26 → A27 → A28（含 H77）→ A29 → A30 逐个实现、验证并本地提交。全程由当前执行者亲自完成，未转派；只改本 worktree 的 mova/，未切/建分支、stash、reset 或 push，未使用 adb、Gradle、真机或启动应用。每个提交前 `flutter analyze lib test` 均为 0 issues，全量测试均使用 `flutter test --concurrency=3`，未遇 OOM、未降并发、未分片、未删减或跳过用例。
+
+| 提交 | 全量实测 | 新增 | 回退/语义突变变红（去重） |
+|---|---:|---:|---|
+| 初审五条修复 `5a36d64c` | 2173 | +8 | 9：8 条新增回归 + 1 条强化的既有计时测试 |
+| A26 `d96c5879` | 2183 | +10 | 10：会话接线回退与纯仲裁函数保留编译接缝后的回退 |
+| A27 `5ccfc132` | 2191 | +8 | 8：回退 session/cutover 接线后全部变红 |
+| A28 `2426a783` | 2203 | +12 | 9 条旧代理回退变红，另 3 条 API/普通引擎对照经语义突变变红 |
+| A29 `b5cb1c62` | 2208 | +5 | 3 条新策略回退变红，另 2 条默认行为对照经错误默认值变红 |
+| A30（随本记录提交） | 2213 | +5 | 4 条 UI 回退变红，另 1 条旧直连对照经错误守卫变红 |
+
+合计新增 48 项，最终 2213；去重验证 49 条可变红（含强化既有测试 1 条）。兼容性和普通引擎对照在正确的旧行为下应保持绿色，故明确区分旧代码回退与故意破坏行为的语义突变，没有把编译失败计成回归变红。临时生产文件均在 finally 中按字节恢复。A28 认领槽后首帧的生命周期守卫另做了移除验证，在补齐夹具播放意图、确保 playGate 真正挡住提交后，该用例变红；它属于上述 9 条中的同一用例，不重复计数。
+
+五条初审缺陷及修复：
+
+1. 旧集结束通知覆盖手动跳转：公开 `contentEnded` 类型不变，包内结束通知携带发出时 epoch；直接会话与 playlist 的两个自动推进消费者都比较当前 epoch。以节点完成监听器手动 jumpTo(2)、打开被门闩卡住验证，旧通知不能另启第 1 集。
+2. 跳过加载中的前贴片让 load 提前 rejected/false：每个广告尝试记录自己的续播 Future，加载核心在同一 epoch 继续等待有效续播结算；覆盖 session.load、session.jumpTo(1)、ads.load 三个入口，G1 放行时仍未结算，G2 放行后 accepted/true 且下标正确。
+3. 公开 session 导航后 playlist 下标落后：共享会话路径从 cursor 读取下标，next/previous 调会话动词，indexChanges 只由 MovaItemChange 驱动；公开跳到第 2 集后手动 next 和自然结束都不误开第 1 集。旧直连分支保留原调用行为。
+4. setItems 不使在途 jumpTo 失效：增加独立列表代际，接受结果提交前核对原列表代际；旧请求返回 superseded，不写越界下标、不发 MovaItemChange。
+5. 同实例广告计时测试误通过：为两条广告补首帧，取消加载超时干扰；检查 t=14.999s 第二条仍未结束、t=15s completed，结束时刻恰为 [5s,15s]。移除第二条时长计时器后该测试变红。
+
+新增公开 API（均补中文 dartdoc、参数/返回与示例；未增加成员级 Deprecated）：
+
+- A26：`MovaNodeFail`（node、verdict、error）与 `MovaNodeFailVerdict`。失败描述与纯仲裁函数留在包内；`contentError` 的公开注释和 CHANGELOG 明确扩展 A05 契约，加入正片终结错误，恢复开启时等 giveUp。
+- A27：在现有 `core/cutover/acceptance.dart` 扩展包内 `MovaWarmOwner`、`MovaWarmTicket`、`MovaWarmCommit`，未另起平行接口、未从 barrel 导出。代理实现的 prepareOwned/commitOwned 补中文说明；公开 MovaCutover 四动词与 MovaApi 均未加成员。
+- A28：`MovaCutoverEndReason` 八种结束原因，`MovaCutoverChange.reason` 可选命名字段；旧 const 调用仍有效，没有新增 MovaEvent 子类。
+- A29：`MovaAdSnapback`、`MovaAdConfig.midRollSnapback`，构造、copyWith、相等与 hash 同步。默认 all 委托旧查找；单个到期插入点及同点 pod 不受多点补播策略影响。
+- A30：零新增公开面；NextUp 从 A25 已登记的 Expando 获取会话，不新增 session 参数；旧直连保持原时长判据。
+
+既有断言改写逐条说明：
+
+1. 初审计时用例原先只看 t=15s 的结束序号 [0,1]，第二条 t=13s 加载超时也能满足，无法证明计时器有效。现补首帧，并检查未提前结束、completed 原因和准确时刻。
+2. ads_test 的 pod abandon/cutoverTo 顺序改为 abandon/prepare 并检查准备源；会话不再调用 cutoverTo，原动词断言已不适用。
+3. ads_test 的在途 pod 门从 cutoverToGate 移到 commitGate，断言只 prepare 第二条广告；落地本身需要 prepare，旧“没有 prepare”会错把合法落地当成正片误预热。
+4. ads_test 一次性广告倍速从 lastCutoverToRate 改为 lastPlan.rate=1.0 且 pauseWhenReady；倍速及停帧参数现经 prepare 下发。
+5. ads_test 的 pre:true 路由改为 prepare→commit；旧 cutoverTo 断言不再适用，无 api.open 的原断言保留。
+6. ads_test 的 break.waitForReady:true 覆盖前贴片默认值同样改为 prepare→commit，原因同上。
+7. ads_open_failure 的异常阶段从 cutoverTo/prepare/commit 三组改为 prepare/commit × pre/mid 四组；旧前贴片 cutoverTo 组永远不会再被经过。
+8. ads_open_failure 重试改注入 prepare，检查异常已消费与一次成功 prepare；旧 cutoverTo 替身在抛出前记录调用，prepare 在抛出后才记录，不能沿用总数 2。
+9. ad_stale_first_frame 的第二条广告门移到 commit；旧 cutoverTo 门不会再被经过，保留“旧 rendered 不遗留加载期限”的原不变量。
+10. ads_interleaving 的 F-N 首次前贴片“没有 pause”改为 pause→seek→play；广告方向 pauseWhenReady 要求先停帧回绕再按显式意图播放，最终意图为真的断言保留。
+11. ads_pod_failure F5 retry：窗口内 opens=1、策略为空，open 抛出后才 retry；旧断言把未落定的旧 ErrorEvent 先认作新广告失败，违反 D10。
+12. ads_pod_failure F5 skipBreak：窗口内不裁决，放行 open 抛出后唯一失败并续播第三条；旧断言原因同上，最终单条跳过不变量保留。
+13. ads_pod_failure F5 abandonPod：窗口内不裁决，放行 open 抛出后唯一失败并回正片；旧断言原因同上，最终放弃 pod 不变量保留。
+
+A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例仅调整驱动并增加结算断言：事件订阅提前后，取消订阅与 close 跨真实/fakeAsync 队列，原“单次 pump 后直接 await load”会挂起；改为按明确的加载结算条件推进两个队列并设上限快速报错，保留全部旧断言。曾停止属于当前 worktree 的挂起测试进程，未结束其他 worktree 的进程；修正后重新完整全量通过。共享 FakeMovaApi、普通 engine.dart 的调试/语义突变均已按字节恢复，没有最终 diff。
+
+与子计划的差异和实现核对：
+
+- A26 的三路同 turn 描述与代码不完全一致：loadTimeout 只在 open 接受后武装，open 尚未完成时不会同时有该期限。改为一条测试内验证错误/超时和错误/迟到 open 抛出两组交错，覆盖三入口且只裁决一次。为保持 A13 既有明确语义，实际事件流的非终结广告日志在 recovery 关闭时也继续诊断而不结算；纯函数仍单测“恢复关闭时显式失败输入交广告策略”。包内失败描述增加原始 adBreak，供现有广告策略使用。
+- A27 按第 12 节拍板扩展 acceptance.dart；prepare 被 host open 取代、尚未返回槽时仍保留原 op 的空凭据，以报告 superseded，避免计划伪代码返回 null 后误当未就绪硬切。包内 prepareOwned 增加可选 play，保持 A20 首次起播与后续用户命令优先。F-N 和 F5 的计划表外断言变化已补子计划 §6。
+- A28 在原 +8 上按 H77 增 +4，总数 +12。state/events 统一进带 renderEpoch 的同一队列，事件通知前发布载荷对应快照，重入通知顺延；验证 epoch 0 和换指后，普通 MovaEngine 两组对照一致。影子生命周期必须在 open 前开始记录，并延续到认领后 detach 前；换指后按固定三类顺序各补一次，放弃不补发。结束原因八种都有覆盖。
+- A29 无行为偏差；按正文“多个不同 offset”边界实现，默认 all 完整保留现状。A30 增加微秒边界，保证任何正的 skipIn 都向上取整，避免剩余 1μs 时显示 0；这属于原计划倒计时正确性验证的细化。
+- 按本次用户明确约束不改 CLAUDE.md（覆盖子计划要求 A30 回写它的旧指令）；基线记在本记录与子计划 §5。未提交插件生成文件、doc/notes、matrix-run 或其他子工程。
+
+本次实现、本地分析、完整测试及回退验证已完成；CP2/真机/应用运行按本次约束未做，本记录不把本地验证当成 CP2 结论。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

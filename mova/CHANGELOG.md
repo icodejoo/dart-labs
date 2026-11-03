@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaPlaylist(ads:) 的 NextUp 仅在正片会话节点显示，进出广告及转场时立即隐藏旧卡片；旧直连播放列表保持原判据。广告覆盖层直接读取控制器 canSkip/skipIn，避免 pod 落地窗口的旧进度提前显示跳过按钮；倒计时按微秒精度向上取整。
+
 - 新增 MovaAdConfig.midRollSnapback：同一进度 tick 跨过多个不同中插点时，可全部补播（默认 all）、仅补播最后插入点的完整 pod（last），或全部略过并记为已播（none）；单个到期插入点及同点 pod 保持正常播放。
 
 - 切换代理在换指窗口保留旧引擎播放观测，抑制内部暂停事件；换指后依次补发影子期 SourceChange、Ready、FirstFrame，放弃时补回真实状态。MovaCutoverChange 新增可选 reason。代理状态与事件通过带渲染 epoch 的同一队列投递，事件接收时 state 与载荷一致，修复 H77 的缓冲状态滞后。
