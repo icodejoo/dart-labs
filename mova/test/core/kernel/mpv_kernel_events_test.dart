@@ -33,6 +33,7 @@ class _FakePlayer extends Fake implements Player {
   @override
   Future<void> dispose() async {
     callLog.add('player.dispose');
+    await _stream.logs.close();
   }
 }
 
@@ -66,6 +67,8 @@ class _FakeNative extends Fake implements NativePlayer {
 }
 
 class _FakeStream extends Fake implements PlayerStream {
+  /// 原始错误级日志，可验证适配器的 ffmpeg 过滤。
+  final logs = StreamController<PlayerLog>.broadcast();
   @override
   Stream<Tracks> get tracks => const Stream.empty();
   @override
@@ -96,7 +99,7 @@ class _FakeStream extends Fake implements PlayerStream {
   Stream<String> get error => const Stream.empty();
 
   @override
-  Stream<PlayerLog> get log => const Stream.empty();
+  Stream<PlayerLog> get log => logs.stream;
 }
 
 class _SharedLogBackend extends FakeMpvEventBackend {
@@ -124,6 +127,47 @@ class _SharedLogBackend extends FakeMpvEventBackend {
 
 void main() {
   group('MovaMpvKernel Events', () {
+    for (final createFail in [true, false]) {
+      test('F-I ffmpeg main error fallback only when client unavailable createFail=$createFail', () async {
+        final player = _FakePlayer([]);
+        final backend = FakeMpvEventBackend()..createFail = createFail;
+        final kernel = MovaMpvKernel(
+          player: player, audioOnly: true, observeNativeEvents: true,
+          observeRestarts: false, backendFactory: (_, _) => backend,
+        );
+        final e = MovaEngine(kernel: kernel, options: const MovaOpts(
+          controls: MovaCtrlsConfig(autoHide: false),
+        ));
+        final errors = <MovaErrorEvent>[];
+        e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
+        const uri = 'https://h/main.mp4';
+        await e.open(const MovaSource(uri));
+        expect(kernel.endFileAvailable, !createFail);
+        expect(kernel.nativeRestartAvailable, isFalse);
+        player._stream.logs.add(const PlayerLog(prefix: 'ffmpeg', level: 'warn', text: 'Failed to open $uri'));
+        await pumpEventQueue();
+        expect(errors, isEmpty);
+        player._stream.logs.add(const PlayerLog(prefix: 'ffmpeg', level: 'error', text: 'Failed to open $uri'));
+        await pumpEventQueue();
+        if (createFail) {
+          expect(errors.single.fatal, isTrue);
+          expect(errors.single.code, 'network');
+          expect(e.state.error, isNotNull);
+        } else {
+          expect(errors, isEmpty, reason: '泵可用时保留原有非 tcp ffmpeg 过滤');
+          player._stream.logs.add(const PlayerLog(prefix: 'stream', level: 'error', text: 'Failed to open $uri'));
+          await pumpEventQueue();
+          expect(errors.single.fatal, isFalse);
+          expect(e.state.error, isNull);
+          backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+          backend.wake();
+          await pumpEventQueue();
+          expect(errors.map((v) => v.fatal), [false, true]);
+        }
+        await e.dispose();
+      });
+    }
+
     test('F-J queued A END_FILE after open B cannot terminate or pause B', () async {
       final calls = <String>[];
       final backend = FakeMpvEventBackend();

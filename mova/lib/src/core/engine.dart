@@ -1766,13 +1766,13 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   }
 
   /// 原生结束和打开失败兜底共用恢复或终结入口。
-  void _onNativeFailure(Object error) {
+  void _onNativeFailure(Object error, {String? subsystem}) {
     if (_terminalAttemptId == _attemptId) return;
     if (_kernelOpening == 0 && _failQuietlyIfKeepAlive()) return;
     if (_watchdog != null) {
       _onPlayFail(MovaPlayFailKind.nativeEndError, error: error);
     } else {
-      _terminalError(error);
+      _terminalError(error, subsystem: subsystem);
     }
   }
 
@@ -1781,12 +1781,38 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     final verdict = classifyMovaPlaybackError(
       error, subsystem: subsystem, afterFirstFrame: state.rendered,
     );
+    if (_terminalAttemptId != _attemptId &&
+        _isUnpumpedMainFileError(error, subsystem)) {
+      _onNativeFailure(error, subsystem: subsystem);
+      return;
+    }
     if (verdict.fatal && _terminalAttemptId != _attemptId) {
       _terminalError(error, subsystem: subsystem);
       return;
     }
     _emitEvent(MovaErrorEvent.classified(error, fatal: false, code: verdict.code));
     _chain.onError(error, StackTrace.current);
+  }
+
+  /// 在错误到达时确认订阅可达，避免把异步建泵前的状态固定到整个尝试。
+  bool get _endFileAvailable {
+    if (_endFileSub == null) return false;
+    final k = _kernel;
+    if (k is MovaAttemptEventKernel) {
+      return (k as MovaAttemptEventKernel).endFileAvailable;
+    }
+    return k is MovaStatsProbe && (k as MovaStatsProbe).nativeRestartAvailable;
+  }
+
+  /// 无泵时仅以主文件地址匹配打开错误，字幕、音轨和 HLS 分片仍是诊断。
+  bool _isUnpumpedMainFileError(Object error, String? subsystem) {
+    final uri = _activeUri;
+    if (_endFileAvailable || uri.isEmpty) return false;
+    final text = error.toString();
+    // 旧内核没有分级端口时，只接受文本中明确给出的日志前缀。
+    final prefix = subsystem ??
+        RegExp(r'^\[?(stream|cplayer|ffmpeg)(?:\]|:)').firstMatch(text.trimLeft())?.group(1);
+    return const {'stream', 'cplayer', 'ffmpeg'}.contains(prefix) && text.contains(uri);
   }
 
   /// Recovery is exhausted: surface [MovaGiveUpError] through state, the event

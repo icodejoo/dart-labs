@@ -346,6 +346,9 @@ class MovaMpvKernel
   /// 下一次实际 loadfile 才生效的尝试编号。
   int _pendingEventAttempt = 0;
 
+  /// 最近实际加载的主文件地址，用于无泵时放行被旧过滤器排除的 ffmpeg 打开错误。
+  String _eventUri = '';
+
   /// 带身份的结束通知，异步投递仍保留产生时的尝试。
   final _attemptEnds = StreamController<MovaAttemptEnd>.broadcast();
 
@@ -751,6 +754,7 @@ class MovaMpvKernel
     try {
       _pump?.discardPending();
       _eventAttempt = eventAttempt;
+      _eventUri = uri;
       await _player.open(Media(uri), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
@@ -839,10 +843,12 @@ class MovaMpvKernel
   @override
   Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
 
-  /// 按 media_kit 1.2.6 的错误过滤保留日志前缀，与旧 error 逐行对应。
+  /// 按 media_kit 的错误过滤保留日志前缀；无泵时额外放行含主文件地址的 ffmpeg 错误。
   @override
   Stream<MovaKernelError> get kernelErrors => _player.stream.log
-      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text))
+      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text) ||
+          (!endFileAvailable && _eventUri.isNotEmpty && log.level == 'error' &&
+              log.prefix == 'ffmpeg' && log.text.contains(_eventUri)))
       .map((log) => MovaKernelError(log.text, log.prefix));
 
   @override

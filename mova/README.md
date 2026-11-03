@@ -187,6 +187,8 @@ api.events.listen((e) {
 
 `state.error` 只保存终结错误，供重试遮罩和失败状态使用；包括 `END_FILE(error)`、恢复放弃、已知终结文本以及 open 抛出。默认配置也检测 END_FILE，弱客户端在首次 open 时才启动；每次加载前排空旧事件，并按加载尝试丢弃迟到通知。同次尝试仅一次终结上报，重复日志保留为诊断；待机失败静默记录，唤醒时重开。recovery 关闭时 open 失败本版本仍抛出，同时写终结状态；下一版本将不再抛出。
 
+无 END_FILE 事件泵或注册失败时，补回主文件打开失败的兜底：在错误到达时检查泵可用性，仅 stream/cplayer/ffmpeg 错误文本包含当前主文件有效地址时，进入同一恢复或终结入口。外挂字幕、外部音轨和 HLS 分片的独立地址不会触发此兜底；泵已激活时仍由 END_FILE 判定终结。
+
 非终结内核日志继续发送 `MovaErrorEvent(fatal: false)` 并通知 `MovaHook.onError`，不会写 `state.error` 或弹出错误遮罩。迁移原有“监听 state.error 收集所有错误”的代码时，改监听事件：
 
 ```dart
