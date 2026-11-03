@@ -84,6 +84,8 @@ class MatrixTests(unittest.TestCase):
 
     def test_s00e_resource_and_texture_rules_reject_spoofed_totals(self):
         from matrix_evidence import Evidence
+        self.assertEqual(Evidence.assertions(dict(numbers=dict(after=[])),
+            [dict(field='numbers.after.2',op='eq',value=0)]),'BLOCKED')
         clauses=[dict(field='numbers.calls',op='count_where',other='numbers.created',where={'method':'VideoOutputManager.Create','replied':True})]
         row=dict(numbers=dict(calls=[dict(method='VideoOutputManager.Create',replied=True)],created=1))
         self.assertEqual(Evidence.assertions(row,clauses),'PASS')

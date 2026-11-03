@@ -164,7 +164,7 @@ class Evidence:
                 elif op == 'nonempty': ok = isinstance(actual, (str, list, dict)) and len(actual) > 0
                 else: return 'BLOCKED'
                 if not ok: return 'FAIL'
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, IndexError, TypeError, ValueError):
             return 'BLOCKED'
         return 'PASS'
 
