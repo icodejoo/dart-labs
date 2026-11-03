@@ -51,6 +51,7 @@ Future<void> main() async {
   final parts = group.split('|');
   kit.coverageOnlyOverride = parts.length > 1 ? parts[1] : '';
   kit.coverageRunsOverride = parts.length > 2 ? int.parse(parts[2]) : 5;
+  kit.coverageShotHandshake = parts.length > 3 && parts[3] == 'shots';
   MovaEngine.ensureInitialized();
   switch (parts.first) {
     case 'cp1-wakeswap': cp1_wakeswap.main();

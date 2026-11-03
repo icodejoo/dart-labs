@@ -38,12 +38,13 @@ def validate_checks(runs, checks):
 
 def review_check(scene, i, text, shots, log):
     """Preserve native verdicts separately from the pending pixel judgment."""
-    images = [s for s in shots if f'{scene} SHOT ' in s.get('marker', '')]
+    images = [s for s in shots if f'{scene} SHOT ' in s.get('marker', '') and 'SHOT_ACK ' not in s.get('marker', '')]
     verdicts = re.findall(r'VERDICT '+scene+r' (PASS|FAIL) ([^\r\n]*)', text)
     hwdec = re.findall(r'S7 hwdec=([^\s]+)', text)
     expected = 20 if scene == 'S7' else 4
-    captured = len(images) == expected and all(s.get('captured') is True and Path(s['path']).is_file() for s in images)
-    reasons = ['缺截图/时序画面复核：黑屏、恢复后冻帧；单张截图不能证明运动恢复']
+    captured = len(images) == expected and all(s.get('captured') is True and s.get('phaseConfirmed') is True
+        and Path(s['path']).is_file() and Path(s.get('motionPath', '')).is_file() for s in images)
+    reasons = ['待相邻帧像素/运动与CP0同口径复核']
     if not captured:
         reasons.append(f'缺完整SHOT采图：期望{expected}，实得{len(images)}（含隐私守卫跳过检查）')
     if scene == 'S7' and hwdec != ['mediacodec-copy']:
@@ -96,7 +97,7 @@ def run(args):
 
     try:
         # Refuse occupied ports; never use or kill another runner's service.
-        for port in (18080, 18082):
+        for port in (18080, 18082, 18087):
             with socket.socket() as probe:
                 probe.bind(('127.0.0.1', port))
         for direction in ('reverse', 'forward'):
@@ -162,7 +163,7 @@ def run(args):
         if originals:
             try:
                 adb('shell', 'am', 'force-stop', PKG)
-                for direction, ports in [('reverse', (18080,18082)), ('forward', (18083,))]:
+                for direction, ports in [('reverse', (18080,18082)), ('forward', (18083,18087))]:
                     for port in ports:
                         key = f'tcp:{port}'
                         old = next((line.split()[-1] for line in originals.get(direction,'').splitlines() if key in line.split()[:2]), None)

@@ -37,7 +37,7 @@ try:
     if before['volume']!=original['volume']:adb('shell','cmd','media_session','volume','--stream','3','--set',original['volume'])
     if before['power']!=original['power']:
         adb('shell','settings','delete','global','stay_on_while_plugged_in') if original['power']=='null' else adb('shell','settings','put','global','stay_on_while_plugged_in',original['power'])
-    owned={f'tcp:{port}' for port in (18080,18081,18082,18083,18084,18085,18086,18190,18192,18194)}
+    owned={f'tcp:{port}' for port in (18080,18081,18082,18083,18084,18085,18086,18087,18190,18192,18194)}
     for direction,current in before['mappings'].items():
         expected=original['mappings'][direction]
         for key in set(expected)|(set(current)&owned):

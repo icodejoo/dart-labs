@@ -429,6 +429,7 @@ class Cp1Harness extends State<Cp1Page> with WidgetsBindingObserver {
           'duration',
           'vid',
           'mute',
+          'seeking',
         ].map(player.getProperty),
       );
       final stable =
@@ -444,6 +445,7 @@ class Cp1Harness extends State<Cp1Page> with WidgetsBindingObserver {
           'duration': values[3],
           'vid': values[4],
           'mute': values[5],
+          'seeking': values[6],
           'engine': identityHashCode(active),
           'epochAtRead': epoch,
           'state': snapshot(),

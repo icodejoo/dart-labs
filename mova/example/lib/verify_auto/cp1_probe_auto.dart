@@ -14,6 +14,8 @@ Future<void> runProbe(Cp1Harness h) async {
           recovery: MovaRecoveryConfig(
             enabled: kind == 'failover',
             policy: const MovaFailoverOnly(),
+            stallTimeout: const Duration(seconds: 3),
+            liveEndIsFailure: kind == 'failover',
           ),
         ),
       );
@@ -30,6 +32,10 @@ Future<void> runProbe(Cp1Harness h) async {
               ? 'http://127.0.0.1:18194/primary.m3u8?t=${DateTime.now().microsecondsSinceEpoch}'
               : uri,
           alternatives: kind == 'failover' ? [uri] : const [],
+          type: kind == 'failover' ? MovaStreamType.live : MovaStreamType.vod,
+          mpvOptions: kind == 'failover' ? const {
+            'demuxer-readahead-secs': '1', 'demuxer-max-bytes': '524288',
+            'cache-secs': '1', 'network-timeout': '2'} : const {},
         ),
       );
 

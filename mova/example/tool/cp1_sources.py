@@ -12,8 +12,11 @@ import urllib.parse
 
 
 class Fixtures:
-    def __init__(self, root):
+    def __init__(self, root, uri_style='absolute'):
+        if uri_style not in ('absolute', 'root-relative'):
+            raise ValueError('unsupported fixture URI style')
         self.root = Path(root)
+        self.uri_style = uri_style
         self.lock = threading.Lock()
         self.gate = threading.Event()
         self.gate.set()
@@ -28,6 +31,8 @@ class Fixtures:
         self.hanging_body = False
         self.probes = {}
         self.requests = []
+        self.manifests = []
+        self.responses = []
         self.bps = 0
         self.fail_primary = False
         self.segment_entered = False
@@ -36,7 +41,8 @@ class Fixtures:
         with self.lock:
             return dict(reopenEntered=self.reopen_entered, swapEntered=self.swap_entered, probeEntered=self.probe_entered,
                         hangingBody=self.hanging_body, gateReleased=self.gate.is_set(), probes=dict(self.probes),
-                        requests=list(self.requests), bytesPerSecond=self.bps, segmentEntered=self.segment_entered)
+                        requests=list(self.requests), manifests=list(self.manifests), responses=list(self.responses), uriStyle=self.uri_style,
+                        bytesPerSecond=self.bps, segmentEntered=self.segment_entered)
 
     def handler(self):
         fixture = self
@@ -94,12 +100,12 @@ class Fixtures:
                         f'#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h}\n/{h}/index.m3u8?t={time.time_ns()}\n'
                         for h,w,bw in [(1080,1920,3000000),(720,1280,1500000),(360,640,400000)])
                     if path=='/primary.m3u8': body=body.replace('\n/','\n/primary/')
-                    self.reply(body.encode(), 'application/vnd.apple.mpegurl')
+                    self.reply(self.absolute_manifest(body), 'application/vnd.apple.mpegurl')
                     return
                 if path in ('/live.m3u8','/new.m3u8'):
                     # Absolute segment URIs preserve base resolution under the alias.
                     body=(fixture.root/'720/index.m3u8').read_text().splitlines()
-                    self.reply(('\n'.join('/720/'+line if line and not line.startswith('#') else line for line in body)+'\n').encode(),
+                    self.reply(self.absolute_manifest('\n'.join('/720/'+line if line and not line.startswith('#') else line for line in body)+'\n'),
                                'application/vnd.apple.mpegurl')
                     return
                 target = (fixture.root/path.removeprefix('/primary/').lstrip('/')).resolve()
@@ -108,6 +114,12 @@ class Fixtures:
                 payload = target.read_bytes()
                 if path.startswith('/primary/') and path.endswith('.m3u8'):
                     payload=('\n'.join('/primary/'+path.split('/')[2]+'/'+line if line and not line.startswith('#') else line for line in payload.decode().splitlines())+'\n').encode()
+                if path.endswith('.m3u8'):
+                    payload = self.absolute_manifest(payload.decode())
+                    with fixture.lock:
+                        fixture.manifests.append(self.manifest_record(payload))
+                with fixture.lock:
+                    fixture.responses.append(dict(path=self.path, status=200, bytes=len(payload), monotonicNs=time.monotonic_ns()))
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/vnd.apple.mpegurl' if path.endswith('.m3u8') else 'video/mp2t')
                 self.send_header('Content-Length', str(len(payload)))
@@ -118,7 +130,39 @@ class Fixtures:
                         if fixture.bps and path.endswith('.ts'): time.sleep(8192/fixture.bps)
                 except (ConnectionError, OSError): pass
 
+            def absolute_manifest(self, body):
+                if fixture.uri_style == 'root-relative':
+                    return body.encode()
+                base = 'http://' + self.headers['Host'] + self.path
+                return ('\n'.join(urllib.parse.urljoin(base, line) if line and not line.startswith('#')
+                                  else line for line in body.splitlines())+'\n').encode()
+
+            def manifest_record(self, payload):
+                base = 'http://' + self.headers['Host'] + self.path
+                assets = []
+                for line in payload.decode().splitlines():
+                    if not line or line.startswith('#'):
+                        continue
+                    resolved = urllib.parse.urljoin(base, line)
+                    local_path = urllib.parse.urlparse(resolved).path.removeprefix('/primary/').lstrip('/')
+                    target = (fixture.root/local_path).resolve()
+                    exists = target.is_relative_to(fixture.root.resolve()) and target.is_file()
+                    try:
+                        size = target.stat().st_size if exists else None
+                    except OSError:
+                        exists, size = False, None
+                    assets.append(dict(uri=line, resolved=resolved, exists=exists,
+                                       bytes=size))
+                return dict(path=self.path, body=payload.decode(), assets=assets, monotonicNs=time.monotonic_ns())
+
             def reply(self, payload, content_type, status=200):
+                with fixture.lock:
+                    fixture.responses.append(dict(path=self.path, status=status, bytes=len(payload),
+                        errorBody=payload.decode(errors='replace') if status >= 400 else None,
+                        monotonicNs=time.monotonic_ns()))
+                if content_type == 'application/vnd.apple.mpegurl':
+                    with fixture.lock:
+                        fixture.manifests.append(self.manifest_record(payload))
                 self.send_response(status)
                 self.send_header('Content-Type', content_type)
                 self.send_header('Content-Length', str(len(payload)))

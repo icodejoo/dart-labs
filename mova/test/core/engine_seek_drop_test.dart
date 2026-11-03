@@ -102,7 +102,7 @@ void main() {
         k.calls.clear();
         _switchAndLand(async, e, k);
         // mpv briefly reports the requested target, then drops back to zero.
-        // The CP1 verifier previously advanced to the next seek in this gap.
+        // The CP1 verifier reported failure in this gap, before recovery ran.
         k.emitPosition(Duration.zero);
         async.flushMicrotasks();
         expect(_seeks(k), 1);

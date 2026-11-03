@@ -164,13 +164,13 @@ def main():
               '-c:a','aac','-f','hls','-hls_time','2','-hls_list_size',('0' if args.scene=='recovery' else '6'),'-hls_flags',('independent_segments' if args.scene=='recovery' else 'delete_segments+omit_endlist'),str(tier/'index.m3u8')],
               stdout=stream,stderr=subprocess.STDOUT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             children.append((child,stream))
-        fixture=Fixtures(hls)
+        fixture=Fixtures(hls, uri_style=os.environ.get('MOVA_CP1_URI_STYLE', 'absolute'))
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18194),fixture.handler()))
         end=time.monotonic()+(600 if args.scene=='recovery' else 90)
         while (any(child.poll() is None for child,_ in children) if args.scene=='recovery' else any(len(list((hls/str(h)).glob('*.ts')))<6 for h in (1080,720,360))):
             if time.monotonic()>end:raise RuntimeError('CP1 three tier HLS unavailable')
             time.sleep(.25)
-        unlocked();adb('shell','am','force-stop',PKG);adb('logcat','-c');adb('shell','am','start','-n',ACTIVITY)
+        unlocked();adb('shell','am','force-stop',PKG);adb('logcat','-c');adb('shell','am','start','-W','-n',ACTIVITY)
         logcat=(out/(stem+'.log')).open('w',encoding='utf-8')
         pid=adb('shell','pidof',PKG).strip()
         if not pid:raise RuntimeError('app pid unavailable')

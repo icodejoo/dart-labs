@@ -80,4 +80,7 @@ Future<void> runWakeswap(Cp1Harness h) async {
 MovaSource cp1Live(String name) => MovaSource(
   'http://127.0.0.1:18194/$name.m3u8?t=${DateTime.now().microsecondsSinceEpoch}',
   type: MovaStreamType.live,
+  // The 6s race stimulus must outlive the old 5s wake timer without the
+  // replacement source itself timing out first.
+  mpvOptions: name == 'new' ? const {'network-timeout': '20'} : const {},
 );

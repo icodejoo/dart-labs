@@ -27,6 +27,7 @@ const int kDefaultRuns = 3;
 /// 覆盖验证入口的可选运行参数；原有入口不设置，行为保持不变。
 int? coverageRunsOverride;
 String? coverageOnlyOverride;
+bool coverageShotHandshake = false;
 
 /// `--dart-define=LOG_FILE=<path>`: file every log line is appended to.
 ///

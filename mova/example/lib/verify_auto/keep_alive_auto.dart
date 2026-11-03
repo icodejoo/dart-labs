@@ -178,6 +178,10 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   EventRecorder<MovaEvent>? _ev;
   EventRecorder<MovaProg>? _pg;
   Duration _openAt = Duration.zero;
+  HttpServer? _shotServer;
+  String? _shotToken;
+  String? _shotMarker;
+  Completer<void>? _shotWaiter;
 
   String _live({int gop = 50, bool audio = true}) => '$kBase/live.flv?gop=$gop&audio=${audio ? 1 : 0}';
 
@@ -194,6 +198,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_lifeRec.dispose());
     unawaited(_life.close());
+    unawaited(_shotServer?.close(force: true));
     super.dispose();
   }
 
@@ -207,6 +212,40 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   void _log(String msg) {
     final line = _out.line('${DateTime.now().toIso8601String().substring(11, 23)} ${_clock.elapsedMilliseconds.toString().padLeft(7)}ms $msg');
     if (mounted) setState(() => _lines.insert(0, line));
+  }
+
+  /// Hold this diagnostic phase until its exact marker has been sampled.
+  Future<void> _shot(String marker) async {
+    if (!coverageShotHandshake) {
+      _log(marker);
+      return;
+    }
+    if (_shotServer == null) {
+      _shotServer = await HttpServer.bind(InternetAddress.anyIPv4, 18087);
+      _shotServer!.listen((request) async {
+        final token = _shotToken;
+        final acknowledge = request.uri.path == '/ack' && token != null &&
+            request.uri.queryParameters['token'] == token;
+        final waiter = _shotWaiter;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'token': token, 'marker': _shotMarker,
+          'acknowledged': acknowledge}));
+        await request.response.close();
+        if (acknowledge && waiter != null && !waiter.isCompleted) waiter.complete();
+      });
+    }
+    _shotToken = '${DateTime.now().microsecondsSinceEpoch}';
+    _shotMarker = marker;
+    _shotWaiter = Completer<void>();
+    _log('$marker shotToken=$_shotToken');
+    try {
+      await _shotWaiter!.future.timeout(const Duration(seconds: 30));
+      _log('SHOT_ACK token=$_shotToken marker=$marker');
+    } finally {
+      _shotToken = null;
+      _shotMarker = null;
+      _shotWaiter = null;
+    }
   }
 
   /// Marks the start/end of a measurement window for external CPU/traffic samplers.
@@ -515,7 +554,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
       if (r.decodedMs != null) back++;
       if (sig == 'size' || sig == 'restart') landed++;
       _log('S7 cycle=$i phase=${r.phase.name} resume=${res?.event.elapsed.inMilliseconds}ms signal=$sig decodedProp=${r.decodedMs}ms');
-      _log('S7 SHOT $i');
+      await _shot('S7 SHOT $i');
       await Future<void>.delayed(const Duration(milliseconds: 1200));
     }
     _log('S7 videoCameBack=$back/$kS7Cycles signalLanded(size|restart)=$landed/$kS7Cycles');
@@ -600,17 +639,17 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   /// An external script screenshots on the `S14 SHOT` lines.
   Future<void> _s14(int run) async {
     if (!await _play(_Cfg(source: _src(_live())))) return _verdict('S14', false, 'never rendered');
-    _log('S14 SHOT normal');
+    await _shot('S14 SHOT normal');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     final ok = await _kernel!.enterKeepAlive(MovaKeepAliveMode.muted);
     await Future<void>.delayed(const Duration(milliseconds: 800));
-    _log('S14 SHOT holding1 entered=$ok vid=${await _prop('vid')}');
+    await _shot('S14 SHOT holding1 entered=$ok vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
-    _log('S14 SHOT holding2 vid=${await _prop('vid')}');
+    await _shot('S14 SHOT holding2 vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     await _kernel!.exitKeepAlive();
     await Future<void>.delayed(const Duration(milliseconds: 1500));
-    _log('S14 SHOT restored vid=${await _prop('vid')}');
+    await _shot('S14 SHOT restored vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     _verdict('S14', ok, 'screenshots taken by the external script (normal / holding1 / holding2 / restored)');
   }

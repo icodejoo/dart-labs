@@ -2,11 +2,13 @@
 import 'dart:async';
 import 'package:mova/mova.dart';
 import 'cp1_harness.dart';
+import 'seek_landing.dart';
 
 Future<void> runRecovery(Cp1Harness h) async {
   for (final kind in ['resume', 'manual720']) {
     for (var run = 0; run < h.runs; run++) {
       await h.control('reset');
+      await h.control('throttle', {'bytesPerSecond': 400000});
       final a = createMovaEngine(
         preciseFirstFrame: true,
         options: const MovaOpts(
@@ -20,7 +22,9 @@ Future<void> runRecovery(Cp1Harness h) async {
       final stamp = DateTime.now().microsecondsSinceEpoch;
       final master = 'http://127.0.0.1:18194/master.m3u8?t=$stamp';
       final tier = 'http://127.0.0.1:18194/720/index.m3u8?t=$stamp';
-      await a.open(MovaSource(kind == 'manual720' ? master : tier));
+      await a.open(MovaSource(kind == 'manual720' ? master : tier,
+        mpvOptions: const {'demuxer-readahead-secs': '1',
+          'demuxer-max-bytes': '524288', 'cache-secs': '1'}));
       await h.until(() => a.state.rendered);
       if (kind == 'manual720') {
         await a.switchQuality(
@@ -50,12 +54,35 @@ Future<void> runRecovery(Cp1Harness h) async {
         () => h.events('MovaRecovered', begin).isNotEmpty,
         seconds: 90,
       );
-      await h.until(() => h.events('MovaSeeked', begin).isNotEmpty);
-      final after = await h.native();
+      // Recovery deliberately resumes with notify=false: MovaSeeked is a
+      // user-seek event, not a recovery completion contract. Verify native
+      // landing and motion instead of waiting for that unrelated event.
+      final landing = SeekLanding(stalled!['timePosMs'] as int, playing: true);
+      final landingClock = Stopwatch()..start();
+      final nativeSamples = <Map<String, Object?>>[];
+      Map<String, Object?>? candidate;
+      Map<String, Object?>? after;
+      await h.until(() async {
+        final read = await h.native();
+        nativeSamples.add(read);
+        final prior = landing.landedMs;
+        final accepted = landing.sample(
+          elapsedMs: landingClock.elapsedMilliseconds,
+          positionMs: read['timePosMs'] as int,
+          seeking: read['seeking'] != 'no', buffering: a.state.buffering,
+          pathMatches: read['path'] == tier);
+        if (landing.landedMs == null) {
+          candidate = null;
+        } else if (prior == null) {
+          candidate = read;
+        }
+        if (accepted) after = candidate;
+        return accepted;
+      });
       final resume = h.events('MovaSeeked', begin);
       final failures = h.events('MovaPlayFailure', begin);
       final diff =
-          ((after['timePosMs'] as int) - (stalled!['timePosMs'] as int)).abs();
+          ((after!['timePosMs'] as int) - (stalled!['timePosMs'] as int)).abs();
       final retryCount = failures
           .where(
             (r) =>
@@ -71,6 +98,7 @@ Future<void> runRecovery(Cp1Harness h) async {
           'retryCount': retryCount,
           'before': stalled,
           'after': after,
+          'resumeNativeSamples': nativeSamples,
           'resumePositionDiffMs': diff,
           'currentQuality': a.state.currentQuality?.label,
           'fixture': fixture,
@@ -84,7 +112,7 @@ Future<void> runRecovery(Cp1Harness h) async {
             fixture['segmentEntered'] == true &&
             diff <= 500 &&
             stalled!['path'] == tier &&
-            after['path'] == tier &&
+            after!['path'] == tier &&
             (kind != 'manual720' || a.state.currentQuality?.label == '720p'),
       );
       await h.release();
