@@ -106,7 +106,7 @@ Future<void> main() async {
 }
 ```
 
-- **Breaking**: Replace the exception family with `DiomanResponse.kind` and `reason` to represent expected failures consistently. Catch `DiomanResponse` around verb methods, or inspect the result of `send`; programming errors still throw with their original stack.
+- **Breaking**: Replace the exception family with `failureOf(result)?.kind` and `failureOf(result)?.reason` to represent expected failures consistently. Catch `DiomanResponse` around verb methods, or inspect the result of `send`; programming errors still throw with their original stack.
 
 Before:
 
@@ -172,7 +172,7 @@ Future<void> main() async {
 }
 ```
 
-- **Breaking**: Route auth failures by normalized logical status, including business 401 inside HTTP 200. Change `onFailure(store, response)` to `onFailure(result, store)` and read `result.status`; the callback may now be asynchronous. Return a `RequestPatch` from `ready` instead of mutating Dio options.
+- **Breaking**: Route auth failures by the effective status configured with client `statusOf`, including business 401 inside HTTP 200. Change `onFailure(store, response)` to `onFailure(result, store)` and read HTTP `result.status` or business `result.code`; the callback may now be asynchronous. Return a `RequestPatch` from `ready` instead of mutating Dio options.
 
 Before:
 
@@ -292,7 +292,7 @@ Future<void> main() async {
 
 - **Breaking**: Replace before/after/requires ordering, `sort`, `validate` and anchor insertion with fixed stages and `enforce: pre/post`. This makes replay follow the same inner pipeline; move custom extensions to `setup`/`handle` and inspect the resulting order.
 - **Breaking**: Move key generation, cancellation, normalization and debug logging into the kernel so they cover every logical call. Remove the corresponding plugins; use `DiomanKeyOptions`, `cancelAll`/`pending`, `DiomanResponseFactory` and `debug` or Dio `LogInterceptor`.
-- **Breaking**: Make retry, breaker, auth and cache consume the same normalized status. Update predicates to use `status`/`ok` rather than HTTP-only checks; breaker now counts each retry attempt and an open breaker stops retries.
+- **Breaking**: Make retry, breaker and auth consume `ctx.statusOf(result)`; cache consumes `ok`. Update predicates to distinguish HTTP `status`, business `code` and `ok`; breaker now counts each retry attempt and an open breaker stops retries.
 - **Breaking**: Filter top-level NaN as well as null and blank strings to avoid sending invalid numeric values. Supply a predicate or disable filter for requests that need to retain them; zero and false remain intact.
 - **Breaking**: Remove `DiomanTokenManager.canRefresh` because auth owns refresh validity. Keep token access, token updates and clear in the store; let the auth instance decide whether another refresh is allowed.
 - **Breaking**: Propagate decision-callback errors as programming errors while isolating notification errors, so invalid policy code cannot silently change a request. Fix throwing predicates at their source; treat `onRefresh` exceptions as refresh failure.

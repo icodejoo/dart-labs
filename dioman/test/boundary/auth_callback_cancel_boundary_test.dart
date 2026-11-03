@@ -51,12 +51,19 @@ void main() {
                 scriptedResult(ctx, diomanTestHttp, status: 401)),
       ]);
       final pending = api.send<Object?>(b3ValueGet, b3Path);
+      var settled = false;
+      pending.then((_) => settled = true,
+          onError: (Object _, StackTrace __) => settled = true);
       await started.future;
       expect(api.cancelAll(), 1);
+      await b3Turn();
+      final settledBeforeCallback = settled;
+      gate.completeError(StateError('late callback'));
+      expect(settledBeforeCallback, isTrue,
+          reason: '取消必须在用户回调完成前落定，不能依靠测试总超时取证');
       expect(outcomeOf((await pending)), diomanTestCancel);
       expect(api.pending, 0);
       expect(api.cancellationSubscriptions, 0);
-      gate.completeError(StateError('late callback'));
       await b3Turn();
       api.dispose();
     }

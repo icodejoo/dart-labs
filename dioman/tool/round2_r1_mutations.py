@@ -6,7 +6,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/round2-r1-evidence'
+DEST = ROOT / 'coverage/round2-final/mutations/round2_r1_mutations'
 CASES = [
     ('session-not-shared', 'plugins/auth', 'var session = _sessions[tokens];',
      '_AuthSession? session;', 'test/combo/auth_session_combo_test.dart', '轮换刷新凭证'),
@@ -24,7 +24,7 @@ CASES = [
 def run():
     """加载失败和超时不算击中，大日志只留 coverage。"""
     DEST.mkdir(parents=True, exist_ok=True)
-    logs = ROOT / 'coverage/r1-mutations'
+    logs = DEST
     logs.mkdir(parents=True, exist_ok=True)
     results = []
     for name, module, old, new, test, pattern in CASES:
@@ -35,7 +35,7 @@ def run():
         assert old in source, name
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', test, '--name', pattern,
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', test, '--name', pattern,
                                    '--reporter', 'json', '--timeout', '8s'], cwd=ROOT,
                                   capture_output=True, encoding='utf-8', errors='replace', timeout=90)
             output = proc.stdout + proc.stderr

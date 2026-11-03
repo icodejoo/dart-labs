@@ -2,7 +2,7 @@
 title: dioman 当前状态
 status: active
 updated: 2026-11-03
-summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R6 全部完成；性能复测按用户决定暂缓，进入终验
+summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R6 与终验完成；性能复测按用户决定暂缓
 ---
 
 # 当前状态
@@ -22,6 +22,7 @@ summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/diom
 | R5 | Dart 化 API（decode、异步 dispose） | 完成，见 [R5 报告](reports/2026-11-03-round2-r5.md) |
 | R6a | 测试按主题改名（lib 不动，用例 5682 不变） | 完成，见 [R6a 报告](reports/2026-11-03-round2-r6a.md) |
 | R6b | 逻辑请求截止时间与对应真实验收 | 完成，见 [R6b 报告](reports/2026-11-03-round2-r6b.md)；timeout-total 26 格真实通过，142 格因 testkit 未声明网络而不适用 |
+| 终验 | 全量检查、112 项变异、6426 格真实验收与方法矩阵 | 完成，见 [终验报告](reports/2026-11-03-round2-final.md)；性能暂缓，pana 依赖下限待裁决 |
 
 ## 验证入口
 

@@ -11,6 +11,9 @@ import '../accept/lib/runner.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart' show flush;
 
+/// 请求超时字段；含义由场景声明的整体预算能力区分。
+const _requestTimeoutMs = 'timeout_ms';
+
 /// B7 共用字面量。
 const _b7Steps = 'steps';
 
@@ -280,7 +283,7 @@ void main() {
         transport: FakeNetwork());
     try {
       expect(client.api.deadline, const Duration(milliseconds: 10));
-      final call = client.call({'timeout_ms': 20});
+      final call = client.call({_requestTimeoutMs: 20});
       expect(call.deadline, const Duration(milliseconds: 20));
       expect(call.receiveTimeout, isNull);
       expect(client.call({}).deadline, isNull);
@@ -288,6 +291,24 @@ void main() {
       await client.dispose();
     }
   });
+  for (final total in [false, true]) {
+    test('[ScenarioClient] timeout_ms 单独声明整体预算=$total', () async {
+      final client = ScenarioClient({
+        _literalRequires: [if (total) timeoutTotalCapability],
+        _literalClient: {_literalPlugins: <String, dynamic>{}}
+      }, _literalGuard, _literalHttpsGuardTest, _literalHttp,
+          transport: FakeNetwork());
+      try {
+        final call = client.call({_requestTimeoutMs: 500});
+        const timeout = Duration(milliseconds: 500);
+        expect(client.api.deadline, isNull);
+        expect(call.deadline, total ? timeout : null);
+        expect(call.receiveTimeout, total ? null : timeout);
+      } finally {
+        await client.dispose();
+      }
+    });
+  }
   test('[client.classify] 归类只读取 kind reason status code，原始数据不参与判断', () {
     final request = DiomanRequest(RequestOptions(path: '/classification'));
     for (final entry in {

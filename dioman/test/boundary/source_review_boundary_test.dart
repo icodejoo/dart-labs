@@ -84,6 +84,9 @@ void main() {
     await b4Turn();
     api.eject(DiomanOffline.pluginName);
     gate.complete();
+    await b4Turn();
+    expect(offline.pending, 0,
+        reason: '已卸载的实例必须拒绝晚到入队，不能依靠测试总超时取证');
     expect(failureOf((await pending))?.reason, b4LiteralDisposed);
     expect(offline.pending, 0);
     expect(net.sends, isEmpty);

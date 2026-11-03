@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'coverage/r1-powerset-mutations'
+DEST = ROOT / 'coverage/round2-final/mutations/pipeline_b5a_mutations'
 TEST = 'test/combo/powerset_combo_test.dart'
 CASES = [
     ('leave-listener', 'context', 'state.listeners.remove(cancel);', ''),
@@ -37,10 +37,11 @@ def run():
         start = time.perf_counter()
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', TEST,
+            # 5120 格串行且有大量失败输出；只延长进程看门狗，测试超时仍为 10s。
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', TEST,
                                    '--reporter', 'json', '--timeout', '10s'],
                                   cwd=ROOT, capture_output=True, text=True,
-                                  encoding='utf-8', errors='replace', timeout=120)
+                                  encoding='utf-8', errors='replace', timeout=600)
             output = proc.stdout + proc.stderr
             (DEST / f'mutation-{name}.jsonl').write_text(output, encoding='utf-8')
             events = [json.loads(s) for s in proc.stdout.splitlines() if s.startswith('{')]

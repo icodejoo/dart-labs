@@ -1,0 +1,135 @@
+[
+  {
+    "mutation": "share-leave-listener",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "首发取消不连累跟随者",
+    "killed": true,
+    "restored_sha256": "eb39bc1c217b7307db0d81085cfec4fb8e1c4c88e82f5aa996dc081ba1d5b19e"
+  },
+  {
+    "mutation": "share-leader-dio-timeout",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "首发三个 Dio 超时清零",
+    "killed": true,
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "share-policy-table",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "同 key 四策略互不读取",
+    "killed": true,
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "cache-failure-write",
+    "test": "test/rule/source_rule_test.dart",
+    "title": "business 失败不存储",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "cache-clear-generation",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "clear 作废在途写入",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "cache-barrier-reclaim",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "clear 作废在途写入",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "mock-probe-cache-marker",
+    "test": "test/combo/source_combo_test.dart",
+    "title": "探测不缓存不共享",
+    "killed": true,
+    "restored_sha256": "aa5ce2d259f015a568eba589deed362c89f54f9c97386521c4feefbdc94519fe"
+  },
+  {
+    "mutation": "mock-replayable",
+    "test": "test/combo/source_combo_test.dart",
+    "title": "每次尝试探测回落且 I7",
+    "killed": true,
+    "restored_sha256": "aa5ce2d259f015a568eba589deed362c89f54f9c97386521c4feefbdc94519fe"
+  },
+  {
+    "mutation": "offline-timeout-timer-cleanup",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "timeout cancel flush dispose",
+    "killed": true,
+    "restored_sha256": "eb39bc1c217b7307db0d81085cfec4fb8e1c4c88e82f5aa996dc081ba1d5b19e"
+  },
+  {
+    "mutation": "offline-queue-evict-oldest",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "队满挤出最早",
+    "killed": true,
+    "restored_sha256": "8e8dbd52e5447fbf3ecb01bcb3baa4951fd42f0cd15ab0cc6f5f6a818b273fb1"
+  },
+  {
+    "mutation": "cache-old-response-after-evict",
+    "test": "test/boundary/source_boundary_test.dart",
+    "title": "新结果淘汰后旧在途不得回写",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "share-shared-state-retain",
+    "test": "test/combo/source_combo_test.dart",
+    "title": "首发离场仍等恢复",
+    "killed": true,
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "review-mock-query",
+    "test": "test/boundary/source_review_boundary_test.dart",
+    "title": "自审：path 内嵌",
+    "killed": true,
+    "restored_sha256": "aa5ce2d259f015a568eba589deed362c89f54f9c97386521c4feefbdc94519fe"
+  },
+  {
+    "mutation": "review-cache-status",
+    "test": "test/boundary/source_review_boundary_test.dart",
+    "title": "自审：显式缓存失败",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "review-offline-disposed",
+    "test": "test/boundary/source_review_boundary_test.dart",
+    "title": "自审：旧链晚到",
+    "killed": true,
+    "restored_sha256": "8e8dbd52e5447fbf3ecb01bcb3baa4951fd42f0cd15ab0cc6f5f6a818b273fb1"
+  },
+  {
+    "mutation": "cache-write-snapshot",
+    "test": "test/boundary/cache_persist_boundary_test.dart",
+    "title": "写入快照隔离来源",
+    "killed": true,
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "share-retry-replayable",
+    "test": "test/boundary/share_replay_boundary_test.dart",
+    "title": "内部重放独立保护 I7",
+    "killed": true,
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "final-share-minimum-timeout",
+    "test": "test/boundary/share_timeout_boundary_test.dart",
+    "title": "连接五秒接收三十秒",
+    "killed": true,
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "final-offline-online-callback",
+    "test": "test/boundary/offline_online_boundary_test.dart",
+    "title": "在线直接放行且不调用",
+    "killed": true,
+    "restored_sha256": "8e8dbd52e5447fbf3ecb01bcb3baa4951fd42f0cd15ab0cc6f5f6a818b273fb1"
+  }
+]

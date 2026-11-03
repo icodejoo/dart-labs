@@ -6,7 +6,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/pipeline-b4-evidence'
+DEST = ROOT / 'coverage/round2-final/mutations/pipeline_b4_mutations'
 CASES = [('share-leave-listener',
   'context',
   'state.listeners.remove(cancel);',
@@ -88,17 +88,14 @@ CASES = [('share-leave-listener',
   '自审：显式缓存失败'),
  ('review-offline-disposed',
   'plugins/offline',
-  '    if (disposed) {\n'
-  '      ctx.set(cancellationFailure, _disposedFailure);\n'
-  '      return ctx.fail(_disposedFailure);\n'
-  '    }\n',
+  '    if (disposed) {\n      final failure =\n          ctx.fail(DiomanFailureKind.offline, reason: _disposedReason);\n      ctx.set(cancellationFailure, failure);\n      return failure;\n    }\n',
   '',
   'test/boundary/source_review_boundary_test.dart',
   '自审：旧链晚到'),
  ('cache-write-snapshot',
   'plugins/cache',
-  'clone(ctx, r, o.clone!),',
-  'r,',
+  'final cached = clone(ctx, r, o.clone!);',
+  'final cached = r;',
   'test/boundary/cache_persist_boundary_test.dart',
   '写入快照隔离来源'),
  ('share-retry-replayable',
@@ -154,14 +151,14 @@ def run():
         assert old in source, (name, old)
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', test, '--name', title,
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', test, '--name', title,
                                    '--reporter', 'expanded', '--timeout', '3s'],
                                   cwd=ROOT, capture_output=True, text=True,
                                   encoding='utf-8', errors='replace', timeout=45)
             output = proc.stdout + proc.stderr
             (DEST / f'{name}.txt').write_text(output, encoding='utf-8')
             assert proc.returncode != 0 and '[E]' in output and 'Some tests failed' in output, name
-            assert 'Failed to load' not in output and 'Compilation failed' not in output, name
+            assert not any(value in output for value in ('Failed to load', 'Compilation failed', 'Test timed out')), name
         finally:
             path.write_bytes(original)
         assert hashlib.sha256(path.read_bytes()).hexdigest() == digest

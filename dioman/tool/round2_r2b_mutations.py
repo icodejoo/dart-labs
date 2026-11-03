@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'coverage/r2b-mutations'
+DEST = ROOT / 'coverage/round2-final/mutations/round2_r2b_mutations'
 CASES = [
     ('retry-overflow-saturation', 'lib/src/plugins/retry.dart',
      'min(300 * pow(2.0, attempt - 1), _diomanMaxDelayMilliseconds)',
@@ -51,7 +51,7 @@ def run():
         started = time.perf_counter()
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', test, '--reporter', 'json', '--timeout', '3s'],
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', test, '--reporter', 'json', '--timeout', '3s'],
                                   cwd=ROOT, capture_output=True, text=True,
                                   encoding='utf-8', errors='replace', timeout=120)
             output = proc.stdout + proc.stderr

@@ -379,6 +379,14 @@ class ScenarioClient {
     final key = cache[tkKey] ??
         options[tkKey] ??
         (plugins.containsKey(tkKey) ? false : null);
+    // total_ms / timeout-total 表达逻辑预算；其余旧场景的 timeout_ms
+    // 仍是每次传输的接收超时，不能意外终止外层 retry。
+    final totalBudget = obj(plugins[tkTimeout])[tkTotalMs] != null ||
+        (config[tkRequires] as List? ?? const [])
+            .contains(timeoutTotalCapability);
+    final requestTimeout = options[tkTimeoutMs] == null
+        ? null
+        : ms(options[tkTimeoutMs] as num);
     return DiomanCall(
         headers: {...this.headers, ...?headers},
         cancelToken: token,
@@ -388,9 +396,8 @@ class ScenarioClient {
                 ? null
                 : key,
         silent: options[tkSilent] == true,
-        deadline: options[tkTimeoutMs] == null
-            ? null
-            : ms(options[tkTimeoutMs] as num),
+        deadline: totalBudget ? requestTimeout : null,
+        receiveTimeout: totalBudget ? null : requestTimeout,
         options: {
           DiomanAuth.option: options[tkAuth] == true
               ? const DiomanAuthOptions(enabled: true)

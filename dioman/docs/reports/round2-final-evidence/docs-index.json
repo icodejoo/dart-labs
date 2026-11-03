@@ -1,0 +1,8 @@
+{
+  "command": "python ~/.claude/skills/docs-index/scripts/check_docs.py docs",
+  "exit": 1,
+  "problems": [
+    "未收录: reports/2026-11-03-round2-final.md"
+  ],
+  "constraint": "用户明确禁止修改 docs/README.md；未修改索引或检查器。"
+}

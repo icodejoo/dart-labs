@@ -6,7 +6,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'coverage/round2-r6b-mutations'
+OUT = ROOT / 'coverage/round2-final/mutations/round2_r6b_mutations'
 TEST = 'test/boundary/deadline_boundary_test.dart'
 
 

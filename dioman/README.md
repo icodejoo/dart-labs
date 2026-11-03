@@ -335,7 +335,7 @@ Future<void> main() async {
 
 Auth protects all requests by default and shares one refresh operation across clients using the same TokenManager. Implement onRefresh to fetch and save the new token through an independent client. The renewed value below only illustrates updating the store.
 
-Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
+Options: `tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, refreshTimeout, headerKey, buildHeader`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
 ```dart
 import 'package:dio/dio.dart';

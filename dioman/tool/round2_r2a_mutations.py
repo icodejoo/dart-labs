@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'coverage/r2a-mutations'
+DEST = ROOT / 'coverage/round2-final/mutations/round2_r2a_mutations'
 CONTRACT = 'test/rule/response_contract_rule_test.dart'
 UNIT = 'test/unit/response_contract_test.dart'
 CASES = [
@@ -24,8 +24,8 @@ CASES = [
     ('parse-envelope-threshold', 'lib/src/response.dart',
      'body.containsKey(_codeField) &&', '', UNIT),
     ('callback-internal-boundary', 'lib/src/pipeline.dart',
-     '\n      } catch (e, s) {\n        return ctx.factory.internalError(ctx.request, e, s);',
-     '\n      } catch (e, s) {\n        return ctx.factory.normalize(ctx.request, error: e, stack: s);',
+     '\n      } catch (e, s) {\n        return ctx.observeNative(ctx.factory.internalError(ctx.request, e, s));',
+     '\n      } catch (e, s) {\n        return ctx.observeNative(ctx.factory.normalize(ctx.request, error: e, stack: s));',
      'test/boundary/internal_callback_boundary_test.dart'),
     ('runner-classification', 'test/accept/lib/client.dart',
      'error.status < 200 || error.status >= 300', 'false', 'test/unit/accept_runner_test.dart'),
@@ -45,7 +45,7 @@ def run():
         started = time.perf_counter()
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', test, '--reporter', 'json'],
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', test, '--reporter', 'json'],
                                   cwd=ROOT, capture_output=True, text=True,
                                   encoding='utf-8', errors='replace', timeout=120)
             output = proc.stdout + proc.stderr

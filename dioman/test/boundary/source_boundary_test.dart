@@ -306,10 +306,14 @@ void main() {
           maxQueueSize: 2)
     ]);
     final oldest = fifo.send<Object?>(b4Get, b4Path);
+    var oldestSettled = false;
+    oldest.then((_) => oldestSettled = true);
     final middle = fifo.send<Object?>(b4Get, b4Path);
     await b4Turn();
     final newest = fifo.send<Object?>(b4Get, b4Path);
     await b4Turn();
+    expect(oldestSettled, isTrue,
+        reason: '队满必须先落定最早请求，不能依靠测试总超时取证');
     expect(failureOf((await oldest))?.reason, b4LiteralQueueFull);
     fifo.plugin<DiomanOfflineApi>()!.flush();
     expect((await middle).ok, isTrue);

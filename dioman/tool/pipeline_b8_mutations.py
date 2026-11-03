@@ -6,10 +6,10 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / 'docs/reports/pipeline-b8-evidence'
+DEST = ROOT / 'coverage/round2-final/mutations/pipeline_b8_mutations'
 CASES = [
     ('1-share-withdrawal', 'plugins/share', 'entry.candidates.remove(sequence);',
-     'entry.candidates[sequence] = ctx.fail(const DiomanFailure(kind: DiomanKind.cancel));',
+     'entry.candidates[sequence] = ctx.fail(DiomanFailureKind.cancel);',
      'test/combo/share_withdrawal_combo_test.dart', 'DiomanSharePolicy.end latest timeout=false'),
     ('2-byte-key', 'key', '[data.length, hash, base64Encode(data)]', '[data.length]',
      'test/unit/key_types_test.dart', 'B8 安全内容键'),
@@ -29,16 +29,17 @@ CASES = [
 
 
 def run():
+    DEST.mkdir(parents=True, exist_ok=True)
     results = []
     for name, module, old, new, test, pattern in CASES:
         path = ROOT / f'lib/src/{module}.dart'
         original = path.read_bytes()
         digest = hashlib.sha256(original).hexdigest()
-        source = original.decode('utf-8')
+        source = original.decode('utf-8').replace('\r\n', '\n')
         assert old in source, name
         try:
             path.write_text(source.replace(old, new), encoding='utf-8')
-            proc = subprocess.run([shutil.which('dart'), 'test', test, '--name', pattern,
+            proc = subprocess.run([shutil.which('dart'), 'test', '--concurrency=1', test, '--name', pattern,
                                    '--reporter', 'json', '--timeout', '8s'], cwd=ROOT,
                                   capture_output=True, encoding='utf-8', errors='replace', timeout=90)
             output = proc.stdout + proc.stderr

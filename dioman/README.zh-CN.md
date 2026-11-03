@@ -335,7 +335,7 @@ Future<void> main() async {
 
 Auth 默认保护所有请求，使用同一 TokenManager 的客户端共享一次刷新。请在 onRefresh 中通过独立客户端获取并保存新 token；下面的 renewed 只演示如何更新存储。
 
-选项：`tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, headerKey, buildHeader`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
+选项：`tokenManager, onRefresh, onAccessExpired, onAccessDenied, onFailure, isProtected, ready, expiresAt, refreshLeeway, refreshTimeout, headerKey, buildHeader`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
 
 ```dart
 import 'package:dio/dio.dart';

@@ -1,0 +1,74 @@
+{
+  "scripts": [
+    {
+      "script": "tool/pipeline_b1_mutations.py",
+      "killed": 10,
+      "expected": 10
+    },
+    {
+      "script": "tool/pipeline_b2_mutations.py",
+      "killed": 9,
+      "expected": 9
+    },
+    {
+      "script": "tool/pipeline_b3_mutations.py",
+      "killed": 18,
+      "expected": 18
+    },
+    {
+      "script": "tool/pipeline_b4_mutations.py",
+      "killed": 19,
+      "expected": 19
+    },
+    {
+      "script": "tool/pipeline_b5a_mutations.py",
+      "killed": 7,
+      "expected": 7
+    },
+    {
+      "script": "tool/pipeline_b8_mutations.py",
+      "killed": 6,
+      "expected": 6
+    },
+    {
+      "script": "tool/round2_r1_mutations.py",
+      "killed": 4,
+      "expected": 4
+    },
+    {
+      "script": "tool/round2_r2a_mutations.py",
+      "killed": 8,
+      "expected": 8
+    },
+    {
+      "script": "tool/round2_r2b_mutations.py",
+      "killed": 10,
+      "expected": 10
+    },
+    {
+      "script": "tool/round2_r3_mutations.py",
+      "killed": 15,
+      "expected": 15
+    },
+    {
+      "script": "tool/round2_r4_mutations.py",
+      "killed": 3,
+      "expected": 3
+    },
+    {
+      "script": "tool/round2_r6b_mutations.py",
+      "killed": 3,
+      "expected": 3
+    }
+  ],
+  "total": 112,
+  "all_lib_hashes_match_r6b": 37,
+  "excluded_attempts": [
+    "B8 initial missing output directory",
+    "B3 wait mutation test timeout before observation assertion",
+    "B3 notice mutation targeted an unexercised branch",
+    "B4 FIFO mutation test timeout before observation assertion",
+    "B4 disposed mutation test timeout before observation assertion",
+    "B5a notify mutation 120s process watchdog, rerun with 600s watchdog; per-test timeout unchanged"
+  ]
+}

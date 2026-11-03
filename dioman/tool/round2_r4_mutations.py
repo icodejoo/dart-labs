@@ -7,7 +7,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'coverage/r4-mutations'
+OUT = ROOT / 'coverage/round2-final/mutations/round2_r4_mutations'
 TEST = 'test/unit/request_snapshot_test.dart'
 
 

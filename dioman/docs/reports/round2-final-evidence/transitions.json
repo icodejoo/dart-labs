@@ -1,0 +1,1023 @@
+{
+  "changes": [
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "share.single-all-timeout-aborts-server|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-hang|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-hang|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-hang|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-over-slow-chunks|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.request-override-shorter|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.request-override-shorter|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-shorter|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.request-override-longer|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.request-override-longer|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.request-override-longer|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.within-budget|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.within-budget|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.within-budget|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.recovers-after-timeout|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.parallel-all-timeout|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.weak-generous-budget|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.weak-generous-budget|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.weak-generous-budget|weak@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.weak-generous-budget|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.weak-generous-budget|weak@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-slow-chunks-small|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.total-budget-slow-body-ok|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|normal@http",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|weak@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|weak@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|lossy@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|lossy@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|offline@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|offline@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|blackhole@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|blackhole@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|flap@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|flap@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|dns@http",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|dns@business",
+      "before": "缺能力",
+      "after": "不适用",
+      "reason_id": 1
+    },
+    {
+      "cell": "timeout.receive-gap-vs-chunk-bytes|normal@business",
+      "before": "缺能力",
+      "after": "通过",
+      "reason_id": 0
+    }
+  ],
+  "reason_catalog": [
+    [],
+    [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ]
+  ],
+  "new_rules": 0,
+  "capability_revealed_undeclared_dimensions": 142,
+  "extra_skips": 0,
+  "missing_skips": 0,
+  "unchanged_cells": 6258
+}

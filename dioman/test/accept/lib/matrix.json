@@ -69,7 +69,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -123,7 +123,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -146,7 +146,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -198,7 +198,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 81,
       "total": 81
     },
@@ -222,7 +222,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -269,7 +269,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 85,
       "total": 85
     },
@@ -416,7 +416,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -438,7 +438,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -474,7 +474,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 20,
       "total": 20
     },
@@ -495,7 +495,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -532,7 +532,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -716,7 +716,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -739,7 +739,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 24,
       "total": 24
     },
@@ -849,7 +849,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 18
     },
@@ -901,7 +901,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1013,7 +1013,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -1050,7 +1050,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1163,7 +1163,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1273,7 +1273,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1370,7 +1370,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -1395,7 +1395,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1433,7 +1433,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -1523,7 +1523,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -1587,7 +1587,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -1610,7 +1610,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -1652,7 +1652,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -1745,7 +1745,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -1827,7 +1827,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -1876,7 +1876,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 27,
       "total": 27
     },
@@ -1897,7 +1897,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2024,7 +2024,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2058,7 +2058,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2171,7 +2171,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2231,7 +2231,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2265,7 +2265,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2313,7 +2313,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -2363,9 +2363,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 1,
-      "total": 1
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 7,
+      "total": 7
     },
     "blocked": null
   },
@@ -2448,7 +2448,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -2545,7 +2545,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 80,
       "total": 80
     },
@@ -2569,7 +2569,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -2626,7 +2626,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 242
     },
@@ -2649,7 +2649,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -2711,7 +2711,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -2734,7 +2734,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -2756,7 +2756,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -2783,7 +2783,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -2826,7 +2826,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 64,
       "total": 64
     },
@@ -2850,7 +2850,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -3078,7 +3078,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -3400,7 +3400,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -3434,7 +3434,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3472,7 +3472,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -3535,7 +3535,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3654,7 +3654,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -3739,7 +3739,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 102,
       "total": 116
     },
@@ -3782,7 +3782,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 66,
       "total": 66
     },
@@ -3821,7 +3821,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 56,
       "total": 56
     },
@@ -3850,7 +3850,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 13,
       "total": 13
     },
@@ -3891,7 +3891,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3929,7 +3929,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -3952,7 +3952,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -3978,7 +3978,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 18,
       "total": 18
     },
@@ -4032,7 +4032,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -4057,7 +4057,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4118,7 +4118,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 49,
       "total": 49
     },
@@ -4235,7 +4235,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4286,7 +4286,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -4309,7 +4309,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 14,
       "total": 14
     },
@@ -4410,7 +4410,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4520,7 +4520,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 27,
       "total": 27
     },
@@ -4596,7 +4596,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 11,
       "total": 11
     },
@@ -4659,7 +4659,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -4696,7 +4696,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -4720,7 +4720,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -4902,7 +4902,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 36,
       "total": 36
     },
@@ -4951,7 +4951,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 27,
       "total": 27
     },
@@ -5001,7 +5001,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -5293,7 +5293,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -5329,7 +5329,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -6052,7 +6052,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 19,
       "total": 33
     },
@@ -6146,7 +6146,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -6272,7 +6272,12 @@
       "faults.html-gateway-page"
     ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 4,
+      "total": 4
+    },
     "blocked": null,
     "unit": [
       "test/rule/response_contract_rule_test.dart"
@@ -6375,7 +6380,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 10,
       "total": 10
     },
@@ -6458,7 +6463,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 65,
       "total": 65
     },
@@ -6484,7 +6489,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 17,
       "total": 17
     },
@@ -6559,7 +6564,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6585,7 +6590,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 23,
       "total": 23
     },
@@ -6640,7 +6645,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 16,
       "total": 16
     },
@@ -6675,7 +6680,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 12,
       "total": 12
     },
@@ -6699,7 +6704,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6736,7 +6741,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -6771,7 +6776,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6807,7 +6812,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 3,
       "total": 3
     },
@@ -6829,7 +6834,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 7,
       "total": 7
     },
@@ -6864,7 +6869,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 1,
       "total": 1
     },
@@ -6899,7 +6904,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -6935,7 +6940,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -7029,9 +7034,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 2,
-      "total": 2
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 26,
+      "total": 26
     },
     "blocked": null
   },
@@ -7091,7 +7096,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 4,
       "total": 4
     },
@@ -7143,7 +7148,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 8,
       "total": 8
     },
@@ -7177,7 +7182,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -7199,7 +7204,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -7222,7 +7227,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 2
     },
@@ -7249,7 +7254,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 28,
       "total": 28
     },
@@ -7423,9 +7428,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 10,
-      "total": 10
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 20,
+      "total": 34
     },
     "blocked": null,
     "note": "probe 是使用者回调（契约替身）；真实执行器的 probe 恒返回 excellent。"
@@ -7510,9 +7515,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 10,
-      "total": 10
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 28,
+      "total": 42
     },
     "blocked": null
   },
@@ -7561,9 +7566,9 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 4,
-      "total": 4
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 8,
+      "total": 8
     },
     "blocked": null,
     "note": "只验配置写入；真实连接超时见 DiomanTimeouts.connect#effective。"
@@ -7583,7 +7588,7 @@
     ],
     "result": {
       "status": "BLOCKED",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 0,
       "total": 0
     },
@@ -7607,7 +7612,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 6,
       "total": 6
     },
@@ -7635,9 +7640,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 2,
-      "total": 2
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 10,
+      "total": 10
     },
     "blocked": null,
     "note": "单测 rule/timeout_rule_test 用本地 TestServer 断言了 receiveTimeout；真实侧 boundary receive_ms=1 断言 error=timeout，connect-blackhole 断言耗时 700-3500ms。按 H5 要求还应逐格复核每个样本的耗时，不只看 PASS。"
@@ -7675,9 +7680,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-11-03-r6b-summary.json",
-      "passed": 1,
-      "total": 1
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+      "passed": 3,
+      "total": 3
     },
     "blocked": null,
     "note": "send 超时在真实回环上生效（H5）；testkit 侧需要 send_ms 与慢读服务端，见 testkit 提议"
@@ -7697,7 +7702,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "source": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
       "passed": 2,
       "total": 16
     },

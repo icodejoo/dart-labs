@@ -237,7 +237,7 @@ Future<void> main() async {
 行为差异：
 
 - `onChanged(bool visible)` 签名沿用；计数改为覆盖整个逻辑请求，刷新、重试、缓存命中和离线等待都在同一显示周期内。
-- 按回调身份计数并成对关闭；用 `api.plugin<DiomanLoadingApi>()` 读取 activeCount，回调异常不会改变结果。
+- 按回调相等（`==`）共享显示并成对关闭；用 `api.plugin<DiomanLoadingApi>()` 读取 activeCount，回调异常不会改变结果。
 
 ### Notify
 
@@ -510,9 +510,9 @@ Future<void> main() async {
 
 行为差异：
 
-- `onFailure(store, Response)` 改为可异步的 `onFailure(result, store)`，读取逻辑 status；HTTP 200 的业务 401 也能触发刷新。
+- `onFailure(store, Response)` 改为可异步的 `onFailure(result, store)`，读取 HTTP status 或业务 code；默认路由经显式配置的 statusOf 识别 HTTP 200 内的业务 401。
 - ready 返回 RequestPatch，不再直接改 RequestOptions；tokenManager 不再要求 canRefresh。
-- 刷新通过独立客户端获取并保存 token；单客户端单飞，缓存命中也先经过认证。示例 renewed 只是存储演示。
+- 刷新通过独立客户端获取并保存 token；同 TokenManager 跨客户端单飞，缓存命中也先经过认证。示例 renewed 只是存储演示。
 
 ### Mock
 
@@ -860,13 +860,13 @@ Future<void> main() async {
 | `DiomanBreaker.recordResponse` | 通过 api.plugin<DiomanBreakerApi>() 查询或重置状态；每次尝试由管线自动申请放行和记账，不能手工 admit/record。 |
 | `DiomanBreaker.reset` | `DiomanBreakerApi.reset`。 |
 | `DiomanBreaker.stateOf` | `DiomanBreakerApi.stateOf`。 |
-| `DiomanBreakerOpenException` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.bucketKey` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.new` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.new(bucketKey)` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.new(retryableAt)` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.retryableAt` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
-| `DiomanBreakerOpenException.toString` | 使用 DiomanResponse(kind: breaker) 与 reason=open；构造失败用 ctx.fail(DiomanFailure(...))。 |
+| `DiomanBreakerOpenException` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.bucketKey` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.new` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.new(bucketKey)` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.new(retryableAt)` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.retryableAt` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
+| `DiomanBreakerOpenException.toString` | 使用 failureOf(result) 读取 breaker/open；构造失败用 ctx.fail(DiomanFailureKind.breaker, reason: 'open')。 |
 | `DiomanCache.clear` | `DiomanCacheApi.clear`。 |
 | `DiomanCache.dispose` | 缓存由 source 阶段管理；清理使用 api.plugin<DiomanCacheApi>()，不再手工运行响应钩子。 |
 | `DiomanCache.new(now)` | 缓存由 source 阶段管理；清理使用 api.plugin<DiomanCacheApi>()，不再手工运行响应钩子。 |
@@ -1066,15 +1066,15 @@ Future<void> main() async {
 | `DiomanOffline.onRequest` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |
 | `DiomanOffline.ordering` | 通过 api.plugin<DiomanOfflineApi>() 查看 pending 或 flush；队列由 source 实例管理，销毁后禁止迟到入队。 |
 | `DiomanOffline.pending` | `DiomanOfflineApi.pending`。 |
-| `DiomanOfflineException` | 使用 DiomanResponse(kind: offline) 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
-| `DiomanOfflineException.new` | 使用 DiomanResponse(kind: offline) 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
-| `DiomanOfflineException.new(reason)` | 使用 DiomanResponse(kind: offline) 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
-| `DiomanOfflineException.reason` | 使用 DiomanResponse(kind: offline) 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
-| `DiomanOfflineException.toString` | 使用 DiomanResponse(kind: offline) 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
-| `DiomanOfflineReason` | 原因改为 DiomanResponse.reason 字符串：queueFull、timeout、disposed。 |
-| `DiomanOfflineReason.disposed` | 原因改为 DiomanResponse.reason 字符串：queueFull、timeout、disposed。 |
-| `DiomanOfflineReason.queueFull` | 原因改为 DiomanResponse.reason 字符串：queueFull、timeout、disposed。 |
-| `DiomanOfflineReason.timeout` | 原因改为 DiomanResponse.reason 字符串：queueFull、timeout、disposed。 |
+| `DiomanOfflineException` | 通过 failureOf(result) 读取 offline 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
+| `DiomanOfflineException.new` | 通过 failureOf(result) 读取 offline 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
+| `DiomanOfflineException.new(reason)` | 通过 failureOf(result) 读取 offline 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
+| `DiomanOfflineException.reason` | 通过 failureOf(result) 读取 offline 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
+| `DiomanOfflineException.toString` | 通过 failureOf(result) 读取 offline 与 reason（queueFull、timeout、disposed）；不再有独立异常类型。 |
+| `DiomanOfflineReason` | 原因改为 failureOf(result)?.reason 字符串：queueFull、timeout、disposed。 |
+| `DiomanOfflineReason.disposed` | 原因改为 failureOf(result)?.reason 字符串：queueFull、timeout、disposed。 |
+| `DiomanOfflineReason.queueFull` | 原因改为 failureOf(result)?.reason 字符串：queueFull、timeout、disposed。 |
+| `DiomanOfflineReason.timeout` | 原因改为 failureOf(result)?.reason 字符串：queueFull、timeout、disposed。 |
 | `DiomanPlugin.dispose` | 配置保留在 DiomanPlugin；handle/dispose 放在 setup 返回的 DiomanPluginInstance，不绑定宿主 Dio setter。 |
 | `DiomanPlugin.ordering` | 配置保留在 DiomanPlugin；handle/dispose 放在 setup 返回的 DiomanPluginInstance，不绑定宿主 Dio setter。 |
 | `DiomanPluginOrder` | 改为 DiomanStage 和 DiomanEnforce；固定阶段自动排序，重复名称抛 ArgumentError，不再检查 before/after/requires。 |
