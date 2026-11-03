@@ -76,6 +76,9 @@ enum _Phase {
   /// 正在播放一个广告位。
   ad,
 
+  /// 正在回正片；旧广告进度与结束事件不参与正片决策。
+  toContent,
+
   /// The main content is playing.
   ///
   /// 正在播放正片。
@@ -1056,7 +1059,7 @@ class MovaAds {
   /// `commit(waitForReady: true)`。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _cancelAllTimers();
-    _phase = _Phase.content;
+    _phase = _Phase.toContent;
     _current = null;
     _pending = null;
     _changes.add(null);
@@ -1076,6 +1079,8 @@ class MovaAds {
       if (at > Duration.zero) await _api.seek(at);
     }
     if (gen != _gen || _disposed) return;
+    _phase = _Phase.content;
+    _changes.add(null);
     // The content warm-up already carries the rate the user had before the ad
     // (MovaWarmPlan.rate); this is the safety net for hand-offs that bypass it,
     // e.g. a content shadow that was not warmed, or a plain open() fallback.
