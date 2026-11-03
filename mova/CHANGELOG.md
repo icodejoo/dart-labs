@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 新增 movaCapabilityOf<T>(api) 能力查询入口，优先保留代理自身能力，否则穿透多层 cutover 查询当前生效引擎，不修改 MovaApi。
+
 - MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节仍保守比较，debug 下连续 10 帧实际配置不等时每视图提示一次。
 
 - MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
