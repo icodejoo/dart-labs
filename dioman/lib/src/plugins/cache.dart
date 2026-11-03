@@ -391,7 +391,10 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       final cancel = ctx.cancelled();
       if (cancel != null) return cancel;
       var stored = false;
-      if (valid() && (o.shouldStore?.call(r) ?? r.ok)) {
+      if (failureOf(r)?.kind != DiomanFailureKind.internal &&
+          failureOf(r)?.kind != DiomanFailureKind.cancel &&
+          valid() &&
+          (o.shouldStore?.call(r) ?? r.ok)) {
         stored = true;
         barrier.latest = ticket;
         final entry = _Entry(clone(ctx, r, o.clone!),

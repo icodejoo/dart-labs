@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'network_error_stub.dart' if (dart.library.io) 'network_error_io.dart';
 import 'package:dio/dio.dart';
 import 'request.dart';
 
@@ -174,7 +174,8 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
   /// 仅 HTTP 2xx 时调用；默认业务码为 0 或 '0' 成功。
   final bool Function(Object?)? isSuccess;
 
-  /// 严格 JSON：2xx 非空文本视为解析失败。
+  /// 严格 JSON：json 模式的 2xx 非空文本视为解析失败。
+  /// 显式 plain、bytes、stream 不判 parse，例如 `DiomanResponseFactory(expectJson: true)`。
   final bool expectJson;
 
   /// 构造扩展结果；内核失败事实在返回后写入。
@@ -268,9 +269,7 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
               final cause = error.error;
               if (cause is FormatException) {
                 kind = DiomanFailureKind.parse;
-              } else if (cause is SocketException ||
-                  cause is HttpException ||
-                  cause is TlsException) {
+              } else if (isDiomanNetworkError(cause)) {
                 kind = DiomanFailureKind.network;
               }
             default:
@@ -294,7 +293,11 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
       final response = raw!;
       final httpOk = status >= 200 && status < 300;
       final body = response.data;
-      if (httpOk && expectJson && body is String && body.isNotEmpty) {
+      if (httpOk &&
+          expectJson &&
+          request.toRequestOptions().responseType == ResponseType.json &&
+          body is String &&
+          body.isNotEmpty) {
         return _finish(DiomanResponse<dynamic>(
             ok: false,
             status: status,

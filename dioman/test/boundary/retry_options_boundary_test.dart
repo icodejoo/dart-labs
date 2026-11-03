@@ -13,7 +13,7 @@ const _retryHeader = 'retry-after';
 const _serverSeconds = '2';
 
 /// 普通退避窗口。
-const _normalDelay = Duration(seconds: 3);
+const _normalDelay = Duration(milliseconds: 300);
 
 /// 验证覆盖选项的实际等待时间，不只检验发送次数。
 void main() {
@@ -45,7 +45,10 @@ void main() {
         }),
         b3Tick
       ),
-      (const DiomanRetryOptions(delayMax: b3Tick), b3Tick),
+      (
+        const DiomanRetryOptions(delayMax: Duration(milliseconds: 100)),
+        const Duration(milliseconds: 100)
+      ),
       (
         DiomanRetryOptions(jitter: (Duration raw) {
           expect(raw, _normalDelay);

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **C24**: Use a conditional IO network classifier, preserving unknown SocketException/HttpException/TlsException precision on VM and web/Wasm compatibility.
+- **Breaking — C25**: Automatic deep/fast keys include responseType; Map keys have type tags. Explicit keys/builders stay unchanged; B8 byte keys retain hash plus full base64. Existing automatic cache keys are invalidated.
+- **C26**: Internal and cancel results never enter memory or persistent cache, even when shouldStore returns true.
+- **C27**: expectJson respects explicit plain/bytes/stream response types. next() short-circuits cancellation; cancelAll(reason) and caller CancelToken preserve the first reason as a string, or null when omitted.
+- **C28**: Debug warns once per client/option key when a plugin is absent. Dioman<R> requires a create factory for every type except DiomanResponse<dynamic>, checked before plugin setup.
+- **Breaking — C29**: Retry defaults to max: 2, exponential waits from 300ms, delayMax: 10s. The idempotent method allowlist and Retry-After precedence, 60s limit, and exemption from jitter/delayMax remain unchanged.
+
 - **Breaking — C22**: Replace top-level kind/reason and DiomanKind with readonly failureOf and DiomanFailureKind. Kernel markers survive create and derivation; marked results always have ok=false. Remove httpStatus; status is HTTP only. Add statusOf, cancellation predicates and parse/DiomanParsed; remove Envelope, envelope/isEnvelope/logicalStatus and call.envelope. Missing business code is 0.
 - **Breaking — C23**: Retry/auth/breaker use effective status; mock uses HTTP status; notify formats failure markers with HTTP status and suppresses internal/cancel. Business style requires explicit client statusOf.
 - Cache persistence keeps the data/expiresAt/result layout. New result metadata stores ok and an optional failure kind/reason, with HTTP status only. Reads remain compatible with 0.7 two-field entries and B4 kind/status/httpStatus metadata.
@@ -14,8 +21,8 @@
 
 - **Behavior change (B8)**: Auth adds plugin/call `refreshTimeout` (30s, `DiomanClock`); timeout follows refresh failure and session notification deduplication. Failed refresh after a new login continues with the new token. Refresh requests through the same client must set `DiomanAuth.option: false` for that call.
 - **Behavior change (B8)**: `retryAfterMax` defaults to 60s; larger server waits return the current result without retry. Use an explicitly very large Duration to honor practically unlimited Retry-After. No jitter or `delayMax` is applied to server waits.
-- **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. Map/String keys remain compatible; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.
-- **Behavior change (B8)**: Default notify suppresses internal results; Dio decoding FormatException is parse with the available HTTP status. HTML text remains accepted by default; expectJson now rejects nonempty 2xx text regardless of MIME type.
+- **Behavior change (B8)**: Unsafe automatic body keys now bypass cache/share. R2b supersedes Map/String key compatibility; JSON arrays use content, byte bodies up to 64 KiB use a content hash, and larger bytes/FormData/streams/opaque objects/encoding failures return null.
+- **Behavior change (B8)**: Default notify suppresses internal results; Dio decoding FormatException is parse with the available HTTP status. HTML text remains accepted by default; expectJson rejects nonempty 2xx text regardless of MIME type; C27 adds explicit response type exceptions.
 - Fix share end/race participant withdrawal, cancellation before cache hits, and replay of one-shot bodies in retry/auth/mock/share retry; plugins return the current result when the body cannot be replayed.
 
 Changes since 0.7.2. See the [migration guide](docs/guides/migrating-to-pipeline.md) for plugin-by-plugin examples and the complete API replacement table.

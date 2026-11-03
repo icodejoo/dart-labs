@@ -2,6 +2,12 @@
 
 Dioman brings authentication, retries, caching and the rest of your request policies together around Dio, for Dart and Flutter.
 
+R2b preserves web and Wasm support through a conditional native network classifier. Automatic keys include responseType in both deep and fast modes; Map keys carry type tags, so numeric 1 differs from string '1'. Byte keys retain the content hash and full base64 payload. Explicit keys and custom builders keep their output.
+
+Cancellation short-circuits at next() before entering inner plugins. cancelAll(reason) and a caller CancelToken preserve the first cancellation reason as failureOf(result)?.reason, converting non-null reasons with toString(); omitted reasons remain null. Debug logs report each option key whose plugin is absent once per client, including false/null options; installed but disabled plugins count as installed.
+
+For Dioman<R> where R is not DiomanResponse<dynamic>, supply response: DiomanResponseFactory<R>(create: ...). Missing create throws ArgumentError during construction, before plugin setup.
+
 ## Purpose
 
 Request policies get harder to maintain when each interceptor has to understand the backend envelope and coordinate with every other interceptor. Dioman gives your app one request entry point and normalizes results before plugins see them, so plugins share one result contract. Auth, retry and breaker read the effective status chosen by your client configuration.
@@ -224,7 +230,7 @@ Future<void> main() async {
 
 Behavior change: `retryAfterMax` defaults to 60 seconds. A Retry-After value (seconds or HTTP date) above that limit returns the current result without retrying. To honor practically unlimited waits, explicitly supply a very large Duration, such as `retryAfterMax: Duration(days: 36500)`. Server waits still receive no jitter and ignore `delayMax`. Streams and opaque bodies are sent at most once.
 
-Set max explicitly when you want retries; its default is zero. Retry checks the method allowlist first, then uses ctx.statusOf to decide whether to send another attempt through the inner layers.
+Retry defaults to two retries, with exponential waits starting at 300ms and a 10s delayMax. Set max: 0 to disable retries. Retry checks the method allowlist first, then uses ctx.statusOf to decide whether to send another attempt through the inner layers.
 
 Options: `max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
@@ -365,7 +371,9 @@ Future<void> main() async {
 
 ### Cache
 
-Automatic keys preserve Map/String output, encode JSON arrays by content and hash byte lists up to 64 KiB by content. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
+Automatic keys now include responseType and typed Map keys, encode JSON arrays by content and encode byte lists up to 64 KiB with a content hash plus full base64. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
+
+Internal and cancel results are never cached, even when shouldStore returns true.
 
 Enable Cache per call with a Duration TTL. It uses memo by default and stores successful GET/HEAD results. Use clear to invalidate all in-flight writes, or remove to invalidate just one key.
 
@@ -503,7 +511,7 @@ dart run test/accept/bin/matrix.dart gates
 
 ## Migration
 
-Dio unknown errors caused by decoding `FormatException` now return `kind: parse` with the HTTP status (when supplied by Dio). HTML remains text by default; `expectJson: true` rejects nonempty 2xx text, including text/html, regardless of MIME type.
+Dio unknown errors caused by decoding `FormatException` now return `kind: parse` with the HTTP status (when supplied by Dio). HTML remains text by default; `expectJson: true` rejects nonempty 2xx text in json mode regardless of MIME type. Explicit ResponseType.plain, bytes and stream bypass this strict JSON check.
 
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 

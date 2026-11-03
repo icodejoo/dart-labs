@@ -21,6 +21,7 @@ void _noLog(String _) {}
 class Dioman<R extends DiomanResponse<dynamic>> {
   /// 创建客户端，例如 `Dioman(dio: Dio(), debug: true)`。
   /// [response] 控制归一化，[reject] 只转换动词方法的可预期失败。
+  /// R 非基础响应时必须提供 response.create，否则在 setup 前抛 ArgumentError。
   Dioman(
       {required this.dio,
       List<DiomanPlugin<R>> plugins = const [],
@@ -36,6 +37,10 @@ class Dioman<R extends DiomanResponse<dynamic>> {
             debug is DiomanLogger ? debug : (debug == true ? print : _noLog) {
     if (debug != null && debug is! bool && debug is! DiomanLogger) {
       throw ArgumentError.value(debug, 'debug');
+    }
+    if (this.response.create == null && R != DiomanResponse<dynamic>) {
+      throw ArgumentError(
+          'Dioman<$R> 需要 response: DiomanResponseFactory<$R>(create: ...)');
     }
     validateDiomanPlugins(plugins);
     try {
@@ -95,6 +100,9 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 
   /// 仍可取消的请求状态，包含逻辑调用已结束的共享传输。
   final _cancellable = <DiomanContextState>{};
+
+  /// 每客户端只报告一次的未安装选项。
+  final _warnedOptions = <DiomanOptionKey>{};
 
   /// 请求序号。
   int _sequence = 0;
@@ -173,6 +181,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       }));
 
   /// 中止尚未取消的请求状态（含保留的共享传输），返回本次中止数。
+  /// 首次 [reason] 非空时转为失败标记的字符串原因，例如 `api.cancelAll('logout')`。
   int cancelAll([Object? reason]) {
     var count = 0;
     for (final state in _cancellable.toList()) {
@@ -290,6 +299,14 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     _pending.add(state);
     try {
       final c = call ?? const DiomanCall();
+      if (_debug) {
+        for (final option in c.options.keys) {
+          if (!_registrations.any((r) => r.plugin.name == option.description) &&
+              _warnedOptions.add(option)) {
+            _log('请求选项 ${option.description} 对应的插件未安装');
+          }
+        }
+      }
       if (c.cancelToken != null) {
         userLink = DiomanCancelLink(c.cancelToken!, state.cancel);
       }

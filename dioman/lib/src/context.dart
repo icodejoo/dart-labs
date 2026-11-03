@@ -129,9 +129,12 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
     return false;
   }
 
-  /// 已取消则造 cancel 结果，否则返回 null；每次 await 后应调用。
+  /// 已取消则返回 cancel 结果，否则返回 null；每次 await 后应调用。
+  /// 单次令牌与 cancelAll 的首次原因转为字符串；省略时为 null。
   DiomanResponse<dynamic>? cancelled() => isCancelled
-      ? get(cancellationFailure) ?? fail(DiomanFailureKind.cancel)
+      ? get(cancellationFailure) ??
+          fail(DiomanFailureKind.cancel,
+              reason: cancelToken.cancelError?.error?.toString())
       : null;
 
   /// 派生请求视图，保留所有逻辑服务与共享状态。

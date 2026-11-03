@@ -7,9 +7,9 @@ class DiomanCancelLink {
   DiomanCancelLink(CancelToken source, void Function(Object?) target)
       : _target = target {
     if (source.isCancelled) {
-      target(source.cancelError);
+      target(source.cancelError?.error);
     } else {
-      source.whenCancel.then(_deliver);
+      source.whenCancel.then((error) => _deliver(error.error));
     }
   }
 

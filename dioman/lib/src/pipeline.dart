@@ -77,6 +77,8 @@ DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
           } catch (e, s) {
             return ctx.factory.internalError(ctx.request, e, s);
           }
+          final cancelled = target.cancelled();
+          if (cancelled != null) return cancelled;
           return inner(target);
         });
       } catch (e, s) {

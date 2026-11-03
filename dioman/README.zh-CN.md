@@ -2,6 +2,12 @@
 
 Dioman 把认证、重试、缓存等请求策略放到 Dio 周围统一处理，适用于 Dart 和 Flutter。
 
+R2b 通过条件导入原生网络分类器保留 web 和 Wasm 支持。自动 key 的变化同时作用于 cache/share，显式 key 与自定义 builder 输出保持不变。
+
+next() 入口遇取消直接短路，不再进入内层插件。cancelAll(reason) 与调用方 CancelToken 都将首次取消原因写入 failureOf(result)?.reason；非空原因用 toString() 转换，省略原因仍为 null。debug 对每个未安装插件的选项键每客户端告警一次，false/null 也算传入；已安装但禁用的插件不误报。
+
+Dioman<R> 的 R 不是 DiomanResponse<dynamic> 时，必须提供 response: DiomanResponseFactory<R>(create: ...)，否则构造期抛 ArgumentError，在插件 setup 前指出修法。
+
 ## 定位
 
 当每个拦截器都要理解后端信封、还要与其他拦截器协调时，请求逻辑就越来越难维护。Dioman 为应用提供统一的请求入口，在结果交给插件之前完成归一化。插件因此能使用同一份结果契约；认证、重试和熔断通过客户端配置的有效状态判定。
@@ -224,7 +230,7 @@ Future<void> main() async {
 
 行为变化：`retryAfterMax` 默认 60 秒。Retry-After 秒数或 HTTP 日期要求的等待超过上限时，不再重试，直接返回本次结果。需要近似无限遵守时显式传很大的 Duration，例如 `retryAfterMax: Duration(days: 36500)`。服务端等待仍不叠 jitter、不受 `delayMax` 限制。一次性流及不透明体最多发送一次。
 
-需要重试时，请显式设置 max，它的默认值是零。Retry 先检查方法白名单，再根据 ctx.statusOf 的有效状态决定是否让下一次尝试重新经过内层。
+Retry 默认最多重试两次，从 300ms 起指数退避，delayMax 默认 10 秒；设置 max: 0 可关闭重试。Retry 先检查方法白名单，再根据 ctx.statusOf 的有效状态决定是否让下一次尝试重新经过内层。
 
 选项：`max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
 
@@ -365,7 +371,9 @@ Future<void> main() async {
 
 ### Cache
 
-自动 key 保持 Map/String 输出不变，JSON 数组按内容编码，64 KiB 内字节列表按内容哈希；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+深模式和快速模式的自动 key 都包含 responseType，Map 键带类型标签以区分数字 1 与字符串 '1'；JSON 数组按内容编码，64 KiB 内字节列表保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+
+internal 和 cancel 结果永不缓存，即使 shouldStore 返回 true。
 
 按请求开启 Cache，并用 Duration 设置 TTL。它默认使用 memo，保存成功的 GET/HEAD 结果。clear 会作废所有在途旧写入，remove 则只影响指定 key。
 
@@ -503,7 +511,7 @@ dart run test/accept/bin/matrix.dart gates
 
 ## 迁移
 
-Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 将 2xx 非空文本（包括 text/html）判为 parse，不依赖 MIME 声明。
+Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 在 json 模式下将 2xx 非空文本判为 parse，不依赖 MIME 声明；显式 ResponseType.plain、bytes、stream 不受严格 JSON 判定约束。
 
 [0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 

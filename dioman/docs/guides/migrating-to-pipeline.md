@@ -7,6 +7,40 @@ summary: 安装、结果、插件、扩展、测试与旧 API 逐项替代
 
 # 从 0.7.2 迁移到洋葱管线
 
+## R2b：发版前收口（C24–C29）
+
+条件导入保留原生 unknown 网络异常的精确分类，web/wasm 使用 Dio 跨平台类型。自动 key 的深模式和快速模式都新增 responseType，Map 键带类型标签，数字 1 和字符串 '1' 不再相撞；原自动缓存键会失效。显式 key 和自定义 builder 保持输出；B8 字节体仍保存哈希与完整 base64。
+
+缓存硬否决 internal/cancel，shouldStore 不能覆盖。expectJson 只约束 json 模式，显式 plain/bytes/stream 放行；可在 Dio BaseOptions 设置 responseType。next() 已取消直接返回，不再调用内层。
+
+cancelAll(reason) 和单个 CancelToken.cancel(reason) 都保留首次取消原因：非空值转为字符串，省略时 failureOf(result)?.reason 为 null。内部离线销毁等专用取消结果仍保留自己的细分原因。debug 对未安装插件的每个选项键每客户端告警一次（含 false/null）；已安装但禁用不告警。
+
+Retry 默认 max: 2，按 300ms、600ms 起指数退避，普通等待默认封顶 10 秒；只作用于幂等方法。要维持旧默认不重试，显式 max: 0。Retry-After 的优先级、60 秒上限、超限不重试和不受 jitter/delayMax 影响均不变。
+
+Dioman<R> 的 R 非基础 DiomanResponse<dynamic> 时，缺 create 在构造期抛 ArgumentError。修法如下：
+
+```dart
+import 'package:dioman/dioman.dart';
+import 'package:dio/dio.dart';
+
+/// 业务扩展响应。
+class AppResponse extends DiomanResponse<dynamic> {
+  /// 从工厂基础结果构造。
+  AppResponse(DiomanResponse<dynamic> r)
+      : super(ok: r.ok, status: r.status, code: r.code, message: r.message,
+          data: r.data, request: r.request, raw: r.raw,
+          error: r.error, errorStack: r.errorStack, callSite: r.callSite);
+}
+
+/// 注册可构造扩展类型的工厂。
+void main() {
+  final api = Dioman<AppResponse>(dio: Dio(),
+      response: DiomanResponseFactory<AppResponse>(create: AppResponse.new));
+  api.dispose();
+  api.dio.close();
+}
+```
+
 ## 安装方式
 
 将安装到 Dio 的拦截器改为持有 Dioman 客户端。裸调 Dio 不经过管线。动态安装用 use，移除用 eject，查看顺序用 inspect；extend 重新 setup，auth 会话和 loading 显示按资源共享。dispose 不关闭调用方持有的 Dio。
@@ -132,7 +166,7 @@ Future<void> main() async {
 
 ## 错误处理
 
-Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 将 2xx 非空文本（包括 text/html）判为 parse，不依赖 MIME 声明。
+Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 在 json 模式下将 2xx 非空文本判为 parse，不依赖 MIME 声明；显式 plain/bytes/stream 不受严格 JSON 判定约束。
 
 捕获 DiomanResponse，通过 failureOf 读取 kind 与 reason；不要再捕获旧异常子类。status 仅表示 HTTP，删除 httpStatus。send 对可预期失败返回结果，但程序错误仍原样抛出。判定回调的错误不吞掉；通知回调错误隔离，onRefresh 抛错算刷新失败。
 
@@ -385,7 +419,7 @@ Future<void> main() async {
 
 行为差异：
 
-- 默认 max 为 0，需要重试时显式配置；方法白名单始终优先于 shouldRetry。
+- 默认 max 为 2，从 300ms 起指数退避，普通等待封顶 10 秒；max: 0 关闭重试，方法白名单始终优先于 shouldRetry。
 - 按 ctx.statusOf 的有效状态判断；每次重试重新穿过 breaker、auth 和来源层，不再接 share/cancel/breaker setter。
 
 ### Breaker
@@ -563,7 +597,7 @@ Future<void> main() async {
 
 ### Cache
 
-自动 key 保持 Map/String 输出不变，JSON 数组按内容编码，64 KiB 内字节列表按内容哈希；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+自动 key 包含 responseType，Map 键带类型标签；JSON 数组按内容编码，64 KiB 内字节列表保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
 
 旧写法：
 

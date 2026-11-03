@@ -7,6 +7,10 @@ import '../plugin.dart';
 import '../response.dart';
 import '../stages.dart';
 
+/// 三后端均能精确表示的最大退避毫秒数，预留内部微秒换算空间。
+const _diomanMaxDelayMilliseconds =
+    0x1fffffffffffff ~/ Duration.microsecondsPerMillisecond;
+
 /// 返回布尔采用自定义规则；null 回退默认规则。
 typedef DiomanShouldRetry = bool? Function(
     DiomanResponse<dynamic> result, int attempt);
@@ -74,17 +78,18 @@ class DiomanRetryOptions {
 
 /// 重发内层管线，每次尝试重新经过熔断与鉴权。
 class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
-  /// 创建插件；请求级使用 option 键覆盖，状态由 setup 隔离。
+  /// 默认重试两次，从 300 毫秒起指数退避，普通退避封顶十秒。
+  /// 请求级使用 option 键覆盖，状态由 setup 隔离。
   /// 例如 `DiomanRetry(enabled: false)` 可关闭安装。
   const DiomanRetry(
       {this.enabled = true,
-      this.max = 0,
+      this.max = 2,
       this.methods = defaultMethods,
       this.statusCodes = defaultStatusCodes,
       this.shouldRetry,
       this.delay = defaultDelay,
       this.jitter,
-      this.delayMax,
+      this.delayMax = const Duration(seconds: 10),
       this.respectRetryAfter = true,
       this.afterStatusCodes = defaultAfterStatusCodes,
       this.retryAfterMax = const Duration(seconds: 60),
@@ -143,10 +148,14 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 默认接受服务器退避的状态。
   static const defaultAfterStatusCodes = [413, 429, 503];
 
-  /// 默认固定三秒退避。
+  /// 默认从 300 毫秒起指数退避，数值饱和以免时长溢出。
+  /// 最终等待由 delayMax 封顶，例如首两次为 300、600 毫秒。
   static Duration defaultDelay(
           int attempt, int max, DiomanResponse<dynamic> result) =>
-      const Duration(seconds: 3);
+      Duration(
+          milliseconds:
+              min(300 * pow(2.0, attempt - 1), _diomanMaxDelayMilliseconds)
+                  .round());
 
   /// 稳定插件名称。
   static const pluginName = 'dioman:retry';
