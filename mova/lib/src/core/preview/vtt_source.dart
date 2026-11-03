@@ -38,13 +38,13 @@ Uri? defaultVttUrl(MovaSource source) {
 /// A [MovaThumbSource] backed by a server-provided WebVTT thumbnail track and
 /// its sprite sheets.
 ///
-/// The track is fetched once per media and memoised, including the negative
-/// result: a 404 must not trigger a fetch on every scrub tick. Sprite sheets
+/// Successful tracks are memoised per media; failures use a bounded retry
+/// cooldown so a 404 never triggers a fetch on every scrub tick. Sprite sheets
 /// are memoised too, bounded by `maxSprites` in least-recently-used order.
 ///
 /// 基于服务端提供的 WebVTT 缩略图轨及其雪碧图的 [MovaThumbSource]。
 ///
-/// 每个媒体只拉取一次轨并记忆结果——包括失败结果：404 不能让每次拖动 tick 都
+/// 每个媒体记忆成功结果，失败结果只记忆一个重试冷却期：404 不能让每次拖动 tick 都
 /// 重新发请求。雪碧图同样被记忆，按最近最少使用顺序、以 `maxSprites` 为上限。
 class MovaVttThumbSource implements MovaThumbSource {
   /// Creates a VTT-backed thumbnail source.
@@ -56,11 +56,26 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// - [resolveUrl]: strategy locating the track, defaults to [defaultVttUrl] /
   ///   定位轨的策略，默认为 [defaultVttUrl]
   /// - [maxSprites]: how many sprite sheets stay memoised / 最多记忆多少张雪碧图
+  /// - [retryDelay]: 失败后冷却时间，默认 30 秒。
+  /// - [now]: 重试时钟，默认 DateTime.now。
+  ///
+  /// 示例：`MovaVttThumbSource(fetcher: fetcher, retryDelay: Duration(seconds: 10))`。
   MovaVttThumbSource({
     required this.fetcher,
     this.resolveUrl = defaultVttUrl,
     this.maxSprites = 4,
-  });
+    this.retryDelay = const Duration(seconds: 30),
+    DateTime Function() now = DateTime.now,
+  }) : _now = now; // ignore: prefer_initializing_formals
+
+  /// 失败后再次探测的冷却时间；默认 30 秒。
+  final Duration retryDelay;
+
+  /// 注入的时钟，用于可重复地测试重试冷却。
+  final DateTime Function() _now;
+
+  /// 下一次允许重试的时间；成功或换源时清除。
+  DateTime? _retryAt;
 
   /// HTTP port used for the track and its sprite sheets.
   ///
@@ -82,10 +97,9 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// 当前媒体已解析的轨；首次拉取前为 null。
   MovaThumbIndex? _index;
 
-  /// Whether resolving/fetching/parsing the track already failed for the
-  /// current media, so it must not be retried on every scrub.
+  /// Whether the URL solver explicitly disabled VTT for the current media.
   ///
-  /// 当前媒体的轨是否已在解析/拉取/定位环节失败过，避免每次拖动都重试。
+  /// URL 策略明确返回 null 时禁用当前媒体；网络或解析失败仅进入冷却期。
   bool _unavailable = false;
 
   /// Memoised sprite sheets in least-recently-used-first order.
@@ -112,7 +126,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   ///
   /// 返回解析出的索引；不可用时返回 null。
   Future<MovaThumbIndex?> _ensureIndex(MovaSource source) async {
-    if (_unavailable) return null;
+    if (_unavailable || (_retryAt != null && _now().isBefore(_retryAt!))) return null;
     final cached = _index;
     if (cached != null) return cached;
 
@@ -122,24 +136,30 @@ class MovaVttThumbSource implements MovaThumbSource {
       _unavailable = true;
       return null;
     }
-    final bytes = await fetcher.get(url);
+    Uint8List? bytes;
+    try {
+      bytes = await fetcher.get(url);
+    } on Object {
+      bytes = null;
+    }
     if (epoch != _epoch) return null;
     if (bytes == null) {
-      _unavailable = true;
+      _retryAt = _now().add(retryDelay);
       return null;
     }
     late final String text;
     try {
       text = utf8.decode(bytes, allowMalformed: true);
     } on FormatException {
-      _unavailable = true;
+      _retryAt = _now().add(retryDelay);
       return null;
     }
     final index = parseVttThumbs(text, base: url);
     if (index.isEmpty) {
-      _unavailable = true;
+      _retryAt = _now().add(retryDelay);
       return null;
     }
+    _retryAt = null;
     _index = index;
     return index;
   }
@@ -189,6 +209,7 @@ class MovaVttThumbSource implements MovaThumbSource {
     _epoch++;
     _index = null;
     _unavailable = false;
+    _retryAt = null;
     _sprites.clear();
   }
 

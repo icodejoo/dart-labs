@@ -1222,6 +1222,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
               ));
     return MovaPreviewService(
       config: cfg,
+      audioOnly: _audioOnly,
       cache: cache,
       probe: cfg.probe ?? MovaAlwaysAllowNetProbe(),
       sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher),

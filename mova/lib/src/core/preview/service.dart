@@ -6,6 +6,7 @@ import '../model/source.dart';
 import '../options/preview_config.dart';
 import 'api.dart';
 import 'cache.dart';
+import 'extractor.dart';
 import 'hash.dart';
 import 'models.dart';
 import 'net_probe.dart';
@@ -35,13 +36,19 @@ class MovaPreviewService implements MovaPreviewApi {
   ///   要咨询的连通性探针
   /// - [sources]: ordered source chain / 有序的来源链
   /// - [onBlocked]: refusal callback / 被拒回调
+  /// - [audioOnly]: 纯音频引擎不启动 VTT 或抽帧，默认 false。
   MovaPreviewService({
     required this.config,
     required this.cache,
     required this.probe,
     required this.sources,
     this.onBlocked,
+    this.audioOnly = false,
   });
+
+  /// 是否为纯音频引擎；为 true 时不探测预览来源，默认 false。
+  /// 示例：`MovaPreviewService(config: config, cache: cache, probe: probe, sources: [], audioOnly: true)`。
+  final bool audioOnly;
 
   /// The resolved preview configuration.
   ///
@@ -93,6 +100,15 @@ class MovaPreviewService implements MovaPreviewApi {
   /// 把解析工作串行化，保证同一时刻只有一个来源请求在飞。
   Future<void> _queue = Future<void>.value();
 
+  /// 只保留一个最新待处理请求，避免快速拖动堆积闭包。
+  ({Duration bucket, int epoch, int revision})? _pending;
+
+  /// 是否已有串行工作循环在运行。
+  bool _running = false;
+
+  /// 每次请求、取消、换源递增，防止同桶的旧请求复活。
+  int _revision = 0;
+
   /// The thumbnail currently resolved for [_wanted], if any.
   ///
   /// [_wanted] 当前已解析出的缩略图（若有）。
@@ -124,6 +140,8 @@ class MovaPreviewService implements MovaPreviewApi {
   ///   新打开的媒体；播放器无媒体时为 null
   void attach(MovaSource? source) {
     _epoch++;
+    _revision++;
+    _pending = null;
     _source = source;
     _debounce?.cancel();
     _debounce = null;
@@ -221,6 +239,10 @@ class MovaPreviewService implements MovaPreviewApi {
   @override
   void requestAt(Duration position) {
     if (_disposed) return;
+    _revision++;
+    _pending = null;
+    _debounce?.cancel();
+    _debounce = null;
     final bucket = _bucketOf(position);
     _wanted = bucket;
 
@@ -238,19 +260,32 @@ class MovaPreviewService implements MovaPreviewApi {
     }
   }
 
-  /// Appends resolution of [bucket] to the serial queue.
-  ///
-  /// 把 [bucket] 的解析工作追加到串行队列。
-  ///
-  /// - [bucket]: the bucket-aligned position / 桶对齐位置
+  /// 用 [bucket] 覆盖待处理槽；同一时刻只运行一个工作循环。
   void _enqueue(Duration bucket) {
-    // One failing resolution (e.g. a host-injected cache/probe throwing) must
-    // not leave the queue in a failed state that skips every later request.
-    //
-    // 单次解析失败（如宿主注入的缓存/探针抛错）不能让队列停在失败态、跳过之后
-    // 所有请求。
-    _queue = _queue.then((_) => _resolve(bucket)).catchError((Object _) {});
+    _pending = (bucket: bucket, epoch: _epoch, revision: _revision);
+    if (_running) return;
+    _running = true;
+    _queue = Future<void>(() async {
+      try {
+        while (!_disposed && _pending != null) {
+          final request = _pending!;
+          _pending = null;
+          if (!_isWanted(request.epoch, request.revision)) continue;
+          try {
+            await _resolve(request.bucket, request.epoch, request.revision);
+          } on Object {
+            // 宿主的探针/缓存异常仅结束本次请求，循环仍接着处理最新请求。
+          }
+        }
+      } finally {
+        _running = false;
+      }
+    });
   }
+
+  /// [epoch] 与 [revision] 同时匹配才有权启动昂贵工作或发布结果。
+  bool _isWanted(int epoch, int revision) =>
+      !_disposed && epoch == _epoch && revision == _revision && _wanted != null;
 
   /// Resolves [bucket] through cache then the source chain, publishing it only
   /// while it is still the bucket the user wants.
@@ -258,8 +293,9 @@ class MovaPreviewService implements MovaPreviewApi {
   /// 依次通过缓存与来源链解析 [bucket]；仅当它仍是用户想要的桶时才发布。
   ///
   /// - [bucket]: the bucket-aligned position / 桶对齐位置
-  Future<void> _resolve(Duration bucket) async {
-    if (_disposed) return;
+  /// [epoch] 绑定媒体，[revision] 绑定最新拖动意图；无返回值。
+  Future<void> _resolve(Duration bucket, int epoch, int revision) async {
+    if (!_isWanted(epoch, revision)) return;
     if (!config.enabled) {
       _block(MovaPreviewBlockReason.disabled);
       return;
@@ -269,7 +305,7 @@ class MovaPreviewService implements MovaPreviewApi {
       _block(MovaPreviewBlockReason.noSource);
       return;
     }
-    if (sources.isEmpty) {
+    if (audioOnly || sources.isEmpty) {
       _block(MovaPreviewBlockReason.platform);
       return;
     }
@@ -278,24 +314,26 @@ class MovaPreviewService implements MovaPreviewApi {
     //
     // 在任何 await 之前就捕获媒体、key 与 epoch：之后的 attach() 既不能给本请求
     // 换 key，也不能让它的结果出现在新媒体上。
-    final epoch = _epoch;
     final key = _keyFor(bucket, src);
     if (key == null) return;
     final allowed = await previewAllowedOn(config.network, probe);
-    if (epoch != _epoch) return;
+    if (!_isWanted(epoch, revision)) return;
     if (!allowed) {
       _block(MovaPreviewBlockReason.network);
       return;
     }
 
     final cached = await cache.read(key);
-    if (epoch != _epoch) return;
+    if (!_isWanted(epoch, revision)) return;
     if (cached != null) {
       if (_wanted == bucket) _publish(MovaThumb(at: bucket, bytes: cached));
       return;
     }
 
     for (final source in sources) {
+      if (!_isWanted(epoch, revision)) return;
+      // DVR 仍是直播；独立解码器无法可靠寻址滑动窗口，VTT 可继续提供预览。
+      if (src.type == MovaStreamType.live && source is MovaPullerThumbSource) continue;
       MovaThumb? thumb;
       try {
         thumb = await source.thumbAt(src, bucket);
@@ -319,13 +357,15 @@ class MovaPreviewService implements MovaPreviewApi {
         await cache.write(key, thumb.bytes);
         if (epoch != _epoch) return;
       }
-      if (_wanted == bucket) _publish(thumb);
+      if (_isWanted(epoch, revision) && _wanted == bucket) _publish(thumb);
       return;
     }
   }
 
   @override
   void cancel() {
+    _revision++;
+    _pending = null;
     _debounce?.cancel();
     _debounce = null;
     _wanted = null;
@@ -357,6 +397,8 @@ class MovaPreviewService implements MovaPreviewApi {
     if (_disposed) return;
     _disposed = true;
     _epoch++;
+    _revision++;
+    _pending = null;
     _debounce?.cancel();
     _debounce = null;
     _wanted = null;
