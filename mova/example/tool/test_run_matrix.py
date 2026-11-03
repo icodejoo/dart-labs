@@ -81,6 +81,19 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(Evidence.assertions(row,clauses),'FAIL')
         row['numbers']['before']['rss']=None
         self.assertEqual(Evidence.assertions(row,clauses),'BLOCKED')
+
+    def test_s00e_seek_count_reparses_native_command_lines(self):
+        from matrix_evidence import Evidence
+        row=dict(numbers=dict(lines=[
+            '[cplayer] Run command: seek, flags=64, args=[target="12.000000", flags="absolute+exact"]',
+            '[cplayer] Run command: seek, flags=64, args=[target="0.000000", flags="absolute+exact"]',
+            '[cplayer] Run command: seek, flags=64, args=[target="12.000000", flags="absolute+exact"]'],count=2))
+        clauses=[dict(field='numbers.lines',op='mpv_seek_count',target=12,other='numbers.count')]
+        self.assertEqual(Evidence.assertions(row,clauses),'PASS')
+        row['numbers']['count']=3
+        self.assertEqual(Evidence.assertions(row,clauses),'FAIL')
+        row['numbers']['lines']=[]
+        self.assertEqual(Evidence.assertions(row,clauses),'BLOCKED')
         def sample(cpu):
             return dict(before=dict(cpuTicks=10,properties={'time-pos':dict(error='success',data=1)}),
                         after=dict(cpuTicks=10+cpu,properties={'time-pos':dict(error='success',data=3)}))

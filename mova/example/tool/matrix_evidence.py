@@ -151,6 +151,14 @@ class Evidence:
                 elif op == 'count_where':
                     ok = isinstance(actual, list) and all(isinstance(v,dict) for v in actual) and sum(
                         all(v.get(k) == value for k,value in clause['where'].items()) for v in actual) == expected
+                elif op == 'mpv_seek_count':
+                    targets = [float(m[1]) for line in actual if (m := re.search(
+                        r'Run command:\s*seek\b.*args=\[target="([+\-0-9.eE]+)"', line))]
+                    if not targets: return 'BLOCKED'
+                    ok = sum(v == clause['target'] for v in targets) == expected
+                elif op == 'seek_displacement_count':
+                    ok = isinstance(actual,list) and sum(v['intervened'] is True and v['seeking']=='no'
+                        and isinstance(v['position'],(int,float)) and v['position']<1 for v in actual) == expected
                 elif op == 'all_lt': ok = isinstance(actual, list) and bool(actual) and all(v < expected for v in actual)
                 elif op == 'all_eq': ok = isinstance(actual, list) and bool(actual) and all(v == expected for v in actual)
                 elif op == 'nonempty': ok = isinstance(actual, (str, list, dict)) and len(actual) > 0

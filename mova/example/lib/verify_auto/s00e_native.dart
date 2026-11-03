@@ -127,32 +127,57 @@ Future<void> lazyVideo() async {
   }
 }
 
+List<double> seekTargets(List<String> lines) {
+  final pattern = RegExp(r'Run command:\s*seek\b.*args=\[target="([+\-0-9.eE]+)"');
+  return [for (final line in lines) if (pattern.firstMatch(line) case final match?) double.parse(match[1]!)];
+}
+
 Future<void> seekTrace() async {
   final a = createMovaEngine(preciseFirstFrame: true);
-  final logs = <Map<String, Object?>>[];
-  StreamSubscription<PlayerLog>? sub;
+  final file = File('${Directory.systemTemp.path}/s00e-native-seek.log');
+  final samples = <Map<String, Object?>>[];
+  List<String> trace = [];
+  var intervention = false;
+  var boundary = 0;
   try {
     final native = await n.mount(a);
-    final video = a.renderHandle as VideoController;
-    sub = video.player.stream.log.listen((v) => logs.add({'prefix': v.prefix, 'level': v.level, 'text': v.text}));
-    // The media_kit subscription may filter trace messages. In that case
-    // commandTrace stays empty and this CHECK deliberately remains BLOCKED.
+    await native.setProperty('log-file', file.path);
     await native.setProperty('msg-level', 'all=trace');
-    await a.open(c.source('master.m3u8'), autoPlay: false);
+    await a.open(c.source(), autoPlay: false);
     await c.until(() => a.state.rendered);
-    logs.clear();
-    final samples = <Map<String, Object?>>[];
+    boundary = await file.exists() ? (await file.readAsLines()).length : 0;
     await a.seek(const Duration(seconds: 12));
-    for (var i = 0; i < 120; i++) {
-      samples.add({'seeking': await native.getProperty('seeking'), 'position': await native.getProperty('time-pos')});
+    for (var i = 0; i < 300; i++) {
+      final seeking = await native.getProperty('seeking');
+      final position = double.tryParse(await native.getProperty('time-pos'));
+      samples.add({'seeking': seeking, 'position': position, 'intervened': intervention});
+      if (!intervention && seeking == 'no' && position != null && (position - 12).abs() <= .5) {
+        // Explicit native fault producer: displace the result without calling
+        // a.seek, so the engine's pending verification chain sees a wrong
+        // native landing. This seek=0 is recorded separately from its seek=12
+        // calls. No fake kernel/counter is involved.
+        await native.command(['seek', '0', 'absolute+exact']); intervention = true;
+      }
+      if (await file.exists()) {
+        trace = (await file.readAsLines()).skip(boundary).where((l) => l.contains('Run command:') && l.contains('seek')).toList();
+      }
+      final targets = seekTargets(trace);
+      if (targets.where((v) => v == 12).length >= 2 && seeking == 'no' && position != null && (position - 12).abs() <= .5) break;
       await WidgetsBinding.instance.endOfFrame;
     }
-    final trace = logs.where((r) => RegExp(r'Run command: seek\b').hasMatch('${r['text']}')).toList();
-    final positions = samples.map((s) => double.tryParse('${s['position']}')).toList();
-    check('A7.native.trace', {'commandTrace': trace, 'callCount': trace.length, 'samples': samples,
-      'finalPosition': positions.last, 'target': 12, 'maxCalls': 3}, trace.isEmpty || positions.last == null
-        ? null : trace.length <= 3 && (positions.last! - 12).abs() <= .5);
-  } finally { await sub?.cancel(); await n.release(a); }
+  } finally { await n.release(a); }
+  if (await file.exists()) {
+    trace = (await file.readAsLines()).skip(boundary).where((l) => l.contains('Run command:') && l.contains('seek')).toList();
+  }
+  final targets = seekTargets(trace);
+  final calls = targets.where((v) => v == 12).length;
+  final displaced = samples.where((s) => s['intervened'] == true && s['seeking'] == 'no' && s['position'] is num && (s['position'] as num) < 1).length;
+  final last = samples.isEmpty ? null : samples.last['position'] as num?;
+  check('A7.native.trace', {'commandTrace': trace, 'targets': targets, 'callCount': calls,
+    'interventionCalls': targets.where((v) => v == 0).length, 'intervention': intervention,
+    'displacedReadbacks': displaced, 'samples': samples, 'finalPosition': last, 'target': 12, 'maxCalls': 3},
+    trace.isEmpty || targets.isEmpty || last == null ? null :
+    intervention && displaced > 0 && calls >= 2 && calls <= 3 && (last - 12).abs() <= .5);
 }
 
 Future<void> run() async {

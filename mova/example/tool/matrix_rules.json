@@ -746,11 +746,6 @@
       },
       {
         "kind": "check",
-        "ident": "A7.coverage1",
-        "missing": "丢 seek 重发的独立原生调用次数断言"
-      },
-      {
-        "kind": "check",
         "ident": "A7.retry.0",
         "assertions": [
           {
@@ -858,7 +853,7 @@
           {
             "field": "numbers.callCount",
             "op": "ge",
-            "value": 1
+            "value": 2
           },
           {
             "field": "numbers.callCount",
@@ -875,6 +870,49 @@
             "op": "near",
             "value": 12,
             "tolerance": 0.5
+          },
+          {
+            "field": "numbers.intervention",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.interventionCalls",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.displacedReadbacks",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.commandTrace",
+            "op": "mpv_seek_count",
+            "target": 12,
+            "other": "numbers.callCount"
+          },
+          {
+            "field": "numbers.commandTrace",
+            "op": "mpv_seek_count",
+            "target": 0,
+            "other": "numbers.interventionCalls"
+          },
+          {
+            "field": "numbers.samples",
+            "op": "seek_displacement_count",
+            "other": "numbers.displacedReadbacks"
+          },
+          {
+            "field": "numbers.samples.-1.position",
+            "op": "near",
+            "value": 12,
+            "tolerance": 0.5
+          },
+          {
+            "field": "numbers.samples.-1.seeking",
+            "op": "eq",
+            "value": "no"
           }
         ]
       }
