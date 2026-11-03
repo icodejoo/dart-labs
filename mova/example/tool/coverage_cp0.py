@@ -32,11 +32,11 @@ SCENES=('p02','pod2','bgpause','pauseload','timeshift','pageview')
 
 def validate_checks(scene, runs, checks):
     """Require every planned measurement; no numerical product pass line."""
-    variants={'p02':['contentWarm','midPending','postLoad'],'pod2':['ad2'],
+    variants={'p02':['contentWarm','midPending','postLoad'],'pod2':['wait.ad2','nowait.ad2'],
       'bgpause':['video.true','video.false'],'pauseload':['loading','ready','firstFrame'],
       'timeshift':['dvr','timeshift'],'pageview':['horizontal','vertical']}[scene]
     keys={'p02':['before','after','expectedPath','wrongEpisode','renderEpoch'],
-      'pod2':['epoch1','epoch2','epochDelta','first','second','firstFrameGapUs','doneEvents'],
+      'pod2':['waitForAdReadyPre','epoch0','firstEpochDelta','firstFrame1Us','firstFrame2Us','firstFrame1','firstFrame2','epoch1','epoch2','epochDelta','first','second','firstFrameGapUs','doneEvents'],
       'bgpause':['before','after','videoAutoPause','manualResume'],
       'pauseload':['before','after','playUs','firstFrameUs','playToFirstFrameUs','reports'],
       'timeshift':['before','behind','advancing','edge','targetMs','builders'],

@@ -27,6 +27,134 @@ class MatrixTests(unittest.TestCase):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
 
+    def test_s00d_rule_inventory_rejects_absence_and_recomputes_observations(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        inventory=json.loads((matrix.TOOL/'s00d_rules_inventory.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            path=Path(folder)/'unit-s00d.json'
+            for row,idents in inventory['added'].items():
+                for spec in rules[row]['requires']:
+                    if spec.get('ident') not in idents:continue
+                    clauses=spec.get('assertions')
+                    self.assertTrue(clauses,msg=spec)
+                    path.write_text(json.dumps(dict(status='done',records=[])))
+                    self.assertEqual(Evidence(folder,'unit-').check(**{k:v for k,v in spec.items() if k!='kind'})[0],
+                                     'BLOCKED',msg=spec)
+                    record=dict(kind='CHECK',id=spec['ident'],**{'pass':True})
+                    path.write_text(json.dumps(dict(status='done',records=[record])))
+                    self.assertEqual(Evidence(folder,'unit-').check(**{k:v for k,v in spec.items() if k!='kind'})[0],
+                                     'BLOCKED',msg=spec)
+            for row in inventory['complete']:
+                self.assertFalse(any(c.get('ident','').endswith('.coverage1') for c in rules[row]['requires']))
+
+    def test_s00d_public_rule_predicates_against_captured_offline_checks(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        inventory=json.loads((matrix.TOOL/'s00d_rules_inventory.json').read_text(encoding='utf-8'))
+        captured={r['id']:r for r in map(json.loads,(matrix.TOOL/'testdata/s00d-offline-checks.jsonl').read_text(encoding='utf-8').splitlines())}
+        compared=set()
+        for row,idents in inventory['added'].items():
+            for spec in rules[row]['requires']:
+                ident=spec.get('ident')
+                if ident not in idents or ident not in captured:continue
+                original=captured[ident]
+                self.assertEqual(Evidence.assertions(original,spec['assertions']),'PASS',msg=ident)
+                compared.add(ident)
+                for clause in spec['assertions']:
+                    corrupt=copy.deepcopy(original)
+                    parts=clause['field'].split('.')
+                    target=corrupt
+                    for part in parts[:-1]:target=target[int(part)] if isinstance(target,list) else target[part]
+                    key=int(parts[-1]) if isinstance(target,list) else parts[-1]
+                    del target[key]
+                    # Removing an indexed list item can also make a different
+                    # observed list; neither outcome is allowed to pass.
+                    self.assertIn(Evidence.assertions(corrupt,spec['assertions']),('BLOCKED','FAIL'),msg=(ident,clause))
+        self.assertGreater(len(compared),130)
+
+    def test_s00d_widget_checks_recompute_the_real_producer_log(self):
+        from matrix_evidence import Evidence
+        from coverage_s00d_offline import records_from_output
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        # A small raw fixture has the same shape as the real widget producer;
+        # changing pass alone cannot make increasing/rightward text scroll pass.
+        row=dict(kind='CHECK',id='C6.scroll',actual=[True,True],
+                 numbers=dict(beforeX=100,afterX=70,trackA=0,trackB=28),**{'pass':True})
+        spec=next(c for c in rules['C6']['requires'] if c.get('ident')=='C6.scroll')
+        args={k:v for k,v in spec.items() if k!='kind'}
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            p=Path(folder)/'unit-widgets.json'
+            def verdict(record):
+                p.write_text(json.dumps(dict(status='done',records=[record])))
+                return Evidence(folder,'unit-').check(**args)[0]
+            self.assertEqual(verdict(row),'PASS')
+            row['numbers']['afterX']=120
+            self.assertEqual(verdict(row),'FAIL')
+            del row['numbers']['beforeX']
+            self.assertEqual(verdict(row),'BLOCKED')
+            self.assertEqual(records_from_output('MATRIX_RECORD '+json.dumps(row)),[row])
+            p.write_text(json.dumps(dict(status='error',records=[row])))
+            self.assertEqual(Evidence(folder,'unit-').check(**args)[0],'BLOCKED')
+
+    def test_s00d_native_samples_require_raw_fields_and_reject_false_counters(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        def clauses(row,ident):return next(c['assertions'] for c in rules[row]['requires'] if c.get('ident')==ident)
+        sample=dict(numbers=dict(count=1,clients=['libmpv','mova_qoe_12']))
+        cs=clauses('N13','N13.clients.precise')
+        self.assertEqual(Evidence.assertions(sample,cs),'PASS')
+        sample['numbers']['clients']=['libmpv']
+        self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
+        del sample['numbers']['clients']
+        self.assertEqual(Evidence.assertions(sample,cs),'BLOCKED')
+        sample=dict(numbers=dict(requestCount=2,nativeHeaders='X-S00D: one',requests=['one','one'],
+                    lavf='probesize=32768,protocol_whitelist=known'))
+        cs=clauses('C17','C17.headers.one')
+        self.assertEqual(Evidence.assertions(sample,cs),'PASS')
+        sample['numbers']['requests'][1]='wrong'
+        self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
+        sample=dict(numbers=dict(coveredThroughEnd=True,coveredThroughStart=True,frameCount=3,gapCount=2,frameGapsUs=[16000,99999]))
+        cs=clauses('F13','F13.disposeFrames')
+        self.assertEqual(Evidence.assertions(sample,cs),'PASS')
+        sample['numbers']['frameGapsUs']=[100000]
+        self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
+        sample['numbers']['frameGapsUs']=None
+        self.assertEqual(Evidence.assertions(sample,cs),'BLOCKED')
+        before=dict(rss=100,threads=4,handles=5,cpuTicks=10)
+        after=dict(rss=110,threads=4,handles=5,cpuTicks=15)
+        sample=dict(numbers=dict(before=before,after=after,created=3,engineCount=3))
+        cs=clauses('F13','F13.resources.20')
+        self.assertEqual(Evidence.assertions(sample,cs),'PASS')
+        sample['numbers']['created']=4
+        self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
+        sample['numbers']['created']=3;after['handles']=None
+        self.assertEqual(Evidence.assertions(sample,cs),'BLOCKED')
+        sample=dict(numbers=dict(videoCount=1,widgetFit='contain',stateFit='contain',
+                    videoWidth=640,videoHeight=360,viewportWidth=400,viewportHeight=240,
+                    sourceWidth=640,sourceHeight=360,destinationWidth=400,destinationHeight=225))
+        cs=clauses('A11','A11.render.contain')
+        self.assertEqual(Evidence.assertions(sample,cs),'PASS')
+        sample['numbers']['destinationHeight']=250
+        self.assertEqual(Evidence.assertions(sample,cs),'FAIL')
+
+    def test_s00d_receipts_compare_every_field_and_keep_engine_identity_separate(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        specs=[s for s in rules['A2']['requires'] if s.get('ident','').endswith('.receipt')]
+        self.assertEqual({s['ident'] for s in specs},{'A2.engine.receipt','A2.cutover.receipt'})
+        fields={c['field'].split('.',1)[1] for c in specs[0]['assertions'] if c['field'].startswith('actual.')}
+        self.assertTrue({'position','intent','renderEpoch','sourceIndex','buffering','width','height'}<=fields)
+        for spec in specs:
+            actual={f:0 for f in fields};actual['quality']=None;actual['qualities']=[]
+            sample=dict(actual=actual,expected=copy.deepcopy(actual),numbers=dict(fields=len(fields)))
+            self.assertEqual(Evidence.assertions(sample,spec['assertions']),'PASS')
+            for field in fields:
+                corrupted=copy.deepcopy(sample);corrupted['actual'][field]='bad'
+                self.assertEqual(Evidence.assertions(corrupted,spec['assertions']),'FAIL',msg=field)
+                missing=copy.deepcopy(sample);del missing['actual'][field]
+                self.assertEqual(Evidence.assertions(missing,spec['assertions']),'BLOCKED',msg=field)
+
     def test_s00c_checks_recompute_arithmetic_and_require_readbacks(self):
         from matrix_evidence import Evidence
         with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
@@ -187,12 +315,16 @@ class MatrixTests(unittest.TestCase):
     def test_cp0_requires_all_measurements_without_product_threshold(self):
         from coverage_cp0 import validate_checks
         read=dict(path='http://local/ad2.mp4',timePosMs=40)
-        check=dict(id='CP0.pod2.ad2.0',status='PASS',numbers=dict(epoch1=0,epoch2=0,epochDelta=0,
-                   first=read,second=read,firstFrameGapUs=100,doneEvents=[1]),**{'pass':True})
-        self.assertEqual(validate_checks('pod2',1,[check]),[])
-        self.assertTrue(validate_checks('pod2',2,[check]))
-        del check['numbers']['second']
-        self.assertTrue(validate_checks('pod2',1,[check]))
+        numbers=dict(waitForAdReadyPre=True,epoch0=0,firstEpochDelta=1,firstFrame1Us=10,
+                     firstFrame2Us=110,firstFrame1={},firstFrame2={},epoch1=1,epoch2=2,
+                     epochDelta=1,first=read,second=read,firstFrameGapUs=100,doneEvents=[1])
+        checks=[dict(id=f'CP0.pod2.{v}.ad2.0',status='PASS',numbers=copy.deepcopy(numbers),
+                     **{'pass':True}) for v in ('wait','nowait')]
+        self.assertEqual(validate_checks('pod2',1,checks),[])
+        self.assertTrue(validate_checks('pod2',2,checks))
+        self.assertTrue(validate_checks('pod2',1,checks[:1]))
+        del checks[0]['numbers']['second']
+        self.assertTrue(validate_checks('pod2',1,checks))
 
     def test_rule_and_raw_schema_errors_block_without_crashing(self):
         from matrix_evidence import reduce_evidence

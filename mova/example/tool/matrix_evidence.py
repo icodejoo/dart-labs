@@ -108,8 +108,10 @@ class Evidence:
         def field(key):
             value = record
             for part in key.split('.'):
-                value = value[part]
+                value = value[int(part)] if isinstance(value, list) else value[part]
             return value
+        def quality_shape(value):
+            return isinstance(value,dict) and set(value)=={'label','uri','bandwidth','width','height','isAuto'}
         try:
             for clause in assertions:
                 actual = field(clause['field'])
@@ -117,7 +119,7 @@ class Evidence:
                 # Native producers use null for an unparsed observation. A
                 # comparison to a missing baseline is also unknown. Explicit
                 # null contracts (e.g. heartbeat disabled) remain comparable.
-                if (actual is None and expected is not None) or ('other' in clause and expected is None):
+                if (actual is None and expected is not None) or ('other' in clause and expected is None and not clause.get('nullable', False)):
                     return 'BLOCKED'
                 op = clause['op']
                 if op == 'eq': ok = actual == expected
@@ -126,6 +128,13 @@ class Evidence:
                 elif op == 'lt': ok = actual < expected
                 elif op == 'near': ok = abs(actual - expected) <= clause.get('tolerance', 0)
                 elif op == 'contains': ok = expected in actual
+                elif op == 'list_length': ok = isinstance(actual, list) and len(actual) == expected
+                elif op == 'quality_shape': ok = actual is None or quality_shape(actual)
+                elif op == 'quality_list_shape': ok = isinstance(actual,list) and all(quality_shape(v) for v in actual)
+                elif op == 'prefix_count': ok = isinstance(actual, list) and all(isinstance(v,str) for v in actual) and sum(v.startswith(clause['prefix']) for v in actual) == expected
+                elif op == 'all_lt': ok = isinstance(actual, list) and bool(actual) and all(v < expected for v in actual)
+                elif op == 'all_eq': ok = isinstance(actual, list) and bool(actual) and all(v == expected for v in actual)
+                elif op == 'nonempty': ok = isinstance(actual, (str, list, dict)) and len(actual) > 0
                 else: return 'BLOCKED'
                 if not ok: return 'FAIL'
         except (KeyError, TypeError, ValueError):

@@ -19,6 +19,9 @@ def new(name,case,**args):
 
 jobs += [('batch15-basic','basic',{}),('batch15-basic-cutover','basic',{'cutover':'true'}),('batch15-testing','testing',{})]
 new('batch15-s00c', 's00c')
+new('batch15-s00d', 's00d')
+new('batch15-s00d-native', 's00dNative')
+new('batch15-s00d-resources', 's00dResources')
 new('batch15-options','options')
 new('batch15-hooks','hooks')
 new('batch15-hooks-cutover','hooks',cutover='true')

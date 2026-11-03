@@ -13,6 +13,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 import '../main_coverage_api.dart' as c;
 import 's00c_contract.dart' as s00c;
+import 's00d_contract.dart' as s00d;
+import 's00d_native.dart' as s00d_native;
+import 's00d_resources.dart' as s00d_resources;
 
 /// Tests newly introduced APIs on the native player, retaining raw readbacks.
 ///
@@ -20,6 +23,9 @@ import 's00c_contract.dart' as s00c;
 Future<void> runNew(Map<String, String> args) async {
   switch (args['case']) {
     case 's00c': await s00c.run();
+    case 's00d': await s00d.run();
+    case 's00dNative': await s00d_native.run();
+    case 's00dResources': await s00d_resources.audioResources();await feed(resources:true);
     case 'options': await options();
     case 'recovery': await recovery(args);
     case 'live': await live(args);
@@ -349,7 +355,7 @@ Future<void> tlsProbe() async {
 /// 在关闭会话前释放真实网络卡顿，测量完整卡顿次数和时长。
 Future<void> stallRelease() async {
   final reports=<MovaReportEvent>[];
-  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params});}));
+  final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a);final src=c.source('stall.mp4');await a.open(src);await c.until(()=>a.state.rendered);await c.until(()=>a.state.buffering);
   final start=c.clock.elapsedMilliseconds;await c.settle(4000);
   final h=HttpClient();final key=Uri.parse(src.uri).queryParameters['t']!;
@@ -361,19 +367,27 @@ Future<void> stallRelease() async {
 /// Swipes a three-engine native audio pool, including overlapping requests.
 ///
 /// 连续切换三引擎原生音频池，包含并发切换。
-Future<void> feed() async {
+Future<void> feed({bool resources=false}) async {
+  final resourceBaseline=resources?await s00d_resources.metrics():<String,Object?>{};
   final made=<MovaApi>[];
   final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
   final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
   await controller.ensure(0); await controller.activate(0);
   for(var i=1;i<=100;i++) {
     await controller.activate(i);
-    if(i%20==0)c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
+    if(i%20==0) {
+      c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
+      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);}
+    }
   }
   await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
   c.check('A29.final',controller.activeIndex==120 && made.length==3,'active=${controller.activeIndex} engines=${made.length}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
-  controller.dispose(); await pool.dispose().timeout(const Duration(seconds:20));
+  controller.dispose();
+  if(resources) {
+    await s00d_resources.DisposeFrames().run(()=>pool.dispose().timeout(const Duration(seconds:20)));
+    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);
+  } else {await pool.dispose().timeout(const Duration(seconds:20));}
   final accepts = <bool>[];
   for (final engine in made) { accepts.add(await engine.open(c.source())); }
   c.mark('CHECK', {'id': 'A29.poolReclaimed', 'pass': pool.engineCount == 0 && accepts.every((v) => !v),
@@ -531,7 +545,7 @@ Future<void> qoe(Map<String,String> args) async {
   final reports=<MovaReportEvent>[];
   final local=<MovaEvent>[];
   final a=createMovaEngine(audioOnly:true,options:const MovaOpts(report:MovaReportConfig(qoe:true)),
-    reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params});}));
+    reporter:MovaCallbackReporter((r){reports.add(r);c.mark('REPORT',{'name':r.name.value,'params':r.params,'sessionId':r.sessionId,'reportKind':r.kind.name,'priority':r.priority.name});}));
   c.observe(a); a.events.listen(local.add);
   if(mode=='abandoned') {
     unawaited(a.open(c.source('hang'))); await c.settle(30); await a.dispose();

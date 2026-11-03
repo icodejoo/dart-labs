@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print
+import 'verify_auto/s00d_receipt.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -66,6 +67,7 @@ MovaSource source([String path = 'vod.mp4']) => MovaSource(
 ///
 /// 记录事件载荷以及订阅者接收时的状态快照。
 void observe(MovaApi api) {
+  ReceiptAudit(api, mark);
   api.preview.thumbs.listen((t)=>mark('PREVIEW_THUMB',{'engine':identityHashCode(api),'at':t?.at.inMilliseconds,'bytes':t?.bytes.length,'title':api.state.sourceTitle}));
   api.progress.listen((p) {latest = p;progressOf[api]=p;});
   api.events.listen((e) {

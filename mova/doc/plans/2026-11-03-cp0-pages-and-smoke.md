@@ -11,7 +11,7 @@ CP0 的 CHECK PASS 表示所需测量已产出。**CP0 不设产品通过线，�
 | 批次 | 页面 / AUTORUN 脚本 | 正式默认次数 | 本次最小冒烟及关键数字 |
 |---|---|---|---|
 | cp0-p02 | `main_cp0_p02_verify.dart` / `cp0_p02_auto.dart` | 三现场各 10 | 三现场各 1，3 CHECK + END；warm/pending 最终 path=B。postLoad 在 load(B) 返回后读到上一集 A **243 次**，同一引擎原生位置跨度 **8880ms**；20s 观察上限后停在广告尾帧，未到 B。 |
-| cp0-pod2 | `main_cp0_pod2_verify.dart` / `cp0_pod2_auto.dart` | 10 | 1 次，1 CHECK + END；第二条广告 epoch **0→0**，两条广告首帧事件间隔 **6514.843ms**，MovaDone 事件戳完整。 |
+| cp0-pod2 | `main_cp0_pod2_verify.dart` / `cp0_pod2_auto.dart` | 10 | 1 次，1 CHECK + END；第二条广告 epoch **0→0**，两条广告首帧事件间隔 **6514.843ms**，MovaDone 事件戳完整。**S00d 更正**：旧数据为默认 pre 不等待就绪的直接 open 分支，不能说明 cutoverTo 回落；新增 `wait.ad2`（pre:true）与 `nowait.ad2` 对照，分别记录两条广告 epoch/原生 path/time-pos/首帧戳，未上机。 |
 | cp0-bgpause | `main_cp0_bgpause_verify.dart` / `cp0_bgpause_auto.dart` | 参数开/关各 5 | 各 1，2 CHECK + END；pauseUponEnteringBackgroundMode=true 时回前台仍 paused、需手动恢复 **1**；false 时继续播放、手动恢复 **0**。两组 resumeUponEnteringForegroundMode 均 false，匹配默认行为对照。 |
 | cp0-pauseload | `main_cp0_pauseload_verify.dart` / `cp0_pauseload_auto.dart` | loading/Ready/FirstFrame 各 3 | 各 1，3 CHECK + END；play→FirstFrame **1035.525 / 1136.002 / −31.620ms**，加载后 playing 均为 1。A=MP4、B=WebM；B 的 sessionStart **3/3 仍报 MP4 fileFormat**。 |
 | cp0-timeshift | `main_cp0_timeshift_verify.dart` / `cp0_timeshift_auto.dart` | DVR / timeshift 各 3 | 各 1，2 CHECK + END；目标 4000ms、behind=8000ms。DVR 原生 before/seek后首次/前进后/回边缘读回 **0/1640/2160/2200ms**；timeshift 为 **0/0/520/0ms**，urlBuilder 确收 behind=8000。 |
@@ -20,7 +20,7 @@ CP0 的 CHECK PASS 表示所需测量已产出。**CP0 不设产品通过线，�
 ### 数字的解释边界
 
 - P0-2 的 `wrongEpisode` 字段只表示末次原生读回是否为 A；中途曾播放 A 要核对整个 NATIVE 轨迹。数字台账的 `p02.pathTrajectories` 从本次 CALL/RET 的数组索引划定区间，列出 A 的每一个原始记录索引及各引擎位置跨度。postLoad 的 8880ms 来自真实 time-pos 最大值减最小值，不使用墙钟。该样本复现了 source 绑定风险，未修改库。
-- pod2 的 epochDelta=0 保留为回落观测，不判产品通过。
+- pod2 的旧 epochDelta=0 只证明默认不等待分支的观测，不能定性为 cutoverTo 回落。
 - 暂停加载的负差表示 play 在首帧信号之后发生。取值来自同一单调时钟上的 CALL/FirstFrame 接收戳。暂停加载夹具的 B URL 保持 `/b.mp4` 身份，服务端为该身份提供真实 WebM 字节及 `video/webm`；`.fixtures.json` 保存 ffprobe 的 `matroska,webm` 与 VP8/Vorbis，因而可以区分 sessionStart 沿用 A 的 MP4 采样。B 的首帧信号附近还记录到 size=0x0，未据此声称画面已经呈现。
 - 时移表中的 seek 后数字是首次真实读回，后续前进样本也保留；它们不冒充稳定落点。`#EXT-X-START` 本地 HLS 夹具用于比较 URL 重开与原生时间轴，并不提供真实商用历史时移服务，C2 manual 不解除。
 
