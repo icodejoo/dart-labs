@@ -1,3 +1,4 @@
+import '../playback_commands.dart';
 import '../kernel/restart_observer.dart';
 import 'dart:async';
 
@@ -48,6 +49,12 @@ class _WarmSlot {
 
   /// 本槽是否已达到就绪判据。
   bool ready = false;
+
+  /// 包内调用方指定的起播意图，用户新命令到达后失效。
+  bool? play;
+
+  /// 指定意图时的用户命令代际。
+  int playCommand = 0;
 
   /// 宿主是否拒绝本槽的打开请求；槽释放后仍供原调用者读取。
   bool rejected = false;
@@ -181,6 +188,9 @@ class MovaCutoverEngine
 
   /// 打开、重载、一次性切换和销毁共用的操作代际。
   int _op = 0;
+
+  /// 跨过期提交保留用户意图，内部暂停不能污染后继事务。
+  bool? _intentSnapshot;
 
   /// 已认领提交的串行尾闩；完成后后继才可重新校验并认领槽。
   Future<void> _commitTail = Future<void>.value();
@@ -356,16 +366,29 @@ class MovaCutoverEngine
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) {
     if (_disposed) return Future<bool>.value(false);
+    _intentSnapshot = null;
     _op++;
-    unawaited(abandon());
+    unawaited(_abandonWarm());
     return _active.open(source, autoPlay: autoPlay);
   }
 
+  /// 播放命令清除内部暂停快照，并转发给当前引擎。
   @override
-  Future<void> play() => _disposed ? Future<void>.value() : _active.play();
+  Future<void> play() {
+    if (_disposed) return Future<void>.value();
+    _intentSnapshot = null;
+    movaRecordPlaybackCommand(this);
+    return _active.play();
+  }
 
+  /// 暂停命令清除事务快照，后继切换必须尊重暂停。
   @override
-  Future<void> pause() => _disposed ? Future<void>.value() : _active.pause();
+  Future<void> pause() {
+    if (_disposed) return Future<void>.value();
+    _intentSnapshot = null;
+    movaRecordPlaybackCommand(this);
+    return _active.pause();
+  }
 
   /// The host's latest keepAlive wish, re-applied to whichever engine becomes
   /// active.
@@ -395,8 +418,14 @@ class MovaCutoverEngine
     return MovaKeepAlivePhase.off;
   }
 
+  /// 切换播放意图时清除事务快照。
   @override
-  Future<void> playOrPause() => _disposed ? Future<void>.value() : _active.playOrPause();
+  Future<void> playOrPause() {
+    if (_disposed) return Future<void>.value();
+    _intentSnapshot = null;
+    movaRecordPlaybackCommand(this);
+    return _active.playOrPause();
+  }
 
   @override
   Future<void> seek(Duration to) => _disposed ? Future<void>.value() : _active.seek(to);
@@ -446,8 +475,9 @@ class MovaCutoverEngine
   @override
   Future<void> reload() {
     if (_disposed) return Future<void>.value();
+    _intentSnapshot = null;
     _op++;
-    unawaited(abandon());
+    unawaited(_abandonWarm());
     return _active.reload();
   }
 
@@ -484,8 +514,9 @@ class MovaCutoverEngine
     // 幂等：重复 dispose 直接返回。
     if (_disposed) return;
     _disposed = true;
+    _intentSnapshot = null;
     _op++;
-    final cleanup = abandon();
+    final cleanup = _abandonWarm();
     try {
       // 同时观察两个清理任务，避免一个挂起时另一个先报出未观察异常。
       await Future.wait([_detach(), cleanup]);
@@ -561,7 +592,7 @@ class MovaCutoverEngine
       //
       // 同一源的影子已在预热则沿用；源不同说明旧影子已过期，须先放弃再新建。
       if (_slot.source?.sameAs(source) ?? false) return _slot;
-      await abandon();
+      await _abandonWarm();
       if (_disposed || op != _op || _slot.engine != null) return null;
     }
 
@@ -594,7 +625,7 @@ class MovaCutoverEngine
       slot.readyTimer = null;
       final c = slot.readyCompleter;
       slot.readyCompleter = null;
-      unawaited(abandon());
+      unawaited(_abandonWarm());
       c?.complete(false);
     });
 
@@ -615,7 +646,7 @@ class MovaCutoverEngine
       if (_disposed || !identical(_slot, slot)) return null;
       if (!accepted) {
         slot.rejected = true;
-        await abandon();
+        await _abandonWarm();
         return slot;
       }
       // Seeking to zero right after open() buys nothing and is pure risk: a seek
@@ -636,7 +667,7 @@ class MovaCutoverEngine
       // 可恢复且内部处理：清理影子，由调用方回落为普通打开。不往主事件流发
       // MovaErrorEvent——后台预热失败不能被误判成在屏健康引擎（如在播广告）的失败。
       if (_disposed || !identical(_slot, slot)) return null;
-      await abandon();
+      await _abandonWarm();
       return null;
     }
 
@@ -663,7 +694,7 @@ class MovaCutoverEngine
     if (_disposed || !identical(_slot, slot)) return;
     final c = slot.readyCompleter;
     slot.readyCompleter = null;
-    unawaited(abandon());
+    unawaited(_abandonWarm());
     c?.complete(false);
   }
 
@@ -714,7 +745,7 @@ class MovaCutoverEngine
       case MovaWarmVerdict.giveUp:
         final c = slot.readyCompleter;
         slot.readyCompleter = null;
-        unawaited(abandon());
+        unawaited(_abandonWarm());
         c?.complete(false);
     }
   }
@@ -757,7 +788,12 @@ class MovaCutoverEngine
     final shadow = slot.engine!;
     final old = _active;
     // 在内部暂停前保存用户意图；自然播完的 playing 不能代表续播意愿。
-    final wantPlay = old.state.playbackIntent;
+    _intentSnapshot ??= old.state.playbackIntent;
+    /// 显式起播仅在没有后续用户命令时有效。
+    bool wantPlay() =>
+        (slot.playCommand == movaPlaybackCommand(this) ? slot.play : null) ??
+        _intentSnapshot ??
+        old.state.playbackIntent;
     var detached = false;
 
     /// 判断本次提交是否仍拥有换指权限。
@@ -776,7 +812,7 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await slot.holding;
       if (!current()) return await bail();
-      if (_keepAliveWanted && wantPlay && shadow is MovaKeepAlive) {
+      if (_keepAliveWanted && wantPlay() && shadow is MovaKeepAlive) {
         await (shadow as MovaKeepAlive).setKeepAlive(true);
         if (!current()) return await bail();
       }
@@ -787,11 +823,11 @@ class MovaCutoverEngine
         if (!current()) return await bail();
         if (!released) {
           await bail();
-          if (current() && wantPlay) await old.play();
+          if (current() && wantPlay()) await old.play();
           return false;
         }
       }
-      if (wantPlay) {
+      if (wantPlay()) {
         await shadow.play();
       } else {
         await shadow.pause();
@@ -802,6 +838,7 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await _detachShadow(slot);
       if (!current()) return await bail();
+      _intentSnapshot = null;
       _active = shadow;
       slot.engine = null;
       MovaBrightnessLease.transfer(old, shadow);
@@ -904,8 +941,15 @@ class MovaCutoverEngine
     }
   }
 
+  /// 显式放弃同时清除事务意图。
   @override
   Future<void> abandon() {
+    _intentSnapshot = null;
+    return _abandonWarm();
+  }
+
+  /// 内部换槽只释放预热资源，保留仍在途事务的用户意图。
+  Future<void> _abandonWarm() {
     final slot = _slot;
     _slot = _WarmSlot();
     if (_phase != MovaCutoverPhase.idle) _setPhase(MovaCutoverPhase.idle);
@@ -923,8 +967,10 @@ class MovaCutoverEngine
     MovaSource source, {
     Duration at = Duration.zero,
     double? rate,
+    bool? play,
   }) async {
     if (_disposed) return (seamless: false, accepted: false);
+    final command = movaPlaybackCommand(this);
     final op = ++_op;
     if (cutoverEnabled) {
       final owned = await _startWarm(
@@ -936,12 +982,21 @@ class MovaCutoverEngine
       if (_disposed || op != _op || owned?.rejected == true) {
         return (seamless: false, accepted: false);
       }
+      if (owned != null && play != null) {
+        owned.play = play;
+        owned.playCommand = command;
+      }
       final ok = owned != null && await _commitSlot(owned, op, waitForReady: true);
       if (ok) return (seamless: true, accepted: true);
     }
     if (_disposed || op != _op) return (seamless: false, accepted: false);
     final active = _active;
-    final accepted = await active.open(source);
+    _intentSnapshot = null;
+    // 公开切换保留默认起播；包内显式意图让位于等待期间的用户命令。
+    final autoPlay = play == null
+        ? true
+        : command == movaPlaybackCommand(this) ? play : active.state.playbackIntent;
+    final accepted = await active.open(source, autoPlay: autoPlay);
     if (_disposed || op != _op || !accepted) return (seamless: false, accepted: false);
     // 零点不提前 seek，避免首帧落地前卡住媒体管线；直播不 seek。
     if (source.type != MovaStreamType.live && at > Duration.zero) {

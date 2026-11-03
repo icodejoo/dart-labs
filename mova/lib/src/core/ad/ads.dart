@@ -1,3 +1,4 @@
+import '../playback_commands.dart';
 import 'dart:async';
 
 import 'package:meta/meta.dart' show visibleForTesting;
@@ -72,7 +73,13 @@ enum _Phase {
 /// 一次广告尝试的结算与续播标记，重试同一广告也必须新建。
 class _AdAttempt {
   /// 绑定本次尝试的广告位。
-  _AdAttempt(this.adBreak);
+  _AdAttempt(this.adBreak, this.play, this.command);
+
+  /// 本次加载请求的起播意图，首次打开失败也不会丢失。
+  final bool play;
+
+  /// 开始尝试时的用户播放命令代际。
+  final int command;
 
   /// 本次尝试所属广告位。
   final MovaAdBreak adBreak;
@@ -718,7 +725,9 @@ class MovaAds {
   Future<void> _beginAd(MovaAdBreak b) async {
     final gen = _gen;
     if (_disposed) return;
-    final attempt = _adAttempt = _AdAttempt(b);
+    final attempt = _adAttempt = _AdAttempt(
+      b, _api.state.playbackIntent, movaPlaybackCommand(_api),
+    );
     _cancelDelayTimer();
     if (!_wantsWait(b)) {
       _pending = null;
@@ -819,7 +828,7 @@ class MovaAds {
     if (_disposed) return;
     // 未指定时继承调用入口的用户播放意图。
     final play = autoPlay ?? _api.state.playbackIntent;
-    final attempt = _adAttempt = ownedAttempt ?? _AdAttempt(b);
+    final attempt = _adAttempt = ownedAttempt ?? _AdAttempt(b, play, movaPlaybackCommand(_api));
     _landingAd = false;
 
     /// 旧尝试的迟到结果不能结算或覆盖新尝试。
@@ -907,6 +916,7 @@ class MovaAds {
           final result = await (cutover as MovaCutoverAcceptance).cutoverToAccepted(
             b.source,
             rate: 1.0,
+            play: play,
           );
           if (!current()) return;
           if (!result.accepted) {
@@ -1119,7 +1129,11 @@ class MovaAds {
         // 重试会再次宣告 `started`：每一次真正把广告送上屏幕的尝试都是一次独立的
         // 曝光尝试，因此宿主看到的是 started → failed → started，而不是一次静默的
         // 第二次尝试。
-        await _playAd(b);
+        await _playAd(
+          b,
+          autoPlay: movaPlaybackCommand(_api) == owned.command
+              ? owned.play : _api.state.playbackIntent,
+        );
         if (gen != _gen || _disposed) return;
       case MovaAdFailAction.skipBreak:
         await _resumeAfterAd(b);
@@ -1179,6 +1193,7 @@ class MovaAds {
     }
     final cutover = _cutover;
     try {
+      // 回正片无独立起播请求；由提交读取底层当前意图，避开代理流的转发延迟。
       final committed = cutover != null && await cutover.commit(waitForReady: true);
       if (gen != _gen || _disposed) return;
       if (!committed) {

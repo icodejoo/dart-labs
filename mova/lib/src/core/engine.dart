@@ -1,3 +1,4 @@
+import 'playback_commands.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -2229,6 +2230,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     final pauses = _pauseSeq;
     final allowed = await _chain.beforePlay();
     if (!allowed || _disposed || gen != _sessionGen || pauses != _pauseSeq) return;
+    movaRecordPlaybackCommand(this);
     _state.emit(state.copyWith(playbackIntent: true));
     _watchdog?.onPlaying(true);
     // KeepAlive: a held stream is already playing (muted, no picture), and while
@@ -2271,6 +2273,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 已销毁：静默空操作。
     if (_disposed) return Future<void>.value();
+    movaRecordPlaybackCommand(this);
     _pauseSeq++;
     _state.emit(state.copyWith(playbackIntent: false));
     _watchdog?.onPlaying(false);

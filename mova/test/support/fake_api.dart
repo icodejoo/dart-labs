@@ -1,3 +1,4 @@
+import 'package:mova/src/core/playback_commands.dart';
 import 'dart:async';
 
 import 'package:mova/src/core/api.dart';
@@ -382,6 +383,7 @@ class FakeMovaApi implements MovaApi {
   /// 记录播放意图，播放观测由独立信号控制。
   @override
   Future<void> play() async {
+    movaRecordPlaybackCommand(this);
     _record('play');
     if (playGate != null) await playGate!.future;
     push(state.copyWith(playbackIntent: true));
@@ -391,6 +393,7 @@ class FakeMovaApi implements MovaApi {
   /// 清除播放意图，播放观测由独立信号控制。
   @override
   Future<void> pause() async {
+    movaRecordPlaybackCommand(this);
     _record('pause');
     if (pauseGate != null) await pauseGate!.future;
     push(state.copyWith(playbackIntent: false));

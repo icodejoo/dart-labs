@@ -17,5 +17,6 @@ abstract interface class MovaCutoverAcceptance {
     MovaSource source, {
     Duration at = Duration.zero,
     double? rate,
+    bool? play,
   });
 }

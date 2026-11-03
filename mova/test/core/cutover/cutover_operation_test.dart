@@ -159,6 +159,32 @@ void main() {
     }
   }
 
+  for (final pauseAfterExpiry in [false, true]) {
+    test('F-M 被 cutoverTo 取代后继承意图，随后显式暂停=$pauseAfterExpiry', () async {
+      final old = rig.engines.first;
+      final x = await rig.warm('X');
+      final gate = x.playGate = Completer<void>();
+      addTearDown(() { if (!gate.isCompleted) gate.complete(); });
+      final first = rig.api.commit();
+      await settleOperations();
+      expect(old.state.playbackIntent, isFalse, reason: '内部 pause 已发生');
+      final second = rig.api.cutoverTo(const MovaSource('https://host/Y.mp4'));
+      await settleOperations();
+      final y = rig.engines.last;
+      if (!pauseAfterExpiry) await rig.ready(y);
+      gate.complete();
+      expect(await first, isFalse);
+      if (pauseAfterExpiry) {
+        await rig.api.pause();
+        await rig.ready(y);
+      }
+      expect(await second, isTrue);
+      expect(rig.api.active, same(y));
+      expect(y.state.playbackIntent, !pauseAfterExpiry);
+      expect(y.calls, contains(pauseAfterExpiry ? 'pause' : 'play'));
+    });
+  }
+
   test('F6 cutoverTo 的 open 挂起时 prepare 换槽，只回落自己的源', () async {
     final gate = Completer<void>();
     var count = 0;

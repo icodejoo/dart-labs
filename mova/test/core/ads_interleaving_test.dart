@@ -94,6 +94,47 @@ class AdOperationRig {
 
 /// P0-2 三种触发与广告异步返回的加载代际隔离。
 void main() {
+  test('F-N 首次等待型前贴片把显式起播意图传给真实切换引擎', () async {
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+      waitForReady: true,
+      duration: Duration(seconds: 10),
+    );
+    final rig = AdOperationRig(breaks: [pre]);
+    addTearDown(rig.dispose);
+    expect(rig.api.state.playbackIntent, isFalse);
+    final loading = rig.ads.load(_a);
+    await settleOperations();
+    final shadow = rig.engines.last;
+    await rig.ready(shadow);
+    await loading;
+    expect(rig.api.active, same(shadow));
+    expect(shadow.calls, contains('play'));
+    expect(shadow.calls, isNot(contains('pause')));
+    expect(shadow.state.playbackIntent, isTrue);
+    expect(rig.ads.isShowingAd, isTrue);
+  });
+
+  test('F-N 等待型前贴片的显式起播让位于等待期间的用户暂停', () async {
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+      waitForReady: true,
+    );
+    final rig = AdOperationRig(breaks: [pre]);
+    addTearDown(rig.dispose);
+    final loading = rig.ads.load(_a);
+    await settleOperations();
+    final shadow = rig.engines.last;
+    await rig.api.pause();
+    await rig.ready(shadow);
+    await loading;
+    expect(rig.api.active, same(shadow));
+    expect(shadow.calls, isNot(contains('play')));
+    expect(shadow.state.playbackIntent, isFalse);
+  });
+
   for (final readyNow in [false, true]) {
     test('正片预热${readyNow ? 'ready' : 'warming'}时 load B 不提交 A', () async {
       final rig = AdOperationRig();
