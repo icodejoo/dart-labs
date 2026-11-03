@@ -681,6 +681,29 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 生产差异均小于计划规模估计，复用现有首帧/seek 校验、就绪公告及 QoE code 映射，不为凑规模搬迁代码。计划外配套文件为新增回归、CHANGELOG、A12 的测试接缝与夹具、上述既有断言及 A13 的旧播放器替身、本落地记录，逐项原因写入对应提交正文。
 - 用户本次明确要求不改 CLAUDE.md，优先于 §3.1 的基线回写规则，故仅追加本记录。未加成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他目录均未纳入提交，未触碰其他 worktree。本记录不代表 A14 以后或 CP1 真机核对已完成。
 
+
+#### A1 块第四批落地记录（2026-11-03）
+
+本批仅 A14 → A14b → A15 → A16，起点为包含 A13 及终审修复的 2011 项。由当前执行者亲自实现和提交，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues，完整 `flutter test --concurrency=6` 全绿。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| A14（`01b21d3e`） | 2022 | +11 | 两处 END_FILE 订阅预期改 true；recovery 关闭时 alternatives 用例改为 debug 拒绝、无 open |
+| A14b（`af6e40c`） | 2030 | +8 | 5 个非终结状态断言改为 null；另两处用例仅改终结错误输入，原断言保留 |
+| A15（`543505d`） | 2034 | +4 | 既有广告失败用例加入非终结阶段；原终结失败次数及类别断言保留 |
+| A16（随本记录提交） | 2039 | +5 | 无；manageAuto 默认 false，显式开启才允许 auto 降档 |
+
+验证方式与计划差异：
+- 共新增 28 项，比计划的 27 项多 1 项：A14 额外覆盖 cutover 代理把封面 RESTART 意图传给当前/已存在/新建影子。最终检查均为单次完整并发 6，未删减、未跳过用例，未降并发或分片，未结束其他进程。
+- A14 的 `openness_host_test.dart` 默认配置用例与 `recovery/engine_recovery_test.dart` disabled 用例，旧 `endFilesSubscribed == false` 都错误地把基础失败检测绑到 recovery，改 true；native/qoe false、无恢复定时器与 open 仍抛出的断言保留。`recovery/failover_test.dart` disabled 用例的旧 `openedUris == [primary]` 错在接受了无效 alternatives 配置，现断言 debug AssertionError、无 open，原 sourceIndex 与无 failover 断言保留。
+- A14 的 5 个既有 mpv 事件用例仅调整夹具：验证事件泵前先 open；构造期建客户端的旧准备方式与懒启动不符，事件映射、过滤和销毁顺序的原断言保留。实际新增独立可选 `MovaRestartObserver`，由 engine/kernel 实现、player 请求、cutover 向底层传递，MovaApi/Kernel 抽象不加成员；`view.dart` 已有 poster 对应 preciseFirstFrame，无需改。提取统一终结清理，后台唤醒 open 异常避免重复上报。
+- A14b 实际只改写 5 个既有状态断言，少于预估 10–25：engine_test 的 boom、interceptor_test 的 boom、playback_error_test 的 tcp: reset / 旧内核 StateError / damaged frame 均默认非终结，不能再要求写遮罩状态。事件原对象、分级、code 与钩子通知仍检查。audio_only_scenarios_test 的换源清理用例将 boom 换为已知终结格式文本；recovery_fixes_test 的恢复清理用例补该文本末尾句点，原断言不变，因为两个用例都需要先建立真正的终结状态。Breaking 与事件/恢复决策迁移指引已写 CHANGELOG、README；state/events/classifier 的契约注释同步。
+- A15 代码中旧默认 `MovaErrorEvent` 构造器已由 A13 保留 `fatal=true`，所以既有终结错误断言无需反转。ads_test 的 player error 用例先发送 classified fatal=false、断言策略为空且广告继续，再发送 fatal=true，保留原一次失败及 playerError 检查；旧用例缺少非终结分支，不能证明“任意日志不应失败”。`_AdAttempt` 和 `MovaCutoverAcceptance` 不改，影子错误仍不冒为主流错误。
+- A16 只新增默认关闭的实验性开关与其显式开启路径，复用探测列表和 ABR 租约：卡顿时 auto 转列表次高档，随后沿用具体档降档；不把 mpv 实际选档当作已验证的最高档。CP0 P1-3 尚无真机数据，未更改“auto 是静态最高档”等既有文档结论，未默认开启接管。新增夹具使用内存 master 和预览缓存，不触网；ABR 总开关、档位不足与用户 seek 租约均覆盖。
+- 回退生产验证：A14 / A14b / A15 / A16 的新增专项分别实测 8 / 6 / 3 / 3 项变红。A14 临时撤回默认失败、懒启动和封面请求；A14b 撤回 engine/遮罩并移除新文案值比较；A15 回退两个入口；A16 回退 engine 并移除新配置比较。均以 finally 逐字节还原，再执行最终完整检查。
+- 生产差异小于表内规模估计，复用既有分类、清理与降档路径，没有为凑规模搬迁。计划外文件限于上述可选能力/代理/播放器接线、契约注释、README/CHANGELOG、既有夹具与新增回归，以及本落地记录，具体原因逐条写入提交正文。
+- 按用户要求不改 CLAUDE.md、不加成员级 Deprecated，不提交无关生成文件、doc/notes、matrix-run 或其他子工程文件，未触碰其他 worktree。本记录仅覆盖这四个提交及自动化验证，不代表 CP0/CP1 或后续 A/C 块完成。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

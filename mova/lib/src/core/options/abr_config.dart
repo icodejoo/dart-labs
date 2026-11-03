@@ -109,6 +109,12 @@ class MovaAbrConfig {
   /// 示例：`MovaAbrConfig(probeVariants: false)` 由宿主手动探测。
   final bool probeVariants;
 
+  /// 是否由 mova 接管 auto 档降档；实验性，默认关。
+  /// 开启后卡顿触发时从 auto 转到列表次高档，后续沿用既有降档策略。
+  /// 不推断 mpv 当前实际选档；仍需 [enabled] 开启，且探测到至少两个具体档位。
+  /// 示例：`MovaAbrConfig(manageAuto: true)`。
+  final bool manageAuto;
+
   /// Custom downshift policy; null selects the default [MovaBufferAbr].
   ///
   /// 自定义降档策略；为 null 时选用默认的 [MovaBufferAbr]。
@@ -117,10 +123,13 @@ class MovaAbrConfig {
   /// Creates an ABR config; enabled by default with a stall threshold of 3.
   ///
   /// 创建 ABR 配置；默认启用，卡顿阈值为 3。
+  /// [manageAuto] 为实验性 auto 降档接管，默认关，返回配置实例。
+  /// 示例：`const MovaAbrConfig(manageAuto: true, stallThreshold: 3)`。
   const MovaAbrConfig({
     this.stallThreshold = 3,
     this.enabled = true,
     this.probeVariants = true,
+    this.manageAuto = false,
     this.policy,
   });
 
@@ -132,8 +141,9 @@ class MovaAbrConfig {
           stallThreshold == other.stallThreshold &&
           enabled == other.enabled &&
           probeVariants == other.probeVariants &&
+          manageAuto == other.manageAuto &&
           policy == other.policy;
 
   @override
-  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, policy);
+  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, manageAuto, policy);
 }

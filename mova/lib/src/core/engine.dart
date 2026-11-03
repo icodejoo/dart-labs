@@ -2846,15 +2846,16 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     }
   }
 
-  /// Steps down one variant (used by the ABR monitor). No-op in auto mode,
-  /// at the lowest variant, or with fewer than two variants.
-  ///
-  /// 下降一档（供 ABR 监测调用）。自动模式、已是最低档或档位不足两个时无操作。
+  /// 下降一档（供 ABR 监测调用）；最低档或档位不足两个时无操作。
+  /// auto 接管为实验性，默认关；显式启用 manageAuto 时从 auto 转到次高档。
+  /// 返回换档完成的 Future；示例：`await engine.downshiftQuality()`。
   Future<void> downshiftQuality() async {
     final cur = state.currentQuality;
-    if (cur == null || cur.isAuto) return;
+    if (cur == null || (cur.isAuto && !options.abr.manageAuto)) return;
     final variants = state.qualities.where((q) => !q.isAuto).toList();
-    final idx = variants.indexWhere((q) => q.uri == cur.uri);
+    // auto 没有可读的实际档位；实验性接管直接选择列表次高档，
+    // 不把 mpv 的实际选档当作已经验证的最高档。
+    final idx = cur.isAuto ? 0 : variants.indexWhere((q) => q.uri == cur.uri);
     if (idx < 0 || idx + 1 >= variants.length) return;
     await switchQuality(variants[idx + 1]);
   }
