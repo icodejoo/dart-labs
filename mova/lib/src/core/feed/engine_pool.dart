@@ -18,6 +18,8 @@ import '../model/source.dart';
 /// Returns a fresh engine, never a shared one.
 ///
 /// 返回一个全新的引擎，绝不能是共享实例。
+/// Feed 与 Cutover 共用同一工厂类型；旧 MovaSwapEngine 别名也接受本类型。
+/// 示例：`MovaEngineFactory make = createMovaEngine`，每次调用返回全新引擎。
 typedef MovaEngineFactory = MovaApi Function();
 
 /// A pool engine currently bound to one feed index, plus whether its media

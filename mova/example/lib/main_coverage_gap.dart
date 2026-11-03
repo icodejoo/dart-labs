@@ -13,7 +13,7 @@ void main() {
       runApp(
         MaterialApp(
           builder: (context, child) =>
-              MovaMiniHost(ctl: gapMini, child: child!),
+              MovaMiniHost(mini: gapMini, child: child!),
           home: Scaffold(
             body: ValueListenableBuilder<GapSkinStage?>(
               valueListenable: gapSkinStage,

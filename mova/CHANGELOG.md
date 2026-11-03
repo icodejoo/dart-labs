@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 改名收尾：`MovaMiniHost.mini` 替代旧 `ctl` 参数/字段，`MovaAdOverlayComponent.ads` 替代旧 `controller` 字段；旧入口均保留带 `@Deprecated` 的别名，构造与渲染行为不变。包内调用和示例迁移为现名。核实工厂早已共用 `MovaEngineFactory`，已有类型别名均已标注弃用；修正文档中“枚举值不能经 typedef 访问”的过期说明。
+
 - 测试入口新增 `MovaTestKernel.scripted` 和 `MovaTestStep`：可脚本化就绪、缓冲、进度、失败与结束；就绪自动组合首帧信号，换源和销毁取消旧步骤。普通构造继续默认被动，不自动播放或发出信号。
 
 - 注入的内核、预览缓存/探针/来源/抽帧器、HTTP 与 STT 识别器由宿主销毁；自建资源仍随引擎释放。需要移交内核时用 `ownsKernel: true`，默认工厂创建的内核自动归引擎所有。STT 启动失败仅回滚，不再向播放链抛出。新增 `MovaAbrConfig.policyFactory`，每引擎创建独立策略，优先于旧 `policy`；旧实例字段下个版本弃用，本版只公告。
@@ -125,7 +127,7 @@
   * `Swap*`→`Cutover*`（`MovaSwapEngine`/`Config`/`Change`/`Phase` 等），`Standby*`→`KeepAlive*`（`MovaStandbyConfig`/`Phase`/`Mode`/`Reason`/`Change`/`Resume`、`MovaSilentStandby` 等）。
   * 成员：`MovaState.standby`→`keepAlivePhase`（类型 `MovaKeepAlivePhase`）、`MovaOpts.standby`→`keepAlive`、`MovaOpts.swap`→`cutover`、`MovaHiddenMode.standby`→`keepAlive`、`setStandby`→`setKeepAlive`、`swapTo`→`cutoverTo`、`MovaAdController(swap:)`→`MovaAds(cutover:)`。
   * 文件/目录：`core/standby/`→`core/keep_alive/`、`core/swap/`→`core/cutover/`、`ad_controller.dart`→`ads.dart` 等（只影响直接 import `package:mova/src/...` 的代码；经 `package:mova/mova.dart` 导入不受影响）。
-  * **兼容层**：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名。**没有别名的**：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`），以及经 typedef 访问枚举值（`MovaStandbyPhase.off` 等）——这些需要按上面的对照改。
+  * **兼容层**：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名。**没有别名的**：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`）——这些需要按上面的对照改。
   * 上报 payload 的键 `swapEnabled`（QoE 会话字段）保持原样，未改名。
 
 * **Fix：时长未知时的负向 `seek`/`seekBy` 不再下界漏钳**。时长未到时 `seek(-5s)` 被原样寄存，进度先上报负数，时长到达后还把 -5s 下发内核（已知时长的路径本来会钳到 0）。现在入口先把下界钳到 0，补发时再按时长上界钳一次。新增 3 项回归（含 `seekBy` 与已知时长对照）。

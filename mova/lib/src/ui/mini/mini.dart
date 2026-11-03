@@ -51,7 +51,7 @@ enum MovaMiniMount {
 /// await mini.showInPage(context, api);
 ///
 /// // 方式 B：跨路由持久（宿主自己在 MaterialApp.builder 里放 Stack）
-/// // MaterialApp(builder: (c, child) => MovaMiniHost(ctl: mini, child: child!))
+/// // MaterialApp(builder: (c, child) => MovaMiniHost(mini: mini, child: child!))
 /// await mini.show(api, skin: const MovaMiniSkin());
 /// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
 /// ```

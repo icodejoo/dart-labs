@@ -556,7 +556,7 @@ void dispose() {
 final miniCtl = MovaMini(); // 建在 app 根，路由之外
 
 MaterialApp(
-  builder: (context, child) => MovaMiniHost(ctl: miniCtl, child: child!),
+  builder: (context, child) => MovaMiniHost(mini: miniCtl, child: child!),
   home: const HomePage(),
 )
 

@@ -15,7 +15,7 @@ import '../slots/slot.dart';
 /// nothing when ads are disabled or no ad is currently playing.
 ///
 /// Host-wired: the host constructs a [MovaAds] and passes it in (e.g. via
-/// a skin patch). Visibility follows the controller's phase; the skip countdown
+/// a skin patch). Visibility follows the ad controller's phase; the skip countdown
 /// follows the throttled progress stream against [MovaAdBreak.skippableAfter].
 ///
 /// 广告播放时显示的叠层："广告"角标、广告超过可跳过阈值后出现的跳过控件，以及
@@ -25,17 +25,25 @@ import '../slots/slot.dart';
 /// 由宿主接线：宿主构造一个 [MovaAds] 并传入（例如经皮肤补丁）。显隐跟随
 /// 控制器阶段；跳过倒计时依节流进度流对比 [MovaAdBreak.skippableAfter]。
 class MovaAdOverlayComponent extends MovaComponent {
-  /// Creates the ad overlay bound to [controller].
+  /// Creates the ad overlay bound to [ads].
   ///
-  /// 创建绑定到 [controller] 的广告叠层。
+  /// 创建绑定到 [ads] 的广告叠层。
   ///
-  /// - [controller]: the ad controller driving playback / 驱动播放的广告控制器
-  MovaAdOverlayComponent(this.controller);
+  /// - [ads]: the ad controller driving playback / 驱动播放的广告控制器
+  /// [ads] 为借用的广告编排对象，返回广告覆盖层组件。
+  /// 示例：`MovaAdOverlayComponent(ads)`。
+  MovaAdOverlayComponent(this.ads);
 
   /// The ad controller this overlay reads and drives.
   ///
   /// 该叠层读取并驱动的广告控制器。
-  final MovaAds controller;
+  /// 返回组件借用的广告编排对象；示例：`overlay.ads.skip()`。
+  final MovaAds ads;
+
+  /// [ads] 的旧名，返回同一个广告编排对象；保留一个版本。
+  /// 迁移示例：`overlay.ads`。
+  @Deprecated('Use ads')
+  MovaAds get controller => ads;
 
   /// This component's path segment for `MovaPatch` addressing.
   ///
@@ -51,7 +59,7 @@ class MovaAdOverlayComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     if (!api.options.ads.enabled) return const SizedBox.shrink();
-    return _AdOverlayView(api: api, controller: controller);
+    return _AdOverlayView(api: api, ads: ads);
   }
 }
 
@@ -64,7 +72,7 @@ class _AdOverlayView extends StatefulWidget {
   /// Creates the internal ad overlay view.
   ///
   /// 创建内部广告叠层视图。
-  const _AdOverlayView({required this.api, required this.controller});
+  const _AdOverlayView({required this.api, required this.ads});
 
   /// The capability surface followed for the ad's position.
   ///
@@ -74,7 +82,7 @@ class _AdOverlayView extends StatefulWidget {
   /// The ad controller providing phase, current break, and skip/click actions.
   ///
   /// 提供阶段、当前广告位与跳过/点击动作的广告控制器。
-  final MovaAds controller;
+  final MovaAds ads;
 
   @override
   State<_AdOverlayView> createState() => _AdOverlayViewState();
@@ -87,22 +95,22 @@ class _AdOverlayViewState extends State<_AdOverlayView>
   void initState() {
     super.initState();
     bind(api.progress, _onProgress);
-    bind(widget.controller.changes, (_) => setState(() {}));
-    bind(widget.controller.session.events, (event) {
+    bind(widget.ads.changes, (_) => setState(() {}));
+    bind(widget.ads.session.events, (event) {
       if (event is MovaNodeStart) setState(() {});
     });
   }
 
   /// 进度只触发重建，落地窗口内旧媒体的位置由会话过滤。
   void _onProgress(MovaProg p) {
-    if (widget.controller.isShowingAd || widget.controller.isAdPending) {
+    if (widget.ads.isShowingAd || widget.ads.isAdPending) {
       setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
+    final ads = widget.ads;
     final theme = widget.api.options.theme;
     final strings = widget.api.options.strings;
     // The pending phase: the content is still playing and the viewer has not
@@ -119,8 +127,8 @@ class _AdOverlayViewState extends State<_AdOverlayView>
     //
     // 对中插的默认形态（delay 为零、静默等待就绪）刻意什么都不画：那段等待本就
     // 该是用户无感的，画一个"正在加载广告"的提示只会把本来无感的事变成有感的事。
-    final pendingLeft = controller.delayRemaining;
-    if (controller.isAdPending && pendingLeft != null) {
+    final pendingLeft = ads.delayRemaining;
+    if (ads.isAdPending && pendingLeft != null) {
       final left = (pendingLeft.inMilliseconds / 1000).ceil().clamp(0, 1 << 31);
       return Stack(
         children: [
@@ -137,11 +145,11 @@ class _AdOverlayViewState extends State<_AdOverlayView>
         ],
       );
     }
-    final b = controller.currentBreak;
-    if (!controller.isShowingAd || b == null) return const SizedBox.shrink();
+    final b = ads.currentBreak;
+    if (!ads.isShowingAd || b == null) return const SizedBox.shrink();
     final after = b.skippableAfter;
-    final canSkip = controller.canSkip;
-    final skipIn = controller.skipIn;
+    final canSkip = ads.canSkip;
+    final skipIn = ads.skipIn;
     // Round the remaining time up so a 4.9s remainder reads "5", not "4".
     //
     // 剩余时间向上取整，使 4.9 秒显示为 "5" 而非 "4"。
@@ -159,7 +167,7 @@ class _AdOverlayViewState extends State<_AdOverlayView>
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: controller.notifyClicked,
+            onTap: ads.notifyClicked,
             child: const SizedBox.expand(),
           ),
         ),
@@ -189,7 +197,7 @@ class _AdOverlayViewState extends State<_AdOverlayView>
                     ),
                     borderRadius: 999,
                     bordered: true,
-                    onTap: controller.skip,
+                    onTap: ads.skip,
                     fontWeight: FontWeight.w600,
                   )
                 : _Pill(

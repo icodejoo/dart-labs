@@ -583,7 +583,7 @@ void main() {
       final off = await make(t);
       await t.pumpWidget(
         MaterialApp(
-          builder: (c, w) => MovaMiniHost(ctl: ctl, child: w!),
+          builder: (c, w) => MovaMiniHost(mini: ctl, child: w!),
           home: const Scaffold(body: Text('S00D host')),
         ),
       );
