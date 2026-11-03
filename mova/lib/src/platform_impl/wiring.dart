@@ -82,7 +82,7 @@ MovaVolumePort? _defaultVolumePort() {
 ///   构建仅音频引擎——默认内核跳过 `VideoController`，抽帧兜底也不接线，
 ///   因此不会创建任何形式的视频管线。此时 `renderHandle` 为 `null`，
 ///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
-///   被忽略。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
+///   的资源行为由注入内核决定；本标记仍影响预览、STT 与上报。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
 ///   没有帧可预览
 /// - [tlsVerify]: strict TLS certificate verification (mpv `tls-verify=yes`),
 ///   default `false` = nothing sent, libmpv default (no verification on
@@ -114,18 +114,9 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
 ///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
 ///   缓存图缓存目录）
-/// - [extractor]: the scrub-preview frame-extraction fallback source. `null`
-///   by default — unlike the other ports, this one is **not** wired to a
-///   platform default here, because the only default implementation
-///   (`MovaFrameExtractor`, `package:mova/mova.dart`) pulls in
-///   `media_kit_video` as a *statically reachable* dependency the moment this
-///   function references it, defeating tree-shaking for hosts that never use
-///   scrub preview. Pass `MovaFrameExtractor()` explicitly to opt in / 拖动预览
-///   的抽帧兜底来源。默认为 `null`——与其余端口不同，本参数**不会**在这里接一个
-///   平台默认实现，因为唯一的默认实现（`MovaFrameExtractor`，见
-///   `package:mova/mova.dart`）一旦被本函数引用就会把 `media_kit_video`
-///   变成静态可达依赖，让从不使用拖动预览的宿主也摇不掉它。要启用请显式传入
-///   `MovaFrameExtractor()`
+/// - [extractor]: 拖动预览抽帧兜底，默认 `null`，不会自动构造第二个视频内核。
+///   需要抽帧时显式传入 `MovaFrameExtractor()`；仅音频引擎不执行预览抽帧。
+///   示例：`createMovaEngine(extractor: MovaFrameExtractor())`。
 /// - [probe]: the connectivity probe consulted under `wifiOnly` preview
 ///   network policy. `null` by default for the same tree-shaking reason as
 ///   [extractor] — the default implementation (`MovaConnectivityNetProbe`) pulls
@@ -191,6 +182,24 @@ MovaEngine createMovaEngine({
   // 测试接缝（package:mova/testing.dart）：装了测试内核且没显式传 kernel 时，用可编程
   // 内核构建引擎，所有平台端口保持引擎自带的空实现，不触碰任何平台通道。显式传入的端口
   // 仍然优先。
+  assert(() {
+    if (kernel != null) {
+      final ignored = <String>[
+        if (audioOnly) 'audioOnly（资源行为；逻辑标记仍生效）',
+        if (tlsVerify) 'tlsVerify',
+        if (tlsCaFile != null) 'tlsCaFile',
+        if (preciseFirstFrame) 'preciseFirstFrame',
+      ];
+      if (ignored.isNotEmpty) {
+        debugPrint('createMovaEngine 已传入 kernel，以下默认内核参数被忽略：${ignored.join(', ')}');
+      }
+    }
+    return true;
+  }());
+  assert(kernel != null || !tlsVerify ||
+      defaultTargetPlatform != TargetPlatform.android ||
+      (tlsCaFile != null && tlsCaFile.trim().isNotEmpty),
+      'Android tlsVerify: true 必须同时提供非空 tlsCaFile（PEM CA 证书包）');
   final testKernel = movaTestKernelFactory;
   if (kernel == null && testKernel != null) {
     return MovaEngine(

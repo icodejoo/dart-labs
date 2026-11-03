@@ -1,5 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:mova/testing.dart';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -97,6 +98,49 @@ void main() {
   // 捕获，而不是只能靠人盯着亮度滑块才能发现。
   TestWidgetsFlutterBinding.ensureInitialized();
   PathProviderPlatform.instance = _FakePathProviderPlatform();
+
+  test('C11 injected kernel reports ignored audio and restart resource flags', () async {
+    final messages = <String>[];
+    final previous = debugPrint;
+    debugPrint = (message, {wrapWidth}) { if (message != null) messages.add(message); };
+    try {
+      final kernel = FakeKernel();
+      final engine = createMovaEngine(kernel: kernel, audioOnly: true, preciseFirstFrame: true);
+      await engine.dispose();
+      expect(messages.join(), contains('audioOnly'));
+      expect(messages.join(), contains('preciseFirstFrame'));
+    } finally { debugPrint = previous; }
+  });
+  test('C11 Android strict TLS requires a CA before constructing a kernel', () async {
+    final previous = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    MovaTesting.useTestKernels();
+    MovaEngine? created;
+    try {
+      expect(() { created = createMovaEngine(tlsVerify: true); }, throwsAssertionError);
+      expect(MovaTesting.kernels, isEmpty);
+    } finally {
+      await created?.dispose();
+      MovaTesting.reset();
+      debugDefaultTargetPlatformOverride = previous;
+    }
+  });
+  test('C11 injected kernel reports ignored TLS without demanding a CA', () async {
+    final messages = <String>[];
+    final previous = debugPrint;
+    final platform = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    debugPrint = (message, {wrapWidth}) { if (message != null) messages.add(message); };
+    try {
+      final engine = createMovaEngine(kernel: FakeKernel(), tlsVerify: true, tlsCaFile: '/host/ca.pem');
+      await engine.dispose();
+      expect(messages.join(), contains('tlsVerify'));
+      expect(messages.join(), contains('tlsCaFile'));
+    } finally {
+      debugPrint = previous;
+      debugDefaultTargetPlatformOverride = platform;
+    }
+  });
 
   group('createMovaEngine', () {
     test('defaults every port to the real platform adapter', () {

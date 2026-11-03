@@ -1,5 +1,7 @@
 ## Unreleased
 
+- createMovaEngine 在 debug 下提示注入 kernel 时被忽略的默认内核参数；Android 使用默认内核并开启 tlsVerify 时断言必须提供非空 tlsCaFile。抽帧器继续默认 null，文档明确需显式注入。
+
 - 新增 movaCapabilityOf<T>(api) 能力查询入口，优先保留代理自身能力，否则穿透多层 cutover 查询当前生效引擎，不修改 MovaApi。
 
 - MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节仍保守比较，debug 下连续 10 帧实际配置不等时每视图提示一次。
