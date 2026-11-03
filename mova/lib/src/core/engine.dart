@@ -713,18 +713,22 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     options.keepAlive.assertValid();
 
     _playingSub = _kernel.playing.listen((v) {
+      if (v == state.playing) return;
       _state.emit(state.copyWith(playing: v));
       _emitEvent(v ? const MovaPlay() : const MovaPause());
     });
     _bufferingSub = _kernel.buffering.listen((v) {
-      _state.emit(state.copyWith(buffering: v));
-      _emitEvent(MovaBufferChange(v));
+      if (v != state.buffering) {
+        _state.emit(state.copyWith(buffering: v));
+        _emitEvent(MovaBufferChange(v));
+      }
       _handleAbrBuffering(v);
       _maybeAutoBackToLive(v);
       _watchdog?.onBuffering(v);
       _feedGate(() => _frameGate.onBuffering(v, nativeLive: _nativeLive));
     });
     _completedSub = _kernel.completed.listen((v) {
+      if (v == state.completed) return;
       _state.emit(state.copyWith(completed: v));
       if (v) _emitEvent(const MovaDone());
       if (v && state.keepAlivePhase == MovaKeepAlivePhase.holding) {
@@ -769,21 +773,26 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _durationSub = _kernel.duration.listen((v) {
       if (_isDurationJitter(v)) return;
       _reportedDuration = v;
-      _state.emit(state.copyWith(duration: v));
-      _emitEvent(MovaDurationChange(v));
+      if (v != state.duration) {
+        _state.emit(state.copyWith(duration: v));
+        _emitEvent(MovaDurationChange(v));
+      }
       _recomputeLiveSeekable();
       if (!_holdParkForLanding) unawaited(_applyParkedSeek(v));
     });
     _sizeSub = _kernel.size.listen((v) {
-      _state.emit(state.copyWith(width: v.width, height: v.height));
-      _emitEvent(MovaSizeChange(v.width, v.height));
+      final changed = v.width != state.width || v.height != state.height;
+      if (changed) {
+        _state.emit(state.copyWith(width: v.width, height: v.height));
+        _emitEvent(MovaSizeChange(v.width, v.height));
+      }
       // Re-derive/apply fullscreen orientation if dimensions arrive (or
       // change) while already fullscreen — e.g. a network/HLS source whose
       // real size wasn't known yet when fullscreen was entered.
       //
       // 若在已处于全屏状态下尺寸才到达（或发生变化）——例如打开全屏时网络/
       // HLS 源的真实尺寸尚未知晓——则重新推导并应用全屏方向。
-      if (state.fullscreen) {
+      if (changed && state.fullscreen) {
         unawaited(_applyOrientation());
       }
       _feedGate(
@@ -2343,8 +2352,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       await _kernel.setVolume(v);
     }
     if (_disposed) return;
-    _state.emit(state.copyWith(volume: v));
-    _emitEvent(MovaVolumeChange(v));
+    if (v != state.volume) {
+      _state.emit(state.copyWith(volume: v));
+      _emitEvent(MovaVolumeChange(v));
+    }
   }
 
   @override
@@ -2364,8 +2375,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       if (_disposed) return;
       await _brightness.set(v);
       if (_disposed) return;
-      _state.emit(state.copyWith(brightness: v));
-      _emitEvent(MovaBrightChange(v));
+      if (v != state.brightness) {
+        _state.emit(state.copyWith(brightness: v));
+        _emitEvent(MovaBrightChange(v));
+      }
     });
     _brightnessWrites = write.catchError((Object _) {});
     await write;
@@ -2382,8 +2395,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     r = movaClampRate(r);
     await _kernel.setRate(r);
     if (_disposed) return;
-    _state.emit(state.copyWith(rate: r));
-    _emitEvent(MovaRateChange(r));
+    if (r != state.rate) {
+      _state.emit(state.copyWith(rate: r));
+      _emitEvent(MovaRateChange(r));
+    }
   }
 
   @override
@@ -2392,8 +2407,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
-    _state.emit(state.copyWith(fit: f));
-    _emitEvent(MovaFitChange(f));
+    if (f != state.fit) {
+      _state.emit(state.copyWith(fit: f));
+      _emitEvent(MovaFitChange(f));
+    }
   }
 
   @override
@@ -2404,8 +2421,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (_disposed) return;
     // 下限与手势层一致（1.0 = 不缩放），避免 0/负值/NaN 让画面塌缩；上限不在此处限制。
     final v = z.isNaN || z < 1.0 ? 1.0 : z;
-    _state.emit(state.copyWith(zoom: v));
-    _emitEvent(MovaZoomChange(v));
+    if (v != state.zoom) {
+      _state.emit(state.copyWith(zoom: v));
+      _emitEvent(MovaZoomChange(v));
+    }
   }
 
   @override
@@ -2414,8 +2433,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
-    _state.emit(state.copyWith(locked: v));
-    _emitEvent(MovaLockChange(v));
+    if (v != state.locked) {
+      _state.emit(state.copyWith(locked: v));
+      _emitEvent(MovaLockChange(v));
+    }
   }
 
   @override
@@ -2424,6 +2445,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    final changed = state.fullscreen != v;
     final leaving = state.fullscreen && !v;
     _state.emit(state.copyWith(fullscreen: v));
     if (leaving) {
@@ -2432,7 +2454,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       await _applyOrientation();
     }
     if (_disposed) return;
-    _emitEvent(MovaFullScreenChange(v));
+    if (changed) _emitEvent(MovaFullScreenChange(v));
   }
 
   @override
@@ -2455,10 +2477,11 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    final changed = state.orientation != o;
     _state.emit(state.copyWith(orientation: o));
     await _applyOrientation();
     if (_disposed) return;
-    _emitEvent(MovaOrientationChange(o));
+    if (changed) _emitEvent(MovaOrientationChange(o));
   }
 
   /// Applies the current fullscreen + forced-orientation state to the platform
@@ -2648,8 +2671,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     }
     if (!ok) _pipRequested = false;
     if (_disposed) return false;
-    _state.emit(state.copyWith(pip: ok));
-    _emitEvent(MovaPipChange(ok));
+    if (ok != state.pip) {
+      _state.emit(state.copyWith(pip: ok));
+      _emitEvent(MovaPipChange(ok));
+    }
     return ok;
   }
 
@@ -2947,6 +2972,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       orientationRestore = _orientation.reset().catchError((Object _) {});
     }
     _disposed = true;
+    _hudTimer?.cancel();
+    _hudTimer = null;
+    _autoHideTimer?.cancel();
+    _autoHideTimer = null;
     _abrHoldTimer?.cancel();
     _abrHoldTimer = null;
     _resumeVerifyTimer?.cancel();
@@ -2973,8 +3002,6 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     await _bufferSub.cancel();
     await _sizeSub.cancel();
     await _errorSub.cancel();
-    _hudTimer?.cancel();
-    _autoHideTimer?.cancel();
     _qoe?.onTeardown();
     await _qoe?.cancel();
     await _state.close();

@@ -12,6 +12,7 @@ import 'skins/default_skin.dart';
 import 'snapshot_guard.dart';
 import 'skins/skin.dart';
 import 'slots/tree.dart';
+import 'slots/component.dart';
 import 'video_rect.dart';
 
 /// The top-level mova player widget: wires a real (or fake) [MovaApi] to
@@ -21,8 +22,8 @@ import 'video_rect.dart';
 /// detail flows from [api]'s streams via [MovaScope]/[MovaSelect] down to the
 /// components a [MovaSkin] builds. The only things this widget does on its
 /// own: publish [api] via [MovaScope], render the video surface (or a
-/// placeholder in tests, see [renderHandle] below), rebuild the skin's
-/// component tree on every [MovaApi.states] change, and optionally probe HLS
+/// placeholder in tests, see [renderHandle] below), cache the skin's
+/// component tree until the skin or api changes, and optionally probe HLS
 /// quality variants once after mounting.
 ///
 /// mova 的顶层播放器组件：把一个真实（或假的）[MovaApi] 接到原始视频渲染
@@ -31,7 +32,7 @@ import 'video_rect.dart';
 /// 本组件自身不持有任何播放状态——每个视觉与行为细节都经由 [api] 的流，
 /// 通过 [MovaScope]/[MovaSelect] 流向 [MovaSkin] 构建出的组件。本组件自己只做：
 /// 通过 [MovaScope] 发布 [api]、渲染视频画面（测试环境下渲染占位符，见下方
-/// [renderHandle] 说明）、在每次 [MovaApi.states] 变化时重建皮肤组件树，以及
+/// [renderHandle] 说明）、缓存皮肤组件树直到 skin 或 api 改变，以及
 /// 挂载后可选地探测一次 HLS 清晰度档位。
 class MovaPlayer extends StatefulWidget {
   /// Creates the player widget.
@@ -125,9 +126,16 @@ class MovaPlayer extends StatefulWidget {
 /// [MovaPlayer] 的状态；仅持有挂载后的一次性清晰度探测——其余一切都在每次
 /// 重建时由 [MovaApi] 的流派生而来。
 class _MovaPlayerState extends State<MovaPlayer> {
+  /// 当前 api/皮肤对应的静态组件定义。
+  late List<MovaComponent> _components;
+
+  /// 复用构建子树，避免宿主无关重建引发组件重新构建和订阅。
+  Widget? _skinTree;
+
   @override
   void initState() {
     super.initState();
+    _components = widget.skin.components();
     // `loadQualities()` is a no-op for non-HLS sources (MovaEngine just clears
     // the quality list), so it's always safe to call unconditionally here.
     //
@@ -142,6 +150,14 @@ class _MovaPlayerState extends State<MovaPlayer> {
   @override
   void didUpdateWidget(MovaPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.api, widget.api) || !identical(oldWidget.skin, widget.skin)) {
+      _components = widget.skin.components();
+      _skinTree = null;
+    }
+    if (oldWidget.surface != widget.surface || oldWidget.poster != widget.poster ||
+        oldWidget.posterFade != widget.posterFade) {
+      _skinTree = null;
+    }
     _applyFit(previous: oldWidget.fit, apiChanged: oldWidget.api != widget.api);
   }
 
@@ -199,10 +215,9 @@ class _MovaPlayerState extends State<MovaPlayer> {
       // 重新跑一遍。
       child: KeyedSubtree(
         key: ValueKey(widget.api),
-        child: Builder(
+        child: _skinTree ??= Builder(
           builder: (context) {
-            final tree = widget.skin.components();
-            final bundle = buildSlots(context, widget.api, tree);
+            final bundle = buildSlots(context, widget.api, _components);
             final surface = widget.surface ?? const _RenderSurface();
             final poster = widget.poster;
             // The poster lives inside the `video` handed to the skin, so every

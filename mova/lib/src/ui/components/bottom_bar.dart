@@ -134,11 +134,11 @@ class MovaPositionLabelComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return MovaProgSelect<Duration>(
-      selector: (p) => p.position,
-      builder: (context, position) {
+    return MovaProgSelect<int>(
+      selector: (p) => p.position.inSeconds,
+      builder: (context, seconds) {
         return Text(
-          formatDuration(position ?? Duration.zero),
+          formatDuration(Duration(seconds: seconds ?? 0)),
           style: TextStyle(
             color: Color(theme.textColor),
             fontSize: theme.timeFontSize,

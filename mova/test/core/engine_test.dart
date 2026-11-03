@@ -1566,7 +1566,7 @@ void main() {
     await e.setVolume(-10);
     expect(e.state.volume, 0);
     await Future<void>.delayed(Duration.zero);
-    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [100, 0]);
+    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [0]); // 初值已是 100。
     await sub.cancel();
   });
 
@@ -1597,7 +1597,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(port.sets, [1.0, 0.0]);
     expect(e2.state.brightness, 0.0);
-    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [1.0, 0.0]);
+    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [0.0]); // 初值已是 1。
     await sub.cancel();
     await e2.dispose();
   });
@@ -1610,7 +1610,7 @@ void main() {
     await e.setVolume(-10);
     expect(e.state.volume, 0);
     await Future<void>.delayed(Duration.zero);
-    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [100, 0]);
+    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [0]); // 初值已是 100。
     await sub.cancel();
   });
 
@@ -1624,7 +1624,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(port.sets, [1.0, 0.0]);
     expect(e2.state.brightness, 0.0);
-    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [1.0, 0.0]);
+    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [0.0]); // 初值已是 1。
     await sub.cancel();
     await e2.dispose();
   });
