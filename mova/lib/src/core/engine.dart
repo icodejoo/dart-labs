@@ -37,6 +37,7 @@ import 'preview/net_probe.dart';
 import 'preview/platform_kind.dart';
 import 'preview/service.dart';
 import 'preview/request_blocked.dart';
+import 'preview/request_context.dart';
 import 'preview/source.dart';
 import 'preview/two_level_cache.dart';
 import 'preview/vtt_source.dart';
@@ -57,32 +58,73 @@ import 'stt/api.dart';
 import 'stt/service.dart';
 
 // 内置来源只在实际访问远程资源时咨询网络策略，VTT 自身的缓存和冷却先执行。
-class _PreviewHttpFetch implements MovaHttpFetch {
-  _PreviewHttpFetch(this.fetcher, this.allow);
-  final MovaHttpFetch fetcher;
+class _PreviewResourceGate {
+  _PreviewResourceGate(this.allow);
   final Future<bool> Function(Uri) allow;
+  final Set<Completer<bool>> _pending = {};
+  bool _disposed = false;
+
+  void checkWanted() {
+    if (_disposed || !(PreviewRequestContext.current?.isWanted() ?? true)) {
+      throw const PreviewRequestCancelled();
+    }
+  }
+
+  Future<void> check(Uri uri) async {
+    checkWanted();
+    final request = PreviewRequestContext.current;
+    final stopped = Completer<bool>();
+    _pending.add(stopped);
+    try {
+      final allowed = await Future.any([
+        allow(uri),
+        stopped.future,
+        if (request != null) request.cancelled.then((_) => false),
+      ]);
+      checkWanted();
+      if (!allowed) throw const PreviewPolicyBlocked();
+    } finally {
+      _pending.remove(stopped);
+    }
+  }
+
+  void dispose() {
+    _disposed = true;
+    for (final pending in _pending) {
+      pending.complete(false);
+    }
+    _pending.clear();
+  }
+}
+
+class _PreviewHttpFetch implements MovaHttpFetch {
+  _PreviewHttpFetch(this.fetcher, Future<bool> Function(Uri) allow) : gate = _PreviewResourceGate(allow);
+  final MovaHttpFetch fetcher;
+  final _PreviewResourceGate gate;
   @override
   Future<Uint8List?> get(Uri url) async {
-    if (!await allow(url)) throw const PreviewPolicyBlocked();
+    await gate.check(url);
+    gate.checkWanted();
     return fetcher.get(url);
   }
   @override
-  Future<void> close() async {} // 借用引擎持有的 HTTP 端口。
+  Future<void> close() async => gate.dispose(); // 仅关闭包装器，HTTP 端口由引擎持有。
 }
 
 class _PreviewFramePuller implements MovaFramePuller {
-  _PreviewFramePuller(this.puller, this.allow);
+  _PreviewFramePuller(this.puller, Future<bool> Function(Uri) allow) : gate = _PreviewResourceGate(allow);
   final MovaFramePuller puller;
-  final Future<bool> Function(Uri) allow;
+  final _PreviewResourceGate gate;
   @override
   Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async {
-    if (!await allow(Uri.parse(uri))) throw const PreviewPolicyBlocked();
+    await gate.check(Uri.parse(uri));
+    gate.checkWanted();
     return puller.extract(uri, at, width: width, hwdec: hwdec);
   }
   @override
   Future<void> release() => puller.release();
   @override
-  Future<void> dispose() async {} // 抽帧端口由宿主持有。
+  Future<void> dispose() async => gate.dispose(); // 抽帧端口由宿主持有。
 }
 
 /// 单次加载尝试持有的 ABR 屏蔽租约，身份也区分同尝试内的新 seek。
@@ -1456,7 +1498,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       chain.add(
         MovaVttThumbSource(
           fetcher: _PreviewHttpFetch(fetcher ?? _fetcher, allow),
-          closeFetcher: false,
+          closeFetcher: true, // 只销毁资源门控包装器，不关闭借用的 HTTP 端口。
           resolveUrl:
               cfg.vttUrlResolver ??
               (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),

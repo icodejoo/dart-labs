@@ -11,6 +11,7 @@ import 'hash.dart';
 import 'models.dart';
 import 'net_probe.dart';
 import 'request_blocked.dart';
+import 'request_context.dart';
 import 'source.dart';
 
 /// The production [MovaPreviewApi]: debounces scrub ticks, aligns them to
@@ -130,6 +131,13 @@ class MovaPreviewService implements MovaPreviewApi {
 
   /// 每次请求、取消、换源递增，防止同桶的旧请求复活。
   int _revision = 0;
+  Completer<void> _requestCancelled = Completer<void>();
+
+  void _invalidateRequest() {
+    _revision++;
+    _requestCancelled.complete();
+    _requestCancelled = Completer<void>();
+  }
 
   /// The thumbnail currently resolved for [_wanted], if any.
   ///
@@ -162,7 +170,7 @@ class MovaPreviewService implements MovaPreviewApi {
   ///   新打开的媒体；播放器无媒体时为 null
   void attach(MovaSource? source) {
     _epoch++;
-    _revision++;
+    _invalidateRequest();
     _pending = null;
     _source = source;
     _debounce?.cancel();
@@ -261,7 +269,7 @@ class MovaPreviewService implements MovaPreviewApi {
   @override
   void requestAt(Duration position) {
     if (_disposed) return;
-    _revision++;
+    _invalidateRequest();
     _pending = null;
     _debounce?.cancel();
     _debounce = null;
@@ -362,7 +370,12 @@ class MovaPreviewService implements MovaPreviewApi {
       if (src.type == MovaStreamType.live && source is MovaPullerThumbSource) continue;
       MovaThumb? thumb;
       try {
-        thumb = await source.thumbAt(src, bucket);
+        final request = PreviewRequestContext(
+          () => _isWanted(epoch, revision), _requestCancelled.future,
+        );
+        thumb = await request.run(() => source.thumbAt(src, bucket));
+      } on PreviewRequestCancelled {
+        return;
       } on PreviewPolicyBlocked {
         if (_isWanted(epoch, revision)) _block(MovaPreviewBlockReason.network);
         return;
@@ -393,7 +406,7 @@ class MovaPreviewService implements MovaPreviewApi {
 
   @override
   void cancel() {
-    _revision++;
+    _invalidateRequest();
     _pending = null;
     _debounce?.cancel();
     _debounce = null;
@@ -426,7 +439,7 @@ class MovaPreviewService implements MovaPreviewApi {
     if (_disposed) return;
     _disposed = true;
     _epoch++;
-    _revision++;
+    _invalidateRequest();
     _pending = null;
     _debounce?.cancel();
     _debounce = null;
