@@ -230,7 +230,7 @@ def make_rows(manifest, results, explicit):
             status, detail = explicit[ident]['status'], explicit[ident]['evidence']
         rows.append(dict(id=ident, status=status, evidence=detail, batches=names,
                          reproduction='python example/tool/run_matrix.py --only ' + ','.join(names) if names else 'manual',
-                         pointers=evidence))
+                         pointers=evidence, subitems=explicit.get(ident, {}).get('subitems', [])))
     return rows
 
 
@@ -248,6 +248,10 @@ def render_summary(run_id, rows, comparison, results, baseline):
     for row in rows:
         detail = (row['evidence'] + ' ' + ' '.join(row['pointers'])).replace('|','/').replace('\n',' ')
         lines.append(f'| {row["id"]} | {row["status"]} | {detail} | `{row["reproduction"]}` |')
+    lines += ['', '| 子项 | 结论 | 原始证据 |', '|---|---|---|']
+    for row in rows:
+        for sub in row.get('subitems', []):
+            lines.append(f"| {sub['id']} | {sub['status']} | {sub['evidence'].replace('|', '/')} |")
     gap_results = [(name,r['gap_result']) for name,r in results.items() if 'gap_result' in r]
     if gap_results:
         lines += ['', 'Gap 扩展子项（不改变上方 v1 135 编号台账；完整证据见独立 gap.json）：', '',
@@ -297,6 +301,43 @@ def existing_verdicts(out, prefix):
             verdicts[ident] = dict(status='PASS' if all(r['pass'] for r,p in matches) else 'FAIL',
                                    evidence='复用 rerun_finalize 引用的两实现完整编号 CHECK：' +
                                    '; '.join(f'{p.name}: {r}' for r,p in matches))
+    return verdicts
+
+
+def subitem_verdicts(out, prefix):
+    """按本轮原始 CHECK 子项收口，保留每条证据及缺失判据。"""
+    grouped = {}
+    for path in sorted(out.glob(prefix + '*.json')):
+        try:
+            data = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        records = data.get('records', [])
+        start = max((i for i, r in enumerate(records) if r.get('kind') == 'BEGIN'), default=0)
+        for r in records[start:]:
+            ident = r.get('id', '')
+            if r.get('kind') != 'CHECK' or not re.fullmatch(r'(?:[ACUFN]\d+|E[12])(?:\.[\w.-]+)?', ident):
+                continue
+            grouped.setdefault(ident.split('.')[0], []).append((path.name, r))
+    verdicts = {}
+    for ident, checks in grouped.items():
+        subitems = {}
+        for name, check in checks:
+            subitems.setdefault(check['id'], []).append((name, check))
+        rows = []
+        for key, samples in sorted(subitems.items()):
+            values = [r.get('pass') for _, r in samples]
+            status = 'FAIL' if any(v is False for v in values) else (
+                'PASS' if all(v is True for v in values) else 'BLOCKED')
+            rows.append(dict(id=key, status=status, evidence='; '.join(
+                f'{name}: {json.dumps(r, ensure_ascii=False)}' for name, r in samples)))
+        # 子项失败足以证明整项失败；子项全绿不代表未实现的验收条件通过。
+        status = 'FAIL' if any(r['status'] == 'FAIL' for r in rows) else 'BLOCKED'
+        verdicts[ident] = dict(status=status, subitems=rows,
+            evidence='子项自动判据：' + ', '.join(f"{r["id"]}={r["status"]}" for r in rows)
+            + ('；其余条件缺完整自动判据。' if status == 'BLOCKED' else '；原始 CHECK 失败。'))
     return verdicts
 
 
@@ -743,6 +784,8 @@ def main(argv=None):
     finally:
         driver.cleanup()
         explicit={i:dict(status=s,evidence=d) for i,s,d in re.findall(r'^\| (\S+) \| (PASS|FAIL) \| (.*?) \|$',checkpoint.read_text(encoding='utf-8'),re.M)}
+        subitems=subitem_verdicts(driver.out,driver.prefix)
+        explicit={**subitems, **explicit}
         explicit.update(existing_verdicts(driver.out,driver.prefix))
         rows=make_rows(manifest,driver.results,explicit)
         for row in rows:

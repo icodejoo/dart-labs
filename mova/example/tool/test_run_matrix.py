@@ -190,6 +190,25 @@ class MatrixTests(unittest.TestCase):
             (out/'matrix-unit-rerun-batch15-basic.json').unlink()
             self.assertEqual(matrix.existing_verdicts(out,'matrix-unit-'),{})
 
+    def test_subitem_verdicts(self):
+        """子项独立收口，失败传播且不把局部通过升级为整项通过。"""
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder)
+            path = out/'unit-check.json'
+            path.write_text(json.dumps(dict(records=[
+                dict(kind='CHECK', id='A6.old', **{'pass': False}),
+                dict(kind='BEGIN'),
+                dict(kind='CHECK', id='A6.pause', **{'pass': True}),
+                dict(kind='CHECK', id='A7.seek', **{'pass': False}),
+                dict(kind='CHECK', id='A8.clamp', **{'pass': 'true'}),
+            ])), encoding='utf-8')
+            verdicts = matrix.subitem_verdicts(out, 'unit-')
+            self.assertEqual(verdicts['A6']['status'], 'BLOCKED')
+            self.assertEqual(verdicts['A6']['subitems'][0]['status'], 'PASS')
+            self.assertEqual(verdicts['A7']['status'], 'FAIL')
+            self.assertEqual(verdicts['A8']['subitems'][0]['status'], 'BLOCKED')
+            self.assertEqual(matrix.subitem_verdicts(out, 'other-'), {})
+
     def test_offline_modes_have_no_side_effects(self):
         """Fail tests on any attempted subprocess/socket/write / 任何进程、端口或写入即失败。"""
         for args in (['--check'],['--list'],['--dry-run','--fast','--run-id','unit']):
