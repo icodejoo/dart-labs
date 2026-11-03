@@ -11,6 +11,7 @@ import '../cutover/acceptance.dart';
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
 import 'fail.dart';
+import '../session/timeline.dart';
 
 /// Returns the first not-yet-played mid-roll break whose [MovaAdBreak.offset] has
 /// been reached at [position]; null when none is due.
@@ -25,29 +26,7 @@ import 'fail.dart';
 /// 纯函数，使中插触发规则可单独单测。最早到期者优先；调用方将其标记为已播，
 /// 下一个 tick 便浮现下一条。
 MovaAdBreak? dueMidRoll(List<MovaAdBreak> breaks, Duration position, Set<MovaAdBreak> played) {
-  return _firstWhere(
-    breaks,
-    (b) => b.kind == MovaAdBreakKind.mid && !played.contains(b) && b.offset <= position,
-  );
-}
-
-/// Returns the first element of [items] matching [predicate], or null.
-///
-/// Shared linear-scan helper behind [dueMidRoll] and [MovaAds]'s own
-/// pod/kind lookups ([MovaAds._nextPodMid]/[MovaAds._firstOfKind]) — the
-/// three were previously separate, identically-shaped for-loops differing
-/// only in their predicate.
-///
-/// 返回 [items] 中首个匹配 [predicate] 的元素；没有则为 null。
-///
-/// [dueMidRoll] 与 [MovaAds] 自身的 pod/kind 查找（[MovaAds._nextPodMid]/
-/// [MovaAds._firstOfKind]）共用的线性扫描 helper——三者此前是三个结构相同、
-/// 仅谓词不同的独立 for 循环。
-T? _firstWhere<T>(Iterable<T> items, bool Function(T) predicate) {
-  for (final item in items) {
-    if (predicate(item)) return item;
-  }
-  return null;
+  return movaDueMidRoll(breaks, position, played);
 }
 
 /// Playback phase the ad controller is currently in.
@@ -625,17 +604,14 @@ class MovaAds {
   /// 定义。更晚的中插被刻意排除：串到那些上去就不是 pod 了，而是把剩下的排期
   /// 一口气连播完。
   MovaAdBreak? _nextPodMid() {
-    return _firstWhere(
-      _breaks,
-      (b) => b.kind == MovaAdBreakKind.mid && !_played.contains(b) && b.offset <= _contentResumeAt,
-    );
+    return movaNextPodMid(_breaks, _played, _contentResumeAt);
   }
 
   /// Returns the first not-yet-played break of [kind], or null.
   ///
   /// 返回首个尚未播放的、类型为 [kind] 的广告位；没有则为 null。
   MovaAdBreak? _firstOfKind(MovaAdBreakKind kind) {
-    return _firstWhere(_breaks, (b) => b.kind == kind && !_played.contains(b));
+    return movaFirstOfKind(_breaks, _played, kind);
   }
 
   /// Whether [b] should be warmed up and cut to only once it is ready.
@@ -1140,13 +1116,7 @@ class MovaAds {
   /// 对中插而言，pod 仅指插在同一位置的那几条——把后面几十分钟的中插全吃掉就不是
   /// "放弃这个 pod"，而是"关掉广告"了。
   void _markPodPlayed(MovaAdBreak b) {
-    for (final other in _breaks) {
-      if (other.kind != b.kind) continue;
-      if (b.kind == MovaAdBreakKind.mid && other.offset > _contentResumeAt) {
-        continue;
-      }
-      _played.add(other);
-    }
+    _played.addAll(movaPodMembers(_breaks, b, _contentResumeAt));
   }
 
   /// Switches playback to the content, optionally resuming at [at]. Tries a
