@@ -7,6 +7,8 @@
 
 ### Changes
 
+- 广告失败策略和影子放弃预热仅响应 `MovaErrorEvent.fatal == true`；非终结内核日志不再中断广告或预热，原有尝试去重及 cutover 接受结果契约不变。
+
 - 判失败不依赖 recovery：首次 open 懒启动 END_FILE 弱客户端；终结错误清缓冲并暂停，有封面时启用 RESTART。alternatives 需启用 recovery（debug 断言）。
 - recovery 关闭时 open 失败仍抛出，同时写终结 state.error；预告下一版本不再抛出，请迁移到错误事件处理。
 

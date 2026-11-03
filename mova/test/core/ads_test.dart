@@ -1882,13 +1882,17 @@ void main() {
       });
     });
 
-    test('a player error during an ad goes through the failure policy', () {
+    test('only a terminal player error during an ad goes through the failure policy', () {
       fakeAsync((async) {
         final policy = RecordingFailPolicy();
         final (api, c, _) = failBuild([pre], policy: policy);
         c.load(_content);
         flush(async);
-        api.pushEvent(MovaErrorEvent('decode failed'));
+        api.pushEvent(const MovaErrorEvent.classified('decode failed', fatal: false));
+        flush(async);
+        expect(policy.seen, isEmpty, reason: '非终结日志不结算广告');
+        expect(c.isShowingAd, isTrue);
+        api.pushEvent(const MovaErrorEvent.classified('decode failed', fatal: true));
         flush(async);
         expect(policy.seen, hasLength(1));
         expect(policy.seen.first.kind, MovaAdFailKind.playerError);

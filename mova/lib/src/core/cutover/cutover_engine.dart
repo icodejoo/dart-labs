@@ -644,7 +644,8 @@ class MovaCutoverEngine
     slot.stateSub = shadow.states.listen((s) => slot.buffering = s.buffering);
     slot.progressSub = shadow.progress.listen((p) => _evaluate(slot, p.position, p.buffer));
     slot.eventSub = shadow.events.listen((e) {
-      if (e is MovaErrorEvent) _onShadowError(slot);
+      // 预热只因终结错误放弃，诊断日志不作失败。
+      if (e is MovaErrorEvent && e.fatal) _onShadowError(slot);
     });
 
     _setPhase(MovaCutoverPhase.warming);

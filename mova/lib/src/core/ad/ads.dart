@@ -1236,6 +1236,8 @@ class MovaAds {
     //
     // 播放错误只在广告在屏时归本控制器管；正片侧的错误属于宿主，原样继续流出。
     if (e is MovaErrorEvent) {
+      // 非终结日志仍给宿主诊断，不结算当前广告尝试。
+      if (!e.fatal) return;
       final playing = _current;
       if (_phase == _Phase.ad && playing != null) {
         unawaited(_onAdFailure(playing, MovaAdFailKind.playerError, e.error));
