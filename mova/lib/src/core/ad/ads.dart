@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart' show visibleForTesting;
+import '../state/state.dart';
+import '../session/ad_clock.dart';
+
 import '../api.dart';
 import '../events/events.dart';
 import '../model/ad.dart';
@@ -145,6 +149,8 @@ class MovaAds {
       _cutover = cutover {
     _eventSub = _api.events.listen(_onEvent);
     _progressSub = _api.progress.listen(_onProgress);
+    _lastPlaying = _api.state.playing;
+    _stateSub = _api.states.listen(_onState);
   }
 
   final MovaApi _api;
@@ -236,7 +242,7 @@ class MovaAds {
   /// current break has no fixed slot length.
   ///
   /// 为屏幕上的广告落实 [MovaAdBreak.duration]；当前广告位没有固定时长时为 null。
-  Timer? _slotTimer;
+  late final MovaAdClock _slotClock = MovaAdClock(now: () => debugClock());
 
   /// 续播在途期间保护正片倍速快照；去重由每次尝试独立负责。
   bool get _resuming => _resumeDepth > 0;
@@ -263,21 +269,41 @@ class MovaAds {
   /// the pending break has no visible countdown.
   ///
   /// 待播广告位的 [MovaAdBreak.delay] 走完时触发；该广告位没有可见倒计时时为 null。
-  Timer? _delayTimer;
+  late final MovaAdClock _delayClock = MovaAdClock(now: () => debugClock());
 
-  /// The content position the pending phase began at, used to render the
-  /// countdown.
-  ///
-  /// Derived from the progress stream rather than a wall clock on purpose: the
-  /// countdown is a *display* value, and the content position is the one
-  /// number that is already ticking in front of the viewer. Expiry itself is
-  /// still driven by [_delayTimer], never by this.
-  ///
-  /// 进入待播阶段时的正片位置，用于渲染倒计时。
-  ///
-  /// 刻意取自进度流而非墙钟：倒计时是一个*展示*值，而正片位置正是此刻已经在
-  /// 观众眼前走动的那个数。到期判定本身仍由 [_delayTimer] 驱动，绝不由它决定。
-  Duration _pendingFrom = Duration.zero;
+  /// 广告时钟取时；测试注入随 fakeAsync 推进的函数，返回当前时刻。
+  /// 示例：`ads.debugClock = () => origin.add(async.elapsed)`。
+  @visibleForTesting
+  DateTime Function() debugClock = DateTime.now;
+
+  /// 播放观测订阅，只按边沿控制当前阶段的时钟。
+  StreamSubscription<MovaState>? _stateSub;
+
+  /// 上次播放观测，不从播放意图推断。
+  late bool _lastPlaying;
+
+  /// 当前阶段需要控制的广告时钟。
+  MovaAdClock? _clockFor() => switch (_phase) {
+    _Phase.ad => _slotClock,
+    _Phase.pending => _delayClock,
+    _ => null,
+  };
+
+  /// 按播放观测的升降沿恢复或暂停当前时钟。
+  void _onState(MovaState state) {
+    final was = _lastPlaying;
+    _lastPlaying = state.playing;
+    if (was && !state.playing) {
+      _clockFor()?.pause();
+    } else if (!was && state.playing) {
+      _clockFor()?.resume();
+    }
+  }
+
+  /// 用户没有播放意图时，以暂停态起表。
+  void _holdIfPaused(MovaAdClock clock) {
+    if (!_api.state.playbackIntent) clock.pause();
+  }
 
   /// Fires when the current ad produced no first frame in time.
   ///
@@ -324,9 +350,7 @@ class MovaAds {
   Duration? get delayRemaining {
     final b = _pending;
     if (b == null || b.delay <= Duration.zero) return null;
-    final elapsed = _lastContentPosition - _pendingFrom;
-    final left = b.delay - elapsed;
-    return left > Duration.zero ? left : Duration.zero;
+    return _delayClock.remaining ?? Duration.zero;
   }
 
   /// Elapsed time into the current ad (from zero).
@@ -646,7 +670,6 @@ class MovaAds {
   void _beginDelay(MovaAdBreak b) {
     _phase = _Phase.pending;
     _pending = b;
-    _pendingFrom = _lastContentPosition;
     _played.add(b);
     _cancelDelayTimer();
     _fire(MovaAdEventType.pending, b);
@@ -660,10 +683,11 @@ class MovaAds {
     // 就绪等待（若有）发生在 [_beginAd] 内部——因此"至少走完倒计时、最多再加一个
     // 就绪超时"这条在两种情形下都成立。
     if (b.delay > Duration.zero) {
-      _delayTimer = Timer(b.delay, () {
+      _delayClock.start(b.delay, () {
         if (_phase != _Phase.pending || !identical(_pending, b)) return;
         unawaited(_beginAd(b));
       });
+      _holdIfPaused(_delayClock);
     } else {
       unawaited(_beginAd(b));
     }
@@ -673,8 +697,7 @@ class MovaAds {
   ///
   /// 取消倒计时定时器（若有）。
   void _cancelDelayTimer() {
-    _delayTimer?.cancel();
-    _delayTimer = null;
+    _delayClock.cancel();
   }
 
   /// Hands the screen over to [b] once its pending phase is done: commits the
@@ -980,8 +1003,8 @@ class MovaAds {
   /// 可靠地把播放器卡死。
   void _armSlotTimer(MovaAdBreak b) {
     final d = b.duration;
-    if (d == null || _slotTimer != null) return;
-    _slotTimer = Timer(d, () {
+    if (d == null || _slotClock.remaining != null) return;
+    _slotClock.start(d, () {
       if (_phase != _Phase.ad || !identical(_current, b)) return;
       // The slot the advertiser bought has been delivered in full, so this is
       // a completion, not a skip.
@@ -990,14 +1013,14 @@ class MovaAds {
       _fire(MovaAdEventType.completed, b);
       unawaited(_resumeAfterAd(b));
     });
+    _holdIfPaused(_slotClock);
   }
 
   /// Cancels any running slot timer.
   ///
   /// 取消正在运行的广告位定时器（若有）。
   void _cancelSlotTimer() {
-    _slotTimer?.cancel();
-    _slotTimer = null;
+    _slotClock.cancel();
   }
 
   /// Starts the no-first-frame deadline for [b].
@@ -1506,6 +1529,7 @@ class MovaAds {
     _cancelAllTimers();
     await _eventSub?.cancel();
     await _progressSub?.cancel();
+    await _stateSub?.cancel();
     await _cutover?.abandon();
     await _changes.close();
     await _contentEnded.close();

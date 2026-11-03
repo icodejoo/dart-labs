@@ -1137,16 +1137,17 @@ void main() {
       });
     });
 
-    test('delayRemaining counts down with the content ticks and stays positive until expiry', () {
+    test('delayRemaining counts down with the clock and stays positive until expiry', () {
       fakeAsync((async) {
         final (api, c, _) = pendBuild([mid5]);
+        c.debugClock = () => DateTime.utc(2026).add(async.elapsed);
         c.load(_content);
-        flush(async);
+        async.flushMicrotasks();
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
-        flush(async);
+        async.flushMicrotasks();
         expect(c.delayRemaining, const Duration(seconds: 5));
-        api.pushProgress(const MovaProg(position: Duration(seconds: 33)));
-        flush(async);
+        async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
         expect(c.delayRemaining, const Duration(seconds: 3));
         expect(c.delayRemaining, greaterThan(Duration.zero));
       });
@@ -1600,12 +1601,14 @@ void main() {
           delay: Duration(seconds: 5),
         );
         final (api, c, _) = waitBuild([delayed], cutover: cutover);
+        c.debugClock = () => DateTime.utc(2026).add(async.elapsed);
         c.load(_content);
-        flush(async);
+        async.flushMicrotasks();
         api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
-        flush(async);
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 2));
         api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
-        flush(async);
+        async.flushMicrotasks();
         expect(cutover.lastCue!.total, const Duration(seconds: 5));
         expect(cutover.lastCue!.remaining, const Duration(seconds: 3));
 
