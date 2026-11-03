@@ -87,7 +87,8 @@ Future<void> run() async {
       await c.until(() => a.state.rendered);
       final names = await clients(native);
       final count = names?.where((v) => v.startsWith('mova_qoe_')).length;
-      final expected = variant == 'off' || variant == 'reporterOff' ? 0 : 1;
+      // A14: first open lazily starts the shared terminal-failure observer.
+      const expected = 1;
       check('N13.clients.$variant', {
         'clients': names,
         'count': count,

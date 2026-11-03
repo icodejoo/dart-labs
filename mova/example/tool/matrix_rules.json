@@ -10702,7 +10702,7 @@
           {
             "field": "numbers.count",
             "op": "eq",
-            "value": 0
+            "value": 1
           },
           {
             "field": "numbers.clients",
@@ -10711,7 +10711,7 @@
           {
             "field": "numbers.clients",
             "op": "prefix_count",
-            "value": 0,
+            "value": 1,
             "prefix": "mova_qoe_"
           }
         ]
@@ -10765,7 +10765,7 @@
           {
             "field": "numbers.count",
             "op": "eq",
-            "value": 0
+            "value": 1
           },
           {
             "field": "numbers.clients",
@@ -10774,7 +10774,7 @@
           {
             "field": "numbers.clients",
             "op": "prefix_count",
-            "value": 0,
+            "value": 1,
             "prefix": "mova_qoe_"
           }
         ]
