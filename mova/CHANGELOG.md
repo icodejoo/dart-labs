@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **Fix/时序变化：待机唤醒的回边缘及重开不再占用待机队列；`setKeepAlive(false)` 在进入 resuming 时完成，不等待网络重开或首帧。网络返回后仅当前尝试按最新播放意图开播，期间 pause 不被覆盖。**
+
 * **Fix：被宿主拒绝的 open 不再作废在途 play/seek；暂停加载期间的播放意图在加载完成后补发，待机请求仍保持暂停加载。**
 
 * **Fix：广告的 cutoverTo、prepare、commit 抛出与直接 open 异常统一进入广告失败策略；直接广告 open 被宿主拒绝时跳过且不重试。正片打开/切换异常经 `MovaAds.contentError` 上报并回到 idle，宿主拒绝与过期加载不报错，不发 contentEnded。**

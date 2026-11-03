@@ -1655,7 +1655,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 同步记下，使排在本调用之后的 play()/open() 能看到。
     _keepAliveRequested = on;
-    return _enqueueKeepAlive(() => on ? _enterKeepAlive(viaPlay: false) : _leaveKeepAlive());
+    Future<void> Function()? reload;
+    return _enqueueKeepAlive(() => on
+        ? _enterKeepAlive(viaPlay: false)
+        : _leaveKeepAlive((action) => reload = action)).then((phase) {
+      // 队列迁移已完成；网络等待不占用待机串行队列。
+      final action = reload;
+      if (action != null) unawaited(action());
+      return phase;
+    });
   }
 
   /// Tries to enter keepAlive. [viaPlay] means it was triggered by `play()` (or a
@@ -1831,7 +1839,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// as [decideKeepAliveWake] decides.
   ///
   /// 从待机唤醒：撤销待机，或续播/重连 fallback 暂停——由 [decideKeepAliveWake] 决定。
-  Future<MovaKeepAlivePhase> _leaveKeepAlive() async {
+  /// [deferReload] 接收队列释放后执行的重开动作，返回同步迁移后的相位。
+  Future<MovaKeepAlivePhase> _leaveKeepAlive(
+    void Function(Future<void> Function()) deferReload,
+  ) async {
     if (_disposed) return MovaKeepAlivePhase.off;
     final phase = state.keepAlivePhase;
     final since = _keepAliveSince;
@@ -1871,19 +1882,49 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
         _resumeWatch();
         return state.keepAlivePhase;
       case MovaKeepAliveWake.reloadEdge:
+      case MovaKeepAliveWake.reopen:
+        final edge = wake == MovaKeepAliveWake.reloadEdge;
+        final window = state.seekableWindow;
+        final seekTo = edge &&
+                options.live.effectiveBackToLive == MovaBackToLive.seekEnd &&
+                state.liveSeekable && window > Duration.zero
+            ? window
+            : null;
         _beginResume(from: null);
-        _armAttempt(autoPlay: true);
-        final reopened = await _backToLiveEdge();
-        if (_disposed) return MovaKeepAlivePhase.off;
-        if (!state.playing) await _kernel.play();
-        if (!reopened) _resumeWatch();
+        if (seekTo == null) _forgetMediaProgress();
+        _armAttempt(autoPlay: _loadPlays);
+        final attempt = _attemptId;
+        final uri = _activeUri;
+        deferReload(() => _reloadKeepAlive(attempt, uri, edge: edge, seekTo: seekTo));
+        return state.keepAlivePhase;
+    }
+  }
+
+  /// 队列外执行唤醒；[attempt] 过期时丢弃结果，[uri] 为重开地址。
+  /// [edge] 表示回边缘，[seekTo] 非空时只跳转窗口末尾；完成不代表首帧。
+  Future<void> _reloadKeepAlive(int attempt, String uri, {
+    required bool edge,
+    required Duration? seekTo,
+  }) async {
+    if (_disposed || attempt != _attemptId) return;
+    try {
+      if (seekTo == null) {
+        if (!await _loadKernel(uri, play: _loadPlays)) return;
+      } else {
+        await _kernel.seek(seekTo);
+      }
+      if (_disposed || attempt != _attemptId) return;
+      if (_playIntent && !state.playing) await _kernel.play();
+      if (_disposed || attempt != _attemptId) return;
+      if (seekTo != null) _resumeWatch();
+      if (edge) {
         _state.emit(state.copyWith(clearTimeshift: true));
         _emitEvent(const MovaLiveEdgeReach());
-        return state.keepAlivePhase;
-      case MovaKeepAliveWake.reopen:
-        _beginResume(from: null);
-        await _reopenLiveSource();
-        return state.keepAlivePhase;
+      }
+    } on Object catch (error) {
+      if (!_disposed && attempt == _attemptId) {
+        _onPlayFail(MovaPlayFailKind.openThrew, error: error);
+      }
     }
   }
 
