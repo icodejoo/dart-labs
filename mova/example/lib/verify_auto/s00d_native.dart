@@ -83,6 +83,10 @@ Future<void> run() async {
     final sub = a.events.listen(events.add);
     try {
       final native = await mount(a);
+      final initialNames = await clients(native);
+      check('N13.beforeOpen.$variant', {'clients': initialNames,
+        'count': initialNames?.where((v) => v.startsWith('mova_qoe_')).length},
+        initialNames == null ? null : !initialNames.any((v) => v.startsWith('mova_qoe_')));
       await a.open(c.source(), autoPlay: false);
       await c.until(() => a.state.rendered);
       final names = await clients(native);

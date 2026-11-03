@@ -132,6 +132,9 @@ class Evidence:
                 elif op == 'quality_shape': ok = actual is None or quality_shape(actual)
                 elif op == 'quality_list_shape': ok = isinstance(actual,list) and all(quality_shape(v) for v in actual)
                 elif op == 'prefix_count': ok = isinstance(actual, list) and all(isinstance(v,str) for v in actual) and sum(v.startswith(clause['prefix']) for v in actual) == expected
+                elif op == 'count_where':
+                    ok = isinstance(actual, list) and all(isinstance(v,dict) for v in actual) and sum(
+                        all(v.get(k) == value for k,value in clause['where'].items()) for v in actual) == expected
                 elif op == 'all_lt': ok = isinstance(actual, list) and bool(actual) and all(v < expected for v in actual)
                 elif op == 'all_eq': ok = isinstance(actual, list) and bool(actual) and all(v == expected for v in actual)
                 elif op == 'nonempty': ok = isinstance(actual, (str, list, dict)) and len(actual) > 0

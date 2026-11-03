@@ -27,6 +27,48 @@ class MatrixTests(unittest.TestCase):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
 
+    def test_s00e_native_host_parsers_keep_unknown_and_target_device(self):
+        import coverage_s00e as host
+        self.assertEqual(host.brightness('123\n'), 123)
+        for raw in ('', 'null', 'Permission denied', 'auto'):
+            self.assertIsNone(host.brightness(raw))
+        window = '  Window #0 Window{123 '+host.PACKAGE+'/MainActivity}:\n    mAttrs={screenBrightness=0.3}\n'
+        self.assertEqual(host.window_brightness(window), .3)
+        self.assertIsNone(host.window_brightness(window.replace(host.PACKAGE,'another.app')))
+        self.assertIsNone(host.window_brightness('permission denied'))
+        audio = '''- STREAM_MUSIC:
+    Current: 2 (speaker): 5, 4 (headset): 9
+    Devices: speaker
+- STREAM_ALARM:
+    Current: 2 (speaker): 15
+    Devices: speaker
+'''
+        self.assertEqual(host.music_volume(audio), 5)
+        self.assertEqual(host.music_volume(audio.replace('Devices: speaker', 'Devices: headset')), 9)
+        for raw in ('', audio.replace('Devices:', 'Unknown:'), audio.replace('speaker\n', 'bluetooth\n')):
+            self.assertIsNone(host.music_volume(raw))
+        status = 'Name:\tmova\nVmRSS:\t4096 kB\nThreads:\t8\n'
+        stat = '42 (name (with) spaces) S ' + ' '.join(map(str, range(1, 22)))
+        values = host.process_values(status, stat, '0\n1\n2\n', ' TOTAL PSS: 3000 TOTAL RSS: 4096')
+        self.assertEqual(values, dict(rss=4194304, threads=8, handles=3, cpuTicks=23, pss=3072000))
+        self.assertTrue(all(v is None for v in host.process_values('', '', 'Permission denied', '').values()))
+        sessions = ' piid:1 uid/pid:10042/42 state:started\n piid:2 pid:43 state:paused'
+        self.assertEqual(host.audio_session('pid:42 state:started\npid:43 state:paused', 42)['states'], ['started'])
+        self.assertIsNone(host.audio_session(sessions, 999)['states'])
+        self.assertEqual(host.audio_session(sessions, 42)['states'], ['started'])
+
+    def test_s00e_widget_rules_recompute_every_field(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        rows=[json.loads(line) for line in (matrix.TOOL/'testdata/s00e-widgets-checks.jsonl').read_text(encoding='utf-8').splitlines()]
+        for row in rows:
+            clauses=next(q['assertions'] for q in rules[row['id'].split('.')[0]]['requires'] if q.get('ident')==row['id'])
+            self.assertEqual(Evidence.assertions(row,clauses), 'PASS', row['id'])
+            changed=copy.deepcopy(row); changed['actual']='tampered'
+            self.assertEqual(Evidence.assertions(changed,clauses), 'FAIL', row['id'])
+            changed=copy.deepcopy(row); del changed['actual']
+            self.assertEqual(Evidence.assertions(changed,clauses), 'BLOCKED', row['id'])
+
     def test_s00d_rule_inventory_rejects_absence_and_recomputes_observations(self):
         from matrix_evidence import Evidence
         rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))

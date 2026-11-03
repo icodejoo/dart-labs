@@ -1,5 +1,7 @@
 // ignore_for_file: avoid_print
 import 'verify_auto/s00d_receipt.dart';
+import 'verify_auto/s00e_native.dart' as s00e;
+import 'verify_auto/s00e_trace.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -14,7 +16,7 @@ import 'verify_auto/coverage_widgets.dart' as widgets;
 /// 真机验证入口，通过 adb forward 18083 接受命令，不修改库实现。
 void main() {
   runZonedGuarded(() {
-    WidgetsFlutterBinding.ensureInitialized();
+    S00eBinding();
     MovaEngine.ensureInitialized();
     runApp(MaterialApp(navigatorObservers:[widgets.coverageRouteObserver],builder:(context,child)=>MovaMiniHost(ctl:mini,child:child!),home:const CoverageHome()));
   }, (e, s) => mark('UNCAUGHT', {'error': '$e', 'stack': '$s'}));
@@ -169,6 +171,9 @@ class _CoverageHomeState extends State<CoverageHome> {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 18083);
     mark('SERVER', {'port': 18083,'build':'rerun5-20261027'});
     await for (final req in server) {
+      if (req.uri.path == '/s00e-ack') {
+        s00e.acknowledge(req.uri.queryParameters['token'] ?? '', req.uri.queryParameters['sample']);
+      }
       if(req.uri.path=='/artifact') {
         final name=req.uri.queryParameters['name']??'';
         if(RegExp(r'^coverage-thumb-(4|8|12)\.jpg$').hasMatch(name)) {

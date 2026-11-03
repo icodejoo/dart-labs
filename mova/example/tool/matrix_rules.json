@@ -845,6 +845,38 @@
             "value": true
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "A7.native.trace",
+        "assertions": [
+          {
+            "field": "numbers.commandTrace",
+            "op": "nonempty",
+            "value": null
+          },
+          {
+            "field": "numbers.callCount",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.callCount",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.samples",
+            "op": "nonempty",
+            "value": null
+          },
+          {
+            "field": "numbers.finalPosition",
+            "op": "near",
+            "value": 12,
+            "tolerance": 0.5
+          }
+        ]
       }
     ]
   },
@@ -1307,11 +1339,6 @@
       },
       {
         "kind": "check",
-        "ident": "A13.coverage1",
-        "missing": "锁定前后手势屏蔽的原生亮度/音量对账"
-      },
-      {
-        "kind": "check",
         "ident": "A13.unlock.false",
         "assertions": [
           {
@@ -1393,6 +1420,70 @@
             "value": 0
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.false",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "ge",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "ge",
+            "other": "numbers.before.volume"
+          },
+          {
+            "field": "numbers.before.appBrightness",
+            "op": "lt",
+            "other": "numbers.after.appBrightness"
+          },
+          {
+            "field": "numbers.before.volume",
+            "op": "lt",
+            "other": "numbers.after.volume"
+          }
+        ],
+        "minimum": 2
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.true",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "eq",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "eq",
+            "other": "numbers.before.volume"
+          }
+        ],
+        "minimum": 1
       }
     ]
   },
@@ -3633,6 +3724,70 @@
             ]
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.false",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "ge",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "ge",
+            "other": "numbers.before.volume"
+          },
+          {
+            "field": "numbers.before.appBrightness",
+            "op": "lt",
+            "other": "numbers.after.appBrightness"
+          },
+          {
+            "field": "numbers.before.volume",
+            "op": "lt",
+            "other": "numbers.after.volume"
+          }
+        ],
+        "minimum": 2
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.true",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "eq",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "eq",
+            "other": "numbers.before.volume"
+          }
+        ],
+        "minimum": 1
       }
     ]
   },
@@ -8428,6 +8583,70 @@
             ]
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.false",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "ge",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "ge",
+            "other": "numbers.before.volume"
+          },
+          {
+            "field": "numbers.before.appBrightness",
+            "op": "lt",
+            "other": "numbers.after.appBrightness"
+          },
+          {
+            "field": "numbers.before.volume",
+            "op": "lt",
+            "other": "numbers.after.volume"
+          }
+        ],
+        "minimum": 2
+      },
+      {
+        "kind": "check",
+        "ident": "A13.native.true",
+        "assertions": [
+          {
+            "field": "numbers.locked",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.after.brightness",
+            "op": "eq",
+            "other": "numbers.before.brightness"
+          },
+          {
+            "field": "numbers.after.appBrightness",
+            "op": "eq",
+            "other": "numbers.before.appBrightness"
+          },
+          {
+            "field": "numbers.after.volume",
+            "op": "eq",
+            "other": "numbers.before.volume"
+          }
+        ],
+        "minimum": 1
       }
     ]
   },
@@ -12027,6 +12246,48 @@
             "value": 2
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "N12.native.isolation",
+        "assertions": [
+          {
+            "field": "numbers.oldFailures",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.sampleCount",
+            "op": "eq",
+            "value": 10
+          },
+          {
+            "field": "numbers.paths",
+            "op": "all_eq",
+            "other": "numbers.freshUri"
+          },
+          {
+            "field": "numbers.errors",
+            "op": "all_eq",
+            "value": null
+          },
+          {
+            "field": "numbers.playing",
+            "op": "all_eq",
+            "value": true
+          },
+          {
+            "field": "numbers.failures",
+            "op": "list_length",
+            "value": 0
+          }
+        ],
+        "minimum": 12
       }
     ]
   },
@@ -12164,6 +12425,179 @@
             "op": "prefix_count",
             "value": 1,
             "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.beforeOpen.off",
+        "assertions": [
+          {
+            "field": "numbers.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.clients",
+            "op": "prefix_count",
+            "value": 0,
+            "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.beforeOpen.recovery",
+        "assertions": [
+          {
+            "field": "numbers.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.clients",
+            "op": "prefix_count",
+            "value": 0,
+            "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.beforeOpen.precise",
+        "assertions": [
+          {
+            "field": "numbers.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.clients",
+            "op": "prefix_count",
+            "value": 0,
+            "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.beforeOpen.reporterOff",
+        "assertions": [
+          {
+            "field": "numbers.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.clients",
+            "op": "prefix_count",
+            "value": 0,
+            "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.beforeOpen.qoe",
+        "assertions": [
+          {
+            "field": "numbers.count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.clients",
+            "op": "prefix_count",
+            "value": 0,
+            "prefix": "mova_qoe_"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.video.false",
+        "assertions": [
+          {
+            "field": "numbers.beforeMount",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.mounted",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "other": "numbers.mounted"
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "other": "numbers.mounted",
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "other": "numbers.released",
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "N13.video.true",
+        "assertions": [
+          {
+            "field": "numbers.beforeMount",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.mounted",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "other": "numbers.mounted"
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "other": "numbers.mounted",
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "other": "numbers.released",
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
           }
         ]
       }
