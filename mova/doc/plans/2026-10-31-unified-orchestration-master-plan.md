@@ -706,7 +706,7 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 #### A1 块终审修复记录（2026-11-03）
 
-每批落地后由 Codex 初审（只读、effort high），主会话对源码逐条核实，成立的缺陷退回 Codex 在独立 worktree 修复、终审后拣回编排分支。共修复 **22 条**，新增回归约 **150 项**，每条回退生产修复均验证变红。验证基线：A1 块全部落地后 `flutter test` **2088** 全绿、`flutter analyze lib test` 0 issues。
+每批落地后由 Codex 初审（只读、effort high），主会话对源码逐条核实，成立的缺陷退回 Codex 在独立 worktree 修复、终审后拣回编排分支。共修复 **19 条**，新增回归 **115 项**（58 + 8 + 19 + 26 + 4），每条回退生产修复均验证变红。验证基线：A1 块全部落地后 `flutter test` **2088** 全绿、`flutter analyze lib test` 0 issues。
 
 | 批 | 缺陷（成立） | 修复提交 |
 |---|---|---|
