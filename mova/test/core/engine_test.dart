@@ -562,12 +562,12 @@ void main() {
     await e2.dispose();
   });
 
-  test('kernel errors surface on state and events', () async {
+  test('nonterminal kernel errors surface on events without state error', () async {
     final events = <MovaEvent>[];
     final sub = e.events.listen(events.add);
     k.emitError('boom');
     await Future<void>.delayed(Duration.zero);
-    expect(e.state.error, 'boom');
+    expect(e.state.error, isNull);
     expect(events.whereType<MovaErrorEvent>(), isNotEmpty);
     await sub.cancel();
   });

@@ -478,7 +478,7 @@ class MovaErrorEvent extends MovaEvent {
   const MovaErrorEvent(this.error, [this.stack]) : fatal = true, code = null;
 
   /// 是否终结播放；A13 起内核错误带分级，false 仍发事件并调用错误钩子。
-  /// 自 A14b 起，false 的错误将不再写入 state.error；A13 保留既有写入行为。
+  /// false 的错误不写入 state.error，也不触发默认错误遮罩。
   final bool fatal;
 
   /// 与 QoE 前缀映射一致的稳定错误码；旧构造器创建的事件为 null。

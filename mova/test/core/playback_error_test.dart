@@ -233,14 +233,14 @@ void main() {
       expect(events, hasLength(1));
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'network');
-      expect(engine.state.error, 'tcp: reset');
+      expect(engine.state.error, isNull);
       expect(hook.errors, ['tcp: reset']);
       engine.dispose();
       clock.flushMicrotasks();
     });
   });
 
-  test('A13 old kernels fall back to raw error with unknown code and state still written', () {
+  test('A13 old kernels fall back to raw error with unknown code without nonterminal state', () {
     fakeAsync((clock) {
       final kernel = FakeKernel();
       final hook = _Hook();
@@ -253,7 +253,7 @@ void main() {
       expect(events.single.error, same(error));
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'unknown');
-      expect(engine.state.error, same(error));
+      expect(engine.state.error, isNull);
       expect(hook.errors.single, same(error));
       engine.dispose();
       clock.flushMicrotasks();
@@ -283,7 +283,7 @@ void main() {
     });
   });
 
-  test('A13 after first frame diagnostics still write state and terminal decoder errors remain fatal', () async {
+  test('A13 after first frame diagnostics leave state clear and terminal decoder errors remain fatal', () async {
       final kernel = _ClassifiedKernel();
       final engine = _engine(kernel);
       final events = <MovaErrorEvent>[];
@@ -298,7 +298,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(events.single.fatal, isFalse);
       expect(events.single.code, 'decode.video');
-      expect(engine.state.error, 'damaged frame');
+      expect(engine.state.error, isNull);
       kernel.classified.add(const MovaKernelError('Failed to initialize a decoder for codec h264', 'vd'));
       await Future<void>.delayed(Duration.zero);
       expect(events.last.fatal, isTrue);

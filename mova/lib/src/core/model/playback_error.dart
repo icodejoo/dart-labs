@@ -20,7 +20,7 @@ class MovaKernelError {
 /// [error] 为原始错误，[subsystem] 为可选日志前缀；[afterFirstFrame]
 /// 表示当前会话已呈现首帧，仅传给共享的 code 映射，不把 QoE 结算判据当播放终结。
 /// 内核日志默认非终结；已知耗尽解码器、无法识别格式、END_FILE(error)
-/// 和恢复放弃才终结。END_FILE 的引擎接线由 A14 承接。
+/// 和恢复放弃才终结；open 抛出由引擎明确按终结错误上报。
 /// 示例：`classifyMovaPlaybackError('tcp: reset', subsystem: 'ffmpeg', afterFirstFrame: true)`。
 MovaErrorVerdict classifyMovaPlaybackError(
   Object error, {

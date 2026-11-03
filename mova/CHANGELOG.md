@@ -1,9 +1,16 @@
 ## Unreleased
 
+### Breaking
+
+- `state.error` 只表示终结播放的错误。非终结内核日志不再写此字段，也不弹默认错误遮罩；`MovaErrorEvent(fatal: false)` 与 `MovaHook.onError` 仍照常通知。需要诊断所有错误的宿主请改监听 `api.events` 中的 `MovaErrorEvent`，按 `fatal` 决定是否显示失败；需要跟踪恢复决策的宿主监听 `MovaPlayFailure`。END_FILE(error)、恢复放弃、已知终结文本和 open 抛出仍写入状态。
+- 错误遮罩使用 `MovaStrs.playbackError` / `retry` 文案（默认“播放失败，请重试”/“重试”）；原始错误仅在 debug 模式显示。
+
+### Changes
+
 - 判失败不依赖 recovery：首次 open 懒启动 END_FILE 弱客户端；终结错误清缓冲并暂停，有封面时启用 RESTART。alternatives 需启用 recovery（debug 断言）。
 - recovery 关闭时 open 失败仍抛出，同时写终结 state.error；预告下一版本不再抛出，请迁移到错误事件处理。
 
-* **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。本次仍将所有内核错误写入 `state.error`；END_FILE 接线及非终结错误不写 state 的行为分别由 A14、A14b 承接，QoE 结算口径不变。
+* **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。只有终结错误写入 `state.error`；END_FILE 已接线，QoE 结算口径不变。
 
 * **Fix：引擎就绪后默认自行探测 HLS 清晰度**（`MovaAbrConfig.probeVariants: true`）。同一会话的自动与显式探测共用一次请求，迟到结果更新列表但不覆盖手选档；可关闭自动探测，由宿主显式调用。auto ABR 接管仍未开启。
 

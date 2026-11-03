@@ -209,7 +209,7 @@ void main() {
       await engine.open(const MovaSource('https://host/one.m4a'));
       const q = MovaQuality(label: '320k', uri: 'https://host/one-320.m4a');
       engine.debugSetQualities(const [q], current: q);
-      kernel.emitError('boom');
+      kernel.emitError('Failed to recognize file format.');
       await tick();
       expect(engine.state.error, isNotNull);
       expect(engine.state.qualities, isNotEmpty);

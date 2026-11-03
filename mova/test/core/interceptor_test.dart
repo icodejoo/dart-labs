@@ -195,7 +195,7 @@ void main() {
   });
 
   group('engine → hooks.onError', () {
-    test('a kernel error reaches every hook, throwing one included, and still lands in state', () async {
+    test('a kernel error reaches every hook, throwing one included, without writing nonterminal state', () async {
       final k = FakeKernel();
       final bad = _ErrorHook(throwing: true);
       final good = _ErrorHook();
@@ -204,7 +204,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(bad.errors, ['boom']);
       expect(good.errors, ['boom']);
-      expect(e.state.error, 'boom');
+      expect(e.state.error, isNull);
       await e.dispose();
     });
 

@@ -1731,19 +1731,14 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _announceReady();
   }
 
-  /// 将 [error] 的分级写入事件；[subsystem] 保留日志前缀，state 写入行为不变。
+  /// 将 [error] 与可选 [subsystem] 分类；仅终结错误写入状态，所有错误仍通知钩子。
   void _onKernelError(Object error, {String? subsystem}) {
-    _state.emit(state.copyWith(error: error));
-    _emitClassifiedError(error, subsystem: subsystem);
-    _chain.onError(error, StackTrace.current);
-  }
-
-  /// 发出带分级的 [error]，与 [subsystem] 对应的 code 沿用 QoE 映射。
-  void _emitClassifiedError(Object error, {String? subsystem}) {
     final verdict = classifyMovaPlaybackError(
       error, subsystem: subsystem, afterFirstFrame: state.rendered,
     );
+    if (verdict.fatal) _state.emit(state.copyWith(error: error));
     _emitEvent(MovaErrorEvent.classified(error, fatal: verdict.fatal, code: verdict.code));
+    _chain.onError(error, StackTrace.current);
   }
 
   /// Recovery is exhausted: surface [MovaGiveUpError] through state, the event

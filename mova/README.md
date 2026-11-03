@@ -183,9 +183,27 @@ api.events.listen((e) {
 - 填充模式声明式：`MovaEngine(fit:)` / `createMovaEngine(fit:)` 给初值，`MovaPlayer(fit:)` / `MovaView(fit:)` 在挂载与**该参数变化**时应用一次；用户点 fit 按钮选的值不会被无关重建覆盖。
 - 想要没有手势、没有任何栏的纯画面：`MovaMinimalSkin(showBuffering:, showError:)`；转圈尺寸/线宽/颜色用 `MovaTheme.bufferingSize/bufferingStrokeWidth/bufferingColor`（默认 `null` 即旧外观）。
 
+## 播放错误
+
+`state.error` 只保存终结错误，供重试遮罩和失败状态使用；包括 `END_FILE(error)`、恢复放弃、已知终结文本以及 open 抛出。默认配置也检测 END_FILE，弱客户端在首次 open 时才启动。recovery 关闭时 open 失败本版本仍抛出，同时写终结状态；下一版本将不再抛出。
+
+非终结内核日志继续发送 `MovaErrorEvent(fatal: false)` 并通知 `MovaHook.onError`，不会写 `state.error` 或弹出错误遮罩。迁移原有“监听 state.error 收集所有错误”的代码时，改监听事件：
+
+```dart
+engine.events.listen((event) {
+  if (event is MovaErrorEvent) {
+    recordDiagnostic(event.error);
+    if (event.fatal) showPlaybackFailure();
+  }
+  if (event is MovaPlayFailure) recordRecoveryDecision(event.action);
+});
+```
+
+启用 recovery 时可用 `MovaPlayFailure` 跟踪每次重试/切源/放弃决策。错误遮罩文案由 `MovaStrs(playbackError: '播放失败，请重试', retry: '重试')` 配置，原始错误文本仅在 debug 模式显示。有封面的 `MovaPlayer`/`MovaView` 会开启 RESTART 精确首帧。
+
 ## 超时与多地址（可选，默认关闭）
 
-默认情况下，一个连不上的地址会让缓冲转圈转很久，什么事件都没有。`MovaOpts.recovery` 打开后有了兜底：
+默认已通过 `END_FILE(error)` 检测终结失败并结束转圈；`MovaOpts.recovery` 额外提供超时兜底、重试与多地址切换：
 
 ```dart
 createMovaEngine(
@@ -195,9 +213,9 @@ createMovaEngine(
 final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
 ```
 
-- 触发源：**起播超时**（没出首帧，由 `timeouts` 派生的兜底期限，默认非 WHEP 65s / WHEP 85s；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲，兜底期限默认非 WHEP 65s / WHEP 10s，`stallWatchdog: false` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时；开启 `recovery` 就会自动订阅，不必再加 `preciseFirstFrame`）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
+- 触发源：**起播超时**（没出首帧，由 `timeouts` 派生的兜底期限，默认非 WHEP 65s / WHEP 85s；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲，兜底期限默认非 WHEP 65s / WHEP 10s，`stallWatchdog: false` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时；默认即订阅，与 `recovery` 无关，不必再加 `preciseFirstFrame`）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
 - 默认策略 `MovaDefaultRecovery`：**点播**走 `MovaRetryThenFailover`（每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃，行为与以往一致）；**直播**走 `MovaLiveReconnect`（指数退避 1s、2s、4s…封顶 15s（`maxDelay` 可调）持续重连，推流端重启/掉线后自动接上；有备选时前面的地址各重试 1 次再切，最后一个地址一直重连，`maxAttempts` 可设上限）。不想让直播一直重连：`MovaRecoveryConfig(liveReconnect: false)`，直播回到和点播一样的"重试 1 次就放弃"。`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理；`MovaPlayFail.isLive` 可用来区分直播）。
-- **重连分工**：超时由 libmpv/ffmpeg 负责，Dart 只处理重连。直播**不开** libmpv 的 `reconnect_streamed`，断流重连全部交给 `MovaLiveReconnect`（指数退避、多地址切换、事件）；点播**保留** mpv 默认的 ffmpeg 重连（Range 续传，窗口约 11s）。触发重连的**主路径是 mpv 的 `END_FILE(error)`/错误事件**；Dart 的 `startTimeout`/`stallTimeout` 只是**兜底看门狗**，覆盖 mpv 不报错的卡死（缓冲一直转圈、WHEP 因服务端 STUN 保活让 `media_timeout` 不触发等）。
+- **重连分工**：超时由 libmpv/ffmpeg 负责，Dart 只处理重连。直播**不开** libmpv 的 `reconnect_streamed`，断流重连全部交给 `MovaLiveReconnect`（指数退避、多地址切换、事件）；点播**保留** mpv 默认的 ffmpeg 重连（Range 续传，窗口约 11s）。触发重连的**主路径是 mpv 的 `END_FILE(error)`**；Dart 的 `startTimeout`/`stallTimeout` 只是**兜底看门狗**，覆盖 mpv 不报错的卡死（缓冲一直转圈、WHEP 因服务端 STUN 保活让 `media_timeout` 不触发等）。
 - **统一超时配置 `MovaRecoveryConfig.timeouts`（`MovaTimeouts`）**：`network`→mpv `network-timeout`（整秒），`whepHandshake`/`whepFirstFrame`/`whepMedia`→WHEP 的 `handshake_timeout`/`first_frame_timeout`/`media_timeout`（微秒，仅 `whep…` 地址），每次 open 前下发给 mpv；不设就不动 mpv 默认值。`MovaSource.mpvOptions`/`demuxerOptions`/`whepMediaTimeout` 对同一选项的显式设置优先。
 - **看门狗期限默认从 mpv 窗口派生**：`startTimeout`/`stallTimeout` 不设时 = mpv 侧最长窗口 + 5s 余量，保证 mpv 重连/握手窗口内看门狗不会先断开；显式设置则以你的值为准（设得比 mpv 窗口短会打断 mpv 的重连）。mpv 窗口：非 WHEP 为 `max(network, 11s)`（未设 `network` 按 mpv 默认 60s；11s 是 ffmpeg 重连窗口），WHEP 起播为 `network+handshake+firstFrame`（默认 60+10+10）、卡顿为 `media_timeout`（默认 5s）。关掉卡顿看门狗用 `stallWatchdog: false`（取代旧的 `stallTimeout: null`）。
   ```dart

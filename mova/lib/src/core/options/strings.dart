@@ -12,6 +12,14 @@ import '../model/fit.dart';
 /// 所有字段默认简体中文，对应产品当前的单语言需求。需要其他语言的应用可以
 /// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 [MovaOpts]。
 class MovaStrs {
+  /// 终结错误遮罩的用户文案；默认“播放失败，请重试”。
+  /// 示例：`MovaStrs(playbackError: 'Unable to play')`。
+  final String playbackError;
+
+  /// 错误遮罩重试按钮的提示文案；默认“重试”。
+  /// 示例：`MovaStrs(retry: 'Retry')`。
+  final String retry;
+
   /// Label for [MovaFit.contain].
   ///
   /// [MovaFit.contain] 的标签文案。
@@ -117,7 +125,11 @@ class MovaStrs {
   /// copy.
   ///
   /// 创建文案集合；默认使用产品的简体中文文案。
+  /// [playbackError] 为终结错误提示，[retry] 为重试按钮提示，返回文案配置。
+  /// 示例：`const MovaStrs(playbackError: '无法播放', retry: '再试一次')`。
   const MovaStrs({
+    this.playbackError = '播放失败，请重试',
+    this.retry = '重试',
     this.fitContain = '适应',
     this.fitCover = '裁剪',
     this.fitFill = '拉伸',
@@ -155,6 +167,8 @@ class MovaStrs {
       identical(this, other) ||
       other is MovaStrs &&
           runtimeType == other.runtimeType &&
+          playbackError == other.playbackError &&
+          retry == other.retry &&
           fitContain == other.fitContain &&
           fitCover == other.fitCover &&
           fitFill == other.fitFill &&
@@ -175,6 +189,8 @@ class MovaStrs {
 
   @override
   int get hashCode => Object.hash(
+        playbackError,
+        retry,
         fitContain,
         fitCover,
         fitFill,

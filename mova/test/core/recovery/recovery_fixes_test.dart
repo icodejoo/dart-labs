@@ -53,7 +53,7 @@ void main() {
       fakeAsync((async) {
         final r = _Rig();
         r.open(async);
-        r.kernel.emitError('Failed to recognize file format');
+        r.kernel.emitError('Failed to recognize file format.');
         async.flushMicrotasks();
         expect(r.engine.state.error, isNotNull, reason: '失败期间错误可见');
         async.elapse(tenSeconds + oneSecond);
