@@ -18,7 +18,10 @@ import 'slot.dart';
 ///
 /// 路径按嵌套层级用 `/` 拼接：顶层组件的路径就是其 [MovaComponent.name]；
 /// 嵌套组件的路径是 `<parent.name>/<child.name>`，可递归拼接到任意深度。
-List<MovaComponent> applyPatches(List<MovaComponent> tree, List<MovaPatch> patches) {
+List<MovaComponent> applyPatches(
+  List<MovaComponent> tree,
+  List<MovaPatch> patches,
+) {
   var result = tree;
   for (final patch in patches) {
     result = _applyOne(result, patch);
@@ -58,7 +61,11 @@ List<MovaComponent> _applyOne(List<MovaComponent> tree, MovaPatch patch) {
 /// 递归地把 [nodes] 中 [path] 处的节点替换为 [replacement]，返回新列表。
 /// 若 [path] 已无剩余的 `/` 分段，直接替换匹配到的节点；否则递归进入匹配
 /// 节点的 `children`，用剩余路径继续查找。
-List<MovaComponent> _replaceAt(List<MovaComponent> nodes, String path, MovaComponent replacement) {
+List<MovaComponent> _replaceAt(
+  List<MovaComponent> nodes,
+  String path,
+  MovaComponent replacement,
+) {
   final segments = path.split('/');
   final head = segments.first;
   final rest = segments.skip(1).join('/');
@@ -96,7 +103,11 @@ List<MovaComponent> _removeAt(List<MovaComponent> nodes, String path) {
 ///
 /// 递归地在 [nodes] 中把 [addition] 插入到 [path] 处节点之后，插入位置与
 /// 该锚点同级，返回新列表。若找不到锚点，[nodes] 原样返回。
-List<MovaComponent> _insertAfterAt(List<MovaComponent> nodes, String path, MovaComponent addition) {
+List<MovaComponent> _insertAfterAt(
+  List<MovaComponent> nodes,
+  String path,
+  MovaComponent addition,
+) {
   final segments = path.split('/');
   final head = segments.first;
   final rest = segments.skip(1).join('/');
@@ -130,7 +141,12 @@ List<MovaComponent> _insertAfterAt(List<MovaComponent> nodes, String path, MovaC
 /// 注意：此包装不保留 [source] 的具体运行时类型——对被打过补丁的祖先节点做
 /// `is SomeConcreteType` 判断不会命中。
 class _CopyComponent extends MovaComponent {
-  _CopyComponent(this._source, this.children, {this.slotOverride, this.orderOverride});
+  _CopyComponent(
+    this._source,
+    this.children, {
+    this.slotOverride,
+    this.orderOverride,
+  });
 
   /// The original component being wrapped.
   ///
@@ -177,12 +193,28 @@ class MovaSlotBundle {
   /// Creates a bundle backed by a pre-grouped [_bySlot] map.
   ///
   /// 用预先分好组的 [_bySlot] map 创建一个 bundle。
-  MovaSlotBundle(this._bySlot);
+  MovaSlotBundle(this._bySlot, [this._byName = const {}]);
 
   /// Widgets grouped by slot, already sorted within each slot.
   ///
   /// 按槽位分组的 widget，每个槽位内部已排好序。
   final Map<MovaSlot, List<Widget>> _bySlot;
+
+  /// 按组件名索引已构建的顶层 widget，供皮肤分层使用。
+  final Map<String, Widget> _byName;
+
+  /// 返回 [slot] 中名称属于 [names] 的节点；[exclude] 为真时返回其余节点。
+  ///
+  /// 示例：`slots.named(MovaSlot.center, {'error'})` 返回错误状态层。
+  List<Widget> named(MovaSlot slot, Set<String> names, {bool exclude = false}) {
+    final selected = {
+      for (final name in names)
+        if (_byName[name] != null) _byName[name],
+    };
+    return this[slot]
+        .where((widget) => selected.contains(widget) != exclude)
+        .toList();
+  }
 
   /// Returns the ordered widgets for [slot], or an empty list if none.
   ///
@@ -206,16 +238,25 @@ class MovaSlotBundle {
 /// 收到的永远是已构建好的 [Widget]，绝不是原始的 [MovaComponent]。同一槽位
 /// 内的 widget 主要按 [MovaComponent.order] 升序排列，相同值按原始列表位置
 /// 决出先后（稳定排序）。
-MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComponent> tree) {
+MovaSlotBundle buildSlots(
+  BuildContext context,
+  MovaApi api,
+  List<MovaComponent> tree,
+) {
   final entries = <_BuiltEntry>[];
+  final byName = <String, Widget>{};
   for (var i = 0; i < tree.length; i++) {
     final component = tree[i];
-    entries.add(_BuiltEntry(
-      slot: component.slot,
-      order: component.order,
-      position: i,
-      widget: _buildRecursive(context, api, component),
-    ));
+    final built = _buildRecursive(context, api, component);
+    byName[component.name] = built;
+    entries.add(
+      _BuiltEntry(
+        slot: component.slot,
+        order: component.order,
+        position: i,
+        widget: built,
+      ),
+    );
   }
   entries.sort((a, b) {
     final byOrder = a.order.compareTo(b.order);
@@ -225,7 +266,7 @@ MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComponent>
   for (final entry in entries) {
     bySlot.putIfAbsent(entry.slot, () => []).add(entry.widget);
   }
-  return MovaSlotBundle(bySlot);
+  return MovaSlotBundle(bySlot, byName);
 }
 
 /// Builds [component]'s [MovaComponent.children] first (recursively), then
@@ -233,9 +274,14 @@ MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComponent>
 ///
 /// 先递归构建 [component] 的 [MovaComponent.children]，再用这些已构建好的
 /// widget 构建 [component] 本身。
-Widget _buildRecursive(BuildContext context, MovaApi api, MovaComponent component) {
+Widget _buildRecursive(
+  BuildContext context,
+  MovaApi api,
+  MovaComponent component,
+) {
   final builtChildren = [
-    for (final child in component.children) _buildRecursive(context, api, child),
+    for (final child in component.children)
+      _buildRecursive(context, api, child),
   ];
   return component.build(context, api, builtChildren);
 }
@@ -249,7 +295,12 @@ class _BuiltEntry {
   /// Creates an entry from its sort/group keys and the built [widget].
   ///
   /// 用排序/分组键和已构建的 [widget] 创建一个条目。
-  _BuiltEntry({required this.slot, required this.order, required this.position, required this.widget});
+  _BuiltEntry({
+    required this.slot,
+    required this.order,
+    required this.position,
+    required this.widget,
+  });
 
   /// Slot this widget belongs to.
   ///

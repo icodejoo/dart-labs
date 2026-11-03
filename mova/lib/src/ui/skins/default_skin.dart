@@ -51,7 +51,18 @@ class MovaDefaultSkin implements MovaSkin {
   /// Creates the default skin, optionally applying [patches] to its tree.
   ///
   /// 创建默认皮肤，可选地对其组件树应用 [patches]。
-  const MovaDefaultSkin({this.patches = const []});
+  const MovaDefaultSkin({
+    this.patches = const [],
+    this.statusLayerNames = const {
+      MovaBufferingComponent.componentName,
+      MovaErrorComponent.componentName,
+    },
+  });
+
+  /// 独立于控制条和锁定的 center 组件名称；空集合保留原有分层。
+  ///
+  /// 示例：`MovaDefaultSkin(statusLayerNames: {'error'})` 只提升错误层。
+  final Set<String> statusLayerNames;
 
   /// Structural patches applied to the base tree in [components], in order.
   ///
@@ -156,7 +167,13 @@ class MovaDefaultSkin implements MovaSkin {
                             child: Column(children: slots[MovaSlot.top]),
                           ),
                           Positioned.fill(
-                            child: Stack(children: slots[MovaSlot.center]),
+                            child: Stack(
+                              children: slots.named(
+                                MovaSlot.center,
+                                statusLayerNames,
+                                exclude: true,
+                              ),
+                            ),
                           ),
                           Positioned(
                             left: 0,
@@ -236,6 +253,12 @@ class MovaDefaultSkin implements MovaSkin {
         child: Stack(
           children: [
             Stack(children: slots[MovaSlot.overlay]),
+            _HideWhen(
+              selector: (s) => s.pip || s.mini,
+              child: Stack(
+                children: slots.named(MovaSlot.center, statusLayerNames),
+              ),
+            ),
             const _LockToggleButton(),
           ],
         ),
