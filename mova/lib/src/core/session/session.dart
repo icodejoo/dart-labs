@@ -274,6 +274,17 @@ class MovaSession {
   Future<_SessionWarm?>? _adWarm;
   Future<_SessionWarm?>? _contentWarm;
   int _supersededEpoch = -1;
+  final Set<MovaWarmTicket> _warmTickets = {};
+
+  /// 换会话只取消本会话持有的凭据，包括已经离开预热槽的提交事务。
+  Future<void> _cancelWarmTickets() {
+    final tickets = _warmTickets.toList();
+    _warmTickets.clear();
+    final owner = _cutover;
+    if (owner is! MovaWarmOwner) return Future<void>.value();
+    return Future.wait(tickets.map((ticket) => (owner as MovaWarmOwner).cancelOwned(ticket)));
+  }
+
 
   Future<_SessionWarm?> _warm(
     MovaSource source, {
@@ -282,6 +293,8 @@ class MovaSession {
     MovaWarmPlan plan = const MovaWarmPlan(),
     bool? play,
   }) async {
+    final gen = _gen;
+    final itemsGeneration = _itemsGeneration;
     final cutover = _cutover!;
     if (cutover is MovaWarmOwner) {
       final ticket = await (cutover as MovaWarmOwner).prepareOwned(
@@ -291,6 +304,13 @@ class MovaSession {
         plan: plan,
         play: play,
       );
+      if (ticket != null) {
+        if (_disposed || gen != _gen || itemsGeneration != _itemsGeneration) {
+          await (cutover as MovaWarmOwner).cancelOwned(ticket);
+        } else {
+          _warmTickets.add(ticket);
+        }
+      }
       return _SessionWarm(
         ticket,
         accepted: ticket?.rejected != true,
@@ -460,6 +480,7 @@ class MovaSession {
     int? item,
   }) async {
     if (_disposed) return map(MovaLoadOutcome.disposed);
+    unawaited(_cancelWarmTickets());
     _endNode(MovaNodeEndReason.superseded);
     final gen = ++_gen;
     _epochItem = item ?? _index;
@@ -505,6 +526,7 @@ class MovaSession {
   /// 以 [items] 替换列表，将 [initialIndex] 夹到有效范围；不打开内容，无返回值。
   /// 示例：`session.setItems(episodes, initialIndex: 1);`。
   void setItems(List<MovaPlaylistItem> items, {int initialIndex = 0}) {
+    unawaited(_cancelWarmTickets());
     _itemsGeneration++;
     _items = List.unmodifiable(items);
     _index = items.isEmpty ? 0 : initialIndex.clamp(0, items.length - 1);
@@ -1809,6 +1831,7 @@ class MovaSession {
   /// 示例：`await session.dispose();`。
   Future<void> dispose() async {
     _disposed = true;
+    final cancelling = _cancelWarmTickets();
     _gen++;
     _resolving = null;
     _cancelAllTimers();
@@ -1816,6 +1839,7 @@ class MovaSession {
     await _eventSub?.cancel();
     await _progressSub?.cancel();
     await _stateSub?.cancel();
+    await cancelling;
     await _cutover?.abandon();
     await _changes.close();
     await _endedEpochs.close();

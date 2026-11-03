@@ -27,6 +27,9 @@ final class MovaWarmTicket {
   final Object? slot;
   final int operation;
   final bool rejected;
+
+  /// 所有者取消后永久失效，不影响其他凭据或操作代际。
+  bool cancelled = false;
 }
 
 /// 包内提交结果：未就绪允许回落，被取代必须让位。
@@ -34,6 +37,9 @@ enum MovaWarmCommit { committed, notReady, superseded }
 
 /// 在原接受能力上扩展凭据提交，公开 MovaCutover 不增加成员。
 abstract interface class MovaWarmOwner implements MovaCutoverAcceptance {
+  /// 取消指定凭据，即使槽已被提交认领也只释放它自己的影子。
+  Future<void> cancelOwned(MovaWarmTicket ticket);
+
   Future<MovaWarmTicket?> prepareOwned(
     MovaSource source, {
     Duration at = Duration.zero,

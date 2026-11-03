@@ -50,6 +50,9 @@ class _WarmSlot {
 
   /// 本槽是否已达到就绪判据。
   bool ready = false;
+
+  /// 槽被所有者取消后不得继续换指。
+  bool cancelled = false;
   MovaWarmTicket? ticket;
   MovaSourceChange? lastSource;
   MovaReady? lastReady;
@@ -698,6 +701,20 @@ class MovaCutoverEngine
     return slot.ticket;
   }
 
+  /// 取消指定凭据，只释放它对应的预热或已认领槽，不放弃宿主新槽。
+  @override
+  Future<void> cancelOwned(MovaWarmTicket ticket) {
+    ticket.cancelled = true;
+    final slot = ticket.slot;
+    if (slot is! _WarmSlot) return Future<void>.value();
+    slot.cancelled = true;
+    if (identical(_slot, slot)) _slot = _WarmSlot();
+    if (_slot.engine == null && _phase != MovaCutoverPhase.idle) {
+      _setPhase(MovaCutoverPhase.idle, reason: MovaCutoverEndReason.superseded);
+    }
+    return _releaseSlot(slot);
+  }
+
   /// 只提交 [ticket] 的槽，[waitForReady] 控制等待；返回已提交、未就绪或被取代。
   /// 示例：`await engine.commitOwned(ticket, waitForReady: true);`。
   @override
@@ -705,7 +722,7 @@ class MovaCutoverEngine
     MovaWarmTicket ticket, {
     bool waitForReady = false,
   }) async {
-    if (_disposed || ticket.operation != _op) return MovaWarmCommit.superseded;
+    if (_disposed || ticket.cancelled || ticket.operation != _op) return MovaWarmCommit.superseded;
     final slot = ticket.slot;
     if (slot is! _WarmSlot) return MovaWarmCommit.notReady;
     final ok = await _commitSlot(
@@ -713,9 +730,9 @@ class MovaCutoverEngine
       ticket.operation,
       waitForReady: waitForReady,
     );
-    if (_disposed || ticket.operation != _op) return MovaWarmCommit.superseded;
+    if (_disposed || ticket.cancelled || ticket.operation != _op) return MovaWarmCommit.superseded;
     if (ok) return MovaWarmCommit.committed;
-    return _disposed || ticket.operation != _op
+    return _disposed || ticket.cancelled || ticket.operation != _op
         ? MovaWarmCommit.superseded
         : MovaWarmCommit.notReady;
   }
@@ -924,13 +941,14 @@ class MovaCutoverEngine
     int op, {
     required bool waitForReady,
   }) async {
-    if (slot.engine == null || _disposed) return false;
+    if (slot.engine == null || slot.cancelled || _disposed) return false;
     if (!slot.ready) {
       if (!waitForReady) return false;
       final completer = slot.readyCompleter ??= Completer<bool>();
       if (!await completer.future) return false;
     }
     if (_disposed ||
+        slot.cancelled ||
         op != _op ||
         !identical(_slot, slot) ||
         slot.engine == null) {
@@ -942,6 +960,7 @@ class MovaCutoverEngine
     await previous;
     try {
       if (_disposed ||
+          slot.cancelled ||
           op != _op ||
           !identical(_slot, slot) ||
           slot.engine == null) {
@@ -974,7 +993,7 @@ class MovaCutoverEngine
     var endReason = MovaCutoverEndReason.notReady;
 
     /// 判断本次提交是否仍拥有换指权限。
-    bool current() => !_disposed && op == _op && identical(_active, old);
+    bool current() => !_disposed && !slot.cancelled && op == _op && identical(_active, old);
 
     /// 只释放本事务资源；过期时恢复仍生效引擎的转发订阅。
     Future<bool> bail() async {
@@ -1032,7 +1051,7 @@ class MovaCutoverEngine
       MovaBrightnessLease.transfer(old, shadow);
       _epoch++;
       _attach(shadow);
-      bool promotedCurrent() => !_disposed && op == _op && identical(_active, shadow);
+      bool promotedCurrent() => !_disposed && !slot.cancelled && op == _op && identical(_active, shadow);
       for (final event in [
         slot.lastSource,
         slot.lastReady,

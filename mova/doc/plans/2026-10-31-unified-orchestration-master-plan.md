@@ -829,6 +829,9 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 2. P1 补发回调抢源：状态/事件队列携带 op 并在通知返回后复核；每次影子生命周期补发前后复核 op 与 active，过期停止。commitOwned 在返回 committed 前再次复核，抢源返回 superseded。晋升后过期仍退休并释放旧引擎，保留宿主正在使用的新 active；会话不把宿主源认作广告。
    - 回退 cutover 修复后 **4 条变红**（SourceChange、Ready、FirstFrame 回调抢源各一条 + 真实会话路径），恢复后通过；既有断言改写 **0**。沿用分析范围 lib test（0 issues），--concurrency=3 全量 **2222 条通过**。
 
+3. P2 换会话后已认领旧事务仍上屏：会话跟踪自己持有的预热凭据，load/jumpTo、setItems、dispose 同步发出定向取消；prepare 尚未返回时也按 gen 与列表代际取消迟到凭据。包内 owner 增 cancelOwned，标记凭据和槽永久取消，释放自己的影子；提交等待前后、换指与返回检查均包含取消状态，不提升已释放影子，不递增全局 op 或放弃其他槽。
+   - load/jumpTo/setItems/dispose 四条门控回归均验证 old.pause 未放行就释放旧影子，放行后 renderEpoch 仍为 0；B 未就绪时旧 A 不上屏，B 后续只换指一次。setItems 另验证宿主新影子保留且可提交。回退会话取消接线后 **4 条变红**；保留释放但移除提交 current() 的取消守卫，同样 **4 条变红**（相同四条用例，不累计为八条）；恢复后通过。既有断言改写 **0**。分析范围沿用 lib test（0 issues），全量 --concurrency=3：**2226 条通过**。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

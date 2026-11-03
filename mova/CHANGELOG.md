@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 会话重新 load、jumpTo、setItems 或销毁时取消自己持有的预热凭据，连已认领、等待旧引擎暂停的事务也释放影子并禁止换指；宿主的新影子不受影响。
+
 - 影子换指补发生命周期事件时，宿主回调抢源立即停止旧补发，凭据提交返回 superseded，会话让位；旧引擎仍正常释放。
 
 - 会话落地窗口按媒体归属缓存终结失败；即使 recovery giveUp 后 open 正常返回，仍结算广告失败或正片 contentError、MovaNodeFail 并回 idle。
