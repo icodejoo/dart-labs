@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../model/source.dart';
 import 'fetcher.dart';
 import 'models.dart';
+import 'request_blocked.dart';
 import 'source.dart';
 import 'vtt.dart';
 
@@ -144,6 +145,8 @@ class MovaVttThumbSource implements MovaThumbSource {
     Uint8List? bytes;
     try {
       bytes = await fetcher.get(url);
+    } on PreviewPolicyBlocked {
+      rethrow;
     } on Object {
       bytes = null;
     }

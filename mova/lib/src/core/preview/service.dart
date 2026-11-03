@@ -10,6 +10,7 @@ import 'extractor.dart';
 import 'hash.dart';
 import 'models.dart';
 import 'net_probe.dart';
+import 'request_blocked.dart';
 import 'source.dart';
 
 /// The production [MovaPreviewApi]: debounces scrub ticks, aligns them to
@@ -362,6 +363,9 @@ class MovaPreviewService implements MovaPreviewApi {
       MovaThumb? thumb;
       try {
         thumb = await source.thumbAt(src, bucket);
+      } on PreviewPolicyBlocked {
+        if (_isWanted(epoch, revision)) _block(MovaPreviewBlockReason.network);
+        return;
       } on Object {
         thumb = null;
       }

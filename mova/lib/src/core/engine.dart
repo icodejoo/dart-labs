@@ -36,6 +36,7 @@ import 'preview/fetcher.dart';
 import 'preview/net_probe.dart';
 import 'preview/platform_kind.dart';
 import 'preview/service.dart';
+import 'preview/request_blocked.dart';
 import 'preview/source.dart';
 import 'preview/two_level_cache.dart';
 import 'preview/vtt_source.dart';
@@ -61,7 +62,10 @@ class _PreviewHttpFetch implements MovaHttpFetch {
   final MovaHttpFetch fetcher;
   final Future<bool> Function(Uri) allow;
   @override
-  Future<Uint8List?> get(Uri url) async => await allow(url) ? fetcher.get(url) : null;
+  Future<Uint8List?> get(Uri url) async {
+    if (!await allow(url)) throw const PreviewPolicyBlocked();
+    return fetcher.get(url);
+  }
   @override
   Future<void> close() async {} // 借用引擎持有的 HTTP 端口。
 }
@@ -71,8 +75,10 @@ class _PreviewFramePuller implements MovaFramePuller {
   final MovaFramePuller puller;
   final Future<bool> Function(Uri) allow;
   @override
-  Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async =>
-      await allow(Uri.parse(uri)) ? puller.extract(uri, at, width: width, hwdec: hwdec) : null;
+  Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async {
+    if (!await allow(Uri.parse(uri))) throw const PreviewPolicyBlocked();
+    return puller.extract(uri, at, width: width, hwdec: hwdec);
+  }
   @override
   Future<void> release() => puller.release();
   @override
@@ -1392,7 +1398,6 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       final remote = uri.scheme == 'http' || uri.scheme == 'https';
       final allowed = cfg.network == MovaPreviewNet.wifiOnly && !remote
           ? true : await previewAllowedOn(cfg.network, probe);
-      if (!allowed) _onPreviewBlocked(MovaPreviewBlockReason.network);
       return allowed;
     }
     final dir =
