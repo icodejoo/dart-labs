@@ -701,6 +701,10 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | A29 | `feat(mova): 前跳越过多个中插的补播策略` | 新增 | `timeline.dart`、`ad_config.dart` | 80–150 | A24 | +5 | 默认 `all`（现状） |
 | A30 | `fix(mova): NextUp 与广告覆盖层读会话节点` | 行为 | `ui/components/next_up.dart`、广告覆盖层组件 | 60–120 | A24 | +4 widget | 不传会话时保持旧判据 |
 
+**A2 块子计划（2026-11-03，逐 Task 见 [2026-11-03-a2-session.md](2026-11-03-a2-session.md)，主会话拍板见其第 12 节）**：A17–A30 共 13 个提交，测试合计约 N0+105（总计划估 +96）。要点：A22 的 `MovaAds` 改为"同步返回内部 Future、不加 async 包装"的转发壳以保住微任务顺序；A27 的包内能力 `MovaWarmOwner` 扩展 F4 落地的 `core/cutover/acceptance.dart`（不另起平行接口）；A20 只认 `playbackIntent`（自写引擎不维护意图时换指后停在暂停，CHANGELOG 写明）；A26 正片终结错误进 `contentError` 并回 idle（改了 A05 刚定的契约，CHANGELOG 写明）。
+
+**A28 追加范围（H77，2026-11-03 S00c 定性后并入）**：cutover 代理的 `state` 与 `events` 走两条独立订阅链，事件会领先 `state`（原始证据 `matrix-r1030-final-hls.json:records[961]`：`MovaBufferChange(false)` 到达时 `state.buffering` 仍为 true），验收矩阵 A2 与 E.MovaBufferChange/SizeChange/QualityChange 因此 FAIL。A28 把代理的 state/events 合并为同一投递序列（事件携带的载荷与同一时刻的 `state` 一致，并带 epoch），并为普通 `MovaEngine` 补一组"事件载荷与接收时 state 一致"的单测以区分普通引擎是否也有差异（现有证据区分不了，S00c 原稿"普通引擎也有差异"证据不足）；预计 +4 测试。修复后四个矩阵项应转 PASS。
+
 → **CP2：会话、广告与后台真机核对**
 
 #### 轨道 C 块
@@ -828,7 +832,7 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 
 在独立 worktree（lib 与 main 一致）完成，两个提交已拣回本分支：
 - **S00b 原始证据收口**：r1030 离线重放 **PASS 61 / FAIL 9 / BLOCKED 65**（135 个编号）。S00 的完成判据（BLOCKED 只剩真缺用例/环境）**尚未达到**：BLOCKED 中多数是验证脚本缺 `*.coverage1` 判据，逐条见 [S00b 报告](2026-11-03-s00b-evidence-replay.md)；FAIL 归因四类（接收快照与 payload 不一致、TLS IP SAN、keepAlive grace 判据、无声流位置倒退）同在该报告。
-- **CP0 六个新验证页 + Android 最小冒烟**（各 1 次，正式次数未跑），见 [CP0 报告](2026-11-03-cp0-pages-and-smoke.md)。修前现场已坐实：P0-2 在 `load(B)` 返回后仍读到上一集 A 243 次（原生位置跨度 8880ms）；pod 第二条广告 `renderEpoch` 0→0（回落成普通 open）；`Video` 后台暂停参数开时回前台需手动恢复、关时继续播放；暂停加载夹具里 B（WebM）的 sessionStart 3/3 仍报 A 的 MP4。音频焦点维持 manual BLOCKED。
+- **CP0 六个新验证页 + Android 最小冒烟**（各 1 次，正式次数未跑），见 [CP0 报告](2026-11-03-cp0-pages-and-smoke.md)。修前现场已坐实：P0-2 在 `load(B)` 返回后仍读到上一集 A 243 次（原生位置跨度 8880ms）；pod 第二条广告 `renderEpoch` 0→0（**更正（2026-11-03 A2 子计划核实）**：该页用两条前贴片且未配等待，前贴片默认不等待就绪，按设计走直接 open、不换指，所以这个数字**不能**说明 cutoverTo 回落；pod2 页已改为等待型变体 + 不等待对照，重测前 CLAUDE.md ③ 仍无真机结论）；`Video` 后台暂停参数开时回前台需手动恢复、关时继续播放；暂停加载夹具里 B（WebM）的 sessionStart 3/3 仍报 A 的 MP4。音频焦点维持 manual BLOCKED。
 - 仍欠：上表的正式次数跑批（全量可自动批次、F3/A17 280、H28 90、H20/H50 各 30、gap 用例、P1-3、Windows 组）与 S00 的判据缺口。
 
 ### CP1 引擎、切换与 B 块（A16 之后）
