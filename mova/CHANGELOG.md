@@ -6,6 +6,8 @@
 
 * **Fix：ABR 屏蔽改为带加载尝试号的租约**。旧换档的迟到收尾不能释放新换档或 seek 的屏蔽；用户 seek 引起的缓冲不计入 ABR 卡顿，10 秒兜底上限保持不变。
 
+* **Fix：待机唤醒与回边缘重开补播遵守当前待机相位；再次待机立即作废在途唤醒，不发旧恢复事件。recovery 关闭时，后台唤醒重开失败经 state.error、MovaErrorEvent 和 hook.onError 上报，并结束恢复测量，不再超时误报恢复成功。**
+
 * **Fix：内部重试重放有效加载规格，保留手选清晰度；时移重试按原固定落后量和当前时间重建地址，故障切换清时移与旧档列表。回边缘保留当前档与时长，重开后按最新播放意图开播。连续换档继承尚未落地的续播目标，恢复等待首帧期间的用户 seek 取代旧失败点。**
 
 * **Fix：待机唤醒测量使用独立首帧闸门；换源、换档或恢复重载会以 reloaded 结束旧测量，不发送 MovaKeepAliveResume，旧恢复超时不再干扰新源首帧。**
@@ -47,15 +49,25 @@
   * 上报 payload 的键 `swapEnabled`（QoE 会话字段）保持原样，未改名。
 
 * **Fix：时长未知时的负向 `seek`/`seekBy` 不再下界漏钳**。时长未到时 `seek(-5s)` 被原样寄存，进度先上报负数，时长到达后还把 -5s 下发内核（已知时长的路径本来会钳到 0）。现在入口先把下界钳到 0，补发时再按时长上界钳一次。新增 3 项回归（含 `seekBy` 与已知时长对照）。
+
 * **Fix：`dispose()` 之后各动词不再转发给已销毁的内核**。此前 `pause`/`setVolume`/`setRate`/`switchQuality` 等在销毁后仍会调内核，真实 media_kit 会抛 `AssertionError('has been disposed')`（真机复测日志里的 `[Player] has been disposed` 未捕获异常可能同源）。现在 `MovaEngine`/`MovaCutoverEngine` 的所有公开动词在已销毁时静默返回（不抛、不发事件、不碰内核与端口），异步动词在 await 回来后也会复查；`MovaCutoverEngine` 销毁后的 `prepare`/`cutoverTo` 也不再新建影子引擎。新增 32 项回归（`FakeKernel` 加 `throwWhenDisposed`/`callsAfterDispose` 开关，逐动词断言）。
+
 * **Fix：用户主动 `seek` 被 mpv 丢弃后进度条永久冻结（H17）**。此前只有换档续播的 seek 有“校验 + 重发”链，普通 seek 被丢弃后 `_pendingSeekTarget` 一直布防，之后所有真实位置都被当陈旧回声吞掉，直到下一次 seek。现在点播 seek 复用同一条校验重发链（最多 3 次），放弃后解除回声抑制、进度重新跟随真实位置；重发期间来了新 seek 则旧链作废，直播不 seek 的规则不变，暂停态同样成立。新增 7 项回归（另改写原 skip 的那 1 条）。
+
 * **Fix：换档（`switchQuality`/ABR 降档）续播位置丢失**。HLS 手动连续切档时，续播 seek 在新档位报告时长的瞬间就下发，而此刻 mpv 尚未完成播放初始化，seek 被静默丢弃，播放从头开始（Android 真机本地 HLS 5 次切档仅 1 次续播成功）。现在寄存的续播 seek 等新档位落地（首帧/原生 RESTART）后再补发；4s 内始终没落地则兜底照旧补发，落地早于时长则等时长到达再发。Android 真机（STG-AL00）普通/swap 代理/暂停态各 5 次共 15/15 落点误差 0ms。新增 3 项回归并调整 1 条旧测试。
+
 * **Fix：`setRate` 入口钳制**。倍速钳到 0.25–4.0（`kMovaMinRate`/`kMovaMaxRate`，NaN 当 1.0），内核、state、`MovaRateChange` 看到同一个值（此前 0/负数/NaN 直接下发内核，state 与事件照抄）。新增 5 项回归。
+
 * **Fix：宿主上报回调抛异常不再打断引擎**。`MovaReporter.onReport`（含 `MovaApi.report` 与 QoE collector 两处调用点）抛出的异常被隔离，只通知各钩子的 `MovaHook.onError`，播放状态与后续上报不受影响（此前异常冒进事件订阅回调，变成未捕获异步错误）。新增 3 项回归。
+
 * **Fix：`setVolume`/`setBrightness` 越界值**。入口先钳到 0–100 / 0–1，state、事件与端口看到同一个值（此前 state 写入越界值，系统音量被端口钳制、亮度被平台插件以 `RangeError` 拒绝后吞掉，HUD 与设备实际对不上）。新增 2 项回归。
+
 * **Fix：进系统 PiP 后 App 内小窗不收起**（真机覆盖复跑 A15/F5）。`enterPip()` 会把 `MovaState.mini` 置回 false，但 `MovaMini` 控制器不知情，小窗仍挂在界面上。现在 `MovaMini` 监听被借用 api 的状态，api 自行退出小窗态时同步撤掉小窗。新增 1 项回归。
+
 * **Fix：重复 `dispose()` 抛异常**（A23）。`MovaEngine`/`MovaCutoverEngine` 的 `dispose()` 改为幂等，第二次调用直接返回。新增 1 项回归。
+
 * **Fix：`setZoom` 低值让画面塌缩**（A12）。小于 1.0 或 NaN 按 1.0 处理；上限仍不限制（`maxZoom` 只约束捏合手势）。新增 1 项回归。
+
 * **Docs/验证页**：HE V6 验证脚本修正续播窗口锚点（旧写法恒匹配会话最初首帧，曾把"V6 续播失败"误判为库缺陷）；Android 真机 V6 复测 5/5 通过，续播误差 0–40ms。覆盖测试结果见 `doc/plans/2026-10-27-device-coverage-results.md`。
 
 ## 0.4.0

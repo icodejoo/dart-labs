@@ -1757,6 +1757,11 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 同步记下，使排在本调用之后的 play()/open() 能看到。
     _keepAliveRequested = on;
+    if (on && state.keepAlivePhase == MovaKeepAlivePhase.resuming) {
+      // 再次隐藏立即作废在途唤醒，旧重开不得补播或结束新的待机阶段。
+      _attemptId++;
+      _cancelResume();
+    }
     Future<void> Function()? reload;
     return _enqueueKeepAlive(() => on
         ? _enterKeepAlive(viaPlay: false)
@@ -2021,14 +2026,23 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
         await _kernel.seek(seekTo);
       }
       if (_disposed || attempt != _attemptId) return;
-      if (_playIntent && !state.playing) await _kernel.play();
+      if (_loadPlays && !state.playing) await _kernel.play();
       if (_disposed || attempt != _attemptId) return;
       if (seekTo != null) _resumeWatch();
       _state.emit(state.copyWith(clearTimeshift: true));
       if (edge) _emitEvent(const MovaLiveEdgeReach());
-    } on Object catch (error) {
+    } on Object catch (error, stack) {
       if (!_disposed && attempt == _attemptId) {
-        _onPlayFail(MovaPlayFailKind.openThrew, error: error);
+        if (_watchdog != null) {
+          _onPlayFail(MovaPlayFailKind.openThrew, error: error);
+        } else {
+          // 唤醒调用已返回，后台失败由引擎上报，并取消成功恢复测量。
+          _cancelResume();
+          _setKeepAlivePhase(MovaKeepAlivePhase.off, MovaKeepAliveReason.failed);
+          _state.emit(state.copyWith(error: error));
+          _emitEvent(MovaErrorEvent(error));
+          _chain.onError(error, stack);
+        }
       }
     }
   }
@@ -2936,7 +2950,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     );
     if (!await _loadKernel(uri, play: _loadPlays)) return;
     if (_disposed || attempt != _attemptId) return;
-    if (_playIntent && !state.playing) await _kernel.play();
+    if (_loadPlays && !state.playing) await _kernel.play();
   }
 
   /// Jumps back to the live edge on a stall, when configured to.
