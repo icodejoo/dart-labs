@@ -367,7 +367,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
 
   /// 优先保留用户 seek 或尚未落地的续播目标，避免重载清进度后读到零。
   Duration get _resumeTarget => _parkedSeek ?? _pendingSeekTarget ??
-      (!_variantLanded ? _currentLoad?.resumeAt : null) ?? _lastPosition;
+      (!_variantLanded && !_hasSeekTarget ? _currentLoad?.resumeAt : null) ?? _lastPosition;
+
+  /// 当前素材已接受过 seek；即使回声已结算，也不再回退到旧加载规格的目标。
+  bool _hasSeekTarget = false;
 
   /// 回边缘重放当前档的原始地址，丢弃时移 URL 参数。
   String get _liveEdgeUri {
@@ -2267,14 +2270,19 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _resumeVerifyTimer = null;
     final chain = ++_seekChain;
     if (notify) _holdAbr();
+    // 新目标取代两个槽位中的旧目标；结算后也不再使用旧规格兜底。
+    _hasSeekTarget = true;
     final park =
         !ready &&
         state.type == MovaStreamType.vod &&
         (state.duration <= Duration.zero || forcePark);
     if (park) {
+      _pendingSeekTarget = null;
       _parkedSeek = to;
       _parkedNotify = notify;
     } else {
+      _parkedSeek = null;
+      _parkedNotify = false;
       _pendingSeekTarget = to;
     }
     _lastPosition = to;
@@ -2310,6 +2318,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _parkHoldTimer?.cancel();
     _parkHoldTimer = null;
     _holdParkForLanding = false;
+    _hasSeekTarget = false;
     _pendingSeekTarget = null;
     _parkedSeek = null;
     _parkedNotify = false;

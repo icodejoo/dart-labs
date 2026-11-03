@@ -323,6 +323,37 @@ void main() {
     });
   });
 
+  for (final echo in [false, true]) {
+    for (final seconds in [80, 0]) {
+      test('F-B known duration unlanded quality uses latest seek $seconds echo $echo', () {
+        fakeAsync((clock) {
+          final r = _Rig(clock)..open()..position();
+          final first = r.k.openGate = Completer<void>();
+          r.quality(_q);
+          // 第一档加载期间先报告时长，返回后仍未出首帧，42 秒被强制寄存。
+          r.k.emitDuration(const Duration(minutes: 5));
+          clock.flushMicrotasks();
+          first.complete();
+          clock.flushMicrotasks();
+          expect(r.e.state.duration, const Duration(minutes: 5));
+          expect(r.k.lastSeek, isNull);
+          r.k.echoSeeks = echo;
+          final latest = Duration(seconds: seconds);
+          r.e.seek(latest);
+          clock.flushMicrotasks();
+          expect(r.k.lastSeek, latest);
+          r.k.openGate = null;
+          r.quality(_q2);
+          expect(r.e.debugCurrentLoad!.resumeAt, latest);
+          r.land();
+          expect(r.k.lastSeek, latest);
+          r.oneSession();
+          r.close();
+        });
+      });
+    }
+  }
+
   test('A10 late failure of first quality does not lose second resume position', () {
     fakeAsync((clock) {
       final r = _Rig(clock)..open()..position();
