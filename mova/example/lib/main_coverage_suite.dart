@@ -6,6 +6,10 @@ import 'main_cp1_manageauto_verify.dart' as cp1_manageauto;
 import 'main_cp1_bblock_verify.dart' as cp1_bblock;
 import 'main_cp1_pool_verify.dart' as cp1_pool;
 import 'main_cp1_danmaku_verify.dart' as cp1_danmaku;
+import 'main_cp1_recovery_verify.dart' as cp1_recovery;
+import 'main_cp1_dispose120_verify.dart' as cp1_dispose120;
+import 'main_coverage_gap.dart' as gap;
+import 'main_rerun6_coverage_api.dart' as rerun6;
 import 'main_cp0_p02_verify.dart' as cp0_p02;
 import 'verify_auto/s00e_trace.dart';
 import 'main_cp0_pod2_verify.dart' as cp0_pod2;
@@ -57,6 +61,10 @@ Future<void> main() async {
     case 'cp1-bblock': cp1_bblock.main();
     case 'cp1-pool': cp1_pool.main();
     case 'cp1-danmaku': cp1_danmaku.main();
+    case 'cp1-recovery': cp1_recovery.main();
+    case 'cp1-dispose120': cp1_dispose120.main();
+    case 'gap': gap.main();
+    case 'rerun6': rerun6.main();
 
     case 'cp0-p02': cp0_p02.main();
     case 'cp0-pod2': cp0_pod2.main();
