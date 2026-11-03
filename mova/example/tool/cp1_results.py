@@ -37,6 +37,7 @@ def main():
     data = dict(status=prior.get('status','RUNNING'), sourceHead='047b179c59676033b1392e5e7ccc8f8a39401b10',
         device='7NQBB23606003715 / STG-AL00 / Android 12 arm64 release', stage0=stage0,
         stages=prior.get('stages',{}), rows=[], failures=[], defects=prior.get('defects',[]),
+        incidents=prior.get('incidents',[]),
         restoration=prior.get('restoration',{}), validations=prior.get('validations',[]))
     for scene, variants in CONFIG.items():
         files = sorted(E.glob('matrix-cp1-*/matrix-*-cp1-'+scene+'.json'))
@@ -53,6 +54,15 @@ def main():
                 counts=dict(counts),status=status,criterion=criterion,cp0=baseline,
                 difference='待本轮证据' if not samples else '见实测数字；CP0 无相同样本时不推断改善',
                 evidence=[rel(p) for p,_ in sources],issues=issues,
+                measurements=[dict(evidence=rel(p),recordIndex=i,id=r['id'],
+                    values={k:v for k,v in r.get('numbers',{}).items() if k in (
+                        'deltaUs','holdingPhase','renderEpoch','pendingAtPause','phase','opacity',
+                        'probeCounts','probeTotal','sourceIndex','currentQuality','downShiftCount',
+                        'autoTierAfter','manualAfter','beforeBuffering','quality','disposeUs',
+                        'disposeCompleted','nativeReleased','hiddenOnReject','threw','ready',
+                        'items','maxCache','cacheBound','pssSlopeKbPer100Items','strictlyIncreasing',
+                        'frameCount','resumePositionDiffMs','retryCount','round','maxFrameIntervalUs',
+                        'disposed','hwdec','nativeVerdicts','visualReview')}) for p,i,r in samples],
                 harness=[dict(evidence=rel(p),errors=d.get('harness'),missing=d.get('missing')) for p,d in sources if d.get('harness') or d.get('missing')])
             data['rows'].append(row)
             data['failures'].extend(dict(row=row['id'],**issue) for issue in issues if issue['status']=='FAIL')
@@ -79,7 +89,7 @@ def main():
     for f in data['failures']:
         lines.append(f"- {f['row']} / {f['id']}：{f.get('reason') or 'CHECK 产品判据不满足'}；`{f['evidence']}` records[{f['recordIndex']}]；完整数字见 JSON。")
     if not data['failures']: lines.append('当前尚无已记录的产品 FAIL；缺证据仍为 BLOCKED。')
-    lines += ['', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
+    lines += ['', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
     for defect in data['defects']:
         lines.append('- '+json.dumps(defect,ensure_ascii=False))
     lines += ['', 'Windows：开工时安静模式验证记录不存在，四组均待安静模式验证，没有启动 Windows 应用。','']

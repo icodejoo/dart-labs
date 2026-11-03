@@ -43,23 +43,120 @@
       "criterion": "新 URI MovaFirstFrame 10/10，原生 path 正确",
       "cp0": "CP0 无此交错基线",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json"
+      ],
       "issues": [],
-      "harness": []
+      "measurements": [],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 36626298, 'scene': 'wakeswap', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP1 condition; scene=wakeswap', 'stack': '#0      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:409)\\n<asynchronous suspension>\\n#1      runWakeswap (package:mova_example/verify_auto/cp1_wakeswap_auto.dart:38)\\n<asynchronous suspension>\\n#2      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.wakeswap.swap.0: CHECK count=0",
+            "CP1.wakeswap.swap.1: CHECK count=0",
+            "CP1.wakeswap.swap.2: CHECK count=0",
+            "CP1.wakeswap.swap.3: CHECK count=0",
+            "CP1.wakeswap.swap.4: CHECK count=0",
+            "CP1.wakeswap.swap.5: CHECK count=0",
+            "CP1.wakeswap.swap.6: CHECK count=0",
+            "CP1.wakeswap.swap.7: CHECK count=0",
+            "CP1.wakeswap.swap.8: CHECK count=0",
+            "CP1.wakeswap.swap.9: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "edgepause.pause",
       "stage": 1,
       "planned": 10,
-      "executed": 0,
-      "counts": {},
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
       "status": "BLOCKED",
       "criterion": "网络重开窗口中 pause 后保持暂停",
       "cp0": "CP0 无此交错基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
+      ],
       "issues": [],
-      "harness": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "recordIndex": 286,
+          "id": "CP1.edgepause.pause.0",
+          "values": {
+            "pendingAtPause": true,
+            "phase": "off"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "recordIndex": 519,
+          "id": "CP1.edgepause.pause.1",
+          "values": {
+            "pendingAtPause": true,
+            "phase": "off"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "recordIndex": 754,
+          "id": "CP1.edgepause.pause.2",
+          "values": {
+            "pendingAtPause": true,
+            "phase": "off"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "recordIndex": 977,
+          "id": "CP1.edgepause.pause.3",
+          "values": {
+            "pendingAtPause": true,
+            "phase": "off"
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "recordIndex": 1194,
+          "id": "CP1.edgepause.pause.4",
+          "values": {
+            "pendingAtPause": true,
+            "phase": "off"
+          }
+        }
+      ],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 49286497, 'scene': 'edgepause', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: native path/time-pos unavailable', 'stack': '#0      Cp1Harness.native (package:mova_example/verify_auto/cp1_harness.dart:456)\\n<asynchronous suspension>\\n#1      runEdgepause.<anonymous closure> (package:mova_example/verify_auto/cp1_edgepause_auto.dart:42)\\n<asynchronous suspension>\\n#2      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:401)\\n<asynchronous suspension>\\n#3      runEdgepause (package:mova_example/verify_auto/cp1_edgepause_auto.dart:42)\\n<asynchronous suspension>\\n#4      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.edgepause.pause.5: CHECK count=0",
+            "CP1.edgepause.pause.6: CHECK count=0",
+            "CP1.edgepause.pause.7: CHECK count=0",
+            "CP1.edgepause.pause.8: CHECK count=0",
+            "CP1.edgepause.pause.9: CHECK count=0",
+            "CP1.edgepause.fallback.0: CHECK count=0",
+            "CP1.edgepause.fallback.1: CHECK count=0",
+            "CP1.edgepause.fallback.2: CHECK count=0",
+            "CP1.edgepause.fallback.3: CHECK count=0",
+            "CP1.edgepause.fallback.4: CHECK count=0",
+            "CP1.edgepause.fallback.5: CHECK count=0",
+            "CP1.edgepause.fallback.6: CHECK count=0",
+            "CP1.edgepause.fallback.7: CHECK count=0",
+            "CP1.edgepause.fallback.8: CHECK count=0",
+            "CP1.edgepause.fallback.9: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "edgepause.fallback",
@@ -71,50 +168,311 @@
       "criterion": "fallback 回边缘不补播",
       "cp0": "CP0 无此交错基线",
       "difference": "待本轮证据",
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
+      ],
       "issues": [],
-      "harness": []
+      "measurements": [],
+      "harness": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+          "errors": [
+            "{'kind': 'ERROR', 'us': 49286497, 'scene': 'edgepause', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: native path/time-pos unavailable', 'stack': '#0      Cp1Harness.native (package:mova_example/verify_auto/cp1_harness.dart:456)\\n<asynchronous suspension>\\n#1      runEdgepause.<anonymous closure> (package:mova_example/verify_auto/cp1_edgepause_auto.dart:42)\\n<asynchronous suspension>\\n#2      Cp1Harness.until (package:mova_example/verify_auto/cp1_harness.dart:401)\\n<asynchronous suspension>\\n#3      runEdgepause (package:mova_example/verify_auto/cp1_edgepause_auto.dart:42)\\n<asynchronous suspension>\\n#4      Cp1Harness.start (package:mova_example/verify_auto/cp1_harness.dart:517)\\n<asynchronous suspension>\\n'}"
+          ],
+          "missing": [
+            "CP1.edgepause.pause.5: CHECK count=0",
+            "CP1.edgepause.pause.6: CHECK count=0",
+            "CP1.edgepause.pause.7: CHECK count=0",
+            "CP1.edgepause.pause.8: CHECK count=0",
+            "CP1.edgepause.pause.9: CHECK count=0",
+            "CP1.edgepause.fallback.0: CHECK count=0",
+            "CP1.edgepause.fallback.1: CHECK count=0",
+            "CP1.edgepause.fallback.2: CHECK count=0",
+            "CP1.edgepause.fallback.3: CHECK count=0",
+            "CP1.edgepause.fallback.4: CHECK count=0",
+            "CP1.edgepause.fallback.5: CHECK count=0",
+            "CP1.edgepause.fallback.6: CHECK count=0",
+            "CP1.edgepause.fallback.7: CHECK count=0",
+            "CP1.edgepause.fallback.8: CHECK count=0",
+            "CP1.edgepause.fallback.9: CHECK count=0"
+          ]
+        }
+      ]
     },
     {
       "id": "errclass.nonfatal",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "真实非终结 error 日志不遮罩且播放推进",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
+      ],
       "issues": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 39,
+          "id": "CP1.errclass.nonfatal.0",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 76,
+          "id": "CP1.errclass.nonfatal.1",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 113,
+          "id": "CP1.errclass.nonfatal.2",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 154,
+          "id": "CP1.errclass.nonfatal.3",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 191,
+          "id": "CP1.errclass.nonfatal.4",
+          "values": {}
+        }
+      ],
       "harness": []
     },
     {
       "id": "errclass.fatal",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 4,
+        "FAIL": 1
+      },
+      "status": "FAIL",
       "criterion": "404 END_FILE(error) 终结，遮罩显示，转圈消失",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
-      "issues": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 262,
+          "id": "CP1.errclass.fatal.2",
+          "status": "FAIL",
+          "reason": null,
+          "numbers": {
+            "endFile": [],
+            "errors": [
+              {
+                "kind": "EVENT",
+                "us": 3988849,
+                "scene": "errclass",
+                "uriAtEvent": "http://127.0.0.1:18194/missing.mp4?t=1793691912166850",
+                "event": "MovaErrorEvent",
+                "payload": {
+                  "error": "Failed to open http://127.0.0.1:18194/missing.mp4?t=1793691912166850.",
+                  "fatal": false,
+                  "code": "stream"
+                },
+                "state": {
+                  "positionMs": 0,
+                  "durationMs": 0,
+                  "playing": true,
+                  "intent": true,
+                  "buffering": true,
+                  "rendered": false,
+                  "renderEpoch": 0,
+                  "sourceIndex": 0,
+                  "fullscreen": false,
+                  "pip": false,
+                  "mini": false,
+                  "keepAlivePhase": "off",
+                  "fit": "contain",
+                  "zoom": 1.0,
+                  "locked": false,
+                  "size": "0x0",
+                  "error": null,
+                  "quality": null,
+                  "volume": 0.0,
+                  "brightness": 0.10588235408067703,
+                  "rate": 1.0,
+                  "timeshiftBehindMs": null,
+                  "windowMs": 0
+                }
+              },
+              {
+                "kind": "EVENT",
+                "us": 3990447,
+                "scene": "errclass",
+                "uriAtEvent": "http://127.0.0.1:18194/missing.mp4?t=1793691912166850",
+                "event": "MovaErrorEvent",
+                "payload": {
+                  "error": "MovaEndFileReason.error",
+                  "fatal": true,
+                  "code": "unknown"
+                },
+                "state": {
+                  "positionMs": 0,
+                  "durationMs": 0,
+                  "playing": true,
+                  "intent": true,
+                  "buffering": false,
+                  "rendered": false,
+                  "renderEpoch": 0,
+                  "sourceIndex": 0,
+                  "fullscreen": false,
+                  "pip": false,
+                  "mini": false,
+                  "keepAlivePhase": "off",
+                  "fit": "contain",
+                  "zoom": 1.0,
+                  "locked": false,
+                  "size": "0x0",
+                  "error": "MovaEndFileReason.error",
+                  "quality": null,
+                  "volume": 0.0,
+                  "brightness": 0.10588235408067703,
+                  "rate": 1.0,
+                  "timeshiftBehindMs": null,
+                  "windowMs": 0
+                }
+              }
+            ],
+            "state": {
+              "positionMs": 0,
+              "durationMs": 0,
+              "playing": false,
+              "intent": true,
+              "buffering": false,
+              "rendered": false,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "0x0",
+              "error": "MovaEndFileReason.error",
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.10588235408067703,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 0
+            },
+            "overlay": true,
+            "text": "播放失败，请重试",
+            "spinnerCount": 0
+          }
+        }
+      ],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 215,
+          "id": "CP1.errclass.fatal.0",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 239,
+          "id": "CP1.errclass.fatal.1",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 262,
+          "id": "CP1.errclass.fatal.2",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 286,
+          "id": "CP1.errclass.fatal.3",
+          "values": {}
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 310,
+          "id": "CP1.errclass.fatal.4",
+          "values": {}
+        }
+      ],
       "harness": []
     },
     {
       "id": "errclass.poster",
       "stage": 1,
       "planned": 5,
-      "executed": 0,
-      "counts": {},
-      "status": "BLOCKED",
+      "executed": 5,
+      "counts": {
+        "PASS": 5
+      },
+      "status": "PASS",
       "criterion": "首帧 restart，撤封面不早于首帧",
       "cp0": "CP0 无独立定量基线",
-      "difference": "待本轮证据",
-      "evidence": [],
+      "difference": "见实测数字；CP0 无相同样本时不推断改善",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
+      ],
       "issues": [],
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 342,
+          "id": "CP1.errclass.poster.0",
+          "values": {
+            "opacity": 0.0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 374,
+          "id": "CP1.errclass.poster.1",
+          "values": {
+            "opacity": 0.0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 409,
+          "id": "CP1.errclass.poster.2",
+          "values": {
+            "opacity": 0.0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 441,
+          "id": "CP1.errclass.poster.3",
+          "values": {
+            "opacity": 0.0
+          }
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+          "recordIndex": 473,
+          "id": "CP1.errclass.poster.4",
+          "values": {
+            "opacity": 0.0
+          }
+        }
+      ],
       "harness": []
     },
     {
@@ -129,6 +487,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -143,6 +502,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -157,6 +517,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -171,6 +532,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -185,6 +547,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -199,6 +562,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -213,6 +577,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -227,6 +592,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -241,6 +607,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -255,6 +622,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -269,6 +637,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -283,6 +652,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -297,6 +667,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -311,6 +682,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -325,6 +697,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -339,6 +712,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -353,6 +727,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -367,6 +742,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -381,6 +757,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -395,6 +772,7 @@
       "difference": "待本轮证据",
       "evidence": [],
       "issues": [],
+      "measurements": [],
       "harness": []
     },
     {
@@ -450,8 +828,151 @@
       ]
     }
   ],
-  "failures": [],
+  "failures": [
+    {
+      "row": "errclass.fatal",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json",
+      "recordIndex": 262,
+      "id": "CP1.errclass.fatal.2",
+      "status": "FAIL",
+      "reason": null,
+      "numbers": {
+        "endFile": [],
+        "errors": [
+          {
+            "kind": "EVENT",
+            "us": 3988849,
+            "scene": "errclass",
+            "uriAtEvent": "http://127.0.0.1:18194/missing.mp4?t=1793691912166850",
+            "event": "MovaErrorEvent",
+            "payload": {
+              "error": "Failed to open http://127.0.0.1:18194/missing.mp4?t=1793691912166850.",
+              "fatal": false,
+              "code": "stream"
+            },
+            "state": {
+              "positionMs": 0,
+              "durationMs": 0,
+              "playing": true,
+              "intent": true,
+              "buffering": true,
+              "rendered": false,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "0x0",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.10588235408067703,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 0
+            }
+          },
+          {
+            "kind": "EVENT",
+            "us": 3990447,
+            "scene": "errclass",
+            "uriAtEvent": "http://127.0.0.1:18194/missing.mp4?t=1793691912166850",
+            "event": "MovaErrorEvent",
+            "payload": {
+              "error": "MovaEndFileReason.error",
+              "fatal": true,
+              "code": "unknown"
+            },
+            "state": {
+              "positionMs": 0,
+              "durationMs": 0,
+              "playing": true,
+              "intent": true,
+              "buffering": false,
+              "rendered": false,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "0x0",
+              "error": "MovaEndFileReason.error",
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.10588235408067703,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 0
+            }
+          }
+        ],
+        "state": {
+          "positionMs": 0,
+          "durationMs": 0,
+          "playing": false,
+          "intent": true,
+          "buffering": false,
+          "rendered": false,
+          "renderEpoch": 0,
+          "sourceIndex": 0,
+          "fullscreen": false,
+          "pip": false,
+          "mini": false,
+          "keepAlivePhase": "off",
+          "fit": "contain",
+          "zoom": 1.0,
+          "locked": false,
+          "size": "0x0",
+          "error": "MovaEndFileReason.error",
+          "quality": null,
+          "volume": 0.0,
+          "brightness": 0.10588235408067703,
+          "rate": 1.0,
+          "timeshiftBehindMs": null,
+          "windowMs": 0
+        },
+        "overlay": true,
+        "text": "播放失败，请重试",
+        "spinnerCount": 0
+      }
+    }
+  ],
   "defects": [],
+  "incidents": [
+    {
+      "kind": "host setup",
+      "detail": "首次 run_matrix 在设备访问前因默认 gitignored rerun-final-ledger.json 缺失退出；后续显式用已提交 S00e 台账供135项工具汇总，CP1产品比较仍使用 CP0 数字",
+      "evidence": "example/tool/coverage_evidence/cp1-wakeswap-20261103-1539.host.log"
+    },
+    {
+      "kind": "fixture invalid",
+      "detail": "wakeswap 新源响应刻意拦截超过6秒，与原生约5秒HTTP超时冲突；首轮发生终结error，未获得新首帧，后续未执行；不重跑",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json",
+      "recordIndices": [
+        65,
+        66,
+        74,
+        75
+      ]
+    },
+    {
+      "kind": "native readback missing",
+      "detail": "edgepause pause前5次PASS，第6次native path/time-pos unavailable，余下pause与fallback无正式CHECK",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json",
+      "recordIndices": [
+        1539,
+        1540
+      ]
+    }
+  ],
   "restoration": {},
   "validations": [
     {
@@ -463,6 +984,8 @@
   ],
   "additionalRows": [],
   "counts": {
-    "BLOCKED": 30
+    "BLOCKED": 27,
+    "PASS": 2,
+    "FAIL": 1
   }
 }

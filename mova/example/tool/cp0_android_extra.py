@@ -54,7 +54,7 @@ def serve(port,handler):
 def fetch(port,path='/'):
     with urllib.request.build_opener(urllib.request.ProxyHandler({})).open('http://127.0.0.1:'+str(port)+path,timeout=10) as r:return json.load(r)
 
-def run_one(run_id,group,count):
+def run_one(run_id,group,count,skins=''):
     manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
     manifest['ports']=[18085,18086,18082,18083,18084]
     d=GapDriver(SimpleNamespace(run_id=run_id+'-'+group),manifest)
@@ -68,7 +68,7 @@ def run_one(run_id,group,count):
         d.adb('reverse','tcp:18082','tcp:18082');d.mappings.append(('reverse',18082))
         if Selector.scene=='gap':
             d.media(FIX);d.launch()
-            args=SimpleNamespace(group=group,run_id=run_id,iterations=count,seed=20261103,actions=0,skins='',timeout=3600)
+            args=SimpleNamespace(group=group,run_id=run_id,iterations=count,seed=20261103,actions=0,skins=skins,timeout=3600)
             d.run_cases(args)
             complete=d.gap_completed
         else:
