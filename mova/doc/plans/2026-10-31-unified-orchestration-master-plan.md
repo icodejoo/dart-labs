@@ -1308,25 +1308,28 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 | C12 | `9bcb4856` | 2254 | 3 / 3 |
 | C13 | `2e3a7977` | 2260 | 6 / 6 |
 | C15 | `905e6a06` | 2266 | 6 / 6 |
-| C16 | 本提交 | 2268 | 2 / 2 |
+| C16 | `2022caae` | 2268 | 2 / 2 |
+| C12 按需边界补修 | 本提交 | 2269 | 1 / 1 |
 
-回退验证方法：C12 把默认真实探针工厂换回恒允许探针；C13 保留公开签名，撤回策略工厂调用、借用标志、内核借用、抽帧器借用以及 STT 的保护；C15 禁用脚本执行；C16 让两个旧字段入口抛错。对应新增测试分别全部变红，恢复后分别全部变绿；没有以删除新公开符号导致的编译失败充当本轮回退验证。
+回退验证方法：C12 把默认真实探针工厂换回恒允许探针；C13 保留公开签名，撤回策略工厂调用、借用标志、内核借用、抽帧器借用以及 STT 的保护；C15 禁用脚本执行；C16 让两个旧字段入口抛错。C12 边界补修撤回自定义来源的默认探针跳过条件，新测试 1 红，恢复后 1 绿。对应新增测试分别全部变红，恢复后分别全部变绿；没有以删除新公开符号导致的编译失败充当本轮回退验证。
 
 **既有断言与夹具调整**：C12 原 wiring 测试只看 `options.preview.probe == null`，这只能证明配置快照未变，不能证明默认未接线；保留该断言并补查延迟包装器，修正测试名称和过期注释。C13 改写 3 条 STT 断言：启动失败从“必须 rethrow”改为完成并回滚（可选识别故障不应泄漏到播放链）；STT 服务与播放引擎各一条“销毁宿主识别器”断言改为不销毁（借用不能被当成所有权转移）。另有 5 项既有测试在新内核借用语义下暴露原隐含前提：audio_only_scenarios、cutover_warm_mute 两项、playback_error、preview/b07；只给这些夹具显式移交 `ownsKernel: true`，原释放断言保持不变。C15/C16 没有改写既有行为断言；C16 仅迁移既有测试的参数名。
 
 **新增公开 API**（均附中文 dartdoc）：
 
-- C12：`MovaLazyNetProbe`、`MovaEngine.previewProbeFactory` 构造参数、`MovaPreviewService.gateNetwork` 参数/字段。createMovaEngine 默认提供延迟的真实探针工厂；内置 VTT/雪碧图/抽帧到实际远程资源访问处才判断 wifiOnly。缓存、未启用来源、本地资源、VTT 失败冷却不创建或查询默认真实探针。自定义来源保持服务入口门控，因其接口不暴露实际资源 URL；不改自定义来源协议。
+- C12：`MovaLazyNetProbe`、`MovaEngine.previewProbeFactory` 构造参数、`MovaPreviewService.gateNetwork` 参数/字段。createMovaEngine 默认提供延迟的真实探针工厂；内置 VTT/雪碧图/抽帧到实际远程资源访问处才判断 wifiOnly。缓存、未启用来源、本地资源、VTT 失败冷却不创建或查询默认真实探针。自定义来源接口不暴露实际资源 URL，默认不创建或查询真实探针；仅宿主显式注入探针时保留入口门控。never/always 保持原策略，不改来源协议。
 - C13：`MovaAbrConfig.policyFactory`（优先于旧 policy，每引擎调用一次）、`MovaEngine` 与 `createMovaEngine` 的 `ownsKernel` 参数、预览服务的 `ownsCache/ownsProbe/ownsSources` 参数/字段。旧 policy 实例字段仅在 dartdoc/CHANGELOG 公告下版弃用，不加成员级注解。注入内核、HTTP、缓存、探针、来源、抽帧器、STT 识别器均由宿主持有；默认工厂自建内核及默认预览资源仍归引擎所有；可显式移交内核。
 - C15：测试入口的 `MovaTestStep`（ready/buffering/position/error/completed 构造器与 after）、`MovaTestKernel.scripted`、普通构造的可选 script 参数。默认普通内核仍完全被动；显式脚本模式自动组合首帧信号，步骤延迟相对上一步，换源和销毁取消旧步骤。
 - C16：`MovaMiniHost.mini` 参数/getter、`MovaAdOverlayComponent.ads` 字段；旧 ctl 参数/getter 与 controller getter 保留带 `@Deprecated` 的兼容入口。
 
 **代码核实与计划差异**：
 
-1. 待拍板 5 按用户决定明确推翻“不默认接探针”：connectivity_plus 已是硬依赖，移除 wiring 的过期 tree-shaking 理由；抽帧器仍默认 null。C12 半成品“按远程预览实际请求延迟接入”与内置来源的按需条件一致，保留该实现；自定义来源仍沿用入口门控，上述接口限制在此明确记录。
+1. 待拍板 5 按用户决定明确推翻“不默认接探针”：connectivity_plus 已是硬依赖，移除 wiring 的过期 tree-shaking 理由；抽帧器仍默认 null。C12 半成品“按远程预览实际请求延迟接入”与内置来源的按需条件一致，保留该实现；复查发现自定义来源可能只读内存，不能凭远程媒体 URL 默认查询连通性，故在 C16 后另补一个 C12 小提交及 1 项测试；默认跳过不透明来源，显式探针仍入口门控，原放行行为保留。
 2. C13 所有权实际涉及 engine/wiring 中的内核、HTTP 与抽帧包装，不只表中列出的 abr_config、preview/service、stt/service；按“只销毁自建对象”扩大到这些实际释放点，并提供显式内核移交入口。策略接口没有 dispose，工厂只解决有状态策略的实例隔离，不发明销毁协议。
 3. C15 使用 `test_kernel.dart` 的 part 文件承载步骤类型，分发细节不进入公开 API；没有改生产内核和首帧判据。
 4. C16 对历史提交 `e5794345` 前后代码核实：mini/ad 组件类名和 `MovaEngineFactory` 当时就已是现名；deprecated_names 中现有类型别名也全部带 @Deprecated。故只补实际遗留成员，不虚构 Swap/Feed 工厂旧名。当前 Dart 和既有测试支持枚举经类型别名访问，修正兼容层与 CHANGELOG 中相反的旧说明。
 5. 第 8 节第 17/18 项保持本批已拍板默认：不改 `get(Uri)`；成员级弃用公告策略不变，C16 明确要求的兼容别名除外。
+
+本次续作实测新增 18 项（原预期 17 项，额外一项覆盖不透明来源边界），最终 2269 项通过；从 2234 基线累计增加 35 项。
 
 本批指定的 C01→C02→C03→C10→C11→C12→C13→C15→C16 均已落地；其余 C 块与 C17 总文档收口不在本批。全部行为/API 变化已逐提交记入 Unreleased；未暂存或提交禁列的 generated_plugin、doc/notes、matrix-run 计划和兄弟工程文件。

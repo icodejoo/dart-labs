@@ -120,6 +120,7 @@ MovaVolumePort? _defaultVolumePort() {
 ///   示例：`createMovaEngine(extractor: MovaFrameExtractor())`。
 /// - [probe]: wifiOnly 预览的显式连通性探针；优先于默认探针。
 ///   未注入时按需创建 MovaConnectivityNetProbe，只有实际拉取远程预览资源才查询。
+///   自定义来源无法判断具体资源地址，默认保留放行行为；需门控时显式传 [probe]。
 ///   此决定推翻旧的“不默认接线”决定：connectivity_plus 已是硬依赖，旧 tree-shaking
 ///   注释不再成立。关闭预览、缓存命中、本地资源不创建或查询默认探针。
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and

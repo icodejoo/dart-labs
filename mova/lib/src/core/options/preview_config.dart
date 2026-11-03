@@ -80,6 +80,8 @@ class MovaPreviewConfig {
   ///
   /// 有序的缩略图来源链；为 null 时按 [vttEnabled]/[extractFallback] 构建默认
   /// 的 `[vtt, extract]` 链。
+  /// 自定义来源不暴露实际资源 URL，默认不创建或查询连通性探针。
+  /// 若来源会联网且需要 wifiOnly 门控，请显式注入 [probe]；never/always 策略照常生效。
   final List<MovaThumbSource>? sources;
 
   /// Whether the WebVTT source participates in the default chain.

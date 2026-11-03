@@ -12,6 +12,26 @@ class _Fetch implements MovaHttpFetch {
   Future<void> close() async {}
 }
 
+class _MemorySource implements MovaThumbSource {
+  int requests = 0;
+  @override
+  String get name => 'memory';
+  @override
+  Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) async {
+    requests++;
+    return MovaThumb(at: bucket, bytes: Uint8List(1));
+  }
+  @override
+  Future<void> reset() async {}
+  @override
+  Future<void> dispose() async {}
+}
+class _DenyProbe extends MovaAlwaysAllowNetProbe {
+  int queries = 0;
+  @override
+  Future<bool> allowHeavy() async { queries++; return false; }
+}
+
 Future<void> _request(MovaEngine engine, String uri) async {
   await engine.open(MovaSource(uri));
   engine.preview.requestAt(const Duration(seconds: 12));
@@ -40,6 +60,22 @@ void main() {
     addTearDown(engine.dispose);
     return engine;
   }
+  test('C12 opaque memory sources skip default connectivity but honor an explicit probe', () async {
+    final memory = _MemorySource();
+    final fetch = _Fetch();
+    final engine = make(fetch, MovaPreviewConfig(sources: [memory], debounce: Duration.zero));
+    await _request(engine, 'https://host/a.mp4');
+    expect(queries, 0, reason: 'a remote media URL does not mean this source fetches remote thumbnails');
+    expect(memory.requests, 1);
+    expect(engine.preview.current, isNotNull);
+    expect(fetch.gets, 0);
+    final guarded = _MemorySource();
+    final probe = _DenyProbe();
+    await _request(make(fetch, MovaPreviewConfig(sources: [guarded], probe: probe, debounce: Duration.zero)), 'https://host/b.mp4');
+    expect(probe.queries, 1);
+    expect(guarded.requests, 0);
+    expect(queries, 0);
+  });
   test('C12 default wifiOnly consults connectivity lazily and blocks mobile', () async {
     final fetch = _Fetch();
     final engine = make(fetch);

@@ -1413,7 +1413,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       audioOnly: _audioOnly,
       cache: cache,
       probe: probe,
-      gateNetwork: cfg.sources != null,
+      // 不透明的自定义来源可能只读内存，默认不能假定它要拉远程资源。
+      // 宿主显式注入探针时仍沿用入口门控；never/always 保持原策略。
+      gateNetwork: cfg.sources != null &&
+          (cfg.probe != null || cfg.network != MovaPreviewNet.wifiOnly),
       ownsCache: cfg.cache == null,
       ownsProbe: cfg.probe == null,
       ownsSources: cfg.sources == null,

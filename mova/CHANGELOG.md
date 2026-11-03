@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 收严 C12 的按需边界：自定义预览来源可能只读内存，未显式注入探针时不再根据远程媒体地址查询默认连通性；内置来源仍只在实际远程资源请求处查询，显式注入探针的自定义来源继续入口门控，never/always 策略保持。
+
 - 改名收尾：`MovaMiniHost.mini` 替代旧 `ctl` 参数/字段，`MovaAdOverlayComponent.ads` 替代旧 `controller` 字段；旧入口均保留带 `@Deprecated` 的别名，构造与渲染行为不变。包内调用和示例迁移为现名。核实工厂早已共用 `MovaEngineFactory`，已有类型别名均已标注弃用；修正文档中“枚举值不能经 typedef 访问”的过期说明。
 
 - 测试入口新增 `MovaTestKernel.scripted` 和 `MovaTestStep`：可脚本化就绪、缓冲、进度、失败与结束；就绪自动组合首帧信号，换源和销毁取消旧步骤。普通构造继续默认被动，不自动播放或发出信号。
