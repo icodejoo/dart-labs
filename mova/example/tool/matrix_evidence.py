@@ -127,6 +127,10 @@ class Evidence:
                 elif op == 'le': ok = actual <= expected
                 elif op == 'lt': ok = actual < expected
                 elif op == 'near': ok = abs(actual - expected) <= clause.get('tolerance', 0)
+                elif op == 'delta_le':
+                    baseline = field(clause['baseline'])
+                    if baseline is None: return 'BLOCKED'
+                    ok = actual - baseline <= expected
                 elif op == 'contains': ok = expected in actual
                 elif op == 'list_length': ok = isinstance(actual, list) and len(actual) == expected
                 elif op == 'quality_shape': ok = actual is None or quality_shape(actual)

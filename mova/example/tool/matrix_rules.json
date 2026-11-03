@@ -6864,11 +6864,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "U1.coverage1",
-        "missing": "三种 Player/View/FeedPlayer 的挂树/换源/卸载与资源对账"
-      },
-      {
-        "kind": "check",
         "ident": "U1.surface",
         "assertions": [
           {
@@ -6947,6 +6942,521 @@
             "field": "expected",
             "op": "eq",
             "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.surface",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.customLabels",
+            "op": "eq",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.player.mounted",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.textureIds",
+            "op": "nonempty",
+            "value": null
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.borrowed",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.acceptedAfterUnmount",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.textureIds",
+            "op": "list_length",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.player.disposed",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.textureIds",
+            "op": "list_length",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.view.lazy",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.engines",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.view.source",
+        "assertions": [
+          {
+            "field": "numbers.before.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.before.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.before.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.before.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.before.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.after.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.after.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.after.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.after.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.engines",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.path",
+            "op": "eq",
+            "other": "numbers.expectedPath"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.view.disposed",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.acceptedAfterUnmount",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.textureIds",
+            "op": "list_length",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U1.native.feed",
+        "assertions": [
+          {
+            "field": "numbers.first.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.first.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.first.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.first.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.first.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.mounted.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.mounted.released",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.mounted.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.mounted.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.mounted.calls",
+            "op": "count_where",
+            "value": 0,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.disposed.created",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.disposed.released",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.disposed.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.disposed.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.disposed.calls",
+            "op": "count_where",
+            "value": 1,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.engines",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.accepts",
+            "op": "eq",
+            "value": [
+              false
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.ticker",
+        "assertions": [
+          {
+            "field": "numbers.hiddenPlaying",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.path",
+            "op": "eq",
+            "other": "numbers.expectedPath"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.route",
+        "assertions": [
+          {
+            "field": "numbers.hiddenPlaying",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.path",
+            "op": "eq",
+            "other": "numbers.expectedPath"
           }
         ]
       }
@@ -9139,11 +9649,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "U9.coverage1",
-        "missing": "守卫 route/Ticker/inactive/PiP/mini 联合 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "U9.ticker.none",
         "assertions": [
           {
@@ -9301,6 +9806,136 @@
             "field": "expected",
             "op": "eq",
             "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.ticker",
+        "assertions": [
+          {
+            "field": "numbers.hiddenPlaying",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.path",
+            "op": "eq",
+            "other": "numbers.expectedPath"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.route",
+        "assertions": [
+          {
+            "field": "numbers.hiddenPlaying",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.path",
+            "op": "eq",
+            "other": "numbers.expectedPath"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.lifecycle.none",
+        "assertions": [
+          {
+            "field": "numbers.hidden.playing",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.hidden.pause",
+            "op": "eq",
+            "value": "yes"
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.lifecycle.pip",
+        "assertions": [
+          {
+            "field": "numbers.hidden.playing",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.hidden.pause",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.pipAccepted",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.background.pinned",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.hidden.pip",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U9.native.lifecycle.mini",
+        "assertions": [
+          {
+            "field": "numbers.hidden.playing",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.hidden.pause",
+            "op": "eq",
+            "value": "no"
+          },
+          {
+            "field": "numbers.visiblePlaying",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.miniVisible",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.hidden.mini",
+            "op": "eq",
+            "value": true
           }
         ]
       }
@@ -11456,11 +12091,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "F13.coverage1",
-        "missing": "多引擎 RSS/线程/句柄有界及 dispose 超时 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "F13.resources.20",
         "assertions": [
           {
@@ -11725,6 +12355,363 @@
             ]
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.bounded.40",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.engines",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "delta_le",
+            "value": 33554432,
+            "baseline": "numbers.before.rss"
+          },
+          {
+            "field": "numbers.budget.rss",
+            "op": "eq",
+            "value": 33554432
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "delta_le",
+            "value": 2,
+            "baseline": "numbers.before.threads"
+          },
+          {
+            "field": "numbers.budget.threads",
+            "op": "eq",
+            "value": 2
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "delta_le",
+            "value": 8,
+            "baseline": "numbers.before.handles"
+          },
+          {
+            "field": "numbers.budget.handles",
+            "op": "eq",
+            "value": 8
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.bounded.60",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.engines",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "delta_le",
+            "value": 33554432,
+            "baseline": "numbers.before.rss"
+          },
+          {
+            "field": "numbers.budget.rss",
+            "op": "eq",
+            "value": 33554432
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "delta_le",
+            "value": 2,
+            "baseline": "numbers.before.threads"
+          },
+          {
+            "field": "numbers.budget.threads",
+            "op": "eq",
+            "value": 2
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "delta_le",
+            "value": 8,
+            "baseline": "numbers.before.handles"
+          },
+          {
+            "field": "numbers.budget.handles",
+            "op": "eq",
+            "value": 8
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.bounded.80",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.engines",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "delta_le",
+            "value": 33554432,
+            "baseline": "numbers.before.rss"
+          },
+          {
+            "field": "numbers.budget.rss",
+            "op": "eq",
+            "value": 33554432
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "delta_le",
+            "value": 2,
+            "baseline": "numbers.before.threads"
+          },
+          {
+            "field": "numbers.budget.threads",
+            "op": "eq",
+            "value": 2
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "delta_le",
+            "value": 8,
+            "baseline": "numbers.before.handles"
+          },
+          {
+            "field": "numbers.budget.handles",
+            "op": "eq",
+            "value": 8
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.bounded.100",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.engines",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "delta_le",
+            "value": 33554432,
+            "baseline": "numbers.before.rss"
+          },
+          {
+            "field": "numbers.budget.rss",
+            "op": "eq",
+            "value": 33554432
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "delta_le",
+            "value": 2,
+            "baseline": "numbers.before.threads"
+          },
+          {
+            "field": "numbers.budget.threads",
+            "op": "eq",
+            "value": 2
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "delta_le",
+            "value": 8,
+            "baseline": "numbers.before.handles"
+          },
+          {
+            "field": "numbers.budget.handles",
+            "op": "eq",
+            "value": 8
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.bounded.disposed",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "le",
+            "value": 3
+          },
+          {
+            "field": "numbers.engines",
+            "op": "le",
+            "value": 0
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.rss",
+            "op": "delta_le",
+            "value": 67108864,
+            "baseline": "numbers.before.rss"
+          },
+          {
+            "field": "numbers.budget.rss",
+            "op": "eq",
+            "value": 67108864
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.threads",
+            "op": "delta_le",
+            "value": 4,
+            "baseline": "numbers.before.threads"
+          },
+          {
+            "field": "numbers.budget.threads",
+            "op": "eq",
+            "value": 4
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.after.handles",
+            "op": "delta_le",
+            "value": 16,
+            "baseline": "numbers.before.handles"
+          },
+          {
+            "field": "numbers.budget.handles",
+            "op": "eq",
+            "value": 16
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F13.native.isolation",
+        "assertions": [
+          {
+            "field": "numbers.failedEvents",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.healthyErrors",
+            "op": "eq",
+            "value": [
+              0,
+              0
+            ]
+          },
+          {
+            "field": "numbers.healthyPlaying",
+            "op": "eq",
+            "value": [
+              true,
+              true
+            ]
+          },
+          {
+            "field": "numbers.after.1",
+            "op": "ge",
+            "other": "numbers.first.1"
+          },
+          {
+            "field": "numbers.after.2",
+            "op": "ge",
+            "other": "numbers.first.2"
+          }
+        ]
       }
     ]
   },
@@ -11788,6 +12775,54 @@
             "field": "numbers.openAfterDispose",
             "op": "eq",
             "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "F14.native.teardown",
+        "assertions": [
+          {
+            "field": "numbers.created",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.released",
+            "op": "eq",
+            "value": 3
+          },
+          {
+            "field": "numbers.binding",
+            "op": "eq",
+            "value": "S00eBinding"
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 3,
+            "where": {
+              "method": "VideoOutputManager.Create",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.calls",
+            "op": "count_where",
+            "value": 3,
+            "where": {
+              "method": "VideoOutputManager.Dispose",
+              "replied": true
+            }
+          },
+          {
+            "field": "numbers.accepts",
+            "op": "eq",
+            "value": [
+              false,
+              false,
+              false
+            ]
           }
         ]
       }
@@ -12207,11 +13242,6 @@
       },
       {
         "kind": "check",
-        "ident": "N12.coverage1",
-        "missing": "换源归零与旧 RESTART 隔离逐事件 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "N12.openReset",
         "assertions": [
           {
@@ -12317,11 +13347,6 @@
         "file": "he-firstframe.log",
         "name": "V4",
         "minimum": 1
-      },
-      {
-        "kind": "check",
-        "ident": "N13.coverage1",
-        "missing": "弱客户端资源/懒创建计数与 QoE 开关联合 CHECK"
       },
       {
         "kind": "check",

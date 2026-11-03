@@ -24,6 +24,7 @@ void main() {
 
 final clock = Stopwatch()..start();
 final screen = ValueNotifier<MovaApi?>(null);
+final probeTree = ValueNotifier<Widget?>(null);
 final skin = ValueNotifier<MovaSkin>(const MovaDefaultSkin());
 final mini = MovaMini()
   ..onClosed = ((a)=>mark('MINI_CLOSED',snapshot(a)))
@@ -441,7 +442,8 @@ class _CoverageHomeState extends State<CoverageHome> {
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<bool>(valueListenable:widgetMode,
+  Widget build(BuildContext context) => ValueListenableBuilder<Widget?>(valueListenable: probeTree,
+    builder: (context, probe, _) => probe != null ? Scaffold(body: probe) : ValueListenableBuilder<bool>(valueListenable:widgetMode,
     builder:(context,mode,_)=>mode?widgets.CoverageWidgets(key:widgets.coverageWidgetKey):Scaffold(body: SafeArea(child: Column(children: [
     const Text('MOVA device coverage — adb :18083'),
     Expanded(child: ValueListenableBuilder<MovaApi?>(valueListenable: screen, builder: (context, a, _) => a == null
@@ -450,7 +452,7 @@ class _CoverageHomeState extends State<CoverageHome> {
           builder:(context,t,_)=>MovaPlayer(api:a,skin:s,fit:declaredFit,posterFade:const Duration(seconds:2),
             poster:poster?const ColoredBox(color:Colors.teal,child:Center(child:Text('COVERAGE POSTER'))):null,
             surface:customSurface?const ColoredBox(color:Colors.orange,child:Center(child:Text('CUSTOM SURFACE'))):null))))),
-  ]))));
+  ])))));
 }
 
 /// Visible proof that a host patch was assembled on the real device.

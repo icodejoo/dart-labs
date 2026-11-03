@@ -103,7 +103,10 @@ class Host:
         audio = self.raw(label+'.audio', 'shell', 'dumpsys', 'audio')
         pid = self.raw(label+'.pid', 'shell', 'pidof', PACKAGE).strip()
         window = self.raw(label+'.window', 'shell', 'dumpsys', 'window')
+        activity = self.raw(label+'.activity', 'shell', 'dumpsys', 'activity', 'activities')
+        from coverage_s00c import pinned_value
         result = dict(brightness=brightness(bright), appBrightness=window_brightness(window), volume=music_volume(audio), pid=None)
+        result['pinned'] = pinned_value(activity)
         if re.fullmatch(r'\d+', pid):
             result['pid'] = int(pid)
             proc = {}
@@ -131,6 +134,10 @@ class Host:
                 token = row.get('token')
                 if row.get('kind') == 'S00E_HOST_REQUEST' and token not in seen:
                     seen.add(token)
+                    if row.get('phase', '').endswith('-background'):
+                        self.adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+                    if row.get('phase', '').endswith('-foreground'):
+                        self.adb('shell', 'am', 'start', '-n', PACKAGE+'/com.icodejoo.mova.mova_example.MainActivity')
                     sample = self.snapshot(token)
                     query = urllib.parse.urlencode(dict(token=token, sample=json.dumps(sample)))
                     self.request('/s00e-ack?' + query)
