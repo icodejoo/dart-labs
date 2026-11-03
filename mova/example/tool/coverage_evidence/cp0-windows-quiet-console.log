@@ -1,0 +1,222 @@
+START WINDOWS F3-normal-0 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/master.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/master.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/low/index.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/low/index0.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index0.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index1.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index2.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index3.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index4.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:49] "GET /hls/high/index5.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:57] "GET /hls/master.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index.m3u8?t=1793691289281001 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index0.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index1.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index2.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index3.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index4.ts?t=1793691289281001 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:34:58] "GET /hls/high/index5.ts?t=1793691289281001 HTTP/1.1" 206 -
+WINDOWS RESULT F3-normal-0 completed True crashed False foregroundViolations 0
+START WINDOWS F3-normal-1 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/master.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/master.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/low/index.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/low/index0.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index0.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index1.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index2.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index3.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index4.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:02] "GET /hls/high/index5.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/master.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index.m3u8?t=1793691302756584 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index0.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index1.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index2.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index3.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index4.ts?t=1793691302756584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:11] "GET /hls/high/index5.ts?t=1793691302756584 HTTP/1.1" 206 -
+WINDOWS RESULT F3-normal-1 completed True crashed False foregroundViolations 0
+START WINDOWS F3-normal-2 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/master.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/master.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/low/index.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/low/index0.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index0.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index1.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index2.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index3.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index4.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:17] "GET /hls/high/index5.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:25] "GET /hls/master.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:25] "GET /hls/high/index.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:25] "GET /hls/high/index.m3u8?t=1793691317178458 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:25] "GET /hls/high/index0.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:26] "GET /hls/high/index1.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:26] "GET /hls/high/index2.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:26] "GET /hls/high/index3.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:26] "GET /hls/high/index4.ts?t=1793691317178458 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:26] "GET /hls/high/index5.ts?t=1793691317178458 HTTP/1.1" 206 -
+WINDOWS RESULT F3-normal-2 completed True crashed False foregroundViolations 0
+START WINDOWS F3-paused-0 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/master.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/master.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/low/index.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/low/index0.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index0.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index1.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index2.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index3.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index4.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:32] "GET /hls/high/index5.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/master.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index.m3u8?t=1793691331958677 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index0.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index1.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index2.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index3.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index4.ts?t=1793691331958677 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:40] "GET /hls/high/index5.ts?t=1793691331958677 HTTP/1.1" 206 -
+WINDOWS RESULT F3-paused-0 completed True crashed False foregroundViolations 0
+START WINDOWS F3-paused-1 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/master.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/master.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/low/index.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/low/index0.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index0.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index1.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index2.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index3.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index4.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:44] "GET /hls/high/index5.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/master.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index.m3u8?t=1793691344687505 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index0.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index1.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index2.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index3.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index4.ts?t=1793691344687505 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:53] "GET /hls/high/index5.ts?t=1793691344687505 HTTP/1.1" 206 -
+WINDOWS RESULT F3-paused-1 completed True crashed False foregroundViolations 0
+START WINDOWS F3-paused-2 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/master.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/master.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/low/index.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/high/index.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/low/index0.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/high/index0.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/high/index1.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:58] "GET /hls/high/index2.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:59] "GET /hls/high/index3.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:59] "GET /hls/high/index4.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:35:59] "GET /hls/high/index5.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/master.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index.m3u8?t=1793691358822009 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index0.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index1.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index2.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index3.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index4.ts?t=1793691358822009 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:07] "GET /hls/high/index5.ts?t=1793691358822009 HTTP/1.1" 206 -
+WINDOWS RESULT F3-paused-2 completed True crashed False foregroundViolations 0
+START WINDOWS F3-cutover-0 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/master.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/master.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/low/index.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/low/index0.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index0.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index1.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index2.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index3.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index4.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:14] "GET /hls/high/index5.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/master.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index.m3u8?t=1793691374067270 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index0.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index1.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index2.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index3.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index4.ts?t=1793691374067270 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:23] "GET /hls/high/index5.ts?t=1793691374067270 HTTP/1.1" 206 -
+WINDOWS RESULT F3-cutover-0 completed True crashed False foregroundViolations 0
+START WINDOWS F3-cutover-1 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/master.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/master.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/low/index.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/high/index.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/low/index0.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/high/index0.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:31] "GET /hls/high/index1.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:32] "GET /hls/high/index2.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:32] "GET /hls/high/index3.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:32] "GET /hls/high/index4.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:32] "GET /hls/high/index5.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/master.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index.m3u8?t=1793691391719331 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index0.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index1.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index2.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index3.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index4.ts?t=1793691391719331 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:40] "GET /hls/high/index5.ts?t=1793691391719331 HTTP/1.1" 206 -
+WINDOWS RESULT F3-cutover-1 completed True crashed False foregroundViolations 0
+START WINDOWS F3-cutover-2 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/master.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/master.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/low/index.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/low/index0.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index0.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index1.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index2.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index3.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index4.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:48] "GET /hls/high/index5.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/master.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index.m3u8?t=1793691408266394 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index0.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index1.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index2.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index3.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index4.ts?t=1793691408266394 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:36:57] "GET /hls/high/index5.ts?t=1793691408266394 HTTP/1.1" 206 -
+WINDOWS RESULT F3-cutover-2 completed True crashed False foregroundViolations 0
+START WINDOWS dispose-0 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:37:08] "GET /vod.mp4?t=1793691428468026 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:37:08] "GET /vod.mp4?t=1793691428921419 HTTP/1.1" 206 -
+WINDOWS RESULT dispose-0 completed True crashed False foregroundViolations 0
+START WINDOWS dispose-1 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:37:30] "GET /vod.mp4?t=1793691450739390 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:37:31] "GET /vod.mp4?t=1793691451129390 HTTP/1.1" 206 -
+WINDOWS RESULT dispose-1 completed True crashed False foregroundViolations 0
+START WINDOWS dispose-2 retain event/native/focus evidence
+127.0.0.1 - - [03/Nov/2026 15:37:41] "GET /vod.mp4?t=1793691461091584 HTTP/1.1" 206 -
+127.0.0.1 - - [03/Nov/2026 15:37:41] "GET /vod.mp4?t=1793691461534046 HTTP/1.1" 206 -
+WINDOWS RESULT dispose-2 completed True crashed False foregroundViolations 0
+START WINDOWS V6-0 retain event/native/focus evidence
+WINDOWS RESULT V6-0 completed True crashed False foregroundViolations 0
+START WINDOWS V6-1 retain event/native/focus evidence
+WINDOWS RESULT V6-1 completed True crashed False foregroundViolations 0
+START WINDOWS V6-2 retain event/native/focus evidence
+WINDOWS RESULT V6-2 completed True crashed False foregroundViolations 0
+START WINDOWS V10-0 retain event/native/focus evidence
+WINDOWS RESULT V10-0 completed True crashed False foregroundViolations 0
+START WINDOWS V10-1 retain event/native/focus evidence
+WINDOWS RESULT V10-1 completed True crashed False foregroundViolations 0
+START WINDOWS V10-2 retain event/native/focus evidence
+WINDOWS RESULT V10-2 completed True crashed False foregroundViolations 0

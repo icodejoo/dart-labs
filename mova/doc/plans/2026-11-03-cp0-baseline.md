@@ -2,6 +2,8 @@
 
 状态：**COMPLETE**。CP0 不设产品通过线；测得故障原样保留。
 
+Windows更新：安静模式功能批次18/18 PASS；严格z序集成测试未通过，不能将基线采集完成解释为安静模式整体验收通过。
+
 Android release APK SHA-256：`f9df792f6dcc0b68d908906f23026dd5beeacd56d0c2d566c1b85d6c35ba1586`。阶段1构建一次，后续复用；安装拉回哈希一致。
 
 基线 detached a5c317f6；版本控制改动仅本树 mova/example、mova/doc，lib/test 不改。Windows构建曾意外写到默认安装前缀，详见末尾事件记录，不声称满足全部目录写入约束。
@@ -52,10 +54,12 @@ cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→
 |3|H42.wake|3|3|0|MEASURED {"harness": [], "verdictCount": 2, "verdictCounts": {"PASS": 1, "FAIL": 0, "BLOCKED": 1}, "issues": [{"status": "BLOCKED", "reason": "manual screenshot comparison required", "difference": "PNG pairs collected"}], "wakeElapsedMs": {"min": 5004, "median": 5004, "max": 5005}, "wakeSignals": ["MovaFirstFrameSignal.grace", "MovaFirstFrameSignal.grace", "MovaFirstFrameSignal.grace"], "holdBlack": 3}|example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-recover-lifecycle/cp0-result.json|
 |3|A15.miniPip|1|1|0|MEASURED {"harness": [], "verdictCount": 2, "verdictCounts": {"PASS": 2, "FAIL": 0, "BLOCKED": 0}, "issues": [], "explicitDisposeCalls": 2}|example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-recover-lifecycle/cp0-result.json|
 |3|H37.dispose|1|1|0|MEASURED {"harness": [], "verdictCount": 1, "verdictCounts": {"PASS": 1, "FAIL": 0, "BLOCKED": 0}, "issues": [], "explicitDisposeCalls": 2}|example/tool/coverage_evidence/matrix-cp0-android-formal-20261103-recover-lifecycle/cp0-result.json|
-|4|Windows F3|30|30|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "deltaMs": {"min": 0, "median": 0.0, "max": 0}, "below200": 30, "below200Percent": 100.0, "runs": [{}, {}, {}]}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
-|4|Windows A23/F13 dispose|20|20|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "disposeCallCount": 80, "runs": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
-|4|Windows HE V6|5|5|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "verdictCount": 5, "runs": [{}, {}, {}, {}, {}], "verdictCounts": {"PASS": 5, "FAIL": 0, "BLOCKED": 0}, "issues": []}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
-|4|Windows HE V10|20|20|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "verdictCount": 20, "runs": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "verdictCounts": {"PASS": 20, "FAIL": 0, "BLOCKED": 0}, "issues": []}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
+|4|Windows F3 normal（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 42, "deltaMs": {"min": 0, "median": 0, "max": 0}, "below200": 3, "below200Percent": 100.0}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
+|4|Windows F3 paused（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 42, "deltaMs": {"min": 0, "median": 0, "max": 0}, "below200": 3, "below200Percent": 100.0}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
+|4|Windows F3 cutover（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 52, "deltaMs": {"min": 0, "median": 0, "max": 0}, "below200": 3, "below200Percent": 100.0}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
+|4|Windows A23/F13 dispose（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 35, "disposeCallCount": 12}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
+|4|Windows HE V6（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 70, "verdictCounts": {"PASS": 3, "FAIL": 0, "MISSING": 0}}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
+|4|Windows HE V10（安静模式）|3|3|0|MEASURED {"passes": 3, "crashes": 0, "watchdogsTotal": 0, "foregroundViolationCount": 0, "foregroundSampleCount": 33, "verdictCounts": {"PASS": 3, "FAIL": 0, "MISSING": 0}}|example/tool/coverage_evidence/cp0-windows-quiet/results.json|
 
 ## 口径与证据边界
 
@@ -77,3 +81,19 @@ Windows CMake默认安装前缀导致运行包被写入 C:/Program Files/mova_ex
 一次Windows F3普通诊断轮已获10个通过落点，但HTTP仍为running、收尾超过120秒无END；主动终止自启进程。焦点轨迹未持续落盘，该轮不计正式30；现象不抹去，尚不能归因内核或验证页。 证据：example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.watchdog.json, example/tool/coverage_evidence/cp0-windows-first-cleanup-hang/F3-normal.json。
 记录到termarx/Chrome抢占前台。未满足焦点条件的轮次保留并排除，修正开跑前PID握手、隐藏截图辅助进程、持续记录焦点；每项最多补跑5次，最终只统计无焦点中断的样本。 证据：example/tool/coverage_evidence/cp0-windows-focus-invalid/, example/tool/coverage_evidence/cp0-windows-formal/focus-retries/, example/tool/coverage_evidence/cp0-windows-final-monitor.json。
 曾观察到GetForegroundWindow=NULL、OpenInputDesktop错误5；没有假定是锁屏或UAC，也未操纵安全桌面。按30秒检查、10分钟上限等待，输入桌面恢复后补齐有真实前台采样且无中断的全部正式次数。 证据：example/tool/coverage_evidence/cp0-windows-desktop-blocked.json, example/tool/coverage_evidence/cp0-windows-input-desktop.jsonl, example/tool/coverage_evidence/cp0-windows-final-monitor.json。
+
+
+## Windows 安静模式更新（2026-11-03）
+
+功能批次18/18 PASS，前台观测274次，违规0；无补跑、无崩溃、无watchdog。严格z序集成测试2项FAIL（Progman/SoPY窗口仍在下方），不声称整体验收通过。详见 [安静模式报告](2026-11-03-win-quiet-mode.md)。JSON的windowsHistory保留原Windows阶段及构建/重试元数据。
+
+### 旧：抢焦点模式，用户被打断，仅作对照
+
+|阶段|项目|计划|执行|失败|旧指标|历史证据|
+|---|---|---|---|---|---|---|
+|4|Windows F3|30|30|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "deltaMs": {"min": 0, "median": 0.0, "max": 0}, "below200": 30, "below200Percent": 100.0, "runs": [{}, {}, {}]}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
+|4|Windows A23/F13 dispose|20|20|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "disposeCallCount": 80, "runs": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
+|4|Windows HE V6|5|5|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "verdictCount": 5, "runs": [{}, {}, {}, {}, {}], "verdictCounts": {"PASS": 5, "FAIL": 0, "BLOCKED": 0}, "issues": []}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
+|4|Windows HE V10|20|20|0|MEASURED {"crashes": 0, "focusMismatchCount": 0, "watchdogsTotal": 0, "verdictCount": 20, "runs": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "verdictCounts": {"PASS": 20, "FAIL": 0, "BLOCKED": 0}, "issues": []}|example/tool/coverage_evidence/cp0-windows-formal/results.json|
+
+上文既有事件记录中的前台补跑描述属于旧历史，不再是当前驱动行为。旧focusMismatchCount=0表示旧筛选后样本维持前台，不能解释为零抢焦点违规。
