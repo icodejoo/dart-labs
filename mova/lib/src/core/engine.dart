@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import 'api.dart';
 import 'bus/bus.dart';
 import 'events/events.dart';
+import 'engine/load_spec.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
@@ -325,6 +326,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   ///
   /// 当前正在播放的地址下标。
   int _sourceIndex = 0;
+
+  /// 最近一次内核加载的规格；本提交仅记录，不参与生产决策。
+  LoadSpec? _currentLoad;
+
+  /// 读取加载记录供白盒测试使用；尚未加载时返回 null。
+  /// 示例：`expect(engine.debugCurrentLoad?.uri, kernel.lastUri)`。
+  @visibleForTesting
+  LoadSpec? get debugCurrentLoad => _currentLoad;
+
 
   /// The address currently playing, or empty before any [open].
   ///
@@ -1442,6 +1452,11 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // 取代/销毁（源已不是当前源）。
     bool loaded;
     try {
+      _currentLoad = LoadSpec(
+        sourceIndex: _sourceIndex,
+        uri: source.uri,
+        reason: LoadReason.open,
+      );
       loaded = await _loadKernel(source.uri, play: loadPlays);
     } finally {
       if (session == _sessionGen && !_disposed) _qoe?.onLoaded();
@@ -1603,6 +1618,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   Future<void> _recover(int index, MovaPlayFail cause, int gen) async {
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     final resumeAt = _recoveryPosition ?? Duration.zero;
+    final reason = index == _sourceIndex ? LoadReason.retry : LoadReason.failover;
     if (index != _sourceIndex) {
       // Switching address: the quality list belonged to the old address's
       // master playlist.
@@ -1628,6 +1644,13 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // open() 只提交加载；即使已有时长，也不代表已可呈现。
     _recoveryAwaitingFrame = resumeAt > Duration.zero;
+    _currentLoad = LoadSpec(
+      sourceIndex: _sourceIndex,
+      uri: _activeUri,
+      quality: state.currentQuality,
+      resumeAt: resumeAt,
+      reason: reason,
+    );
     if (!await _loadKernel(_activeUri, play: _loadPlays)) return;
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     _announceReady();
@@ -1917,6 +1940,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (_disposed || attempt != _attemptId) return;
     try {
       if (seekTo == null) {
+        _currentLoad = LoadSpec(
+          sourceIndex: _sourceIndex,
+          uri: uri,
+          quality: state.currentQuality,
+          reason: LoadReason.liveEdge,
+        );
         if (!await _loadKernel(uri, play: _loadPlays)) return;
       } else {
         await _kernel.seek(seekTo);
@@ -2342,10 +2371,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _lastPosition = target;
     _emitEvent(MovaSeek(target));
     _armAttempt(autoPlay: _loadPlays);
-    if (!await _loadKernel(
-      builder(_activeUri, behind, DateTime.now()),
-      play: _loadPlays,
-    )) {
+    final uri = builder(_activeUri, behind, DateTime.now());
+    _currentLoad = LoadSpec(
+      sourceIndex: _sourceIndex,
+      uri: uri,
+      quality: state.currentQuality,
+      timeshiftBehind: behind,
+      reason: LoadReason.timeshift,
+    );
+    if (!await _loadKernel(uri, play: _loadPlays)) {
       return;
     }
     if (behind <= options.live.edgeThreshold) {
@@ -2653,6 +2687,13 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     _armAttempt(autoPlay: _loadPlays);
+    _currentLoad = LoadSpec(
+      sourceIndex: _sourceIndex,
+      uri: playUri,
+      quality: q,
+      resumeAt: live ? null : pos,
+      reason: LoadReason.quality,
+    );
     if (!await _loadKernel(playUri, play: _loadPlays)) {
       _releaseAbrHold();
       return;
@@ -2801,6 +2842,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // [_pendingSeekTarget] 可能在刚重开的流上误触发。
     _forgetMediaProgress();
     _armAttempt(autoPlay: _loadPlays);
+    _currentLoad = LoadSpec(
+      sourceIndex: _sourceIndex,
+      uri: _activeUri,
+      quality: state.currentQuality,
+      reason: LoadReason.liveEdge,
+    );
     await _loadKernel(_activeUri, play: _loadPlays);
   }
 
