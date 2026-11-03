@@ -35,6 +35,11 @@
       "status": "COMPLETE",
       "recordedAt": "2026-11-03T16:49:47.705057+08:00",
       "detail": "本阶段已收口；失败与缺测保留，不代表全部产品判据通过"
+    },
+    "2": {
+      "status": "COMPLETE",
+      "recordedAt": "2026-11-03T17:40:07.735241+08:00",
+      "detail": "本阶段已收口；失败与缺测保留，不代表全部产品判据通过"
     }
   },
   "rows": [
@@ -5993,103 +5998,387 @@
       "id": "H20.hlsSeek",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 60}, \"deltaMs\": [-417, -497, -497, -457, -457, -457, -497, -417, -417, -457, -497, -497, -417, -497, -457, -497, -417, -457, -497, -457, -497, -457, -457, -497, -457, -497, -417, -497, -457, -457], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 60
+        },
+        "deltaMs": [
+          -417,
+          -497,
+          -497,
+          -457,
+          -457,
+          -457,
+          -497,
+          -417,
+          -417,
+          -457,
+          -497,
+          -497,
+          -417,
+          -497,
+          -457,
+          -497,
+          -417,
+          -457,
+          -497,
+          -457,
+          -497,
+          -457,
+          -457,
+          -497,
+          -457,
+          -497,
+          -417,
+          -497,
+          -457,
+          -457
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "H50.hlsSeek",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 60}, \"deltaMs\": [303, 303, 303, 0, 303, 303, 0, 303, 263, 343, 303, 303, 303, 303, 303, 303, 303, 303, 303, 303, 0, 343, 303, 303, 303, 303, 183, 303, 303, 303], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 60
+        },
+        "deltaMs": [
+          303,
+          303,
+          303,
+          0,
+          303,
+          303,
+          0,
+          303,
+          263,
+          343,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          0,
+          343,
+          303,
+          303,
+          303,
+          303,
+          183,
+          303,
+          303,
+          303
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.contentWarm",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 播B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.midPending",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 播B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.postLoad",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 停广告尾帧，20秒未进B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
@@ -6100,11 +6389,15 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
       "metrics": {
         "passes": 0,
         "failures": 0,
-        "harness": [],
+        "harness": [
+          [
+            "{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\n<asynchronous suspension>\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\n<asynchronous suspension>\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\n<asynchronous suspension>\\n'}"
+          ]
+        ],
         "matchesB": [],
         "wrongEpisode": [],
         "stillAd": [],
@@ -6112,7 +6405,9 @@
         "epochDelta": [],
         "firstFrameGapUs": []
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json"
+      ],
       "issues": []
     },
     {
@@ -6123,11 +6418,15 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
       "metrics": {
         "passes": 0,
         "failures": 0,
-        "harness": [],
+        "harness": [
+          [
+            "{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\n<asynchronous suspension>\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\n<asynchronous suspension>\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\n<asynchronous suspension>\\n'}"
+          ]
+        ],
         "matchesB": [],
         "wrongEpisode": [],
         "stillAd": [],
@@ -6135,7 +6434,9 @@
         "epochDelta": [],
         "firstFrameGapUs": []
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json"
+      ],
       "issues": []
     },
     {
@@ -7469,31 +7770,459 @@
       "id": "keepalive-core.S1",
       "stage": 2,
       "planned": 5,
-      "executed": 0,
+      "executed": 5,
       "status": "BLOCKED",
       "criterion": "每场景5次原生判据通过，且与CP0同口径一致",
       "cp0": "CP0仅有H42约5004ms/grace事实，缺S1/S13逐轮对应台账",
       "difference": "保留原生判据与elapsed/signal；缺相同场景的CP0台账，不宣称完整比较通过",
-      "result": "原生VERDICT={}；唤醒=[]",
-      "evidence": [],
+      "result": "原生VERDICT={'PASS': 15}；每轮样本数={1: 3, 2: 3, 3: 3, 4: 3, 5: 3}；唤醒=[{'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5000, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5007, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5003, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5002, 'signal': 'grace', 'from': 'muted'}]",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log"
+      ],
       "issues": [],
-      "measurements": [],
-      "wakeEvents": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 697,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=146ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1099,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=141ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1491,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=70ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1935,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=147ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 2373,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=138ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 2765,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=145ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3177,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=106ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3587,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=113ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3967,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=94ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 4409,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=114ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 4813,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=132ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5187,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=186ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5583,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=109ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5987,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=171ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 6377,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=100ms"
+        }
+      ],
+      "wakeEvents": [
+        {
+          "kind": "EVENT",
+          "ms": 13332,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 30047,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 46484,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5000,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 63401,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5007,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 80390,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 97357,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 114130,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5003,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 130836,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 147464,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 164046,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 180561,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 197166,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 213964,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 230597,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 247507,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5002,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        }
+      ]
     },
     {
       "id": "keepalive-core.S13",
       "stage": 2,
       "planned": 5,
-      "executed": 0,
+      "executed": 5,
       "status": "BLOCKED",
       "criterion": "每场景5次原生判据通过，且与CP0同口径一致",
       "cp0": "CP0仅有H42约5004ms/grace事实，缺S1/S13逐轮对应台账",
       "difference": "保留原生判据与elapsed/signal；缺相同场景的CP0台账，不宣称完整比较通过",
-      "result": "原生VERDICT={}；唤醒=[]",
-      "evidence": [],
+      "result": "原生VERDICT={'PASS': 5}；每轮样本数={1: 1, 2: 1, 3: 1, 4: 1, 5: 1}；唤醒=[{'elapsed': 189, 'signal': 'size', 'from': 'muted'}, {'elapsed': 968, 'signal': 'size', 'from': 'muted'}, {'elapsed': 191, 'signal': 'size', 'from': 'muted'}, {'elapsed': 217, 'signal': 'size', 'from': 'muted'}, {'elapsed': 197, 'signal': 'size', 'from': 'muted'}]",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log"
+      ],
       "issues": [],
-      "measurements": [],
-      "wakeEvents": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 6849,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 7311,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 7783,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 8313,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 8801,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        }
+      ],
+      "wakeEvents": [
+        {
+          "kind": "EVENT",
+          "ms": 260381,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 189,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 274209,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 968,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 287947,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 191,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 299681,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 217,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 310381,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 197,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        }
+      ]
     },
     {
       "id": "Windows F3",
@@ -8321,6 +9050,30 @@
       "suggestion": "逐尝试对账load/新时长/真实落地/续播seek顺序及resumeAt=12s，确认非precise路径不会用旧媒体回声提前结算。另核对验证器两次原生读回是否跨加载边界；若只是过早采样，须以真实新加载落地证据证明后再修验证器，不能删除FAIL或重跑取代。若确有0点呈现，保持播放/首帧闸门直到目标seek稳定落地。"
     },
     {
+      "id": "CP1-P02",
+      "classification": "cutover公共首帧事件/页面契约待定位；BLOCKED",
+      "phenomenon": "首个wait.ad2样本中，ad1原生path正确且rendered=true/epoch=1，后续epoch增至2、3并继续Done；整个公共记录无MovaFirstFrame，页在等ad1首帧事件处超时，ad2正式CHECK未形成。",
+      "reproduction": "MovaAds+MovaCutoverEngine，waitForAdReady.pre=true，两条pre广告；无重跑。",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json",
+      "recordIndices": [
+        9,
+        11,
+        13,
+        28,
+        41,
+        53,
+        56
+      ],
+      "auditEvidence": "example/tool/coverage_evidence/cp1-pod2-event-epoch-audit.json",
+      "suspectedLocations": [
+        "lib/src/core/cutover/cutover_engine.dart:266",
+        "lib/src/core/cutover/cutover_engine.dart:646",
+        "lib/src/core/cutover/cutover_engine.dart:754",
+        "example/lib/verify_auto/cp0_pod2_auto.dart:53"
+      ],
+      "suggestion": "确认暖引擎在提交前已消耗的首帧是否应在新renderEpoch提交后以真实已获首帧证据转发/重放；若公共契约只保证swap而非FirstFrame，须修订页面为明确的真实落地信号。不能仅凭epoch增加或原生path冒充首帧事件，当前两变体20项保留BLOCKED。"
+    },
+    {
       "id": "CP1-H01",
       "classification": "验证器缺陷；保留原始FAIL",
       "phenomenon": "404第3轮独立END_FILE数组为空；fatal事件、错误遮罩均已出现，buffering=false、spinnerCount=0",
@@ -8566,6 +9319,11 @@
       "stage": "stage2-h28",
       "passed": true,
       "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-h28-20261103-171048.json"
+    },
+    {
+      "stage": "stage2",
+      "passed": true,
+      "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-20261103-173838.json"
     }
   ],
   "additionalRows": [
@@ -8894,103 +9652,387 @@
       "id": "H20.hlsSeek",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 60}, \"deltaMs\": [-417, -497, -497, -457, -457, -457, -497, -417, -417, -457, -497, -497, -417, -497, -457, -497, -417, -457, -497, -457, -497, -457, -457, -497, -457, -497, -417, -497, -457, -457], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 60
+        },
+        "deltaMs": [
+          -417,
+          -497,
+          -497,
+          -457,
+          -457,
+          -457,
+          -497,
+          -417,
+          -417,
+          -457,
+          -497,
+          -497,
+          -417,
+          -497,
+          -457,
+          -497,
+          -417,
+          -457,
+          -497,
+          -457,
+          -497,
+          -457,
+          -457,
+          -497,
+          -457,
+          -497,
+          -417,
+          -497,
+          -457,
+          -457
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "H50.hlsSeek",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 60}, \"deltaMs\": [303, 303, 303, 0, 303, 303, 0, 303, 263, 343, 303, 303, 303, 303, 303, 303, 303, 303, 303, 303, 0, 343, 303, 303, 303, 303, 183, 303, 303, 303], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 60
+        },
+        "deltaMs": [
+          303,
+          303,
+          303,
+          0,
+          303,
+          303,
+          0,
+          303,
+          263,
+          343,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          303,
+          0,
+          343,
+          303,
+          303,
+          303,
+          303,
+          183,
+          303,
+          303,
+          303
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-hls-20261103-1708-cp0-parked/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.contentWarm",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 播B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.midPending",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 播B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
       "id": "p02.postLoad",
       "stage": 2,
       "planned": 10,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 10,
+      "status": "PASS",
       "criterion": "播B 10/10，播错集0，仍停广告0，20秒观察窗无超限",
       "cp0": "10/10 停广告尾帧，20秒未进B",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 10, \"failures\": 0, \"harness\": [[]], \"matchesB\": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], \"wrongEpisode\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"stillAd\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"observationLimit\": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"epochDelta\": [null, null, null, null, null, null, null, null, null, null], \"firstFrameGapUs\": [null, null, null, null, null, null, null, null, null, null]}",
       "metrics": {
-        "passes": 0,
+        "passes": 10,
         "failures": 0,
-        "harness": [],
-        "matchesB": [],
-        "wrongEpisode": [],
-        "stillAd": [],
-        "observationLimit": [],
-        "epochDelta": [],
-        "firstFrameGapUs": []
+        "harness": [
+          []
+        ],
+        "matchesB": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "wrongEpisode": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "stillAd": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "observationLimit": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "epochDelta": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "firstFrameGapUs": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-p02-20261103-1724/matrix-cp1-cp0-p02-20261103-1724-cp0-p02.json"
+      ],
       "issues": []
     },
     {
@@ -9001,11 +10043,15 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
       "metrics": {
         "passes": 0,
         "failures": 0,
-        "harness": [],
+        "harness": [
+          [
+            "{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\n<asynchronous suspension>\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\n<asynchronous suspension>\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\n<asynchronous suspension>\\n'}"
+          ]
+        ],
         "matchesB": [],
         "wrongEpisode": [],
         "stillAd": [],
@@ -9013,7 +10059,9 @@
         "epochDelta": [],
         "firstFrameGapUs": []
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json"
+      ],
       "issues": []
     },
     {
@@ -9024,11 +10072,15 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
       "metrics": {
         "passes": 0,
         "failures": 0,
-        "harness": [],
+        "harness": [
+          [
+            "{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\n<asynchronous suspension>\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\n<asynchronous suspension>\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\n<asynchronous suspension>\\n'}"
+          ]
+        ],
         "matchesB": [],
         "wrongEpisode": [],
         "stillAd": [],
@@ -9036,7 +10088,9 @@
         "epochDelta": [],
         "firstFrameGapUs": []
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json"
+      ],
       "issues": []
     },
     {
@@ -10370,37 +11424,465 @@
       "id": "keepalive-core.S1",
       "stage": 2,
       "planned": 5,
-      "executed": 0,
+      "executed": 5,
       "status": "BLOCKED",
       "criterion": "每场景5次原生判据通过，且与CP0同口径一致",
       "cp0": "CP0仅有H42约5004ms/grace事实，缺S1/S13逐轮对应台账",
       "difference": "保留原生判据与elapsed/signal；缺相同场景的CP0台账，不宣称完整比较通过",
-      "result": "原生VERDICT={}；唤醒=[]",
-      "evidence": [],
+      "result": "原生VERDICT={'PASS': 15}；每轮样本数={1: 3, 2: 3, 3: 3, 4: 3, 5: 3}；唤醒=[{'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5000, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5007, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5003, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5001, 'signal': 'grace', 'from': 'muted'}, {'elapsed': 5002, 'signal': 'grace', 'from': 'muted'}]",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log"
+      ],
       "issues": [],
-      "measurements": [],
-      "wakeEvents": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 697,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=146ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1099,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=141ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1491,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=70ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 1935,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=147ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 2373,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=138ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 2765,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=145ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3177,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=106ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3587,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=113ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 3967,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=94ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 4409,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=114ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 4813,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=132ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5187,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=186ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5583,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=25 hold=3s signal=grace decodedProp=109ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 5987,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=50 hold=3s signal=grace decodedProp=171ms"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 6377,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "gop=100 hold=3s signal=grace decodedProp=100ms"
+        }
+      ],
+      "wakeEvents": [
+        {
+          "kind": "EVENT",
+          "ms": 13332,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 30047,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 46484,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5000,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 63401,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5007,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 80390,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 97357,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 114130,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5003,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 130836,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 147464,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 164046,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 180561,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 197166,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 213964,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 230597,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5001,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 247507,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 5002,
+            "signal": "grace",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        }
+      ]
     },
     {
       "id": "keepalive-core.S13",
       "stage": 2,
       "planned": 5,
-      "executed": 0,
+      "executed": 5,
       "status": "BLOCKED",
       "criterion": "每场景5次原生判据通过，且与CP0同口径一致",
       "cp0": "CP0仅有H42约5004ms/grace事实，缺S1/S13逐轮对应台账",
       "difference": "保留原生判据与elapsed/signal；缺相同场景的CP0台账，不宣称完整比较通过",
-      "result": "原生VERDICT={}；唤醒=[]",
-      "evidence": [],
+      "result": "原生VERDICT={'PASS': 5}；每轮样本数={1: 1, 2: 1, 3: 1, 4: 1, 5: 1}；唤醒=[{'elapsed': 189, 'signal': 'size', 'from': 'muted'}, {'elapsed': 968, 'signal': 'size', 'from': 'muted'}, {'elapsed': 191, 'signal': 'size', 'from': 'muted'}, {'elapsed': 217, 'signal': 'size', 'from': 'muted'}, {'elapsed': 197, 'signal': 'size', 'from': 'muted'}]",
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log"
+      ],
       "issues": [],
-      "measurements": [],
-      "wakeEvents": []
+      "measurements": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 6849,
+          "outerRun": 1,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 7311,
+          "outerRun": 2,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 7783,
+          "outerRun": 3,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 8313,
+          "outerRun": 4,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        },
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-keepalive-core-20261103-1732/matrix-cp1-keepalive-core-20261103-1732-keepalive-core.log",
+          "line": 8801,
+          "outerRun": 5,
+          "status": "PASS",
+          "detail": "after=no/yes stillHolding=true"
+        }
+      ],
+      "wakeEvents": [
+        {
+          "kind": "EVENT",
+          "ms": 260381,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 189,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 274209,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 968,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 287947,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 191,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 299681,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 217,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        },
+        {
+          "kind": "EVENT",
+          "ms": 310381,
+          "event": "MovaKeepAliveResume",
+          "payload": {
+            "elapsed": 197,
+            "signal": "size",
+            "from": "muted"
+          },
+          "state": {
+            "keepAlive": "off",
+            "rendered": true
+          }
+        }
+      ]
     }
   ],
   "supplementRows": [],
   "counts": {
-    "BLOCKED": 24,
-    "PASS": 19,
+    "BLOCKED": 19,
+    "PASS": 24,
     "FAIL": 4
   },
   "masterRows": [
@@ -10428,24 +11910,24 @@
     },
     {
       "id": "H20/H50 HLS",
-      "status": "BLOCKED",
+      "status": "PASS",
       "subrows": [
         "H20.hlsSeek",
         "H50.hlsSeek"
       ],
       "planned": 60,
-      "executed": 0
+      "executed": 60
     },
     {
       "id": "P0-2 三种触发",
-      "status": "BLOCKED",
+      "status": "PASS",
       "subrows": [
         "p02.contentWarm",
         "p02.midPending",
         "p02.postLoad"
       ],
       "planned": 30,
-      "executed": 0
+      "executed": 30
     },
     {
       "id": "keepAlive S1/S7/S13/S14",
@@ -10457,7 +11939,7 @@
         "keepalive-s7s14.S14"
       ],
       "planned": 20,
-      "executed": 10
+      "executed": 20
     },
     {
       "id": "终审7a",
@@ -10579,15 +12061,15 @@
     }
   ],
   "masterCounts": {
-    "PASS": 5,
+    "PASS": 7,
     "FAIL": 3,
-    "BLOCKED": 8
+    "BLOCKED": 6
   },
   "comparisonSummary": [
     "precise.normal：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
     "precise.paused：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
     "precise.cutover：160/160；{\"passes\": 160, \"failures\": 0, \"below200\": 160, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.625, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
-    "P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 {'passes': 0, 'failures': 0, 'harness': [], 'matchesB': [], 'wrongEpisode': [], 'stillAd': [], 'observationLimit': [], 'epochDelta': [], 'firstFrameGapUs': []}",
+    "P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 {'passes': 10, 'failures': 0, 'harness': [[]], 'matchesB': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'wrongEpisode': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'stillAd': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'observationLimit': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'epochDelta': [None, None, None, None, None, None, None, None, None, None], 'firstFrameGapUs': [None, None, None, None, None, None, None, None, None, None]}",
     "manageAuto：降档次数=[1, 1, 1, 1, 1]；默认关闭 降档次数=[0, 0, 0, 0, 0]。CP0默认关时限速仍停最高档；本次夹具/观察窗不同。",
     "dispose120：最大dispose区间帧间隔=95957us；最大dispose=112595us",
     "404：独立END_FILE=4/5；UI终结无转圈=5/5；保留独立采样缺口导致的原始FAIL，未把UI终结成功改写成完整CHECK成功。"

@@ -36,23 +36,28 @@ def rows():
     for scene in ('S1','S13'):
         samples=[];events=[]
         for p in logs:
-            current=None
+            current=None;current_run=None
             for index,line in enumerate(p.read_text(encoding='utf-8',errors='replace').splitlines()):
                 start=re.search(r'--- (S\w+) ',line)
-                if start:current=start[1]
+                if start:
+                    current=start[1]
+                    run_match=re.search(r'run (\d+)/(\d+)',line)
+                    current_run=int(run_match[1]) if run_match else None
                 match=re.search(r'VERDICT '+scene+r' (PASS|FAIL) (.*)',line)
-                if match:samples.append(dict(evidence=rel(p),line=index+1,status=match[1],detail=match[2]))
+                if match:samples.append(dict(evidence=rel(p),line=index+1,outerRun=current_run,status=match[1],detail=match[2]))
                 if current==scene and 'MATRIX_RECORD ' in line:
                     try:
                         record=json.loads(line.split('MATRIX_RECORD ',1)[1])
                         if record.get('event')=='MovaKeepAliveResume':events.append(record)
                     except ValueError:pass
         counts=Counter(s['status'] for s in samples)
+        runs=Counter(s['outerRun'] for s in samples if s['outerRun'] is not None)
+        executed=sum(n>=(3 if scene=='S1' else 1) for n in runs.values())
         failures=[dict(id=scene+'.'+str(i),evidence=s['evidence'],recordArray='logLines1Based',recordIndex=s['line'],status='FAIL',reason=s['detail'],numbers=s)
             for i,s in enumerate(samples) if s['status']=='FAIL']
-        out.append(dict(id='keepalive-core.'+scene,stage=2,planned=5,executed=len(samples),status='FAIL' if failures else 'BLOCKED',
+        out.append(dict(id='keepalive-core.'+scene,stage=2,planned=5,executed=executed,status='FAIL' if failures else 'BLOCKED',
             criterion='每场景5次原生判据通过，且与CP0同口径一致',cp0='CP0仅有H42约5004ms/grace事实，缺S1/S13逐轮对应台账',
             difference='保留原生判据与elapsed/signal；缺相同场景的CP0台账，不宣称完整比较通过',
-            result='原生VERDICT='+str(dict(counts))+'；唤醒='+str([e.get('payload') for e in events]),
+            result='原生VERDICT='+str(dict(counts))+'；每轮样本数='+str(dict(runs))+'；唤醒='+str([e.get('payload') for e in events]),
             evidence=[rel(p) for p in logs],issues=failures,measurements=samples,wakeEvents=events))
     return out

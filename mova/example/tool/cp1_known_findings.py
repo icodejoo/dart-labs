@@ -62,6 +62,14 @@ if (root/h28).is_file():
         rawEvidence=base+'matrix-cp1-android-h28-20261103-1703-cp0-h28/gap.jsonl',rawRowIndices=[8216,16944],
         suspectedLocations=['lib/src/core/engine.dart:2855','lib/src/core/engine.dart:2895','lib/src/core/engine.dart:2932','lib/src/core/engine.dart:2439','lib/src/core/kernel/mpv_kernel.dart:772','example/lib/verify_auto/coverage_gap.dart:454'],
         suggestion='逐尝试对账load/新时长/真实落地/续播seek顺序及resumeAt=12s，确认非precise路径不会用旧媒体回声提前结算。另核对验证器两次原生读回是否跨加载边界；若只是过早采样，须以真实新加载落地证据证明后再修验证器，不能删除FAIL或重跑取代。若确有0点呈现，保持播放/首帧闸门直到目标seek稳定落地。'))
+pod=base+'matrix-cp1-cp0-pod2-20261103-1730/matrix-cp1-cp0-pod2-20261103-1730-cp0-pod2.json'
+if (root/pod).is_file():
+    known.insert(1,dict(id='CP1-P02',classification='cutover公共首帧事件/页面契约待定位；BLOCKED',
+        phenomenon='首个wait.ad2样本中，ad1原生path正确且rendered=true/epoch=1，后续epoch增至2、3并继续Done；整个公共记录无MovaFirstFrame，页在等ad1首帧事件处超时，ad2正式CHECK未形成。',
+        reproduction='MovaAds+MovaCutoverEngine，waitForAdReady.pre=true，两条pre广告；无重跑。',
+        evidence=pod,recordIndices=[9,11,13,28,41,53,56],auditEvidence=base+'cp1-pod2-event-epoch-audit.json',
+        suspectedLocations=['lib/src/core/cutover/cutover_engine.dart:266','lib/src/core/cutover/cutover_engine.dart:646','lib/src/core/cutover/cutover_engine.dart:754','example/lib/verify_auto/cp0_pod2_auto.dart:53'],
+        suggestion='确认暖引擎在提交前已消耗的首帧是否应在新renderEpoch提交后以真实已获首帧证据转发/重放；若公共契约只保证swap而非FirstFrame，须修订页面为明确的真实落地信号。不能仅凭epoch增加或原生path冒充首帧事件，当前两变体20项保留BLOCKED。'))
 other=[f for f in d.get('defects',[]) if f.get('id') not in {f['id'] for f in known}]
 d['defects']=known+other
 visualStem=base+'matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-'

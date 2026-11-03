@@ -18,6 +18,9 @@ for name in sys.argv[1:]:
             if isinstance(obj,dict):
                 print({k:obj.get(k) for k in ('completed','executed','passes','below200Percent','failureFeatures','counts','masterCounts')},flush=True)
                 print('harness',str(obj.get('harness',[]))[:1000],'missing',len(obj.get('missing',[])),flush=True)
+                for row in obj.get('masterRows',[]):print('MASTER',row['id'],row['status'],row['executed'], '/',row['planned'],flush=True)
+                for row in obj.get('rows',[]):print('ROW',row['id'],row['status'],row['executed'],'/',row['planned'],str(row.get('result',''))[:500],flush=True)
+                if 'failures' in obj:print('FAILED_SAMPLES',len(obj['failures']),flush=True)
                 for i,r in enumerate(obj.get('verdicts',[])):
                     if r.get('status')=='FAIL':print('verdict',i,r.get('case'),str(r)[:2200],flush=True)
                 for i,r in enumerate(obj.get('records',[])):
@@ -56,4 +59,8 @@ try:
         if (i,r) in checks[-4:] or r.get('kind')=='ERROR' or r.get('status',r.get('data',{}).get('status'))=='FAIL':
             print(i,r.get('id',r.get('case')),r.get('kind'),r.get('status',r.get('data',{}).get('status')),r.get('run'),r.get('error'),flush=True)
             if r.get('kind')=='VERDICT' and r.get('data',{}).get('status')=='FAIL':print('failure detail',str(r.get('data'))[:2200],flush=True)
+            if r.get('kind')=='CHECK' and str(r.get('id','')).startswith(('CP0.p02.','CP0.pod2.')):
+                n=r.get('numbers',{})
+                print('native comparison',{k:n.get(k) for k in ('wrongEpisode','stillAd','matchesB','observationLimit','epochDelta')},
+                    'after',n.get('after',n.get('second')),flush=True)
 except Exception as error:print(repr(error),flush=True)
