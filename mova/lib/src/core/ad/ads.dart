@@ -7,6 +7,7 @@ import '../model/source.dart';
 import '../options/ad_config.dart';
 import '../state/progress.dart';
 import '../cutover/ctl.dart';
+import '../cutover/acceptance.dart';
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
 import 'fail.dart';
@@ -83,6 +84,24 @@ enum _Phase {
   ///
   /// 正在播放正片。
   content,
+}
+
+/// 一次广告尝试的结算与续播标记，重试同一广告也必须新建。
+class _AdAttempt {
+  /// 绑定本次尝试的广告位。
+  _AdAttempt(this.adBreak);
+
+  /// 本次尝试所属广告位。
+  final MovaAdBreak adBreak;
+
+  /// 是否已结算失败或拒绝。
+  bool failed = false;
+
+  /// 是否已开始续播，永久阻挡该尝试的重复结束信号。
+  bool resumed = false;
+
+  /// 打开已接受并落定；此前的首帧和结束属于旧媒体。
+  bool opened = false;
 }
 
 /// Orchestrates pre/mid/post-roll ads on top of a [MovaApi] by swapping the
@@ -240,17 +259,14 @@ class MovaAds {
   /// 为屏幕上的广告落实 [MovaAdBreak.duration]；当前广告位没有固定时长时为 null。
   Timer? _slotTimer;
 
-  /// Guards against two resume paths firing in the same tick.
-  ///
-  /// The slot timer expiring, the media's own [MovaDone] and the viewer's
-  /// [skip] are now three independent clocks that can land together; without
-  /// this the content would be opened twice.
-  ///
-  /// 防止两条续播路径在同一 tick 内同时触发。
-  ///
-  /// 广告位定时器到期、素材自身的 [MovaDone]、观众的 [skip]，如今是三个可能撞在
-  /// 一起的独立时钟；没有这道守卫，正片会被 open 两次。
-  bool _resuming = false;
+  /// 续播在途期间保护正片倍速快照；去重由每次尝试独立负责。
+  bool get _resuming => _resumeDepth > 0;
+
+  /// 当前加载代际内嵌套续播的深度，用于保护正片倍速快照。
+  int _resumeDepth = 0;
+
+  /// 当前广告尝试；异步返回只可结算自己捕获的尝试。
+  _AdAttempt? _adAttempt;
 
   /// True while a one-shot `cutoverTo` for the next ad is in flight, so the
   /// content warm-up behind the ad must not start (it would evict that shadow).
@@ -455,7 +471,8 @@ class MovaAds {
     // 换集的同步前缀先取消旧计时与影子，避免新正片提交到旧源。
     _cancelAllTimers();
     _pending = null;
-    _resuming = false;
+    _resumeDepth = 0;
+    _adAttempt = null;
     _landingAd = false;
     unawaited(_cutover?.abandon());
     _played.clear();
@@ -702,10 +719,11 @@ class MovaAds {
   Future<void> _beginAd(MovaAdBreak b) async {
     final gen = _gen;
     if (_disposed) return;
+    final attempt = _adAttempt = _AdAttempt(b);
     _cancelDelayTimer();
     if (!_wantsWait(b)) {
       _pending = null;
-      await _playAd(b);
+      await _playAd(b, ownedAttempt: attempt);
       if (gen != _gen || _disposed) return;
       return;
     }
@@ -719,26 +737,41 @@ class MovaAds {
     // 都发生在下面的 commit 里。
     final bool committed;
     try {
-      await _cutover!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
+      final cutover = _cutover!;
+      if (cutover is MovaCutoverAcceptance) {
+        final accepted = await (cutover as MovaCutoverAcceptance).prepareAccepted(
+          b.source,
+          plan: _cfg.effectiveWarmPlan,
+        );
+        if (gen != _gen || _disposed || !identical(_adAttempt, attempt)) return;
+        if (!accepted) {
+          _pending = null;
+          _played.add(b);
+          await _rejectAd(b, attempt);
+          return;
+        }
+      } else {
+        await cutover.prepare(b.source, plan: _cfg.effectiveWarmPlan);
+      }
       if (gen != _gen || _disposed) return;
       committed = await _cutover.commit(waitForReady: true);
       if (gen != _gen || _disposed) return;
     } catch (e) {
       if (gen != _gen || _disposed) return;
       _pending = null;
-      await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+      await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
       return;
     }
     if (committed) {
       _pending = null;
-      await _playAd(b, alreadyOnScreen: true);
+      await _playAd(b, alreadyOnScreen: true, ownedAttempt: attempt);
       if (gen != _gen || _disposed) return;
       return;
     }
     switch (_cfg.notReadyAction) {
       case MovaAdNotReady.hardCut:
         _pending = null;
-        await _playAd(b);
+        await _playAd(b, ownedAttempt: attempt);
         if (gen != _gen || _disposed) return;
       case MovaAdNotReady.dropBreak:
         // Deliberately not routed through the failure policy: notReadyAction
@@ -777,9 +810,24 @@ class MovaAds {
   /// [alreadyOnScreen] 表示一个预热好的影子引擎刚刚转正、画面上已经是 [b]，因此
   /// 不下发 `open()`、也不拆掉该影子——但所有阶段簿记照常执行，因为走了无缝路径
   /// 绝不能悄悄漏掉任何一个事件或状态更新。
-  Future<void> _playAd(MovaAdBreak b, {bool alreadyOnScreen = false}) async {
+  Future<void> _playAd(
+    MovaAdBreak b, {
+    bool alreadyOnScreen = false,
+    _AdAttempt? ownedAttempt,
+  }) async {
     final gen = _gen;
     if (_disposed) return;
+    final attempt = _adAttempt = ownedAttempt ?? _AdAttempt(b);
+    _landingAd = false;
+
+    /// 旧尝试的迟到结果不能结算或覆盖新尝试。
+    bool current() =>
+        gen == _gen &&
+        !_disposed &&
+        identical(_adAttempt, attempt) &&
+        !attempt.failed &&
+        !attempt.resumed;
+
     _cancelSlotTimer();
     _cancelLoadTimer();
     // A break that wants to wait but never had a pending window to warm up in
@@ -852,30 +900,42 @@ class MovaAds {
       // 正片——把 cutoverTo 正在等的影子挤掉，悄悄退化成普通 open()。
       _landingAd = true;
       try {
-        await _cutover!.cutoverTo(b.source, rate: 1.0);
-        if (gen != _gen || _disposed) return;
+        final cutover = _cutover!;
+        if (cutover is MovaCutoverAcceptance) {
+          final result = await (cutover as MovaCutoverAcceptance).cutoverToAccepted(
+            b.source,
+            rate: 1.0,
+          );
+          if (!current()) return;
+          if (!result.accepted) {
+            await _rejectAd(b, attempt);
+            return;
+          }
+        } else {
+          await cutover.cutoverTo(b.source, rate: 1.0);
+        }
+        if (!current()) return;
       } catch (e) {
-        if (gen != _gen || _disposed) return;
-        await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+        if (!current()) return;
+        await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
         return;
       } finally {
-        if (gen == _gen && !_disposed) _landingAd = false;
+        if (gen == _gen && !_disposed && identical(_adAttempt, attempt)) _landingAd = false;
       }
     } else if (!alreadyOnScreen) {
       unawaited(_cutover?.abandon());
       try {
         final accepted = await _api.open(b.source);
-        if (gen != _gen || _disposed) return;
+        if (!current()) return;
         if (!accepted) {
           // 宿主主动拒绝不交给失败策略重试，直接跳过本广告位。
-          _fire(MovaAdEventType.failed, b);
-          await _resumeAfterAd(b);
+          await _rejectAd(b, attempt);
           return;
         }
       } catch (e) {
-        if (gen != _gen || _disposed) return;
-        await _onAdFailure(b, MovaAdFailKind.openThrew, e);
-        if (gen != _gen || _disposed) return;
+        if (!current()) return;
+        await _onAdFailure(b, MovaAdFailKind.openThrew, e, attempt);
+        if (!current()) return;
         return;
       }
     }
@@ -897,6 +957,8 @@ class MovaAds {
     // 首帧信号同理：open()/cutoverTo() 等待期间旧引擎仍可能 tick（此时阶段已是 `ad`）
     // 并把 [_adFramed] 置位，导致广告真正的首帧被忽略、加载计时器无人取消。丢弃该判定
     // （及由它起的广告位时钟），再读落定后的状态：已渲染则立即判首帧，否则起期限。
+    if (!current()) return;
+    attempt.opened = true;
     _adRises = 0;
     _adLastPos = Duration.zero;
     _adFramed = false;
@@ -998,6 +1060,14 @@ class MovaAds {
     _cancelDelayTimer();
   }
 
+  /// 宿主拒绝直接跳过该广告位，和普通 open 的拒绝行为一致。
+  Future<void> _rejectAd(MovaAdBreak b, _AdAttempt attempt) async {
+    if (_disposed || !identical(_adAttempt, attempt) || attempt.failed || attempt.resumed) return;
+    attempt.failed = true;
+    _fire(MovaAdEventType.failed, b);
+    await _resumeAfterAd(b);
+  }
+
   /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
   ///
   /// Every failure route — a throwing `open()`, a player error during the ad,
@@ -1012,9 +1082,24 @@ class MovaAds {
   /// 这里，使宿主的策略看到的是一串一致的尝试记录。重试的广告位会重新获得完整的
   /// [MovaAdBreak.duration]：广告主买的是那么多*可见*秒数，而失败的那次一秒都没
   /// 给到。
-  Future<void> _onAdFailure(MovaAdBreak b, MovaAdFailKind kind, [Object? error]) async {
+  Future<void> _onAdFailure(
+    MovaAdBreak b,
+    MovaAdFailKind kind, [
+    Object? error,
+    _AdAttempt? ownedAttempt,
+  ]) async {
     final gen = _gen;
-    if (_disposed) return;
+    final owned = ownedAttempt ?? _adAttempt;
+    if (_disposed ||
+        owned == null ||
+        !identical(_adAttempt, owned) ||
+        !identical(owned.adBreak, b) ||
+        owned.failed ||
+        owned.resumed) {
+      return;
+    }
+    // 同步认领失败结算，事件、抛错和超时只允许第一个入口生效。
+    owned.failed = true;
     _cancelLoadTimer();
     _cancelSlotTimer();
     final attempt = (_attempts[b] ?? 0) + 1;
@@ -1084,6 +1169,7 @@ class MovaAds {
   /// `commit(waitForReady: true)`。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _cancelAllTimers();
+    _landingAd = false;
     _phase = _Phase.toContent;
     _current = null;
     _pending = null;
@@ -1163,7 +1249,14 @@ class MovaAds {
     if (e is! MovaDone) return;
     if (_phase == _Phase.ad) {
       final finished = _current;
-      if (finished == null) return;
+      final attempt = _adAttempt;
+      if (finished == null ||
+          attempt == null ||
+          !attempt.opened ||
+          attempt.resumed ||
+          attempt.failed) {
+        return;
+      }
       _fire(MovaAdEventType.completed, finished);
       unawaited(_resumeAfterAd(finished));
     } else if (_phase == _Phase.content || _phase == _Phase.pending) {
@@ -1208,18 +1301,13 @@ class MovaAds {
   Future<void> _resumeAfterAd(MovaAdBreak finished) async {
     final gen = _gen;
     if (_disposed) return;
-    if (_resuming) return;
-    _resuming = true;
+    final attempt = _adAttempt;
+    if (attempt == null || !identical(attempt.adBreak, finished) || attempt.resumed) return;
+    // 守卫绑定尝试而非整个 pod：下一条同步失败仍可嵌套续播。
+    attempt.resumed = true;
+    _resumeDepth++;
     _cancelSlotTimer();
-    // `_resuming` must stay true across every `await` below — clearing it
-    // before the dispatch below completes reopens the exact double-resume
-    // race this guard exists to close (the slot Timer and the player's own
-    // MovaDone event can both call in for the same finished ad within a
-    // couple of event-loop turns).
-    //
-    // `_resuming` 必须在下面每个 `await` 期间保持 true——在派发完成前提前清空，
-    // 会重新打开这道守卫本要封死的"双重续播"竞态（倒计时 Timer 与播放器自身的
-    // MovaDone 事件可能在同一条已结束广告上，在几个事件循环内先后都调进来）。
+    _cancelLoadTimer();
     try {
       switch (finished.kind) {
         case MovaAdBreakKind.pre:
@@ -1267,7 +1355,7 @@ class MovaAds {
           }
       }
     } finally {
-      if (gen == _gen && !_disposed) _resuming = false;
+      if (gen == _gen && !_disposed) _resumeDepth--;
     }
   }
 
@@ -1279,7 +1367,7 @@ class MovaAds {
   /// [MovaAdConfig.durationFromFirstFrame] 时广告位时钟从此刻起算。每条广告只生效
   /// 一次。
   void _onAdFirstFrame() {
-    if (_adFramed || _phase != _Phase.ad) return;
+    if (_adFramed || _phase != _Phase.ad || _adAttempt?.opened != true) return;
     _adFramed = true;
     _cancelLoadTimer();
     final playing = _current;

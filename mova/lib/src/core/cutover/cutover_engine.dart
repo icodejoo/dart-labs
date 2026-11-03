@@ -19,6 +19,7 @@ import '../state/state.dart';
 import '../state/ui_state.dart';
 import '../stt/api.dart';
 import 'ctl.dart';
+import 'acceptance.dart';
 import 'plan.dart';
 import 'retirable.dart';
 import 'trigger.dart';
@@ -46,6 +47,9 @@ class _WarmSlot {
 
   /// 本槽是否已达到就绪判据。
   bool ready = false;
+
+  /// 宿主是否拒绝本槽的打开请求；槽释放后仍供原调用者读取。
+  bool rejected = false;
 
   /// 后台预热的引擎。
   MovaApi? engine;
@@ -117,7 +121,8 @@ class _WarmSlot {
 ///
 /// [MovaCutoverConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
-class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive {
+class MovaCutoverEngine
+    implements MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaCutoverAcceptance {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -492,7 +497,19 @@ class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, Mov
     MovaWarmCue cue = const MovaWarmCue(),
     MovaWarmPlan plan = const MovaWarmPlan(),
   }) async {
-    await _startWarm(source, at: at, cue: cue, plan: plan);
+    await prepareAccepted(source, at: at, cue: cue, plan: plan);
+  }
+
+  /// 包内调用方可区分预热失败与宿主拒绝。
+  @override
+  Future<bool> prepareAccepted(
+    MovaSource source, {
+    Duration at = Duration.zero,
+    MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(),
+  }) async {
+    final slot = await _startWarm(source, at: at, cue: cue, plan: plan);
+    return slot?.rejected != true;
   }
 
   /// Shared shadow-creation path for [prepare] and [cutoverTo]; [plan] is
@@ -565,13 +582,18 @@ class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, Mov
       if (_disposed || !identical(_slot, slot)) return null;
     }
     try {
-      await shadow.open(source, autoPlay: true);
+      final accepted = await shadow.open(source, autoPlay: true);
       // The ready timer may have abandoned (and disposed) this shadow while
       // open() was pending; the owner already cleaned up, so just bail out.
       //
       // open() 挂起期间就绪计时器可能已放弃（并销毁）该影子；善后已由处理方完成，
       // 直接退出。
       if (_disposed || !identical(_slot, slot)) return null;
+      if (!accepted) {
+        slot.rejected = true;
+        await abandon();
+        return slot;
+      }
       // Seeking to zero right after open() buys nothing and is pure risk: a seek
       // issued before the first frame lands has been observed to wedge the
       // player on device. The pre-roll→content and content→ad directions both
@@ -862,42 +884,40 @@ class MovaCutoverEngine implements MovaApi, MovaProgressSource, MovaCutover, Mov
 
   @override
   Future<bool> cutoverTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
-    if (_disposed) return false;
-    final op = ++_op;
-    if (!cutoverEnabled) {
-      final active = _active;
-      await active.open(source);
-      if (_disposed || op != _op) return false;
-      // Same guard as _startWarm: a seek issued right after open() before
-      // the first frame lands has been observed to wedge the player on
-      // device, and at==0 buys nothing anyway.
-      //
-      // 与 _startWarm 相同的守卫：首帧落地前、刚 open() 完就下发的 seek 在真机
-      // 上被观测到会把播放器卡死，而 at==0 时这一发也毫无收益。
-      if (source.type != MovaStreamType.live && at > Duration.zero) {
-        await active.seek(at);
-      }
-      return false;
-    }
+    return (await cutoverToAccepted(source, at: at, rate: rate)).seamless;
+  }
 
-    final owned = await _startWarm(
-      source,
-      at: at,
-      cue: const MovaWarmCue(),
-      plan: MovaWarmPlan(trigger: const MovaEagerWarm(), rate: rate),
-    );
-    if (_disposed || op != _op) return false;
-    final ok = owned != null && await _commitSlot(owned, op, waitForReady: true);
-    if (!ok) {
-      if (_disposed || op != _op) return false;
-      final active = _active;
-      await active.open(source);
-      if (_disposed || op != _op) return false;
-      if (source.type != MovaStreamType.live && at > Duration.zero) {
-        await active.seek(at);
+  /// 一次性切换单独返回接受结果；拒绝不重试，也不对旧媒体 seek。
+  @override
+  Future<({bool seamless, bool accepted})> cutoverToAccepted(
+    MovaSource source, {
+    Duration at = Duration.zero,
+    double? rate,
+  }) async {
+    if (_disposed) return (seamless: false, accepted: false);
+    final op = ++_op;
+    if (cutoverEnabled) {
+      final owned = await _startWarm(
+        source,
+        at: at,
+        cue: const MovaWarmCue(),
+        plan: MovaWarmPlan(trigger: const MovaEagerWarm(), rate: rate),
+      );
+      if (_disposed || op != _op || owned?.rejected == true) {
+        return (seamless: false, accepted: false);
       }
+      final ok = owned != null && await _commitSlot(owned, op, waitForReady: true);
+      if (ok) return (seamless: true, accepted: true);
     }
-    return ok;
+    if (_disposed || op != _op) return (seamless: false, accepted: false);
+    final active = _active;
+    final accepted = await active.open(source);
+    if (_disposed || op != _op || !accepted) return (seamless: false, accepted: false);
+    // 零点不提前 seek，避免首帧落地前卡住媒体管线；直播不 seek。
+    if (source.type != MovaStreamType.live && at > Duration.zero) {
+      await active.seek(at);
+    }
+    return (seamless: false, accepted: true);
   }
 
   /// Records a phase transition and announces it on [cutoverPhases]/[events].
