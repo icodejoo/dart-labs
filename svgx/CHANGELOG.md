@@ -16,6 +16,11 @@
   system, and so is `mask`.
 * Fix: `opacity` is now clamped to `[0, 1]`; `cubic-bezier` easing falls back to
   bisection when Newton's method does not converge.
+* Security: the static parser no longer resolves `<image href>` against the
+  local file system (or UNC paths). Only embedded `data:` URIs are decoded, so
+  an untrusted SVG cannot read files such as `/dev/zero` or probe private
+  app directories. Native libraries under `prebuilt/` must be rebuilt for the
+  fix to ship.
 
 ## 0.1.1
 

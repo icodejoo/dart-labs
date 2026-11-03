@@ -430,7 +430,15 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
 #[flutter_rust_bridge::frb(ignore)]
 fn usvg_options() -> &'static usvg::Options<'static> {
     static OPTIONS: std::sync::OnceLock<usvg::Options<'static>> = std::sync::OnceLock::new();
-    OPTIONS.get_or_init(usvg::Options::default)
+    OPTIONS.get_or_init(|| usvg::Options {
+        // Keep embedded data URIs; reject paths before any filesystem/UNC access.
+        // 保留内嵌 data URI；拒绝所有路径，避免文件系统读取或 UNC 网络访问。
+        image_href_resolver: usvg::ImageHrefResolver {
+            resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
+            resolve_string: Box::new(|_, _| None),
+        },
+        ..usvg::Options::default()
+    })
 }
 
 /// Flattens an already-parsed usvg tree into the wire [SvgScene].
@@ -1600,6 +1608,99 @@ mod tests {
     const IMAGE_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
         <image x="2" y="3" width="10" height="12" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="/>
     </svg>"##;
+
+    struct ImageFixtureDir(std::path::PathBuf);
+
+    impl ImageFixtureDir {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "svgx-image-fixture-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            std::fs::create_dir(&path).expect("temporary fixture directory should be created");
+            Self(path)
+        }
+    }
+
+    impl Drop for ImageFixtureDir {
+        fn drop(&mut self) {
+            // Best effort: cleanup must not panic again while unwinding.
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn image_fixture_directory_is_removed_on_panic() {
+        let mut path = None;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let fixture = ImageFixtureDir::new();
+            path = Some(fixture.0.clone());
+            std::fs::write(fixture.0.join("partial.png"), b"partial").unwrap();
+            panic!("simulate a fixture assertion failure");
+        }));
+        assert!(result.is_err());
+        let path = path.unwrap();
+        let removed = !path.exists();
+        if !removed {
+            // Keep the regression's failing run clean as well.
+            std::fs::remove_dir_all(&path).unwrap();
+        }
+        assert!(
+            removed,
+            "fixture directory must be removed during unwinding"
+        );
+    }
+
+    #[test]
+    fn image_href_resolver_rejects_file_paths_but_preserves_data_uris() {
+        const PNG_1X1: &[u8] = &[
+            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1,
+            8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 218, 99, 252, 207,
+            192, 80, 15, 0, 4, 133, 1, 128, 132, 169, 140, 33, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66,
+            96, 130,
+        ];
+        let fixture = ImageFixtureDir::new();
+        let png_path = fixture.0.join("pixel.png");
+        std::fs::write(&png_path, PNG_1X1).expect("PNG fixture should be written");
+
+        // Default usvg must load the real PNG through both path forms, proving
+        // the fixture is valid; our resolver must skip it. Embedded PNGs still work.
+        // 默认 usvg 须能通过两种路径加载真实 PNG，以证明夹具有效；
+        // 我们的 resolver 则须跳过它。内嵌 PNG 仍能正常解析。
+        let native_path = png_path.to_str().expect("fixture path should be UTF-8");
+        for href in [native_path.to_string(), native_path.replace('\\', "/")] {
+            let escaped_href = href
+                .replace('&', "&amp;")
+                .replace('"', "&quot;")
+                .replace('<', "&lt;");
+            let svg = format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+                    <image width="10" height="10" href="{escaped_href}"/>
+                </svg>"#
+            );
+            let tree = usvg::Tree::from_str(&svg, &usvg::Options::default())
+                .expect("default usvg should parse the external PNG fixture");
+            assert_eq!(
+                scene_from_tree(&tree).images.len(),
+                1,
+                "default usvg must load the PNG fixture: {href}"
+            );
+            let scene = parse_svg(svg, None).expect("external image must not fail SVG parsing");
+            assert_eq!(
+                scene.images.len(),
+                0,
+                "external image must be skipped: {href}"
+            );
+        }
+
+        let scene = parse_svg(IMAGE_SVG.to_string(), None).expect("data URI PNG should parse");
+        assert_eq!(scene.images.len(), 1, "embedded PNG must remain supported");
+        assert!(matches!(scene.images[0].format, SvgImageFormat::Png));
+    }
 
     #[test]
     fn parses_embedded_base64_png_into_svg_image() {
