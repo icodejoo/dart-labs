@@ -112,6 +112,38 @@ void main() {
     expect(api.state.playbackIntent, isTrue);
   });
 
+  testWidgets('F-P 内层不同 API 守卫不遮住外层后台继续播放配置', (t) async {
+    final outer = _api(playing: true);
+    final inner = _api(playing: true);
+    await _mount(t, MovaAutoPause(
+      api: outer,
+      config: const MovaAutoPauseConfig(background: false),
+      child: MovaAutoPause(api: inner, child: _player(outer)),
+    ), [outer, inner]);
+    _background(t);
+    await t.pump();
+    expect(outer.calls, isNot(contains('pause')));
+    expect(outer.state.playbackIntent, isTrue);
+    expect(inner.calls.where((c) => c == 'pause'), hasLength(1));
+  });
+
+  testWidgets('F-P 同 API 嵌套守卫仍让 MovaPlayer 让位', (t) async {
+    final api = _api(playing: true);
+    await _mount(t, MovaAutoPause(
+      api: api,
+      config: const MovaAutoPauseConfig(background: false),
+      child: MovaAutoPause(
+        api: api,
+        config: const MovaAutoPauseConfig(background: false),
+        child: _player(api),
+      ),
+    ), [api]);
+    _background(t);
+    await t.pump();
+    expect(api.calls, isNot(contains('pause')));
+    expect(api.state.playbackIntent, isTrue);
+  });
+
   testWidgets('祖先守卫管的是别的 api 时照常暂停', (t) async {
     final outer = _api();
     final inner = _api();

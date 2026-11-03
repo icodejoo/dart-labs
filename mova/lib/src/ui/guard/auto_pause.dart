@@ -568,6 +568,11 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
     return (clipped.width * clipped.height) / fullArea;
   }
 
+  /// 连接最近的祖先守卫，祖先链变化时同步重建作用域。
   @override
-  Widget build(BuildContext context) => MovaGuardScope(api: widget.api, child: widget.child);
+  Widget build(BuildContext context) => MovaGuardScope(
+    api: widget.api,
+    parent: context.dependOnInheritedWidgetOfExactType<MovaGuardScope>(),
+    child: widget.child,
+  );
 }

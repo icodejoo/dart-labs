@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 修复嵌套不同 API 的 MovaAutoPause 遮住外层守卫的问题；MovaPlayer 按 API 查找完整祖先链，尊重外层配置的后台继续播放。
+
 - 修复被后继切换取代的内部暂停污染播放意图；等待型广告通过包内能力传递显式起播意图。广告首次打开在钩子中失败后，重试保留本次加载意图，并让位于之后的用户播放或暂停命令。
 
 - MovaPlayer 的视频后台暂停改经引擎执行，钩子、播放意图与广告时钟均可观测，命令式 keepAlive 也由引擎结束待机；默认切后台仍暂停、回前台不自动续播。无渲染面的 audioOnly 不受影响；要后台续播，可用同一 API 的 MovaAutoPause(config: MovaAutoPauseConfig(background: false)) 包裹播放器。
