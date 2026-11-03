@@ -139,6 +139,7 @@ class SvgNode {
     this.motionAnimations = const [],
     this.pathAnimations = const [],
     this.colorAnimations = const [],
+    this.listAnimations = const [],
     this.transform,
     this.clipPathId,
     this.maskId,
@@ -175,7 +176,18 @@ class SvgNode {
   /// 数值。当前仅在渐变定义内的 `<stop>` 节点上产出（见
   /// `svg_document_parser.dart` 的 `_parseGradientStopNode`）；普通渲染树不会
   /// 填充此字段（用 `<animate>` 驱动 `fill`/`stroke` 仍是已记录的缺口）。
+  ///
+  /// 更新：普通渲染树的节点现在也可携带颜色动画（由 CSS 编译器填充）。
+  /// [SmilColorAnimation.attributeName]（`fill`/`stroke`/`stop-color`）指明被驱动
+  /// 的属性；`animated_svg_painter.dart` 的 `_effectiveAttributes` 每帧把采样色
+  /// 覆盖进属性表（`none` 哨兵覆盖为字符串 `none`），渐变 `<stop>` 上仍由
+  /// `resampleGradientAtTime` 消费且只认 `stop-color`。
   final List<SmilColorAnimation> colorAnimations;
+
+  /// 直接挂载在本节点上的列表值时间线（目前是 `stroke-dasharray`），与
+  /// [animations] 分开存放，因为每帧产出的是一组数而不是单个数。
+  /// `_effectiveAttributes` 每帧把采样结果以空格连接后覆盖进属性表。
+  final List<SmilListAnimation> listAnimations;
 
   /// Id of a `<clipPath>` this node's `clip-path="url(#id)"` references, or
   /// null. Resolved against `SvgDocument.clipPaths` at paint time; the
@@ -233,10 +245,10 @@ class SvgNode {
   /// The node's tag kind. / 节点的标签种类。
   final SvgNodeKind kind;
 
-  /// 尚未编译进时间线的 CSS 动画。
+  /// 保留层叠后的 CSS 原始配置，供测试与诊断；编译产物见 animations/transformAnimations。
   final List<CssAnimation> cssAnimations;
 
-  /// 留给后续阶段的 CSS 专用属性。
+  /// 保留 CSS 专用属性，供动画编译、测试与后续阶段使用。
   final Map<String, String> cssProperties;
 
   /// Raw attribute map (presentation attrs plus geometry attrs like `d`,
@@ -277,6 +289,11 @@ class SvgNode {
   /// 按文档顺序应用在本节点自身绘制（分组则含其子树）外围——见
   /// `animated_svg_painter.dart`。
   final List<SmilTransformAnimation> transformAnimations;
+
+  /// 是否含替换静态 transform 的槽位；构造后槽位固定，首次使用时计算并缓存。
+  late final bool replacesStaticTransform = transformAnimations.any(
+    (a) => a.replacesStaticTransform,
+  );
 
   /// Decoded bitmap for [SvgNodeKind.image] nodes, filled in by
   /// `resolveImageNodes` after the initial parse (decoding is async, parsing
@@ -493,8 +510,12 @@ class SvgNode {
   /// The values every entry of [animations] sampled to when
   /// [cachedAnimatedAttributes] was built, positionally — see that field.
   ///
-  /// 布局：`[animations..., pathAnimations...]`——数值动画在前，路径动画在后；
-  /// 路径段存的是 [SmilPathAnimation.sample] 的「位置」，不是属性值。
+  /// 布局：`[animations..., pathAnimations..., colorAnimations...,
+  /// listAnimations...]`——数值、路径、颜色、列表四段依次排布；
+  /// 路径段存的是 [SmilPathAnimation.sample] 的「位置」，不是属性值；
+  /// 颜色段存 `0xAARRGGBB` 的数值（`none` 哨兵存 `-1.0`）；
+  /// 列表段按动画顺序占用各自 [SmilListAnimation.width] 个槽位，总槽位数是
+  /// 各动画 `width` 之和。键总长度在节点构造后固定。
   ///
   /// A timeline that produced no value (not started, or ended without
   /// freezing) is recorded as negative infinity, so "absent" can never collide

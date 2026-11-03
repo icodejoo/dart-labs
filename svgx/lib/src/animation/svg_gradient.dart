@@ -31,6 +31,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 
 import '../svg_affine.dart';
+import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_style.dart';
 
@@ -151,7 +152,7 @@ class SvgGradientDef {
 /// 覆盖后的属性表）[resampleGradientAtTime] 的逐帧重建。`stop-color` 无法解析
 /// 时返回 null。
 SvgGradientStop? stopFromAttributes(Map<String, String> attributes) {
-  final color = parseSvgHexColor(attributes['stop-color'] ?? '#000000');
+  final color = parseSvgHexColor(attributes[kStopColorAttribute] ?? '#000000');
   if (color == null) return null;
   final raw = (attributes['offset'] ?? '0').trim();
   final offset = raw.endsWith('%')
@@ -162,6 +163,28 @@ SvgGradientStop? stopFromAttributes(Map<String, String> attributes) {
     offset.clamp(0.0, 1.0),
     color.withValues(alpha: color.a * stopOpacity.clamp(0.0, 1.0)),
   );
+}
+
+/// `<stop>` 的颜色属性名，也是 [SmilColorAnimation] 的默认属性名。
+const String kStopColorAttribute = 'stop-color';
+
+/// 把打包为 `0xAARRGGBB` 的颜色 [argb] 重排成属性表里使用的 `#RRGGBBAA`
+/// 大写十六进制字符串（alpha 在末尾，`parseSvgHexColor` 要的就是这个顺序）。
+///
+/// [argb] 不得是 [kSmilColorNone] 哨兵，调用方须先处理。
+///
+/// 返回形如 `#FF0000FF` 的字符串。
+///
+/// ```dart
+/// smilColorToHex(0xFFFF0000); // '#FF0000FF'
+/// ```
+String smilColorToHex(int argb) {
+  final a = (argb >> 24) & 0xFF,
+      r = (argb >> 16) & 0xFF,
+      g = (argb >> 8) & 0xFF,
+      b = argb & 0xFF;
+  return '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'
+      .toUpperCase();
 }
 
 /// Resamples [def]'s animated geometry/stops at global timeline time [time],
@@ -214,19 +237,12 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
       if (v != null) effective[animation.attributeName] = v.toString();
     }
     for (final colorAnimation in stopNode.colorAnimations) {
+      // 只认 stop-color；其它属性名（例如误挂的 fill）忽略。
+      if (colorAnimation.attributeName != kStopColorAttribute) continue;
       final v = colorAnimation.sample(time);
-      if (v == null) continue;
-      // v is 0xAARRGGBB (see SmilColorAnimation); parseSvgHexColor wants
-      // #RRGGBBAA (alpha last), hence the reorder.
-      // v 是 0xAARRGGBB（见 SmilColorAnimation）；parseSvgHexColor 要的是
-      // #RRGGBBAA（alpha 在末尾），因此重新排列字节顺序。
-      final a = (v >> 24) & 0xFF,
-          r = (v >> 16) & 0xFF,
-          g = (v >> 8) & 0xFF,
-          b = v & 0xFF;
-      effective['stop-color'] =
-          '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'
-              .toUpperCase();
+      // stop 上的 none 没有意义，跳过，不能把哨兵 -1 当成 0xFFFFFFFF 写进去。
+      if (v == null || v == kSmilColorNone) continue;
+      effective[kStopColorAttribute] = smilColorToHex(v);
     }
     stops.add(stopFromAttributes(effective) ?? original);
   }

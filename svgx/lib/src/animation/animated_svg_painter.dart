@@ -68,6 +68,7 @@ class AnimatedSvgPainter extends CustomPainter {
     this.masks = const {},
     this.approximateMasks = _neverApproximate,
     this.quality = SvgxAnimationQuality.exact,
+    this.backgroundColor,
   }) : super(repaint: clock);
 
   /// Default for [approximateMasks]: never approximate. Keeps every direct
@@ -156,9 +157,16 @@ class AnimatedSvgPainter extends CustomPainter {
   /// Alignment within the paint box. / 在绘制盒内的对齐方式。
   final Alignment alignment;
 
+  /// 根元素背景色，铺满整个绘制区域（与浏览器一致）；为空则不画。
+  final Color? backgroundColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty || intrinsicSize.isEmpty) return;
+    final background = backgroundColor;
+    if (background != null) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = background);
+    }
     final fitted = applyBoxFit(fit, intrinsicSize, size);
     final dest = fitted.destination;
     final sx = dest.width / intrinsicSize.width;
@@ -323,7 +331,14 @@ class AnimatedSvgPainter extends CustomPainter {
   Map<String, String> _effectiveAttributes(SvgNode node) {
     final animations = node.animations;
     final pathAnimations = node.pathAnimations;
-    if (animations.isEmpty && pathAnimations.isEmpty) return node.attributes;
+    final colorAnimations = node.colorAnimations;
+    final listAnimations = node.listAnimations;
+    if (animations.isEmpty &&
+        pathAnimations.isEmpty &&
+        colorAnimations.isEmpty &&
+        listAnimations.isEmpty) {
+      return node.attributes;
+    }
     // Sample every timeline into the node's sample key, noting whether any of
     // them moved since the last frame. Sampling has to happen either way — it
     // is the only way to know whether anything changed — so the comparison
@@ -333,9 +348,15 @@ class AnimatedSvgPainter extends CustomPainter {
     // 把每条时间线采样进本节点的采样键，同时记录是否有任何一条相对上一帧发生了
     // 变化。无论如何都得采样——这是判断"有没有变"的唯一途径——因此比较只是搭在
     // 一趟本来就要走的遍历上，每条动画多付一次 double 比较。
-    // 采样键布局：数值动画在前、路径动画在后，见 [SvgNode.animatedSampleKey]。
+    // 采样键布局：数值、路径、颜色、列表四段依次排布，见 [SvgNode.animatedSampleKey]。
+    // 各段起点：路径段 numericCount，颜色段 pathEnd，列表段 colorEnd。
     final numericCount = animations.length;
-    final count = numericCount + pathAnimations.length;
+    final pathEnd = numericCount + pathAnimations.length;
+    final colorEnd = pathEnd + colorAnimations.length;
+    var count = colorEnd;
+    for (var i = 0; i < listAnimations.length; i++) {
+      count += listAnimations[i].width;
+    }
     var key = node.animatedSampleKey;
     var changed = false;
     if (key == null || key.length != count) {
@@ -343,7 +364,7 @@ class AnimatedSvgPainter extends CustomPainter {
       node.animatedSampleKey = key;
       changed = true;
     }
-    for (var i = 0; i < count; i++) {
+    for (var i = 0; i < colorEnd; i++) {
       // See [SvgNode.animatedSampleKey]: negative infinity marks "this
       // timeline produced no value at this instant". It has to be a non-finite
       // marker because every finite number is a legitimate sample, and it has
@@ -353,15 +374,40 @@ class AnimatedSvgPainter extends CustomPainter {
       // 见 [SvgNode.animatedSampleKey]：负无穷标记"该时间线在此刻没有产出值"。
       // 它必须是非有限值，因为任何有限数都是合法采样；又必须用无穷而不是 NaN，
       // 因为 NaN 与自身比较不相等，会导致每一帧都被判为"有变化"。
-      final sampled =
-          (i < numericCount
-              ? animations[i].sample(time)
-              : pathAnimations[i - numericCount].sample(time)) ??
-          double.negativeInfinity;
+      final double sampled;
+      if (i < numericCount) {
+        sampled = animations[i].sample(time) ?? double.negativeInfinity;
+      } else if (i < pathEnd) {
+        sampled =
+            pathAnimations[i - numericCount].sample(time) ??
+            double.negativeInfinity;
+      } else {
+        // 颜色：0xAARRGGBB 小于 2^32，转 double 精确；none 哨兵 -1 保持为有限的
+        // -1.0，与代表"缺失"的负无穷区分开。
+        final color = colorAnimations[i - pathEnd].sample(time);
+        sampled = color == null ? double.negativeInfinity : color.toDouble();
+      }
       if (sampled != key[i]) {
         key[i] = sampled;
         changed = true;
       }
+    }
+    // 列表段：每条动画占 width 个槽位，缺失时整段记负无穷。
+    var slot = colorEnd;
+    for (var i = 0; i < listAnimations.length; i++) {
+      final animation = listAnimations[i];
+      final sampledList = animation.sample(time);
+      final width = animation.width;
+      for (var j = 0; j < width; j++) {
+        final sampled = sampledList == null
+            ? double.negativeInfinity
+            : sampledList[j];
+        if (sampled != key[slot + j]) {
+          key[slot + j] = sampled;
+          changed = true;
+        }
+      }
+      slot += width;
     }
     final cached = node.cachedAnimatedAttributes;
     if (!changed && cached != null) return cached;
@@ -404,6 +450,31 @@ class AnimatedSvgPainter extends CustomPainter {
             .toString();
       }
     }
+    // 颜色覆盖：哨兵 -1.0 写成 `none`，其余把 0xAARRGGBB 重排成 `#RRGGBBAA`。
+    // 同一属性被多条动画覆盖时后写者胜，与数值通道一致。
+    for (var i = 0; i < colorAnimations.length; i++) {
+      final sampled = key[pathEnd + i];
+      if (sampled == double.negativeInfinity) continue;
+      (overlaid ??= Map<String, String>.of(
+        node.attributes,
+      ))[colorAnimations[i].attributeName] = sampled == kSmilColorNone
+          ? 'none'
+          : smilColorToHex(sampled.toInt());
+    }
+    // 列表覆盖：把该动画的各槽位用空格连接（`double.toString`，最短往返）。
+    slot = colorEnd;
+    for (var i = 0; i < listAnimations.length; i++) {
+      final animation = listAnimations[i];
+      final width = animation.width;
+      if (width > 0 && key[slot] != double.negativeInfinity) {
+        (overlaid ??= Map<String, String>.of(
+          node.attributes,
+        ))[animation.attributeName] = key
+            .sublist(slot, slot + width)
+            .join(' ');
+      }
+      slot += width;
+    }
     final result = overlaid ?? node.attributes;
     node.cachedAnimatedAttributes = result;
     return result;
@@ -431,6 +502,10 @@ class AnimatedSvgPainter extends CustomPainter {
     bool nested = false,
   }) {
     final effectiveAttributes = _effectiveAttributes(node);
+    // `display="none"` 时整棵子树都不绘制。
+    if (effectiveAttributes[_kDisplayAttribute]?.trim() == _kDisplayNone) {
+      return;
+    }
     final style = _resolveStyle(node, inherited, effectiveAttributes);
 
     // The id checks come first so the overwhelming majority of nodes — which
@@ -507,8 +582,16 @@ class AnimatedSvgPainter extends CustomPainter {
     final needsClipMaskSave =
         clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
-    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
-    if (maskClip != null) canvas.clipPath(maskClip);
+    // 裁剪属于节点自己的坐标系（含自身 transform）：有 transform 的节点在
+    // 下面应用完变换后再裁剪，没有则在此直接裁剪。
+    final hasOwnTransform =
+        node.transformAnimations.isNotEmpty ||
+        node.motionAnimations.isNotEmpty ||
+        node.transform != null;
+    if (!hasOwnTransform) {
+      if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+      if (maskClip != null) canvas.clipPath(maskClip);
+    }
     // Layer nesting follows SVG's filter -> mask pipeline: the mask
     // destination layer opens FIRST (outer) and the blur layer opens SECOND
     // (inner, nested inside it), so closing the blur layer composites
@@ -548,9 +631,7 @@ class AnimatedSvgPainter extends CustomPainter {
       );
     }
 
-    if (node.transformAnimations.isEmpty &&
-        node.motionAnimations.isEmpty &&
-        node.transform == null) {
+    if (!hasOwnTransform) {
       _paintNodeContent(canvas, node, style, effectiveAttributes);
       if (hasBlur) canvas.restore();
       if (maskDef != null) {
@@ -571,7 +652,21 @@ class AnimatedSvgPainter extends CustomPainter {
     //
     // 元素自身的静态 transform="..." 先应用；SVG 语义下 <animateTransform>
     // 叠加在它之上。
-    final staticTransform = node.transform;
+    _applyOwnTransform(canvas, node);
+    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+    if (maskClip != null) canvas.clipPath(maskClip);
+    _paintNodeContent(canvas, node, style, effectiveAttributes);
+    canvas.restore(); // closes the transform save() a few lines above
+
+    if (hasBlur) canvas.restore();
+    if (maskDef != null) _applyMaskLayer(canvas, maskDef, node);
+    if (needsClipMaskSave) canvas.restore();
+  }
+
+  /// 把节点自身的变换依次应用到 [canvas]：静态 `transform`、各 `animateTransform`，
+  /// 最后是 `animateMotion`。绘制内容与遮罩共用，保证两者在同一坐标系。
+  void _applyOwnTransform(Canvas canvas, SvgNode node) {
+    final staticTransform = _activeStaticTransform(node);
     if (staticTransform != null) {
       // Expanded once and kept on the node: `transform` is final and fixed at
       // parse time, so the 4x4 form can never go stale (see
@@ -640,12 +735,6 @@ class AnimatedSvgPainter extends CustomPainter {
         canvas.rotate(sampled.angleDegrees * math.pi / 180);
       }
     }
-    _paintNodeContent(canvas, node, style, effectiveAttributes);
-    canvas.restore(); // closes the transform save() a few lines above
-
-    if (hasBlur) canvas.restore();
-    if (maskDef != null) _applyMaskLayer(canvas, maskDef);
-    if (needsClipMaskSave) canvas.restore();
   }
 
   /// Composites [maskDef]'s content (sampled at [time]) as coverage over
@@ -656,10 +745,14 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 把 [maskDef] 的内容（在 [time] 采样）作为覆盖度合成到刚绘制进当前目标图层
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
   /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
-  void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
-    canvas.saveLayer(null, _maskCoveragePaint());
+  void _applyMaskLayer(Canvas canvas, SvgNode maskDef, [SvgNode? owner]) {
+    canvas.saveLayer(null, _maskCoveragePaint(_isAlphaMask(maskDef)));
+    // 遮罩属于被遮罩节点自己的坐标系（含其自身 transform）。
+    canvas.save();
+    if (owner != null) _applyOwnTransform(canvas, owner);
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);
     canvas
+      ..restore()
       ..restore()
       ..restore();
   }
@@ -674,14 +767,28 @@ class AnimatedSvgPainter extends CustomPainter {
   /// （`dstIn` + [ColorFilter.matrix]）与 `rust_static_svg.dart` 静态路径的
   /// 等价实现交叉核对过（系数出处见其文档注释）——同一算法，为本 xml 引擎
   /// 独立编写。
-  Paint _maskCoveragePaint() => Paint()
-    ..blendMode = BlendMode.dstIn
-    ..colorFilter = const ColorFilter.matrix(<double>[
-      0, 0, 0, 0, 0, //
-      0, 0, 0, 0, 0, //
-      0, 0, 0, 0, 0, //
-      0.2125, 0.7154, 0.0721, 0, 0,
-    ]);
+  ///
+  /// [alpha] 为 true（`mask-type="alpha"`）时不做亮度换算：`dstIn` 本就以源的
+  /// alpha 为覆盖度，所以不挂颜色滤镜。
+  Paint _maskCoveragePaint(bool alpha) {
+    final paint = Paint()..blendMode = BlendMode.dstIn;
+    if (!alpha) {
+      paint.colorFilter = const ColorFilter.matrix(<double>[
+        0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, //
+        0.2125, 0.7154, 0.0721, 0, 0,
+      ]);
+    }
+    return paint;
+  }
+
+  /// [maskDef]（`<mask>` 定义根）是否声明了 `mask-type="alpha"`：取值大小写不敏感、
+  /// 忽略首尾空白，缺失或非法值一律按默认的 luminance，返回 false。
+  static bool _isAlphaMask(SvgNode maskDef) {
+    final raw = maskDef.attributes[_kMaskTypeAttribute];
+    return raw != null && raw.trim().toLowerCase() == _kMaskTypeAlpha;
+  }
 
   /// Whether [defRoot], used as a `<mask>` definition, can be replaced by an
   /// equivalent clip path — cached on the node, since the answer depends only
@@ -696,7 +803,11 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   ///   mask 为纯二值覆盖时返回 true。
   static bool _maskIsClipEligible(SvgNode defRoot) =>
-      defRoot.maskClipEligible ??= _maskSubtreeIsBinary(defRoot, null);
+      defRoot.maskClipEligible ??= _maskSubtreeIsBinary(
+        defRoot,
+        null,
+        _isAlphaMask(defRoot),
+      );
 
   /// Recursive half of [_maskIsClipEligible]. [inheritedFill] is the nearest
   /// ancestor's `fill` value, threaded down because a `<g fill="#fff">`
@@ -712,10 +823,17 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   ///   继承到的 `fill` 属性值，或 null。
   ///
+  /// [alpha] — whether the mask is `mask-type="alpha"` (coverage is judged by
+  ///   alpha, not luminance). / 遮罩是否为 `mask-type="alpha"`（按 alpha 而非亮度判定覆盖度）。
+  ///
   /// Returns true when every node in the subtree is binary-safe.
   ///
   ///   子树内每个节点都二值安全时返回 true。
-  static bool _maskSubtreeIsBinary(SvgNode node, String? inheritedFill) {
+  static bool _maskSubtreeIsBinary(
+    SvgNode node,
+    String? inheritedFill,
+    bool alpha,
+  ) {
     // A nested clip/mask/blur inside the mask means coverage this flat clip
     // path cannot represent.
     //
@@ -779,7 +897,9 @@ class AnimatedSvgPainter extends CustomPainter {
       case SvgNodeKind.rect:
       case SvgNodeKind.ellipse:
       case SvgNodeKind.polygon:
-        if (_maskFillCoverage(fill) == _MaskCoverage.notBinary) return false;
+        if (_maskFillCoverage(fill, alpha) == _MaskCoverage.notBinary) {
+          return false;
+        }
       case SvgNodeKind.line:
       case SvgNodeKind.polyline:
         // Unclosed geometry: SVG fills it by implicit closure, and matching
@@ -798,7 +918,7 @@ class AnimatedSvgPainter extends CustomPainter {
         return false;
     }
     for (final child in node.children) {
-      if (!_maskSubtreeIsBinary(child, fill)) return false;
+      if (!_maskSubtreeIsBinary(child, fill, alpha)) return false;
     }
     return true;
   }
@@ -812,8 +932,17 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   ///   已解析的 `fill` 属性值；形状自身与所有祖先都没设置时为 null。
   ///
+  /// [alpha] — `mask-type="alpha"`: only opacity matters, colour is ignored.
+  ///   Opaque paint is [_MaskCoverage.shows]; fully transparent paint covers
+  ///   nothing and, unlike black under luminance, erases nothing
+  ///   ([_MaskCoverage.paintsNothing]); anything between is partial.
+  ///
+  ///   `mask-type="alpha"`：只看不透明度，颜色无关。不透明为 shows；全透明什么都
+  ///   不覆盖，也不像亮度模式下的黑色那样擦掉别的覆盖（paintsNothing）；介于两者
+  ///   之间为部分覆盖。
+  ///
   /// Returns the coverage classification. / 返回覆盖度分类。
-  static _MaskCoverage _maskFillCoverage(String? fill) {
+  static _MaskCoverage _maskFillCoverage(String? fill, bool alpha) {
     // `fill="none"` paints nothing at all. That is NOT the same as painting
     // black: black *removes* coverage where it overlaps something white,
     // whereas an unpainted shape leaves whatever is underneath alone. Folding
@@ -828,11 +957,18 @@ class AnimatedSvgPainter extends CustomPainter {
     // a mask means "hide".
     //
     // 整条继承链上都没有 `fill`：SVG 的初始值是黑色，在 mask 里意味着"隐藏"。
-    if (fill == null) return _MaskCoverage.hides;
+    //
+    // alpha 型遮罩里没写 fill 就是不透明黑色，覆盖度为 1。
+    if (fill == null) return alpha ? _MaskCoverage.shows : _MaskCoverage.hides;
     final color = parseSvgHexColor(fill);
     // A gradient, `currentColor`, or anything unparseable: not binary.
     // 渐变、`currentColor`，或任何解析不出来的东西：不是二值。
     if (color == null) return _MaskCoverage.notBinary;
+    if (alpha) {
+      if (color.a >= 0.999) return _MaskCoverage.shows;
+      if (color.a <= 0.001) return _MaskCoverage.paintsNothing;
+      return _MaskCoverage.notBinary;
+    }
     if (color.a < 1) {
       return _MaskCoverage.notBinary; // translucent: fractional coverage
     }
@@ -886,14 +1022,21 @@ class AnimatedSvgPainter extends CustomPainter {
         _sameSignature(defRoot.maskClipSampleKey, signature)) {
       return cachedPath;
     }
-    final shown = ui.Path();
-    final hidden = ui.Path();
+    final shown = _RegionBuilder();
+    final hidden = _RegionBuilder();
     var anyHidden = false;
+    final alpha = _isAlphaMask(defRoot);
 
-    void walk(SvgNode node, List<double> matrix, String? inheritedFill) {
+    void walk(
+      SvgNode node,
+      List<double> matrix,
+      String? inheritedFill,
+      ui.PathFillType inheritedRule,
+    ) {
       final effectiveAttributes = _effectiveAttributes(node);
       var accum = matrix;
-      if (node.transform != null) accum = concatAffine(accum, node.transform!);
+      final st = _activeStaticTransform(node);
+      if (st != null) accum = concatAffine(accum, st);
       for (final transformAnimation in node.transformAnimations) {
         final sampled = transformAnimation.sample(time);
         if (sampled == null) continue;
@@ -908,14 +1051,19 @@ class AnimatedSvgPainter extends CustomPainter {
         accum = concatAffine(accum, [1, 0, 0, 1, sampled.x, sampled.y]);
       }
       final fill = effectiveAttributes['fill'] ?? inheritedFill;
+      // mask 内容按普通填充绘制，所以遵守 fill-rule（继承）。
+      final rule = parseSvgFillRule(
+        effectiveAttributes[kFillRuleAttribute],
+        inheritedRule,
+      );
 
       if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
         for (final child in node.children) {
-          walk(child, accum, fill);
+          walk(child, accum, fill, rule);
         }
         return;
       }
-      final coverage = _maskFillCoverage(fill);
+      final coverage = _maskFillCoverage(fill, alpha);
       // Nothing is painted, so nothing is contributed — in particular this
       // shape must NOT be subtracted. See [_maskFillCoverage].
       //
@@ -924,16 +1072,15 @@ class AnimatedSvgPainter extends CustomPainter {
       if (coverage == _MaskCoverage.paintsNothing) return;
       final geometry = _geometryPath(node, effectiveAttributes);
       if (geometry == null) return;
-      final matrix4 = affineToMatrix4(accum);
       if (coverage == _MaskCoverage.shows) {
-        shown.addPath(geometry, Offset.zero, matrix4: matrix4);
+        shown.add(geometry, accum, rule);
       } else {
-        hidden.addPath(geometry, Offset.zero, matrix4: matrix4);
+        hidden.add(geometry, accum, rule);
         anyHidden = true;
       }
     }
 
-    walk(defRoot, const [1, 0, 0, 1, 0, 0], null);
+    walk(defRoot, const [1, 0, 0, 1, 0, 0], null, ui.PathFillType.nonZero);
     // `Path.combine` allocates a fresh path and runs a real boolean op, so it
     // is skipped entirely for the common mask that only paints white.
     //
@@ -960,18 +1107,35 @@ class AnimatedSvgPainter extends CustomPainter {
     // 一条纯属可选的快路径而毁掉一整帧，因此失败时退回"不做相减的并集"：与精确
     // 管线相同的覆盖度、只是少了那些洞，这是保守方向（宁可多显示一点，也不要把
     // 图标擦掉）。
-    var built = shown;
+    final shownPath = shown.build();
+    var built = shownPath;
     if (anyHidden) {
       try {
-        built = ui.Path.combine(ui.PathOperation.difference, shown, hidden);
+        built = ui.Path.combine(
+          ui.PathOperation.difference,
+          shownPath,
+          hidden.build(),
+        );
       } on StateError {
-        built = shown;
+        built = shownPath;
       }
     }
     defRoot
       ..cachedMaskClip = built
       ..maskClipSampleKey = signature;
     return built;
+  }
+
+  /// 本帧该节点应叠加的静态 transform；被 CSS transform 动画替换期间返回 null。
+  List<double>? _activeStaticTransform(SvgNode node) {
+    final staticTransform = node.transform;
+    if (staticTransform == null || !node.replacesStaticTransform) {
+      return staticTransform;
+    }
+    for (final a in node.transformAnimations) {
+      if (a.replacesStaticTransform && a.isActiveAt(time)) return null;
+    }
+    return staticTransform;
   }
 
   /// Flattens every sampled animation value in a `<mask>` definition's subtree
@@ -1084,11 +1248,16 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 节点自身的几何路径（经 [_geometryPath]）上后再并入总路径。`<image>`/
   /// `<text>` 内容不是几何图形，不参与（明确的范围限制）。
   ui.Path _resolveClipPath(SvgNode defRoot, Duration time) {
-    final union = ui.Path();
-    void walk(SvgNode node, List<double> matrix) {
+    final union = _RegionBuilder();
+    void walk(
+      SvgNode node,
+      List<double> matrix,
+      ui.PathFillType inheritedRule,
+    ) {
       final effectiveAttributes = _effectiveAttributes(node);
       var accum = matrix;
-      if (node.transform != null) accum = concatAffine(accum, node.transform!);
+      final st = _activeStaticTransform(node);
+      if (st != null) accum = concatAffine(accum, st);
       for (final transformAnimation in node.transformAnimations) {
         final sampled = transformAnimation.sample(time);
         if (sampled == null) continue;
@@ -1098,9 +1267,14 @@ class AnimatedSvgPainter extends CustomPainter {
         );
       }
 
+      // clip-rule 可继承，每个子形状按自己的规则参与合成。
+      final rule = parseSvgFillRule(
+        effectiveAttributes[kClipRuleAttribute],
+        inheritedRule,
+      );
       if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
         for (final child in node.children) {
-          walk(child, accum);
+          walk(child, accum, rule);
         }
         return;
       }
@@ -1122,11 +1296,11 @@ class AnimatedSvgPainter extends CustomPainter {
       // 变换被静默忽略，同时每个裁剪节点每帧还白白分配了一整份 Path 副本。
       // 改用 `addPath` 自带的 `matrix4`，在追加线段时就地应用变换——既正确，
       // 又不产生中间副本。
-      union.addPath(geometry, Offset.zero, matrix4: affineToMatrix4(accum));
+      union.add(geometry, accum, rule);
     }
 
-    walk(defRoot, const [1, 0, 0, 1, 0, 0]);
-    return union;
+    walk(defRoot, const [1, 0, 0, 1, 0, 0], ui.PathFillType.nonZero);
+    return union.build();
   }
 
   /// Expands one sampled `<animateTransform>` component list into an affine
@@ -1535,6 +1709,11 @@ class AnimatedSvgPainter extends CustomPainter {
     if (style.opacity <= 0) return;
     final fillAlpha = style.fillAlpha;
     if (fillAlpha > 0) {
+      // fill-rule：几何 Path 是挂在节点上的共享缓存，默认且始终保持 nonZero。
+      // 只有 evenodd 的节点才临时改写，填充画完立刻还原——默认节点只多一次字段
+      // 比较、不碰原生调用、不分配对象，描边/虚线/包围盒也不会读到被改过的值。
+      final evenOdd = style.fillRule == ui.PathFillType.evenOdd;
+      if (evenOdd) path.fillType = ui.PathFillType.evenOdd;
       final fillShader = _gradientShader(style.fillGradientId, path, fillAlpha);
       if (fillShader != null) {
         canvas.drawPath(
@@ -1551,6 +1730,7 @@ class AnimatedSvgPainter extends CustomPainter {
             ..color = _fade(style.fill!, fillAlpha),
         );
       }
+      if (evenOdd) path.fillType = ui.PathFillType.nonZero;
     }
     final strokeAlpha = style.strokeAlpha;
     if (strokeAlpha <= 0) return;
@@ -1595,7 +1775,66 @@ class AnimatedSvgPainter extends CustomPainter {
       oldDelegate.gradients != gradients ||
       oldDelegate.clipPaths != clipPaths ||
       oldDelegate.masks != masks ||
-      oldDelegate.quality != quality;
+      oldDelegate.quality != quality ||
+      oldDelegate.backgroundColor != backgroundColor;
+}
+
+/// `<mask>` 上的 `mask-type` 属性名。
+const String _kMaskTypeAttribute = 'mask-type';
+
+/// `mask-type` 的 alpha 取值（小写，比较前已转小写）。
+const String _kMaskTypeAlpha = 'alpha';
+
+/// `display` 属性名与隐藏取值。
+const String _kDisplayAttribute = 'display';
+const String _kDisplayNone = 'none';
+
+/// 把若干带各自填充规则的子形状合成一个区域路径，供 `<clipPath>` 与 mask 的裁剪
+/// 近似使用。
+///
+/// 单个 [ui.Path] 只有一个 fillType，所以 nonzero 子形状照旧并入 [_base]（与引入
+/// 规则前的合成方式逐位一致），evenodd 子形状先各自带着 fillType 存成独立副本，
+/// [build] 时用 `Path.combine(union, …)` 逐个并入——它对每个输入各自按其 fillType
+/// 求区域，规则不会丢。没有 evenodd 子形状时 [build] 直接返回 [_base]，没有额外开销。
+class _RegionBuilder {
+  /// 全部 nonzero 子形状累加成的路径。
+  final ui.Path _base = ui.Path();
+
+  /// evenodd 子形状的独立副本（已变换、已设 fillType）；首次需要时才分配。
+  List<ui.Path>? _evenOdd;
+
+  /// 把 [geometry] 经仿射矩阵 [affine] 变换后，按 [rule] 加入区域。
+  ///
+  /// [geometry] 可能是节点上的共享缓存，这里不会改写它。
+  void add(ui.Path geometry, List<double> affine, ui.PathFillType rule) {
+    final matrix4 = affineToMatrix4(affine);
+    if (rule == ui.PathFillType.nonZero) {
+      _base.addPath(geometry, Offset.zero, matrix4: matrix4);
+      return;
+    }
+    // transform 返回的是新副本，可以放心写 fillType。
+    (_evenOdd ??= <ui.Path>[]).add(
+      geometry.transform(matrix4)..fillType = rule,
+    );
+  }
+
+  /// 返回合成后的区域路径。
+  ///
+  /// `Path.combine` 遇到退化输入会抛 [StateError]；此时退回把该子形状直接并入
+  /// （按 nonzero 填满，宁可多裁出一点也不把整个形状丢掉）。
+  ui.Path build() {
+    final evenOdd = _evenOdd;
+    if (evenOdd == null) return _base;
+    var region = _base;
+    for (final path in evenOdd) {
+      try {
+        region = ui.Path.combine(ui.PathOperation.union, region, path);
+      } on StateError {
+        region.addPath(path, Offset.zero);
+      }
+    }
+    return region;
+  }
 }
 
 /// What one shape inside a `<mask>` definition contributes to the mask's

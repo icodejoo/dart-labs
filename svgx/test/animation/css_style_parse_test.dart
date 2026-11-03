@@ -10,8 +10,23 @@ import 'pixel_test_utils.dart';
 /// 给测试片段补上根元素。
 SvgDocument _parse(String body) => parseAnimatedSvgDocument('<svg>$body</svg>');
 
+/// 原生库是否已成功加载；在文件级 [setUpAll] 里一次性尝试初始化。
+bool _nativeReady = false;
+
 /// 验证样式表接入属性、定义、实例及像素路径。
 void main() {
+  // 原生库必须在解析任何文档之前初始化：封装层一旦在未初始化时调用失败，就会记住
+  // "原生不可用"，之后即使初始化成功也不再调用（生产里应用启动时就已初始化）。
+  // flutter_rust_bridge 同一进程内只能初始化一次，所以整个文件只在这里尝试一次。
+  setUpAll(() async {
+    try {
+      await RustLib.init();
+      _nativeReady = true;
+    } catch (_) {
+      _nativeReady = false;
+    }
+  });
+
   final cases = <(String, String, String)>[
     ('<style>#r{fill:#f00}</style>', '<rect id="r"/>', '#f00'),
     ('<style>#r{fill:#f00}</style>', '<rect id="r" fill="#00f"/>', '#f00'),
@@ -179,10 +194,8 @@ void main() {
     });
   });
   test('CSS 命名颜色沿用现有原生规范化', () async {
-    try {
-      await RustLib.init();
-    } catch (error) {
-      markTestSkipped('原生库不可加载：$error');
+    if (!_nativeReady) {
+      markTestSkipped('原生库不可加载：把 prebuilt/windows/x64 放进 PATH 再跑');
       return;
     }
     final node = _parse('<style>rect{fill:red}</style><rect/>')

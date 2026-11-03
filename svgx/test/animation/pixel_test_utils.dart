@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
+import 'package:svgx/src/animation/svg_dom.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 
 /// 渲染画布边长（像素）。
@@ -30,6 +31,7 @@ void _paintAt(Canvas canvas, SvgDocument document, Duration time) {
     gradients: document.gradients,
     clipPaths: document.clipPaths,
     masks: document.masks,
+    backgroundColor: document.backgroundColor,
   ).paint(canvas, Size(kPixelSize.toDouble(), kPixelSize.toDouble()));
 }
 
@@ -50,6 +52,37 @@ Future<ByteData> renderAt(SvgDocument document, Duration time) async {
   final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
   picture.dispose();
   image.dispose();
+  return bytes!;
+}
+
+/// 直接渲染手工节点树，返回 100x100 的 rawRgba 像素字节。
+Future<ByteData> renderRootAt(
+  SvgNode root,
+  Duration time, {
+  Map<String, SvgNode> clipPaths = const {},
+  Map<String, SvgNode> masks = const {},
+  bool approximateMasks = false,
+}) async {
+  final clock = ValueNotifier(time);
+  final recorder = ui.PictureRecorder();
+  final size = Size(kPixelSize.toDouble(), kPixelSize.toDouble());
+  AnimatedSvgPainter(
+    root: root,
+    intrinsicSize: size,
+    clock: clock,
+    theme: const SvgxTheme(),
+    fit: BoxFit.fill,
+    alignment: Alignment.center,
+    clipPaths: clipPaths,
+    masks: masks,
+    approximateMasks: () => approximateMasks,
+  ).paint(Canvas(recorder), size);
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(kPixelSize, kPixelSize);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  picture.dispose();
+  image.dispose();
+  clock.dispose();
   return bytes!;
 }
 

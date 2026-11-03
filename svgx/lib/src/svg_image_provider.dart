@@ -160,8 +160,14 @@ class StringSvgx extends ImageProvider<StringSvgx> {
       other.animationFrameRate == animationFrameRate;
 
   @override
-  int get hashCode =>
-      Object.hash(source, width, height, colorFilter, theme, animationFrameRate);
+  int get hashCode => Object.hash(
+    source,
+    width,
+    height,
+    colorFilter,
+    theme,
+    animationFrameRate,
+  );
 
   @override
   ImageStreamCompleter loadImage(StringSvgx key, ImageDecoderCallback decode) =>
@@ -368,15 +374,17 @@ class NetworkSvgx extends ImageProvider<NetworkSvgx> {
   );
 
   @override
-  ImageStreamCompleter loadImage(NetworkSvgx key, ImageDecoderCallback decode) =>
-      _svgImageStreamCompleter(
-        sourceFuture: SvgSourceLoader.instance.network(url, headers: headers),
-        width: width,
-        height: height,
-        colorFilter: colorFilter,
-        theme: theme,
-        animationFrameRate: animationFrameRate,
-      );
+  ImageStreamCompleter loadImage(
+    NetworkSvgx key,
+    ImageDecoderCallback decode,
+  ) => _svgImageStreamCompleter(
+    sourceFuture: SvgSourceLoader.instance.network(url, headers: headers),
+    width: width,
+    height: height,
+    colorFilter: colorFilter,
+    theme: theme,
+    animationFrameRate: animationFrameRate,
+  );
 }
 
 /// Creates a provider from an SVG file on disk. See [StringSvgx]'s class doc
@@ -531,14 +539,8 @@ class MemorySvgx extends ImageProvider<MemorySvgx> {
       other.animationFrameRate == animationFrameRate;
 
   @override
-  int get hashCode => Object.hash(
-    bytes,
-    width,
-    height,
-    colorFilter,
-    theme,
-    animationFrameRate,
-  );
+  int get hashCode =>
+      Object.hash(bytes, width, height, colorFilter, theme, animationFrameRate);
 
   @override
   ImageStreamCompleter loadImage(MemorySvgx key, ImageDecoderCallback decode) =>
@@ -716,12 +718,14 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
         gradients: document.gradients,
         clipPaths: document.clipPaths,
         masks: document.masks,
+        backgroundColor: document.backgroundColor,
       );
       Future<void> renderFrame() async {
         clock.value = stopwatch.elapsed;
         final image = await _rasterizePainter(painter, w, h, colorFilter);
         setImage(ImageInfo(image: image, scale: scale));
       }
+
       final interval = Duration(
         milliseconds: (1000 / animationFrameRate).round(),
       );
@@ -730,6 +734,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
         unawaited(renderFrame());
         _timer = Timer.periodic(interval, (_) => unawaited(renderFrame()));
       }
+
       _resumeTicking = restart;
       if (hasListeners) {
         restart();
@@ -841,7 +846,10 @@ Future<ui.Image> _rasterizePainter(
   final w = width.toDouble();
   final h = height.toDouble();
   if (colorFilter != null) {
-    canvas.saveLayer(Rect.fromLTWH(0, 0, w, h), Paint()..colorFilter = colorFilter);
+    canvas.saveLayer(
+      Rect.fromLTWH(0, 0, w, h),
+      Paint()..colorFilter = colorFilter,
+    );
   }
   painter.paint(canvas, Size(w, h));
   if (colorFilter != null) canvas.restore();

@@ -35,7 +35,9 @@ import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
 import 'css_cascade.dart';
+import 'css_keyframes_compiler.dart';
 import 'css_stylesheet.dart';
+import 'css_values.dart';
 import 'native_svg_values.dart';
 import 'smil_animation.dart';
 import 'svg_dom.dart';
@@ -69,6 +71,7 @@ class SvgDocument {
     this.clipPaths = const {},
     this.masks = const {},
     this.usesOffscreenLayers = false,
+    this.backgroundColor,
   });
 
   /// Whether painting this document requires at least one `canvas.saveLayer`
@@ -92,6 +95,11 @@ class SvgDocument {
   /// 它的用途是让 `SvgxAnimationQuality` 里的帧率降级对这类文档比对廉价文档
   /// 更激进。
   final bool usesOffscreenLayers;
+
+  /// 根元素 `background-color`（或 `background` 里的纯色），没有则为空。
+  ///
+  /// 与浏览器一致：背景铺满整个绘制区域，而不只是 viewBox 内。
+  final Color? backgroundColor;
 
   /// `<clipPath>` definitions by id, as parsed [SvgNode] subtrees (their own
   /// `<animate>`/`<animateTransform>` children intact) — referenced by
@@ -214,6 +222,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
       : parseCssStylesheet(styleBlocks.join('\n'));
   final context = _ParseContext(
     elementsById: elementsById,
+    cssKeyframes: sheet?.keyframes ?? const {},
     cssIndex: sheet == null || sheet.rules.isEmpty ? null : CssRuleIndex(sheet),
   );
   final root = _parseElement(svgElement, SvgNodeKind.root, context);
@@ -257,6 +266,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     clipPaths: clipPaths,
     masks: masks,
     usesOffscreenLayers: context.sawOffscreenLayer,
+    backgroundColor: _parseRootBackground(root.attributes),
   );
 }
 
@@ -510,6 +520,20 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
         }
       }
     }
+    if (css.animations.isNotEmpty && context.cssKeyframes.isNotEmpty) {
+      final compiled = compileCssAnimations(
+        animations: css.animations,
+        keyframes: context.cssKeyframes,
+        attributes: attributes,
+        cssProperties: css.properties,
+        hooks: cssCompileHooks,
+      );
+      numericAnimations.addAll(compiled.numeric);
+      colorAnimations.addAll(compiled.color);
+      context.animations
+        ..addAll(compiled.numeric)
+        ..addAll(compiled.color);
+    }
     nodes.add(
       SvgNode(
         kind: SvgNodeKind.group,
@@ -702,7 +726,14 @@ const _maxUseDepth = 10;
 /// 集合，用于阻断引用环）。
 class _ParseContext {
   /// 创建单次解析上下文。
-  _ParseContext({required this.elementsById, this.cssIndex});
+  _ParseContext({
+    required this.elementsById,
+    required this.cssKeyframes,
+    this.cssIndex,
+  });
+
+  /// 与文档共享的具名关键帧表。
+  final Map<String, CssKeyframes> cssKeyframes;
 
   /// 有效规则索引，无样式规则时不构建。
   final CssRuleIndex? cssIndex;
@@ -755,6 +786,8 @@ SvgNode _parseElement(
   final transformAnimations = <SmilTransformAnimation>[];
   final motionAnimations = <SmilMotionAnimation>[];
   final pathAnimations = <SmilPathAnimation>[];
+  final colorAnimations = <SmilColorAnimation>[];
+  final listAnimations = <SmilListAnimation>[];
   final children = <SvgNode>[];
   for (final child in element.childElements) {
     final localName = child.name.local;
@@ -802,6 +835,30 @@ SvgNode _parseElement(
     children.add(_parseElement(child, childKind, context));
   }
 
+  // 按节点编译，不依赖 id；CSS 变换槽位先于 SMIL 变换。
+  if (css.animations.isNotEmpty && context.cssKeyframes.isNotEmpty) {
+    final compiled = compileCssAnimations(
+      animations: css.animations,
+      keyframes: context.cssKeyframes,
+      attributes: attributes,
+      cssProperties: css.properties,
+      hooks: cssCompileHooks,
+    );
+    animations.addAll(compiled.numeric);
+    transformAnimations.insertAll(0, compiled.transforms);
+    motionAnimations.addAll(compiled.motion);
+    pathAnimations.addAll(compiled.paths);
+    colorAnimations.addAll(compiled.color);
+    listAnimations.addAll(compiled.lists);
+    context.animations
+      ..addAll(compiled.numeric)
+      ..addAll(compiled.transforms)
+      ..addAll(compiled.motion)
+      ..addAll(compiled.paths)
+      ..addAll(compiled.color)
+      ..addAll(compiled.lists);
+  }
+
   if (markedSelfId) context.resolvingUseTargets.remove(selfId);
 
   final rawTransform = attributes['transform'];
@@ -821,6 +878,8 @@ SvgNode _parseElement(
     transformAnimations: transformAnimations,
     motionAnimations: motionAnimations,
     pathAnimations: pathAnimations,
+    colorAnimations: colorAnimations,
+    listAnimations: listAnimations,
     transform: rawTransform == null ? null : parseTransformMatrix(rawTransform),
     clipPathId: parseUrlId(attributes['clip-path']),
     maskId: maskId,
@@ -862,10 +921,26 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
   }
   for (final child in filterElement.childElements) {
     if (child.name.local != 'feGaussianBlur') continue;
-    return double.tryParse(child.getAttribute('stdDeviation') ?? '');
+    return _parseStdDeviation(child.getAttribute('stdDeviation'));
   }
   return null;
 }
+
+/// 解析 `feGaussianBlur` 的 `stdDeviation`：单个数值，或 `x,y` / `x y` 两个数值
+/// （SVGator 等工具一律写成两值，如 `"40,40"`）。引擎只支持各向同性的 σ：两值相等
+/// 时与单值一致，不等时取平均作近似；无法解析时返回 null。
+double? _parseStdDeviation(String? raw) {
+  if (raw == null) return null;
+  final parts = raw.trim().split(_stdDeviationSeparator);
+  if (parts.length > 2) return null;
+  final x = double.tryParse(parts[0]);
+  if (x == null || parts.length == 1) return x;
+  final y = double.tryParse(parts[1]);
+  return y == null ? null : (x + y) / 2;
+}
+
+/// `stdDeviation` 两个数值之间的分隔：逗号和/或空白。
+final _stdDeviationSeparator = RegExp(r'[\s,]+');
 
 /// Extracts the `#id` out of a `url(#id)` (or `url('#id')`/`url("#id")`)
 /// paint/effect reference, or null when [raw] isn't one — used for
@@ -884,6 +959,38 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
 /// 相邻采样点间线性插值对图标尺度的运动而言视觉上无误差；也足够便宜（几百个
 /// double），可为每条动画构建一次。
 const _motionSampleCount = 128;
+
+/// 从根元素属性取背景色：`background-color` 优先，其次 `background` 里的纯色。
+///
+/// 只认 [parseCssColor] 支持的写法（十六进制、`rgb()`、`transparent`），其余返回空。
+Color? _parseRootBackground(Map<String, String> attributes) {
+  final raw = attributes['background-color'] ?? attributes['background'];
+  final argb = raw == null ? null : parseCssColor(raw);
+  return argb == null ? null : Color(argb);
+}
+
+/// CSS 运动路径自适应采样的段长（像素）与段数上下限。
+const _cssMotionSegmentLength = 4.0;
+const _cssMotionMinSamples = 128;
+const _cssMotionMaxSamples = 2048;
+
+/// 注入编译器的能力：CSS 运动路径按长度自适应采样，路径变形复用现有构建。
+/// 解析器内部使用，测试里重编译时也用它以保持一致。
+final CssCompileHooks cssCompileHooks = CssCompileHooks(
+  sampleMotionPath: (pathData, rotate) {
+    final path = parseSvgPathData(pathData);
+    var length = 0.0;
+    for (final metric in path.computeMetrics()) {
+      length += metric.length;
+    }
+    final count = (length / _cssMotionSegmentLength).ceil().clamp(
+      _cssMotionMinSamples,
+      _cssMotionMaxSamples,
+    );
+    return _sampleMotionPath(path, rotate, count);
+  },
+  buildPathMorph: buildPathMorphData,
+);
 
 /// Parses `<animateMotion>` — its own `path="..."`, or an `<mpath href="#id">`
 /// child pointing at a `<path>` element's `d`.
@@ -965,7 +1072,11 @@ List<double>? _parseKeyPoints(String? raw) {
 ///
 /// 用 `dart:ui` 的 path metrics 遍历 [path]，在其所有子路径上按弧长等距产出
 /// [_motionSampleCount] + 1 个采样点，并按 [rotate] 预先烘焙好切线角度。
-List<SmilMotionSample>? _sampleMotionPath(ui.Path path, String? rotate) {
+List<SmilMotionSample>? _sampleMotionPath(
+  ui.Path path,
+  String? rotate, [
+  int sampleCount = _motionSampleCount,
+]) {
   final metrics = path.computeMetrics().toList();
   final totalLength = metrics.fold<double>(0, (sum, m) => sum + m.length);
   if (metrics.isEmpty || totalLength <= 0) return null;
@@ -975,8 +1086,8 @@ List<SmilMotionSample>? _sampleMotionPath(ui.Path path, String? rotate) {
   final fixedAngle = autoRotate ? 0.0 : (double.tryParse(rotate ?? '') ?? 0.0);
 
   final samples = <SmilMotionSample>[];
-  for (var i = 0; i <= _motionSampleCount; i++) {
-    var distance = totalLength * i / _motionSampleCount;
+  for (var i = 0; i <= sampleCount; i++) {
+    var distance = totalLength * i / sampleCount;
     var metric = metrics.first;
     for (final candidate in metrics) {
       if (distance <= candidate.length || candidate == metrics.last) {

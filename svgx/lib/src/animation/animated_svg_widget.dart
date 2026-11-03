@@ -601,7 +601,9 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     // 它唯一被应用的地方。
     final local = widget.playbackRate == 1.0
         ? raw
-        : Duration(microseconds: (raw.inMicroseconds * widget.playbackRate).round());
+        : Duration(
+            microseconds: (raw.inMicroseconds * widget.playbackRate).round(),
+          );
     _elapsed.value = local;
     if (!_started) {
       _started = true;
@@ -695,6 +697,7 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
         gradients: _document.gradients,
         clipPaths: _document.clipPaths,
         masks: _document.masks,
+        backgroundColor: _document.backgroundColor,
         // Evaluated per paint, not per build: concurrency changes as cells
         // scroll in and out, and this painter is not rebuilt on every tick
         // (that is the whole point of driving it through `repaint`).

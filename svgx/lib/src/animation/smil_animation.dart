@@ -61,6 +61,80 @@ enum SmilCalcMode {
   spline,
 }
 
+/// 阶跃位置，与 CSS 阶跃位置同构，避免引入 CSS 解析依赖。
+enum SmilStepPosition {
+  /// 在每段开始时跳变。
+  start,
+
+  /// 在每段结束时跳变。
+  end,
+
+  /// 两端都不跳变。
+  jumpNone,
+
+  /// 两端都跳变。
+  jumpBoth,
+}
+
+/// 每段缓动的统一接口。
+///
+/// 例如：`SmilSegmentEasing easing = const CubicBezier(0, 0, 1, 1);`。
+abstract interface class SmilSegmentEasing {
+  /// 把段内进度映射为缓动后的进度。
+  double transform(double t);
+}
+
+/// 按阶跃次数与位置求值的段缓动，输出钳制到 `[0, 1]`。
+///
+/// 例如：`const SmilStepsEasing(3).transform(0.5)` 返回 `1 / 3`。
+class SmilStepsEasing implements SmilSegmentEasing {
+  /// 创建阶跃缓动；调用方保证次数至少为 1，jumpNone 时至少为 2。
+  const SmilStepsEasing(this.count, [this.position = SmilStepPosition.end]);
+
+  /// 阶跃次数。
+  final int count;
+
+  /// 阶跃发生的位置。
+  final SmilStepPosition position;
+
+  /// 吸收分数边界附近的浮点误差。
+  static const double _boundaryTolerance = 1e-9;
+
+  /// 求阶跃进度并钳制输出；NaN 按进度 0 求值。
+  @override
+  double transform(double t) {
+    if (t.isNaN) t = 0;
+    if (t >= 1) return 1;
+    if (t <= -1) return 0;
+    var step = (t * count + _boundaryTolerance).floor();
+    if (position == SmilStepPosition.start ||
+        position == SmilStepPosition.jumpBoth) {
+      step += 1;
+    }
+    final jumps = switch (position) {
+      SmilStepPosition.start || SmilStepPosition.end => count,
+      SmilStepPosition.jumpNone => count - 1,
+      SmilStepPosition.jumpBoth => count + 1,
+    };
+    return step.clamp(0, jumps) / jumps;
+  }
+}
+
+/// 动画的迭代播放方向，例如 `SmilDirection.alternate` 交替正反播放。
+enum SmilDirection {
+  /// 每次正向播放。
+  normal,
+
+  /// 每次反向播放。
+  reverse,
+
+  /// 偶数次迭代反向播放。
+  alternate,
+
+  /// 奇数次迭代反向播放。
+  alternateReverse,
+}
+
 /// A single `keySplines` cubic-bezier control-point quad, easing the
 /// progress *within* one keyframe segment (SMIL, borrowed from CSS
 /// `cubic-bezier()` timing functions).
@@ -81,7 +155,7 @@ enum SmilCalcMode {
 /// animation/smil/smil_animation_curves.dart`。用牛顿法反解三次贝塞尔的
 /// X(t) 从而在给定进度处取得 Y，是广为人知的通用技术；这里是同一个自包含
 /// 算法。
-class CubicBezier {
+class CubicBezier implements SmilSegmentEasing {
   /// Creates a cubic-bezier curve from its two control points.
   ///
   /// 用两个控制点创建三次贝塞尔曲线。
@@ -106,6 +180,7 @@ class CubicBezier {
   /// 先牛顿迭代反解 x(s)=t；s 越出 `[0, 1]`、导数过小或步数用尽仍未收敛时，改用
   /// 二分兜底。x1/x2 在 `[0, 1]` 内时与精确解的误差不超过 1e-5。`t <= 0` 返回 0，
   /// `t >= 1` 返回 1；输出的 y 不做钳制，回弹曲线可以越出 `[0, 1]`。
+  @override
   double transform(double t) {
     if (x1 == 0 && y1 == 0 && x2 == 1 && y2 == 1) return t; // linear curve
     if (!(t > 0)) return 0; // 含 NaN，一并归零
@@ -409,6 +484,7 @@ class SmilAnimation implements SmilTimed {
     required this.begin,
     required this.fillFreeze,
     this.repeatCount = SmilRepeatCount.once,
+    this.direction = SmilDirection.normal,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
@@ -467,6 +543,9 @@ class SmilAnimation implements SmilTimed {
   @override
   final SmilRepeatCount repeatCount;
 
+  /// 迭代的播放方向，默认保持既有正向行为。
+  final SmilDirection direction;
+
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
 
@@ -477,15 +556,9 @@ class SmilAnimation implements SmilTimed {
   /// `keyTimes`）；为 null 表示关键帧均匀分布。
   final List<double>? keyTimes;
 
-  /// Per-segment cubic-bezier easing curves (SMIL `keySplines`), one per
-  /// segment (`values.length - 1`); only consulted when [calcMode] is
-  /// [SmilCalcMode.spline]. Null/mismatched-length falls back to linear
-  /// easing within the segment.
-  ///
-  /// 每段的三次贝塞尔缓动曲线（SMIL `keySplines`），共 `values.length - 1`
-  /// 段；仅在 [calcMode] 为 [SmilCalcMode.spline] 时生效。为 null 或长度不
-  /// 匹配时该段回退为线性缓动。
-  final List<CubicBezier>? keySplines;
+  /// 每段的缓动，共 `values.length - 1` 段；仅在 [calcMode] 为
+  /// [SmilCalcMode.spline] 时生效。支持贝塞尔与阶跃，缺失的段线性回退。
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Cached [_pacedKeyTimes] result for [SmilCalcMode.paced], computed once on
   /// first [sample] rather than every frame — it is a pure function of
@@ -512,6 +585,7 @@ class SmilAnimation implements SmilTimed {
       duration: duration,
       repeatCount: repeatCount,
       fillFreeze: fillFreeze,
+      direction: direction,
     );
     if (timing == null) return null;
 
@@ -597,6 +671,8 @@ class SmilTransformAnimation implements SmilTimed {
     required this.begin,
     required this.fillFreeze,
     this.repeatCount = SmilRepeatCount.once,
+    this.direction = SmilDirection.normal,
+    this.replacesStaticTransform = false,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
@@ -648,6 +724,9 @@ class SmilTransformAnimation implements SmilTimed {
   @override
   final SmilRepeatCount repeatCount;
 
+  /// 迭代的播放方向，默认保持既有正向行为。
+  final SmilDirection direction;
+
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
 
@@ -656,12 +735,25 @@ class SmilTransformAnimation implements SmilTimed {
   /// 每个关键帧的自定义时间比例，与 [values] 一一对应。
   final List<double>? keyTimes;
 
-  /// Per-segment cubic-bezier easing curves (SMIL `keySplines`); see
-  /// [SmilAnimation.keySplines].
+  /// 每段的缓动，支持贝塞尔与阶跃；见 [SmilAnimation.keySplines]。
+  final List<SmilSegmentEasing>? keySplines;
+
+  /// 生效期间是否替换元素的静态 transform，供绘制层判定。
+  final bool replacesStaticTransform;
+
+  /// 此刻是否产出变换值；只解析时序，不分配采样列表或执行插值。
   ///
-  /// 每段的三次贝塞尔缓动曲线（SMIL `keySplines`）；见
-  /// [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  /// 例如：`animation.isActiveAt(const Duration(seconds: 1))`。
+  bool isActiveAt(Duration t) =>
+      _resolveTiming(
+        t: t,
+        begin: begin,
+        duration: duration,
+        repeatCount: repeatCount,
+        fillFreeze: fillFreeze,
+        direction: direction,
+      ) !=
+      null;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -684,6 +776,7 @@ class SmilTransformAnimation implements SmilTimed {
       duration: duration,
       repeatCount: repeatCount,
       fillFreeze: fillFreeze,
+      direction: direction,
     );
     if (timing == null) return null;
 
@@ -775,6 +868,8 @@ class SmilMotionAnimation implements SmilTimed {
     this.keyTimes,
     this.keySplines,
     this.calcMode = SmilCalcMode.linear,
+    this.direction = SmilDirection.normal,
+    this.interpolateAngle = false,
   }) : assert(samples.length >= 2, 'a motion path needs at least two samples'),
        assert(
          keyPoints == null || keyPoints.length >= 2,
@@ -806,13 +901,19 @@ class SmilMotionAnimation implements SmilTimed {
   /// Per-segment easing curves for [keyPoints]; see [SmilAnimation.keySplines].
   ///
   /// [keyPoints] 各段的缓动曲线；见 [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Interpolation mode for [keyPoints]; only consulted when [keyPoints] is
   /// set.
   ///
   /// [keyPoints] 的插值模式；仅在设置了 [keyPoints] 时生效。
   final SmilCalcMode calcMode;
+
+  /// 迭代的播放方向，默认保持既有正向行为。
+  final SmilDirection direction;
+
+  /// 是否在相邻采样点之间线性插值角度（含 ±180° 绕回）；默认取段起点角度。
+  final bool interpolateAngle;
 
   @override
   final Duration duration;
@@ -851,6 +952,7 @@ class SmilMotionAnimation implements SmilTimed {
       duration: duration,
       repeatCount: repeatCount,
       fillFreeze: fillFreeze,
+      direction: direction,
     );
     if (timing == null) return null;
 
@@ -898,16 +1000,26 @@ class SmilMotionAnimation implements SmilTimed {
     return SmilMotionSample(
       a.x + (b.x - a.x) * localT,
       a.y + (b.y - a.y) * localT,
-      // The table is dense, so the segment's own angle is used rather than
-      // interpolated — interpolating would need ±180° wrap handling for no
-      // visible gain.
+      // By default the table is dense, so the segment's own angle is used
+      // rather than interpolated; [interpolateAngle] opts into wrap-aware
+      // interpolation for sparse tables.
       //
-      // 采样表足够密，直接取该段自身的角度而不插值——插值需要处理 ±180° 绕回，
-      // 视觉上却没有收益。
-      a.angleDegrees,
+      // 默认采样表足够密，直接取该段自身的角度而不插值；稀疏表可通过
+      // [interpolateAngle] 开启带绕回处理的插值。
+      interpolateAngle
+          ? a.angleDegrees + _wrap180(b.angleDegrees - a.angleDegrees) * localT
+          : a.angleDegrees,
     );
   }
 }
+
+/// 颜色值表示 `none` 的哨兵，位于 `0xAARRGGBB` 值域之外。
+///
+/// 例如：`SmilColorAnimation(values: [0xFFFF0000, kSmilColorNone], ...)`。
+const int kSmilColorNone = -1;
+
+/// 颜色与 `none` 之间离散翻转的缓动后进度阈值。
+const double _colorNoneFlipAt = 0.5;
 
 /// A parsed, self-contained colour `<animate>` timeline (e.g.
 /// `attributeName="stop-color"` on a gradient `<stop>` — see
@@ -942,6 +1054,8 @@ class SmilColorAnimation implements SmilTimed {
     this.keySplines,
     this.elementId,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    this.attributeName = 'stop-color',
+    this.direction = SmilDirection.normal,
   }) : assert(
          values.length >= 2,
          'a colour <animate> needs at least two keyframe values',
@@ -953,8 +1067,16 @@ class SmilColorAnimation implements SmilTimed {
   @override
   final SmilBeginSpec beginSpec;
 
-  /// Keyframe colours packed as `0xAARRGGBB`. / 关键帧颜色，打包为 `0xAARRGGBB`。
+  /// Keyframe colours packed as `0xAARRGGBB`; may hold [kSmilColorNone].
+  ///
+  /// 关键帧颜色，打包为 `0xAARRGGBB`；可含 [kSmilColorNone]。
   final List<int> values;
+
+  /// 被驱动的颜色属性名，例如 `stop-color` 或 `fill`。
+  final String attributeName;
+
+  /// 迭代的播放方向，默认保持既有正向行为。
+  final SmilDirection direction;
 
   @override
   final Duration duration;
@@ -979,7 +1101,7 @@ class SmilColorAnimation implements SmilTimed {
   /// Per-segment easing curves; see [SmilAnimation.keySplines].
   ///
   /// 每段的缓动曲线；见 [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -997,6 +1119,7 @@ class SmilColorAnimation implements SmilTimed {
       duration: duration,
       repeatCount: repeatCount,
       fillFreeze: fillFreeze,
+      direction: direction,
     );
     if (timing == null) return null;
 
@@ -1014,6 +1137,11 @@ class SmilColorAnimation implements SmilTimed {
     final a = values[segment.index];
     final b = values[segment.index + 1];
     final segT = _easedSegmentT(calcMode, keySplines, segment);
+    if (a == kSmilColorNone || b == kSmilColorNone) {
+      if (a == b) return a;
+      // CSS 中颜色与 none 不可插值，缓动后进度 >= 0.5 处离散翻转。
+      return segT >= _colorNoneFlipAt ? b : a;
+    }
     int lerpChannel(int shift) {
       final ca = (a >> shift) & 0xFF;
       final cb = (b >> shift) & 0xFF;
@@ -1024,6 +1152,130 @@ class SmilColorAnimation implements SmilTimed {
         (lerpChannel(16) << 16) |
         (lerpChannel(8) << 8) |
         lerpChannel(0);
+  }
+}
+
+/// `stroke-dasharray` 这类数值列表属性的时间线：每个关键帧一个等长列表，
+/// 逐项插值。
+///
+/// 调用方保证所有关键帧长度相同（短列表需事先按公共长度补齐）。时序、
+/// `keyTimes`、`keySplines`、`direction` 与 [SmilAnimation] 语义一致；
+/// `calcMode` 支持 `linear`/`spline`/`discrete`，`paced` 对列表没有定义，
+/// 按 `linear` 处理。
+///
+/// 例如：
+/// ```dart
+/// final a = SmilListAnimation(
+///   attributeName: 'stroke-dasharray',
+///   values: [[10, 20], [20, 40]],
+///   duration: const Duration(seconds: 1),
+///   begin: Duration.zero,
+///   fillFreeze: true,
+/// );
+/// a.sample(const Duration(milliseconds: 500)); // [15, 30]
+/// ```
+class SmilListAnimation implements SmilTimed {
+  /// 创建列表时间线；[values] 至少两帧且各帧等长。
+  SmilListAnimation({
+    required this.attributeName,
+    required this.values,
+    required this.duration,
+    required this.begin,
+    required this.fillFreeze,
+    this.repeatCount = SmilRepeatCount.once,
+    this.direction = SmilDirection.normal,
+    this.calcMode = SmilCalcMode.linear,
+    this.keyTimes,
+    this.keySplines,
+    this.elementId,
+    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+  }) : assert(
+         values.length >= 2,
+         'a list <animate> needs at least two keyframe values',
+       ),
+       assert(
+         values.every((v) => v.length == values.first.length),
+         'all keyframe lists must have the same length',
+       );
+
+  @override
+  final String? elementId;
+
+  @override
+  final SmilBeginSpec beginSpec;
+
+  /// 被驱动的属性名，例如 `stroke-dasharray`。
+  final String attributeName;
+
+  /// 各关键帧的列表值，长度相同。
+  final List<List<double>> values;
+
+  @override
+  final Duration duration;
+
+  @override
+  Duration begin;
+
+  /// 结束后是否定格末值（`fill="freeze"`）。
+  final bool fillFreeze;
+
+  @override
+  final SmilRepeatCount repeatCount;
+
+  /// 迭代的播放方向，默认正向。
+  final SmilDirection direction;
+
+  /// 插值模式；`paced` 按 `linear` 处理。
+  final SmilCalcMode calcMode;
+
+  /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
+  final List<double>? keyTimes;
+
+  /// 每段的缓动，支持贝塞尔与阶跃；见 [SmilAnimation.keySplines]。
+  final List<SmilSegmentEasing>? keySplines;
+
+  /// 每个关键帧列表的长度。
+  int get width => values.first.length;
+
+  /// 此刻是否产出列表值；只解析时序，不分配采样列表。
+  bool isActiveAt(Duration t) =>
+      _resolveTiming(
+        t: t,
+        begin: begin,
+        duration: duration,
+        repeatCount: repeatCount,
+        fillFreeze: fillFreeze,
+        direction: direction,
+      ) !=
+      null;
+
+  /// 在全局时刻 [t] 采样；未开始或已结束且不定格时返回 null。
+  ///
+  /// 返回的列表每次都是新实例，调用方可自由持有。
+  List<double>? sample(Duration t) {
+    final timing = _resolveTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+      direction: direction,
+    );
+    if (timing == null) return null;
+
+    final segment = _locateSegment(
+      timing.progress,
+      values.length - 1,
+      keyTimes,
+    );
+    if (calcMode == SmilCalcMode.discrete) {
+      return List<double>.of(values[segment.index]);
+    }
+
+    final a = values[segment.index];
+    final b = values[segment.index + 1];
+    final segT = _easedSegmentT(calcMode, keySplines, segment);
+    return [for (var i = 0; i < a.length; i++) a[i] + (b[i] - a[i]) * segT];
   }
 }
 
@@ -1089,6 +1341,7 @@ class SmilPathAnimation implements SmilTimed {
     this.keySplines,
     this.elementId,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    this.direction = SmilDirection.normal,
   }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),
        assert(
          morph == null || morph.frames.length == frames.length,
@@ -1122,11 +1375,14 @@ class SmilPathAnimation implements SmilTimed {
   /// 插值模式；`paced` 按 `linear` 处理。
   final SmilCalcMode calcMode;
 
+  /// 迭代的播放方向，默认保持既有正向行为。
+  final SmilDirection direction;
+
   /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
   final List<double>? keyTimes;
 
   /// 每段缓动曲线；见 [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  final List<SmilSegmentEasing>? keySplines;
 
   /// 当前是否会插值（有数值数据且不是 discrete）。
   bool get interpolates => morph != null && calcMode != SmilCalcMode.discrete;
@@ -1140,6 +1396,7 @@ class SmilPathAnimation implements SmilTimed {
       duration: duration,
       repeatCount: repeatCount,
       fillFreeze: fillFreeze,
+      direction: direction,
     );
     if (timing == null) return null;
 
@@ -1174,6 +1431,9 @@ int _discreteIndex(double progress, int count, List<double>? keyTimes) {
   final index = (progress * count).floor();
   return index >= count ? count - 1 : index;
 }
+
+/// 把角度差折回 `[-180, 180)`，使插值走短弧；例如 `_wrap180(358)` 得 `-2`。
+double _wrap180(double d) => (d + 180) % 360 - 180;
 
 double _argbDistance(int a, int b) {
   var sumSquares = 0.0;
@@ -1216,7 +1476,38 @@ class _Timing {
 /// 根据动画的 `begin`/`duration`/`repeatCount`/`fill`，为全局时刻 [t] 计算
 /// [_Timing]——两个动画类共用，确保循环与定格语义在数值动画与变换动画间保持
 /// 一致。
+@pragma('vm:prefer-inline')
 _Timing? _resolveTiming({
+  required Duration t,
+  required Duration begin,
+  required Duration duration,
+  required SmilRepeatCount repeatCount,
+  required bool fillFreeze,
+  SmilDirection direction = SmilDirection.normal,
+}) {
+  if (direction == SmilDirection.normal) {
+    return _resolveNormalTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+    );
+  }
+  final local = t - begin;
+  if (local.isNegative) return null;
+  return _resolveDirectedTiming(
+    local: local,
+    duration: duration,
+    repeatCount: repeatCount,
+    fillFreeze: fillFreeze,
+    direction: direction,
+  );
+}
+
+/// 正向播放沿用原始时序运算，避免方向逻辑扩大默认采样路径。
+@pragma('vm:prefer-inline')
+_Timing? _resolveNormalTiming({
   required Duration t,
   required Duration begin,
   required Duration duration,
@@ -1243,6 +1534,48 @@ _Timing? _resolveTiming({
   }
   return _Timing((localMicros % durationMicros) / durationMicros);
 }
+
+/// 非默认方向的时序求值，独立保留以缩小正向采样的热路径。
+@pragma('vm:never-inline')
+_Timing? _resolveDirectedTiming({
+  required Duration local,
+  required Duration duration,
+  required SmilRepeatCount repeatCount,
+  required bool fillFreeze,
+  required SmilDirection direction,
+}) {
+  final durationMicros = duration.inMicroseconds;
+  if (durationMicros == 0) return _Timing(_directed(direction, 0, 1));
+  final localMicros = local.inMicroseconds;
+  if (!repeatCount.indefinite &&
+      localMicros >= (durationMicros * repeatCount.count).round()) {
+    if (!fillFreeze) return null;
+    final wholeIterations = repeatCount.count.floor();
+    final fractional = repeatCount.count - wholeIterations;
+    return _Timing(
+      fractional == 0
+          ? _directed(direction, wholeIterations - 1, 1)
+          : _directed(direction, wholeIterations, fractional),
+    );
+  }
+  return _Timing(
+    _directed(
+      direction,
+      localMicros ~/ durationMicros,
+      (localMicros % durationMicros) / durationMicros,
+    ),
+  );
+}
+
+/// 按零基迭代序号反转整体进度，段缓动保持原样。
+double _directed(SmilDirection direction, int iteration, double progress) =>
+    switch (direction) {
+      SmilDirection.normal => progress,
+      SmilDirection.reverse => 1 - progress,
+      SmilDirection.alternate => iteration.isOdd ? 1 - progress : progress,
+      SmilDirection.alternateReverse =>
+        iteration.isEven ? 1 - progress : progress,
+    };
 
 /// A located keyframe segment: interpolate between `values[index]` and
 /// `values[index + 1]` at local fraction `t`.
@@ -1290,7 +1623,7 @@ _Segment _locateSegment(double progress, int segments, List<double>? keyTimes) {
 /// 对其局部比例应用 `keySplines` 缓动；否则原样返回（区间内线性）。
 double _easedSegmentT(
   SmilCalcMode calcMode,
-  List<CubicBezier>? keySplines,
+  List<SmilSegmentEasing>? keySplines,
   _Segment segment,
 ) {
   if (calcMode != SmilCalcMode.spline ||

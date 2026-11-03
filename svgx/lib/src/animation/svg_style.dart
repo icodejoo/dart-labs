@@ -28,6 +28,7 @@ class ResolvedStyle {
     required this.opacity,
     this.fillOpacity = 1,
     this.strokeOpacity = 1,
+    this.fillRule = PathFillType.nonZero,
     this.fillGradientId,
     this.strokeGradientId,
   });
@@ -89,6 +90,9 @@ class ResolvedStyle {
   /// `stroke-opacity`：描边的不透明度，范围 `[0, 1]`，继承；见 [fillOpacity]。
   final double strokeOpacity;
 
+  /// `fill-rule`：填充的环绕规则，继承；默认 [PathFillType.nonZero]。描边不受影响。
+  final PathFillType fillRule;
+
   /// 填充的最终 alpha 系数：[fillOpacity] × [opacity]，再乘上颜色自身的 alpha。
   double get fillAlpha => opacity * fillOpacity;
 
@@ -147,8 +151,32 @@ class ResolvedStyle {
         attributes['stroke-opacity'],
         strokeOpacity,
       ),
+      fillRule: parseSvgFillRule(attributes[kFillRuleAttribute], fillRule),
     );
   }
+}
+
+/// `fill-rule` 属性名。
+const String kFillRuleAttribute = 'fill-rule';
+
+/// `clip-rule` 属性名。
+const String kClipRuleAttribute = 'clip-rule';
+
+/// 解析 `fill-rule`/`clip-rule` 取值（`nonzero`/`evenodd`，大小写不敏感、忽略首尾
+/// 空白）；缺失或非法时返回继承来的 [inherited]。
+///
+/// [raw] 属性原始值，可为 null。[inherited] 继承值。返回对应的 [PathFillType]。
+///
+/// ```dart
+/// parseSvgFillRule(' EvenOdd ', PathFillType.nonZero); // PathFillType.evenOdd
+/// ```
+PathFillType parseSvgFillRule(String? raw, PathFillType inherited) {
+  if (raw == null) return inherited;
+  return switch (raw.trim().toLowerCase()) {
+    'evenodd' => PathFillType.evenOdd,
+    'nonzero' => PathFillType.nonZero,
+    _ => inherited,
+  };
 }
 
 /// 解析 `opacity`/`fill-opacity`/`stroke-opacity` 取值并钳制到 `[0, 1]`；缺失或无法解析
