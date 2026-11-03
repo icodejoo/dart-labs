@@ -578,6 +578,24 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | B15 | `perf(mova): 位置标签按秒重建、MovaPlayer 缓存组件树、镜像事件去重、dispose 同步取消 UI 计时器` | 行为 | `bottom_bar.dart`、`ui/player.dart`、`engine.dart`（setter 去重、dispose 前缀） | 100–200 | B03 | +6；可能改写 1–3 条"传同值也发事件"的断言 | |
 | B16 | `feat(mova): 桌面与无障碍：按钮可聚焦带语义，悬停唤出控制条，快捷键（默认关）` | 新增/行为 | `ui/components/common.dart`、`ui/player.dart`、`MovaCtrlsConfig.shortcuts` | 300–500 | B14 | +10 | 可聚焦与语义属修缺陷默认开；快捷键是新能力默认关 |
 
+#### B 块第四批落地记录（2026-11-03）
+
+本批仅 B13 → B14 → B15 → B16，B03 依赖已满足。每个提交前执行 `flutter analyze lib test`（0 issues）和全量 `flutter test`；基线 1837。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| B13 | 1841 | +4 | 无 |
+| B14 | 1849 | +8 | 无效 patch 路径改为 debug 断言；默认树快照加入 lockToggle（同时更新 Bilibili 增量基准）；mini 时页面锁定入口隐藏 |
+| B15 | 1855 | +6 | 5 处事件断言：rate 1 处，volume/brightness 各 2 处（存在同名重复测试）；未变化的钳制值不再重复通知 |
+| B16 | 1865 | +10 | 无 |
+
+与原计划的差异：
+- B14 的手势轴向、`trackCount`/`maxZoom` 构造断言及对应测试已在代码中实现，本批保留；修正文档并补充灵敏度、patch、锁定显隐和弹层回归。
+- B15 改写现有断言 5 处，超过预估 1–3 处，原因是音量和亮度用例各有重复一份；保留内核和端口实际写入检查。
+- B16 除主要文件外，中央播放按钮和小窗关闭按钮补齐语义/提示；持久小窗位于 Overlay 之上时不创建 Tooltip 浮层，保留语义。快捷键默认 false。
+- 生产变化同步记入 CHANGELOG，README 修正 B14 顶栏追加示例并说明 B16 操作；新增回归测试文件。按用户明确要求不修改 CLAUDE.md、不 push、不转派。
+- 本记录仅覆盖四个代码提交及自动化验证，不代表真机检查点或后续 A/C 块已完成。
+
 #### 轨道 A1 块（引擎与切换层）
 
 | # | 提交 | 类型 | 主要文件 | 规模 | 依赖 | 测试 | 完成判据 |

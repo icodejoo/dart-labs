@@ -70,16 +70,29 @@ class MovaPlayPauseComponent extends MovaComponent {
     return MovaSelect<bool>(
       selector: (s) => s.playing,
       builder: (context, playing) {
-        return Material(
-          type: MaterialType.circle,
-          color: Colors.transparent,
-          child: InkResponse(
-            radius: 36,
-            onTap: () => api.playOrPause(),
-            child: Icon(
-              playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
-              size: theme.centerIconSize,
-              color: Color(theme.iconColor),
+        return Semantics(
+          button: true,
+          label: playing ? '暂停' : '播放',
+          child: Tooltip(
+            // 持久小窗位于 Overlay 外时只保留按钮语义。
+            message: Overlay.maybeOf(context) == null
+                ? ''
+                : (playing ? '暂停' : '播放'),
+            excludeFromSemantics: true,
+            child: Material(
+              type: MaterialType.circle,
+              color: Colors.transparent,
+              child: InkResponse(
+                radius: 36,
+                onTap: () => api.playOrPause(),
+                child: Icon(
+                  playing
+                      ? Icons.pause_circle_filled_rounded
+                      : Icons.play_circle_filled_rounded,
+                  size: theme.centerIconSize,
+                  color: Color(theme.iconColor),
+                ),
+              ),
             ),
           ),
         );

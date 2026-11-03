@@ -691,6 +691,11 @@ pip/锁定时整层隐藏）+**常驻层**（状态层、锁定遮罩与可 patc
 组件树是静态的（`components()` 不吃状态），显隐由组件各自的 `MovaSelect` 响应式决定。
 插槽词表：`top`/`center`/`bottom`/`bottomAbove`/`overlay`/`left`/`right`/`gesture`/`hud`。
 
+按钮默认支持 Tab 聚焦、Enter/空格激活、无障碍语义和悬停提示。鼠标在播放器上移动会唤出控制条。
+播放器快捷键默认关闭；通过 `MovaOpts(controls: MovaCtrlsConfig(shortcuts: true))` 启用后，
+点击画面或 Tab 聚焦播放器，可用空格播放/暂停、左右键跳转十秒、上下键调整音量、F 切换全屏、Esc 退出全屏。
+快捷键仅作用于当前聚焦视图，不接管文本输入、锁定或 PiP/mini 状态。
+
 打补丁或整体实现 `MovaSkin`：
 
 ```dart

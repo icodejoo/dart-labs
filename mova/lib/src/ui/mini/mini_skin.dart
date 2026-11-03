@@ -40,10 +40,10 @@ class MovaMiniSkin implements MovaSkin {
 
   @override
   List<MovaComponent> components() => [
-        MovaCenterPlayComponent(),
-        MovaBufferingComponent(),
-        MovaMiniCloseComponent(onClose: onClose),
-      ];
+    MovaCenterPlayComponent(),
+    MovaBufferingComponent(),
+    MovaMiniCloseComponent(onClose: onClose),
+  ];
 
   @override
   Widget assemble(BuildContext context, MovaSlotBundle slots, Widget video) {
@@ -96,7 +96,13 @@ class MovaMiniCloseComponent extends MovaComponent {
         // 其外观本身并不随状态变化。
         selector: (s) => s.mini,
         builder: (context, _) => IconButton(
-          icon: const Icon(Icons.close, color: Colors.white, size: 18),
+          tooltip: Overlay.maybeOf(context) == null ? null : '关闭小窗',
+          icon: Icon(
+            Icons.close,
+            color: Colors.white,
+            size: 18,
+            semanticLabel: Overlay.maybeOf(context) == null ? '关闭小窗' : null,
+          ),
           onPressed: onClose,
           padding: const EdgeInsets.all(4),
           constraints: const BoxConstraints(),
