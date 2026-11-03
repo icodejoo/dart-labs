@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
+import '../support/auth_test_helpers.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
 import '../support/invariant_harness.dart';

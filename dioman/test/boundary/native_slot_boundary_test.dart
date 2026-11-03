@@ -2,7 +2,7 @@ import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
 import '../support/helpers.dart';
-import '../support/b3_helpers.dart' show b3Turn;
+import '../support/auth_test_helpers.dart' show b3Turn;
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/invariant_harness.dart';

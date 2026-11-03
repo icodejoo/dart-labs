@@ -10,21 +10,21 @@ DEST = ROOT / 'docs/reports/pipeline-b8-evidence'
 CASES = [
     ('1-share-withdrawal', 'plugins/share', 'entry.candidates.remove(sequence);',
      'entry.candidates[sequence] = ctx.fail(const DiomanFailure(kind: DiomanKind.cancel));',
-     'test/combo/b8_share_withdrawal_test.dart', 'DiomanSharePolicy.end latest timeout=false'),
+     'test/combo/share_withdrawal_combo_test.dart', 'DiomanSharePolicy.end latest timeout=false'),
     ('2-byte-key', 'key', '[data.length, hash, base64Encode(data)]', '[data.length]',
-     'test/unit/b8_core_test.dart', 'B8 安全内容键'),
+     'test/unit/key_types_test.dart', 'B8 安全内容键'),
     ('3-auth-session', 'plugins/auth',
      'if (_tokens.accessToken != snapshot) return true;',
      'if (_tokens.accessToken != snapshot) return false;',
-     'test/rule/b8_regression_test.dart', 'B8 刷新异常遇到新登录'),
+     'test/boundary/auth_refresh_boundary_test.dart', 'B8 刷新异常遇到新登录'),
     ('4-retry-after-limit', 'plugins/retry',
      'this.retryAfterMax = const Duration(seconds: 60)',
      'this.retryAfterMax = const Duration(seconds: 59)',
-     'test/rule/b8_regression_test.dart', 'B8 服务端等待超限'),
+     'test/boundary/retry_after_boundary_test.dart', 'B8 服务端等待超限'),
     ('5-cache-cancel', 'plugins/cache', 'return ctx.cancelled() ?? result;',
-     'return result;', 'test/rule/b8_regression_test.dart', 'B8 命中返回边界'),
+     'return result;', 'test/boundary/cache_clone_cancel_boundary_test.dart', 'B8 命中返回边界'),
     ('6-one-shot', 'plugins/retry', 'if (!ctx.canReplay()) return r;', '',
-     'test/rule/b8_regression_test.dart', 'B8 一次性体 retry'),
+     'test/rule/transport_replay_rule_test.dart', 'B8 一次性体 retry'),
 ]
 
 

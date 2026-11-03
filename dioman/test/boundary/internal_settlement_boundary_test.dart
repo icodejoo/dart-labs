@@ -1,5 +1,5 @@
 import '../support/response_contract.dart';
-import '../support/b2_constants.dart';
+import '../support/request_constants.dart';
 import 'package:test/test.dart';
 import '../support/helpers.dart';
 

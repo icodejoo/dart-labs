@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
+import '../support/helpers.dart';
+
+const _path = '/b8';
+
 
 /// 工厂规则表和扩展点的纯单元验证。
 void main() {
@@ -238,6 +242,18 @@ void main() {
     expect(copy.copy<Object?>().callSite, same(site));
     expect(r.callSite, isNull);
     expect(copy.data, same(cycle));
+  });
+
+  test('[DiomanResponseFactory.normalize] B8 Dio 解码 FormatException 保留 HTTP 状态',
+      () {
+    final request = RequestOptions(path: _path);
+    final r = DiomanResponseFactory<Result>().normalize(DiomanRequest(request),
+        error: DioException(
+            requestOptions: request,
+            error: const FormatException(),
+            response:
+                Response<dynamic>(requestOptions: request, statusCode: 502)));
+    expect([outcomeOf(r), r.status, r.status], [diomanTestParse, 502, 502]);
   });
 }
 

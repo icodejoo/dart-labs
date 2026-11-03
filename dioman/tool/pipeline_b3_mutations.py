@@ -10,9 +10,9 @@ DEST = ROOT / 'docs/reports/pipeline-b3-evidence'
 CASES = [
     ('final-auth-ready-exhausted', 'auth', 'if (current == token) break;', "if (current == token) break;\n        if (i == DiomanAuth.readyStableAttempts - 1) throw StateError('unstable');", 'test/boundary/auth_boundary_test.dart', '三次都不稳定以最后快照发出'),
     ('final-breaker-retryable-at', 'breaker', 'return b.openedAt!.add(b.resetDuration);', 'return b.openedAt!.add(config.resetDuration);', 'test/boundary/breaker_boundary_test.dart', '保存开启时请求冷却'),
-    ('migration-auth-force-protection', 'auth', '(o.enabled != true && o.isProtected?.call(ctx.request) == false)', 'o.isProtected?.call(ctx.request) == false', 'test/boundary/b3_options_boundary_test.dart', 'true 强制保护优先'),
-    ('retry-replayable', 'retry', 'ctx.markReplayable();', '', 'test/combo/b3_combo_test.dart', 'Transformer 原地修改'),
-    ('auth-replayable', 'auth', 'ctx.markReplayable();', '', 'test/combo/b3_combo_test.dart', 'Transformer 原地修改'),
+    ('migration-auth-force-protection', 'auth', '(o.enabled != true && o.isProtected?.call(ctx.request) == false)', 'o.isProtected?.call(ctx.request) == false', 'test/boundary/auth_options_boundary_test.dart', 'true 强制保护优先'),
+    ('retry-replayable', 'retry', 'ctx.markReplayable();', '', 'test/combo/auth_retry_replay_combo_test.dart', 'Transformer 原地修改'),
+    ('auth-replayable', 'auth', 'ctx.markReplayable();', '', 'test/combo/auth_retry_replay_combo_test.dart', 'Transformer 原地修改'),
     ('auth-recheck-credentials', 'auth', 'if (!_hasToken) {', 'if (!_hasToken && !replayed) {', 'test/boundary/auth_boundary_test.dart', '刷新成功后登出'),
     ('auth-ready-snapshot', 'auth', 'if (current == token) break;', 'if (true) break;', 'test/boundary/auth_boundary_test.dart', 'ready 期间换 token'),
     ('auth-cancel-after-failure', 'auth', 'if (cancelledAfterFailure != null) return cancelledAfterFailure;', '', 'test/boundary/auth_boundary_test.dart', 'ready 与 onFailure 异步返回后'),
@@ -28,13 +28,13 @@ CASES = [
     ('retry-max-boundary', 'retry', 'attempt <= o.max!', 'attempt < o.max!', 'test/rule/retry_rule_test.dart', 'HTTP 与 business 逻辑状态全表'),
     ('retry-method-veto', 'retry', '.contains(ctx.request.method.toUpperCase())', '.contains("GET")', 'test/rule/retry_rule_test.dart', '成功也交判定'),
     ('auth-stale-session', 'auth', 'if (_hasToken && current != session) return;', '', 'test/boundary/auth_boundary_test.dart', '旧请求的 expired'),
-    ('auth-expiry-dedup', 'auth', 'if (!_hasToken && session == _expiredSession) return;', '', 'test/boundary/b3_await_boundary_test.dart', '同会话多个在途'),
+    ('auth-expiry-dedup', 'auth', 'if (!_hasToken && session == _expiredSession) return;', '', 'test/boundary/auth_callback_cancel_boundary_test.dart', '同会话多个在途'),
     ('breaker-generation', 'breaker', 'if (generation != b.generation)', 'if (false)', 'test/boundary/breaker_boundary_test.dart', '真实取消探测释放槽位'),
     ('review-ready-wait', 'auth', '''await ctx.wait(Future<RequestPatch>.sync(
-                () => o.ready!(_tokens, ctx.request)))''', 'await o.ready!(_tokens, ctx.request)', 'test/boundary/b3_await_boundary_test.dart', '取消未完成的 ready'),
+                () => o.ready!(_tokens, ctx.request)))''', 'await o.ready!(_tokens, ctx.request)', 'test/boundary/auth_callback_cancel_boundary_test.dart', '取消未完成的 ready'),
     ('review-failure-wait', 'auth', '''await ctx.wait(Future<DiomanAuthFailureAction>.sync(
-              () => o.onFailure!(r, _tokens)))''', 'await o.onFailure!(r, _tokens)', 'test/boundary/b3_await_boundary_test.dart', '取消未完成的 ready'),
-    ('review-notice-wait', 'auth', 'await ctx.wait(_notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r));', 'await _notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r);', 'test/boundary/b3_await_boundary_test.dart', '取消未完成的 ready'),
+              () => o.onFailure!(r, _tokens)))''', 'await o.onFailure!(r, _tokens)', 'test/boundary/auth_callback_cancel_boundary_test.dart', '取消未完成的 ready'),
+    ('review-notice-wait', 'auth', 'await ctx.wait(_notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r));', 'await _notice(ctx, o.onAccessDenied ?? o.onAccessExpired!, r);', 'test/boundary/auth_callback_cancel_boundary_test.dart', '取消未完成的 ready'),
 ]
 
 

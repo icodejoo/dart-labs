@@ -2635,7 +2635,8 @@
     "blocked": null,
     "note": "lib/src/replay_support.dart:runDownstream/finishRecovered：先调用宿主中恢复者之前的 DiomanCache，再调用恢复者之后的响应拦截器；普通 reject 终止，reject(true)/抛错走后续错误链；先交认领再处理下游，share 用处理前快照。QueuedInterceptor 的串行队列会被绕过。",
     "unit": [
-      "test/combo/b3_outer_combo_test.dart"
+      "test/combo/loading_notify_retry_combo_test.dart",
+      "test/combo/auth_loading_notify_combo_test.dart"
     ]
   },
   {
@@ -2650,7 +2651,11 @@
     "blocked": null,
     "note": "lib/src/request_claims.dart；share 依据认领延后结算，cancel 延后注销；公开/短路请求未认领时当场结算；end/race 落败者等待胜出结果，joined 请求不得再次自行恢复。",
     "unit": [
-      "test/combo/b3_combo_test.dart"
+      "test/combo/breaker_retry_combo_test.dart",
+      "test/combo/auth_retry_combo_test.dart",
+      "test/combo/auth_loading_notify_combo_test.dart",
+      "test/combo/auth_retry_replay_combo_test.dart",
+      "test/boundary/retry_cancel_boundary_test.dart"
     ]
   },
   {
@@ -2722,7 +2727,10 @@
     "blocked": null,
     "note": "lib/src/replay_support.dart:fetch；auth/retry/share 借宿主 adapter/transformer，未绑定用兜底裸 Dio；FormData 克隆、Stream 拒绝重放；状态机是 tier 1，传输消费及连接复用另拆 H2/H4。",
     "unit": [
-      "test/integration/b3_transport_integration_test.dart"
+      "test/integration/auth_session_integration_test.dart",
+      "test/integration/auth_retry_transport_integration_test.dart",
+      "test/integration/retry_after_integration_test.dart",
+      "test/integration/breaker_lifecycle_integration_test.dart"
     ]
   },
   {
@@ -3166,7 +3174,10 @@
     "tier": 1,
     "apis": [],
     "unit": [
-      "test/boundary/b4_final_review_boundary_test.dart",
+      "test/boundary/share_timeout_boundary_test.dart",
+      "test/boundary/offline_online_boundary_test.dart",
+      "test/boundary/share_withdrawal_boundary_test.dart",
+      "test/boundary/cache_clone_boundary_test.dart",
       "test/integration/source_transport_integration_test.dart",
       "test/rule/client_rule_test.dart",
       "test/rule/retry_rule_test.dart",

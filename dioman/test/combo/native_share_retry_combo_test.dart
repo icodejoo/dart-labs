@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 import '../support/helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
-import '../support/b3_helpers.dart' show b3Turn;
+import '../support/auth_test_helpers.dart' show b3Turn;
 import '../support/invariant_harness.dart';
 
 /// 共享用例的路径、方法和退避头。

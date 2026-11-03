@@ -3,12 +3,13 @@ import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
 
-/// 终审累计超时与在线判定回归。
+
+/// 验证对应主题的行为与边界。
 void main() {
   test('[DiomanShare.option] 连接五秒接收三十秒的跟随者在传输十秒完成时成功', () async {
     final clock = FakeClock();
@@ -121,106 +122,6 @@ void main() {
       expect((await leader).ok, isTrue);
       expect(clock.pendingTimers, 0);
       expect(api.cancellationSubscriptions, 0);
-      api.dispose();
-    }
-  });
-  test(
-      '[DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)][DiomanOfflineApi.pending]'
-      '[DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调', () async {
-    final stream = StreamController<bool>.broadcast(sync: true);
-    addTearDown(stream.close);
-    final net = FakeNetwork();
-    var checks = 0;
-    final api = testClient(network: net, plugins: [
-      DiomanOffline<Result>(
-          isOnline: () => true,
-          onConnectivityChanged: stream.stream,
-          shouldQueue: (_) {
-            checks++;
-            throw StateError(b4LiteralEmpty);
-          })
-    ]);
-    expect((await api.send<Object?>(b4Get, b4Path)).ok, isTrue);
-    expect(checks, 0);
-    expect(net.sends.length, 1);
-    expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
-    expect(api.cancellationSubscriptions, 0);
-    api.dispose();
-  });
-  test(
-      '[INV-context-lifecycle]'
-      '[DiomanShare.policy × Dioman.cancelAll] 胜出后落败传输随订阅退出取消，之后取消或销毁幂等',
-      () async {
-    for (final policy in [DiomanSharePolicy.end, DiomanSharePolicy.race]) {
-      for (final dispose in [false, true]) {
-        final gate = Completer<void>();
-        final net = FakeNetwork()
-          ..routes[b4Route] = [FakeReply(gate: gate.future), const FakeReply()];
-        final api =
-            testClient(network: net, plugins: [const DiomanShare<Result>()]);
-        final loser =
-            api.send<Object?>(b4Get, b4Path, call: b4Call(share: policy));
-        await b4Turn();
-        final winner =
-            api.send<Object?>(b4Get, b4Path, call: b4Call(share: policy));
-        expect((await loser).ok, isTrue);
-        expect((await winner).ok, isTrue);
-        expect(api.pending, 0);
-        expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
-        final token = net.sends.first.options.cancelToken!;
-        expect(token.isCancelled, isTrue);
-        await b4Turn();
-        if (dispose) {
-          api.dispose();
-        } else {
-          expect(api.cancelAll(), 0);
-        }
-        expect(token.isCancelled, isTrue);
-        gate.complete();
-        await b4Turn();
-        expect(api.cancelAll(), 0);
-        expect(api.cancellationSubscriptions, 0);
-        api.dispose();
-      }
-    }
-  });
-  test(
-      '[DiomanResponseFactory.derive]'
-      '[DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据', () async {
-    for (final policy in DiomanCachePolicy.values) {
-      final body = <int, dynamic>{
-        1: <int>[2]
-      };
-      final api = testClient(plugins: [
-        DiomanCache<Result>(
-            persist: B4Persist(),
-            cachePolicy: policy,
-            shouldStore: (_) => true,
-            clone: DiomanClonePolicy.deep),
-        TestPlugin(b4LiteralSource,
-            stage: DiomanStage.source,
-            handler: (ctx, next) async => scriptedResult(ctx, diomanTestBiz,
-                status: 409, reason: b4LiteralSource, data: body))
-      ]);
-      final first =
-          await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
-      body[1][0] = 9;
-      (first.data as Map)[1][0] = 7;
-      final hit =
-          await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
-      expect(hit.data, {
-        1: [2]
-      });
-      expect([hit.ok, outcomeOf(hit), hit.status, failureOf(hit)?.reason],
-          [false, diomanTestBiz, 200, null]);
-      (hit.data as Map)[1][0] = 8;
-      expect(
-          (await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true)))
-              .data,
-          {
-            1: [2]
-          });
-      expect(api.plugin<DiomanCacheApi>()!.pendingWrites, 0);
       api.dispose();
     }
   });

@@ -1,0 +1,104 @@
+ M test/accept/lib/matrix.json
+ M test/boundary/auth_boundary_test.dart
+ M test/boundary/auth_lifecycle_boundary_test.dart
+ D test/boundary/b3_await_boundary_test.dart
+ D test/boundary/b3_options_boundary_test.dart
+ D test/boundary/b4_final_review_boundary_test.dart
+ M test/boundary/breaker_boundary_test.dart
+ M test/boundary/cache_persist_boundary_test.dart
+ M test/boundary/envs_boundary_test.dart
+ M test/boundary/internal_settlement_boundary_test.dart
+ M test/boundary/mock_cancel_boundary_test.dart
+ M test/boundary/native_slot_boundary_test.dart
+ M test/boundary/response_cache_contract_boundary_test.dart
+ M test/boundary/retry_boundary_test.dart
+ M test/boundary/retry_options_boundary_test.dart
+ M test/boundary/share_replay_boundary_test.dart
+ M test/boundary/source_boundary_test.dart
+ M test/boundary/source_lifecycle_boundary_test.dart
+ M test/boundary/source_options_boundary_test.dart
+ M test/boundary/source_review_boundary_test.dart
+ M test/boundary/stateless_outer_boundary_test.dart
+ M test/boundary/stateless_prepare_boundary_test.dart
+ M test/combo/auth_session_combo_test.dart
+ D test/combo/b3_combo_test.dart
+ D test/combo/b3_outer_combo_test.dart
+ D test/combo/b4_auth_migration_combo_test.dart
+ D test/combo/b4_retry_migration_combo_test.dart
+ D test/combo/b8_share_withdrawal_test.dart
+ M test/combo/native_share_retry_combo_test.dart
+ M test/combo/powerset_combo_test.dart
+ M test/combo/prepare_pairs_combo_test.dart
+ M test/combo/source_combo_test.dart
+ M test/combo/source_migration_combo_test.dart
+ M test/combo/stateless_combo_test.dart
+ D test/integration/b3_transport_integration_test.dart
+ D test/integration/b8_decode_integration_test.dart
+ M test/integration/source_transport_integration_test.dart
+ M test/integration/timeout_effective_integration_test.dart
+ M test/rule/auth_rule_test.dart
+ D test/rule/b8_regression_test.dart
+ M test/rule/breaker_rule_test.dart
+ M test/rule/cache_snapshot_rule_test.dart
+ M test/rule/cache_veto_rule_test.dart
+ M test/rule/envs_rule_test.dart
+ M test/rule/response_contract_rule_test.dart
+ M test/rule/retry_rule_test.dart
+ M test/rule/source_rule_test.dart
+ M test/rule/stateless_outer_rule_test.dart
+ M test/rule/stateless_prepare_rule_test.dart
+ D test/support/b2_constants.dart
+ D test/support/b3_helpers.dart
+ D test/support/b4_constants.dart
+ D test/support/b4_helpers.dart
+ D test/support/b4_migration_scenarios.dart
+ D test/support/b4_retry_migration_scenarios.dart
+ D test/support/b5_powerset.dart
+ D test/unit/b8_core_test.dart
+ M test/unit/context_test.dart
+ M test/unit/fixtures_test.dart
+ M test/unit/key_types_test.dart
+ M test/unit/request_options_test.dart
+ M test/unit/response_test.dart
+ M tool/pipeline_b3_mutations.py
+ M tool/pipeline_b4_mutations.py
+ M tool/pipeline_b8_mutations.py
+?? docs/reports/2026-11-03-round2-r6a.md
+?? docs/reports/round2-r6a-evidence/
+?? test/boundary/auth_callback_cancel_boundary_test.dart
+?? test/boundary/auth_options_boundary_test.dart
+?? test/boundary/auth_refresh_boundary_test.dart
+?? test/boundary/breaker_bucket_boundary_test.dart
+?? test/boundary/cache_clone_boundary_test.dart
+?? test/boundary/cache_clone_cancel_boundary_test.dart
+?? test/boundary/offline_online_boundary_test.dart
+?? test/boundary/retry_after_boundary_test.dart
+?? test/boundary/retry_cancel_boundary_test.dart
+?? test/boundary/share_timeout_boundary_test.dart
+?? test/boundary/share_withdrawal_boundary_test.dart
+?? test/combo/auth_loading_notify_combo_test.dart
+?? test/combo/auth_retry_combo_test.dart
+?? test/combo/auth_retry_replay_combo_test.dart
+?? test/combo/auth_share_lifecycle_combo_test.dart
+?? test/combo/breaker_retry_combo_test.dart
+?? test/combo/loading_notify_retry_combo_test.dart
+?? test/combo/mock_retry_share_combo_test.dart
+?? test/combo/retry_share_arbitration_combo_test.dart
+?? test/combo/share_withdrawal_combo_test.dart
+?? test/integration/auth_retry_transport_integration_test.dart
+?? test/integration/auth_session_integration_test.dart
+?? test/integration/breaker_lifecycle_integration_test.dart
+?? test/integration/plugin_state_integration_test.dart
+?? test/integration/response_decode_integration_test.dart
+?? test/integration/retry_after_integration_test.dart
+?? test/integration/share_timeout_integration_test.dart
+?? test/rule/auth_replay_rule_test.dart
+?? test/rule/transport_replay_rule_test.dart
+?? test/support/auth_mock_retry_share_scenarios.dart
+?? test/support/auth_test_helpers.dart
+?? test/support/powerset_fixture.dart
+?? test/support/request_constants.dart
+?? test/support/retry_share_scenarios.dart
+?? test/support/source_constants.dart
+?? test/support/source_test_helpers.dart
+?? test/unit/notify_stringify_test.dart

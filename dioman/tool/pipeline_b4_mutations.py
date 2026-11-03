@@ -132,13 +132,13 @@ CASES += [('final-share-minimum-timeout',
   '    return value;\n'
   '  }\n'
   '\n',
-  'test/boundary/b4_final_review_boundary_test.dart',
+  'test/boundary/share_timeout_boundary_test.dart',
   '连接五秒接收三十秒'),
  ('final-offline-online-callback',
   'plugins/offline',
   '        config.isOnline() ||\n        !(o.shouldQueue?.call(ctx.request) ?? true)',
   '        !(o.shouldQueue?.call(ctx.request) ?? true) ||\n        config.isOnline()',
-  'test/boundary/b4_final_review_boundary_test.dart',
+  'test/boundary/offline_online_boundary_test.dart',
   '在线直接放行且不调用')]
 
 

@@ -8,6 +8,9 @@ import 'package:test/test.dart';
 import '../support/fake_clock.dart';
 import '../support/helpers.dart';
 
+const _field = 'a';
+
+
 /// 取消等待的各个终局及逻辑状态共享。
 void main() {
   test('[DiomanContext.new][INV-context-lifecycle] 公开构造器独立创建状态且派生共享', () async {
@@ -166,5 +169,35 @@ void main() {
     expect(ctx.replayable, isTrue);
     final noKey = ctx.derive(const RequestPatch());
     expect(noKey.key(), pipelineTestUnit);
+  });
+
+  test('[DiomanContext.canReplay] B8 递归判断重放能力', () {
+    for (final body in [
+      null,
+      1,
+      true,
+      's',
+      FormData(),
+      {
+        _field: [1, null]
+      },
+      <int>[1]
+    ]) {
+      expect(
+          testContext(request: DiomanRequest(RequestOptions(data: body)))
+              .canReplay(),
+          isTrue);
+    }
+    for (final body in [
+      const Stream<int>.empty(),
+      Object(),
+      {_field: Object()},
+      [Object()]
+    ]) {
+      expect(
+          testContext(request: DiomanRequest(RequestOptions(data: body)))
+              .canReplay(),
+          isFalse);
+    }
   });
 }

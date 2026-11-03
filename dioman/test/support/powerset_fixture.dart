@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import 'b3_helpers.dart';
+import 'auth_test_helpers.dart';
 import 'fake_clock.dart';
 import 'fake_network.dart';
 import 'helpers.dart';

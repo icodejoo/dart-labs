@@ -1,6 +1,6 @@
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b4_migration_scenarios.dart';
+import '../support/auth_mock_retry_share_scenarios.dart';
 
 /// 鉴权与重试跨来源阶段的行为组合回归。
 void main() {

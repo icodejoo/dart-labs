@@ -2,10 +2,10 @@ import 'package:dioman/dioman.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'package:dio/dio.dart';
 import '../support/fake_clock.dart';
-import '../support/b3_helpers.dart' show b3Finish;
+import '../support/auth_test_helpers.dart' show b3Finish;
 import 'package:test/test.dart';
 import '../support/helpers.dart';
-import '../support/b4_helpers.dart' show B4Persist;
+import '../support/source_test_helpers.dart' show B4Persist;
 
 /// 缓存用例的显式键、请求方法与凭证头。
 const _key = 'native-cache', _method = 'GET', _authorization = 'Authorization';

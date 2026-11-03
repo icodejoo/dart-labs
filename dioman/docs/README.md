@@ -33,6 +33,7 @@
 
 ## 报告
 
+- [第二轮 R6a 测试按主题改名 2026-11-03](reports/2026-11-03-round2-r6a.md) — 19 个批次文件归入 42 个主题文件与完整改名清单，用例数与 lib 不变。active。
 - [第二轮 R5 Dart 化 API 2026-11-03](reports/2026-11-03-round2-r5.md) — decode 解码钩子、异步 dispose（Future<void>）、debug 选项检查；真实验收 768 通过 0 失败。active。
 - [第二轮 R4 性能与真实验收 2026-11-03](reports/2026-11-03-round2-r4.md) — 真实验收 768 通过 0 失败；两项候选撤回；五项性能门槛因负载未判定，待复测。active。
 - [第二轮 R3 原生数据瘦身 2026-11-03](reports/2026-11-03-round2-r3.md) — ctx.native 原生槽与 I11、按需 raw、internal 失败事实、Retry-After 小事实、缓存快照。active。
@@ -59,8 +60,8 @@
 | 要找 | 路径 |
 |---|---|
 | 各层用例 | `test/{unit,rule,boundary,combo,integration}/` |
-| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,b3_helpers,helpers}.dart` |
-| 本地真实 HTTP 回环 | `test/integration/{b3_transport,source_transport,timeout_effective}_integration_test.dart` |
+| 假传输、假时钟、不变量、凭证和装配 | `test/support/{fake_network,fake_clock,invariant_harness,auth_test_helpers,source_test_helpers,helpers}.dart` |
+| 本地真实 HTTP 回环 | `test/integration/*_integration_test.dart`（如 auth_session、retry_after、source_transport、timeout_effective） |
 | 本地全量组合（powerset） | `test/combo/powerset_combo_test.dart` |
 | 整形插件成对组合 | `test/combo/prepare_pairs_combo_test.dart` |
 | 唯一入口与旧 key 固定基准 | `lib/dioman.dart`、`test/support/key_baseline.json` |

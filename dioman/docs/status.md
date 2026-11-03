@@ -2,7 +2,7 @@
 title: dioman 当前状态
 status: active
 updated: 2026-11-03
-summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R5 完成，下一批 R6；R4 的性能门槛留到终验前复测
+summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R5、R6a 完成，下一批 R6b；R4 的性能门槛留到终验前复测
 ---
 
 # 当前状态
@@ -20,7 +20,8 @@ summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/diom
 | R3 | 原生数据瘦身 | 完成，见 [R3 报告](reports/2026-11-03-round2-r3.md) |
 | R4 | 性能（先补 B6 欠下的复测） | 真实验收完成；五项门槛因负载未判定，门控工具已入库，复测排在 R6 之后、终验之前，见 [R4 报告](reports/2026-11-03-round2-r4.md) |
 | R5 | Dart 化 API（decode、异步 dispose） | 完成，见 [R5 报告](reports/2026-11-03-round2-r5.md) |
-| R6 | 测试与工程收尾（测试改名、逻辑请求截止时间） | 下一批 |
+| R6a | 测试按主题改名（lib 不动，用例 5682 不变） | 完成，见 [R6a 报告](reports/2026-11-03-round2-r6a.md) |
+| R6b | 逻辑请求截止时间与对应真实验收 | 下一批 |
 
 ## 验证入口
 

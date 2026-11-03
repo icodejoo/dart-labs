@@ -1,6 +1,6 @@
 import '../support/response_contract.dart';
 import 'package:test/test.dart';
-import '../support/b5_powerset.dart';
+import '../support/powerset_fixture.dart';
 
 /// 位掩码、脚本 baseline 和真正的 512 × 10 不变量组合。
 void main() {

@@ -1,0 +1,87 @@
+{
+  "source_files": 19,
+  "destination_files": 42,
+  "sources": [
+    {
+      "source": "test/support/b2_constants.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b3_helpers.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b4_constants.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b4_helpers.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b4_migration_scenarios.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b4_retry_migration_scenarios.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/support/b5_powerset.dart",
+      "fixture_exact_except_paths": true
+    },
+    {
+      "source": "test/combo/b8_share_withdrawal_test.dart",
+      "unchanged_top_level_test_statements": 1
+    },
+    {
+      "source": "test/combo/b4_auth_migration_combo_test.dart",
+      "unchanged_top_level_test_statements": 18
+    },
+    {
+      "source": "test/unit/b8_core_test.dart",
+      "unchanged_top_level_test_statements": 5
+    },
+    {
+      "source": "test/rule/b8_regression_test.dart",
+      "unchanged_top_level_test_statements": 8
+    },
+    {
+      "source": "test/boundary/b3_await_boundary_test.dart",
+      "unchanged_top_level_test_statements": 7
+    },
+    {
+      "source": "test/boundary/b3_options_boundary_test.dart",
+      "unchanged_top_level_test_statements": 9
+    },
+    {
+      "source": "test/boundary/b4_final_review_boundary_test.dart",
+      "unchanged_top_level_test_statements": 6
+    },
+    {
+      "source": "test/combo/b3_combo_test.dart",
+      "unchanged_top_level_test_statements": 5
+    },
+    {
+      "source": "test/combo/b3_outer_combo_test.dart",
+      "unchanged_top_level_test_statements": 3
+    },
+    {
+      "source": "test/combo/b4_retry_migration_combo_test.dart",
+      "unchanged_top_level_test_statements": 21
+    },
+    {
+      "source": "test/integration/b3_transport_integration_test.dart",
+      "unchanged_top_level_test_statements": 4
+    },
+    {
+      "source": "test/integration/b8_decode_integration_test.dart",
+      "unchanged_top_level_test_statements": 2
+    }
+  ],
+  "test_statements_exact": true,
+  "existing_test_bodies_preserved": true,
+  "fixture_changes": "import/export 路径替换",
+  "tool_changes": "仅测试路径",
+  "old_batch_filenames_remaining": []
+}

@@ -3,7 +3,7 @@ import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
+import '../support/auth_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/helpers.dart';
 
