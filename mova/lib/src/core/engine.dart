@@ -53,6 +53,7 @@ import 'state/progress.dart';
 import 'platform/brightness_lease.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
+import 'state/ui_bridge.dart';
 import 'cutover/retirable.dart';
 import 'stt/api.dart';
 import 'stt/service.dart';
@@ -159,7 +160,7 @@ class _AbrLease {
 /// 应用请通过 `createMovaEngine()` 创建并接入真实平台端口。
 /// 裸构造默认使用空亮度/PiP/方向端口，供测试或自行注入端口的宿主使用；
 /// debug 下首次缺省这些端口时提示一次。例如：`final api = createMovaEngine();`。
-class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
+class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable, MovaUiBridge {
   /// 测试用的一次性提示开关；设为 false 可重新观察裸构造提示。
   /// 示例：`MovaEngine.debugBareConstructorWarningShown = false;`。
   @visibleForTesting
@@ -481,6 +482,24 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   }
 
   final MovaBus<MovaState> _state;
+  late final _uiLinks = MovaUiConnections(
+    mirror: _ui.emit,
+    onFirst: () {
+      _autoHideTimer?.cancel();
+      _autoHideTimer = null;
+      _hudTimer?.cancel();
+      _hudTimer = null;
+    },
+  );
+
+  /// 当前源是否已宣布就绪，供新视图决定计时起点。
+  @override
+  bool get uiReady => _readyAnnounced && !_disposed;
+
+  /// 包内：挂接独立视图交互态，不改变 MovaApi。
+  @override
+  MovaUiLink linkUi(MovaUiSink sink) => _uiLinks.link(sink);
+
   final MovaBus<MovaUiState> _ui = MovaBus<MovaUiState>(const MovaUiState());
   final StreamController<MovaEvent> _events =
       StreamController<MovaEvent>.broadcast();
@@ -1700,10 +1719,12 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     // 点击（而由于 `controlsVisible` 默认已是 true,那一下点击是直接隐藏,而非
     // 启动计时器）。这里改走 `showControls()`/`hideControls()`（而非直接
     // emit `uiState`）,确保计时器的启动方式与手动 show 完全一致。
-    if (options.controls.showOnStart) {
-      showControls();
-    } else {
-      hideControls();
+    if (_uiLinks.isEmpty) {
+      if (options.controls.showOnStart) {
+        showControls();
+      } else {
+        hideControls();
+      }
     }
     // dispose() may close `_events` while this coroutine was suspended on the
     // awaits above — never add to a closed controller.
@@ -3225,6 +3246,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyShow(sticky: sticky));
+      return;
+    }
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: true));
@@ -3239,6 +3264,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyHide());
+      return;
+    }
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: false));
@@ -3250,6 +3279,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyHud(hud, text));
+      return;
+    }
     _hudTimer?.cancel();
     _ui.emit(
       uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null),
@@ -3265,6 +3298,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyDragging(v, previewAt));
+      return;
+    }
     if (v) {
       _ui.emit(uiState.copyWith(dragging: true, previewAt: previewAt));
     } else {
@@ -3410,6 +3447,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       orientationRestore = _orientation.reset().catchError((Object _) {});
     }
     _disposed = true;
+    _uiLinks.close();
     _hudTimer?.cancel();
     _hudTimer = null;
     _autoHideTimer?.cancel();

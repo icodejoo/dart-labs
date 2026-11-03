@@ -20,6 +20,7 @@ import '../state/progress.dart';
 import '../platform/brightness_lease.dart';
 import '../state/state.dart';
 import '../state/ui_state.dart';
+import '../state/ui_bridge.dart';
 import '../stt/api.dart';
 import 'ctl.dart';
 import 'acceptance.dart';
@@ -146,7 +147,8 @@ class MovaCutoverEngine
         MovaProgressSource,
         MovaCutover,
         MovaKeepAlive,
-        MovaWarmOwner {
+        MovaWarmOwner,
+        MovaUiBridge {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -210,6 +212,22 @@ class MovaCutoverEngine
   Future<void> _commitTail = Future<void>.value();
 
   late final MovaBus<MovaState> _state;
+  late final _uiLinks = MovaUiConnections(
+    mirror: _uiState.emit,
+    onLast: () => _uiState.emit(_active.uiState),
+  );
+
+  /// 当前生效源是否就绪；代理销毁后为 false。
+  @override
+  bool get uiReady {
+    final active = _active;
+    return !_disposed && active is MovaUiBridge && (active as MovaUiBridge).uiReady;
+  }
+
+  /// 包内：视图连接固定在代理上，换指时无需迁移。
+  @override
+  MovaUiLink linkUi(MovaUiSink sink) => _uiLinks.link(sink);
+
   late final MovaBus<MovaUiState> _uiState;
   final StreamController<MovaProg> _progress =
       StreamController<MovaProg>.broadcast();
@@ -360,7 +378,9 @@ class MovaCutoverEngine
       if (event is MovaPause && identical(_handoff?.engine, engine)) return;
       _publish(snapshot: engine.state, event: event);
     });
-    _activeUiSub = engine.uiStates.listen(_uiState.emit);
+    _activeUiSub = engine.uiStates.listen((state) {
+      if (_uiLinks.isEmpty) _uiState.emit(state);
+    });
   }
 
   /// Cancels the forwarding subscriptions set up by [_attach].
@@ -594,21 +614,41 @@ class MovaCutoverEngine
 
   @override
   void showControls({bool sticky = false}) {
+    if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyShow(sticky: sticky));
+      return;
+    }
     if (!_disposed) _active.showControls(sticky: sticky);
   }
 
   @override
   void hideControls() {
+    if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyHide());
+      return;
+    }
     if (!_disposed) _active.hideControls();
   }
 
   @override
   void showHud(MovaHud hud, {String? text}) {
+    if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyHud(hud, text));
+      return;
+    }
     if (!_disposed) _active.showHud(hud, text: text);
   }
 
   @override
   void setDragging(bool v, {Duration? previewAt}) {
+    if (_disposed) return;
+    if (!_uiLinks.isEmpty) {
+      _uiLinks.broadcast((sink) => sink.legacyDragging(v, previewAt));
+      return;
+    }
     if (!_disposed) _active.setDragging(v, previewAt: previewAt);
   }
 
@@ -622,6 +662,7 @@ class MovaCutoverEngine
     // 幂等：重复 dispose 直接返回。
     if (_disposed) return;
     _disposed = true;
+    _uiLinks.close();
     _intentSnapshot = null;
     _op++;
     final cleanup = _abandonWarm(reason: MovaCutoverEndReason.disposed);
