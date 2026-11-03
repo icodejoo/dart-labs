@@ -1,75 +1,66 @@
-# CP0 正式基线尝试（2026-11-03）
+# CP0 真机基线（2026-11-03）
 
-**状态：BLOCKED，正式真机样本 0。未完成 CP0，不发出 `P1-3 DONE`。**
+状态：**RUNNING**。CP0 不设产品通过线；测得故障原样保留。
 
-指定 STG-AL00 / `7NQBB23606003715` 在 2026-11-03T04:17:59.032370+00:00 至 2026-11-03T04:27:58.905630+00:00 连续不可见。每30秒检查 ADB 与 window，21 次检查、总计 600.2s，无一次取得解锁亮屏状态。原始错误为 `adb: device not found`，`adb devices -l` 无设备。按用户要求，等待满10分钟后停止，保留本地准备与构建结果。
+Android release APK SHA-256：`f9df792f6dcc0b68d908906f23026dd5beeacd56d0c2d566c1b85d6c35ba1586`。阶段1构建一次，后续复用；安装拉回哈希一致。
 
-## P1-3 准备及结论边界
+基线 detached a5c317f6；只在本树 mova/example、mova/doc 修改，lib/test 不改。
 
-新增独立页 `example/lib/main_cp0_autotier_verify.dart`、AUTORUN 脚本 `verify_auto/cp0_autotier_auto.dart`，在 `matrix_manifest.json` 注册 `cp0-autotier`。`run_matrix.py` 无改动；coverage1 规则无改动。通过 `main_cp0_suite_verify.dart` 调度，默认五轮限速、一轮不限速，每轮90秒；`createMovaEngine()` 默认配置，真实挂树，未手选清晰度、未开启原生事件泵。
+cp0-pod2 按用户指示跳过：旧页默认不等待就绪，不用 epoch 0→0 推断 cutover 回落。音频焦点 manual BLOCKED；全量49批不在本轮。
 
-ffmpeg 生成120秒三档 CBR HLS（无音轨）：256×144/160 kbit/s、640×360/700 kbit/s、1280×720/2400 kbit/s。共享总限速900 kbit/s，HTTP no-store，master/子列表/分片继承时间戳。每秒记录原生 path/time-pos、hls-bitrate、video-params/w/h、vid、track-list、demuxer-cache-state、paused-for-cache 及 Mova 事件和 renderEpoch。切档时刻只给相邻采样区间，次数为观测下界；缓存区间与 time-pos、事件一起复核，未把采样戳当事件戳。
+## 实测台账
 
-本地两条并发 HTTP 请求合计实测限速 **112024.6 B/s**，不限速 **253019089.3 B/s**。这是夹具验证，不是真机播放。起播档、切档次数/时刻、卡顿、崩溃和回落均**未测**；失败数为 null，不能写成0失败。
+|阶段|项目|计划|已执行|失败|状态/关键数字|证据|
+|---|---|---:|---:|---:|---|---|
+|1|P1-3 限速 auto|5|5|0|MEASURED {"harness": [], "missing": [], "runs": [{"case": "CP0.autotier.limited.0", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7006278, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 3.444609, "totalRebufferSeconds": 56.088795, "rebufferCount": 19, "finalNativeTimePos": "27.360000"}, {"case": "CP0.autotier.limited.1", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7189547, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 7.053554, "totalRebufferSeconds": 55.963642, "rebufferCount": 18, "finalNativeTimePos": "26.840000"}, {"case": "CP0.autotier.limited.2", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7272813, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 6.14433, "totalRebufferSeconds": 55.894429, "rebufferCount": 18, "finalNativeTimePos": "27.160000"}, {"case": "CP0.autotier.limited.3", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7257429, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 6.116479, "totalRebufferSeconds": 54.624030000000005, "rebufferCount": 17, "finalNativeTimePos": "27.880000"}, {"case": "CP0.autotier.limited.4", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 7357624, "scheduledSeconds": 7}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 3.463934, "totalRebufferSeconds": 56.208904, "rebufferCount": 19, "finalNativeTimePos": "27.200000"}]}|example/tool/coverage_evidence/matrix-cp0-autotier-formal-20261103-01/matrix-cp0-autotier-formal-20261103-01-cp0-autotier.json|
+|1|P1-3 不限速对照|1|1|0|MEASURED {"harness": [], "missing": [], "runs": [{"case": "CP0.autotier.unlimited.0", "firstObservedTier": {"tier": "1280x720", "sinceOpenUs": 2213870, "scheduledSeconds": 2}, "observedSwitchCount": 0, "switchIntervals": [], "nativeHlsBitrates": ["max"], "sampleCount": 91, "maxRebufferSeconds": 0, "totalRebufferSeconds": 0, "rebufferCount": 0, "finalNativeTimePos": "88.240000"}]}|example/tool/coverage_evidence/matrix-cp0-autotier-formal-20261103-01/matrix-cp0-autotier-formal-20261103-01-cp0-autotier.json|
+|2|p02.contentWarm|10|0|None|PENDING {}|None|
+|2|p02.midPending|10|0|None|PENDING {}|None|
+|2|p02.postLoad|10|0|None|PENDING {}|None|
+|2|pod2|10|0|None|SKIPPED {}|example/tool/coverage_evidence/cp0-formal-device-preflight.json|
+|2|bgpause.true|5|0|None|PENDING {}|None|
+|2|bgpause.false|5|0|None|PENDING {}|None|
+|2|pauseload.loading|3|0|None|PENDING {}|None|
+|2|pauseload.ready|3|0|None|PENDING {}|None|
+|2|pauseload.firstFrame|3|0|None|PENDING {}|None|
+|2|timeshift.dvr|3|0|None|PENDING {}|None|
+|2|timeshift.timeshift|3|0|None|PENDING {}|None|
+|2|pageview.horizontal|3|0|None|PENDING {}|None|
+|2|pageview.vertical|3|0|None|PENDING {}|None|
+|3|F3/A17 precise.normal|60|0|None|PENDING {}|None|
+|3|F3/A17 precise.paused|60|0|None|PENDING {}|None|
+|3|F3/A17 precise.cutover|160|0|None|PENDING {}|None|
+|3|H28 default.playing|30|0|None|PENDING {}|None|
+|3|H28 default.paused|30|0|None|PENDING {}|None|
+|3|H28 default.cutover|30|0|None|PENDING {}|None|
+|3|H20.hlsSeek|30|0|None|PENDING {}|None|
+|3|H50.hlsSeek|30|0|None|PENDING {}|None|
+|3|H7.lateError|按现有用例次数|0|None|PENDING {}|None|
+|3|H14.manualSeek|按现有用例次数|0|None|PENDING {}|None|
+|3|H17.mp4|按现有用例次数|0|None|PENDING {}|None|
+|3|H17.m3u8|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.direct.404|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.direct.refused|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.direct.dns|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.recovery.404|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.recovery.refused|按现有用例次数|0|None|PENDING {}|None|
+|3|H33.recovery.dns|按现有用例次数|0|None|PENDING {}|None|
+|3|H42.wake|按现有用例次数|0|None|PENDING {}|None|
+|3|A15.miniPip|按现有用例次数|0|None|PENDING {}|None|
+|3|H37.dispose|按现有用例次数|0|None|PENDING {}|None|
+|4|Windows F3|30|0|None|PENDING {}|None|
+|4|Windows A23/F13 dispose|20|0|None|PENDING {}|None|
+|4|Windows HE V6|5|0|None|PENDING {}|None|
+|4|Windows HE V10|20|0|None|PENDING {}|None|
 
-## 各阶段次数
+## 口径与证据边界
 
-| 阶段 | 项目 | 计划次数 | 已执行 | 数字/失败 |
-|---|---|---:|---:|---|
-| 1 | P1-3 限速 auto | 5 | 0 | 未测 / null |
-| 1 | P1-3 不限速对照 | 1 | 0 | 未测 / null |
-| 2 | p02.contentWarm | 10 | 0 | 未测 / null |
-| 2 | p02.midPending | 10 | 0 | 未测 / null |
-| 2 | p02.postLoad | 10 | 0 | 未测 / null |
-| 2 | pod2 | 10 | 0 | 未测 / null |
-| 2 | bgpause.true | 5 | 0 | 未测 / null |
-| 2 | bgpause.false | 5 | 0 | 未测 / null |
-| 2 | pauseload.loading | 3 | 0 | 未测 / null |
-| 2 | pauseload.ready | 3 | 0 | 未测 / null |
-| 2 | pauseload.firstFrame | 3 | 0 | 未测 / null |
-| 2 | timeshift.dvr | 3 | 0 | 未测 / null |
-| 2 | timeshift.timeshift | 3 | 0 | 未测 / null |
-| 2 | pageview.horizontal | 3 | 0 | 未测 / null |
-| 2 | pageview.vertical | 3 | 0 | 未测 / null |
-| 3 | F3/A17 precise.normal | 60 | 0 | 未测 / null |
-| 3 | F3/A17 precise.paused | 60 | 0 | 未测 / null |
-| 3 | F3/A17 precise.cutover | 160 | 0 | 未测 / null |
-| 3 | H28 default.playing | 30 | 0 | 未测 / null |
-| 3 | H28 default.paused | 30 | 0 | 未测 / null |
-| 3 | H28 default.cutover | 30 | 0 | 未测 / null |
-| 3 | H20.hlsSeek | 30 | 0 | 未测 / null |
-| 3 | H50.hlsSeek | 30 | 0 | 未测 / null |
-| 3 | H7.lateError | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H14.manualSeek | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H17.mp4 | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H17.m3u8 | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.direct.404 | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.direct.refused | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.direct.dns | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.recovery.404 | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.recovery.refused | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H33.recovery.dns | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H42.wake | 按现有用例次数 | 0 | 未测 / null |
-| 3 | A15.miniPip | 按现有用例次数 | 0 | 未测 / null |
-| 3 | H37.dispose | 按现有用例次数 | 0 | 未测 / null |
-| 4 | Windows F3 | 30 | 0 | 未测 / null |
-| 4 | Windows A23/F13 dispose | 20 | 0 | 未测 / null |
-| 4 | Windows HE V6 | 5 | 0 | 未测 / null |
-| 4 | Windows HE V10 | 20 | 0 | 未测 / null |
+P1-3：默认 createMovaEngine、auto、不手选；三档120秒HLS，共享900kbit/s限速。每秒原生读回档位、hls-bitrate、视频轨、缓存；切换时刻报告相邻采样区间，次数为观测下界。事件戳来自单调事件记录；卡顿结合原生 time-pos/paused-for-cache 与 MovaBufferChange，不以墙钟估算。完整逐轮数字在同名 JSON。
 
-阶段2正式六批、阶段3其余Android和阶段4Windows均未启动。Windows按指定顺序依赖阶段1–3完成；未切换窗口焦点执行其他批次。音频焦点保持 manual BLOCKED；全量48批不在范围。
+precise 沿用 rerun6 合格 RESTART/目标档位门槛，另算 CP0：目标与原生 time-pos 误差≤500ms 且 path 正确；<200ms 占比以已执行次数为分母。保留原续播/暂停判据与 harnessInvalid，不将缺样本算作成功。H28 默认配置不开泵。H20 使用 open 后立即seek(15s)，H50使用 cutoverTo(hls,at:12s)。
 
-## 验证、构建及证据
+run_matrix.py 最小改动：增加 --reuse-apk，安装后拉回核对SHA256，避免阶段间重建；adb 增加断线15分钟/30秒重检。coverage1规则未改。
 
-- 新增 Dart 文件静态分析通过；矩阵离线检查通过（49批）；现有入口31个单元测试全部通过。
-- release 构建：单worker、Gradle Xmx1024m；首轮因PowerShell未引用Kotlin参数拆分而失败，引用修正后构建成功。未终止其他进程。
-- 本地APK SHA-256：`88fe7912ca9c9604419bac63ad04635adb5bb91419296da2f869a79aabbe8a18`。路径：`example/build/app/outputs/flutter-apk/app-release.apk`。未安装，设备APK SHA-256 为 null；本地构建不代表设备运行。
-- 原始设备检查：`example/tool/coverage_evidence/cp0-formal-device-preflight.json`。
-- 夹具清单/哈希及并发速率：`example/tool/coverage_evidence/cp0-autotier-fixture-preflight.json`；HTTP记录：`cp0-autotier-preflight.requests.jsonl`。
-- 构建日志：`example/tool/coverage_evidence/cp0-autotier-build-attempt1.log`、`cp0-autotier-build-final.log`。
-- 三档原始素材：`example/tool/verify_sources/cp0-autotier-preflight/`（忽略，不提交）；原始检查证据均在gitignored coverage_evidence。
-- 数字台账：[2026-11-03-cp0-baseline.json](2026-11-03-cp0-baseline.json)。
+恢复项以 cp0-session-original.json / cp0-session-restored.json 逐值核验；原值媒体音量0、USB常亮7，gnirehtet reverse 映射保留。原始证据均位于 gitignored example/tool/coverage_evidence/。
 
-## 恢复项
-
-未进入设备写操作：媒体音量、USB常亮、reverse/forward映射均未修改。因设备从未可见，无法读取原值；没有声称已读取或恢复。本地夹具服务已关闭，生成器已退出，release构建已结束。只修改本树mova/example与mova/doc；lib/test未改。
+本轮前的设备离线0样本仅为历史准备，不能代替本轮实测。上轮报告与台账可从 a5c317f6 复核。

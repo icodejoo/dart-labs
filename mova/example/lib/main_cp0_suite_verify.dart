@@ -10,6 +10,8 @@ import 'verify_auto/cp0_pauseload_auto.dart';
 import 'verify_auto/cp0_timeshift_auto.dart';
 import 'verify_auto/cp0_pageview_auto.dart';
 import 'verify_auto/cp0_autotier_auto.dart';
+import 'main_coverage_gap.dart' as gap;
+import 'main_rerun6_coverage_api.dart' as rerun6;
 
 /// Small release dispatcher used only when running CP0 batches in isolation.
 Future<void> main() async {
@@ -18,6 +20,8 @@ Future<void> main() async {
   try {
     final request=await client.getUrl(Uri.parse('http://127.0.0.1:18082/group'));
     final parts=(await utf8.decoder.bind(await request.close()).join()).trim().split('|');
+    if (parts[0] == 'gap') { gap.main(); return; }
+    if (parts[0] == 'rerun6') { rerun6.main(); return; }
     coverageRunsOverride=int.parse(parts[2]);
     final scene=parts[0].replaceFirst('cp0-','');
     final scripts=<String,Cp0Script>{'p02':runP02,'pod2':runPod2,'bgpause':runBgPause,

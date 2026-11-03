@@ -98,12 +98,16 @@ def main():
         text=r.stdout.decode('utf-8',errors='replace');log.write(f'RET exit={r.returncode}\n'+text+'\n');log.flush()
         if r.returncode:raise RuntimeError(f'{cmd}: exit={r.returncode}: {text[-1500:]}')
         return text
-    def adb(*cmd):return command(['adb','-s',SERIAL,*cmd])
+    def adb(*cmd):
+        from cp0_device_guard import wait_online
+        wait_online(SERIAL)
+        return command(['adb','-s',SERIAL,*cmd])
     def unlocked():
         deadline=time.monotonic()+600
         while True:
             window=adb('shell','dumpsys','window')
             if 'isKeyguardShowing=false' in window and 'isKeyguardShowing=true' not in window and 'mScreenOnFully=true' in window:return
+            if 'mScreenOnFully=true' not in window:adb('shell','input','keyevent','KEYCODE_WAKEUP')
             if time.monotonic()>=deadline:raise RuntimeError('设备锁屏/熄屏满10分钟；停止，需要机主解锁')
             print('等待解锁亮屏；5秒后复查',flush=True);time.sleep(5)
     def fetch(path='/'):
@@ -210,7 +214,14 @@ def main():
         end=time.monotonic()+args.timeout;acted=set();last_error=''
         while time.monotonic()<end:
             try:data=fetch();records=data['records'];last_error=''
-            except Exception as e:last_error=str(e);time.sleep(.25);continue
+            except Exception as e:
+                last_error=str(e)
+                from cp0_device_guard import wait_online
+                wait_online(SERIAL)
+                if not adb('shell','pidof',PKG).strip():
+                    (out/(stem+'.crash.logcat.txt')).write_text(adb('logcat','-d','-v','threadtime'),encoding='utf-8')
+                    harness.append('app process exited; see crash.logcat.txt');break
+                time.sleep(.25);continue
             for r in records:
                 if r['kind']!='HOST' or r['id'] in acted:continue
                 acted.add(r['id']);unlocked()

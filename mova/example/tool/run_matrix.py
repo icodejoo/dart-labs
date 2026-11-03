@@ -438,6 +438,8 @@ class Driver:
 
         部分设备（STG-AL00）没有 `media` 命令，音量读写改走 `cmd media_session volume`（输出格式相同）。
         """
+        from cp0_device_guard import wait_online
+        wait_online(self.serial)
         if args[:3] == ('shell', 'media', 'volume'):
             args = ('shell', 'cmd', 'media_session', 'volume') + tuple(args[3:])
         return self.command(['adb', '-s', self.serial, *args], binary=binary)
@@ -742,6 +744,7 @@ def main(argv=None):
     for flag in ('list','check','fast','dry-run','fail-fast'):
         parser.add_argument('--'+flag,action='store_true')
     parser.add_argument('--only')
+    parser.add_argument('--reuse-apk', type=Path, help='复用已构建 APK；安装后拉回核对 SHA256，不重新构建')
     parser.add_argument('--from',dest='start')
     parser.add_argument('--run-id',default=datetime.now().strftime('%Y%m%d-%H%M%S'))
     parser.add_argument('--baseline',type=Path,default=BASELINE)
@@ -813,7 +816,18 @@ def main(argv=None):
     checkpoint.write_text('# 本轮自动检查点\n\n| 编号 | 结论 | 本次原因与证据 |\n|---|---|---|\n'+''.join(f'| {i} | BLOCKED | 待本轮证据。 |\n' for i in manifest['ids']),encoding='utf-8')
     try:
         driver.preflight()
-        driver.build()
+        if args.reuse_apk:
+            apk=args.reuse_apk.resolve()
+            expected=hashlib.sha256(apk.read_bytes()).hexdigest()
+            driver.adb('install','-r',str(apk))
+            remote=driver.adb('shell','pm','path',PACKAGE).strip().removeprefix('package:')
+            pulled=driver.out/(driver.prefix+'device-pulled.apk')
+            driver.adb('pull',remote,str(pulled))
+            actual=hashlib.sha256(pulled.read_bytes()).hexdigest()
+            (driver.out/(driver.prefix+'build.json')).write_text(json.dumps(dict(reused=True,source=str(apk),sha256=dict(signed=expected,device=actual))),encoding='utf-8')
+            if actual!=expected:raise RuntimeError('reused APK hash mismatch')
+        else:
+            driver.build()
         if not all(b.get('cp0_driver') for b in selected):
             driver.services()
         for job in selected:
