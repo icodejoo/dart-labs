@@ -189,7 +189,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
           widget.config,
           playing: s.playbackIntent || s.playing,
           live: s.type == MovaStreamType.live,
-          exempt: s.pip || s.mini,
+          exempt: s.pip || s.mini || s.fullscreen,
           now: DateTime.now(),
           keepAliveCapable: widget.api is MovaKeepAlive,
         ),
@@ -204,7 +204,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _act(
         _gate.observe(
           playing: s.playbackIntent || s.playing,
-          exempt: s.pip || s.mini,
+          exempt: s.pip || s.mini || s.fullscreen,
           live: s.type == MovaStreamType.live,
           keepAliveCapable: widget.api is MovaKeepAlive,
         ),
@@ -243,7 +243,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       active,
       playing: s.playbackIntent || s.playing,
       live: s.type == MovaStreamType.live,
-      exempt: s.pip || s.mini,
+      exempt: s.pip || s.mini || s.fullscreen,
       now: DateTime.now(),
       keepAliveCapable: api is MovaKeepAlive,
     );
@@ -266,19 +266,20 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       api.state.playing,
       api.state.pip,
       api.state.mini,
+      api.state.fullscreen,
     );
     _stateSub = api.states.listen((s) {
       if (_disposed || !identical(api, widget.api)) return;
-      final next = (s.playbackIntent, s.playing, s.pip, s.mini);
+      final next = (s.playbackIntent, s.playing, s.pip, s.mini, s.fullscreen);
       if (next == last) return;
       final started = (!last.$1 && next.$1) || (!last.$2 && next.$2);
-      final lostExemption = (last.$3 || last.$4) && !(next.$3 || next.$4);
+      final lostExemption = (last.$3 || last.$4 || last.$5) && !(next.$3 || next.$4 || next.$5);
       last = next;
       if (started || lostExemption) {
         _act(
           _gate.observe(
             playing: s.playbackIntent || s.playing,
-            exempt: s.pip || s.mini,
+            exempt: s.pip || s.mini || s.fullscreen,
             live: s.type == MovaStreamType.live,
             keepAliveCapable: api is MovaKeepAlive,
           ),

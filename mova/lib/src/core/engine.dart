@@ -224,6 +224,9 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 对 [MovaPipObservable.changes] 的订阅（端口支持时才有）。
   StreamSubscription<bool>? _pipSub;
 
+  /// 本引擎已发起画中画进入请求，才可接收系统广播。
+  bool _pipRequested = false;
+
   /// Pending grace timer: a fallback landed while the native signal was live.
   ///
   /// 宽限计时器：原生信号在工作时兜底信号先到，等待 RESTART。
@@ -846,7 +849,9 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     final Object pipPort = _pip;
     if (pipPort is MovaPipObservable) {
       _pipSub = pipPort.changes.listen((v) {
-        if (_disposed || v == state.pip) return;
+        if (_disposed || !_pipRequested) return;
+        if (!v) _pipRequested = false;
+        if (v == state.pip) return;
         _state.emit(state.copyWith(pip: v));
         _emitEvent(MovaPipChange(v));
       }, onError: (Object _) {});
@@ -2633,7 +2638,15 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (state.keepAlivePhase != MovaKeepAlivePhase.off) await setKeepAlive(false);
     if (state.mini) await setMini(false);
     if (_disposed) return false;
-    final ok = await _pip.enter(width: state.width, height: state.height);
+    _pipRequested = true;
+    bool ok;
+    try {
+      ok = await _pip.enter(width: state.width, height: state.height);
+    } catch (_) {
+      _pipRequested = false;
+      rethrow;
+    }
+    if (!ok) _pipRequested = false;
     if (_disposed) return false;
     _state.emit(state.copyWith(pip: ok));
     _emitEvent(MovaPipChange(ok));
