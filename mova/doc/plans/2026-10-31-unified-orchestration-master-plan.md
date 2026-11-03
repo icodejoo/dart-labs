@@ -638,6 +638,27 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 - 新增回归文件、各行为提交的 CHANGELOG 及本落地记录均随相应提交说明原因；本记录随 A05 入库。公开 `MovaCutover` 不加 `commit(expect:)`，新功能开关默认值不变，未新增成员级 `@Deprecated`。
 - 按用户明确要求不修改 `CLAUDE.md`；无关生成文件、doc/notes 与 matrix-run 文件未纳入提交，未触碰其他 worktree。本记录不代表 A06 之后或 CP1 真机检查已完成。
 
+#### A1 块第二批落地记录（2026-11-03）
+
+本批仅 A06 → A07 → A08 → A09 → A10，基线 1896；由当前执行者亲自完成，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues；生产代码仅改 `engine.dart` 与 A09 新增的 `core/engine/load_spec.dart`，未改 cutover_engine.dart、ads.dart、CLAUDE.md。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| A06（`0e0b84ca`） | 1901 | +5 | 无；已接受会话校验、加载双向意图纠偏、待机豁免 |
+| A07（`c3b51c07`） | 1906 | +5 | 无；门控验证回边缘/重开不阻塞 pause、新源，dispose 后不补播 |
+| A08（`7331ac15`） | 1911 | +5 | 无；独立恢复闸门、open/quality/recover 以 reloaded 结束测量 |
+| A09（`e2968196`） | 1913 | +2 | 无；两条只核对加载记录的白盒测试，生产读取方未接入规格 |
+| A10（随本记录提交） | 1923 | +10 | 改写 engine_test.dart 两条仅允许 open 的回边缘调用日志，详见下文 |
+
+验证方式与计划差异：
+- 各提交最终均使用单次完整 `flutter test --concurrency=6`，共新增 27 项，未删减、未跳过用例；本批未遇 OOM，未降并发、未分片、未结束其他进程。
+- A10 改写 `test/core/engine_test.dart` 的 `backToLiveEdge in timeshift mode reopens the original live url`：旧断言 `['open']` 错在忽略了重开结束时播放意图为 true、替身尚未报告 playing；按 A10 的最新意图规则应为 `['open', 'play']`。实际重开原地址、清时移等原断言保留。
+- A10 改写同文件的 `an explicit backToLive strategy overrides the mode-derived one`：旧 `['open']` 同样错误地排除了意图为 true 且未播放时必须补发的 play，改为 `['open', 'play']`；显式 reopen 策略仍生效。A07 原计划可能改写 1–2 条 Future 断言，实际无需改写：既有 KeepAliveRig 排空微任务，立即完成的假网络仍在断言前完成；新增门控测试明确验证 Future 在网络完成前返回 resuming。
+- A06 实际 engine 差异 16 行，A08 约 49 行，A09 生产差异 115 行，A10 约 75 行，均小于预估规模；复用已有加载及喂信号入口，没有为凑规模搬迁代码。A09 `git diff --cached --color-moved=zebra --stat/--numstat` 为 3 files、+207/-4（engine +51/-4、load_spec +60/-0、测试 +96/-0），无跨段搬迁；非搬迁项为类型/import、记录字段/测试 getter、六处写入、仅用于记录的 reason 局部量、时移 builder 结果提取为只求值一次的 uri、两条白盒测试，已逐条写入提交正文。
+- 以当前代码为准：普通 kernel.error 不触发 recovery，回归用已订阅的原生 END_FILE(error)；时移重试继续以 `_seekTimeshift` 使用的源地址为 builder 基地址，固定落后量取规格而非被 tick 重算的 UI 状态；任一旧 open 未返回时 `_kernelOpening` 仍屏蔽首帧，交错换档测试因此在所有加载释放后送首帧。未扩大错误模型或改变首帧屏蔽规则。
+- 回退实现验证：仅临时替换 engine.dart 为对应提交前版本，A06/A07/A08/A10 的新增专项分别实测 3/4/4/8 条变红，随后逐字节还原当前实现；A09 为记录测试，不改既有断言。最终全量在还原实现后执行。
+- 计划外配套文件仅各提交新增回归测试、行为提交的 CHANGELOG、A10 的两处既有测试断言及本落地记录，原因随各提交正文列出。新功能开关默认值不变，未新增成员级 @Deprecated；无关生成文件、doc/notes、matrix-run 与其他仓库文件均未纳入提交，未触碰其他 worktree。本记录不代表 A11 以后或 CP1 真机检查已完成。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）

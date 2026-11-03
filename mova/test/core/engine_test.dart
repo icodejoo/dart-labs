@@ -1381,7 +1381,8 @@ void main() {
       expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
       k2.calls.clear();
       await e2.backToLiveEdge();
-      expect(k2.calls, ['open']);
+      // 意图仍为播放且替身未报告 playing，重开后应补发 play。
+      expect(k2.calls, ['open', 'play']);
       expect(
         k2.lastUri,
         'https://host/l.m3u8',
@@ -1412,7 +1413,8 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       k2.calls.clear();
       await e2.backToLiveEdge();
-      expect(k2.calls, ['open']);
+      // 意图仍为播放且替身未报告 playing，重开后应补发 play。
+      expect(k2.calls, ['open', 'play']);
       await e2.dispose();
     },
   );

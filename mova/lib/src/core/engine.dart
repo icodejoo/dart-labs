@@ -327,7 +327,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 当前正在播放的地址下标。
   int _sourceIndex = 0;
 
-  /// 最近一次内核加载的规格；本提交仅记录，不参与生产决策。
+  /// 最近一次有效加载规格，供重试及回边缘重放。
   LoadSpec? _currentLoad;
 
   /// 读取加载记录供白盒测试使用；尚未加载时返回 null。
@@ -343,6 +343,16 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     final src = _source;
     if (src == null) return '';
     return _sourceIndex < src.uris.length ? src.uris[_sourceIndex] : src.uri;
+  }
+
+  /// 优先保留用户 seek 或尚未落地的续播目标，避免重载清进度后读到零。
+  Duration get _resumeTarget => _parkedSeek ?? _pendingSeekTarget ??
+      (!_variantLanded ? _currentLoad?.resumeAt : null) ?? _lastPosition;
+
+  /// 回边缘重放当前档的原始地址，丢弃时移 URL 参数。
+  String get _liveEdgeUri {
+    final quality = _currentLoad?.quality;
+    return quality != null && !quality.isAuto ? quality.uri : _activeUri;
   }
 
   final MovaBus<MovaState> _state;
@@ -1548,7 +1558,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // 一次尝试只失败一次：超时之后同一次尝试可能还会收到原生错误。
     if (_failedAttemptId == _attemptId) return;
     _recoveryPosition ??= state.type == MovaStreamType.vod && state.rendered
-        ? _lastPosition
+        ? _resumeTarget
         : Duration.zero;
     _failedAttemptId = _attemptId;
     wd.disarm();
@@ -1617,8 +1627,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// - [gen]: the accepted session this recovery belongs to / 本次恢复所属的已接受会话世代
   Future<void> _recover(int index, MovaPlayFail cause, int gen) async {
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
+    final previous = _currentLoad;
     final resumeAt = _recoveryPosition ?? Duration.zero;
     final reason = index == _sourceIndex ? LoadReason.retry : LoadReason.failover;
+    final behind = reason == LoadReason.retry ? previous?.timeshiftBehind : null;
     if (index != _sourceIndex) {
       // Switching address: the quality list belonged to the old address's
       // master playlist.
@@ -1638,20 +1650,35 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     _forgetMediaProgress();
     _abrPolicy.reset();
     _reportedDuration = Duration.zero;
-    _state.emit(state.copyWith(duration: Duration.zero));
+    _state.emit(state.copyWith(
+      duration: Duration.zero,
+      timeshiftBehind: behind,
+      clearTimeshift: behind == null,
+      currentQuality: reason == LoadReason.retry ? previous?.quality : null,
+      clearQuality: reason == LoadReason.failover || previous?.quality == null,
+    ));
     _armAttempt(autoPlay: _loadPlays);
     // open() only issues the load; even a duration is not presentation readiness.
     //
     // open() 只提交加载；即使已有时长，也不代表已可呈现。
     _recoveryAwaitingFrame = resumeAt > Duration.zero;
+    // 重试时重放有效 URL；时移按原固定落后量及当前时间重新构造。
+    // 时移的基地址沿用 _seekTimeshift 的源地址，故障切换则使用新地址。
+    final builder = options.live.urlBuilder;
+    final uri = reason == LoadReason.failover
+        ? _activeUri
+        : behind != null && builder != null
+            ? builder(_activeUri, behind, DateTime.now())
+            : previous?.uri ?? _activeUri;
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
-      uri: _activeUri,
+      uri: uri,
       quality: state.currentQuality,
+      timeshiftBehind: behind,
       resumeAt: resumeAt,
       reason: reason,
     );
-    if (!await _loadKernel(_activeUri, play: _loadPlays)) return;
+    if (!await _loadKernel(uri, play: _loadPlays)) return;
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     _announceReady();
   }
@@ -1925,7 +1952,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
         if (seekTo == null) _forgetMediaProgress();
         _armAttempt(autoPlay: _loadPlays, partOfResume: true);
         final attempt = _attemptId;
-        final uri = _activeUri;
+        final uri = _liveEdgeUri;
         deferReload(() => _reloadKeepAlive(attempt, uri, edge: edge, seekTo: seekTo));
         return state.keepAlivePhase;
     }
@@ -1954,10 +1981,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       if (_playIntent && !state.playing) await _kernel.play();
       if (_disposed || attempt != _attemptId) return;
       if (seekTo != null) _resumeWatch();
-      if (edge) {
-        _state.emit(state.copyWith(clearTimeshift: true));
-        _emitEvent(const MovaLiveEdgeReach());
-      }
+      _state.emit(state.copyWith(clearTimeshift: true));
+      if (edge) _emitEvent(const MovaLiveEdgeReach());
     } on Object catch (error) {
       if (!_disposed && attempt == _attemptId) {
         _onPlayFail(MovaPlayFailKind.openThrew, error: error);
@@ -2130,6 +2155,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
             milliseconds: t.inMilliseconds.clamp(0, limit.inMilliseconds),
           )
         : t;
+    // 恢复等首帧期间的新 seek 取代失败点，避免首帧续播把用户拉回。
+    if (_recoveryAwaitingFrame) _recoveryPosition = clamped;
     if (state.type == MovaStreamType.live &&
         options.live.seekMode == MovaLiveSeekMode.timeshift) {
       await _seekTimeshift(clamped);
@@ -2646,7 +2673,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     if (_disposed) return;
     final playUri = q.isAuto ? _activeUri : q.uri;
     if (playUri.isEmpty) return;
-    final pos = _lastPosition;
+    // 第一档仍在 open 时尚未寄存续播点；优先继承用户 seek 或上次规格的目标。
+    final pos = _resumeTarget;
     final live = state.type == MovaStreamType.live;
     // Reloading a variant is a kernel `open()` just like a source change, so
     // it carries the exact same hazard: the resume seek that follows must
@@ -2786,8 +2814,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // 已销毁：静默空操作。
     if (_disposed) return;
     if (state.type != MovaStreamType.live) return;
-    await _backToLiveEdge();
-    if (_disposed) return;
+    final pending = _backToLiveEdge();
+    final attempt = _attemptId;
+    await pending;
+    if (_disposed || attempt != _attemptId) return;
     _state.emit(state.copyWith(clearTimeshift: true));
     _emitEvent(const MovaLiveEdgeReach());
   }
@@ -2814,21 +2844,20 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     return reopened;
   }
 
-  /// Reopens the original live URL on the kernel, bypassing [open].
+  /// Reopens the current quality at the live edge, bypassing [open].
   ///
   /// [open] would clear the quality list and emit
   /// [MovaSourceChange]/[MovaReady], telling the UI the source changed — but
   /// returning to the edge is a position change, not a source change. It also
-  /// matters in [MovaLiveSeekMode.timeshift]: [_source] still holds the
-  /// *original* live URL while the kernel currently has a time-shifted one
-  /// open, so this is what actually catches back up.
+  /// matters in [MovaLiveSeekMode.timeshift]: replay the selected quality's
+  /// edge URL rather than the time-shifted URL currently open on the kernel.
   ///
-  /// 绕过 [open]，直接让内核重新打开原始直播地址。
+  /// 绕过 [open]，直接让内核重新打开当前档的直播边缘地址。
   ///
   /// 走 [open] 会清空清晰度列表并发出 [MovaSourceChange]/[MovaReady]，告诉 UI
   /// 源变了——但回到边缘只是位置变化，不是换源。这一点在
-  /// [MovaLiveSeekMode.timeshift] 下尤其关键：[_source] 里存的仍是**原始**直播
-  /// 地址，而内核当前打开的是带时间参数的时移地址，重开原始地址才能真正追上。
+  /// [MovaLiveSeekMode.timeshift] 下尤其关键：有效规格保留选定档，重开该档不带
+  /// 时移参数的边缘地址，避免继续播放旧时移 URL。
   Future<void> _reopenLiveSource() async {
     final s = _source;
     if (s == null) return;
@@ -2842,13 +2871,17 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // [_pendingSeekTarget] 可能在刚重开的流上误触发。
     _forgetMediaProgress();
     _armAttempt(autoPlay: _loadPlays);
+    final attempt = _attemptId;
+    final uri = _liveEdgeUri;
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
-      uri: _activeUri,
+      uri: uri,
       quality: state.currentQuality,
       reason: LoadReason.liveEdge,
     );
-    await _loadKernel(_activeUri, play: _loadPlays);
+    if (!await _loadKernel(uri, play: _loadPlays)) return;
+    if (_disposed || attempt != _attemptId) return;
+    if (_playIntent && !state.playing) await _kernel.play();
   }
 
   /// Jumps back to the live edge on a stall, when configured to.
