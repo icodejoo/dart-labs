@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节仍保守比较，debug 下连续 10 帧实际配置不等时每视图提示一次。
+
 - MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
 
 - README 应用示例统一使用 createMovaEngine，首例等待并捕获打开失败；裸 MovaEngine 缺省平台端口时在 debug 下一次性提示。

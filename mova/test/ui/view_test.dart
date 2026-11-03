@@ -52,6 +52,49 @@ Widget _view(
 }
 
 void main() {
+  for (final entry in <String, MovaOpts>{
+    'ads': const MovaOpts(ads: MovaAdConfig(enabled: true)),
+    'playlist': const MovaOpts(playlist: MovaPlaylistConfig(enabled: true)),
+    'mini': const MovaOpts(mini: MovaMiniConfig(enabled: true)),
+  }.entries) {
+    testWidgets('C03 ${entry.key} change keeps engine and playback', (t) async {
+      final engines = _Engines();
+      await t.pumpWidget(_view(engines, _src('https://a/1.mp4')));
+      await t.pump();
+      await t.pumpWidget(_view(engines, _src('https://a/1.mp4'), options: entry.value));
+      await t.pump();
+      expect(engines.made, hasLength(1));
+      expect(engines.made.single.disposed, isFalse);
+      expect(engines.made.single.openCalls, 1);
+    });
+  }
+  testWidgets('C03 parent rebuild with inline irrelevant options keeps engine', (t) async {
+    final engines = _Engines();
+    for (var i = 0; i < 3; i++) {
+      await t.pumpWidget(_view(engines, _src('https://a/1.mp4'),
+        options: MovaOpts(mini: MovaMiniConfig(width: 180.0 + i))));
+      await t.pump();
+    }
+    expect(engines.made, hasLength(1));
+    expect(engines.made.single.openCalls, 1);
+  });
+  testWidgets('C03 unstable options warn once after ten consecutive frames', (t) async {
+    final engines = _Engines();
+    final messages = <String>[];
+    final previous = debugPrint;
+    debugPrint = (message, {wrapWidth}) { if (message != null) messages.add(message); };
+    addTearDown(() => debugPrint = previous);
+    try {
+    for (var i = 0; i < 14; i++) {
+      await t.pumpWidget(_view(engines, _src('https://a/1.mp4'),
+        options: MovaOpts(preview: MovaPreviewConfig(frameWidth: 160 + i))),
+        duration: const Duration(milliseconds: 16));
+      if (i < 10) expect(messages.where((m) => m.contains('连续 10 帧')), isEmpty);
+    }
+    expect(messages.where((m) => m.contains('连续 10 帧')), hasLength(1));
+    } finally { debugPrint = previous; }
+  });
+
   group('MovaView', () {
     testWidgets('a null source builds no engine and shows only the poster', (t) async {
       final engines = _Engines();

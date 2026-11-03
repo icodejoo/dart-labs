@@ -21,7 +21,7 @@ typedef MovaViewEngineFactory = MovaApi Function(MovaOpts options);
 /// A declarative player: give it a [source] and it owns the whole engine
 /// lifecycle — created lazily on the first non-null source, reopened only
 /// when the source really changes ([MovaSource.sameAs]), recreated when
-/// [options] change, paused when the source goes null, disposed with the
+/// [options] engine sections change, paused when the source goes null, disposed with the
 /// widget. The imperative API (`createMovaEngine` + `MovaPlayer`) is unchanged
 /// and still the way to go when you need to hand an engine around.
 ///
@@ -184,10 +184,43 @@ class _MovaViewState extends State<MovaView> {
     _sync();
   }
 
+  int _optionsChangeStreak = 0;
+  Duration? _optionsChangeFrame;
+  bool _optionsFrameCheckScheduled = false;
+  bool _optionsWarningShown = false;
+
+  void _trackOptionsChanges(bool equal) {
+    if (equal) { _optionsChangeStreak = 0; return; }
+    final frame = WidgetsBinding.instance.currentFrameTimeStamp;
+    if (_optionsChangeFrame != frame) {
+      _optionsChangeFrame = frame;
+      _optionsChangeStreak++;
+    }
+    if (_optionsChangeStreak >= 10 && !_optionsWarningShown) {
+      _optionsWarningShown = true;
+      debugPrint('MovaView 连续 10 帧 options 不等，反复重建引擎；请稳定配置或回调实例。');
+    }
+    if (!_optionsFrameCheckScheduled) {
+      _optionsFrameCheckScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback(_checkOptionsFrame);
+    }
+  }
+
+  void _checkOptionsFrame(Duration frame) {
+    if (!mounted || frame != _optionsChangeFrame) {
+      _optionsChangeStreak = 0;
+      _optionsFrameCheckScheduled = false;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback(_checkOptionsFrame);
+  }
+
   @override
   void didUpdateWidget(MovaView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_engine != null && widget.options != oldWidget.options) {
+    final equal = widget.options.engineSectionsEqual(oldWidget.options);
+    assert(() { _trackOptionsChanges(equal); return true; }());
+    if (_engine != null && !equal) {
       final dead = _engine!;
       _engine = null;
       _opened = null;

@@ -169,7 +169,7 @@ MovaView(
 
 - 第一次拿到非空 `source` 才创建引擎；`source` 真正变了（`MovaSource.sameAs`：比较 uri、type、备选地址，**不比 title**）才重开，同源重建不会重开流。
 - `source` 变 `null`：引擎暂停，只剩封面（没封面就是黑底）。
-- `options` 变了会**销毁并重建**引擎（`MovaOpts` 是构造期配置），别频繁改。
+- 仅引擎实际读取的配置节变化会**销毁并重建**引擎；等值内联配置、ads/playlist/mini 变化不会重建。尚未迁出的 UI 样式节仍保守比较；引擎的 options 保留构造快照。
 - 打开失败走 `onOpenError`，不传就交给 `FlutterError.reportError`，不会变成未捕获的异步异常。
 - 需要把引擎传来传去（跨路由小窗等）时，继续用命令式的 `createMovaEngine()` + `MovaPlayer`；**别把 `MovaView` 持有的引擎交给 `MovaMini`**，`MovaView` 卸载时会把它销毁。
 
