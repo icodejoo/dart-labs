@@ -66,16 +66,23 @@ else:
                 raise OSError(f'SetInformationJobObject 失败: {err}')
 
         def assign(self, pid):
-            """把进程加入作业；成功返回 True。进程此后派生的后代自动属于作业。"""
+            """把进程加入作业；成功返回 True。进程此后派生的后代自动属于作业。
+
+            这是尽力而为的兜底：任何失败（pid 非法、权限、进程已退出）都返回 False，
+            绝不抛出，不能因它中断一轮跑批。
+            """
             if not self._job:
                 return False
-            handle = _k32.OpenProcess(_PROCESS_SET_QUOTA_TERMINATE, False, pid)
-            if not handle:
-                return False
             try:
-                return bool(_k32.AssignProcessToJobObject(self._job, handle))
-            finally:
-                _k32.CloseHandle(handle)
+                handle = _k32.OpenProcess(_PROCESS_SET_QUOTA_TERMINATE, False, int(pid))
+                if not handle:
+                    return False
+                try:
+                    return bool(_k32.AssignProcessToJobObject(self._job, handle))
+                finally:
+                    _k32.CloseHandle(handle)
+            except Exception:
+                return False
 
         def close(self):
             """关闭作业句柄：所有成员（含孤儿后代）被终止。可重复调用。"""

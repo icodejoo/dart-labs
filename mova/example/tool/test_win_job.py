@@ -40,6 +40,12 @@ class KillOnCloseJobTests(unittest.TestCase):
             time.sleep(0.1)
         self.assertFalse(_alive(grandchild_pid), '作业关闭后孤儿孙进程应被杀')
 
+    def test_assign_never_raises_on_bad_pid(self):
+        """作业防护是尽力而为：非法 pid（如测试替身的 Mock）只返回 False，不能中断跑批。"""
+        with win_job.KillOnCloseJob() as job:
+            self.assertFalse(job.assign(object()))
+            self.assertFalse(job.assign(-1))
+
     def test_close_is_idempotent_and_context_manager_works(self):
         with win_job.KillOnCloseJob() as job:
             job.close()
