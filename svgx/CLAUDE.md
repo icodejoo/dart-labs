@@ -7,6 +7,7 @@
 - 解析底层用 **Rust**(经 flutter_rust_bridge / cargokit 集成)。
 - 渲染交给 **Flutter 自身的 GPU 管线**(`ui.Picture` / Canvas / Impeller),**不引入 CPU 光栅器**。
 - 动画能力(SMIL + CSS)是本库的核心差异点和存在理由。
+- **定位扩展(2026-11-03)**:在图标之外,兼容 SVGator **CSS 导出**的装饰性动画;**不支持 SVGator JS 导出**。评估、证据与决策见 `doc/svgator-positioning.md`。
 
 ## 工作方式规则
 
@@ -28,18 +29,27 @@
 
 - **usvg 的 CSS 支持比预期扎实**:靠 `simplecss`(CSS 2.1 级)真正解析 `<style>` 块,支持 element/class/id/后代/子代/属性选择器 + 优先级级联。**明确不支持**:`@media`、`@import`、CSS 变量 `var()`、`calc()`、伪元素——这些是 usvg 上游自己的边界,不是我们要补的缺口。
 - **`lightningcss` 不值得引入**:它是给 bundler 用的 CSS 转换/压缩工具,没有针对 DOM 的选择器匹配能力,替代不了 usvg 已经在用的 `simplecss`。
-- **"SVG 里的高级 CSS"是伪需求(针对 svgx 的图标场景)**:查了 `flutter_svg` 全部 1116 个 issue,`<style>`/CSS class 相关的实质性 issue 只有 4 个(<0.4%),且全部来自 Illustrator/CorelDRAW 导出的手工 SVG,没有一个来自图标资产。
-- **结论**:不追加 CSS 相关投入。如果以后真遇到 `<style>` 块场景,先确认 usvg 现有解析是否够用,而不是新造轮子。
+- **"SVG 里的高级 CSS"在图标场景下是伪需求(历史结论)**:查了 `flutter_svg` 全部 1116 个 issue,`<style>`/CSS class 相关的实质性 issue 只有 4 个(<0.4%),且全部来自 Illustrator/CorelDRAW 导出的手工 SVG,没有一个来自图标资产。这条只针对图标场景,定位扩展后不再适用。
+- **结论(2026-11-03 更新)**:动画路径需要解析 `<style>`(至少 `#id` 选择器)和 `style=""`。依据:SVGator CSS 导出的动画全写在 `<style>` 里(55 个 CSS 样本中 53 个只用 `#id` 选择器),且 243 个样本里 44%(108 个)带 `style=""`。静态路径的 CSS 仍交给 usvg,不追加投入;需要解析时先确认 usvg 现有解析是否够用,而不是新造轮子。
 
-## CSS 动画支持:有证据支撑的"不做"(注意与上面"CSS 支持范围"是两个不同问题)
+## CSS 动画支持:纳入范围(2026-11-03 决策,推翻此前的"不做")
 
-原创动画引擎排除 CSS `@keyframes`/`animation-*`/`transition-*` 不是图省事,是查过真实数据后的决策:
+此前的结论是"不做 CSS 动画",依据只覆盖图标场景。定位扩展到 SVGator CSS 导出后重新评估,采用**方案 A**:SMIL + SVGator CSS 导出 + 通用 CSS 动画子集。
 
-- 直接 grep 了 Iconify 真实数据(`iconify/icon-sets` 仓库的 JSON):`line-md`(5310 个 `<animate>`、192 个 `animateTransform`、**0 个 CSS**)、`svg-spinners`(262/38/0)、`eos-icons`(33/7/0)——每一个检查过的动画图标集,100% 是 SMIL,零 CSS。
-- flutter_svg issue 搜 `keyframes` 只有 1 个命中(#772,开的当天就被维护者回"No, sorry"关掉)。
-- F 的上游 `full_svg_flutter` 号称支持 CSS keyframes,但最近 30 个 issue 里没有一个提到这个功能。
+- **旧证据保留,作为"图标场景不需要"的背景**:Iconify 真实数据(`iconify/icon-sets` 仓库的 JSON)里,`line-md`(5310 个 `<animate>`、192 个 `animateTransform`、**0 个 CSS**)、`svg-spinners`(262/38/0)、`eos-icons`(33/7/0)——每一个检查过的动画图标集,100% 是 SMIL,零 CSS。flutter_svg issue 搜 `keyframes` 只有 1 个命中(#772,当天被关);F 的上游号称支持 CSS keyframes,最近 30 个 issue 里也没人提这个功能。
+- **新证据**:243 个真实 SVGator 导出(CSS 55、JS 188)。CSS 样本里 transform 关键帧 54 个、逐关键帧 cubic-bezier 26 个、steps 7 个、opacity 13 个、offset-distance 7 个、`d` 变形 4 个、fill 颜色 4 个;49 个无限循环,fill-mode 全是 forwards。注意这是便利取样,不是市场占比。
+- **纳入范围的 CSS 能力**:`@keyframes`;`animation` 简写和长写;逐关键帧的 cubic-bezier 和 steps;transform 列表(translate/rotate/scale/skew);`offset-path` 运动路径;`d: path()`;颜色。
+- **暂不纳入**:`transition-*`——243 个样本里 0 次出现,而且要靠 hover、类名切换这类状态变化才会触发,等有真实需求再评估。`@media`、`@import`、`var()`、`calc()` 是 usvg 自身的边界,沿用上面"CSS 支持范围"的结论,不做。
+- **做法**:解析期把 `@keyframes` 编译进现有时间线模型,不推翻逐帧引擎和 FFI 边界。工作量大头是动画路径的渲染能力(组 opacity、嵌套 mask、混合模式、`style=""` 等),渲染层走 R1 还是 R2 待 spike。
+- 差距清单、缺口、R1/R2 方案详见 `doc/svgator-positioning.md`。
 
-**结论**:不做 CSS 动画。只有当 svgx 定位从"图标替换"扩展到"通用 SVGator 风格装饰性动画内容"时才重新评估。
+## SVGator JS 导出:不支持(定论)
+
+- **没有公开规范,格式在变**:载荷无公开 schema,`version` 字段出现过 4 种取值;163/188 个样本的播放设置做过混淆。
+- **依赖闭源播放器和联网**:115/188 个样本要从 `cdn.svgator.com/ply/` 现拉播放器,在 iOS App 里用自带解释器执行这种下载来的 JS,还要面对 App Review 2.5.2 的灰区;SVGator ToS 2.1 明确不允许访问、查看或修改其源码或目标码。
+- **和本库原则冲突**:内嵌 JS 引擎违背"不执行 JS、体积优先";F 的上游内嵌 QuickJS 后仍要用 Dart 重写 526 行插值来修 `cusp` 算错的问题。
+- **需求信号弱**:flutter_svg issue 搜 "svgator" 为 0 条;flutter/flutter #132029(Support for animated SVG)0 个 👍,被 bot 关闭。
+- 详见 `doc/svgator-positioning.md`。
 
 ## ⚠️ 硬规则:`lib/` 禁止整包 vendor,但允许精确抄小段代码
 
@@ -99,5 +109,6 @@ Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28
 | `doc/size-optimization-history.md` | 体积优化每一项改动的**完整调研过程**(动机、前提确认、实测数据、方法学局限) | 想知道"当初为什么这么决定"时 |
 | `doc/SIZE_OPTIMIZATION.md` | 体积优化**结论速查表**:已落地/候选/已排除三张表 + 验证方法论 | 讨论瘦身方向前先查这份,别重复调研 |
 | `doc/PRECOMPILED_MIGRATION_PLAN.md` | 预编译产物(prebuilt .so/.dll)迁移方案 | 涉及预编译分发、CI 构建产物相关改动时 |
+| `doc/svgator-positioning.md` | SVGator 定位评估、证据与决策:为什么选"SMIL + CSS 导出"、JS 导出为什么不支持、差距清单(动画语义/渲染能力/运行时)、R1/R2 渲染层方案 | 讨论 CSS/SVGator 支持范围、要不要支持 JS 导出、规划插画级渲染能力时 |
 | `README.md` | pub.dev 包主页展示内容(根目录强制位置,不要移动) | 面向库使用者 |
 | `CHANGELOG.md` | 版本变更记录(根目录强制位置,不要移动) | 发版时 |
