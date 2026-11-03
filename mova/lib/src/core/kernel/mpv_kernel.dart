@@ -1,3 +1,4 @@
+import 'restart_observer.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -61,7 +62,7 @@ const String _kVidAuto = 'auto';
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements MovaRestartObserver, MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -82,13 +83,9 @@ class MovaMpvKernel
   /// This "default `--vid=no`" premise must be re-verified upon upgrading
   /// media_kit.
   ///
-  /// [observeQoeSignals] controls whether to perform the extra native
-  /// `paused-for-cache` property observation and the native event subscription
-  /// ([playbackRestarts]/[endFiles]) — all three exist exclusively for the QoE
-  /// layer. Callers without a [MovaReporter] should pass `false` so the
-  /// constructor completely skips these FFI round-trips, ensuring the "zero cost
-  /// if no reporter" promise holds true down at this level (it previously only
-  /// applied one layer up in [MovaQoeCollector]).
+  /// [observeQoeSignals] controls the extra `paused-for-cache` observation.
+  /// Native event clients start lazily on the first [open], independently
+  /// controlled by [observeNativeEvents].
   ///
   /// [backendFactory] provides a factory for the native event backend.
   ///
@@ -108,11 +105,9 @@ class MovaMpvKernel
   ///
   /// 升级 media_kit 时须重验"默认 `--vid=no`"这一条。
   ///
-  /// [observeQoeSignals] 控制要不要做额外的原生 `paused-for-cache` 属性观察和
-  /// 原生事件订阅（[playbackRestarts]/[endFiles]）——这三者全部
-  /// 只服务 QoE 层。没有配置 [MovaReporter] 的调用方应传 `false`，让构造期
-  /// 完全跳过这几次 FFI 往返，使"没有 reporter 就零开销"这条承诺在这一层
-  /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
+  /// [observeQoeSignals] 只控制额外的 `paused-for-cache` 属性观察。
+  /// 原生事件弱客户端由 [observeNativeEvents] 控制，首次 [open] 才启动；
+  /// 标准工厂即使未启用 recovery 也订阅 END_FILE 以检测终结失败。
   ///
   /// [observeNativeEvents] 单独控制原生事件订阅（[playbackRestarts]/[endFiles]）：
   /// 为 `null`（默认）时跟随 [observeQoeSignals]，既有调用点行为不变；显式传 `true`
@@ -178,8 +173,8 @@ class MovaMpvKernel
       _heightSeen = true;
       _emitSize();
     });
-    final wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
-    if (!observeQoeSignals && !wantNative) return;
+    _wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
+    if (!observeQoeSignals && !_wantNative) return;
     // Observe mpv's own `paused-for-cache` — the *real* rebuffer signal,
     // distinct from the `buffering` stream's merge of `core-idle` +
     // `paused-for-cache` (see MovaStatsProbe.stalling doc). Only real
@@ -207,7 +202,6 @@ class MovaMpvKernel
               // `buffering` 判据，其余上报功能不受影响。
             });
       }
-      if (wantNative) setup = setup.then((_) => _observeNativeEvents(native));
       _observeSetup = setup;
     }
   }
@@ -349,7 +343,28 @@ class MovaMpvKernel
   final MovaMpvEventBackendFactory? _backendFactory;
 
   /// 是否转发原生 `PLAYBACK_RESTART`；为 false 时只转发 END_FILE。
-  final bool _observeRestarts;
+  bool _observeRestarts;
+
+  /// 首次 open 才启动事件泵，构造期只记住订阅意图。
+  bool _wantNative = false;
+
+  /// 原生事件泵的单次启动任务，供并发 open 与 dispose 共用。
+  Future<void>? _nativeSetup;
+
+  /// 启用 RESTART 转发；事件泵仍在首次 open 才启动，无返回值。
+  /// 示例：`kernel.observeRestarts()`。
+  @override
+  void observeRestarts() => _observeRestarts = true;
+
+  /// 在打开媒体前保证弱客户端就绪；失败沿用静默降级。
+  Future<void> _ensureNativeEvents() async {
+    final native = _player.platform;
+    if (!_wantNative || _disposed || native is! NativePlayer) return;
+    await (_nativeSetup ??= () async {
+      await _observeSetup;
+      if (!_disposed) await _observeNativeEvents(native);
+    }());
+  }
 
   /// 全局单调递增计数器，为每个事件泵生成唯一名字。
   static int _pumpNameCounter = 0;
@@ -683,6 +698,7 @@ class MovaMpvKernel
     final options = _stagedOptions;
     _stagedOptions = const {};
     await _tlsSetup;
+    await _ensureNativeEvents();
     final seq = ++_openSeq;
     _formatProbePending = false;
     // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
@@ -767,6 +783,7 @@ class MovaMpvKernel
     } catch (_) {
       // 超时或抛错吞掉继续销毁
     }
+    await _nativeSetup;
     await _pump?.dispose();
     await _player.dispose();
   }

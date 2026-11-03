@@ -76,7 +76,7 @@ void main() {
   const oneSecond = Duration(seconds: 1);
 
   test(
-    '1. disabled (default): open() still throws, no failure events, no stream or timer added',
+    '1. disabled (default): open() still throws, no recovery events or timer, END_FILE still observed',
     () {
       fakeAsync((async) {
         final k = FakeStatsKernel()..openError = StateError('boom');
@@ -92,7 +92,7 @@ void main() {
         expect(thrown, isA<StateError>());
         async.elapse(const Duration(minutes: 5));
         expect(r.failures, isEmpty);
-        expect(k.endFilesSubscribed, isFalse);
+        expect(k.endFilesSubscribed, isTrue);
         expect(async.pendingTimers, isEmpty);
 
         final ok = _Rig(

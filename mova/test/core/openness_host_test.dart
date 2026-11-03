@@ -38,7 +38,7 @@ void main() {
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 10));
         expect(async.pendingTimers, isEmpty, reason: 'recovery off: no watchdog, no retry timer');
-        expect(k.endFilesSubscribed, isFalse, reason: 'recovery off: END_FILE is not even subscribed');
+        expect(k.endFilesSubscribed, isTrue, reason: 'END_FILE 判失败不依赖 recovery');
         expect(engine.state.error, isNull);
         engine.dispose();
         async.flushMicrotasks();

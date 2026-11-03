@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../core/api.dart';
+import '../core/kernel/restart_observer.dart';
 import '../core/model/fit.dart';
 import '../core/model/source.dart';
 import 'fit_ext.dart';
@@ -150,6 +151,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
     if (widget.autoLoadQualities) {
       widget.api.loadQualities();
     }
+    _observePosterRestarts();
     _applyFit(apiChanged: true);
   }
 
@@ -166,7 +168,16 @@ class _MovaPlayerState extends State<MovaPlayer> {
         oldWidget.posterFade != widget.posterFade) {
       _skinTree = null;
     }
+    _observePosterRestarts();
     _applyFit(previous: oldWidget.fit, apiChanged: oldWidget.api != widget.api);
+  }
+
+  /// 挂封面时请求精确首帧，支持在 open 后才挂载的播放器。
+  void _observePosterRestarts() {
+    final api = widget.api;
+    if (widget.poster != null && api is MovaRestartObserver) {
+      (api as MovaRestartObserver).observeRestarts();
+    }
   }
 
   /// 离场时释放视图持有的焦点。

@@ -1,3 +1,4 @@
+import '../kernel/restart_observer.dart';
 import 'dart:async';
 
 import '../api.dart';
@@ -122,7 +123,7 @@ class _WarmSlot {
 /// [MovaCutoverConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
 class MovaCutoverEngine
-    implements MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaCutoverAcceptance {
+    implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaCutoverAcceptance {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -147,10 +148,30 @@ class MovaCutoverEngine
   /// 创建每个底层引擎。
   final MovaEngineFactory _engineFactory;
 
-  /// The engine currently driving the render surface.
-  ///
+  /// 封面要求的精确首帧意图，在换指及预热时继续传递。
+  bool _observeRestartRequested = false;
+
+  /// 启用当前及影子引擎的精确首帧能力，无返回值。
+  /// 示例：`engine.observeRestarts()`。
+  @override
+  void observeRestarts() {
+    _observeRestartRequested = true;
+    _requestRestarts(_active);
+    final shadow = _slot.engine;
+    if (shadow != null) _requestRestarts(shadow);
+  }
+
+  /// 将封面观察意图传给支持能力的 [engine]。
+  void _requestRestarts(MovaApi engine) {
+    if (_observeRestartRequested && engine is MovaRestartObserver) {
+      (engine as MovaRestartObserver).observeRestarts();
+    }
+  }
+
   /// 当前驱动渲染面的引擎。
   MovaApi get active => _active;
+
+  /// 当前生效的底层引擎。
   late MovaApi _active;
 
   /// 当前预热的全部状态与资源。
@@ -545,6 +566,7 @@ class MovaCutoverEngine
     final slot = _WarmSlot();
     _slot = slot;
     final shadow = _engineFactory();
+    _requestRestarts(shadow);
     // 影子引擎要在挂界面之前就解码出画面，读一次 renderHandle 让懒创建的视频管线
     // 提前建好（否则预热期间 vid=no，切换时仍要黑屏等首帧）。
     shadow.renderHandle;

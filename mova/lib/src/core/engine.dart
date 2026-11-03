@@ -9,6 +9,7 @@ import 'events/events.dart';
 import 'engine/load_spec.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
+import 'kernel/restart_observer.dart';
 import 'kernel/classified_error_kernel.dart';
 import 'model/playback_error.dart';
 import 'kernel/mpv_kernel.dart';
@@ -77,7 +78,7 @@ class _AbrLease {
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
+class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -855,13 +856,14 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       ) {
         _feedGate((gate) => gate.onRestart());
       });
-      if (rec.enabled) {
-        _endFileSub = (restartKernel as MovaStatsProbe).endFiles.listen((r) {
-          if (r == MovaEndFileReason.error) {
-            _onPlayFail(MovaPlayFailKind.nativeEndError);
-          }
-        });
-      }
+      _endFileSub = (restartKernel as MovaStatsProbe).endFiles.listen((r) {
+        if (_source == null || _disposed || r != MovaEndFileReason.error) return;
+        if (rec.enabled) {
+          _onPlayFail(MovaPlayFailKind.nativeEndError);
+        } else {
+          _terminalError(r);
+        }
+      });
     }
     _previewService = _buildPreview(
       thumbDir: thumbDir,
@@ -987,6 +989,16 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     return (v - _reportedDuration).abs() < step;
   }
 
+  /// 启用内核的精确首帧能力；无此能力时保持原判据，无返回值。
+  /// 示例：`engine.observeRestarts()`。
+  @override
+  void observeRestarts() {
+    final kernel = _kernel;
+    if (!_disposed && kernel is MovaRestartObserver) {
+      (kernel as MovaRestartObserver).observeRestarts();
+    }
+  }
+
   /// Whether the kernel's native restart subscription is live right now.
   ///
   /// 内核的原生 RESTART 订阅此刻是否在工作。
@@ -1015,7 +1027,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       }
       await _kernel.open(uri, play: play);
     } catch (e) {
-      if (_watchdog == null) rethrow;
+      if (_watchdog == null) {
+        if (current()) _terminalError(e);
+        rethrow;
+      }
       failure = e;
     } finally {
       _kernelOpening--;
@@ -1406,6 +1421,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 已销毁：静默空操作。
     if (_disposed) return false;
+    assert(options.recovery.enabled || source.alternatives.isEmpty,
+        'alternatives 需要启用 recovery');
     // Claim this call's generation before the first await: if another open()
     // call is made while this one is suspended below, that later call bumps
     // _openGen again and this call notices it has been superseded the moment
@@ -1737,7 +1754,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
   /// 避免失效的直播源在后台一直重连。
   void _giveUp(MovaPlayFail fail) {
     if (_disposed) return;
-    final err = MovaGiveUpError(fail);
+    _terminalError(MovaGiveUpError(fail));
+  }
+
+  /// 终结 [err] 的播放尝试，统一清缓冲、发错误并暂停内核。
+  void _terminalError(Object err) {
+    if (_disposed) return;
     // Nothing is loading any more: a buffering flag left over from the dead
     // attempt would keep the spinner up forever.
     //
@@ -1745,7 +1767,8 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     final wasBuffering = state.buffering;
     _state.emit(state.copyWith(error: err, buffering: false));
     if (wasBuffering) _emitEvent(const MovaBufferChange(false));
-    _emitClassifiedError(err);
+    final verdict = classifyMovaPlaybackError(err, afterFirstFrame: state.rendered);
+    _emitEvent(MovaErrorEvent.classified(err, fatal: true, code: verdict.code));
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));
   }
@@ -2034,7 +2057,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       if (seekTo != null) _resumeWatch();
       _state.emit(state.copyWith(clearTimeshift: true));
       if (edge) _emitEvent(const MovaLiveEdgeReach());
-    } on Object catch (error, stack) {
+    } on Object catch (error) {
       if (!_disposed && attempt == _attemptId) {
         if (_watchdog != null) {
           _onPlayFail(MovaPlayFailKind.openThrew, error: error);
@@ -2042,9 +2065,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
           // 唤醒调用已返回，后台失败由引擎上报，并取消成功恢复测量。
           _cancelResume();
           _setKeepAlivePhase(MovaKeepAlivePhase.off, MovaKeepAliveReason.failed);
-          _state.emit(state.copyWith(error: error));
-          _emitEvent(MovaErrorEvent(error));
-          _chain.onError(error, stack);
+          if (!identical(state.error, error)) _terminalError(error);
         }
       }
     }

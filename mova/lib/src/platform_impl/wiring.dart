@@ -148,11 +148,11 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [preciseFirstFrame]: subscribe to libmpv's native `PLAYBACK_RESTART` even
 ///   without a reporter, so `MovaState.rendered`/`MovaFirstFrame` land on the
 ///   real first frame (~200ms later and exact) instead of the buffering/position
-///   fallback. Costs one weak mpv client per engine (plus a 100ms poll in debug).
+///   fallback. Shares the END_FILE client created lazily at first open.
 ///   Default `false`; ignored when [kernel] is supplied /
 ///   即使没有 reporter 也订阅 libmpv 原生 `PLAYBACK_RESTART`，让
 ///   `MovaState.rendered`/`MovaFirstFrame` 落在真正的首帧上（比 buffering/位置兜底
-///   准，约晚 200ms），代价是每引擎一个 mpv 弱客户端（debug 下另有 100ms 轮询）。
+///   准，约晚 200ms），复用首次 open 才创建的 END_FILE 弱客户端。
 ///   默认 `false`；传入 [kernel] 时忽略
 /// - [fit]: the initial `MovaState.fit`; defaults to [MovaFit.contain]. This is
 ///   a starting value, not a lock — `setFit()` and the fit button still change
@@ -223,7 +223,8 @@ MovaEngine createMovaEngine({
       tlsVerify: tlsVerify,
       tlsCaFile: tlsCaFile,
       observeQoeSignals: flags.qoe,
-      observeNativeEvents: flags.native,
+      // END_FILE 是基本失败检测；弱客户端首次 open 才创建。
+      observeNativeEvents: true,
       observeRestarts: flags.restart,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),

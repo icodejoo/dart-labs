@@ -114,13 +114,19 @@ void main() {
     });
   });
 
-  test('recovery disabled: alternatives are never used, however long we wait', () {
+  test('recovery disabled: alternatives are rejected by debug assertion', () {
     fakeAsync((async) {
       final k = FakeKernel();
       final r = _Rig(k, enabled: false);
-      r.open(async, const MovaSource(_a, alternatives: [_b]));
+      Object? rejected;
+      r.engine.open(const MovaSource(_a, alternatives: [_b])).catchError((Object e) {
+        rejected = e;
+        return false;
+      });
+      async.flushMicrotasks();
+      expect(rejected, isA<AssertionError>());
       async.elapse(const Duration(minutes: 10));
-      expect(k.openedUris, [_a]);
+      expect(k.openedUris, isEmpty);
       expect(r.engine.state.sourceIndex, 0);
       expect(r.events.whereType<MovaFailover>(), isEmpty);
     });
