@@ -185,7 +185,7 @@ api.events.listen((e) {
 
 ## 播放错误
 
-`state.error` 只保存终结错误，供重试遮罩和失败状态使用；包括 `END_FILE(error)`、恢复放弃、已知终结文本以及 open 抛出。默认配置也检测 END_FILE，弱客户端在首次 open 时才启动。recovery 关闭时 open 失败本版本仍抛出，同时写终结状态；下一版本将不再抛出。
+`state.error` 只保存终结错误，供重试遮罩和失败状态使用；包括 `END_FILE(error)`、恢复放弃、已知终结文本以及 open 抛出。默认配置也检测 END_FILE，弱客户端在首次 open 时才启动；每次加载前排空旧事件，并按加载尝试丢弃迟到通知。同次尝试仅一次终结上报，重复日志保留为诊断；待机失败静默记录，唤醒时重开。recovery 关闭时 open 失败本版本仍抛出，同时写终结状态；下一版本将不再抛出。
 
 非终结内核日志继续发送 `MovaErrorEvent(fatal: false)` 并通知 `MovaHook.onError`，不会写 `state.error` 或弹出错误遮罩。迁移原有“监听 state.error 收集所有错误”的代码时，改监听事件：
 

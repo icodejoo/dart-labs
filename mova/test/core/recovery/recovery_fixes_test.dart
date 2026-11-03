@@ -49,14 +49,15 @@ void main() {
   const oneSecond = Duration(seconds: 1);
 
   group('1. 恢复成功后清掉旧错误', () {
-    test('MovaRecovered 之后 state.error 为空', () {
+    test('可恢复超时不写终结错误，MovaRecovered 之后 state.error 为空', () {
       fakeAsync((async) {
         final r = _Rig();
         r.open(async);
-        r.kernel.emitError('Failed to recognize file format.');
-        async.flushMicrotasks();
-        expect(r.engine.state.error, isNotNull, reason: '失败期间错误可见');
-        async.elapse(tenSeconds + oneSecond);
+        // 格式错误已终结，不能再用它制造可恢复状态；改用起播超时。
+        async.elapse(tenSeconds);
+        expect(r.failures, hasLength(1));
+        expect(r.engine.state.error, isNull, reason: '等待重试期间不是终结失败');
+        async.elapse(oneSecond);
         r.land(async);
         expect(r.events.whereType<MovaRecovered>(), hasLength(1));
         expect(r.engine.state.error, isNull);

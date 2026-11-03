@@ -1,3 +1,4 @@
+import 'attempt_event_kernel.dart';
 import 'restart_observer.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -62,7 +63,7 @@ const String _kVidAuto = 'auto';
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaRestartObserver, MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements MovaAttemptEventKernel, MovaRestartObserver, MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -339,6 +340,26 @@ class MovaMpvKernel
   /// 用于事件抽水的泵实例。
   MovaMpvEventPump? _pump;
 
+  /// 当前原生加载对应的引擎尝试。
+  int _eventAttempt = 0;
+
+  /// 下一次实际 loadfile 才生效的尝试编号。
+  int _pendingEventAttempt = 0;
+
+  /// 带身份的结束通知，异步投递仍保留产生时的尝试。
+  final _attemptEnds = StreamController<MovaAttemptEnd>.broadcast();
+
+  @override
+  Stream<MovaAttemptEnd> get attemptEnds => _attemptEnds.stream;
+
+  @override
+  bool get endFileAvailable => _pump?.isActive ?? false;
+
+  @override
+  void prepareAttempt(int attempt) {
+    _pendingEventAttempt = attempt;
+  }
+
   /// 后端工厂函数，用于创建 MovaMpvEventBackend。
   final MovaMpvEventBackendFactory? _backendFactory;
 
@@ -430,6 +451,7 @@ class MovaMpvKernel
           final mapped = _mapEndFileReason(reason);
           if (mapped != null) {
             _endFileController.add(mapped);
+            _attemptEnds.add((attempt: _eventAttempt, reason: mapped));
           }
         }
       },
@@ -694,6 +716,8 @@ class MovaMpvKernel
 
   @override
   Future<void> open(String uri, {bool play = true}) async {
+    // 同步取走身份，避免等待原生准备时被后一次 open 覆盖。
+    final eventAttempt = _pendingEventAttempt;
     // 同步取走暂存项：它只属于紧随其后的这一次 open，不被后来的 open 误用。
     final options = _stagedOptions;
     _stagedOptions = const {};
@@ -725,6 +749,8 @@ class MovaMpvKernel
       if (seq != _openSeq || _disposed) return;
     }
     try {
+      _pump?.discardPending();
+      _eventAttempt = eventAttempt;
       await _player.open(Media(uri), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
@@ -785,6 +811,7 @@ class MovaMpvKernel
     }
     await _nativeSetup;
     await _pump?.dispose();
+    await _attemptEnds.close();
     await _player.dispose();
   }
 

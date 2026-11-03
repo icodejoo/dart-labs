@@ -9,6 +9,7 @@ import 'events/events.dart';
 import 'engine/load_spec.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
+import 'kernel/attempt_event_kernel.dart';
 import 'kernel/restart_observer.dart';
 import 'kernel/classified_error_kernel.dart';
 import 'model/playback_error.dart';
@@ -297,10 +298,14 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 不持有任何恢复计时器，也不多订阅任何流。
   MovaPlayWatchdog? _watchdog;
 
-  /// Subscription to the kernel's native end-of-file reasons (recovery only).
-  ///
-  /// 内核原生文件结束原因的订阅（仅 recovery 开启时存在）。
-  StreamSubscription<MovaEndFileReason>? _endFileSub;
+  /// 内核原生结束通知；开启与关闭 recovery 都订阅，优先使用带尝试身份的流。
+  StreamSubscription<Object?>? _endFileSub;
+
+  /// 当前尝试已终结，独立于 recovery 的失败裁决。
+  int _terminalAttemptId = -1;
+
+  /// open 期间的终结错误，返回后重放。
+  ({Object error, String? subsystem})? _deferredTerminal;
 
   /// Pending retry/failover delay.
   ///
@@ -866,14 +871,16 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       ) {
         _feedGate((gate) => gate.onRestart());
       });
-      _endFileSub = (restartKernel as MovaStatsProbe).endFiles.listen((r) {
-        if (_source == null || _disposed || r != MovaEndFileReason.error) return;
-        if (rec.enabled) {
-          _onPlayFail(MovaPlayFailKind.nativeEndError);
-        } else {
-          _terminalError(r);
-        }
-      });
+      // 接收当前加载的错误结束；正常结束由完成流处理。
+      void onEnd(MovaEndFileReason reason) {
+        if (_source == null || _disposed || reason != MovaEndFileReason.error) return;
+        _onNativeFailure(reason);
+      }
+      _endFileSub = restartKernel is MovaAttemptEventKernel
+          ? (restartKernel as MovaAttemptEventKernel).attemptEnds.listen((event) {
+              if (event.attempt == _attemptId) onEnd(event.reason);
+            })
+          : (restartKernel as MovaStatsProbe).endFiles.listen(onEnd);
     }
     _previewService = _buildPreview(
       thumbDir: thumbDir,
@@ -1035,10 +1042,13 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
           (_source ?? MovaSource(uri)).mpvOptionsFor(uri, timeouts: options.recovery.timeouts),
         );
       }
+      if (kernel is MovaAttemptEventKernel) {
+        (kernel as MovaAttemptEventKernel).prepareAttempt(attempt);
+      }
       await _kernel.open(uri, play: play);
     } catch (e) {
       if (_watchdog == null) {
-        if (current()) _terminalError(e);
+        if (current()) _terminalError(e, defer: false);
         rethrow;
       }
       failure = e;
@@ -1050,6 +1060,12 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       _deferredFail = null;
       _onPlayFail(MovaPlayFailKind.openThrew, error: failure);
       return false;
+    }
+    final terminal = _deferredTerminal;
+    _deferredTerminal = null;
+    if (terminal != null) {
+      _terminalError(terminal.error, subsystem: terminal.subsystem);
+      if (_terminalAttemptId == _attemptId) return false;
     }
     final deferred = _deferredFail;
     _deferredFail = null;
@@ -1102,6 +1118,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _recoverTimer = null;
     _releaseAbrHold();
     _attemptId++;
+    _deferredTerminal = null;
     _deferredFail = null;
     _recoveryAwaitingFrame = false;
     _graceTimer?.cancel();
@@ -1597,25 +1614,12 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       _deferredFail ??= (kind: kind, error: error);
       return;
     }
-    // A hold fails quietly: no policy, no event, no reconnect in the background.
-    // The wake-up reopens the source instead.
-    //
-    // 待机中的失败悄悄处理：不咨询策略、不发事件、不在后台重连，唤醒时再重开。
-    if (state.keepAlivePhase == MovaKeepAlivePhase.holding) {
-      unawaited(
-        _enqueueKeepAlive(() => _degradeKeepAlive(MovaKeepAliveReason.failed)),
-      );
-      return;
-    }
-    if (state.keepAlivePhase == MovaKeepAlivePhase.fallback) {
-      _fallbackCause = MovaKeepAliveReason.failed;
-      return;
-    }
+    if (_failQuietlyIfKeepAlive()) return;
     // One attempt fails once: a timeout may be followed by a native error for
     // the very same attempt.
     //
     // 一次尝试只失败一次：超时之后同一次尝试可能还会收到原生错误。
-    if (_failedAttemptId == _attemptId) return;
+    if (_failedAttemptId == _attemptId || _terminalAttemptId == _attemptId) return;
     _recoveryPosition ??= state.type == MovaStreamType.vod && state.rendered
         ? _resumeTarget
         : Duration.zero;
@@ -1742,13 +1746,46 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _announceReady();
   }
 
+  /// 待机失败只标记唤醒重开，不发错误或咨询策略。
+  bool _failQuietlyIfKeepAlive() {
+    // A hold fails quietly: no policy, no event, no reconnect in the background.
+    // The wake-up reopens the source instead.
+    //
+    // 待机中的失败悄悄处理：不咨询策略、不发事件、不在后台重连，唤醒时再重开。
+    if (state.keepAlivePhase == MovaKeepAlivePhase.holding) {
+      unawaited(
+        _enqueueKeepAlive(() => _degradeKeepAlive(MovaKeepAliveReason.failed)),
+      );
+      return true;
+    }
+    if (state.keepAlivePhase == MovaKeepAlivePhase.fallback) {
+      _fallbackCause = MovaKeepAliveReason.failed;
+      return true;
+    }
+    return false;
+  }
+
+  /// 原生结束和打开失败兜底共用恢复或终结入口。
+  void _onNativeFailure(Object error) {
+    if (_terminalAttemptId == _attemptId) return;
+    if (_kernelOpening == 0 && _failQuietlyIfKeepAlive()) return;
+    if (_watchdog != null) {
+      _onPlayFail(MovaPlayFailKind.nativeEndError, error: error);
+    } else {
+      _terminalError(error);
+    }
+  }
+
   /// 将 [error] 与可选 [subsystem] 分类；仅终结错误写入状态，所有错误仍通知钩子。
   void _onKernelError(Object error, {String? subsystem}) {
     final verdict = classifyMovaPlaybackError(
       error, subsystem: subsystem, afterFirstFrame: state.rendered,
     );
-    if (verdict.fatal) _state.emit(state.copyWith(error: error));
-    _emitEvent(MovaErrorEvent.classified(error, fatal: verdict.fatal, code: verdict.code));
+    if (verdict.fatal && _terminalAttemptId != _attemptId) {
+      _terminalError(error, subsystem: subsystem);
+      return;
+    }
+    _emitEvent(MovaErrorEvent.classified(error, fatal: false, code: verdict.code));
     _chain.onError(error, StackTrace.current);
   }
 
@@ -1764,8 +1801,16 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   }
 
   /// 终结 [err] 的播放尝试，统一清缓冲、发错误并暂停内核。
-  void _terminalError(Object err) {
+  void _terminalError(Object err, {String? subsystem, bool defer = true}) {
     if (_disposed) return;
+    if (defer && _kernelOpening > 0) {
+      _deferredTerminal ??= (error: err, subsystem: subsystem);
+      return;
+    }
+    if (_failQuietlyIfKeepAlive()) return;
+    if (_terminalAttemptId == _attemptId) return;
+    _terminalAttemptId = _attemptId;
+    _watchdog?.disarm();
     // Nothing is loading any more: a buffering flag left over from the dead
     // attempt would keep the spinner up forever.
     //
@@ -1773,7 +1818,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     final wasBuffering = state.buffering;
     _state.emit(state.copyWith(error: err, buffering: false));
     if (wasBuffering) _emitEvent(const MovaBufferChange(false));
-    final verdict = classifyMovaPlaybackError(err, afterFirstFrame: state.rendered);
+    final verdict = classifyMovaPlaybackError(err, subsystem: subsystem, afterFirstFrame: state.rendered);
     _emitEvent(MovaErrorEvent.classified(err, fatal: true, code: verdict.code));
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));

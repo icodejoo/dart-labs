@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 修复 END_FILE 归属与终结处理：每次实际加载前同步排空旧弱客户端队列，结束通知携带尝试编号；统一终结入口，单次尝试仅一次 fatal，重复日志保留诊断。待机失败静默降级并在唤醒时重开，open 期间的通知在返回后处理。
+
 ### Breaking
 
 - `state.error` 只表示终结播放的错误。非终结内核日志不再写此字段，也不弹默认错误遮罩；`MovaErrorEvent(fatal: false)` 与 `MovaHook.onError` 仍照常通知。需要诊断所有错误的宿主请改监听 `api.events` 中的 `MovaErrorEvent`，按 `fatal` 决定是否显示失败；需要跟踪恢复决策的宿主监听 `MovaPlayFailure`。END_FILE(error)、恢复放弃、已知终结文本和 open 抛出仍写入状态。

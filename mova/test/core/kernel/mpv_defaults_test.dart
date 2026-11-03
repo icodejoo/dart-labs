@@ -24,6 +24,10 @@ class _FakePlayer extends Fake implements Player {
   @override
   PlayerStream get stream => _stream;
 
+  /// 终结错误统一暂停，替身无需原生播放器。
+  @override
+  Future<void> pause() async {}
+
   @override
   Future<void> dispose() async {}
 }

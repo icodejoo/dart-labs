@@ -1,10 +1,10 @@
+import 'package:mova/mova.dart';
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit/generated/libmpv/bindings.dart' as generated;
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/core/kernel/mpv_event_backend.dart';
-import 'package:mova/src/core/report/stats_probe.dart';
 
 import '../../support/fake_mpv_event_backend.dart';
 
@@ -21,6 +21,10 @@ class _FakePlayer extends Fake implements Player {
 
   @override
   PlayerStream get stream => _stream;
+
+  /// 暂停只记调用，验证旧结束通知不会暂停新源。
+  @override
+  Future<void> pause() async => callLog.add('player.pause');
 
   /// 模拟打开，不产生真实原生资源。
   @override
@@ -120,6 +124,31 @@ class _SharedLogBackend extends FakeMpvEventBackend {
 
 void main() {
   group('MovaMpvKernel Events', () {
+    test('F-J queued A END_FILE after open B cannot terminate or pause B', () async {
+      final calls = <String>[];
+      final backend = FakeMpvEventBackend();
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(calls), audioOnly: true, observeNativeEvents: true,
+        backendFactory: (_, _) => backend,
+      );
+      final engine = MovaEngine(kernel: kernel, options: const MovaOpts(
+        controls: MovaCtrlsConfig(autoHide: false),
+      ));
+      await engine.open(const MovaSource('https://h/A.mp4'));
+      backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+      await engine.open(const MovaSource('https://h/B.mp4'));
+      backend.wake();
+      await pumpEventQueue();
+      expect(engine.state.error, isNull);
+      expect(calls, isNot(contains('player.pause')));
+      backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+      backend.wake();
+      await pumpEventQueue();
+      expect(engine.state.error, MovaEndFileReason.error);
+      expect(calls.where((v) => v == 'player.pause'), hasLength(1));
+      await engine.dispose();
+    });
+
     test('A14 pump stays absent until first open and repeated opens share one client', () async {
       var created = 0;
       final kernel = MovaMpvKernel(
@@ -327,8 +356,12 @@ void main() {
           }
         );
         
-        // immediately dispose
+        // 发起加载后立即销毁，覆盖建泵准备与销毁交错。
+        final opening = kernel.open('https://h/race.mp4');
+        // 一半覆盖注册前销毁，一半确保真实创建客户端后立即销毁。
+        if (i.isOdd) await opening;
         await kernel.dispose();
+        await opening;
         await pumpEventQueue();
         
         final destroyIndex = callLog.indexOf('backend.destroy');
@@ -337,6 +370,7 @@ void main() {
           expect(destroyIndex, lessThan(playerDisposeIndex));
         }
       }
+      expect(createSum, greaterThan(0));
       expect(createSum, equals(destroySum));
     });
 
