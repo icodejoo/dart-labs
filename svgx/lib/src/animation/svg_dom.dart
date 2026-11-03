@@ -10,6 +10,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'css_animation_values.dart';
 import 'smil_animation.dart';
 
 /// Extracts `#id` out of a `url(#id)` (or `url('#id')`/`url("#id")`)
@@ -131,6 +132,8 @@ class SvgNode {
     required this.kind,
     required this.attributes,
     this.children = const [],
+    this.cssAnimations = const [],
+    this.cssProperties = const {},
     this.animations = const [],
     this.transformAnimations = const [],
     this.motionAnimations = const [],
@@ -229,6 +232,12 @@ class SvgNode {
 
   /// The node's tag kind. / 节点的标签种类。
   final SvgNodeKind kind;
+
+  /// 尚未编译进时间线的 CSS 动画。
+  final List<CssAnimation> cssAnimations;
+
+  /// 留给后续阶段的 CSS 专用属性。
+  final Map<String, String> cssProperties;
 
   /// Raw attribute map (presentation attrs plus geometry attrs like `d`,
   /// `cx`/`cy`/`r`, `width`/`height`/`viewBox` on the root).

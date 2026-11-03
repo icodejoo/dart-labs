@@ -34,6 +34,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
+import 'css_cascade.dart';
+import 'css_stylesheet.dart';
 import 'native_svg_values.dart';
 import 'smil_animation.dart';
 import 'svg_dom.dart';
@@ -63,6 +65,7 @@ class SvgDocument {
     required this.totalDuration,
     required this.hasIndefiniteLoop,
     this.gradients = const {},
+    this.cssKeyframes = const {},
     this.clipPaths = const {},
     this.masks = const {},
     this.usesOffscreenLayers = false,
@@ -120,6 +123,9 @@ class SvgDocument {
 
   /// The root `<svg>` node. / 根 `<svg>` 节点。
   final SvgNode root;
+
+  /// 合并所有有效样式块后的具名关键帧。
+  final Map<String, CssKeyframes> cssKeyframes;
 
   /// Intrinsic width from `viewBox`/`width`. / 来自 `viewBox`/`width` 的固有宽度。
   final double width;
@@ -186,12 +192,29 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   if (width == 0) width = 24;
   if (height == 0) height = 24;
 
+  final elementsById = <String, XmlElement>{};
+  List<String>? styleBlocks;
+  for (final element in document.descendants.whereType<XmlElement>()) {
+    final id = element.getAttribute('id');
+    if (id != null) elementsById[id] = element;
+    if (element.name.local != _styleAttribute) continue;
+    final type = element.getAttribute('type')?.trim().toLowerCase();
+    final media = element.getAttribute('media')?.trim().toLowerCase();
+    if (type != null && type.isNotEmpty && type != 'text/css') continue;
+    if (media != null &&
+        media.isNotEmpty &&
+        media != 'all' &&
+        media != 'screen') {
+      continue;
+    }
+    (styleBlocks ??= []).add(element.innerText);
+  }
+  final sheet = styleBlocks == null
+      ? null
+      : parseCssStylesheet(styleBlocks.join('\n'));
   final context = _ParseContext(
-    elementsById: {
-      for (final element in document.descendants.whereType<XmlElement>())
-        if (element.getAttribute('id') != null)
-          element.getAttribute('id')!: element,
-    },
+    elementsById: elementsById,
+    cssIndex: sheet == null || sheet.rules.isEmpty ? null : CssRuleIndex(sheet),
   );
   final root = _parseElement(svgElement, SvgNodeKind.root, context);
   final clipPaths = _parseDefsByTag('clipPath', context);
@@ -225,6 +248,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
 
   return SvgDocument(
     root: root,
+    cssKeyframes: sheet?.keyframes ?? const {},
     width: width,
     height: height,
     totalDuration: maxEnd,
@@ -295,7 +319,9 @@ SvgGradientDef? _buildGradient(
   if (id != null && !visiting.add(id)) return null; // href cycle
 
   final attributes = _attributesOf(element);
-  var stops = _parseStops(element);
+  final css = _cascadeAttributes(element, context, attributes);
+  if (css.attributes.isNotEmpty) _normalizeColorAttributes(attributes);
+  var stops = _parseStops(element, context);
   var stopNodes = _parseStopNodes(element, context);
 
   // Walks the full href chain (not just the immediate parent) merging each
@@ -320,6 +346,10 @@ SvgGradientDef? _buildGradient(
     final parent = elementsById[parentId];
     if (parent == null || !_gradientTags.contains(parent.name.local)) break;
     final parentAttributes = _attributesOf(parent);
+    final parentCss = _cascadeAttributes(parent, context, parentAttributes);
+    if (parentCss.attributes.isNotEmpty) {
+      _normalizeColorAttributes(parentAttributes);
+    }
     for (final entry in parentAttributes.entries) {
       attributes.putIfAbsent(entry.key, () => entry.value);
     }
@@ -418,6 +448,8 @@ SvgNode _parseGradientAttributeAnimations(
   _ParseContext context,
 ) {
   final attributes = _attributesOf(element);
+  final css = _cascadeAttributes(element, context, attributes);
+  if (css.attributes.isNotEmpty) _normalizeColorAttributes(attributes);
   final animations = <SmilAnimation>[];
   for (final child in element.childElements) {
     if (child.name.local != 'animate') continue;
@@ -435,6 +467,8 @@ SvgNode _parseGradientAttributeAnimations(
   return SvgNode(
     kind: SvgNodeKind.group,
     attributes: attributes,
+    cssAnimations: css.animations,
+    cssProperties: css.properties,
     animations: animations,
   );
 }
@@ -455,6 +489,7 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
   for (final child in element.childElements) {
     if (child.name.local != 'stop') continue;
     final attributes = _attributesOf(child);
+    final css = _cascadeAttributes(child, context, attributes);
     _normalizeColorAttributes(attributes);
     final numericAnimations = <SmilAnimation>[];
     final colorAnimations = <SmilColorAnimation>[];
@@ -479,6 +514,8 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
       SvgNode(
         kind: SvgNodeKind.group,
         attributes: attributes,
+        cssAnimations: css.animations,
+        cssProperties: css.properties,
         animations: numericAnimations,
         colorAnimations: colorAnimations,
       ),
@@ -541,11 +578,12 @@ SmilColorAnimation? _parseAnimateColor(XmlElement element) {
 ///
 /// 读取渐变的 `<stop>` 子元素（`offset`、`stop-color`、`stop-opacity`），
 /// 颜色无法解析的色标会被跳过。
-List<SvgGradientStop> _parseStops(XmlElement element) {
+List<SvgGradientStop> _parseStops(XmlElement element, _ParseContext context) {
   final stops = <SvgGradientStop>[];
   for (final child in element.childElements) {
     if (child.name.local != 'stop') continue;
     final attributes = _attributesOf(child);
+    _cascadeAttributes(child, context, attributes);
     _normalizeColorAttributes(attributes);
     final stop = stopFromAttributes(attributes);
     if (stop != null) stops.add(stop);
@@ -663,7 +701,18 @@ const _maxUseDepth = 10;
 /// （文档级 id → 元素索引，使前向引用不受文档顺序影响；以及记录解析中目标的
 /// 集合，用于阻断引用环）。
 class _ParseContext {
-  _ParseContext({required this.elementsById});
+  /// 创建单次解析上下文。
+  _ParseContext({required this.elementsById, this.cssIndex});
+
+  /// 有效规则索引，无样式规则时不构建。
+  final CssRuleIndex? cssIndex;
+
+  /// 仅使用 CSS 时才创建的 XML 适配缓存。
+  Map<XmlElement, _XmlCssElement>? cssElements;
+
+  /// 按需复用元素适配器，缓存只在解析期存活。
+  _XmlCssElement cssElement(XmlElement element) =>
+      (cssElements ??= {})[element] ??= _XmlCssElement(element, this);
 
   final Map<String, XmlElement> elementsById;
   final List<SmilTimed> animations = <SmilTimed>[];
@@ -689,6 +738,7 @@ SvgNode _parseElement(
   _ParseContext context,
 ) {
   final attributes = _attributesOf(element);
+  final css = _cascadeAttributes(element, context, attributes);
   _normalizeColorAttributes(attributes);
 
   // Mark this element's own id as "being parsed" for the duration of its
@@ -764,6 +814,8 @@ SvgNode _parseElement(
   return SvgNode(
     kind: kind,
     attributes: attributes,
+    cssAnimations: css.animations,
+    cssProperties: css.properties,
     children: children,
     animations: animations,
     transformAnimations: transformAnimations,
@@ -1044,6 +1096,7 @@ const _usePlacementAttributes = {
 /// [_maxUseDepth]。
 SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
   final attributes = _attributesOf(useElement);
+  final css = _cascadeAttributes(useElement, context, attributes);
   final href = attributes['href']?.trim(); // covers xlink:href (local name)
   if (href == null || !href.startsWith('#')) return null;
   final id = href.substring(1);
@@ -1079,6 +1132,8 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
           entry.key: entry.value,
     },
     children: [instance],
+    cssAnimations: css.animations,
+    cssProperties: css.properties,
     transform: _usePlacementTransform(attributes),
   );
 }
@@ -1278,4 +1333,69 @@ List<double> _normalizeTransformComponents(
     case SmilTransformType.skewY:
       return [raw.isNotEmpty ? raw[0] : 0.0, 0, 0];
   }
+}
+
+/// style 标签和行内属性共享的名称。
+const _styleAttribute = 'style';
+
+/// 仅行内样式时复用的空索引。
+final _inlineCssIndex = CssRuleIndex(const CssStylesheet([], {}));
+
+/// 不经过 XML 类型外泄的元素适配器。
+class _XmlCssElement implements CssElement {
+  /// 记录原文档元素与当前解析缓存。
+  _XmlCssElement(this.element, this.context);
+
+  /// 原文档元素，仅解析期持有。
+  final XmlElement element;
+
+  /// 共享父链适配缓存。
+  final _ParseContext context;
+
+  /// 元素本地名。
+  @override
+  String get localName => element.name.local;
+
+  /// 读取原始属性，避免层叠改变选择器匹配。
+  @override
+  String? attribute(String name) => element.getAttribute(name);
+
+  /// 惰性适配原文档父元素。
+  @override
+  CssElement? get parent {
+    final parent = element.parent;
+    return parent is XmlElement ? context.cssElement(parent) : null;
+  }
+}
+
+/// 无规则与行内样式时直接复用空结果，只查询已建立的属性表。
+CssComputed _cascadeAttributes(
+  XmlElement element,
+  _ParseContext context,
+  Map<String, String> attributes,
+) {
+  final raw = attributes[_styleAttribute];
+  if (context.cssIndex == null && raw == null) return CssComputed.empty;
+  return _applyElementCss(element, context, attributes, raw);
+}
+
+/// 慢路径解析声明并覆盖属性，返回动画与保留属性；调用方随后规范化颜色。
+CssComputed _applyElementCss(
+  XmlElement element,
+  _ParseContext context,
+  Map<String, String> attributes,
+  String? raw,
+) {
+  final inline = raw == null || raw.isEmpty
+      ? const <CssDeclaration>[]
+      : parseCssDeclarations(raw);
+  final index = context.cssIndex;
+  if (index == null && inline.isEmpty) return CssComputed.empty;
+  final css = computeCssStyle(
+    index ?? _inlineCssIndex,
+    context.cssElement(element),
+    inline,
+  );
+  if (css.attributes.isNotEmpty) attributes.addAll(css.attributes);
+  return css;
 }

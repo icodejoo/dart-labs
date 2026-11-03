@@ -158,12 +158,41 @@ CSS 动画支持分五个阶段推进,每阶段独立可验证。
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 1 | 自研 CSS 子集解析器:样式表、`@keyframes`、`animation` 简写与长写、时间与缓动值解析 | 已完成(2026-11-03):`css_stylesheet.dart`、`css_animation_values.dart`、`css_chars.dart`,152 个单测 |
-| 2 | `<style>`(`#id`、`*`,兼顾 class/标签/后代)与 `style=""` 接入动画路径的属性层叠 | 未开始 |
-| 3 | `@keyframes` 编译进时间线:逐关键帧 cubic-bezier、`steps` | 未开始 |
-| 4 | transform 列表、`offset-path`、`d: path()`、颜色 | 未开始 |
+| 2 | `<style>`(`#id`、`*`,兼顾 class/标签/后代)与 `style=""` 接入动画路径的属性层叠 | 已完成(2026-11-03):`css_cascade.dart`,90 个单测 |
+| 3 | `@keyframes` 编译进时间线:数值属性(逐关键帧 cubic-bezier)、transform 列表、`steps` 缓动、`alternate`/`alternate-reverse` 方向;CSS transform 替换静态 transform 属性 | 进行中(2026-11-03 按样本分析重新划定,见下) |
+| 4 | `offset-path` 运动路径 → `fill` 颜色 → mask 内动画验证 → `d` 变形 → dasharray 列表值 | 值解析器已完成(`css_transform_list.dart`、`css_values.dart`,63 个单测);编译进时间线未开始 |
 | 5 | 检测器分流,以及与浏览器截图的像素对照 | 未开始 |
 
 第 1 阶段由 Codex 初审实现、主会话终审;终审时把两个文件里重复的字符判断收进了 `css_chars.dart`。解析器是纯 Dart,不依赖 `dart:ui` 与 `package:xml`,与动画引擎解耦。
+
+### 第 3/4 阶段的范围依据(2026-11-03 样本分析)
+
+按 55 个 CSS 样本逐特性统计(样本 111 的动画全部指向不存在的 id,有效分母 54;关键数字由主会话抽核过:498 个含 transform 的关键帧块签名全部一致、`transform-origin`/`transform-box`/`animation-delay` 全语料 0 次、fill-mode 全是 `forwards`)。
+
+| 累计特性 | 完整播放的样本 |
+|---|---|
+| 只做数值属性 + cubic-bezier | **0** / 54 |
+| + transform 列表 | 38 |
+| + `steps`、`alternate` 方向 | 43(**阶段 3 终点**) |
+| + `offset-path` 运动路径 | 46 |
+| + `fill` 颜色、mask 内动画验证 | 49 |
+| + `d` 变形、dasharray 列表值 | 54 |
+
+- **推翻此前的划分**:原计划阶段 3 只做数值属性与 `steps`,按数据它完整播放 0 个样本(transform 占全部动画轨道的 62.9%),所以 transform 提前进阶段 3。
+- **不需要包围盒**:SVGator 把枢轴放在包装 `<g>` 的结构里,不写 `transform-origin`/`transform-box`,现有变换模型够用。
+- **transform 的编译方式**:同一个 `@keyframes` 里各 stop 的函数序列一致(最多 5 个槽位、顺序不固定),按"第 k 个函数各自插值"编译成按序叠加的变换动画,等价于矩阵连乘。
+- **R3(最关键的风险)**:CSS 的 `transform` 会**替换**元素静态的 `transform` 属性,而引擎是"先应用静态、再叠加动画"。463 条轨道、49 个样本受影响,其中 452 条静态值恰好等于 0% 关键帧,不处理会位移翻倍。**拍板方案 1**:节点带"替换静态 transform"标记,CSS transform 动画生效期间绘制时跳过静态矩阵,未生效时用静态值(符合 CSS 语义,绘制处改动小)。方案 2(编译期直接丢掉静态 transform)对"有 delay 或无 forwards"的文档不对,否决。
+- **其它风险**(阶段 3/4 设计时逐条对照):38 条孤儿动画必须安静忽略;样本 137 依赖 `*{…!important}` 的层叠;opacity 动画作用在 `<g>` 上,引擎是逐元素近似(保真度折扣);回弹曲线(y 超出 0~1)在 `d` 通道会被钳制;行内样式里的动画元素可能没有 id,绑定要按节点;`alternate` 的编译方式尚未验证。
+- **不用做**:`transform-origin`/`transform-box`、`matrix`/百分比/3D transform、同一属性被多个动画重复驱动、`<use>` 上的动画,语料里都是 0。
+
+### 第 2 阶段的实现要点
+
+- **接入点**:所有元素属性表都出自 `_attributesOf()`,在它之后加一步 CSS 层叠,覆盖元素、渐变 `<stop>`、`<use>` 包装元素。层叠逻辑在纯 Dart 的 `css_cascade.dart`,解析器里只有一个 XML 适配器,`package:xml` 仍只出现在 `svg_document_parser.dart`。
+- **优先级**(从低到高):XML 表现属性 → `<style>` 规则(按 specificity,再按源码顺序) → `style=""` → `!important` 规则 → `!important` 内联。选择器按最右复合条件分桶索引,不对每个元素扫描全部规则。
+- **声明的去向**:`animation*` 解析成 `SvgNode.cssAnimations`;`transform`、`offset-*`、`d`、`mix-blend-mode`、`isolation` 只存进 `SvgNode.cssProperties`,**不**覆盖属性表(CSS 的 transform 带 `px`/`deg` 单位,会被现有的 SVG transform 解析误读);其余声明覆盖属性表,恰为 `<数字>px` 的值去掉单位;含 `var()`/`calc()`/`env()`、值为 `inherit`/`initial`/`unset`/`revert` 的声明整条忽略。`@keyframes` 挂在 `SvgDocument.cssKeyframes`。
+- **当前效果与限制**:CSS 对颜色、不透明度、描边等静态属性已经生效;**动画本身还没有播放**(阶段 3 才把 `cssAnimations` 与 `cssKeyframes` 编译进时间线,阶段 5 才让检测器识别 CSS 动画),静态的 CSS `transform` 也要等阶段 4。
+- **性能**:没有 CSS 的文档走快路径,不建索引、不分配;399 个 Iconify 图标解析中位数 81.5ms → 82.6ms(约 +1.4%,统计上不显著);55 个 SVGator 样本整体 120ms,最慢的 877 个元素的样本 20ms。
+- **真实样本**:55/55 解析成功,787 组关键帧、749 条动画,引用的关键帧无一缺失;另有 38 条动画规则指向 XML 里根本不存在的 id(SVGator 导出的残留规则,分布在 8 个样本),被自然丢弃。
 
 ### 第 1 阶段的真实样本验证(55 个 CSS 导出,样本不入库)
 

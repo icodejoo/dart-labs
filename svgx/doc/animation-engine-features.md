@@ -44,7 +44,8 @@
 
 **明确不支持**:
 
-- CSS `@keyframes`/`animation-*`:**当前尚未实现**,但已在 2026-11-03 纳入范围(推翻此前"不做"),动画路径现在只认 SMIL,CSS 导出的文件会被当成静态图。范围与差距清单见 `doc/svgator-positioning.md`。`transition-*` 暂不纳入(243 个 SVGator 样本里 0 次出现)。
+- CSS `@keyframes`/`animation-*`:**已解析但尚未播放**。2026-11-03 起纳入范围(推翻此前"不做"),分阶段实现,进度见 `doc/svgator-positioning.md` 第 9 节。目前动画路径已能读取 `<style>` 与 `style=""` 并按 CSS 层叠覆盖静态属性(颜色、不透明度、描边等),`animation*` 声明与 `@keyframes` 已解析进 `SvgNode.cssAnimations`/`SvgDocument.cssKeyframes`,但还没有编译进时间线,检测器也不识别 CSS 动画,所以 CSS 导出的文件仍被当成静态图,不会动。`transition-*` 暂不纳入(243 个 SVGator 样本里 0 次出现)。
+- CSS 的 `transform`/`offset-*`/`d` 声明只被保存、不生效,要等第 4 阶段;含 `var()`、`calc()` 的声明整条忽略。
 - 事件类 `begin`(`begin="click"`/`"id.click"`)——已评估,不做:需要"事件监听 + 时间线动态重触发",与当前"一次性建好全时间线、之后纯按 elapsed 驱动"的架构相冲突,属于架构级改动,建议单独排期。当前行为:解析为零偏移(立即开始)。
 - `<tspan>`、textPath。
 - `<set>` 只支持数值属性与 `d`:`to` 为非数字(如 `visibility="hidden"`、`fill="red"`、带单位的 `"2px"`)的 `<set>` 解析期丢弃。`<animate>` 驱动 `fill`/`stroke` 颜色同样仍是缺口。
