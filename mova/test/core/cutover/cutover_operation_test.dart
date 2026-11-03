@@ -35,6 +35,7 @@ class OperationRig {
         return engine;
       },
     );
+    factory.engines.first.push(factory.engines.first.state.copyWith(playbackIntent: true));
   }
 
   /// S01 脚手架提供跨实例日志与释放记录。

@@ -362,6 +362,7 @@ void main() {
       );
       await settle();
       final oldEngine = made[0];
+      oldEngine.push(oldEngine.state.copyWith(playbackIntent: true));
       final shadow = made[1];
       await warmToReady(shadow, at: const Duration(seconds: 5));
 

@@ -47,6 +47,7 @@ void main() {
           },
         );
         addTearDown(api.dispose);
+        await api.play();
         await api.prepare(
           const MovaSource('https://host/shadow.flv'),
           plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
@@ -188,6 +189,7 @@ void main() {
       final sub = api.events.listen(events.add);
       addTearDown(sub.cancel);
       kernels.first.emitPlaying(true);
+      await api.play();
       await _settle();
       await api.prepare(
         const MovaSource('https://host/shadow.flv'),

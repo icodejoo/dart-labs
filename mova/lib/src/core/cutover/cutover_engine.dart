@@ -122,6 +122,8 @@ class _WarmSlot {
 ///
 /// [MovaCutoverConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
+/// 换指按旧引擎的 playbackIntent 决定是否开播；自写引擎须维护该字段。
+/// 意图恒为假时，影子换指后保持暂停。
 class MovaCutoverEngine
     implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaCutover, MovaKeepAlive, MovaCutoverAcceptance {
   /// Creates a cutover engine over [engineFactory].
@@ -754,7 +756,8 @@ class MovaCutoverEngine
   Future<bool> _commitNow(_WarmSlot slot, int op) async {
     final shadow = slot.engine!;
     final old = _active;
-    final wasPlaying = old.state.playing;
+    // 在内部暂停前保存用户意图；自然播完的 playing 不能代表续播意愿。
+    final wantPlay = old.state.playbackIntent;
     var detached = false;
 
     /// 判断本次提交是否仍拥有换指权限。
@@ -773,7 +776,7 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await slot.holding;
       if (!current()) return await bail();
-      if (_keepAliveWanted && shadow is MovaKeepAlive) {
+      if (_keepAliveWanted && wantPlay && shadow is MovaKeepAlive) {
         await (shadow as MovaKeepAlive).setKeepAlive(true);
         if (!current()) return await bail();
       }
@@ -784,11 +787,15 @@ class MovaCutoverEngine
         if (!current()) return await bail();
         if (!released) {
           await bail();
-          if (current() && wasPlaying) await old.play();
+          if (current() && wantPlay) await old.play();
           return false;
         }
       }
-      await shadow.play();
+      if (wantPlay) {
+        await shadow.play();
+      } else {
+        await shadow.pause();
+      }
       if (!current()) return await bail();
       detached = true;
       await _detach();

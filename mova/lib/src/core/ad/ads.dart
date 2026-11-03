@@ -491,11 +491,11 @@ class MovaAds {
     if (_enabled) {
       final pre = _firstOfKind(MovaAdBreakKind.pre);
       if (pre != null) {
-        await _playAd(pre);
+        await _playAd(pre, autoPlay: true);
         return;
       }
     }
-    await _playContent();
+    await _playContent(autoPlay: true);
   }
 
   /// Returns the content source, resolving and memoising it on first use.
@@ -812,10 +812,13 @@ class MovaAds {
   Future<void> _playAd(
     MovaAdBreak b, {
     bool alreadyOnScreen = false,
+    bool? autoPlay,
     _AdAttempt? ownedAttempt,
   }) async {
     final gen = _gen;
     if (_disposed) return;
+    // 未指定时继承调用入口的用户播放意图。
+    final play = autoPlay ?? _api.state.playbackIntent;
     final attempt = _adAttempt = ownedAttempt ?? _AdAttempt(b);
     _landingAd = false;
 
@@ -924,7 +927,7 @@ class MovaAds {
     } else if (!alreadyOnScreen) {
       unawaited(_cutover?.abandon());
       try {
-        final accepted = await _api.open(b.source);
+        final accepted = await _api.open(b.source, autoPlay: play);
         if (!current()) return;
         if (!accepted) {
           // 宿主主动拒绝不交给失败策略重试，直接跳过本广告位。
@@ -1160,7 +1163,7 @@ class MovaAds {
   /// "常见地差一点点没准备好"误判为彻底失败，导致无缝切换几乎每次都落空。
   /// 完整理由见 doc/SPEC.md「广告编排增强」§为什么 `_playContent` 用
   /// `commit(waitForReady: true)`。
-  Future<void> _playContent({Duration at = Duration.zero}) async {
+  Future<void> _playContent({Duration at = Duration.zero, bool autoPlay = true}) async {
     _cancelAllTimers();
     _landingAd = false;
     _phase = _Phase.toContent;
@@ -1179,7 +1182,7 @@ class MovaAds {
       final committed = cutover != null && await cutover.commit(waitForReady: true);
       if (gen != _gen || _disposed) return;
       if (!committed) {
-        final accepted = await _api.open(c);
+        final accepted = await _api.open(c, autoPlay: autoPlay);
         if (gen != _gen || _disposed) return;
         if (!accepted) {
           _contentUnavailable();
@@ -1294,6 +1297,7 @@ class MovaAds {
   /// 广告 [finished] 结束后续播正确内容：前贴片 → 正片从头，中插 → 正片从保存
   /// 位置，后贴片 → 空闲（结束）。
   Future<void> _resumeAfterAd(MovaAdBreak finished) async {
+    final resume = _api.state.playbackIntent;
     final gen = _gen;
     if (_disposed) return;
     final attempt = _adAttempt;
@@ -1311,10 +1315,10 @@ class MovaAds {
           // 广告 pod：正片开始前，依次连播其余前贴片。
           final nextPre = _firstOfKind(MovaAdBreakKind.pre);
           if (nextPre != null) {
-            await _playAd(nextPre);
+            await _playAd(nextPre, autoPlay: resume);
             if (gen != _gen || _disposed) return;
           } else {
-            await _playContent();
+            await _playContent(autoPlay: resume);
             if (gen != _gen || _disposed) return;
           }
         case MovaAdBreakKind.mid:
@@ -1331,10 +1335,10 @@ class MovaAds {
           // [_beginDelay]，被串联的后续几条一律直接走 [_playAd]。
           final nextMid = _nextPodMid();
           if (nextMid != null) {
-            await _playAd(nextMid);
+            await _playAd(nextMid, autoPlay: resume);
             if (gen != _gen || _disposed) return;
           } else {
-            await _playContent(at: _contentResumeAt);
+            await _playContent(at: _contentResumeAt, autoPlay: resume);
             if (gen != _gen || _disposed) return;
           }
         case MovaAdBreakKind.post:
@@ -1343,7 +1347,7 @@ class MovaAds {
           // 广告 pod：转入空闲前，依次连播其余后贴片。
           final nextPost = _firstOfKind(MovaAdBreakKind.post);
           if (nextPost != null) {
-            await _playAd(nextPost);
+            await _playAd(nextPost, autoPlay: resume);
             if (gen != _gen || _disposed) return;
           } else {
             _goIdleAfterContent();

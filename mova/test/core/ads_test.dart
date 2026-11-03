@@ -1983,6 +1983,8 @@ void main() {
           policy: const MovaAdRetrySkip(maxRetries: 1),
           loadTimeout: const Duration(minutes: 10),
         );
+        // 替身在抛错前不写意图；显式建立本例要测的播放中重试。
+        api.play();
         api.openThrows = StateError('transient');
         api.openThrowsOnce = true;
         api.openThrowsFor = 'https://host/pre.mp4';
