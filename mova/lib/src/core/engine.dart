@@ -3254,7 +3254,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     _ui.emit(
       uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null),
     );
-    _hudTimer = Timer(const Duration(milliseconds: 800), () {
+    _hudTimer = Timer(kMovaHudDuration, () {
       _ui.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
     });
   }
