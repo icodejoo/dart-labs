@@ -15,6 +15,7 @@ import re
 import shutil
 import socket
 import subprocess
+import win_job
 import sys
 import time
 
@@ -656,12 +657,17 @@ class Driver:
             child=subprocess.Popen(command,cwd=ROOT,env=self.env,
                                    stdout=stream,stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            # 作业对象：驱动的所有后代（含 ffmpeg 等孤儿）随作业关闭一起被杀，不依赖父子链
+            job_guard=win_job.KillOnCloseJob()
+            job_guard.assign(child.pid)
             try:
                 code=child.wait(timeout=job['timeout'])
             except (subprocess.TimeoutExpired, KeyboardInterrupt):
                 self.kill_tree(child)
                 code=-1
                 error='验证器超时/中断'
+            finally:
+                job_guard.close()
         markers=list(self.out.glob(self.prefix+case+'.harness-errors.jsonl'))
         # Existing suite drivers sometimes exit 0 even when their completion marker is absent.
         runmeta=self.out/(self.prefix+case+'.run.json')
