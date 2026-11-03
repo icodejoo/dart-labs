@@ -375,10 +375,12 @@ class MovaAds {
   /// 的组合接缝。
   Stream<void> get contentEnded => _contentEnded.stream;
 
-  /// Fires when the content source resolver passed to [loadDeferred] failed;
-  /// carries the thrown object.
+  /// Reports resolver and content-open failures as thrown objects.
   ///
-  /// 当传给 [loadDeferred] 的正片源解析器失败时触发；携带抛出的对象。
+  /// 返回正片源解析或打开/切换失败的异常流；控制器回到 idle，由宿主决定重试。
+  /// 宿主钩子拒绝 open、或已过期加载的迟到异常不触发本流；不代表所有播放错误。
+  ///
+  /// 示例：`ads.contentError.listen((error) => showRetry(error));`
   Stream<Object> get contentError => _contentError.stream;
 
   /// Loads [content] with its scheduled ads: plays a pre-roll first when one is
@@ -387,6 +389,9 @@ class MovaAds {
   /// 带排期广告地加载 [content]：配置了前贴片则先播它，否则直接起播正片。
   ///
   /// - [content]: the main content source / 正片源
+  ///
+  /// 返回本次起播操作完成的 Future；正片异常通过 [contentError] 通知。
+  /// 示例：`await ads.load(const MovaSource('https://host/movie.mp4'));`
   Future<void> load(MovaSource content) async {
     _gen++;
     _resolving = null;
@@ -418,6 +423,8 @@ class MovaAds {
   /// 是否重新调用 [loadDeferred] 由宿主决定。
   ///
   /// - [resolve]: resolves the content source on demand / 按需解析正片源
+  ///
+  /// 返回本次起播操作完成的 Future；解析与正片打开异常通过 [contentError] 通知。
   ///
   /// Example / 示例:
   /// ```dart
@@ -710,10 +717,18 @@ class MovaAds {
     // 提交之前先确保真的有一次预热存在。有倒计时时，进度 tick 一路都在预热，这里
     // 是空操作；没有倒计时时（中插的默认形态），这里*就是*那次预热，随后整段等待
     // 都发生在下面的 commit 里。
-    await _cutover!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
-    if (gen != _gen || _disposed) return;
-    final committed = await _cutover.commit(waitForReady: true);
-    if (gen != _gen || _disposed) return;
+    final bool committed;
+    try {
+      await _cutover!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
+      if (gen != _gen || _disposed) return;
+      committed = await _cutover.commit(waitForReady: true);
+      if (gen != _gen || _disposed) return;
+    } catch (e) {
+      if (gen != _gen || _disposed) return;
+      _pending = null;
+      await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+      return;
+    }
     if (committed) {
       _pending = null;
       await _playAd(b, alreadyOnScreen: true);
@@ -839,14 +854,24 @@ class MovaAds {
       try {
         await _cutover!.cutoverTo(b.source, rate: 1.0);
         if (gen != _gen || _disposed) return;
+      } catch (e) {
+        if (gen != _gen || _disposed) return;
+        await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+        return;
       } finally {
         if (gen == _gen && !_disposed) _landingAd = false;
       }
     } else if (!alreadyOnScreen) {
       unawaited(_cutover?.abandon());
       try {
-        await _api.open(b.source);
+        final accepted = await _api.open(b.source);
         if (gen != _gen || _disposed) return;
+        if (!accepted) {
+          // 宿主主动拒绝不交给失败策略重试，直接跳过本广告位。
+          _fire(MovaAdEventType.failed, b);
+          await _resumeAfterAd(b);
+          return;
+        }
       } catch (e) {
         if (gen != _gen || _disposed) return;
         await _onAdFailure(b, MovaAdFailKind.openThrew, e);
@@ -1065,41 +1090,54 @@ class MovaAds {
     _changes.add(null);
     final gen = _gen;
     final c = await _contentSource();
-    if (c == null || gen != _gen || _disposed) return;
-    final cutover = _cutover;
-    if (cutover != null && await cutover.commit(waitForReady: true)) {
-      // Already seamlessly switched to the content by the warmed shadow;
-      // no open/seek needed.
-      //
-      // 已由预热好的影子无缝切到正片；无需再 open/seek。
-    } else {
-      if (gen != _gen || _disposed) return;
-      await _api.open(c);
-      if (gen != _gen || _disposed) return;
-      if (at > Duration.zero) await _api.seek(at);
-    }
     if (gen != _gen || _disposed) return;
+    if (c == null) {
+      _contentUnavailable();
+      return;
+    }
+    final cutover = _cutover;
+    try {
+      final committed = cutover != null && await cutover.commit(waitForReady: true);
+      if (gen != _gen || _disposed) return;
+      if (!committed) {
+        final accepted = await _api.open(c);
+        if (gen != _gen || _disposed) return;
+        if (!accepted) {
+          _contentUnavailable();
+          return;
+        }
+        if (at > Duration.zero) {
+          await _api.seek(at);
+          if (gen != _gen || _disposed) return;
+        }
+      }
+    } catch (e) {
+      if (gen != _gen || _disposed) return;
+      _contentUnavailable(e);
+      return;
+    }
     _phase = _Phase.content;
     _changes.add(null);
-    // The content warm-up already carries the rate the user had before the ad
-    // (MovaWarmPlan.rate); this is the safety net for hand-offs that bypass it,
-    // e.g. a content shadow that was not warmed, or a plain open() fallback.
-    //
-    // 正片预热已携带广告前用户的倍速（MovaWarmPlan.rate）；这里是绕过它的换指
-    // 的兜底，例如没来得及预热的正片影子，或回落的普通 open()。
+    // 预热携带广告前的倍速；普通打开与自定义预热计划在此兜底。
     if (cutover != null &&
         cutover.cutoverEnabled &&
         _contentRate != 1.0 &&
         _api.state.rate != _contentRate) {
       unawaited(_api.setRate(_contentRate));
     }
-    // Restore STT only if it was running before the ad interrupted content.
-    //
-    // 仅当广告打断正片前 STT 在运行时才恢复。
+    // 只在正片成功接管后恢复广告前运行中的 STT。
     if (_sttWasRunning) {
       _sttWasRunning = false;
       unawaited(_api.stt.start());
     }
+  }
+
+  /// 正片未能接管时回到空闲；仅异常上报 contentError，不发 contentEnded。
+  void _contentUnavailable([Object? error]) {
+    unawaited(_cutover?.abandon());
+    _phase = _Phase.idle;
+    _changes.add(null);
+    if (error != null && !_contentError.isClosed) _contentError.add(error);
   }
 
   /// Reacts to end-of-media: an ad completing resumes content; content

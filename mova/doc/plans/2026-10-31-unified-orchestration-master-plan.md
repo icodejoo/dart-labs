@@ -618,6 +618,26 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | A15 | `fix(mova): 广告判失败与影子放弃预热只认终结错误` | 行为 | `ads.dart`（`_onEvent`）、`cutover_engine.dart`（影子错误） | 40–80 | A14b | +4；改写 ads_test 中"任意错误判广告失败"的若干断言 | |
 | A16 | `feat(mova): auto 档由 mova ABR 接管（灰度，默认关）` | 新增 | `engine.dart`、`abr_config.dart` | 80–150 | A11、A12、CP0 结论 | +5 | 默认关；CP0 若证实 mpv auto 不是静态最高档，则本提交只加开关不改默认文档措辞 |
 
+
+#### A1 块第一批落地记录（2026-11-03）
+
+本批仅 A01 → A02 → A03 → A04 → A05，基线 1865；由当前执行者亲自完成，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| A01 | 1865 | +0 | 无；机械收拢预热状态及静音归属 |
+| A02 | 1877 | +12 | 无；真实 cutover + S01 门控，验证操作代际与认领槽隔离 |
+| A03 | 1887 | +10 | 无；真实 cutover 覆盖 P0-2 三种触发与异步加载代际 |
+| A04 | 1890 | +3 | 断言不变；一处既有测试夹具先放行初始正片加载，详见下文 |
+| A05 | 1896 | +6 | 无；覆盖广告 cutoverTo/prepare/commit 异常、重试、拒绝及正片失败汇流 |
+
+验证方式与计划差异：
+- A01/A02 使用单次完整 `flutter test`，分别 1865/1877 全绿。A03 验证曾遇 Dart VM OOM、线程创建失败，常规全量降低到并发 1 仍不能稳定完成，因此改为四分片完整覆盖，未删减用例、未跳过测试：A03 各片 498/489/451/449（并发 1）；A04 各片 499/490/451/450（并发 2）；A05 各片 501/491/453/451（并发 2），最终各片均全绿。A05 首次专项启动亦遇环境 OOM，随后单并发专项 6 项通过。
+- A04 调整 `test/core/ad_first_frame_test.dart` 中 `ad-engine progress during the return hand-off does not overwrite the saved content rate` 的夹具：首次 load 的 commit 先 `release(false)` 落定，再触发中插并门控回正片。旧夹具在初始正片尚未接管时推正片进度，依赖提前进入 content 的旧行为；全部原断言保留。新增回归与首帧/倍速专项合计 12 项通过。
+- 代码核对：原有 cutover 目录实测 109 项（表内约 108 为估算）；A04 可直接沿用现有按相位分发的进度逻辑，生产改动仅 7 行，无需新增位置缓存。A05 同时接住 prepare/commit 与正片转场 seek 异常，均按当前加载代际汇流，不新增 `MovaAdFailKind`。
+- 新增回归文件、各行为提交的 CHANGELOG 及本落地记录均随相应提交说明原因；本记录随 A05 入库。公开 `MovaCutover` 不加 `commit(expect:)`，新功能开关默认值不变，未新增成员级 `@Deprecated`。
+- 按用户明确要求不修改 `CLAUDE.md`；无关生成文件、doc/notes 与 matrix-run 文件未纳入提交，未触碰其他 worktree。本记录不代表 A06 之后或 CP1 真机检查已完成。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）
