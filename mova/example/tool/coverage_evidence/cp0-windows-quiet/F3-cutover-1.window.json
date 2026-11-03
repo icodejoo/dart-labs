@@ -1,0 +1,13 @@
+{
+    "pid":  900,
+    "handle":  9439700,
+    "left":  4472,
+    "top":  1032,
+    "width":  640,
+    "height":  360,
+    "printWindow":  true,
+    "screens":  [
+                    "{X=0,Y=0,Width=2560,Height=1440}",
+                    "{X=2560,Y=0,Width=2560,Height=1440}"
+                ]
+}

@@ -1,0 +1,128 @@
+{
+  "item": "F3-cutover-1",
+  "pid": 900,
+  "completed": true,
+  "crashed": false,
+  "focus": [
+    {
+      "atMonotonicNs": 12999087105600,
+      "atUtc": "2026-11-03T07:36:27Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13000162000600,
+      "atUtc": "2026-11-03T07:36:28Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13001182644200,
+      "atUtc": "2026-11-03T07:36:29Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13002197865400,
+      "atUtc": "2026-11-03T07:36:30Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13003208069000,
+      "atUtc": "2026-11-03T07:36:31Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13004226328600,
+      "atUtc": "2026-11-03T07:36:32Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13005231573800,
+      "atUtc": "2026-11-03T07:36:33Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13006246566000,
+      "atUtc": "2026-11-03T07:36:34Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13007255813300,
+      "atUtc": "2026-11-03T07:36:35Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13008264706700,
+      "atUtc": "2026-11-03T07:36:36Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13009271102800,
+      "atUtc": "2026-11-03T07:36:37Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13010303655800,
+      "atUtc": "2026-11-03T07:36:38Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13011320096100,
+      "atUtc": "2026-11-03T07:36:39Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13012328028400,
+      "atUtc": "2026-11-03T07:36:41Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13013342161700,
+      "atUtc": "2026-11-03T07:36:42Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13014358185200,
+      "atUtc": "2026-11-03T07:36:43Z",
+      "violation": false
+    },
+    {
+      "atMonotonicNs": 13015363405200,
+      "atUtc": "2026-11-03T07:36:44Z",
+      "violation": false
+    }
+  ],
+  "exeSha256": "bf00b2687ff121517188f415887569cb90d9234d9353dced0d8671409771e343",
+  "focusSampleCount": 17,
+  "foregroundViolations": [],
+  "ready": true,
+  "measurements": [
+    {
+      "seq": 249,
+      "ms": 9678,
+      "kind": "HLS_RESULT",
+      "build": "cp0-formal-20261103",
+      "mode": "cutover",
+      "iteration": 0,
+      "target": 8103,
+      "landed": 8103,
+      "continued": 8383,
+      "gateMs": 9164,
+      "harnessInvalid": false,
+      "eligibleRestarts": [
+        23,
+        8103
+      ],
+      "restarts": [
+        23,
+        8103
+      ],
+      "resumed": true,
+      "continuedOk": true,
+      "expectedPath": "http://127.0.0.1:18094/hls/high/index.m3u8?t=1793691391719331",
+      "pass": true,
+      "pause": "no",
+      "path": "http://127.0.0.1:18094/hls/high/index.m3u8?t=1793691391719331"
+    }
+  ],
+  "verdict": "PASS",
+  "status": "PASS"
+}
