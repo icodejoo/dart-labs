@@ -214,7 +214,7 @@ class MovaCutoverEngine
       StreamController<MovaEvent>.broadcast(sync: true);
 
   /// 状态与事件同一次投递携带相同纪元；重入通知排在本次通知之后。
-  final Queue<({MovaState state, MovaEvent? event, int epoch})> _deliveries =
+  final Queue<({MovaState state, MovaEvent? event, int epoch, int op})> _deliveries =
       Queue();
   bool _delivering = false;
   ({MovaApi engine, bool playing})? _handoff;
@@ -253,14 +253,16 @@ class MovaCutoverEngine
       state: next.copyWith(renderEpoch: _epoch),
       event: event,
       epoch: _epoch,
+      op: _op,
     ));
     if (_delivering) return;
     _delivering = true;
     try {
       while (_deliveries.isNotEmpty) {
         final delivery = _deliveries.removeFirst();
-        if (delivery.epoch != _epoch) continue;
+        if (delivery.epoch != _epoch || delivery.op != _op) continue;
         _state.emit(delivery.state);
+        if (delivery.epoch != _epoch || delivery.op != _op) continue;
         if (delivery.event != null) _events.add(delivery.event!);
       }
     } finally {
@@ -711,6 +713,7 @@ class MovaCutoverEngine
       ticket.operation,
       waitForReady: waitForReady,
     );
+    if (_disposed || ticket.operation != _op) return MovaWarmCommit.superseded;
     if (ok) return MovaWarmCommit.committed;
     return _disposed || ticket.operation != _op
         ? MovaWarmCommit.superseded
@@ -1029,15 +1032,18 @@ class MovaCutoverEngine
       MovaBrightnessLease.transfer(old, shadow);
       _epoch++;
       _attach(shadow);
+      bool promotedCurrent() => !_disposed && op == _op && identical(_active, shadow);
       for (final event in [
         slot.lastSource,
         slot.lastReady,
         slot.lastFirstFrame,
       ]) {
+        if (!promotedCurrent()) break;
         if (event != null) _publish(snapshot: shadow.state, event: event);
+        if (!promotedCurrent()) break;
       }
       // 新 prepare 的槽及相位归新操作所有，提交收尾不得覆盖。
-      if (_slot.engine == null) {
+      if (promotedCurrent() && _slot.engine == null) {
         _setPhase(
           MovaCutoverPhase.idle,
           reason: MovaCutoverEndReason.committed,
@@ -1047,7 +1053,7 @@ class MovaCutoverEngine
         (old as MovaHandoffRetirable).markRetired();
       }
       unawaited(old.dispose());
-      return true;
+      return promotedCurrent();
     } catch (_) {
       await bail();
       rethrow;

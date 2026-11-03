@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 影子换指补发生命周期事件时，宿主回调抢源立即停止旧补发，凭据提交返回 superseded，会话让位；旧引擎仍正常释放。
+
 - 会话落地窗口按媒体归属缓存终结失败；即使 recovery giveUp 后 open 正常返回，仍结算广告失败或正片 contentError、MovaNodeFail 并回 idle。
 
 - MovaPlaylist(ads:) 的 NextUp 仅在正片会话节点显示，进出广告及转场时立即隐藏旧卡片；旧直连播放列表保持原判据。广告覆盖层直接读取控制器 canSkip/skipIn，避免 pod 落地窗口的旧进度提前显示跳过按钮；倒计时按微秒精度向上取整。

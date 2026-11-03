@@ -826,6 +826,9 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
    - F5 既有三条断言保留，扩成 eventAndThrow / giveUpReturn 两种驱动；标题改成“open 落定”。旧兜底仅靠 open 抛出结算，正常返回时不会经过，不能证明窗口正确。既有“旧 ErrorEvent 在窗口内不结算”断言没错，不能把新媒体 giveUp 也当作旧事件；本次没有删减或放宽既有断言。
    - 分析范围偏差：根目录 flutter analyze 有 49 条既有问题，分布于 example、packages、HarmonyOS 试验目录；不修改无关代码。flutter analyze lib test 为 0 issues；全量测试 --concurrency=3：**2218 条通过**。
 
+2. P1 补发回调抢源：状态/事件队列携带 op 并在通知返回后复核；每次影子生命周期补发前后复核 op 与 active，过期停止。commitOwned 在返回 committed 前再次复核，抢源返回 superseded。晋升后过期仍退休并释放旧引擎，保留宿主正在使用的新 active；会话不把宿主源认作广告。
+   - 回退 cutover 修复后 **4 条变红**（SourceChange、Ready、FirstFrame 回调抢源各一条 + 真实会话路径），恢复后通过；既有断言改写 **0**。沿用分析范围 lib test（0 issues），--concurrency=3 全量 **2222 条通过**。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）
