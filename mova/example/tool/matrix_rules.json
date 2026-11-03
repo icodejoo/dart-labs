@@ -594,6 +594,37 @@
             "value": false
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.rejectedOpen",
+        "assertions": [
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.uri",
+            "op": "eq",
+            "value": "s00e://accepted"
+          },
+          {
+            "field": "numbers.playCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekTarget",
+            "op": "eq",
+            "value": 12000
+          }
+        ]
       }
     ]
   },
@@ -689,6 +720,37 @@
             "field": "numbers.playing",
             "op": "eq",
             "value": true
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.rejectedOpen",
+        "assertions": [
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.uri",
+            "op": "eq",
+            "value": "s00e://accepted"
+          },
+          {
+            "field": "numbers.playCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekTarget",
+            "op": "eq",
+            "value": 12000
           }
         ]
       }
@@ -913,6 +975,37 @@
             "field": "numbers.samples.-1.seeking",
             "op": "eq",
             "value": "no"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.rejectedOpen",
+        "assertions": [
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.uri",
+            "op": "eq",
+            "value": "s00e://accepted"
+          },
+          {
+            "field": "numbers.playCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekTarget",
+            "op": "eq",
+            "value": 12000
           }
         ]
       }
@@ -1787,6 +1880,110 @@
           }
         ],
         "minimum": 5
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.defaults",
+        "assertions": [
+          {
+            "field": "numbers.probeVariants",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.manageAuto",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.true",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.explicitQualities",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.false",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.explicitQualities",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.replay.retry",
+        "assertions": [
+          {
+            "field": "numbers.after",
+            "op": "eq",
+            "other": "numbers.before"
+          },
+          {
+            "field": "numbers.before.uri",
+            "op": "contains",
+            "value": "/high.m3u8"
+          },
+          {
+            "field": "numbers.before.options.http-header-fields",
+            "op": "eq",
+            "value": "X-S00E: effective"
+          },
+          {
+            "field": "numbers.before.options.network-timeout",
+            "op": "eq",
+            "value": "7"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.uiOff",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              0,
+              0,
+              true
+            ]
+          }
+        ]
       }
     ]
   },
@@ -1937,6 +2134,32 @@
         ],
         "files": "rerun-live-*-backedge.json",
         "minimum": 3
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.replay.edge",
+        "assertions": [
+          {
+            "field": "numbers.after",
+            "op": "eq",
+            "other": "numbers.before"
+          },
+          {
+            "field": "numbers.before.uri",
+            "op": "contains",
+            "value": "/high.m3u8"
+          },
+          {
+            "field": "numbers.before.options.http-header-fields",
+            "op": "eq",
+            "value": "X-S00E: effective"
+          },
+          {
+            "field": "numbers.before.options.network-timeout",
+            "op": "eq",
+            "value": "7"
+          }
+        ]
       }
     ]
   },
@@ -2778,6 +3001,37 @@
       {
         "kind": "check",
         "ident": "N8.superseded"
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.rejectedOpen",
+        "assertions": [
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.uri",
+            "op": "eq",
+            "value": "s00e://accepted"
+          },
+          {
+            "field": "numbers.playCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekTarget",
+            "op": "eq",
+            "value": 12000
+          }
+        ]
       }
     ]
   },
@@ -4393,6 +4647,64 @@
           },
           {
             "field": "numbers.policyResets",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.defaults",
+        "assertions": [
+          {
+            "field": "numbers.probeVariants",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.manageAuto",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.true",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.explicitQualities",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.false",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.explicitQualities",
             "op": "ge",
             "value": 1
           }
@@ -6890,6 +7202,46 @@
         "file": "he-recovery.log",
         "name": "V8",
         "minimum": 3
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.nonterminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.terminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              1,
+              0
+            ]
+          }
+        ]
       }
     ]
   },
@@ -7361,6 +7713,43 @@
       {
         "kind": "event",
         "name": "MovaErrorEvent"
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.nonterminal",
+        "assertions": [
+          {
+            "field": "numbers.stateError",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "numbers.count",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.fatal",
+            "op": "all_eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.terminal",
+        "assertions": [
+          {
+            "field": "numbers.hasError",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.stateError",
+            "op": "nonempty",
+            "value": null
+          }
+        ]
       }
     ]
   },
@@ -8368,6 +8757,46 @@
             "value": "MovaRateChange"
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.nonterminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.terminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              1,
+              0
+            ]
+          }
+        ]
       }
     ]
   },
@@ -8593,6 +9022,68 @@
             "field": "expected",
             "op": "eq",
             "value": "portrait"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.true",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.explicitQualities",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.false",
+        "assertions": [
+          {
+            "field": "numbers.autoRequests",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.autoQualities",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "field": "numbers.explicitQualities",
+            "op": "ge",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.probe.uiOff",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              0,
+              0,
+              true
+            ]
           }
         ]
       }
@@ -11236,6 +11727,22 @@
           }
         ],
         "minimum": 5
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.defaults",
+        "assertions": [
+          {
+            "field": "numbers.probeVariants",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.manageAuto",
+            "op": "eq",
+            "value": false
+          }
+        ]
       }
     ]
   },
@@ -11253,6 +11760,83 @@
       {
         "kind": "check",
         "ident": "A27.rolls"
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.nonterminal",
+        "assertions": [
+          {
+            "field": "numbers.stateError",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "numbers.count",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.fatal",
+            "op": "all_eq",
+            "value": false
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.terminal",
+        "assertions": [
+          {
+            "field": "numbers.hasError",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.stateError",
+            "op": "nonempty",
+            "value": null
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.nonterminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.overlay.terminal",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              1,
+              0
+            ]
+          }
+        ]
       }
     ]
   },
@@ -12881,6 +13465,58 @@
         "file": "he-recovery.log",
         "name": "V8",
         "minimum": 3
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.replay.retry",
+        "assertions": [
+          {
+            "field": "numbers.after",
+            "op": "eq",
+            "other": "numbers.before"
+          },
+          {
+            "field": "numbers.before.uri",
+            "op": "contains",
+            "value": "/high.m3u8"
+          },
+          {
+            "field": "numbers.before.options.http-header-fields",
+            "op": "eq",
+            "value": "X-S00E: effective"
+          },
+          {
+            "field": "numbers.before.options.network-timeout",
+            "op": "eq",
+            "value": "7"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.replay.edge",
+        "assertions": [
+          {
+            "field": "numbers.after",
+            "op": "eq",
+            "other": "numbers.before"
+          },
+          {
+            "field": "numbers.before.uri",
+            "op": "contains",
+            "value": "/high.m3u8"
+          },
+          {
+            "field": "numbers.before.options.http-header-fields",
+            "op": "eq",
+            "value": "X-S00E: effective"
+          },
+          {
+            "field": "numbers.before.options.network-timeout",
+            "op": "eq",
+            "value": "7"
+          }
+        ]
       }
     ]
   },
@@ -14399,6 +15035,22 @@
       {
         "kind": "check",
         "ident": "N6.giveup"
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.terminal",
+        "assertions": [
+          {
+            "field": "numbers.hasError",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "field": "numbers.stateError",
+            "op": "nonempty",
+            "value": null
+          }
+        ]
       }
     ]
   },
@@ -14432,6 +15084,37 @@
       {
         "kind": "check",
         "ident": "N8.superseded"
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.rejectedOpen",
+        "assertions": [
+          {
+            "field": "numbers.accepted",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "field": "numbers.uri",
+            "op": "eq",
+            "value": "s00e://accepted"
+          },
+          {
+            "field": "numbers.playCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekCalls",
+            "op": "eq",
+            "value": 1
+          },
+          {
+            "field": "numbers.seekTarget",
+            "op": "eq",
+            "value": 12000
+          }
+        ]
       }
     ]
   },
@@ -15467,6 +16150,32 @@
         "file": "he-recovery.log",
         "name": "V8",
         "minimum": 3
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.replay.retry",
+        "assertions": [
+          {
+            "field": "numbers.after",
+            "op": "eq",
+            "other": "numbers.before"
+          },
+          {
+            "field": "numbers.before.uri",
+            "op": "contains",
+            "value": "/high.m3u8"
+          },
+          {
+            "field": "numbers.before.options.http-header-fields",
+            "op": "eq",
+            "value": "X-S00E: effective"
+          },
+          {
+            "field": "numbers.before.options.network-timeout",
+            "op": "eq",
+            "value": "7"
+          }
+        ]
       }
     ]
   },
@@ -17861,6 +18570,27 @@
           {
             "field": "numbers.sessionId",
             "op": "nonempty"
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "CONTRACT.error.nonterminal",
+        "assertions": [
+          {
+            "field": "numbers.stateError",
+            "op": "eq",
+            "value": null
+          },
+          {
+            "field": "numbers.count",
+            "op": "ge",
+            "value": 1
+          },
+          {
+            "field": "numbers.fatal",
+            "op": "all_eq",
+            "value": false
           }
         ]
       }

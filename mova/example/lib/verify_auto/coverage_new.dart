@@ -15,6 +15,7 @@ import '../main_coverage_api.dart' as c;
 import 's00c_contract.dart' as s00c;
 import 's00d_contract.dart' as s00d;
 import 's00e_native.dart' as s00e;
+import 's00e_contract.dart' as s00e_contract;
 import 's00d_native.dart' as s00d_native;
 import 's00d_resources.dart' as s00d_resources;
 
@@ -26,6 +27,7 @@ Future<void> runNew(Map<String, String> args) async {
     case 's00c': await s00c.run();
     case 's00d': await s00d.run();
     case 's00eNative': await s00e.run();
+    case 's00eContract': await s00e_contract.run();
     case 's00dNative': await s00d_native.run();
     case 's00dResources': await s00d_resources.audioResources();await feed(resources:true);
     case 'options': await options();
