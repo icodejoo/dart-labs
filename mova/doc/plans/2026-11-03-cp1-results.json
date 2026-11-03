@@ -5765,52 +5765,229 @@
       "id": "H28.default.playing",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 30}, \"deltaMs\": [0, 303, 0, 343, 0, 0, 0, 0, 343, 0, 0, 0, 0, 0, 0, 303, 0, 0, -303, 0, 0, 383, 0, 303, 0, 343, 0, 0, 0, 0], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 30
+        },
+        "deltaMs": [
+          0,
+          303,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          303,
+          0,
+          0,
+          -303,
+          0,
+          0,
+          383,
+          0,
+          303,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "H28.default.paused",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "FAIL",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 29, \"FAIL\": 1}, \"deltaMs\": [0, 0, -12000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 29,
+          "FAIL": 1
+        },
+        "deltaMs": [
+          0,
+          0,
+          -12000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
-      "issues": []
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+          "recordArray": "verdicts",
+          "recordIndex": 32,
+          "id": "gap:H28.default.paused",
+          "status": "FAIL",
+          "reason": "{\"iteration\": 2, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"yes\", \"path\": \"http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537\"}",
+          "numbers": {
+            "case": "gap:H28.default.paused",
+            "status": "FAIL",
+            "reason": null,
+            "difference": {
+              "iteration": 2,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "yes",
+              "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+            },
+            "evidenceToken": "failure-8216",
+            "actual": {
+              "iteration": 2,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "yes",
+              "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+            },
+            "expectedPath": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+          }
+        }
+      ]
     },
     {
       "id": "H28.default.cutover",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "FAIL",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 29, \"FAIL\": 1}, \"deltaMs\": [0, 0, 0, 0, 0, 0, 383, 0, 0, 0, 343, 0, 0, 0, 0, 0, 343, -12000, 0, 0, 0, 0, 0, 0, 383, 0, 343, 0, 0, 383], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 29,
+          "FAIL": 1
+        },
+        "deltaMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          383,
+          0,
+          0,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          0,
+          343,
+          -12000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          383,
+          0,
+          343,
+          0,
+          0,
+          383
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
-      "issues": []
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+          "recordArray": "verdicts",
+          "recordIndex": 77,
+          "id": "gap:H28.default.cutover",
+          "status": "FAIL",
+          "reason": "{\"iteration\": 17, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"no\", \"path\": \"http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711\"}",
+          "numbers": {
+            "case": "gap:H28.default.cutover",
+            "status": "FAIL",
+            "reason": null,
+            "difference": {
+              "iteration": 17,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "no",
+              "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+            },
+            "evidenceToken": "failure-16944",
+            "actual": {
+              "iteration": 17,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "no",
+              "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+            },
+            "expectedPath": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+          }
+        }
+      ]
     },
     {
       "id": "H20.hlsSeek",
@@ -7488,6 +7665,70 @@
       }
     },
     {
+      "row": "H28.default.paused",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+      "recordArray": "verdicts",
+      "recordIndex": 32,
+      "id": "gap:H28.default.paused",
+      "status": "FAIL",
+      "reason": "{\"iteration\": 2, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"yes\", \"path\": \"http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537\"}",
+      "numbers": {
+        "case": "gap:H28.default.paused",
+        "status": "FAIL",
+        "reason": null,
+        "difference": {
+          "iteration": 2,
+          "targetMs": 12000,
+          "landedMs": 0,
+          "deltaMs": -12000,
+          "pause": "yes",
+          "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+        },
+        "evidenceToken": "failure-8216",
+        "actual": {
+          "iteration": 2,
+          "targetMs": 12000,
+          "landedMs": 0,
+          "deltaMs": -12000,
+          "pause": "yes",
+          "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+        },
+        "expectedPath": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+      }
+    },
+    {
+      "row": "H28.default.cutover",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+      "recordArray": "verdicts",
+      "recordIndex": 77,
+      "id": "gap:H28.default.cutover",
+      "status": "FAIL",
+      "reason": "{\"iteration\": 17, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"no\", \"path\": \"http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711\"}",
+      "numbers": {
+        "case": "gap:H28.default.cutover",
+        "status": "FAIL",
+        "reason": null,
+        "difference": {
+          "iteration": 17,
+          "targetMs": 12000,
+          "landedMs": 0,
+          "deltaMs": -12000,
+          "pause": "no",
+          "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+        },
+        "evidenceToken": "failure-16944",
+        "actual": {
+          "iteration": 17,
+          "targetMs": 12000,
+          "landedMs": 0,
+          "deltaMs": -12000,
+          "pause": "no",
+          "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+        },
+        "expectedPath": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+      }
+    },
+    {
       "row": "B.bottomPatch",
       "id": "gap:S1.default.tree",
       "evidence": "example/tool/coverage_evidence/matrix-cp1-b-skin-20261103-1643-0-skin/cp0-result.json",
@@ -8054,6 +8295,32 @@
   ],
   "defects": [
     {
+      "id": "CP1-P01",
+      "classification": "默认切档落点归零；同口径FAIL，产品/读回竞态待定位",
+      "phenomenon": "H28默认暂停第3次与默认cutover第18次均target=12000ms、landed=0ms、delta=-12000ms，路径正确；pause分别yes/no。CP0对应两组各30/30，本轮各29/30。",
+      "reproduction": "STG-AL00 release，preciseFirstFrame默认关闭，本地两档HLS；先seek(12s)，暂停模式先pause，再switchQuality；不需要接近EOF。",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+      "recordArray": "verdicts",
+      "recordIndices": [
+        32,
+        77
+      ],
+      "rawEvidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/gap.jsonl",
+      "rawRowIndices": [
+        8216,
+        16944
+      ],
+      "suspectedLocations": [
+        "lib/src/core/engine.dart:2855",
+        "lib/src/core/engine.dart:2895",
+        "lib/src/core/engine.dart:2932",
+        "lib/src/core/engine.dart:2439",
+        "lib/src/core/kernel/mpv_kernel.dart:772",
+        "example/lib/verify_auto/coverage_gap.dart:454"
+      ],
+      "suggestion": "逐尝试对账load/新时长/真实落地/续播seek顺序及resumeAt=12s，确认非precise路径不会用旧媒体回声提前结算。另核对验证器两次原生读回是否跨加载边界；若只是过早采样，须以真实新加载落地证据证明后再修验证器，不能删除FAIL或重跑取代。若确有0点呈现，保持播放/首帧闸门直到目标seek稳定落地。"
+    },
+    {
       "id": "CP1-H01",
       "classification": "验证器缺陷；保留原始FAIL",
       "phenomenon": "404第3轮独立END_FILE数组为空；fatal事件、错误遮罩均已出现，buffering=false、spinnerCount=0",
@@ -8294,6 +8561,11 @@
       "stage": "stage2-precise",
       "passed": true,
       "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-precise-20261103-170414.json"
+    },
+    {
+      "stage": "stage2-h28",
+      "passed": true,
+      "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-h28-20261103-171048.json"
     }
   ],
   "additionalRows": [
@@ -8394,52 +8666,229 @@
       "id": "H28.default.playing",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "PASS",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 30}, \"deltaMs\": [0, 303, 0, 343, 0, 0, 0, 0, 343, 0, 0, 0, 0, 0, 0, 303, 0, 0, -303, 0, 0, 383, 0, 303, 0, 343, 0, 0, 0, 0], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 30
+        },
+        "deltaMs": [
+          0,
+          303,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          303,
+          0,
+          0,
+          -303,
+          0,
+          0,
+          383,
+          0,
+          303,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
       "issues": []
     },
     {
       "id": "H28.default.paused",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "FAIL",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 29, \"FAIL\": 1}, \"deltaMs\": [0, 0, -12000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 29,
+          "FAIL": 1
+        },
+        "deltaMs": [
+          0,
+          0,
+          -12000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
-      "issues": []
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+          "recordArray": "verdicts",
+          "recordIndex": 32,
+          "id": "gap:H28.default.paused",
+          "status": "FAIL",
+          "reason": "{\"iteration\": 2, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"yes\", \"path\": \"http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537\"}",
+          "numbers": {
+            "case": "gap:H28.default.paused",
+            "status": "FAIL",
+            "reason": null,
+            "difference": {
+              "iteration": 2,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "yes",
+              "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+            },
+            "evidenceToken": "failure-8216",
+            "actual": {
+              "iteration": 2,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "yes",
+              "path": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+            },
+            "expectedPath": "http://127.0.0.1:18085/high/index.m3u8?t=1793696718219537"
+          }
+        }
+      ]
     },
     {
       "id": "H28.default.cutover",
       "stage": 2,
       "planned": 30,
-      "executed": 0,
-      "status": "BLOCKED",
+      "executed": 30,
+      "status": "FAIL",
       "criterion": "失败数≤CP0（0）；缺样本BLOCKED",
       "cp0": "30/30 PASS",
-      "difference": "{\"verdictCounts\": {}, \"deltaMs\": [], \"harness\": []}",
+      "difference": "{\"verdictCounts\": {\"PASS\": 29, \"FAIL\": 1}, \"deltaMs\": [0, 0, 0, 0, 0, 0, 383, 0, 0, 0, 343, 0, 0, 0, 0, 0, 343, -12000, 0, 0, 0, 0, 0, 0, 383, 0, 343, 0, 0, 383], \"harness\": [[]]}",
       "metrics": {
-        "verdictCounts": {},
-        "deltaMs": [],
-        "harness": []
+        "verdictCounts": {
+          "PASS": 29,
+          "FAIL": 1
+        },
+        "deltaMs": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          383,
+          0,
+          0,
+          0,
+          343,
+          0,
+          0,
+          0,
+          0,
+          0,
+          343,
+          -12000,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          383,
+          0,
+          343,
+          0,
+          0,
+          383
+        ],
+        "harness": [
+          []
+        ]
       },
-      "evidence": [],
-      "issues": []
+      "evidence": [
+        "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json"
+      ],
+      "issues": [
+        {
+          "evidence": "example/tool/coverage_evidence/matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json",
+          "recordArray": "verdicts",
+          "recordIndex": 77,
+          "id": "gap:H28.default.cutover",
+          "status": "FAIL",
+          "reason": "{\"iteration\": 17, \"targetMs\": 12000, \"landedMs\": 0, \"deltaMs\": -12000, \"pause\": \"no\", \"path\": \"http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711\"}",
+          "numbers": {
+            "case": "gap:H28.default.cutover",
+            "status": "FAIL",
+            "reason": null,
+            "difference": {
+              "iteration": 17,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "no",
+              "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+            },
+            "evidenceToken": "failure-16944",
+            "actual": {
+              "iteration": 17,
+              "targetMs": 12000,
+              "landedMs": 0,
+              "deltaMs": -12000,
+              "pause": "no",
+              "path": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+            },
+            "expectedPath": "http://127.0.0.1:18085/low/index.m3u8?t=1793696766623711"
+          }
+        }
+      ]
     },
     {
       "id": "H20.hlsSeek",
@@ -9950,9 +10399,9 @@
   ],
   "supplementRows": [],
   "counts": {
-    "BLOCKED": 27,
-    "PASS": 18,
-    "FAIL": 2
+    "BLOCKED": 24,
+    "PASS": 19,
+    "FAIL": 4
   },
   "masterRows": [
     {
@@ -9968,14 +10417,14 @@
     },
     {
       "id": "H28 默认三组",
-      "status": "BLOCKED",
+      "status": "FAIL",
       "subrows": [
         "H28.default.playing",
         "H28.default.paused",
         "H28.default.cutover"
       ],
       "planned": 90,
-      "executed": 0
+      "executed": 90
     },
     {
       "id": "H20/H50 HLS",
@@ -10131,8 +10580,8 @@
   ],
   "masterCounts": {
     "PASS": 5,
-    "BLOCKED": 9,
-    "FAIL": 2
+    "FAIL": 3,
+    "BLOCKED": 8
   },
   "comparisonSummary": [
     "precise.normal：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",

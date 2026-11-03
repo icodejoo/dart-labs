@@ -53,6 +53,15 @@ known=[
     suspectedLocations=['example/lib/verify_auto/coverage_gap_skin.dart:426','example/lib/verify_auto/coverage_gap_skin.dart:1152','lib/src/ui/skins/default_skin.dart:365'],
     suggestion='更新CP1验证页的目标组件树，避免用固定sublist下标构造patch预期；保留B14的lockToggle行为，不删除产品组件来迎合旧快照；补B03专属刺激后下一构建验证'),
 ]
+h28=base+'matrix-cp1-android-h28-20261103-1703-cp0-h28/cp0-result.json'
+if (root/h28).is_file():
+    known.insert(0,dict(id='CP1-P01',classification='默认切档落点归零；同口径FAIL，产品/读回竞态待定位',
+        phenomenon='H28默认暂停第3次与默认cutover第18次均target=12000ms、landed=0ms、delta=-12000ms，路径正确；pause分别yes/no。CP0对应两组各30/30，本轮各29/30。',
+        reproduction='STG-AL00 release，preciseFirstFrame默认关闭，本地两档HLS；先seek(12s)，暂停模式先pause，再switchQuality；不需要接近EOF。',
+        evidence=h28,recordArray='verdicts',recordIndices=[32,77],
+        rawEvidence=base+'matrix-cp1-android-h28-20261103-1703-cp0-h28/gap.jsonl',rawRowIndices=[8216,16944],
+        suspectedLocations=['lib/src/core/engine.dart:2855','lib/src/core/engine.dart:2895','lib/src/core/engine.dart:2932','lib/src/core/engine.dart:2439','lib/src/core/kernel/mpv_kernel.dart:772','example/lib/verify_auto/coverage_gap.dart:454'],
+        suggestion='逐尝试对账load/新时长/真实落地/续播seek顺序及resumeAt=12s，确认非precise路径不会用旧媒体回声提前结算。另核对验证器两次原生读回是否跨加载边界；若只是过早采样，须以真实新加载落地证据证明后再修验证器，不能删除FAIL或重跑取代。若确有0点呈现，保持播放/首帧闸门直到目标seek稳定落地。'))
 other=[f for f in d.get('defects',[]) if f.get('id') not in {f['id'] for f in known}]
 d['defects']=known+other
 visualStem=base+'matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-'

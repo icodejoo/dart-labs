@@ -49,7 +49,8 @@ def rows():
         status='FAIL' if counts['FAIL'] else 'PASS' if executed==n and counts['BLOCKED']==0 and all(not d.get('harness') for p,d in datasets) else 'BLOCKED'
         deltas=[v['actual']['deltaMs'] for p,i,v in samples if isinstance(v.get('actual'),dict) and isinstance(v['actual'].get('deltaMs'),(int,float))]
         metrics=dict(verdictCounts=dict(counts),deltaMs=deltas,harness=[d.get('harness') for p,d in datasets])
-        issues=[dict(evidence=rel(p),recordArray='verdicts',recordIndex=i,id=v['case'],status=v['status'],reason=v.get('reason'),numbers=v) for p,i,v in samples if v['status']!='PASS']
+        issues=[dict(evidence=rel(p),recordArray='verdicts',recordIndex=i,id=v['case'],status=v['status'],
+            reason=v.get('reason') or json.dumps(v.get('actual',v.get('difference')),ensure_ascii=False),numbers=v) for p,i,v in samples if v['status']!='PASS']
         add(prefix,n,executed,status,'失败数≤CP0（0）；缺样本BLOCKED',baseline,metrics,[rel(p) for p,d in datasets],issues)
     for scene,variants in [('p02',['contentWarm','midPending','postLoad']),('pod2',['wait.ad2','nowait.ad2'])]:
         datasets=[(p,load(p)) for p in sorted(E.glob('matrix-cp1-*/matrix-*-cp0-'+scene+'.json'))]

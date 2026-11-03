@@ -55,4 +55,5 @@ try:
     for i,r in checks:
         if (i,r) in checks[-4:] or r.get('kind')=='ERROR' or r.get('status',r.get('data',{}).get('status'))=='FAIL':
             print(i,r.get('id',r.get('case')),r.get('kind'),r.get('status',r.get('data',{}).get('status')),r.get('run'),r.get('error'),flush=True)
+            if r.get('kind')=='VERDICT' and r.get('data',{}).get('status')=='FAIL':print('failure detail',str(r.get('data'))[:2200],flush=True)
 except Exception as error:print(repr(error),flush=True)
