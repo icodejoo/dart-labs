@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaPlayer 的视频后台暂停改经引擎执行，钩子、播放意图与广告时钟均可观测，命令式 keepAlive 也由引擎结束待机；默认切后台仍暂停、回前台不自动续播。无渲染面的 audioOnly 不受影响；要后台续播，可用同一 API 的 MovaAutoPause(config: MovaAutoPauseConfig(background: false)) 包裹播放器。
+
 - 换指及广告续播继承用户播放意图，暂停后跳过广告不会自动开播；自定义 engineFactory 引擎须维护 playbackIntent，意图恒假时换指后保持暂停。
 
 - 广告位与中插倒计时改用可暂停时钟：观测到播放暂停后不计入广告时长；`delayRemaining` 按同一时钟计算，加载首帧期限仍使用独立墙钟。

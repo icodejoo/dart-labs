@@ -9,6 +9,7 @@ import '../core/kernel/restart_observer.dart';
 import '../core/model/fit.dart';
 import '../core/model/source.dart';
 import 'fit_ext.dart';
+import 'guard/guard_scope.dart';
 import 'poster.dart';
 import 'scope/scope.dart';
 import 'scope/selector.dart';
@@ -39,6 +40,9 @@ import 'video_rect.dart';
 /// 通过 [MovaScope] 发布 [api]、渲染视频画面（测试环境下渲染占位符，见下方
 /// [renderHandle] 说明）、缓存皮肤组件树直到 skin 或 api 改变，以及
 /// 挂载后可选地探测一次 HLS 清晰度档位。
+/// 默认在切后台时经引擎暂停视频，不自动恢复；无渲染面的音频不受影响。
+/// 同一 API 的祖先守卫在场时让位；宿主可用
+/// `MovaAutoPause(config: MovaAutoPauseConfig(background: false), ...)` 保持后台播放。
 class MovaPlayer extends StatefulWidget {
   /// Creates the player widget.
   ///
@@ -141,9 +145,16 @@ class _MovaPlayerState extends State<MovaPlayer> {
   /// 当前视图的快捷键焦点；不与其他播放器共享。
   final FocusNode _shortcutFocus = FocusNode(debugLabel: 'MovaPlayer');
 
+  /// 同轮生命周期通知按 API 去重，防止内核 playing 滞后时两个视图重复暂停。
+  static final Expando<bool> _backgroundPauses = Expando<bool>();
+
+  /// 仅监听后台状态；是否有 Video 在事件发生时判断，兼容延迟挂载。
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onStateChange: _onLifecycle);
     _components = widget.skin.components();
     // UI 自动入口也遵守引擎的自动探测总开关。
     if (widget.autoLoadQualities && widget.api.options.abr.probeVariants) {
@@ -178,9 +189,24 @@ class _MovaPlayerState extends State<MovaPlayer> {
     }
   }
 
-  /// 离场时释放视图持有的焦点。
+  /// 切后台时经引擎暂停；让位同一 API 的守卫，豁免音频与系统画中画。
+  void _onLifecycle(AppLifecycleState state) {
+    if (state != AppLifecycleState.paused && state != AppLifecycleState.detached) return;
+    if (!mounted || widget.surface != null) return;
+    final api = widget.api;
+    if (api.renderHandle == null || movaGuardedBy(context, api)) return;
+    final playback = api.state;
+    if (playback.pip || !(playback.playbackIntent || playback.playing)) return;
+    if (_backgroundPauses[api] == true) return;
+    _backgroundPauses[api] = true;
+    scheduleMicrotask(() => _backgroundPauses[api] = null);
+    unawaited(api.pause());
+  }
+
+  /// 离场时释放生命周期监听和视图持有的焦点。
   @override
   void dispose() {
+    _lifecycle.dispose();
     _shortcutFocus.dispose();
     super.dispose();
   }
@@ -523,6 +549,9 @@ class _RenderSurface extends StatelessWidget {
                   key: _RenderHandleKey(handle),
                   controller: handle,
                   controls: NoVideoControls,
+                  // 后台暂停由 MovaPlayer 经引擎执行，意图与广告时钟可见。
+                  pauseUponEnteringBackgroundMode: false,
+                  resumeUponEnteringForegroundMode: false,
                   fit: movaBoxFit(value.fit),
                 )
               : ColoredBox(

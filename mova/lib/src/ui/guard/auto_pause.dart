@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
+import 'guard_scope.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
 import '../../core/keep_alive/keep_alive.dart';
@@ -568,5 +569,5 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => MovaGuardScope(api: widget.api, child: widget.child);
 }

@@ -718,6 +718,28 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 
 与计划的差异与教训：① A14b 预估改写 10–25 条断言，实际 5 条，因为 A13 把内核日志默认判为非终结后，"所有内核错误都写 `state.error`"的旧断言本来就少；真正的风险不在断言数，而在"终结信号只剩 END_FILE"——无泵平台的兜底是终审补回的。② 修复之间会相互作用（末行），所以每批修复后都要整体重跑全量而不只是各自的回归。③ Codex 单次会话被系统内存耗尽杀掉一次（本机浏览器占用大），半成品改动保留在工作区、续做完成；此后要求"每个提交做完立刻落盘、全量测试 `--concurrency=3`"。
 
+#### A2 块第一批落地记录（2026-11-03）
+
+本批仅 A17 → A18 → A20 → A21，A19 已前置完成，起点为 A1 终审后的 2088 项。A17 已在上轮落盘，本轮审阅 A18 未提交草稿后续做；由当前执行者亲自实现、验证和逐个本地提交，不转派、不切分支、不 push、不使用真机。每个提交前 `flutter analyze lib test` 均为 0 issues；全量测试全部使用 `flutter test --concurrency=3`，未遇 OOM、未降并发、未删减或跳过用例，未与 analyze 同时运行。
+
+| 提交 | flutter test 实测 | 新增 | 现有断言变化 |
+|---|---:|---:|---|
+| A17（`d6d0bfe5`） | 2093 | +5 | 无；仅排期纯逻辑提取 |
+| A18（`19fcc09`） | 2105 | +12 | 3 个倒计时用例改为注入时钟驱动；断言值与无倒计时分支保留 |
+| A20（`7d9fb992`） | 2113 | +8 | 11 个既有用例补齐播放意图前提，原断言全部保留；包含 1 个计划外广告重试夹具 |
+| A21（随本记录提交） | 2122 | +9 | 无；既有 auto_pause_test 与 player_test 实跑通过 |
+
+验证方式与计划差异：
+- 共新增 34 项，与子计划 +5/+12/+8/+9 一致。A17 的历史验证与 color-moved 统计沿用已提交证据：3 files、+124/-35（ads +5/-35、timeline +68、测试 +51），非搬迁项为 import、私有函数改顶层名称并显式传参、三处调用适配、markPodPlayed 改为等价 addAll、跨库中文文档；原断言零改写。未重做 A17。
+- A18 采用两只 MovaAdClock，注入 now，默认运行、playing 真→假暂停与假→真恢复；起表意图假时暂停。delayRemaining 与到期统一为时钟，loadTimeout 保持独立墙钟；dispose 同步取消两只时钟。未改覆盖层实现或引入 core 对 Flutter 的依赖。
+- A18 三个既有用例逐条：① `delayRemaining counts down with the content ticks and stays positive until expiry`，旧断言把正片位置推进当时间流逝，seek/卡顿/倍速会令展示与 Timer 到期不一致，改注入时钟推进 2 秒；② `the countdown number decrements as content ticks arrive`，同样错误地由位置驱动时间，改 widget 时钟推进 2 秒后 tick 重建；③ `the cue carries the countdown when there is one, and nothing when there is not`，旧断言仅把正片从 30 秒推到 32 秒就要求剩余 5 秒变 3 秒，改注入时钟推进，预热 cue 与空 cue 的原期望保留。第三项按续做主会话明确授权采用总计划 ≤3 上限，已回写子计划第 6 节。
+- A20 只读 playbackIntent，快照在 old.pause 之前；意图假则影子 pause，意图真才 play、迁移待机及在解静音失败后恢复旧引擎。普通广告与续播显式传 autoPlay；load 起播显式 true。保留 cutover 提交事务、MovaCutoverAcceptance 与广告 _AdAttempt，不改公开 cutoverTo 的回落（A27 后续负责）。自写 engineFactory 引擎须维护意图，意图恒假则换指后暂停，已公告 CHANGELOG 和类注释。
+- A20 既有用例逐条补前提、原断言保留：① `commit() success: active becomes the shadow; old gets pause+dispose; new gets play`，旧引擎未 open/play 却要求影子开播，补意图 true；② `#17 commit migrates user view settings from the old engine onto the shadow before play`，设置顺序比较依赖无条件 play，补意图 true；③ keep_alive test 3 `a hold requested before commit puts the shadow into keepAlive before play without volume writes`，无意图却要求待机和开播，_warm 补意图；④ keep_alive test 4 `without a request the commit sequence is unchanged`，同样补影子开播前提；⑤/⑥ `warm mute true/false bypasses volume ports through prepare and commit` 两个参数化用例，旧真实引擎从未 play，prepare 前 api.play；⑦ `failed mute restoration emits an error and abandons the cutover`，旧夹具只有 emitPlaying(true)、没有用户意图却要求回退恢复，补 api.play 并保留观测；⑧ `提交影子 play 挂起时新 prepare 不被收尾释放`，旧 rig 意图假时 playGate 无法阻塞，构造补意图；⑨ `影子 play 挂起时 open B 禁止旧换指`，同样补开播前提；⑩ `同一 ready 影子只能被一个 commit 认领`，旧 rig 意图假却要求一次 play，补意图；⑪ `a retried break gets a fresh duration, counted from its new first frame`，共享替身在首次 open 抛错前不写意图，旧夹具意图恒假却要求重试广告计时到期，失败前 api.play 建立播放中重试。第⑪项为实跑发现的计划外夹具调整，已回写子计划；F1 八项交错原已 old.play，不需额外改写，keep_alive test 5 与 commit 无关、不改。
+- A21 对本机 pub cache 的 media_kit_video 2.0.1 再核实两个参数名与默认 true/false，Video 均显式传 false。MovaPlayer 在 paused/detached 且有默认 Video 渲染面时经 API 暂停，不自动恢复；PiP 豁免、同一 API 守卫让位、background:false 可保留后台播放、audioOnly/自定义 surface 不动作、延迟出现的渲染句柄均有新增覆盖。按已拍板 D6，监听注册于挂载时，但是否有 Video 在事件发生时判定。
+- A21 与草图的实质差异：两个视图共用 API 时，首个 pause 清了意图，内核 playing 仍可能为真，第二个视图仍满足 intent || playing；原草图实测重复 pause。增加按 API 的 Expando 同轮通知标记、微任务清除，不增公开成员；第 8 项用 playing=true 验证一次暂停。去重前后红绿证据及差异已回写子计划。
+- 回退生产验证：A18 临时回退 ads 接线（只保留 debugClock 测试接缝以编译）并禁用时钟 pause，12 项中 **5 项变红**；其余 7 项为基础时钟/已有结算和清理不变量。A20 两处生产文件回退时 **6 项变红**，另把快照移到 old.pause 后、判断改回 playing 各 **1 项变红**，去重覆盖全部 8 项。A21 回退 player/auto_pause 时 **6 项变红**；分别移除守卫让位、PiP 豁免、允许 hidden 暂停各 **1 项变红**，去重覆盖全部 9 项；另单独移除去重，第 8 项变红。每轮均用 finally 逐字节还原生产文件，再执行最终检查。
+- 计划外配套文件限于子计划要求的新增测试/包内辅助、行为 CHANGELOG、上述已说明的夹具调整、子计划差异记录和本总计划落地记录；生产改动少于估算，复用既有能力，没有为凑规模搬迁。未加成员级 Deprecated、未改 CLAUDE.md，未提交 example/windows 生成文件、doc/notes、matrix-run 或其他子工程文件，未触碰其他 worktree。本记录不代表 A22 以后或 CP1/CP2 真机核对已完成。
+
 → **CP1：引擎、切换与 B 块真机核对**
 
 #### 轨道 A2 块（会话层）
