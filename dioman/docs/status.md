@@ -2,7 +2,7 @@
 title: dioman 当前状态
 status: active
 updated: 2026-11-03
-summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R3 完成，R4 的性能门槛待安静机器复测
+summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R5 完成，下一批 R6；R4 的性能门槛留到终验前复测
 ---
 
 # 当前状态
@@ -18,8 +18,9 @@ summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/diom
 | R2a | 契约对齐 axp 0002 | 完成，见 [R2a 报告](reports/2026-11-03-round2-r2a.md) |
 | R2b | 收口与发版前必修（去掉 dart:io 直接依赖等） | 完成，见 [R2b 报告](reports/2026-11-03-round2-r2b.md) |
 | R3 | 原生数据瘦身 | 完成，见 [R3 报告](reports/2026-11-03-round2-r3.md) |
-| R4 | 性能（先补 B6 欠下的复测） | 真实验收完成；五项门槛因负载未判定，复测中，见 [R4 报告](reports/2026-11-03-round2-r4.md) |
-| R5、R6 | Dart 化 API、测试与工程收尾 | 未开始 |
+| R4 | 性能（先补 B6 欠下的复测） | 真实验收完成；五项门槛因负载未判定，门控工具已入库，复测排在 R6 之后、终验之前，见 [R4 报告](reports/2026-11-03-round2-r4.md) |
+| R5 | Dart 化 API（decode、异步 dispose） | 完成，见 [R5 报告](reports/2026-11-03-round2-r5.md) |
+| R6 | 测试与工程收尾（测试改名、逻辑请求截止时间） | 下一批 |
 
 ## 验证入口
 

@@ -24,6 +24,22 @@ extension DiomanResponseFactoryInternal on DiomanResponseFactory {
 
 /// 内核失败写入入口，不由公开库导出。
 abstract final class DiomanResponseInternal {
+  /// 用成功解码数据派生结果，不修改共享响应或重新进入工厂。
+  static DiomanResponse<T> decoded<T>(DiomanResponse<dynamic> result, T data) =>
+      DiomanResponse<T>(
+          ok: result.ok,
+          status: result.status,
+          code: result.code,
+          message: result.message,
+          data: data,
+          request: result.request,
+          raw: result.raw,
+          error: result.error,
+          callSite: result.callSite)
+        .._failure = result._failure
+        .._retryAfter = result._retryAfter
+        .._nativeIdentity = result._nativeIdentity;
+
   /// 工厂返回后附加事实，空值不清除已存在标记。
   static void mark(DiomanResponse<dynamic> result, DiomanFailure? failure) {
     if (failure != null) result._failure = failure;

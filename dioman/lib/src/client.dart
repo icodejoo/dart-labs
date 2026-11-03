@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'clock.dart';
 import 'config.dart';
@@ -52,7 +53,8 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     } catch (_) {
       for (final registration in _registrations.reversed) {
         try {
-          registration.instance?.dispose();
+          final cleanup = registration.instance?.dispose();
+          if (cleanup is Future<void>) cleanup.ignore();
         } catch (_) {/* 保留安装时首次异常。 */}
       }
       rethrow;
@@ -104,11 +106,20 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   /// 每客户端只报告一次的未安装选项。
   final _warnedOptions = <DiomanOptionKey>{};
 
+  /// 已移除实例仍在进行的异步清理。
+  final _ejectedCleanups = <Future<void>>{};
+
+  /// 按观测顺序保存清理异常，供最终销毁原栈报告。
+  final _cleanupErrors = <(Object, StackTrace)>[];
+
   /// 请求序号。
   int _sequence = 0;
 
   /// 生命周期状态。
   bool _disposed = false;
+
+  /// 首次销毁的完成信号，重复调用共享。
+  Future<void>? _disposeFuture;
 
   /// 当前活跃逻辑请求数。
   int get pending => _pending.length;
@@ -152,13 +163,24 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     _compile();
   }
 
-  /// 按 [name] 移除并释放插件；不存在返回 false，在途保留原链。
+  /// 按 [name] 移除并启动释放；不存在返回 false，在途保留原链。
+  /// 同步清理错误直接抛出；异步清理由后续 dispose 等待并原栈报告。
+  /// 销毁开始后拒绝移除，避免重复清理，例如 api.eject(插件名)。
   bool eject(String name) {
+    _checkAlive();
     final index = _registrations.indexWhere((r) => r.plugin.name == name);
     if (index < 0) return false;
     final removed = _registrations.removeAt(index);
     _compile();
-    removed.instance?.dispose();
+    final cleanup = removed.instance?.dispose();
+    if (cleanup is Future<void>) {
+      late final Future<void> pending;
+      pending =
+          cleanup.then<void>((_) {}, onError: (Object error, StackTrace stack) {
+        _cleanupErrors.add((error, stack));
+      }).whenComplete(() => _ejectedCleanups.remove(pending));
+      _ejectedCleanups.add(pending);
+    }
     return true;
   }
 
@@ -218,71 +240,130 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     return child;
   }
 
-  /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
-  void dispose() {
-    if (_disposed) return;
+  /// 同步拒绝新请求并取消在途请求，再逆注册顺序等待全部实例清理。
+  /// 返回清理完成信号，亦等待已移除实例；尽力全部执行后原栈抛出首个观测错误。
+  /// 重复调用返回同一信号；不 await 也立即取消和拒绝，例如 await api.dispose()。
+  Future<void> dispose() {
+    final previous = _disposeFuture;
+    if (previous != null) return previous;
+    final completion = Completer<void>();
+    _disposeFuture = completion.future;
     _disposed = true;
     cancelAll();
-    final errors = <(Object, StackTrace)>[];
-    for (final r in _registrations.reversed) {
+    _disposeInstances()
+        .then(completion.complete, onError: completion.completeError);
+    return completion.future;
+  }
+
+  /// 串行等待异步清理，同步实例仍在调用栈内完成。
+  Future<void> _disposeInstances() async {
+    for (final r in _registrations.reversed.toList()) {
       try {
-        r.instance?.dispose();
+        final pending = r.instance?.dispose();
+        if (pending is Future<void>) await pending;
       } catch (e, s) {
-        errors.add((e, s));
+        _cleanupErrors.add((e, s));
       }
     }
-    if (errors.isNotEmpty) {
-      Error.throwWithStackTrace(errors.first.$1, errors.first.$2);
+    for (final cleanup in _ejectedCleanups.toList()) {
+      await cleanup;
+    }
+    if (_cleanupErrors.isNotEmpty) {
+      Error.throwWithStackTrace(
+          _cleanupErrors.first.$1, _cleanupErrors.first.$2);
     }
   }
 
   /// 执行请求并返回结果；可预期失败不抛，internal 原异常原栈抛出。
+  /// [decode] 仅转换成功落定的数据，其余字段保持；省略时保留原行为。
+  /// 解码异常原样原栈抛出，不经过插件或改为解析失败。
   /// 例如 `await api.send<Object?>('GET', '/pets')`。
   Future<DiomanResponse<T>> send<T>(String method, String path,
-      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+      {Map<String, dynamic>? query,
+      Object? data,
+      DiomanCall? call,
+      T Function(Object? data)? decode}) async {
     final result =
         await _dispatch(method, path, query: query, data: data, call: call);
+    if (result.ok && decode != null) {
+      return DiomanResponseInternal.decoded(result, decode(result.data));
+    }
     if (result is DiomanResponse<T>) return result;
     return result.copy<T>();
   }
 
   /// 执行任意 [method] 并返回数据；可预期失败经 reject 后抛出。
+  /// [decode] 仅转换成功落定的数据，省略时直接转型；异常原样原栈抛出，
+  /// 不经过插件或改为解析失败，例如 `api.request<int>('GET', '/count', decode: (v) => v as int)`。
   Future<T> request<T>(String method, String path,
-      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+      {Map<String, dynamic>? query,
+      Object? data,
+      DiomanCall? call,
+      T Function(Object? data)? decode}) async {
     final result = await _dispatch(method, path,
         query: query, data: data, call: call, rejectFailure: true);
-    return result.data as T;
+    return decode == null ? result.data as T : decode(result.data);
   }
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 GET 并返回数据；参数与 request 相同，例如 `api.get<Object?>('/pets')`。
   Future<T> get<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('GET', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('GET', path,
+          query: query, data: data, call: call, decode: decode);
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 POST 并返回数据；参数与 request 相同，例如 `api.post<Object?>('/pets')`。
   Future<T> post<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('POST', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('POST', path,
+          query: query, data: data, call: call, decode: decode);
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 PUT 并返回数据；参数与 request 相同，例如 `api.put<Object?>('/pets')`。
   Future<T> put<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('PUT', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('PUT', path,
+          query: query, data: data, call: call, decode: decode);
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 PATCH 并返回数据；参数与 request 相同，例如 `api.patch<Object?>('/pets')`。
   Future<T> patch<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('PATCH', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('PATCH', path,
+          query: query, data: data, call: call, decode: decode);
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 DELETE 并返回数据；参数与 request 相同，例如 `api.delete<Object?>('/pets')`。
   Future<T> delete<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('DELETE', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('DELETE', path,
+          query: query, data: data, call: call, decode: decode);
 
+  /// [decode] 仅转换成功落定的数据，异常原样原栈抛出，不经过插件或改为解析失败。
   /// 发送 HEAD 并返回数据；参数与 request 相同，例如 `api.head<Object?>('/pets')`。
   Future<T> head<T>(String path,
-          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
-      request<T>('HEAD', path, query: query, data: data, call: call);
+          {Map<String, dynamic>? query,
+          Object? data,
+          DiomanCall? call,
+          T Function(Object? data)? decode}) =>
+      request<T>('HEAD', path,
+          query: query, data: data, call: call, decode: decode);
 
   /// 入口仅 compose 一次；登记后所有可能抛错的构造都在 finally 保护内。
   Future<DiomanResponse<dynamic>> _dispatch(String method, String path,

@@ -107,6 +107,48 @@ Future<void> main() async {
 }
 ```
 
+### Decoding and disposal
+
+All data methods and send accept an optional T Function(Object? data) decode. It runs only after a successful result settles; data methods return T and send returns a response with decoded data. Expected failures skip decode. Decoder exceptions keep their original object and stack, bypass plugins, and never become parse failures. Each share follower decodes independently; decoders should treat input data as readonly. Omitting decode preserves existing behavior.
+
+DiomanPluginInstance.dispose now returns FutureOr<void>; Dioman.dispose returns Future<void> and waits for each instance in reverse registration order. It attempts every cleanup, then rethrows the first error with its original stack. Repeated calls return the same completion signal. Cancellation and refusal of new requests happen synchronously even without await; await disposal before releasing resources used by async plugins.
+
+eject(name) still returns bool and starts cleanup immediately. Async cleanup remains owned by the client: await api.dispose() waits for removed instances too and reports the first observed cleanup error with its original stack. Ejection is rejected once disposal starts.
+
+With debug enabled, invalid retry.jitter and cache.clone field types are rejected before sending, including cache misses. Unknown option value types still throw ArgumentError; absent-plugin warnings are unchanged.
+
+```dart
+import 'package:dioman/dioman.dart';
+
+/// 用户请求路径。
+const _userPath = '/user';
+
+/// 调用方的数据模型。
+class User {
+  /// 保存用户编号。
+  User(this.id);
+
+  /// 从成功响应的数据构造用户。
+  factory User.fromJson(Object? data) => User((data as Map)['id'] as int);
+
+  /// 用户编号。
+  final int id;
+}
+
+/// 解码仅在成功落定后执行。
+Future<User> loadUser(Dioman api) =>
+    api.get<User>(_userPath, decode: User.fromJson);
+
+/// send 保留结果字段并转换 data。
+Future<DiomanResponse<User>> sendUser(Dioman api) =>
+    api.send<User>('GET', _userPath, decode: User.fromJson);
+
+/// 等待插件完成清理。
+Future<void> closeClient(Dioman api) async {
+  await api.dispose();
+}
+```
+
 ## Plugins
 
 Fixed stages: outer → prepare → attempt → credential → source → Dio.

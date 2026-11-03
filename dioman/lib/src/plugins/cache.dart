@@ -12,6 +12,9 @@ import 'mock.dart';
 
 part 'cache_internal.dart';
 
+/// 克隆策略的诊断字段名。
+const _diomanCloneField = 'clone';
+
 /// 响应数据的克隆策略；也可直接提供自定义函数。
 enum DiomanClonePolicy {
   /// 返回只读引用。
@@ -338,7 +341,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
               ? List.of(data)
               : data;
     } else {
-      throw ArgumentError.value(strategy, 'clone');
+      throw ArgumentError.value(strategy, _diomanCloneField);
     }
     return ctx.factory.derive(r, copied);
   }
@@ -361,6 +364,11 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
             cachePolicy: b.cachePolicy ?? a.cachePolicy));
     if (o == null || o.enabled == false || ctx.get(sourceProbe) == true) {
       return next();
+    }
+    if (ctx.client.debugEnabled &&
+        o.clone is! DiomanClonePolicy &&
+        o.clone is! Object? Function(Object?)) {
+      throw ArgumentError.value(o.clone, _diomanCloneField);
     }
     if (!(o.shouldCache?.call(ctx.request) ??
         sourceSafeMethods.contains(ctx.request.method))) {

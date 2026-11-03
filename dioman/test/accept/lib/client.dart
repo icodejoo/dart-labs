@@ -442,7 +442,7 @@ class ScenarioClient {
 
   /// 释放客户端和宿主端口。
   Future<void> dispose() async {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
     await connectivity.close();
   }

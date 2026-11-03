@@ -107,6 +107,48 @@ Future<void> main() async {
 }
 ```
 
+### 解码与异步销毁
+
+所有数据方法和 send 均接受可选的 T Function(Object? data) decode。只在成功落定后执行：数据方法返回 T，send 返回 data 已解码的结果，其余字段保持。可预期失败不解码。decode 抛出的原异常和栈直接交给调用方，不经过插件，也不改写成 parse 失败。share 跟随者各自解码；解码器应只读输入数据。不传 decode 时行为不变。
+
+DiomanPluginInstance.dispose 现在返回 FutureOr<void>；Dioman.dispose 返回 Future<void>，逆注册顺序等待每个实例清理，尽力全部执行，最后原栈抛出首个异常。重复调用返回同一完成信号。不 await 也会同步取消在途请求并拒绝新请求；异步插件使用的宿主资源应在 await dispose 后释放。
+
+eject(name) 仍返回 bool 并立即启动清理；客户端继续拥有异步清理，await api.dispose() 也会等待已移除实例，并原栈报告首个观测到的清理错误。销毁开始后拒绝 eject，防止重复清理。
+
+开启 debug 时，retry.jitter 与 cache.clone 的非法字段类型在发送前报错，缓存首次未命中也会检查。未知选项值类型仍由 resolveOption 抛 ArgumentError，未安装插件告警保持原规则。
+
+```dart
+import 'package:dioman/dioman.dart';
+
+/// 用户请求路径。
+const _userPath = '/user';
+
+/// 调用方的数据模型。
+class User {
+  /// 保存用户编号。
+  User(this.id);
+
+  /// 从成功响应的数据构造用户。
+  factory User.fromJson(Object? data) => User((data as Map)['id'] as int);
+
+  /// 用户编号。
+  final int id;
+}
+
+/// 解码仅在成功落定后执行。
+Future<User> loadUser(Dioman api) =>
+    api.get<User>(_userPath, decode: User.fromJson);
+
+/// send 保留结果字段并转换 data。
+Future<DiomanResponse<User>> sendUser(Dioman api) =>
+    api.send<User>('GET', _userPath, decode: User.fromJson);
+
+/// 等待插件完成清理。
+Future<void> closeClient(Dioman api) async {
+  await api.dispose();
+}
+```
+
 ## 插件
 
 阶段固定：outer → prepare → attempt → credential → source → Dio.

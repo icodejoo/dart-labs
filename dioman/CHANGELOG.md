@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **R5:** get/post/put/patch/delete/head/request/send accept an optional decode callback after successful settlement. Expected failures skip decoding; decoder exceptions bypass plugins and preserve their original stack. Share callers decode independently.
+- **Breaking (R5):** plugin instance dispose returns FutureOr<void>; client dispose returns Future<void>, waits in reverse registration order, attempts all cleanups and rethrows the first error with its original stack. Repeated calls share completion; cancellation and refusal of new requests remain synchronous without await. Without await, a cleanup failure surfaces as an unhandled async error on the returned future instead of a synchronous throw.
+- **R5:** eject keeps its bool return value while client disposal also waits for ejected async instances and reports cleanup errors; ejection after disposal starts is rejected.
+- **R5:** debug validates retry.jitter and cache.clone field types before use. Both README exhaustive failure switches retain the null branch.
+
 - **Breaking (R3/C30):** all results default to null raw/error. Use `DiomanCall(raw: true)` to attach the caller's native transport data, including headers on success. Cache hits and share followers never borrow native objects. `ctx.native` is readonly; its shared slot is cleared and sealed at settlement. Top-level errorStack is removed; internal error/errorStack move into failureOf and retain original-stack rethrows.
 - **C31:** Retry-After is extracted at the transport boundary and read through a private result field, including by share followers.
 - **C32:** memory cache stores snapshots and rebuilds hits through the same factory with the current caller's request. Persistent format and share request semantics are unchanged.

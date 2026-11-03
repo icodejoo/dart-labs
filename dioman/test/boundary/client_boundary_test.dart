@@ -182,7 +182,7 @@ void main() {
     ]);
     final pending =
         api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath);
-    expect(() => api.dispose(), throwsA(same(first)));
+    await expectLater(api.dispose(), throwsA(same(first)));
     expect(order, [pipelineTestWait, pipelineTestB, pipelineTestA]);
     expect(outcomeOf((await pending)), diomanTestCancel);
     api.dispose();

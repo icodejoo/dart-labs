@@ -1868,6 +1868,20 @@
     "blocked": null
   },
   {
+    "id": "Dioman.delete(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.delete(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
     "id": "Dioman.dio",
     "plugin": "client",
     "capability": "Dioman.dio：公开契约及配置解析",
@@ -1905,7 +1919,8 @@
     "real": [],
     "assumptions": [],
     "result": null,
-    "blocked": null
+    "blocked": null,
+    "note": " R5：异步清理由客户端继续跟踪，dispose 等待并原栈报告；销毁开始后拒绝 eject。"
   },
   {
     "id": "Dioman.extend",
@@ -1980,6 +1995,20 @@
     "blocked": null
   },
   {
+    "id": "Dioman.get(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.get(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
     "id": "Dioman.head",
     "plugin": "client",
     "capability": "Dioman.head：公开契约及配置解析",
@@ -1998,6 +2027,20 @@
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.head(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.head(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.inspect",
@@ -2099,6 +2142,20 @@
     "blocked": null
   },
   {
+    "id": "Dioman.patch(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.patch(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
     "id": "Dioman.pending",
     "plugin": "client",
     "capability": "Dioman.pending：公开契约及配置解析",
@@ -2145,6 +2202,20 @@
     "blocked": null
   },
   {
+    "id": "Dioman.post(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.post(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
     "id": "Dioman.put",
     "plugin": "client",
     "capability": "Dioman.put：公开契约及配置解析",
@@ -2163,6 +2234,20 @@
       "total": 1
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.put(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.put(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.reject",
@@ -2199,6 +2284,20 @@
     "blocked": null
   },
   {
+    "id": "Dioman.request(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.request(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
+  },
+  {
     "id": "Dioman.response",
     "plugin": "client",
     "capability": "Dioman.response：公开契约及配置解析",
@@ -2233,6 +2332,20 @@
       "total": 7
     },
     "blocked": null
+  },
+  {
+    "id": "Dioman.send(decode)",
+    "plugin": "client",
+    "capability": "成功落定后独立解码；可预期失败不解码，程序错误原栈抛出",
+    "tier": 1,
+    "apis": [
+      "Dioman.send(decode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "R5：test/unit/decode_test.dart；纯调用方转换，不依赖真实传输"
   },
   {
     "id": "Dioman.statusOf",

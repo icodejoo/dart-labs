@@ -43,16 +43,16 @@ void main() {
           'CHANGELOG.md': 7,
         };
         const expectedCompiled = <String, int>{
-          'README.md': 17,
-          'README.zh-CN.md': 17,
-          'docs/guides/migrating-to-pipeline.md': 21,
+          'README.md': 18,
+          'README.zh-CN.md': 18,
+          'docs/guides/migrating-to-pipeline.md': 22,
           'CHANGELOG.md': 7,
         };
         expect(localCompiled, expectedCompiled[path], reason: path);
         expect(localSkipped, expectedOld[path], reason: path);
         counts[path] = {'compiled': localCompiled, 'skippedOld': localSkipped};
       }
-      expect(compiled, 62, reason: 'R3 新增原生响应迁移示例');
+      expect(compiled, 65, reason: 'R5 新增解码与异步销毁示例');
       expect(skipped, 25, reason: '旧代码跳过必须显式登记，不能悄悄增加');
       final result = await Process.run(Platform.resolvedExecutable,
           ['analyze', '--format=machine', temporary.path],

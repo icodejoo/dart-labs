@@ -1149,3 +1149,53 @@ Future<String?> responseHeader(Dioman api) async {
 ```
 
 顶层 `errorStack` 已删除；internal 原始异常与栈改为 `failureOf(result)?.error` 和 `failureOf(result)?.errorStack`，即使没开 raw 仍会原栈重抛。其余失败默认不保留异常。缓存只保存快照，命中经同一工厂重建并绑定当前请求；缓存命中和 share 跟随者没有自身原生数据，即使开 raw 也不借用首发调用方的对象。share 的 request 仍代表实际传输，Retry-After 仍生效。完整 request 的瘦身留待后续批次。
+
+## R5：解码与异步清理
+
+原先 get<User> 只是运行时转型，现在可传 decode: User.fromJson 显式转换。
+get/post/put/patch/delete/head/request 返回解码数据，send 返回 data 已解码的结果副本。
+只在成功落定后解码；失败按原规则返回或 reject，decode 抛错原对象原栈抛出，不经过插件或改为 parse。
+share 每个调用方独立解码，不修改共享响应；解码器应只读输入数据。
+
+插件 dispose 从 void 改为 FutureOr<void>，同步实现仍可保持 void；客户端 dispose 从 void 改为 Future<void>。
+客户端同步 cancelAll 并拒绝新请求，因此旧的不 await 写法仍立即生效。
+需要等待异步资源清理、捕获清理异常或关闭宿主引擎时，改为 await api.dispose()。
+清理按注册逆序串行等待，尽力全部执行，最后原栈抛出首个异常；重复调用返回同一个 Future。
+不 await 时，清理失败的异常不再同步抛出，而是随返回的 Future 变成未处理的异步异常；需要捕获就 await，或自行给返回值挂 catchError。
+
+eject(name) 仍返回 bool，异步清理由客户端跟踪；await api.dispose() 会一并等待已移除实例并原栈报告首个观测错误。同步 eject 清理错误仍直接抛出，销毁开始后禁止移除实例。
+
+开启 debug 时新增 retry.jitter 和 cache.clone 字段类型检查；请求级选项仍不做编译期类型化。
+两份 README 的 failureOf(r)?.kind 穷举 switch 保留 null 分支，可直接编译。
+
+```dart
+import 'package:dioman/dioman.dart';
+
+/// 用户请求路径。
+const _userPath = '/user';
+
+/// 调用方的数据模型。
+class User {
+  /// 保存用户编号。
+  User(this.id);
+
+  /// 从成功响应的数据构造用户。
+  factory User.fromJson(Object? data) => User((data as Map)['id'] as int);
+
+  /// 用户编号。
+  final int id;
+}
+
+/// 解码仅在成功落定后执行。
+Future<User> loadUser(Dioman api) =>
+    api.get<User>(_userPath, decode: User.fromJson);
+
+/// send 保留结果字段并转换 data。
+Future<DiomanResponse<User>> sendUser(Dioman api) =>
+    api.send<User>('GET', _userPath, decode: User.fromJson);
+
+/// 等待插件完成清理。
+Future<void> closeClient(Dioman api) async {
+  await api.dispose();
+}
+```

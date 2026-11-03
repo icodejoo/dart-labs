@@ -33,6 +33,7 @@
 
 ## 报告
 
+- [第二轮 R5 Dart 化 API 2026-11-03](reports/2026-11-03-round2-r5.md) — decode 解码钩子、异步 dispose（Future<void>）、debug 选项检查；真实验收 768 通过 0 失败。active。
 - [第二轮 R4 性能与真实验收 2026-11-03](reports/2026-11-03-round2-r4.md) — 真实验收 768 通过 0 失败；两项候选撤回；五项性能门槛因负载未判定，待复测。active。
 - [第二轮 R3 原生数据瘦身 2026-11-03](reports/2026-11-03-round2-r3.md) — ctx.native 原生槽与 I11、按需 raw、internal 失败事实、Retry-After 小事实、缓存快照。active。
 - [第二轮 R2b 收口与发版前必修 2026-11-03](reports/2026-11-03-round2-r2b.md) — 条件导入去掉 dart:io（pana 保留 web/wasm）、key 隔离、缓存硬否决、retry 默认值。active。

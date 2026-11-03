@@ -318,6 +318,12 @@ class _Retry<R extends DiomanResponse<dynamic>>
         merge: _merge,
         shorthand: (v) => v is int ? DiomanRetryOptions(max: v) : null);
     if (o == null || o.enabled == false) return next();
+    if (ctx.client.debugEnabled &&
+        o.jitter != null &&
+        o.jitter is! bool &&
+        o.jitter is! DiomanJitter) {
+      throw ArgumentError.value(o.jitter, 'jitter');
+    }
     ctx.markReplayable();
     if (!o.methods!
         .map((m) => m.toUpperCase())

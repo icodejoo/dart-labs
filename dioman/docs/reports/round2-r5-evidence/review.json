@@ -1,0 +1,11 @@
+{
+  "command": "codex review --uncommitted",
+  "exit": 0,
+  "findings": 1,
+  "accepted": 1,
+  "fixed": 1,
+  "issue": "P2: eject 丢弃异步 dispose 信号和错误",
+  "fix": "跟踪异步清理和原栈错误；dispose 等待已移除实例；销毁后拒绝 eject",
+  "validation": "定向修复测试 30/30 通过；最终全量另见本报告",
+  "raw_log": "coverage/r5-review.log"
+}
