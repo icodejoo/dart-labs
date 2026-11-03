@@ -1,0 +1,51 @@
+{
+  "S2": {
+    "eligible": false,
+    "legacyOverhead": -0.00594288942968757,
+    "pipelineOverhead": 0.2661974880725313,
+    "passed": null,
+    "groupStable": false,
+    "dependencies": [
+      "S1",
+      "S2"
+    ]
+  },
+  "S3": {
+    "eligible": false,
+    "legacyOverhead": 9.403259131044242,
+    "pipelineOverhead": 3.022935288654237,
+    "passed": null,
+    "groupStable": false,
+    "dependencies": [
+      "S1",
+      "S3"
+    ]
+  },
+  "S4": {
+    "eligible": false,
+    "throughputChangePercent": 208.39301365377963,
+    "passed": null,
+    "groupStable": false,
+    "dependencies": [
+      "S4"
+    ]
+  },
+  "S5": {
+    "eligible": false,
+    "throughputChangePercent": 278.22390464755057,
+    "passed": null,
+    "groupStable": false,
+    "dependencies": [
+      "S5"
+    ]
+  },
+  "S6": {
+    "eligible": false,
+    "throughputChangePercent": 1.8630098522130156,
+    "passed": null,
+    "groupStable": false,
+    "dependencies": [
+      "S6"
+    ]
+  }
+}

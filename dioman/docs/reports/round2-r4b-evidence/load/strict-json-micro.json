@@ -1,0 +1,158 @@
+[
+  {
+    "name": "strict-json-micro",
+    "round": 1,
+    "attempt": 1,
+    "accepted": false,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 12.556803816729326,
+        "reasons": [],
+        "stem": "strict-json-micro-1-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": false,
+        "meanExternalPercent": 22.878650709168777,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%"
+        ],
+        "stem": "strict-json-micro-1-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json-micro",
+    "round": 1,
+    "attempt": 2,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 18.102314299398785,
+        "reasons": [],
+        "stem": "strict-json-micro-1-try-2-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 12.506883609092876,
+        "reasons": [],
+        "stem": "strict-json-micro-1-try-2-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json-micro",
+    "round": 2,
+    "attempt": 1,
+    "accepted": false,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 11.449058473353253,
+        "reasons": [],
+        "stem": "strict-json-micro-2-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": false,
+        "meanExternalPercent": 39.646531458159494,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%"
+        ],
+        "stem": "strict-json-micro-2-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json-micro",
+    "round": 2,
+    "attempt": 2,
+    "accepted": false,
+    "members": [
+      {
+        "clean": false,
+        "meanExternalPercent": 27.353378535518996,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%"
+        ],
+        "stem": "strict-json-micro-2-try-2-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 11.638657637429946,
+        "reasons": [],
+        "stem": "strict-json-micro-2-try-2-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json-micro",
+    "round": 2,
+    "attempt": 3,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 13.490150438601782,
+        "reasons": [],
+        "stem": "strict-json-micro-2-try-3-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 16.57305753156986,
+        "reasons": [],
+        "stem": "strict-json-micro-2-try-3-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json-micro",
+    "round": 3,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 10.214156375109894,
+        "reasons": [],
+        "stem": "strict-json-micro-3-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 16.888923089583106,
+        "reasons": [],
+        "stem": "strict-json-micro-3-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  }
+]

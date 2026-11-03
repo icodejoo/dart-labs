@@ -42,3 +42,9 @@ dart run benchmark/round2_r4_micro.dart clone-on
 ```
 
 同步诊断每批 100 次操作，分别测请求构造、patch、导出、URI、严格 JSON 与构键。克隆实验使用相同的 S6 类嵌套 POST 与 attempt 探针，只切换 markReplayable，避免关闭 retry 时同时移除其余插件成本。均预热 500ms、正式至少 2s；mean 使用总时间/次数，包含循环 bookkeeping，只用于同一入口内的对照，不替代标准 S1–S6 门槛。
+
+## R4b 本轮执行与停止状态
+
+本轮固定旧版 895d959，对照 R6 后的 797a9f4d；保持普通优先级。直接调用已入库 campaign 的 baseline-only 流程与 followup，各任务使用新的空原始目录，整轮共享同一个新建的 1800 秒 deadline；不能沿用上次中断的 deadline 或重置预算续测。原始记录为 `coverage/r4b-raw/20261103-145823/`，小摘要在 `docs/reports/round2-r4b-evidence/`。本地薄调用文件只指定新目录与截止时间，没有重写门控或改变事前规则。
+
+三组基线、两个旧候选及克隆开关均完成干净三轮；干净不等于稳定，三组基线的整组标记与五项场景依赖判定均不稳定。两个候选不满足全部事前保留阈值，已恢复 lib 原字节。独立终测第一轮始终没有取得干净配对，30 分钟预算耗尽即停止，不拼轮或补开预算。13 个完整污染配对作废、另 1 对未完成；详细数据及稳健口径裁决请求见 [R4b 报告](../docs/reports/2026-11-03-round2-r4b.md) 和 [汇总](summary.md)。

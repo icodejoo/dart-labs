@@ -1,0 +1,98 @@
+{
+  "rawDirectory": "E:\\workspaces\\dart-labs-dioman\\dioman\\coverage\\r4b-raw\\20261103-145823",
+  "startedEpoch": 1793689103.8843129,
+  "stopped": "三十分钟预算耗尽",
+  "tasks": {
+    "baseline-1": {
+      "attemptedPairs": 5,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 2,
+      "incompletePairs": 0,
+      "pollutedMembers": 3,
+      "completedMembers": 10,
+      "reasons": {
+        "外部均值超过20%": 2,
+        "连续三秒外部占用超过35%": 2
+      }
+    },
+    "baseline-2": {
+      "attemptedPairs": 3,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 0,
+      "incompletePairs": 0,
+      "pollutedMembers": 0,
+      "completedMembers": 6,
+      "reasons": {}
+    },
+    "baseline-3": {
+      "attemptedPairs": 5,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 2,
+      "incompletePairs": 0,
+      "pollutedMembers": 2,
+      "completedMembers": 10,
+      "reasons": {
+        "外部均值超过20%": 2,
+        "连续三秒外部占用超过35%": 1
+      }
+    },
+    "request-copy": {
+      "attemptedPairs": 3,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 0,
+      "incompletePairs": 0,
+      "pollutedMembers": 0,
+      "completedMembers": 6,
+      "reasons": {}
+    },
+    "strict-json": {
+      "attemptedPairs": 4,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 1,
+      "incompletePairs": 0,
+      "pollutedMembers": 1,
+      "completedMembers": 8,
+      "reasons": {
+        "外部均值超过20%": 1
+      }
+    },
+    "strict-json-micro": {
+      "attemptedPairs": 6,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 3,
+      "incompletePairs": 0,
+      "pollutedMembers": 3,
+      "completedMembers": 12,
+      "reasons": {
+        "外部均值超过20%": 3
+      }
+    },
+    "clone": {
+      "attemptedPairs": 6,
+      "acceptedPairs": 3,
+      "pollutedCompletePairs": 3,
+      "incompletePairs": 0,
+      "pollutedMembers": 3,
+      "completedMembers": 12,
+      "reasons": {
+        "外部均值超过20%": 3
+      }
+    },
+    "final": {
+      "attemptedPairs": 3,
+      "acceptedPairs": 0,
+      "pollutedCompletePairs": 2,
+      "incompletePairs": 1,
+      "pollutedMembers": 3,
+      "completedMembers": 5,
+      "reasons": {
+        "外部均值超过20%": 3,
+        "连续三秒外部占用超过35%": 2
+      }
+    }
+  },
+  "libSameAsStart": true,
+  "pollutedCompletePairs": 13,
+  "pollutedMembers": 15,
+  "acceptedPairs": 21
+}

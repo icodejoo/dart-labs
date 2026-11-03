@@ -1,0 +1,77 @@
+[
+  {
+    "name": "request-copy",
+    "round": 1,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 3.9714938336891965,
+        "reasons": [],
+        "stem": "request-copy-1-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 4.854935337961082,
+        "reasons": [],
+        "stem": "request-copy-1-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "request-copy",
+    "round": 2,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 4.308755672152919,
+        "reasons": [],
+        "stem": "request-copy-2-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 6.083506830190145,
+        "reasons": [],
+        "stem": "request-copy-2-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "request-copy",
+    "round": 3,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 19.434647246630433,
+        "reasons": [],
+        "stem": "request-copy-3-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 8.878718249317474,
+        "reasons": [],
+        "stem": "request-copy-3-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  }
+]
