@@ -69,6 +69,19 @@ class MatrixTests(unittest.TestCase):
             changed=copy.deepcopy(row); del changed['actual']
             self.assertEqual(Evidence.assertions(changed,clauses), 'BLOCKED', row['id'])
 
+    def test_s00e_inventory_never_passes_missing_checks_or_boolean_only(self):
+        from matrix_evidence import Evidence
+        rules=json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf-8'))
+        inventory=json.loads((matrix.TOOL/'s00e_rules_inventory.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            evidence=Evidence(folder,'absent-')
+            for target,items in inventory.items():
+                for item in items:
+                    spec=next(q for q in rules[target]['requires'] if q.get('ident')==item['check'])
+                    self.assertTrue(spec['assertions'],item['check'])
+                    self.assertEqual(evidence.check(item['check'],assertions=spec['assertions'])[0],'BLOCKED')
+                    self.assertEqual(Evidence.assertions(dict(numbers={},**{'pass':True}),spec['assertions']),'BLOCKED')
+
     def test_s00e_resource_and_texture_rules_reject_spoofed_totals(self):
         from matrix_evidence import Evidence
         clauses=[dict(field='numbers.calls',op='count_where',other='numbers.created',where={'method':'VideoOutputManager.Create','replied':True})]

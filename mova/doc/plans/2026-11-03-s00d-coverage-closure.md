@@ -69,7 +69,7 @@ A2 和 `E.MovaBufferChange`、`E.MovaSizeChange`、`E.MovaQualityChange` 继续�
 
 D02 保持“严格 TLS 拒绝正确 IP SAN，原生层待定位”；D03/H42 保持“存疑待产品面决策，矩阵 §5.3 第 8 条”。本轮没有使用属性恢复或资源计数覆盖其未知语义。
 
-另一个需新数据澄清的严格组是 reporterOff：按矩阵 F14 的 qoe:false 零客户端口径要求 0/非 restart，而当前 wiring 按 hasReporter 接原生观察。保留此严格对照，尚未上机，不直接把源码推断记为新的设备 FAIL。
+S00e 契约澄清（2026-11-03）：上述 reporterOff 存疑已由编排 A14 新设计消除（01b21d3e）。首次 open 前 0 个弱客户端，open 后基础 END_FILE 共用 1 个，qoe:false/reporterOff 也一样；RESTART 只在 poster/precise/QoE 时额外观察。原“reporterOff 组要求 0”口径作废，不据此定性产品缺陷。S00e 已修改生产者和 assertions；新判据未上机。
 
 ## pod2 更正
 

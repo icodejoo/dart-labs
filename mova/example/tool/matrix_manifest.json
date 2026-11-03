@@ -1993,6 +1993,100 @@
       "result_path": "{evidence}/{prefix}cp1-keepalive-s7s14.json"
     },
     {
+      "id": "s00e-offline-widgets",
+      "description": "S00e 无设备单文件 widgets",
+      "why": "保留组件树或公开契约 CHECK；缺字段及旧快照未知值不得 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e_offline.py",
+        "widgets",
+        "--output",
+        "{evidence}/{prefix}s00e-offline-widgets.json"
+      ],
+      "timeout": 300,
+      "dependencies": [],
+      "covers": [
+        "C3",
+        "U4",
+        "U5",
+        "U6",
+        "U7",
+        "U9"
+      ],
+      "evidence_prefix": "{prefix}s00e-offline-widgets",
+      "screen_on": false,
+      "fast": false
+    },
+    {
+      "id": "s00e-offline-contract",
+      "description": "S00e 无设备单文件 contract",
+      "why": "保留组件树或公开契约 CHECK；缺字段及旧快照未知值不得 PASS",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e_offline.py",
+        "contract",
+        "--output",
+        "{evidence}/{prefix}s00e-offline-contract.json"
+      ],
+      "timeout": 300,
+      "dependencies": [],
+      "covers": [
+        "A5",
+        "A6",
+        "A7",
+        "A17",
+        "A20",
+        "A32",
+        "C4",
+        "U2",
+        "U3",
+        "F4",
+        "F8",
+        "N6",
+        "N8",
+        "N19",
+        "N23",
+        "E.MovaErrorEvent"
+      ],
+      "evidence_prefix": "{prefix}s00e-offline-contract",
+      "screen_on": false,
+      "fast": false
+    },
+    {
+      "id": "s00e-native",
+      "description": "S00e 原生与宿主采集握手",
+      "why": "实际系统读回、纹理调用、资源边界和错误隔离；未上机",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_s00e.py",
+        "--name",
+        "{prefix}s00e-native"
+      ],
+      "timeout": 1000,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A7",
+        "A13",
+        "C3",
+        "U1",
+        "U6",
+        "U9",
+        "F9",
+        "F12",
+        "F13",
+        "F14",
+        "N12",
+        "N13"
+      ],
+      "evidence_prefix": "{prefix}s00e-native",
+      "screen_on": true,
+      "fast": false
+    },
+    {
       "id": "gap-screen",
       "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
