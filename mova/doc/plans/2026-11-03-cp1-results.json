@@ -40,6 +40,11 @@
       "status": "COMPLETE",
       "recordedAt": "2026-11-03T17:40:07.735241+08:00",
       "detail": "本阶段已收口；失败与缺测保留，不代表全部产品判据通过"
+    },
+    "3": {
+      "status": "COMPLETE",
+      "recordedAt": "2026-11-03T17:50:41.694049+08:00",
+      "detail": "本阶段已收口；失败与缺测保留，不代表全部产品判据通过"
     }
   },
   "rows": [
@@ -53,7 +58,9 @@
       "criterion": "新 URI MovaFirstFrame 10/10，原生 path 正确",
       "cp0": "CP0 无此交错基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "新源响应被拦超过6s，但原生约5s先HTTP超时；未获7a有效CHECK，未补跑",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-wakeswap-20261103-1540/matrix-cp1-wakeswap-20261103-1540-cp1-wakeswap.json"
       ],
@@ -93,7 +100,9 @@
       "criterion": "网络重开窗口中 pause 后保持暂停",
       "cp0": "CP0 无此交错基线",
       "result": "CHECK结果及原生读回见JSON measurements与原始records",
-      "difference": "CP0无同口径独立基线，不推断改善",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "pause前5次通过，第6次根相对HLS分片地址协议错误、native读回缺失；余下pause/fallback未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
       ],
@@ -192,7 +201,9 @@
       "criterion": "fallback 回边缘不补播",
       "cp0": "CP0 无此交错基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "pause前5次通过，第6次根相对HLS分片地址协议错误、native读回缺失；余下pause/fallback未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-edgepause-20261103-1542/matrix-cp1-edgepause-20261103-1542-cp1-edgepause.json"
       ],
@@ -237,6 +248,8 @@
       "criterion": "真实非终结 error 日志不遮罩且播放推进",
       "cp0": "CP0 无独立定量基线",
       "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
@@ -300,6 +313,8 @@
       "criterion": "404 END_FILE(error) 终结，遮罩显示，转圈消失",
       "cp0": "CP0 无独立定量基线",
       "result": "独立END_FILE=4/5；UI终结无转圈=5/5",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
@@ -477,6 +492,8 @@
       "criterion": "首帧 restart，撤封面不早于首帧",
       "cp0": "CP0 无独立定量基线",
       "result": "首帧信号=['restart', 'restart', 'restart', 'restart', 'restart']",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-errclass-20261103-1544/matrix-cp1-errclass-20261103-1544-cp1-errclass.json"
@@ -549,6 +566,8 @@
       "criterion": "列表非空",
       "cp0": "CP0 无独立定量基线",
       "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
@@ -740,6 +759,8 @@
       "criterion": "手选 720p 保持，原生地址正确",
       "cp0": "CP0 无独立定量基线",
       "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
@@ -931,6 +952,8 @@
       "criterion": "每会话探测一次",
       "cp0": "CP0 无独立定量基线",
       "result": "探测总数=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]；列表长度=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
@@ -1120,7 +1143,9 @@
       "criterion": "换备用源重新探测且每地址一次",
       "cp0": "CP0 无独立定量基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "前三组各10次通过；首个failover无切源并自然Done，90s超时，剩余failover/disabled未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
@@ -1158,7 +1183,9 @@
       "criterion": "关闭探测时请求为零",
       "cp0": "CP0 无独立定量基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "前三组各10次通过；首个failover无切源并自然Done，90s超时，剩余failover/disabled未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-probe-20261103-1546/matrix-cp1-probe-20261103-1546-cp1-probe.json"
       ],
@@ -1198,6 +1225,8 @@
       "criterion": "真实降档且降档后可手选 720p",
       "cp0": "CP0 限速五次均停最高档、不降档",
       "result": "降档次数=[1, 1, 1, 1, 1]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "本次开启5/5真实降档，CP0默认关不降档；参数不同，不作性能倍数比较",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
@@ -1280,6 +1309,8 @@
       "criterion": "默认关闭无降档",
       "cp0": "CP0 默认限速五次均不降档；夹具/观察窗不同",
       "result": "降档次数=[0, 0, 0, 0, 0]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "默认关闭均无降档，与CP0同方向；夹具/时长不同",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
@@ -1362,6 +1393,8 @@
       "criterion": "ABR 关闭无降档",
       "cp0": "CP0 无该对照",
       "result": "降档次数=[0, 0, 0, 0, 0]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
@@ -1444,6 +1477,8 @@
       "criterion": "手选档缓冲 true→false，租约不降档",
       "cp0": "CP0 无独立定量基线",
       "result": "降档次数=[0, 0, 0, 0, 0]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-manageauto-20261103-1550/matrix-cp1-manageauto-20261103-1550-cp1-manageauto.json"
@@ -1526,7 +1561,9 @@
       "criterion": "亮度播种/还原、竖屏、系统栏原生对账",
       "cp0": "CP0 无独立定量基线",
       "result": "settings brightness前后=[(27, 62), (42, 52), (41, 42), (42, 42), (33, 63)]",
-      "difference": "CP0无同口径独立基线，不推断改善",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "OEM亮度/应用覆盖/display/InsetsSource字段未完整解析；已记录系统brightness漂移，未凭缺字段判通过",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
       ],
@@ -1886,6 +1923,8 @@
       "criterion": "404 挂起 body 时 dispose≤5s 且 NativePlayer 释放",
       "cp0": "CP0 无独立定量基线",
       "result": "dispose耗时us=[5113, 6880, 79158, 9078, 83083]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-bblock-20261103-1559/matrix-cp1-bblock-20261103-1559-cp1-bblock.json"
@@ -1980,6 +2019,8 @@
       "criterion": "拒绝后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
       "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
@@ -2062,6 +2103,8 @@
       "criterion": "抛错后隐藏旧素材、重试地址正确",
       "cp0": "CP0 无独立定量基线",
       "result": "CHECK结果及原生读回见JSON measurements与原始records",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
@@ -2144,6 +2187,8 @@
       "criterion": "每轮 1000 条，缓存≤7，十点 PSS 不单调上升",
       "cp0": "CP0 无独立定量基线",
       "result": "观测缓存上界=[5, 5, 5]；PSS斜率KB/100条=[-1980.85, 430.73, 817.3]",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-pool-20261103-1601/matrix-cp1-pool-20261103-1601-cp1-pool.json"
@@ -2417,11 +2462,13 @@
       "counts": {
         "PASS": 5
       },
-      "status": "PASS",
+      "status": "BLOCKED",
       "criterion": "5000 条弹幕四次跳转，保留帧耗时分布，不设硬线",
       "cp0": "CP0 无 5000 条定量基线",
       "result": "{\"buildUs\": {\"count\": 853, \"p50\": 412, \"p95\": 3306, \"p99\": 5610, \"maximum\": 8562}, \"rasterUs\": {\"count\": 853, \"p50\": 10958, \"p95\": 18396, \"p99\": 21817, \"maximum\": 27872}, \"totalUs\": {\"count\": 853, \"p50\": 14414, \"p95\": 27008, \"p99\": 42620, \"maximum\": 159062}}",
-      "difference": "CP0无同口径独立基线，不推断改善",
+      "collectionStatus": "PASS",
+      "adjudication": "原始采样CHECK为5/5 PASS；853帧totalSpan最大159062us，缺CP0同口径分布/批准的尖峰判据，不宣称无尖峰",
+      "difference": "5次采样CHECK完整，但totalSpan尾值159.062ms；无CP0同口径分布/批准硬线，性能结论未关闭",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json"
       ],
@@ -2606,7 +2653,9 @@
       "criterion": "真实 stallTimeout 重试，续播误差≤500ms 且地址正确",
       "cp0": "CP0 无此定量基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "首个resume的segmentEntered始终false，预缓冲已读63请求；未建立卡死前提，后续未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json"
       ],
@@ -2654,7 +2703,9 @@
       "criterion": "重试保持 720p，续播误差≤500ms 且地址正确",
       "cp0": "CP0 无此定量基线",
       "result": "无正式CHECK；见阻塞/宿主证据",
-      "difference": "待本轮证据",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "首个resume的segmentEntered始终false，预缓冲已读63请求；未建立卡死前提，后续未执行",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-recovery-20261103-1610/matrix-cp1-recovery-20261103-1610-cp1-recovery.json"
       ],
@@ -2704,6 +2755,8 @@
       "criterion": "逐轮首帧/dispose 完成，dispose 帧间隔<100ms",
       "cp0": "CP0 无 120 轮联合基线",
       "result": "最大dispose区间帧间隔=95957us；最大dispose=112595us",
+      "collectionStatus": null,
+      "adjudication": null,
       "difference": "CP0无同口径独立基线，不推断改善",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-dispose120-20261103-1615/matrix-cp1-dispose120-20261103-1615-cp1-dispose120.json"
@@ -4323,7 +4376,9 @@
       "criterion": "20 次 vid 循环，mediacodec-copy，黑屏/运动复核",
       "cp0": "CP0 无完整像素/时序复核基线",
       "result": "原生VERDICT=[[['PASS', 'videoCameBack=20/20 signalLanded=0/20']], [['PASS', 'videoCameBack=20/20 signalLanded=0/20']], [['PASS', 'videoCameBack=20/20 signalLanded=0/20']], [['PASS', 'videoCameBack=20/20 signalLanded=0/20']], [['PASS', 'videoCameBack=20/20 signalLanded=0/20']]]；完整视觉判据未关闭",
-      "difference": "CP0无同口径独立基线，不推断改善",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "原生场景均通过；单张恢复截图缺运动证据，S14有跨场景采图滞后，CP0 Android完整视觉基线缺失",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json",
         "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.json"
@@ -5245,7 +5300,9 @@
       "criterion": "vid=no 窗口及恢复画面复核",
       "cp0": "CP0 无完整像素/时序复核基线",
       "result": "原生VERDICT=[[['PASS', 'screenshots taken by the external script (normal / holding1 / holding2 / restored)']], [['PASS', 'screenshots taken by the external script (normal / holding1 / holding2 / restored)']], [['PASS', 'screenshots taken by the external script (normal / holding1 / holding2 / restored)']], [['PASS', 'screenshots taken by the external script (normal / holding1 / holding2 / restored)']], [['PASS', 'screenshots taken by the external script (normal / holding1 / holding2 / restored)']]]；完整视觉判据未关闭",
-      "difference": "CP0无同口径独立基线，不推断改善",
+      "collectionStatus": null,
+      "adjudication": null,
+      "difference": "原生场景均通过；单张恢复截图缺运动证据，S14有跨场景采图滞后，CP0 Android完整视觉基线缺失",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-20261103-1618/matrix-cp1-keepalive-s7s14-20261103-1618-cp1-keepalive-s7s14.json",
         "example/tool/coverage_evidence/matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.json"
@@ -6389,7 +6446,7 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "wait首轮ad1已原生播放且epoch=1，但公共事件无MovaFirstFrame，页在53行超时；其余wait及全部nowait未执行。CP0无对应正式基线。",
       "metrics": {
         "passes": 0,
         "failures": 0,
@@ -6418,7 +6475,7 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "wait首轮ad1已原生播放且epoch=1，但公共事件无MovaFirstFrame，页在53行超时；其余wait及全部nowait未执行。CP0无对应正式基线。",
       "metrics": {
         "passes": 0,
         "failures": 0,
@@ -6447,7 +6504,7 @@
       "status": "BLOCKED",
       "criterion": "真实抽帧字节/图片、缓存命中及B07原生seek落点，各3次",
       "cp0": "无同口径独立定量基线",
-      "difference": "既有页不导出抽帧原生seek落点，A30辅助结果不能关闭B07",
+      "difference": "旧页audioOnly=true触发platform拒绝，3次均无THUMB；B07原生seek落点未测，不把前提失败当抽帧器产品失败",
       "result": "[{\"run\": 0, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}, {\"run\": 1, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}, {\"run\": 2, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}]",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-b-extract-20261103-1640/extract-results.json"
@@ -9239,6 +9296,25 @@
         "lib/src/ui/skins/default_skin.dart:365"
       ],
       "suggestion": "更新CP1验证页的目标组件树，避免用固定sublist下标构造patch预期；保留B14的lockToggle行为，不删除产品组件来迎合旧快照；补B03专属刺激后下一构建验证"
+    },
+    {
+      "id": "CP1-H11",
+      "classification": "弹幕性能结论待复核；BLOCKED，原始采样CHECK为PASS",
+      "phenomenon": "5000条弹幕5次跳转合计853个FrameTiming；totalSpan p99=42620us、最大159062us，build最大8562us、raster最大27872us。无批准硬线/同口径CP0分布，不能宣称无尖峰。",
+      "reproduction": "每次顺序seek到30/2/45/10秒，记录每跳约1.5秒FrameTiming；无重跑。",
+      "evidence": "example/tool/coverage_evidence/matrix-cp1-danmaku-20261103-1607/matrix-cp1-danmaku-20261103-1607-cp1-danmaku.json",
+      "recordIndices": [
+        63,
+        124,
+        184,
+        241,
+        305
+      ],
+      "suspectedLocations": [
+        "example/lib/verify_auto/cp1_danmaku_auto.dart:49",
+        "lib/src/ui/components/danmaku.dart:162"
+      ],
+      "suggestion": "将totalSpan含vsync等待的尾值与seek/首帧/解码切换时序对齐，区分弹幕build/raster与其他等待；先补同口径CP0分布或明确人工尖峰判据，不发明数值线判FAIL，也不把采样存在判为无尖峰PASS。"
     }
   ],
   "incidents": [
@@ -9297,7 +9373,41 @@
       "conclusion": "黑块是本机观测事实，S14原设计为记录黑/末帧；CP0 Android无完整对应画面基线。SHOT读取/采图存在滞后，S7/S14完整视觉与运动判据未关闭。"
     }
   ],
-  "restoration": {},
+  "audit": {
+    "passed": true,
+    "evidence": "example/tool/coverage_evidence/cp1-ledger-audit.json",
+    "checkCount": 47
+  },
+  "restoration": {
+    "status": "VERIFIED",
+    "evidence": "example/tool/coverage_evidence/cp1-session-restored.json",
+    "original": {
+      "power": "7",
+      "volume": "0",
+      "mappings": {
+        "reverse": {
+          "localabstract:gnirehtet": "tcp:31416"
+        },
+        "forward": {}
+      }
+    },
+    "after": {
+      "volume": "0",
+      "power": "7",
+      "mappings": {
+        "reverse": {
+          "localabstract:gnirehtet": "tcp:31416"
+        },
+        "forward": {}
+      }
+    },
+    "apk": {
+      "expected": "3e3446163508d8b245dd85ab03b97549bba981331bad8ef725e6a1415b248ec6",
+      "actual": "3e3446163508d8b245dd85ab03b97549bba981331bad8ef725e6a1415b248ec6",
+      "matches": true
+    },
+    "error": null
+  },
   "validations": [
     {
       "stage": 0,
@@ -9324,6 +9434,11 @@
       "stage": "stage2",
       "passed": true,
       "evidence": "example/tool/coverage_evidence/cp1-validation-stage2-20261103-173838.json"
+    },
+    {
+      "stage": "stage3",
+      "passed": true,
+      "evidence": "example/tool/coverage_evidence/cp1-validation-stage3-20261103-174817.json"
     }
   ],
   "additionalRows": [
@@ -10043,7 +10158,7 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "wait首轮ad1已原生播放且epoch=1，但公共事件无MovaFirstFrame，页在53行超时；其余wait及全部nowait未执行。CP0无对应正式基线。",
       "metrics": {
         "passes": 0,
         "failures": 0,
@@ -10072,7 +10187,7 @@
       "status": "BLOCKED",
       "criterion": "真实ad2地址与第二次首帧；wait型renderEpoch递增",
       "cp0": "CP0 跳过，无等待型基线",
-      "difference": "{\"passes\": 0, \"failures\": 0, \"harness\": [[\"{'kind': 'ERROR', 'us': 30696996, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP0 condition; scene=pod2', 'stack': '#0      Cp0Harness.until (package:mova_example/verify_auto/cp0_harness.dart:174)\\\\n<asynchronous suspension>\\\\n#1      runPod2 (package:mova_example/verify_auto/cp0_pod2_auto.dart:53)\\\\n<asynchronous suspension>\\\\n#2      Cp0Harness.start (package:mova_example/verify_auto/cp0_harness.dart:235)\\\\n<asynchronous suspension>\\\\n'}\"]], \"matchesB\": [], \"wrongEpisode\": [], \"stillAd\": [], \"observationLimit\": [], \"epochDelta\": [], \"firstFrameGapUs\": []}",
+      "difference": "wait首轮ad1已原生播放且epoch=1，但公共事件无MovaFirstFrame，页在53行超时；其余wait及全部nowait未执行。CP0无对应正式基线。",
       "metrics": {
         "passes": 0,
         "failures": 0,
@@ -10101,7 +10216,7 @@
       "status": "BLOCKED",
       "criterion": "真实抽帧字节/图片、缓存命中及B07原生seek落点，各3次",
       "cp0": "无同口径独立定量基线",
-      "difference": "既有页不导出抽帧原生seek落点，A30辅助结果不能关闭B07",
+      "difference": "旧页audioOnly=true触发platform拒绝，3次均无THUMB；B07原生seek落点未测，不把前提失败当抽帧器产品失败",
       "result": "[{\"run\": 0, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}, {\"run\": 1, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}, {\"run\": 2, \"completed\": false, \"checks\": [], \"thumbs\": [], \"error\": \"<HTTPError 404: 'Not Found'>\"}]",
       "evidence": [
         "example/tool/coverage_evidence/matrix-cp1-b-extract-20261103-1640/extract-results.json"
@@ -11881,8 +11996,8 @@
   ],
   "supplementRows": [],
   "counts": {
-    "BLOCKED": 19,
-    "PASS": 24,
+    "BLOCKED": 20,
+    "PASS": 23,
     "FAIL": 4
   },
   "masterRows": [
@@ -12069,7 +12184,7 @@
     "precise.normal：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
     "precise.paused：60/60；{\"passes\": 60, \"failures\": 0, \"below200\": 60, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.0, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
     "precise.cutover：160/160；{\"passes\": 160, \"failures\": 0, \"below200\": 160, \"below200Percent\": 100.0, \"deltaPercentagePoints\": 0.625, \"fromStart\": 0, \"newWrongPath\": 0, \"newContinuedFailure\": 0, \"newNonTransportLandingFailure\": 0, \"harness\": [[]], \"errors\": [[]]}",
-    "P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 {'passes': 10, 'failures': 0, 'harness': [[]], 'matchesB': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], 'wrongEpisode': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'stillAd': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'observationLimit': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'epochDelta': [None, None, None, None, None, None, None, None, None, None], 'firstFrameGapUs': [None, None, None, None, None, None, None, None, None, None]}",
+    "P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 10/10进入B，播错集=0，仍停广告=0，观察超限=0。",
     "manageAuto：降档次数=[1, 1, 1, 1, 1]；默认关闭 降档次数=[0, 0, 0, 0, 0]。CP0默认关时限速仍停最高档；本次夹具/观察窗不同。",
     "dispose120：最大dispose区间帧间隔=95957us；最大dispose=112595us",
     "404：独立END_FILE=4/5；UI终结无转圈=5/5；保留独立采样缺口导致的原始FAIL，未把UI终结成功改写成完整CHECK成功。"

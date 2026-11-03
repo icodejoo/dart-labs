@@ -70,6 +70,15 @@ if (root/pod).is_file():
         evidence=pod,recordIndices=[9,11,13,28,41,53,56],auditEvidence=base+'cp1-pod2-event-epoch-audit.json',
         suspectedLocations=['lib/src/core/cutover/cutover_engine.dart:266','lib/src/core/cutover/cutover_engine.dart:646','lib/src/core/cutover/cutover_engine.dart:754','example/lib/verify_auto/cp0_pod2_auto.dart:53'],
         suggestion='确认暖引擎在提交前已消耗的首帧是否应在新renderEpoch提交后以真实已获首帧证据转发/重放；若公共契约只保证swap而非FirstFrame，须修订页面为明确的真实落地信号。不能仅凭epoch增加或原生path冒充首帧事件，当前两变体20项保留BLOCKED。'))
+dan=evidence('danmaku','1607')
+if (root/dan).is_file():
+    records=json.loads((root/dan).read_text(encoding='utf-8'))['records']
+    indices=[i for i,r in enumerate(records) if r.get('kind')=='CHECK' and '.jump.' in r.get('id','')]
+    known.append(dict(id='CP1-H11',classification='弹幕性能结论待复核；BLOCKED，原始采样CHECK为PASS',
+        phenomenon='5000条弹幕5次跳转合计853个FrameTiming；totalSpan p99=42620us、最大159062us，build最大8562us、raster最大27872us。无批准硬线/同口径CP0分布，不能宣称无尖峰。',
+        reproduction='每次顺序seek到30/2/45/10秒，记录每跳约1.5秒FrameTiming；无重跑。',evidence=dan,recordIndices=indices,
+        suspectedLocations=['example/lib/verify_auto/cp1_danmaku_auto.dart:49','lib/src/ui/components/danmaku.dart:162'],
+        suggestion='将totalSpan含vsync等待的尾值与seek/首帧/解码切换时序对齐，区分弹幕build/raster与其他等待；先补同口径CP0分布或明确人工尖峰判据，不发明数值线判FAIL，也不把采样存在判为无尖峰PASS。'))
 other=[f for f in d.get('defects',[]) if f.get('id') not in {f['id'] for f in known}]
 d['defects']=known+other
 visualStem=base+'matrix-cp1-keepalive-s7s14-formal-20261103-1620/matrix-cp1-keepalive-s7s14-formal-20261103-1620-cp1-keepalive-s7s14.round2-'

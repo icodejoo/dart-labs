@@ -83,6 +83,7 @@ def main():
         stages=prior.get('stages',{}), rows=[], failures=[], defects=prior.get('defects',[]),
         incidents=prior.get('incidents',[]),
         visualReview=prior.get('visualReview',[]),
+        audit=prior.get('audit',{}),
         restoration=prior.get('restoration',{}), validations=prior.get('validations',[]))
     for scene, variants in CONFIG.items():
         files = sorted(E.glob('matrix-cp1-*/matrix-*-cp1-'+scene+'.json'))
@@ -98,6 +99,9 @@ def main():
             if scene=='dispose120':
                 if any(r.get('status')=='FAIL' for p,i,r in summaries): status='FAIL'
                 elif len(summaries)!=1 or summaries[0][2].get('status')!='PASS': status='BLOCKED'
+            # The old page only passes collection. No approved bound/CP0 frame
+            # distribution exists for the user's "no spike" performance claim.
+            if scene=='danmaku' and status=='PASS':status='BLOCKED'
             issues = [dict(evidence=rel(p),recordIndex=i,id=r['id'],status=r.get('status'),
                 reason=r.get('missing'),numbers=r.get('numbers')) for p,i,r in samples if r.get('status')!='PASS']
             issues.extend(dict(evidence=rel(p),recordIndex=i,id=r['id'],status=r.get('status'),
@@ -106,6 +110,8 @@ def main():
             row = dict(id=scene+'.'+variant,stage=1,planned=planned,executed=len(samples),
                 counts=dict(counts),status=status,criterion=criterion,cp0=baseline,
                 result=result_text(scene,variant,samples),
+                collectionStatus='PASS' if scene=='danmaku' and len(samples)==planned and counts['PASS']==planned else None,
+                adjudication='原始采样CHECK为5/5 PASS；853帧totalSpan最大159062us，缺CP0同口径分布/批准的尖峰判据，不宣称无尖峰' if scene=='danmaku' else None,
                 difference='待本轮证据' if not samples else '本次开启5/5真实降档，CP0默认关不降档；参数不同，不作性能倍数比较' if scene=='manageauto' and variant=='managed' else '默认关闭均无降档，与CP0同方向；夹具/时长不同' if scene=='manageauto' and variant=='default' else 'CP0无同口径独立基线，不推断改善',
                 evidence=[rel(p) for p,_ in sources],issues=issues,
                 summary=[dict(evidence=rel(p),recordIndex=i,status=r.get('status'),
@@ -122,6 +128,16 @@ def main():
                         'frameCount','resumePositionDiffMs','retryCount','round','maxFrameIntervalUs',
                         'disposed','hwdec','nativeVerdicts','visualReview')}) for p,i,r in samples],
                 harness=[dict(evidence=rel(p),errors=d.get('harness'),missing=d.get('missing')) for p,d in sources if d.get('harness') or d.get('missing')])
+            blockReasons={
+                'wakeswap':'新源响应被拦超过6s，但原生约5s先HTTP超时；未获7a有效CHECK，未补跑',
+                'edgepause':'pause前5次通过，第6次根相对HLS分片地址协议错误、native读回缺失；余下pause/fallback未执行',
+                'probe':'前三组各10次通过；首个failover无切源并自然Done，90s超时，剩余failover/disabled未执行',
+                'recovery':'首个resume的segmentEntered始终false，预缓冲已读63请求；未建立卡死前提，后续未执行',
+                'bblock':'OEM亮度/应用覆盖/display/InsetsSource字段未完整解析；已记录系统brightness漂移，未凭缺字段判通过',
+                'danmaku':'5次采样CHECK完整，但totalSpan尾值159.062ms；无CP0同口径分布/批准硬线，性能结论未关闭',
+                'keepalive-s7s14':'原生场景均通过；单张恢复截图缺运动证据，S14有跨场景采图滞后，CP0 Android完整视觉基线缺失',
+            }
+            if status=='BLOCKED':row['difference']=blockReasons.get(scene,'未形成完整本轮判据；详见原始缺失清单')
             data['rows'].append(row)
             data['failures'].extend(dict(row=row['id'],**issue) for issue in issues if issue['status']=='FAIL')
     from cp1_reduce_extra import rows as extra_rows
@@ -162,7 +178,8 @@ def main():
         row=byid['F3/A17 precise.'+mode]
         data['comparisonSummary'].append(f"precise.{mode}：{row['executed']}/{row['planned']}；{row['difference']}")
     post=byid['p02.postLoad']
-    data['comparisonSummary'].append('P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 '+str(post.get('metrics',{})))
+    pm=post.get('metrics',{})
+    data['comparisonSummary'].append(f"P0-2 postLoad：CP0 0/10进入B、10/10停广告尾帧；CP1 {pm.get('passes',0)}/{post['executed']}进入B，播错集={sum(pm.get('wrongEpisode',[]))}，仍停广告={sum(pm.get('stillAd',[]))}，观察超限={sum(pm.get('observationLimit',[]))}。")
     data['comparisonSummary'].append('manageAuto：'+byid['manageauto.managed']['result']+'；默认关闭 '+byid['manageauto.default']['result']+'。CP0默认关时限速仍停最高档；本次夹具/观察窗不同。')
     data['comparisonSummary'].append('dispose120：'+byid['dispose120.round']['result'])
     data['comparisonSummary'].append('404：'+byid['errclass.fatal']['result']+'；保留独立采样缺口导致的原始FAIL，未把UI终结成功改写成完整CHECK成功。')
@@ -178,21 +195,22 @@ def main():
         '', '证据目录：`example/tool/coverage_evidence/`（gitignored）；记录下标为 JSON records 的零基下标。',
         '', '工具汇总显式使用已提交的S00e矩阵台账（默认gitignored旧台账在本树缺失）；CP1产品比较只使用CP0基线定量数字。每批135项工具输出中的未运行BLOCKED不混入本表。',
         '', '页面原始CHECK的deviceStatus="未上机"是构建前遗留静态标签；本报告以本轮adb命令、安装拉回哈希、原生读回及真实事件为执行证据，不以该标签或AUTORUN DONE判通过。',
+        '', '次数按各页CHECK/用例或独立宿主尝试计；BLOCKED记录数不代表通过。抽帧3次均为未获THUMB的尝试，底栏0/3指未具备底栏专属刺激；辅助skin三轮另行保留。',
         '',f"总计划16行：{data['masterCounts']}；细分行：{data['counts']}。RUNNING 时未执行行不代表产品失败。",'',
         '## 与CP0的关键差异','',*[('- '+s) for s in data['comparisonSummary']],'',
-        '|总计划CP1行|完成/计划|结论|','|---|---:|---|',
+        '|总计划CP1行|记录/计划|结论|','|---|---:|---|',
         *[f"|{r['id']}|{r['executed']}/{r['planned']}|{r['status']}|" for r in data['masterRows']],
         '',
-        '|项目|计划/完成|结论|通过标准|CP0 基线及差异|原始证据|','|---|---:|---|---|---|---|']
+        '|项目|计划/记录|结论|通过标准|CP0 基线及差异|原始证据|','|---|---:|---|---|---|---|']
     for r in data['rows']:
         ev='；'.join(r.get('evidence',[]))
-        lines.append(f"|{r['id']}|{r['planned']}/{r['executed']}|{r['status']} {r.get('counts',{})}；{r.get('result','')}|{r['criterion']}|{r['cp0']}；{r['difference']}|{ev}|")
+        lines.append(f"|{r['id']}|{r['planned']}/{r['executed']}|{r['status']} {r.get('counts',{})}；{r.get('result','')}；{r.get('adjudication') or ''}|{r['criterion']}|{r['cp0']}；{r['difference']}|{ev}|")
     lines += ['', '## 失败特征与证据','']
     for f in data['failures']:
         lines.append(f"- {f['row']} / {f['id']}：{f.get('reason') or 'CHECK 产品判据不满足'}；`{f['evidence']}` {f.get('recordArray','records')}[{f['recordIndex']}]；完整数字见 JSON。")
     if not data['failures']: lines.append('当前尚无已记录的产品 FAIL；缺证据仍为 BLOCKED。')
     lines += ['', '## 静态画面复核','',json.dumps(data['visualReview'],ensure_ascii=False,indent=2),
-        '', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷','']
+        '', '## 阶段、检查与恢复','', '```json',json.dumps({k:data[k] for k in ['stages','validations','restoration','incidents','audit']},ensure_ascii=False,indent=2),'```', '', '## 需要修复的缺陷与覆盖阻塞','']
     for defect in data['defects']:
         lines += ['### '+defect['id']+'：'+defect.get('classification',''),'',
             '现象：'+defect.get('phenomenon',''),'','复现条件：'+defect.get('reproduction',''),'',

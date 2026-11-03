@@ -18,7 +18,7 @@ def rows():
         reason='既有A30抽帧/缓存CHECK失败',numbers=r) for p,i,r in runs if r.get('status')=='FAIL']
     out.append(dict(id='B.extract',stage=1,planned=3,executed=len(runs),status='FAIL' if failures else 'BLOCKED',
         criterion='真实抽帧字节/图片、缓存命中及B07原生seek落点，各3次',cp0='无同口径独立定量基线',
-        difference='既有页不导出抽帧原生seek落点，A30辅助结果不能关闭B07',
+        difference='旧页audioOnly=true触发platform拒绝，3次均无THUMB；B07原生seek落点未测，不把前提失败当抽帧器产品失败',
         result=json.dumps([dict(run=i,completed=r.get('completed'),checks=r.get('checks'),thumbs=r.get('thumbs'),error=r.get('error')) for p,i,r in runs],ensure_ascii=False),
         evidence=[rel(p) for p,d in extracts],issues=failures,measurements=[r for p,i,r in runs]))
     datasets=[(p,read(p)) for p in sorted(E.glob('matrix-cp1-b-skin-*/cp0-result.json'))]

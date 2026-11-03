@@ -70,4 +70,6 @@ def rows():
             baseline='CP0 跳过，无等待型基线' if scene=='pod2' else '10/10 停广告尾帧，20秒未进B' if variant=='postLoad' else '10/10 播B'
             criterion='真实ad2地址与第二次首帧；wait型renderEpoch递增' if scene=='pod2' else '播B 10/10，播错集0，仍停广告0，20秒观察窗无超限'
             add(scene+'.'+variant,10,len(samples),status,criterion,baseline,metrics,[rel(p) for p,d in datasets],issues)
+            if scene=='pod2' and not samples:
+                output[-1]['difference']='wait首轮ad1已原生播放且epoch=1，但公共事件无MovaFirstFrame，页在53行超时；其余wait及全部nowait未执行。CP0无对应正式基线。'
     return output
