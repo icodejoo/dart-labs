@@ -1363,6 +1363,7 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       autoPlay: autoPlay,
       audioOnly: _audioOnly,
       cutoverEnabled: options.cutover.enabled,
+      deferSample: true,
     );
     _source = source;
     // Forget everything the *previous* media reported, so [seek]'s "park or
@@ -1411,9 +1412,13 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     //
     // 加载结果为 false 要么是已处理的失败（交给恢复机制，源仍是当前源），要么是被
     // 取代/销毁（源已不是当前源）。
-    if (!await _loadKernel(source.uri, play: loadPlays)) {
-      return session == _sessionGen && !_disposed;
+    bool loaded;
+    try {
+      loaded = await _loadKernel(source.uri, play: loadPlays);
+    } finally {
+      if (session == _sessionGen && !_disposed) _qoe?.onLoaded();
     }
+    if (!loaded) return session == _sessionGen && !_disposed;
     if (session != _sessionGen || _disposed) return false;
     _announceReady();
     return true;

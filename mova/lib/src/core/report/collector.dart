@@ -81,6 +81,15 @@ class MovaQoeCollector {
   StreamSubscription<void>? _restartSub;
   StreamSubscription<MovaEndFileReason>? _endFileSub;
 
+  /// 会话令牌；即使宿主重复返回同一 sessionId 也能隔离异步结果。
+  int _generation = 0;
+
+  /// 等内核完成加载后再启动的媒体信息采样。
+  void Function()? _pendingStart;
+
+  /// 用户跳转引起的缓冲窗口，下降沿后才恢复卡顿统计。
+  bool _seekBuffering = false;
+
   String? _sessionId;
   MovaStallPolicy? _stallPolicy;
   final MovaTtffTracker _ttff = MovaTtffTracker();
@@ -146,13 +155,22 @@ class MovaQoeCollector {
   ///   视频管线
   /// - [cutoverEnabled]: whether seamless engine-swapping is on / 是否启用了
   ///   无缝引擎切换
+  /// - [deferSample]: 延后到 onLoaded 再采样媒体信息；默认 false。
+  ///
+  /// 无返回值。示例：`collector.onOpen(source, autoPlay: true)`。
   void onOpen(
     MovaSource source, {
     required bool autoPlay,
     bool audioOnly = false,
     bool cutoverEnabled = false,
+    bool deferSample = false,
   }) {
     final at = _now();
+    _generation++;
+    _lastVideoBps = null;
+    _pendingLog = null;
+    _pendingLogAt = null;
+    _seekBuffering = false;
     _sessionOpen = true;
     _streamType = source.type;
     _audioOnly = audioOnly;
@@ -180,11 +198,24 @@ class MovaQoeCollector {
     if (!_config.qoe) return;
     final sessionId = _config.effectiveSessionIdFactory();
     _sessionId = sessionId;
-    unawaited(_emitSessionStart(source, at, sessionId));
+    if (deferSample) {
+      _pendingStart = () => unawaited(_emitSessionStart(source, at, sessionId));
+    } else {
+      unawaited(_emitSessionStart(source, at, sessionId));
+    }
     final interval = _config.heartbeat;
     if (interval != null) {
       _heartbeatTimer = Timer.periodic(interval, (_) => _emitHeartbeat());
     }
+  }
+
+  /// 内核加载返回后开始媒体采样；重复调用为空操作。
+  ///
+  /// 无参数、无返回值。示例：`collector.onLoaded()`。
+  void onLoaded() {
+    final start = _pendingStart;
+    _pendingStart = null;
+    start?.call();
   }
 
   /// Emits a periodic `heartbeat` snapshot; a no-op while paused (nothing new
@@ -202,10 +233,12 @@ class MovaQoeCollector {
     // 在下面的 `await` 之前先捕获——这样即便探针取样期间跨越了会话边界（新的
     // open()/teardown 恰好插进来），也不会把错误的（或已被重置为 null 的）
     // sessionId 泄漏到这条事件上——_emitSessionStart/_enrichAndEmit 同理。
-    unawaited(_emitHeartbeatAsync(_sessionId));
+    _tally.tick(_now());
+    unawaited(_emitHeartbeatAsync(_sessionId, _generation));
   }
 
-  Future<void> _emitHeartbeatAsync(String? sessionId) async {
+  /// 取样后校验会话，丢弃旧会话心跳。
+  Future<void> _emitHeartbeatAsync(String? sessionId, int generation) async {
     final at = _now();
     final params = <String, dynamic>{
       'watchedMs': _tally.watchedMs,
@@ -216,7 +249,7 @@ class MovaQoeCollector {
     final snapshot = await _probe?.sample();
     if (snapshot?.videoBps != null) params['videoBps'] = snapshot!.videoBps;
     if (snapshot?.inputBps != null) params['inputBps'] = snapshot!.inputBps;
-    if (!_sessionOpen) return;
+    if (!_sessionOpen || generation != _generation) return;
     _emit(MovaReportEvent(
       kind: MovaReportKind.event,
       name: MovaReportName.heartbeat,
@@ -272,6 +305,8 @@ class MovaQoeCollector {
   void onTeardown() {
     if (!_sessionOpen) return;
     _sessionOpen = false;
+    _generation++;
+    _pendingStart = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
     final at = _now();
@@ -360,6 +395,7 @@ class MovaQoeCollector {
   /// 本就不会出现在事件总线上。
   void onPosition(Duration position) {
     if (!_sessionOpen || !_config.qoe) return;
+    if (_seekBuffering && !_lastStalled) _seekBuffering = false;
     _tally.recordPosition(position);
     if (_ttff.landed && position.inMilliseconds > _validMaxPositionMs) {
       _validMaxPositionMs = position.inMilliseconds;
@@ -447,18 +483,21 @@ class MovaQoeCollector {
     //
     // 在 _enrichAndEmit 内部的 `await` 之前捕获——为何不能在异步间隙之后读取
     // 可变的 _sessionId 字段，见 _emitHeartbeat 的文档注释。
-    unawaited(_enrichAndEmit(name, params, at, probe, _sessionId));
+    unawaited(_enrichAndEmit(name, params, at, probe, _sessionId, _generation));
   }
 
+  /// 仅当前会话的采样可更新码率基线并发送换档报告。
   Future<void> _enrichAndEmit(
     MovaReportName name,
     Map<String, dynamic> params,
     DateTime at,
     MovaStatsProbe probe,
     String? sessionId,
+    int generation,
   ) async {
     final fromBps = _lastVideoBps;
     final snapshot = await probe.sample();
+    if (!_sessionOpen || generation != _generation) return;
     final toBps = snapshot?.videoBps;
     if (toBps != null) _lastVideoBps = toBps;
     if (fromBps != null) params['fromBps'] = fromBps;
@@ -485,6 +524,19 @@ class MovaQoeCollector {
   void _trackForQoe(MovaEvent event) {
     final at = _now();
     switch (event) {
+      case MovaRecovered():
+        _fatalSeen = false;
+        _lastEndFileReason = null;
+        _pendingLog = null;
+        _pendingLogAt = null;
+        _lastFfmpegErrorAt = null;
+        _ffmpegErrorBeforeDone = false;
+      case MovaSeek():
+        _tally.tick(at);
+        _tally.setStalled(false);
+        _stallPolicy?.reset();
+        _lastStalled = false;
+        _seekBuffering = true;
       case MovaPlay():
         _tally.tick(at);
         // 首帧落地前不计观看时长：失败/迟迟起不来的源 playing 意图为 true，但没在看。
@@ -604,6 +656,12 @@ class MovaQoeCollector {
   void _onStalling(bool stalled) => _onStallObservation(stalled, _now(), signal: 'cache');
 
   void _onStallObservation(bool stalled, DateTime at, {required String signal}) {
+    if (!_sessionOpen) return;
+    if (_seekBuffering) {
+      _lastStalled = stalled;
+      if (!stalled) _seekBuffering = false;
+      return;
+    }
     if (stalled == _lastStalled) return;
     _lastStalled = stalled;
     if (!_config.qoe) return;
@@ -707,6 +765,9 @@ class MovaQoeCollector {
   ///
   /// 取消该 collector 持有的所有订阅。
   Future<void> cancel() async {
+    _sessionOpen = false;
+    _generation++;
+    _pendingStart = null;
     _heartbeatTimer?.cancel();
     await _sub.cancel();
     await _stallSub?.cancel();

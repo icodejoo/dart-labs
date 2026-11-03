@@ -36,6 +36,35 @@ import 'report.dart';
 /// [MovaSttBlock]（内部拒绝诊断，非业务分析事件）。
 MovaReportEvent? translateMovaEvent(MovaEvent event, {DateTime Function() now = DateTime.now}) {
   switch (event) {
+    case MovaPlayFailure(:final fail, :final action):
+      return MovaReportEvent(
+        kind: MovaReportKind.event,
+        name: MovaReportName.playFailure,
+        params: {
+          'action': action.name,
+          'kind': fail.kind.name,
+          'attempt': fail.attempt,
+          'sourceIndex': fail.sourceIndex,
+        },
+        priority: MovaReportPriority.immediate,
+        at: now(),
+      );
+    case MovaFailover(:final from, :final to):
+      return MovaReportEvent(
+        kind: MovaReportKind.event,
+        name: MovaReportName.failover,
+        params: {'from': from, 'to': to},
+        priority: MovaReportPriority.immediate,
+        at: now(),
+      );
+    case MovaRecovered(:final attempts):
+      return MovaReportEvent(
+        kind: MovaReportKind.event,
+        name: MovaReportName.recovered,
+        params: {'attempts': attempts},
+        priority: MovaReportPriority.immediate,
+        at: now(),
+      );
     case MovaSourceChange():
       return MovaReportEvent(
         kind: MovaReportKind.event,
