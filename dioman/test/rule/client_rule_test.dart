@@ -36,7 +36,7 @@ void main() {
   for (final debug in [false, true, pipelineTestLogger]) {
     for (final kind in [diomanTestOk, diomanTestHttp, diomanTestInternal]) {
       test(
-          '[DiomanResponse.errorStack]'
+          '[DiomanFailure.errorStack]'
           '[Dioman.send] 九格落定 debug=$debug kind=$kind', () async {
         final bug = StateError(pipelineTestOriginal);
         final stack = StackTrace.fromString(pipelineTestOriginalStack);
@@ -144,7 +144,8 @@ void main() {
     network.routes['GET:/fail'] = [const FakeReply(status: 503)];
     final failed = await api.send<int>(pipelineTestGetMethod, pipelineTestFail);
     expect(outcomeOf(failed), diomanTestHttp);
-    expect(failed.raw!.statusCode, 503);
+    expect(failed.raw, isNull);
+    expect(failed.status, 503);
   });
   test('[Dioman.reject] 仅动词可预期失败转换，send 保持结果，debug 不修改原对象', () async {
     Result? shared;

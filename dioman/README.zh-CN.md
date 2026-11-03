@@ -61,7 +61,18 @@ Future<void> main() async {
 
 只需要数据时，用 get/post/put/patch/delete/head；还需要状态等 DiomanResponse 信息时，用 send。动词方法会抛出失败结果，供调用方捕获；send 则把同一失败作为返回值，方便你直接判断。程序错误保留原异常和调用栈。如果应用已有自己的失败类型，可以通过 reject 转换动词方法的可预期失败。
 
-结果字段：`ok`、`status`（仅 HTTP，无响应为 0）、`code`、`message`、`data`、`request`、`raw`、`error`、`errorStack`、`callSite`。内核失败用 `failureOf(r)` 读取只读 kind/reason；有标记时 ok 必为 false。取消可用 `isDiomanCancel(e)` 或 `api.isCancel(e)`。
+结果字段：`ok`、`status`（仅 HTTP，无响应为 0）、`code`、`message`、`data`、`request`、`raw`、`error`、`callSite`。内核失败用 `failureOf(r)` 读取只读 kind/reason；有标记时 ok 必为 false。取消可用 `isDiomanCancel(e)` 或 `api.isCancel(e)`。
+
+R3：结果默认不带原生对象（raw/error 为 null）。成功时读取响应头等原生数据，也必须显式传入 `DiomanCall(raw: true)`；send 返回或可预期失败抛出的副本只带自身数据。缓存命中、share 跟随者没有自身原生数据。插件可在落定前读 `ctx.native`；internal 的异常与栈位于 `failureOf(r)?.error` / `failureOf(r)?.errorStack`，始终原栈重抛。
+
+```dart
+import 'package:dioman/dioman.dart';
+Future<String?> readEtag(Dioman api) async {
+  final result = await api.send<Object?>('GET', '/pets',
+      call: const DiomanCall(raw: true));
+  return result.raw?.headers.value('etag');
+}
+```
 
 ### 业务风格
 

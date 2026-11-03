@@ -33,7 +33,8 @@ T? resolveOption<T>(Object? value,
 class DiomanCall {
   /// 创建调用配置，例如 `DiomanCall(key: false)`。
   const DiomanCall(
-      {this.headers,
+      {this.raw = false,
+      this.headers,
       this.connectTimeout,
       this.sendTimeout,
       this.receiveTimeout,
@@ -42,6 +43,10 @@ class DiomanCall {
       this.extra = const {},
       this.silent = false,
       this.options = const {}});
+
+  /// 是否在落定副本附带自身原生响应与异常，默认 false。
+  /// 例如 `DiomanCall(raw: true)`；缓存和共享跟随者仍为空。
+  final bool raw;
 
   /// 按不区分大小写的键覆盖请求头。
   final Map<String, dynamic>? headers;

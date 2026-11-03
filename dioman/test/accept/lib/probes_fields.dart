@@ -22,12 +22,22 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
     };
     e.mark(snapshot.keys,'property read');
   }
+  if (values['DiomanNative'] is DiomanNative) {
+    final v = values['DiomanNative'] as DiomanNative;
+    final snapshot = <String,Object?>{
+      'DiomanNative.response':v.response,
+      'DiomanNative.raw':v.raw,
+      'DiomanNative.error':v.error,
+    };
+    e.mark(snapshot.keys,'property read');
+  }
   if (values['DiomanContext'] is DiomanContext) {
     final v = values['DiomanContext'] as DiomanContext;
     final snapshot = <String,Object?>{
       'DiomanContext.id':v.id,
       'DiomanContext.client':v.client,
       'DiomanContext.request':v.request,
+      'DiomanContext.native':v.native,
       'DiomanContext.factory':v.factory,
       'DiomanContext.keyService':v.keyService,
       'DiomanContext.clock':v.clock,
@@ -66,6 +76,7 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
   if (values['DiomanCall'] is DiomanCall) {
     final v = values['DiomanCall'] as DiomanCall;
     final snapshot = <String,Object?>{
+      'DiomanCall.raw':v.raw,
       'DiomanCall.headers':v.headers,
       'DiomanCall.connectTimeout':v.connectTimeout,
       'DiomanCall.sendTimeout':v.sendTimeout,
@@ -131,6 +142,8 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
     final snapshot = <String,Object?>{
       'DiomanFailure.kind':v.kind,
       'DiomanFailure.reason':v.reason,
+      'DiomanFailure.error':v.error,
+      'DiomanFailure.errorStack':v.errorStack,
     };
     e.mark(snapshot.keys,'property read');
   }
@@ -154,7 +167,6 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
       'DiomanResponse.request':v.request,
       'DiomanResponse.raw':v.raw,
       'DiomanResponse.error':v.error,
-      'DiomanResponse.errorStack':v.errorStack,
       'DiomanResponse.callSite':v.callSite,
     };
     e.mark(snapshot.keys,'property read');

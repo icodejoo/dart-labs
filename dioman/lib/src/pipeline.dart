@@ -70,19 +70,21 @@ DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
     final inner = run;
     run = (ctx) async {
       try {
-        return await layer.instance!.handle(ctx, ([patch]) async {
+        return ctx
+            .observeNative(await layer.instance!.handle(ctx, ([patch]) async {
           DiomanContext<R> target;
           try {
             target = patch == null ? ctx : ctx.derive(patch);
           } catch (e, s) {
-            return ctx.factory.internalError(ctx.request, e, s);
+            return ctx
+                .observeNative(ctx.factory.internalError(ctx.request, e, s));
           }
           final cancelled = target.cancelled();
-          if (cancelled != null) return cancelled;
-          return inner(target);
-        });
+          if (cancelled != null) return ctx.observeNative(cancelled);
+          return ctx.observeNative(await inner(target));
+        }));
       } catch (e, s) {
-        return ctx.factory.internalError(ctx.request, e, s);
+        return ctx.observeNative(ctx.factory.internalError(ctx.request, e, s));
       }
     };
   }

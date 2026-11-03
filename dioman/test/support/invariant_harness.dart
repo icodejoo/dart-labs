@@ -1,4 +1,5 @@
 import 'response_contract.dart';
+import 'package:dio/dio.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:convert';
 import 'package:dioman/dioman.dart';
@@ -17,7 +18,26 @@ abstract final class SharedResourceProbe {
   }
 }
 
-/// 启用 I1–I10，刷新按调用方声明的轮次统计。
+/// 验证落定后的清空与封闭，并模拟迟到传输写入。
+abstract final class NativeSlotProbe {
+  /// 注入原生响应和异常后仍须保持空槽。
+  static void assertClosed(DiomanContext ctx) {
+    expect(ctx.state.nativeClosed, isTrue, reason: 'I11 封闭');
+    expect(ctx.state.nativeSlot, isNull, reason: 'I11 清空');
+    expect(ctx.native, isNull, reason: 'I11 公开视图');
+    final result = ctx.factory.fail(ctx.request, DiomanFailureKind.network);
+    ctx.writeNative(
+        result,
+        Response(requestOptions: ctx.request.toRequestOptions()),
+        StateError('late'));
+    ctx.observeNative(result);
+    expect(ctx.state.nativeSlot, isNull, reason: 'I11 拒绝迟到写入');
+    expect(ctx.state.nativeResult, isNull, reason: 'I11 拒绝迟到结果');
+    expect(ctx.native, isNull, reason: 'I11 迟到公开视图');
+  }
+}
+
+/// 启用 I1–I11，刷新按调用方声明的轮次统计。
 class InvariantHarness {
   /// 绑定网络和时钟。
   InvariantHarness(this.network, this.clock);
@@ -101,7 +121,7 @@ class InvariantHarness {
           contexts.add(ctx);
           final r = await next();
           ownership[ctx.id] = (ctx.cancelled() != null, outcomeOf(r));
-          if (expectedEcho.containsKey(ctx.id) && r.raw != null) {
+          if (expectedEcho.containsKey(ctx.id) && r.status != 0) {
             actualEcho[ctx.id] = r.data;
           }
           exits.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
@@ -142,6 +162,9 @@ class InvariantHarness {
     }
     for (final id in actualEcho.keys) {
       expect(actualEcho[id], expectedEcho[id], reason: 'I9 请求回显与调用方请求一致');
+    }
+    for (final ctx in contexts) {
+      NativeSlotProbe.assertClosed(ctx);
     }
     expect(api.pending, 0, reason: 'I3');
     expect(api.cancellationSubscriptions, 0);

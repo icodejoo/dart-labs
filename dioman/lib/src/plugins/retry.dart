@@ -275,7 +275,7 @@ class _Retry<R extends DiomanResponse<dynamic>>
         !o.afterStatusCodes!.contains(ctx.statusOf(r))) {
       return null;
     }
-    final raw = r.raw?.headers.value('retry-after')?.trim();
+    final raw = DiomanResponseInternal.retryAfter(r)?.trim();
     if (raw == null) return null;
     final seconds = raw.isEmpty ? 0 : num.tryParse(raw);
     if (seconds != null && seconds.isFinite) {

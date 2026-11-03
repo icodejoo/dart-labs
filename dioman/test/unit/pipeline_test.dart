@@ -116,8 +116,9 @@ void main() {
           (_) async => throw StateError('unreachable'));
       final r = await run(ctx);
       expect(events, [pipelineTestPre, diomanTestInternal]);
-      expect(r.error, same(bug));
-      expect(r.errorStack.toString(), contains(pipelineTestOriginalStack));
+      expect(failureOf(r)?.error, same(bug));
+      expect(failureOf(r)?.errorStack.toString(),
+          contains(pipelineTestOriginalStack));
     });
   }
   test(

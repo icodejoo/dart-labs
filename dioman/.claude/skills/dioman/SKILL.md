@@ -56,4 +56,4 @@ dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info
 
 ## R2a 响应契约
 
-插件读取 failureOf 与 ctx.statusOf；status 仅是 HTTP。内核失败只能经 ctx.fail 或内部入口写入，create 返回后保护标记。协议转换统一用 parse，逐请求差异用 call.extra 标记。raw/error/errorStack 生命周期留 R3。
+插件读取 failureOf 与 ctx.statusOf；status 仅是 HTTP。内核失败只能经 ctx.fail 或内部入口写入，create 返回后保护标记。协议转换统一用 parse，逐请求差异用 call.extra 标记。R3 已落地：原生对象仅在共享 ctx.native 单槽暂存，落定清空并封闭；call.raw 才附到结果副本。internal 异常与栈读 failureOf，retry 经内部入口读私有 retryAfter，内存缓存存快照并绑定当前 request。I11 每次 powerset 都检查。

@@ -29,7 +29,7 @@ class AppResponse extends DiomanResponse<dynamic> {
   AppResponse(DiomanResponse<dynamic> r)
       : super(ok: r.ok, status: r.status, code: r.code, message: r.message,
           data: r.data, request: r.request, raw: r.raw,
-          error: r.error, errorStack: r.errorStack, callSite: r.callSite);
+          error: r.error, callSite: r.callSite);
 }
 
 /// 注册可构造扩展类型的工厂。
@@ -1133,3 +1133,19 @@ Future<void> main() async {
 | `cancelAll` | `Dioman.cancelAll`。 |
 | `defaultFallback` | 使用 DiomanMock 默认回落规则，或自行配置 fallbackWhen；不再对任意非取消错误回落。 |
 | `kKey` | 使用 ctx.key() 或 DiomanCall.key；自动构键由内核负责。 |
+
+
+## R3：原生响应按需读取
+
+所有成功、失败和缓存结果默认 `raw == null`、`error == null`。将原先直接读取 `result.raw` 的调用改为显式传入 `DiomanCall(raw: true)`；成功时读取响应头也需要开启。可预期失败抛出的结果同样携带自身原生数据。插件在 `await next()` 后通过 `ctx.native` 读取匹配结果的只读视图，逻辑请求落定后槽会清空并永久封闭。
+
+```dart
+import 'package:dioman/dioman.dart';
+Future<String?> responseHeader(Dioman api) async {
+  final result = await api.send<Object?>('GET', '/pets',
+      call: const DiomanCall(raw: true));
+  return result.raw?.headers.value('etag');
+}
+```
+
+顶层 `errorStack` 已删除；internal 原始异常与栈改为 `failureOf(result)?.error` 和 `failureOf(result)?.errorStack`，即使没开 raw 仍会原栈重抛。其余失败默认不保留异常。缓存只保存快照，命中经同一工厂重建并绑定当前请求；缓存命中和 share 跟随者没有自身原生数据，即使开 raw 也不借用首发调用方的对象。share 的 request 仍代表实际传输，Retry-After 仍生效。完整 request 的瘦身留待后续批次。

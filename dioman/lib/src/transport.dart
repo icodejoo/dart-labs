@@ -55,14 +55,20 @@ Future<DiomanResponse<dynamic>>
     };
     if (ctx.replayable) options.data = _clone(options.data, ctx.log);
     final raw = await dio.fetch<dynamic>(options);
-    return ctx.factory
+    final result = ctx.factory
         .normalize(ctx.request, raw: raw, cancelled: ctx.isCancelled);
+    ctx.writeNative(result, raw, null);
+    return result;
   } catch (e, s) {
     final error =
         e is DioException && e.error is FormatException && e.response == null
             ? e.copyWith(response: decodingResponse)
             : e;
-    return ctx.factory.normalize(ctx.request,
+    final result = ctx.factory.normalize(ctx.request,
         error: error, stack: s, cancelled: ctx.isCancelled);
+    final raw = error is DioException ? error.response : null;
+    ctx.writeNative(
+        result, raw, error is DioException ? error.error ?? error : error);
+    return result;
   }
 }

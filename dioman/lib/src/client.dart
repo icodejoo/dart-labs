@@ -249,9 +249,8 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   /// 执行任意 [method] 并返回数据；可预期失败经 reject 后抛出。
   Future<T> request<T>(String method, String path,
       {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
-    final result =
-        await _dispatch(method, path, query: query, data: data, call: call);
-    if (!result.ok) throw (reject?.call(result as R) ?? result);
+    final result = await _dispatch(method, path,
+        query: query, data: data, call: call, rejectFailure: true);
     return result.data as T;
   }
 
@@ -287,7 +286,10 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 
   /// 入口仅 compose 一次；登记后所有可能抛错的构造都在 finally 保护内。
   Future<DiomanResponse<dynamic>> _dispatch(String method, String path,
-      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+      {Map<String, dynamic>? query,
+      Object? data,
+      DiomanCall? call,
+      bool rejectFailure = false}) async {
     _checkAlive();
     final run = _run;
     final site = _debug ? StackTrace.current : null;
@@ -331,18 +333,29 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       if (failureOf(result)?.kind != DiomanFailureKind.internal) {
         result = ctx.cancelled() ?? result;
       }
+      ctx.observeNative(result);
+      final native = ctx.native;
       if (!result.ok &&
           site != null &&
           failureOf(result)?.kind != DiomanFailureKind.internal) {
         result = response.withCallSite(result, site);
       }
+      if (c.raw && native != null) {
+        result = response.withNative(result, native.raw, native.error);
+      }
       if (failureOf(result)?.kind == DiomanFailureKind.internal) {
         Error.throwWithStackTrace(
-            result.error ?? StateError('internal result without error'),
-            result.errorStack ?? StackTrace.current);
+            failureOf(result)?.error ??
+                StateError('internal result without error'),
+            failureOf(result)?.errorStack ?? StackTrace.current);
+      }
+      ctx.observeNative(result);
+      if (rejectFailure && !result.ok) {
+        throw (reject?.call(result as R) ?? result);
       }
       return result;
     } finally {
+      state.closeNative();
       userLink?.dispose();
       state.dispose();
       _pending.remove(state);

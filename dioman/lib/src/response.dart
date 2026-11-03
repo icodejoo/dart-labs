@@ -40,13 +40,19 @@ enum DiomanFailureKind {
 /// 内核写入的只读失败事实；通过 failureOf 读取。
 class DiomanFailure {
   /// 仅内核构造失败标记。
-  const DiomanFailure._(this.kind, this.reason);
+  const DiomanFailure._(this.kind, this.reason, [this.error, this.errorStack]);
 
   /// 封闭失败类别。
   final DiomanFailureKind kind;
 
   /// 可选细分原因。
   final String? reason;
+
+  /// 仅 internal 保留的原始程序异常。
+  final Object? error;
+
+  /// 仅 internal 保留的原始异常栈。
+  final StackTrace? errorStack;
 }
 
 /// 读取 [result] 的内核失败事实；成功、HTTP 和业务失败返回 null。
@@ -97,11 +103,12 @@ class DiomanResponse<D> implements Exception {
       this.message = _emptyMessage,
       this.data,
       required this.request,
-      this.raw,
-      this.error,
-      this.errorStack,
+      Response<dynamic>? raw,
+      Object? error,
       this.callSite})
-      : _ok = ok;
+      : _ok = ok,
+        _raw = raw,
+        _error = error;
 
   /// 是否成功。
   bool get ok => _failure == null && _ok;
@@ -111,6 +118,12 @@ class DiomanResponse<D> implements Exception {
 
   /// 内核失败事实。
   DiomanFailure? _failure;
+
+  /// 随结果流转的服务器退避原始头值。
+  String? _retryAfter;
+
+  /// 派生结果共享的身份凭证，不引用原生对象。
+  Object _nativeIdentity = Object();
 
   /// HTTP 状态，未收到响应为零。
   final int status;
@@ -127,14 +140,17 @@ class DiomanResponse<D> implements Exception {
   /// 产生此结果的请求。
   final DiomanRequest request;
 
-  /// Dio 原始响应。
-  final Response<dynamic>? raw;
+  /// 仅 call.raw 开启时，落定副本携带自身 Dio 原始响应。
+  Response<dynamic>? get raw => _raw;
 
-  /// 首次程序异常或传输异常。
-  final Object? error;
+  /// 落定时由内核附加的响应。
+  Response<dynamic>? _raw;
 
-  /// 原始异常栈。
-  final StackTrace? errorStack;
+  /// 仅 call.raw 开启时，落定副本携带自身原始传输异常。
+  Object? get error => _error;
+
+  /// 落定时由内核附加的异常。
+  Object? _error;
 
   /// debug 模式下的调用点。
   final StackTrace? callSite;
@@ -149,9 +165,10 @@ class DiomanResponse<D> implements Exception {
       request: request,
       raw: raw,
       error: error,
-      errorStack: errorStack,
       callSite: callSite ?? this.callSite)
-    .._failure = _failure;
+    .._failure = _failure
+    .._retryAfter = _retryAfter
+    .._nativeIdentity = _nativeIdentity;
 
   /// 安全描述只包含标量，避免 raw、data 或 error 的循环引用及自定义 toString。
   @override
@@ -186,18 +203,15 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
     try {
       final result = create == null ? init : create!(init);
       DiomanResponseInternal.mark(result, init._failure);
-      if (init._failure?.kind == DiomanFailureKind.internal &&
-          init.error != null &&
-          (!identical(result.error, init.error) ||
-              !identical(result.errorStack, init.errorStack))) {
-        return _internal(
-            init.request, init.error!, init.errorStack ?? StackTrace.current,
-            status: init.status, raw: init.raw);
-      }
+      result._raw = null;
+      result._error = null;
+      result._retryAfter = init._retryAfter;
+      result._nativeIdentity = init._nativeIdentity;
       return result;
     } catch (e, s) {
-      return _internal(init.request, init.error ?? e, init.errorStack ?? s,
-          status: init.status, raw: init.raw);
+      return _internal(init.request, init._failure?.error ?? e,
+          init._failure?.errorStack ?? s,
+          status: init.status);
     }
   }
 
@@ -214,22 +228,18 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
           request: result.request,
           raw: result.raw,
           error: result.error,
-          errorStack: result.errorStack,
           callSite: result.callSite)
-        .._failure = result._failure);
+        .._failure = result._failure
+        .._retryAfter = result._retryAfter
+        .._nativeIdentity = result._nativeIdentity);
 
   /// 不经过用户钩子的内部错误回退。
   static DiomanResponse<dynamic> _internal(
           DiomanRequest request, Object error, StackTrace stack,
-          {int status = 0, Response<dynamic>? raw}) =>
-      DiomanResponse<dynamic>(
-          ok: false,
-          status: status,
-          raw: raw,
-          request: request,
-          error: error,
-          errorStack: stack)
-        .._failure = const DiomanFailure._(DiomanFailureKind.internal, null);
+          {int status = 0}) =>
+      DiomanResponse<dynamic>(ok: false, status: status, request: request)
+        .._failure =
+            DiomanFailure._(DiomanFailureKind.internal, null, error, stack);
 
   /// 用封闭类别生成失败；[reason] 为可选细分原因。
   /// 示例：`factory.fail(request, DiomanFailureKind.offline, reason: 'timeout')`。
@@ -237,6 +247,15 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
           {String? reason}) =>
       _finish(DiomanResponse<dynamic>(ok: false, status: 0, request: request)
         .._failure = DiomanFailure._(kind, reason));
+
+  /// 所有原生响应入口统一抽取单值退避头，不保留原生对象。
+  DiomanResponse<dynamic> _normalizeResult(
+      DiomanResponse<dynamic> result, Response<dynamic>? source) {
+    final values = source?.headers['retry-after'];
+    result._retryAfter =
+        values != null && values.length == 1 ? values.single : null;
+    return _finish(result);
+  }
 
   /// 分类响应或异常；取消优先，判定钩子异常回退 internal。
   DiomanResponse<dynamic> normalize(DiomanRequest request,
@@ -279,16 +298,24 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
       }
       if (cancelled || error != null) {
         final result = DiomanResponse<dynamic>(
-            ok: false,
-            status: status,
-            request: request,
-            raw: source,
-            error: error is DioException ? error.error ?? error : error,
-            errorStack: error is DioException
-                ? error.stackTrace
-                : stack ?? StackTrace.current);
-        if (kind != null) result._failure = DiomanFailure._(kind, null);
-        return _finish(result);
+          ok: false,
+          status: status,
+          request: request,
+        );
+        if (kind != null) {
+          result._failure = DiomanFailure._(
+              kind,
+              null,
+              kind == DiomanFailureKind.internal
+                  ? (error is DioException ? error.error ?? error : error)
+                  : null,
+              kind == DiomanFailureKind.internal
+                  ? (error is DioException
+                      ? error.stackTrace
+                      : stack ?? StackTrace.current)
+                  : null);
+        }
+        return _normalizeResult(result, source);
       }
       final response = raw!;
       final httpOk = status >= 200 && status < 300;
@@ -298,27 +325,26 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
           request.toRequestOptions().responseType == ResponseType.json &&
           body is String &&
           body.isNotEmpty) {
-        return _finish(DiomanResponse<dynamic>(
-            ok: false,
-            status: status,
-            data: body,
-            request: request,
-            raw: response)
-          .._failure = const DiomanFailure._(DiomanFailureKind.parse, null));
+        return _normalizeResult(
+            DiomanResponse<dynamic>(
+                ok: false, status: status, data: body, request: request)
+              .._failure = const DiomanFailure._(DiomanFailureKind.parse, null),
+            source);
       }
       final fields = parse(body, response);
-      return _finish(DiomanResponse<dynamic>(
-          ok: httpOk &&
-              (isSuccess?.call(fields.code) ??
-                  (fields.code == 0 || fields.code == '0')),
-          status: status,
-          code: fields.code,
-          message: fields.message,
-          data: fields.data,
-          request: request,
-          raw: response));
+      return _normalizeResult(
+          DiomanResponse<dynamic>(
+              ok: httpOk &&
+                  (isSuccess?.call(fields.code) ??
+                      (fields.code == 0 || fields.code == '0')),
+              status: status,
+              code: fields.code,
+              message: fields.message,
+              data: fields.data,
+              request: request),
+          source);
     } catch (e, s) {
-      return _internal(request, e, s, status: raw?.statusCode ?? 0, raw: raw);
+      return _internal(request, e, s, status: raw?.statusCode ?? 0);
     }
   }
 }

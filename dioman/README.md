@@ -61,7 +61,18 @@ Future<void> main() async {
 
 Use get/post/put/patch/delete/head when you want the data, or send when you also need the DiomanResponse metadata. Verb methods throw a failed result that you can catch; send lets you inspect the same failure as a return value. Programming errors keep their original exception and stack. If your app has its own failure type, configure reject to map expected verb-method failures.
 
-Result fields: `ok`, `status` (HTTP only; 0 without a response), `code`, `message`, `data`, `request`, `raw`, `error`, `errorStack`, `callSite`. Read the kernel's readonly kind/reason through `failureOf(r)`; a marked result always has ok=false. Use `isDiomanCancel(e)` or `api.isCancel(e)` to recognize cancellation.
+Result fields: `ok`, `status` (HTTP only; 0 without a response), `code`, `message`, `data`, `request`, `raw`, `error`, `callSite`. Read the kernel's readonly kind/reason through `failureOf(r)`; a marked result always has ok=false. Use `isDiomanCancel(e)` or `api.isCancel(e)` to recognize cancellation.
+
+R3: results default to null raw/error. Reading native data, including headers on success, requires `DiomanCall(raw: true)`. The returned or thrown copy carries only its own transport data; cache hits and share followers have none. Plugins can read `ctx.native` before settlement. Internal errors and stacks live in `failureOf(r)?.error` / `failureOf(r)?.errorStack` and are always rethrown with the original stack.
+
+```dart
+import 'package:dioman/dioman.dart';
+Future<String?> readEtag(Dioman api) async {
+  final result = await api.send<Object?>('GET', '/pets',
+      call: const DiomanCall(raw: true));
+  return result.raw?.headers.value('etag');
+}
+```
 
 ### Business style
 

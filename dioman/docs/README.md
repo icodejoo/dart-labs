@@ -33,6 +33,7 @@
 
 ## 报告
 
+- [第二轮 R3 原生数据瘦身 2026-11-03](reports/2026-11-03-round2-r3.md) — ctx.native 原生槽与 I11、按需 raw、internal 失败事实、Retry-After 小事实、缓存快照。active。
 - [第二轮 R2b 收口与发版前必修 2026-11-03](reports/2026-11-03-round2-r2b.md) — 条件导入去掉 dart:io（pana 保留 web/wasm）、key 隔离、缓存硬否决、retry 默认值。active。
 - [第二轮 R2a 契约对齐 axp 0002 2026-11-03](reports/2026-11-03-round2-r2a.md) — failureOf、HTTP status、statusOf、parse；真实验收 normal×两风格 768 通过 0 失败。active。
 - [第二轮 R1 生命周期与作用域 2026-11-03](reports/2026-11-03-round2-r1.md) — auth 会话按 TokenManager 共享、loading 按回调共享、extend(dio:)；先红后绿与 I10。active。

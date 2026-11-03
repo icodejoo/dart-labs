@@ -1,3 +1,4 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
@@ -168,7 +169,7 @@ void main() {
       TestPlugin(_r2aLiteral5, stage: DiomanStage.source,
           handler: (ctx, _) async {
         sends++;
-        return ctx.factory.normalize(ctx.request,
+        final result = ctx.factory.normalize(ctx.request,
             raw: Response<dynamic>(
                 requestOptions: ctx.request.toRequestOptions(),
                 statusCode: 200,
@@ -176,6 +177,8 @@ void main() {
                 headers: Headers.fromMap({
                   'retry-after': ['2']
                 })));
+        DiomanResponseInternal.setRetryAfter(result, '2');
+        return result;
       })
     ]);
     final pending = api.send<Object?>(_r2aLiteral0, _r2aLiteral1);

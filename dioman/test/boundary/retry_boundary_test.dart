@@ -1,3 +1,4 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
 import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -9,7 +10,7 @@ import '../support/helpers.dart';
 /// 验证退避、服务器时间与取消窗口。
 void main() {
   test(
-      '[DiomanResponse.raw]'
+      '[DiomanRetry.respectRetryAfter]'
       '[DiomanRetry.respectRetryAfter] 秒数、空白、HTTP 日期、无效值和独立封顶', () async {
     for (final header in <String?>[
       null,
@@ -46,12 +47,15 @@ void main() {
               headers: Headers.fromMap({
                 if (header != null) 'retry-after': [header]
               }));
-          return DiomanResponse<dynamic>(
+          final result = DiomanResponse<dynamic>(
               ok: false,
               status: 429,
               data: null,
               request: ctx.request,
-              raw: raw);
+              raw: null);
+          DiomanResponseInternal.setRetryAfter(
+              result, raw.headers.value('retry-after'));
+          return result;
         })
       ]);
       final p = api.send<Object?>(b3ValueGet, b3Path);

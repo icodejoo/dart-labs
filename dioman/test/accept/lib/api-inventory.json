@@ -220,42 +220,42 @@
     "api": "Dioman.get",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 258,
+    "line": 257,
     "static": false
   },
   {
     "api": "Dioman.post",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 263,
+    "line": 262,
     "static": false
   },
   {
     "api": "Dioman.put",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 268,
+    "line": 267,
     "static": false
   },
   {
     "api": "Dioman.patch",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 273,
+    "line": 272,
     "static": false
   },
   {
     "api": "Dioman.delete",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 278,
+    "line": 277,
     "static": false
   },
   {
     "api": "Dioman.head",
     "kind": "method",
     "file": "lib/src/client.dart",
-    "line": 283,
+    "line": 282,
     "static": false
   },
   {
@@ -322,199 +322,234 @@
     "static": false
   },
   {
-    "api": "DiomanContext",
+    "api": "DiomanNative",
     "kind": "class",
     "file": "lib/src/context.dart",
     "line": 28,
     "static": false
   },
   {
+    "api": "DiomanNative.response",
+    "kind": "field",
+    "file": "lib/src/context.dart",
+    "line": 35,
+    "static": false
+  },
+  {
+    "api": "DiomanNative.raw",
+    "kind": "field",
+    "file": "lib/src/context.dart",
+    "line": 38,
+    "static": false
+  },
+  {
+    "api": "DiomanNative.error",
+    "kind": "field",
+    "file": "lib/src/context.dart",
+    "line": 41,
+    "static": false
+  },
+  {
+    "api": "DiomanContext",
+    "kind": "class",
+    "file": "lib/src/context.dart",
+    "line": 44,
+    "static": false
+  },
+  {
     "api": "DiomanContext.new",
     "kind": "constructor",
     "file": "lib/src/context.dart",
-    "line": 30,
+    "line": 46,
     "static": false
   },
   {
     "api": "DiomanContext.new(id)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 32,
+    "line": 48,
     "static": false
   },
   {
     "api": "DiomanContext.new(client)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 33,
+    "line": 49,
     "static": false
   },
   {
     "api": "DiomanContext.new(request)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 34,
+    "line": 50,
     "static": false
   },
   {
     "api": "DiomanContext.new(factory)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 35,
+    "line": 51,
     "static": false
   },
   {
     "api": "DiomanContext.new(keyService)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 36,
+    "line": 52,
     "static": false
   },
   {
     "api": "DiomanContext.new(clock)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 37,
+    "line": 53,
     "static": false
   },
   {
     "api": "DiomanContext.new(log)",
     "kind": "parameter",
     "file": "lib/src/context.dart",
-    "line": 38,
+    "line": 54,
     "static": false
   },
   {
     "api": "DiomanContext.id",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 54,
+    "line": 70,
     "static": false
   },
   {
     "api": "DiomanContext.client",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 57,
+    "line": 73,
     "static": false
   },
   {
     "api": "DiomanContext.request",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 60,
+    "line": 76,
+    "static": false
+  },
+  {
+    "api": "DiomanContext.native",
+    "kind": "getter",
+    "file": "lib/src/context.dart",
+    "line": 81,
     "static": false
   },
   {
     "api": "DiomanContext.factory",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 66,
+    "line": 93,
     "static": false
   },
   {
     "api": "DiomanContext.keyService",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 69,
+    "line": 96,
     "static": false
   },
   {
     "api": "DiomanContext.clock",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 72,
+    "line": 99,
     "static": false
   },
   {
     "api": "DiomanContext.log",
     "kind": "field",
     "file": "lib/src/context.dart",
-    "line": 75,
+    "line": 102,
     "static": false
   },
   {
     "api": "DiomanContext.cancelToken",
     "kind": "getter",
     "file": "lib/src/context.dart",
-    "line": 77,
+    "line": 104,
     "static": false
   },
   {
     "api": "DiomanContext.isCancelled",
     "kind": "getter",
     "file": "lib/src/context.dart",
-    "line": 80,
+    "line": 107,
     "static": false
   },
   {
     "api": "DiomanContext.key",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 83,
+    "line": 110,
     "static": false
   },
   {
     "api": "DiomanContext.get",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 92,
+    "line": 119,
     "static": false
   },
   {
     "api": "DiomanContext.set",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 95,
+    "line": 122,
     "static": false
   },
   {
     "api": "DiomanContext.fail",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 98,
+    "line": 125,
     "static": false
   },
   {
     "api": "DiomanContext.statusOf",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 103,
+    "line": 130,
     "static": false
   },
   {
     "api": "DiomanContext.markReplayable",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 108,
+    "line": 135,
     "static": false
   },
   {
     "api": "DiomanContext.canReplay",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 111,
+    "line": 138,
     "static": false
   },
   {
     "api": "DiomanContext.cancelled",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 132,
+    "line": 159,
     "static": false
   },
   {
     "api": "DiomanContext.derive",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 140,
+    "line": 167,
     "static": false
   },
   {
     "api": "DiomanContext.wait",
     "kind": "method",
     "file": "lib/src/context.dart",
-    "line": 151,
+    "line": 178,
     "static": false
   },
   {
@@ -700,129 +735,143 @@
     "static": false
   },
   {
-    "api": "DiomanCall.new(headers)",
+    "api": "DiomanCall.new(raw)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 36,
     "static": false
   },
   {
-    "api": "DiomanCall.new(connectTimeout)",
+    "api": "DiomanCall.new(headers)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 37,
     "static": false
   },
   {
-    "api": "DiomanCall.new(sendTimeout)",
+    "api": "DiomanCall.new(connectTimeout)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 38,
     "static": false
   },
   {
-    "api": "DiomanCall.new(receiveTimeout)",
+    "api": "DiomanCall.new(sendTimeout)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 39,
     "static": false
   },
   {
-    "api": "DiomanCall.new(cancelToken)",
+    "api": "DiomanCall.new(receiveTimeout)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 40,
     "static": false
   },
   {
-    "api": "DiomanCall.new(key)",
+    "api": "DiomanCall.new(cancelToken)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 41,
     "static": false
   },
   {
-    "api": "DiomanCall.new(extra)",
+    "api": "DiomanCall.new(key)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 42,
     "static": false
   },
   {
-    "api": "DiomanCall.new(silent)",
+    "api": "DiomanCall.new(extra)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 43,
     "static": false
   },
   {
-    "api": "DiomanCall.new(options)",
+    "api": "DiomanCall.new(silent)",
     "kind": "parameter",
     "file": "lib/src/options.dart",
     "line": 44,
     "static": false
   },
   {
+    "api": "DiomanCall.new(options)",
+    "kind": "parameter",
+    "file": "lib/src/options.dart",
+    "line": 45,
+    "static": false
+  },
+  {
+    "api": "DiomanCall.raw",
+    "kind": "field",
+    "file": "lib/src/options.dart",
+    "line": 49,
+    "static": false
+  },
+  {
     "api": "DiomanCall.headers",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 47,
+    "line": 52,
     "static": false
   },
   {
     "api": "DiomanCall.connectTimeout",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 50,
+    "line": 55,
     "static": false
   },
   {
     "api": "DiomanCall.sendTimeout",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 53,
+    "line": 58,
     "static": false
   },
   {
     "api": "DiomanCall.receiveTimeout",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 56,
+    "line": 61,
     "static": false
   },
   {
     "api": "DiomanCall.cancelToken",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 59,
+    "line": 64,
     "static": false
   },
   {
     "api": "DiomanCall.key",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 62,
+    "line": 67,
     "static": false
   },
   {
     "api": "DiomanCall.extra",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 65,
+    "line": 70,
     "static": false
   },
   {
     "api": "DiomanCall.silent",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 68,
+    "line": 73,
     "static": false
   },
   {
     "api": "DiomanCall.options",
     "kind": "field",
     "file": "lib/src/options.dart",
-    "line": 71,
+    "line": 76,
     "static": false
   },
   {
@@ -934,294 +983,294 @@
     "api": "DiomanRequest.data",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 27,
+    "line": 28,
     "static": false
   },
   {
     "api": "DiomanRequest.headers",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 30,
+    "line": 31,
     "static": false
   },
   {
     "api": "DiomanRequest.query",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 33,
+    "line": 34,
     "static": false
   },
   {
     "api": "DiomanRequest.extra",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 36,
+    "line": 37,
     "static": false
   },
   {
     "api": "DiomanRequest.call",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 39,
+    "line": 40,
     "static": false
   },
   {
     "api": "DiomanRequest.path",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 41,
+    "line": 42,
     "static": false
   },
   {
     "api": "DiomanRequest.method",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 44,
+    "line": 45,
     "static": false
   },
   {
     "api": "DiomanRequest.baseUrl",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 47,
+    "line": 48,
     "static": false
   },
   {
     "api": "DiomanRequest.uri",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 50,
+    "line": 51,
     "static": false
   },
   {
     "api": "DiomanRequest.connectTimeout",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 53,
+    "line": 54,
     "static": false
   },
   {
     "api": "DiomanRequest.sendTimeout",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 56,
+    "line": 57,
     "static": false
   },
   {
     "api": "DiomanRequest.receiveTimeout",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 59,
+    "line": 60,
     "static": false
   },
   {
     "api": "DiomanRequest.cancelToken",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 62,
+    "line": 63,
     "static": false
   },
   {
     "api": "DiomanRequest.silent",
     "kind": "getter",
     "file": "lib/src/request.dart",
-    "line": 65,
+    "line": 66,
     "static": false
   },
   {
     "api": "DiomanRequest.toRequestOptions",
     "kind": "method",
     "file": "lib/src/request.dart",
-    "line": 68,
+    "line": 69,
     "static": false
   },
   {
     "api": "DiomanRequest.patch",
     "kind": "method",
     "file": "lib/src/request.dart",
-    "line": 75,
+    "line": 76,
     "static": false
   },
   {
     "api": "RequestPatch",
     "kind": "class",
     "file": "lib/src/request.dart",
-    "line": 109,
+    "line": 110,
     "static": false
   },
   {
     "api": "RequestPatch.new",
     "kind": "constructor",
     "file": "lib/src/request.dart",
-    "line": 111,
+    "line": 112,
     "static": false
   },
   {
     "api": "RequestPatch.new(headers)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 113,
+    "line": 114,
     "static": false
   },
   {
     "api": "RequestPatch.new(query)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 114,
+    "line": 115,
     "static": false
   },
   {
     "api": "RequestPatch.new(extra)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 115,
+    "line": 116,
     "static": false
   },
   {
     "api": "RequestPatch.new(removeHeaders)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 116,
+    "line": 117,
     "static": false
   },
   {
     "api": "RequestPatch.new(removeQuery)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 117,
+    "line": 118,
     "static": false
   },
   {
     "api": "RequestPatch.new(data)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 118,
+    "line": 119,
     "static": false
   },
   {
     "api": "RequestPatch.new(path)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 119,
+    "line": 120,
     "static": false
   },
   {
     "api": "RequestPatch.new(method)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 120,
+    "line": 121,
     "static": false
   },
   {
     "api": "RequestPatch.new(connectTimeout)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 121,
+    "line": 122,
     "static": false
   },
   {
     "api": "RequestPatch.new(sendTimeout)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 122,
+    "line": 123,
     "static": false
   },
   {
     "api": "RequestPatch.new(receiveTimeout)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 123,
+    "line": 124,
     "static": false
   },
   {
     "api": "RequestPatch.new(cancelToken)",
     "kind": "parameter",
     "file": "lib/src/request.dart",
-    "line": 124,
+    "line": 125,
     "static": false
   },
   {
     "api": "RequestPatch.headers",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 127,
+    "line": 128,
     "static": false
   },
   {
     "api": "RequestPatch.query",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 130,
+    "line": 131,
     "static": false
   },
   {
     "api": "RequestPatch.extra",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 133,
+    "line": 134,
     "static": false
   },
   {
     "api": "RequestPatch.removeHeaders",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 136,
+    "line": 137,
     "static": false
   },
   {
     "api": "RequestPatch.removeQuery",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 139,
+    "line": 140,
     "static": false
   },
   {
     "api": "RequestPatch.data",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 142,
+    "line": 143,
     "static": false
   },
   {
     "api": "RequestPatch.path",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 145,
+    "line": 146,
     "static": false
   },
   {
     "api": "RequestPatch.method",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 148,
+    "line": 149,
     "static": false
   },
   {
     "api": "RequestPatch.connectTimeout",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 151,
+    "line": 152,
     "static": false
   },
   {
     "api": "RequestPatch.sendTimeout",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 154,
+    "line": 155,
     "static": false
   },
   {
     "api": "RequestPatch.receiveTimeout",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 157,
+    "line": 158,
     "static": false
   },
   {
     "api": "RequestPatch.cancelToken",
     "kind": "field",
     "file": "lib/src/request.dart",
-    "line": 160,
+    "line": 161,
     "static": false
   },
   {
@@ -1309,332 +1358,332 @@
     "static": false
   },
   {
+    "api": "DiomanFailure.error",
+    "kind": "field",
+    "file": "lib/src/response.dart",
+    "line": 52,
+    "static": false
+  },
+  {
+    "api": "DiomanFailure.errorStack",
+    "kind": "field",
+    "file": "lib/src/response.dart",
+    "line": 55,
+    "static": false
+  },
+  {
     "api": "failureOf",
     "kind": "function",
     "file": "lib/src/response.dart",
-    "line": 52,
+    "line": 58,
     "static": false
   },
   {
     "api": "isDiomanCancel",
     "kind": "function",
     "file": "lib/src/response.dart",
-    "line": 56,
+    "line": 62,
     "static": false
   },
   {
     "api": "DiomanParsed",
     "kind": "class",
     "file": "lib/src/response.dart",
-    "line": 61,
+    "line": 67,
     "static": false
   },
   {
     "api": "DiomanParsed.new",
     "kind": "constructor",
     "file": "lib/src/response.dart",
-    "line": 63,
+    "line": 69,
     "static": false
   },
   {
     "api": "DiomanParsed.new(code)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 64,
+    "line": 70,
     "static": false
   },
   {
     "api": "DiomanParsed.new(data)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 64,
+    "line": 70,
     "static": false
   },
   {
     "api": "DiomanParsed.new(message)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 64,
+    "line": 70,
     "static": false
   },
   {
     "api": "DiomanParsed.code",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 67,
+    "line": 73,
     "static": false
   },
   {
     "api": "DiomanParsed.data",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 70,
+    "line": 76,
     "static": false
   },
   {
     "api": "DiomanParsed.message",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 73,
+    "line": 79,
     "static": false
   },
   {
     "api": "DiomanResponse",
     "kind": "class",
     "file": "lib/src/response.dart",
-    "line": 89,
+    "line": 95,
     "static": false
   },
   {
     "api": "DiomanResponse.new",
     "kind": "constructor",
     "file": "lib/src/response.dart",
-    "line": 91,
+    "line": 97,
     "static": false
   },
   {
     "api": "DiomanResponse.new(ok)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 94,
+    "line": 100,
     "static": false
   },
   {
     "api": "DiomanResponse.new(status)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 95,
+    "line": 101,
     "static": false
   },
   {
     "api": "DiomanResponse.new(code)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 96,
+    "line": 102,
     "static": false
   },
   {
     "api": "DiomanResponse.new(message)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 97,
+    "line": 103,
     "static": false
   },
   {
     "api": "DiomanResponse.new(data)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 98,
+    "line": 104,
     "static": false
   },
   {
     "api": "DiomanResponse.new(request)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 99,
+    "line": 105,
     "static": false
   },
   {
     "api": "DiomanResponse.new(raw)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 100,
+    "line": 106,
     "static": false
   },
   {
     "api": "DiomanResponse.new(error)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 101,
-    "static": false
-  },
-  {
-    "api": "DiomanResponse.new(errorStack)",
-    "kind": "parameter",
-    "file": "lib/src/response.dart",
-    "line": 102,
+    "line": 107,
     "static": false
   },
   {
     "api": "DiomanResponse.new(callSite)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 103,
+    "line": 108,
     "static": false
   },
   {
     "api": "DiomanResponse.ok",
     "kind": "getter",
     "file": "lib/src/response.dart",
-    "line": 106,
+    "line": 113,
     "static": false
   },
   {
     "api": "DiomanResponse.status",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 116,
+    "line": 129,
     "static": false
   },
   {
     "api": "DiomanResponse.code",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 119,
+    "line": 132,
     "static": false
   },
   {
     "api": "DiomanResponse.message",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 122,
+    "line": 135,
     "static": false
   },
   {
     "api": "DiomanResponse.data",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 125,
+    "line": 138,
     "static": false
   },
   {
     "api": "DiomanResponse.request",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 128,
+    "line": 141,
     "static": false
   },
   {
     "api": "DiomanResponse.raw",
-    "kind": "field",
+    "kind": "getter",
     "file": "lib/src/response.dart",
-    "line": 131,
+    "line": 143,
     "static": false
   },
   {
     "api": "DiomanResponse.error",
-    "kind": "field",
+    "kind": "getter",
     "file": "lib/src/response.dart",
-    "line": 134,
-    "static": false
-  },
-  {
-    "api": "DiomanResponse.errorStack",
-    "kind": "field",
-    "file": "lib/src/response.dart",
-    "line": 137,
+    "line": 149,
     "static": false
   },
   {
     "api": "DiomanResponse.callSite",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 140,
+    "line": 156,
     "static": false
   },
   {
     "api": "DiomanResponse.copy",
     "kind": "method",
     "file": "lib/src/response.dart",
-    "line": 142,
+    "line": 158,
     "static": false
   },
   {
     "api": "DiomanResponse.toString",
     "kind": "method",
     "file": "lib/src/response.dart",
-    "line": 156,
+    "line": 173,
     "static": false
   },
   {
     "api": "DiomanResponseFactory",
     "kind": "class",
     "file": "lib/src/response.dart",
-    "line": 161,
+    "line": 178,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.new",
     "kind": "constructor",
     "file": "lib/src/response.dart",
-    "line": 163,
+    "line": 180,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.new(parse)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 166,
+    "line": 183,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.new(isSuccess)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 167,
+    "line": 184,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.new(expectJson)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 168,
+    "line": 185,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.new(create)",
     "kind": "parameter",
     "file": "lib/src/response.dart",
-    "line": 169,
+    "line": 186,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.parse",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 172,
+    "line": 189,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.isSuccess",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 175,
+    "line": 192,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.expectJson",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 179,
+    "line": 196,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.create",
     "kind": "field",
     "file": "lib/src/response.dart",
-    "line": 182,
+    "line": 199,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.derive",
     "kind": "method",
     "file": "lib/src/response.dart",
-    "line": 204,
+    "line": 218,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.fail",
     "kind": "method",
     "file": "lib/src/response.dart",
-    "line": 234,
+    "line": 244,
     "static": false
   },
   {
     "api": "DiomanResponseFactory.normalize",
     "kind": "method",
     "file": "lib/src/response.dart",
-    "line": 241,
+    "line": 260,
     "static": false
   },
   {

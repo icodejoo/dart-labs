@@ -2928,6 +2928,19 @@
     "blocked": null
   },
   {
+    "id": "DiomanContext.native",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.native"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "DiomanContext.request",
     "plugin": "context",
     "capability": "DiomanContext.request：公开契约及配置解析",
@@ -2974,6 +2987,45 @@
     "tier": 1,
     "apis": [
       "DiomanContext.wait"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.error",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.error"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.raw",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.raw"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNative.response",
+    "plugin": "context",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanNative.response"
     ],
     "real": [],
     "assumptions": [],
@@ -4774,6 +4826,20 @@
     "blocked": null
   },
   {
+    "id": "DiomanCall.raw",
+    "plugin": "options",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanCall.new(raw)",
+      "DiomanCall.raw"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "DiomanCall.receiveTimeout",
     "plugin": "options",
     "capability": "DiomanCall.receiveTimeout：公开契约及配置解析",
@@ -5532,6 +5598,32 @@
     "blocked": null
   },
   {
+    "id": "DiomanFailure.error",
+    "plugin": "response",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanFailure.error"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanFailure.errorStack",
+    "plugin": "response",
+    "capability": "R3 原生槽与失败诊断只读契约",
+    "tier": 1,
+    "apis": [
+      "DiomanFailure.errorStack"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "DiomanFailure.kind",
     "plugin": "response",
     "capability": "DiomanFailure.kind：公开契约及配置解析",
@@ -5778,20 +5870,6 @@
     "apis": [
       "DiomanResponse.error",
       "DiomanResponse.new(error)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.errorStack",
-    "plugin": "response",
-    "capability": "DiomanResponse.errorStack：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.errorStack",
-      "DiomanResponse.new(errorStack)"
     ],
     "real": [],
     "assumptions": [],

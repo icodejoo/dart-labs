@@ -1,3 +1,4 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
 import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -72,7 +73,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           sends++;
-          return DiomanResponse<dynamic>(
+          final result = DiomanResponse<dynamic>(
               ok: false,
               status: 500,
               data: null,
@@ -82,6 +83,8 @@ void main() {
                   headers: Headers.fromMap({
                     _retryHeader: [_serverSeconds]
                   })));
+          DiomanResponseInternal.setRetryAfter(result, _serverSeconds);
+          return result;
         })
       ]);
       final pending = api.send<Object?>(b3ValueGet, b3Path,

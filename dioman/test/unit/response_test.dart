@@ -68,11 +68,8 @@ void main() {
       final r = factory.normalize(request, error: error);
       expect(outcomeOf(r), row.$3);
       expect(r.status, 503);
-      expect(
-          r.error,
-          row.$1 == DioExceptionType.cancel
-              ? same(error)
-              : same(row.$2 ?? error));
+      expect(failureOf(r)?.error,
+          row.$3 == diomanTestInternal ? same(row.$2 ?? error) : isNull);
     }
     final noResponse = DioException(
         requestOptions: request.toRequestOptions(),
@@ -81,11 +78,12 @@ void main() {
     expect(outcomeOf(factory.normalize(request, cancelled: true)),
         diomanTestCancel);
     final bug = StateError('native');
-    expect(factory.normalize(request, error: bug).errorStack, isNotNull);
+    expect(failureOf(factory.normalize(request, error: bug))?.errorStack,
+        isNotNull);
     final stack = StackTrace.fromString(pipelineTestOriginal);
     final r = factory.normalize(request, error: bug, stack: stack);
-    expect(r.error, same(bug));
-    expect(r.errorStack, same(stack));
+    expect(failureOf(r)?.error, same(bug));
+    expect(failureOf(r)?.errorStack, same(stack));
   });
 
   test(
@@ -181,7 +179,7 @@ void main() {
   });
 
   test(
-      '[DiomanResponse.errorStack][DiomanResponseFactory.parse][DiomanResponseFactory.isSuccess][Dioman.statusOf]'
+      '[DiomanFailure.errorStack][DiomanResponseFactory.parse][DiomanResponseFactory.isSuccess][Dioman.statusOf]'
       '[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常', () {
     final bug = StateError(pipelineTestFirst);
     final second = StateError('second');
@@ -196,15 +194,15 @@ void main() {
           factory: factory);
       expect(outcomeOf(r), diomanTestInternal);
       expect(r.status, 200);
-      expect(r.error, same(bug));
-      expect(r.errorStack, isNotNull);
+      expect(failureOf(r)?.error, same(bug));
+      expect(failureOf(r)?.errorStack, isNotNull);
     }
     final factory = DiomanResponseFactory(create: (_) => throw second);
     final r = factory.normalize(request, error: bug, stack: stack);
-    expect(r.error, same(bug));
-    expect(r.errorStack, same(stack));
-    expect(
-        factory.fail(request, DiomanFailureKind.offline).error, same(second));
+    expect(failureOf(r)?.error, same(bug));
+    expect(failureOf(r)?.errorStack, same(stack));
+    expect(failureOf(factory.fail(request, DiomanFailureKind.offline))?.error,
+        same(second));
     expect(
         const DiomanResponseFactory()
             .fail(request, DiomanFailureKind.offline)

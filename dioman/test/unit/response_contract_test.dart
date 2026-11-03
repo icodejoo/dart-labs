@@ -106,7 +106,7 @@ void main() {
         isFalse);
   });
   test(
-      '[DiomanResponseFactory.create][DiomanResponse.error][DiomanResponse.errorStack] create 不能丢弃首次 internal 异常与栈',
+      '[DiomanResponseFactory.create][DiomanResponse.error][DiomanFailure.errorStack] create 不能丢弃首次 internal 异常与栈',
       () {
     final request = DiomanRequest(RequestOptions(path: _r2aLiteral0));
     final error = StateError('original');
@@ -117,12 +117,12 @@ void main() {
               ok: true,
               status: r.status,
               request: r.request,
-              error: keepError ? r.error : null));
+              error: keepError ? failureOf(r)?.error : null));
       final result = factory.normalize(request, error: error, stack: stack);
       expect(result.ok, isFalse);
       expect(failureOf(result)?.kind, DiomanFailureKind.internal);
-      expect(result.error, same(error));
-      expect(result.errorStack, same(stack));
+      expect(failureOf(result)?.error, same(error));
+      expect(failureOf(result)?.errorStack, same(stack));
     }
   });
 }

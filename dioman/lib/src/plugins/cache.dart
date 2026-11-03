@@ -145,13 +145,22 @@ class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
           shouldStore: shouldStore));
 }
 
+/// 不得转为快照的内核失败，即使用户允许写入也须保留原始异常。
+bool _diomanCacheForbidden(DiomanResponse<dynamic> r) => const {
+      DiomanFailureKind.internal,
+      DiomanFailureKind.cancel
+    }.contains(failureOf(r)?.kind);
+
 /// 内存缓存条目。
 class _Entry {
   /// 保存响应及绝对到期时刻。
-  _Entry(this.response, this.expiresAt);
+  _Entry(this.snapshot, this.expiresAt, {this.retryAfter});
 
-  /// 来源响应。
-  final DiomanResponse<dynamic> response;
+  /// 不含请求和原生对象的结果快照。
+  final Map<String, Object?> snapshot;
+
+  /// 仅内存保留的服务器退避小事实，不进入持久化格式。
+  final String? retryAfter;
 
   /// epoch 毫秒。
   final int expiresAt;
@@ -229,6 +238,17 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
   /// 细分原因字段。
   static const reasonField = 'reason';
 
+  /// 提取与持久化相同的结果字段，不保留来源请求。
+  Map<String, Object?> snapshot(DiomanResponse<dynamic> r) => {
+        okField: r.ok,
+        if (failureOf(r) != null) kindField: failureOf(r)!.kind.name,
+        statusField: r.status,
+        codeField: r.code,
+        messageField: r.message,
+        if (failureOf(r)?.reason != null) reasonField: failureOf(r)!.reason,
+        dataField: r.data
+      };
+
   /// 从新格式恢复归一化结果，老格式继续交给工厂识别信封。
   DiomanResponse<dynamic> restore(DiomanContext<R> ctx, Map saved) {
     final meta = saved[resultField];
@@ -243,7 +263,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     final init = DiomanResponse<dynamic>(
         ok: meta[okField] as bool? ?? legacyKind == okField,
         status: (meta[httpField] ?? meta[statusField]) as int,
-        code: meta[codeField] ?? 0,
+        code: meta.containsKey(codeField) ? meta[codeField] : 0,
         message: meta[messageField] as String,
         data: meta[dataField],
         request: ctx.request);
@@ -371,7 +391,10 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         if (saved is Map && saved[expiresField] is int) {
           final expiry = saved[expiresField] as int;
           if (expiry > clock.now().millisecondsSinceEpoch && valid()) {
-            hit = _Entry(restore(ctx, saved), expiry);
+            final restored = restore(ctx, saved);
+            if (_diomanCacheForbidden(restored)) return restored;
+            hit = _Entry(snapshot(restored), expiry,
+                retryAfter: DiomanResponseInternal.retryAfter(restored));
             if (memo) put(key, hit);
           } else {
             await ctx.wait(enqueue(() async {
@@ -384,7 +407,9 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       if (hit != null) {
         if (memo) put(key, hit);
-        final result = clone(ctx, hit.response, o.clone!);
+        final restored = restore(ctx, {resultField: hit.snapshot});
+        DiomanResponseInternal.setRetryAfter(restored, hit.retryAfter);
+        final result = clone(ctx, restored, o.clone!);
         return ctx.cancelled() ?? result;
       }
       final r = await next();
@@ -395,25 +420,19 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
           failureOf(r)?.kind != DiomanFailureKind.cancel &&
           valid() &&
           (o.shouldStore?.call(r) ?? r.ok)) {
+        final cached = clone(ctx, r, o.clone!);
+        if (_diomanCacheForbidden(cached)) return cached;
         stored = true;
         barrier.latest = ticket;
-        final entry = _Entry(clone(ctx, r, o.clone!),
-            clock.now().add(o.expires!).millisecondsSinceEpoch);
+        final entry = _Entry(snapshot(cached),
+            clock.now().add(o.expires!).millisecondsSinceEpoch,
+            retryAfter: DiomanResponseInternal.retryAfter(cached));
         if (memo) put(key, entry);
         if (disk) {
           await ctx.wait(enqueue(() => persist!.write(key, {
-                dataField: r.raw?.data ?? r.data,
+                dataField: ctx.native?.raw?.data ?? r.data,
                 expiresField: entry.expiresAt,
-                resultField: {
-                  okField: r.ok,
-                  if (failureOf(r) != null) kindField: failureOf(r)!.kind.name,
-                  statusField: r.status,
-                  codeField: r.code,
-                  messageField: r.message,
-                  if (failureOf(r)?.reason != null)
-                    reasonField: failureOf(r)!.reason,
-                  dataField: entry.response.data
-                }
+                resultField: entry.snapshot
               })));
           final cancel = ctx.cancelled();
           if (cancel != null) return cancel;

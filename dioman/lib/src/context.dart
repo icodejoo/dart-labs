@@ -25,6 +25,22 @@ final class StateKey<T> {
   final String description;
 }
 
+/// 当前结果对应的只读原生视图；仅在逻辑请求落定前可读取。
+/// 例如 `ctx.native?.raw?.headers`；缓存与共享跟随者返回 null。
+class DiomanNative {
+  /// 内核绑定结果及其原生数据。
+  const DiomanNative._(this.response, this.raw, this.error);
+
+  /// 与本视图关联的归一化结果。
+  final DiomanResponse<dynamic> response;
+
+  /// 本次传输的 Dio 响应，未收到响应时为空。
+  final Response<dynamic>? raw;
+
+  /// 本次传输的原始异常，成功时为空。
+  final Object? error;
+}
+
 /// 每层的固定形状上下文；派生请求共享逻辑状态。
 class DiomanContext<R extends DiomanResponse<dynamic>> {
   /// 注入内核服务；例如测试可直接构造而不发起请求。
@@ -61,6 +77,17 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
 
   /// 共享状态。
   final DiomanContextState _state;
+
+  /// 读取当前结果对应的自身原生数据，未匹配或已落定时返回 null。
+  /// 例如在 `await next()` 后读取 `ctx.native?.raw`。
+  DiomanNative? get native {
+    final slot = _state.nativeSlot;
+    final result = _state.nativeResult;
+    if (slot == null || result == null || !identical(slot.response, result)) {
+      return null;
+    }
+    return DiomanNative._(result, slot.raw, slot.error);
+  }
 
   /// 结果服务。
   final DiomanResponseFactory<R> factory;

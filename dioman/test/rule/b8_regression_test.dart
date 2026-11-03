@@ -1,3 +1,4 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
 import '../support/response_contract.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -186,13 +187,15 @@ void main() {
         TestPlugin(_result, stage: DiomanStage.source,
             handler: (ctx, next) async {
           sends++;
-          return ctx.factory.normalize(ctx.request,
+          final result = ctx.factory.normalize(ctx.request,
               raw: Response<dynamic>(
                   requestOptions: ctx.request.toRequestOptions(),
                   statusCode: 503,
                   headers: Headers.fromMap({
                     'retry-after': [header]
                   })));
+          DiomanResponseInternal.setRetryAfter(result, header);
+          return result;
         })
       ]);
       final pending = api.send<dynamic>(_get, _path);

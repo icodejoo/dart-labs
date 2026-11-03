@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Breaking (R3/C30):** all results default to null raw/error. Use `DiomanCall(raw: true)` to attach the caller's native transport data, including headers on success. Cache hits and share followers never borrow native objects. `ctx.native` is readonly; its shared slot is cleared and sealed at settlement. Top-level errorStack is removed; internal error/errorStack move into failureOf and retain original-stack rethrows.
+- **C31:** Retry-After is extracted at the transport boundary and read through a private result field, including by share followers.
+- **C32:** memory cache stores snapshots and rebuilds hits through the same factory with the current caller's request. Persistent format and share request semantics are unchanged.
+
 - **C24**: Use a conditional IO network classifier, preserving unknown SocketException/HttpException/TlsException precision on VM and web/Wasm compatibility.
 - **Breaking — C25**: Automatic deep/fast keys include responseType; Map keys have type tags. Explicit keys/builders stay unchanged; B8 byte keys retain hash plus full base64. Existing automatic cache keys are invalidated.
 - **C26**: Internal and cancel results never enter memory or persistent cache, even when shouldStore returns true.

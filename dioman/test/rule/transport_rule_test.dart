@@ -117,7 +117,7 @@ void main() {
     expect(logs, contains('请求体无法克隆，回退原引用'));
     final repeated = await diomanTransport(api.dio, ctx);
     expect(outcomeOf(repeated), diomanTestInternal);
-    expect(repeated.error, isA<StateError>());
+    expect(failureOf(repeated)?.error, isA<StateError>());
     final throwLog = testClient(
         debug: (String _) => throw StateError(pipelineTestLog),
         plugins: [

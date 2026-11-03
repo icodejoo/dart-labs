@@ -120,7 +120,8 @@ void main() {
       final loop =
           await _Loop.start(mode, const DiomanTimeouts(receive: _short));
       final watch = Stopwatch()..start();
-      final r = await loop.api.send<Object?>(_get, _path);
+      final r = await loop.api
+          .send<Object?>(_get, _path, call: const DiomanCall(raw: true));
       _expectTimeout(r, watch, _short);
       expect((r.error as DioException).type, DioExceptionType.receiveTimeout);
     });
@@ -151,7 +152,8 @@ void main() {
   test('[DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效', () async {
     final loop =
         await _Loop.start(b2DelayMode, const DiomanTimeouts(receive: _short));
-    final failed = await loop.api.send<Object?>(_get, _path);
+    final failed = await loop.api
+        .send<Object?>(_get, _path, call: const DiomanCall(raw: true));
     expect(outcomeOf(failed), diomanTestTimeout);
     final r = await loop.api.send<String>(_get, _path,
         call: DiomanCall(options: {
@@ -172,6 +174,7 @@ void main() {
         data: Stream<List<int>>.fromIterable(
             Iterable.generate(_chunks, (_) => chunk)),
         call: const DiomanCall(
+            raw: true,
             headers: {Headers.contentLengthHeader: _chunkSize * _chunks}));
     _expectTimeout(r, watch, _short);
     expect((r.error as DioException).type, DioExceptionType.sendTimeout);

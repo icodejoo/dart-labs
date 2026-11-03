@@ -58,12 +58,11 @@ DiomanResponse<dynamic> scriptedResult(DiomanContext ctx, String kind,
       message: message,
       data: data,
       request: ctx.request,
-      error: error,
-      errorStack: errorStack);
+      error: null);
   if (kind != diomanTestOk && kind != diomanTestHttp && kind != diomanTestBiz) {
     DiomanResponseInternal.restore(
         result, DiomanFailureKind.values.byName(kind),
-        reason: reason);
+        reason: reason, error: error, errorStack: errorStack);
   }
   return ctx.factory.derive(result, data);
 }
