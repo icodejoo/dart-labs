@@ -355,6 +355,7 @@ class FakeMovaApi implements MovaApi {
   /// `open` 是否报告源已被接受；false 模拟 `beforeOpen` 拒绝（什么都不加载）。
   bool acceptOpens = true;
 
+  /// 接受打开后维护自动播放意图，不伪造内核播放观测。
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     _record('open');
@@ -370,6 +371,7 @@ class FakeMovaApi implements MovaApi {
     lastAutoPlay = autoPlay;
     this.source = source;
     push(state.copyWith(
+      playbackIntent: autoPlay,
       type: source.type,
       sourceTitle: source.title,
       clearSourceTitle: source.title == null,
@@ -377,17 +379,21 @@ class FakeMovaApi implements MovaApi {
     return true;
   }
 
+  /// 记录播放意图，播放观测由独立信号控制。
   @override
   Future<void> play() async {
     _record('play');
     if (playGate != null) await playGate!.future;
+    push(state.copyWith(playbackIntent: true));
     if (pushPlayingOnVerbs) push(state.copyWith(playing: true));
   }
 
+  /// 清除播放意图，播放观测由独立信号控制。
   @override
   Future<void> pause() async {
     _record('pause');
     if (pauseGate != null) await pauseGate!.future;
+    push(state.copyWith(playbackIntent: false));
     if (pushPlayingOnVerbs) push(state.copyWith(playing: false));
   }
 
