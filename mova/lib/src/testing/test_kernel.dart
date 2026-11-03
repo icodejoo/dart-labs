@@ -51,6 +51,7 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   final List<Timer> _scriptTimers = [];
   int _scriptGeneration = 0;
   bool _disposed = false;
+  bool _scriptPlayIntent = true;
 
   void _cancelScript() {
     _scriptGeneration++;
@@ -59,6 +60,8 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   }
 
   void _startScript(bool play) {
+    if (_script.isEmpty) return;
+    _scriptPlayIntent = play;
     final generation = _scriptGeneration;
     var elapsed = Duration.zero;
     for (final step in _script) {
@@ -71,7 +74,7 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
             emitSize(width, height);
             emitDuration(duration);
             emitBuffer(duration);
-            emitPlaying(play);
+            emitPlaying(_scriptPlayIntent);
             emitRestart();
           },
           buffering: emitBuffering,
@@ -202,10 +205,16 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   }
 
   @override
-  Future<void> play() async => calls.add('play');
+  Future<void> play() async {
+    calls.add('play');
+    if (_script.isNotEmpty) _scriptPlayIntent = true;
+  }
 
   @override
-  Future<void> pause() async => calls.add('pause');
+  Future<void> pause() async {
+    calls.add('pause');
+    if (_script.isNotEmpty) _scriptPlayIntent = false;
+  }
 
   @override
   Future<void> seek(Duration position) async {

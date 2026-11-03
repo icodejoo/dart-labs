@@ -24,6 +24,8 @@ import '../support/fake_kernel.dart';
 
 void main() {
   test('bare constructor warns once and testing switch can reset', () async {
+    final warningShown = MovaEngine.debugBareConstructorWarningShown;
+    addTearDown(() { MovaEngine.debugBareConstructorWarningShown = warningShown; });
     final messages = <String>[];
     MovaEngine.debugBareConstructorWarningShown = false;
     await runZoned(() async {
