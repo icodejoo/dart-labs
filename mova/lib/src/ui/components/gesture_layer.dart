@@ -351,12 +351,14 @@ class _GestureLayerState extends State<_GestureLayer>
         _api.showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac = _axisFrac(); // up/right = louder
+        final frac = _axisFrac() *
+            (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
         _api.showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac = _axisFrac(); // up/right = brighter
+        final frac = _axisFrac() *
+            (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
         _api.showHud(MovaHud.brightness);
         break;

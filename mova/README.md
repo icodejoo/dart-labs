@@ -687,7 +687,7 @@ MovaPlayer(api: engine, skin: const MovaDouyinSkin());   // 类抖音风格，�
 3. **全实现档**：`implements MovaSkin` 重写 `components()`/`assemble()`，布局与组件全自定义。
 
 内置皮肤是三层骨架：**播放层**（画面）+**操作层**（手势/顶中底/左右栏，随闲置一起淡隐、
-pip/锁定时整层隐藏）+**常驻层**（锁定遮罩与锁定/解锁按钮，恒挂载、默认穿透、不受门控）。
+pip/锁定时整层隐藏）+**常驻层**（状态层、锁定遮罩与可 patch 的 `lockToggle`；未锁定时按钮随控制条隐藏，锁定时保留解锁入口，PiP/mini 时隐藏按钮）。
 组件树是静态的（`components()` 不吃状态），显隐由组件各自的 `MovaSelect` 响应式决定。
 插槽词表：`top`/`center`/`bottom`/`bottomAbove`/`overlay`/`left`/`right`/`gesture`/`hud`。
 
@@ -710,7 +710,10 @@ MovaPlayer(api: engine, skin: noPipSkin);
 ```dart
 // 在顶栏追加一个自定义组件。
 final withExtra = MovaDefaultSkin(
-  patches: [MovaPatch.add(MovaSlot.top, MyExtraButtonComponent(), order: 10)],
+  patches: [MovaPatch.insertAfter(
+    '${MovaTopBarComponent.componentName}/${MovaFullscreenButtonComponent.componentName}',
+    MyExtraButtonComponent(),
+  )],
 );
 ```
 

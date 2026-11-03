@@ -183,8 +183,8 @@ Future<void> showMovaOptionSheet(
     backgroundColor: Color(theme.sheetBackgroundColor),
     builder: (ctx) {
       return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: ListView(
+          shrinkWrap: true,
           children: [
             for (final item in items)
               ListTile(

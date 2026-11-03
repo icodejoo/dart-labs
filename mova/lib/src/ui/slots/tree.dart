@@ -6,15 +6,16 @@ import 'patch.dart';
 import 'slot.dart';
 
 /// Applies [patches] to [tree] and returns a new tree; never mutates the
-/// input and never throws — an unmatched path is silently a no-op.
+/// input. An unmatched path asserts in debug and is a no-op in release.
 ///
 /// Paths are dotted by nesting: a top-level component's path is its
 /// [MovaComponent.name]; a nested component's path is
 /// `<parent.name>/<child.name>`, recursing to arbitrary depth by joining
 /// each ancestor's name in order.
 ///
-/// 把 [patches] 应用到 [tree] 上并返回一棵新树；绝不修改输入，也绝不抛出
-/// 异常——未匹配到的路径静默地什么都不做。
+/// 把 [patches] 应用到 [tree] 上并返回一棵新树；绝不修改输入。
+/// 未匹配路径在 debug 下断言提示，release 下保持无操作。
+/// 示例：`applyPatches(tree, [MovaPatch.remove('topBar/pipButton')])`。
 ///
 /// 路径按嵌套层级用 `/` 拼接：顶层组件的路径就是其 [MovaComponent.name]；
 /// 嵌套组件的路径是 `<parent.name>/<child.name>`，可递归拼接到任意深度。
@@ -33,6 +34,13 @@ List<MovaComponent> applyPatches(
 ///
 /// 把单个 [patch] 应用到 [tree] 上并返回结果树。
 List<MovaComponent> _applyOne(List<MovaComponent> tree, MovaPatch patch) {
+  final path = switch (patch) {
+    MovaPatchAdd() => null,
+    MovaPatchReplace() => patch.path,
+    MovaPatchRemove() => patch.path,
+    MovaPatchInsertAfter() => patch.path,
+  };
+  assert(path == null || _containsPath(tree, path), '未找到组件路径：$path');
   switch (patch) {
     case MovaPatchAdd():
       return [
@@ -51,6 +59,18 @@ List<MovaComponent> _applyOne(List<MovaComponent> tree, MovaPatch patch) {
     case MovaPatchInsertAfter():
       return _insertAfterAt(tree, patch.path, patch.component);
   }
+}
+
+/// 检查当前树中是否存在完整的 [path]，供 debug 诊断使用。
+bool _containsPath(List<MovaComponent> nodes, String path) {
+  final slash = path.indexOf('/');
+  final head = slash < 0 ? path : path.substring(0, slash);
+  for (final node in nodes) {
+    if (node.name != head) continue;
+    if (slash < 0) return true;
+    if (_containsPath(node.children, path.substring(slash + 1))) return true;
+  }
+  return false;
 }
 
 /// Recursively replaces the node at [path] within [nodes] with
