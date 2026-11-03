@@ -682,9 +682,11 @@ S01 的内容见第 5.2 节（门控 open/play/pause/seek、可选推 playing、
 | C16 | `refactor(mova): 改名遗留收尾` | API | `ui/mini/mini_host.dart`、广告覆盖层、工厂 typedef、`deprecated_names.dart` | 100–200 | — | +2 | 全部 `@Deprecated` 别名 |
 | C17 | `docs(mova): README、SPEC、CHANGELOG、CLAUDE.md、DESIGN 对齐与版本号对账` | 文档 | 见第 9 节 | 400–800（文档） | 全部 | — | 第 9 节清单逐项勾完；顺带修过期 dartdoc：`core/api.dart:368-371`、`core/options/stt_config.dart:36,45`；README 写明 feed 预取与 STT 模型下载的已知限制 |
 
+**C04/C06 拆分（2026-11-03，逐 Task 子计划见 [2026-11-03-c04-c06-chrome-style.md](2026-11-03-c04-c06-chrome-style.md)）**：C04 拆为 C04a–C04d，C06 拆为 C06a–C06e（C06e 可裁剪），阶梯合计 66 → **73**。C 块内顺序改为 C04 → C06 → C05（依赖不变，C05 的全屏文案与样式直接走 `MovaPlayerStyle`/`MovaStrs`，免得 C06b 二次迁移）。C03 落地时对样式节保守（样式节变化仍重建视图），到 C06d 再放宽。C04/C06 检查点失败需移出时保留 C08/C09，另起提交删掉新类型的 `show` 导出，不连带回退。测试增量 C04 +32、C06 +23（不做 C06e 为 +20），高于本表原估。
+
 → **CP3：合并前全量** → 合并（`--no-ff`，一次）
 
-合计：准备 3（S00、S01、A19）+ B 16 + A1 17（含 A14b）+ A2 13 + C 17 = **66 个提交**。机械提交 4 个（A01、A09、A17、A22），测试/工具提交 3 个（S00、S01、A19）；C08、C09 只调整导出和加注解，归 API 类，不算机械搬迁。测试数预计从 1752 增到约 2100–2250。
+合计：准备 3（S00、S01、A19）+ B 16 + A1 17（含 A14b）+ A2 13 + C 17 = **66 个提交**（C04/C06 拆分后为 73，见上）。机械提交 4 个（A01、A09、A17、A22），测试/工具提交 3 个（S00、S01、A19）；C08、C09 只调整导出和加注解，归 API 类，不算机械搬迁。测试数预计从 1752 增到约 2100–2250。
 
 ### 3.3 难点提交详述
 
@@ -778,6 +780,13 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 | Windows | F3 子集 30、A23/F13 dispose 20、HE V6 5、HE V10 20 | 按项 | Windows 基线 |
 
 通过标准：CP0 不设通过线，只要求每项有可复核的数字。设备时间：Android 约 2.5 天，Windows 0.5 天（不含 S00 修脚本，那算在代码成本里）。
+
+#### CP0 第一轮落地记录（2026-11-03）
+
+在独立 worktree（lib 与 main 一致）完成，两个提交已拣回本分支：
+- **S00b 原始证据收口**：r1030 离线重放 **PASS 61 / FAIL 9 / BLOCKED 65**（135 个编号）。S00 的完成判据（BLOCKED 只剩真缺用例/环境）**尚未达到**：BLOCKED 中多数是验证脚本缺 `*.coverage1` 判据，逐条见 [S00b 报告](2026-11-03-s00b-evidence-replay.md)；FAIL 归因四类（接收快照与 payload 不一致、TLS IP SAN、keepAlive grace 判据、无声流位置倒退）同在该报告。
+- **CP0 六个新验证页 + Android 最小冒烟**（各 1 次，正式次数未跑），见 [CP0 报告](2026-11-03-cp0-pages-and-smoke.md)。修前现场已坐实：P0-2 在 `load(B)` 返回后仍读到上一集 A 243 次（原生位置跨度 8880ms）；pod 第二条广告 `renderEpoch` 0→0（回落成普通 open）；`Video` 后台暂停参数开时回前台需手动恢复、关时继续播放；暂停加载夹具里 B（WebM）的 sessionStart 3/3 仍报 A 的 MP4。音频焦点维持 manual BLOCKED。
+- 仍欠：上表的正式次数跑批（全量可自动批次、F3/A17 280、H28 90、H20/H50 各 30、gap 用例、P1-3、Windows 组）与 S00 的判据缺口。
 
 ### CP1 引擎、切换与 B 块（A16 之后）
 
@@ -1038,6 +1047,7 @@ A01、A09、A17、A22 四个机械提交**一条都不改**，这是它们的验
 - 档位：落地派 sonnet（low）；A22 这类大搬迁同样是 sonnet（low），机械但要守不变量，不降到 haiku。
 - B 块可在独立 worktree 并行开发，按阶梯位置 rebase 进来；派 worktree 前确认基线已提交。
 - 每块结束先 Codex review（`codex review --base main`，effort ≤ high），Claude 逐条终审，再进检查点。
+- **实际执行（2026-11-03 起，用户指定）**：落地与跑批都交给 Codex，按阶梯每个提交由 Codex 本地提交（不 push、不改 CLAUDE.md），主会话逐批复核 analyze/测试数、组织 Codex 初审并逐条终审，再回写 CLAUDE.md 基线。上文"子代理不得自行提交"对 Codex 落地批次不适用；Claude 侧子代理仍不提交。真机跑批在独立 worktree（lib 固定在基线提交）进行，产出的 example/doc 提交拣回本分支。
 
 ---
 
