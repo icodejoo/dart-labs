@@ -31,6 +31,7 @@
 
 ## 报告
 
+- [线上全量验收矩阵 2026-11-03](reports/2026-11-03-online-accept-matrix.md) — Render 线上 6426 项、29 失败对照本地全通过，归因线上拓扑。active。
 - [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。
 - [插件五方法真实矩阵 2026-10-27](reports/2026-10-27-plugin-matrix.md) — 156 格结论，"待补"项将由总账接管。active。
