@@ -988,8 +988,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
       _onPlayFail(deferred.kind, error: deferred.error);
       if (_failedAttemptId == _attemptId) return false;
     }
-    if (!_playIntent && play) {
-      await _kernel.pause();
+    if (!_keepAliveRequested && _playIntent != play) {
+      if (_playIntent) {
+        await _kernel.play();
+      } else {
+        await _kernel.pause();
+      }
       if (!current()) return false;
     }
     if (_kernelOpening == 0 && state.keepAlivePhase != MovaKeepAlivePhase.holding) {
@@ -1959,10 +1963,10 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     // after it returns so a late play never overrides either.
     //
     // 异步宿主钩子可能跨过一次 pause() 或换源；返回后复查，晚到的 play 不得覆盖二者。
-    final gen = _openGen;
+    final gen = _sessionGen;
     final pauses = _pauseSeq;
     final allowed = await _chain.beforePlay();
-    if (!allowed || _disposed || gen != _openGen || pauses != _pauseSeq) return;
+    if (!allowed || _disposed || gen != _sessionGen || pauses != _pauseSeq) return;
     _state.emit(state.copyWith(playbackIntent: true));
     _watchdog?.onPlaying(true);
     // KeepAlive: a held stream is already playing (muted, no picture), and while
@@ -2026,12 +2030,12 @@ class MovaEngine implements MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlay
     final gate = state.type == MovaStreamType.vod || state.liveSeekable;
     if (!gate) return;
     if (_disposed) return;
-    final gen = _openGen;
+    final gen = _sessionGen;
     final hooked = await _chain.beforeSeek(to);
     // A source change while an async hook was pending makes the jump stale.
     //
     // 异步钩子挂起期间换了源，这次跳转就过期了。
-    if (hooked == null || _disposed || gen != _openGen) return;
+    if (hooked == null || _disposed || gen != _sessionGen) return;
     // Floor at zero up front: with the duration still unknown the upper clamp
     // below is skipped, and a negative target would otherwise be parked as is.
     //
