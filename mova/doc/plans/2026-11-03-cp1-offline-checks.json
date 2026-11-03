@@ -1,0 +1,73 @@
+{
+  "status": "offline-only; 未上机",
+  "base": "6d9e4e2f",
+  "analyze": {
+    "command": "flutter analyze",
+    "cwd": "example/",
+    "baselineIssueCount": 40,
+    "finalIssueCount": 40,
+    "addedIssues": [],
+    "removedIssues": [],
+    "issues": [
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:103:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:105:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:107:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:109:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:111:5 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:113:5 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:129:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:96:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_avfilter_regression_probe.dart:98:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:101:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:103:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:130:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:132:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:161:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:165:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:167:9 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_subtitle_formats_probe.dart:185:7 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_surface_resize.dart:59:16 - avoid_print",
+      "info - Don't invoke 'print' in production code. Try using a logging framework - lib\\main_surface_visual.dart:31:16 - avoid_print",
+      "info - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check - lib\\main_hwdec_matrix_verify.dart:481:28 - use_build_context_synchronously",
+      "info - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check - lib\\main_hwdec_matrix_verify.dart:498:30 - use_build_context_synchronously",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_avfilter_regression_probe.dart:7:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_subtitle_formats_probe.dart:8:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_vp8_4abi_smoke.dart:7:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_vp8_android_diag.dart:8:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_vp8_android_verify.dart:6:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_vp8_dll_verify.dart:7:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_vp8_pure_media_kit.dart:9:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_win_retest.dart:7:8 - implementation_imports",
+      "info - Import of a library in the 'lib/src' directory of another package. Try importing a public library that exports this library, or removing the import - lib\\main_win_retest.dart:8:8 - implementation_imports",
+      "info - The import of 'package:mova/src/platform_impl/mpv_extractor_impl.dart' is unnecessary because all of the used elements are also provided by the import of 'package:mova/mova.dart'. Try removing the import directive - lib\\main_videocontroller_verify.dart:10:8 - unnecessary_import",
+      "info - The prefix 'qoeVideo' isn't a lower_case_with_underscores identifier. Try changing the prefix to follow the lower_case_with_underscores style - lib\\main_coverage_reuse.dart:8:40 - library_prefixes",
+      "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_lazyvideo_verify.dart:24:25 - unnecessary_underscores",
+      "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_v041_verify.dart:20:25 - unnecessary_underscores",
+      "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_whep_verify.dart:25:25 - unnecessary_underscores",
+      "info - Unnecessary use of multiple underscores. Try using '_' - lib\\main_win_verify.dart:28:25 - unnecessary_underscores",
+      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/engine.dart' or a test - lib\\verify_auto\\rerun6_coverage_new.dart:865:9 - invalid_use_of_visible_for_testing_member",
+      "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/engine.dart' or a test - lib\\verify_auto\\rerun7_coverage_new.dart:877:9 - invalid_use_of_visible_for_testing_member",
+      "warning - The value of the field '_mode' isn't used. Try removing the field, or using it - lib\\main_subtitle_formats_probe.dart:49:10 - unused_field",
+      "warning - Unused import: 'package:media_kit/media_kit.dart'. Try removing the import directive - lib\\main_observe_event_verify2.dart:6:8 - unused_import"
+    ]
+  },
+  "matrix": {
+    "command": "python -B example/tool/run_matrix.py --check",
+    "exit": 0,
+    "batches": 56,
+    "ids": 135
+  },
+  "pythonTests": {
+    "command": "python -B example/tool/test_run_matrix.py",
+    "exit": 0,
+    "tests": 34
+  },
+  "flutterTests": {
+    "command": "flutter test --concurrency=2 test/auto_kit_test.dart",
+    "cwd": "example/",
+    "exit": 0,
+    "tests": 12
+  },
+  "deviceCommandsExecuted": false,
+  "gradleExecuted": false
+}

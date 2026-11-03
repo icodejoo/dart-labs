@@ -1696,6 +1696,222 @@
       "fast": false
     },
     {
+      "id": "cp1-wakeswap",
+      "description": "CP1 wakeswap 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "wakeswap",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-wakeswap",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-wakeswap.json"
+    },
+    {
+      "id": "cp1-edgepause",
+      "description": "CP1 edgepause 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "edgepause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-edgepause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-edgepause.json"
+    },
+    {
+      "id": "cp1-errclass",
+      "description": "CP1 errclass 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "errclass",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-errclass",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-errclass.json"
+    },
+    {
+      "id": "cp1-probe",
+      "description": "CP1 probe 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "probe",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-probe",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-probe.json"
+    },
+    {
+      "id": "cp1-manageauto",
+      "description": "CP1 manageauto 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "manageauto",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-manageauto",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-manageauto.json"
+    },
+    {
+      "id": "cp1-bblock",
+      "description": "CP1 bblock 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "bblock",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-bblock",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-bblock.json"
+    },
+    {
+      "id": "cp1-pool",
+      "description": "CP1 pool 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "pool",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-pool",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-pool.json"
+    },
+    {
+      "id": "cp1-danmaku",
+      "description": "CP1 danmaku 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "danmaku",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-danmaku",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-danmaku.json"
+    },
+    {
       "id": "gap-screen",
       "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",

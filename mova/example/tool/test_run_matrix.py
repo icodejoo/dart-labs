@@ -626,5 +626,43 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(driver.results['cleanup']['kind'],'HARNESS')
 
 
+class Cp1Tests(unittest.TestCase):
+    def test_cp1_checks_require_every_variant_and_do_not_hide_failures(self):
+        from coverage_cp1 import validate_checks
+        rows=[dict(id=f'CP1.edgepause.{v}.0',status='PASS',numbers=dict(pendingAtPause=True,phase='off',pauseUs=1,atPause={},nativeSamples=[{'pause':'yes'}],after={},bufferEvents=[])) for v in ('pause','fallback')]
+        self.assertEqual(validate_checks('edgepause',1,rows),[])
+        self.assertTrue(validate_checks('edgepause',1,rows[:1]))
+        self.assertTrue(validate_checks('edgepause',1,rows+rows[:1]))
+        rows[0]['status']='BLOCKED'
+        self.assertTrue(validate_checks('edgepause',1,rows))
+        rows[0]['status']='FAIL'
+        self.assertEqual(validate_checks('edgepause',1,rows),[]) # product FAIL remains a verdict, not missing data
+        result=dict(run_id='unit',group='edgepause',harness=[],missing=[],records=[dict(kind='CHECK',**r) for r in rows],
+                    completed=True,verdicts=[dict(case=r['id'],status=r['status']) for r in rows])
+        self.assertEqual(matrix.cp1_result_kind(result,'unit','edgepause',1,1),'FAIL')
+        rows[0]['numbers']={}
+        self.assertTrue(validate_checks('edgepause',1,rows))
+
+    def test_cp1_system_parser_requires_unambiguous_native_evidence(self):
+        from cp1_sources import parse_system, parse_pss
+        window='mRotation=ROTATION_0\nInsetsSource type=statusBars visible=true\nInsetsSource type=navigationBars visible=true'
+        self.assertTrue(parse_system('123','mScreenBrightnessSetting=0.5\nmScreenBrightnessOverrideFromWindowManager=NaN',window)['parsed'])
+        self.assertFalse(parse_system('123','mScreenBrightnessSetting=0.5\nmScreenBrightnessOverrideFromWindowManager=NaN',window+'\nmRotation=ROTATION_90')['parsed'])
+        self.assertFalse(parse_system('123','OEM unsupported',window)['parsed'])
+        self.assertFalse(parse_system('123','mScreenBrightnessSetting=0.5\nmScreenBrightnessOverrideFromWindowManager=NaN','rotation=0')['parsed'])
+        self.assertEqual(parse_pss('  TOTAL PSS: 12345  TOTAL RSS: 54321'),12345)
+        self.assertIsNone(parse_pss('unsupported OEM meminfo'))
+
+    def test_cp1_manifest_isolated_registration(self):
+        manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+        selected=matrix.select_batches(manifest,'cp1-wakeswap,cp1-pool')
+        self.assertEqual([b['id'] for b in selected],['cp1-wakeswap','cp1-pool'])
+        for b in selected:
+            self.assertTrue(b['native_driver'] and b['cp1_driver'])
+            self.assertEqual(b['covers'],[])
+            self.assertEqual(b['argv'][1],'{tool}/coverage_cp1.py')
+            self.assertTrue(b['result_path'].endswith(b['id']+'.json'))
+
+
 if __name__=='__main__':
     unittest.main()

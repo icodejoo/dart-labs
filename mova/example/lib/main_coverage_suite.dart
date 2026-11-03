@@ -1,3 +1,11 @@
+import 'main_cp1_wakeswap_verify.dart' as cp1_wakeswap;
+import 'main_cp1_edgepause_verify.dart' as cp1_edgepause;
+import 'main_cp1_errclass_verify.dart' as cp1_errclass;
+import 'main_cp1_probe_verify.dart' as cp1_probe;
+import 'main_cp1_manageauto_verify.dart' as cp1_manageauto;
+import 'main_cp1_bblock_verify.dart' as cp1_bblock;
+import 'main_cp1_pool_verify.dart' as cp1_pool;
+import 'main_cp1_danmaku_verify.dart' as cp1_danmaku;
 import 'main_cp0_p02_verify.dart' as cp0_p02;
 import 'main_cp0_pod2_verify.dart' as cp0_pod2;
 import 'main_cp0_bgpause_verify.dart' as cp0_bgpause;
@@ -40,6 +48,15 @@ Future<void> main() async {
   kit.coverageRunsOverride = parts.length > 2 ? int.parse(parts[2]) : 5;
   MovaEngine.ensureInitialized();
   switch (parts.first) {
+    case 'cp1-wakeswap': cp1_wakeswap.main();
+    case 'cp1-edgepause': cp1_edgepause.main();
+    case 'cp1-errclass': cp1_errclass.main();
+    case 'cp1-probe': cp1_probe.main();
+    case 'cp1-manageauto': cp1_manageauto.main();
+    case 'cp1-bblock': cp1_bblock.main();
+    case 'cp1-pool': cp1_pool.main();
+    case 'cp1-danmaku': cp1_danmaku.main();
+
     case 'cp0-p02': cp0_p02.main();
     case 'cp0-pod2': cp0_pod2.main();
     case 'cp0-bgpause': cp0_bgpause.main();
