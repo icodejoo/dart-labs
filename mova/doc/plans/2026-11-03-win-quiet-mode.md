@@ -82,3 +82,28 @@ V10在系统前台采样全部为false时，HE日志仍记录LIFECYCLE resumed�
 - 本次仅重建Windows Release（复用main_win_retest.dart的已有Dart release产物，CMake的Flutter assemble也完成）；构建/安装均落本树example下，不更改核心库或根test目录。
 
 最后离线复核：run_matrix.py --check PASS；test_win_policy.py 11/11；test_run_matrix.py 31/31。构建退出0。真机集成失败如上，未抹去失败记录。
+
+# Windows 安静模式与三次原生采样记录
+
+2026-11-03，本人执行；应用启动均经 `example/tool/win_policy.py` 的 window 模式。后台小窗 640×360，NOACTIVATE + TOOLWINDOW；每 100ms 只读采样前台 PID 与窗口几何/样式，不注入输入，不作焦点恢复。
+
+证据：`example/tool/coverage_evidence/win-cp1-close-2043/result.json`，逐启动 `*.quiet.jsonl`、逐项 JSON/HE 原始日志；本次 7 次有效应用启动，12 个用例尝试，四项均恰好 3 次，无补跑。安静策略观察样本共 965，前台违规 0，几何/样式违规 0。每项均取得真实原生播放/回调证据，未以仅启动窗口当通过。
+
+|项|三次结果|原始下标|
+|---|---|---|
+|F3|3/3 PASS|[[241], [474], [717]]|
+|dispose|3/3 PASS|[[722, 724, 727, 729], [734, 736, 739, 741], [746, 748, 751, 753]]|
+|HE V6|3/3 PASS|[[5], [5], [5]]|
+|HE V10|3/3 PASS|[[10], [10], [10]]|
+
+F3 为 normal/paused/cutover 各1次；JSON rows 的 HLS_RESULT 是原生 RESTART、地址、暂停状态和推进读回，不是钟表估计。dispose 每次含普通引擎/代理各两次销毁，共12次 dispose 调用，无异常。HE V6 三次续播误差 0ms，stallTimeout 偏移见日志；V10 三次真实 route cover/pop 与 TickerMode off/on 均通过、0崩溃。
+
+CP0 Windows 四组仍 PENDING（`2026-11-03-cp0-baseline.md`）；F3/dispose/V6 本轮功能PASS，但“不劣于CP0”保持BLOCKED。V10以本轮3次0崩溃和功能判据PASS，不声称满足原总计划20次；本次用户明确将次数上限设为3。
+
+构建与静态检查：win_focus_gate PASS；test_win_policy 11 PASS；run_matrix --check PASS（64 batches / 135 IDs / 6 manual，无设备操作）。本项 Flutter test 0（工具/原生验证，没有 Dart 产品改动）。构建后 install_manifest 全部路径位于本 worktree，记录在 `install-manifest.json`。
+
+## 构建阻塞和越界写入
+
+初次CMake 4拒绝googletest旧策略，第二次VS 2026拒绝旧音频插件实验协程头；均未启动测试应用。只在生成cache补兼容策略和弃用确认宏。前两次配置失败留下Program Files默认安装前缀，随后首次成功构建误覆盖既有 `C:\Program Files\mova_example`；本树因缺配套DLL启动失败（PID6796，exit=3221225781），未发出测试命令、无窗口/用例样本。保留 `win-cp1-close-2039/result.json`，不混入12条有效用例。
+
+该目录早于本任务存在，无覆盖前备份，无法安全恢复，未删除既有目录；已向用户明确说明此执行偏差。证据 `example/tool/coverage_evidence/win-cp1-close-2039/external-install-incident.json` 保留28条安装清单。随后构建固定本树prefix，构建前检查prefix、构建后检查完整安装清单；后续未再写到外部安装目录。

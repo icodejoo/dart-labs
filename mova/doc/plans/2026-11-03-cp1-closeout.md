@@ -82,3 +82,9 @@ keepAlive 最终复核：当前 `cp1-close-keepalive-2002` 五轮各 24/24 组�
 原始 root-relative 对照 `cp1-close-edgepause-relative-2023`（最终当前 APK、产品 lib 未改）：pause 10/10、fallback 10/10 PASS，run_matrix=0，harness=[]；CHECK records[273, 497, 724, 932, 1143, 1355, 1565, 1759, 1966, 2158, 2347, 2537, 2725, 2910, 3099, 3282, 3472, 3655, 3838, 4018]。证据 `example/tool/coverage_evidence/matrix-cp1-close-edgepause-relative-2023/matrix-cp1-close-edgepause-relative-2023-cp1-edgepause.json`，旁边 `.requests.json` 保留实际相对 URI 正文、分片存在性/字节数及响应状态。本轮未复现旧协议错误，因此无法据绝对 URI 修正断定旧问题是夹具缺陷；原 `matrix-cp1-edgepause-20261103-1542` records[1256,1258,1281] 的无协议报错和 records[1539,1540] 的超时仍未完成服务/原生责任归因。最终功能采样两套 URI 共 40 PASS，但该历史归因独立保持 BLOCKED，CP1 总表不以功能 PASS 覆盖此阻塞。
 
 本项最终 Flutter 恢复就绪/探测回归实测 23 PASS，日志 `example/tool/coverage_evidence/cp1-close-blocked-flutter-tests.log`；无 lib 修复，产品红绿数 0。协议输出 2 红→2 绿属于夹具契约回归，不是产品根因证明。
+
+## 5. Windows 安静模式与三次采样
+
+四项原生功能各3/3 PASS：F3三模式各1、dispose三轮（普通/代理各两次，共12调用）、V6三轮（误差均0ms）、V10三轮（route/TickerMode、0崩溃）。证据 `example/tool/coverage_evidence/win-cp1-close-2043/result.json`；7次有效启动全部经win_policy、640×360、NOACTIVATE/TOOLWINDOW，逐100ms观察前台违规0。完整安静记录 `2026-11-03-win-quiet-mode.md`。CP0 Windows缺数字基线，F3/dispose/V6比较仍BLOCKED；V10绝对功能线PASS。
+
+本项 Flutter test 0；Python策略11 PASS、静态焦点闸门PASS、matrix --check PASS。构建先遇CMake/VS兼容问题，只改生成cache。首次成功构建因缓存默认prefix误写既有Program Files目录，且本树启动缺DLL失败；无用例样本。无旧备份不能安全回滚外部覆盖，已明确向用户报告，清单保留。现构建前prefix及构建后完整安装路径双重检查，随后构建/采样均限定本树。详见安静记录和 external-install-incident.json，不声称所有写入均符合原范围约束。
