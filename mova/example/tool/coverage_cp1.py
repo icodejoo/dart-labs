@@ -25,7 +25,7 @@ PKG='com.icodejoo.mova.mova_example.coverage'
 ACTIVITY=PKG+'/com.icodejoo.mova.mova_example.MainActivity'
 sys.path.insert(0,str(TOOL/'verify_sources'))
 from range_server import Handler as RangeHandler
-SCENES=('wakeswap','edgepause','errclass','probe','manageauto','bblock','pool','danmaku')
+SCENES=('wakeswap','edgepause','errclass','probe','manageauto','bblock','pool','danmaku','recovery','dispose120')
 from cp1_sources import Fixtures, parse_system, parse_pss
 
 
@@ -33,7 +33,7 @@ def validate_checks(scene, runs, checks):
     variants={'wakeswap':['swap'],'edgepause':['pause','fallback'],
       'errclass':['nonfatal','fatal','poster'],'probe':['list','manual','once','failover','disabled'],
       'manageauto':['managed','default','disabled','lease'],'bblock':['restore','preview'],
-      'pool':['reject','throw','feed'],'danmaku':['jump']}[scene]
+      'pool':['reject','throw','feed'],'danmaku':['jump'],'recovery':['resume','manual720'],'dispose120':['round','summary']}[scene]
     fields={
       'wakeswap':{'swap':['wakeUs','openUs','deltaUs','holdingPhase','held','expectedPath','frames','nativeSamples','renderEpoch']},
       'edgepause':{v:['pendingAtPause','phase','pauseUs','atPause','nativeSamples','after','bufferEvents'] for v in ('pause','fallback')},
@@ -45,10 +45,12 @@ def validate_checks(scene, runs, checks):
       'pool':{'reject':['before','after','expectedPath','hiddenOnReject','threw','ready'],'throw':['before','after','expectedPath','hiddenOnReject','threw','ready'],
               'feed':['items','maxCache','cacheBound','samples','pssSlopeKbPer100Items','strictlyIncreasing','slopeCriterion']},
       'danmaku':{'jump':['items','frameTimings','frameCount','criterion']}}
+    fields['recovery']={v:['failures','recovered','retryCount','before','after','resumePositionDiffMs','currentQuality','fixture','seeked'] for v in variants}
+    fields['dispose120']={'round':['round','firstFrames','disposeUs','frameIntervalsUs','maxFrameIntervalUs','disposed'], 'summary':['rounds','successful','failedRounds','pssSamples']}
     fields['manageauto']['lease']=['beforeBuffering','bufferEvents','downShiftCount','quality','native']
     missing=[]
     for variant in variants:
-        count=3 if scene=='pool' and variant=='feed' else 5 if scene=='probe' and variant in ('failover','disabled') else runs
+        count=1 if scene=='dispose120' and variant=='summary' else 3 if scene=='pool' and variant=='feed' else 5 if scene=='probe' and variant in ('failover','disabled') else runs
         for run in range(count):
             ident=f'CP1.{scene}.{variant}.{run}'
             rows=[c for c in checks if c.get('id')==ident]
@@ -56,6 +58,13 @@ def validate_checks(scene, runs, checks):
             numbers=rows[0].get('numbers')
             if not isinstance(numbers,dict) or set(fields[scene][variant])-numbers.keys():
                 missing.append(f'{ident}: incomplete numbers schema')
+            if scene=='dispose120' and variant=='summary' and isinstance(numbers,dict):
+                rounds=numbers.get('rounds',[])
+                samples=numbers.get('pssSamples',[])
+                if len(rounds)!=120 or [r.get('round') for r in rounds]!=list(range(1,121)):
+                    missing.append(f'{ident}: missing 120 ordered rounds')
+                if [r.get('round') for r in samples]!=[20,40,60,80,100,120] or any(not isinstance(r.get('pssKb'),int) for r in samples):
+                    missing.append(f'{ident}: incomplete PSS sampling')
             if rows[0].get('status') not in ('PASS','FAIL') or not numbers:
                 missing.append(f'{ident}: missing evidence')
     return missing
@@ -143,16 +152,16 @@ def main():
         for height,width,bitrate in [(1080,1920,'3000k'),(720,1280,'1500k'),(360,640,'400k')]:
             tier=hls/str(height);tier.mkdir(exist_ok=True)
             stream=(out/(stem+f'.hls{height}.log')).open('w')
-            child=subprocess.Popen(['ffmpeg','-v','error','-re','-stream_loop','-1','-i',str(fixtures/'a.mp4'),
+            child=subprocess.Popen(['ffmpeg','-v','error',*(['-y'] if args.scene=='recovery' else ['-re','-stream_loop','-1']),'-i',str(fixtures/'a.mp4'),
               '-vf',f'scale={width}:{height}','-c:v','libx264','-preset','ultrafast','-b:v',bitrate,
               '-minrate',bitrate,'-maxrate',bitrate,'-bufsize',bitrate,'-threads','1','-g','50','-sc_threshold','0',
-              '-c:a','aac','-f','hls','-hls_time','2','-hls_list_size','6','-hls_flags','delete_segments+omit_endlist',str(tier/'index.m3u8')],
+              '-c:a','aac','-f','hls','-hls_time','2','-hls_list_size',('0' if args.scene=='recovery' else '6'),'-hls_flags',('independent_segments' if args.scene=='recovery' else 'delete_segments+omit_endlist'),str(tier/'index.m3u8')],
               stdout=stream,stderr=subprocess.STDOUT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             children.append((child,stream))
         fixture=Fixtures(hls)
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18194),fixture.handler()))
-        end=time.monotonic()+90
-        while any(len(list((hls/str(h)).glob('*.ts')))<6 for h in (1080,720,360)):
+        end=time.monotonic()+(600 if args.scene=='recovery' else 90)
+        while (any(child.poll() is None for child,_ in children) if args.scene=='recovery' else any(len(list((hls/str(h)).glob('*.ts')))<6 for h in (1080,720,360))):
             if time.monotonic()>end:raise RuntimeError('CP1 three tier HLS unavailable')
             time.sleep(.25)
         unlocked();adb('shell','am','force-stop',PKG);adb('logcat','-c');adb('shell','am','start','-n',ACTIVITY)

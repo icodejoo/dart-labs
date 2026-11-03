@@ -30,12 +30,13 @@ class Fixtures:
         self.requests = []
         self.bps = 0
         self.fail_primary = False
+        self.segment_entered = False
 
     def stats(self):
         with self.lock:
             return dict(reopenEntered=self.reopen_entered, swapEntered=self.swap_entered, probeEntered=self.probe_entered,
                         hangingBody=self.hanging_body, gateReleased=self.gate.is_set(), probes=dict(self.probes),
-                        requests=list(self.requests), bytesPerSecond=self.bps)
+                        requests=list(self.requests), bytesPerSecond=self.bps, segmentEntered=self.segment_entered)
 
     def handler(self):
         fixture = self
@@ -70,6 +71,10 @@ class Fixtures:
                 if not probe and path == '/new.m3u8' and fixture.kind == 'swap':
                     fixture.swap_entered = True
                     fixture.gate.wait(60)
+                if path.endswith('.ts') and fixture.kind == 'recovery' and not fixture.gate.is_set():
+                    fixture.segment_entered = True
+                    # Real response hangs until the page observes a recovery event.
+                    fixture.gate.wait(120)
                 if path == '/hang.vtt':
                     self.send_response(404)
                     self.send_header('Content-Length', '1000000')

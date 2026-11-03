@@ -12,6 +12,9 @@ import 'verify_auto/cp1_bblock_auto.dart';
 import 'verify_auto/cp1_pool_auto.dart';
 import 'verify_auto/cp1_danmaku_auto.dart';
 
+import 'verify_auto/cp1_recovery_auto.dart';
+import 'verify_auto/cp1_dispose120_auto.dart';
+
 /// Small release dispatcher used only when running CP1 batches in isolation.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +37,8 @@ Future<void> main() async {
       'bblock': runBblock,
       'pool': runPool,
       'danmaku': runDanmaku,
+      'recovery': runRecovery,
+      'dispose120': runDispose120,
     };
     cp1Main(scene, scripts[scene]!, automatic: true);
   } finally {

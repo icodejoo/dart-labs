@@ -1912,6 +1912,60 @@
       "result_path": "{evidence}/{prefix}cp1-danmaku.json"
     },
     {
+      "id": "cp1-recovery",
+      "description": "CP1 recovery 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "recovery",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-recovery",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-recovery.json"
+    },
+    {
+      "id": "cp1-dispose120",
+      "description": "CP1 dispose120 独立验证（未上机）",
+      "why": "统一编排 §4 CP1；缺原生证据 BLOCKED；不比较 CP0",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp1.py",
+        "dispose120",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "120",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp1-dispose120",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp1_driver": true,
+      "result_path": "{evidence}/{prefix}cp1-dispose120.json"
+    },
+    {
       "id": "gap-screen",
       "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
