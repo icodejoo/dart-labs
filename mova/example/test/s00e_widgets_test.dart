@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
@@ -56,6 +57,14 @@ void main() {
           await mount(t, a, MovaGestureLayerComponent());
           final before = [a.state.volume, a.state.brightness, k.calls.where((v) => v == 'seek').length];
           final center = t.getCenter(find.byType(MovaScope));
+          await t.tapAt(center); await t.pump(const Duration(milliseconds: 60)); await t.tapAt(center); await d.drain(t);
+          d.measured('U6.disabled.double.${action.name}.$live.$allowed', k.calls.where((v) => v == 'seek').length, before[2]);
+          final zoomBefore = a.state.zoom;
+          final p1 = await t.startGesture(center - const Offset(20, 0), pointer: 10);
+          final p2 = await t.startGesture(center + const Offset(20, 0), pointer: 11);
+          await p1.moveBy(const Offset(-60, 0)); await p2.moveBy(const Offset(60, 0)); await t.pump();
+          await p1.up(); await p2.up(); await d.drain(t);
+          d.measured('U6.disabled.pinch.${action.name}.$live.$allowed', a.state.zoom, zoomBefore);
           final pointer = await t.startGesture(center - const Offset(100, 0));
           await pointer.moveBy(const Offset(30, 0)); await t.pump();
           await pointer.moveBy(const Offset(70, 0)); await t.pump();
@@ -130,6 +139,13 @@ void main() {
     d.measured('U7.subtitle.cue', texts(t), ['S00E 字幕']);
     k.emitPosition(const Duration(seconds: 5)); await d.drain(t, 250);
     d.measured('U7.subtitle.expired', texts(t), <String>[]);
+    await mount(t, a, MovaSubtitleButtonComponent());
+    await t.tap(find.byIcon(Icons.subtitles_off_rounded)); await t.pumpAndSettle();
+    await t.tap(find.text('zh')); await t.pumpAndSettle();
+    d.measured('U7.subtitle.start', [a.stt.isRunning, find.byIcon(Icons.subtitles_rounded).evaluate().length], [true, 1]);
+    await t.tap(find.byIcon(Icons.subtitles_rounded)); await t.pumpAndSettle();
+    await t.tap(find.text(a.options.strings.subtitleOff)); await t.pumpAndSettle();
+    d.measured('U7.subtitle.stop', [a.stt.isRunning, find.byIcon(Icons.subtitles_off_rounded).evaluate().length], [false, 1]);
     await d.unmount(t); await d.dispose(t, a);
   });
 
@@ -213,6 +229,48 @@ void main() {
     expect(disposed, true);
   });
 
+  testWidgets('preview decodes real PNG bytes into RenderImage', (t) async {
+    final cache = MovaMemoryThumbCache();
+    // Existing 1x1 transparent PNG fixture, decoded by Flutter's real codec.
+    final bytes = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==');
+    await cache.write('s00e', bytes);
+    final a = await d.make(t, options: MovaOpts(preview: MovaPreviewConfig(cache: cache,
+      cacheKeyBuilder: (_, _, _) => 's00e', sources: const [], debounce: Duration.zero)));
+    await a.open(const MovaSource('s00e://real-preview'));
+    await mount(t, a, MovaPreviewComponent());
+    a.setDragging(true, previewAt: const Duration(seconds: 25)); await d.drain(t);
+    await t.runAsync(() async {
+      final image = t.widget<Image>(find.byType(Image));
+      await precacheImage(image.image, t.element(find.byType(Image)));
+    });
+    await d.drain(t);
+    final raw = t.widget<RawImage>(find.byType(RawImage));
+    d.measured('U4.preview.image', [raw.image?.width, raw.image?.height,
+      find.text('00:25').evaluate().length, t.getSize(find.byType(Image)).width], [1, 1, 1, 160.0]);
+    a.setDragging(false); await d.drain(t);
+    d.measured('U4.preview.imageReleased', find.byType(RawImage).evaluate().length, 0);
+    await d.unmount(t); await d.dispose(t, a);
+  });
+
+  testWidgets('DVR gestures obey allowWhenLive across seek axes and double tap', (t) async {
+    for (final allowed in [false, true]) {
+      final a = await d.make(t, options: MovaOpts(live: const MovaLiveConfig(
+        seekMode: MovaLiveSeekMode.dvr, dvrWindow: Duration(seconds: 300)),
+        gesture: MovaGestureConfig(allowWhenLive: allowed)));
+      final k = MovaTesting.lastKernel!;
+      await a.open(const MovaSource('s00e://dvr', type: MovaStreamType.live));
+      k.emitDuration(const Duration(seconds: 300)); k.emitPosition(const Duration(seconds: 100));
+      await mount(t, a, MovaGestureLayerComponent());
+      final center = t.getCenter(find.byType(MovaScope));
+      await t.tapAt(center + const Offset(100, 0)); await t.pump(const Duration(milliseconds: 60));
+      await t.tapAt(center + const Offset(100, 0)); await d.drain(t);
+      final doubled = k.calls.where((v) => v == 'seek').length;
+      await t.dragFrom(center - const Offset(100, 0), const Offset(100, 0)); await d.drain(t);
+      d.measured('U6.dvr.$allowed', [doubled, k.calls.where((v) => v == 'seek').length], allowed ? [1, 2] : [0, 0]);
+      await d.unmount(t); await d.dispose(t, a); await t.pump(const Duration(seconds: 1));
+    }
+  });
+
   testWidgets('guard combines route ticker inactive intent and PiP/mini exemptions', (t) async {
     for (final exemption in ['none', 'pip', 'mini']) {
       final a = await d.make(t, pip: d.SupportedPip()); final k = MovaTesting.lastKernel!;
@@ -238,9 +296,9 @@ void main() {
       k.calls.clear(); k.emitPlaying(true); await d.drain(t);
       nav.currentState!.push(PageRouteBuilder<void>(opaque: false,
         pageBuilder: (_, _, _) => const SizedBox.expand()));
-      await d.drain(t, 400);
+      await t.pumpAndSettle();
       final covered = List<String>.of(k.calls);
-      nav.currentState!.pop(); await d.drain(t, 400);
+      nav.currentState!.pop(); await t.pumpAndSettle();
       d.measured('U9.route.$exemption', [covered.where((v) => v == 'pause').length,
         k.calls.where((v) => v == 'play').length], exemption == 'none' ? [1, 1] : [0, 0],
         numbers: {'reasons': List.of(reasons)});

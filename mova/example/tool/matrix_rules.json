@@ -3058,11 +3058,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "C3.coverage1",
-        "missing": "手势双指捏合/单击/锁定/轴重映射完整 CHECK（长按倍速已非契约）"
-      },
-      {
-        "kind": "check",
         "ident": "C3.left.false",
         "assertions": [
           {
@@ -3788,6 +3783,556 @@
           }
         ],
         "minimum": 1
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.dvr.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.dvr.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              1,
+              2
+            ]
+          }
+        ]
       }
     ]
   },
@@ -8020,11 +8565,6 @@
     "requires": [
       {
         "kind": "check",
-        "ident": "U4.coverage1",
-        "missing": "VOD/直播底栏、seek 提交/禁用/节流/预览气泡 CHECK"
-      },
-      {
-        "kind": "check",
         "ident": "U4.disabled",
         "assertions": [
           {
@@ -8263,6 +8803,43 @@
             ]
           }
         ]
+      },
+      {
+        "kind": "check",
+        "ident": "U4.preview.image",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              1,
+              1,
+              1,
+              160.0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U4.preview.imageReleased",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
       }
     ]
   },
@@ -8425,11 +9002,6 @@
   "U6": {
     "matrix": "doc/ACCEPTANCE-MATRIX.md §3 / U6",
     "requires": [
-      {
-        "kind": "check",
-        "ident": "U6.coverage1",
-        "missing": "所有手势含双指捏合/锁定/轴重映射 CHECK"
-      },
       {
         "kind": "check",
         "ident": "C3.left.false",
@@ -9157,6 +9729,556 @@
           }
         ],
         "minimum": 1
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.none.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.none.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.volume.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.volume.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.brightness.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.brightness.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.false.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.false.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.true.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.double.seek.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.disabled.pinch.seek.true.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": 1.0
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.dvr.false",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U6.dvr.true",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              1,
+              2
+            ]
+          }
+        ]
       }
     ]
   },
@@ -9436,6 +10558,44 @@
             "value": [
               1,
               "s00d://two"
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U7.subtitle.start",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              true,
+              1
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "check",
+        "ident": "U7.subtitle.stop",
+        "assertions": [
+          {
+            "field": "actual",
+            "op": "eq",
+            "other": "expected"
+          },
+          {
+            "field": "expected",
+            "op": "eq",
+            "value": [
+              false,
+              1
             ]
           }
         ]
