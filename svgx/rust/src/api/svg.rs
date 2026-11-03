@@ -276,7 +276,11 @@ impl SvgEffects {
         mask: Option<SvgMask>,
         blur: Option<SvgBlur>,
     ) -> Option<Self> {
-        if fill_pattern.is_none() && stroke_pattern.is_none() && clips.is_empty() && mask.is_none() && blur.is_none()
+        if fill_pattern.is_none()
+            && stroke_pattern.is_none()
+            && clips.is_empty()
+            && mask.is_none()
+            && blur.is_none()
         {
             return None;
         }
@@ -394,12 +398,286 @@ pub struct SvgGradient {
 /// ```
 #[flutter_rust_bridge::frb(sync)]
 pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
-    let data = match current_color {
-        Some(argb) => inject_current_color(data, argb),
-        None => data,
-    };
-    let tree = usvg::Tree::from_str(&data, usvg_options()).map_err(|e| e.to_string())?;
-    Ok(scene_from_tree(&tree))
+    const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
+    if data.len() > MAX_INPUT_BYTES {
+        return Err("SVG input exceeds the 32 MiB limit".into());
+    }
+    check_xml_depth(&data)?;
+    let doc = parse_xml(&data)?;
+    limit_source_depth(&doc)?;
+    let injected = current_color.and_then(|argb| current_color_insertion(&data, &doc, argb));
+    let tree = if let Some(injected) = injected {
+        // 带 currentColor 需两遍,已知开销（额外 XML 文档分配）。
+        // Keep roxmltree's validated root/attribute lookup: replacing it with
+        // a partial scanner risks changing DTD, namespace and duplicate-color
+        // handling. Reuse the validation document when no injection is needed.
+        let colored_doc = parse_xml(&injected)?;
+        usvg::Tree::from_xmltree(&colored_doc, usvg_options())
+    } else {
+        usvg::Tree::from_xmltree(&doc, usvg_options())
+    }
+    .map_err(|e| e.to_string())?;
+    try_scene_from_tree(&tree)
+}
+
+// Bound recursion BEFORE usvg constructs its recursive tree (including Drop).
+// Scan iteratively first: roxmltree 0.20 overflowed at 5000 nested groups.
+// Leave XML validation and reference lookup to roxmltree.
+// Estimate against a 1 MiB thread stack: usvg release conversion overflows
+// around 200–230 nested groups. 128 leaves headroom (debug uses larger frames).
+const MAX_DEPTH: usize = 128;
+const DEPTH_ERROR: &str = "SVG nesting exceeds the 128 layer limit";
+// Reference expansion consumes more stack per level than source nesting;
+// patterns can overflow near 100 levels on 1 MiB, so cap acyclic chains at 64.
+const MAX_REFERENCE_DEPTH: usize = 64;
+// Encoded image bytes beyond this cumulative output budget are silently
+// skipped (Ok(None)), rather than making the entire SVG return Err.
+const MAX_IMAGE_BYTES: usize = 64 * 1024 * 1024;
+
+// This only bounds nesting; roxmltree remains responsible for XML validity.
+fn check_xml_depth(data: &str) -> Result<(), String> {
+    let bytes = data.as_bytes();
+    let (mut i, mut depth) = (0, 0usize);
+    while i < bytes.len() {
+        if bytes[i] != b'<' {
+            i += 1;
+            continue;
+        }
+        let tail = &data[i..];
+        let special = if tail.starts_with("<!--") {
+            Some((4, "-->"))
+        } else if tail.starts_with("<![CDATA[") {
+            Some((9, "]]>"))
+        } else if tail.starts_with("<?") {
+            Some((2, "?>"))
+        } else {
+            None
+        };
+        if let Some((prefix, end)) = special {
+            i += prefix
+                + tail[prefix..]
+                    .find(end)
+                    .ok_or("Unterminated XML declaration/comment/CDATA")?
+                + end.len();
+            continue;
+        }
+        let declaration = tail.starts_with("<!");
+        let mut entity = tail.starts_with("<!ENTITY");
+        let closing = tail.starts_with("</");
+        let (mut quote, mut subset) = (0u8, 0usize);
+        let mut j = i + 1;
+        while j < bytes.len() {
+            let c = bytes[j];
+            if quote != 0 {
+                // roxmltree recursively parses entity replacement markup and
+                // overflows at 5000 groups before usvg is reached. Text-only
+                // entities remain supported; reject markup before XML parsing.
+                if entity && c == b'<' {
+                    return Err("SVG entities containing markup are unsupported".into());
+                }
+                if c == quote {
+                    quote = 0;
+                }
+            } else if c == b'\'' || c == b'"' {
+                quote = c;
+            } else if declaration && bytes[j..].starts_with(b"<!--") {
+                j += 4
+                    + data[j + 4..]
+                        .find("-->")
+                        .ok_or("Unterminated DTD comment")?
+                    + 3;
+                continue;
+            } else if declaration && bytes[j..].starts_with(b"<?") {
+                j += 2 + data[j + 2..].find("?>").ok_or("Unterminated DTD PI")? + 2;
+                continue;
+            } else if declaration && bytes[j..].starts_with(b"<!ENTITY") {
+                entity = true;
+            } else if declaration && c == b'>' && subset != 0 {
+                entity = false;
+            } else if declaration && c == b'[' {
+                subset += 1;
+            } else if declaration && c == b']' {
+                subset = subset.saturating_sub(1);
+            } else if c == b'>' && subset == 0 {
+                break;
+            }
+            j += 1;
+        }
+        if j == bytes.len() {
+            return Err("Unterminated XML tag".into());
+        }
+        if !declaration {
+            if closing {
+                depth = depth.saturating_sub(1);
+            } else if bytes[j - 1] != b'/' {
+                depth += 1;
+                if depth > MAX_DEPTH {
+                    return Err(DEPTH_ERROR.into());
+                }
+            }
+        }
+        i = j + 1;
+    }
+    Ok(())
+}
+
+fn parse_xml(data: &str) -> Result<usvg::roxmltree::Document<'_>, String> {
+    usvg::roxmltree::Document::parse_with_options(
+        data,
+        usvg::roxmltree::ParsingOptions {
+            allow_dtd: true,
+            ..Default::default()
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn limit_source_depth(doc: &usvg::roxmltree::Document<'_>) -> Result<(), String> {
+    let mut references = false;
+    // roxmltree descendants/ancestors iterators do not recurse or allocate.
+    // Check the expanded tree too, including entity replacements.
+    for n in doc.descendants().filter(|n| n.is_element()) {
+        if n.ancestors().skip(1).filter(|n| n.is_element()).count() > MAX_DEPTH {
+            return Err(DEPTH_ERROR.into());
+        }
+        references |= n.attributes().any(|a| a.value().contains("url("));
+    }
+    if !references {
+        return Ok(());
+    }
+
+    let nodes: Vec<_> = doc.descendants().filter(|n| n.is_element()).collect();
+    let indices: std::collections::HashMap<_, _> =
+        nodes.iter().enumerate().map(|(i, n)| (n.id(), i)).collect();
+    let ids: std::collections::HashMap<_, _> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, n)| n.attribute("id").map(|id| (id, i)))
+        .collect();
+    let mut edges = vec![Vec::new(); nodes.len()];
+    let mut reverse = vec![Vec::new(); nodes.len()];
+    for (i, n) in nodes.iter().enumerate() {
+        // Structural edges cost zero; they connect references declared on
+        // resource children to that resource's expansion chain.
+        for child in n.children().filter(|n| n.is_element()) {
+            edges[i].push((indices[&child.id()], 0usize));
+        }
+        const RESOURCE_PROPERTIES: [&str; 5] = ["clip-path", "mask", "fill", "stroke", "filter"];
+        let inline = n
+            .attribute("style")
+            .unwrap_or("")
+            .split(';')
+            .filter_map(|decl| {
+                let (name, value) = decl.split_once(':')?;
+                RESOURCE_PROPERTIES
+                    .iter()
+                    .any(|p| name.trim().eq_ignore_ascii_case(p))
+                    .then_some(value.trim())
+            });
+        for value in RESOURCE_PROPERTIES
+            .iter()
+            .filter_map(|name| n.attribute(*name))
+            .chain(inline)
+        {
+            // simplecss accepts !important in inline declarations. Count that
+            // reference too; conservative duplicate edges do not affect depth.
+            let value = match value.rsplit_once('!') {
+                Some((value, suffix)) if suffix.trim().eq_ignore_ascii_case("important") => {
+                    value.trim()
+                }
+                _ => value,
+            };
+            if let Ok(id) = svgtypes::FuncIRI::from_str(value) {
+                if let Some(&target) = ids.get(id.0) {
+                    edges[i].push((target, 1));
+                }
+            }
+        }
+        for &(target, weight) in &edges[i] {
+            reverse[target].push((i, weight));
+        }
+    }
+
+    // Iterative Kosaraju: visited sets terminate cycles without removing any
+    // attributes. Preserve usvg's one/two-resource cycle semantics, but reject
+    // larger cycles: usvg 0.44 infinitely recurses on three-resource cycles.
+    // Bound acyclic expansion between the remaining collapsed components.
+    let mut visited = vec![false; nodes.len()];
+    let mut order = Vec::with_capacity(nodes.len());
+    let mut stack = Vec::new();
+    for start in 0..nodes.len() {
+        if visited[start] {
+            continue;
+        }
+        visited[start] = true;
+        stack.push((start, 0));
+        while let Some((node, next)) = stack.last_mut() {
+            if *next == edges[*node].len() {
+                order.push(*node);
+                stack.pop();
+            } else {
+                let target = edges[*node][*next].0;
+                *next += 1;
+                if !visited[target] {
+                    visited[target] = true;
+                    stack.push((target, 0));
+                }
+            }
+        }
+    }
+    let mut component = vec![usize::MAX; nodes.len()];
+    let mut pending = Vec::new();
+    let mut count = 0;
+    for &start in order.iter().rev() {
+        if component[start] != usize::MAX {
+            continue;
+        }
+        component[start] = count;
+        pending.push(start);
+        while let Some(node) = pending.pop() {
+            for &(parent, _) in &reverse[node] {
+                if component[parent] == usize::MAX {
+                    component[parent] = count;
+                    pending.push(parent);
+                }
+            }
+        }
+        count += 1;
+    }
+    // Kosaraju numbers components in topological order. Dynamic programming
+    // backwards computes the longest reference chain in linear time.
+    let mut longest = vec![0usize; count];
+    let mut members = vec![Vec::new(); count];
+    for (node, &c) in component.iter().enumerate() {
+        members[c].push(node);
+    }
+    for source in (0..count).rev() {
+        // Structural descendants belong to the SCC too. Count only distinct
+        // targets of internal URL edges, i.e. resources rather than children.
+        let resources = members[source]
+            .iter()
+            .filter(|&&node| {
+                reverse[node]
+                    .iter()
+                    .any(|&(parent, weight)| weight == 1 && component[parent] == source)
+            })
+            .count();
+        if resources >= 3 {
+            return Err("SVG has a reference cycle involving at least 3 resources".into());
+        }
+        for &node in &members[source] {
+            for &(target, weight) in &edges[node] {
+                let target = component[target];
+                if source != target {
+                    longest[source] = longest[source].max(longest[target] + weight);
+                }
+            }
+        }
+        if longest[source] > MAX_REFERENCE_DEPTH {
+            return Err("SVG reference chain exceeds the 64 layer limit".into());
+        }
+    }
+    Ok(())
 }
 
 /// The process-wide `usvg::Options`, built once.
@@ -434,7 +712,29 @@ fn usvg_options() -> &'static usvg::Options<'static> {
         // Keep embedded data URIs; reject paths before any filesystem/UNC access.
         // 保留内嵌 data URI；拒绝所有路径，避免文件系统读取或 UNC 网络访问。
         image_href_resolver: usvg::ImageHrefResolver {
-            resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
+            resolve_data: {
+                let default = usvg::ImageHrefResolver::default_data_resolver();
+                Box::new(move |mime, data, options| {
+                    // SVG images are already omitted by convert_image. Reject
+                    // before usvg recursively parses an unsupported sub-SVG.
+                    if mime == "image/svg+xml" {
+                        return None;
+                    }
+                    // Upstream also tries SVG for unknown text/plain data.
+                    // Only pass raster signatures to that fallback resolver;
+                    // the default still validates/detects the actual format.
+                    if mime == "text/plain"
+                        && !(data.starts_with(b"\x89PNG\r\n\x1a\n")
+                            || data.starts_with(b"\xff\xd8")
+                            || data.starts_with(b"GIF87a")
+                            || data.starts_with(b"GIF89a")
+                            || (data.starts_with(b"RIFF") && data.get(8..12) == Some(b"WEBP")))
+                    {
+                        return None;
+                    }
+                    default(mime, data, options)
+                })
+            },
             resolve_string: Box::new(|_, _| None),
         },
         ..usvg::Options::default()
@@ -452,7 +752,12 @@ fn usvg_options() -> &'static usvg::Options<'static> {
 /// 从 [parse_svg] 拆出来，便于基准 harness 单独给这段转换计时，与 usvg 的 XML
 /// 解析分开——两者成本画像差别很大，而只有这一半是我们能优化的。
 #[flutter_rust_bridge::frb(ignore)]
+#[cfg(test)]
 pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
+    try_scene_from_tree(tree).expect("benchmark fixture exceeds SVG complexity budget")
+}
+
+fn try_scene_from_tree(tree: &usvg::Tree) -> Result<SvgScene, String> {
     let size = tree.size();
     let mut paths = Vec::new();
     let mut images = Vec::new();
@@ -460,14 +765,23 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
     // inherited context from it rather than starting empty.
     // 根 `<svg>` 自身也可能带 clip-path/mask/filter，因此继承上下文从它起算，
     // 而不是从空开始。
+    let mut image_budget = MAX_IMAGE_BYTES;
     let root_ctx = extend_inherited(&Inherited::default(), tree.root()).unwrap_or_default();
-    collect(tree.root(), &root_ctx, &mut paths, &mut images);
-    SvgScene {
+    collect(
+        tree.root(),
+        &root_ctx,
+        &mut paths,
+        &mut images,
+        0,
+        &mut image_budget,
+        &mut ExpansionBudget::default(),
+    )?;
+    Ok(SvgScene {
         width: size.width(),
         height: size.height(),
         paths,
         images,
-    }
+    })
 }
 
 /// Injects a `color="#RRGGBB"` attribute into the root `<svg>` tag, unless it
@@ -485,43 +799,29 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
 ///
 /// 按值接收 [data]，不需要注入的分支原样返回，三个提前返回路径零成本；只有
 /// 真正注入的分支分配，且只分配一次。
+#[cfg(test)]
 fn inject_current_color(data: String, argb: u32) -> String {
-    let Some(tag_start) = data.find("<svg") else {
+    let Ok(doc) = parse_xml(&data) else {
         return data;
     };
-    let insert_at = tag_start + "<svg".len();
-    // Quote-aware scan for the tag's closing '>': a plain `str::find('>')`
-    // stops early at a literal '>' inside a quoted attribute value (e.g.
-    // `data-note="a>b"`), which is legal, unremarkable XML — that would land
-    // `tag_end` mid-attribute and corrupt the tag on injection.
-    //
-    // 带引号感知的标签闭合 `>` 扫描：朴素的 `str::find('>')` 会在带引号的属性
-    // 值内碰到字面 `>`（如 `data-note="a>b"`）就提前停下——这是合法、常见的
-    // XML——导致 `tag_end` 落在属性值中间，注入时把标签弄坏。
-    let bytes = data.as_bytes();
-    let mut i = insert_at;
-    let mut quote: Option<u8> = None;
-    let mut tag_end = None;
-    while i < bytes.len() {
-        let b = bytes[i];
-        match quote {
-            Some(q) if b == q => quote = None,
-            Some(_) => {}
-            None if b == b'"' || b == b'\'' => quote = Some(b),
-            None if b == b'>' => {
-                tag_end = Some(i);
-                break;
-            }
-            None => {}
-        }
-        i += 1;
+    current_color_insertion(&data, &doc, argb).unwrap_or(data)
+}
+
+fn current_color_insertion(
+    data: &str,
+    doc: &usvg::roxmltree::Document<'_>,
+    argb: u32,
+) -> Option<String> {
+    let root = doc.root_element();
+    if root.tag_name().name() != "svg" || root.attribute("color").is_some() {
+        return None;
     }
-    let Some(tag_end) = tag_end else {
-        return data;
+    let start = root.range().start + 1;
+    let Some(len) = data[start..].find(|c: char| c.is_ascii_whitespace() || c == '/' || c == '>')
+    else {
+        return None;
     };
-    if has_attribute(&data[insert_at..tag_end], "color") {
-        return data;
-    }
+    let insert_at = start + len;
     const ATTR: &str = " color=\"#RRGGBB\"";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut out = String::with_capacity(data.len() + ATTR.len());
@@ -533,40 +833,7 @@ fn inject_current_color(data: String, argb: u32) -> String {
     }
     out.push('"');
     out.push_str(&data[insert_at..]);
-    out
-}
-
-/// Whether [tag_tail] (a tag's raw attribute text) declares an attribute
-/// literally named [name] — i.e. [name] appears as its own token immediately
-/// followed by `=`, not as a suffix of a longer name. A plain substring
-/// search on `"color="` would false-positive on `data-color="foo"`.
-///
-/// [tag_tail]（标签的原始属性文本）是否声明了一个字面名为 [name] 的属性——
-/// 即 [name] 作为独立词元出现且紧跟 `=`，而非作为更长属性名的后缀。对
-/// `"color="` 做纯子串搜索会在 `data-color="foo"` 上误判。
-fn has_attribute(tag_tail: &str, name: &str) -> bool {
-    let bytes = tag_tail.as_bytes();
-    let mut search_from = 0;
-    while let Some(rel) = tag_tail[search_from..].find(name) {
-        let start = search_from + rel;
-        let end = start + name.len();
-        let before_ok = start == 0 || !is_attr_name_char(bytes[start - 1]);
-        let after_ok = end < bytes.len() && bytes[end] == b'=';
-        if before_ok && after_ok {
-            return true;
-        }
-        search_from = start + 1;
-        if search_from >= tag_tail.len() {
-            break;
-        }
-    }
-    false
-}
-
-/// Whether [b] can appear inside an XML/HTML attribute name.
-/// [b] 是否可以出现在 XML/HTML 属性名内部。
-fn is_attr_name_char(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b':'
+    Some(out)
 }
 
 /// Group-level state a path inherits from its ancestors: clip regions, the
@@ -588,17 +855,87 @@ struct Inherited {
     blur: Option<SvgBlur>,
 }
 
+// Charge the fully expanded wire geometry before cloning it onto each output.
+// Bound both points (x,y pairs) and paths: tiny paths still have owned buffers.
+const MAX_EXPANSION_POINTS: usize = 4_000_000;
+const MAX_EXPANSION_PATHS: usize = 100_000;
+const EXPANSION_ERROR: &str = "SVG too complex: clip/mask expansion budget exceeded";
+
+#[derive(Default)]
+struct ExpansionBudget {
+    points: usize,
+    paths: usize,
+}
+
+impl ExpansionBudget {
+    fn charge(&mut self, ctx: &Inherited) -> Result<(), String> {
+        let mut points = ctx.clips.iter().map(|c| c.points.len() / 2).sum::<usize>();
+        let mut paths = ctx.clips.len();
+        let mut pending = Vec::new();
+        if let Some(mask) = &ctx.mask {
+            pending.push(mask);
+        }
+        while let Some(mask) = pending.pop() {
+            paths = paths.saturating_add(mask.paths.len());
+            for path in &mask.paths {
+                points = points.saturating_add(path.points.len() / 2);
+                if let Some(e) = &path.effects {
+                    points = points
+                        .saturating_add(e.clips.iter().map(|c| c.points.len() / 2).sum::<usize>());
+                    paths = paths.saturating_add(e.clips.len());
+                    if let Some(m) = &e.mask {
+                        pending.push(m);
+                    }
+                }
+            }
+        }
+        self.points = self.points.saturating_add(points);
+        self.paths = self.paths.saturating_add(paths);
+        if self.points > MAX_EXPANSION_POINTS || self.paths > MAX_EXPANSION_PATHS {
+            return Err(EXPANSION_ERROR.into());
+        }
+        Ok(())
+    }
+}
+
 /// Recursively walks a group, flattening path nodes into [out] while carrying
 /// [ctx] (clip/mask/blur inherited from ancestor groups) down the tree.
 ///
 /// 递归遍历分组，把路径节点扁平化收集进 [out]，同时把 [ctx]（从祖先分组继承的
 /// 裁剪/遮罩/模糊）沿树向下传递。
-fn collect(group: &usvg::Group, ctx: &Inherited, out: &mut Vec<SvgPath>, images: &mut Vec<SvgImage>) {
+fn collect(
+    group: &usvg::Group,
+    ctx: &Inherited,
+    out: &mut Vec<SvgPath>,
+    images: &mut Vec<SvgImage>,
+    depth: usize,
+    image_budget: &mut usize,
+    expansion_budget: &mut ExpansionBudget,
+) -> Result<(), String> {
+    if depth >= MAX_DEPTH {
+        return Ok(());
+    }
     for node in group.children() {
         match node {
             usvg::Node::Group(g) => match extend_inherited(ctx, g) {
-                Some(child_ctx) => collect(g, &child_ctx, out, images),
-                None => collect(g, ctx, out, images),
+                Some(child_ctx) => collect(
+                    g,
+                    &child_ctx,
+                    out,
+                    images,
+                    depth + 1,
+                    image_budget,
+                    expansion_budget,
+                )?,
+                None => collect(
+                    g,
+                    ctx,
+                    out,
+                    images,
+                    depth + 1,
+                    image_budget,
+                    expansion_budget,
+                )?,
             },
             usvg::Node::Path(p) => {
                 if let Some(mut sp) = convert_path(p, &Transform::default()) {
@@ -610,6 +947,7 @@ fn collect(group: &usvg::Group, ctx: &Inherited, out: &mut Vec<SvgPath>, images:
                         Some(e) => (e.fill_pattern, e.stroke_pattern),
                         None => (None, None),
                     };
+                    expansion_budget.charge(ctx)?;
                     sp.effects = SvgEffects::some_if_present(
                         fill_pattern,
                         stroke_pattern,
@@ -621,7 +959,7 @@ fn collect(group: &usvg::Group, ctx: &Inherited, out: &mut Vec<SvgPath>, images:
                 }
             }
             usvg::Node::Image(img) => {
-                if let Some(si) = convert_image(img, ctx) {
+                if let Some(si) = convert_image(img, ctx, image_budget, expansion_budget)? {
                     images.push(si);
                 }
             }
@@ -639,6 +977,7 @@ fn collect(group: &usvg::Group, ctx: &Inherited, out: &mut Vec<SvgPath>, images:
             usvg::Node::Text(_) => {}
         }
     }
+    Ok(())
 }
 
 /// Returns an [Inherited] extended by [g]'s own clip-path/mask/filter, or
@@ -666,7 +1005,7 @@ fn extend_inherited(ctx: &Inherited, g: &usvg::Group) -> Option<Inherited> {
     // 遮罩与模糊按"最近祖先优先"处理：真要嵌套需要完整的图层树，而扁平显示
     // 列表刻意不做这层结构。作为限制如实记录。
     if let Some(m) = mask {
-        next.mask = Some(build_mask(m, &base));
+        next.mask = build_mask(m, &base);
     }
     if let Some(b) = blur {
         next.blur = Some(b);
@@ -702,9 +1041,11 @@ fn gaussian_blur_of(g: &usvg::Group) -> Option<SvgBlur> {
     let t = g.abs_transform();
     let sx = (t.sx * t.sx + t.ky * t.ky).sqrt();
     let sy = (t.kx * t.kx + t.sy * t.sy).sqrt();
-    Some(SvgBlur {
-        std_dev_x: blur.std_dev_x().get() * sx,
-        std_dev_y: blur.std_dev_y().get() * sy,
+    let x = blur.std_dev_x().get() * sx;
+    let y = blur.std_dev_y().get() * sy;
+    (x.is_finite() && y.is_finite()).then_some(SvgBlur {
+        std_dev_x: x,
+        std_dev_y: y,
     })
 }
 
@@ -714,8 +1055,20 @@ fn gaussian_blur_of(g: &usvg::Group) -> Option<SvgBlur> {
 /// 给定引用元素的 [base] 变换，把 [clip]（以及链在其上的 `clip-path`）作为
 /// 绝对空间区域追加进 [out]。
 fn build_clips(clip: &usvg::ClipPath, base: &Transform, out: &mut Vec<SvgClip>) {
+    build_clips_at_depth(clip, base, out, 0);
+}
+
+fn build_clips_at_depth(
+    clip: &usvg::ClipPath,
+    base: &Transform,
+    out: &mut Vec<SvgClip>,
+    depth: usize,
+) {
+    if depth >= MAX_DEPTH {
+        return;
+    }
     if let Some(nested) = clip.clip_path() {
-        build_clips(nested, base, out);
+        build_clips_at_depth(nested, base, out, depth + 1);
     }
     let t = base.pre_concat(clip.transform());
     let mut region = SvgClip {
@@ -749,9 +1102,10 @@ fn build_clips(clip: &usvg::ClipPath, base: &Transform, out: &mut Vec<SvgClip>) 
         &mut region,
         &mut saw_evenodd,
         &mut saw_nonzero,
+        0,
     );
     region.even_odd = saw_evenodd && !saw_nonzero;
-    if !region.verbs.is_empty() {
+    if !region.verbs.is_empty() && region.points.iter().all(|v| v.is_finite()) {
         out.push(region);
     }
 }
@@ -769,11 +1123,15 @@ fn append_clip_geometry(
     region: &mut SvgClip,
     saw_evenodd: &mut bool,
     saw_nonzero: &mut bool,
+    depth: usize,
 ) {
+    if depth >= MAX_DEPTH {
+        return;
+    }
     for node in group.children() {
         match node {
             usvg::Node::Group(g) => {
-                append_clip_geometry(g, base, region, saw_evenodd, saw_nonzero)
+                append_clip_geometry(g, base, region, saw_evenodd, saw_nonzero, depth + 1)
             }
             usvg::Node::Path(p) => {
                 let t = base.pre_concat(p.abs_transform());
@@ -795,7 +1153,14 @@ fn append_clip_geometry(
 /// element's [base] transform.
 ///
 /// 给定引用元素的 [base] 变换，把 [mask] 解析为绝对空间的内容。
-fn build_mask(mask: &usvg::Mask, base: &Transform) -> SvgMask {
+fn build_mask(mask: &usvg::Mask, base: &Transform) -> Option<SvgMask> {
+    build_mask_at_depth(mask, base, 0)
+}
+
+fn build_mask_at_depth(mask: &usvg::Mask, base: &Transform, depth: usize) -> Option<SvgMask> {
+    if depth >= MAX_DEPTH {
+        return None;
+    }
     let r = mask.rect();
     let corners = [
         map(base, Point::from_xy(r.x(), r.y())),
@@ -803,13 +1168,44 @@ fn build_mask(mask: &usvg::Mask, base: &Transform) -> SvgMask {
         map(base, Point::from_xy(r.x(), r.bottom())),
         map(base, Point::from_xy(r.right(), r.bottom())),
     ];
+    if !corners.iter().all(|(x, y)| x.is_finite() && y.is_finite()) {
+        return None;
+    }
     let left = corners.iter().map(|c| c.0).fold(f32::INFINITY, f32::min);
     let top = corners.iter().map(|c| c.1).fold(f32::INFINITY, f32::min);
-    let right = corners.iter().map(|c| c.0).fold(f32::NEG_INFINITY, f32::max);
-    let bottom = corners.iter().map(|c| c.1).fold(f32::NEG_INFINITY, f32::max);
+    let right = corners
+        .iter()
+        .map(|c| c.0)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let bottom = corners
+        .iter()
+        .map(|c| c.1)
+        .fold(f32::NEG_INFINITY, f32::max);
+    if !(right - left).is_finite() || !(bottom - top).is_finite() {
+        return None;
+    }
     let mut paths = Vec::new();
     append_subtree_paths(mask.root(), base, &mut paths);
-    SvgMask {
+    // usvg exposes a mask linked on the <mask> itself via Mask::mask().
+    // Preserve that chain through the existing per-path effects field; no
+    // new wire fields. Dart's current `nested: true` replay remains naive
+    // (doc/animation-engine-features.md); this is Rust-side preservation.
+    if let Some(nested) = mask
+        .mask()
+        .and_then(|m| build_mask_at_depth(m, base, depth + 1))
+    {
+        for path in &mut paths {
+            let effects = path.effects.get_or_insert_with(|| SvgEffects {
+                fill_pattern: None,
+                stroke_pattern: None,
+                clips: Vec::new(),
+                mask: None,
+                blur: None,
+            });
+            effects.mask = Some(nested.clone());
+        }
+    }
+    Some(SvgMask {
         kind: match mask.kind() {
             usvg::MaskType::Alpha => 1,
             _ => 0,
@@ -819,7 +1215,7 @@ fn build_mask(mask: &usvg::Mask, base: &Transform) -> SvgMask {
         width: right - left,
         height: bottom - top,
         paths,
-    }
+    })
 }
 
 /// Flattens every path under [group] into [out], pre-multiplying [base] onto
@@ -829,15 +1225,30 @@ fn build_mask(mask: &usvg::Mask, base: &Transform) -> SvgMask {
 /// 把 [group] 下的所有路径展平进 [out]，并把 [base] 预乘到每个节点自身的绝对
 /// 变换上。用于子根（遮罩/图案内容）——它们的变换相对于各自的根。
 fn append_subtree_paths(group: &usvg::Group, base: &Transform, out: &mut Vec<SvgPath>) {
+    append_subtree_paths_at_depth(group, base, out, 0);
+}
+
+fn append_subtree_paths_at_depth(
+    group: &usvg::Group,
+    base: &Transform,
+    out: &mut Vec<SvgPath>,
+    depth: usize,
+) {
+    if depth >= MAX_DEPTH {
+        return;
+    }
     for node in group.children() {
         match node {
-            usvg::Node::Group(g) => append_subtree_paths(g, base, out),
+            usvg::Node::Group(g) => append_subtree_paths_at_depth(g, base, out, depth + 1),
             usvg::Node::Path(p) => {
                 if let Some(sp) = convert_path(p, base) {
                     out.push(sp);
                 }
             }
-            _ => {}
+            // usvg does retain images in mask/pattern subtrees. Intentionally
+            // omit them: mask images and naive pattern/mask subroot replay
+            // are documented limitations (animation-engine-features.md).
+            usvg::Node::Image(_) | usvg::Node::Text(_) => {}
         }
     }
 }
@@ -848,13 +1259,18 @@ fn append_subtree_paths(group: &usvg::Group, base: &Transform, out: &mut Vec<Svg
 ///
 /// 把 usvg `<image>` 节点转成 [SvgImage]。嵌套 SVG 的 image
 /// （`ImageKind::SVG`）跳过（返回 `None`）——本轮不做嵌套显示列表展平。
-fn convert_image(img: &usvg::Image, ctx: &Inherited) -> Option<SvgImage> {
+fn convert_image(
+    img: &usvg::Image,
+    ctx: &Inherited,
+    image_budget: &mut usize,
+    expansion_budget: &mut ExpansionBudget,
+) -> Result<Option<SvgImage>, String> {
     let (data, format) = match img.kind() {
-        usvg::ImageKind::PNG(d) => (d.as_ref().clone(), SvgImageFormat::Png),
-        usvg::ImageKind::JPEG(d) => (d.as_ref().clone(), SvgImageFormat::Jpeg),
-        usvg::ImageKind::GIF(d) => (d.as_ref().clone(), SvgImageFormat::Gif),
-        usvg::ImageKind::WEBP(d) => (d.as_ref().clone(), SvgImageFormat::Webp),
-        usvg::ImageKind::SVG(_) => return None,
+        usvg::ImageKind::PNG(d) => (d.as_ref(), SvgImageFormat::Png),
+        usvg::ImageKind::JPEG(d) => (d.as_ref(), SvgImageFormat::Jpeg),
+        usvg::ImageKind::GIF(d) => (d.as_ref(), SvgImageFormat::Gif),
+        usvg::ImageKind::WEBP(d) => (d.as_ref(), SvgImageFormat::Webp),
+        usvg::ImageKind::SVG(_) => return Ok(None),
     };
     // Ship the local object bbox plus the full `abs_transform` matrix rather
     // than pre-mapping two corners into an axis-aligned absolute rect: the
@@ -867,8 +1283,21 @@ fn convert_image(img: &usvg::Image, ctx: &Inherited) -> Option<SvgImage> {
     // 文档注释）——`convert_path` 靠逐点映射而非只取包围盒两角点，避开了同样
     // 的陷阱。
     let t = img.abs_transform();
+    if !transform_to_vec6(&t).iter().all(|v| v.is_finite()) {
+        return Ok(None);
+    }
+    // usvg already shares these encoded bytes in Arc<Vec<u8>>. The existing
+    // wire protocol requires a byte list per image, so charge BEFORE cloning.
+    // Count each occurrence (including <use> of the same Arc) against 64 MiB.
+    // Exceeding this output budget silently skips that image: Ok(None), not Err.
+    if data.len() > *image_budget {
+        return Ok(None);
+    }
+    expansion_budget.charge(ctx)?;
+    *image_budget -= data.len();
+    let data = data.clone();
     let bbox = img.bounding_box();
-    Some(SvgImage {
+    Ok(Some(SvgImage {
         x: bbox.left(),
         y: bbox.top(),
         width: bbox.width(),
@@ -879,7 +1308,7 @@ fn convert_image(img: &usvg::Image, ctx: &Inherited) -> Option<SvgImage> {
         clips: ctx.clips.clone(),
         mask: ctx.mask.clone(),
         blur: ctx.blur.clone(),
-    })
+    }))
 }
 
 /// Maps a point through [t] into absolute space. / 用 [t] 把点映射到绝对坐标。
@@ -973,7 +1402,10 @@ fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
     } else if t.is_translate() {
         out.extend(src.iter().flat_map(|p| [p.x + t.tx, p.y + t.ty]));
     } else if t.is_scale_translate() {
-        out.extend(src.iter().flat_map(|p| [p.x * t.sx + t.tx, p.y * t.sy + t.ty]));
+        out.extend(
+            src.iter()
+                .flat_map(|p| [p.x * t.sx + t.tx, p.y * t.sy + t.ty]),
+        );
     } else {
         out.extend(src.iter().flat_map(|p| {
             [
@@ -1008,6 +1440,9 @@ fn convert_path(p: &usvg::Path, base: &Transform) -> Option<SvgPath> {
     let mut verbs = Vec::new();
     let mut points = Vec::new();
     append_segments(p, &t, &mut verbs, &mut points);
+    if !points.iter().all(|v| v.is_finite()) {
+        return None;
+    }
 
     let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match p.fill() {
         Some(f) => {
@@ -1067,6 +1502,9 @@ fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
         return None;
     };
     let combined = abs.pre_concat(pattern.transform());
+    if !transform_to_vec6(&combined).iter().all(|v| v.is_finite()) {
+        return None;
+    }
     let rect = pattern.rect();
     let mut paths = Vec::new();
     append_subtree_paths(pattern.root(), &Transform::default(), &mut paths);
@@ -1120,6 +1558,9 @@ fn build_gradient(paint: &usvg::Paint, abs: &Transform, opacity: f32) -> Option<
             let combined = abs.pre_concat(lg.transform());
             let (x1, y1) = map(&combined, Point::from_xy(lg.x1(), lg.y1()));
             let (x2, y2) = map(&combined, Point::from_xy(lg.x2(), lg.y2()));
+            if ![x1, y1, x2, y2].iter().all(|v| v.is_finite()) {
+                return None;
+            }
             Some(SvgGradient {
                 kind: 0,
                 x1,
@@ -1134,6 +1575,9 @@ fn build_gradient(paint: &usvg::Paint, abs: &Transform, opacity: f32) -> Option<
         }
         usvg::Paint::RadialGradient(rg) => {
             let combined = abs.pre_concat(rg.transform());
+            if !transform_to_vec6(&combined).iter().all(|v| v.is_finite()) {
+                return None;
+            }
             Some(SvgGradient {
                 kind: 1,
                 x1: rg.fx(),
@@ -1302,9 +1746,10 @@ pub fn parse_transform(s: String) -> Option<Vec<f32>> {
     if !seen {
         return None;
     }
-    Some(vec![
+    let result = vec![
         m.a as f32, m.b as f32, m.c as f32, m.d as f32, m.e as f32, m.f as f32,
-    ])
+    ];
+    result.iter().all(|v| v.is_finite()).then_some(result)
 }
 
 /// One `<transform-list>` token as a bare affine matrix.
@@ -1346,6 +1791,813 @@ fn concat(a: svgtypes::Transform, b: svgtypes::Transform) -> svgtypes::Transform
 mod tests {
     use super::*;
 
+    fn wire_bytes(source: &str) -> Vec<u8> {
+        use crate::frb_generated::SseEncode;
+        let mut ser = flutter_rust_bridge::for_generated::SseSerializer::new();
+        parse_svg(source.into(), None).unwrap().sse_encode(&mut ser);
+        ser.cursor.into_inner()
+    }
+
+    #[test]
+    fn audit_rework_cycles_match_upstream_wire_bytes() {
+        use crate::frb_generated::SseEncode;
+        for (tag, attr, self_ref) in [
+            ("clipPath", "clip-path", false),
+            ("clipPath", "clip-path", true),
+            ("mask", "mask", false),
+        ] {
+            let next = if self_ref { "a" } else { "b" };
+            let shape = "<rect width='5' height='10' fill='white'/>";
+            let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs><{tag} id='a' {attr}='url(#{next})'>{shape}</{tag}><{tag} id='b' {attr}='url(#a)'>{shape}</{tag}></defs><rect width='10' height='10' {attr}='url(#a)'/></svg>");
+            // HEAD delegates cycles to usvg. Preserve the complete SSE bytes,
+            // including the surviving clip/mask, rather than stripping attributes.
+            let tree = usvg::Tree::from_str(&source, usvg_options()).unwrap();
+            let expected = scene_from_tree(&tree);
+            let effects = expected.paths[0].effects.as_ref().unwrap();
+            assert!(if attr == "mask" {
+                effects.mask.is_some()
+            } else {
+                !effects.clips.is_empty()
+            });
+            let mut ser = flutter_rust_bridge::for_generated::SseSerializer::new();
+            expected.sse_encode(&mut ser);
+            assert_eq!(
+                wire_bytes(&source),
+                ser.cursor.into_inner(),
+                "{tag}, self={self_ref}"
+            );
+        }
+    }
+
+    fn third_round_cycle_source(kind: &str, length: usize) -> String {
+        let (tag, attr) = match kind {
+            "clip-chain" | "clip-child" => ("clipPath", "clip-path"),
+            "mask-child" => ("mask", "mask"),
+            "pattern" => ("pattern", "fill"),
+            _ => panic!("unknown cycle kind"),
+        };
+        let mut defs = String::new();
+        for i in 0..length {
+            let next = (i + 1) % length;
+            let reference = format!("{attr}='url(#r{next})'");
+            let (outer, inner) = if kind == "clip-chain" {
+                (reference.as_str(), "")
+            } else {
+                ("", reference.as_str())
+            };
+            defs.push_str(&format!("<{tag} id='r{i}' width='10' height='10' {outer}><rect width='5' height='10' {inner}/></{tag}>"));
+        }
+        format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs>{defs}</defs><rect width='10' height='10' {attr}='url(#r0)'/></svg>")
+    }
+
+    fn third_round_children(test: &str, kinds: &[&str]) {
+        let mut failures = Vec::new();
+        for kind in kinds {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", test, "--nocapture"])
+                .env("SVGX_THIRD_ROUND_CHILD", kind)
+                .output()
+                .unwrap();
+            if !output.status.success() {
+                failures.push(format!(
+                    "{kind}: {} {}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn third_round_three_resource_cycles_subprocess() {
+        if let Ok(kind) = std::env::var("SVGX_THIRD_ROUND_CHILD") {
+            std::thread::Builder::new()
+                .stack_size(1 << 20)
+                .spawn(move || {
+                    let error = parse_svg(third_round_cycle_source(&kind, 3), None)
+                        .err()
+                        .expect("three-resource cycle must return Err");
+                    assert!(error.starts_with("SVG has a reference cycle"), "{error}");
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+            return;
+        }
+        third_round_children(
+            "api::svg::tests::third_round_three_resource_cycles_subprocess",
+            &["clip-chain", "clip-child", "mask-child", "pattern"],
+        );
+    }
+
+    #[test]
+    fn third_round_small_cycles_preserve_wire_bytes() {
+        use crate::frb_generated::SseEncode;
+        for kind in ["clip-chain", "clip-child", "mask-child", "pattern"] {
+            for length in [1, 2] {
+                let source = third_round_cycle_source(kind, length);
+                let tree = usvg::Tree::from_str(&source, usvg_options()).unwrap();
+                let mut ser = flutter_rust_bridge::for_generated::SseSerializer::new();
+                scene_from_tree(&tree).sse_encode(&mut ser);
+                assert_eq!(
+                    wire_bytes(&source),
+                    ser.cursor.into_inner(),
+                    "{kind}, n={length}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn third_round_inline_style_chains_subprocess() {
+        if let Ok(kind) = std::env::var("SVGX_THIRD_ROUND_CHILD") {
+            let (tag, attr, length) = if kind == "clip" {
+                ("clipPath", "clip-path", 300)
+            } else {
+                ("mask", "mask", 5000)
+            };
+            let mut defs = String::new();
+            for i in 0..length {
+                defs.push_str(&format!("<{tag} id='r{i}'><rect width='10' height='10' style='fill: white; {attr}: url(#r{}); stroke: none'/></{tag}>", i + 1));
+            }
+            let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs>{defs}</defs><rect width='10' height='10' style='{attr}: url(#r0)'/></svg>");
+            std::thread::Builder::new()
+                .stack_size(1 << 20)
+                .spawn(move || {
+                    let error = parse_svg(source, None)
+                        .err()
+                        .expect("inline style chain must return Err");
+                    assert!(error.contains("reference chain"), "{error}");
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+            return;
+        }
+        third_round_children(
+            "api::svg::tests::third_round_inline_style_chains_subprocess",
+            &["clip", "mask"],
+        );
+    }
+
+    #[test]
+    fn audit_rework_svg_data_resolver() {
+        let bytes = std::sync::Arc::new(b"<svg xmlns='http://www.w3.org/2000/svg'/>".to_vec());
+        assert!((usvg_options().image_href_resolver.resolve_data)(
+            "image/svg+xml",
+            bytes,
+            usvg_options()
+        )
+        .is_none());
+        assert_eq!(parse_svg(IMAGE_SVG.into(), None).unwrap().images.len(), 1);
+    }
+
+    #[test]
+    fn audit_rework_plain_data_resolver() {
+        let bytes = std::sync::Arc::new(b"<svg xmlns='http://www.w3.org/2000/svg'/>".to_vec());
+        assert!((usvg_options().image_href_resolver.resolve_data)(
+            "text/plain",
+            bytes,
+            usvg_options()
+        )
+        .is_none());
+        let png = IMAGE_SVG.replace("data:image/png", "data:text/plain");
+        assert_eq!(parse_svg(png, None).unwrap().images.len(), 1);
+    }
+
+    #[test]
+    fn audit_rework_reference_boundaries_and_cycles() {
+        for (length, cycle, expected) in
+            [(64, false, true), (65, false, false), (5000, true, false)]
+        {
+            let mut source = String::from("<svg xmlns='http://www.w3.org/2000/svg'><defs>");
+            for i in 0..length {
+                source.push_str(&format!(
+                    "<clipPath id='c{i}'><rect clip-path='url(#c{})'/></clipPath>",
+                    i + 1
+                ));
+            }
+            if cycle {
+                source.push_str(&format!("<clipPath id='c{length}' clip-path='url(#c0)'/>"));
+            } else {
+                source.push_str(&format!("<clipPath id='c{length}'/>"));
+            }
+            source.push_str("</defs></svg>");
+            let doc = parse_xml(&source).unwrap();
+            assert_eq!(
+                limit_source_depth(&doc).is_ok(),
+                expected,
+                "length={length}, cycle={cycle}"
+            );
+        }
+        // A modest entity expansion is safe for roxmltree itself. Verify the
+        // second guard inspects expanded elements rather than source tokens.
+        let source = format!(
+            "<!DOCTYPE svg [<!ENTITY e \"{}{}\">]><svg>&e;</svg>",
+            "<g>".repeat(129),
+            "</g>".repeat(129)
+        );
+        let doc = parse_xml(&source).unwrap();
+        assert_eq!(limit_source_depth(&doc).err().as_deref(), Some(DEPTH_ERROR));
+    }
+
+    fn rework_nested_groups(depth: usize) -> String {
+        format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>{}<rect width='1' height='1'/>{}</svg>", "<g opacity='.9'>".repeat(depth), "</g>".repeat(depth))
+    }
+
+    fn rework_base64(bytes: &[u8]) -> String {
+        const DIGITS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for chunk in bytes.chunks(3) {
+            let n = ((chunk[0] as u32) << 16)
+                | ((chunk.get(1).copied().unwrap_or(0) as u32) << 8)
+                | chunk.get(2).copied().unwrap_or(0) as u32;
+            for i in 0..4 {
+                out.push(if i > chunk.len() {
+                    '='
+                } else {
+                    DIGITS[((n >> (18 - i * 6)) & 63) as usize] as char
+                });
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn audit_rework_depth_limit() {
+        assert_eq!(MAX_DEPTH, 128);
+        assert!(check_xml_depth(&rework_nested_groups(128)).is_err());
+    }
+
+    #[test]
+    fn audit_rework_subprocess() {
+        if let Ok(kind) = std::env::var("SVGX_REWORK_CHILD") {
+            let nested = rework_nested_groups(5000);
+            match kind.as_str() {
+                "raw-entity" | "entity" => {
+                    let value = format!(
+                        "{}<rect width='1' height='1'/>{}",
+                        "<g>".repeat(5000),
+                        "</g>".repeat(5000)
+                    );
+                    let source = format!("<!DOCTYPE svg [<!ENTITY e \"{value}\">]><svg xmlns='http://www.w3.org/2000/svg'>&e;</svg>");
+                    if kind == "raw-entity" {
+                        eprintln!("enter roxmltree entity parse");
+                        let doc = usvg::roxmltree::Document::parse_with_options(
+                            &source,
+                            usvg::roxmltree::ParsingOptions {
+                                allow_dtd: true,
+                                ..Default::default()
+                            },
+                        )
+                        .unwrap();
+                        eprintln!(
+                            "roxmltree completed: {} nodes; enter usvg",
+                            doc.descendants().count()
+                        );
+                        let _ = usvg::Tree::from_xmltree(&doc, usvg_options());
+                    } else {
+                        assert!(parse_svg(source, None).is_err());
+                    }
+                }
+                "image" | "plain-image" => {
+                    let encoded = rework_base64(nested.as_bytes());
+                    let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><image width='10' height='10' href='data:image/svg+xml;base64,{encoded}'/></svg>");
+                    let source = if kind == "plain-image" {
+                        source.replace("image/svg+xml", "text/plain")
+                    } else {
+                        source
+                    };
+                    assert!(parse_svg(source, None).unwrap().images.is_empty());
+                }
+                "stack" => {
+                    // Both release and debug have been exercised at 1 MiB;
+                    // 127 groups parse, while 128 are rejected before usvg.
+                    std::thread::Builder::new()
+                        .stack_size(1 << 20)
+                        .spawn(|| {
+                            assert!(parse_svg(rework_nested_groups(127), None).is_ok());
+                            assert!(parse_svg(rework_nested_groups(128), None).is_err());
+                        })
+                        .unwrap()
+                        .join()
+                        .unwrap();
+                }
+                "clipPath" | "mask" | "pattern" => {
+                    let attr = match kind.as_str() {
+                        "clipPath" => "clip-path",
+                        "mask" => "mask",
+                        _ => "fill",
+                    };
+                    let mut defs = String::new();
+                    for i in 0..5000 {
+                        defs.push_str(&format!("<{kind} id='r{i}' width='10' height='10'><rect width='10' height='10' {attr}='url(#r{})'/></{kind}>", i + 1));
+                    }
+                    let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs>{defs}</defs><rect width='10' height='10' {attr}='url(#r0)'/></svg>");
+                    assert!(parse_svg(source, None).is_err(), "{kind} chain must fail");
+                }
+                _ => panic!("unknown child mode"),
+            }
+            return;
+        }
+        for kind in [
+            "entity",
+            "image",
+            "plain-image",
+            "stack",
+            "clipPath",
+            "mask",
+            "pattern",
+        ] {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "api::svg::tests::audit_rework_subprocess",
+                    "--nocapture",
+                ])
+                .env("SVGX_REWORK_CHILD", kind)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{kind}: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    #[test]
+    fn audit_nonfinite_clip_geometry() {
+        let tree = usvg::Tree::from_str(CLIP_SVG, usvg_options()).unwrap();
+        let mut clips = Vec::new();
+        build_clips(
+            &tree.clip_paths()[0],
+            &Transform::from_scale(f32::MAX, f32::MAX),
+            &mut clips,
+        );
+        assert!(clips.iter().flat_map(|c| &c.points).all(|v| v.is_finite()));
+    }
+
+    #[test]
+    fn audit_mask_images_remain_unsupported() {
+        let image =
+            &IMAGE_SVG[IMAGE_SVG.find("<image").unwrap()..IMAGE_SVG.find("</svg>").unwrap()];
+        let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><defs><mask id='m'>{image}<rect width='24' height='24' fill='white'/></mask></defs><rect width='24' height='24' mask='url(#m)'/></svg>");
+        let tree = usvg::Tree::from_str(&source, usvg_options()).unwrap();
+        fn has_image(g: &usvg::Group) -> bool {
+            g.children().iter().any(|n| match n {
+                usvg::Node::Image(_) => true,
+                usvg::Node::Group(g) => has_image(g),
+                _ => false,
+            })
+        }
+        assert!(tree.masks().iter().any(|m| has_image(m.root())));
+        let scene = parse_svg(source, None).unwrap();
+        assert!(scene.images.is_empty());
+        let mask = scene.paths[0]
+            .effects
+            .as_ref()
+            .unwrap()
+            .mask
+            .as_ref()
+            .unwrap();
+        assert_eq!(mask.paths.len(), 1, "only the white shape is collected");
+    }
+
+    #[test]
+    fn audit_full_wire_snapshot() {
+        let mut hash = 0xcbf29ce484222325u64;
+        for source in [
+            MASK_SVG,
+            CLIP_SVG,
+            PATTERN_SVG,
+            BLUR_SVG,
+            IMAGE_SVG,
+            PAINT_ORDER_SVG,
+        ] {
+            for b in wire_bytes(source) {
+                hash = (hash ^ b as u64).wrapping_mul(0x100000001b3);
+            }
+        }
+        assert_eq!(hash, 0x65d9bcac5466df2b, "full SSE wire bytes changed");
+    }
+
+    fn expansion_source(shapes: usize, outputs: usize, effect: &str) -> String {
+        let shape = "<rect width='10' height='10' fill='white'/>";
+        let tag = if effect == "mask" { "mask" } else { "clipPath" };
+        format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs><{tag} id='e'>{}</{tag}></defs><g {effect}='url(#e)'>{}</g></svg>", shape.repeat(shapes), shape.repeat(outputs))
+    }
+
+    #[test]
+    fn audit_expansion_budget_2000_by_2000() {
+        for effect in ["mask", "clip-path"] {
+            let source = expansion_source(2000, 2000, effect);
+            let start = std::time::Instant::now();
+            let error = parse_svg(source, None)
+                .err()
+                .expect("must reject excessive expansion");
+            assert_eq!(error, EXPANSION_ERROR);
+            assert!(
+                start.elapsed() < std::time::Duration::from_secs(2),
+                "{effect}: {:?}",
+                start.elapsed()
+            );
+            eprintln!("{effect} 2000x2000 rejected in {:?}", start.elapsed());
+        }
+    }
+
+    #[test]
+    fn audit_image_expansion_is_charged_before_clone() {
+        let start = IMAGE_SVG.find("<image").unwrap();
+        let end = start + IMAGE_SVG[start..].find("/>").unwrap() + 2;
+        let image = &IMAGE_SVG[start..end];
+        let source =
+            expansion_source(2000, 0, "mask").replace("</g>", &format!("{}</g>", image.repeat(60)));
+        assert_eq!(
+            parse_svg(source, None).err().as_deref(),
+            Some(EXPANSION_ERROR)
+        );
+
+        // Even the first image cannot clone inherited geometry if the
+        // remaining budget is exhausted; image bytes remain uncharged too.
+        let tree = usvg::Tree::from_str(IMAGE_SVG, usvg_options()).unwrap();
+        fn find_image(g: &usvg::Group) -> &usvg::Image {
+            for n in g.children() {
+                match n {
+                    usvg::Node::Image(i) => return i,
+                    usvg::Node::Group(g) => return find_image(g),
+                    _ => {}
+                }
+            }
+            panic!("fixture image missing")
+        }
+        let mask_scene = parse_svg(MASK_SVG.into(), None).unwrap();
+        let ctx = Inherited {
+            mask: mask_scene.paths[0].effects.as_ref().unwrap().mask.clone(),
+            ..Default::default()
+        };
+        let mut budget = ExpansionBudget {
+            points: MAX_EXPANSION_POINTS,
+            paths: 0,
+        };
+        let mut image_bytes = 64 * 1024 * 1024;
+        assert_eq!(
+            convert_image(find_image(tree.root()), &ctx, &mut image_bytes, &mut budget)
+                .err()
+                .as_deref(),
+            Some(EXPANSION_ERROR)
+        );
+        assert_eq!(image_bytes, 64 * 1024 * 1024);
+    }
+
+    #[test]
+    fn audit_expansion_near_budget() {
+        for (effect, shapes, outputs) in [("mask", 100, 999), ("clip-path", 2000, 499)] {
+            let scene = parse_svg(expansion_source(shapes, outputs, effect), None).unwrap();
+            assert_eq!(scene.paths.len(), outputs);
+            for path in &scene.paths {
+                assert_eq!(path.points, vec![0., 0., 10., 0., 10., 10., 0., 10.]);
+                let e = path.effects.as_ref().unwrap();
+                if effect == "mask" {
+                    let mask = e.mask.as_ref().unwrap();
+                    assert_eq!(mask.paths.len(), shapes);
+                    assert!(mask.paths.iter().all(|p| p.points == path.points));
+                } else {
+                    assert_eq!(e.clips.len(), 1);
+                    assert_eq!(e.clips[0].points.len(), shapes * 8);
+                    assert!(e.clips[0].points.chunks_exact(8).all(|p| p == path.points));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn audit_nested_mask_chain() {
+        let source = r##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">
+            <defs><mask id="inner"><rect width="5" height="5" fill="white"/></mask>
+            <mask id="outer" mask="url(#inner)"><rect width="10" height="10" fill="white"/></mask></defs>
+            <rect width="10" height="10" mask="url(#outer)"/></svg>"##;
+        let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
+        assert!(
+            tree.masks().iter().any(|m| m.mask().is_some()),
+            "upstream exposes linked masks"
+        );
+        let scene = parse_svg(source.into(), None).unwrap();
+        let outer = scene.paths[0]
+            .effects
+            .as_ref()
+            .unwrap()
+            .mask
+            .as_ref()
+            .unwrap();
+        assert!(
+            outer.paths[0]
+                .effects
+                .as_ref()
+                .and_then(|e| e.mask.as_ref())
+                .is_some(),
+            "preserve linked mask in existing effects fields"
+        );
+    }
+
+    #[test]
+    fn audit_image_output_budget() {
+        let padded = IMAGE_SVG.replace("==\"", &format!("{}==\"", "AAAA".repeat(90_000)));
+        let start = padded.find("<image").unwrap();
+        let end = padded[start..].find("/>").unwrap() + start + 2;
+        let image = padded[start..end].replace("<image ", "<image id='pixel' ");
+        let uses = "<use href='#pixel'/>".repeat(300);
+        let source = format!("<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><defs>{image}</defs>{uses}</svg>");
+        let scene = parse_svg(source, None).unwrap();
+        assert!(!scene.images.is_empty());
+        let bytes: usize = scene.images.iter().map(|i| i.data.len()).sum();
+        assert!(bytes <= 64 * 1024 * 1024, "image output: {bytes}");
+        assert!(scene.images.len() < 300);
+    }
+
+    #[test]
+    fn audit_nonfinite_mask_bbox() {
+        let tree = usvg::Tree::from_str(MASK_SVG, usvg_options()).unwrap();
+        fn find(g: &usvg::Group) -> Option<&usvg::Mask> {
+            g.mask().or_else(|| {
+                g.children().iter().find_map(|n| match n {
+                    usvg::Node::Group(g) => find(g),
+                    _ => None,
+                })
+            })
+        }
+        let mask = find(tree.root()).unwrap();
+        // A finite transform may still overflow when mapping a finite rect.
+        let result = build_mask(mask, &Transform::from_scale(f32::MAX, f32::MAX));
+        assert!(result.is_none(), "overflowing mask must be discarded");
+    }
+
+    #[test]
+    fn audit_nonfinite_blur() {
+        let svg = BLUR_SVG.replace("<rect x=", "<rect transform='scale(1e20)' x=");
+        let scene = parse_svg(svg, None).unwrap();
+        for p in &scene.paths {
+            assert!(p
+                .effects
+                .as_ref()
+                .and_then(|e| e.blur.as_ref())
+                .is_none_or(|b| b.std_dev_x.is_finite() && b.std_dev_y.is_finite()));
+        }
+    }
+
+    #[test]
+    fn audit_input_limit() {
+        let err = parse_svg(" ".repeat(32 * 1024 * 1024 + 1), None)
+            .err()
+            .unwrap();
+        assert!(err.contains("32 MiB"), "{err}");
+    }
+
+    #[test]
+    fn audit_root_color_location() {
+        for source in [
+            r#"<!-- <svg color='blue'> --><svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            r#"<!DOCTYPE svg [<!ENTITY fake '<svg color="blue">'>]><svg xmlns="http://www.w3.org/2000/svg"/>"#,
+            r#"<x:svg xmlns:x="http://www.w3.org/2000/svg"/>"#,
+        ] {
+            let injected = inject_current_color(source.into(), 0xffff0000);
+            let doc = usvg::roxmltree::Document::parse_with_options(
+                &injected,
+                usvg::roxmltree::ParsingOptions {
+                    allow_dtd: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(doc.root_element().attribute("color"), Some("#FF0000"));
+            // Root insertion still finds the real SVG. The public parser now
+            // rejects markup entities before roxmltree can expand them.
+            if source.contains("<!ENTITY") {
+                assert!(parse_svg(source.into(), Some(0xffff0000)).is_err());
+            } else {
+                assert!(parse_svg(source.into(), Some(0xffff0000)).is_ok());
+            }
+        }
+        for source in ["<svgfoo/>", "<![CDATA[<svg/>]]>", "<root><svg/></root>"] {
+            assert_eq!(inject_current_color(source.into(), 0xffff0000), source);
+        }
+    }
+
+    #[test]
+    fn audit_color_attribute_spacing_and_quotes() {
+        for attrs in [
+            "color = 'red'",
+            "color\t=\n\"red\"",
+            "data-note=\"color='blue'\"",
+        ] {
+            let source = format!("<svg xmlns='http://www.w3.org/2000/svg' {attrs}/>");
+            let injected = inject_current_color(source, 0xff00ff00);
+            let doc = usvg::roxmltree::Document::parse(&injected).unwrap();
+            let expected = if attrs.starts_with("color") {
+                "red"
+            } else {
+                "#00FF00"
+            };
+            assert_eq!(doc.root_element().attribute("color"), Some(expected));
+        }
+    }
+
+    #[test]
+    fn audit_nonfinite_transform() {
+        for value in [
+            "scale(1e308)",
+            "matrix(1,0,0,1,1e308,0)",
+            "scale(1e200) scale(1e200)",
+        ] {
+            assert_eq!(parse_transform(value.into()), None, "{value}");
+        }
+    }
+
+    #[test]
+    fn audit_xml_depth_scan_boundaries() {
+        let noise = "<g>".repeat(300);
+        let source = format!("<?xml version='1.0'?><!--{noise}--><?test {noise}?><!DOCTYPE svg [<!-- ] > {noise} --><?test ] >?><!ENTITY fake '{noise}'>]><svg xmlns='http://www.w3.org/2000/svg' data-note='quoted > delimiter'><![CDATA[{noise}]]>{}</svg>", "<g/>".repeat(1000));
+        assert!(
+            check_xml_depth(&source).is_err(),
+            "markup entities are rejected even when unused"
+        );
+        let source = source.replace(
+            &format!("<!ENTITY fake '{noise}'>"),
+            "<!ENTITY fake 'text only'>",
+        );
+        assert!(check_xml_depth(&source).is_ok());
+        parse_svg(source, None).unwrap();
+        let at_limit = format!(
+            "<svg xmlns='http://www.w3.org/2000/svg'>{}<rect width='1' height='1'/>{}</svg>",
+            "<g>".repeat(MAX_DEPTH - 1),
+            "</g>".repeat(MAX_DEPTH - 1)
+        );
+        assert!(check_xml_depth(&at_limit).is_ok());
+        let over_limit = at_limit.replace(
+            "<rect width='1' height='1'/>",
+            "<g/><!-- ignored --><g></g>",
+        );
+        assert_eq!(
+            check_xml_depth(&over_limit).err().as_deref(),
+            Some(DEPTH_ERROR)
+        );
+        for broken in [
+            "<!--",
+            "<![CDATA[",
+            "<?pi",
+            "<!DOCTYPE svg [",
+            "<svg a='>",
+            "<svg",
+        ] {
+            assert!(check_xml_depth(broken).is_err(), "{broken}");
+        }
+    }
+
+    #[test]
+    fn audit_collector_depth_cutoff_preserves_subtree_behavior() {
+        let tree = usvg::Tree::from_str(
+            "<svg xmlns='http://www.w3.org/2000/svg'><rect width='1' height='1'/></svg>",
+            usvg_options(),
+        )
+        .unwrap();
+        let (mut paths, mut images) = (Vec::new(), Vec::new());
+        for depth in [MAX_DEPTH, MAX_DEPTH - 1] {
+            collect(
+                tree.root(),
+                &Inherited::default(),
+                &mut paths,
+                &mut images,
+                depth,
+                &mut (64 * 1024 * 1024),
+                &mut ExpansionBudget::default(),
+            )
+            .unwrap();
+            assert_eq!(paths.len(), usize::from(depth < MAX_DEPTH));
+        }
+        let mut subtree = Vec::new();
+        append_subtree_paths_at_depth(tree.root(), &Transform::default(), &mut subtree, MAX_DEPTH);
+        assert!(subtree.is_empty());
+        append_subtree_paths_at_depth(
+            tree.root(),
+            &Transform::default(),
+            &mut subtree,
+            MAX_DEPTH - 1,
+        );
+        assert_eq!(subtree.len(), 1);
+    }
+
+    #[test]
+    fn audit_extreme_depth_subprocess() {
+        if let Some(kind) = std::env::var_os("SVGX_EXTREME_CHILD") {
+            let kind = kind.to_str().unwrap();
+            let depth: usize = std::env::var("SVGX_EXTREME_DEPTH")
+                .unwrap()
+                .parse()
+                .unwrap();
+            let shape = "<rect width='1' height='1'/>";
+            let body = if kind == "groups" {
+                format!(
+                    "{}{}{}",
+                    "<g opacity='.9'>".repeat(depth),
+                    shape,
+                    "</g>".repeat(depth)
+                )
+            } else {
+                let mut defs = String::new();
+                for i in 0..depth {
+                    defs.push_str(&format!(
+                        "<clipPath id='c{i}' clip-path='url(#c{})'>{shape}</clipPath>",
+                        i + 1
+                    ));
+                }
+                format!("<defs>{defs}<clipPath id='c{depth}'>{shape}</clipPath></defs><g clip-path='url(#c0)'>{shape}</g>")
+            };
+            let result = parse_svg(
+                format!(
+                    "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>{body}</svg>"
+                ),
+                None,
+            );
+            assert!(result.is_err(), "{kind} depth {depth} must be rejected");
+            eprintln!(
+                "{kind} depth {depth}: {}",
+                if result.is_ok() { "Ok" } else { "Err" }
+            );
+            return;
+        }
+        for depth in [5000, 20000] {
+            for kind in ["groups", "clips"] {
+                let status = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "api::svg::tests::audit_extreme_depth_subprocess",
+                        "--nocapture",
+                    ])
+                    .env("SVGX_EXTREME_CHILD", kind)
+                    .env("SVGX_EXTREME_DEPTH", depth.to_string())
+                    .status()
+                    .unwrap();
+                assert!(
+                    status.success(),
+                    "{kind} depth {depth}: child crashed: {status}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn audit_deep_input_subprocess() {
+        if std::env::var_os("SVGX_AUDIT_DEPTH_CHILD").is_some() {
+            let shape = "<rect width='1' height='1'/>";
+            let nested = format!(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>{}{}{}</svg>",
+                "<g opacity='.9'>".repeat(1000),
+                shape,
+                "</g>".repeat(1000)
+            );
+            // The entry scan now rejects over-depth XML before roxmltree.
+            // The collector's subtree cutoff is tested separately.
+            assert_eq!(parse_svg(nested, None).err().as_deref(), Some(DEPTH_ERROR));
+            let siblings = format!(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>{}{}{}</svg>",
+                format!("<g opacity='.9'>{shape}").repeat(MAX_DEPTH - 1),
+                shape,
+                "</g>".repeat(MAX_DEPTH - 1)
+            );
+            let scene = parse_svg(siblings, None).unwrap();
+            assert_eq!(
+                scene.paths.len(),
+                MAX_DEPTH,
+                "all permitted-depth siblings survive"
+            );
+            let mut clips = String::new();
+            for i in 0..1000 {
+                clips.push_str(&format!(
+                    "<clipPath id='c{i}' clip-path='url(#c{})'>{shape}</clipPath>",
+                    i + 1
+                ));
+            }
+            clips.push_str(&format!("<clipPath id='c1000'>{shape}</clipPath>"));
+            assert!(parse_svg(format!("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><defs>{clips}</defs><g clip-path='url(#c0)'>{shape}</g></svg>"), None).is_err());
+            return;
+        }
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "api::svg::tests::audit_deep_input_subprocess",
+                "--nocapture",
+            ])
+            .env("SVGX_AUDIT_DEPTH_CHILD", "1")
+            .status()
+            .unwrap();
+        assert!(
+            status.success(),
+            "depth test child crashed or failed: {status}"
+        );
+    }
+
     #[test]
     fn parse_color_resolves_css_named_colors() {
         assert_eq!(parse_color("red".to_string()), Some(vec![255, 0, 0, 255]));
@@ -1356,13 +2608,19 @@ mod tests {
             parse_color("cornflowerblue".to_string()),
             Some(vec![100, 149, 237, 255])
         );
-        assert_eq!(parse_color("  red  ".to_string()), Some(vec![255, 0, 0, 255]));
+        assert_eq!(
+            parse_color("  red  ".to_string()),
+            Some(vec![255, 0, 0, 255])
+        );
     }
 
     #[test]
     fn parse_color_handles_hex_and_functional_forms() {
         assert_eq!(parse_color("#f00".to_string()), Some(vec![255, 0, 0, 255]));
-        assert_eq!(parse_color("#00ff00".to_string()), Some(vec![0, 255, 0, 255]));
+        assert_eq!(
+            parse_color("#00ff00".to_string()),
+            Some(vec![0, 255, 0, 255])
+        );
         assert_eq!(
             parse_color("rgb(1, 2, 3)".to_string()),
             Some(vec![1, 2, 3, 255])
@@ -1476,13 +2734,22 @@ mod tests {
         );
 
         assert!(path.has_fill, "expected a resolved fill");
-        assert_eq!(path.fill_argb, 0xFFFF7A00, "fill should resolve to opaque orange");
+        assert_eq!(
+            path.fill_argb, 0xFFFF7A00,
+            "fill should resolve to opaque orange"
+        );
         assert!(!path.even_odd, "default fill-rule should be nonzero");
 
         assert!(path.has_stroke, "expected a resolved stroke");
-        assert_eq!(path.stroke_argb, 0xFF000000, "stroke should resolve to opaque black");
+        assert_eq!(
+            path.stroke_argb, 0xFF000000,
+            "stroke should resolve to opaque black"
+        );
         assert_eq!(path.stroke_width, 2.0);
-        assert!(!path.stroke_first, "default paint-order should paint fill before stroke");
+        assert!(
+            !path.stroke_first,
+            "default paint-order should paint fill before stroke"
+        );
     }
 
     #[test]
@@ -1503,8 +2770,7 @@ mod tests {
 
     #[test]
     fn current_color_defaults_to_black_without_override() {
-        let scene =
-            parse_svg(CURRENT_COLOR_SVG.to_string(), None).expect("valid svg should parse");
+        let scene = parse_svg(CURRENT_COLOR_SVG.to_string(), None).expect("valid svg should parse");
         assert_eq!(scene.paths[0].fill_argb, 0xFF000000);
     }
 
