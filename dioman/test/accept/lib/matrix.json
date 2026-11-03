@@ -2013,6 +2013,19 @@
     "blocked": null
   },
   {
+    "id": "Dioman.isCancel",
+    "plugin": "client",
+    "capability": "Dioman.isCancel：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "Dioman.isCancel"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "Dioman.key",
     "plugin": "client",
     "capability": "Dioman.key：公开契约及配置解析",
@@ -2219,6 +2232,20 @@
       "passed": 7,
       "total": 7
     },
+    "blocked": null
+  },
+  {
+    "id": "Dioman.statusOf",
+    "plugin": "client",
+    "capability": "Dioman.statusOf：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "Dioman.new(statusOf)",
+      "Dioman.statusOf"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
     "blocked": null
   },
   {
@@ -2921,6 +2948,19 @@
     "tier": 1,
     "apis": [
       "DiomanContext.set"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanContext.statusOf",
+    "plugin": "context",
+    "capability": "DiomanContext.statusOf：R2a 响应契约与纯判定规则",
+    "tier": 1,
+    "apis": [
+      "DiomanContext.statusOf"
     ],
     "real": [],
     "assumptions": [],
@@ -4671,13 +4711,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanCall.envelope",
+    "id": "DiomanCall.extra",
     "plugin": "options",
-    "capability": "DiomanCall.envelope：公开契约及配置解析",
+    "capability": "DiomanCall.extra：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanCall.envelope",
-      "DiomanCall.new(envelope)"
+      "DiomanCall.extra",
+      "DiomanCall.new(extra)"
     ],
     "real": [],
     "assumptions": [],
@@ -4816,23 +4856,29 @@
     "blocked": null
   },
   {
-    "id": "DiomanPlugin pairs",
+    "id": "INV-pairs",
     "plugin": "pipeline",
-    "capability": "整形插件与交互插件 42 对配置透传",
+    "capability": "组合不变量",
     "tier": 1,
     "apis": [],
     "real": [],
+    "unit": [
+      "test/combo/prepare_pairs_combo_test.dart"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null
   },
   {
-    "id": "DiomanPlugin powerset",
+    "id": "INV-powerset",
     "plugin": "pipeline",
-    "capability": "九插件 512 子集九流程 I1–I7",
+    "capability": "组合不变量",
     "tier": 1,
     "apis": [],
     "real": [],
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null
@@ -5486,69 +5532,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanFailure.data",
-    "plugin": "response",
-    "capability": "DiomanFailure.data：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.data",
-      "DiomanFailure.new(data)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanFailure.error",
-    "plugin": "response",
-    "capability": "DiomanFailure.error：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.error",
-      "DiomanFailure.new(error)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanFailure.errorStack",
-    "plugin": "response",
-    "capability": "DiomanFailure.errorStack：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.errorStack",
-      "DiomanFailure.new(errorStack)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanFailure.kind",
     "plugin": "response",
     "capability": "DiomanFailure.kind：公开契约及配置解析",
     "tier": 1,
     "apis": [
-      "DiomanFailure.kind",
-      "DiomanFailure.new(kind)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanFailure.message",
-    "plugin": "response",
-    "capability": "DiomanFailure.message：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanFailure.message",
-      "DiomanFailure.new(message)"
+      "DiomanFailure.kind"
     ],
     "real": [],
     "assumptions": [],
@@ -5561,7 +5550,6 @@
     "capability": "DiomanFailure.reason：公开契约及配置解析",
     "tier": 1,
     "apis": [
-      "DiomanFailure.new(reason)",
       "DiomanFailure.reason"
     ],
     "real": [],
@@ -5570,13 +5558,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanFailure.status",
+    "id": "DiomanFailureKind.auth",
     "plugin": "response",
-    "capability": "DiomanFailure.status：公开契约及配置解析",
+    "capability": "DiomanFailureKind.auth：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanFailure.new(status)",
-      "DiomanFailure.status"
+      "DiomanFailureKind.auth"
     ],
     "real": [],
     "assumptions": [],
@@ -5584,12 +5571,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.auth",
+    "id": "DiomanFailureKind.breaker",
     "plugin": "response",
-    "capability": "DiomanKind.auth：公开契约及配置解析",
+    "capability": "DiomanFailureKind.breaker：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.auth"
+      "DiomanFailureKind.breaker"
     ],
     "real": [],
     "assumptions": [],
@@ -5597,12 +5584,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.biz",
+    "id": "DiomanFailureKind.cancel",
     "plugin": "response",
-    "capability": "DiomanKind.biz：公开契约及配置解析",
+    "capability": "DiomanFailureKind.cancel：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.biz"
+      "DiomanFailureKind.cancel"
     ],
     "real": [],
     "assumptions": [],
@@ -5610,12 +5597,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.breaker",
+    "id": "DiomanFailureKind.internal",
     "plugin": "response",
-    "capability": "DiomanKind.breaker：公开契约及配置解析",
+    "capability": "DiomanFailureKind.internal：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.breaker"
+      "DiomanFailureKind.internal"
     ],
     "real": [],
     "assumptions": [],
@@ -5623,12 +5610,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.cancel",
+    "id": "DiomanFailureKind.network",
     "plugin": "response",
-    "capability": "DiomanKind.cancel：公开契约及配置解析",
+    "capability": "DiomanFailureKind.network：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.cancel"
+      "DiomanFailureKind.network"
     ],
     "real": [],
     "assumptions": [],
@@ -5636,12 +5623,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.http",
+    "id": "DiomanFailureKind.offline",
     "plugin": "response",
-    "capability": "DiomanKind.http：公开契约及配置解析",
+    "capability": "DiomanFailureKind.offline：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.http"
+      "DiomanFailureKind.offline"
     ],
     "real": [],
     "assumptions": [],
@@ -5649,12 +5636,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.internal",
+    "id": "DiomanFailureKind.parse",
     "plugin": "response",
-    "capability": "DiomanKind.internal：公开契约及配置解析",
+    "capability": "DiomanFailureKind.parse：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.internal"
+      "DiomanFailureKind.parse"
     ],
     "real": [],
     "assumptions": [],
@@ -5662,12 +5649,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.network",
+    "id": "DiomanFailureKind.timeout",
     "plugin": "response",
-    "capability": "DiomanKind.network：公开契约及配置解析",
+    "capability": "DiomanFailureKind.timeout：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.network"
+      "DiomanFailureKind.timeout"
     ],
     "real": [],
     "assumptions": [],
@@ -5675,12 +5662,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.offline",
+    "id": "DiomanParsed.code",
     "plugin": "response",
-    "capability": "DiomanKind.offline：公开契约及配置解析",
+    "capability": "DiomanParsed.code：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.offline"
+      "DiomanParsed.code",
+      "DiomanParsed.new(code)"
     ],
     "real": [],
     "assumptions": [],
@@ -5688,12 +5676,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.ok",
+    "id": "DiomanParsed.data",
     "plugin": "response",
-    "capability": "DiomanKind.ok：公开契约及配置解析",
+    "capability": "DiomanParsed.data：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.ok"
+      "DiomanParsed.data",
+      "DiomanParsed.new(data)"
     ],
     "real": [],
     "assumptions": [],
@@ -5701,25 +5690,13 @@
     "blocked": null
   },
   {
-    "id": "DiomanKind.parse",
+    "id": "DiomanParsed.message",
     "plugin": "response",
-    "capability": "DiomanKind.parse：公开契约及配置解析",
+    "capability": "DiomanParsed.message：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "DiomanKind.parse"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanKind.timeout",
-    "plugin": "response",
-    "capability": "DiomanKind.timeout：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanKind.timeout"
+      "DiomanParsed.message",
+      "DiomanParsed.new(message)"
     ],
     "real": [],
     "assumptions": [],
@@ -5822,41 +5799,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponse.httpStatus",
-    "plugin": "response",
-    "capability": "DiomanResponse.httpStatus：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.httpStatus",
-      "DiomanResponse.new(httpStatus)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.kind",
-    "plugin": "response",
-    "capability": "DiomanResponse.kind：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.kind",
-      "DiomanResponse.new(kind)"
-    ],
-    "real": [
-      "faults.html-gateway-page"
-    ],
-    "assumptions": [],
-    "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-29-summary.json",
-      "passed": 4,
-      "total": 4
-    },
-    "blocked": null
-  },
-  {
     "id": "DiomanResponse.message",
     "plugin": "response",
     "capability": "DiomanResponse.message：公开契约及配置解析",
@@ -5892,20 +5834,6 @@
     "apis": [
       "DiomanResponse.new(raw)",
       "DiomanResponse.raw"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponse.reason",
-    "plugin": "response",
-    "capability": "DiomanResponse.reason：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponse.new(reason)",
-      "DiomanResponse.reason"
     ],
     "real": [],
     "assumptions": [],
@@ -5991,20 +5919,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponseFactory.envelope",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.envelope：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.envelope",
-      "DiomanResponseFactory.new(envelope)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanResponseFactory.expectJson",
     "plugin": "response",
     "capability": "DiomanResponseFactory.expectJson：公开契约及配置解析",
@@ -6032,20 +5946,6 @@
     "blocked": null
   },
   {
-    "id": "DiomanResponseFactory.isEnvelope",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.isEnvelope：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.isEnvelope",
-      "DiomanResponseFactory.new(isEnvelope)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
     "id": "DiomanResponseFactory.isSuccess",
     "plugin": "response",
     "capability": "DiomanResponseFactory.isSuccess：公开契约及配置解析",
@@ -6053,20 +5953,6 @@
     "apis": [
       "DiomanResponseFactory.isSuccess",
       "DiomanResponseFactory.new(isSuccess)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanResponseFactory.logicalStatus",
-    "plugin": "response",
-    "capability": "DiomanResponseFactory.logicalStatus：公开契约及配置解析",
-    "tier": 1,
-    "apis": [
-      "DiomanResponseFactory.logicalStatus",
-      "DiomanResponseFactory.new(logicalStatus)"
     ],
     "real": [],
     "assumptions": [],
@@ -6087,13 +5973,13 @@
     "blocked": null
   },
   {
-    "id": "Envelope.code",
+    "id": "DiomanResponseFactory.parse",
     "plugin": "response",
-    "capability": "Envelope.code：公开契约及配置解析",
+    "capability": "DiomanResponseFactory.parse：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.code",
-      "Envelope.new(code)"
+      "DiomanResponseFactory.new(parse)",
+      "DiomanResponseFactory.parse"
     ],
     "real": [],
     "assumptions": [],
@@ -6101,27 +5987,30 @@
     "blocked": null
   },
   {
-    "id": "Envelope.data",
+    "id": "failureOf",
     "plugin": "response",
-    "capability": "Envelope.data：公开契约及配置解析",
+    "capability": "failureOf：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.data",
-      "Envelope.new(data)"
+      "failureOf"
     ],
-    "real": [],
+    "real": [
+      "faults.html-gateway-page"
+    ],
     "assumptions": [],
     "result": null,
-    "blocked": null
+    "blocked": null,
+    "unit": [
+      "test/rule/response_contract_rule_test.dart"
+    ]
   },
   {
-    "id": "Envelope.message",
+    "id": "isDiomanCancel",
     "plugin": "response",
-    "capability": "Envelope.message：公开契约及配置解析",
+    "capability": "isDiomanCancel：R2a 响应契约与纯判定规则",
     "tier": 1,
     "apis": [
-      "Envelope.message",
-      "Envelope.new(message)"
+      "isDiomanCancel"
     ],
     "real": [],
     "assumptions": [],

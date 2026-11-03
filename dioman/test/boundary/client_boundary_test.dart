@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import '../support/constants.dart';
 import 'dart:async';
@@ -42,20 +43,19 @@ void main() {
     expect(api.cancellationSubscriptions, 2);
     expect(api.cancelAll('stop'), 2);
     expect(api.cancelAll(), 0);
-    expect((await first).kind, DiomanKind.cancel);
-    expect((await second).kind, DiomanKind.cancel);
+    expect(outcomeOf((await first)), diomanTestCancel);
+    expect(outcomeOf((await second)), diomanTestCancel);
     expect(api.pending, 0);
     final token = CancelToken();
     final third = api.send<Object?>(pipelineTestGetMethod, '/three',
         call: DiomanCall(cancelToken: token));
     token.cancel('user');
-    expect((await third).kind, DiomanKind.cancel);
+    expect(outcomeOf((await third)), diomanTestCancel);
     final already = CancelToken()..cancel();
     expect(
-        (await api.send<Object?>(pipelineTestGetMethod, '/four',
-                call: DiomanCall(cancelToken: already)))
-            .kind,
-        DiomanKind.cancel);
+        outcomeOf((await api.send<Object?>(pipelineTestGetMethod, '/four',
+            call: DiomanCall(cancelToken: already)))),
+        diomanTestCancel);
     expect(api.pending, 0);
     expect(api.cancelAll(), 0);
   });
@@ -184,7 +184,7 @@ void main() {
         api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath);
     expect(() => api.dispose(), throwsA(same(first)));
     expect(order, [pipelineTestWait, pipelineTestB, pipelineTestA]);
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     api.dispose();
     await expectLater(
         api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath),

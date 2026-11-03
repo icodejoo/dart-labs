@@ -9,6 +9,7 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
       'Dioman.response': v.response,
       'Dioman.key': v.key,
       'Dioman.reject': v.reject,
+      'Dioman.statusOf': v.statusOf,
       'Dioman.clock': v.clock,
       'Dioman.pending': v.pending,
     };
@@ -71,7 +72,7 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
       'DiomanCall.receiveTimeout': v.receiveTimeout,
       'DiomanCall.cancelToken': v.cancelToken,
       'DiomanCall.key': v.key,
-      'DiomanCall.envelope': v.envelope,
+      'DiomanCall.extra': v.extra,
       'DiomanCall.silent': v.silent,
       'DiomanCall.options': v.options,
     };
@@ -125,12 +126,20 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
     };
     e.mark(snapshot.keys, 'property read');
   }
-  if (values['Envelope'] is Envelope) {
-    final v = values['Envelope'] as Envelope;
+  if (values['DiomanFailure'] is DiomanFailure) {
+    final v = values['DiomanFailure'] as DiomanFailure;
     final snapshot = <String, Object?>{
-      'Envelope.code': v.code,
-      'Envelope.data': v.data,
-      'Envelope.message': v.message,
+      'DiomanFailure.kind': v.kind,
+      'DiomanFailure.reason': v.reason,
+    };
+    e.mark(snapshot.keys, 'property read');
+  }
+  if (values['DiomanParsed'] is DiomanParsed) {
+    final v = values['DiomanParsed'] as DiomanParsed;
+    final snapshot = <String, Object?>{
+      'DiomanParsed.code': v.code,
+      'DiomanParsed.data': v.data,
+      'DiomanParsed.message': v.message,
     };
     e.mark(snapshot.keys, 'property read');
   }
@@ -138,13 +147,10 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
     final v = values['DiomanResponse'] as DiomanResponse;
     final snapshot = <String, Object?>{
       'DiomanResponse.ok': v.ok,
-      'DiomanResponse.kind': v.kind,
       'DiomanResponse.status': v.status,
-      'DiomanResponse.httpStatus': v.httpStatus,
       'DiomanResponse.code': v.code,
       'DiomanResponse.message': v.message,
       'DiomanResponse.data': v.data,
-      'DiomanResponse.reason': v.reason,
       'DiomanResponse.request': v.request,
       'DiomanResponse.raw': v.raw,
       'DiomanResponse.error': v.error,
@@ -153,26 +159,11 @@ void generatedInspect(ApiEvidence e, Map<String, Object> values) {
     };
     e.mark(snapshot.keys, 'property read');
   }
-  if (values['DiomanFailure'] is DiomanFailure) {
-    final v = values['DiomanFailure'] as DiomanFailure;
-    final snapshot = <String, Object?>{
-      'DiomanFailure.kind': v.kind,
-      'DiomanFailure.status': v.status,
-      'DiomanFailure.message': v.message,
-      'DiomanFailure.reason': v.reason,
-      'DiomanFailure.data': v.data,
-      'DiomanFailure.error': v.error,
-      'DiomanFailure.errorStack': v.errorStack,
-    };
-    e.mark(snapshot.keys, 'property read');
-  }
   if (values['DiomanResponseFactory'] is DiomanResponseFactory) {
     final v = values['DiomanResponseFactory'] as DiomanResponseFactory;
     final snapshot = <String, Object?>{
-      'DiomanResponseFactory.envelope': v.envelope,
-      'DiomanResponseFactory.isEnvelope': v.isEnvelope,
+      'DiomanResponseFactory.parse': v.parse,
       'DiomanResponseFactory.isSuccess': v.isSuccess,
-      'DiomanResponseFactory.logicalStatus': v.logicalStatus,
       'DiomanResponseFactory.expectJson': v.expectJson,
       'DiomanResponseFactory.create': v.create,
     };

@@ -1,3 +1,4 @@
+import 'response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 export 'b4_retry_migration_scenarios.dart';
 import 'dart:async';
@@ -27,12 +28,15 @@ Future<void> b4CacheRequiresCredentials() async {
   final tokens = TestTokens();
   final net = FakeNetwork();
   final api = testClient(
-      network: net, plugins: [b3Auth(tokens), const DiomanCache<Result>()]);
+      statusOf: businessStatus,
+      network: net,
+      plugins: [b3Auth(tokens), const DiomanCache<Result>()]);
   await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
   tokens.clear();
   expect(
-      (await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true)))
-          .reason,
+      failureOf((await api.send<Object?>(b4Get, b4Path,
+              call: b4Call(cache: true))))
+          ?.reason,
       'unauthenticated');
   expect(net.sends.length, 1);
   await b4Clean(api);
@@ -42,7 +46,7 @@ Future<void> b4CacheRequiresCredentials() async {
 Future<void> b4InlineRunsPerCaller() async {
   var hits = 0;
   final net = FakeNetwork();
-  final api = testClient(network: net, plugins: [
+  final api = testClient(statusOf: businessStatus, network: net, plugins: [
     b3Auth(TestTokens()),
     DiomanMock<Result>(routes: {b4Route: (_) => ++hits}),
     const DiomanShare<Result>()
@@ -61,7 +65,7 @@ Future<void> b4InlineRunsPerCaller() async {
 Future<void> b4PublicRequestsShare() async {
   final gate = Completer<void>();
   final net = FakeNetwork()..routes[b4Route] = [FakeReply(gate: gate.future)];
-  final api = testClient(network: net, plugins: [
+  final api = testClient(statusOf: businessStatus, network: net, plugins: [
     b3Auth(TestTokens(null), protected: (_) => false),
     const DiomanShare<Result>()
   ]);
@@ -81,16 +85,21 @@ Future<void> b4RetryNoticesSettle({required bool throwNotice}) async {
   final net = FakeNetwork()..routes[b4Route] = [const FakeReply(status: 500)];
   var notices = 0;
   final logs = <String>[];
-  final api = testClient(clock: clock, network: net, debug: logs.add, plugins: [
-    DiomanRetry<Result>(
-        max: 1,
-        delay: (_, __, ___) => Duration.zero,
-        onRetry: (_) {
-          notices++;
-          if (throwNotice) throw StateError('notice');
-        }),
-    const DiomanShare<Result>(retries: 0)
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      clock: clock,
+      network: net,
+      debug: logs.add,
+      plugins: [
+        DiomanRetry<Result>(
+            max: 1,
+            delay: (_, __, ___) => Duration.zero,
+            onRetry: (_) {
+              notices++;
+              if (throwNotice) throw StateError('notice');
+            }),
+        const DiomanShare<Result>(retries: 0)
+      ]);
   final a = api.send<Object?>(b4Get, b4Path,
       call: b4Call(
           share:
@@ -99,8 +108,8 @@ Future<void> b4RetryNoticesSettle({required bool throwNotice}) async {
       call: b4Call(
           share:
               throwNotice ? DiomanSharePolicy.race : DiomanSharePolicy.retry));
-  expect((await b3Finish(a, clock)).httpStatus, 500);
-  expect((await b3Finish(b, clock)).httpStatus, 500);
+  expect((await b3Finish(a, clock)).status, 500);
+  expect((await b3Finish(b, clock)).status, 500);
   expect(notices, 2);
   expect(net.sends.length, throwNotice ? 4 : 2);
   if (throwNotice) {
@@ -133,19 +142,23 @@ Future<void> b4RefreshAndRetry(
     if (extraFailure) const FakeReply(status: 500),
     const FakeReply()
   ];
-  final api = testClient(network: net, clock: clock, plugins: [
-    ...h.probes(),
-    h.loadingPlugin(),
-    h.notifyPlugin(),
-    DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
-    if (auth)
-      b3Auth(tokens, refresh: (tm, r) {
-        refreshes++;
-        tm.setTokens(accessToken: b3Fresh);
-      }),
-    const DiomanShare<Result>(retries: 0),
-    const DiomanCache<Result>()
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      network: net,
+      clock: clock,
+      plugins: [
+        ...h.probes(),
+        h.loadingPlugin(),
+        h.notifyPlugin(),
+        DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
+        if (auth)
+          b3Auth(tokens, refresh: (tm, r) {
+            refreshes++;
+            tm.setTokens(accessToken: b3Fresh);
+          }),
+        const DiomanShare<Result>(retries: 0),
+        const DiomanCache<Result>()
+      ]);
   if (reinstallShare) {
     api.eject(DiomanShare.pluginName);
     api.use(const DiomanShare<Result>(retries: 0));
@@ -207,6 +220,7 @@ Future<void> b4CallbackBugSettles(
     ..routes[b4Route] = [const FakeReply(status: _retryStatus)];
   final isRetry = throwIn == B4BugSite.shouldRetry;
   final api = testClient(
+      statusOf: businessStatus,
       network: net,
       clock: throwIn == B4BugSite.clock ? _MigrationClock(boom) : null,
       plugins: [
@@ -274,16 +288,20 @@ Future<void> b4CancellationSettles(
       if (chained) const FakeReply(status: 401),
       const FakeReply()
     ];
-  final api = testClient(clock: clock, network: net, plugins: [
-    DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
-    b3Auth(tokens, refresh: (tm, r) async {
-      refreshing.complete();
-      await release.future;
-      tm.setTokens(accessToken: b3Fresh);
-    }),
-    const DiomanShare<Result>(),
-    const DiomanCache<Result>()
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      clock: clock,
+      network: net,
+      plugins: [
+        DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
+        b3Auth(tokens, refresh: (tm, r) async {
+          refreshing.complete();
+          await release.future;
+          tm.setTokens(accessToken: b3Fresh);
+        }),
+        const DiomanShare<Result>(),
+        const DiomanCache<Result>()
+      ]);
   final a = api.send<Object?>(b4Get, b4Path,
       call: DiomanCall(
           key: b4Key, cancelToken: token, options: {DiomanShare.option: true}));
@@ -291,7 +309,7 @@ Future<void> b4CancellationSettles(
   await b4Turn();
   if (cancelBeforeReply) {
     token.cancel();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
   }
   gate.complete();
   if (!retryWithoutRefresh) {
@@ -304,14 +322,14 @@ Future<void> b4CancellationSettles(
   }
   if (cancelAll) {
     api.cancelAll();
-    expect((await a).kind, DiomanKind.cancel);
-    expect((await b).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
+    expect(outcomeOf((await b)), diomanTestCancel);
     release.complete();
     await b4Turn();
   } else {
     if (chained) {
       token.cancel();
-      expect((await a).kind, DiomanKind.cancel);
+      expect(outcomeOf((await a)), diomanTestCancel);
     }
     release.complete();
     expect((await b3Finish(b, clock)).ok, isTrue);
@@ -329,34 +347,41 @@ Future<void> b4MockRetryRecovers(
   var hits = 0;
   net.routes['GET:https://mock.test$b4Path'] = [const FakeReply(status: 404)];
   net.routes[b4Route] = [const FakeReply(status: 500), const FakeReply()];
-  final api = testClient(clock: clock, network: net, plugins: [
-    DiomanRetry<Result>(
-        max: 1,
-        delay: (_, __, ___) => Duration.zero,
-        shouldRetry: inlineBusiness ? (r, n) => !r.ok : null),
-    DiomanMock<Result>(
-        mockUrl: fallback ? b4LiteralHttpsMockTest : null,
-        routes: fallback
-            ? {}
-            : {
-                b4Route: (_) {
-                  hits++;
-                  if (!inlineBusiness) {
-                    return Response<dynamic>(
-                        requestOptions: RequestOptions(path: b4Path),
-                        statusCode: hits == 1 ? 500 : 200,
-                        data: {
-                          b4LiteralCode: 0,
-                          b4LiteralData: b4LiteralRecovered
-                        });
-                  }
-                  return hits == 1
-                      ? {b4LiteralCode: 500, b4LiteralData: null}
-                      : {b4LiteralCode: 0, b4LiteralData: b4LiteralRecovered};
-                }
-              }),
-    if (withShare) const DiomanShare<Result>()
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      clock: clock,
+      network: net,
+      plugins: [
+        DiomanRetry<Result>(
+            max: 1,
+            delay: (_, __, ___) => Duration.zero,
+            shouldRetry: inlineBusiness ? (r, n) => !r.ok : null),
+        DiomanMock<Result>(
+            mockUrl: fallback ? b4LiteralHttpsMockTest : null,
+            routes: fallback
+                ? {}
+                : {
+                    b4Route: (_) {
+                      hits++;
+                      if (!inlineBusiness) {
+                        return Response<dynamic>(
+                            requestOptions: RequestOptions(path: b4Path),
+                            statusCode: hits == 1 ? 500 : 200,
+                            data: {
+                              b4LiteralCode: 0,
+                              b4LiteralData: b4LiteralRecovered
+                            });
+                      }
+                      return hits == 1
+                          ? {b4LiteralCode: 500, b4LiteralData: null}
+                          : {
+                              b4LiteralCode: 0,
+                              b4LiteralData: b4LiteralRecovered
+                            };
+                    }
+                  }),
+        if (withShare) const DiomanShare<Result>()
+      ]);
   expect(
       (await b3Finish(
               api.send<Object?>(b4Get, b4Path, call: b4Call(share: true)),

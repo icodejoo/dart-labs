@@ -75,14 +75,12 @@ DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
           try {
             target = patch == null ? ctx : ctx.derive(patch);
           } catch (e, s) {
-            return ctx.fail(DiomanFailure(
-                kind: DiomanKind.internal, error: e, errorStack: s));
+            return ctx.factory.internalError(ctx.request, e, s);
           }
           return inner(target);
         });
       } catch (e, s) {
-        return ctx.fail(
-            DiomanFailure(kind: DiomanKind.internal, error: e, errorStack: s));
+        return ctx.factory.internalError(ctx.request, e, s);
       }
     };
   }

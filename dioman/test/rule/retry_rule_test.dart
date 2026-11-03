@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
@@ -22,11 +23,15 @@ void main() {
           ];
         final clock = FakeClock();
         final api = testClient(
-            network: net, clock: clock, plugins: [const DiomanRetry(max: 2)]);
+            statusOf: businessStatus,
+            network: net,
+            clock: clock,
+            plugins: [const DiomanRetry(max: 2)]);
         final r = await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock);
         expect(net.sends.length,
             DiomanRetry.defaultStatusCodes.contains(status) ? 3 : 1);
-        expect(r.status, status);
+        expect(r.status, business ? 200 : status);
+        expect(businessStatus(r), status);
         api.dispose();
       }
     }
@@ -37,16 +42,20 @@ void main() {
         var calls = 0;
         final net = FakeNetwork();
         final clock = FakeClock();
-        final api = testClient(network: net, clock: clock, plugins: [
-          DiomanRetry(
-              max: 1,
-              shouldRetry: (r, attempt) {
-                calls++;
-                expect(r.ok, isTrue);
-                expect(attempt, 1);
-                return decision;
-              })
-        ]);
+        final api = testClient(
+            statusOf: businessStatus,
+            network: net,
+            clock: clock,
+            plugins: [
+              DiomanRetry(
+                  max: 1,
+                  shouldRetry: (r, attempt) {
+                    calls++;
+                    expect(r.ok, isTrue);
+                    expect(attempt, 1);
+                    return decision;
+                  })
+            ]);
         await b3Finish(api.send<Object?>(method, b3Path), clock);
         expect(calls, method == b3ValueGet ? 1 : 0);
         expect(
@@ -56,16 +65,20 @@ void main() {
     }
   });
   test(
-      '[DiomanKind.auth]'
+      '[DiomanFailureKind.auth]'
       '[DiomanRetry.defaultAfterStatusCodes]'
       '[DiomanRetry.defaultMethods]'
       '[DiomanRetry.shouldRetry] 类别硬否决先于回调，network timeout 默认重试', () async {
-    for (final kind
-        in DiomanKind.values.where((k) => k != DiomanKind.internal)) {
+    for (final kind in [
+      diomanTestOk,
+      diomanTestHttp,
+      diomanTestBiz,
+      ...DiomanFailureKind.values.map((k) => k.name)
+    ].where((k) => k != diomanTestInternal)) {
       var inner = 0;
       var decisions = 0;
       final clock = FakeClock();
-      final api = testClient(clock: clock, plugins: [
+      final api = testClient(statusOf: businessStatus, clock: clock, plugins: [
         DiomanRetry(
             max: 1,
             shouldRetry: (r, a) {
@@ -75,20 +88,20 @@ void main() {
         TestPlugin('source', stage: DiomanStage.source,
             handler: (ctx, next) async {
           inner++;
-          return ctx.fail(DiomanFailure(kind: kind));
+          return scriptedResult(ctx, kind);
         })
       ]);
       await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock);
-      final retry = [DiomanKind.network, DiomanKind.timeout].contains(kind);
+      final retry = [diomanTestNetwork, diomanTestTimeout].contains(kind);
       expect(inner, retry ? 2 : 1);
       expect(
           decisions,
           [
-            DiomanKind.cancel,
-            DiomanKind.auth,
-            DiomanKind.parse,
-            DiomanKind.breaker,
-            DiomanKind.offline
+            diomanTestCancel,
+            diomanTestAuth,
+            diomanTestParse,
+            diomanTestBreaker,
+            diomanTestOffline
           ].contains(kind)
               ? 0
               : 1);
@@ -121,9 +134,14 @@ void main() {
       final net = FakeNetwork()
         ..routes['POST:$b3Path'] = [const FakeReply(status: 501)];
       final clock = FakeClock();
-      final api = testClient(network: net, clock: clock, plugins: [
-        const DiomanRetry(max: 1, methods: [b3ValuePost5], statusCodes: [501])
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            const DiomanRetry(
+                max: 1, methods: [b3ValuePost5], statusCodes: [501])
+          ]);
       final pending = api.send<Object?>(b3ValuePost5, b3Path,
           call: DiomanCall(options: {DiomanRetry.option: option}));
       if (option == b3ValueInvalid) {
@@ -141,14 +159,15 @@ void main() {
       }
       api.dispose();
     }
-    final api = testClient(plugins: [const DiomanRetry(enabled: false)]);
+    final api = testClient(
+        statusOf: businessStatus, plugins: [const DiomanRetry(enabled: false)]);
     expect(api.inspect(), isEmpty);
     api.dispose();
   });
   test('[DiomanContext.markReplayable] max 零与负数仍声明克隆且不重试', () async {
     for (final max in [0, -1]) {
       var entered = 0;
-      final api = testClient(plugins: [
+      final api = testClient(statusOf: businessStatus, plugins: [
         DiomanRetry(max: max),
         TestPlugin('probe', handler: (ctx, next) async {
           entered++;

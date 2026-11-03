@@ -193,7 +193,7 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         for (var i = 0;
             i < o.retries! &&
                 !r.ok &&
-                r.kind != DiomanKind.internal &&
+                failureOf(r)?.kind != DiomanFailureKind.internal &&
                 shared.canReplay() &&
                 !shared.isCancelled;
             i++) {
@@ -206,12 +206,8 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       finish(table, key, entry, r);
     } catch (error, stack) {
-      finish(
-          table,
-          key,
-          entry,
-          ctx.fail(DiomanFailure(
-              kind: DiomanKind.internal, error: error, errorStack: stack)));
+      finish(table, key, entry,
+          ctx.factory.internalError(ctx.request, error, stack));
     } finally {
       ctx.state.release();
     }
@@ -296,9 +292,8 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     if (key == null) return next();
     final table = tables[o.policy]!;
     final existing = table[key];
-    final entry = existing ??
-        (table[key] =
-            _Shared(ctx.fail(const DiomanFailure(kind: DiomanKind.cancel))));
+    final entry =
+        existing ?? (table[key] = _Shared(ctx.fail(DiomanFailureKind.cancel)));
     final shared = o.policy == DiomanSharePolicy.start ||
         o.policy == DiomanSharePolicy.retry;
     entry.subscribers++;
@@ -322,9 +317,7 @@ class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         entry.candidates.remove(sequence);
         settle(o, table, key, entry);
       }
-      return ctx.cancelled() ??
-          r ??
-          ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+      return ctx.cancelled() ?? r ?? ctx.fail(DiomanFailureKind.timeout);
     } finally {
       if (!shared) entry.competitors[sequence]?.cancel();
       if (--entry.subscribers == 0) {

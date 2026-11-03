@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -30,9 +31,9 @@ void main() {
             options: {DiomanShare.option: DiomanSharePolicy.end}));
     await b4Turn();
     token.cancel();
-    expect((await b).kind, DiomanKind.cancel);
+    expect(outcomeOf((await b)), diomanTestCancel);
     old.complete();
-    expect((await a).kind, DiomanKind.ok);
+    expect(outcomeOf((await a)), diomanTestOk);
     latest.complete();
     await b4Turn();
     expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
@@ -48,7 +49,7 @@ void main() {
     final pending = api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
     await b4Turn();
     api.cancelAll();
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     gate.complete();
     await b4Turn();
     expect(api.plugin<DiomanCacheApi>()!.entryCount, 0);
@@ -81,7 +82,7 @@ void main() {
     final pausedB = b.send<Object?>(b4Get, b4Path);
     await b4Turn();
     a.eject(DiomanOffline.pluginName);
-    expect((await pausedA).reason, b4LiteralDisposed);
+    expect(failureOf((await pausedA))?.reason, b4LiteralDisposed);
     expect(b.plugin<DiomanOfflineApi>()!.pending, 1);
     stream.add(true);
     expect((await pausedB).ok, isTrue);
@@ -110,7 +111,7 @@ void main() {
             options: {DiomanShare.option: DiomanSharePolicy.end}));
     await b4Turn();
     clock.elapse(b4Tick * 2);
-    expect((await pending).kind, DiomanKind.timeout);
+    expect(outcomeOf((await pending)), diomanTestTimeout);
     await b4Turn();
     expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
     stream.add(true);

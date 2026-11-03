@@ -1,7 +1,7 @@
 ---
 title: 从 0.7.2 迁移到洋葱管线
 status: active
-updated: 2026-10-29
+updated: 2026-11-03
 summary: 安装、结果、插件、扩展、测试与旧 API 逐项替代
 ---
 
@@ -34,9 +34,9 @@ Future<void> main() async {
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -50,6 +50,37 @@ Future<void> main() async {
 - 固定阶段决定执行顺序，重复插件名在构造或 use 时拒绝；不再手工 sort/validate。
 - use/eject/inspect 管理当前客户端，extend 重新 setup；auth 会话按 TokenManager、loading 按相等回调共享；dispose 不关闭调用方的 Dio。
 
+## R2a 响应契约 Breaking
+
+顶层 kind 改为 failureOf(r)?.kind，DiomanKind 改为 DiomanFailureKind；ok/http/biz 不属于失败标记。顶层 reason 移入 failureOf(r)?.reason。删除 httpStatus，status 仅表示 HTTP（无响应为 0）。业务码缺省为 0；默认 HTTP 2xx 且 code 为 0 或 '0' 成功。客户端 statusOf 与 ctx.statusOf 单独提供有效状态，extend 继承配置；映射抛错按 bug 原栈抛出。
+
+Envelope、envelope/isEnvelope/logicalStatus 与 call.envelope 删除。协议转换改为 parse(body, raw)，返回 DiomanParsed；create 保留扩展构造职责，不能抹掉内核失败事实。需要逐请求跳过信封时，用 DiomanCall(extra: …) 标记，在自定义 parse 读取 raw.requestOptions.extra：
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+Future<void> main() async {
+  final api = Dioman(dio: Dio(), response: DiomanResponseFactory(
+      parse: (body, raw) {
+        if (raw.requestOptions.extra['plain'] == true || body is! Map ||
+            !body.containsKey('code') ||
+            !(body.containsKey('data') || body.containsKey('message'))) {
+          return DiomanParsed(data: body);
+        }
+        return DiomanParsed(code: body['code'] ?? 0, data: body['data'],
+            message: '${body['message'] ?? ''}');
+      }));
+  try {
+    await api.send<Object?>('GET', 'https://api.example.com/items',
+        call: const DiomanCall(extra: {'plain': true}));
+  } finally {
+    api.dispose();
+    api.dio.close(force: true);
+  }
+}
+```
+
 ## 生命周期与作用域（C19–C21）
 
 Auth 按 TokenManager 共享单飞刷新、过期和无 token 通知状态；无 token 每轮只通知一次，观察到登录 token 后复位。最后一个持有者卸载时解除关联，迟到失败不清 token、不通知；还有持有者时共享失败仍只处理一次。
@@ -62,7 +93,7 @@ Loading 按回调 `==` 跨客户端共享，实例方法 tear-off 也归入同�
 
 ## 请求与结果
 
-动词方法返回 data；send 返回完整结果。query 替代 Dio 调用的 queryParameters；请求配置使用 DiomanCall。key/cancel/normalize/log 无需安装：分别使用 DiomanKeyOptions、cancelAll/pending、DiomanResponseFactory、debug 或 Dio LogInterceptor。显式 key 字符串覆盖自动键，false 同时禁用 cache/share。envelope=false 保留原数据；silent=true 抑制默认通知。
+动词方法返回 data；send 返回完整结果。query 替代 Dio 调用的 queryParameters；请求配置使用 DiomanCall。key/cancel/normalize/log 无需安装：分别使用 DiomanKeyOptions、cancelAll/pending、DiomanResponseFactory、debug 或 Dio LogInterceptor。显式 key 字符串覆盖自动键，false 同时禁用 cache/share。协议转换使用 parse；silent=true 抑制默认通知。
 
 旧写法：
 
@@ -97,13 +128,13 @@ Future<void> main() async {
 行为差异：
 
 - 动词方法直接返回 data；需要状态、原因和原始响应时使用 send。
-- extra 不再承载插件配置；key、silent、envelope 和 options 都放在 DiomanCall。
+- extra 不再承载插件配置；key、silent、extra 和 options 都放在 DiomanCall。
 
 ## 错误处理
 
 Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 将 2xx 非空文本（包括 text/html）判为 parse，不依赖 MIME 声明。
 
-捕获 DiomanResponse，按 kind 与 reason 分流；不要再捕获旧异常子类。status 是逻辑状态，httpStatus 是 HTTP 状态。send 对可预期失败返回结果，但程序错误仍原样抛出。判定回调的错误不吞掉；通知回调错误隔离，onRefresh 抛错算刷新失败。
+捕获 DiomanResponse，通过 failureOf 读取 kind 与 reason；不要再捕获旧异常子类。status 仅表示 HTTP，删除 httpStatus。send 对可预期失败返回结果，但程序错误仍原样抛出。判定回调的错误不吞掉；通知回调错误隔离，onRefresh 抛错算刷新失败。
 
 旧写法：
 
@@ -126,8 +157,8 @@ Future<void> main() async {
   final api = Dioman(dio: Dio(BaseOptions(baseUrl: 'https://api.example.com')));
   try {
     final r = await api.send<dynamic>('GET', '/items',
-        call: const DiomanCall(key: false, envelope: false, silent: true));
-    if (!r.ok && r.kind == DiomanKind.offline) print(r.reason);
+        call: const DiomanCall(key: false, silent: true));
+    if (!r.ok && failureOf(r)?.kind == DiomanFailureKind.offline) print(failureOf(r)?.reason);
   } finally { api.dispose(); api.dio.close(force: true); }
 }
 ```
@@ -135,7 +166,7 @@ Future<void> main() async {
 行为差异：
 
 - 动词方法失败时抛 DiomanResponse；send 返回失败结果，程序错误仍抛出。
-- 业务状态与 HTTP 状态分别查看 status/httpStatus，失败类别与具体原因分别查看 kind/reason。
+- HTTP 状态查看 status，业务码查看 code；有效状态配置 statusOf，失败类别与原因通过 failureOf 读取。
 
 ## 每个插件
 
@@ -161,7 +192,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanLoading.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -200,7 +231,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -235,7 +266,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRepath.option: const DiomanRepathOptions(removeKey: false)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -270,7 +301,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanFilter.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -307,7 +338,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanTimeout.option: const DiomanTimeoutOptions(timeouts: {NetworkQuality.good: DiomanTimeouts(receive: Duration(seconds: 5))})}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -344,7 +375,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRetry.option: 2}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -355,7 +386,7 @@ Future<void> main() async {
 行为差异：
 
 - 默认 max 为 0，需要重试时显式配置；方法白名单始终优先于 shouldRetry。
-- 按归一化逻辑状态判断；每次重试重新穿过 breaker、auth 和来源层，不再接 share/cancel/breaker setter。
+- 按 ctx.statusOf 的有效状态判断；每次重试重新穿过 breaker、auth 和来源层，不再接 share/cancel/breaker setter。
 
 ### Breaker
 
@@ -380,7 +411,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanBreaker.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -435,7 +466,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -476,7 +507,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -516,7 +547,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanShare.option: DiomanSharePolicy.start}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -556,7 +587,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -595,7 +626,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanOffline.option: const DiomanOfflineOptions(maxWait: Duration(seconds: 10))}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -760,7 +791,7 @@ Future<void> main() async {
 - 请求级 now/clock 删除；使用客户端 clock。缓存 TTL 的插件级 clock 仍保留。请求级容量占位删除，实际 LRU 容量在插件上配置。
 - filter 新增剔除 NaN；0 与 false 保留。
 - token 存储删除 canRefresh；刷新是否失效由 auth 实例管理。
-- retry/breaker/auth/cache 共用逻辑状态；breaker 每次尝试计数。
+- retry/breaker/auth 共用 ctx.statusOf 有效状态，cache 读取 ok；breaker 每次尝试计数。
 - 自定义判定抛错是程序错误；通知类回调异常不改变请求结果。
 
 ## 旧 API 逐项替代
@@ -839,10 +870,10 @@ Future<void> main() async {
 | `DiomanException.code` | `DiomanResponse.code`。 |
 | `DiomanException.data` | `DiomanResponse.data`。 |
 | `DiomanException.message` | `DiomanResponse.message`。 |
-| `DiomanException.new` | `DiomanResponse.new`。 新结果构造需要 ok/kind/status/httpStatus/request/data；插件优先用 ctx.fail，不可只改构造器名字。 |
-| `DiomanException.new(code)` | `DiomanResponse.new(code)`。 新结果构造需要 ok/kind/status/httpStatus/request/data；插件优先用 ctx.fail，不可只改构造器名字。 |
-| `DiomanException.new(data)` | `DiomanResponse.new(data)`。 新结果构造需要 ok/kind/status/httpStatus/request/data；插件优先用 ctx.fail，不可只改构造器名字。 |
-| `DiomanException.new(message)` | `DiomanResponse.new(message)`。 新结果构造需要 ok/kind/status/httpStatus/request/data；插件优先用 ctx.fail，不可只改构造器名字。 |
+| `DiomanException.new` | `DiomanResponse.new`。 新结果构造需要 ok/status/request；插件优先用 ctx.fail，不可只改构造器名字。 |
+| `DiomanException.new(code)` | `DiomanResponse.new(code)`。 新结果构造需要 ok/status/request；插件优先用 ctx.fail，不可只改构造器名字。 |
+| `DiomanException.new(data)` | `DiomanResponse.new(data)`。 新结果构造需要 ok/status/request；插件优先用 ctx.fail，不可只改构造器名字。 |
+| `DiomanException.new(message)` | `DiomanResponse.new(message)`。 新结果构造需要 ok/status/request；插件优先用 ctx.fail，不可只改构造器名字。 |
 | `DiomanException.toString` | `DiomanResponse.toString`。 |
 | `DiomanExtraKey` | 字符串 extra 注册协议已删除；请求配置用 DiomanOptionKey 与 DiomanCall.options，链内状态用 StateKey。 |
 | `DiomanExtraKey.config` | 字符串 extra 注册协议已删除；请求配置用 DiomanOptionKey 与 DiomanCall.options，链内状态用 StateKey。 |
@@ -958,38 +989,38 @@ Future<void> main() async {
 | `DiomanLogOptions.new(maxBodyLength)` | 日志配置改为客户端 debug 或 Dio LogInterceptor；旧请求级格式化和正文开关没有一对一替代。 |
 | `DiomanLogOptions.new(writer)` | 日志配置改为客户端 debug 或 Dio LogInterceptor；旧请求级格式化和正文开关没有一对一替代。 |
 | `DiomanLogOptions.writer` | 日志配置改为客户端 debug 或 Dio LogInterceptor；旧请求级格式化和正文开关没有一对一替代。 |
-| `DiomanNormalize` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.codeKey` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.dataKey` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.enabled` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.isSuccess` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.messageKey` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.name` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(codeKey)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(dataKey)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(enabled)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(isSuccess)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(messageKey)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.new(shouldNormalize)` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
+| `DiomanNormalize` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.codeKey` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.dataKey` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.enabled` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.isSuccess` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.messageKey` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.name` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(codeKey)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(dataKey)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(enabled)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(isSuccess)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(messageKey)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.new(shouldNormalize)` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
 | `DiomanNormalize.onResponse` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |
-| `DiomanNormalize.ordering` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.pluginName` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalize.shouldNormalize` | 归一化由 DiomanResponseFactory 与 Envelope 配置；请求级 DiomanCall.envelope=false 禁止识别，不再安装归一化插件。 |
-| `DiomanNormalizeOptions` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.codeKey` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.dataKey` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.enabled` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.isSuccess` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.messageKey` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(codeKey)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(dataKey)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(enabled)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(isSuccess)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(messageKey)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.new(shouldNormalize)` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
-| `DiomanNormalizeOptions.shouldNormalize` | 信封字段与判定改为 DiomanResponseFactory/Envelope；请求级关闭使用 DiomanCall.envelope=false。 |
+| `DiomanNormalize.ordering` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.pluginName` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalize.shouldNormalize` | 协议转换由 DiomanResponseFactory.parse 配置；请求级差异用 DiomanCall.extra 标记并在 parse 读取，不再安装归一化插件。 |
+| `DiomanNormalizeOptions` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.codeKey` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.dataKey` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.enabled` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.isSuccess` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.messageKey` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(codeKey)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(dataKey)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(enabled)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(isSuccess)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(messageKey)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.new(shouldNormalize)` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
+| `DiomanNormalizeOptions.shouldNormalize` | 信封字段与判定改为 DiomanResponseFactory.parse；请求级差异用 DiomanCall.extra 与 parse。 |
 | `DiomanNotify.onError` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |
 | `DiomanNotify.onRequest` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |
 | `DiomanNotify.onResponse` | 改为 setup 返回的实例 handle(ctx, next)；调用 next(patch) 执行内层并读取归一化结果，不再使用 Dio handler。 |

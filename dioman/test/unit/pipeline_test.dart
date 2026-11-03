@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/stages.dart';
 import 'package:dioman/src/pipeline.dart';
 import '../support/constants.dart';
@@ -63,7 +64,7 @@ void main() {
     expect(() => validateDiomanPlugins([TestPlugin(pipelineTestDiomanUnknown)]),
         throwsArgumentError);
     final ctx = testContext();
-    final result = ctx.fail(const DiomanFailure(kind: DiomanKind.offline));
+    final result = scriptedResult(ctx, diomanTestOffline);
     expect(await compileDiomanPipeline<Result>([], (_) async => result)(ctx),
         same(result));
   });
@@ -81,7 +82,7 @@ void main() {
     final run = compileDiomanPipeline<Result>(
         [DiomanRegistration(plugin, plugin.setup(ctx.client))], (inner) async {
       seen.add(inner);
-      return inner.fail(const DiomanFailure(kind: DiomanKind.ok));
+      return scriptedResult(inner, diomanTestOk);
     });
     await run(ctx);
     expect(seen.first, isNot(same(ctx)));
@@ -100,7 +101,7 @@ void main() {
         TestPlugin(pipelineTestOuter, handler: (ctx, next) async {
           events.add(pipelineTestPre);
           final r = await next();
-          events.add(r.kind.name);
+          events.add(outcomeOf(r));
           return r;
         }),
         TestPlugin(pipelineTestBad, handler: (_, __) {
@@ -114,13 +115,13 @@ void main() {
               .toList(),
           (_) async => throw StateError('unreachable'));
       final r = await run(ctx);
-      expect(events, [pipelineTestPre, 'internal']);
+      expect(events, [pipelineTestPre, diomanTestInternal]);
       expect(r.error, same(bug));
       expect(r.errorStack.toString(), contains(pipelineTestOriginalStack));
     });
   }
   test(
-      '[DiomanKind.ok][INV-pipeline-internals][RequestPatch.sendTimeout][INV-pipeline-internals]'
+      '[DiomanResponse.ok][INV-pipeline-internals][RequestPatch.sendTimeout][INV-pipeline-internals]'
       '[DiomanNext] 补丁构造异常也作为结果返回', () async {
     final ctx = testContext();
     final plugin = TestPlugin('patch',
@@ -128,8 +129,8 @@ void main() {
             next(const RequestPatch(sendTimeout: pipelineTestBad)));
     final run = compileDiomanPipeline<Result>(
         [DiomanRegistration(plugin, plugin.setup(ctx.client))],
-        (c) async => c.fail(const DiomanFailure(kind: DiomanKind.ok)));
-    expect((await run(ctx)).kind, DiomanKind.internal);
+        (c) async => scriptedResult(c, diomanTestOk));
+    expect(outcomeOf((await run(ctx))), diomanTestInternal);
   });
 }
 

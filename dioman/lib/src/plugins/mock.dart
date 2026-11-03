@@ -133,7 +133,8 @@ class _Mock<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
     final cancel = ctx.cancelled();
     if (cancel != null) return cancel;
     final fallback = o.fallbackWhen?.call(probe) ??
-        (probe.httpStatus == 404 || probe.kind == DiomanKind.network);
+        (probe.status == 404 ||
+            failureOf(probe)?.kind == DiomanFailureKind.network);
     return fallback && ctx.canReplay() ? next() : probe;
   }
 }

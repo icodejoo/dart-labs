@@ -1,3 +1,4 @@
+import 'response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
@@ -23,10 +24,14 @@ Future<void> b4RetryArbitration({required DiomanSharePolicy policy}) async {
           gate: aGate.future),
       FakeReply(body: b4LiteralB, gate: bGate.future)
     ];
-  final api = testClient(network: net, clock: clock, plugins: [
-    DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
-    const DiomanShare<Result>()
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      network: net,
+      clock: clock,
+      plugins: [
+        DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
+        const DiomanShare<Result>()
+      ]);
   final a =
       api.send<Object?>(b4Get, b4Path, call: b4Call(share: policy)).then((r) {
     finished = true;
@@ -58,7 +63,7 @@ Future<void> b4LatestSuccessSkipsRefresh() async {
       FakeReply(status: 401, gate: aGate.future),
       FakeReply(gate: bGate.future)
     ];
-  final api = testClient(network: net, plugins: [
+  final api = testClient(statusOf: businessStatus, network: net, plugins: [
     DiomanRetry<Result>(
         max: 1,
         shouldRetry: (r, n) => r.ok ? false : throw StateError('不得提前重试')),
@@ -98,10 +103,14 @@ Future<void> b4CallerJoinsCurrentRetry() async {
       const FakeReply(status: 500),
       FakeReply(gate: gate.future)
     ];
-  final api = testClient(clock: clock, network: net, plugins: [
-    DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
-    const DiomanShare<Result>(retries: 0)
-  ]);
+  final api = testClient(
+      statusOf: businessStatus,
+      clock: clock,
+      network: net,
+      plugins: [
+        DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
+        const DiomanShare<Result>(retries: 0)
+      ]);
   final a = api.send<Object?>(b4Get, b4Path,
       call: b4Call(share: DiomanSharePolicy.retry));
   await secondStarted.future;

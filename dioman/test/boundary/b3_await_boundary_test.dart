@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -54,13 +55,13 @@ void main() {
         }),
         TestPlugin(b3ValueResult,
             stage: DiomanStage.source,
-            handler: (ctx, next) async => ctx
-                .fail(const DiomanFailure(kind: DiomanKind.http, status: 401))),
+            handler: (ctx, next) async =>
+                scriptedResult(ctx, diomanTestHttp, status: 401)),
       ]);
       final pending = api.send<Object?>(b3ValueGet, b3Path);
       await started.future;
       expect(api.cancelAll(), 1);
-      expect((await pending).kind, DiomanKind.cancel);
+      expect(outcomeOf((await pending)), diomanTestCancel);
       expect(api.pending, 0);
       expect(api.cancellationSubscriptions, 0);
       gate.completeError(StateError('late callback'));
@@ -104,14 +105,14 @@ void main() {
             ctx.state.cancel();
             if (internal) throw bug;
           }
-          return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+          return scriptedResult(ctx, diomanTestNetwork);
         })
       ]);
       final p = b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock);
       if (internal) {
         await expectLater(p, throwsA(same(bug)));
       } else {
-        expect((await p).kind, DiomanKind.cancel);
+        expect(outcomeOf((await p)), diomanTestCancel);
       }
       expect(entered, 2);
       api.dispose();
@@ -140,8 +141,7 @@ void main() {
           await gate.future;
           ctx.state.cancel();
         }
-        return ctx
-            .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+        return scriptedResult(ctx, diomanTestHttp, status: 401);
       })
     ]);
     final first = api.send<Object?>(b3ValueGet, b3Path);
@@ -149,13 +149,13 @@ void main() {
     final second = api.send<Object?>(b3ValueGet, b3Path);
     await started.future;
     gate.complete();
-    expect((await first).kind, DiomanKind.cancel);
-    expect((await second).reason, b3ValueExpired);
+    expect(outcomeOf((await first)), diomanTestCancel);
+    expect(failureOf((await second))?.reason, b3ValueExpired);
     expect(notices, 1);
     api.dispose();
   });
   test(
-      '[DiomanFailure.status]'
+      '[DiomanResponse.status]'
       '[DiomanAuth.onAccessExpired] 同会话多个在途 expired 只清理通知一次', () async {
     final gates = List.generate(2, (_) => Completer<void>());
     var sent = 0;
@@ -171,8 +171,7 @@ void main() {
           handler: (ctx, next) async {
         final index = sent++;
         await gates[index].future;
-        return ctx
-            .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+        return scriptedResult(ctx, diomanTestHttp, status: 401);
       })
     ]);
     final a = api.send<Object?>(b3ValueGet, b3Path);
@@ -202,7 +201,7 @@ void main() {
     final p = api.send<Object?>(b3ValueGet, b3Path);
     await started.future;
     api.cancelAll();
-    expect((await p).kind, DiomanKind.cancel);
+    expect(outcomeOf((await p)), diomanTestCancel);
     gate.complete();
     await b3Turn();
     expect(tm.accessToken, b3Fresh);

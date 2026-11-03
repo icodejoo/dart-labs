@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:dioman/dioman.dart';
@@ -18,7 +19,7 @@ void main() {
       final h = InvariantHarness(FakeNetwork(), FakeClock());
       h.entries[1] = h.exits[1] = h.settlements[1] = 1;
       if (invariant == 8) {
-        h.ownership[1] = (false, DiomanKind.timeout);
+        h.ownership[1] = (false, diomanTestTimeout);
       } else {
         h.expectedEcho[1] = [1];
         h.actualEcho[1] = [2];
@@ -97,12 +98,12 @@ void main() {
             error: const FormatException(),
             response:
                 Response<dynamic>(requestOptions: request, statusCode: 502)));
-    expect([r.kind, r.status, r.httpStatus], [DiomanKind.parse, 502, 502]);
+    expect([outcomeOf(r), r.status, r.status], [diomanTestParse, 502, 502]);
   });
 
   test('[DiomanNotify.defaultStringify] B8 internal 默认不通知', () {
     final ctx = testContext();
-    final r = ctx.fail(const DiomanFailure(kind: DiomanKind.internal));
+    final r = scriptedResult(ctx, diomanTestInternal);
     expect(DiomanNotify.defaultStringify(r, ctx), isEmpty);
   });
 }

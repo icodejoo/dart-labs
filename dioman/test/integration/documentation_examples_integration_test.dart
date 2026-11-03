@@ -42,10 +42,17 @@ void main() {
           'docs/guides/migrating-to-pipeline.md': 18,
           'CHANGELOG.md': 7,
         };
+        const expectedCompiled = <String, int>{
+          'README.md': 16,
+          'README.zh-CN.md': 16,
+          'docs/guides/migrating-to-pipeline.md': 19,
+          'CHANGELOG.md': 7,
+        };
+        expect(localCompiled, expectedCompiled[path], reason: path);
         expect(localSkipped, expectedOld[path], reason: path);
         counts[path] = {'compiled': localCompiled, 'skippedOld': localSkipped};
       }
-      expect(compiled, greaterThan(0));
+      expect(compiled, 58, reason: 'R2a 新增两个业务风格与一个 parse 迁移示例');
       expect(skipped, 25, reason: '旧代码跳过必须显式登记，不能悄悄增加');
       final result = await Process.run(Platform.resolvedExecutable,
           ['analyze', '--format=machine', temporary.path],
@@ -55,8 +62,7 @@ void main() {
           .convert(output)
           .where((line) => line.startsWith('ERROR|'))
           .toList();
-      final evidence = Directory('coverage')
-        ..createSync(recursive: true);
+      final evidence = Directory('coverage')..createSync(recursive: true);
       File('${evidence.path}/documentation-examples.json')
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
         'files': counts,

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import '../support/constants.dart';
 import 'dart:async';
@@ -88,7 +89,7 @@ void main() {
         case pipelineTestCancel:
           ctx.state.cancel();
           expect(await result, isNull);
-          expect(ctx.cancelled()!.kind, DiomanKind.cancel);
+          expect(outcomeOf(ctx.cancelled()!), diomanTestCancel);
       }
       expect(ctx.cancellationSubscriptions, 0);
       expect(clock.pendingTimers, 0);

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -114,7 +115,7 @@ void main() {
         expect(clock.pendingTimers, 1);
         clock.elapse(b4Tick * 4);
       }
-      expect((await follower).kind, DiomanKind.timeout);
+      expect(outcomeOf((await follower)), diomanTestTimeout);
       expect(net.sends.single.options.cancelToken!.isCancelled, isFalse);
       gate.complete();
       expect((await leader).ok, isTrue);
@@ -198,11 +199,8 @@ void main() {
             clone: DiomanClonePolicy.deep),
         TestPlugin(b4LiteralSource,
             stage: DiomanStage.source,
-            handler: (ctx, next) async => ctx.fail(DiomanFailure(
-                kind: DiomanKind.biz,
-                status: 409,
-                reason: b4LiteralSource,
-                data: body)))
+            handler: (ctx, next) async => scriptedResult(ctx, diomanTestBiz,
+                status: 409, reason: b4LiteralSource, data: body))
       ]);
       final first =
           await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
@@ -213,8 +211,8 @@ void main() {
       expect(hit.data, {
         1: [2]
       });
-      expect([hit.ok, hit.kind, hit.status, hit.reason],
-          [false, DiomanKind.biz, 409, b4LiteralSource]);
+      expect([hit.ok, outcomeOf(hit), hit.status, failureOf(hit)?.reason],
+          [false, diomanTestBiz, 200, null]);
       (hit.data as Map)[1][0] = 8;
       expect(
           (await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true)))

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -19,10 +20,10 @@ const notifyName = 'notify';
 const retryName = 'retry';
 
 /// breaker 插件在组合表中的名称。
-const breakerName = 'breaker';
+const breakerName = diomanTestBreaker;
 
 /// auth 插件在组合表中的名称。
-const authName = 'auth';
+const authName = diomanTestAuth;
 
 /// mock 插件在组合表中的名称。
 const mockName = 'mock';
@@ -34,7 +35,7 @@ const shareName = 'share';
 const cacheName = 'cache';
 
 /// offline 插件在组合表中的名称。
-const offlineName = 'offline';
+const offlineName = diomanTestOffline;
 
 /// repath 插件在组合表中的名称。
 const repathName = 'repath';
@@ -43,7 +44,7 @@ const repathName = 'repath';
 const filterName = 'filter';
 
 /// timeout 插件在组合表中的名称。
-const timeoutName = 'timeout';
+const timeoutName = diomanTestTimeout;
 
 /// envs 插件在组合表中的名称。
 const envsName = 'envs';
@@ -86,19 +87,19 @@ List<int> subsets(int size, [Map<int, Set<int>> needs = const {}]) => [
 
 /// 流程和无插件时逐调用的类别；类别断言只在独立 baseline 中使用。
 enum PowerFlow {
-  success([DiomanKind.ok, DiomanKind.ok]),
-  http([DiomanKind.http]),
-  flaky([DiomanKind.http]),
-  auth([DiomanKind.biz, DiomanKind.biz, DiomanKind.biz]),
-  network([DiomanKind.network]),
-  concurrent([DiomanKind.ok, DiomanKind.ok]),
-  cancelAll([DiomanKind.cancel, DiomanKind.cancel]),
-  cancelLeader([DiomanKind.cancel, DiomanKind.ok]),
-  recovery([DiomanKind.ok, DiomanKind.ok]),
-  bodyReplay([DiomanKind.http]);
+  success([diomanTestOk, diomanTestOk]),
+  http([diomanTestHttp]),
+  flaky([diomanTestHttp]),
+  auth([diomanTestBiz, diomanTestBiz, diomanTestBiz]),
+  network([diomanTestNetwork]),
+  concurrent([diomanTestOk, diomanTestOk]),
+  cancelAll([diomanTestCancel, diomanTestCancel]),
+  cancelLeader([diomanTestCancel, diomanTestOk]),
+  recovery([diomanTestOk, diomanTestOk]),
+  bodyReplay([diomanTestHttp]);
 
   const PowerFlow(this.baseline);
-  final List<DiomanKind> baseline;
+  final List<String> baseline;
 }
 
 /// 每条用例独占网络、时钟、凭证、流、插件和调用记录。
@@ -139,7 +140,10 @@ class PowerFixture {
     });
     h = InvariantHarness(net, clock);
     api = testClient(
-        network: net, clock: clock, plugins: [...h.probes(), ...plugins()]);
+        statusOf: businessStatus,
+        network: net,
+        clock: clock,
+        plugins: [...h.probes(), ...plugins()]);
     api.dio.transformer =
         flow == PowerFlow.bodyReplay ? SyncTransformer() : B3Transformer();
   }

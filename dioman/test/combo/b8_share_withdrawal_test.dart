@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -34,8 +35,7 @@ void main() {
               final id = sent++;
               await ctx.wait(gates[id].future);
               return ctx.cancelled() ??
-                  ctx.fail(
-                      DiomanFailure(kind: DiomanKind.http, status: 500 + id));
+                  scriptedResult(ctx, diomanTestHttp, status: 500 + id);
             })
           ]);
           final withdrawn = role == _leader
@@ -66,15 +66,16 @@ void main() {
             tokens[withdrawn].cancel();
           }
           await b3Turn();
-          expect((await requests[withdrawn]).kind,
-              timeout ? DiomanKind.timeout : DiomanKind.cancel);
+          expect(outcomeOf((await requests[withdrawn])),
+              timeout ? diomanTestTimeout : diomanTestCancel);
           for (final gate in gates) {
             if (!gate.isCompleted) gate.complete();
           }
           final results = await Future.wait(requests);
           for (var i = 0; i < results.length; i++) {
             if (i == withdrawn) continue;
-            expect(results[i].kind, DiomanKind.http, reason: 'I8 他人撤回不污染结果');
+            expect(outcomeOf(results[i]), diomanTestHttp,
+                reason: 'I8 他人撤回不污染结果');
             if (policy != DiomanSharePolicy.start) {
               expect(results[i].status, isNot(500 + withdrawn));
             }

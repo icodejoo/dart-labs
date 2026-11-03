@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -43,7 +44,7 @@ void main() {
     final pending = api.send<Object?>(b4Get, b4Path);
     await b4Turn();
     api.cancelAll();
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     expect(decisions, 0);
     gate.complete();
     await b4Turn();
@@ -55,7 +56,7 @@ void main() {
     final waiting = client.send<Object?>(b4Get, b4Path);
     await b4Turn();
     client.cancelAll();
-    expect((await waiting).kind, DiomanKind.cancel);
+    expect(outcomeOf((await waiting)), diomanTestCancel);
     inline.completeError(StateError('late'));
     await b4Turn();
     expect(client.cancellationSubscriptions, 0);

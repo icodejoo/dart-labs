@@ -16,7 +16,7 @@ class DiomanRequest {
         extra = Map.unmodifiable(options.extra),
         call = DiomanCall(
             key: call.key,
-            envelope: call.envelope,
+            extra: Map.unmodifiable(call.extra),
             silent: call.silent,
             options: Map.unmodifiable(call.options));
 

@@ -53,3 +53,7 @@ dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info
 ```
 
 覆盖率脚本参数见 --help；变异脚本无 CLI 参数，直接执行，保留证据。运行变异会临时改源码，必须检查恢复；仅文档任务不应运行会改 lib 的变异脚本。G0/G1/G2/G3/G5 必须保持通过；覆盖门槛见测试方案。真实 HTTP 超时与传输集成使用本地 HttpServer，纯规则用脚本化传输与假时钟；禁止用 fake 的绿灯声称网络行为成立。新增公开 API 同步台账与矩阵。文档新增、归档更新 docs/README.md 并跑 docs-index 检查。
+
+## R2a 响应契约
+
+插件读取 failureOf 与 ctx.statusOf；status 仅是 HTTP。内核失败只能经 ctx.fail 或内部入口写入，create 返回后保护标记。协议转换统一用 parse，逐请求差异用 call.extra 标记。raw/error/errorStack 生命周期留 R3。

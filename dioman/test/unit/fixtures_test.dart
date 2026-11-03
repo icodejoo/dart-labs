@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -42,8 +43,10 @@ void main() {
       const FakeReply(status: 500),
       const FakeReply(body: {pipelineTestCode: 0, pipelineTestData: 9})
     ];
-    expect((await api.send<Object?>(pipelineTestGetMethod, pipelineTestS)).kind,
-        DiomanKind.http);
+    expect(
+        outcomeOf(
+            (await api.send<Object?>(pipelineTestGetMethod, pipelineTestS))),
+        diomanTestHttp);
     expect(await api.get<int>(pipelineTestS), 9);
     expect(await api.get<int>(pipelineTestS), 9);
     net.failOn[4] = StateError('script');

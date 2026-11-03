@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -31,7 +32,8 @@ void main() {
     ]);
     final results = await Future.wait(
         List.generate(5, (_) => api.send<Object?>(b3ValueGet, b3Path)));
-    expect(results.every((r) => r.reason == b3ValueExpired), isTrue);
+    expect(
+        results.every((r) => failureOf(r)?.reason == b3ValueExpired), isTrue);
     expect(refresh, 1);
     expect(expired, 1);
     expect(tm.clears, 1);
@@ -52,8 +54,7 @@ void main() {
         final index = ++sends;
         if (index == 2) await late.future;
         if (index <= 2) {
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+          return scriptedResult(ctx, diomanTestHttp, status: 401);
         }
         return next();
       })
@@ -90,7 +91,7 @@ void main() {
       ]);
       final r = await api.send<Object?>(b3ValueGet, b3Path,
           call: DiomanCall(options: {DiomanAuth.option: option}));
-      expect(r.reason,
+      expect(failureOf(r)?.reason,
           option is DiomanAuthOptions ? b3ValueUnauthenticated : null);
       expect(protected, option is DiomanAuthOptions ? 0 : 1);
       api.dispose();
@@ -130,7 +131,7 @@ void main() {
                 expired++;
               })
         }));
-    expect(r.reason, b3ValueExpired);
+    expect(failureOf(r)?.reason, b3ValueExpired);
     expect(expired, 1);
     expect(tokens.accessToken, isNull);
     api.dispose();
@@ -167,7 +168,9 @@ void main() {
       final results = await Future.wait([a, b]);
       expect(refresh, 1);
       expect(expired, success ? 0 : 1);
-      expect(results.every((r) => success ? r.ok : r.reason == b3ValueExpired),
+      expect(
+          results.every(
+              (r) => success ? r.ok : failureOf(r)?.reason == b3ValueExpired),
           isTrue);
       expect(net.sends.length, success ? 2 : 0);
       if (success) {
@@ -230,8 +233,8 @@ void main() {
           gates.add(gate);
           await gate.future;
         }
-        return ctx.fail(DiomanFailure(
-            kind: failed ? DiomanKind.network : DiomanKind.http, status: 200));
+        return scriptedResult(ctx, failed ? diomanTestNetwork : diomanTestHttp,
+            status: 200);
       })
     ]);
     final m = api.plugin<DiomanBreakerApi>()!;
@@ -294,11 +297,11 @@ void main() {
         TestPlugin(b3ValueResult,
             stage: DiomanStage.source,
             handler: (ctx, next) async =>
-                ctx.fail(const DiomanFailure(kind: DiomanKind.network)))
+                scriptedResult(ctx, diomanTestNetwork))
       ]);
       await api.send<Object?>(b3ValueGet, b3Path);
-      expect((await api.send<Object?>(b3ValueGet, b3Path)).kind,
-          DiomanKind.breaker);
+      expect(outcomeOf((await api.send<Object?>(b3ValueGet, b3Path))),
+          diomanTestBreaker);
       expect(api.plugin<DiomanBreakerApi>()!.stateOf(b3Route),
           DiomanBreakerState.halfOpen);
       api.dispose();

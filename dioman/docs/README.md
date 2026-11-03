@@ -33,6 +33,7 @@
 
 ## 报告
 
+- [第二轮 R2a 契约对齐 axp 0002 2026-11-03](reports/2026-11-03-round2-r2a.md) — failureOf、HTTP status、statusOf、parse；真实验收 normal×两风格 768 通过 0 失败。active。
 - [第二轮 R1 生命周期与作用域 2026-11-03](reports/2026-11-03-round2-r1.md) — auth 会话按 TokenManager 共享、loading 按回调共享、extend(dio:)；先红后绿与 I10。active。
 - [axp 重构复盘与参照评估 2026-10-31](reports/2026-10-31-axp-refactor-lessons.md) — axp 要点、踩坑、TS→Dart 映射与 dioman 评估；第二轮方案的输入，顶部有终审更正。active。
 - [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。

@@ -44,7 +44,7 @@ class DiomanRetryOptions {
   /// 允许重试的方法，忽略大小写，优先于自定义规则。
   final List<String>? methods;
 
-  /// 触发重试的逻辑状态表。
+  /// 触发重试的有效状态表。
   final List<int>? statusCodes;
 
   /// 自定义判定；null 回退默认规则，也接收成功响应。
@@ -62,7 +62,7 @@ class DiomanRetryOptions {
   /// 优先遵守 Retry-After。
   final bool? respectRetryAfter;
 
-  /// 接受 Retry-After 的逻辑状态。
+  /// 接受 Retry-After 的有效状态。
   final List<int>? afterStatusCodes;
 
   /// 服务器等待时间上限；不受 delayMax 限制。
@@ -100,7 +100,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 允许重试的方法，忽略大小写，优先于自定义规则。
   final List<String> methods;
 
-  /// 触发重试的逻辑状态表。
+  /// 触发重试的有效状态表。
   final List<int> statusCodes;
 
   /// 自定义判定；null 回退默认规则，也接收成功响应。
@@ -118,7 +118,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   /// 优先遵守 Retry-After。
   final bool respectRetryAfter;
 
-  /// 接受 Retry-After 的逻辑状态。
+  /// 接受 Retry-After 的有效状态。
   final List<int> afterStatusCodes;
 
   /// 服务器等待时间上限；不受 delayMax 限制。
@@ -213,12 +213,12 @@ class _Retry<R extends DiomanResponse<dynamic>>
 
   /// 不接受重试的失败类别。
   static const _veto = {
-    DiomanKind.cancel,
-    DiomanKind.auth,
-    DiomanKind.internal,
-    DiomanKind.parse,
-    DiomanKind.breaker,
-    DiomanKind.offline
+    DiomanFailureKind.cancel,
+    DiomanFailureKind.auth,
+    DiomanFailureKind.internal,
+    DiomanFailureKind.parse,
+    DiomanFailureKind.breaker,
+    DiomanFailureKind.offline
   };
 
   /// RFC1123 日期模式。
@@ -248,20 +248,22 @@ class _Retry<R extends DiomanResponse<dynamic>>
           ? cap
           : value;
 
-  /// 严格按类别、自定义、网络、逻辑状态的顺序判定。
-  bool _retry(DiomanRetryOptions o, DiomanResponse<dynamic> r, int attempt) {
-    if (_veto.contains(r.kind)) return false;
+  /// 严格按类别、自定义、网络、有效状态的顺序判定。
+  bool _retry(DiomanContext<R> ctx, DiomanRetryOptions o,
+      DiomanResponse<dynamic> r, int attempt) {
+    if (_veto.contains(failureOf(r)?.kind)) return false;
     final custom = o.shouldRetry?.call(r, attempt);
     if (custom != null) return custom;
-    return r.kind == DiomanKind.network ||
-        r.kind == DiomanKind.timeout ||
-        o.statusCodes!.contains(r.status);
+    return failureOf(r)?.kind == DiomanFailureKind.network ||
+        failureOf(r)?.kind == DiomanFailureKind.timeout ||
+        o.statusCodes!.contains(ctx.statusOf(r));
   }
 
   /// 解析服务器秒数或 HTTP 日期；无效值回退普通退避。
   Duration? _after(
       DiomanContext<R> ctx, DiomanRetryOptions o, DiomanResponse<dynamic> r) {
-    if (!o.respectRetryAfter! || !o.afterStatusCodes!.contains(r.status)) {
+    if (!o.respectRetryAfter! ||
+        !o.afterStatusCodes!.contains(ctx.statusOf(r))) {
       return null;
     }
     final raw = r.raw?.headers.value('retry-after')?.trim();
@@ -315,10 +317,10 @@ class _Retry<R extends DiomanResponse<dynamic>>
     }
     var r = await next();
     var cancelled = ctx.cancelled();
-    if (r.kind == DiomanKind.internal) return r;
+    if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
     if (cancelled != null) return cancelled;
     for (var attempt = 1;
-        attempt <= o.max! && _retry(o, r, attempt);
+        attempt <= o.max! && _retry(ctx, o, r, attempt);
         attempt++) {
       if (!ctx.canReplay()) return r;
       final after = _after(ctx, o, r);
@@ -337,7 +339,7 @@ class _Retry<R extends DiomanResponse<dynamic>>
       if (cancelled != null) return cancelled;
       r = await next();
       cancelled = ctx.cancelled();
-      if (r.kind == DiomanKind.internal) return r;
+      if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
       if (cancelled != null) return cancelled;
     }
     return r;

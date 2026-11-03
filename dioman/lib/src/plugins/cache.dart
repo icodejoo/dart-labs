@@ -208,7 +208,10 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
   /// 新格式保存归一化元信息，旧格式仍按原始 HTTP 200 读取。
   static const resultField = 'result';
 
-  /// 结果类别字段。
+  /// 成败字段。
+  static const okField = 'ok';
+
+  /// 失败类别字段。
   static const kindField = 'kind';
 
   /// 逻辑状态字段。
@@ -236,17 +239,20 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
               statusCode: 200,
               data: saved[dataField]));
     }
-    final kind = DiomanKind.values.byName(meta[kindField] as String);
+    final legacyKind = meta[kindField];
     final init = DiomanResponse<dynamic>(
-        ok: kind == DiomanKind.ok,
-        kind: kind,
-        status: meta[statusField] as int,
-        httpStatus: meta[httpField] as int,
-        code: meta[codeField],
+        ok: meta[okField] as bool? ?? legacyKind == okField,
+        status: (meta[httpField] ?? meta[statusField]) as int,
+        code: meta[codeField] ?? 0,
         message: meta[messageField] as String,
-        reason: meta[reasonField] as String?,
         data: meta[dataField],
         request: ctx.request);
+    if (legacyKind != null &&
+        DiomanFailureKind.values.any((kind) => kind.name == legacyKind)) {
+      DiomanResponseInternal.restore(
+          init, DiomanFailureKind.values.byName(legacyKind as String),
+          reason: meta[reasonField] as String?);
+    }
     return ctx.factory.derive(init, init.data);
   }
 
@@ -396,12 +402,13 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
                 dataField: r.raw?.data ?? r.data,
                 expiresField: entry.expiresAt,
                 resultField: {
-                  kindField: r.kind.name,
+                  okField: r.ok,
+                  if (failureOf(r) != null) kindField: failureOf(r)!.kind.name,
                   statusField: r.status,
-                  httpField: r.httpStatus,
                   codeField: r.code,
                   messageField: r.message,
-                  reasonField: r.reason,
+                  if (failureOf(r)?.reason != null)
+                    reasonField: failureOf(r)!.reason,
                   dataField: entry.response.data
                 }
               })));

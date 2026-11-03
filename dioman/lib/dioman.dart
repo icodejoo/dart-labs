@@ -12,8 +12,10 @@ export 'src/plugin.dart' show DiomanNext, DiomanPlugin, DiomanPluginInstance;
 export 'src/request.dart' show DiomanRequest, RequestPatch;
 export 'src/response.dart'
     show
-        DiomanKind,
-        Envelope,
+        DiomanFailureKind,
+        DiomanParsed,
+        failureOf,
+        isDiomanCancel,
         DiomanResponse,
         DiomanFailure,
         DiomanResponseFactory;

@@ -4,7 +4,7 @@ Dioman brings authentication, retries, caching and the rest of your request poli
 
 ## Purpose
 
-Request policies get harder to maintain when each interceptor has to understand the backend envelope and coordinate with every other interceptor. Dioman gives your app one request entry point and normalizes results before plugins see them, so auth, retry and cache can work with the same business status instead of each decoding it again.
+Request policies get harder to maintain when each interceptor has to understand the backend envelope and coordinate with every other interceptor. Dioman gives your app one request entry point and normalizes results before plugins see them, so plugins share one result contract. Auth, retry and breaker read the effective status chosen by your client configuration.
 
 The pipeline wraps each attempt in a predictable order. When auth refreshes a token or retry sends again, that attempt naturally passes through the inner cache, share and mock layers. The kernel keeps cancellation attached to the whole call and loading callbacks paired through those waits. You configure the policies you need without wiring their cleanup and replay paths together.
 
@@ -41,9 +41,9 @@ Future<void> main() async {
         query: {'id': 42});
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -55,11 +55,40 @@ Future<void> main() async {
 
 Use get/post/put/patch/delete/head when you want the data, or send when you also need the DiomanResponse metadata. Verb methods throw a failed result that you can catch; send lets you inspect the same failure as a return value. Programming errors keep their original exception and stack. If your app has its own failure type, configure reject to map expected verb-method failures.
 
-Result fields: `ok`, `kind`, `status` (logical status), `httpStatus`, `code`, `message`, `data`, `reason`, `request`, `raw`, `error`, `errorStack`, `callSite`.
+Result fields: `ok`, `status` (HTTP only; 0 without a response), `code`, `message`, `data`, `request`, `raw`, `error`, `errorStack`, `callSite`. Read the kernel's readonly kind/reason through `failureOf(r)`; a marked result always has ok=false. Use `isDiomanCancel(e)` or `api.isCancel(e)` to recognize cancellation.
 
-Kinds: `ok`, `http`, `biz`, `network`, `timeout`, `cancel`, `parse`, `auth`, `breaker`, `offline`, `internal`.
+### Business style
 
-By default, a response is treated as an envelope when it contains code and at least one of data/message, and is unwrapped once. If your backend uses another format, customize detection, success codes and logical status with Envelope and DiomanResponseFactory. Set call.envelope=false to keep the original data for one call.
+Default parse unwraps one level only when a Map contains code and at least one of data/message; other bodies remain whole in data. Defaults are code=0, message='', data=null. Success requires HTTP 2xx and code=0 or '0'. Configure factory parse for other protocols. Business codes never rewrite HTTP status. Configure client statusOf explicitly for business style; retry/auth/breaker read ctx.statusOf. An exhaustive failure switch includes null for unmarked success, HTTP failure and business failure.
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+Future<void> main() async {
+  final api = Dioman(dio: Dio(),
+      statusOf: (r) => r.status >= 200 && r.status < 300 &&
+          r.code is int && r.code != 0 ? r.code as int : r.status);
+  try {
+    final r = await api.send<Object?>('GET', 'https://api.example.com/items');
+    final label = switch (failureOf(r)?.kind) {
+      DiomanFailureKind.cancel => 'cancel',
+      DiomanFailureKind.timeout => 'timeout',
+      DiomanFailureKind.network => 'network',
+      DiomanFailureKind.parse => 'parse',
+      DiomanFailureKind.auth => 'auth',
+      DiomanFailureKind.breaker => 'breaker',
+      DiomanFailureKind.offline => 'offline',
+      DiomanFailureKind.internal => 'internal',
+      null => r.ok ? 'ok' : 'HTTP ${r.status}, code ${r.code}',
+    };
+    print(label);
+  } finally {
+    api.dispose();
+    api.dio.close(force: true);
+  }
+}
+```
 
 ## Plugins
 
@@ -85,7 +114,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanLoading.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -95,7 +124,7 @@ Future<void> main() async {
 
 ### Notify
 
-The default `stringify` returns an empty string for `kind == internal`; custom formatting can opt in to a message.
+The default `stringify` returns an empty string for `failureOf(r)?.kind == DiomanFailureKind.internal`; custom formatting can opt in to a message.
 
 Notify waits for the final result before showing a message. By default it reports failures and stays quiet for successful, silent or cancelled calls.
 
@@ -111,7 +140,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -135,7 +164,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRepath.option: const DiomanRepathOptions(removeKey: false)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -159,7 +188,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanFilter.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -183,7 +212,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanTimeout.option: const DiomanTimeoutOptions(timeouts: {NetworkQuality.good: DiomanTimeouts(receive: Duration(seconds: 5))})}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -195,7 +224,7 @@ Future<void> main() async {
 
 Behavior change: `retryAfterMax` defaults to 60 seconds. A Retry-After value (seconds or HTTP date) above that limit returns the current result without retrying. To honor practically unlimited waits, explicitly supply a very large Duration, such as `retryAfterMax: Duration(days: 36500)`. Server waits still receive no jitter and ignore `delayMax`. Streams and opaque bodies are sent at most once.
 
-Set max explicitly when you want retries; its default is zero. Retry checks the method allowlist first, then uses logical status to decide whether to send another attempt through the inner layers.
+Set max explicitly when you want retries; its default is zero. Retry checks the method allowlist first, then uses ctx.statusOf to decide whether to send another attempt through the inner layers.
 
 Options: `max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`. Full parameters and defaults: [plugin spec](docs/design/pipeline-plugin-spec.md).
 
@@ -209,7 +238,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRetry.option: 2}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -233,7 +262,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanBreaker.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -274,7 +303,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -300,7 +329,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -326,7 +355,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanShare.option: DiomanSharePolicy.start}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -352,7 +381,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -376,7 +405,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanOffline.option: const DiomanOfflineOptions(maxWait: Duration(seconds: 10))}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);

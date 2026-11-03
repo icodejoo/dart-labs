@@ -1,0 +1,206 @@
+{
+  "clock.dart": [
+    5,
+    5,
+    3,
+    3
+  ],
+  "context_state.dart": [
+    26,
+    26,
+    17,
+    17
+  ],
+  "plugin.dart": [
+    5,
+    5,
+    5,
+    5
+  ],
+  "response_internal.dart": [
+    8,
+    8,
+    5,
+    5
+  ],
+  "response.dart": [
+    100,
+    100,
+    36,
+    36
+  ],
+  "client.dart": [
+    131,
+    131,
+    64,
+    64
+  ],
+  "client_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "context.dart": [
+    65,
+    65,
+    33,
+    33
+  ],
+  "context_internal.dart": [
+    6,
+    6,
+    5,
+    5
+  ],
+  "key.dart": [
+    63,
+    63,
+    34,
+    34
+  ],
+  "options.dart": [
+    10,
+    10,
+    8,
+    8
+  ],
+  "request.dart": [
+    50,
+    50,
+    25,
+    25
+  ],
+  "plugins/loading.dart": [
+    78,
+    78,
+    42,
+    42
+  ],
+  "plugins/notify.dart": [
+    24,
+    24,
+    12,
+    12
+  ],
+  "plugins/repath.dart": [
+    50,
+    50,
+    23,
+    23
+  ],
+  "plugins/filter.dart": [
+    39,
+    39,
+    19,
+    19
+  ],
+  "plugins/timeout.dart": [
+    22,
+    22,
+    13,
+    13
+  ],
+  "plugins/envs.dart": [
+    11,
+    11,
+    8,
+    8
+  ],
+  "plugins/retry.dart": [
+    97,
+    97,
+    41,
+    41
+  ],
+  "plugins/breaker.dart": [
+    112,
+    112,
+    48,
+    48
+  ],
+  "plugins/auth.dart": [
+    163,
+    163,
+    77,
+    77
+  ],
+  "plugins/mock.dart": [
+    45,
+    45,
+    19,
+    19
+  ],
+  "plugins/share.dart": [
+    118,
+    118,
+    59,
+    59
+  ],
+  "plugins/share_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "plugins/cache.dart": [
+    145,
+    145,
+    64,
+    64
+  ],
+  "plugins/cache_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "plugins/offline.dart": [
+    63,
+    63,
+    28,
+    28
+  ],
+  "config.dart": [
+    36,
+    36,
+    22,
+    22
+  ],
+  "pipeline.dart": [
+    31,
+    31,
+    22,
+    22
+  ],
+  "transport.dart": [
+    37,
+    37,
+    17,
+    17
+  ],
+  "token_manager.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "cache_store.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "stages.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "diagnostics.dart": [
+    0,
+    0,
+    0,
+    0
+  ]
+}

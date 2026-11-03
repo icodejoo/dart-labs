@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'dart:io';
@@ -89,7 +90,8 @@ void main() {
       if (cancel) {
         token.cancel();
       }
-      expect((await a).kind, cancel ? DiomanKind.cancel : DiomanKind.timeout);
+      expect(
+          outcomeOf((await a)), cancel ? diomanTestCancel : diomanTestTimeout);
       gate.complete();
       expect((await b).ok, isTrue);
       expect(hits, 1);

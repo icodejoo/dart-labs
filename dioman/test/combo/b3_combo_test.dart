@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
@@ -10,19 +11,23 @@ import '../support/invariant_harness.dart';
 /// 验证跨插件的不变量和重发边界。
 void main() {
   test(
-      '[DiomanBreaker.new(clock)][DiomanKind.breaker]'
+      '[DiomanBreaker.new(clock)][DiomanFailureKind.breaker]'
       '[DiomanRetry.max × DiomanBreaker.failureThreshold] 每次尝试计数，打开返回 breaker 后停止重试，无需接线',
       () async {
     final net = FakeNetwork()..routes[b3Route] = [const FakeReply(status: 500)];
     final clock = FakeClock();
-    final api = testClient(network: net, clock: clock, plugins: [
-      const DiomanBreaker(failureThreshold: 2),
-      const DiomanRetry(max: 5)
-    ]);
+    final api = testClient(
+        statusOf: businessStatus,
+        network: net,
+        clock: clock,
+        plugins: [
+          const DiomanBreaker(failureThreshold: 2),
+          const DiomanRetry(max: 5)
+        ]);
     expect(api.inspect().map((p) => p.$2), ['dioman:retry', 'dioman:breaker']);
     final r = await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock);
-    expect(r.kind, DiomanKind.breaker);
-    expect(r.reason, b3ValueOpen);
+    expect(outcomeOf(r), diomanTestBreaker);
+    expect(failureOf(r)?.reason, b3ValueOpen);
     expect(net.sends.length, 2);
     api.dispose();
   });
@@ -41,16 +46,20 @@ void main() {
       final clock = FakeClock();
       var protected = 0;
       var refresh = 0;
-      final api = testClient(network: net, clock: clock, plugins: [
-        b3Auth(TestTokens(), protected: (r) {
-          protected++;
-          return true;
-        }, refresh: (t, r) {
-          refresh++;
-          t.setTokens(accessToken: b3Fresh);
-        }),
-        const DiomanRetry(max: 1)
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            b3Auth(TestTokens(), protected: (r) {
+              protected++;
+              return true;
+            }, refresh: (t, r) {
+              refresh++;
+              t.setTokens(accessToken: b3Fresh);
+            }),
+            const DiomanRetry(max: 1)
+          ]);
       expect((await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock)).ok,
           isTrue);
       expect(protected, 2);
@@ -84,12 +93,16 @@ void main() {
             t.setTokens(accessToken: b3Fresh);
           })
       ];
-      final api = testClient(network: net, clock: clock, plugins: [
-        h.loadingPlugin(),
-        h.notifyPlugin(),
-        b3Auth(tm, refresh: (t, r) => refresh[round](t, r)),
-        ...h.probes()
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            h.loadingPlugin(),
+            h.notifyPlugin(),
+            b3Auth(tm, refresh: (t, r) => refresh[round](t, r)),
+            ...h.probes()
+          ]);
       for (var i = 0; i < 2; i++) {
         round = i;
         tm.setTokens(accessToken: b3Old);
@@ -125,13 +138,17 @@ void main() {
         ];
       final clock = FakeClock();
       final h = InvariantHarness(net, clock);
-      final api = testClient(network: net, clock: clock, plugins: [
-        if (auth)
-          b3Auth(TestTokens())
-        else
-          const DiomanRetry(max: 1, methods: [b3ValuePost5]),
-        ...h.probes()
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            if (auth)
+              b3Auth(TestTokens())
+            else
+              const DiomanRetry(max: 1, methods: [b3ValuePost5]),
+            ...h.probes()
+          ]);
       api.dio.transformer = B3Transformer();
       final body = {
         b3ValueItems: [
@@ -174,7 +191,10 @@ void main() {
       ..routes[b3Route] = [const FakeReply(status: 500), const FakeReply()];
     final clock = FakeClock();
     final api = testClient(
-        network: net, clock: clock, plugins: [const DiomanRetry(max: 1)]);
+        statusOf: businessStatus,
+        network: net,
+        clock: clock,
+        plugins: [const DiomanRetry(max: 1)]);
     final a = await api.send<Object?>(b3ValueGet, b3Path,
         call: DiomanCall(options: {DiomanRetry.option: false}));
     expect(a.status, 500);

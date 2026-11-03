@@ -31,7 +31,7 @@ T? resolveOption<T>(Object? value,
 
 /// 一次逻辑调用的配置；省略字段沿用 Dio 或客户端配置。
 class DiomanCall {
-  /// 创建调用配置，例如 `DiomanCall(key: false, envelope: false)`。
+  /// 创建调用配置，例如 `DiomanCall(key: false)`。
   const DiomanCall(
       {this.headers,
       this.connectTimeout,
@@ -39,7 +39,7 @@ class DiomanCall {
       this.receiveTimeout,
       this.cancelToken,
       this.key,
-      this.envelope,
+      this.extra = const {},
       this.silent = false,
       this.options = const {}});
 
@@ -61,8 +61,8 @@ class DiomanCall {
   /// String、false 或 DiomanKeyOptions；null 为自动计算。
   final Object? key;
 
-  /// false 禁用本次信封识别。
-  final bool? envelope;
+  /// 请求附加协议标记，parse 可从 raw.requestOptions.extra 读取。
+  final Map<String, dynamic> extra;
 
   /// 是否静默通知。
   final bool silent;

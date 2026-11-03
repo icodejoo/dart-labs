@@ -21,9 +21,10 @@ Future<void> main() async {
         await api.get<Map<String, dynamic>>('/users/{id}', query: {'id': 42});
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print(
+        '${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -56,8 +57,8 @@ void main() {
     }
   });
   test(
-      '[DiomanCall.envelope][Envelope.code][Envelope.data]'
-      '[DiomanResponseFactory.envelope × DiomanCache.option] 信封开关自定义成功和单层解包',
+      '[DiomanCall.extra][DiomanParsed.code][DiomanParsed.data]'
+      '[DiomanResponseFactory.parse × DiomanCache.option] 信封开关自定义成功和单层解包',
       () async {
     for (final mode in [
       b4LiteralPlain,
@@ -90,16 +91,25 @@ void main() {
       final api = testClient(
           network: net,
           response: DiomanResponseFactory<Result>(
-              envelope: mode == b4LiteralDisabled
-                  ? null
-                  : mode == b4LiteralField
-                      ? const Envelope(code: b4LiteralRet)
-                      : const Envelope(),
-              isSuccess: mode == b4LiteralSuccess ? (_) => true : null,
-              isEnvelope: mode == b4LiteralPredicate ? (_) => false : null),
+              parse: (body, raw) {
+                if (mode == b4LiteralDisabled ||
+                    mode == b4LiteralPredicate ||
+                    raw.requestOptions.extra['plain'] == true ||
+                    body is! Map ||
+                    !body.containsKey(b4LiteralData)) {
+                  return DiomanParsed(data: body);
+                }
+                return DiomanParsed(
+                    code: body[mode == b4LiteralField
+                            ? b4LiteralRet
+                            : b4LiteralCode] ??
+                        0,
+                    data: body[b4LiteralData]);
+              },
+              isSuccess: mode == b4LiteralSuccess ? (_) => true : null),
           plugins: [const DiomanShare<Result>(), const DiomanCache<Result>()]);
       final call = DiomanCall(
-          envelope: mode == b4LiteralCallDisabled ? false : null,
+          extra: {'plain': mode == b4LiteralCallDisabled},
           options: {DiomanCache.option: true, DiomanShare.option: true});
       final a = await api.send<Object?>(b4Get, b4Path, call: call);
       final b = await api.send<Object?>(b4Get, b4Path, call: call);
@@ -223,7 +233,7 @@ void main() {
         call: b4Call(share: true));
     await b4Turn();
     token.cancel();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
     gate.complete();
     expect((await b).data, {b4LiteralCode: 0, b4LiteralData: b4LiteralNested});
     expect(net.sends.length, 1);

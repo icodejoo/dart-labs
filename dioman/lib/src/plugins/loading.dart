@@ -206,7 +206,9 @@ class _Loading<R extends DiomanResponse<dynamic>>
     try {
       final result = await next();
       final cancelled = ctx.cancelled();
-      return result.kind == DiomanKind.internal ? result : cancelled ?? result;
+      return failureOf(result)?.kind == DiomanFailureKind.internal
+          ? result
+          : cancelled ?? result;
     } finally {
       // dispose 已释放本实例全部占用，迟到 finally 不再扣减或通知。
       if (!disposed) {

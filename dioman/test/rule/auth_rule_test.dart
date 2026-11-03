@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
 import '../support/b3_helpers.dart';
@@ -29,16 +30,13 @@ void main() {
       '[defaultAuthFailure] 默认判定覆盖无 token、旧 token、逻辑 401 403 与其它失败', () async {
     for (final current in <String?>[null, b3ValueEmpty, b3Old, b3Fresh]) {
       final tm = TestTokens(current);
-      final api = testClient();
+      final api = testClient(
+        statusOf: businessStatus,
+      );
       final request = (await api.send<Object?>(b3ValueGet, b3Path)).request;
       for (final status in [401, 403, 500]) {
         final r = DiomanResponse<dynamic>(
-            ok: false,
-            kind: DiomanKind.biz,
-            status: status,
-            httpStatus: 200,
-            data: null,
-            request: request);
+            ok: false, status: status, data: null, request: request);
         expect(
             defaultAuthFailure(r, tm, b3Old),
             status == 403
@@ -76,7 +74,8 @@ void main() {
         var refresh = 0;
         var expired = 0;
         var denied = 0;
-        final api = testClient(network: net, plugins: [
+        final api =
+            testClient(statusOf: businessStatus, network: net, plugins: [
           b3Auth(tm, refresh: (t, r) {
             refresh++;
             t.setTokens(accessToken: b3Fresh);
@@ -106,7 +105,8 @@ void main() {
         final tm = TestTokens(empty);
         final net = FakeNetwork();
         var notices = 0;
-        final api = testClient(network: net, plugins: [
+        final api =
+            testClient(statusOf: businessStatus, network: net, plugins: [
           b3Auth(tm,
               expired: own
                   ? (t, r) => fail('unexpected')
@@ -121,7 +121,7 @@ void main() {
         ]);
         for (var i = 0; i < 2; i++) {
           final r = await api.send<Object?>(b3ValueGet, b3Path);
-          expect(r.reason, b3ValueUnauthenticated);
+          expect(failureOf(r)?.reason, b3ValueUnauthenticated);
         }
         expect(notices, 1);
         expect(net.sends, isEmpty);
@@ -137,7 +137,7 @@ void main() {
       var calls = 0;
       final net = FakeNetwork()
         ..routes[b3Route] = [const FakeReply(status: 401)];
-      final api = testClient(network: net, plugins: [
+      final api = testClient(statusOf: businessStatus, network: net, plugins: [
         b3Auth(tm, failure: (r, t) {
           calls++;
           return action;
@@ -152,10 +152,10 @@ void main() {
       expect(calls, repeats ? 2 : 1);
       expect(notices, action == DiomanAuthFailureAction.others ? 0 : 1);
       expect(
-          r.kind,
+          outcomeOf(r),
           action == DiomanAuthFailureAction.others
-              ? DiomanKind.http
-              : DiomanKind.auth);
+              ? diomanTestHttp
+              : diomanTestAuth);
       api.dispose();
     }
   });
@@ -172,18 +172,22 @@ void main() {
       final clock = FakeClock();
       final net = FakeNetwork();
       var refresh = 0;
-      final api = testClient(clock: clock, network: net, plugins: [
-        DiomanAuth(
-            tokenManager: tm,
-            onRefresh: (t, r) {
-              refresh++;
-              if (mode == b3ValueFailure) throw StateError(b3ValueRefresh);
-              t.setTokens(accessToken: b3Fresh);
-            },
-            onAccessExpired: (t, r) {},
-            expiresAt: (t) =>
-                mode == b3ValueNull ? null : clock.now().add(b3Tick))
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          clock: clock,
+          network: net,
+          plugins: [
+            DiomanAuth(
+                tokenManager: tm,
+                onRefresh: (t, r) {
+                  refresh++;
+                  if (mode == b3ValueFailure) throw StateError(b3ValueRefresh);
+                  t.setTokens(accessToken: b3Fresh);
+                },
+                onAccessExpired: (t, r) {},
+                expiresAt: (t) =>
+                    mode == b3ValueNull ? null : clock.now().add(b3Tick))
+          ]);
       final r = await api.send<Object?>(b3ValueGet, b3Path,
           call: DiomanCall(options: {
             DiomanAuth.option: DiomanAuthOptions(
@@ -191,7 +195,8 @@ void main() {
           }));
       expect(refresh, [b3ValueDue, b3ValueFailure].contains(mode) ? 1 : 0);
       expect(net.sends.length, mode == b3ValueFailure ? 0 : 1);
-      expect(r.reason, mode == b3ValueFailure ? b3ValueExpired : null);
+      expect(
+          failureOf(r)?.reason, mode == b3ValueFailure ? b3ValueExpired : null);
       api.dispose();
     }
   });
@@ -206,7 +211,8 @@ void main() {
       const DiomanAuthOptions(isProtected: _public),
       b3ValueBad
     ]) {
-      final api = testClient(plugins: [b3Auth(TestTokens(null))]);
+      final api = testClient(
+          statusOf: businessStatus, plugins: [b3Auth(TestTokens(null))]);
       final p = api.send<Object?>(b3ValueGet, b3Path,
           call: DiomanCall(options: {DiomanAuth.option: option}));
       if (option == b3ValueBad) {
@@ -220,7 +226,8 @@ void main() {
     var protected = 0;
     var denied = 0;
     final net = FakeNetwork()..routes[b3Route] = [const FakeReply(status: 403)];
-    final api = testClient(network: net, plugins: [b3Auth(tm)]);
+    final api = testClient(
+        statusOf: businessStatus, network: net, plugins: [b3Auth(tm)]);
     await api.send<Object?>(b3ValueGet, b3Path,
         call: DiomanCall(options: {
           DiomanAuth.option: DiomanAuthOptions(
@@ -244,7 +251,7 @@ void main() {
     expect(denied, 1);
     expect(net.sends.single.options.headers[b3ValueCustom], b3ValueYes);
     api.dispose();
-    final disabled = testClient(plugins: [
+    final disabled = testClient(statusOf: businessStatus, plugins: [
       DiomanAuth(
           tokenManager: tm,
           onRefresh: (t, r) {},

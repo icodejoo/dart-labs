@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Breaking — C22**: Replace top-level kind/reason and DiomanKind with readonly failureOf and DiomanFailureKind. Kernel markers survive create and derivation; marked results always have ok=false. Remove httpStatus; status is HTTP only. Add statusOf, cancellation predicates and parse/DiomanParsed; remove Envelope, envelope/isEnvelope/logicalStatus and call.envelope. Missing business code is 0.
+- **Breaking — C23**: Retry/auth/breaker use effective status; mock uses HTTP status; notify formats failure markers with HTTP status and suppresses internal/cancel. Business style requires explicit client statusOf.
+- Cache persistence keeps the data/expiresAt/result layout. New result metadata stores ok and an optional failure kind/reason, with HTTP status only. Reads remain compatible with 0.7 two-field entries and B4 kind/status/httpStatus metadata.
+
+
 - **C19**: Share auth refresh and expiration state by TokenManager with explicit owner counts. Release the association on the last disposal; late refresh failures then neither clear credentials nor notify. Remaining owners handle a shared failure once.
 - **C20**: Notify missing credentials once per session, reset when a login token is observed. Share loading by callback equality across clients, track each client's occupancy, and transfer pending hide windows to new owners. Disposing a window owner completes its final false.
 - **C21**: Add `extend(dio: engine)` to retain a supplied engine's interceptors, adapter and transformer. Default extend still clones BaseOptions into a fresh Dio and omits those extensions. Passing the parent's engine shares mutable options; overrides affect both clients.
@@ -40,9 +45,9 @@ Future<void> main() async {
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -106,7 +111,7 @@ Future<void> main() async {
     try {
       await api.get<dynamic>('/items');
     } on DiomanResponse catch (failure) {
-      print('${failure.kind}: ${failure.reason}');
+      print('${failureOf(failure)?.kind}: ${failureOf(failure)?.reason}');
     }
     final result = await api.send<dynamic>('GET', '/items');
     if (!result.ok) print(result.message);
@@ -138,7 +143,7 @@ Future<void> main() async {
   final api = Dioman(dio: Dio());
   try {
     await api.send<dynamic>('GET', '/items', call: DiomanCall(
-      key: false, silent: true, envelope: false,
+      key: false, silent: true,
       options: {DiomanRetry.option: 2},
     ));
   } finally {
@@ -188,7 +193,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -221,7 +226,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -258,7 +263,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);

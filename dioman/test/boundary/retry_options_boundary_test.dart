@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
@@ -70,9 +71,7 @@ void main() {
           sends++;
           return DiomanResponse<dynamic>(
               ok: false,
-              kind: DiomanKind.biz,
               status: 500,
-              httpStatus: 200,
               data: null,
               request: ctx.request,
               raw: Response<dynamic>(
@@ -113,8 +112,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           sends++;
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 400));
+          return scriptedResult(ctx, diomanTestHttp, status: 400);
         })
       ]);
       final result = await b3Finish(

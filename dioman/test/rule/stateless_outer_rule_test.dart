@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/b2_constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -140,7 +141,7 @@ void main() {
     final pending = api.send<Object?>(b2Get, outerPath);
     await flush();
     api.cancelAll();
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     gate.complete();
     expect(messages.length, 2);
   });

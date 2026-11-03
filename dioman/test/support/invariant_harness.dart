@@ -1,3 +1,4 @@
+import 'response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:convert';
 import 'package:dioman/dioman.dart';
@@ -43,7 +44,7 @@ class InvariantHarness {
   final notifications = <int, int>{};
 
   /// I8 在落定时记录调用方自身取消与实际结果类别。
-  final ownership = <int, (bool, DiomanKind)>{};
+  final ownership = <int, (bool, String)>{};
 
   /// 调用方计时器明确确认的自身超时；未声明的 timeout 属于污染。
   final ownTimeouts = <int>{};
@@ -83,7 +84,7 @@ class InvariantHarness {
   /// stringify 以 ctx.id 标记，notify 按逻辑请求而非响应身份记录 I4。
   DiomanNotify<Result> notifyPlugin() => DiomanNotify<Result>(
       stringify: (r, ctx) =>
-          r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
+          r.ok || outcomeOf(r) == diomanTestCancel || ctx.request.silent
               ? ''
               : '${ctx.id}',
       notify: (message, r) {
@@ -99,7 +100,7 @@ class InvariantHarness {
           entries.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
           contexts.add(ctx);
           final r = await next();
-          ownership[ctx.id] = (ctx.cancelled() != null, r.kind);
+          ownership[ctx.id] = (ctx.cancelled() != null, outcomeOf(r));
           if (expectedEcho.containsKey(ctx.id) && r.raw != null) {
             actualEcho[ctx.id] = r.data;
           }
@@ -111,7 +112,7 @@ class InvariantHarness {
             TestPlugin('probe:${stage.name}:${enforce.name}',
                 stage: stage, enforce: enforce, handler: (ctx, next) async {
               final r = await next();
-              expect(r.kind, isNot(DiomanKind.internal),
+              expect(outcomeOf(r), isNot(diomanTestInternal),
                   reason: 'I6 next 不抛且受控流程无 internal');
               return r;
             }),
@@ -135,8 +136,8 @@ class InvariantHarness {
     }
     for (final entry in ownership.entries) {
       final outcome = entry.value;
-      expect(outcome.$2 == DiomanKind.cancel, outcome.$1, reason: 'I8 取消归属');
-      expect(outcome.$2 == DiomanKind.timeout, ownTimeouts.contains(entry.key),
+      expect(outcome.$2 == diomanTestCancel, outcome.$1, reason: 'I8 取消归属');
+      expect(outcome.$2 == diomanTestTimeout, ownTimeouts.contains(entry.key),
           reason: 'I8 超时归属');
     }
     for (final id in actualEcho.keys) {

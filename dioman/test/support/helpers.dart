@@ -103,6 +103,7 @@ Dioman<Result> testClient(
     List<DiomanPlugin<Result>> plugins = const [],
     DiomanResponseFactory<Result>? response,
     Object? debug,
+    int Function(DiomanResponse<dynamic>)? statusOf,
     FakeClock? clock,
     Object Function(Result)? reject,
     DiomanKeyOptions key = const DiomanKeyOptions()}) {
@@ -112,6 +113,7 @@ Dioman<Result> testClient(
       plugins: plugins,
       response: response,
       debug: debug,
+      statusOf: statusOf,
       reject: reject,
       key: key,
       clock: clock ?? FakeClock());

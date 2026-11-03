@@ -27,7 +27,7 @@ void main() {
     for (var j = i + 1; j < names.length; j++) {
       final pair = [names[i], names[j]];
       if (!pair.any(prepareNames.contains)) continue;
-      test('[DiomanPlugin pairs] ${pair.join(pairSeparator)} 补丁穿透发送', () async {
+      test('[INV-pairs] ${pair.join(pairSeparator)} 补丁穿透发送', () async {
         final clock = FakeClock();
         final stream = StreamController<bool>.broadcast(sync: true);
         final net = FakeNetwork();

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/transport.dart';
 import '../support/constants.dart';
 import 'dart:async';
@@ -38,7 +39,7 @@ void main() {
     await entered.future;
     expect(network.sends.length, 1);
     expect(api.cancelAll(), 1);
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     expect(api.pending, 0);
     gate.complete();
     await flush();
@@ -115,7 +116,7 @@ void main() {
     await diomanTransport(api.dio, ctx);
     expect(logs, contains('请求体无法克隆，回退原引用'));
     final repeated = await diomanTransport(api.dio, ctx);
-    expect(repeated.kind, DiomanKind.internal);
+    expect(outcomeOf(repeated), diomanTestInternal);
     expect(repeated.error, isA<StateError>());
     final throwLog = testClient(
         debug: (String _) => throw StateError(pipelineTestLog),
@@ -134,7 +135,7 @@ void main() {
     final api = testClient(network: network);
     final token = CancelToken()..cancel();
     final ctx = testContext(token: token);
-    expect((await diomanTransport(api.dio, ctx)).kind, DiomanKind.cancel);
+    expect(outcomeOf((await diomanTransport(api.dio, ctx))), diomanTestCancel);
     expect(network.sends, isEmpty);
     final bug = StateError('transformer');
     api.dio.transformer = _ThrowTransformer(bug);

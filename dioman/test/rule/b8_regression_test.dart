@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:dioman/dioman.dart';
@@ -12,7 +13,7 @@ import '../support/helpers.dart';
 const _result = 'result';
 const _maxHeader = '60';
 const _retry = 'retry';
-const _auth = 'auth';
+const _auth = diomanTestAuth;
 const _mock = 'mock';
 const _share = 'share';
 const _path = '/b8';
@@ -29,7 +30,7 @@ void main() {
     test('[DiomanContext.markReplayable] B8 字节体重放保留类型 ${body.runtimeType}',
         () async {
       final net = FakeNetwork();
-      final api = testClient(network: net, plugins: [
+      final api = testClient(statusOf: businessStatus, network: net, plugins: [
         TestPlugin('bytes', handler: (ctx, next) async {
           ctx.markReplayable();
           await next();
@@ -54,7 +55,7 @@ void main() {
       final net = FakeNetwork()
         ..routes[_route] = [const FakeReply(status: 401), const FakeReply()];
       var refreshes = 0;
-      final api = testClient(network: net, plugins: [
+      final api = testClient(statusOf: businessStatus, network: net, plugins: [
         b3Auth(TestTokens(),
             ready: (_, __) => RequestPatch(data: useStream ? body : {'a': 1}),
             refresh: (tm, _) {
@@ -94,7 +95,7 @@ void main() {
       await plugin.handle(cached, next);
       cancelOnClone = true;
       final r = await plugin.handle(cached, next);
-      expect(r.kind, DiomanKind.cancel);
+      expect(outcomeOf(r), diomanTestCancel);
       plugin.dispose();
       ctx.client.dispose();
       cached.client.dispose();
@@ -109,7 +110,8 @@ void main() {
         final tokens = TestTokens();
         var notices = 0;
         var refreshes = 0;
-        final api = testClient(clock: clock, plugins: [
+        final api =
+            testClient(statusOf: businessStatus, clock: clock, plugins: [
           DiomanAuth<Result>(
               tokenManager: tokens,
               onRefresh: (_, __) {
@@ -119,9 +121,8 @@ void main() {
               onAccessExpired: (_, __) => notices++),
           TestPlugin(_result,
               stage: DiomanStage.source,
-              handler: (ctx, next) async => ctx.fail(DiomanFailure(
-                  kind: DiomanKind.http,
-                  status: tokens.accessToken == b3Fresh ? 200 : 401)))
+              handler: (ctx, next) async => scriptedResult(ctx, diomanTestHttp,
+                  status: tokens.accessToken == b3Fresh ? 200 : 401))
         ]);
         final call = DiomanCall(options: {
           if (override)
@@ -139,8 +140,8 @@ void main() {
         clock.elapse(override ? _second : const Duration(seconds: 30));
         final results = await Future.wait(requests);
         expect(results.map((r) => r.status), everyElement(replace ? 200 : 0));
-        expect(results.map((r) => r.kind),
-            everyElement(replace ? DiomanKind.http : DiomanKind.auth));
+        expect(results.map((r) => outcomeOf(r)),
+            everyElement(replace ? diomanTestBiz : diomanTestAuth));
         expect(notices, replace ? 0 : 1);
         expect(clock.pendingTimers, 0);
         api.dispose();
@@ -152,16 +153,15 @@ void main() {
     final tokens = TestTokens();
     final gate = Completer<void>();
     var notices = 0;
-    final api = testClient(plugins: [
+    final api = testClient(statusOf: businessStatus, plugins: [
       DiomanAuth<Result>(
           tokenManager: tokens,
           onRefresh: (_, __) => gate.future,
           onAccessExpired: (_, __) => notices++),
       TestPlugin(_result,
           stage: DiomanStage.source,
-          handler: (ctx, next) async => ctx.fail(DiomanFailure(
-              kind: DiomanKind.http,
-              status: tokens.accessToken == b3Fresh ? 200 : 401)))
+          handler: (ctx, next) async => scriptedResult(ctx, diomanTestHttp,
+              status: tokens.accessToken == b3Fresh ? 200 : 401))
     ]);
     final pending = api.send<dynamic>(_get, _path);
     for (var i = 0; i < 5; i++) {
@@ -178,7 +178,7 @@ void main() {
     test('[DiomanRetry.retryAfterMax] B8 服务端等待超限不重试 $header', () async {
       final clock = FakeClock();
       var sends = 0;
-      final api = testClient(clock: clock, plugins: [
+      final api = testClient(statusOf: businessStatus, clock: clock, plugins: [
         DiomanRetry<Result>(
             max: 1,
             jitter: (_) => throw StateError('jitter'),
@@ -210,7 +210,7 @@ void main() {
     final token = CancelToken();
     var hit = false;
     final net = FakeNetwork();
-    final api = testClient(network: net, plugins: [
+    final api = testClient(statusOf: businessStatus, network: net, plugins: [
       DiomanCache<Result>(clone: (Object? data) {
         if (hit) token.cancel();
         return data;
@@ -221,7 +221,7 @@ void main() {
     hit = true;
     final r = await api.send<dynamic>(_get, _path,
         call: DiomanCall(options: options, cancelToken: token));
-    expect(r.kind, DiomanKind.cancel);
+    expect(outcomeOf(r), diomanTestCancel);
     expect(net.sends.length, 1);
     api.dispose();
   });
@@ -231,19 +231,23 @@ void main() {
       final net = FakeNetwork()
         ..routes[_route] = [const FakeReply(status: 503)];
       final clock = FakeClock();
-      final api = testClient(network: net, clock: clock, plugins: [
-        if (mode == _retry)
-          DiomanRetry<Result>(max: 2, delay: (_, __, ___) => Duration.zero),
-        if (mode == _auth)
-          b3Auth(TestTokens(),
-              failure: (_, __) => DiomanAuthFailureAction.refresh),
-        if (mode == _mock)
-          DiomanMock<Result>(
-              mockUrl: 'https://mock.test', fallbackWhen: (_) => true),
-        if (mode == _share)
-          const DiomanShare<Result>(
-              policy: DiomanSharePolicy.retry, methods: {_put})
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            if (mode == _retry)
+              DiomanRetry<Result>(max: 2, delay: (_, __, ___) => Duration.zero),
+            if (mode == _auth)
+              b3Auth(TestTokens(),
+                  failure: (_, __) => DiomanAuthFailureAction.refresh),
+            if (mode == _mock)
+              DiomanMock<Result>(
+                  mockUrl: 'https://mock.test', fallbackWhen: (_) => true),
+            if (mode == _share)
+              const DiomanShare<Result>(
+                  policy: DiomanSharePolicy.retry, methods: {_put})
+          ]);
       final body = Stream<Uint8List>.value(Uint8List.fromList([1, 2]));
       final pending = api.send<dynamic>(_put, _path,
           data: body,

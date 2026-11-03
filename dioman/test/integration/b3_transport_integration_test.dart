@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -32,10 +33,10 @@ void main() {
     });
     final source = TestPlugin(b3ValueResult,
         stage: DiomanStage.source,
-        handler: (ctx, next) async => ctx.request.headers[b3Header] ==
-                'Bearer $b3Old'
-            ? ctx.fail(const DiomanFailure(kind: DiomanKind.http, status: 401))
-            : next());
+        handler: (ctx, next) async =>
+            ctx.request.headers[b3Header] == 'Bearer $b3Old'
+                ? scriptedResult(ctx, diomanTestHttp, status: 401)
+                : next());
     final a = testClient(plugins: [auth, source]);
     final b = testClient(plugins: [auth, source]);
     final first = a.send<Object?>(b3ValueGet, b3Path);
@@ -44,7 +45,7 @@ void main() {
     await b3Turn();
     expect(calls, 1);
     a.dispose();
-    expect((await first).kind, DiomanKind.cancel);
+    expect(outcomeOf((await first)), diomanTestCancel);
     await expectLater(a.send<Object?>(b3ValueGet, b3Path), throwsStateError);
     gates[0].complete();
     expect((await second).ok, isTrue);
@@ -161,23 +162,29 @@ void main() {
       TestPlugin(b3ValueResult, stage: DiomanStage.source,
           handler: (ctx, next) async {
         sends++;
-        return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+        return scriptedResult(ctx, diomanTestNetwork);
       })
     ]);
     api.use(const DiomanBreaker(failureThreshold: 1));
     final old = api.plugin<DiomanBreakerApi>()!;
-    expect((await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock)).kind,
-        DiomanKind.breaker);
+    expect(
+        outcomeOf(
+            (await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock))),
+        diomanTestBreaker);
     expect(sends, 1);
     expect(api.eject(DiomanBreaker.pluginName), isTrue);
     expect(old.bucketCount, 0);
-    expect((await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock)).kind,
-        DiomanKind.network);
+    expect(
+        outcomeOf(
+            (await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock))),
+        diomanTestNetwork);
     expect(sends, 4);
     api.use(const DiomanBreaker(failureThreshold: 2));
     expect(identical(api.plugin<DiomanBreakerApi>(), old), isFalse);
-    expect((await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock)).kind,
-        DiomanKind.breaker);
+    expect(
+        outcomeOf(
+            (await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock))),
+        diomanTestBreaker);
     expect(sends, 6);
     api.dispose();
     await expectLater(api.send<Object?>(b3ValueGet, b3Path), throwsStateError);

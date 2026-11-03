@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/constants.dart';
 import 'dart:io';
 import 'package:dioman/dioman.dart';
@@ -23,38 +24,38 @@ void main() {
 
   test('[DiomanResponseFactory.normalize] 分类规则逐行：取消、超时、网络、HTTP、bug', () {
     const factory = DiomanResponseFactory();
-    final table = <(DioExceptionType, Object?, DiomanKind)>[
-      (DioExceptionType.cancel, null, DiomanKind.cancel),
+    final table = <(DioExceptionType, Object?, String)>[
+      (DioExceptionType.cancel, null, diomanTestCancel),
       for (final type in [
         DioExceptionType.connectionTimeout,
         DioExceptionType.sendTimeout,
         DioExceptionType.receiveTimeout
       ])
-        (type, null, DiomanKind.timeout),
-      (DioExceptionType.connectionError, null, DiomanKind.network),
-      (DioExceptionType.badCertificate, null, DiomanKind.network),
+        (type, null, diomanTestTimeout),
+      (DioExceptionType.connectionError, null, diomanTestNetwork),
+      (DioExceptionType.badCertificate, null, diomanTestNetwork),
       (
         DioExceptionType.unknown,
         const SocketException('socket'),
-        DiomanKind.network
+        diomanTestNetwork
       ),
       (
         DioExceptionType.unknown,
-        const HttpException('http'),
-        DiomanKind.network
+        const HttpException(diomanTestHttp),
+        diomanTestNetwork
       ),
-      (DioExceptionType.unknown, const TlsException('tls'), DiomanKind.network),
+      (DioExceptionType.unknown, const TlsException('tls'), diomanTestNetwork),
       (
         DioExceptionType.unknown,
         StateError(pipelineTestBug),
-        DiomanKind.internal
+        diomanTestInternal
       ),
-      (DioExceptionType.unknown, null, DiomanKind.internal),
-      (DioExceptionType.badResponse, null, DiomanKind.http),
+      (DioExceptionType.unknown, null, diomanTestInternal),
+      (DioExceptionType.badResponse, null, diomanTestHttp),
       (
         DioExceptionType.values.firstWhere((v) => v.name == 'transformTimeout'),
         null,
-        DiomanKind.internal
+        diomanTestInternal
       ),
     ];
     for (final row in table) {
@@ -65,8 +66,8 @@ void main() {
           response: Response(
               requestOptions: request.toRequestOptions(), statusCode: 503));
       final r = factory.normalize(request, error: error);
-      expect(r.kind, row.$3);
-      expect(r.status, row.$1 == DioExceptionType.badResponse ? 503 : 0);
+      expect(outcomeOf(r), row.$3);
+      expect(r.status, 503);
       expect(
           r.error,
           row.$1 == DioExceptionType.cancel
@@ -77,7 +78,8 @@ void main() {
         requestOptions: request.toRequestOptions(),
         type: DioExceptionType.badResponse);
     expect(factory.normalize(request, error: noResponse).status, 0);
-    expect(factory.normalize(request, cancelled: true).kind, DiomanKind.cancel);
+    expect(outcomeOf(factory.normalize(request, cancelled: true)),
+        diomanTestCancel);
     final bug = StateError('native');
     expect(factory.normalize(request, error: bug).errorStack, isNotNull);
     final stack = StackTrace.fromString(pipelineTestOriginal);
@@ -87,11 +89,11 @@ void main() {
   });
 
   test(
-      '[Envelope.message]'
-      '[DiomanResponseFactory.new(envelope)] 终审识别、开关、业务码边界及逻辑状态', () {
+      '[DiomanParsed.message]'
+      '[DiomanResponseFactory.new(parse)] 终审识别、开关、业务码边界及逻辑状态', () {
     expect(normalize({pipelineTestCode: 0, pipelineTestData: 7}).data, 7);
-    expect(normalize({pipelineTestCode: 0, pipelineTestData: 7}).kind,
-        DiomanKind.ok);
+    expect(outcomeOf(normalize({pipelineTestCode: 0, pipelineTestData: 7})),
+        diomanTestOk);
     expect(
         normalize({pipelineTestCode: '0', pipelineTestMessage: pipelineTestOk})
             .ok,
@@ -101,17 +103,19 @@ void main() {
     expect(
         normalize({pipelineTestCode: 401, pipelineTestMessage: 'expired'})
             .status,
-        401);
-    expect(normalize({pipelineTestCode: 'TOKEN', pipelineTestData: null}).kind,
-        DiomanKind.biz);
+        200);
+    expect(
+        outcomeOf(
+            normalize({pipelineTestCode: 'TOKEN', pipelineTestData: null})),
+        diomanTestBiz);
     expect(
         normalize({pipelineTestCode: 399, pipelineTestData: null}).status, 200);
     expect(
         normalize({pipelineTestCode: 600, pipelineTestData: null}).status, 200);
     expect(
-        normalize({pipelineTestCode: 599, pipelineTestData: null}).status, 599);
+        normalize({pipelineTestCode: 599, pipelineTestData: null}).status, 200);
     expect(
-        normalize({pipelineTestCode: 400, pipelineTestData: null}).status, 400);
+        normalize({pipelineTestCode: 400, pipelineTestData: null}).status, 200);
     for (final body in [
       null,
       pipelineTestEmpty,
@@ -120,112 +124,116 @@ void main() {
       {pipelineTestData: 1},
       {pipelineTestMessage: pipelineTestXValue}
     ]) {
-      expect(normalize(body).kind, DiomanKind.ok);
+      expect(outcomeOf(normalize(body)), diomanTestOk);
     }
-    expect(normalize(pipelineTestXValue, status: null).kind, DiomanKind.http);
-    expect(normalize(pipelineTestXValue, status: 199).kind, DiomanKind.http);
-    expect(normalize(pipelineTestXValue, status: 300).kind, DiomanKind.http);
     expect(
-        normalize({pipelineTestCode: 0, pipelineTestData: 1}, status: 500).kind,
-        DiomanKind.http);
+        outcomeOf(normalize(pipelineTestXValue, status: null)), diomanTestHttp);
+    expect(
+        outcomeOf(normalize(pipelineTestXValue, status: 199)), diomanTestHttp);
+    expect(
+        outcomeOf(normalize(pipelineTestXValue, status: 300)), diomanTestHttp);
+    expect(
+        outcomeOf(
+            normalize({pipelineTestCode: 0, pipelineTestData: 1}, status: 500)),
+        diomanTestHttp);
     final plain = DiomanRequest(request.toRequestOptions(),
-        call: const DiomanCall(envelope: false));
-    expect(
-        normalize({pipelineTestCode: 500, pipelineTestData: 1}, req: plain).ok,
-        isTrue);
+        call: const DiomanCall(extra: {'plain': true}));
+    final custom = DiomanResponseFactory(
+        parse: (body, raw) => raw.requestOptions.extra['plain'] == true
+            ? DiomanParsed(data: body)
+            : DiomanParsed(
+                code: (body as Map)[pipelineTestSValue] ?? 0,
+                data: body[pipelineTestD]),
+        isSuccess: (code) => code == pipelineTestYes || code == 0);
     expect(
         normalize({pipelineTestCode: 500, pipelineTestData: 1},
-                factory: const DiomanResponseFactory(envelope: null))
+                req: plain, factory: custom)
             .ok,
         isTrue);
-    final custom = DiomanResponseFactory(
-        envelope: const Envelope(
-            code: pipelineTestSValue, data: pipelineTestD, message: 'm'),
-        isEnvelope: (map) => map.containsKey(pipelineTestSValue),
-        isSuccess: (code) => code == pipelineTestYes,
-        logicalStatus: (r) => r.ok ? 201 : 403);
     expect(
         normalize({pipelineTestSValue: pipelineTestYes, pipelineTestD: 8},
                 factory: custom)
-            .status,
-        201);
-    expect(normalize({pipelineTestSValue: 'no'}, factory: custom).status, 403);
-    expect(normalize({pipelineTestD: 1}, factory: custom).kind, DiomanKind.ok);
+            .data,
+        8);
+    expect(normalize({pipelineTestSValue: 'no'}, factory: custom).ok, isFalse);
+    expect(normalize({pipelineTestD: 1}, factory: custom).ok, isTrue);
   });
 
   test(
-      '[DiomanKind.http][DiomanKind.parse]'
+      '[DiomanResponse.status][DiomanFailureKind.parse]'
       '[DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse',
       () {
     const factory = DiomanResponseFactory(expectJson: true);
-    expect(normalize(pipelineTestBroken, factory: factory, json: true).kind,
-        DiomanKind.parse);
-    expect(normalize(pipelineTestEmpty, factory: factory, json: true).kind,
-        DiomanKind.ok);
-    expect(normalize(pipelineTestBroken, factory: factory).kind, DiomanKind.parse);
-    expect(normalize({}, factory: factory, json: true).kind, DiomanKind.ok);
     expect(
-        normalize(pipelineTestBroken, factory: factory, json: true, status: 500)
-            .kind,
-        DiomanKind.http);
+        outcomeOf(normalize(pipelineTestBroken, factory: factory, json: true)),
+        diomanTestParse);
+    expect(
+        outcomeOf(normalize(pipelineTestEmpty, factory: factory, json: true)),
+        diomanTestOk);
+    expect(outcomeOf(normalize(pipelineTestBroken, factory: factory)),
+        diomanTestParse);
+    expect(
+        outcomeOf(normalize({}, factory: factory, json: true)), diomanTestOk);
+    expect(
+        outcomeOf(normalize(pipelineTestBroken,
+            factory: factory, json: true, status: 500)),
+        diomanTestHttp);
   });
 
   test(
-      '[DiomanFailure.errorStack][DiomanResponseFactory.isEnvelope][DiomanResponseFactory.isSuccess][DiomanResponseFactory.logicalStatus]'
+      '[DiomanResponse.errorStack][DiomanResponseFactory.parse][DiomanResponseFactory.isSuccess][Dioman.statusOf]'
       '[DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常', () {
     final bug = StateError(pipelineTestFirst);
     final second = StateError('second');
     final stack = StackTrace.fromString('first-stack');
     for (final factory in [
-      DiomanResponseFactory(isEnvelope: (_) => throw bug),
+      DiomanResponseFactory(parse: (_, __) => throw bug),
       DiomanResponseFactory(isSuccess: (_) => throw bug),
-      DiomanResponseFactory(logicalStatus: (_) => throw bug),
+      DiomanResponseFactory(parse: (_, __) => throw bug),
       DiomanResponseFactory(create: (_) => throw bug),
     ]) {
       final r = normalize({pipelineTestCode: 0, pipelineTestData: null},
           factory: factory);
-      expect(r.kind, DiomanKind.internal);
+      expect(outcomeOf(r), diomanTestInternal);
+      expect(r.status, 200);
       expect(r.error, same(bug));
       expect(r.errorStack, isNotNull);
     }
     final factory = DiomanResponseFactory(create: (_) => throw second);
-    final r = factory.fail(
-        request,
-        DiomanFailure(
-            kind: DiomanKind.internal, error: bug, errorStack: stack));
+    final r = factory.normalize(request, error: bug, stack: stack);
     expect(r.error, same(bug));
     expect(r.errorStack, same(stack));
     expect(
-        factory
-            .fail(request, const DiomanFailure(kind: DiomanKind.offline))
-            .error,
-        same(second));
+        factory.fail(request, DiomanFailureKind.offline).error, same(second));
     expect(
         const DiomanResponseFactory()
-            .fail(request, const DiomanFailure(kind: DiomanKind.ok))
+            .fail(request, DiomanFailureKind.offline)
             .ok,
-        isTrue);
+        isFalse);
+    final absent = const DiomanResponseFactory().normalize(request);
+    expect(absent.status, 0);
+    expect(failureOf(absent)?.kind, DiomanFailureKind.internal);
+    final unknown = normalize(0,
+        status: null, factory: DiomanResponseFactory(create: (_) => throw bug));
+    expect(unknown.status, 0);
     final expanded =
         DiomanResponseFactory<ExtraResult>(create: ExtraResult.new);
     expect(normalize(1, factory: expanded), isA<ExtraResult>());
   });
 
   test(
-      '[DiomanResponse.callSite][DiomanResponse.code][DiomanResponse.copy][DiomanResponse.data][DiomanResponse.error][DiomanResponse.httpStatus][DiomanResponse.kind][DiomanResponse.ok][DiomanResponse.reason][DiomanResponse.request][DiomanResponse.status]'
+      '[DiomanResponse.callSite][DiomanResponse.code][DiomanResponse.copy][DiomanResponse.data][DiomanResponse.error][DiomanResponse.status][failureOf][DiomanResponse.ok][DiomanFailure.reason][DiomanResponse.request][DiomanResponse.status]'
       '[DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生', () {
     final cycle = <Object?>[];
     cycle.add(cycle);
     final r = DiomanResponse(
         ok: false,
-        kind: DiomanKind.biz,
         status: 400,
-        httpStatus: 200,
         data: cycle,
         request: request,
         error: _BadString(),
-        reason: 'denied',
         code: 400);
-    expect(r.toString(), contains('biz'));
+    expect(r.toString(), contains('400'));
     final site = StackTrace.current;
     final copy = r.copy<Object?>(callSite: site);
     expect(copy.callSite, same(site));
@@ -246,11 +254,5 @@ class _BadString {
 class ExtraResult extends DiomanResponse<dynamic> {
   /// 从工厂初值创建带扩展字段的结果。
   ExtraResult(DiomanResponse<dynamic> r)
-      : super(
-            ok: r.ok,
-            kind: r.kind,
-            status: r.status,
-            httpStatus: r.httpStatus,
-            data: r.data,
-            request: r.request);
+      : super(ok: r.ok, status: r.status, data: r.data, request: r.request);
 }

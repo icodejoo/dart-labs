@@ -27,6 +27,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       DiomanResponseFactory<R>? response,
       this.key = const DiomanKeyOptions(),
       this.reject,
+      this.statusOf,
       Object? debug,
       this.clock = const DiomanClock.system()})
       : response = response ?? DiomanResponseFactory<R>(),
@@ -64,6 +65,12 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 
   /// 可预期失败的最终异常转换器。
   final Object Function(R)? reject;
+
+  /// 有效状态映射；省略时插件读取 HTTP status，例如 `(r) => r.status`。
+  final int Function(DiomanResponse<dynamic>)? statusOf;
+
+  /// 判断异常是否为取消结果，例如 `api.isCancel(error)`。
+  bool isCancel(Object? error) => isDiomanCancel(error);
 
   /// 可注入时间服务。
   final DiomanClock clock;
@@ -182,7 +189,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   /// 不复制拦截器、adapter、transformer；传入时直接使用并保留其配置。
   /// [options] 在安装后合并非空、非默认字段，容器按顶层键合并；
   /// 不能用默认值重置继承的非默认值，覆盖会修改传入引擎。
-  /// [plugins] 替换继承列表；工厂、key、reject、debug、clock 继承引用。
+  /// [plugins] 替换继承列表；工厂、key、statusOf、reject、debug、clock 继承引用。
   /// 相同 TokenManager 的 auth 会话、相等回调的 loading 状态共享。
   /// 传父客户端的引擎会共享可变配置，覆盖也影响父客户端。
   /// 示例：`api.extend(dio: Dio(), options: BaseOptions(baseUrl: 'https://child.example'))`。
@@ -193,6 +200,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
         dio: dio ?? Dio(cloneDiomanOptions(this.dio.options)),
         plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
         response: response,
+        statusOf: statusOf,
         key: key,
         reject: reject,
         debug: _debug ? _logger : false,
@@ -288,6 +296,7 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       final options = Options(
               method: method,
               headers: c.headers,
+              extra: c.extra,
               sendTimeout: c.sendTimeout,
               receiveTimeout: c.receiveTimeout)
           .compose(dio.options, path, queryParameters: query, data: data);
@@ -302,13 +311,15 @@ class Dioman<R extends DiomanResponse<dynamic>> {
           clock: clock,
           log: _log);
       var result = await run(ctx);
-      if (result.kind != DiomanKind.internal) {
+      if (failureOf(result)?.kind != DiomanFailureKind.internal) {
         result = ctx.cancelled() ?? result;
       }
-      if (!result.ok && site != null && result.kind != DiomanKind.internal) {
+      if (!result.ok &&
+          site != null &&
+          failureOf(result)?.kind != DiomanFailureKind.internal) {
         result = response.withCallSite(result, site);
       }
-      if (result.kind == DiomanKind.internal) {
+      if (failureOf(result)?.kind == DiomanFailureKind.internal) {
         Error.throwWithStackTrace(
             result.error ?? StateError('internal result without error'),
             result.errorStack ?? StackTrace.current);

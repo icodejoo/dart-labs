@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import '../support/b2_constants.dart';
 import 'dart:async';
 import 'dart:io';
@@ -22,7 +23,7 @@ const _path = '/timeout';
 const _get = b2Get;
 
 /// 服务端响应文本。
-const _payload = 'ok';
+const _payload = diomanTestOk;
 
 /// 大上传的一块大小。
 const _chunkSize = 64 * 1024;
@@ -106,7 +107,7 @@ class _Loop {
 /// 断言超时分类和实际经过的时长，排除即时失败冒充超时。
 void _expectTimeout(
     DiomanResponse<dynamic> r, Stopwatch watch, Duration timeout) {
-  expect(r.kind, DiomanKind.timeout);
+  expect(outcomeOf(r), diomanTestTimeout);
   expect(watch.elapsed,
       greaterThanOrEqualTo(timeout - const Duration(milliseconds: 20)));
   expect(watch.elapsed, lessThan(timeout + const Duration(seconds: 2)));
@@ -151,7 +152,7 @@ void main() {
     final loop =
         await _Loop.start(b2DelayMode, const DiomanTimeouts(receive: _short));
     final failed = await loop.api.send<Object?>(_get, _path);
-    expect(failed.kind, DiomanKind.timeout);
+    expect(outcomeOf(failed), diomanTestTimeout);
     final r = await loop.api.send<String>(_get, _path,
         call: DiomanCall(options: {
           DiomanTimeout.option: const DiomanTimeoutOptions(

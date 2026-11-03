@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
@@ -55,8 +56,7 @@ void main() {
           handler: (ctx, next) async {
         sends++;
         if (sends == 1) {
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+          return scriptedResult(ctx, diomanTestHttp, status: 401);
         }
         started.complete();
         await ctx.wait(gate.future);
@@ -66,7 +66,7 @@ void main() {
     final pending = h.track(1, api.send<Object?>(b3ValueGet, b3Path));
     await started.future;
     expect(api.cancelAll(), 1);
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     expect(sends, 2);
     expect(h.notifications, isEmpty);
     h.assertAll(api);
@@ -85,7 +85,7 @@ void main() {
       ...h.probes()
     ]);
     final r = await h.track(1, api.send<Object?>(b3ValueGet, b3Path));
-    expect(r.reason, b3ValueUnauthenticated);
+    expect(failureOf(r)?.reason, b3ValueUnauthenticated);
     expect(h.notifications, {1: 1});
     expect(net.sends, isEmpty);
     h.assertAll(api);

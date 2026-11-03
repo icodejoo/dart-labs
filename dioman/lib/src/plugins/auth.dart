@@ -85,12 +85,14 @@ typedef DiomanAuthFailure = FutureOr<DiomanAuthFailureAction> Function(
 typedef DiomanAuthReady = FutureOr<RequestPatch> Function(
     DiomanTokenManager tokens, DiomanRequest request);
 
-/// 默认按逻辑状态判定；[injectedToken] 是最后一次调用 ready 前的凭证快照。
+/// 默认按有效状态判定；[injectedToken] 是最后一次调用 ready 前的凭证快照。
+/// [status] 由插件传入 ctx.statusOf 的值；省略时使用 HTTP status。
 /// 例如旧请求携带 a、当前为 b 时返回 replay，保留新会话。
 DiomanAuthFailureAction defaultAuthFailure(DiomanResponse<dynamic> result,
-    DiomanTokenManager tokens, String? injectedToken) {
-  if (result.status == 403) return DiomanAuthFailureAction.deny;
-  if (result.status != 401) return DiomanAuthFailureAction.others;
+    DiomanTokenManager tokens, String? injectedToken,
+    {int? status}) {
+  if ((status ?? result.status) == 403) return DiomanAuthFailureAction.deny;
+  if ((status ?? result.status) != 401) return DiomanAuthFailureAction.others;
   final current = tokens.accessToken;
   if (current == null || current.isEmpty) {
     return DiomanAuthFailureAction.expired;
@@ -362,7 +364,7 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
 
   /// 失败载体统一由工厂创建。
   DiomanResponse<dynamic> _fail(DiomanContext<R> ctx, String reason) =>
-      ctx.fail(DiomanFailure(kind: DiomanKind.auth, reason: reason));
+      ctx.fail(DiomanFailureKind.auth, reason: reason);
 
   /// 加入刷新后立刻重查本调用的取消，不中止共享刷新。
   Future<DiomanResponse<dynamic>?> _join(
@@ -445,12 +447,13 @@ class _Auth<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R> {
       ctx.set(DiomanAuth.injectedToken, token);
       final r = await next(patch);
       final cancelled = ctx.cancelled();
-      if (r.kind == DiomanKind.internal) return r;
+      if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
       if (cancelled != null) return cancelled;
-      if (r.ok || r.kind == DiomanKind.cancel) return r;
+      if (r.ok || failureOf(r)?.kind == DiomanFailureKind.cancel) return r;
       final action = o.onFailure == null
           ? defaultAuthFailure(
-              r, _tokens, ctx.get<String?>(DiomanAuth.injectedToken))
+              r, _tokens, ctx.get<String?>(DiomanAuth.injectedToken),
+              status: ctx.statusOf(r))
           : await ctx.wait(Future<DiomanAuthFailureAction>.sync(
               () => o.onFailure!(r, _tokens)));
       final cancelledAfterFailure = ctx.cancelled();

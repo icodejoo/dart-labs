@@ -1,0 +1,7 @@
+00:00 +0: loading test/unit/response_test.dart
+00:00 +0: [DiomanResponseFactory.normalize] 分类规则逐行：取消、超时、网络、HTTP、bug
+00:00 +1: [DiomanParsed.message][DiomanResponseFactory.new(parse)] 终审识别、开关、业务码边界及逻辑状态
+00:00 +2: [DiomanResponse.status][DiomanFailureKind.parse][DiomanResponseFactory.new(expectJson)] 只对 2xx 非空声明 JSON 字符串判 parse
+00:00 +3: [DiomanResponse.errorStack][DiomanResponseFactory.parse][DiomanResponseFactory.isSuccess][Dioman.statusOf][DiomanResponseFactory.create] 钩子 bug 和坏工厂回退保留首次异常
+00:00 +4: [DiomanResponse.callSite][DiomanResponse.code][DiomanResponse.copy][DiomanResponse.data][DiomanResponse.error][DiomanResponse.status][failureOf][DiomanResponse.ok][DiomanFailure.reason][DiomanResponse.request][DiomanResponse.status][DiomanResponse.toString] 循环对象与恶意 toString 不影响描述和派生
+00:00 +5: All tests passed!

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:io';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -42,9 +43,9 @@ void main() {
                 connectTimeout: const Duration(milliseconds: 100),
                 receiveTimeout: const Duration(milliseconds: 100),
                 options: {DiomanShare.option: true}));
-        expect((await latest).kind, DiomanKind.timeout);
+        expect(outcomeOf((await latest)), diomanTestTimeout);
         final r = await first;
-        expect([r.kind, r.status], [DiomanKind.http, 500]);
+        expect([outcomeOf(r), r.status], [diomanTestHttp, 500]);
         expect(api.pending, 0);
       } finally {
         api.dispose();
@@ -79,15 +80,15 @@ void main() {
             response: DiomanResponseFactory<Result>(expectJson: strict));
         final bad = await api
             .send<dynamic>(_get, _path, query: {_bad: true, _json: true});
-        expect([bad.kind, bad.status, bad.httpStatus],
-            [DiomanKind.parse, 502, 502]);
+        expect([outcomeOf(bad), bad.status, bad.status],
+            [diomanTestParse, 502, 502]);
         final html = await api.send<dynamic>(_get, _path);
-        expect(html.kind, strict ? DiomanKind.parse : DiomanKind.ok);
+        expect(outcomeOf(html), strict ? diomanTestParse : diomanTestOk);
         expect(html.data, _html);
         // 声明 JSON 的 HTML 在 Dio 解码时就失败，两种工厂配置均归 parse。
         final advertised =
             await api.send<dynamic>(_get, _path, query: {_json: true});
-        expect(advertised.kind, DiomanKind.parse);
+        expect(outcomeOf(advertised), diomanTestParse);
         final empty = await api
             .send<dynamic>(_get, _path, query: {_json: true, _empty: true});
         expect(empty.data, isNull);

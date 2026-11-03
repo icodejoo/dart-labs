@@ -4,7 +4,7 @@ Dioman 把认证、重试、缓存等请求策略放到 Dio 周围统一处理�
 
 ## 定位
 
-当每个拦截器都要理解后端信封、还要与其他拦截器协调时，请求逻辑就越来越难维护。Dioman 为应用提供统一的请求入口，在结果交给插件之前完成归一化。认证、重试和缓存因此能使用同一个业务状态，不必各自再拆一次业务码。
+当每个拦截器都要理解后端信封、还要与其他拦截器协调时，请求逻辑就越来越难维护。Dioman 为应用提供统一的请求入口，在结果交给插件之前完成归一化。插件因此能使用同一份结果契约；认证、重试和熔断通过客户端配置的有效状态判定。
 
 管线按固定顺序包住每次尝试。认证刷新 token 或 retry 再次发送时，请求会自然穿过内层的 cache、share、mock，这些策略在每次尝试中都能参与。内核让取消始终跟随整个调用，也保证 loading 回调在等待期间成对结束。你可以专注于配置需要的策略，不必再手工连接它们的清理和重放逻辑。
 
@@ -41,9 +41,9 @@ Future<void> main() async {
         query: {'id': 42});
     print(data);
     final result = await api.send<dynamic>('GET', '/health');
-    print('${result.kind.name}: ${result.status} / ${result.httpStatus}');
+    print('${failureOf(result)?.kind.name}: ${result.status}, code ${result.code}');
   } on DiomanResponse catch (failure) {
-    print('${failure.kind.name}: ${failure.message}');
+    print('${failureOf(failure)?.kind.name}: ${failure.message}');
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -55,11 +55,40 @@ Future<void> main() async {
 
 只需要数据时，用 get/post/put/patch/delete/head；还需要状态等 DiomanResponse 信息时，用 send。动词方法会抛出失败结果，供调用方捕获；send 则把同一失败作为返回值，方便你直接判断。程序错误保留原异常和调用栈。如果应用已有自己的失败类型，可以通过 reject 转换动词方法的可预期失败。
 
-结果字段：`ok`, `kind`, `status` （逻辑状态）, `httpStatus`, `code`, `message`, `data`, `reason`, `request`, `raw`, `error`, `errorStack`, `callSite`.
+结果字段：`ok`、`status`（仅 HTTP，无响应为 0）、`code`、`message`、`data`、`request`、`raw`、`error`、`errorStack`、`callSite`。内核失败用 `failureOf(r)` 读取只读 kind/reason；有标记时 ok 必为 false。取消可用 `isDiomanCancel(e)` 或 `api.isCancel(e)`。
 
-kind：`ok`, `http`, `biz`, `network`, `timeout`, `cancel`, `parse`, `auth`, `breaker`, `offline`, `internal`.
+### 业务风格
 
-默认情况下，响应包含 code 且带有 data 或 message 时，会被视为信封，并且只拆一层。后端格式不同时，可以用 Envelope 和 DiomanResponseFactory 调整识别规则、成功码和逻辑状态；单次请求设置 call.envelope=false 就能保留原始数据。
+默认 parse 仅在 Map 含 code 且含 data/message 之一时拆一层信封；其余整个作为 data。缺 code 为 0，缺 message 为空串，缺 data 为 null。默认成功为 HTTP 2xx 且 code 为 0 或字符串 '0'。协议不同可配置工厂 parse；业务码不会自动改写 HTTP status。业务风格需要显式配置客户端 statusOf，retry/auth/breaker 通过 ctx.statusOf 读取有效状态。穷举失败类别时保留 null 分支，处理没有标记的成功、HTTP 和业务失败。
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dioman/dioman.dart';
+
+Future<void> main() async {
+  final api = Dioman(dio: Dio(),
+      statusOf: (r) => r.status >= 200 && r.status < 300 &&
+          r.code is int && r.code != 0 ? r.code as int : r.status);
+  try {
+    final r = await api.send<Object?>('GET', 'https://api.example.com/items');
+    final label = switch (failureOf(r)?.kind) {
+      DiomanFailureKind.cancel => 'cancel',
+      DiomanFailureKind.timeout => 'timeout',
+      DiomanFailureKind.network => 'network',
+      DiomanFailureKind.parse => 'parse',
+      DiomanFailureKind.auth => 'auth',
+      DiomanFailureKind.breaker => 'breaker',
+      DiomanFailureKind.offline => 'offline',
+      DiomanFailureKind.internal => 'internal',
+      null => r.ok ? 'ok' : 'HTTP ${r.status}, code ${r.code}',
+    };
+    print(label);
+  } finally {
+    api.dispose();
+    api.dio.close(force: true);
+  }
+}
+```
 
 ## 插件
 
@@ -85,7 +114,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanLoading.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -95,7 +124,7 @@ Future<void> main() async {
 
 ### Notify
 
-默认 `stringify` 对 `kind == internal` 返回空串；需要通知时可自行提供 stringify。
+默认 `stringify` 对 `failureOf(r)?.kind == DiomanFailureKind.internal` 返回空串；需要通知时可自行提供 stringify。
 
 Notify 等到最终结果才决定是否提示。默认只提示失败，成功、silent 或被取消的调用都不会打扰用户。
 
@@ -111,7 +140,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanNotify.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -135,7 +164,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRepath.option: const DiomanRepathOptions(removeKey: false)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -159,7 +188,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanFilter.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -183,7 +212,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanTimeout.option: const DiomanTimeoutOptions(timeouts: {NetworkQuality.good: DiomanTimeouts(receive: Duration(seconds: 5))})}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -195,7 +224,7 @@ Future<void> main() async {
 
 行为变化：`retryAfterMax` 默认 60 秒。Retry-After 秒数或 HTTP 日期要求的等待超过上限时，不再重试，直接返回本次结果。需要近似无限遵守时显式传很大的 Duration，例如 `retryAfterMax: Duration(days: 36500)`。服务端等待仍不叠 jitter、不受 `delayMax` 限制。一次性流及不透明体最多发送一次。
 
-需要重试时，请显式设置 max，它的默认值是零。Retry 先检查方法白名单，再根据逻辑状态决定是否让下一次尝试重新经过内层。
+需要重试时，请显式设置 max，它的默认值是零。Retry 先检查方法白名单，再根据 ctx.statusOf 的有效状态决定是否让下一次尝试重新经过内层。
 
 选项：`max, methods, statusCodes, shouldRetry, delay, jitter, delayMax, respectRetryAfter, afterStatusCodes, retryAfterMax, onRetry`。完整参数与默认值见[插件规格](docs/design/pipeline-plugin-spec.md)。
 
@@ -209,7 +238,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanRetry.option: 2}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -233,7 +262,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanBreaker.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -274,7 +303,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanAuth.option: false}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -300,7 +329,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanMock.option: true}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -326,7 +355,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanShare.option: DiomanSharePolicy.start}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -352,7 +381,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanCache.option: const Duration(minutes: 1)}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);
@@ -376,7 +405,7 @@ Future<void> main() async {
   try {
     final result = await api.send<dynamic>('GET', '/items',
         call: DiomanCall(options: {DiomanOffline.option: const DiomanOfflineOptions(maxWait: Duration(seconds: 10))}));
-    print(result.kind);
+    print(failureOf(result)?.kind);
   } finally {
     api.dispose();
     api.dio.close(force: true);

@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
@@ -43,20 +44,20 @@ void main() {
           await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
       expect([
         second.ok,
-        second.kind,
-        second.httpStatus,
+        outcomeOf(second),
+        second.status,
         second.status,
         second.code,
-        second.reason,
+        failureOf(second)?.reason,
         second.message,
         second.data
       ], [
         first.ok,
-        first.kind,
-        first.httpStatus,
+        outcomeOf(first),
+        first.status,
         first.status,
         first.code,
-        first.reason,
+        failureOf(first)?.reason,
         first.message,
         first.data
       ]);
@@ -83,7 +84,7 @@ void main() {
     await b4Turn();
     api.eject(DiomanOffline.pluginName);
     gate.complete();
-    expect((await pending).reason, b4LiteralDisposed);
+    expect(failureOf((await pending))?.reason, b4LiteralDisposed);
     expect(offline.pending, 0);
     expect(net.sends, isEmpty);
   });

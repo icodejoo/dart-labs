@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
@@ -47,9 +48,7 @@ void main() {
               }));
           return DiomanResponse<dynamic>(
               ok: false,
-              kind: DiomanKind.biz,
               status: 429,
-              httpStatus: 200,
               data: null,
               request: ctx.request,
               raw: raw);
@@ -103,7 +102,7 @@ void main() {
           TestPlugin(b3ValueResult, stage: DiomanStage.source,
               handler: (ctx, next) async {
             inner++;
-            return ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+            return scriptedResult(ctx, diomanTestTimeout);
           })
         ]);
         await b3Finish(api.send<Object?>(b3ValueGet, b3Path), clock);
@@ -127,14 +126,14 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           inner++;
-          return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+          return scriptedResult(ctx, diomanTestNetwork);
         })
       ]);
       final p = api.send<Object?>(b3ValueGet, b3Path,
           call: DiomanCall(cancelToken: token));
       await b3Turn();
       if (!before) token.cancel();
-      expect((await p).kind, DiomanKind.cancel);
+      expect(outcomeOf((await p)), diomanTestCancel);
       expect(inner, 1);
       expect(clock.pendingTimers, 0);
       api.dispose();
@@ -163,7 +162,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           inner++;
-          return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+          return scriptedResult(ctx, diomanTestNetwork);
         })
       ]);
       final r = await b3Finish(
@@ -171,7 +170,7 @@ void main() {
               call: DiomanCall(cancelToken: token)),
           clock);
       expect(inner, cancel ? 1 : 2);
-      expect(r.kind, cancel ? DiomanKind.cancel : DiomanKind.network);
+      expect(outcomeOf(r), cancel ? diomanTestCancel : diomanTestNetwork);
       if (!cancel) {
         expect(logs.where((s) => s.contains('重试通知失败')), hasLength(1));
       }
@@ -200,7 +199,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           if (mode == b3ValueInternal) throw bug;
-          return ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+          return scriptedResult(ctx, diomanTestTimeout);
         })
       ]);
       await expectLater(
@@ -210,7 +209,7 @@ void main() {
     }
   });
   test(
-      '[DiomanCall.cancelToken][DiomanKind.cancel][DiomanKind.network][DiomanStage.source]'
+      '[DiomanCall.cancelToken][DiomanFailureKind.cancel][DiomanFailureKind.network][DiomanStage.source]'
       '[DiomanContext.cancelled] next 返回后取消优先，internal 保留原错', () async {
     final token = CancelToken();
     var inner = 0;
@@ -220,14 +219,13 @@ void main() {
           handler: (ctx, next) async {
         inner++;
         token.cancel();
-        return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+        return scriptedResult(ctx, diomanTestNetwork);
       })
     ]);
     expect(
-        (await api.send<Object?>(b3ValueGet, b3Path,
-                call: DiomanCall(cancelToken: token)))
-            .kind,
-        DiomanKind.cancel);
+        outcomeOf((await api.send<Object?>(b3ValueGet, b3Path,
+            call: DiomanCall(cancelToken: token)))),
+        diomanTestCancel);
     expect(inner, 1);
     api.dispose();
   });

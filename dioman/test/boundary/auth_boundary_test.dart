@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -110,8 +111,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           inner++;
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+          return scriptedResult(ctx, diomanTestHttp, status: 401);
         })
       ]);
       final p = api.send<Object?>(b3ValueGet, b3Path,
@@ -119,7 +119,7 @@ void main() {
       await b3Turn();
       token.cancel();
       gate.complete();
-      expect((await p).kind, DiomanKind.cancel);
+      expect(outcomeOf((await p)), diomanTestCancel);
       expect(inner, mode == b3ValueReady ? 0 : 1);
       expect(notices, 0);
       api.dispose();
@@ -148,7 +148,7 @@ void main() {
                 : null)
       ]);
       final r = await api.send<Object?>(b3ValueGet, b3Path);
-      expect(r.reason, b3ValueUnauthenticated);
+      expect(failureOf(r)?.reason, b3ValueUnauthenticated);
       expect(denied, 1);
       expect(net.sends.length, mode == b3ValueRefresh ? 1 : 0);
       expect(ready, mode == b3ValueReady ? 1 : 0);
@@ -174,13 +174,14 @@ void main() {
       ]);
       final results = await Future.wait(
           List.generate(5, (_) => api.send<Object?>(b3ValueGet, b3Path)));
-      expect(results.every((r) => r.reason == b3ValueExpired), isTrue);
+      expect(
+          results.every((r) => failureOf(r)?.reason == b3ValueExpired), isTrue);
       expect(calls, 1);
       expect(expired, 1);
       expect(tm.clears, 1);
       tm.setTokens(accessToken: b3Old);
-      expect(
-          (await api.send<Object?>(b3ValueGet, b3Path)).reason, b3ValueExpired);
+      expect(failureOf((await api.send<Object?>(b3ValueGet, b3Path)))?.reason,
+          b3ValueExpired);
       expect(calls, 2);
       expect(expired, 2);
       expect(logs.where((s) => s.contains('刷新失败')), hasLength(2));
@@ -223,8 +224,8 @@ void main() {
           first.cancel();
           second.cancel();
         }
-        expect((await a).kind, DiomanKind.cancel);
-        expect((await b).kind, DiomanKind.cancel);
+        expect(outcomeOf((await a)), diomanTestCancel);
+        expect(outcomeOf((await b)), diomanTestCancel);
         expect(calls, 1);
         expect(expired, 0);
         gate.complete();
@@ -265,8 +266,7 @@ void main() {
             await gate.future;
           }
           if (sent > 1) return next();
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 401));
+          return scriptedResult(ctx, diomanTestHttp, status: 401);
         })
       ]);
       final p = api.send<Object?>(b3ValueGet, b3Path);
@@ -285,11 +285,11 @@ void main() {
       '[DiomanAuth.onFailure] internal cancel 不路由，network timeout parse 仍路由且默认 others',
       () async {
     for (final kind in [
-      DiomanKind.internal,
-      DiomanKind.cancel,
-      DiomanKind.network,
-      DiomanKind.timeout,
-      DiomanKind.parse
+      diomanTestInternal,
+      diomanTestCancel,
+      diomanTestNetwork,
+      diomanTestTimeout,
+      diomanTestParse
     ]) {
       for (final custom in [false, true]) {
         var calls = 0;
@@ -304,19 +304,19 @@ void main() {
                   : null),
           TestPlugin(b3ValueResult, stage: DiomanStage.source,
               handler: (ctx, next) async {
-            return ctx.fail(DiomanFailure(
-                kind: kind, error: kind == DiomanKind.internal ? bug : null));
+            return scriptedResult(ctx, kind,
+                error: kind == diomanTestInternal ? bug : null);
           })
         ]);
         final p = api.send<Object?>(b3ValueGet, b3Path);
-        if (kind == DiomanKind.internal) {
+        if (kind == diomanTestInternal) {
           await expectLater(p, throwsA(same(bug)));
         } else {
-          expect((await p).kind, kind);
+          expect(outcomeOf((await p)), kind);
         }
         expect(
             calls,
-            custom && kind != DiomanKind.internal && kind != DiomanKind.cancel
+            custom && kind != diomanTestInternal && kind != diomanTestCancel
                 ? 1
                 : 0);
         api.dispose();
@@ -348,7 +348,7 @@ void main() {
       if ([b3ValueFailure, b3ValueReady, b3ValueProtected].contains(mode)) {
         await expectLater(p, throwsA(same(bug)));
       } else {
-        expect((await p).kind, DiomanKind.auth);
+        expect(outcomeOf((await p)), diomanTestAuth);
         expect(logs.any((s) => s.contains('鉴权通知失败')), isTrue);
       }
       api.dispose();

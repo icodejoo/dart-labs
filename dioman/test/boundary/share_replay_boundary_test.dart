@@ -82,7 +82,7 @@ void main() {
                   call: b4Call(
                       share: DiomanShareOptions(
                           policy: DiomanSharePolicy.retry, retries: count))))
-              .httpStatus,
+              .status,
           500);
       expect(net.sends.length, count == null ? 4 : 1);
     }

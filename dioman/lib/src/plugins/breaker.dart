@@ -331,8 +331,7 @@ class _Breaker<R extends DiomanResponse<dynamic>>
     if (b.state == DiomanBreakerState.open ||
         b.state == DiomanBreakerState.halfOpen &&
             b.probes >= o.halfOpenMaxCalls!) {
-      return ctx
-          .fail(const DiomanFailure(kind: DiomanKind.breaker, reason: 'open'));
+      return ctx.fail(DiomanFailureKind.breaker, reason: 'open');
     }
     final generation = b.generation;
     final probe = b.state == DiomanBreakerState.halfOpen;
@@ -342,16 +341,20 @@ class _Breaker<R extends DiomanResponse<dynamic>>
     final cancelled = ctx.cancelled();
     b.inFlight--;
     if (generation != b.generation) {
-      return r.kind == DiomanKind.internal ? r : cancelled ?? r;
+      return failureOf(r)?.kind == DiomanFailureKind.internal
+          ? r
+          : cancelled ?? r;
     }
     if (probe) b.probes--;
-    if (r.kind == DiomanKind.internal) return r;
-    if (cancelled != null || r.kind == DiomanKind.cancel) return cancelled ?? r;
+    if (failureOf(r)?.kind == DiomanFailureKind.internal) return r;
+    if (cancelled != null || failureOf(r)?.kind == DiomanFailureKind.cancel) {
+      return cancelled ?? r;
+    }
     final failed = o.shouldTrip?.call(r) ??
-        (r.kind == DiomanKind.network ||
-            r.kind == DiomanKind.timeout ||
-            r.status >= 500 ||
-            r.status == 429);
+        (failureOf(r)?.kind == DiomanFailureKind.network ||
+            failureOf(r)?.kind == DiomanFailureKind.timeout ||
+            ctx.statusOf(r) >= 500 ||
+            ctx.statusOf(r) == 429);
     if (failed) {
       b.failures++;
       if (probe || b.failures >= o.failureThreshold!) {
