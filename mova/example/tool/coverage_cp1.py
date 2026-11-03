@@ -25,11 +25,14 @@ PKG='com.icodejoo.mova.mova_example.coverage'
 ACTIVITY=PKG+'/com.icodejoo.mova.mova_example.MainActivity'
 sys.path.insert(0,str(TOOL/'verify_sources'))
 from range_server import Handler as RangeHandler
-SCENES=('wakeswap','edgepause','errclass','probe','manageauto','bblock','pool','danmaku','recovery','dispose120')
+SCENES=('wakeswap','edgepause','errclass','probe','manageauto','bblock','pool','danmaku','recovery','dispose120','keepalive-s7s14')
 from cp1_sources import Fixtures, parse_system, parse_pss
 
 
 def validate_checks(scene, runs, checks):
+    if scene=='keepalive-s7s14':
+        from cp1_keepalive import validate_checks as validate_keepalive
+        return validate_keepalive(runs, checks)
     variants={'wakeswap':['swap'],'edgepause':['pause','fallback'],
       'errclass':['nonfatal','fatal','poster'],'probe':['list','manual','once','failover','disabled'],
       'manageauto':['managed','default','disabled','lease'],'bblock':['restore','preview'],
@@ -79,6 +82,9 @@ def main():
     p.add_argument('--timeout',type=int,default=900)
     args=p.parse_args()
     if not __import__('re').fullmatch(r'[A-Za-z0-9_.-]+',args.run_id) or args.runs<1:p.error('invalid run-id/runs')
+    if args.scene=='keepalive-s7s14':
+        from cp1_keepalive import run
+        return run(args)
     out=TOOL/'coverage_evidence'/('matrix-'+args.run_id);out.mkdir(exist_ok=True)
     stem='matrix-'+args.run_id+'-cp1-'+args.scene
     log=(out/(stem+'.commands.log')).open('w',encoding='utf-8')

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:mova/mova.dart';
 import 'package:flutter/material.dart';
 import 'verify_auto/auto_kit.dart';
+import 'verify_auto/keep_alive_auto.dart';
 import 'verify_auto/cp1_harness.dart';
 import 'verify_auto/cp1_wakeswap_auto.dart';
 import 'verify_auto/cp1_edgepause_auto.dart';
@@ -27,6 +29,12 @@ Future<void> main() async {
         .trim()
         .split('|');
     coverageRunsOverride = int.parse(parts[2]);
+    if (parts[0] == 'keepAlive') {
+      coverageOnlyOverride = parts[1];
+      MovaEngine.ensureInitialized();
+      runApp(const MaterialApp(home: KeepAliveAutoPage()));
+      return;
+    }
     final scene = parts[0].replaceFirst('cp1-', '');
     final scripts = <String, Cp1Script>{
       'wakeswap': runWakeswap,

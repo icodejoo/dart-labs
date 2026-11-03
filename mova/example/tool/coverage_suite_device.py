@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--timeout', type=int, default=900)
     parser.add_argument('--name')
+    parser.add_argument('--shot-index', action='store_true', help='retain SHOT marker/image pairs for CP1 review')
     args = parser.parse_args()
     unlocked()
     name = args.name or (args.group + '-' + (args.only or 'all'))
@@ -82,7 +83,12 @@ def main():
                     adb('shell','am','start','-n',PKG+'/com.icodejoo.mova.mova_example.MainActivity')
                 if ' SHOT ' in line or ' MARK ' in line:
                     stamp = str(time.time_ns())
-                    shot(out/(name+'-'+stamp+'.png'), PKG)
+                    image_path=out/(name+'-'+stamp+'.png')
+                    captured=shot(image_path, PKG)
+                    if args.shot_index:
+                        with (out/(name+'.shots.jsonl')).open('a',encoding='utf-8') as index:
+                            index.write(json.dumps(dict(marker=line.strip(),path=str(image_path),captured=captured,
+                                hostTimeNs=int(stamp)),ensure_ascii=False)+'\n')
                     (out/(name+'-'+stamp+'.audio.txt')).write_text(adb('shell','dumpsys','audio'),encoding='utf-8')
                 if 'AUTORUN DONE' in line or 'Q13 DONE' in line or 'ALL DONE' in line or 'ALL_DONE' in line or ('RFV2|' in line and '|DONE|' in line):
                     finished.set()

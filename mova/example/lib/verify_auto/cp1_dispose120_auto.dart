@@ -16,13 +16,22 @@ class _DisposePulseState extends State<_DisposePulse>
   @override
   void initState() {
     super.initState();
-    controller = AnimationController(vsync: this, duration: const Duration(seconds: 1))
-      ..addListener(widget.onFrame)
-      ..repeat();
+    // Registered once for this mounted widget, never once per engine/round.
+    WidgetsBinding.instance.addPersistentFrameCallback((_) {
+      if (mounted) widget.onFrame();
+    });
+    controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 1))
+          ..repeat();
   }
+
   @override
-  Widget build(BuildContext context) => Center(child: RotationTransition(
-    turns: controller, child: const Icon(Icons.sync, size: 48)));
+  Widget build(BuildContext context) => Center(
+    child: RotationTransition(
+      turns: controller,
+      child: const Icon(Icons.sync, size: 48),
+    ),
+  );
   @override
   void dispose() {
     controller.dispose();
@@ -70,18 +79,34 @@ Future<void> runDispose120(Cp1Harness h) async {
     }
     final maxGap = gaps.isEmpty ? null : gaps.reduce((a, b) => a > b ? a : b);
     final frames = h.events('MovaFirstFrame', begin);
-    final pass = disposed && frames.isNotEmpty && maxGap != null && maxGap < 100000;
+    final pass =
+        disposed && frames.isNotEmpty && maxGap != null && maxGap < 100000;
     final row = <String, Object?>{
-      'round': run + 1, 'firstFrames': frames, 'disposeUs': end - start,
-      'disposeStartUs': start, 'disposeEndUs': end,
-      'frameIntervalsUs': gaps, 'maxFrameIntervalUs': maxGap,
-      'disposed': disposed, 'error': error, 'pass': pass,
+      'round': run + 1,
+      'firstFrames': frames,
+      'disposeUs': end - start,
+      'disposeStartUs': start,
+      'disposeEndUs': end,
+      'frameIntervalsUs': gaps,
+      'maxFrameIntervalUs': maxGap,
+      'disposed': disposed,
+      'error': error,
+      'pass': pass,
     };
     rounds.add(row);
-    h.check('round.$run', row, pass: pass,
-      missing: gaps.isEmpty ? 'dispose 区间缺 UI 帧样本' : null);
-    if (!disposed) break; // Do not stack leaked native engines after a failed dispose.
+    h.check(
+      'round.$run',
+      row,
+      pass: pass,
+      missing: gaps.isEmpty ? 'dispose 区间缺 UI 帧样本' : null,
+    );
+    if (!disposed) {
+      // Do not stack leaked native engines after a failed dispose.
+      break;
+    }
     await h.release(disposeEngine: false);
+    h.positions.remove(a);
+    h.sourceUris.remove(a);
     if ((run + 1) % 20 == 0) {
       final id = 'dispose120.pss.${run + 1}';
       await h.hostSample(id, 'meminfo');
@@ -89,14 +114,24 @@ Future<void> runDispose120(Cp1Harness h) async {
     }
     ticks.removeRange(0, ticks.length > 2 ? ticks.length - 2 : 0);
   }
-  final failed = rounds.where((r) => r['pass'] != true).map((r) => r['round']).toList();
+  final failed = rounds
+      .where((r) => r['pass'] != true)
+      .map((r) => r['round'])
+      .toList();
   final validPss = pss.length == 6 && pss.every((r) => r['pssKb'] is int);
-  h.check('summary.0', {
-    'rounds': rounds, 'successful': rounds.where((r) => r['pass'] == true).length,
-    'failedRounds': failed, 'pssSamples': pss,
-    'criterion': '120/120 && every(disposeFrameIntervalUs<100000) && six PSS samples',
-  }, pass: rounds.length == 120 && failed.isEmpty && validPss,
-    missing: validPss ? null : '缺每20轮 dumpsys meminfo PSS，共6点');
+  h.check(
+    'summary.0',
+    {
+      'rounds': rounds,
+      'successful': rounds.where((r) => r['pass'] == true).length,
+      'failedRounds': failed,
+      'pssSamples': pss,
+      'criterion':
+          '120/120 && every(disposeFrameIntervalUs<100000) && six PSS samples',
+    },
+    pass: rounds.length == 120 && failed.isEmpty && validPss,
+    missing: validPss ? null : '缺每20轮 dumpsys meminfo PSS，共6点',
+  );
   h.customSurface = null;
   h.refresh();
   await h.frame();

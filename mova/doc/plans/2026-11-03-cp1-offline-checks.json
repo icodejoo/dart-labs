@@ -1,8 +1,8 @@
 {
   "status": "offline-only; 未上机",
-  "base": "6d9e4e2f",
+  "base": "9ed850bd",
   "analyze": {
-    "command": "flutter analyze",
+    "command": "flutter analyze --no-pub",
     "cwd": "example/",
     "baselineIssueCount": 40,
     "finalIssueCount": 40,
@@ -49,25 +49,52 @@
       "warning - The member 'debugSetQualities' can only be used within 'package:mova/src/core/engine.dart' or a test - lib\\verify_auto\\rerun7_coverage_new.dart:877:9 - invalid_use_of_visible_for_testing_member",
       "warning - The value of the field '_mode' isn't used. Try removing the field, or using it - lib\\main_subtitle_formats_probe.dart:49:10 - unused_field",
       "warning - Unused import: 'package:media_kit/media_kit.dart'. Try removing the import directive - lib\\main_observe_event_verify2.dart:6:8 - unused_import"
-    ]
+    ],
+    "issueSetCompared": true
   },
   "matrix": {
     "command": "python -B example/tool/run_matrix.py --check",
     "exit": 0,
-    "batches": 56,
+    "batches": 59,
     "ids": 135
   },
   "pythonTests": {
     "command": "python -B example/tool/test_run_matrix.py",
     "exit": 0,
-    "tests": 34
+    "tests": 38
   },
   "flutterTests": {
-    "command": "flutter test --concurrency=2 test/auto_kit_test.dart",
+    "command": "flutter test --concurrency=2 --no-pub test/auto_kit_test.dart",
     "cwd": "example/",
     "exit": 0,
     "tests": 12
   },
   "deviceCommandsExecuted": false,
-  "gradleExecuted": false
+  "gradleExecuted": false,
+  "completionBatches": {
+    "cp1-recovery": {
+      "resume": 10,
+      "manual720": 10
+    },
+    "cp1-dispose120": {
+      "rounds": 120,
+      "pssEvery": 20
+    },
+    "cp1-keepalive-s7s14": {
+      "launches": 5,
+      "S7": 5,
+      "S14": 5,
+      "visualReview": "BLOCKED until device screenshots/motion evidence reviewed"
+    }
+  },
+  "constraints": {
+    "delegated": false,
+    "adbExecuted": false,
+    "apkInstalled": false,
+    "gradleExecuted": false,
+    "libModified": false,
+    "rootTestsModified": false,
+    "runMatrixModified": false,
+    "manifestAppendOnly": true
+  }
 }

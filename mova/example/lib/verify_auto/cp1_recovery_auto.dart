@@ -23,7 +23,9 @@ Future<void> runRecovery(Cp1Harness h) async {
       await a.open(MovaSource(kind == 'manual720' ? master : tier));
       await h.until(() => a.state.rendered);
       if (kind == 'manual720') {
-        await a.switchQuality(MovaQuality(label: '720p', uri: tier, height: 720));
+        await a.switchQuality(
+          MovaQuality(label: '720p', uri: tier, height: 720),
+        );
         await h.until(() async => (await h.native())['path'] == tier);
       }
       await h.waitPosition(2000);
@@ -44,30 +46,47 @@ Future<void> runRecovery(Cp1Harness h) async {
         return false;
       }, seconds: 120);
       // A genuine stall failure must be observed; no command retries or fake events.
-      await h.until(() => h.events('MovaRecovered', begin).isNotEmpty, seconds: 90);
+      await h.until(
+        () => h.events('MovaRecovered', begin).isNotEmpty,
+        seconds: 90,
+      );
       await h.until(() => h.events('MovaSeeked', begin).isNotEmpty);
       final after = await h.native();
       final resume = h.events('MovaSeeked', begin);
       final failures = h.events('MovaPlayFailure', begin);
-      final diff = ((after['timePosMs'] as int) - (stalled!['timePosMs'] as int)).abs();
-      final retryCount = failures.where((r) =>
-          (r['payload'] as Map)['action'] == 'MovaRecoveryAction.retry').length;
+      final diff =
+          ((after['timePosMs'] as int) - (stalled!['timePosMs'] as int)).abs();
+      final retryCount = failures
+          .where(
+            (r) =>
+                (r['payload'] as Map)['action'] == 'MovaRecoveryAction.retry',
+          )
+          .length;
       final fixture = await h.control('stats');
-      h.check('$kind.$run', {
-        'failures': failures,
-        'recovered': h.events('MovaRecovered', begin),
-        'retryCount': retryCount,
-        'before': stalled,
-        'after': after,
-        'resumePositionDiffMs': diff,
-        'currentQuality': a.state.currentQuality?.label,
-        'fixture': fixture,
-        'seeked': resume,
-      }, pass: retryCount >= 1 &&
-          failures.any((r) => (r['payload'] as Map)['kind'] == 'stallTimeout') &&
-          fixture['segmentEntered'] == true &&
-          diff <= 500 && stalled!['path'] == tier && after['path'] == tier &&
-          (kind != 'manual720' || a.state.currentQuality?.label == '720p'));
+      h.check(
+        '$kind.$run',
+        {
+          'failures': failures,
+          'recovered': h.events('MovaRecovered', begin),
+          'retryCount': retryCount,
+          'before': stalled,
+          'after': after,
+          'resumePositionDiffMs': diff,
+          'currentQuality': a.state.currentQuality?.label,
+          'fixture': fixture,
+          'seeked': resume,
+        },
+        pass:
+            retryCount >= 1 &&
+            failures.any(
+              (r) => (r['payload'] as Map)['kind'] == 'stallTimeout',
+            ) &&
+            fixture['segmentEntered'] == true &&
+            diff <= 500 &&
+            stalled!['path'] == tier &&
+            after['path'] == tier &&
+            (kind != 'manual720' || a.state.currentQuality?.label == '720p'),
+      );
       await h.release();
     }
   }

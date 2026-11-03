@@ -664,5 +664,57 @@ class Cp1Tests(unittest.TestCase):
             self.assertTrue(b['result_path'].endswith(b['id']+'.json'))
 
 
+class Cp1CompletionTests(unittest.TestCase):
+    def test_added_batches_have_exact_formal_counts(self):
+        manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+        expected={'cp1-recovery':'10','cp1-dispose120':'120','cp1-keepalive-s7s14':'5'}
+        for ident,count in expected.items():
+            jobs=matrix.select_batches(manifest,ident)
+            self.assertEqual(len(jobs),1)
+            self.assertEqual(jobs[0]['argv'][6],count)
+            self.assertEqual(jobs[0]['covers'],[])
+            self.assertTrue(jobs[0]['cp1_driver'])
+        core=next(b for b in manifest['batches'] if b['id']=='keepalive-core')
+        self.assertIn('S1,S2,S3,S6,S13,S17',core['argv'])
+
+    def test_recovery_requires_both_variants_and_each_trial(self):
+        from coverage_cp1 import validate_checks
+        keys=['failures','recovered','retryCount','before','after','resumePositionDiffMs','currentQuality','fixture','seeked']
+        rows=[dict(id=f'CP1.recovery.{v}.{i}',status='PASS',numbers=dict.fromkeys(keys,1))
+              for v in ('resume','manual720') for i in range(10)]
+        self.assertEqual(validate_checks('recovery',10,rows),[])
+        self.assertTrue(validate_checks('recovery',10,rows[:-1]))
+        rows[-1]['status']='FAIL'
+        self.assertEqual(validate_checks('recovery',10,rows),[])
+        rows[-1]['numbers'].pop('resumePositionDiffMs')
+        self.assertTrue(validate_checks('recovery',10,rows))
+
+    def test_dispose_summary_requires_ordered_rounds_and_all_pss_points(self):
+        from coverage_cp1 import validate_checks
+        keys=['round','firstFrames','disposeUs','frameIntervalsUs','maxFrameIntervalUs','disposed']
+        rows=[dict(id=f'CP1.dispose120.round.{i}',status='PASS',numbers=dict.fromkeys(keys,1)) for i in range(120)]
+        numbers=dict(rounds=[dict(round=i) for i in range(1,121)], successful=120,failedRounds=[],
+                     pssSamples=[dict(round=i,pssKb=123) for i in range(20,121,20)])
+        rows.append(dict(id='CP1.dispose120.summary.0',status='PASS',numbers=numbers))
+        self.assertEqual(validate_checks('dispose120',120,rows),[])
+        numbers['rounds'][-1]['round']=119
+        self.assertTrue(validate_checks('dispose120',120,rows))
+        numbers['rounds'][-1]['round']=120
+        numbers['pssSamples'][-1]['pssKb']=None
+        self.assertTrue(validate_checks('dispose120',120,rows))
+
+    def test_keepalive_native_pass_never_substitutes_pixel_review(self):
+        from cp1_keepalive import review_check, validate_checks
+        text='os=android S7 hwdec=mediacodec-copy cycles=20\nVERDICT S7 PASS native came back'
+        rows=[review_check(v,i,text,[],'raw.log') for v in ('S7','S14') for i in range(5)]
+        self.assertEqual(len(rows),10)
+        self.assertTrue(all(r['status']=='BLOCKED' for r in rows))
+        self.assertEqual(len(validate_checks(5,rows)),10)
+        self.assertIn('mediacodec-copy',rows[0]['numbers']['hwdec'])
+        failed=review_check('S7',0,'os=android\nVERDICT S7 FAIL no decoded frame',[],'raw.log')
+        self.assertEqual(failed['status'],'FAIL')
+        self.assertFalse(failed['pass'])
+
+
 if __name__=='__main__':
     unittest.main()
