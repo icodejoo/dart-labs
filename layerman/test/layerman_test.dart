@@ -1826,6 +1826,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(const SizedBox());
       final manager = Layerman();
+      await manager.ready();
 
       final b = _FakeBackend<String>();
       final result = manager.open<String>(

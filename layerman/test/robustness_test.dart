@@ -233,7 +233,8 @@ void main() {
     manager.dispose();
   });
 
-  testWidgets('B3 仅 session 上限无需等待读取，销毁后读取不再展示', (tester) async {
+  // 1.0.0 起抑制状态随冷却持久化，只有 session 的条目也要等存储读完。
+  testWidgets('B3 读取前 session 与持久化上限条目都等待，销毁后读取不再展示', (tester) async {
     final storage = _ControlledStorage();
     final manager = Layerman(cooldownStorage: storage);
     final session = _FakeBackend<Object>();
@@ -247,10 +248,12 @@ void main() {
         mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 9),
         present: persistent.present);
-    expect(session.presented, isTrue);
+    expect(session.presented, isFalse);
+    expect(persistent.presented, isFalse);
     manager.dispose();
     storage.readGate.complete(initial);
     await manager.ready();
+    expect(session.presented, isFalse);
     expect(persistent.presented, isFalse);
     expect(tester.takeException(), isNull);
   });

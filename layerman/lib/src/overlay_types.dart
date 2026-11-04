@@ -119,6 +119,9 @@ enum OverlayEndReason {
   /// session 或 total 永久上限已耗尽。
   capped,
 
+  /// 被 suppress 抑制。
+  suppressed,
+
   /// 槽位排队已满，被挤出队尾。
   queueFull,
 
@@ -185,7 +188,17 @@ class OverlayEvent {
 @immutable
 class OverlaySlotOptions {
   /// [gap] 覆盖全局间隔；[maxQueued] 限制未激活条目数，必须大于零。
-  const OverlaySlotOptions({this.gap, this.maxQueued});
+  const OverlaySlotOptions({
+    this.gap,
+    this.maxQueued,
+    this.blockedBy = const <String>{},
+  });
+
+  /// 这些 slot 被 resolving、open、closing 或 overlap 占用时，不激活本 slot 新条目。
+  /// 不影响已激活条目；不存在的 slot 无效果，不能包含自己。
+  /// 例如 `Layerman(slots: {'toast': OverlaySlotOptions(blockedBy: {'modal'}),
+  /// 'banner': OverlaySlotOptions(blockedBy: {'modal'})})`。
+  final Set<String> blockedBy;
 
   /// 该槽位关闭一个条目后等待的间隔。
   final Duration? gap;
@@ -201,12 +214,16 @@ class OverlayCooldownStatus {
   const OverlayCooldownStatus(
       {required this.canShow,
       required this.permanentlyBlocked,
-      required this.wait});
+      required this.wait,
+      this.suppressed = false});
+
+  /// 当前存在未到期的抑制；抑制期间 canShow 为 false。
+  final bool suppressed;
 
   /// 当前所有上限是否通过。
   final bool canShow;
 
-  /// session 或 total 已耗尽，时间流逝不会解除。
+  /// session / total 已耗尽或永久抑制，时间流逝不会解除。
   final bool permanentlyBlocked;
 
   /// 时间上限的最长剩余等待；可展示时为 Duration.zero。

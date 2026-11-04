@@ -236,6 +236,7 @@ void main() {
   testWidgets('E1-2 默认 resolve 三十秒跳过不记冷却，迟到结果丢弃', (tester) async {
     final manager = Layerman();
     addTearDown(manager.dispose);
+    await manager.ready();
     final resolver = Completer<Object?>();
     final backend = _Backend();
     final result = manager.open<Object>(

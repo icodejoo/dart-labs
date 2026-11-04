@@ -18,6 +18,9 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 /// * [day]/[hour]/[minute] — at most N times per LOCAL calendar day/hour/minute
 ///   (persisted).
 /// * [minGap] — a rolling minimum interval since the last open (persisted).
+///
+/// Any configuration obeys suppress; `const OverlayCooldown()` has no count
+/// limits and only accepts suppress.
 class OverlayCooldown {
   const OverlayCooldown({
     this.session,
@@ -376,12 +379,21 @@ class _Slot {
 
   /// 构建期间同 id 重开保留接管优先权。
   _Entry? takeover;
+
+  /// 是否因跨槽位占用而等待解除。
+  bool waitingUnblock = false;
   final List<_Entry> queue = <_Entry>[];
   Timer? gapTimer;
   Timer? delayTimer;
   Timer? cooldownTimer;
   bool gapPending = false;
 }
+
+/// 抑制到期时间的持久化键。
+const _suppressedUntilKey = 'su';
+
+/// 永久抑制的可精确 JSON 表示，等于 DateTime 最大毫秒数。
+const _suppressForeverMs = 8640000000000000;
 
 /// Persisted per-id cooldown counters.
 class _CooldownRecord {
@@ -394,6 +406,7 @@ class _CooldownRecord {
     this.minuteBucket = '',
     this.minuteCount = 0,
     this.lastShownMs,
+    this.suppressedUntilMs,
   });
 
   factory _CooldownRecord.fromJson(Map<String, Object?> json) =>
@@ -406,6 +419,7 @@ class _CooldownRecord {
         minuteBucket: json['mb'] as String? ?? '',
         minuteCount: (json['mc'] as num?)?.toInt() ?? 0,
         lastShownMs: (json['ls'] as num?)?.toInt(),
+        suppressedUntilMs: (json[_suppressedUntilKey] as num?)?.toInt(),
       );
 
   int total;
@@ -417,6 +431,9 @@ class _CooldownRecord {
   int minuteCount;
   int? lastShownMs;
 
+  /// 抑制到期时间；null 表示从未抑制。
+  int? suppressedUntilMs;
+
   Map<String, Object?> toJson() => <String, Object?>{
         't': total,
         'db': dayBucket,
@@ -426,6 +443,7 @@ class _CooldownRecord {
         'mb': minuteBucket,
         'mc': minuteCount,
         'ls': lastShownMs,
+        _suppressedUntilKey: suppressedUntilMs,
       };
 }
 
@@ -518,6 +536,8 @@ class _CooldownStore {
     String bucket(String a, String b) => a.compareTo(b) >= 0 ? a : b;
     final al = a.lastShownMs;
     final bl = b.lastShownMs;
+    final au = a.suppressedUntilMs;
+    final bu = b.suppressedUntilMs;
     return _CooldownRecord(
       total: a.total + b.total,
       dayBucket: bucket(a.dayBucket, b.dayBucket),
@@ -528,6 +548,7 @@ class _CooldownStore {
       minuteCount:
           count(a.minuteBucket, a.minuteCount, b.minuteBucket, b.minuteCount),
       lastShownMs: al == null ? bl : (bl == null || al > bl ? al : bl),
+      suppressedUntilMs: au == null ? bu : (bu == null || au > bu ? au : bu),
     );
   }
 
@@ -562,9 +583,28 @@ class _CooldownStore {
     if (_dirty) _flush();
   }
 
-  /// session 耗尽立即永久受阻；total 必须读取完成后才能判定。
+  /// 延长指定 id 的抑制并复用串行写入。
+  void suppress(String id, Duration? duration, DateTime now) {
+    final rec = _persisted.putIfAbsent(id, _CooldownRecord.new);
+    final until = duration == null
+        ? _suppressForeverMs
+        : now.add(duration).millisecondsSinceEpoch;
+    final previous = rec.suppressedUntilMs;
+    if (previous == null || until > previous) rec.suppressedUntilMs = until;
+    _flush();
+  }
+
+  /// 当前内存中已知的抑制是否仍有效。
+  bool suppressed(String id, DateTime now) {
+    final until = _persisted[id]?.suppressedUntilMs;
+    return until != null &&
+        (until == _suppressForeverMs || until > now.millisecondsSinceEpoch);
+  }
+
+  /// session 与永久抑制立即受阻；total 必须读取完成后才能判定。
   bool permanentlyBlocked(String id, OverlayCooldown cd) =>
       (cd.session != null && (_session[id] ?? 0) >= cd.session!) ||
+      _persisted[id]?.suppressedUntilMs == _suppressForeverMs ||
       (_hydrated &&
           cd.total != null &&
           (_persisted[id]?.total ?? 0) >= cd.total!);
@@ -573,21 +613,21 @@ class _CooldownStore {
   bool canShow(String id, OverlayCooldown cd, DateTime now) =>
       timeUntilEligible(id, cd, now) == Duration.zero;
 
-  /// How long until [id] could next pass [cd] on its **time-based** caps
-  /// (`minGap` + day/hour/minute bucket rollover), or `null` if a cap that
-  /// never auto-clears (`session`/`total`) currently blocks it. `Duration.zero`
-  /// means the cooldown already passes (any remaining block is not time-based).
-  /// Used to wake a queued entry exactly when its cooldown expires.
+  /// 返回抑制与时间型上限的最长等待；全部通过为零。
+  /// 读取未完成、session / total 耗尽或永久抑制时为 null。
+  /// 串行队列据此在时间限制解除后自动唤醒。
   Duration? timeUntilEligible(String id, OverlayCooldown cd, DateTime now) {
-    if (!_hydrated && cd._needsPersistence) return null;
-    if (cd.session != null && (_session[id] ?? 0) >= cd.session!) return null;
+    if (!_hydrated || permanentlyBlocked(id, cd)) return null;
     final rec = _persisted[id];
-    if (cd.total != null && (rec?.total ?? 0) >= cd.total!) return null;
     var wait = Duration.zero;
     void bump(Duration d) {
       if (d > wait) wait = d;
     }
 
+    final until = rec?.suppressedUntilMs;
+    if (until != null && until > now.millisecondsSinceEpoch) {
+      bump(Duration(milliseconds: until - now.millisecondsSinceEpoch));
+    }
     if (cd.day != null) {
       final c =
           rec != null && rec.dayBucket == _dayBucketOf(now) ? rec.dayCount : 0;
@@ -679,11 +719,20 @@ class Layerman extends ChangeNotifier {
     List<RouteMatcher> pauseOnRoutes = const <RouteMatcher>[],
   })  : assert(slots.values.every(
             (options) => options.maxQueued == null || options.maxQueued! > 0)),
+        assert(slots.entries.every((e) => !e.value.blockedBy.contains(e.key))),
         slots = Map<String, OverlaySlotOptions>.unmodifiable(slots),
         _pauseOnRoutes = pauseOnRoutes {
+    _blockedByOf = {
+      for (final e in slots.entries)
+        if (e.value.blockedBy.isNotEmpty)
+          e.key: Set<String>.unmodifiable(e.value.blockedBy),
+    };
+    _blockerSlots = _blockedByOf.values.expand((s) => s).toSet();
+    _blockableSlots = _blockedByOf.keys.toSet();
     _cooldowns =
         _CooldownStore(cooldownStorage ?? MemoryCooldownStorage(), storageKey);
     _ready = _cooldowns.hydrate().then((_) => _batch(() {
+          _hydrationApplied = true;
           if (isDisposed) return;
           _discardPermanentlyBlockedQueues();
           if (!_paused) {
@@ -719,12 +768,61 @@ class Layerman extends ChangeNotifier {
   /// 是否已经登记帧后释放。
   bool _releasePending = false;
 
+  /// 槽位到阻塞来源的不可变副本。
+  late final Map<String, Set<String>> _blockedByOf;
+
+  /// 所有可能阻塞别人的槽位。
+  late final Set<String> _blockerSlots;
+
+  /// 配置了阻塞来源的槽位。
+  late final Set<String> _blockableSlots;
+
+  /// 本批次曾释放阻塞来源，需在占用稳定后处理。
+  bool _unblockPending = false;
+
+  /// hydrate 续延已应用，区别于存储刚刚读完的微任务窗口。
+  bool _hydrationApplied = false;
+
+  /// 是否有阻塞来源正在串行或 overlap 占用；环按先激活者占用，不保证公平。
+  bool _slotBlocked(String slot) =>
+      (_blockedByOf[slot] ?? const <String>{}).any((name) =>
+          _slots[name]?.active != null || _overlaps.any((e) => e.slot == name));
+
+  /// 最外层批次结束前仅释放受跨槽位约束的条目。
+  /// 只重排确实因阻塞而等待（waitingUnblock）的 slot，不给其他 slot 增加
+  /// 条件重判的触发点；等待 hydrate 的 overlap 留在原位，保持持有顺序。
+  void _releaseUnblocked() {
+    while (_unblockPending && !isDisposed) {
+      _unblockPending = false;
+      if (_paused) continue;
+      if (_inBuildPhase) {
+        _deferRelease();
+        continue;
+      }
+      for (final e in _pendingOverlaps.toList()) {
+        if (_blockableSlots.contains(e.slot) &&
+            !_waitingForHydrate(e) &&
+            !_slotBlocked(e.slot)) {
+          _pendingOverlaps.remove(e);
+          _releaseOverlap(e);
+        }
+      }
+      for (final slot in _blockableSlots) {
+        final s = _slots[slot];
+        if (s != null && s.waitingUnblock && !_slotBlocked(slot)) {
+          _schedule(slot);
+        }
+      }
+    }
+  }
+
   /// 原子完成一组同步状态变化，最外层结束后回收槽位并统一通知。
   R _batch<R>(R Function() action) {
     _batchDepth++;
     try {
       return action();
     } finally {
+      if (_batchDepth == 1) _releaseUnblocked();
       _batchDepth--;
       if (_batchDepth == 0) {
         _slots.removeWhere((_, s) =>
@@ -782,6 +880,22 @@ class Layerman extends ChangeNotifier {
   @visibleForTesting
   int get debugSlotCount => _slots.length;
 
+  /// 测试专用：反转抑制、阻塞等待或 overlap 持有状态，以验证反向不变量。
+  @visibleForTesting
+  void debugCorruptInvariant(String kind, String id) => _batch(() {
+        final e = _byId[id]!;
+        switch (kind) {
+          case 'i':
+            _cooldowns.suppress(id, null, clock.now());
+          case 'j':
+            _slots[e.slot]!.waitingUnblock = true;
+          case 'k':
+            _detachFromActive(e);
+            e.phase = OverlayPhase.pending;
+            _pendingOverlaps.add(e);
+        }
+      });
+
   /// 验证容器身份、阶段、排序、计时器及销毁状态；违反时抛出 StateError。
   /// release 下也可显式调用；自动检查仅在最外层批次结束的 assert 中执行。
   @visibleForTesting
@@ -805,6 +919,19 @@ class Layerman extends ChangeNotifier {
       if (s.active != null) check(s.active!, 'slot[$name].active', false);
       for (final e in s.queue) {
         check(e, 'slot[$name].queue', true);
+        if (_hydrationApplied &&
+            e.cooldown != null &&
+            _cooldowns.permanentlyBlocked(e.id, e.cooldown!)) {
+          throw StateError('不变量 i：${e.id} 永久受阻仍在串行队列');
+        }
+      }
+      if (s.waitingUnblock &&
+          !_slotBlocked(name) &&
+          !_paused &&
+          !_inBuildPhase &&
+          !_releasePending &&
+          !_deferredSlots.contains(name)) {
+        throw StateError('不变量 j：slot[$name] 解除阻塞后漏调度');
       }
       for (var i = 1; i < s.queue.length; i++) {
         if (_cmp(s.queue[i - 1], s.queue[i]) > 0) {
@@ -826,6 +953,13 @@ class Layerman extends ChangeNotifier {
     }
     for (final e in _pendingOverlaps) {
       check(e, 'pendingOverlaps', true);
+      if (!_paused &&
+          !_inBuildPhase &&
+          !_releasePending &&
+          !_slotBlocked(e.slot) &&
+          (_hydrationApplied || e.cooldown == null)) {
+        throw StateError('不变量 k：${e.id} 持有的 overlap 漏释放');
+      }
     }
     for (final e in _delayedOverlaps) {
       check(e, 'delayedOverlaps', true);
@@ -859,21 +993,44 @@ class Layerman extends ChangeNotifier {
 
   /// 查询 [id] 在 [cooldown] 下的资格；持久化读取未完成时 wait 为 null。
   OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown) {
-    if (!_cooldowns._hydrated && cooldown._needsPersistence) {
-      return const OverlayCooldownStatus(
-          canShow: false, permanentlyBlocked: false, wait: null);
-    }
-    final wait = _cooldowns.timeUntilEligible(id, cooldown, clock.now());
+    final now = clock.now();
+    final wait = _cooldowns.timeUntilEligible(id, cooldown, now);
     return OverlayCooldownStatus(
         canShow: wait == Duration.zero,
         permanentlyBlocked: _cooldowns.permanentlyBlocked(id, cooldown),
+        suppressed: _cooldowns.suppressed(id, now),
         wait: wait);
   }
 
-  /// 清除 [id] 的 session 与持久化计数并重调度；销毁后无操作。
+  /// 抑制 [id] 之后带 cooldown 的提交；已激活条目和不带 cooldown 的提交不受影响。
+  /// [duration] 为 null 时永久抑制，否则必须大于零，从 clock.now() 起计时。
+  /// 重复调用只延长抑制；resetCooldown / clearCooldowns 同时清除抑制。
+  /// 销毁后无操作，hydrate 前合并旧记录后再写入。
+  ///
+  /// ```dart
+  /// final r = await manager.open<String>(
+  ///     id: 'promo', cooldown: const OverlayCooldown(day: 1), present: present);
+  /// if (r == 'never') manager.suppress('promo');
+  /// if (r == 'later') manager.suppress('promo', duration: const Duration(days: 3));
+  /// ```
+  void suppress(String id, {Duration? duration}) => _batch(() {
+        if (isDisposed) return;
+        assert(duration == null || duration > Duration.zero);
+        _cooldowns.suppress(id, duration, clock.now());
+        _discardPermanentlyBlockedQueues();
+        final e = _byId[id];
+        if (e != null &&
+            !e.isActive &&
+            (_slots[e.slot]?.queue.contains(e) ?? false)) {
+          _schedule(e.slot);
+        }
+        _notify();
+      });
+
+  /// 清除 [id] 的 session、持久化计数及抑制并重调度；销毁后无操作。
   void resetCooldown(String id) => _resetCooldowns(id);
 
-  /// 清除所有冷却计数并重调度；销毁后无操作。
+  /// 清除所有冷却计数及抑制并重调度；销毁后无操作。
   void clearCooldowns() => _resetCooldowns();
 
   /// 复用串行持久化写入，并给排队条目重新判定资格。
@@ -969,10 +1126,8 @@ class Layerman extends ChangeNotifier {
 
   bool get _paused => _manualPaused || _routeZonePaused || _holds.isNotEmpty;
 
-  /// Completes when persisted cooldown counters have been hydrated and the
-  /// queue has been re-scheduled. Entries gated on persisted caps
-  /// (`total`/`day`/`hour`/`minute`/`minGap`) wait for this automatically, so
-  /// awaiting it before [open] is optional.
+  /// 持久化冷却读取并应用调度后完成；带任何 cooldown 的条目自动等待，
+  /// 所以 open 前无需显式等待。
   Future<void> ready() => _ready;
 
   /// The `route` context key last set via [setContext] (`null` if never set).
@@ -1039,7 +1194,10 @@ class Layerman extends ChangeNotifier {
     final s = _slots[e.slot];
     final wasActive = s != null && s.active == e;
     if (wasActive) s.active = null;
-    _overlaps.remove(e);
+    final wasOverlap = _overlaps.remove(e);
+    if ((wasActive || wasOverlap) && _blockerSlots.contains(e.slot)) {
+      _unblockPending = true;
+    }
     _pendingOverlaps.remove(e);
     _delayedOverlaps.remove(e);
     return wasActive;
@@ -1144,14 +1302,7 @@ class Layerman extends ChangeNotifier {
     _pendingOverlaps.clear();
     for (final e in held) {
       if (!_isCurrent(e)) continue;
-      if (_paused || _waitingForHydrate(e)) {
-        _pendingOverlaps.add(e);
-      } else if (_eligible(e)) {
-        _openOverlap(e);
-      } else {
-        _byId.remove(e.id);
-        _settle(e, null, _dropReason(e));
-      }
+      _releaseOverlap(e);
     }
     for (final e in _byId.values.toList()) {
       if (!_paused && e.phase == OverlayPhase.resolving && e.hasHeldData) {
@@ -1166,6 +1317,16 @@ class Layerman extends ChangeNotifier {
       _schedule(slot);
     }
     _notify();
+  }
+
+  /// 重新判定持有的 overlap；仍暂停、等待读取或被阻塞时继续持有。
+  void _releaseOverlap(_Entry e) {
+    if (!_isCurrent(e)) return;
+    if (_paused || _waitingForHydrate(e) || _slotBlocked(e.slot)) {
+      _pendingOverlaps.add(e);
+    } else {
+      _admitOverlap(e);
+    }
   }
 
   /// Freeze [id]'s `duration` countdown (the overlay stays shown).
@@ -1445,7 +1606,7 @@ class Layerman extends ChangeNotifier {
       if (cooldown != null &&
           _cooldowns.permanentlyBlocked(resolvedId, cooldown)) {
         _byId.remove(resolvedId);
-        _settle(entry, null, OverlayEndReason.capped);
+        _settle(entry, null, _dropReason(entry));
         if (freedSlot != null) _schedule(freedSlot);
         _notify();
         return ticket;
@@ -1456,7 +1617,7 @@ class Layerman extends ChangeNotifier {
       // eligible right now (TS invariant 5b) and the manager is not paused; an
       // affixed current blocks preemption but the replacer keeps its front-band
       // ordering and shows next.
-      if (replace && !_paused && _eligible(entry)) {
+      if (replace && !_paused && !_slotBlocked(slot) && _eligible(entry)) {
         entry.skipGap = true;
         final cur = s.active;
         if (cur != null && cur.isActive && !cur.affix) {
@@ -1494,7 +1655,7 @@ class Layerman extends ChangeNotifier {
       if (maxQueued != null && s.queue.length > maxQueued) {
         _remove(s.queue.last, reason: OverlayEndReason.queueFull);
       }
-      if (_inBuildPhase &&
+      if ((_inBuildPhase || _slotBlocked(slot)) &&
           _isCurrent(entry) &&
           freedSlot == slot &&
           !_paused &&
@@ -1503,6 +1664,7 @@ class Layerman extends ChangeNotifier {
       }
       if (_isCurrent(entry) &&
           !_inBuildPhase &&
+          !_slotBlocked(slot) &&
           freedSlot == slot &&
           !overlap &&
           !_paused &&
@@ -1656,15 +1818,21 @@ class Layerman extends ChangeNotifier {
   static bool _routeMatches(RouteMatcher pattern, Object? current) =>
       pattern.matches(current);
 
-  /// 持久化上限必须等待读取结束才能判定。
+  /// 所有带 cooldown 的条目都等待读取抑制状态。
   bool _waitingForHydrate(_Entry e) =>
-      !_cooldowns._hydrated && (e.cooldown?._needsPersistence ?? false);
+      !_cooldowns._hydrated && e.cooldown != null;
 
-  /// overlap 无法出场时，永久上限优先报告为 capped。
-  OverlayEndReason _dropReason(_Entry e) =>
-      e.cooldown != null && _cooldowns.permanentlyBlocked(e.id, e.cooldown!)
-          ? OverlayEndReason.capped
-          : OverlayEndReason.dropped;
+  /// 抑制优先于永久上限；调用方单独保留条件不通过时的 dropped。
+  OverlayEndReason _dropReason(_Entry e) {
+    final cd = e.cooldown;
+    if (cd == null) return OverlayEndReason.dropped;
+    if (_cooldowns.suppressed(e.id, clock.now())) {
+      return OverlayEndReason.suppressed;
+    }
+    return _cooldowns.permanentlyBlocked(e.id, cd)
+        ? OverlayEndReason.capped
+        : OverlayEndReason.dropped;
+  }
 
   bool _cooldownPass(_Entry e) {
     final cd = e.cooldown;
@@ -1685,7 +1853,7 @@ class Layerman extends ChangeNotifier {
         if (cd == null || !_cooldowns.permanentlyBlocked(e.id, cd)) continue;
         _removeFromQueue(e);
         if (_isCurrent(e)) _byId.remove(e.id);
-        _settle(e, null, OverlayEndReason.capped);
+        _settle(e, null, _dropReason(e));
         _notify();
       }
     }
@@ -1704,6 +1872,7 @@ class Layerman extends ChangeNotifier {
     }
     if (_paused) return;
     final s = _slotFor(slot);
+    s.waitingUnblock = false;
     _cancelCooldownTimer(s);
     if (s.active != null) return; // slot occupied
     if (s.gapPending) return; // waiting out the transition gap
@@ -1711,6 +1880,10 @@ class Layerman extends ChangeNotifier {
       return; // waiting out the per-overlay appear delay
     }
     if (s.queue.isEmpty) return;
+    if (_slotBlocked(slot)) {
+      s.waitingUnblock = true;
+      return;
+    }
 
     final takeover = s.takeover;
     s.takeover = null;
@@ -1727,7 +1900,7 @@ class Layerman extends ChangeNotifier {
       if (cd != null && _cooldowns.permanentlyBlocked(e.id, cd)) {
         s.queue.removeAt(i);
         if (_isCurrent(e)) _byId.remove(e.id);
-        _settle(e, null, OverlayEndReason.capped);
+        _settle(e, null, _dropReason(e));
         _notify();
         if (_paused ||
             s.active != null ||
@@ -1890,7 +2063,10 @@ class Layerman extends ChangeNotifier {
       _byId.remove(e.id);
       _settle(
           e, null, conditionsPass ? _dropReason(e) : OverlayEndReason.dropped);
-    } else if (_paused || waitingForHydrate || _inBuildPhase) {
+    } else if (_paused ||
+        waitingForHydrate ||
+        _inBuildPhase ||
+        _slotBlocked(e.slot)) {
       _pendingOverlaps.add(e);
       if (_inBuildPhase) _deferRelease();
     } else {
@@ -2172,6 +2348,7 @@ class Layerman extends ChangeNotifier {
     _disposed = true;
     _deferredSlots.clear();
     _releasePending = false;
+    _unblockPending = false;
     _frameNotifyPending = false;
     _notifyPending = false;
     for (final token in _holds) {

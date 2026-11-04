@@ -365,6 +365,7 @@ void main() {
   testWidgets('重置 session 后再次展示重新耗尽，清空对所有 id 生效', (tester) async {
     final manager = Layerman();
     addTearDown(manager.dispose);
+    await manager.ready();
     const cooldown = OverlayCooldown(session: 1);
     manager.open(id: _id, cooldown: cooldown, present: _present);
     manager.close(_id);

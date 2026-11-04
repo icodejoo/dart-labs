@@ -127,6 +127,9 @@ class _TicketProbe {
   /// 本次提交专属后端。
   final _FakeBackend backend;
 
+  /// overlap 最早完成 appear delay 的时刻，用于区分延迟容器与实际阻塞持有。
+  DateTime? overlapDue;
+
   /// 类型化票据。
   late final OverlayTicket<int> ticket;
 
@@ -163,6 +166,25 @@ class _TicketProbe {
 class _Scenario {
   /// 根据种子配置间隔、槽位容量及路由暂停。
   _Scenario(this.seed, this.tester) : random = Random(seed) {
+    // 独立随机源保持原有操作序列的抽样次数不变。
+    final config = Random(seed ^ 0x6a31).nextInt(4);
+    blockers = switch (config) {
+      1 => {
+          'b': {'a'}
+        },
+      2 => {
+          'b': {'a'},
+          'a': {''}
+        },
+      3 => {
+          'b': {'a'},
+          'a': {'b'}
+        },
+      _ => {},
+    };
+    if (config != 0) {
+      _cover(['无', 'blockedBy 单向', 'blockedBy 链', 'blockedBy 环'][config]);
+    }
     zoneEnabled = random.nextBool();
     manager = Layerman(
       clock: ManualNowClock(() => clock),
@@ -172,13 +194,48 @@ class _Scenario {
       cooldownStorage: MemoryCooldownStorage(),
       pauseOnRoutes:
           zoneEnabled ? const [RouteMatcher.exact(_blocked)] : const [],
-      slots: random.nextBool()
-          ? const {'b': OverlaySlotOptions(maxQueued: 2, gap: _slow)}
-          : const {},
+      slots: slotOptions(random.nextBool()),
     );
     subscription = manager.events.listen(_event);
     addTearDown(manager.dispose);
     addTearDown(subscription.cancel);
+  }
+
+  /// 随机生成的跨槽位约束，与原容量配置合并。
+  late final Map<String, Set<String>> blockers;
+
+  /// 回调内仅记录激活安全违规。
+  final violations = <String>[];
+
+  /// 曾在阻塞期间排队的提交身份。
+  final blockedProbes = <_TicketProbe>{};
+
+  /// 到点后确实仍因 blocker 被持有的 overlap，不能把 appear delay 当作持有。
+  final heldBlockedProbes = <_TicketProbe>{};
+
+  /// 保留既有 b 槽位选项。
+  Map<String, OverlaySlotOptions> slotOptions(bool limited) => {
+        for (final name in {'a', 'b'})
+          name: OverlaySlotOptions(
+            blockedBy: blockers[name] ?? const {},
+            maxQueued: name == 'b' && limited ? 2 : null,
+            gap: name == 'b' && limited ? _slow : null,
+          ),
+      };
+
+  /// 占用只来自 records 的 active，排除当前提交本身。
+  bool blocked(String slot, String id) => manager.records.any((r) =>
+      r.id != id && r.active && (blockers[slot]?.contains(r.slot) ?? false));
+
+  /// resolver 或无解析的 present 调用时核对安全性。
+  void activated(String slot, _TicketProbe probe) {
+    if (blocked(slot, probe.id)) violations.add('跨槽位受阻仍激活 ${probe.id}@$slot');
+    if (blockedProbes.remove(probe)) {
+      _cover('被阻塞后解除并出场');
+    }
+    if (heldBlockedProbes.remove(probe)) {
+      _cover('overlap 被阻塞持有后释放');
+    }
   }
 
   /// 可复现的种子。
@@ -282,12 +339,17 @@ class _Scenario {
         'condition=$condition cooldown=$cooldown backend=${backend.mode} '
         'delay=$delay duration=$duration exit=$exit expireAfter=$expiry');
     final probe = _TicketProbe(id, overlap, backend);
+    if (overlap) probe.overlapDue = clock.add(delay ?? Duration.zero);
     probes.add(probe);
     latest[id] = probe;
+    if (blocked(slot, id)) blockedProbes.add(probe);
     probe.watch(manager.submit<int>(
       id: id,
       slot: slot,
-      present: backend.present,
+      present: (ctx) {
+        if (resolver < 2) activated(slot, probe);
+        return backend.present(ctx);
+      },
       data: const {'initial': true},
       priority: priority,
       mode: mode,
@@ -310,6 +372,7 @@ class _Scenario {
       resolve: resolver < 2
           ? null
           : () async {
+              activated(slot, probe);
               if (resolver == 2) return 7;
               if (resolver == 3) return null;
               if (resolver == 4) throw StateError(_fault);
@@ -401,7 +464,18 @@ class _Scenario {
   /// 检查 I1–I4，同时比对独立暂停模型。
   Future<void> check({bool ended = false}) async {
     final why = diagnostic;
+    expect(violations, isEmpty, reason: why);
     final records = manager.records;
+    for (final r in records) {
+      final p = latest[r.id]!;
+      if (p.overlap &&
+          r.phase == OverlayPhase.pending &&
+          !clock.isBefore(p.overlapDue!) &&
+          !paused &&
+          blocked(r.slot, r.id)) {
+        heldBlockedProbes.add(p);
+      }
+    }
     final queued = manager.queuedIds.toSet();
     final active = manager.activeIds.toSet();
     final resolving = manager.resolvingIds.toSet();
@@ -711,6 +785,14 @@ void main() {
   }
   test('扩展族的新增操作与正反边界实际执行次数均非零', () {
     for (final operation in [
+      'suppress 永久',
+      'suppress 限时',
+      '限时抑制到期后激活',
+      'blockedBy 单向',
+      'blockedBy 链',
+      'blockedBy 环',
+      '被阻塞后解除并出场',
+      'overlap 被阻塞持有后释放',
       'storage0',
       'storage1',
       'storage2',
@@ -1062,6 +1144,12 @@ class _ExtendedProbe {
   /// build 返回时已从索引消失，必须验证即时结束且从未展示。
   bool endedOnSubmit = false;
 
+  /// 提交时模型已知的结束原因，避免后续时间推进改变资格。
+  OverlayEndReason? expectedSubmitReason;
+
+  /// 永久抑制调用前仍在串行队列。
+  bool suppressedInQueue = false;
+
   /// 成功的上下文关闭请求值。
   int? selfValue;
 }
@@ -1149,6 +1237,9 @@ class _ExtendedScenario {
   /// 两次 reset/clear 之间的展示计数；每个 id 的配置保持固定。
   final counts = <String, int>{};
 
+  /// 抑制到期时间模型；永久使用 DateTime 最大毫秒数。
+  final suppressedUntil = <String, int>{};
+
   /// 小型固定上限集合，提高 total/day/minGap 出现频率。
   static const cooldowns = <OverlayCooldown>[
     OverlayCooldown(total: 2),
@@ -1228,12 +1319,15 @@ class _ExtendedScenario {
     PresentedOverlay<int> present(PresentContext<int> ctx) {
       log.add('present $id time=$now ready=$ready context=$context');
       if (building) violations.add('B1 build 内 present $id');
+      if ((suppressedUntil[id] ?? 0) > now.millisecondsSinceEpoch) {
+        violations.add('S1 抑制期间激活 $id');
+      } else if (suppressedUntil.containsKey(id)) {
+        _cover('限时抑制到期后激活');
+      }
       if (!conditions()) violations.add('A1 条件未满足却 present $id');
-      final persisted = cd.total != null || cd.day != null || cd.minGap != null;
       final presentOrder = ++storage.eventOrder;
-      if (persisted &&
-          (storage.readCompletedAt == null ||
-              presentOrder <= storage.readCompletedAt!)) {
+      if (storage.readCompletedAt == null ||
+          presentOrder <= storage.readCompletedAt!) {
         violations.add('H1 存储读取完成前 present $id order=$presentOrder');
       }
       final count = counts.update(id, (n) => n + 1, ifAbsent: () => 1);
@@ -1298,6 +1392,20 @@ class _ExtendedScenario {
       final recorded = manager.records.any((r) => r.id == id);
       expect(queued, recorded, reason: 'B3\n$diagnostic');
       probe.endedOnSubmit = !recorded;
+      if (!recorded) {
+        final suppressed =
+            (suppressedUntil[id] ?? 0) > now.millisecondsSinceEpoch;
+        final count = counts[id] ?? 0;
+        probe.expectedSubmitReason =
+            mode == OverlayMode.overlap && !conditions()
+                ? OverlayEndReason.dropped
+                : suppressed
+                    ? OverlayEndReason.suppressed
+                    : ((cd.total != null && count >= cd.total!) ||
+                            (cd.session != null && count >= cd.session!))
+                        ? OverlayEndReason.capped
+                        : OverlayEndReason.dropped;
+      }
     }
   }
 
@@ -1324,11 +1432,40 @@ class _ExtendedScenario {
     if (id == null) {
       _cover('clearCooldowns');
       counts.clear();
+      suppressedUntil.clear();
       manager.clearCooldowns();
     } else {
       _cover('resetCooldown');
       counts.remove(id);
+      suppressedUntil.remove(id);
       manager.resetCooldown(id);
+    }
+  }
+
+  /// 独立合并抑制时间，永久时同步验证队列身份消失及首次结束原因。
+  void suppress(String id) {
+    final permanent = random.nextBool();
+    final duration = permanent ? null : _slow * (1 + random.nextInt(5));
+    _cover(permanent ? 'suppress 永久' : 'suppress 限时');
+    final until = duration == null
+        ? 8640000000000000
+        : now.add(duration).millisecondsSinceEpoch;
+    suppressedUntil.update(id, (old) => max(old, until), ifAbsent: () => until);
+    final p = latest[id];
+    final queuedSerial =
+        p != null && !p.overlap && manager.queuedIds.contains(id);
+    log.add('suppress $id duration=$duration until=${suppressedUntil[id]}');
+    manager.suppress(id, duration: duration);
+    if (queuedSerial && suppressedUntil[id] == 8640000000000000) {
+      expect(manager.recordOf(id), isNull, reason: 'S2\n$diagnostic');
+      if (p.ticket != null) {
+        p.ticket!.outcome.then((outcome) {
+          if (outcome.reason != OverlayEndReason.suppressed) {
+            violations.add('S2 永久抑制队列原因错误 $id ${outcome.reason}');
+          }
+        });
+      }
+      p.suppressedInQueue = true;
     }
   }
 
@@ -1368,6 +1505,9 @@ class _ExtendedScenario {
       final id = _ids[i];
       final status = manager.cooldownStatus(id, cooldowns[i]);
       _cover('cooldownStatus');
+      expect(status.suppressed,
+          (suppressedUntil[id] ?? 0) > now.millisecondsSinceEpoch,
+          reason: 'S1 抑制状态模型不一致\n$why');
       expect(manager.isShowing(id), active.contains(id), reason: 'I2\n$why');
       expect(
           manager.recordOf(id)?.id, records.any((r) => r.id == id) ? id : null,
@@ -1394,14 +1534,16 @@ class _ExtendedScenario {
       expect(p.backend.presents, lessThanOrEqualTo(1), reason: 'I4\n$why');
       expect(p.backend.dismisses, lessThanOrEqualTo(p.backend.presents),
           reason: 'I4\n$why');
+      if (p.suppressedInQueue) {
+        expect(p.events.last.reason, OverlayEndReason.suppressed,
+            reason: 'S2\n$why');
+      }
       if (p.endedOnSubmit) {
         expect(p.backend.presents, 0, reason: 'B3\n$why');
         expect(p.values, [null], reason: 'B3\n$why');
         final reason =
             p.ticket != null ? p.outcome?.reason : p.events.last.reason;
-        expect(
-            reason, isIn([OverlayEndReason.dropped, OverlayEndReason.capped]),
-            reason: 'B3\n$why');
+        expect(reason, p.expectedSubmitReason, reason: 'B3\n$why');
       }
       if (p.selfValue != null) {
         expect(p.values, [p.selfValue], reason: 'X1\n$why');
@@ -1420,7 +1562,7 @@ class _ExtendedScenario {
   /// 混入所有新操作及普通关闭、同 id 接管、暂停和延迟释放。
   Future<void> step(int step) async {
     final id = _ids[random.nextInt(_ids.length)];
-    final op = random.nextInt(15);
+    final op = random.nextInt(16);
     log.add('步骤=$step op=$op id=$id');
     switch (op) {
       case 0 || 1 || 2 || 3:
@@ -1488,6 +1630,8 @@ class _ExtendedScenario {
         }
       case 13:
         manager.remove(id);
+      case 15:
+        suppress(id);
       case 14:
         final status = manager.cooldownStatus(id, cooldowns[_ids.indexOf(id)]);
         log.add(
