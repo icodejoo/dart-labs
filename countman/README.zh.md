@@ -54,8 +54,10 @@ Countman (1 scheduleFrameCallback)
 
 ```yaml
 dependencies:
-  countman: ^0.1.0
+  countman: ^0.2.5
 ```
+
+需要 Flutter 3.35+（Dart 3.9+）。
 
 ```dart
 import 'package:countman/countman.dart';
@@ -340,6 +342,8 @@ ctrl.isPaused;
 ctrl.isDone;
 ```
 
+动画结束后调用 `update` 同样有效：组件会从屏幕上的当前值重新开始。组件换 key、或把 controller 交给另一个组件后，controller 仍然可用；只替换 `controller` 不会重启动画。`CountdownController`、`ElapsedController`、`AnimatedCounterController` 也是如此。
+
 ### <a name="animatedcounter-controller"></a>`AnimatedCounterController`
 
 面向 `AnimatedCounter` / `AnimatedCounterBuilder` 的更丰富控制器。
@@ -356,9 +360,11 @@ ctrl.stop();
 ctrl.restart();
 ctrl.repeat(reverse: true);
 ctrl.reverse();
-ctrl.status;            // AnimationStatus
+ctrl.status;            // AnimationStatus: forward / reverse / completed / dismissed
 ctrl.addStatusListener(listener);
 ```
+
+`resume()` 只恢复处于暂停状态的动画；`jumpTo` 会立即落位（跳过 `startDelay`、错峰和回弹）。
 
 ---
 
@@ -453,6 +459,8 @@ CardCountdown(
   labels: const ['H', 'M', 'S'],       // pass null to hide labels
   separator: ':',
   showHours: true,                     // null = auto (shown when ≥ 1 h)
+  showDays: true,                      // leading days unit (default false)
+  dayLabel: 'D',
   style: const CardCountdownStyle(
     splitDigits: true,
     transitionType: CountdownType.slide,   // calendar · slide · flip
@@ -469,7 +477,7 @@ CardCountdown(
 （`SlideEffect.none`/`enter`/`exit`/`both`）、`scaleFactor`（1.5）、`perspective`
 （0.006，仅 flip）、`textStyle` / `labelStyle` / `separatorStyle`、`padding` /
 `decoration`。组件级：`duration`（450 ms）、`curve`（linear）、
-`repaintBoundary`。另见 [`CardCountdownProvider`](#providers)。
+`repaintBoundary`、`showDays` / `dayLabel`。小时（以及天）单元按需扩位，100 小时以上也能正确显示。另见 [`CardCountdownProvider`](#providers)。
 
 ### `CountdownBuilder`
 
@@ -491,7 +499,7 @@ CountdownBuilder(duration: const Duration(minutes: 2), controller: ctrl,
 
 ctrl.pause();
 ctrl.resume();
-ctrl.reset();                                     // back to original duration
+ctrl.reset();                                     // back to original duration (also after it finished)
 ctrl.reset(duration: const Duration(seconds: 30)); // override duration
 ctrl.cancel();
 ctrl.remaining;  // Duration
@@ -533,7 +541,7 @@ TextElapsed(controller: ctrl);
 
 ctrl.pause();
 ctrl.resume();
-ctrl.reset();     // back to zero, then resume
+ctrl.reset();     // back to zero, then resume (also after cancel)
 ctrl.cancel();
 ctrl.elapsed;     // Duration
 ctrl.isPaused;
@@ -594,7 +602,7 @@ const RingCounterStyle(
 `width`、`height`、`trackHeight`、`color`、`trackColor`、`gradient`、
 `trackGradient`、`borderRadius`、`borderRadiusGeometry`、**`fillFromStart`**、
 **`showTrack`**、**`vertical`**（沿垂直轴填充），外加 `padding` /
-`decoration`。
+`decoration`。`width` / `height` 就是字面布局尺寸；竖向且未指定尺寸时默认 8×200。渐变可以使用 `AlignmentDirectional`（按所在 `Directionality` 解析）。
 
 其他样式对象：`OdometerCounterStyle`、`DialCountdownStyle`、
 `CardCountdownStyle`、`AnimatedCounterStyle`（已在上文各组件处

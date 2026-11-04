@@ -48,6 +48,10 @@ on first `add()`.
 - `CountdownController` — `pause`/`resume`/`reset({duration})`/`cancel`,
   `remaining`/`isPaused`/`isDone`
 - `ElapsedController` — `pause`/`resume`/`reset`/`cancel`, `elapsed`/`isPaused`
+- All four controllers survive re-keying / hand-off; `update` (counter) and
+  `reset` (countdown/elapsed) relaunch the task after it finished or was
+  cancelled. `AnimatedCounterController.status` emits forward/reverse/
+  completed/dismissed; `resume()` only acts when paused.
 
 **Engines / helpers** — `Counter`/`Countdown`/`Elapsed` (`name`, `interval`);
 top-level `counter()`/`countdown()`/`elapsed()`; defaults `defaultCounter`,
@@ -98,7 +102,7 @@ reused holder (painter + `DigitColumn` call it; alloc-free hot path).
 | `lib/src/elapsed/{plugin,types}.dart` | `Elapsed`, `ElapsedController`, `elapsed()` |
 | `lib/src/widgets/counter_builder.dart` | `CounterBuilder` (`ValueNotifier<double>` + animate-once) |
 | `lib/src/widgets/text_counter.dart` | `TextCounter` |
-| `lib/src/widgets/odometer_counter.dart` | `OdometerCounter` + `OdometerCounterStyle` (self-drawn painter) |
+| `lib/src/widgets/odometer_counter.dart` | `OdometerCounter` + `OdometerCounterStyle` (thin wrapper over `AnimatedCounter`'s painter path) |
 | `lib/src/widgets/{ring,bar}_{counter,countdown}.dart` | ring/bar widgets |
 | `lib/src/widgets/{ring,bar}_style.dart` | `RingStyle`/`BarStyle` + `*From` painter builders |
 | `lib/src/widgets/dial_countdown.dart` | `DialCountdown` + style/configs + `_DialPainter` |
@@ -153,6 +157,7 @@ BarCountdown(to: Duration(minutes: 1), style: BarCountdownStyle(width: 250,
 DialCountdown(to: Duration(minutes: 5), style: DialCountdownStyle(size: 200, glow: true),
   builder: (ctx, parts) => Text('${parts.minutes}:${parts.seconds}'))
 CardCountdown(to: Duration(hours: 1, minutes: 30), labels: ['H','M','S'],
+  showDays: false, dayLabel: 'D',   // hour/day cells grow as needed (100 h+)
   style: CardCountdownStyle(splitDigits: true, transitionType: CountdownType.slide,
     scaleEffect: SlideEffect.both))
 CountdownBuilder(duration: Duration(minutes: 5),
@@ -189,8 +194,8 @@ CountdownBuilder(duration: ..., plugin: g, builder: ...);
 
 1. **Zero-allocation hot path** — `Counter.step()` / clock plugin ticks must not
    allocate. Reuse task state and the per-task `TimeParts`.
-2. **Persistent painter** — `CounterPainter` / `_OdometerPainter` /
-   `FlipCardPainter` created once per widget lifetime (or config change) and
+2. **Persistent painter** — `CounterPainter` / `FlipCardPainter` created once
+   per widget lifetime (or config change) and
    mutated in-place via `update()` + a `repaint: Listenable` (`markNeedsPaint`,
    not rebuild). Never recreate per frame.
 3. **`StartScheduler.instance.cancel(this)` in `dispose()`** for any widget that
@@ -203,11 +208,31 @@ CountdownBuilder(duration: ..., plugin: g, builder: ...);
    omitting means tasks added while idle never start.
 7. **`precise: true`** drives on `defaultCountdownMs`/`defaultElapsedMs`
    (interval 0). Ignored when an explicit `plugin` is set.
+8. **Controller binding is owner-checked** — widgets call
+   `controller.attach(handle, relaunch: ...)` and `controller.detach(handle)`
+   (never the bare `detach()`); `AnimatedCounterController` uses `$owner`.
+   Swapping only the controller re-binds, it never restarts the task;
+   `relaunch` lets `update`/`reset` recreate a finished task. With no task
+   (animate-once skip) bind `Counter.detachedHandle()` — never add+cancel a
+   placeholder task (it fires provider group callbacks).
+9. **Task callbacks are isolated** — `TaskQueuePlugin.tick` catches per task,
+   reports via `FlutterError.reportError`, always evicts done tasks; keep new
+   callback paths inside that try/finally.
+10. **Clock groups read the clock once per frame** (`beginFrame` snapshot, int
+   micros) and check completion/threshold every frame; only display updates
+   are throttled by `interval`.
 
 ---
 
 ## Gotchas
 
+- **Web compile** — never write integer literals above 2^53 (e.g.
+  `0x7fffffffffffffff`, often used as a clamp max): dart2js can't represent
+  them, `clamp` becomes `num`, and the web build (the example is deployed to
+  GitHub Pages) fails while VM tests stay green.
+- **SDK floor is Flutter 3.35 / Dart 3.9** — `@internal` is imported from
+  `package:flutter/foundation.dart`, exported only since 3.35. Verify the
+  floor with `E:/sdk/flutter-3.35.7` on a `git archive` copy.
 - **all-nines targets** (9, 99, 999, …): `AnimatedCounter` animates to `n − ε`
   then snaps at completion (`isAllNinesTarget`); `OdometerCounter`/`TextCounter`
   unaffected.
@@ -234,5 +259,5 @@ CountdownBuilder(duration: ..., plugin: g, builder: ...);
   roll transition `Positioned` → `Transform.translate + ClipRect`; all-nines
   target adjustment; `_effectiveFlipDirection` auto-reversal on decrease.
 
-> `OdometerCounter` is **not** backed by the `odometer` package — it uses a
-> self-contained `CustomPainter` (`_OdometerPainter`) bundled in countman.
+> `OdometerCounter` is **not** backed by the `odometer` package — it is a thin
+> wrapper over `AnimatedCounter` (painter path) with fixed-width leading zeros.

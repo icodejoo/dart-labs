@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.2.5
+
+### Fixed
+- Controllers (`CounterValueController`, `CountdownController`,
+  `ElapsedController`, `AnimatedCounterController`) stay bound when a widget is
+  re-keyed or a controller is handed from one widget to another in the same
+  frame; the old widget's dispose no longer detaches the new binding.
+- Swapping only the `controller` no longer restarts the task: countdowns keep
+  their remaining time and pause state, stopwatches keep their elapsed time,
+  counters don't replay, and no lifecycle callbacks fire.
+- `CounterValueController.update()` after the animation finished,
+  `CountdownController.reset()` after completion and `ElapsedController.reset()`
+  after `cancel()` now relaunch the task instead of doing nothing.
+- `CounterBuilder` calls the current `onComplete` / `onReady` / `onStart` /
+  `onCancel` instead of the ones captured at mount.
+- A throwing task callback no longer starves the other tasks of the same group
+  or stops the shared ticker; a task whose `onComplete` throws is still removed
+  and the group still drains. `Countman.destroy()`, plugin disposal and
+  `StartScheduler` batches isolate callback exceptions too (reported through
+  `FlutterError.reportError`), and cancelling an owner inside a running batch
+  skips its pending start.
+- Countdown completion and thresholds are checked every frame (display updates
+  are still throttled by `interval`): `onComplete` fires on the deadline frame
+  instead of up to one interval late, and `Duration.zero` / past deadlines
+  complete on the first frame. Each clock group reads the clock once per frame.
+- `ElapsedHandle.pause` / `resume` / `reset` are no-ops after `cancel()`.
+- `RingCounter` / `BarCounter` forward their `ValueKey` to animate-once, so they
+  no longer assert under `CounterProvider(animateOnce: true)`.
+- Ring painter: progress scales the cap-adjusted sweep, so a full ring moves
+  from the first tick instead of freezing for the first ~3.5 % (about two
+  minutes of a one-hour countdown); the thumb no longer paints outside the
+  widget bounds.
+- Ring and bar painters resolve directional gradients (`AlignmentDirectional`)
+  with the ambient `Directionality` instead of throwing every frame.
+- `AnimatedCounter` / `AnimatedCounterBuilder`:
+  - retargeting mid-roll continues from the on-screen value (including each
+    column's fractional progress) instead of jumping to the previous target;
+  - `fast` mode shows a static non-zero `initialValue`, collapses old leading
+    digits after completion, and the builder path's group separators follow
+    the same visibility rule;
+  - `jumpTo` lands immediately even when it targets the running animation's
+    value, skipping `startDelay`, stagger and bounce;
+  - `resume()` only resumes a paused animation (no replay or duplicate
+    `onAnimationEnd` after completion); `restart()` during `startDelay` keeps
+    the new target; commands issued from `onAnimationStart` are no longer
+    overwritten by the outer transition;
+  - changing only `minValue` / `maxValue` re-renders the digits;
+  - `increasingColor` / `decreasingColor` now tint the digits on both paths
+    (quantized palette, no per-frame text re-layout);
+  - horizontal `slide` (`flipDirection: left/right`) moves along the x-axis on
+    the painter path as well;
+  - compact-notation semantics read the displayed value (`1.2M`, not `12`);
+  - status listeners receive `forward` / `reverse` / `completed` / `dismissed`.
+- `CardCountdown`: hour cells expand as needed (100 h and more no longer
+  squeeze `12` into one cell); toggling `showHours` uses the live remaining
+  time; the screen-reader value updates every tick; identical consecutive
+  ticks no longer restart the flip; flip and fade keep the card and text
+  colors' own alpha; glyph caches drop stale styles and the shared cache is
+  bounded.
+- `DialCountdown`: the inner ring draws at most four arcs regardless of the
+  total duration (a 30-day countdown used to draw tens of thousands per
+  paint); repaired garbled characters in the API docs.
+- `OdometerCounter`: non-finite `from` / `to` are treated as 0 instead of
+  throwing; `onComplete` reports the clamped displayed value.
+- `fractionDigits` / `compactFractionDigits` above 20 are rejected by an assert
+  (they used to throw a `RangeError` while building semantics).
+
+### Added
+- `CardCountdown.showDays` / `dayLabel` for a leading days unit.
+- `RingCounter.animateOnce` / `BarCounter.animateOnce`.
+- `textDirection` on `RingPainter` / `BarPainter` (and `ringPainterFrom` /
+  `barPainterFrom`) to resolve directional gradients.
+- `ElapsedHandle.isDone`.
+
+### Changed
+- Minimum SDK is Flutter 3.35 / Dart 3.9. The package already needed it:
+  `@internal` is imported from `package:flutter/foundation.dart`, which only
+  exports it since Flutter 3.35.
+- `BarStyle.width` / `height` are literal layout sizes; a vertical bar without
+  explicit sizes now defaults to 8×200 (it used to be 200×8).
+- The published package no longer ships the stray `flutter_01.log`; added a
+  `.pubignore`.
+
+### Deprecated
+- `thousandSeparatorWidget` / `decimalSeparatorWidget` on `AnimatedCounter`:
+  the painter path never rendered them. Use `AnimatedCounterBuilder`.
+
 ## 0.2.4
 
 ### Added

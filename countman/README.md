@@ -55,8 +55,10 @@ each to isolate independent "groups".
 
 ```yaml
 dependencies:
-  countman: ^0.1.0
+  countman: ^0.2.5
 ```
+
+Requires Flutter 3.35+ (Dart 3.9+).
 
 ```dart
 import 'package:countman/countman.dart';
@@ -341,6 +343,12 @@ ctrl.isPaused;
 ctrl.isDone;
 ```
 
+`update` also works after the animation finished: the widget relaunches from
+the value on screen. A controller keeps working when its widget is re-keyed or
+handed to another widget, and swapping the `controller` alone never restarts
+the animation. The same holds for `CountdownController`, `ElapsedController`
+and `AnimatedCounterController`.
+
 ### <a name="animatedcounter-controller"></a>`AnimatedCounterController`
 
 Richer controller for `AnimatedCounter` / `AnimatedCounterBuilder`.
@@ -357,9 +365,12 @@ ctrl.stop();
 ctrl.restart();
 ctrl.repeat(reverse: true);
 ctrl.reverse();
-ctrl.status;            // AnimationStatus
+ctrl.status;            // AnimationStatus: forward / reverse / completed / dismissed
 ctrl.addStatusListener(listener);
 ```
+
+`resume()` only resumes a paused animation, and `jumpTo` lands immediately
+(skipping `startDelay`, stagger and bounce).
 
 ---
 
@@ -454,6 +465,8 @@ CardCountdown(
   labels: const ['H', 'M', 'S'],       // pass null to hide labels
   separator: ':',
   showHours: true,                     // null = auto (shown when ≥ 1 h)
+  showDays: true,                      // leading days unit (default false)
+  dayLabel: 'D',
   style: const CardCountdownStyle(
     splitDigits: true,
     transitionType: CountdownType.slide,   // calendar · slide · flip
@@ -470,7 +483,9 @@ CardCountdown(
 (`SlideEffect.none`/`enter`/`exit`/`both`), `scaleFactor` (1.5), `perspective`
 (0.006, flip only), `textStyle` / `labelStyle` / `separatorStyle`, `padding` /
 `decoration`. Widget-level: `duration` (450 ms), `curve` (linear),
-`repaintBoundary`. See also [`CardCountdownProvider`](#providers).
+`repaintBoundary`, `showDays` / `dayLabel`. Hour (and day) cells grow as
+needed, so 100 h and more render correctly. See also
+[`CardCountdownProvider`](#providers).
 
 ### `CountdownBuilder`
 
@@ -492,7 +507,7 @@ CountdownBuilder(duration: const Duration(minutes: 2), controller: ctrl,
 
 ctrl.pause();
 ctrl.resume();
-ctrl.reset();                                     // back to original duration
+ctrl.reset();                                     // back to original duration (also after it finished)
 ctrl.reset(duration: const Duration(seconds: 30)); // override duration
 ctrl.cancel();
 ctrl.remaining;  // Duration
@@ -534,7 +549,7 @@ TextElapsed(controller: ctrl);
 
 ctrl.pause();
 ctrl.resume();
-ctrl.reset();     // back to zero, then resume
+ctrl.reset();     // back to zero, then resume (also after cancel)
 ctrl.cancel();
 ctrl.elapsed;     // Duration
 ctrl.isPaused;
@@ -595,7 +610,9 @@ const RingCounterStyle(
 `width`, `height`, `trackHeight`, `color`, `trackColor`, `gradient`,
 `trackGradient`, `borderRadius`, `borderRadiusGeometry`, **`fillFromStart`**,
 **`showTrack`**, **`vertical`** (fill along the vertical axis), plus `padding` /
-`decoration`.
+`decoration`. `width` / `height` are the literal layout size; a vertical bar
+without explicit sizes defaults to 8×200. Gradients may use
+`AlignmentDirectional` (resolved with the ambient `Directionality`).
 
 Other style objects: `OdometerCounterStyle`, `DialCountdownStyle`,
 `CardCountdownStyle`, `AnimatedCounterStyle` (documented with their widgets
