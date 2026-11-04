@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 
 /// Performance test page.
@@ -49,32 +49,39 @@ class _PerfPageState extends State<PerfPage> {
           children: [
             _group('AnimatedCounter — roll (default)', [
               for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
-                    thousandSeparator: ',', textStyle: _ts),
+                AnimatedCounter(value: _value,
+                    format: const CounterFormat(thousandSeparator: ','),
+                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
+                    style: const AnimatedCounterStyle(textStyle: _ts)),
             ]),
             _group('AnimatedCounter — flip', [
               for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value,
                     transition: CounterTransition.flip,
-                    thousandSeparator: ',', textStyle: _ts),
+                    format: const CounterFormat(thousandSeparator: ','),
+                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
+                    style: const AnimatedCounterStyle(textStyle: _ts)),
             ]),
             _group('AnimatedCounter — blur', [
               for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value,
                     transition: CounterTransition.slideBlur,
-                    thousandSeparator: ',', textStyle: _ts),
+                    format: const CounterFormat(thousandSeparator: ','),
+                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
+                    style: const AnimatedCounterStyle(textStyle: _ts)),
             ]),
             _group('AnimatedCounter — stagger', [
               for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
-                    staggerDelay: const Duration(milliseconds: 80),
-                    thousandSeparator: ',', textStyle: _ts),
+                AnimatedCounter(value: _value,
+                    format: const CounterFormat(thousandSeparator: ','),
+                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear, staggerDelay: Duration(milliseconds: 80)),
+                    style: const AnimatedCounterStyle(textStyle: _ts)),
             ]),
             _group('OdometerCounter', [
               for (var i = 0; i < 5; i++)
                 OdometerCounter(to: _value, duration: _dur, curve: Curves.linear,
                     style: const OdometerCounterStyle(
-                        letterWidth: 18, verticalOffset: 24, numberTextStyle: _ts),
+                        numberTextStyle: _ts),
                     groupSeparator: ','),
             ]),
             _group('TextCounter', [
@@ -82,7 +89,7 @@ class _PerfPageState extends State<PerfPage> {
                 TextCounter(to: _value, duration: _dur, curve: Curves.linear,
                     formatter: _movingFormatter(
                         _value, _value / (_dur.inMilliseconds / 16.667)),
-                    style: TextCounterStyle(textStyle: _ts)),
+                    style: const TextCounterStyle(textStyle: _ts)),
             ]),
           ],
         ),

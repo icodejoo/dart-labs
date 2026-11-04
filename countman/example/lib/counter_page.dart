@@ -37,10 +37,10 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'TextCounter', children: [
             DemoCard(
               title: 'Basic',
-              child: TextCounter(
+              child: const TextCounter(
                 from: 0,
                 to: 9999,
-                style: TextCounterStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+                style: TextCounterStyle(textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -62,7 +62,7 @@ class _CounterPageState extends State<CounterPage> {
                 from: 0,
                 to: 9999.99,
                 formatter: (v) => '?${v.toStringAsFixed(2)}',
-                style: TextCounterStyle(textStyle: const TextStyle(fontSize: 32)),
+                style: const TextCounterStyle(textStyle: TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -80,12 +80,12 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Prefix & suffix',
-              child: TextCounter(
+              child: const TextCounter(
                 from: 0,
                 to: 500,
                 prefix: '?? ',
                 suffix: ' pts',
-                style: TextCounterStyle(textStyle: const TextStyle(fontSize: 32)),
+                style: TextCounterStyle(textStyle: TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -105,12 +105,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Duration & curve',
               description: '3 s, bounceOut easing',
-              child: TextCounter(
+              child: const TextCounter(
                 from: 0,
                 to: 100,
-                duration: const Duration(seconds: 3),
+                duration: Duration(seconds: 3),
                 curve: Curves.bounceOut,
-                style: TextCounterStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+                style: TextCounterStyle(textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -130,11 +130,11 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Negative values',
               description: 'Counts from 50 down through 0 to -50',
-              child: TextCounter(
+              child: const TextCounter(
                 from: 50,
                 to: -50,
                 allowNegative: true,
-                style: TextCounterStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+                style: TextCounterStyle(textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -153,7 +153,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'onComplete callback',
               description: 'Shows a SnackBar when the animation finishes',
-              child: _CounterTextOnComplete(),
+              child: const _CounterTextOnComplete(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -376,11 +376,10 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'OdometerCounter', children: [
             DemoCard(
               title: 'Basic',
-              child: OdometerCounter(
+              child: const OdometerCounter(
                 from: 0,
                 to: 9999,
-                style: const OdometerCounterStyle(
-                  letterWidth: 22,
+                style: OdometerCounterStyle(
                   numberTextStyle: TextStyle(fontSize: 32),
                 ),
               ),
@@ -391,7 +390,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  Widget build(BuildContext context) => OdometerCounter(\n"
                 "    from: 0,\n"
                 "    to: 9999,\n"
-                "    letterWidth: 22,\n"
                 "    numberTextStyle: TextStyle(fontSize: 32),\n"
                 "  );\n"
                 "}",
@@ -401,12 +399,11 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Group separator',
               description: "Comma every 3 digits",
-              child: OdometerCounter(
+              child: const OdometerCounter(
                 from: 0,
                 to: 1234567,
                 groupSeparator: ',',
-                style: const OdometerCounterStyle(
-                  letterWidth: 22,
+                style: OdometerCounterStyle(
                   numberTextStyle: TextStyle(fontSize: 32),
                 ),
               ),
@@ -417,7 +414,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  Widget build(BuildContext context) => OdometerCounter(\n"
                 "    from: 0,\n"
                 "    to: 1234567,\n"
-                "    letterWidth: 22,\n"
                 "    groupSeparator: ',',\n"
                 "    numberTextStyle: TextStyle(fontSize: 32),\n"
                 "  );\n"
@@ -427,14 +423,12 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Bounce on arrival',
-              description: 'bounceOvershoot: 0.67, bounceElasticity: 5.0',
-              child: OdometerCounter(
+              description: 'bounceOvershoot: 0.67',
+              child: const OdometerCounter(
                 from: 0,
                 to: 999,
                 bounceOvershoot: 0.67,
-                bounceElasticity: 5.0,
-                style: const OdometerCounterStyle(
-                  letterWidth: 22,
+                style: OdometerCounterStyle(
                   numberTextStyle: TextStyle(fontSize: 36),
                 ),
               ),
@@ -445,9 +439,7 @@ class _CounterPageState extends State<CounterPage> {
                 "  Widget build(BuildContext context) => OdometerCounter(\n"
                 "    from: 0,\n"
                 "    to: 999,\n"
-                "    letterWidth: 22,\n"
                 "    bounceOvershoot: 0.67,\n"
-                "    bounceElasticity: 5.0,\n"
                 "    numberTextStyle: TextStyle(fontSize: 36),\n"
                 "  );\n"
                 "}",
@@ -456,11 +448,10 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Decreasing',
-              child: OdometerCounter(
+              child: const OdometerCounter(
                 from: 10000,
                 to: 0,
-                style: const OdometerCounterStyle(
-                  letterWidth: 22,
+                style: OdometerCounterStyle(
                   numberTextStyle: TextStyle(fontSize: 32),
                 ),
               ),
@@ -471,7 +462,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  Widget build(BuildContext context) => OdometerCounter(\n"
                 "    from: 10000,\n"
                 "    to: 0,\n"
-                "    letterWidth: 22,\n"
                 "    numberTextStyle: TextStyle(fontSize: 32),\n"
                 "  );\n"
                 "}",
@@ -481,12 +471,10 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Fade disabled',
               description: 'Slide-only, no cross-fade',
-              child: OdometerCounter(
+              child: const OdometerCounter(
                 from: 0,
                 to: 9999,
-                style: const OdometerCounterStyle(
-                  letterWidth: 22,
-                  fadeEnabled: false,
+                style: OdometerCounterStyle(
                   numberTextStyle: TextStyle(fontSize: 32),
                 ),
               ),
@@ -497,8 +485,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  Widget build(BuildContext context) => OdometerCounter(\n"
                 "    from: 0,\n"
                 "    to: 9999,\n"
-                "    letterWidth: 22,\n"
-                "    fadeEnabled: false,\n"
                 "    numberTextStyle: TextStyle(fontSize: 32),\n"
                 "  );\n"
                 "}",
@@ -572,9 +558,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Gradient',
-              child: RingCounter(
+              child: const RingCounter(
                 to: 100,
-                style: const RingCounterStyle(
+                style: RingCounterStyle(
                   size: 100,
                   gradient: SweepGradient(
                     colors: [Colors.blue, Colors.purple, Colors.pink],
@@ -598,9 +584,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Anti-clockwise',
-              child: RingCounter(
+              child: const RingCounter(
                 to: 100,
-                style: const RingCounterStyle(
+                style: RingCounterStyle(
                   size: 100,
                   clockwise: false,
                 ),
@@ -620,9 +606,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Large stroke',
-              child: RingCounter(
+              child: const RingCounter(
                 to: 100,
-                style: const RingCounterStyle(
+                style: RingCounterStyle(
                   size: 120,
                   strokeWidth: 16,
                 ),
@@ -645,9 +631,9 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'BarCounter', children: [
             DemoCard(
               title: 'Basic',
-              child: BarCounter(
+              child: const BarCounter(
                   to: 100,
-                  style: const BarCounterStyle(width: 240, height: 12)),
+                  style: BarCounterStyle(width: 240, height: 12)),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -660,9 +646,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Gradient fill',
-              child: BarCounter(
+              child: const BarCounter(
                 to: 100,
-                style: const BarCounterStyle(
+                style: BarCounterStyle(
                   width: 240,
                   height: 12,
                   gradient: LinearGradient(
@@ -688,9 +674,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Fill from end',
-              child: BarCounter(
+              child: const BarCounter(
                 to: 100,
-                style: const BarCounterStyle(
+                style: BarCounterStyle(
                   width: 240,
                   height: 12,
                   fillFromStart: false,
@@ -712,9 +698,9 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Rounded corners',
-              child: BarCounter(
+              child: const BarCounter(
                 to: 100,
-                style: const BarCounterStyle(
+                style: BarCounterStyle(
                   width: 240,
                   height: 20,
                   borderRadius: Radius.circular(10),
@@ -737,9 +723,9 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Custom track height',
               description: 'Thin fill (4) inside a taller track (20)',
-              child: BarCounter(
+              child: const BarCounter(
                 to: 100,
-                style: const BarCounterStyle(
+                style: BarCounterStyle(
                   width: 240,
                   height: 4,
                   trackHeight: 20,
@@ -766,7 +752,7 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Transitions', children: [
             DemoCard(
               title: 'roll',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition.slide),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -791,8 +777,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slide,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -812,7 +798,7 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'fade',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition(motion: CounterMotion.none)),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -837,8 +823,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition(motion: CounterMotion.none),\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -857,7 +843,7 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'scale',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition(motion: CounterMotion.none, scale: true)),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -882,8 +868,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition(motion: CounterMotion.none, scale: true),\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -902,7 +888,7 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'fadeScale',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition.slideScale),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -927,8 +913,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slideScale,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -947,7 +933,7 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'rotate',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition.rotate),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -972,8 +958,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.rotate,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -992,7 +978,7 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'flip',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                   transition: CounterTransition.flip),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -1017,8 +1003,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.flip,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1038,7 +1024,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'blur',
               description: 'AnimatedCounterBuilder with blur transition',
-              child: _CyclingAnimatedCounterBuilder(
+              child: const _CyclingAnimatedCounterBuilder(
                   transition: CounterTransition.slideBlur),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -1063,8 +1049,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounterBuilder(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slideBlur,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1085,7 +1071,7 @@ class _CounterPageState extends State<CounterPage> {
               title: 'Fast mode (single-step)',
               description:
                   'fast: true — each digit moves one step (old→new) instead of a full cascade; e.g. 1000→9999 slides the thousands 1→9 once.',
-              child: _FastModeDemo(),
+              child: const _FastModeDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1108,11 +1094,10 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          fast: true,\n"
                 "          transition: CounterTransition.slide,\n"
-                "          thousandSeparator: ',',\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          format: CounterFormat(thousandSeparator: ','),\n"
+                "          timeline: CounterTimeline(fast: true, duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1134,11 +1119,11 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Formatting', children: [
             DemoCard(
               title: 'Thousand separator',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 1234567,
-                thousandSeparator: ',',
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 36),
+                format: CounterFormat(thousandSeparator: ','),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1146,9 +1131,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234567,\n"
-                "    thousandSeparator: ',',\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    format: CounterFormat(thousandSeparator: ','),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1156,11 +1141,11 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Fraction digits',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 9999.99,
-                fractionDigits: 2,
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 36),
+                format: CounterFormat(fractionDigits: 2),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1168,9 +1153,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9999.99,\n"
-                "    fractionDigits: 2,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    format: CounterFormat(fractionDigits: 2),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1178,11 +1163,11 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Compact notation',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 1500000,
-                compactNotation: true,
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 36),
+                format: CounterFormat(compactNotation: true),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1190,9 +1175,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1500000,\n"
-                "    compactNotation: true,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    format: CounterFormat(compactNotation: true),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1200,12 +1185,12 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Prefix & suffix (Row)',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 9999,
                 prefix: '¥',
                 suffix: ' 元',
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 36),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1213,10 +1198,10 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9999,\n"
-                "    prefix: '?',\n"
-                "    suffix: ' ??,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    prefix: '¥',\n"
+                "    suffix: ' 元',\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1224,11 +1209,11 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Negative sign',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: -12345,
-                thousandSeparator: ',',
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 36),
+                format: CounterFormat(thousandSeparator: ','),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1236,9 +1221,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: -12345,\n"
-                "    thousandSeparator: ',',\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    format: CounterFormat(thousandSeparator: ','),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1247,12 +1232,10 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Stagger right→left',
               description: '80 ms delay per digit, right to left',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 9876,
-                staggerDelay: const Duration(milliseconds: 80),
-                staggerDirection: StaggerDirection.rightToLeft,
-                duration: const Duration(milliseconds: 600),
-                textStyle: const TextStyle(fontSize: 36),
+                timeline: CounterTimeline(staggerDelay: Duration(milliseconds: 80), staggerDirection: StaggerDirection.rightToLeft, duration: Duration(milliseconds: 600)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1260,10 +1243,8 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9876,\n"
-                "    staggerDelay: Duration(milliseconds: 80),\n"
-                "    staggerDirection: StaggerDirection.rightToLeft,\n"
-                "    duration: Duration(milliseconds: 600),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    timeline: CounterTimeline(staggerDelay: Duration(milliseconds: 80), staggerDirection: StaggerDirection.rightToLeft, duration: Duration(milliseconds: 600)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1272,12 +1253,10 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Stagger left→right',
               description: '80 ms delay per digit, left to right',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 9876,
-                staggerDelay: const Duration(milliseconds: 80),
-                staggerDirection: StaggerDirection.leftToRight,
-                duration: const Duration(milliseconds: 600),
-                textStyle: const TextStyle(fontSize: 36),
+                timeline: CounterTimeline(staggerDelay: Duration(milliseconds: 80), staggerDirection: StaggerDirection.leftToRight, duration: Duration(milliseconds: 600)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1285,10 +1264,8 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9876,\n"
-                "    staggerDelay: Duration(milliseconds: 80),\n"
-                "    staggerDirection: StaggerDirection.leftToRight,\n"
-                "    duration: Duration(milliseconds: 600),\n"
-                "    textStyle: TextStyle(fontSize: 36),\n"
+                "    timeline: CounterTimeline(staggerDelay: Duration(milliseconds: 80), staggerDirection: StaggerDirection.leftToRight, duration: Duration(milliseconds: 600)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 36)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1297,7 +1274,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Align left',
               description: 'numberAlignment: -1.0  (shrinks left??ight)',
-              child: _AlignmentCycler(numberAlignment: -1.0),
+              child: const _AlignmentCycler(numberAlignment: -1.0),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1314,8 +1291,7 @@ class _CounterPageState extends State<CounterPage> {
                 "    children: [\n"
                 "      AnimatedCounter(\n"
                 "        controller: _ctrl,\n"
-                "        numberAlignment: -1.0,\n"
-                "        textStyle: TextStyle(fontSize: 40),\n"
+                "        style: AnimatedCounterStyle(numberAlignment: -1.0, textStyle: TextStyle(fontSize: 40)),\n"
                 "      ),\n"
                 "      ElevatedButton(\n"
                 "        onPressed: () { _i = (_i+1)%_vals.length; _ctrl.animateTo(_vals[_i].toDouble()); },\n"
@@ -1330,7 +1306,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Align center',
               description: 'numberAlignment: 0.0  (default, shrinks to center)',
-              child: _AlignmentCycler(numberAlignment: 0.0),
+              child: const _AlignmentCycler(numberAlignment: 0.0),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1347,8 +1323,7 @@ class _CounterPageState extends State<CounterPage> {
                 "    children: [\n"
                 "      AnimatedCounter(\n"
                 "        controller: _ctrl,\n"
-                "        numberAlignment: 0.0,\n"
-                "        textStyle: TextStyle(fontSize: 40),\n"
+                "        style: AnimatedCounterStyle(numberAlignment: 0.0, textStyle: TextStyle(fontSize: 40)),\n"
                 "      ),\n"
                 "      ElevatedButton(\n"
                 "        onPressed: () { _i = (_i+1)%_vals.length; _ctrl.animateTo(_vals[_i].toDouble()); },\n"
@@ -1363,7 +1338,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Align right',
               description: 'numberAlignment: 1.0  (shrinks right??eft)',
-              child: _AlignmentCycler(numberAlignment: 1.0),
+              child: const _AlignmentCycler(numberAlignment: 1.0),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1380,8 +1355,7 @@ class _CounterPageState extends State<CounterPage> {
                 "    children: [\n"
                 "      AnimatedCounter(\n"
                 "        controller: _ctrl,\n"
-                "        numberAlignment: 1.0,\n"
-                "        textStyle: TextStyle(fontSize: 40),\n"
+                "        style: AnimatedCounterStyle(numberAlignment: 1.0, textStyle: TextStyle(fontSize: 40)),\n"
                 "      ),\n"
                 "      ElevatedButton(\n"
                 "        onPressed: () { _i = (_i+1)%_vals.length; _ctrl.animateTo(_vals[_i].toDouble()); },\n"
@@ -1398,11 +1372,11 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Numeral Systems', children: [
             DemoCard(
               title: 'Eastern Arabic',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 1234,
-                numeralSystem: NumeralSystem.easternArabic,
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 40),
+                format: CounterFormat(numeralSystem: NumeralSystem.easternArabic),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1410,9 +1384,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234,\n"
-                "    numeralSystem: NumeralSystem.easternArabic,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 40),\n"
+                "    format: CounterFormat(numeralSystem: NumeralSystem.easternArabic),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1420,11 +1394,11 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'Persian',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 5678,
-                numeralSystem: NumeralSystem.persian,
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 40),
+                format: CounterFormat(numeralSystem: NumeralSystem.persian),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1432,9 +1406,9 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 5678,\n"
-                "    numeralSystem: NumeralSystem.persian,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 40),\n"
+                "    format: CounterFormat(numeralSystem: NumeralSystem.persian),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1445,10 +1419,10 @@ class _CounterPageState extends State<CounterPage> {
               description: 'Maps digits to circled numbers ①②③',
               child: AnimatedCounter(
                 value: 9,
-                numeralMapper: (d) =>
-                    ['⓪', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨'][d],
-                duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 40),
+                format: CounterFormat(numeralMapper: (d) =>
+                    ['⓪', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨'][d]),
+                timeline: const CounterTimeline(duration: Duration(milliseconds: 800)),
+                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1456,10 +1430,10 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9,\n"
-                "    numeralMapper: (d) =>\n"
-                "        ['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨'][d],\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 40),\n"
+                "    format: CounterFormat(numeralMapper: (d) =>\n"
+                "        ['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨'][d]),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1470,15 +1444,12 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Locale Factories', children: [
             DemoCard(
               title: 'USD',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 1234567.89,
-                duration: const Duration(milliseconds: 800),
                 prefix: r'$',
-                thousandSeparator: ',',
-                groupingPattern: const [3],
-                fractionDigits: 2,
-                hideLeadingZeroes: false,
-                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                format: CounterFormat(thousandSeparator: ',', groupingPattern: [3], fractionDigits: 2, hideLeadingZeroes: false),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1486,13 +1457,10 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234567.89,\n"
-                "    duration: Duration(milliseconds: 800),\n"
                 "    prefix: r'\$',\n"
-                "    thousandSeparator: ',',\n"
-                "    groupingPattern: [3],\n"
-                "    fractionDigits: 2,\n"
-                "    hideLeadingZeroes: false,\n"
                 "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
+                "    format: CounterFormat(thousandSeparator: ',', groupingPattern: [3], fractionDigits: 2, hideLeadingZeroes: false),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1500,15 +1468,12 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'CNY (?)',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 9999.99,
-                duration: const Duration(milliseconds: 800),
                 prefix: '¥',
-                thousandSeparator: ',',
-                groupingPattern: const [4],
-                fractionDigits: 2,
-                hideLeadingZeroes: false,
-                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                format: CounterFormat(thousandSeparator: ',', groupingPattern: [4], fractionDigits: 2, hideLeadingZeroes: false),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1516,13 +1481,10 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9999.99,\n"
-                "    duration: Duration(milliseconds: 800),\n"
                 "    prefix: '¥',\n"
-                "    thousandSeparator: ',',\n"
-                "    groupingPattern: [4],\n"
-                "    fractionDigits: 2,\n"
-                "    hideLeadingZeroes: false,\n"
                 "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
+                "    format: CounterFormat(thousandSeparator: ',', groupingPattern: [4], fractionDigits: 2, hideLeadingZeroes: false),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1530,15 +1492,12 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'INR (??',
-              child: AnimatedCounter(
+              child: const AnimatedCounter(
                 value: 1234567.89,
-                duration: const Duration(milliseconds: 800),
                 prefix: '₹',
-                thousandSeparator: ',',
-                groupingPattern: const [3, 2],
-                fractionDigits: 2,
-                hideLeadingZeroes: false,
-                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
+                format: CounterFormat(thousandSeparator: ',', groupingPattern: [3, 2], fractionDigits: 2, hideLeadingZeroes: false),
+                timeline: CounterTimeline(duration: Duration(milliseconds: 800)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1546,12 +1505,15 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234567.89,\n"
-                "    duration: Duration(milliseconds: 800),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
                 "    prefix: '₹',\n"
-                "    thousandSeparator: ',',\n"
-                "    groupingPattern: [3, 2],  // Indian grouping\n"
-                "    fractionDigits: 2,\n"
-                "    hideLeadingZeroes: false,\n"
+                "    // Indian grouping\n"
+                "    format: CounterFormat(\n"
+                "      thousandSeparator: ',',\n"
+                "      groupingPattern: [3, 2],\n"
+                "      fractionDigits: 2,\n"
+                "      hideLeadingZeroes: false,\n"
+                "    ),\n"
                 "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
                 "  );\n"
                 "}",
@@ -1563,10 +1525,9 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Bounce', children: [
             DemoCard(
               title: 'Bounce overshoot',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                 transition: CounterTransition.slide,
                 bounceOvershoot: 0.67,
-                bounceElasticity: 4.0,
               ),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -1591,10 +1552,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slide,\n"
-                "          bounceOvershoot: 0.67,\n"
-                "          bounceElasticity: 4.0,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(bounceOvershoot: 0.67, duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1614,10 +1573,9 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'High elasticity',
               description: 'Peak near end of transition (elasticity 8)',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                 transition: CounterTransition.slide,
                 bounceOvershoot: 0.67,
-                bounceElasticity: 8.0,
               ),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -1642,10 +1600,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slide,\n"
-                "          bounceOvershoot: 0.67,\n"
-                "          bounceElasticity: 8.0,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(bounceOvershoot: 0.67, duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1666,11 +1622,10 @@ class _CounterPageState extends State<CounterPage> {
               title: 'Bounce + stagger',
               description:
                   'Per-digit stagger (80 ms, right→left) on the roll — columns arrive in sequence — followed by a bounce overshoot.',
-              child: _CyclingAnimatedCounter(
+              child: const _CyclingAnimatedCounter(
                 transition: CounterTransition.slide,
                 bounceOvershoot: 0.67,
-                bounceElasticity: 4.0,
-                staggerDelay: const Duration(milliseconds: 80),
+                staggerDelay: Duration(milliseconds: 80),
                 staggerDirection: StaggerDirection.rightToLeft,
               ),
               code: runnable(
@@ -1696,12 +1651,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          transition: CounterTransition.slide,\n"
-                "          bounceOvershoot: 0.67,\n"
-                "          bounceElasticity: 4.0,\n"
-                "          staggerDelay: Duration(milliseconds: 80),\n"
-                "          staggerDirection: StaggerDirection.rightToLeft,\n"
-                "          duration: Duration(milliseconds: 600),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(bounceOvershoot: 0.67, staggerDelay: Duration(milliseconds: 80), staggerDirection: StaggerDirection.rightToLeft, duration: Duration(milliseconds: 600)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        ElevatedButton(\n"
@@ -1724,7 +1675,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'animateTo()',
               description: 'Buttons animate to preset values',
-              child: _AnimateToDemo(),
+              child: const _AnimateToDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1745,8 +1696,8 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          duration: Duration(milliseconds: 700),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 700)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        Wrap(\n"
@@ -1769,7 +1720,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'pause / resume',
               description: 'Pause and resume mid-animation',
-              child: _PauseResumeDemo(),
+              child: const _PauseResumeDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1797,8 +1748,8 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          duration: Duration(seconds: 5),\n"
-                "          textStyle: TextStyle(fontSize: 48),\n"
+                "          timeline: CounterTimeline(duration: Duration(seconds: 5)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 12),\n"
                 "        Row(\n"
@@ -1834,7 +1785,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Custom digitBuilder',
               description: 'Each digit rendered as a colored box',
-              child: _CustomDigitBuilderDemo(),
+              child: const _CustomDigitBuilderDemo(),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1848,8 +1799,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounterBuilder(\n"
                 "    value: 5678,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 32, color: Colors.white),\n"
                 "    digitBuilder: (_, digit, style) => Container(\n"
                 "      width: 40,\n"
                 "      height: 52,\n"
@@ -1861,6 +1810,8 @@ class _CounterPageState extends State<CounterPage> {
                 "      alignment: Alignment.center,\n"
                 "      child: Text('\$digit', style: style),\n"
                 "    ),\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32, color: Colors.white)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1869,7 +1820,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Custom transition',
               description: 'digitTransitionBuilder with scale + opacity effect',
-              child: _CustomTransitionDemo(),
+              child: const _CustomTransitionDemo(),
               code: runnable(
                 "import 'dart:ui';\n"
                 "\n"
@@ -1879,8 +1830,6 @@ class _CounterPageState extends State<CounterPage> {
                 "  @override\n"
                 "  Widget build(BuildContext context) => AnimatedCounterBuilder(\n"
                 "    value: 9876,\n"
-                "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 44),\n"
                 "    digitTransitionBuilder: (ctx, current, next, progress, size) {\n"
                 "      return Stack(\n"
                 "        alignment: Alignment.center,\n"
@@ -1902,6 +1851,8 @@ class _CounterPageState extends State<CounterPage> {
                 "        ],\n"
                 "      );\n"
                 "    },\n"
+                "    timeline: CounterTimeline(duration: Duration(milliseconds: 800)),\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 44)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1953,7 +1904,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Group callbacks',
               description: 'onGroupReady / onAllComplete via status Text',
-              child: _CounterProviderGroupCallbacksDemo(),
+              child: const _CounterProviderGroupCallbacksDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -2000,7 +1951,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Imperative control',
               description: 'update / pause / resume / cancel + live status',
-              child: _CounterValueControllerDemo(),
+              child: const _CounterValueControllerDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -2076,7 +2027,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'animateOnce',
               description: 'Left rolls once & freezes on rebuild; right re-rolls',
-              child: _AnimateOnceDemo(),
+              child: const _AnimateOnceDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -2165,12 +2116,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'semanticsLabel',
               description: 'Screen reader announces a fixed label, not the number',
-              child: TextCounter(
+              child: const TextCounter(
                 from: 0,
                 to: 100,
                 semanticsLabel: '固定读屏文本',
                 style: TextCounterStyle(
-                    textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+                    textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -2194,7 +2145,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Positive sign + lifecycle',
               description: 'showPositiveSign + onAnimationStart / onAnimationEnd',
-              child: _SignLifecycleDemo(),
+              child: const _SignLifecycleDemo(),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -2218,11 +2169,11 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          showPositiveSign: true,\n"
-                "          duration: const Duration(milliseconds: 900),\n"
-                "          textStyle: const TextStyle(fontSize: 40),\n"
                 "          onAnimationStart: () => setState(() => _status = 'animating…'),\n"
                 "          onAnimationEnd: () => setState(() => _status = 'done'),\n"
+                "          format: CounterFormat(showPositiveSign: true),\n"
+                "          timeline: CounterTimeline(duration: Duration(milliseconds: 900)),\n"
+                "          style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),\n"
                 "        ),\n"
                 "        const SizedBox(height: 6),\n"
                 "        Text(_status,\n"
@@ -2272,7 +2223,7 @@ class _CounterTextOnCompleteState extends State<_CounterTextOnComplete> {
           child: TextCounter(
             from: 0,
             to: 100,
-            style: TextCounterStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+            style: const TextCounterStyle(textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
             onComplete: (_) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -2295,14 +2246,12 @@ class _CounterTextOnCompleteState extends State<_CounterTextOnComplete> {
 class _CyclingAnimatedCounter extends StatefulWidget {
   final CounterTransition transition;
   final double bounceOvershoot;
-  final double bounceElasticity;
   final Duration? staggerDelay;
   final StaggerDirection staggerDirection;
 
   const _CyclingAnimatedCounter({
     required this.transition,
     this.bounceOvershoot = 0.0,
-    this.bounceElasticity = 4.0,
     this.staggerDelay,
     this.staggerDirection = StaggerDirection.rightToLeft,
   });
@@ -2351,12 +2300,8 @@ class _CyclingAnimatedCounterState extends State<_CyclingAnimatedCounter> {
         AnimatedCounter(
           controller: _ctrl,
           transition: widget.transition,
-          bounceOvershoot: widget.bounceOvershoot,
-          bounceElasticity: widget.bounceElasticity,
-          staggerDelay: widget.staggerDelay,
-          staggerDirection: widget.staggerDirection,
-          duration: const Duration(milliseconds: 600),
-          textStyle: const TextStyle(fontSize: 48),
+          timeline: CounterTimeline(bounceOvershoot: widget.bounceOvershoot, staggerDelay: widget.staggerDelay, staggerDirection: widget.staggerDirection, duration: const Duration(milliseconds: 600)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),
         ),
         const SizedBox(height: 12),
         ElevatedButton(
@@ -2413,8 +2358,8 @@ class _CyclingAnimatedCounterBuilderState
         AnimatedCounterBuilder(
           controller: _ctrl,
           transition: widget.transition,
-          duration: const Duration(milliseconds: 600),
-          textStyle: const TextStyle(fontSize: 48),
+          timeline: const CounterTimeline(duration: Duration(milliseconds: 600)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),
         ),
         const SizedBox(height: 12),
         ElevatedButton(
@@ -2449,8 +2394,8 @@ class _AnimateToDemoState extends State<_AnimateToDemo> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
-          duration: const Duration(milliseconds: 700),
-          textStyle: const TextStyle(fontSize: 48),
+          timeline: const CounterTimeline(duration: Duration(milliseconds: 700)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -2500,8 +2445,8 @@ class _PauseResumeDemoState extends State<_PauseResumeDemo> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
-          duration: const Duration(seconds: 5),
-          textStyle: const TextStyle(fontSize: 48),
+          timeline: const CounterTimeline(duration: Duration(seconds: 5)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),
         ),
         const SizedBox(height: 12),
         Row(
@@ -2547,8 +2492,6 @@ class _CustomDigitBuilderDemo extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedCounterBuilder(
       value: 5678,
-      duration: const Duration(milliseconds: 800),
-      textStyle: const TextStyle(fontSize: 32, color: Colors.white),
       digitBuilder: (_, digit, style) => Container(
         width: 40,
         height: 52,
@@ -2560,6 +2503,8 @@ class _CustomDigitBuilderDemo extends StatelessWidget {
         alignment: Alignment.center,
         child: Text('$digit', style: style),
       ),
+      timeline: const CounterTimeline(duration: Duration(milliseconds: 800)),
+      style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32, color: Colors.white)),
     );
   }
 }
@@ -2572,8 +2517,6 @@ class _CustomTransitionDemo extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedCounterBuilder(
       value: 9876,
-      duration: const Duration(milliseconds: 800),
-      textStyle: const TextStyle(fontSize: 44),
       digitTransitionBuilder: (ctx, current, next, progress, size) {
         return Stack(
           alignment: Alignment.center,
@@ -2595,6 +2538,8 @@ class _CustomTransitionDemo extends StatelessWidget {
           ],
         );
       },
+      timeline: const CounterTimeline(duration: Duration(milliseconds: 800)),
+      style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 44)),
     );
   }
 }
@@ -2625,8 +2570,7 @@ class _AlignmentCyclerState extends State<_AlignmentCycler> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
-          numberAlignment: widget.numberAlignment,
-          textStyle: const TextStyle(fontSize: 40),
+          style: AnimatedCounterStyle(numberAlignment: widget.numberAlignment, textStyle: const TextStyle(fontSize: 40)),
         ),
         const SizedBox(height: 8),
         ElevatedButton(
@@ -2727,9 +2671,9 @@ class _CounterValueControllerDemoState
           to: 10000,
           controller: _ctrl,
           duration: const Duration(seconds: 8),
-          style: TextCounterStyle(
+          style: const TextCounterStyle(
             textStyle:
-                const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
           ),
         ),
         const SizedBox(height: 8),
@@ -2776,8 +2720,8 @@ class _AnimateOnceDemoState extends State<_AnimateOnceDemo> {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextCounterStyle(
-      textStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+    final style = const TextCounterStyle(
+      textStyle: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
     );
     // animateOnce: true cascades to keyed descendants — they roll once only.
     return CounterProvider(
@@ -2855,9 +2799,6 @@ class _SignLifecycleDemoState extends State<_SignLifecycleDemo> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
-          showPositiveSign: true,
-          duration: const Duration(milliseconds: 900),
-          textStyle: const TextStyle(fontSize: 40),
           // Defer setState out of the build/animation phase.
           onAnimationStart: () {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2869,6 +2810,9 @@ class _SignLifecycleDemoState extends State<_SignLifecycleDemo> {
               if (mounted) setState(() => _status = 'done');
             });
           },
+          format: const CounterFormat(showPositiveSign: true),
+          timeline: const CounterTimeline(duration: Duration(milliseconds: 900)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 40)),
         ),
         const SizedBox(height: 6),
         Text(_status,
@@ -2939,11 +2883,10 @@ class _FastModeDemoState extends State<_FastModeDemo> {
           // 与控制器初值一致，避免挂载/重置时误触 0 → 1000 的动画
           // （fast 下只有变化的千位会动）。
           initialValue: 1000,
-          fast: true,
           transition: CounterTransition.slide,
-          thousandSeparator: ',',
-          duration: const Duration(milliseconds: 600),
-          textStyle: const TextStyle(fontSize: 48),
+          format: const CounterFormat(thousandSeparator: ','),
+          timeline: const CounterTimeline(fast: true, duration: Duration(milliseconds: 600)),
+          style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 48)),
         ),
         const SizedBox(height: 12),
         ElevatedButton(

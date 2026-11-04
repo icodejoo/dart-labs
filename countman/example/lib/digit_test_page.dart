@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
@@ -100,9 +100,9 @@ class _DigitTestPageState extends State<DigitTestPage> {
           // AnimatedCounter — direction handled automatically inside widget
           AnimatedCounter(
             value: _value,
-            duration: const Duration(seconds: 3),
-            thousandSeparator: ',',
-            textStyle: _style,
+            format: const CounterFormat(thousandSeparator: ','),
+            timeline: const CounterTimeline(duration: Duration(seconds: 3)),
+            style: const AnimatedCounterStyle(textStyle: _style),
           ),
           const SizedBox(height: 16),
           // CounterBuilder to tap into raw values
