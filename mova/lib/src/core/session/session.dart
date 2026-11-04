@@ -200,6 +200,8 @@ class MovaSession {
   MovaTimelineNode? _current;
   final Set<MovaNodeId> _played = <MovaNodeId>{};
   Duration _contentResumeAt = Duration.zero;
+  /// 待播期间仍在屏上的正片纪元，避免换指后的广告进度污染续播点。
+  int _pendingContentEpoch = -1;
   Duration _adPosition = Duration.zero;
 
   /// Whether the current ad has produced a real first frame (see
@@ -797,6 +799,7 @@ class MovaSession {
     final gen = _gen;
     final b = node.adBreak!;
     _phase = MovaSessionPhase.pending;
+    _pendingContentEpoch = _api.state.renderEpoch;
     _pending = node;
     _adWarm = null;
     _played.add(node.id);
@@ -1651,7 +1654,17 @@ class MovaSession {
   ///
   /// 跟踪广告已播时长；播放正片期间触发到期的中插，并保存正片位置以便之后续播。
   void _onProgress(MovaProg p) {
-    if (_landing) return;
+    if (_landing) {
+      // 等广告影子就绪时正片仍在播放；只记录尚未换指的正片进度，
+      // 不重新预热，也不解释广告首帧/计时。回正片等其他落地窗口仍全部丢弃。
+      if (_phase == MovaSessionPhase.pending &&
+          _api.state.renderEpoch == _pendingContentEpoch) {
+        _lastContentPosition = p.position;
+        _contentResumeAt = p.position;
+        _contentRate = _api.state.rate;
+      }
+      return;
+    }
     if (_phase == MovaSessionPhase.ad) {
       _adPosition = p.position;
       // First rendered frame of this ad: the slot the advertiser bought is
