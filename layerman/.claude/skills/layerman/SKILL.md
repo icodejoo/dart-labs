@@ -28,33 +28,38 @@ backend (`showDialog`, GetX, `bot_toast`, a self-managed `OverlayEntry`, …), a
 `package:flutter/widgets.dart` and owns no `Overlay` layer.
 
 > **0.2.0 breaking change**: the earlier `builder:` render path, `OverlayHandle`,
-> `OverlayPhase`, `OverlayManagerScope` and the old manager widget attachment methods are gone —
+> the former widget-oriented `OverlayPhase`, `OverlayManagerScope` and the old manager widget attachment methods are gone —
 > `present:` is the sole rendering hook now. See the README's "Why there is no `builder:`"
 > section and the CHANGELOG for the full list and migration recipe. The separate `LayermanLifecycle.attach`/`detach`/`isAttached` APIs added in 0.3.0
-> manage lifecycle observation, not widget attachment. Don't reintroduce the old render path; that's the whole point of the refactor.
+> manage lifecycle observation, not widget attachment. 1.0 introduces a new record-phase `OverlayPhase` enum. Don't reintroduce the old render path; that's the whole point of the refactor.
 
 Engine: `lib/src/overlay_manager.dart`; shared types: `overlay_types.dart`;
 route observation: `overlay_navigator_observer.dart`; official presenters:
 `route_managers.dart`; app lifecycle: `lifecycle_binding.dart` (all under `lib/src/`).
-The core remains foundation-only; adapters own widgets/Material dependencies.
-`ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 0.3.0.
+The core uses foundation and scheduler; adapters own widgets/Material dependencies.
+`ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 1.0.0.
 
-Test inventory (executed counts, 2026-11-04 — 199 in total, all green on Flutter 3.47 and on the
-minimum 3.27.4):
+Test inventory (executed counts, 2026-11-04): 600 tests in total, all green on Flutter 3.47
+and on the minimum supported Flutter 3.27.4.
 
 | File under `test/` | Tests | Coverage |
 | --- | ---: | --- |
 | `layerman_test.dart` | 81 | Core queue and backend contracts |
-| `robustness_test.dart` | 15 | 0.2.2 hardening: hydration, guards, result validation |
-| `readme_recipe_test.dart` | 5 | Hand-written Route recipes from the README |
+| `robustness_test.dart` | 15 | Hydration, guards, result validation |
+| `readme_recipe_test.dart` | 5 | README Route recipes |
 | `engine_v030_test.dart` | 21 | Caps, timeouts, takeover, live data, inspection |
 | `engine_v030b_test.dart` | 38 | Tickets, end reasons, events, holds, expiry, slots |
-| `observer_filter_test.dart` | 11 | PageRoute filtering, `contextKey` |
-| `route_managers_test.dart` | 22 | `DialogManager` / `BottomSheetManager` / `presentRoute` |
+| `engine_v030c_test.dart` | 30 | Build deferral, batching, reclamation, cooldown reset, tags |
+| `api_v1_test.dart` | 6 | OverlayMode / RouteMatcher / OverlayPhase |
+| `fuzz_invariants_test.dart` | 365 | Randomized sequence invariants and repeated-dismiss regression |
+| `observer_filter_test.dart` | 11 | PageRoute filtering, contextKey |
+| `route_managers_test.dart` | 22 | Route presenters |
 | `lifecycle_binding_test.dart` | 6 | Lifecycle holds |
 
-Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests (17 original +
-9 v0.3) passed on a Huawei STG-AL00 / Android 12.
+Unit acceptance total: 600; minimum Flutter 3.27.4 acceptance total: 600.
+Phone integration (`example/integration_test/orchestration_test.dart`): 29 tests
+(17 original + 12 v0.3/1.0 cases) on the real Huawei STG-AL00 / Android 12, serial `7NQBB23606003715`.
+The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repeated-dismiss regressions.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -70,7 +75,7 @@ Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests
 - **Ordering `_cmp`**: `entry.replace` (an immutable per-entry field) front-bands FIRST, then
   priority desc, then FIFO `seq` — needed so a replacer that got queued (blocked by an
   `affix`ed current) still shows ahead of already-waiting normal entries.
-- **Eligibility** = `_conditionsPass` (`when` sole authority; else `route`(String|List|RegExp)
+- **Eligibility** = `_conditionsPass` (`when` sole authority; else `route` (`RouteMatcher`)
   AND `requiresAuth` against `_context` set by `setContext`) + `_cooldownPass`.
 - **`_schedule(slot)`**: paused → return; slot occupied/`gapPending`/a `delayTimer` pending/
   queue empty → return; pick the first ELIGIBLE entry from the ordered queue; recoverably ineligible
@@ -114,7 +119,7 @@ Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests
   `_paused` getter is `_manualPaused || _routeZonePaused || _holds.isNotEmpty`, and `_applyFreeze`/`_applyRelease`
   (extracted bodies) are shared with `_updateRouteZone` (see below) — neither side undoes the
   other.
-- **`pauseOnRoutes`** (constructor param, `String`/`List<String>`/`RegExp` patterns): a
+- **`pauseOnRoutes`** (constructor param, `List<RouteMatcher>`, default empty): a
   "no-overlay zone". `setContext` calls `_updateRouteZone()` on every invocation, which
   matches `_context['route']` against the patterns and flips `_routeZonePaused`, calling
   `_applyFreeze`/`_applyRelease` only when the EFFECTIVE `_paused` actually changes.
@@ -238,7 +243,7 @@ Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests
     `_settle` sets `settled` then completes; if the typed completion still throws it reports
     and completes with `null` — a set `settled` flag must never leave the future pending.
 18. **Hydration gating must not drop or misfire**: `_applyRelease` keeps overlaps that still
-    `_waitingForHydrate` in `_pendingOverlaps`; `open(overlap:)` drops immediately only when
+    `_waitingForHydrate` in `_pendingOverlaps`; `open(mode: OverlayMode.overlap)` drops immediately only when
     CONDITIONS fail (or the cooldown fails after hydration); the hydrate continuation checks
     `isDisposed` first.
 19. **`closeGuardPending` must be cleared on EVERY async-guard resolution path** (true, false,
@@ -279,6 +284,33 @@ Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests
 30. **Ordered queue insertion and capacity are scheduling contracts.** `_enqueue` preserves
     replace/priority/FIFO; maxQueued evicts the ordered tail, excludes active entries;
     expireAfter counts pre-activation serial waiting including pauses, ignores overlap.
+
+31. **批量通知只走 `_notify`。** 公开操作、票据关闭/移除和异步续体进入 `_batch`；
+    嵌套批次只标记 `_notifyPending`，最外层完成后最多通知一次。不要内部直接调用
+    notifyListeners；dataListenable 与 events 是独立通道，异步续体独立成批。
+32. **build 期间推迟展示与管理器通知。** `_inBuildPhase` 检查 persistentCallbacks，
+    `_deferredSlots`、`_releasePending`、`_frameNotifyPending` 去重帧后回调；帧后检查
+    isDisposed、暂停、条件、hydrate，保留 takeover；dispose 后回调不得复活条目。
+33. **`OverlayMode` 互斥且默认 queue。** 只允许 queue / replace / overlap，affix 独立；
+    内部 replace 前排带和 overlap 的 now-or-never 契约保持不变，不恢复旧公开布尔参数。
+34. **`RouteMatcher` 是唯一路由参数协议。** exact / anyOf / regex；null 或非 String 不匹配，
+    anyOf 调用方不得修改输入列表；when 仍独占资格判断，pauseOnRoutes 仍只读 route 键。
+    record.phase 使用 OverlayPhase，禁止字符串比较。
+35. **后端 dismiss 每个条目只请求一次。** 共享 `dismissRequested` 在调用后端前置位，
+    同步抛错和异步失败也不重试；close 后 remove / clear / dismiss 超时不能再次请求。
+    externalDone 另管晚到 dismissed 的重入，不能代替 dismissRequested。
+36. **slot 回收不能删除有计时器的 slot。** 最外层批次只回收 active 空、queue 空、
+    gapPending false 且 gapTimer / delayTimer / cooldownTimer 全空的运行时槽位，保留 slots 配置。
+37. **冷却重置与标签保持身份语义。** resetCooldown / clearCooldowns 同时重置 session 与
+    持久化计数，hydrate 不能恢复已清除计数；不复活已 capped 的条目。tags 提交时复制且只读，
+    clearTag 先全部移除再推进槽位，绕过守卫，原因 removed。
+
+## 1.0.0 decisions
+
+路线 A 三步已完成：0.2.2 加固 → 0.3.0 增量 → 1.0 类型收口。
+随机序列不变量测试 `test/fuzz_invariants_test.dart` 是 1.0 前置安全网，已发现 dismiss 重复请求。
+Gate 和显式状态机有意不做：现有状态由不变量测试守住，重构收益不足以抵消回归风险。
+slot 并发数/互斥、冷却记录裁剪尚未提供；旧 id 计数需永久保留 total 语义。
 
 ## 0.3.0 architecture additions
 
@@ -340,7 +372,7 @@ flutter test integration_test/orchestration_test.dart -d <serial>
 Use the Android phone (Huawei STG-AL00 / Android 12 for the reported 0.3.0 run).
 `example/android/` is present; the v0.3 Features page exercises the new APIs.
 The Windows desktop runner takes focus: do not run it unattended.
-For Task Y documentation acceptance, do not run flutter test at all; analyze key
+For Task B3 documentation acceptance, do not run flutter test at all; analyze key
 README snippets in an external scratchpad and validate the SVG as XML instead.
 CI remains defined in `.github/workflows/layerman-ci.yml`; do not infer a local
 pass count from static declarations or a prior version's baseline.

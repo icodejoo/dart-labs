@@ -230,3 +230,29 @@ Flutter 3.27 兼容约束继续保留：removeRoute 不传 result。
 - Windows 桌面集成测试会抢焦点，不无人值守跑。
 - 并发派 Codex 最多 2 个：3 个并发 + Gradle 守护进程会把本机内存吃光，Codex 被 OOM 杀掉
   （`memory allocation of 536870912 bytes failed`）。Gradle/Kotlin 守护进程跑完手机测试后要结束。
+
+
+## 1.0.0 决策记录（2026-11-04）
+
+评审路线 A 的三步全部完成：0.2.2 加固、0.3.0 增量扩展、1.0 破坏性类型收口。
+`open` / `submit` 以 `mode: OverlayMode.queue/replace/overlap` 取代两个布尔参数；
+`route` / `pauseOnRoutes` 使用 `RouteMatcher`，`OverlayRecord.phase` 使用 `OverlayPhase`。
+补齐 build 期间推迟 present 与通知、按操作批量通知、空 slot 回收、冷却查询重置与标签。
+
+随机序列不变量测试 `test/fuzz_invariants_test.dart` 作为 1.0 前置安全网，抓到 close 后
+remove / clear / dismiss 超时会重复请求后端 dismiss 的缺陷；非幂等后端可能误关其他弹窗。
+`dismissRequested` 在第一次请求前置位，保证每条目最多请求一次，即使后端抛错也不重试。
+
+Gate（统一资格判断）与显式状态机**有意不做**：引擎状态已经由随机序列不变量测试守住，
+当前重构收益不足以抵消回归风险。OverlayPhase 类型收口和通知批次已明确现有边界，
+不再在 1.0 前引入新派发框架。slot 并发数/互斥与冷却记录裁剪**尚未提供**；
+旧 id 的计数需永久保留以保证 total 语义，重置由调用方明确发起。
+本节取代上文 0.3.0 记录中“1.0 方案待定”的历史规划。
+
+验收基线（1.0.0，2026-11-04）：
+
+- 本机 `flutter test`：**600 条全绿**（Flutter 3.47.0 / Dart 3.13.0）；最低 Flutter 3.27.4（Dart 3.6）上同样 **600 条全绿**，`analyze` 干净。
+- 手机集成 `flutter test integration_test/orchestration_test.dart -d 7NQBB23606003715`：**29 条全绿**（华为 STG-AL00 / Android 12）。
+- 关键 README 示例用 dart analyze 验证，SVG 用 Python XML 解析。
+- 验证流程继续使用手机明确 `-d` 序列号；Windows 桌面抢焦点，不无人值守跑。
+  不用 handleAppLifecycleStateChanged 模拟后台，改调用 LayermanLifecycle 的观察者方法。

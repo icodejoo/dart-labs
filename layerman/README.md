@@ -32,6 +32,13 @@ in your app.
 
 ## Features
 
+- **1.0 typed contracts** — `mode: OverlayMode.queue/replace/overlap`, `RouteMatcher`
+  and `OverlayPhase` eliminate ambiguous options and string phase comparisons.
+- **Inspection and grouping** — `cooldownStatus` (`OverlayCooldownStatus`),
+  `resetCooldown` / `clearCooldowns`, and copied `tags` / `clearTag`.
+- **Frame-safe submission** — `open` defers presentation and notifications during
+  `build()`; manager notifications are batched per operation; unused slots are reclaimed.
+
 - **Serial queue** — one overlay at a time per slot; the next shows when the
   current is removed, with an optional `gap` between them.
 - **Named slots** — independent serial queues (e.g. `toast` vs `dialog`) that
@@ -91,7 +98,7 @@ in your app.
 
 ```yaml
 dependencies:
-  layerman: ^0.3.0
+  layerman: ^1.0.0
 ```
 
 ```dart
@@ -186,7 +193,66 @@ if (ok == true) doDelete(); // dismissed (barrier tap) -> ok == null
 `open()` returns immediately with a `Future<T?>`; the overlay may show now or
 wait in the queue. The future resolves when it is finally closed.
 
+### Migrating from 0.x
+
+See the [1.0.0 migration table in CHANGELOG](CHANGELOG.md#100) for every breaking change.
+
+### Building overlays during `build()`
+
+`open` automatically defers `present` and manager notifications until after the
+frame when invoked during `build()`. Submission still returns its future immediately;
+queued entries retain ordering, and pause/conditions/hydration are checked before
+presentation. Guard repeated builds so they do not submit repeatedly:
+
+```dart
+class PromoTrigger extends StatefulWidget {
+  const PromoTrigger({super.key, required this.manager, required this.present});
+  final Layerman manager;
+  final Present<void> present;
+
+  @override
+  State<PromoTrigger> createState() => _PromoTriggerState();
+}
+
+class _PromoTriggerState extends State<PromoTrigger> {
+  bool _submitted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_submitted) {
+      _submitted = true;
+      widget.manager.open<void>(id: 'build-promo', present: widget.present);
+    }
+    return const SizedBox.shrink();
+  }
+}
+```
+
+### Notifications are batched per operation
+
+A public operation emits at most one manager notification after its synchronous
+changes finish. Async continuations form separate batches. Calls during build are
+coalesced after the frame; `dataListenable` and async `events` remain separate channels.
+
+### Tags
+
+`tags` defaults to an empty set and is copied at submission into read-only
+`OverlayRecord.tags`. `clearTag(tag)` removes matching pending, resolving, open
+and closing entries with `removed`, bypassing `beforeClose`.
+
+```dart
+manager.open<void>(id: 'campaign', tags: {'promo', 'home'},
+  present: dialogs<void>((ctx, close) => const Text('Campaign')));
+final record = manager.recordOf('campaign');
+if (record?.phase == OverlayPhase.open) {
+  manager.clearTag('promo');
+}
+```
+
 ### Queue, priority, replace, affix, overlap
+
+`mode` selects exactly one `OverlayMode`: `queue` (default), `replace` or `overlap`.
+`affix` is independent; replace and overlap cannot be combined.
 
 ```dart
 // These queue behind one another (serial, one at a time):
@@ -195,17 +261,22 @@ manager.open(id: 'promo', priority: 10, present: dialogs((ctx, close) => const P
 
 // Preempt whatever is currently showing in the default slot (it is closed,
 // result null — a dismissed backend can't be faithfully re-presented):
-manager.open(id: 'session-expired', replace: true, present: dialogs((ctx, close) => const ExpiredDialog()));
+manager.open(id: 'session-expired', mode: OverlayMode.replace, present: dialogs((ctx, close) => const ExpiredDialog()));
 
 // Protect the current overlay so a replace cannot cover it:
 manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
 // Ignore the queue and stack on top right now:
-manager.open(id: 'net-error', overlap: true, present: dialogs((ctx, close) => const ErrorBanner()));
+manager.open(id: 'net-error', mode: OverlayMode.overlap, present: dialogs((ctx, close) => const ErrorBanner()));
 
 // Independent serial queues that run in parallel:
 manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('Saved')));
 ```
+
+`RouteMatcher.exact('/promo')` matches one path;
+`const RouteMatcher.anyOf(['/promo', '/home'])` matches any listed path;
+`RouteMatcher.regex(RegExp(r'^/promo/'))` uses `hasMatch`. Null and non-string
+context routes never match.
 
 ### Conditions (`when` / `route` / `requiresAuth` / `setContext`)
 
@@ -217,8 +288,8 @@ conditions stop holding is auto-dismissed unless `dismissWhenUnmet: false`.
 // Feed your real navigation / auth state into the manager:
 manager.setContext({'route': '/promo', 'auth': true});
 
-// Sugar: show only on a route (String, List<String> or RegExp) ...
-manager.open(id: 'promo', route: '/promo', present: dialogs((ctx, close) => const PromoCard()));
+// Sugar: show only on a route (RouteMatcher.exact / anyOf / regex) ...
+manager.open(id: 'promo', route: const RouteMatcher.exact('/promo'), present: dialogs((ctx, close) => const PromoCard()));
 // ... only when authenticated ...
 manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
 // ... or an arbitrary predicate (sole authority when given):
@@ -281,7 +352,7 @@ override an unrelated manual pause, and a manual `resumeAll()` doesn't
 override an active zone.
 
 ```dart
-final manager = Layerman(pauseOnRoutes: ['/checkout']);
+final manager = Layerman(pauseOnRoutes: const [RouteMatcher.exact('/checkout')]);
 // While the tracked route is '/checkout', no new overlay shows — queued ones
 // wait and activate the moment the route changes away.
 ```
@@ -469,6 +540,25 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
   Future<void> write(String key, String value) async =>
       (await SharedPreferences.getInstance()).setString(key, value);
 }
+```
+
+`cooldownStatus(id, cooldown)` returns `OverlayCooldownStatus`: `canShow` means
+all caps pass; `permanentlyBlocked` means session/total exhaustion. `wait` is
+`Duration.zero` when eligible, the longest remaining time wait otherwise, or
+`null` when permanently blocked or awaiting persisted-counter hydration.
+`resetCooldown(id)` clears that id's session and persisted counters;
+`clearCooldowns()` clears all counters. Both re-evaluate waiting entries and
+persist the reset. Resetting cannot restore entries already ended as `capped`.
+
+```dart
+const cap = OverlayCooldown(session: 2, minGap: Duration(minutes: 5));
+final status = manager.cooldownStatus('promo', cap);
+if (status.canShow) {
+  manager.open<void>(id: 'promo', cooldown: cap,
+    present: dialogs<void>((ctx, close) => const Text('Promo')));
+}
+manager.resetCooldown('promo');
+manager.clearCooldowns();
 ```
 
 ### Backend-driven `resolve`
@@ -837,7 +927,7 @@ Layerman({
   OverlayCooldownStorage? cooldownStorage, // default MemoryCooldownStorage
   String storageKey = 'layerman:cooldown',
   DateTime Function()? now,                // injectable clock (tests)
-  List<Object> pauseOnRoutes = const [],   // String / List<String> / RegExp patterns
+  List<RouteMatcher> pauseOnRoutes = const [],   // typed route matchers
 })
 ```
 
@@ -864,6 +954,11 @@ Layerman({
 | `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
 | `void dismiss(String id)` | `close(id)` with a `null` result. |
 | `void remove(String id)` | Remove immediately, no exit grace; bypasses `beforeClose`. |
+| `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | Inspect eligibility without incrementing counters. |
+| `void resetCooldown(String id)` | Reset session and persisted counters for one id and re-schedule. |
+| `void clearCooldowns()` | Reset all cooldown counters and re-schedule. |
+| `void clearTag(String tag)` | Remove all entries with this tag, bypass guards; outcome `removed`. |
+| `int get debugSlotCount` | Testing-only runtime slot count, excludes configuration. |
 | `void clear()` | Remove everything (queued + active); pending results resolve `null`. |
 | `void clearWhere(bool Function(OverlayRecord) test)` | Selectively remove matching entries. |
 | `void update(String id, Object? patch)` | Merge `patch` into `data` (map-into-map shallow-merge, else replace) and notify listeners; no queue change. |
@@ -873,7 +968,7 @@ Layerman({
 | `void dispose()` | Cancel timers, clear entries, dispose the notifier. Afterwards `open()` asserts in debug (returns `null` without presenting in release) and every other mutator is a no-op. |
 
 Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
-`notifyListeners` (fired on every state transition).
+`notifyListeners` (manager notifications are batched per operation).
 
 #### `open<T>` / `submit<T>` parameters
 
@@ -882,17 +977,17 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 | `Present<T> present` | required | Renders (and later closes) the overlay through your UI backend — see [integration section](#integrating-other-overlay-libraries-the-present-adapter). |
 | `String? id` | auto | Unique id. Reusing an *active* id replaces it in place; reusing a *queued* id overrides that entry. |
 | `Object? data` | `null` | Opaque payload, read via `PresentContext.data` / `OverlayRecord.data`. |
+| `Set<String>? tags` | `null` (empty set) | Copied into an immutable set, exposed by `OverlayRecord.tags`; select entries with `clearTag`. |
 | `String slot` | `''` | Named serial queue (independent lanes run in parallel). |
 | `int priority` | `0` | Higher shows first; ties break FIFO. |
 | `Duration? delay` | `null` | Appear delay before this overlay shows. |
 | `Duration? expireAfter` | `null` | Maximum serial wait before activation; includes pauses, ignores overlap. |
 | `Duration? resolveTimeout` | `null` (inherit) | Per-entry resolve timeout; `Duration.zero` disables. |
 | `Duration? duration` | `null` | Auto-close after this long once shown. |
-| `bool replace` | `false` | Preempt the slot's current overlay — it is **closed** (result `null`), never re-queued — and show now. |
+| `OverlayMode mode` | `OverlayMode.queue` | `queue`: serial; `replace`: preempt and discard the current entry (result `null`, never re-queued); `overlap`: bypass the queue, now-or-never. |
 | `bool affix` | `false` | Protect the current overlay from being `replace`d. |
-| `bool overlap` | `false` | Bypass the queue and stack immediately (now-or-never). |
 | `OverlayPredicate? when` | `null` | Condition predicate; sole authority when present. |
-| `Object? route` | `null` | Route gate sugar: `String`, `List<String>` or `RegExp` vs `context['route']`. |
+| `RouteMatcher? route` | `null` | Typed matcher against `context['route']`; ignored when `when` is provided. |
 | `bool? requiresAuth` | `null` | Auth gate sugar vs `context['auth']`; `false` means guests only. |
 | `bool dismissWhenUnmet` | `true` | Auto-dismiss a *shown* overlay whose conditions stop holding. |
 | `OverlayCooldown? cooldown` | `null` | Frequency cap (see `OverlayCooldown`); requires an explicit `id`. |
@@ -937,6 +1032,15 @@ run) is in memory; `total` / `day` / `hour` / `minute` (local calendar buckets)
 and `minGap` (rolling minimum spacing) are persisted. Fields: `session`,
 `total`, `day`, `hour`, `minute`, `minGap`.
 
+### `OverlayMode` / `RouteMatcher` / `OverlayPhase` / `OverlayCooldownStatus`
+
+| Type | Contract |
+| --- | --- |
+| `OverlayMode` | `queue`, `replace`, `overlap`; `mode` defaults to `queue`. |
+| `RouteMatcher` | `const RouteMatcher.exact(String path)`, `const RouteMatcher.anyOf(List<String> paths)`, `RouteMatcher.regex(RegExp pattern)`; `bool matches(Object? route)`. Do not mutate the `anyOf` input list. |
+| `OverlayPhase` | `pending`, `resolving`, `open`, `closing`; used by `OverlayRecord.phase`. |
+| `OverlayCooldownStatus` | `const OverlayCooldownStatus({required bool canShow, required bool permanentlyBlocked, required Duration? wait})`; final fields of the same names. |
+
 ### `OverlayCooldownStorage` / `MemoryCooldownStorage`
 
 ```dart
@@ -953,7 +1057,8 @@ instance preserves counters across manager recreation, but not process restart. 
 
 Read-only snapshot handed to `clearWhere`. Fields: `final String id`,
 `final String slot`, `final Object? data`, `final bool active`,
-`final String phase` (`'pending'` / `'resolving'` / `'open'` / `'closing'`).
+`final OverlayPhase phase`, `final Set<String> tags` (copied, read-only).
+Compare phases with `OverlayPhase.pending` / `resolving` / `open` / `closing`.
 
 ### `Present<T>` / `PresentContext` / `PresentedOverlay<T>`
 
@@ -1057,6 +1162,9 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
 - **串行队列**:每个 slot 一次只显示一个,当前移除后下一个才显示,可设 `gap` 间隔。
 - **具名 slot**:相互独立、可并行的多条串行队列(如 `toast` 与 `dialog`)。
 - **优先级**:高者先显示,同级 FIFO。
+- **1.0 类型契约**：`mode: OverlayMode.queue/replace/overlap`、`RouteMatcher`、`OverlayPhase`。
+- **查询与分组**：`cooldownStatus`（`OverlayCooldownStatus`）、`resetCooldown` / `clearCooldowns`、复制的 `tags` / `clearTag`。
+- **帧安全提交**：`build()` 期间 `open` 推迟展示与通知；管理器通知按操作合并，空闲 slot 自动回收。
 - **`replace`**:抢占当前浮层立即显示(跳过待定 gap;排在已入队项之前);被顶掉的
   浮层会被**关闭**(结果为 `null`)——一个已被 dismiss 的后端没法被如实地重新呈现,
   所以它不会再次显示。
@@ -1101,7 +1209,7 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
 
 ```yaml
 dependencies:
-  layerman: ^0.3.0
+  layerman: ^1.0.0
 ```
 
 ```dart
@@ -1180,24 +1288,84 @@ if (ok == true) doDelete(); // 点遮罩 dismiss -> ok == null
 `open()` 立即返回一个 `Future<T?>`;浮层可能马上显示,也可能在队列里等待,future 在
 它最终关闭时兑现。
 
+### 从 0.x 迁移
+
+所有破坏性改动见 [CHANGELOG 的 1.0.0 迁移表](CHANGELOG.md#100)。
+
+### 在 `build()` 期间打开浮层（Building overlays during `build()`）
+
+`open` 在 `build()` 期间自动将 `present` 与管理器通知推迟到帧后，仍立即返回 Future。
+排队保持顺序，展示前重新检查暂停、条件与 hydrate。请防止重复 build 导致重复提交：
+
+```dart
+class PromoTrigger extends StatefulWidget {
+  const PromoTrigger({super.key, required this.manager, required this.present});
+  final Layerman manager;
+  final Present<void> present;
+
+  @override
+  State<PromoTrigger> createState() => _PromoTriggerState();
+}
+
+class _PromoTriggerState extends State<PromoTrigger> {
+  bool _submitted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_submitted) {
+      _submitted = true;
+      widget.manager.open<void>(id: 'build-promo', present: widget.present);
+    }
+    return const SizedBox.shrink();
+  }
+}
+```
+
+### 通知按操作合并（Notifications are batched per operation）
+
+一次公开操作在同步变更完成后最多通知一次管理器监听者；异步续体是独立批次。
+build 期间的通知合并到帧后；`dataListenable` 与异步 `events` 是独立通道。
+
+### 标签（Tags）
+
+`tags` 默认空集合，提交时复制为只读的 `OverlayRecord.tags`。
+`clearTag(tag)` 移除含该标签的 pending、resolving、open、closing 条目，
+绕过 `beforeClose`，结束原因为 `removed`。
+
+```dart
+manager.open<void>(id: 'campaign', tags: {'promo', 'home'},
+  present: dialogs<void>((ctx, close) => const Text('Campaign')));
+final record = manager.recordOf('campaign');
+if (record?.phase == OverlayPhase.open) {
+  manager.clearTag('promo');
+}
+```
+
 ### 队列 / 优先级 / replace / affix / overlap
+
+`mode` 只选择一种 `OverlayMode`：`queue`（默认）、`replace` 或 `overlap`。
+`affix` 独立设置；replace 与 overlap 不能组合。
 
 ```dart
 manager.open(id: 'welcome', present: dialogs((ctx, close) => const WelcomeSheet()));
 manager.open(id: 'promo', priority: 10, present: dialogs((ctx, close) => const PromoCard())); // 插队靠前
 
 // 抢占当前浮层(它会被关闭,结果 null——已被 dismiss 的后端没法如实重新呈现):
-manager.open(id: 'session-expired', replace: true, present: dialogs((ctx, close) => const ExpiredDialog()));
+manager.open(id: 'session-expired', mode: OverlayMode.replace, present: dialogs((ctx, close) => const ExpiredDialog()));
 
 // 固定当前浮层,replace 顶不掉它:
 manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
 // 绕过队列,立刻叠加:
-manager.open(id: 'net-error', overlap: true, present: dialogs((ctx, close) => const ErrorBanner()));
+manager.open(id: 'net-error', mode: OverlayMode.overlap, present: dialogs((ctx, close) => const ErrorBanner()));
 
 // 并行的独立串行队列:
 manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('已保存')));
 ```
+
+`RouteMatcher.exact('/promo')` 匹配单一路径；
+`const RouteMatcher.anyOf(['/promo', '/home'])` 匹配列表任一路径；
+`RouteMatcher.regex(RegExp(r'^/promo/'))` 使用 `hasMatch`。上下文路由为 null 或非字符串时不匹配。
 
 ### 条件(`when` / `route` / `requiresAuth` / `setContext`)
 
@@ -1207,7 +1375,7 @@ manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toa
 ```dart
 manager.setContext({'route': '/promo', 'auth': true}); // 把真实导航/登录态喂进来
 
-manager.open(id: 'promo', route: '/promo', present: dialogs((ctx, close) => const PromoCard()));
+manager.open(id: 'promo', route: const RouteMatcher.exact('/promo'), present: dialogs((ctx, close) => const PromoCard()));
 manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
 manager.open(
   id: 'vip',
@@ -1258,7 +1426,7 @@ MaterialApp(
 暂停,手动 `resumeAll()` 也不会顶掉一次仍生效的免打扰区。
 
 ```dart
-final manager = Layerman(pauseOnRoutes: ['/checkout']);
+final manager = Layerman(pauseOnRoutes: const [RouteMatcher.exact('/checkout')]);
 // 追踪到的路由是 '/checkout' 期间,不会有新浮层显示——排队的等着,
 // 路由一变就立刻激活。
 ```
@@ -1421,6 +1589,23 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 
 **0.3.0 行为变更：** `session` / `total` 耗尽的串行条目在调度检查到时丢弃，结果为
 `null`（`capped`），不再永久等待。需要可重试的等待请使用时间型冷却，新活动使用新 id。
+
+`cooldownStatus(id, cooldown)` 返回 `OverlayCooldownStatus`：`canShow` 表示全部上限通过，
+`permanentlyBlocked` 表示 session/total 耗尽。`wait` 可展示时为 `Duration.zero`，
+时间冷却时为最长剩余等待，永久受阻或等待读取持久化计数时为 `null`。
+`resetCooldown(id)` 清除该 id 的 session 与持久化计数，`clearCooldowns()` 清除全部计数；
+两者都会重判等待条目并持久化重置，但不会复活已以 `capped` 结束的条目。
+
+```dart
+const cap = OverlayCooldown(session: 2, minGap: Duration(minutes: 5));
+final status = manager.cooldownStatus('promo', cap);
+if (status.canShow) {
+  manager.open<void>(id: 'promo', cooldown: cap,
+    present: dialogs<void>((ctx, close) => const Text('Promo')));
+}
+manager.resetCooldown('promo');
+manager.clearCooldowns();
+```
 
 ### 后端驱动 `resolve`
 
@@ -1734,6 +1919,17 @@ manager.open<void>(
    决定——想要明确控制,就在你自己的 `OverlayEntry` 里插到你要的深度。
 
 ## 完整 API 参考
+
+| 1.0 成员 / 类型 | 契约 |
+| --- | --- |
+| `OverlayMode mode` | 默认 `OverlayMode.queue`；可选 `replace` / `overlap`，不能同时选择。 |
+| `RouteMatcher? route` / `List<RouteMatcher> pauseOnRoutes` | 默认 null / 空列表；使用 `exact` / `anyOf` / `regex`；null 或非字符串路由不匹配，`anyOf` 的输入列表不可修改。 |
+| `OverlayPhase` / `OverlayRecord.phase` | `pending` / `resolving` / `open` / `closing`，使用枚举比较。 |
+| `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | 查询 `canShow`、`permanentlyBlocked`、`wait`，不增加计数。 |
+| `void resetCooldown(String id)` / `void clearCooldowns()` | 重置单 id / 全部 session 和持久化计数并重调度。 |
+| `Set<String>? tags` / `OverlayRecord.tags` | 参数默认 null（空集合）；提交时复制为只读集合。 |
+| `void clearTag(String tag)` | 批量移除带标签条目，绕过守卫，原因 `removed`。 |
+
 
 见上文英文的 [Full API reference](#full-api-reference) 表格,列出了所有导出符号:
 `Layerman`(构造 + 全部方法/getter,含 `pauseOnRoutes`/`currentRoute`)、

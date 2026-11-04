@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1400 1150" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
       .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
@@ -20,7 +20,7 @@
     </marker>
   </defs>
 
-  <text x="700" y="30" text-anchor="middle" class="text-title">Layerman 架构图</text>
+  <text x="700" y="30" text-anchor="middle" class="text-title">Layerman 1.0.0 架构图</text>
   <text x="700" y="50" text-anchor="middle" class="text-label">headless 弹层队列编排器 | 只决定何时、哪个显示，渲染交给 present 后端</text>
 
   <!-- 应用代码 -->
@@ -92,7 +92,7 @@
   <!-- 生命周期 -->
   <rect x="950" y="275" width="400" height="235" class="box" rx="8"/>
   <text x="1150" y="302" text-anchor="middle" class="text-title">条目生命周期</text>
-  <text x="1150" y="322" text-anchor="middle" class="text-label">pending → resolving → open → closing → 移除</text>
+  <text x="1150" y="322" text-anchor="middle" class="text-label">OverlayPhase: pending → resolving → open → closing</text>
   <text x="970" y="344" class="text-small">pending：入队，可带 delay，等槽位</text>
   <text x="970" y="358" class="text-small">resolving：resolveTimeout 默认 30s；replace 可抢占</text>
   <text x="970" y="374" class="text-small">open：调用 present、记冷却、起 duration 计时</text>
@@ -101,7 +101,7 @@
   <text x="970" y="426" class="text-small">  → exitDuration → 移除；dismissTimeout 防止卡槽</text>
   <text x="970" y="448" class="text-small">绕过守卫：remove / clear / duration 到期 /</text>
   <text x="970" y="464" class="text-small">  dismissWhenUnmet / replace</text>
-  <text x="970" y="486" class="text-small">结果只交付一次；externalDone 防重入</text>
+  <text x="970" y="486" class="text-small">结果只交付一次；dismissRequested 限制关闭请求一次</text>
 
   <path d="M 900 392 L 950 392" class="arrow"/>
   <text x="925" y="384" text-anchor="middle" class="text-small">激活</text>
@@ -167,5 +167,27 @@
 
   <!-- 说明 -->
   <text x="700" y="915" text-anchor="middle" class="text-small">实线：主调用链 | 细线：旁路与回调 | 黄色：外部扩展点或旁路组件 | 绿色：资格与协议契约</text>
-  <text x="700" y="932" text-anchor="middle" class="text-small">核心只依赖 dart:async / dart:convert / flutter/foundation；观察者/生命周期依赖 widgets；route presenters 依赖 Material</text>
+  <text x="700" y="932" text-anchor="middle" class="text-small">核心依赖 dart:async / dart:convert / flutter/foundation / scheduler；观察者/生命周期依赖 widgets；route presenters 依赖 Material</text>
+  <!-- 1.0 类型契约与运行时边界，沿用原配色 -->
+  <rect x="50" y="960" width="400" height="155" class="box-api" rx="8"/>
+  <text x="250" y="985" text-anchor="middle" class="text-title">1.0 类型与分组</text>
+  <text x="70" y="1010" class="text-api">mode: OverlayMode.queue / replace / overlap</text>
+  <text x="70" y="1032" class="text-api">RouteMatcher.exact / anyOf / regex</text>
+  <text x="70" y="1054" class="text-api">OverlayRecord.phase: OverlayPhase</text>
+  <text x="70" y="1076" class="text-api">tags → read-only record.tags → clearTag</text>
+  <text x="70" y="1098" class="text-small">随机序列不变量测试守住状态与后端关闭次数</text>
+  <rect x="500" y="960" width="400" height="155" class="box" rx="8"/>
+  <text x="700" y="985" text-anchor="middle" class="text-title">批量通知与帧后展示</text>
+  <text x="520" y="1010" class="text-api">_batch → _notify → one manager notification</text>
+  <text x="520" y="1032" class="text-small">persistentCallbacks → post-frame 调度与通知</text>
+  <text x="520" y="1054" class="text-small">帧后重查 disposed / pause / 条件 / hydrate</text>
+  <text x="520" y="1076" class="text-small">空 slot：无 active / queue / gapPending / 计时器</text>
+  <text x="520" y="1098" class="text-small">仅回收运行时 slot，保留 slots 配置</text>
+  <rect x="950" y="960" width="400" height="155" class="box-plugin" rx="8"/>
+  <text x="1150" y="985" text-anchor="middle" class="text-title">冷却查询与重置</text>
+  <text x="970" y="1010" class="text-api">cooldownStatus → OverlayCooldownStatus</text>
+  <text x="970" y="1032" class="text-api">canShow / permanentlyBlocked / wait</text>
+  <text x="970" y="1054" class="text-api">resetCooldown(id) / clearCooldowns()</text>
+  <text x="970" y="1076" class="text-small">清 session + 持久化计数，再调度并串行写回</text>
+  <text x="970" y="1098" class="text-small">旧 id 不自动裁剪，保留 total 语义</text>
 </svg>

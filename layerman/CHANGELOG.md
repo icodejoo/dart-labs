@@ -1,3 +1,52 @@
+## 1.0.0
+
+**Breaking**
+
+| 0.x | 1.0.0 |
+| --- | --- |
+| `replace: true` | `mode: OverlayMode.replace` |
+| `overlap: true` | `mode: OverlayMode.overlap` |
+| Both omitted / false | Omit `mode` or use `mode: OverlayMode.queue` |
+| `replace: true, overlap: true` | No equivalent: select exactly one mode. |
+| `route: '/home'` | `route: const RouteMatcher.exact('/home')` |
+| `route: ['/home', '/promo']` | `route: const RouteMatcher.anyOf(['/home', '/promo'])` |
+| `route: RegExp(r'^/promo')` | `route: RouteMatcher.regex(RegExp(r'^/promo'))` |
+| `pauseOnRoutes: ['/checkout', RegExp(r'^/pay')]` | `pauseOnRoutes: [const RouteMatcher.exact('/checkout'), RouteMatcher.regex(RegExp(r'^/pay'))]` |
+| A list pattern inside `pauseOnRoutes` | Wrap that pattern with `RouteMatcher.anyOf(...)`. |
+| `record.phase == 'open'` | `record.phase == OverlayPhase.open` |
+
+* `open` and `submit` replace the `replace` / `overlap` booleans with `mode`
+  (default `OverlayMode.queue`). `affix` remains independent.
+* `route` is now `RouteMatcher?`; `pauseOnRoutes` is `List<RouteMatcher>`.
+  Choose `exact`, `anyOf` or `regex`; weakly typed patterns are no longer accepted.
+* `OverlayRecord.phase` is now `OverlayPhase`, with `pending`, `resolving`,
+  `open` and `closing` values, instead of strings.
+
+**Fixed**
+
+* Request backend `dismiss` at most once per entry. Randomized sequence tests
+  found that `close` followed by `remove`, `clear` or a dismiss timeout could
+  request dismissal again. Non-idempotent backends such as `popUntil` or
+  `Get.back()` could then close another overlay. The `dismissRequested` guard
+  prevents retries, including after a failing dismiss; targeted handles remain required.
+* `open` during `build()` defers presentation and manager notifications until
+  after the frame instead of presenting and notifying synchronously.
+* Batch manager notifications per public operation so listeners see completed
+  synchronous changes rather than multiple intermediate notifications.
+* Reclaim empty runtime slots once they have no occupant, queued entries,
+  pending gap or gap/delay/cooldown timers.
+
+**Added**
+
+* `cooldownStatus` returning `OverlayCooldownStatus`, `resetCooldown` and
+  `clearCooldowns` for inspecting and resetting session and persisted counters.
+* Copied, read-only `tags` on records and `clearTag` for grouped removal.
+* `OverlayMode`, `RouteMatcher` and `OverlayPhase` typed public contracts.
+* Randomized sequence invariant tests (`test/fuzz_invariants_test.dart`),
+  regression coverage for batched notifications, build deferral and slot reclamation.
+* Example demonstrations for the new modes, route matchers, cooldown inspection
+  and reset, tags and build-time submission.
+
 ## 0.3.0
 
 **Fixed**

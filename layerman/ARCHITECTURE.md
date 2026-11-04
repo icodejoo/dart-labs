@@ -1,7 +1,7 @@
 # Layerman 架构文档
 
-本文按 `lib/` 当前代码、`.claude/skills/layerman/SKILL.md` 校准，行为口径为 0.3.0。
-第 15 节是规划，尚未实现，其中的名字不要当成现有 API。
+本文按 `lib/` 当前代码、`.claude/skills/layerman/SKILL.md` 校准，行为口径为 1.0.0。
+第 15 节区分有意不做与尚未提供的能力，不代表现有 API。
 
 ## 1. 定位
 
@@ -10,8 +10,8 @@ headless 弹层队列编排器：只决定「何时、哪个」弹层显示，�
 `bot_toast`、自管 `OverlayEntry` 都行），调度权归本包，渲染权归后端。
 `open<T>()` 返回 `Future<T?>`，用法对齐 `showDialog`。
 
-依赖面：核心只用 `dart:async`、`dart:convert` 和 `package:flutter/foundation.dart`
-（`ChangeNotifier`、`FlutterError`）。路由观察者与生命周期绑定依赖 `package:flutter/widgets.dart`，路由 presenter 依赖 Material。
+依赖面：核心只用 `dart:async`、`dart:convert` 、`package:flutter/foundation.dart` 和 `package:flutter/scheduler.dart`
+（`ChangeNotifier`、`FlutterError`、`SchedulerBinding`）。路由观察者与生命周期绑定依赖 `package:flutter/widgets.dart`，路由 presenter 依赖 Material。
 主包零第三方运行时依赖。
 
 ## 2. 文件结构与导出
@@ -19,7 +19,7 @@ headless 弹层队列编排器：只决定「何时、哪个」弹层显示，�
 ```text
 lib/layerman.dart                        公开入口，只导出下列符号
 lib/src/overlay_manager.dart             引擎：Layerman、OverlayTicket、OverlayHold 及内部状态
-lib/src/overlay_types.dart               原因、结果、事件、槽位配置
+lib/src/overlay_types.dart               模式、路由匹配、阶段、冷却快照、原因、结果、事件、槽位配置
 lib/src/route_managers.dart              DialogManager / BottomSheetManager / presentRoute
 lib/src/lifecycle_binding.dart           LayermanLifecycle
 lib/src/overlay_navigator_observer.dart  LayermanNavigatorObserver
@@ -28,6 +28,9 @@ test/robustness_test.dart                0.2.2 加固回归（类型校验、hyd
 test/readme_recipe_test.dart             历史手写 Route 配方回归
 test/engine_v030_test.dart               冷却耗尽、超时、接管、数据、观测回归
 test/engine_v030b_test.dart              票据、事件、holds、过期、槽位配置
+test/engine_v030c_test.dart              build 推迟、批量通知、slot 回收、冷却重置、标签
+test/api_v1_test.dart                   1.0 类型契约
+test/fuzz_invariants_test.dart          随机序列不变量与 dismiss 去重回归
 test/observer_filter_test.dart          PageRoute 过滤与 contextKey
 test/route_managers_test.dart           Route presenter 定向关闭与配置
 test/lifecycle_binding_test.dart        生命周期暂停绑定
@@ -39,9 +42,10 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 `MemoryCooldownStorage`、`OverlayRecord`、`PresentContext`、`PresentedOverlay`、
 `Present`、`LayermanNavigatorObserver`、`OverlayTicket`、`OverlayHold`、
 `OverlayEndReason`、`OverlayOutcome`、`OverlayEvent`、`OverlayEventType`、`OverlaySlotOptions`、
-`DialogManager`、`BottomSheetManager`、`presentRoute`、`LayermanLifecycle`。
+`DialogManager`、`BottomSheetManager`、`presentRoute`、`LayermanLifecycle`、
+`OverlayMode`、`RouteMatcher`、`OverlayPhase`、`OverlayCooldownStatus`。
 
-`_Entry`、`_Slot`、`_CooldownStore`、`_CooldownRecord`、`_EntryPhase` 均为库私有。
+`_Entry`、`_Slot`、`_CooldownStore`、`_CooldownRecord` 均为库私有。
 
 ## 3. 核心状态
 
@@ -49,7 +53,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 - `_slots`：`Map<String, _Slot>`，默认槽位名 `''`。每个 `_Slot` 含 `active`（0 或 1 个占位者）、
   `queue`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`。
-- `_overlaps`：`overlap: true` 的并发栈，不占槽位。
+- `_overlaps`：`mode: OverlayMode.overlap` 的并发栈，不占槽位。
 - `_pendingOverlaps`：暂停期间、或等待冷却存储 hydrate 时被挂起的 overlap。
 - `_byId`：id 到条目的映射，**唯一事实来源**。异步回调一律用 `_isCurrent(e)`
   （`_byId[e.id] == e`）判断条目是否仍有效。
@@ -69,7 +73,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ## 4. 条目生命周期
 
-`_EntryPhase`：`pending → resolving → open → closing → 移除`。
+`OverlayPhase`：`pending → resolving → open → closing → 移除`。
 
 | 迁移 | 触发 |
 | --- | --- |
@@ -105,7 +109,9 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 `close` 的结果或后端 dismissed 的值先到者生效，之后的移除不会覆盖首次值与原因。`_settle(e, result, reason)` 必须带原因，
 首次兑现同时完成 `result` / `outcome` 并发 `ended`；不代表退场动画已经结束。关闭超时也不改写首次原因。
 
-`OverlayRecord.phase` 暴露的是 `pending` / `resolving` / `open` / `closing` 的名字。
+`OverlayRecord.phase` 是 `OverlayPhase` 枚举：`pending` / `resolving` / `open` / `closing`，不再暴露字符串。
+`mode` 默认 `OverlayMode.queue`，可选 `replace` / `overlap`；二者不能组合，`affix` 独立。
+内部仍以不可变的 `replace` 字段参与排序，以 overlap 集合表示并发条目。
 
 ## 5. 调度
 
@@ -119,7 +125,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 资格 = 条件 + 冷却（再加 hydrate 门控）。
 
 - 条件：给了 `when` 则它是**唯一权威**，`route` / `requiresAuth` 被忽略；否则 `route`
-  （`String` / `List<String>` / `RegExp`）匹配 `_context['route']`，且 `requiresAuth` 与
+  （`RouteMatcher?`）匹配 `_context['route']`，且 `requiresAuth` 与
   `_context['auth'] == true` 一致。`requiresAuth: false` 表示「仅游客」。
 - 冷却：`_CooldownStore` 逐项检查，见第 9 节。
 - hydrate 门控：存储读取完成前，带持久化上限（`total` / `day` / `hour` / `minute` /
@@ -145,7 +151,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.5 replace 抢占
 
-`open(replace: true)` 仅当自身满足资格、管理器未暂停时才抢占；当前项 `affix` 则不抢占，
+`open(mode: OverlayMode.replace)` 仅当自身满足资格、管理器未暂停时才抢占；当前项 `affix` 则不抢占，
 抢占者留在队列前排带，等当前项走后显示。抢占时：
 
 - 被抢占者直接关闭（`_discardActive`：结果 `null`、尽力 dismiss 后端），**不回队列**，
@@ -171,7 +177,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 close(id, result)
   → 校验 result 类型（不符抛 ArgumentError，条目状态不变）
   → beforeClose 守卫（false/抛异常取消；异步未决期间同条目的重复 close 被忽略）
-  → _doClose：停 duration 计时 → settle 结果 → phase = closing → notifyListeners
+  → _doClose：停 duration 计时 → settle 结果 → phase = OverlayPhase.closing → _notify（批次结束合并通知）
   → 后端 dismiss(result)
   → 后端 dismissed 触发 _onExternalDismissed
   → exitDuration 宽限（可选）
@@ -219,8 +225,11 @@ final f = layerman.open<bool>(
   传 `null` 则编排器无法抢占它，`close` 只把它从队列摘掉，后端自管生命周期。
 - 后端异常隔离：`present` 同步抛异常则上报、丢弃条目（结果 `null`、不记冷却）、队列继续；
   `dismiss` 同步抛或异步失败只上报，不外抛。
-- `externalDone`：后端已报告关闭（或已被通知关闭）后置位，晚到的 dismissed 信号不会重复驱动移除。
-  对 replace / clear / remove 掉的仍在显示的条目，先置位再尽力 dismiss（fire-and-forget）。
+- `externalDone` 防止已移除条目的晚到 dismissed 信号再次驱动移除。
+- `dismissRequested` 在请求后端 dismiss **之前**置位，所有关闭路径共用该标记，
+  每个条目最多请求一次，包括同步抛错、异步失败以及 close 后的 remove / clear / dismiss 超时。
+  随机序列测试发现原实现会重复请求，令 `popUntil` / `Get.back()` 等非幂等后端误关其他弹层；
+  该修复不替代后端定点关闭的契约。
 
 `route_managers.dart` 提供可全局复用的 `DialogManager` / `BottomSheetManager`，只保存配置。
 `presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` 推入并保留 Route，
@@ -236,12 +245,19 @@ final f = layerman.open<bool>(
 2. 更新免打扰区（`_updateRouteZone`，见第 10 节）；
 3. 对已显示且 `dismissWhenUnmet`（默认 true）而条件不再满足的条目执行 `_remove`；
 4. 对每个槽位重调度；
-5. `notifyListeners()`。
+5. `_notify()` 登记批次结束后的通知。
 
 保留键：`route`（`String`）和 `auth`（`bool`），其余键给 `when` 谓词自由使用。
 `when` 收到缓存的不可变上下文视图，每次 `setContext` 后失效重建。`currentRoute` 读回 `_context['route']`。
 
 `when` 抛异常视为不满足，并上报（每个条目只报一次）。
+
+### 8.1 类型化路由匹配
+
+`route` 接受 `RouteMatcher?`（默认 null），`pauseOnRoutes` 接受 `List<RouteMatcher>`（默认空列表）。
+`const RouteMatcher.exact(path)` 精确比较，`const RouteMatcher.anyOf(paths)` 匹配任一路径，
+`RouteMatcher.regex(pattern)` 调用 RegExp.hasMatch；`matches(Object? route)` 对 null 或非字符串返回 false。
+`anyOf` 不复制传入列表，调用方不得修改列表。`when` 存在时仍独占条目资格判定，忽略 route / requiresAuth。
 
 ## 9. 冷却
 
@@ -264,12 +280,21 @@ final f = layerman.open<bool>(
   失败会上报，不影响调度。
 - 构造参数 `now` 可注入时钟，便于测试。
 
+### 9.1 查询与重置
+
+`cooldownStatus(String id, OverlayCooldown cooldown)` 不增加计数，返回 `OverlayCooldownStatus`：
+`canShow` 为全部上限通过，`permanentlyBlocked` 为 session / total 耗尽；`wait` 在通过时为
+Duration.zero，时间冷却时取最长剩余等待，永久受阻或等待持久化 hydrate 时为 null。
+`resetCooldown(String id)` / `clearCooldowns()` 同时清除 session 与持久化计数，复用串行写入；
+hydrate 未结束的重置也保留，旧存储不能将清掉的计数带回。重置后未暂停则重新调度，
+暂停期间仍保持冻结；已结束的 capped 条目不会复活。
+
 ## 10. 暂停
 
 三个来源，按 OR 组合，互不覆盖：
 
 - 手动：`pauseAll()` / `resumeAll()`。
-- 免打扰区：构造参数 `pauseOnRoutes`（`String` / `List<String>` / `RegExp`），每次 `setContext`
+- 免打扰区：构造参数 `pauseOnRoutes`（`List<RouteMatcher>`，默认空列表），每次 `setContext`
   后比对 `route`。
 
 - holds：`hold([Object? reason])` 返回 `OverlayHold`，`release()` 幂等，`holdCount` 只统计 holds。
@@ -343,17 +368,49 @@ Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超
 - **`ChangeNotifier` 监听**：状态变化后读 `activeIds` / `queuedIds` / `isPaused` 刷新 UI；
   `update(id, patch)` 也走这个通知。
 
-## 14. 已知限制（截至 0.3.0）
+### 13.1 批量通知与 build 期间推迟
+
+公开操作、票据关闭/移除及异步状态续体进入 `_batch`，嵌套调用增加 `_batchDepth`；
+内部状态变更统一调用 `_notify`，批次内只设置 `_notifyPending`。最外层结束先回收空槽，
+再统一通知，所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
+异步续体各自是独立批次；`dataListenable` 的同步值通知和 `events` 的异步广播不受此合并限制。
+
+`_inBuildPhase` 检查 `SchedulerBinding` 的 `SchedulerPhase.persistentCallbacks`。
+build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-frame 调度，
+挂起 overlap / 暂停释放通过 `_deferRelease` 与 `_releasePending` 合并帧后处理；
+`_notify` 用 `_frameNotifyPending` 推迟管理器通知。帧后再次检查销毁、暂停、条件与 hydrate，
+沿用正常调度；同 id 接管由 `_Slot.takeover` 保留优先权。帧后展示的通知可以覆盖同帧待发通知。
+`open` 仍立即返回 Future；调用方仍需防止重复 build 反复提交，不要把 build 当一次性事件。
+这里针对展示和管理器通知，不承诺所有用户回调或后端 dismiss 都自动推迟。
+
+### 13.2 slot 回收与标签
+
+最外层 `_batch` 退出时，从 `_slots` 删除 active 为空、queue 为空、gapPending 为 false，
+且 gapTimer / delayTimer / cooldownTimer 全部为 null 的运行时 slot。有计时器的空 slot
+必须保留；回收不修改公开 `slots` 配置，后续可按需重建。`debugSlotCount` 仅供测试观察运行时数量。
+
+`open` / `submit` 的 `Set<String>? tags` 默认 null，提交时复制成只读集合，
+经 `OverlayRecord.tags` 查询。`clearTag(String tag)` 复用 `clearWhere`，先移除全部匹配项再推进槽位，
+涵盖 pending / resolving / open / closing，绕过 beforeClose，首次结束原因为 removed。
+
+## 14. 已知限制（截至 1.0.0）
 
 - overlap 忽略 `delay`。
 - `requiresAuth: false` 表示「仅游客」，不是「不要求登录」。
-- `open` 在 build 期间被调用时会同步 present，可能触发 `markNeedsBuild during build`。
 
-## 15. 演进方向（规划中，尚未实现）
+## 15. 演进方向与取舍
 
-以下不是现有 API：
+### 有意不做
 
-- 统一资格判断 Gate：通过 / 等待到某时刻 / 丢弃并给原因，收敛散落分支。
-- 显式状态机与公开操作串行派发，避免监听者重入看到中间态。
-- 1.0 类型化 API 收口：overlap / replace 改枚举、route 参数类型化、phase 枚举。
-  具体方案等 0.3.0 在真实使用中稳定后再定。
+- **Gate（统一资格判断）**：不将通过 / 等待 / 丢弃抽成新协议。当前分支已覆盖条件、
+  hydrate、冷却、暂停和重入语义，1.0 前再集中重构的收益不足以抵消回归风险。
+- **显式状态机**：不增加独立状态机与公开操作串行派发框架。现有 `OverlayPhase` 表示阶段，
+  `_batch` 处理通知边界；引擎状态由随机序列不变量测试 `test/fuzz_invariants_test.dart`
+  守住，该安全网已抓到 dismiss 重复请求缺陷。当前重构收益不足以抵消回归风险。
+
+### 尚未提供
+
+- **slot 并发数 / 互斥关系**：串行 slot 仍只允许一个占位者，没有同 slot 多个同时出场的
+  可配置并发数，也没有跨 slot 互斥关系；overlap 仍走独立并发集合。
+- **冷却记录裁剪**：旧 id 计数需要永久保留以保证 `total` 语义，不能按年龄自动清理；
+  仅由调用方通过 resetCooldown / clearCooldowns 明确重置。
