@@ -1,9 +1,16 @@
 // AnimatedCounter — digit-rolling widget backed entirely by CustomPainter.
 //
-// Architecture: three files form one Dart library via `part`/`part of`:
-//   animated_counter.dart    — library root; AnimatedCounter + state
-//   _base_counter.dart       — _BaseAnimatedCounter + _BaseCounterState (shared engine)
-//   custom_digit_counter.dart — AnimatedCounterBuilder + state (widget-tree path)
+// Architecture: one Dart library split by responsibility via `part`/`part of`:
+//   animated_counter.dart            — library root; AnimatedCounter + state (painter path)
+//   _base_counter.dart               — _BaseAnimatedCounter (shared widget parameters)
+//   _counter_config.dart             — flat params / format / timeline merging
+//   _counter_timeline.dart           — effective duration / curve / speed resolution
+//   _counter_measure.dart            — number formatting, glyph measuring, semantics
+//   _counter_tint.dart               — direction colour tint (palette + style cache)
+//   _counter_controller_binding.dart — AnimatedCounterController command wiring
+//   _counter_state.dart              — _BaseCounterState (interruptible playback state machine)
+//   digit_roll_engine.dart           — pure-Dart per-column roll maths (not a part)
+//   custom_digit_counter.dart        — AnimatedCounterBuilder + state (widget-tree path)
 //
 // Fast path (this file):
 //   Every animation frame calls _activePainter.update() + markNeedsPaint().
@@ -28,6 +35,7 @@ import 'package:countman/src/core/start_scheduler.dart';
 import '../painter/counter_painter.dart';
 import 'counter_controller.dart';
 import 'digit_column.dart';
+import 'digit_motion.dart';
 import 'digit_roll_engine.dart';
 import 'grouping.dart';
 import 'number_format.dart';
@@ -43,6 +51,12 @@ export 'counter_format.dart';
 export 'counter_timeline.dart';
 
 part '_base_counter.dart';
+part '_counter_config.dart';
+part '_counter_timeline.dart';
+part '_counter_measure.dart';
+part '_counter_tint.dart';
+part '_counter_controller_binding.dart';
+part '_counter_state.dart';
 part 'custom_digit_counter.dart';
 part 'animated_counter_style.dart';
 
