@@ -14,9 +14,10 @@ void main() {
       expect(Countman.pluginCount, 1);
     });
 
-    test('deduplicates by name', () {
-      Countman.use(_FakePlugin('a'));
-      Countman.use(_FakePlugin('a'));
+    test('deduplicates by identity', () {
+      final plugin = _FakePlugin('a');
+      Countman.use(plugin);
+      Countman.use(plugin);
       expect(Countman.pluginCount, 1);
     });
 
@@ -62,7 +63,9 @@ void main() {
     expect(Countman.isRunning, isFalse);
   });
 
-  testWidgets('start() is idempotent — tick fires exactly once', (tester) async {
+  testWidgets('start() is idempotent — tick fires exactly once', (
+    tester,
+  ) async {
     final p = _FakePlugin('a');
     Countman.use(p);
     Countman.start();
@@ -195,8 +198,11 @@ void main() {
 // ── helpers ───────────────────────────────────────────────────────────
 
 class _FakePlugin implements CountmanPlugin {
-  _FakePlugin(this.name, {this.busy = true, void Function(Duration, Duration)? onTick})
-      : _onTick = onTick;
+  _FakePlugin(
+    this.name, {
+    this.busy = true,
+    void Function(Duration, Duration)? onTick,
+  }) : _onTick = onTick;
 
   @override
   final String name;
@@ -211,11 +217,15 @@ class _FakePlugin implements CountmanPlugin {
   void onAttach(CountmanContext ctx) => attachedCtx = ctx;
 
   @override
-  bool tick(Duration elapsed, Duration dt) {
+  int tick(Duration elapsed, Duration dt) {
     tickCount++;
     _onTick?.call(elapsed, dt);
-    return busy;
+    return busy ? CountmanPlugin.nextFrame : CountmanPlugin.idle;
   }
+
+  /// 注销测试插件。
+  @override
+  void onDetach() {}
 
   @override
   void dispose() => disposed = true;
@@ -231,7 +241,11 @@ class _ThrowingPlugin implements CountmanPlugin {
   void onAttach(CountmanContext ctx) {}
 
   @override
-  bool tick(Duration elapsed, Duration dt) => throw Exception('plugin error');
+  int tick(Duration elapsed, Duration dt) => throw Exception('plugin error');
+
+  /// 注销测试插件。
+  @override
+  void onDetach() {}
 
   @override
   void dispose() {}

@@ -103,7 +103,8 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
   void _ensureUsable() {
     if (_disposed) {
       throw StateError(
-          'countman: plugin "$name" is disposed; create a new instance.');
+        'countman: plugin "$name" is disposed; create a new instance.',
+      );
     }
   }
 
@@ -151,8 +152,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
 
   /// Subscribe independently of legacy callback fields; invoke to unsubscribe.
   /// 独立分组订阅，解除时只移除本次绑定，兼容原有单槽回调。
-  VoidCallback addGroupListener(
-      {VoidCallback? onReady, VoidCallback? onDrained}) {
+  VoidCallback addGroupListener({
+    VoidCallback? onReady,
+    VoidCallback? onDrained,
+  }) {
     _ensureUsable();
     final key = Object();
     _groupListeners[key] = (onReady, onDrained);
@@ -169,12 +172,17 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     }
   }
 
+  /// 注入调度上下文；已销毁的实例不能重新挂载。
   @override
   void onAttach(CountmanContext c) {
     _ensureUsable();
     ctx = c;
     _attached = true;
   }
+
+  /// 标记为已注销；下一次添加任务会重新自注册。
+  @override
+  void onDetach() => _attached = false;
 
   /// Allocate a unique task id.
   @protected
@@ -185,25 +193,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
   @protected
   void enqueue(T task) {
     _ensureUsable();
-    // Lazily self-register on first use so a user-created plugin handed to a
-    // widget attaches without a manual Countman.use(). Idempotent by name; a
-    // name clash with an already-registered DIFFERENT instance leaves us
-    // unattached — surface that as a clear error instead of a cryptic
-    // LateInitializationError on [ctx].
-    //
-    // 首次使用时惰性自注册，使用户直接传给组件的插件无需手动 Countman.use() 即可挂载。
-    // 按名幂等；若与已注册的“另一个”同名实例冲突则仍未挂载——此时抛出清晰错误，
-    // 而非 [ctx] 上晦涩的 LateInitializationError。
-    if (!_attached) {
-      Countman.use(this);
-      if (!_attached) {
-        throw StateError(
-          'countman: plugin "$name" is not attached because a different plugin '
-          'with the same name is already registered. Give this plugin a unique '
-          'name (e.g. Countdown(name: "my-group", ...)).',
-        );
-      }
-    }
+    if (!_attached) Countman.use(this);
     final wasIdle = tasks.isEmpty && _pendingAdd.isEmpty;
     if (_ticking) {
       _pendingAdd.add(task);
@@ -296,12 +286,16 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
 
   // ── CountmanPlugin ────────────────────────────────────────────────
 
-  /// 逐任务隔离回调异常，终态任务始终清理，返回是否仍需续帧。
+  /// 活动任务默认逐帧运行；时钟子类覆盖为自己的边界时间。
+  @protected
+  int nextWake(T task) => CountmanPlugin.nextFrame;
+
+  /// 逐任务隔离回调异常并清理终态，返回最早唤醒微秒数。
   @override
-  bool tick(Duration elapsed, Duration dt) {
+  int tick(Duration elapsed, Duration dt) {
     // 已销毁插件不再接受帧驱动。
-    if (_disposed) return false;
-    if (tasks.isEmpty) return false;
+    if (_disposed) return CountmanPlugin.idle;
+    if (tasks.isEmpty) return CountmanPlugin.idle;
 
     final dtMs = dt.inMicroseconds / 1000.0;
     final shouldProcess = beginFrame(dtMs);
@@ -316,7 +310,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
       _liveDirty = false;
     }
 
-    var busy = false;
+    var wake = CountmanPlugin.idle;
     _ticking = true;
     try {
       for (var li = 0; li < _live.length; li++) {
@@ -336,7 +330,6 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
                 _disposed) {
               // 暂停中的初值不算已启动，恢复后仍需派发首次 start。
               if (!task.done && task.isPaused) task.started = false;
-              if (!task.done && !task.isPaused && !_disposed) busy = true;
               continue;
             }
             if (!task.startFired) {
@@ -349,19 +342,23 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
                 !_disposed) {
               afterInitial(task);
             }
-            if (!task.done && !task.isPaused && !_disposed) busy = true;
             continue;
           }
 
-          final stillBusy = step(task, dtMs, shouldProcess);
-          if (!task.done && stillBusy && !task.isPaused && !_disposed) {
-            busy = true;
-          }
+          step(task, dtMs, shouldProcess);
         } catch (error, stack) {
           _reportTaskError(task, error, stack, '回调');
-          if (!task.done && !task.isPaused && !_disposed) busy = true;
+          if (!task.done && !task.isPaused && !_disposed) {
+            wake = CountmanPlugin.nextFrame;
+          }
         } finally {
           if (task.done) _pendingRemove.add(task.id);
+          if (!task.done && !task.isPaused && !_disposed) {
+            final delay = task.started
+                ? nextWake(task)
+                : CountmanPlugin.nextFrame;
+            if (wake == CountmanPlugin.idle || delay < wake) wake = delay;
+          }
         }
       }
     } finally {
@@ -380,7 +377,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
         }
         _pendingAdd.clear();
         _liveDirty = true;
-        if (tasks.isNotEmpty && !_disposed) busy = true;
+        if (tasks.isNotEmpty && !_disposed) wake = CountmanPlugin.nextFrame;
       }
       // Reached only when the group was non-empty this frame (empty groups
       // early-return above), so an empty map here means it just drained.
@@ -388,17 +385,19 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
       if (_liveDirty || tasks.isEmpty || _disposed) _live.clear();
       if (tasks.isEmpty && !_disposed) _notifyGroup(false);
     }
-    return busy;
+    return _disposed ? CountmanPlugin.idle : wake;
   }
 
   /// 统一报告任务异常，保留插件、任务及回调阶段的上下文。
   void _reportTaskError(T task, Object error, StackTrace stack, String action) {
-    FlutterError.reportError(FlutterErrorDetails(
-      exception: error,
-      stack: stack,
-      library: 'countman',
-      context: ErrorDescription('插件 "$name" 的任务 ${task.id} $action异常'),
-    ));
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'countman',
+        context: ErrorDescription('插件 "$name" 的任务 ${task.id} $action异常'),
+      ),
+    );
   }
 
   /// 封闭队列并逐项报告取消异常；子类收尾始终执行。
@@ -408,8 +407,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     if (_disposed) return;
     _disposed = true;
     // 先摘除并终结全部任务，再通知；回调取消其他任务不会改变遍历集合。
-    final cancelled =
-        [...tasks.values, ..._pendingAdd].where((t) => !t.done).toList();
+    final cancelled = [
+      ...tasks.values,
+      ..._pendingAdd,
+    ].where((t) => !t.done).toList();
     for (final task in cancelled) {
       task.done = true;
     }

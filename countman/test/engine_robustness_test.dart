@@ -31,15 +31,23 @@ void main() {
     final p = Counter(name: 'isolation');
     p.onAttach(CountmanContext(requestFrame: () {}));
     var completed = false;
-    p.add(CounterOptions(
-        to: 1, duration: frame, onUpdate: (_) => throw StateError('update')));
-    p.add(CounterOptions(
+    p.add(
+      CounterOptions(
+        to: 1,
+        duration: frame,
+        onUpdate: (_) => throw StateError('update'),
+      ),
+    );
+    p.add(
+      CounterOptions(
         to: 1,
         duration: frame,
         onComplete: (_) {
           completed = true;
           throw StateError('complete');
-        }));
+        },
+      ),
+    );
     for (var i = 0; i < 4; i++) {
       p.tick(frame * i, frame);
     }
@@ -50,10 +58,13 @@ void main() {
     q.onAttach(CountmanContext(requestFrame: () {}));
     var drained = false;
     q.onQueueDrained = () => drained = true;
-    q.add(CounterOptions(
+    q.add(
+      CounterOptions(
         to: 1,
         duration: frame,
-        onComplete: (_) => throw StateError('complete')));
+        onComplete: (_) => throw StateError('complete'),
+      ),
+    );
     q.tick(Duration.zero, Duration.zero);
     q.tick(frame, frame);
     expect(q.activeTaskCount, 0);
@@ -64,8 +75,9 @@ void main() {
     final p = Counter(name: 'first');
     p.add(CounterOptions(to: 1, onCancel: () => throw StateError('cancel')));
     p.add(CounterOptions(to: 1, onCancel: () => cancelled++));
-    Counter(name: 'second')
-        .add(CounterOptions(to: 1, onCancel: () => cancelled++));
+    Counter(
+      name: 'second',
+    ).add(CounterOptions(to: 1, onCancel: () => cancelled++));
     Countman.destroy();
     expect(cancelled, 2);
     expect(errors.single.library, 'countman');
@@ -104,12 +116,15 @@ void main() {
     final updates = <int>[];
     var complete = false;
     var threshold = false;
-    p.add(CountdownOptions(
+    p.add(
+      CountdownOptions(
         duration: const Duration(milliseconds: 1500),
         threshold: const Duration(milliseconds: 250),
         onThreshold: () => threshold = true,
         onUpdate: (t) => updates.add(t.inMilliseconds),
-        onComplete: () => complete = true));
+        onComplete: () => complete = true,
+      ),
+    );
     p.add(const CountdownOptions(duration: Duration(seconds: 3)));
     p.tick(Duration.zero, Duration.zero);
     for (var ms = 16; ms <= 1504; ms += 16) {
@@ -128,14 +143,17 @@ void main() {
     p.onAttach(CountmanContext(requestFrame: () {}));
     var complete = false;
     final events = <String>[];
-    p.add(CountdownOptions(
+    p.add(
+      CountdownOptions(
         duration: Duration.zero,
         onUpdate: (_) => events.add('update'),
         onStart: () => events.add('start'),
         onComplete: () {
           events.add('complete');
           complete = true;
-        }));
+        },
+      ),
+    );
     p.tick(Duration.zero, Duration.zero);
     expect(complete, isTrue);
     expect(events, ['update', 'start', 'complete']);
@@ -143,14 +161,17 @@ void main() {
     e.onAttach(CountmanContext(requestFrame: () {}));
     late ElapsedHandle handle;
     var pauses = 0;
-    handle = e.add(ElapsedOptions(
+    handle = e.add(
+      ElapsedOptions(
         onPause: () => pauses++,
         onUpdate: (_) {
           handle.cancel();
           handle.pause();
           handle.resume();
           handle.reset();
-        }));
+        },
+      ),
+    );
     e.tick(Duration.zero, Duration.zero);
     expect(pauses, 0);
   });
@@ -162,8 +183,13 @@ void main() {
     var complete = false;
     var cancelled = false;
     final p = Counter(name: 'healthy');
-    p.add(CounterOptions(
-        to: 1, duration: frame, onComplete: (_) => complete = true));
+    p.add(
+      CounterOptions(
+        to: 1,
+        duration: frame,
+        onComplete: (_) => complete = true,
+      ),
+    );
     await tester.pump();
     await tester.pump(frame);
     expect(complete, isTrue);
@@ -196,10 +222,13 @@ void main() {
     p.onAttach(CountmanContext(requestFrame: () {}));
     var threshold = false;
     var updates = 0;
-    p.add(ElapsedOptions(
+    p.add(
+      ElapsedOptions(
         threshold: frame,
         onThreshold: () => threshold = true,
-        onUpdate: (_) => updates++));
+        onUpdate: (_) => updates++,
+      ),
+    );
     p.add(const ElapsedOptions());
     p.tick(Duration.zero, Duration.zero);
     now = frame;
@@ -223,9 +252,13 @@ class _ThrowingPlugin implements CountmanPlugin {
 
   /// 模拟插件级逐帧故障。
   @override
-  bool tick(Duration elapsed, Duration dt) => throw StateError('tick');
+  int tick(Duration elapsed, Duration dt) => throw StateError('tick');
 
   /// 模拟第三方插件销毁故障。
+  /// 注销测试插件。
+  @override
+  void onDetach() {}
+
   @override
   void dispose() => throw StateError('dispose');
 }
