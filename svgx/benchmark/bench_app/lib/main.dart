@@ -17,6 +17,7 @@ import 'package:svgx/svgx.dart';
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'bare_anim_grid.dart';
+import 'capture_hook.dart';
 import 'bench_screen.dart';
 import 'cmd_count_bench.dart';
 import 'compare_bench_screen.dart';
@@ -260,9 +261,13 @@ Future<void> main() async {
     // 单编译顺序模式：在这一个进程内依次跑完 svgx 静态 -> flutter_svg 静态 ->
     // anim -> anim_fps，再打印一份汇总报告。存在原因见
     // compare_bench_screen.dart（同一时段配对复测，一次编译代替最多四次）。
+    // wrapForCapture is the identity unless --dart-define=CAPTURE_DIR is set.
+    // 未设置 CAPTURE_DIR 时 wrapForCapture 原样返回。
     runApp(
-      MaterialApp(
-        home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
+      wrapForCapture(
+        MaterialApp(
+          home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
+        ),
       ),
     );
     return;

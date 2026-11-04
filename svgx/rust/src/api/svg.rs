@@ -376,7 +376,7 @@ pub struct SvgGradient {
 ///
 /// [current_color] substitutes for the `currentColor` keyword in fill/stroke
 /// paint values (0xAARRGGBB; alpha is ignored since SVG's `color` property
-/// carries no alpha). `usvg::Options` (0.44) has no built-in hook for this
+/// carries no alpha). `usvg::Options` (0.49) has no built-in hook for this
 /// (`currentColor` resolves via `usvg`'s own `color`-attribute cascade,
 /// defaulting to black), so when set, a `color="#RRGGBB"` attribute is
 /// injected onto the root `<svg>` element before parsing — letting usvg's
@@ -387,7 +387,7 @@ pub struct SvgGradient {
 ///
 /// [current_color] 用于替换 fill/stroke 中的 `currentColor` 关键字
 /// （0xAARRGGBB；alpha 会被忽略，因为 SVG `color` 属性本身不带 alpha）。
-/// `usvg::Options`（0.44）没有内置的注入钩子（`currentColor` 由 usvg 自身的
+/// `usvg::Options`（0.49）没有内置的注入钩子（`currentColor` 由 usvg 自身的
 /// `color` 属性级联解析，缺省时回退黑色），所以设置该参数时会在解析前给根
 /// `<svg>` 元素注入 `color="#RRGGBB"` 属性，借用 usvg 已有的级联机制解析；
 /// 若根节点已显式声明 `color`，则保留不覆盖。
@@ -644,7 +644,7 @@ fn local_urls(value: &str) -> impl Iterator<Item = &str> {
         // bounding malformed input, this still sees each later valid token.
         let end = tokens.peek().map_or(value.len(), |(next, _)| *next);
         let token = &value[i..end];
-        // svgtypes 0.15 keeps Stream private. Isolate one token (respecting
+        // svgtypes 0.16 keeps Stream private. Isolate one token (respecting
         // quoted IDs), then use its public FuncIRI parser for the same grammar.
         let mut quote = 0u8;
         for (end, c) in token.bytes().enumerate().skip(4) {
@@ -1751,6 +1751,12 @@ const MAX_EXPANSION_POINTS: usize = 4_000_000;
 const MAX_EXPANSION_PATHS: usize = 100_000;
 const EXPANSION_ERROR: &str = "SVG too complex: clip/mask expansion budget exceeded";
 
+/// Running totals charged against the clip/mask expansion limits. Internal only:
+/// ignored by FRB so no Dart binding is generated for it.
+///
+/// 已消耗的裁剪/遮罩展开配额累计值。仅内部使用：对 FRB 标记 ignore，
+/// 不生成 Dart 绑定。
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct ExpansionBudget {
     points: usize,
@@ -1790,9 +1796,20 @@ impl ExpansionBudget {
 
 /// Recursively walks a group, flattening path nodes into [out] while carrying
 /// [ctx] (clip/mask/blur inherited from ancestor groups) down the tree.
+/// In the main tree, normal Path/Image children have their parent's absolute
+/// transform (usvg 0.49 converter.rs:1006, image.rs:236-251).
+/// usvg 0.49's root background Path is inconsistent:
+/// `background_path` uses `Path::new_simple` and leaves its absolute transform
+/// at identity before the root group's viewBox transform is set. Using the
+/// parent fixes that background while preserving normal Path/Image output.
 ///
 /// 递归遍历分组，把路径节点扁平化收集进 [out]，同时把 [ctx]（从祖先分组继承的
 /// 裁剪/遮罩/模糊）沿树向下传递。
+/// 主树中普通 Path/Image 与父组的绝对变换相同（usvg 0.49 的
+/// converter.rs:1006、image.rs:236-251）。usvg 0.49
+/// 的根背景 Path 存在不一致：`background_path` 用 `Path::new_simple` 创建路径，
+/// 随后设置根组的 viewBox 变换，却把路径的绝对变换留在单位矩阵。改用父组
+/// 变换修复背景，同时保持普通 Path/Image 的输出不变。
 fn collect(
     group: &usvg::Group,
     ctx: &Inherited,
@@ -1828,7 +1845,8 @@ fn collect(
                 )?,
             },
             usvg::Node::Path(p) => {
-                if let Some(mut sp) = convert_path(p, &Transform::default()) {
+                if let Some(mut sp) = convert_path(p, &Transform::default(), &group.abs_transform())
+                {
                     // Fold the inherited clip/mask/blur into whatever pattern
                     // fields `convert_path` already produced.
                     // 把继承来的裁剪/遮罩/模糊，并入 `convert_path` 已经产出的
@@ -1849,7 +1867,13 @@ fn collect(
                 }
             }
             usvg::Node::Image(img) => {
-                if let Some(si) = convert_image(img, ctx, image_budget, expansion_budget)? {
+                if let Some(si) = convert_image(
+                    img,
+                    &group.abs_transform(),
+                    ctx,
+                    image_budget,
+                    expansion_budget,
+                )? {
                     images.push(si);
                 }
             }
@@ -2109,15 +2133,23 @@ fn build_mask_at_depth(mask: &usvg::Mask, base: &Transform, depth: usize) -> Opt
 }
 
 /// Flattens every path under [group] into [out], pre-multiplying [base] onto
-/// each node's own absolute transform. Used for subroots (mask/pattern
+/// each leaf's own absolute transform. Used for subroots (mask/pattern
 /// content), whose transforms are relative to their own root.
 ///
-/// 把 [group] 下的所有路径展平进 [out]，并把 [base] 预乘到每个节点自身的绝对
+/// 把 [group] 下的所有路径展平进 [out]，并把 [base] 预乘到每个叶子自身的绝对
 /// 变换上。用于子根（遮罩/图案内容）——它们的变换相对于各自的根。
 fn append_subtree_paths(group: &usvg::Group, base: &Transform, out: &mut Vec<SvgPath>) {
     append_subtree_paths_at_depth(group, base, out, 0);
 }
 
+/// Keeps subroot composition as base × leaf abs_transform. Unlike the main
+/// tree, usvg's push_pattern_transform only updates the wrapper group, leaving
+/// descendants unchanged (paint_server.rs TODO). Existing tile replay relies
+/// on those leaf values; objectBoundingBox content rendering remains a separate,
+/// pre-existing limitation.
+/// 子根保持 base × 叶子 abs_transform。与主树不同，usvg 的
+/// push_pattern_transform 只更新包裹组，未更新后代（paint_server.rs 的 TODO）。
+/// 现有贴片重放依赖这些叶子值；objectBoundingBox 内容渲染不正确是另一个既有问题。
 fn append_subtree_paths_at_depth(
     group: &usvg::Group,
     base: &Transform,
@@ -2131,7 +2163,7 @@ fn append_subtree_paths_at_depth(
         match node {
             usvg::Node::Group(g) => append_subtree_paths_at_depth(g, base, out, depth + 1),
             usvg::Node::Path(p) => {
-                if let Some(sp) = convert_path(p, base) {
+                if let Some(sp) = convert_path(p, base, &p.abs_transform()) {
                     out.push(sp);
                 }
             }
@@ -2145,12 +2177,15 @@ fn append_subtree_paths_at_depth(
 
 /// Converts a usvg `<image>` node into an [SvgImage]. Nested-SVG images
 /// (`ImageKind::SVG`) are skipped (returns `None`) — out of scope for this
-/// pass, no nested display-list flattening.
+/// pass, no nested display-list flattening. [parent_abs] is the direct parent
+/// group's absolute transform, equal to a normal image's absolute transform.
 ///
 /// 把 usvg `<image>` 节点转成 [SvgImage]。嵌套 SVG 的 image
 /// （`ImageKind::SVG`）跳过（返回 `None`）——本轮不做嵌套显示列表展平。
+/// [parent_abs] 是直接父组的绝对变换，与普通图片自身的绝对变换相同。
 fn convert_image(
     img: &usvg::Image,
+    parent_abs: &Transform,
     ctx: &Inherited,
     image_budget: &mut usize,
     expansion_budget: &mut ExpansionBudget,
@@ -2172,7 +2207,7 @@ fn convert_image(
     // 轴对齐的绝对矩形：后者无法表达旋转/斜切的祖先变换（见 [SvgImage.matrix]
     // 文档注释）——`convert_path` 靠逐点映射而非只取包围盒两角点，避开了同样
     // 的陷阱。
-    let t = img.abs_transform();
+    let t = *parent_abs;
     if !transform_to_vec6(&t).iter().all(|v| v.is_finite()) {
         return Ok(None);
     }
@@ -2308,10 +2343,12 @@ fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
 
 /// Converts a usvg path into an [SvgPath] with baked-in transform.
 ///
-/// [base] is pre-multiplied onto the node's own `abs_transform()`; pass
-/// `Transform::default()` for nodes in the main tree, and the referencing
-/// element's absolute transform for subroot content (mask/pattern), whose
-/// `abs_transform()` is relative to its own root.
+/// [base] is pre-multiplied onto the caller-selected [node_abs]: the direct
+/// parent's absolute transform in the main tree (see [collect] for usvg's
+/// background Path inconsistency), or the leaf's own value in subroots (see
+/// [append_subtree_paths_at_depth] for usvg's pattern wrapper inconsistency).
+/// Pass identity as [base] for the main tree, the referencing element's absolute
+/// transform for masks, and identity for pattern-local tile content.
 ///
 /// The returned path's [SvgPath::effects] carries only its own fill/stroke
 /// pattern (if any) — [collect] folds in the inherited clip/mask/blur from
@@ -2319,14 +2356,15 @@ fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
 ///
 /// 把 usvg 路径转成已烘焙 transform 的 [SvgPath]。
 ///
-/// [base] 会预乘到节点自身的 `abs_transform()` 上；主树节点传
-/// `Transform::default()`，子根内容（遮罩/图案）传引用元素的绝对变换——它们的
-/// `abs_transform()` 是相对各自根的。
+/// [base] 会预乘到调用方选择的 [node_abs] 上：主树传直接父组的绝对变换
+/// （usvg 背景 Path 的不一致见 [collect]），子根传叶子自身的值（usvg 图案
+/// 包裹组的不一致见 [append_subtree_paths_at_depth]）。主树的 [base] 传单位矩阵，
+/// 遮罩传引用元素的绝对变换，图案贴片的局部内容传单位矩阵。
 ///
 /// 返回值的 [SvgPath::effects] 只带自身的填充/描边图案（如果有）——继承的
 /// 裁剪/遮罩/模糊由 [collect] 按分组上下文并入。
-fn convert_path(p: &usvg::Path, base: &Transform) -> Option<SvgPath> {
-    let t = base.pre_concat(p.abs_transform());
+fn convert_path(p: &usvg::Path, base: &Transform, node_abs: &Transform) -> Option<SvgPath> {
+    let t = base.pre_concat(*node_abs);
     let mut verbs = Vec::new();
     let mut points = Vec::new();
     append_segments(p, &t, &mut verbs, &mut points);
@@ -2381,12 +2419,16 @@ fn convert_path(p: &usvg::Path, base: &Transform) -> Option<SvgPath> {
 /// share the pattern's local space; [abs] (the referencing path's absolute
 /// transform) composed with the pattern's own `transform()` maps that space
 /// into the display list's absolute space.
+/// Tile replay preserves leaf transforms (see [append_subtree_paths_at_depth]);
+/// objectBoundingBox content units still have a pre-existing rendering defect.
 ///
 /// 当 [paint] 是 `<pattern>` paint server 时构建 [SvgPattern]。
 ///
 /// 树公开时 usvg 已把 `patternUnits`/`patternContentUnits` 归一到用户空间，因此
 /// `rect()` 与贴片内容共享图案的局部空间；[abs]（引用路径的绝对变换）与图案
 /// 自身的 `transform()` 组合后，即可把该空间映射到显示列表的绝对空间。
+/// 贴片重放保留叶子变换（见 [append_subtree_paths_at_depth]）；objectBoundingBox
+/// 内容单位仍有既有的渲染缺陷。
 fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
     let usvg::Paint::Pattern(pattern) = paint else {
         return None;
@@ -2680,6 +2722,83 @@ fn concat(a: svgtypes::Transform, b: svgtypes::Transform) -> svgtypes::Transform
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Checks absolute background bounds for both root declaration forms.
+    /// 检查根背景两种声明写法的绝对坐标包围盒。
+    fn assert_root_background_bounds(size: u32, view_box: &str, expected: [f32; 4]) {
+        for declaration in ["background-color='#f00'", "style='background-color:#f00'"] {
+            let source = format!(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='{size}' height='{size}' viewBox='{view_box}' {declaration}/>"
+            );
+            let scene = parse_svg(source, None).unwrap();
+            assert_eq!(scene.paths.len(), 1, "{declaration}");
+            let path = &scene.paths[0];
+            assert!(path.has_fill);
+            assert_eq!(path.fill_argb, 0xffff0000);
+            assert!(!path.points.is_empty());
+            let mut bounds = [
+                f32::INFINITY,
+                f32::INFINITY,
+                f32::NEG_INFINITY,
+                f32::NEG_INFINITY,
+            ];
+            for point in path.points.chunks_exact(2) {
+                bounds[0] = bounds[0].min(point[0]);
+                bounds[1] = bounds[1].min(point[1]);
+                bounds[2] = bounds[2].max(point[0]);
+                bounds[3] = bounds[3].max(point[1]);
+            }
+            for (actual, expected) in bounds.into_iter().zip(expected) {
+                assert!(
+                    (actual - expected).abs() < 1e-3,
+                    "{declaration}: {bounds:?}"
+                );
+            }
+        }
+    }
+
+    /// Identity viewBox mapping preserves the root background bounds.
+    /// 恒等 viewBox 映射保持根背景的包围盒。
+    #[test]
+    fn root_background_identity() {
+        assert_root_background_bounds(24, "0 0 24 24", [0., 0., 24., 24.]);
+    }
+
+    /// The root background scales from viewBox units to viewport pixels.
+    /// 根背景从 viewBox 单位缩放到视口像素。
+    #[test]
+    fn root_background_scaled_viewbox() {
+        assert_root_background_bounds(200, "0 0 24 24", [0., 0., 200., 200.]);
+    }
+
+    /// A nonzero viewBox origin translates the root background to the viewport.
+    /// 非零 viewBox 原点将根背景平移到视口。
+    #[test]
+    fn root_background_translated_viewbox() {
+        assert_root_background_bounds(24, "10 10 24 24", [0., 0., 24., 24.]);
+    }
+
+    /// Nested ordinary paths keep every coordinate under a nonidentity viewBox.
+    /// 非恒等 viewBox 下的普通嵌套路径保持每个坐标不变。
+    #[test]
+    fn nested_path_nonidentity_viewbox() {
+        let source = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="10 10 100 100">
+            <g transform="translate(12 14)"><g transform="scale(2 3)"><g transform="rotate(90)">
+                <path d="M1 2 L3 4 Q5 6 7 8 C9 10 11 12 13 14 Z"/>
+            </g></g></g>
+        </svg>"#;
+        let scene = parse_svg(source.into(), None).unwrap();
+        assert_eq!(scene.paths.len(), 1);
+        let path = &scene.paths[0];
+        assert_eq!(path.verbs, vec![0, 1, 2, 3, 4]);
+        let expected = [
+            -4., 14., -12., 26., -20., 38., -28., 50., -36., 62., -44., 74., -52., 86.,
+        ];
+        assert_eq!(path.points.len(), expected.len());
+        for (actual, expected) in path.points.iter().zip(expected) {
+            assert!((actual - expected).abs() < 1e-3, "{actual} != {expected}");
+        }
+    }
 
     fn final_review_child(kind: &str, seconds: u64) {
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())
@@ -4164,6 +4283,8 @@ mod tests {
         }
     }
 
+    /// Parent transforms must preserve charging before inherited geometry is cloned.
+    /// 使用父组变换后，仍须在克隆继承几何之前扣除配额。
     #[test]
     fn audit_image_expansion_is_charged_before_clone() {
         let start = IMAGE_SVG.find("<image").unwrap();
@@ -4179,10 +4300,12 @@ mod tests {
         // Even the first image cannot clone inherited geometry if the
         // remaining budget is exhausted; image bytes remain uncharged too.
         let tree = usvg::Tree::from_str(IMAGE_SVG, usvg_options()).unwrap();
-        fn find_image(g: &usvg::Group) -> &usvg::Image {
+        // Return the image with its direct parent for conversion.
+        // 同时返回图片及其直接父组以供转换。
+        fn find_image(g: &usvg::Group) -> (&usvg::Image, &usvg::Group) {
             for n in g.children() {
                 match n {
-                    usvg::Node::Image(i) => return i,
+                    usvg::Node::Image(i) => return (i, g),
                     usvg::Node::Group(g) => return find_image(g),
                     _ => {}
                 }
@@ -4199,10 +4322,17 @@ mod tests {
             paths: 0,
         };
         let mut image_bytes = 64 * 1024 * 1024;
+        let (image, parent) = find_image(tree.root());
         assert_eq!(
-            convert_image(find_image(tree.root()), &ctx, &mut image_bytes, &mut budget)
-                .err()
-                .as_deref(),
+            convert_image(
+                image,
+                &parent.abs_transform(),
+                &ctx,
+                &mut image_bytes,
+                &mut budget
+            )
+            .err()
+            .as_deref(),
             Some(EXPANSION_ERROR)
         );
         assert_eq!(image_bytes, 64 * 1024 * 1024);
@@ -5146,6 +5276,88 @@ mod tests {
         assert_eq!(pattern.matrix.len(), 6);
         assert_eq!(pattern.paths.len(), 1, "tile content is one red rect");
         assert_eq!(pattern.paths[0].fill_argb, 0xFFFF0000);
+    }
+
+    /// Pins leaf-based subroot replay, not correct objectBoundingBox rendering.
+    /// 钉住基于叶子的子根重放行为，不代表 objectBoundingBox 图案渲染正确。
+    #[test]
+    fn pattern_object_bounding_box_content_preserves_leaf_transform() {
+        let source = r##"<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90">
+            <defs><pattern id="p" width=".5" height=".5" patternContentUnits="objectBoundingBox">
+                <path d="M.05 .1 L.2 .1 L.2 .3 Z" fill="#ff0000"/>
+            </pattern></defs>
+            <g transform="translate(3 7)"><rect x="10" y="15" width="80" height="60" fill="url(#p)"/></g>
+        </svg>"##;
+        // Find the leaf and its direct parent without assuming wrapper depth.
+        // 不假定包裹层数，查找叶子及其直接父组。
+        fn first_path(group: &usvg::Group) -> Option<(&usvg::Path, &usvg::Group)> {
+            for node in group.children() {
+                match node {
+                    usvg::Node::Path(p) => return Some((p, group)),
+                    usvg::Node::Group(g) => {
+                        if let Some(found) = first_path(g) {
+                            return Some(found);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        let tree = usvg::Tree::from_str(source, usvg_options()).unwrap();
+        let (reference, _) = first_path(tree.root()).unwrap();
+        let usvg::Paint::Pattern(pattern) = reference.fill().unwrap().paint() else {
+            panic!("fixture pattern missing");
+        };
+        let (leaf, parent) = first_path(pattern.root()).unwrap();
+        assert_ne!(leaf.abs_transform(), parent.abs_transform());
+        let t = Transform::default().pre_concat(leaf.abs_transform());
+        let mut expected_verbs = Vec::new();
+        let mut expected_points = Vec::new();
+        append_segments(leaf, &t, &mut expected_verbs, &mut expected_points);
+        let mut parent_verbs = Vec::new();
+        let mut parent_points = Vec::new();
+        append_segments(
+            leaf,
+            &parent.abs_transform(),
+            &mut parent_verbs,
+            &mut parent_points,
+        );
+        assert_ne!(expected_points, parent_points);
+
+        let scene = parse_svg(source.into(), None).unwrap();
+        assert_eq!(scene.paths.len(), 1);
+        let tile = scene.paths[0]
+            .effects
+            .as_ref()
+            .unwrap()
+            .fill_pattern
+            .as_ref()
+            .unwrap();
+        assert_eq!(tile.paths.len(), 1);
+        let actual = &tile.paths[0];
+        assert_eq!(actual.verbs, expected_verbs);
+        assert_eq!(
+            actual
+                .points
+                .iter()
+                .map(|v| v.to_bits())
+                .collect::<Vec<_>>(),
+            expected_points
+                .iter()
+                .map(|v| v.to_bits())
+                .collect::<Vec<_>>()
+        );
+        assert!(actual.has_fill);
+        assert_eq!(actual.fill_argb, 0xffff0000);
+        assert!(!actual.even_odd);
+        assert!(!actual.has_stroke);
+        assert_eq!(actual.stroke_argb, 0);
+        assert_eq!(actual.stroke_width.to_bits(), 0.0f32.to_bits());
+        assert!(!actual.stroke_first);
+        assert!(actual.fill_gradient.is_none());
+        assert!(actual.stroke_gradient.is_none());
+        assert!(actual.effects.is_none());
     }
 
     // ---- feGaussianBlur ----

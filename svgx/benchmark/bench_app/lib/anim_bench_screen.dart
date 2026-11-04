@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:svgx/svgx.dart';
 import 'package:iconify_flutter/icons/line_md.dart';
 
+import 'capture_hook.dart';
 import 'frame_timing.dart';
 import 'stats.dart';
 
@@ -127,6 +128,12 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
     // `frames=0`。
     await warmUpFrameTimingChannel(_frameTiming);
     _frameTiming.active = true;
+    // Capture build only: frames at +1s and +3s of the observe window.
+    // 仅截图构建：观测窗口第 1s 与第 3s 各截一帧。
+    scheduleCaptures('anim', const [
+      Duration(seconds: 1),
+      Duration(seconds: 3),
+    ]);
     await Future<void>.delayed(_observeDuration);
     _frameTiming.active = false;
     _printReport();

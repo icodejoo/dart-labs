@@ -92,12 +92,52 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
   int _settleRemainingSec = 0;
   Timer? _settleTicker;
 
+  /// Phase currently open for [_markPhase]; null before the first one.
+  /// [_markPhase] 当前打开的阶段；第一个阶段之前为 null。
+  _Phase? _markedPhase;
+
+  /// Writes one `[PHASE] name=<phase> edge=<start|end> epoch_ms=<ms>` line to
+  /// the file named by `SVGX_MICRO_OUT` (never stdout); no-op when unset, so
+  /// default behaviour is unchanged. Used to slice the launcher's CPU samples
+  /// per phase.
+  ///
+  /// 向 `SVGX_MICRO_OUT` 指向的文件写一行阶段标记（不写 stdout）；未设置时空
+  /// 操作，默认行为不变。用于把启动器的 CPU 采样按阶段切开。
+  void _mark(_Phase phase, String edge) {
+    appendToReportFile(
+      '[PHASE] name=${phase.name} edge=$edge '
+      'epoch_ms=${DateTime.now().millisecondsSinceEpoch}\n',
+    );
+  }
+
+  /// Closes the open phase and opens [next] (use null to only close).
+  /// 结束当前阶段并开始 [next]（传 null 则只结束）。
+  void _markPhase(_Phase? next) {
+    if (_markedPhase != null) _mark(_markedPhase!, 'end');
+    if (next != null) _mark(next, 'start');
+    _markedPhase = next;
+  }
+
+  /// Marks the transition and switches the displayed phase.
+  /// 打阶段标记并切换显示的阶段。
+  void _goto(_Phase next) {
+    _markPhase(next);
+    setState(() => _phase = next);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _markPhase(_Phase.svgxStatic);
+  }
+
   BenchResult? _svgxResult;
   BenchResult? _flutterSvgResult;
   AnimBenchResult? _animResult;
   AnimFpsBenchResult? _animFpsResult;
 
   void _settleThen(_Phase settlePhase, VoidCallback onDone) {
+    _markPhase(settlePhase);
     setState(() {
       _phase = settlePhase;
       _settleRemainingSec = _settleBetweenPhases.inSeconds;
@@ -120,22 +160,23 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
     _svgxResult = result;
     _settleThen(
       _Phase.settle1,
-      () => setState(() => _phase = _Phase.flutterSvgStatic),
+      () => _goto(_Phase.flutterSvgStatic),
     );
   }
 
   void _onFlutterSvgStaticDone(BenchResult result) {
     _flutterSvgResult = result;
-    _settleThen(_Phase.settle2, () => setState(() => _phase = _Phase.anim));
+    _settleThen(_Phase.settle2, () => _goto(_Phase.anim));
   }
 
   void _onAnimDone(AnimBenchResult result) {
     _animResult = result;
-    _settleThen(_Phase.settle3, () => setState(() => _phase = _Phase.animFps));
+    _settleThen(_Phase.settle3, () => _goto(_Phase.animFps));
   }
 
   void _onAnimFpsDone(AnimFpsBenchResult result) {
     _animFpsResult = result;
+    _markPhase(null);
     setState(() => _phase = _Phase.done);
     _printConsolidatedReport();
   }
@@ -320,8 +361,11 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
     // Use print (not debugPrint) so long report lines aren't truncated in the
     // `flutter run` console we scrape.
     // 用 print（而非 debugPrint）避免长报告行在 `flutter run` 控制台里被截断。
-    // ignore: avoid_print
-    print(buf.toString());
+    // emitReport = print + (when SVGX_MICRO_OUT is set) append to that file, so
+    // a GUI process whose stdout cannot be captured still leaves the report.
+    // emitReport = print + （设了 SVGX_MICRO_OUT 时）同时追加写文件，GUI 进程
+    // 抓不到 stdout 时报告仍能落盘。
+    emitReport(buf.toString());
     // Every phase widget (`BenchRunner`/`AnimBenchRunner`/`AnimFpsBenchRunner`)
     // is driven here with an `onComplete` callback, which is exactly the
     // condition each of their own `autoExitAfterReport` checks treats as "a

@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:svgx/svgx.dart';
 
 import 'anim_icon_gen.dart';
+import 'capture_hook.dart';
 import 'frame_timing.dart';
 import 'report_sink.dart';
 import 'stats.dart';
@@ -380,6 +381,9 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       //
       // 开窗前先让新的画质配置稳定几帧，使过渡帧（此时有一半图标正在补上被跳过
       // 的那一 tick）不被算进稳态里。
+      // Capture build only: first screen, before the scroll starts.
+      // 仅截图构建：首屏，滚动尚未开始。
+      if (arm == 0) await capturePng('anim_fps_first');
       await Future<void>.delayed(const Duration(milliseconds: 300));
       await _measureWindow(collector, label);
       if (arm != _qualityArms.length - 1) {

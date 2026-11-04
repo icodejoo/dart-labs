@@ -55,6 +55,13 @@ class Win32Window {
   // Return a RECT representing the bounds of the current client area.
   RECT GetClientArea();
 
+  // Quiet mode (call before Create): the window is created with
+  // WS_EX_NOACTIVATE|WS_EX_TOOLWINDOW (no taskbar button, no Alt-Tab), and is
+  // shown bottom-right at the bottom of the z-order without ever taking focus.
+  // 安静模式（须在 Create 之前调用）：窗口带 WS_EX_NOACTIVATE|WS_EX_TOOLWINDOW
+  // 创建（不进任务栏/Alt-Tab），显示在右下角、压到 z 序最底，全程不抢焦点。
+  void SetQuiet(bool quiet);
+
  protected:
   // Processes and route salient window messages for mouse handling,
   // size change and DPI. Delegates handling of these to member overloads that
@@ -91,6 +98,9 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // Quiet mode flag, see SetQuiet. / 安静模式标志，见 SetQuiet。
+  bool quiet_ = false;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

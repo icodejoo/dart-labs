@@ -15,6 +15,39 @@
 
 import 'dart:io';
 
+/// Report file path baked in via `--dart-define=REPORT_FILE=<path>`; used when
+/// the `SVGX_MICRO_OUT` environment variable is not set (an activity started
+/// with `am start` on Android cannot receive environment variables).
+///
+/// 通过 `--dart-define=REPORT_FILE=<路径>` 编进去的报告文件路径；仅在没有设置
+/// `SVGX_MICRO_OUT` 环境变量时使用（Android 上 `am start` 启动的 activity
+/// 收不到环境变量）。
+const String _reportFileDefine = String.fromEnvironment('REPORT_FILE');
+
+/// Resolved report file path: `SVGX_MICRO_OUT` first, then `REPORT_FILE`;
+/// null when neither is set (default behaviour: stdout only).
+///
+/// 解析后的报告文件路径：优先 `SVGX_MICRO_OUT`，其次 `REPORT_FILE`；都没设则为
+/// null（默认行为：只写 stdout）。
+String? reportOutPath() {
+  final env = Platform.environment['SVGX_MICRO_OUT'];
+  if (env != null && env.isNotEmpty) return env;
+  return _reportFileDefine.isEmpty ? null : _reportFileDefine;
+}
+
+/// Appends [text] to [reportOutPath]'s file (creating parent dirs); no-op when
+/// no path is configured.
+///
+/// 把 [text] 追加写入 [reportOutPath] 指向的文件（自动建父目录）；未配置路径时
+/// 空操作。
+void appendToReportFile(String text) {
+  final outPath = reportOutPath();
+  if (outPath == null) return;
+  final file = File(outPath);
+  file.parent.createSync(recursive: true);
+  file.writeAsStringSync(text, mode: FileMode.append);
+}
+
 /// Prints [text] and, when `SVGX_MICRO_OUT` is set, appends it to that file.
 ///
 /// 打印 [text]；若设置了 `SVGX_MICRO_OUT`，同时追加写入该文件。
@@ -26,10 +59,7 @@ import 'dart:io';
 void emitReport(String text) {
   // ignore: avoid_print
   print(text);
-  final outPath = Platform.environment['SVGX_MICRO_OUT'];
-  if (outPath != null && outPath.isNotEmpty) {
-    File(outPath).writeAsStringSync(text, mode: FileMode.append);
-  }
+  appendToReportFile(text);
 }
 
 const String _autoExitRaw = String.fromEnvironment('AUTOEXIT');

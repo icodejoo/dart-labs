@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:svgx/svgx.dart';
 
+import 'capture_hook.dart';
 import 'frame_timing.dart';
 import 'report_sink.dart';
 import 'stats.dart';
@@ -221,6 +222,14 @@ class _BenchRunnerState extends State<BenchRunner> {
     _steadyRssBytes = ProcessInfo.currentRss;
 
     setState(() => _status = 'idling for leak check...');
+    // Capture build only: grid is back at the top and stable; no-op otherwise.
+    // 仅截图构建：此时网格已回到顶部且稳定；其他情况空操作。
+    if (captureEnabled) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await capturePng(
+        '${widget.lib == BenchLib.svgx ? 'svgx' : 'flutter_svg'}_static_top',
+      );
+    }
     await Future<void>.delayed(const Duration(seconds: 3));
     _postIdleRssBytes = ProcessInfo.currentRss;
     _rssTimer?.cancel();
