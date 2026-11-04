@@ -1,0 +1,38 @@
+# 发布包的忽略规则。pub 在目录里存在 .pubignore 时不再读同目录的 .gitignore，
+# 所以下面先整份抄入 .gitignore 的规则，再追加只对发布包生效的排除项。
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+# Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
+/pubspec.lock
+**/doc/api/
+.dart_tool/
+.flutter-plugins-dependencies
+/build/
+/coverage/
+
+# 只对发布包生效：项目内部记忆与 AI 技能文档不随包发布
+/CLAUDE.md
+/.claude/
