@@ -237,17 +237,36 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   // Syncbase `begin` values ("other.end+0.2s") can only be turned into absolute
   // times once every animation in the document is known — including ones on
   // <clipPath>/<mask>/gradient <stop> content parsed just above — so this
-  // happens here, once, after every subtree is built, never per frame.
+  // timing attributes and dependency graphs are resolved here after every
+  // subtree is built. Cyclic begin lists extend instances on demand at sampling.
   //
   // 同步基准 `begin`（"other.end+0.2s"）只有在文档内所有动画都已知后才能变成
   // 绝对时间——包括刚才解析的 <clipPath>/<mask>/渐变 <stop> 内容上的动画——因此
-  // 在所有子树都构建完成后一次性在此解析，绝不逐帧解析。
+  // 在所有子树都构建完成后在此解析属性并建图。列表循环运行期按需扩展实例，
+  // 不重新解析 XML 或属性。 / List cycles extend instances without reparsing XML.
   resolveSmilBeginTimes(context.animations);
 
   var maxEnd = Duration.zero;
   var hasIndefiniteLoop = false;
   for (final animation in context.animations) {
+    if (animation is SmilTimeline && animation.hasPendingInstances) {
+      hasIndefiniteLoop = true;
+      continue;
+    }
     if (animation.begin == kSmilNeverBegins) continue; // disabled: never fires
+    if (animation is SmilTimeline && animation.intervals != null) {
+      final end =
+          animation.duration == Duration.zero &&
+              animation.intervalEnd == kSmilNeverBegins
+          ? animation.intervals!.last.begin
+          : animation.intervalEnd;
+      if (end == kSmilNeverBegins) {
+        hasIndefiniteLoop = true;
+      } else if (end != null && end > maxEnd) {
+        maxEnd = end;
+      }
+      continue;
+    }
     if (animation.repeatCount.indefinite) {
       hasIndefiniteLoop = true;
       continue;
@@ -556,6 +575,14 @@ SvgNode _parseGradientAttributeAnimations(
   return (stops: stops, nodes: nodes);
 }
 
+SmilBeginSpec _parseElementBegin(XmlElement element) => configureSmilBegin(
+  parseSmilBeginSpec(element.getAttribute('begin')),
+  restart: element.getAttribute('restart'),
+  end: element.getAttribute('end'),
+  min: element.getAttribute('min'),
+  max: element.getAttribute('max'),
+);
+
 /// Parses an `<animate attributeName="stop-color">` timeline: each keyframe
 /// token is a colour (any form `_normalizeColorAttributes` accepts) resolved
 /// to hex once, here, then packed into [SmilColorAnimation]'s `0xAARRGGBB`
@@ -593,9 +620,10 @@ SmilColorAnimation? _parseAnimateColor(XmlElement element) {
     packed.add(color.toARGB32());
   }
 
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   return SmilColorAnimation(
     values: packed,
+    attributeName: element.getAttribute('attributeName') ?? 'stop-color',
     duration: duration,
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
@@ -800,14 +828,21 @@ SvgNode _parseElement(
   for (final child in element.childElements) {
     final localName = child.name.local;
     if (context.useDepth > 0 &&
-        localName != 'use' &&
+        localName != _useTag &&
         !_tagToKind.containsKey(localName)) {
       context.instantiatedExtraUnits += _extraElementUnits(child);
     }
     if (localName == 'animate' || localName == 'set') {
       final isSet = localName == 'set';
       final isPath = child.getAttribute('attributeName') == _pathAttribute;
-      if (isPath) {
+      if (!isSet &&
+          _colorAttributes.contains(child.getAttribute('attributeName'))) {
+        final anim = _parseAnimateColor(child);
+        if (anim != null) {
+          colorAnimations.add(anim);
+          context.animations.add(anim);
+        }
+      } else if (isPath) {
         final anim = isSet ? _parseSetPath(child) : _parseAnimatePath(child);
         if (anim != null) {
           pathAnimations.add(anim);
@@ -838,7 +873,7 @@ SvgNode _parseElement(
       }
       continue;
     }
-    if (localName == 'use') {
+    if (localName == _useTag) {
       final resolved = _resolveUse(child, context);
       if (resolved != null) children.add(resolved);
       if (resolved == null && context.useDepth > 0) {
@@ -1098,7 +1133,7 @@ SmilMotionAnimation? _parseAnimateMotion(
   );
   if (samples == null) return null;
 
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   return SmilMotionAnimation(
     samples: samples,
     duration: duration,
@@ -1251,10 +1286,13 @@ const _sourceGraphicInput = 'SourceGraphic';
 const _symbolTag = 'symbol';
 const _svgTag = 'svg';
 
+/// SVG `<use>` 元素的标签名。 / Tag name of the SVG `<use>` element.
+const _useTag = 'use';
+
 /// 预估与实际展开共享目标标签规则；symbol/svg 暂按普通分组处理。
 SvgNodeKind? _useTargetKind(XmlElement target) {
   final tag = target.name.local;
-  return tag == _symbolTag || tag == _svgTag
+  return tag == _symbolTag || tag == _svgTag || tag == _useTag
       ? SvgNodeKind.group
       : _tagToKind[tag];
 }
@@ -1310,12 +1348,15 @@ int _estimateElementNodes(
   Set<String> resolving,
   int limit,
 ) {
+  if (element.name.local == _useTag) {
+    return _estimateUseNodes(element, context, depth, resolving, limit);
+  }
   var count = 1;
   if (count > limit) return count;
   final id = _attributesOf(element)['id'];
   final marked = id != null && resolving.add(id);
   for (final child in element.childElements) {
-    if (child.name.local == 'use') {
+    if (child.name.local == _useTag) {
       count += _estimateUseNodes(
         child,
         context,
@@ -1415,7 +1456,10 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
   context.instantiatedNodes++;
   context.resolvingUseTargets.add(id);
   context.useDepth++;
-  final instance = _parseElement(target, targetKind, context);
+  final instance = target.name.local == _useTag
+      ? _resolveUse(target, context)
+      : _parseElement(target, targetKind, context);
+  if (instance == null) context.instantiatedExtraUnits++;
   context.useDepth--;
   context.resolvingUseTargets.remove(id);
 
@@ -1427,7 +1471,7 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
         if (!_usePlacementAttributes.contains(entry.key))
           entry.key: entry.value,
     },
-    children: [instance],
+    children: [?instance],
     cssAnimations: css.animations,
     cssProperties: css.properties,
     transform: _usePlacementTransform(attributes),
@@ -1471,7 +1515,7 @@ SmilAnimation? _parseAnimate(XmlElement element) {
   );
   if (values == null) return null;
 
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   return SmilAnimation(
     attributeName: attributeName,
     values: values,
@@ -1504,7 +1548,7 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
     to: element.getAttribute('to'),
   );
   if (frames == null) return null;
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   return SmilPathAnimation(
     frames: frames,
     morph: buildPathMorphData(frames),
@@ -1526,7 +1570,7 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
 SmilPathAnimation? _parseSetPath(XmlElement element) {
   final to = element.getAttribute('to')?.trim();
   if (to == null || to.isEmpty) return null;
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   final duration = parseSmilDuration(element.getAttribute('dur'));
   return SmilPathAnimation(
     frames: [to],
@@ -1546,7 +1590,7 @@ SmilAnimation? _parseSetNumeric(XmlElement element) {
   final attributeName = element.getAttribute('attributeName');
   final to = double.tryParse(element.getAttribute('to')?.trim() ?? '');
   if (attributeName == null || to == null || !to.isFinite) return null;
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   final duration = parseSmilDuration(element.getAttribute('dur'));
   return SmilAnimation(
     attributeName: attributeName,
@@ -1590,7 +1634,7 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
   );
   if (rawFrames == null) return null;
 
-  final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
+  final beginSpec = _parseElementBegin(element);
   return SmilTransformAnimation(
     type: type,
     values: [

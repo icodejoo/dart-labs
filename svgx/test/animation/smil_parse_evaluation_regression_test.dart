@@ -299,7 +299,7 @@ void main() {
     expect(n.motionAnimations.single.sample(kMs * 700)!.x, closeTo(10, 0.001));
   });
 
-  test('begin 支持连字符 id 和 indefinite 且不扩展列表语义', () {
+  test('begin 支持连字符 id 和 indefinite 并保留列表项', () {
     for (final event in ['begin', 'end']) {
       final spec = parseSmilBeginSpec('ring-1.$event+0.2s');
       expect(spec.syncbaseId, 'ring-1');
@@ -308,7 +308,7 @@ void main() {
     }
     for (final raw in ['ring-1.end;2s', 'a.end;b.end', 'a.end+1s;b.end']) {
       expect(parseSmilBeginSpec(raw).syncbaseId, isNull);
-      expect(parseSmilBeginSpec(raw).offset, Duration.zero);
+      expect(parseSmilBeginSpec(raw).entries, hasLength(2));
     }
   });
 

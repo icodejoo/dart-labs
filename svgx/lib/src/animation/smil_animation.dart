@@ -254,6 +254,18 @@ class CubicBezier implements SmilSegmentEasing {
   static double _c(double p1) => 3.0 * p1;
 }
 
+/// restart 规则 `always`：每次 begin 都重新开始（SMIL 默认值）。
+/// The `always` restart rule: every begin restarts the interval (SMIL default).
+const _kRestartAlways = 'always';
+
+/// restart 规则 `never`：首次开始后忽略之后所有 begin。
+/// The `never` restart rule: ignore every begin after the first.
+const _kRestartNever = 'never';
+
+/// restart 规则 `whenNotActive`：仅在当前区间未活动时接受 begin。
+/// The `whenNotActive` restart rule: accept a begin only while inactive.
+const _kRestartWhenNotActive = 'whenNotActive';
+
 /// A `begin` attribute as written, before syncbase references are resolved
 /// into absolute times.
 ///
@@ -275,17 +287,46 @@ class SmilBeginSpec {
     required this.offset,
     this.syncbaseId,
     this.onSyncbaseEnd = false,
+    this.entries,
+    this.restart = _kRestartAlways,
+    this.endSpecs,
+    this.minimum,
+    this.maximum,
   });
 
   /// A plain `begin` offset with no reference. / 无引用的纯 `begin` 偏移。
   const SmilBeginSpec.offset(this.offset)
     : syncbaseId = null,
-      onSyncbaseEnd = false;
+      onSyncbaseEnd = false,
+      entries = null,
+      restart = _kRestartAlways,
+      endSpecs = null,
+      minimum = null,
+      maximum = null;
 
   /// Offset added to the resolved base time (may be negative).
   ///
   /// 加在解析出的基准时间上的偏移（可为负）。
   final Duration offset;
+
+  /// Non-null only for begin-value-list syntax; single values keep the old path.
+  /// 仅分号列表非空；普通单值保留旧路径。
+  final List<SmilBeginSpec>? entries;
+
+  /// Restart rule used by the bounded interval resolver.
+  /// 列表区间求解使用的重启规则。
+  final String restart;
+
+  /// Optional end instance specifications on the document timeline.
+  /// 文档时间线上的可选 end 实例规格。
+  final List<SmilBeginSpec>? endSpecs;
+
+  /// Minimum active duration, including any frozen repeat tail.
+  /// 最短活动期，包含重复结束后的冻结尾段。
+  final Duration? minimum;
+
+  /// Maximum active duration. / 最长活动期。
+  final Duration? maximum;
 
   /// Id of the animation element this one syncs to, or null for a plain offset.
   ///
@@ -387,19 +428,91 @@ abstract class SmilTimeline implements SmilTimed {
   /// 迭代的播放方向，默认正向。
   final SmilDirection direction;
 
-  /// 解析全局时刻 [t] 的迭代进度；未开始或已结束且不定格时返回 null。
-  _Timing? _timingAt(Duration t) => _resolveTiming(
-    t: t,
-    begin: begin,
-    duration: duration,
-    repeatCount: repeatCount,
-    fillFreeze: fillFreeze,
-    direction: direction,
-  );
+  /// Resolved list intervals, allocated only for a list dependency component.
+  /// 列表连通分量的已求解区间；普通单值路径不分配。
+  List<SmilInterval>? intervals;
+
+  /// True when interval expansion reached a safety bound.
+  /// 整个连通分量已触及展开安全预算。
+  bool instancesTruncated = false;
+
+  /// Whether this component can keep producing instances. / 分量是否持续产生实例。
+  bool get hasPendingInstances =>
+      _listResolver?.hasCycle == true && _listResolver!._queue.isNotEmpty;
+
+  /// 所属列表连通分量的前向求解器；普通单值路径为 null。
+  /// Forward resolver of this list component; null on the legacy single-value path.
+  _ForwardBeginResolver? _listResolver;
+
+  /// Last interval end, used by document playback duration accounting.
+  /// 最后一个区间的结束时刻，用于文档播放时长统计。
+  Duration? get intervalEnd =>
+      intervals?.isNotEmpty == true ? intervals!.last.end : null;
+
+  /// 解析全局时刻的迭代进度；未开始或已结束且不定格时返回 null。
+  _Timing? _timingAt(Duration t) {
+    _listResolver?.extend(t);
+    final resolved = intervals;
+    if (resolved != null) {
+      // 二分定位区间，长时间采样仍为 O(log n)。 / Binary interval lookup.
+      var lo = 0, hi = resolved.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (resolved[mid].begin <= t) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      if (lo == 0) return null;
+      final interval = resolved[lo - 1];
+      if (t >= interval.end && !fillFreeze) return null;
+      final sampleTime = t < interval.end ? t : interval.end;
+      final local = sampleTime - interval.begin;
+      final natural = smilActiveDuration(duration, repeatCount);
+      if (!repeatCount.indefinite && local >= natural) {
+        return _resolveTiming(
+          t: natural,
+          begin: Duration.zero,
+          duration: duration,
+          repeatCount: repeatCount,
+          fillFreeze: true,
+          direction: direction,
+        );
+      }
+      if (sampleTime == interval.end &&
+          duration > Duration.zero &&
+          local.inMicroseconds > 0 &&
+          local.inMicroseconds % duration.inMicroseconds == 0) {
+        final iteration = local.inMicroseconds ~/ duration.inMicroseconds - 1;
+        return _Timing(_directed(direction, iteration, 1));
+      }
+      return _resolveTiming(
+        t: local,
+        begin: Duration.zero,
+        duration: duration,
+        repeatCount: repeatCount,
+        fillFreeze: true,
+        direction: direction,
+      );
+    }
+    return _resolveTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+      direction: direction,
+    );
+  }
 }
 
 /// Resolves every syncbase `begin` in [animations] into an absolute time, in
 /// place.
+///
+/// List components use bounded instance expansion, extended on demand for
+/// forward dependencies. Components without lists retain the legacy DFS.
+/// 列表所在分量按预算展开实例；正向依赖按需延长，无列表分量保持旧 DFS。
 ///
 /// Walks the reference graph with a three-colour DFS (unvisited / in-progress /
 /// done). An animation on a reference cycle — or one syncing to the `end` of an
@@ -420,6 +533,15 @@ abstract class SmilTimeline implements SmilTimed {
 /// resolveSmilBeginTimes(allAnimationsInDocument);
 /// ```
 void resolveSmilBeginTimes(List<SmilTimed> animations) {
+  // No list: preserve legacy DFS behaviour and avoid extra per-animation data.
+  if (animations.any((a) => a.beginSpec.entries != null)) {
+    _resolveBeginLists(animations);
+    return;
+  }
+  _resolveLegacyBeginTimes(animations);
+}
+
+void _resolveLegacyBeginTimes(List<SmilTimed> animations) {
   final byId = <String, SmilTimed>{};
   for (final animation in animations) {
     final id = animation.elementId;
@@ -476,17 +598,674 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
   }
 }
 
+/// One accepted active interval in document time, with an exclusive end.
+/// 文档时间中的有效活动区间，结束时刻不包含在内。
+class SmilInterval {
+  /// Creates an accepted interval. / 创建有效区间。
+  const SmilInterval(this.begin, this.end);
+
+  /// Inclusive start. / 包含起点。
+  final Duration begin;
+
+  /// Exclusive end (possibly the never sentinel). / 不包含终点，可为永不结束。
+  final Duration end;
+}
+
+// The CSS compiler and legacy single-value parser need no new timing objects.
+// List items deliberately use a stricter grammar: events/empty items never fire.
+/// 解析分号分隔的 begin 列表，只保留合法的实例规格（事件与空项被丢弃）。
+/// Parses a `;`-separated begin list, keeping only valid instance specs.
+List<SmilBeginSpec> _parseInstanceSpecs(String raw) => [
+  for (final item in raw.split(';'))
+    if (_isInstanceSpec(item.trim())) parseSmilBeginSpec(item.trim()),
+];
+
+/// 纯时钟值的正则：允许符号、小数、指数、单位，以及 `hh:mm:ss` 形式。
+/// Pattern for a plain clock value (sign, fraction, exponent, unit, or h:m:s).
+final _clockInstancePattern = RegExp(
+  r'^[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:h|min|ms|s)?|(?:\d+:)?[0-5]\d:[0-5]\d(?:\.\d+)?)$',
+);
+
+/// 同步基准引用的正则：捕获基准 id、`begin`/`end` 与可选的 ±偏移。
+/// Pattern for a syncbase reference: captures id, begin/end, and optional offset.
+final _syncInstancePattern = RegExp(
+  r'^[^\s;]+?\.(begin|end)(?:\s*([+-])\s*(.+))?$',
+);
+
+/// 判断 [value] 是否为纯时钟值。 / Whether [value] is a plain clock value.
+bool _isClockInstance(String value) => _clockInstancePattern.hasMatch(value);
+
+/// 判断 [value] 能否作为列表实例：时钟值，或偏移合法的同步基准引用。
+/// Whether [value] is usable as a list instance: a clock value or a well-formed syncbase reference.
+bool _isInstanceSpec(String value) {
+  if (_isClockInstance(value)) return true;
+  final match = _syncInstancePattern.firstMatch(value);
+  return match != null &&
+      (match.group(3) == null ||
+          _isClockInstance('${match.group(2)}${match.group(3)}'));
+}
+
+/// Attach XML-only restart/end/min/max data without changing CSS constructors.
+/// Default single begin values return the same object with no extra allocation.
+/// 附加 XML 的 restart/end/min/max 配置；默认单值 begin 不额外分配对象。
+SmilBeginSpec configureSmilBegin(
+  SmilBeginSpec spec, {
+  String? restart,
+  String? end,
+  String? min,
+  String? max,
+}) {
+  if (restart == null && end == null && min == null && max == null) return spec;
+  return SmilBeginSpec(
+    offset: spec.offset,
+    syncbaseId: spec.syncbaseId,
+    onSyncbaseEnd: spec.onSyncbaseEnd,
+    entries: spec.entries,
+    restart: restart ?? _kRestartAlways,
+    endSpecs: end == null ? null : _parseInstanceSpecs(end),
+    minimum: min == null ? null : parseSmilDuration(min),
+    maximum: max == null || max.trim() == 'indefinite'
+        ? null
+        : parseSmilDuration(max),
+  );
+}
+
+/// 解析全部 begin/end 依赖：按连通分量分组，逐分量交给前向或有界求解器。
+/// Resolves all begin/end dependencies, component by component.
+void _resolveBeginLists(List<SmilTimed> animations) {
+  final byId = <String, SmilTimed>{};
+  for (final a in animations) {
+    if (a.elementId != null) byId.putIfAbsent(a.elementId!, () => a);
+  }
+  final affected = <SmilTimed>{
+    for (final a in animations)
+      if (a.beginSpec.entries != null) a,
+  };
+  // Include both sources and dependents, so a single a.end inherits every
+  // interval when a is a list. Unconnected single/CSS tracks retain legacy DFS.
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (final a in animations) {
+      for (final spec in [
+        ...?a.beginSpec.entries,
+        if (a.beginSpec.entries == null) a.beginSpec,
+        ...?a.beginSpec.endSpecs,
+      ]) {
+        final target = byId[spec.syncbaseId];
+        if (target != null &&
+            (affected.contains(a) || affected.contains(target))) {
+          if (affected.add(a)) changed = true;
+          if (affected.add(target)) changed = true;
+        }
+      }
+    }
+  }
+  _resolveLegacyBeginTimes(
+    animations.where((a) => !affected.contains(a)).toList(),
+  );
+  final timelines = affected.whereType<SmilTimeline>().toList();
+  for (final a in timelines) {
+    a.intervals = [];
+  }
+
+  final budget = _SmilWorkBudget();
+  final remaining = timelines.toSet();
+  final neighbors = <SmilTimeline, Set<SmilTimeline>>{
+    for (final a in timelines) a: {},
+  };
+  for (final a in timelines) {
+    for (final spec in [
+      ...?a.beginSpec.entries,
+      if (a.beginSpec.entries == null) a.beginSpec,
+      ...?a.beginSpec.endSpecs,
+    ]) {
+      final target = byId[spec.syncbaseId];
+      if (target is SmilTimeline && neighbors.containsKey(target)) {
+        neighbors[a]!.add(target);
+        neighbors[target]!.add(a);
+      }
+    }
+  }
+  while (remaining.isNotEmpty) {
+    final component = <SmilTimeline>[];
+    final pending = [remaining.first];
+    remaining.remove(pending.first);
+    while (pending.isNotEmpty) {
+      final a = pending.removeLast();
+      component.add(a);
+      for (final neighbor in neighbors[a]!) {
+        if (remaining.remove(neighbor)) pending.add(neighbor);
+      }
+    }
+    if (_ForwardBeginResolver.supports(component, byId)) {
+      _ForwardBeginResolver(component, byId, budget).extend(Duration.zero);
+    } else {
+      _resolveBoundedBeginComponent(component, byId, budget);
+    }
+  }
+}
+
+// 文档级累计预算也覆盖后续惰性展开，避免各分量分别耗满预算。
+// The document shares one lifetime budget, including lazy extensions.
+const _maxSmilIntervals = 20000;
+
+/// 单个前向求解器队列中待处理通知的上限，超出即截断（防负偏移/环导致的膨胀）。
+/// Cap on pending notices in one forward resolver queue; excess truncates.
+const _maxSmilQueuedNotices = 100000;
+
+/// 文档级区间总预算，由所有分量与惰性展开共享；耗尽即截断。
+/// Document-wide interval budget shared by all components and lazy extensions.
+const _maxSmilBudgetIntervals = 100000;
+
+/// 前向求解器每次惰性展开预取的时间窗口（64 秒）。
+/// Lookahead window the forward resolver prefetches on each lazy extension.
+const _kSmilPrefetchWindow = Duration(seconds: 64);
+
+/// 文档级工作预算：限制求解的总计算量，耗尽后展开即截断。
+/// Document-wide work budget; expansion truncates once it runs out.
+class _SmilWorkBudget {
+  /// 剩余计算单位。 / Remaining work units.
+  int remaining = 600000;
+
+  /// 已接受的区间总数。 / Total accepted intervals so far.
+  int intervals = 0;
+
+  /// 预算是否已耗尽。 / Whether the budget is exhausted.
+  bool get exhausted => remaining <= 0;
+
+  /// 消耗 [count] 个单位，返回预算是否仍为正。
+  /// Spends [count] units; returns whether budget remains.
+  bool spend([int count = 1]) => (remaining -= count) > 0;
+}
+
+// 按时间排序的实例通知；结束通知携带原区间以撤销被 restart 截短的结束。
+// End notices retain their interval identity so restart cancels stale ends.
+/// 实例通知：[track] 在 [time] 开始（[interval] 为 null），或结束（携带原区间）。
+/// Instance notice: a start at [time], or an end carrying its original interval.
+class _SmilNotice {
+  /// 创建通知。 / Creates a notice.
+  const _SmilNotice(this.time, this.track, [this.interval]);
+
+  /// 通知触发时刻。 / Time the notice fires.
+  final Duration time;
+
+  /// 所属时间线。 / Owning timeline.
+  final SmilTimeline track;
+
+  /// 结束通知携带的原区间；开始通知为 null。
+  /// Original interval for end notices; null for start notices.
+  final SmilInterval? interval;
+}
+
+// 正向同步图使用最小堆推进，仅处理新通知；每块预取 64 秒。
+// A chronological heap expands forward graphs without rescanning old intervals.
+/// 前向同步图求解器：以最小堆按时间推进，惰性展开区间。
+/// Forward syncbase-graph resolver: a time-ordered heap that expands intervals lazily.
+class _ForwardBeginResolver {
+  /// 为 [tracks] 构建求解器：登记依赖边、计算入度，并检测依赖环（[hasCycle]）。
+  /// Builds the resolver for [tracks]: registers dependency edges and detects cycles.
+  _ForwardBeginResolver(this.tracks, this.byId, this.budget) {
+    final predictEnds = tracks.any(
+      (a) => (a.beginSpec.entries ?? [a.beginSpec]).any(
+        (s) => s.syncbaseId != null && s.offset < Duration.zero,
+      ),
+    );
+    final indegree = <SmilTimeline, int>{for (final a in tracks) a: 0};
+    final successors = <SmilTimeline, List<SmilTimeline>>{};
+    for (final a in tracks) {
+      a._listResolver = this;
+      _seen[a] = {};
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        final target = byId[spec.syncbaseId];
+        if (target is SmilTimeline) {
+          final arc = predictEnds && spec.onSyncbaseEnd
+              ? SmilBeginSpec(
+                  offset:
+                      smilActiveDuration(target.duration, target.repeatCount) +
+                      spec.offset,
+                  syncbaseId: spec.syncbaseId,
+                )
+              : spec;
+          _arcs.putIfAbsent(target, () => []).add((a, arc));
+          successors.putIfAbsent(target, () => []).add(a);
+          indegree[a] = indegree[a]! + 1;
+        } else if (spec.syncbaseId == null) {
+          _enqueue(a, spec.offset);
+        }
+      }
+    }
+    final roots = [
+      for (final a in tracks)
+        if (indegree[a] == 0) a,
+    ];
+    var removed = 0;
+    while (roots.isNotEmpty) {
+      final a = roots.removeLast();
+      removed++;
+      for (final b in successors[a] ?? <SmilTimeline>[]) {
+        indegree[b] = indegree[b]! - 1;
+        if (indegree[b] == 0) roots.add(b);
+      }
+    }
+    hasCycle = removed != tracks.length;
+  }
+
+  /// 本分量内参与求解的全部时间线。 / Timelines in this component.
+  final List<SmilTimeline> tracks;
+
+  /// 全文档 id 到时间线的索引，用于解析同步基准。 / Document id index for syncbase lookup.
+  final Map<String, SmilTimed> byId;
+
+  /// 文档级共享的工作预算。 / Document-wide shared work budget.
+  final _SmilWorkBudget budget;
+
+  /// 按时间排序的待处理通知（最小堆）。 / Pending notices, ordered as a min-heap by time.
+  final _queue = <_SmilNotice>[];
+
+  /// 已被 restart 截短、其原定结束通知需忽略的区间。
+  /// Intervals cut short by restart; their scheduled end notices must be ignored.
+  final _cancelled = <SmilInterval>{};
+
+  /// 每条时间线已入队的开始时刻（微秒），用于去重。
+  /// Start times (microseconds) already queued per timeline, for de-duplication.
+  final _seen = <SmilTimeline, Set<int>>{};
+
+  /// 每个基准时间线对应的依赖方及其 begin 规格。
+  /// Dependents of each syncbase timeline, paired with their begin specs.
+  final _arcs = <SmilTimeline, List<(SmilTimeline, SmilBeginSpec)>>{};
+
+  /// 依赖图是否含环（拓扑排序无法消去全部节点）；含环时只能按窗口推进。
+  /// Whether the dependency graph has a cycle; if so, expansion proceeds by window.
+  late final bool hasCycle;
+
+  /// 预算耗尽后是否已停止。 / Whether expansion has stopped after exhausting the budget.
+  bool _stopped = false;
+
+  /// 已展开到的文档时刻上界，用于让重复的 [extend] 调用幂等。
+  /// Document-time horizon already expanded through; makes repeated [extend] calls idempotent.
+  Duration _through = const Duration(seconds: -1);
+
+  /// 判断分量能否交给前向求解器：负偏移重启须能预告结束，否则需有界求解器。
+  /// Whether this component can use the forward resolver; otherwise the bounded one is needed.
+  static bool supports(List<SmilTimeline> tracks, Map<String, SmilTimed> byId) {
+    for (final a in tracks) {
+      if (a.beginSpec.endSpecs?.any((s) => s.syncbaseId != null) == true) {
+        return false;
+      }
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        // 多种子负时间重启可能撤回已派生的未来 begin；交给可回撤的求解器。
+        // Pre-zero restarts require retracting their dependent begin instances.
+        if (spec.syncbaseId == null &&
+            spec.offset < Duration.zero &&
+            !_canPredictEnds(tracks, byId)) {
+          return false;
+        }
+        if (byId[spec.syncbaseId] != null && spec.offset < Duration.zero) {
+          if (!spec.onSyncbaseEnd || !_canPredictEnds(tracks, byId)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  // 单种子、每轨最多一条入边，且环周期不短于任一活动期：不会重叠重启，
+  // 因而 end 可在 begin 时安全预告，支持常见的负 end 偏移图标。
+  // Predict ends only when a single-seed graph provably cannot restart early.
+  /// 判断能否安全预告 end（单种子、无重叠重启），见上方说明。
+  /// Whether ends can be predicted safely (single seed, no overlapping restarts).
+  static bool _canPredictEnds(
+    List<SmilTimeline> tracks,
+    Map<String, SmilTimed> byId,
+  ) {
+    var seeds = 0;
+    var longest = Duration.zero;
+    final parents = <SmilTimeline, (SmilTimeline, Duration)>{};
+    for (final a in tracks) {
+      if (a.repeatCount.indefinite ||
+          a.duration <= Duration.zero ||
+          a.beginSpec.minimum != null ||
+          a.beginSpec.maximum != null ||
+          a.beginSpec.endSpecs != null) {
+        return false;
+      }
+      final active = smilActiveDuration(a.duration, a.repeatCount);
+      if (active > longest) longest = active;
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        final target = byId[spec.syncbaseId];
+        if (target is SmilTimeline) {
+          if (parents.containsKey(a)) return false;
+          final delay =
+              spec.offset +
+              (spec.onSyncbaseEnd
+                  ? smilActiveDuration(target.duration, target.repeatCount)
+                  : Duration.zero);
+          if (delay < Duration.zero) return false;
+          parents[a] = (target, delay);
+        } else if (spec.syncbaseId == null && spec.offset != kSmilNeverBegins) {
+          if (++seeds > 1) return false;
+        }
+      }
+    }
+    final done = <SmilTimeline>{};
+    for (final a in tracks) {
+      final path = <SmilTimeline, Duration>{};
+      var current = a;
+      var distance = Duration.zero;
+      while (!done.contains(current)) {
+        final before = path[current];
+        if (before != null) {
+          if (distance - before < longest) return false;
+          break;
+        }
+        path[current] = distance;
+        final parent = parents[current];
+        if (parent == null) break;
+        distance += parent.$2;
+        current = parent.$1;
+      }
+      done.addAll(path.keys);
+    }
+    return true;
+  }
+
+  /// 预算耗尽或队列超限时停止求解：清空队列，并把分量内所有时间线标记为已截断。
+  /// Stops resolving on budget exhaustion or queue overflow; marks all tracks truncated.
+  void _truncate() {
+    _stopped = true;
+    _queue.clear();
+    for (final a in tracks) {
+      a.instancesTruncated = true;
+    }
+  }
+
+  /// 以最小堆方式插入通知（按时间升序）。 / Inserts [notice] into the min-heap by time.
+  void _push(_SmilNotice notice) {
+    _queue.add(notice);
+    var i = _queue.length - 1;
+    while (i > 0) {
+      final parent = (i - 1) >> 1;
+      if (_queue[parent].time <= notice.time) break;
+      _queue[i] = _queue[parent];
+      i = parent;
+    }
+    _queue[i] = notice;
+  }
+
+  /// 弹出时间最早的通知（堆顶）。 / Removes and returns the earliest notice (heap top).
+  _SmilNotice _pop() {
+    final first = _queue.first;
+    final last = _queue.removeLast();
+    if (_queue.isEmpty) return first;
+    var i = 0;
+    while (i * 2 + 1 < _queue.length) {
+      var child = i * 2 + 1;
+      if (child + 1 < _queue.length &&
+          _queue[child + 1].time < _queue[child].time) {
+        child++;
+      }
+      if (last.time <= _queue[child].time) break;
+      _queue[i] = _queue[child];
+      i = child;
+    }
+    _queue[i] = last;
+    return first;
+  }
+
+  /// 把 [a] 在 [time] 的开始通知入队；超出时长上限、永不开始或重复的会被丢弃，超预算则截断。
+  /// Queues a start of [a] at [time]; drops out-of-range, never-begin, or duplicate starts.
+  void _enqueue(SmilTimeline a, Duration time) {
+    if (_stopped ||
+        time == kSmilNeverBegins ||
+        time.inMicroseconds.abs() > _maxSmilMicros) {
+      return;
+    }
+    if (!budget.spend() || _queue.length >= _maxSmilQueuedNotices) {
+      _truncate();
+      return;
+    }
+    if (_seen[a]!.add(time.inMicroseconds)) _push(_SmilNotice(time, a));
+  }
+
+  /// 在 [time] 通知 [a] 的依赖方：[end] 为 true 时只触发基于 end 的依赖，否则只触发基于 begin 的依赖。
+  /// Notifies dependents of [a] at [time]: [end] selects end-based or begin-based arcs.
+  void _notify(SmilTimeline a, Duration time, {required bool end}) {
+    for (final (dependent, spec)
+        in _arcs[a] ?? <(SmilTimeline, SmilBeginSpec)>[]) {
+      if (_stopped) break;
+      if (!budget.spend()) {
+        _truncate();
+        break;
+      }
+      if (spec.onSyncbaseEnd == end) {
+        _enqueue(dependent, time + spec.offset);
+      }
+    }
+  }
+
+  // 摊销每个实例只出入堆一次；历史查询仅做二分，不重放事件。
+  // Each notice is processed once; historical samples only binary-search.
+  /// 惰性推进到文档时刻 [time]：逐条出堆并展开区间，上界为 [time] 加预取窗口。
+  /// Lazily expands intervals up to [time] plus the prefetch window.
+  void extend(Duration time) {
+    if (_stopped || time <= _through) return;
+    var horizon = time + _kSmilPrefetchWindow;
+    if (_through < Duration.zero &&
+        _queue.isNotEmpty &&
+        _queue.first.time > horizon) {
+      horizon = _queue.first.time + _kSmilPrefetchWindow;
+    }
+    while (_queue.isNotEmpty && (!hasCycle || _queue.first.time <= horizon)) {
+      if (!budget.spend()) {
+        _truncate();
+        break;
+      }
+      final notice = _pop();
+      final a = notice.track;
+      final intervals = a.intervals!;
+      final previous = intervals.isEmpty ? null : intervals.last;
+      if (notice.interval != null) {
+        if (!_cancelled.remove(notice.interval)) {
+          _notify(a, notice.time, end: true);
+        }
+        continue;
+      }
+      final start = notice.time;
+      var active = a.repeatCount.indefinite || a.duration == Duration.zero
+          ? kSmilNeverBegins
+          : smilActiveDuration(a.duration, a.repeatCount);
+      final minimum = a.beginSpec.minimum;
+      final maximum = a.beginSpec.maximum;
+      if (minimum != null && active < minimum) active = minimum;
+      if (maximum != null && active > maximum) active = maximum;
+      var end = active == kSmilNeverBegins ? kSmilNeverBegins : start + active;
+      final ends = a.beginSpec.endSpecs;
+      if (ends != null && ends.isNotEmpty) {
+        Duration? explicit;
+        for (final spec in ends) {
+          if (!budget.spend()) {
+            _truncate();
+            break;
+          }
+          if (spec.offset >= start &&
+              (explicit == null || spec.offset < explicit)) {
+            explicit = spec.offset;
+          }
+        }
+        if (explicit == null) continue;
+        var length = explicit - start;
+        if (minimum != null && length < minimum) length = minimum;
+        if (maximum != null && length > maximum) length = maximum;
+        if (start + length < end) end = start + length;
+      }
+      if (end <= Duration.zero) continue;
+      if (previous != null) {
+        if (a.beginSpec.restart == _kRestartNever) continue;
+        if (start < previous.end) {
+          if (a.beginSpec.restart == _kRestartWhenNotActive) continue;
+          _cancelled.add(previous);
+          intervals[intervals.length - 1] = SmilInterval(previous.begin, start);
+          _notify(a, start, end: true);
+        }
+      }
+      if (_stopped) break;
+      if (intervals.length >= _maxSmilIntervals ||
+          budget.intervals >= _maxSmilBudgetIntervals) {
+        _truncate();
+        break;
+      }
+      final interval = SmilInterval(start, end);
+      intervals.add(interval);
+      budget.intervals++;
+      a.begin = intervals.first.begin;
+      _notify(a, start, end: false);
+      if (end != kSmilNeverBegins && !_stopped) {
+        _push(_SmilNotice(end, a, interval));
+      }
+    }
+    _through = horizon;
+    for (final a in tracks) {
+      a.begin = a.intervals!.isEmpty
+          ? kSmilNeverBegins
+          : a.intervals!.first.begin;
+    }
+  }
+}
+
+/// 有界求解器：反复扫描分量直至收敛；受文档预算与扫描上限约束，超限即截断。用于负偏移与不收敛依赖。
+/// Bounded resolver: sweeps the component until it converges or hits the budget and sweep caps.
+void _resolveBoundedBeginComponent(
+  List<SmilTimeline> timelines,
+  Map<String, SmilTimed> byId,
+  _SmilWorkBudget budget,
+) {
+  List<Duration> instances(List<SmilBeginSpec> specs) {
+    final values = <int>{};
+    for (final spec in specs) {
+      if (!budget.spend()) break;
+      final target = byId[spec.syncbaseId];
+      if (spec.syncbaseId == null) {
+        if (spec.offset != kSmilNeverBegins) {
+          values.add(spec.offset.inMicroseconds);
+        }
+      } else if (target is SmilTimeline) {
+        for (final interval in target.intervals ?? const <SmilInterval>[]) {
+          if (!budget.spend()) break;
+          final base = spec.onSyncbaseEnd ? interval.end : interval.begin;
+          if (base == kSmilNeverBegins || spec.offset == kSmilNeverBegins) {
+            continue;
+          }
+          // Do not saturate: a time beyond the horizon must never create a
+          // fabricated begin at exactly the horizon (especially in cycles).
+          final value = base.inMicroseconds + spec.offset.inMicroseconds;
+          if (value.abs() <= _maxSmilMicros) values.add(value);
+        }
+      }
+    }
+    // 为排序比较预留保守的 n log n 预算；不足时由外层保留上次完整结果。
+    // Reserve sorting work before allocating another candidate list.
+    if (!budget.spend(values.length * (values.length.bitLength + 1))) return [];
+    return (values.toList()..sort())
+        .map((v) => Duration(microseconds: v))
+        .toList();
+  }
+
+  // Rebuild from current accepted intervals, not an append-only candidate set:
+  // restart can shorten an end and must retract dependent stale end instances.
+  // 文档级比较/实例预算约束负偏移及不收敛依赖；不提交预算耗尽时的半成品。
+  // Global work limits bound negative/oscillating dependencies.
+  final maxSweeps = 20000;
+  sweeps:
+  for (var sweep = 0; sweep < maxSweeps; sweep++) {
+    if (budget.exhausted) break;
+    var anyChange = false;
+    for (final a in timelines) {
+      final starts = instances(a.beginSpec.entries ?? [a.beginSpec]);
+      final ends = instances(a.beginSpec.endSpecs ?? const []);
+      final next = <SmilInterval>[];
+      for (final start in starts) {
+        if (!budget.spend()) break;
+        if (start.inMicroseconds.abs() > _maxSmilMicros) continue;
+        // Only <set> reaches this parser with a zero duration; its legacy
+        // no-dur semantics hold until an explicit end or another instance.
+        var active = a.repeatCount.indefinite || a.duration == Duration.zero
+            ? kSmilNeverBegins
+            : smilActiveDuration(a.duration, a.repeatCount);
+        final minimum = a.beginSpec.minimum;
+        final maximum = a.beginSpec.maximum;
+        if (minimum != null && active < minimum) active = minimum;
+        if (maximum != null && active > maximum) active = maximum;
+        var end = active == kSmilNeverBegins
+            ? kSmilNeverBegins
+            : start + active;
+        if (ends.isNotEmpty && ends.last < start) continue;
+        for (final candidate in ends) {
+          if (!budget.spend()) break;
+          if (candidate >= start) {
+            // Explicit end is constrained by min/max just like repeat duration.
+            var length = candidate - start;
+            if (minimum != null && length < minimum) length = minimum;
+            if (maximum != null && length > maximum) length = maximum;
+            if (start + length < end) end = start + length;
+            break;
+          }
+        }
+        if (end <= Duration.zero) continue;
+        if (next.isNotEmpty) {
+          if (a.beginSpec.restart == _kRestartNever) break;
+          final previous = next.last;
+          if (start < previous.end) {
+            if (a.beginSpec.restart == _kRestartWhenNotActive) continue;
+            next[next.length - 1] = SmilInterval(previous.begin, start);
+          }
+        }
+        if (next.length == _maxSmilIntervals) {
+          a.instancesTruncated = true;
+          break;
+        }
+        next.add(SmilInterval(start, end));
+      }
+      next.removeWhere((interval) => interval.end <= Duration.zero);
+      final old = a.intervals!;
+      if (!budget.spend(old.length + next.length) ||
+          budget.intervals + next.length - old.length >
+              _maxSmilBudgetIntervals) {
+        break sweeps;
+      }
+      budget.intervals += next.length - old.length;
+      if (old.length != next.length ||
+          List.generate(
+            next.length,
+            (i) => old[i].begin != next[i].begin || old[i].end != next[i].end,
+          ).any((v) => v)) {
+        a.intervals = next;
+        anyChange = true;
+      }
+      a.begin = next.isEmpty ? kSmilNeverBegins : next.first.begin;
+    }
+    if (!anyChange &&
+        !budget.exhausted &&
+        !timelines.any((a) => a.instancesTruncated)) {
+      return;
+    }
+    if (timelines.any((a) => a.instancesTruncated)) break;
+  }
+  for (final a in timelines) {
+    a.instancesTruncated = true;
+  }
+}
+
 /// Parses a SMIL `begin` attribute into a [SmilBeginSpec].
 ///
 /// Supported: a plain clock value (`"0.6s"`, `"600ms"`, `"2"`), and syncbase
 /// references `"id.begin"` / `"id.end"` with an optional `+`/`-` clock offset
 /// (`"ring.end+0.2s"`).
 ///
-/// **Not supported** (documented, not silently mis-parsed): event values
-/// (`"click"`, `"id.click"`), `wallclock()`, `accessKey()`, and
-/// semicolon-separated begin lists — all parse to a zero offset, i.e. the
-/// animation starts immediately, which is this engine's existing behaviour for
-/// anything it can't read.
+/// **Not supported**: event values. Single event values (`"click"`, `"id.click"`), `wallclock()` and
+/// `accessKey()` retain the legacy zero fallback. In a semicolon list they
+/// never fire; offsets and syncbases form a bounded instance-time set.
 ///
 /// 把 SMIL `begin` 属性解析为 [SmilBeginSpec]；`indefinite` 表示永不开始。
 ///
@@ -494,8 +1273,8 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
 /// 同步基准引用 `"id.begin"`/`"id.end"`（如 `"ring.end+0.2s"`）。
 ///
 /// **不支持**（明确记录，而非静默错解）：事件值（`"click"`、`"id.click"`）、
-/// `wallclock()`、`accessKey()`，以及分号分隔的 begin 列表——一律解析为零偏移，
-/// 即动画立即开始，与本引擎对读不懂的取值的一贯行为一致。
+/// `wallclock()`、`accessKey()` 的单值保留旧零偏移回退；在分号列表中这些项
+/// 永不触发。列表中的偏移和同步基准由有界区间求解器处理。
 ///
 /// Example:
 /// ```dart
@@ -507,7 +1286,12 @@ SmilBeginSpec parseSmilBeginSpec(String? raw) {
   if (value == 'indefinite') {
     return const SmilBeginSpec.offset(kSmilNeverBegins);
   }
-  if (value.contains(';')) return const SmilBeginSpec.offset(Duration.zero);
+  if (value.contains(';')) {
+    return SmilBeginSpec(
+      offset: kSmilNeverBegins,
+      entries: _parseInstanceSpecs(value),
+    );
+  }
 
   final match = RegExp(r'^([^\s;]+?)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
       .firstMatch(value);

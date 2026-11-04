@@ -284,14 +284,14 @@ List<double> _parseDasharrayUncached(String raw) {
   return values.isEmpty ? const [] : List<double>.of(values, growable: false);
 }
 
-/// Parses `#RGB`/`#RRGGBB`/`#RRGGBBAA` hex colours, or null for anything else.
+/// Parses `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA` hex colours, or null for anything else.
 ///
 /// Hex is the only literal form this per-frame path handles, on purpose: CSS
 /// named colours (`red`, `cornflowerblue`) are resolved to hex **once**, at
 /// document-parse time, by the Rust `parse_color` (see
 /// `native_svg_values.dart`), so no colour table is needed here.
 ///
-/// 解析 `#RGB`/`#RRGGBB`/`#RRGGBBAA` 十六进制颜色；其它一律返回 null。
+/// 解析 `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA` 十六进制颜色；其它一律返回 null。
 ///
 /// 逐帧路径刻意只处理十六进制这一种字面形式：CSS 具名颜色（`red`、
 /// `cornflowerblue`）已由 Rust 的 `parse_color` 在文档解析阶段**一次性**转成
@@ -329,6 +329,13 @@ Color? parseSvgHexColor(String v) {
       return Color(
         0xFF000000 | (r * 0x11) << 16 | (g * 0x11) << 8 | (b * 0x11),
       );
+    case 5: // #RGBA (CSS Color 4)
+      final r = _hexDigit(v, 1);
+      final g = _hexDigit(v, 2);
+      final b = _hexDigit(v, 3);
+      final a = _hexDigit(v, 4);
+      if (r < 0 || g < 0 || b < 0 || a < 0) return null;
+      return Color((a * 17) << 24 | (r * 17) << 16 | (g * 17) << 8 | b * 17);
     case 7: // #RRGGBB
       final rgb = _hexByte(v, 1, 3);
       return rgb < 0 ? null : Color(0xFF000000 | rgb);
