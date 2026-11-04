@@ -315,9 +315,9 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
         _colorFadeDuration = colorFadeDuration,
         assert(value != null || controller != null,
             'Either value or controller must be provided'),
-        assert(fractionDigits >= 0 && fractionDigits <= 20),
+        assert(fractionDigits >= 0 && fractionDigits <= counterMaxFractionDigits),
         assert(compactFractionDigits == null ||
-            (compactFractionDigits >= 0 && compactFractionDigits <= 20)),
+            (compactFractionDigits >= 0 && compactFractionDigits <= counterMaxFractionDigits)),
         assert(wholeDigits >= 0),
         assert(speedMultiplier > 0),
         assert(bounceOvershoot >= 0.0),
@@ -356,15 +356,19 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   bool _reversing = false;
   /// 当前转换的数值起点，供 fast 路径计算可中断位置。
   num _fromValue = 0;
-  /// 当前屏幕值；普通模式直接读取个位累计值，保留插值和错峰结果。
+  /// 当前数位数组使用的表示，避免组件更新后误用新的 fast 配置解释旧数组。
+  bool _digitsAreFast = false;
+  /// 当前屏幕值；从实际个位进度还原原始数值，保留紧凑格式的数量级。
   num get _displayedValue {
     if (_currentDigitValues.isEmpty) return _fromValue;
-    if (!widget._timeFast) {
-      final magnitude = _currentDigitValues.last / math.pow(10, _effectiveFractionDigits());
-      final sign = _fromValue < 0 && _lastValue <= 0 ? -1 : 1;
-      return magnitude * sign;
+    double progress;
+    if (_digitsAreFast) {
+      progress = _currentDigitValues.last.clamp(0.0, 1.0);
+    } else {
+      final span = _targetDigitValues.last - _oldDigitValues.last;
+      progress = span == 0 ? _currentT :
+          (_currentDigitValues.last - _oldDigitValues.last) / span;
     }
-    final progress = _currentDigitValues.last.clamp(0.0, 1.0);
     return _fromValue + (_lastValue - _fromValue) * progress;
   }
   double _currentT = 0.0;
@@ -375,15 +379,20 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   // 尚未真正开始的启动动作（startDelay 或批量队列中）；pause 时保留，resume 时执行。
   VoidCallback? _pendingStart;
 
-  bool _usingAdjustedTarget    = false;
-  List<double> _realTargetDigitValues = [];
-
   // ── digit state ───────────────────────────────────────────────────────────
   Timer? _startDelayTimer;
   Color? _directionColor;
   int   _colorAnimKey = 0;
   /// 一次方向变色仅生成有限档位，帧间复用颜色和段落。
   List<Color> _tintPalette = const [];
+  /// 当前色板对应的文字样式，避免 Builder 每帧复制 TextStyle。
+  List<TextStyle> _tintStyles = const [];
+  /// 文字样式缓存的基准配置。
+  TextStyle? _tintStyleBase;
+  /// 文字样式缓存对应的色板。
+  List<Color>? _tintStylePalette;
+  /// 上次应用的档位，避免同一量化档位重复触发重绘。
+  int _appliedTintBucket = -1;
   /// 当前颜色档位；未配置方向色时保持空色板。
   int _tintBucket = 0;
   /// 已准备色板的动画标识。
@@ -433,7 +442,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   /// Widget path:  increment rebuild notifier.
   void _onFrameUpdate();
 
-  /// Called when animation completes, after all-nines snapping.
+  /// 动画完成且数位已到达真实端点时通知两条渲染路径。
   void _onAnimationComplete();
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -501,6 +510,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     super.initState();
     _currentValue = widget.initialValue.isFinite ? widget.initialValue : 0;
     _fromValue = _currentValue;
+    _digitsAreFast = widget._timeFast;
     _lastValue    = _currentValue;
     final initialDigits = _getDigitsList(_currentValue);
     _maxDigits          = initialDigits.length;
@@ -551,18 +561,17 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   /// 立即按新格式重建当前值数位，保证启动延迟期间两条路径也可安全绘制。
   void _refreshFormatDigits() {
     _cancelActive(dropPending: true);
+    _digitsAreFast = widget._timeFast;
     final digits = _getDigitsList(_currentValue);
     _maxDigits = digits.length;
     _oldDigitValues = List<double>.from(digits);
     _targetDigitValues = List<double>.from(digits);
     _currentDigitValues = List<double>.from(digits);
-    _realTargetDigitValues = List<double>.from(digits);
     _fastFromDigits = [for (final digit in digits) digit.toInt().abs() % 10];
     _fastToDigits = List<int>.from(_fastFromDigits);
     if (widget._timeFast) {
       _currentDigitValues = List<double>.filled(_maxDigits, 1.0);
     }
-    _usingAdjustedTarget = false;
   }
 
   /// 控制器零时长命令即使目标相同也必须执行。
@@ -604,9 +613,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     c.$stopCallback    = () {
       _requestVersion++;
       _playback = _CounterPlayback.idle;
-      _onAnimStatusChange(AnimationStatus.dismissed);
       _cancelActive(dropPending: true);
       _repeating = false;
+      _onAnimStatusChange(AnimationStatus.dismissed);
     };
     c.$restartCallback = () {
       final version = ++_requestVersion;
@@ -616,16 +625,20 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       _launchHandle(fromT: 0);
     };
     c.$repeatCallback  = ({bool reverse = false}) {
+      _requestVersion++;
+      _cancelActive(dropPending: true);
       _repeating = true;
       _repeatReverse = reverse;
       _launchHandle(fromT: 0);
       widget.onRepeat?.call();
     };
     c.$reverseCallback = () {
-      _requestVersion++;
+      final version = ++_requestVersion;
+      _cancelActive(dropPending: true);
       _reversing = !_reversing;
       _swapEndpoints();
       _launchHandle(fromT: 1.0 - _currentT);
+      if (!mounted || version != _requestVersion) return;
       _updateCurrentDigitValues();
       _onFrameUpdate();
       widget.onReverse?.call();
@@ -682,7 +695,6 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     final fastTmp = _fastFromDigits;
     _fastFromDigits = _fastToDigits;
     _fastToDigits   = fastTmp;
-    _usingAdjustedTarget = false;
     _isAnimatingDecrease = !_isAnimatingDecrease;
   }
 
@@ -699,47 +711,25 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _isAnimatingDecrease = newValue < oldValue;
     _reversing = false;
     _fromValue = oldValue;
+    _digitsAreFast = widget._timeFast;
     _currentT = 0;
     _playback = _CounterPlayback.running;
 
     final oldDigits = _getDigitsList(oldValue);
-    var animTarget  = newValue;
-
-    final effFD = _effectiveFractionDigits();
-    // The all-nines ε-adjust only matters in fast mode (normal mode overwrites
-    // _usingAdjustedTarget = false below and lands exactly via ghost-prevention).
-    // Skip the pow/round/scan entirely for the common non-fast path.
-    //
-    // all-nines 的 ε 修正只在 fast 模式有意义（普通模式下方会把 _usingAdjustedTarget
-    // 置 false，并靠防幻影精确落位）。常见的非 fast 路径直接跳过 pow/round/扫描。
-    _usingAdjustedTarget = false;
-
-    final targetDigits = _getDigitsList(animTarget);
-    _realTargetDigitValues = List<double>.from(_getDigitsList(newValue));
+    final targetDigits = _getDigitsList(newValue);
     // Never shrink _maxDigits — keeps SizedBox stable and numberAlignment
     // consistent when animating to a smaller value (e.g. 1000 → 7).
-    _maxDigits = math.max(_maxDigits,
-        math.max(oldDigits.length,
-            math.max(targetDigits.length, _realTargetDigitValues.length)));
+    _maxDigits = math.max(_maxDigits, math.max(oldDigits.length, targetDigits.length));
 
     _oldDigitValues    = [...List<double>.filled(_maxDigits - oldDigits.length, 0.0),    ...oldDigits];
     _targetDigitValues = [...List<double>.filled(_maxDigits - targetDigits.length, 0.0), ...targetDigits];
     _currentDigitValues = widget._timeFast
-        ? List<double>.filled(_maxDigits, 0.0) : List<double>.from(_oldDigitValues);
+        ? List<double>.filled(_maxDigits, oldValue == newValue ? 1.0 : 0.0)
+        : List<double>.from(_oldDigitValues);
 
-    // Per-column single digits (0–9), old & new. Derived from the cumulative
-    // magnitude arrays via %10, then reused by both fast and normal modes.
-    // Uses the REAL new value's digits (not the all-nines-adjusted animTarget).
-    //
-    // 每列的单个数字（0–9），旧与新。由累计幅值数组经 %10 得到，fast 与普通模式共用。
-    // 使用真实新值的数位（而非 all-nines 修正后的 animTarget）。
-    final realTarget = [
-      ...List<double>.filled(
-          (_maxDigits - _realTargetDigitValues.length).clamp(0, _maxDigits), 0.0),
-      ..._realTargetDigitValues,
-    ];
+    // 保留真实的旧、新端点供 fast、reverse 和 repeat 共用；完成后只改变可见性。
     _fastFromDigits = [for (final v in _oldDigitValues) v.toInt().abs() % 10];
-    _fastToDigits   = [for (final v in realTarget) v.toInt().abs() % 10];
+    _fastToDigits = [for (final v in _targetDigitValues) v.toInt().abs() % 10];
 
     // Total numeric span — drives autoEase (big jumps ease automatically).
     //
@@ -762,14 +752,6 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // 滚 00→01→…→99，而非每列锁步 00→11→…→99。方向（递增→向上，递减→向下）与
     // 滚动末尾的幻影完全在渲染层处理（CounterPainter.resolveColumnPhase / DigitColumn）：
     // 读取目标数位并把每一位精确吸附到目标。无需 all-nines 的 ε 修正，直接动画到真实目标。
-    // Non-fast mode needs no extra fixup here: `animTarget == newValue`, so the
-    // `_targetDigitValues`/`_currentDigitValues` computed above already hold the
-    // real-target and old-value arrays, and `_usingAdjustedTarget` stayed false.
-    //
-    // 非 fast 模式此处无需额外修正：`animTarget == newValue`，故上方算出的
-    // `_targetDigitValues`/`_currentDigitValues` 已是真实目标与旧值数组，
-    // `_usingAdjustedTarget` 也一直为 false。
-
     final isIncrease  = newValue > oldValue;
     final isDecrease  = newValue < oldValue;
     final targetColor = isIncrease ? widget.increasingColor
@@ -814,10 +796,16 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _handle?.cancel();
     _currentT = fromT;
     final totalDuration = _effectiveDuration;
-    if (totalDuration == Duration.zero) return;
     final remaining = Duration(microseconds:
         ((1.0 - fromT) * totalDuration.inMicroseconds).round());
-    if (remaining <= Duration.zero) return;
+    if (remaining <= Duration.zero) {
+      _currentT = 1;
+      _updateCurrentDigitValues();
+      _playback = _CounterPlayback.completed;
+      _onAnimationComplete();
+      _onAnimStatusChange(_reversing ? AnimationStatus.dismissed : AnimationStatus.completed);
+      return;
+    }
 
     if (fromT == 0) {
       widget.onAnimationStart?.call();
@@ -839,16 +827,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         if (!mounted || version != _requestVersion) return;
         _currentT = 1.0;
         _playback = _CounterPlayback.completed;
-        // Snap to real target when using all-nines adjusted value — applies to both paths.
-        if (_usingAdjustedTarget && _realTargetDigitValues.isNotEmpty) {
-          final n = math.max(_realTargetDigitValues.length, _maxDigits);
-          _currentDigitValues = [
-            ...List<double>.filled(n - _realTargetDigitValues.length, 0.0),
-            ..._realTargetDigitValues,
-          ];
-        }
         _onAnimationComplete();
-        _usingAdjustedTarget = false;
         _onAnimStatusChange(_reversing ? AnimationStatus.dismissed : AnimationStatus.completed);
         if (!mounted || version != _requestVersion) return;
         if (_repeating) {
@@ -869,9 +848,14 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
   /// 状态先落地再通知；回到反向起点发 dismissed，暂停不改变方向。
   void _onAnimStatusChange(AnimationStatus status) {
+    final version = _requestVersion;
     _animationStatus = status;
     widget.controller?.$notifyStatusListeners(status);
-    if (status == AnimationStatus.completed) widget.onAnimationEnd?.call();
+    if (!mounted || version != _requestVersion) return;
+    if (status == AnimationStatus.completed ||
+        (status == AnimationStatus.dismissed && _playback == _CounterPlayback.completed)) {
+      widget.onAnimationEnd?.call();
+    }
   }
 
   // ── concurrent bounce wave ─────────────────────────────────────────────────
@@ -1152,6 +1136,17 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     compactFractionDigits: widget._fmtCompactFractionDigits,
   );
 
+  /// 返回当前方向色的缓存文字样式；每次配置变更最多构建一个有限色板。
+  TextStyle _digitStyleFor(TextStyle base) {
+    if (_tintPalette.isEmpty) return base;
+    if (_tintStyleBase != base || !identical(_tintStylePalette, _tintPalette)) {
+      _tintStyleBase = base;
+      _tintStylePalette = _tintPalette;
+      _tintStyles = [for (final color in _tintPalette) base.copyWith(color: color)];
+    }
+    return _tintStyles[_tintBucket];
+  }
+
   /// 量化方向色并直接更新数字；子树与 painter 均不依赖外层文字继承。
   Widget _wrapColorTint(Widget child, Color baseColor) {
     if (_directionColor == null) return child;
@@ -1160,6 +1155,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       _tintPalette = List<Color>.generate(_tintSteps,
           (i) => Color.lerp(_directionColor, baseColor, i / (_tintSteps - 1))!);
       _tintBucket = 0;
+      _appliedTintBucket = -1;
     }
     return TweenAnimationBuilder<double>(
       key: ValueKey(_colorAnimKey),
@@ -1167,8 +1163,11 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       duration: widget.colorFadeDuration,
       builder: (_, t, ch) {
         final bucket = (t * (_tintSteps - 1)).round();
-        _tintBucket = bucket;
-        _onFrameUpdate();
+        if (_appliedTintBucket != bucket) {
+          _tintBucket = bucket;
+          _appliedTintBucket = bucket;
+          _onFrameUpdate();
+        }
         return ch!;
       },
       child: child,

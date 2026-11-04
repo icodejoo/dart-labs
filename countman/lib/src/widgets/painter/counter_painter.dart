@@ -47,6 +47,7 @@ typedef CounterPainterBuilder = CounterPainter Function({
   double numberAlignment,
 });
 
+/// 常驻数字画笔；原地更新数位、方向及有限档位颜色，缓存排版段落。
 class CounterPainter extends CustomPainter {
   CounterPainter({
     required Listenable repaint,
@@ -235,6 +236,7 @@ class CounterPainter extends CustomPainter {
 
   /// Computes each visible digit column's x-offset, skipping hidden leading
   /// zeroes and leaving room for thousand and decimal separators.
+  /// fast 在过渡中保留两端有效列，落位后仅按新端点收起旧高位。
   List<DigitColumnLayout> buildColumns() {
     final n   = digitValues.length;
     final dw  = digitSize.width + padding.horizontal;

@@ -128,6 +128,7 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
 
 // ── state ─────────────────────────────────────────────────────────────────────
 
+/// 按数位通知重建的自定义组件渲染路径。
 class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuilder> {
   final _rebuildNotifier = ValueNotifier<int>(0);
 
@@ -147,6 +148,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
   // ── build ─────────────────────────────────────────────────────────────────
 
+  /// 两条路径共用端点可见性和量化颜色；仅数字子树逐帧更新。
   @override
   Widget build(BuildContext context) {
     final style      = _resolveStyle(context);
@@ -170,7 +172,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
       valueListenable: _rebuildNotifier,
       builder: (ctx, _, __) {
         final color = _digitTint ?? style.color ?? const Color(0xFF000000);
-        final digitStyle = _digitTint == null ? style : style.copyWith(color: color);
+        final digitStyle = _digitStyleFor(style);
         final integerDigitCount = _currentDigitValues.length - effFD;
 
         // In fast mode _currentDigitValues carries progress (not magnitude), so

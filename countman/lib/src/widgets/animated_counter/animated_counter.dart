@@ -177,6 +177,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
 
   // ── frame hooks ───────────────────────────────────────────────────────────
 
+  /// 每帧原地同步数位和量化方向色，不重建 painter。
   @override
   void _onFrameUpdate() {
     _activePainter?.updateTint(_tintPalette, _tintBucket);

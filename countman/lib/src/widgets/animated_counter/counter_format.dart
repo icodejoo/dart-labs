@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'types.dart';
+import 'number_format.dart';
 
 /// 两种动画计数器共享的不可变格式配置；空字段回退到组件平铺参数。
 ///
@@ -21,8 +22,8 @@ class CounterFormat {
     this.showPositiveSign,
     this.numeralSystem,
     this.numeralMapper,
-  }) : assert(fractionDigits == null || (fractionDigits >= 0 && fractionDigits <= 20)),
-       assert(compactFractionDigits == null || (compactFractionDigits >= 0 && compactFractionDigits <= 20));
+  }) : assert(fractionDigits == null || (fractionDigits >= 0 && fractionDigits <= counterMaxFractionDigits)),
+       assert(compactFractionDigits == null || (compactFractionDigits >= 0 && compactFractionDigits <= counterMaxFractionDigits));
 
   /// 小数位数，必须为 0–20。
   final int? fractionDigits;

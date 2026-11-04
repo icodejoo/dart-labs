@@ -71,6 +71,7 @@ class CardModel {
 ///   }
 /// }
 /// ```
+/// 常驻翻牌画笔，复用画笔和有限透明度样式，保留原颜色的 alpha。
 class FlipCardPainter extends CustomPainter {
   FlipCardPainter({
     required Listenable repaint,
@@ -187,12 +188,14 @@ class FlipCardPainter extends CustomPainter {
   }
 
   /// Draws a static (non-animating) card face: background + centered digit.
+  /// 用复用画笔绘制静态卡片，保持背景原始透明度。
   void drawFace(Canvas canvas, Rect rect, int value, BorderRadius radius) {
     canvas.drawRRect(radius.toRRect(rect), _facePaint..color = cardColor);
     drawCenteredText(canvas, '$value', textStyle, digitCache, rect.center.dx, rect.center.dy);
   }
 
   /// Draws the thin split-flap seam line across the vertical center of [rect].
+  /// 用固定画笔绘制翻牌中缝。
   void drawDivider(Canvas canvas, Rect rect) {
     canvas.drawRect(
       Rect.fromLTWH(rect.left, rect.top + rect.height / 2 - 0.5, rect.width, 1),
