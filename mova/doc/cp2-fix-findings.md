@@ -45,3 +45,38 @@ setRate 参数和代理最终状态都为 1.5，广告时内核参数为 1.0。
 5120ms（替身内核边界误差 0ms）。四项在旧 lib 上均变红，既有断言未改写。
 这不代表修复后真机误差已实测为零，原生采样和进度节流残差仍须设备复验。
 广告 kind 覆盖 AD 记录类型造成的 ads=[] 是独立夹具缺陷，不纳入产品修复。
+
+## 3. cp2-pod2 第二条 epoch 未增：仅夹具资源污染，未复现产品缺陷
+
+续跑 `matrix-cp2-pod2-resume-20261104-182714-cp2-pod2.json` 前五轮均
+epoch1=1、epoch2=2；第六轮第二条 path/首帧存在而 epoch2=1。
+第六轮第一条首帧 43162443us、第二条 49688581us，其间多次 warming→idle；
+49690267us 音频设备初始化失败，50156618us h264 decoder 初始化失败。
+同批后续场景已无法起播，符合资源逐步耗尽，不能把未换指直接视作 pod 仲裁失效。
+
+只读 `git show 996b324f:mova/example/lib/verify_auto/cp2_common.dart` 确认
+实测版本注入 MovaMpvKernel 却缺少 ownsKernel:true；默认借用内核，销毁引擎
+不会释放 Player。当前只读树的夹具已补该参数，不能拿其当前内容冒充实测版本。
+
+当前 lib 的第二条 `_playAd` 在等待策略下走 prepareOwned+commitOwned。
+只有影子失败/未就绪时才按既有 hardCut 契约在当前生效引擎 open；没有换渲染引擎，
+renderEpoch 不增长是预期。正常路径未发现回落到主引擎 open 的问题。
+
+新增两项诊断测试：一项连续二十轮干净 pod，每轮第二条均 1→2、独立影子提交，
+第一条未收到第二条的 open，所有替身引擎均恰好释放一次；另一项注入第二条
+影子初始化失败，确认释放失败影子、硬切第二条、epoch 保持 1。
+两项均在既有 lib 上通过；没有可归因产品缺陷的变红回归（0 条），不改 lib，
+不改既有断言，也没有新增行为需要记入 CHANGELOG。
+这是离线隔离结论；不宣称单测证明了原生解码器在真机上的完整行为。
+
+## 验证记录
+
+开跑前执行 `Get-Process flutter_tester -ErrorAction SilentlyContinue | Stop-Process`。
+`flutter analyze lib test`：0 issues。
+新增 8 项（倍速 2、中插 4、pod 诊断 2），既有断言改写 0 项；
+产品修复回退变红合计 6 项，pod 诊断不是产品缺陷回归。
+
+第一次全量为 2397 通过、7 失败：全是 B09 setUp 对
+`Directory('.dart_tool/b09').createTemp('cache_')` 的父目录缺失，
+新 worktree 未继承运行目录。仅创建忽略目录 `.dart_tool/b09`，不改测试或断言，
+再以 `flutter test --concurrency=3` 完整验证。
