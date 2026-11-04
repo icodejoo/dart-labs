@@ -129,6 +129,16 @@ class FlipCardPainter extends CustomPainter {
   final Map<(String, TextStyle), TextPainter> sepCache;
   final Map<(String, TextStyle), TextPainter> labelCache;
 
+  /// 背景和分隔线画笔常驻复用，避免在逐数位热路径创建 Paint。
+  final Paint _facePaint = Paint();
+  /// 翻牌缝隙画笔使用固定颜色。
+  final Paint _dividerPaint = Paint()..color = const Color(0x28000000);
+  /// 淡化文字样式只建立 16 档，帧间复用并命中字形缓存。
+  late final List<TextStyle> _fadedStyles = List.generate(_alphaBuckets, (bucket) {
+    final base = textStyle.color ?? const Color(0xFFFFFFFF);
+    return textStyle.copyWith(color: base.withValues(alpha: base.a * bucket / (_alphaBuckets - 1)));
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final t = curve.transform(controller.value.clamp(0.0, 1.0));
@@ -178,7 +188,7 @@ class FlipCardPainter extends CustomPainter {
 
   /// Draws a static (non-animating) card face: background + centered digit.
   void drawFace(Canvas canvas, Rect rect, int value, BorderRadius radius) {
-    canvas.drawRRect(radius.toRRect(rect), Paint()..color = cardColor);
+    canvas.drawRRect(radius.toRRect(rect), _facePaint..color = cardColor);
     drawCenteredText(canvas, '$value', textStyle, digitCache, rect.center.dx, rect.center.dy);
   }
 
@@ -186,7 +196,7 @@ class FlipCardPainter extends CustomPainter {
   void drawDivider(Canvas canvas, Rect rect) {
     canvas.drawRect(
       Rect.fromLTWH(rect.left, rect.top + rect.height / 2 - 0.5, rect.width, 1),
-      Paint()..color = const Color(0x28000000),
+      _dividerPaint,
     );
   }
 
@@ -212,10 +222,10 @@ class FlipCardPainter extends CustomPainter {
   /// [drawCenteredText] 缓存 ≤ 10·16 个淡化字形，而非整段过渡每帧新建/排版/销毁一个
   /// 未缓存 [TextPainter]。
   static const int _alphaBuckets = 16;
+  /// 动画透明度与原文字透明度叠乘，返回有限档位的缓存样式。
   TextStyle _fadedStyle(double alpha) {
     final b = (alpha.clamp(0.0, 1.0) * (_alphaBuckets - 1)).round();
-    final base = textStyle.color ?? const Color(0xFFFFFFFF);
-    return textStyle.copyWith(color: base.withValues(alpha: b / (_alphaBuckets - 1)));
+    return _fadedStyles[b];
   }
 
   /// Upper half: `from` flap falls away (0 → π/2) revealing the `to` value's
@@ -252,7 +262,7 @@ class FlipCardPainter extends CustomPainter {
   /// Same as [drawFace] but without the divider — the calendar halves draw
   /// the divider once, on top, in [paint] instead of per-half.
   void drawFaceNoDivider(Canvas canvas, Rect rect, int value, BorderRadius radius) {
-    canvas.drawRRect(radius.toRRect(rect), Paint()..color = cardColor);
+    canvas.drawRRect(radius.toRRect(rect), _facePaint..color = cardColor);
     drawCenteredText(canvas, '$value', textStyle, digitCache, rect.center.dx, rect.center.dy);
   }
 
@@ -261,7 +271,7 @@ class FlipCardPainter extends CustomPainter {
   /// neighboring cell mid-slide. `from` slides down and out, `to` slides in
   /// from above.
   void paintSlideCell(Canvas canvas, Rect rect, int from, int to, double t, BorderRadius radius) {
-    canvas.drawRRect(radius.toRRect(rect), Paint()..color = cardColor);
+    canvas.drawRRect(radius.toRRect(rect), _facePaint..color = cardColor);
 
     canvas.save();
     canvas.clipRect(rect);
@@ -325,8 +335,9 @@ class FlipCardPainter extends CustomPainter {
 
   /// Same as [drawFace] but at [alpha] opacity — see [paintSlideDigit] for
   /// why a fading digit bypasses [digitCache] instead of using `saveLayer`.
+  /// 叠乘卡片和文字原 alpha；透明度为 1 时保持原始半透明样式。
   void drawFaceWithAlpha(Canvas canvas, Rect rect, int value, BorderRadius radius, double alpha) {
-    canvas.drawRRect(radius.toRRect(rect), Paint()..color = cardColor.withValues(alpha: alpha));
+    canvas.drawRRect(radius.toRRect(rect), _facePaint..color = cardColor.withValues(alpha: cardColor.a * alpha));
     if (alpha >= 1.0) {
       drawCenteredText(canvas, '$value', textStyle, digitCache, rect.center.dx, rect.center.dy);
     } else {

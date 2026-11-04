@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'package:flutter/widgets.dart';
 import 'card_countdown_types.dart';
 
@@ -77,13 +78,21 @@ class CardCountdownProvider extends StatefulWidget {
 class _CardCountdownProviderState extends State<CardCountdownProvider> {
   // One cache per provider instance, stable across rebuilds (only recreated
   // if the provider widget itself is torn down and remounted).
-  final _cache = <(String, TextStyle), TextPainter>{};
+  final _cache = CardGlyphCache();
+
+  /// Provider 样式变化后释放旧段落，避免反复换主题积累缓存。
+  @override
+  void didUpdateWidget(CardCountdownProvider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.textStyle != widget.textStyle ||
+        oldWidget.labelStyle != widget.labelStyle ||
+        oldWidget.separatorStyle != widget.separatorStyle) {
+      _cache.clear();
+    }
+  }
 
   @override
   void dispose() {
-    for (final tp in _cache.values) {
-      tp.dispose(); // release cached native paragraphs
-    }
     _cache.clear();
     super.dispose();
   }
@@ -177,4 +186,40 @@ class _CardCountdownScope extends InheritedWidget {
       data.scaleFactor != oldWidget.data.scaleFactor ||
       data.opacityEffect != oldWidget.data.opacityEffect ||
       data.perspective != oldWidget.data.perspective;
+}
+
+/// 有界字形缓存，最多保留 512 个段落；删除、替换和清空均负责 dispose。
+/// 使用与 Map 相同的接口，例如 `cache.putIfAbsent((text, style), create)`。
+class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
+  /// 缓存上限覆盖数字的 16 档透明度及标签和分隔符。
+  static const int capacity = 512;
+  /// 插入顺序也是最早可淘汰的顺序。
+  final _entries = <(String, TextStyle), TextPainter>{};
+  /// 返回已缓存段落，未命中时为 null。
+  @override
+  TextPainter? operator [] (Object? key) => _entries[key];
+  /// 插入段落；替换和超出容量时释放旧段落。
+  @override
+  void operator []=((String, TextStyle) key, TextPainter value) {
+    final old = _entries.remove(key);
+    if (old != null && !identical(old, value)) old.dispose();
+    if (_entries.length >= capacity) remove(_entries.keys.first);
+    _entries[key] = value;
+  }
+  /// 当前缓存键，按插入顺序迭代。
+  @override
+  Iterable<(String, TextStyle)> get keys => _entries.keys;
+  /// 清空并释放所有段落。
+  @override
+  void clear() {
+    for (final painter in _entries.values) { painter.dispose(); }
+    _entries.clear();
+  }
+  /// 移除时同步释放；返回已释放对象，仅供 Map 接口兼容，不应再次使用。
+  @override
+  TextPainter? remove(Object? key) {
+    final painter = _entries.remove(key);
+    painter?.dispose();
+    return painter;
+  }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
@@ -218,6 +219,8 @@ class CardCountdown extends StatefulWidget {
     required this.to,
     this.style,
     this.showHours,
+    this.showDays = false,
+    this.dayLabel = 'D',
     this.labels = const ['H', 'M', 'S'],
     this.separator = ':',
     this.duration,
@@ -257,6 +260,14 @@ class CardCountdown extends StatefulWidget {
   /// Whether to show the hours unit.
   /// null = auto: shown only when remaining ≥ 1 hour.
   final bool? showHours;
+
+  /// 是否增加天单元；默认 false。启用后小时取 0–23，天位数按需扩展。
+  /// 示例：`CardCountdown(to: Duration(days: 2, hours: 3), showDays: true)`。
+  final bool showDays;
+
+  /// 天单元标签，默认 D；labels 为 null 时与其他标签一并隐藏。
+  /// 示例：`CardCountdown(to: Duration(days: 2), showDays: true, dayLabel: '天')`。
+  final String dayLabel;
 
   /// Labels shown below each unit card. Supply null to hide labels.
   /// Order: [hours, minutes, seconds].
@@ -305,6 +316,10 @@ class _CountdownCardState extends State<CardCountdown>
   late bool _showHours;
   late CardModel _model;
   Duration _lastRemaining = Duration.zero;
+  /// 仅驱动 Semantics 子树，tick 不触发卡片布局或 painter 重建。
+  final _semanticRemaining = ValueNotifier<Duration>(Duration.zero);
+  /// 本地字形对应的三套当前样式，用于淘汰旧样式段落。
+  (TextStyle, TextStyle, TextStyle)? _cacheStyles;
 
   // Resolved once per build() (widget ?? provider ?? default) — the
   // AnimationController's status listener is created once in initState and
@@ -315,7 +330,7 @@ class _CountdownCardState extends State<CardCountdown>
   // Per-card glyph cache. Used for any style this card resolves itself
   // (explicit override, or no ancestor provider) — never shared with other
   // cards. Bounded: at most ~10 digits + separator + label strings.
-  final _localCache = <(String, TextStyle), TextPainter>{};
+  final _localCache = CardGlyphCache();
 
   @override
   void initState() {
@@ -344,7 +359,9 @@ class _CountdownCardState extends State<CardCountdown>
         }
       });
     final r = remainingUntil(widget.to);
-    _showHours = widget.showHours ?? r.inHours >= 1;
+    _lastRemaining = r;
+    _semanticRemaining.value = r;
+    _showHours = _hoursFor(r);
     _model = CardModel(_digitsFor(r, _showHours));
     _start();
   }
@@ -372,27 +389,50 @@ class _CountdownCardState extends State<CardCountdown>
     _ctrl.value = 0;
     setState(() {
       _lastRemaining = remaining;
-      _showHours = widget.showHours ?? remaining.inHours >= 1;
+      _semanticRemaining.value = remaining;
+      _showHours = _hoursFor(remaining);
       _model = CardModel(_digitsFor(remaining, _showHours));
     });
     _start(remaining: remaining);
   }
 
-  List<int> _digitsFor(Duration r, bool showHours) {
-    final units = showHours
-        ? [r.inHours, r.inMinutes % 60, r.inSeconds % 60]
-        : [r.inMinutes % 60, r.inSeconds % 60];
-    return [
-      for (final u in units) ...[u ~/ 10, u % 10]
-    ];
+  /// 解析小时列；显示天时默认保留小时单元。
+  bool _hoursFor(Duration r) => widget.showHours ?? (widget.showDays || r.inHours >= 1);
+
+  /// 按天、小时、分、秒顺序解析单位，小时在天模式下取余。
+  List<int> _unitsFor(Duration r, bool showHours) => [
+    if (widget.showDays) r.inDays,
+    if (showHours) widget.showDays ? r.inHours % 24 : r.inHours,
+    r.inMinutes % 60, r.inSeconds % 60,
+  ];
+
+  /// 天至少一位、其余至少两位，较大单位按需扩位。
+  List<int> _unitWidths(Duration r, bool showHours) {
+    final units = _unitsFor(r, showHours);
+    return [for (var i = 0; i < units.length; i++)
+      units[i].toString().length < (widget.showDays && i == 0 ? 1 : 2)
+          ? (widget.showDays && i == 0 ? 1 : 2) : units[i].toString().length];
   }
 
+  /// 每个单元拆成独立十进制数字，禁止单格出现 10 以上的数字。
+  List<int> _digitsFor(Duration r, bool showHours) {
+    final units = _unitsFor(r, showHours);
+    final widths = _unitWidths(r, showHours);
+    return [for (var i = 0; i < units.length; i++)
+      for (final code in units[i].toString().padLeft(widths[i], '0').codeUnits) code - 48];
+  }
+
+  /// 同目标 tick 保留进度，打断前先提交旧目标再计算 changedMask。
   void _onTick(TimeParts parts) {
     widget.onTick?.call(parts);
     final remaining = parts.value;
+    final oldWidths = _unitWidths(_lastRemaining, _showHours);
     _lastRemaining = remaining;
-    final showHours = widget.showHours ?? remaining.inHours >= 1;
-    if (showHours != _showHours) {
+    _semanticRemaining.value = remaining;
+    final showHours = _hoursFor(remaining);
+    if (showHours != _showHours || !listEquals(oldWidths, _unitWidths(remaining, showHours))) {
+      _ctrl.stop();
+      _ctrl.value = 0;
       // Rare event (crossing the 1h boundary): the unit count itself
       // changes, which needs a real layout pass. Snap instead of animating —
       // a transition here would need to reconcile two different cell counts
@@ -405,13 +445,12 @@ class _CountdownCardState extends State<CardCountdown>
     }
 
     final next = _digitsFor(remaining, _showHours);
-    final changed =
-        List.generate(next.length, (i) => next[i] != _model.committed[i]);
-    if (!changed.contains(true)) return;
-
+    if (listEquals(next, _model.target ?? _model.committed)) return;
     if (_ctrl.isAnimating && _model.target != null) {
-      _model.committed = _model.target!; // finish the previous batch instantly
+      _model.committed = _model.target!;
     }
+    final changed = List.generate(next.length, (i) => next[i] != _model.committed[i]);
+    if (!changed.contains(true)) return;
     _model.target = next;
     _model.changedMask = changed;
     _model.reversePhase = false;
@@ -428,7 +467,9 @@ class _CountdownCardState extends State<CardCountdown>
       _ctrl.stop();
       _ctrl.value = 0;
       final r = remainingUntil(widget.to);
-      _showHours = widget.showHours ?? r.inHours >= 1;
+      _lastRemaining = r;
+      _semanticRemaining.value = r;
+      _showHours = _hoursFor(r);
       _model = CardModel(_digitsFor(r, _showHours));
       _start();
     } else {
@@ -446,14 +487,16 @@ class _CountdownCardState extends State<CardCountdown>
       // 单独修改阈值时沿用当前任务，不重置倒计时。
       _handle?.updateThreshold(widget.threshold);
     }
-    if (widget.to == old.to && widget.showHours != old.showHours) {
+    if (widget.to == old.to && (widget.showHours != old.showHours || widget.showDays != old.showDays)) {
       // showHours flipped without a new deadline — relayout the unit count now
       // instead of waiting for the next tick to notice (avoids a stale frame).
       //
       // showHours 翻转但截止未变——立即重排单位数，而非等下一 tick 才发现
       // （避免一帧陈旧）。
-      final r = remainingUntil(widget.to);
-      _showHours = widget.showHours ?? r.inHours >= 1;
+      final r = _handle != null && !_handle!.isDone ? _handle!.remaining : _lastRemaining;
+      _ctrl.stop();
+      _ctrl.value = 0;
+      _showHours = _hoursFor(r);
       _model = CardModel(_digitsFor(r, _showHours));
     }
   }
@@ -464,13 +507,12 @@ class _CountdownCardState extends State<CardCountdown>
     widget.controller?.detach(_handle);
     _handle?.cancel();
     _ctrl.dispose();
-    for (final tp in _localCache.values) {
-      tp.dispose(); // release cached native paragraphs
-    }
+    _semanticRemaining.dispose();
     _localCache.clear();
     super.dispose();
   }
 
+  /// 根据动态单位位数布局卡片，默认两位单元保持原几何。
   CardGeometry _measure({
     required double cardWidth,
     required double cardHeight,
@@ -482,7 +524,8 @@ class _CountdownCardState extends State<CardCountdown>
     required Map<(String, TextStyle), TextPainter> labelCache,
     required bool splitDigits,
   }) {
-    final unitsCount = _showHours ? 3 : 2;
+    final widths = _unitWidths(_lastRemaining, _showHours);
+    final unitsCount = widths.length;
     final labelOffset =
         _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
     final sepPainter = sepCache.putIfAbsent(
@@ -501,20 +544,21 @@ class _CountdownCardState extends State<CardCountdown>
 
     for (var u = 0; u < unitsCount; u++) {
       final unitStart = x;
-      if (splitDigits) {
-        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
-        x += cardWidth + digitGap;
-        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
-        x += cardWidth;
-      } else {
-        final half = cardWidth / 2;
-        cells.add(Cell(x, half, digitIndex++, _leftRadius));
-        x += half;
-        cells.add(Cell(x, half, digitIndex++, _rightRadius));
-        x += half;
+      final digits = widths[u];
+      for (var d = 0; d < digits; d++) {
+        final width = splitDigits ? cardWidth : cardWidth / 2;
+        final radius = splitDigits ? _fullRadius :
+            (digits == 1 ? _fullRadius : d == 0 ? _leftRadius :
+              d == digits - 1 ? _rightRadius : BorderRadius.zero);
+        cells.add(Cell(x, width, digitIndex++, radius));
+        x += width;
+        if (splitDigits && d < digits - 1) x += digitGap;
       }
       unitLabelCenters.add((unitStart + x) / 2);
-      unitLabelText.add(widget.labels?[u + labelOffset]);
+      final labelIndex = u - (widget.showDays ? 1 : 0) + labelOffset;
+      unitLabelText.add(widget.labels == null ? null :
+          widget.showDays && u == 0 ? widget.dayLabel :
+          labelIndex < widget.labels!.length ? widget.labels![labelIndex] : null);
 
       if (u != unitsCount - 1) {
         x += unitGap;
@@ -603,6 +647,12 @@ class _CountdownCardState extends State<CardCountdown>
             fontWeight: FontWeight.bold,
             color: const Color(0xFF757575));
 
+    final styles = (textStyle, labelStyle, separatorStyle);
+    if (_cacheStyles != styles) {
+      _localCache.clear();
+      _cacheStyles = styles;
+    }
+
     // A style is only shared via the provider's cache when this card is
     // actually inheriting it (left unset) — an explicit override always
     // uses this card's own local cache, so it never pollutes the shared one.
@@ -654,11 +704,15 @@ class _CountdownCardState extends State<CardCountdown>
     );
     // The card paints digits straight to the canvas, so it has no text node
     // for a screen reader. Expose the remaining time via Semantics.
-    final semantic = Semantics(
-      container: true,
-      label: 'Countdown',
-      value: CountdownFormat.hms(TimeParts.of(_lastRemaining)),
+    final semantic = ValueListenableBuilder<Duration>(
+      valueListenable: _semanticRemaining,
       child: inner,
+      builder: (_, remaining, child) => Semantics(
+        container: true,
+        label: 'Countdown',
+        value: (widget.showDays ? CountdownFormat.dhms : CountdownFormat.hms)(TimeParts.of(remaining)),
+        child: child,
+      ),
     );
     final decorated = applyBoxStyle(semantic,
         padding: st?.padding, decoration: st?.decoration);
