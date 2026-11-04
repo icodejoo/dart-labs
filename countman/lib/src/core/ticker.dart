@@ -74,6 +74,7 @@ class Countman {
   /// Stop the loop and dispose every registered plugin.
   /// After destroy, the next [start] call (e.g. via a new task) rebuilds
   /// the plugin set from scratch via [use].
+  /// 逐插件隔离销毁异常，使全部旧插件都得到释放。
   static void destroy() {
     stop();
     // 先摘除旧注册表，销毁回调中新建的插件属于下一代。
@@ -85,7 +86,16 @@ class Countman {
     // snapshot to allow dispose() to mutate _plugins if needed
     for (final p in plugins) {
       StartScheduler.instance.removeGroup(p);
-      p.dispose();
+      try {
+        p.dispose();
+      } catch (error, stack) {
+        FlutterError.reportError(FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'countman',
+          context: ErrorDescription('插件 "${p.name}" 销毁异常'),
+        ));
+      }
     }
   }
 

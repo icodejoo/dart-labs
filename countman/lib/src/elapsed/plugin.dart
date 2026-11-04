@@ -11,20 +11,20 @@ class ElapsedHandle {
   final int _id;
   final Elapsed _plugin;
 
-  /// Freeze the timer at its current elapsed time.
+  /// 暂停存活任务；已取消或已暂停时无操作。
   void pause() {
     final task = _plugin.task(_id);
-    if (task == null || task.isPaused) return;
+    if (task == null || task.done || task.isPaused) return;
     task.pausedElapsed = task.elapsed;
     // 回调内暂停后不再继续当前帧的旧计算。
     task.revision++;
     task.onPause?.call();
   }
 
-  /// Resume a paused timer. Restarts the ticker if it had stopped.
+  /// 恢复存活的暂停任务并唤醒帧循环；已取消时无操作。
   void resume() {
     final task = _plugin.task(_id);
-    if (task == null || !task.isPaused) return;
+    if (task == null || task.done || !task.isPaused) return;
     // 恢复时排除暂停期间经过的单调时间。
     task.startTime = elapsedClock() - task.pausedElapsed!;
     task.pausedElapsed = null;
@@ -33,10 +33,10 @@ class ElapsedHandle {
     _plugin.requestFrame();
   }
 
-  /// Reset elapsed time back to zero, then resume.
+  /// 将存活任务清零后恢复；已取消时无操作。
   void reset() {
     final task = _plugin.task(_id);
-    if (task == null) return;
+    if (task == null || task.done) return;
     // 重置只读取单调时间，不读取系统日期。
     task.startTime = elapsedClock();
     task.pausedElapsed = null;
@@ -83,10 +83,27 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
   // 直接转发父类间隔参数，保留上一批计时修复。
   Elapsed({String? name, super.interval}) : super(name ?? 'elapsed');
 
+  /// 本帧的时钟微秒快照，所有任务共享一次读取。
+  int _frameMicros = 0;
+
+  /// 先读取时钟再累积显示节流时间，每帧只读取一次。
+  @override
+  bool beginFrame(double dtMs) {
+    _frameMicros = elapsedClock().inMicroseconds;
+    return super.beginFrame(dtMs);
+  }
+
+  /// 使用整数微秒计算本帧值；公开 handle getter 仍读取实时时钟。
+  int _valueMicros(ElapsedTask task) =>
+      task.pausedElapsed?.inMicroseconds ??
+      (_frameMicros - task.startTime.inMicroseconds);
+
   // ── ClockPlugin domain hooks ──────────────────────────────────────
 
+  /// 仅在显示更新时构造时长。
   @override
-  Duration valueOf(ElapsedTask task) => task.elapsed;
+  Duration valueOf(ElapsedTask task) =>
+      Duration(microseconds: _valueMicros(task));
 
   @override
   Duration? totalOf(ElapsedTask task) => null; // open-ended, no total
@@ -94,8 +111,10 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
   @override
   bool isComplete(ElapsedTask task) => false; // never done on its own
 
+  /// 每帧用同一时钟快照比较阈值。
   @override
-  bool thresholdCrossed(ElapsedTask task) => task.elapsed >= task.threshold!;
+  bool thresholdCrossed(ElapsedTask task) =>
+      _valueMicros(task) >= task.threshold!.inMicroseconds;
 
   @override
   void onComplete(

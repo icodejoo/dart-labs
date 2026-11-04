@@ -89,20 +89,40 @@ class Countdown extends ClockPlugin<CountdownTask> {
   // 直接转发父类间隔参数，保留默认值与调用方式。
   Countdown({String? name, super.interval}) : super(name ?? 'countdown');
 
+  /// 本帧的时钟微秒快照，所有任务共享一次读取。
+  int _frameMicros = 0;
+
+  /// 先读取时钟再累积显示节流时间，每帧只读取一次。
+  @override
+  bool beginFrame(double dtMs) {
+    _frameMicros = countdownClock().microsecondsSinceEpoch;
+    return super.beginFrame(dtMs);
+  }
+
+  /// 使用整数微秒计算本帧值；公开 handle getter 仍读取实时时钟。
+  int _valueMicros(CountdownTask task) =>
+      (task.pausedRemaining?.inMicroseconds ??
+              (task.endTime.microsecondsSinceEpoch - _frameMicros))
+          .clamp(0, 0x7fffffffffffffff);
+
   // ── ClockPlugin domain hooks ──────────────────────────────────────
 
+  /// 仅在需要显示更新时构造时长。
   @override
-  Duration valueOf(CountdownTask task) => task.remaining;
+  Duration valueOf(CountdownTask task) =>
+      Duration(microseconds: _valueMicros(task));
 
   @override
   Duration? totalOf(CountdownTask task) => task.total;
 
+  /// 整数比较避免逐帧构造时长。
   @override
-  bool isComplete(CountdownTask task) => task.remaining <= Duration.zero;
+  bool isComplete(CountdownTask task) => _valueMicros(task) <= 0;
 
+  /// 用本帧快照判断剩余时间是否越过阈值。
   @override
   bool thresholdCrossed(CountdownTask task) =>
-      task.remaining <= task.threshold!;
+      _valueMicros(task) <= task.threshold!.inMicroseconds;
 
   @override
   void onComplete(CountdownTask task) {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Frame-based batch scheduler for widget animation starts.
@@ -39,6 +40,9 @@ class StartScheduler {
   final _queue = <_Item>[];
   bool _scheduled = false;
 
+  /// 当前已出队批次，允许回调取消批内尚未执行的项。
+  List<_Item>? _activeBatch;
+
   /// Resolve effective batch size for [group].
   /// Priority: groupBatchSize[group] > defaultBatchSize.
   int batchSizeFor(Object? group) {
@@ -67,13 +71,21 @@ class StartScheduler {
   /// Call from [State.dispose] to:
   /// - prevent the callback from running on a disposed widget, and
   /// - release the closure's reference to the State so it can be GC'd.
+  /// 同时取消排队项与当前批内尚未执行的 owner 项。
   void cancel(Object owner) {
+    for (final item in _activeBatch ?? const <_Item>[]) {
+      if (identical(item.tag, owner)) item.cancelled = true;
+    }
     _queue.removeWhere((item) => identical(item.tag, owner));
   }
 
   /// Release a group's configuration and pending starts.
   /// 插件注销时同时释放分组配置与待启动闭包。
+  /// 释放分组配置并取消排队项和当前批内的分组项。
   void removeGroup(Object group) {
+    for (final item in _activeBatch ?? const <_Item>[]) {
+      if (identical(item.group, group)) item.cancelled = true;
+    }
     groupBatchSize.remove(group);
     _queue.removeWhere((item) => identical(item.group, group));
   }
@@ -84,6 +96,7 @@ class StartScheduler {
     SchedulerBinding.instance.scheduleFrameCallback(_drain);
   }
 
+  /// 隔离每项异常，并在批次收尾时继续调度剩余启动。
   void _drain(Duration _) {
     _scheduled = false;
     if (_queue.isEmpty) return;
@@ -102,22 +115,45 @@ class StartScheduler {
     final batch = _queue.sublist(0, end);
     _queue.removeRange(0, end);
 
-    for (final item in batch) {
-      item.fn();
+    _activeBatch = batch;
+    try {
+      for (final item in batch) {
+        if (item.cancelled) continue;
+        try {
+          item.fn();
+        } catch (error, stack) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'countman',
+            context: ErrorDescription('StartScheduler 批启动回调异常'),
+          ));
+        }
+      }
+    } finally {
+      _activeBatch = null;
+      _scheduleIfNeeded();
     }
-
-    _scheduleIfNeeded();
   }
 
   /// Discard all pending items.
+  /// 清空排队项并取消当前批内尚未执行的启动。
   void clear() {
+    for (final item in _activeBatch ?? const <_Item>[]) {
+      item.cancelled = true;
+    }
     _queue.clear();
     _scheduled = false;
   }
 }
 
+/// 可取消的批启动项。
 class _Item {
-  const _Item(this.fn, this.batchSize, this.tag, this.group);
+  /// 保存启动回调与所属 owner、分组。
+  _Item(this.fn, this.batchSize, this.tag, this.group);
+
+  /// 已被 owner、分组或清空操作取消。
+  bool cancelled = false;
   final void Function() fn;
   final int batchSize;
   final Object? tag;

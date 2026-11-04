@@ -290,6 +290,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
 
   // ── CountmanPlugin ────────────────────────────────────────────────
 
+  /// 逐任务隔离回调异常，终态任务始终清理，返回是否仍需续帧。
   @override
   bool tick(Duration elapsed, Duration dt) {
     // 已销毁插件不再接受帧驱动。
@@ -317,35 +318,47 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
         final task = _live[li];
         if (task.done || task.isPaused) continue;
 
-        if (!task.started) {
-          task.started = true;
-          final revision = task.revision;
-          renderInitial(task);
-          // 初值回调可取消、暂停或重定目标；不继续发送旧版本的 start。
-          if (task.done ||
-              task.isPaused ||
-              revision != task.revision ||
-              _disposed) {
-            // 暂停中的初值不算已启动，恢复后仍需派发首次 start。
-            if (!task.done && task.isPaused) task.started = false;
+        try {
+          if (!task.started) {
+            task.started = true;
+            final revision = task.revision;
+            renderInitial(task);
+            // 初值回调可取消、暂停或重定目标；不继续发送旧版本的 start。
+            if (task.done ||
+                task.isPaused ||
+                revision != task.revision ||
+                _disposed) {
+              // 暂停中的初值不算已启动，恢复后仍需派发首次 start。
+              if (!task.done && task.isPaused) task.started = false;
+              if (task.done) _pendingRemove.add(task.id);
+              if (!task.done && !task.isPaused && !_disposed) busy = true;
+              continue;
+            }
+            if (!task.startFired) {
+              task.startFired = true;
+              task.onStart?.call(); // once per task, even across re-anchors
+            }
             if (task.done) _pendingRemove.add(task.id);
             if (!task.done && !task.isPaused && !_disposed) busy = true;
             continue;
           }
-          if (!task.startFired) {
-            task.startFired = true;
-            task.onStart?.call(); // once per task, even across re-anchors
-          }
-          if (task.done) _pendingRemove.add(task.id);
-          if (!task.done && !task.isPaused && !_disposed) busy = true;
-          continue;
-        }
 
-        final stillBusy = step(task, dtMs, shouldProcess);
-        if (task.done) {
-          _pendingRemove.add(task.id);
-        } else if (stillBusy && !task.isPaused && !_disposed) {
-          busy = true;
+          final stillBusy = step(task, dtMs, shouldProcess);
+          if (task.done) {
+            _pendingRemove.add(task.id);
+          } else if (stillBusy && !task.isPaused && !_disposed) {
+            busy = true;
+          }
+        } catch (error, stack) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'countman',
+            context: ErrorDescription('插件 "$name" 的任务 ${task.id} 回调异常'),
+          ));
+          if (!task.done && !task.isPaused && !_disposed) busy = true;
+        } finally {
+          if (task.done) _pendingRemove.add(task.id);
         }
       }
     } finally {
@@ -375,6 +388,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     return busy;
   }
 
+  /// 封闭队列并逐项报告取消异常；子类收尾始终执行。
   @override
   void dispose() {
     // 先封闭实例，避免销毁回调重新加入任务；重复销毁保持幂等。
@@ -394,10 +408,22 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     _groupListeners.clear();
     onFirstEnqueued = null;
     onQueueDrained = null;
-    for (final task in cancelled) {
-      task.onCancel?.call();
+    try {
+      for (final task in cancelled) {
+        try {
+          task.onCancel?.call();
+        } catch (error, stack) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'countman',
+            context: ErrorDescription('插件 "$name" 的任务 ${task.id} 取消回调异常'),
+          ));
+        }
+      }
+    } finally {
+      onDispose();
     }
-    onDispose();
   }
 }
 
@@ -481,15 +507,15 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
     task.onUpdate?.call(task.parts);
   }
 
+  /// 首帧也检查到期与阈值，零时长任务立即结束。
   @override
   @protected
-  void renderInitial(T task) => emit(task);
+  void renderInitial(T task) => step(task, 0, true);
 
+  /// 每帧检查阈值与完成，仅普通显示更新受 interval 节流。
   @override
   @protected
   bool step(T task, double dtMs, bool shouldProcess) {
-    if (!shouldProcess) return true; // active, waiting for the interval
-
     final revision = task.revision;
     if (!task.thresholdFired &&
         task.threshold != null &&
@@ -513,7 +539,7 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
       return false;
     }
 
-    emit(task);
+    if (shouldProcess) emit(task);
     return true;
   }
 
