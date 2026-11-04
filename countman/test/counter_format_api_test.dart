@@ -1,8 +1,5 @@
-// 直接读取内部数字字形表与画笔基类，验证公开格式化 API 与屏幕静止显示一致。
+// 通过公开的 CounterPainter 与 painterBuilder 还原屏幕静止显示，对比 CounterFormat.format。
 import 'package:countman/countman.dart';
-import 'package:countman/src/widgets/animated_counter/types.dart'
-    show numeralSystemDigits;
-import 'package:countman/src/widgets/painter/painter.dart' show CounterPainter;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
