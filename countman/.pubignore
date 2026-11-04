@@ -16,6 +16,5 @@ coverage/
 # 智能体技能文档与内部设计记录
 .claude/
 ARCHITECTURE.md
-ARCHITECTURE.svg
 # 崩溃日志等本地产物
 *.log
