@@ -9,7 +9,7 @@ description: >-
   plus auto route-awareness via LayermanNavigatorObserver and pauseOnRoutes "no-overlay
   zones". Read BEFORE modifying lib/src/, the tests, or the example. Covers the engine
   architecture, the non-obvious invariants tests depend on, the present-backend rules of
-  engagement, and the verify workflow (unit + real-device Windows integration). Triggers
+  engagement, and the verify workflow (unit + Android phone integration). Triggers
   on: overlay, dialog queue, Layerman, present, PresentedOverlay, replace, affix,
   overlap, cooldown, setContext, dismissWhenUnmet, resolve, beforeClose, Get.dialog,
   Get.snackbar, bot_toast, pauseAll, pauseOnRoutes, LayermanNavigatorObserver, currentRoute,
@@ -28,19 +28,33 @@ backend (`showDialog`, GetX, `bot_toast`, a self-managed `OverlayEntry`, …), a
 `package:flutter/widgets.dart` and owns no `Overlay` layer.
 
 > **0.2.0 breaking change**: the earlier `builder:` render path, `OverlayHandle`,
-> `OverlayPhase`, `OverlayManagerScope` and `attach`/`detach`/`isAttached` are all gone —
+> `OverlayPhase`, `OverlayManagerScope` and the old manager widget attachment methods are gone —
 > `present:` is the sole rendering hook now. See the README's "Why there is no `builder:`"
-> section and the CHANGELOG for the full list and migration recipe. Don't reintroduce any
-> of these; that's the whole point of the refactor.
+> section and the CHANGELOG for the full list and migration recipe. The separate `LayermanLifecycle.attach`/`detach`/`isAttached` APIs added in 0.3.0
+> manage lifecycle observation, not widget attachment. Don't reintroduce the old render path; that's the whole point of the refactor.
 
-Engine is one file: `lib/src/overlay_manager.dart` (~1430 lines) — no more
-`overlay_manager_scope.dart` (deleted with `OverlayManagerScope`). `lib/src/overlay_navigator_observer.dart`
-is the auto route-awareness `NavigatorObserver` (unaffected by the headless refactor — it
-only feeds `route` into `setContext`, never renders). Tests: `test/layerman_test.dart` (main
-suite), `test/robustness_test.dart` (0.2.2 hardening), `test/readme_recipe_test.dart` (the
-README route recipes, copied verbatim — keep them in sync). Example app + real-device
-integration: `example/`. `ARCHITECTURE.md` (§14 known limitations, §15 roadmap) is the
-current architecture reference — it was rewritten from code at 0.2.2.
+Engine: `lib/src/overlay_manager.dart`; shared types: `overlay_types.dart`;
+route observation: `overlay_navigator_observer.dart`; official presenters:
+`route_managers.dart`; app lifecycle: `lifecycle_binding.dart` (all under `lib/src/`).
+The core remains foundation-only; adapters own widgets/Material dependencies.
+`ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 0.3.0.
+
+Test inventory (executed counts, 2026-11-04 — 199 in total, all green on Flutter 3.47 and on the
+minimum 3.27.4):
+
+| File under `test/` | Tests | Coverage |
+| --- | ---: | --- |
+| `layerman_test.dart` | 81 | Core queue and backend contracts |
+| `robustness_test.dart` | 15 | 0.2.2 hardening: hydration, guards, result validation |
+| `readme_recipe_test.dart` | 5 | Hand-written Route recipes from the README |
+| `engine_v030_test.dart` | 21 | Caps, timeouts, takeover, live data, inspection |
+| `engine_v030b_test.dart` | 38 | Tickets, end reasons, events, holds, expiry, slots |
+| `observer_filter_test.dart` | 11 | PageRoute filtering, `contextKey` |
+| `route_managers_test.dart` | 22 | `DialogManager` / `BottomSheetManager` / `presentRoute` |
+| `lifecycle_binding_test.dart` | 6 | Lifecycle holds |
+
+Phone integration (`example/integration_test/orchestration_test.dart`): 26 tests (17 original +
+9 v0.3) passed on a Huawei STG-AL00 / Android 12.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -59,8 +73,8 @@ current architecture reference — it was rewritten from code at 0.2.2.
 - **Eligibility** = `_conditionsPass` (`when` sole authority; else `route`(String|List|RegExp)
   AND `requiresAuth` against `_context` set by `setContext`) + `_cooldownPass`.
 - **`_schedule(slot)`**: paused → return; slot occupied/`gapPending`/a `delayTimer` pending/
-  queue empty → return; pick the first ELIGIBLE entry from the sorted queue (ineligible
-  entries WAIT — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
+  queue empty → return; pick the first ELIGIBLE entry from the ordered queue; recoverably ineligible
+  entries WAIT, exhausted session/total entries settle as capped — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
   time-based cooldown); honor the entry's `delay` unless `skipGap`; `_activate`.
 - **`_activate`**: occupies the slot; `resolveData != null` → phase `resolving` (committed —
   ordinary arrivals can't preempt while resolving, but a `replace` can and discards it), `null` result skips WITHOUT counting
@@ -97,7 +111,7 @@ current architecture reference — it was rewritten from code at 0.2.2.
   occupant, overlaps held in `_pendingOverlaps`, durations frozen with remaining time via
   `now`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
   countdown. Internally `pauseAll`/`resumeAll` only flip `_manualPaused`; the effective
-  `_paused` getter is `_manualPaused || _routeZonePaused`, and `_applyFreeze`/`_applyRelease`
+  `_paused` getter is `_manualPaused || _routeZonePaused || _holds.isNotEmpty`, and `_applyFreeze`/`_applyRelease`
   (extracted bodies) are shared with `_updateRouteZone` (see below) — neither side undoes the
   other.
 - **`pauseOnRoutes`** (constructor param, `String`/`List<String>`/`RegExp` patterns): a
@@ -105,13 +119,13 @@ current architecture reference — it was rewritten from code at 0.2.2.
   matches `_context['route']` against the patterns and flips `_routeZonePaused`, calling
   `_applyFreeze`/`_applyRelease` only when the EFFECTIVE `_paused` actually changes.
 - **`LayermanNavigatorObserver`** (`overlay_navigator_observer.dart`): a `NavigatorObserver`
-  that overrides ONLY `didChangeTop` (NOT the legacy `didPush`/`didPop`/`didRemove`/`didReplace`
+  that defaults to `PageRoute` filtering and overrides ONLY `didChangeTop` (NOT the legacy `didPush`/`didPop`/`didRemove`/`didReplace`
   quartet — code review round 2 found `didRemove`/`didReplace` report the route AT THE POSITION
   THAT CHANGED, not necessarily the topmost/displayed one, if the change targeted a route buried
   in history; `didChangeTop` is the hook Flutter documents as always giving the true current top,
   and it also covers cold start and declarative `Navigator(pages:)` rebuilds — go_router's model —
   that don't map cleanly onto the legacy four at all). Maps `topRoute` to
-  `manager.setContext({'route': path})` (path via `route.settings.name`, overridable with
+  `manager.setContext({contextKey: path})` (path via `route.settings.name`, overridable with
   `pathOf`). Router-agnostic — GetX/go_router/vanilla Navigator all surface the same
   `NavigatorObserver` API underneath. Deferred to `WidgetsBinding.instance.addPostFrameCallback`
   (some routers trigger this mid-build; `setContext` mutating the Overlay tree then would throw)
@@ -152,8 +166,8 @@ current architecture reference — it was rewritten from code at 0.2.2.
    result null). **A TIME-based cooldown (`minGap` + day/hour/minute rollover) DOES self-wake**:
    when `_schedule` finds nothing eligible it arms `slot.cooldownTimer` for the soonest
    `_cooldowns.timeUntilEligible` (so a queued card can't hang forever — that was the
-   "minGap 进队列但永不弹" bug). `session`/`total` never auto-clear ⇒ no wake; they still
-   re-qualify only on a scheduling trigger (show/close/`setContext`). Cancel/re-arm the
+   "minGap 进队列但永不弹" bug). `session`/`total` never auto-clear ⇒ no wake; scheduling discards exhausted entries
+   as capped rather than leaving their futures pending forever (fixed in 0.3.0). Cancel/re-arm the
    timer at the top of every `_schedule`; also cancel it in `pauseAll`/`dispose`.
 4. **`_CooldownStore._flush` must call `storage.write` DIRECTLY** — wrapping in
    `Future(...)` leaves a pending Timer that explodes flutter_test's fake async. The 0.2.2
@@ -173,12 +187,10 @@ current architecture reference — it was rewritten from code at 0.2.2.
    `replace` can preempt and discard it; also for `overlap`; a result that
    arrives while paused is parked in `hasHeldData` and opened by `_applyRelease`); `null` skip does not count
    cooldown; `_onResolved` guards `_byId[id] == e && phase == resolving`.
-8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) via the entry's `data` field, then
-   calls `notifyListeners()` — that's it. The manager owns no widgets, so it cannot
-   `markNeedsBuild` anything itself. `PresentContext.data` is a SNAPSHOT taken at present
-   time and there is no public per-id data getter, so a backend that needs live data must keep
-   its own listenable state and update it alongside `update()` (the example does exactly
-   this). A live data channel is planned for 0.3.0 (`OverlayTicket`).
+8. **`update(id, patch)`** shallow-merges Map-into-Map, otherwise replaces data;
+   notifies the per-entry `dataListenable` and manager listeners. `PresentContext.data`
+   remains a snapshot. `OverlayTicket.data` exposes that same live channel.
+   The 0.2.2 footgun (backend cannot read updated data) is fixed in 0.3.0.
 9. **No `stackIndex/isTopmost`** (deliberate TS difference, unchanged by the headless
    refactor): layer/z-order is entirely up to whichever `present:` backend renders the
    overlay — the queue itself tracks and exposes none of it. No cross-isolate cooldown sync
@@ -188,9 +200,9 @@ current architecture reference — it was rewritten from code at 0.2.2.
     frame request, navigation that happens to coincide with an otherwise-idle frame can leave
     the route update pending indefinitely (real risk in production, not just a test artifact —
     found via a `flutter test` unit test failing while the real-device integration test passed).
-11. **`pauseOnRoutes`/manual `pauseAll` compose via OR, never overwrite each other** — leaving a
+11. **`pauseOnRoutes`/manual `pauseAll`/holds compose via OR, never overwrite each other** — leaving a
     route zone while manually paused must NOT call `_applyRelease`; a manual `resumeAll` while
-    still inside a zone must NOT call it either. Always check the effective `_paused` (both
+    still inside a zone must NOT call it either. Always check the effective `_paused` (all sources, both
     before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`
     (extracted into the shared `_applyPauseTransition(before)` helper — 3 independent code-review
     agents converged on the same duplication, worth trusting that signal).
@@ -217,14 +229,10 @@ current architecture reference — it was rewritten from code at 0.2.2.
     observer was wired in); fixed by giving the demo's home page a real name via
     `initialRoute`/`routes` instead of `home:`. Document this for consumers, don't try to paper
     over it in the engine — it's correct Flutter behavior, not a bug to "fix" generically.
-16. **A route-backed dialog (the README `DialogRoute` recipes) pushed on the SAME `Navigator`
-    the observer watches genuinely IS the topmost route while shown** — its synthetic
-    `RouteSettings(name: 'om://$id')` will show up in `route` for that window. Correct per
-    Flutter's model, but the 2026-11-04 review confirmed two real footguns from it: a
-    `route:`-gated overlay presented as a route dialog dismisses ITSELF via `dismissWhenUnmet`,
-    and an unrelated unnamed dialog on a `pauseOnRoutes` page releases the zone. The approved
-    fix is 0.3.0's observer `routeFilter` (default: `PageRoute` only, configurable to include
-    popups). Don't add ad-hoc, non-configurable filtering before that.
+16. **Route-dialog context footguns are FIXED in 0.3.0.** The observer defaults to
+    accepting `PageRoute` only; dialogs/sheets/menus preserve the last accepted page.
+    This fixes self-dismissal of route-gated dialogs and accidental release of route zones.
+    Explicit `routeFilter: (r) => true` restores 0.2.x all-route behavior.
 17. **`close()` validates `result` BEFORE any state change** (`acceptsResult` = `r is T?`, built
     in `open<T>()`); a mismatch throws `ArgumentError` and leaves the entry untouched.
     `_settle` sets `settled` then completes; if the typed completion still throws it reports
@@ -240,7 +248,46 @@ current architecture reference — it was rewritten from code at 0.2.2.
     timer callbacks.
 21. **After `dispose()`**: `open()` asserts (debug) / returns `null` without presenting
     (release); every other public mutator is a silent no-op (async callbacks after an app
-    restart are legitimate). `dispose()` itself must run `clear()` BEFORE setting `_disposed`.
+    restart are legitimate). `dispose()` itself must clear entries with disposed reason BEFORE setting `_disposed`.
+
+22. **Permanently capped serial entries must settle, not wait forever.**
+    `_schedule` uses `_CooldownStore.permanentlyBlocked`; hydrate gating must precede
+    persisted total decisions. Keep recoverable time-window waits and their wake timers.
+23. **Cancel every timeout timer on all completion/removal paths.** queueTimer stops
+    at activation; resolveTimer stops on resolution; dismissTimer stops on dismissed;
+    cancelTimeouts covers settlement, remove, supersede, clear, and dispose. Late async
+    results must pass `_isCurrent` / phase checks. Timeout reports must not stall the slot.
+24. **Same-id serial takeover precedes queued priority** when the old active frees the
+    same slot and the new entry is eligible/unpaused; affix cannot prevent self-reopen.
+    Cross-slot/overlap replacement must reschedule the old slot. Old tickets bind entry
+    identity, not just id, so cannot close/update/remove a newer submission.
+25. **Do NOT dispose `dataListenable` at settlement/removal.** Backends may still read
+    or detach listeners during exit animation; the channel retains its final value.
+26. **Every `_settle` call must supply an `OverlayEndReason`.** The first reason wins;
+    result/outcome/ended are delivered once, including when dismiss later times out.
+    An ended event is not an animation-completion notification.
+27. **Holds are independent pause sources OR-composed with manual/route pause.**
+    release is idempotent; only effective pause edges freeze/release. Lifecycle binding
+    uses a hold, defaults to paused/hidden, and detach releases it. Changing manager
+    requires detaching the old binding; duration freezes, deadlines keep running.
+28. **Observer default is PageRoute filtering.** Rejected routes perform no path lookup
+    or deferred update; accepted routes write contextKey (default route). Built-in route
+    gates and pauseOnRoutes still read route only; nested keys use when predicates.
+29. **Never pass a result to `removeRoute` at the Flutter 3.27 minimum.** That argument
+    requires 3.32; official presenters pop(result) on top, removeRoute(route) when covered.
+    A covered direct handle dismissal has null result; manager.close already settled it.
+30. **Ordered queue insertion and capacity are scheduling contracts.** `_enqueue` preserves
+    replace/priority/FIFO; maxQueued evicts the ordered tail, excludes active entries;
+    expireAfter counts pre-activation serial waiting including pauses, ignores overlap.
+
+## 0.3.0 architecture additions
+
+`submit → OverlayTicket(result / outcome / data)`; `_settle → events(ended)`;
+`present → DialogManager / BottomSheetManager / presentRoute → PresentedOverlay`;
+`LayermanLifecycle → hold → effective pause OR manual OR route zone`.
+`OverlaySlotOptions` configures per-slot gap/capacity. Default resolve/dismiss
+watchdogs are 30s/10s; constructor null disables, per-entry resolve null inherits
+and zero disables. The former no-timeout and same-id-priority footguns are fixed.
 
 ## Considered and deferred: `WidgetsBindingObserver` for OS-level deep links
 
@@ -272,7 +319,8 @@ independently via this reasoning and via the `LayermanNavigatorObserver` design 
    in `dismiss` `pop` it if `isCurrent`, else `removeRoute(route)` with NO result argument
    (`removeRoute`'s result param only exists since Flutter 3.32; min is 3.27). Name-based
    `popUntil`/`Get.until` silently does nothing when the route isn't topmost (e.g. under an
-   overlap dialog) → the entry is stuck in `closing` forever (confirmed 2026-11-04).
+   overlap dialog) → incorrect adapter targeting; 0.3.0 now bounds the wait with dismissTimeout,
+   but cannot ensure that the orphaned UI has disappeared. Prefer DialogManager / BottomSheetManager.
    `SnackbarController.close()`; bot_toast `CancelFunc`. NEVER bare `Get.back()`/pop-top.
 3. Disarm backend orchestration: bot_toast `onlyOne: false` + dedicated groupKey + `onClose`
    as the single completion signal; GetX's internal snackbar queue is bypassed by our
@@ -283,22 +331,24 @@ independently via this reasoning and via the `LayermanNavigatorObserver` design 
 ## Verify workflow
 
 ```bash
-cd layerman                                       # from the dart-labs repo root
-flutter analyze                                   # must be clean (also analyzes example/)
-flutter test                                      # 101 tests (81 main + 15 robustness + 5 README recipes)
-
+flutter analyze
+flutter test  # Record the actual final total; only when the task authorizes tests.
 cd example
-flutter test integration_test/orchestration_test.dart -d windows   # 17 tests, REAL window
-flutter run -d windows                            # interactive demo (25 buttons + state line)
+flutter test integration_test/orchestration_test.dart -d <serial>
 ```
 
-CI: `.github/workflows/layerman-ci.yml` runs analyze + test on stable and test-only on
-Flutter 3.27.4 (the declared minimum; `flutter pub get --no-example` there because the
-example needs Dart ^3.12). `deploy-layerman.yml` calls it and deploys only if it passes.
-The example's Windows runner opens a normal (focus-taking) window — the user works on this
-machine, so don't run the integration suite unattended; ask first.
+Use the Android phone (Huawei STG-AL00 / Android 12 for the reported 0.3.0 run).
+`example/android/` is present; the v0.3 Features page exercises the new APIs.
+The Windows desktop runner takes focus: do not run it unattended.
+For Task Y documentation acceptance, do not run flutter test at all; analyze key
+README snippets in an external scratchpad and validate the SVG as XML instead.
+CI remains defined in `.github/workflows/layerman-ci.yml`; do not infer a local
+pass count from static declarations or a prior version's baseline.
 
 Integration-test gotchas (learned the hard way):
+- Use `tapVisible` for off-screen controls: it calls ensureVisible, pumps layout,
+  then taps. The Android viewport is smaller than Windows; a finder alone does
+  not prove that the tap point is visible. Keep v0.3 page controls reachable.
 - Tests share ONE app process: `setUp` does `om.resumeAll(); om.clear();`. Session cooldown
   counters live in the MANAGER and persist across tests — a later test must not assume a
   fresh counter (the restart test exhausts-if-needed before asserting the reset).
@@ -335,3 +385,12 @@ Integration-test gotchas (learned the hard way):
 
 When changing behavior: add/adjust a unit test AND (if observable) an integration test,
 run both gates, update README + CHANGELOG, bump pubspec version.
+
+## Simulating app lifecycle on a real device — do NOT use the binding
+
+`WidgetsBinding.handleAppLifecycleStateChanged(paused | hidden | detached)` sets
+`SchedulerBinding.framesEnabled = false`. On a real device `tester.pump()` then waits forever for a
+frame that never comes (the phone sits on "Test starting..."), and a manual demo button would freeze
+the whole UI. Plain `flutter test` hides this (its `pump()` drives frames synthetically). Simulate
+background/foreground by calling `LayermanLifecycle.didChangeAppLifecycleState(...)` on the attached
+observer instead (the example exposes it as `appLifecycle`): same hold/release logic, no global side effect.

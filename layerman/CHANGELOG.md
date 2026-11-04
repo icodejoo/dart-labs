@@ -1,3 +1,51 @@
+## 0.3.0
+
+**Fixed**
+
+* Reopening an active serial id takes over its slot when eligible and unpaused,
+  instead of losing it to a higher-priority queued entry. Old results settle as
+  `null` (`superseded`); old tickets cannot affect the new submission.
+* `PresentContext.dataListenable` makes `update()` data available to backends;
+  `data` remains a presentation-time snapshot.
+* Queue insertion now preserves replace / priority / FIFO ordering;
+  `queuedIds` reflects that order within each slot. Predicate context views are cached.
+
+**Changed (behavior)**
+
+* **`LayermanNavigatorObserver` now tracks only `PageRoute` by default.**
+  Dialogs and bottom sheets no longer overwrite page context, dismiss their own
+  route-gated overlays, or release no-overlay zones. To restore 0.2.x tracking of
+  every route, pass `routeFilter: (r) => true`. Use `contextKey` for nested navigators;
+  `route:` and `pauseOnRoutes` still read only the default `route` key.
+* **Exhausted `session` / `total` caps discard serial entries** when checked by
+  scheduling, completing with `null` (`capped`) instead of waiting forever.
+  Use time-based caps for retryable waits, or a new id for a new campaign.
+* **Waiting is bounded by default:** `dismissTimeout` is 10 seconds and
+  `resolveTimeout` is 30 seconds. Constructor `null` disables either limit;
+  per-entry `resolveTimeout: null` inherits, and `Duration.zero` disables that
+  entry's resolve limit. Timeouts report errors and free the slot; a dismiss
+  timeout preserves the already-delivered outcome. Backend work is not cancelled.
+* Route recipes now recommend **`DialogManager`**, created once with a navigator
+  key, instead of a hand-written shared dialog helper. Bind `manager:` to route
+  builder close calls through `beforeClose`; custom routes/pages use `presentRoute`.
+
+**Added**
+
+* `DialogManager`, `BottomSheetManager` and `presentRoute`: targeted Route
+  presenters waiting for exit completion; per-call configuration overrides.
+* `submit<T>()` returning `OverlayTicket<T>` with typed close, update, removal,
+  live data, result and outcome; `OverlayOutcome`, `OverlayEndReason`, and async
+  broadcast `events` (`OverlayEvent`, `OverlayEventType`).
+* `resolvingIds`, `records`, `recordOf` for complete entry inspection.
+* Independent pause tokens via `hold()` / `OverlayHold`, `holdCount`, and
+  `LayermanLifecycle` for automatic background pause.
+* Serial queue expiration via `expireAfter` and per-slot `OverlaySlotOptions`
+  (`gap`, `maxQueued`), with `queueExpired` / `queueFull` outcomes.
+* `.pubignore` excludes `CLAUDE.md` and `.claude/` from the published package.
+* Example Android platform and a “v0.3 Features” demo page. The 26 example
+  integration tests pass on a real phone (Huawei STG-AL00, Android 12); the 199
+  unit tests pass on Flutter 3.47 and on the minimum supported Flutter 3.27.4.
+
 ## 0.2.2
 
 **Fixed**

@@ -62,7 +62,7 @@ in your app.
 - **`Future<T?>` results** — `open()` returns a future that resolves with the
   value you close with, or `null` when dismissed.
 - **Two-phase close** — `close()` settles the result immediately, then waits
-  for your backend's `dismissed` signal plus an optional per-`open()`
+  for your backend's `dismissed` signal (bounded by `dismissTimeout`) plus an optional per-`open()`
   `exitDuration` grace before the queue advances, so a backend can play its own
   exit animation first.
 - **`pauseAll`/`resumeAll`** — full freeze (nothing new shows; running
@@ -74,18 +74,24 @@ in your app.
   `pauseAll`/`resumeAll`. `currentRoute` reads the tracked value back.
 - **`update(id, patch)`** — shallow-merge into a shown overlay's `data` and
   notify listeners, without rendering or changing the queue. `PresentContext.data`
-  is a snapshot at presentation; live UI needs backend-owned listenable state.
+  is a snapshot at presentation; `dataListenable` supplies live values.
   **`clearWhere(test)`** — selective mass
   removal (e.g. "close everything of group X").
 - **Per-overlay `delay` and `duration`** (auto-close).
 - **Orchestrates external overlay systems** — one queue over `showDialog`,
   GetX, `bot_toast`, `fluttertoast`, or anything you can show/close.
 
+- **Route presenters** — reusable `DialogManager`, `BottomSheetManager`, and `presentRoute`.
+- **Tickets and events** — typed `submit<T>`, outcomes with reasons, asynchronous events.
+- **Independent pause sources** — `hold()` and automatic `LayermanLifecycle` binding.
+- **Bounded waiting** — resolve/dismiss timeouts, `expireAfter`, per-slot `gap` / `maxQueued`.
+- **Live data and diagnostics** — `dataListenable`, `resolvingIds`, `records`, `recordOf`.
+
 ## Install
 
 ```yaml
 dependencies:
-  layerman: ^0.2.2
+  layerman: ^0.3.0
 ```
 
 ```dart
@@ -116,13 +122,9 @@ why there's no scope/attach step to wire up.
 
 Earlier versions had a `builder:` that returned a `Widget` the manager mounted into its own `Overlay`. That forced the manager to *be* UI — own an `OverlayState`, stay attached to the tree, ship an `OverlayManagerScope`. It contradicted the one thing the package is for.
 
-`present:` is a strict superset. Inside it you build any UI — `showDialog`, `Get.dialog`, `BotToast.show`, `Navigator.push`, or an `OverlayEntry` you insert yourself — and hand back a `PresentedOverlay(dismissed, dismiss)` handle. Anything `builder:` could render, a `present:` backend that owns its own `OverlayEntry` renders too — so nothing is lost, and the core is now headless (no `flutter/widgets` import), matching the headless TS sister package.
+`present:` is a strict superset. Inside it you build any UI — `showDialog`, `Get.dialog`, `BotToast.show`, `Navigator.push`, or an `OverlayEntry` you insert yourself — and hand back a `PresentedOverlay(dismissed: ..., dismiss: ...)` handle. Anything `builder:` could render, a `present:` backend that owns its own `OverlayEntry` renders too — so nothing is lost, and the core is now headless (no `flutter/widgets` import), matching the headless TS sister package.
 
 ```dart
-// before (0.1.x): the manager mounts your widget
-manager.open(builder: (context, handle) => MyCard(onOk: () => handle.close('ok')));
-
-// after (0.2.0): you mount it, and hand back a close signal
 manager.open(present: (ctx) {
   final done = Completer<String?>();
   final cancel = BotToast.showWidget(
@@ -133,52 +135,31 @@ manager.open(present: (ctx) {
 });
 ```
 
-For route-based dialogs, push and retain the Route object: use `route.completed`
+For route-based dialogs, use `DialogManager` or retain your own Route object: use `route.completed`
 for `dismissed` and close that exact route through its own navigator — see the recipes below.
 
 ## Usage
 
-### A shared `present:` helper for these examples
+### Shared route presenters
 
-Every example below pushes a `DialogRoute`, wrapped in a tiny
-helper that targets *this* overlay's own route for a close (the same pattern
-the [full recipes](#native-showdialog) use, just factored out for brevity):
+Create these once alongside `manager`. Pass the same `navigatorKey` to your app;
+call `open` after that Navigator is mounted. The examples use `dialogs((ctx, close) => widget)`.
 
 ```dart
-Present<T> dialog<T>(Widget child) => (ctx) {
-  final navigator = navigatorKey.currentState!;
-  final route = DialogRoute<T>(
-    context: navigator.context,
-    settings: RouteSettings(name: 'om://${ctx.id}'),
-    builder: (_) => child,
-  );
-  navigator.push(route);
-  return PresentedOverlay<T>(
-    dismissed: route.completed, // completes after the exit animation, carrying the pop result
-    dismiss: ([r]) async {
-      final nav = route.navigator;
-      if (nav == null || !route.isActive) return;
-      if (route.isCurrent) {
-        nav.pop(r); // on top: animated pop
-      } else {
-        nav.removeRoute(route); // buried under another route: remove exactly this one
-      }
-    },
-  );
-};
-```
+final navigatorKey = GlobalKey<NavigatorState>();
+final dialogs = DialogManager(navigatorKey, manager: manager);
+final sheets = BottomSheetManager(navigatorKey, manager: manager);
 
-Retain the Route object: pop it on top, or remove exactly it when buried;
-name-based popUntil cannot close a buried route. Use `removeRoute(route)`
-without a result for Flutter 3.27 compatibility; the manager has already
-delivered the result before calling `dismiss`.
+// Mount this once in your app:
+final app = MaterialApp(navigatorKey: navigatorKey, home: const Scaffold());
+```
 
 ### Open and await a result
 
 ```dart
 final ok = await manager.open<bool>(
   id: 'confirm-delete',
-  present: dialog(Center(
+  present: dialogs((ctx, close) => Center(
     child: Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -209,21 +190,21 @@ wait in the queue. The future resolves when it is finally closed.
 
 ```dart
 // These queue behind one another (serial, one at a time):
-manager.open(id: 'welcome', present: dialog(const WelcomeSheet()));
-manager.open(id: 'promo', priority: 10, present: dialog(const PromoCard())); // jumps ahead
+manager.open(id: 'welcome', present: dialogs((ctx, close) => const WelcomeSheet()));
+manager.open(id: 'promo', priority: 10, present: dialogs((ctx, close) => const PromoCard())); // jumps ahead
 
 // Preempt whatever is currently showing in the default slot (it is closed,
 // result null — a dismissed backend can't be faithfully re-presented):
-manager.open(id: 'session-expired', replace: true, present: dialog(const ExpiredDialog()));
+manager.open(id: 'session-expired', replace: true, present: dialogs((ctx, close) => const ExpiredDialog()));
 
 // Protect the current overlay so a replace cannot cover it:
-manager.open(id: 'critical', affix: true, present: dialog(const CriticalDialog()));
+manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
 // Ignore the queue and stack on top right now:
-manager.open(id: 'net-error', overlap: true, present: dialog(const ErrorBanner()));
+manager.open(id: 'net-error', overlap: true, present: dialogs((ctx, close) => const ErrorBanner()));
 
 // Independent serial queues that run in parallel:
-manager.open(id: 't1', slot: 'toast', present: dialog(const Toast('Saved')));
+manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('Saved')));
 ```
 
 ### Conditions (`when` / `route` / `requiresAuth` / `setContext`)
@@ -237,14 +218,14 @@ conditions stop holding is auto-dismissed unless `dismissWhenUnmet: false`.
 manager.setContext({'route': '/promo', 'auth': true});
 
 // Sugar: show only on a route (String, List<String> or RegExp) ...
-manager.open(id: 'promo', route: '/promo', present: dialog(const PromoCard()));
+manager.open(id: 'promo', route: '/promo', present: dialogs((ctx, close) => const PromoCard()));
 // ... only when authenticated ...
-manager.open(id: 'inbox', requiresAuth: true, present: dialog(const InboxHint()));
+manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
 // ... or an arbitrary predicate (sole authority when given):
 manager.open(
   id: 'vip',
   when: (ctx) => ctx['tier'] == 'gold' && ctx['route'] == '/home',
-  present: dialog(const VipCard()),
+  present: dialogs((ctx, close) => const VipCard()),
 );
 ```
 
@@ -264,8 +245,9 @@ never pushes, pops, or otherwise touches navigation.
 
 ```dart
 MaterialApp(
+  navigatorKey: navigatorKey,
   navigatorObservers: [LayermanNavigatorObserver(manager)],
-  ...
+  home: const Scaffold(),
 );
 ```
 
@@ -284,11 +266,12 @@ Two things Flutter itself does that are easy to miss:
   `'/home'` — that's Flutter's own `Navigator.defaultRouteName`. If you want
   to gate on the home page by a specific string, give it one explicitly via
   `initialRoute`/`routes` (or a named `RouteSettings`) instead of `home:`.
-- **A route-backed dialog pushed onto the same `Navigator`** (the
-  `DialogRoute` recipes above name theirs `om://<id>`) genuinely *is* the
-  topmost route while it's shown, so
-  `route` reflects its name for that window — not a bug, just worth knowing
-  if you combine route-backed dialogs with `route`-gated overlays elsewhere.
+- **Since 0.3.0 only `PageRoute` is tracked by default.** Dialogs, bottom
+  sheets and menus leave the last accepted page path intact, so route-gated
+  dialogs no longer dismiss themselves and popups cannot release a no-overlay zone.
+  To restore 0.2.x behavior, pass `routeFilter: (r) => true`.
+- Use `contextKey: 'tabRoute'` for a nested Navigator and read it in `when`.
+  `route:` and `pauseOnRoutes` still read only the default `route` key.
 
 `pauseOnRoutes` builds a "no-overlay zone" on top of this: entering a matching
 route freezes the whole queue (exactly like `pauseAll()` — nothing new
@@ -309,6 +292,136 @@ is deliberately not a blanket rule — use the same `route`/`when` +
 `present:` backend is rendering the overlay), or lean on a specific backend's
 own navigation-aware close option if it has one.
 
+### `DialogManager` / `BottomSheetManager`
+
+Create once with the app's `navigatorKey`; only configuration is retained, each
+presentation owns its Route. Optional `manager: manager` makes the builder's
+`close([result])` run `beforeClose` and result validation. Without it, `close`
+directly closes that route. Back, barrier and drag dismissals are backend paths
+and bypass the guard. A bound instance stays bound to that manager; recreate it
+when replacing the manager. Per-call non-null options override constructor defaults:
+
+```dart
+manager.open<bool>(
+  present: sheets<bool>(
+    (ctx, close) => TextButton(onPressed: () => close(true), child: const Text('Done')),
+    isScrollControlled: true,
+    barrierDismissible: false,
+  ),
+);
+```
+
+Both default to `barrierDismissible: true`, `useSafeArea: true` and
+`routeNamePrefix: 'layerman://'`. Colors fall back to the theme (dialogs finally
+use `Colors.black54`). Sheets also default to `isScrollControlled: false`,
+`enableDrag: true`, `showDragHandle: null`, `backgroundColor: null`.
+Use `presentRoute` for pages or custom Route construction; see the manual recipe below.
+
+### Outcome / tickets / events
+
+`submit<T>` accepts exactly the same arguments as `open<T>`, returning an
+`OverlayTicket<T>`. `result` is `Future<T?>`; `outcome` is
+`Future<OverlayOutcome<T>>` with `value` and the first `reason`. Settlement precedes
+exit animation completion. Typed `ticket.close([T? result])` honors the guard;
+`remove()` bypasses it, `update(patch)` updates data, and `data` is a
+`ValueListenable<Object?>`. Old tickets cannot control a newer submission with the
+same id. `isActive` includes pending/resolving/closing while still tracked.
+`events` is an asynchronous broadcast stream: `queued`, `shown`, `ended`
+(`OverlayEventType`), with `id`, `slot`, `type` and optional `reason`; subscribe
+before submitting (no replay). `ended` means first settlement, not animation end.
+
+```dart
+final subscription = manager.events.listen((event) {
+  debugPrint('${event.id}: ${event.type} ${event.reason}');
+});
+final ticket = manager.submit<bool>(
+  id: 'decision',
+  present: dialogs<bool>((ctx, close) => AlertDialog(
+    actions: [TextButton(onPressed: () => close(true), child: const Text('OK'))],
+  )),
+);
+ticket.update({'count': 1});
+final outcome = await ticket.outcome;
+debugPrint('${outcome.value}: ${outcome.reason}');
+await subscription.cancel();
+```
+
+### Pause sources: `hold` and `LayermanLifecycle`
+
+Manual pause, `pauseOnRoutes` and unreleased holds combine with OR. `hold(reason)`
+returns an `OverlayHold`; `release()` is idempotent, `holdCount` counts holds only.
+Releasing one source never cancels another. `LayermanLifecycle` acquires a hold
+on `AppLifecycleState.paused` or `hidden` by default (`pauseOn` overrides the set),
+and releases it on other states. `attach()` synchronizes immediately; `detach()`
+unregisters and releases. Both are idempotent; detach when replacing the owner.
+
+```dart
+final lifecycle = LayermanLifecycle(manager)..attach();
+final hold = manager.hold('payment');
+try {
+  await Future<void>.delayed(const Duration(milliseconds: 100));
+} finally {
+  hold.release();
+}
+// When the app owner is disposed or the manager is replaced:
+lifecycle.detach();
+```
+
+### Timeouts, `expireAfter` and per-slot options
+
+`dismissTimeout` defaults to 10 seconds after requesting backend dismissal;
+`resolveTimeout` defaults to 30 seconds. Both constructor options accept `null`
+for no timeout. A per-entry `resolveTimeout: null` inherits; `Duration.zero`
+disables that entry's resolve timeout. Zero at constructor level schedules an
+immediate timeout; it does not disable it. Timeouts report `TimeoutException`
+through `FlutterError.reportError` and release the slot. Resolve timeout ends as
+`skipped`; dismiss timeout preserves the already-settled result/reason. Neither
+cancels the backend's underlying work or guarantees removal of its UI.
+`expireAfter` counts serial waiting time before activation, including pauses;
+it does not apply to overlap or active entries (`queueExpired`). Slot `gap`
+overrides global `gap`; positive `maxQueued` excludes active entries and evicts
+the sorted queue tail (`queueFull`), which may be the newly submitted entry.
+These deadlines keep running during pause; only `duration` freezes.
+
+```dart
+final bounded = Layerman(
+  dismissTimeout: const Duration(seconds: 10),
+  resolveTimeout: const Duration(seconds: 30),
+  slots: const {
+    'notice': OverlaySlotOptions(gap: Duration(milliseconds: 200), maxQueued: 3),
+  },
+);
+final boundedDialogs = DialogManager(navigatorKey, manager: bounded);
+bounded.open<String>(
+  slot: 'notice',
+  expireAfter: const Duration(minutes: 1),
+  resolveTimeout: Duration.zero,
+  resolve: () async => 'Ready',
+  present: boundedDialogs<String>((ctx, close) => Text(ctx.data as String)),
+);
+// The owner eventually calls bounded.dispose().
+```
+
+### Live data (`dataListenable`)
+
+`PresentContext.data` is a snapshot; listen to `dataListenable` for `update`
+and resolved values. `ticket.data` exposes the same channel, retaining its last
+value after settlement. The manager deliberately does not dispose this listenable,
+so listeners can detach after exit animations; remove manually registered listeners
+when your backend is disposed.
+
+```dart
+manager.open<void>(
+  id: 'cart',
+  data: {'count': 1},
+  present: dialogs<void>((ctx, close) => ValueListenableBuilder<Object?>(
+    valueListenable: ctx.dataListenable,
+    builder: (_, value, __) => Text('${(value as Map)['count']}'),
+  )),
+);
+manager.update('cart', {'count': 2});
+```
+
 ### Cooldown (frequency caps + persistence)
 
 ```dart
@@ -319,9 +432,13 @@ manager.open(
     day: 1,                          // at most once per local day
     minGap: Duration(hours: 6),      // and at least 6h apart
   ),
-  present: dialog(const RateUsCard()),
+  present: dialogs((ctx, close) => const RateUsCard()),
 );
 ```
+
+**Behavior change in 0.3.0:** exhausted `session` / `total` caps discard serial
+entries with a `null` result (`capped`) when scheduling reaches them, rather than
+waiting forever. Use time-based caps for retryable waits or a new id for a new campaign.
 
 All present caps must pass (AND); a cap counts when the overlay actually opens.
 Counters are keyed by `id`, so a cooldown needs an explicit `id` (asserted in
@@ -356,41 +473,21 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 
 ### Backend-driven `resolve`
 
-Fetch the payload only when the slot is granted (avoids loading data for an
-overlay that may never show). Returning `null` skips it without counting
-cooldown; the slot is occupied while resolving. Ordinary arrivals wait, but
-`replace` can preempt and discard the resolving entry.
+Fetch data only when granted the slot. `resolve` has type `Future<T?> Function()?`,
+using the same `T` as the result. Returning `null` skips without counting cooldown.
+Ordinary arrivals wait while resolving; `replace` can preempt and discard it.
+`ctx.data` contains the resolved value.
 
 ```dart
-manager.open<void>(
+manager.open<String>(
   id: 'offer',
-  resolve: () async => api.fetchOfferOrNull(), // null -> skip silently
-  present: (ctx) {
-    final navigator = navigatorKey.currentState!;
-    final route = DialogRoute<void>(
-      context: navigator.context,
-      settings: RouteSettings(name: 'om://${ctx.id}'),
-      builder: (_) => OfferCard(offer: ctx.data as Offer),
-    );
-    navigator.push(route);
-    return PresentedOverlay<void>(
-      dismissed: route.completed,
-      dismiss: ([_]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(); // on top: animated pop
-        } else {
-          nav.removeRoute(route); // buried under another route: remove exactly this one
-        }
-      },
-    );
-  },
+  resolve: () async => 'Today’s offer',
+  present: dialogs<String>((ctx, close) => AlertDialog(
+    content: Text(ctx.data as String),
+    actions: [TextButton(onPressed: () => close('accepted'), child: const Text('OK'))],
+  )),
 );
 ```
-
-`ctx.data` carries the resolved payload — `PresentContext.data` is the value
-`resolve` returned (or the plain `data:` you passed, when there's no `resolve`).
 
 ### `beforeClose` guard
 
@@ -398,7 +495,7 @@ manager.open<void>(
 manager.open(
   id: 'editor',
   beforeClose: () async => await confirmDiscard(), // false vetoes the close
-  present: dialog(const EditorSheet()),
+  present: dialogs((ctx, close) => const EditorSheet()),
 );
 ```
 
@@ -420,17 +517,15 @@ manager.update('cart', {'count': 3}); // shallow-merge into data, notify listene
 manager.clearWhere((r) => (r.data as Map?)?['group'] == 'promo');
 ```
 
-`update` doesn't re-render anything itself (the manager owns no widgets) — it
-merges `data` and calls `notifyListeners`. `PresentContext.data` remains the
-snapshot captured when `present` ran; rebuilding with that context does not
-fetch updated data. For live UI, maintain listenable state in the backend and
-update it alongside `manager.update` (as the example update demo does).
+`update` shallow-merges Maps (otherwise replaces), notifies `dataListenable`
+and manager listeners, and leaves the queue alone. Read live values through
+`PresentContext.dataListenable`; `PresentContext.data` remains the presentation snapshot.
 
 ### Two-phase close / exit animation
 
 `close()` settles the result and asks your backend to close; the queue only
-advances once the backend's `dismissed` future completes, plus an optional
-`exitDuration` grace on top. The exit animation itself is entirely your
+advances after backend `dismissed` plus optional `exitDuration` grace,
+or when the `dismissTimeout` watchdog releases the entry. The exit animation itself is entirely your
 backend's job. Route backends use `route.completed`, which completes after the
 exit animation with the pop result; the future returned by `showDialog` or
 `Navigator.push` completes when pop starts. Reserve `exitDuration` for backends
@@ -468,8 +563,13 @@ manager.open<void>(
   },
 );
 
-manager.close('sheet'); // -> dismiss() -> requestClose() plays the fade, then settles
+manager.close('sheet'); // settles now; dismiss() plays the fade before the slot advances
 ```
+
+`resolvingIds` lists resolving entries (also overlaps); `records` includes every
+managed phase and `recordOf(id)` returns one snapshot or `null`. `queuedIds` follows
+actual replace/priority/FIFO order within each slot, followed by held overlaps;
+independent slots have no global display order.
 
 ### Imperative control & introspection
 
@@ -481,12 +581,15 @@ manager.clear();                    // remove everything (queued + active)
 
 manager.isShowing('sheet'); // bool — open/closing only
 manager.activeIds;          // open/closing ids (serial + overlaps)
-manager.queuedIds;          // pending ids waiting in queues
+manager.queuedIds;          // pending ids, ordered within each slot
+manager.resolvingIds;
+manager.records;
+manager.recordOf('sheet');
 manager.isPaused;           // bool
 ```
 
-A resolving entry occupies a slot but is in neither `activeIds` nor `queuedIds`;
-`isShowing` is false until it opens.
+A resolving entry is listed in `resolvingIds` and `records`, while excluded from
+`activeIds` / `queuedIds`; `isShowing` is false until it opens.
 
 `Layerman` is a `ChangeNotifier`, so `addListener` / `AnimatedBuilder`
 can rebuild UI (e.g. a debug HUD) on every transition.
@@ -522,6 +625,13 @@ uniformly.
 
 ### Native `showDialog`
 
+Prefer `DialogManager` for dialogs. Hand-written Route recipe for custom control:
+`presentRoute` pushes your route, waits for `route.completed`, and targets that
+exact route when closing. No `exitDuration` estimate is needed. A top route is
+popped with the result; a covered route uses `removeRoute(route)` without a result
+for Flutter 3.27 compatibility. `manager.close` still delivers its requested result.
+Closing a covered route directly through the returned handle yields `null`.
+
 ```dart
 manager.open<bool>(
   id: 'confirm',
@@ -529,22 +639,10 @@ manager.open<bool>(
     final navigator = navigatorKey.currentState!;
     final route = DialogRoute<bool>(
       context: navigator.context,
-      settings: RouteSettings(name: 'om://${ctx.id}'),
-      builder: (_) => const ConfirmDialog(),
+      settings: RouteSettings(name: 'layerman://${ctx.id}'),
+      builder: (_) => const AlertDialog(content: Text('Confirm?')),
     );
-    navigator.push(route);
-    return PresentedOverlay<bool>(
-      dismissed: route.completed,
-      dismiss: ([r]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(r); // on top: animated pop
-        } else {
-          nav.removeRoute(route); // buried under another route: remove exactly this one
-        }
-      },
-    );
+    return presentRoute(navigator, route);
   },
 );
 ```
@@ -618,41 +716,21 @@ manager.open<void>(
 
 ### A navigated page as a queue entry
 
-A pushed `Route` is just another external presenter. Retain the route and use
-`route.completed` to wait for its exit animation and pop result. This makes
-the page participate in the queue (occupy a slot,
-respect `priority`/`replace`, block other overlays while it's up) — the push
-itself only happens once the queue grants the slot:
+Use `presentRoute` with a `TransitionRoute<T>` for pages. The push happens only
+when the queue grants the slot; the page occupies it until its exit completes.
 
 ```dart
-manager.open<void>(
+manager.open<bool>(
   id: 'checkout',
-  present: (ctx) {
-    final navigator = navigatorKey.currentState!;
-    final route = MaterialPageRoute<void>(
+  present: (_) => presentRoute(
+    navigatorKey.currentState!,
+    MaterialPageRoute<bool>(
       settings: const RouteSettings(name: '/checkout'),
-      builder: (_) => const CheckoutPage(),
-    );
-    navigator.push(route);
-    return PresentedOverlay<void>(
-      dismissed: route.completed,
-      dismiss: ([_]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(); // on top: animated pop
-        } else {
-          nav.removeRoute(route); // buried under another route: remove exactly this one
-        }
-      },
-    );
-  },
+      builder: (_) => const Scaffold(body: Text('Checkout')),
+    ),
+  ),
 );
 ```
-
-(`navigatorKey` is a `GlobalKey<NavigatorState>` passed to `MaterialApp`,
-needed because `present`'s callback only gets a [`PresentContext`](#full-api-reference),
-not a `BuildContext` — the same requirement every `present:` recipe above has.)
 
 ### bot_toast
 
@@ -753,6 +831,9 @@ Every exported symbol is listed here.
 ```dart
 Layerman({
   Duration gap = Duration.zero,
+  Map<String, OverlaySlotOptions> slots = const {},
+  Duration? dismissTimeout = const Duration(seconds: 10),
+  Duration? resolveTimeout = const Duration(seconds: 30),
   OverlayCooldownStorage? cooldownStorage, // default MemoryCooldownStorage
   String storageKey = 'layerman:cooldown',
   DateTime Function()? now,                // injectable clock (tests)
@@ -762,13 +843,22 @@ Layerman({
 
 | Member | Description |
 | --- | --- |
+| `final Map<String, OverlaySlotOptions> slots` | Immutable slot configuration. |
+| `final Duration? dismissTimeout` / `final Duration? resolveTimeout` | Constructor timeouts; `null` disables. |
+| `Stream<OverlayEvent> get events` | Async broadcast, no replay. |
+| `int get holdCount` | Number of unreleased holds. |
+| `OverlayHold hold([Object? reason])` | Acquire an independent pause source. |
+| `List<String> get resolvingIds` | Resolving serial and overlap ids. |
+| `List<OverlayRecord> get records` | All managed entry snapshots. |
+| `OverlayRecord? recordOf(String id)` | One snapshot or `null`. |
+| `OverlayTicket<T> submit<T>({...})` | Same parameters as `open<T>`, returns a ticket. |
 | `final Duration gap` | Delay inserted between one overlay closing and the next showing. |
 | `Future<void> ready()` | Completes once the cooldown store has hydrated and the queue has been re-scheduled. Optional: entries gated on persisted caps wait for it automatically. |
 | `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
-| `bool get isPaused` | Whether the queue is frozen — via `pauseAll` or a matching `pauseOnRoutes` pattern. |
+| `bool get isPaused` | Whether the queue is frozen — via manual pause, a route zone, or unreleased holds. |
 | `bool get isDisposed` | Whether `dispose()` has been called — lets a deferred callback avoid calling into a torn-down manager. |
 | `List<String> get activeIds` | Ids in open/closing, serial + overlaps; excludes resolving. |
-| `List<String> get queuedIds` | Pending ids waiting in queues; excludes resolving (which occupies a slot). |
+| `List<String> get queuedIds` | Pending ids in per-slot display order plus held overlaps; excludes resolving. |
 | `bool isShowing(String id)` | Whether `id` is open/closing; false while resolving. |
 | `Future<T?> open<T>({...})` | Enqueue/show an overlay through your `present:` backend; returns its result future. See below. |
 | `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
@@ -785,7 +875,7 @@ Layerman({
 Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 `notifyListeners` (fired on every state transition).
 
-#### `open<T>` parameters
+#### `open<T>` / `submit<T>` parameters
 
 | Parameter | Default | Description |
 | --- | --- | --- |
@@ -795,13 +885,15 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 | `String slot` | `''` | Named serial queue (independent lanes run in parallel). |
 | `int priority` | `0` | Higher shows first; ties break FIFO. |
 | `Duration? delay` | `null` | Appear delay before this overlay shows. |
+| `Duration? expireAfter` | `null` | Maximum serial wait before activation; includes pauses, ignores overlap. |
+| `Duration? resolveTimeout` | `null` (inherit) | Per-entry resolve timeout; `Duration.zero` disables. |
 | `Duration? duration` | `null` | Auto-close after this long once shown. |
 | `bool replace` | `false` | Preempt the slot's current overlay — it is **closed** (result `null`), never re-queued — and show now. |
 | `bool affix` | `false` | Protect the current overlay from being `replace`d. |
 | `bool overlap` | `false` | Bypass the queue and stack immediately (now-or-never). |
 | `OverlayPredicate? when` | `null` | Condition predicate; sole authority when present. |
 | `Object? route` | `null` | Route gate sugar: `String`, `List<String>` or `RegExp` vs `context['route']`. |
-| `bool? requiresAuth` | `null` | Auth gate sugar vs `context['auth']`. |
+| `bool? requiresAuth` | `null` | Auth gate sugar vs `context['auth']`; `false` means guests only. |
 | `bool dismissWhenUnmet` | `true` | Auto-dismiss a *shown* overlay whose conditions stop holding. |
 | `OverlayCooldown? cooldown` | `null` | Frequency cap (see `OverlayCooldown`); requires an explicit `id`. |
 | `Future<T?> Function()? resolve` | `null` | Fetch the payload when granted; `null` skips without counting cooldown. |
@@ -814,8 +906,14 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 LayermanNavigatorObserver(
   Layerman manager, {
   String? Function(Route<dynamic> route)? pathOf, // default: route.settings.name
+  bool Function(Route<dynamic> route)? routeFilter, // default: route is PageRoute
+  String contextKey = 'route',
 })
 ```
+
+Public fields: `final Layerman manager`, `final String contextKey`.
+Rejected routes do not extract a path or schedule an update. Accepted routes write
+to `contextKey`; `route:` / `pauseOnRoutes` read only `route`.
 
 Add to `navigatorObservers`; listens to `didChangeTop` (the current topmost
 route — covers cold start, push, pop, replace and declarative
@@ -848,8 +946,8 @@ abstract class OverlayCooldownStorage {
 }
 ```
 
-`MemoryCooldownStorage` is the default in-memory implementation (counters reset
-on restart). Provide your own (e.g. `shared_preferences`) for persistence.
+`MemoryCooldownStorage` is the default in-memory implementation; sharing the same
+instance preserves counters across manager recreation, but not process restart. Provide your own (e.g. `shared_preferences`) for persistence.
 
 ### `OverlayRecord`
 
@@ -864,7 +962,7 @@ typedef Present<T> = PresentedOverlay<T> Function(PresentContext context);
 ```
 
 `PresentContext` (given to your `present` callback) — fields: `final String id`,
-`final String slot`, `final Object? data`.
+`final String slot`, `final Object? data`, `final ValueListenable<Object?> dataListenable`.
 
 ```dart
 class PresentedOverlay<T> {
@@ -880,6 +978,29 @@ class PresentedOverlay<T> {
 typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 ```
 
+### Tickets, outcomes, events and holds
+
+| Type / signature | Contract |
+| --- | --- |
+| `OverlayTicket<T>` | `final String id`, `final String slot`; `Future<T?> get result`, `Future<OverlayOutcome<T>> get outcome`, `bool get isActive`, `ValueListenable<Object?> get data`; `void close([T? result])`, `void remove()`, `void update(Object? patch)`. No public constructor. |
+| `const OverlayOutcome<T>(T? value, OverlayEndReason reason)` | `final T? value`, `final OverlayEndReason reason`; first settlement wins. |
+| `OverlayEndReason` | `closed`, `dismissedByBackend`, `expired`, `replaced`, `superseded`, `removed`, `unmet`, `skipped`, `dropped`, `capped`, `queueFull`, `queueExpired`, `failed`, `disposed`. |
+| `OverlayEventType` | `queued`, `shown`, `ended`. |
+| `const OverlayEvent({required OverlayEventType type, required String id, required String slot, OverlayEndReason? reason})` | Fields have the same types and are final; `reason` only on `ended`. |
+| `OverlayHold` | `final Object? reason`, `bool get isReleased`, `void release()`; no public constructor, release is idempotent. |
+| `const OverlaySlotOptions({Duration? gap, int? maxQueued})` | Final nullable fields; omitted gap inherits, omitted maxQueued is unlimited; supplied maxQueued must be positive. |
+
+### Route presenters and lifecycle binding
+
+| Constructor / call | Parameters and defaults |
+| --- | --- |
+| `DialogManager(GlobalKey<NavigatorState> navigatorKey, {...})` | `Layerman? manager`, `bool barrierDismissible = true`, `Color? barrierColor`, `bool useSafeArea = true`, `String routeNamePrefix = 'layerman://'`. |
+| `BottomSheetManager(GlobalKey<NavigatorState> navigatorKey, {...})` | Same constructor parameters as `DialogManager`, plus `bool isScrollControlled = false`, `Color? backgroundColor`, `bool enableDrag = true`, `bool? showDragHandle`. |
+| `Present<T> DialogManager.call<T>(Widget Function(PresentContext ctx, void Function([T? result]) close) builder, {...})` | `bool? barrierDismissible`, `Color? barrierColor`, `bool? useSafeArea`; non-null values override constructor defaults. |
+| `Present<T> BottomSheetManager.call<T>(Widget Function(PresentContext ctx, void Function([T? result]) close) builder, {...})` | Same call parameters, plus `bool? isScrollControlled`, `Color? backgroundColor`, `bool? enableDrag`, `bool? showDragHandle`. |
+| `PresentedOverlay<T> presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` | Push and retain the route, await its completed future, target that route for dismissal. |
+| `LayermanLifecycle(Layerman manager, {Set<AppLifecycleState> pauseOn = const <AppLifecycleState>{AppLifecycleState.paused, AppLifecycleState.hidden}})` | `final Layerman manager`, `bool get isAttached`, `void attach()`, `void detach()`, `void didChangeAppLifecycleState(AppLifecycleState state)`; attach/detach are idempotent. |
+
 ## Deliberate differences from the TS package
 
 - **`stackIndex`/`isTopmost` are N/A** — layer/z-order is entirely up to
@@ -890,14 +1011,14 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 - **Time-based cooldown auto-wakes** — unlike the headless TS core (which
   re-qualifies only on the next scheduling trigger), a Flutter entry blocked by
   a `minGap` or a bucket rollover arms a timer and shows itself the moment the
-  window elapses. `session`/`total` never expire, so they still wait for a
-  trigger.
+  window elapses. Exhausted `session`/`total` caps discard the entry with
+  a `null` result and `OverlayEndReason.capped`.
 
 ## Testing
 
 ```bash
 flutter test                                                   # unit (widget) tests
-cd example && flutter test integration_test -d <device>        # real-device orchestration
+cd example && flutter test integration_test/orchestration_test.dart -d <serial>        # real-device orchestration
 ```
 
 The unit suite uses `WidgetTester` to cover serial queueing, close-advances,
@@ -905,7 +1026,8 @@ priority, `Future` results, `replace`/`affix`/`overlap`, conditions, cooldown
 (incl. auto-wake), `resolve`, `beforeClose`, pause/resume, `update`/`clearWhere`,
 the `present:` adapter, and phase transitions. The `example/` app is a full
 real-device demo orchestrating GetX + bot_toast + native `showDialog` through
-the manager.
+the manager. Android phone validation was reported on Huawei STG-AL00 / Android 12.
+Windows desktop runs take focus; do not run them unattended.
 
 ## License
 
@@ -954,7 +1076,7 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
   确认);`remove`/`clear` 会绕过它。
 - **`Future<T?>` 结果**:`open()` 返回的 future 以你关闭时传入的值兑现,dismiss 则为
   `null`。
-- **两阶段关闭**:`close()` 立即兑现结果,然后等待你的后端发出的 `dismissed` 信号,
+- **两阶段关闭**:`close()` 立即兑现结果,然后等待你的后端发出的 `dismissed` 信号（由 `dismissTimeout` 限时）,
   外加一个可选的按次 `exitDuration` 宽限,队列才会推进——让后端先播完自己的退场动画。
 - **`pauseAll`/`resumeAll`**:整体冻结(不再显示新浮层,`duration` 倒计时暂停);
   以及按 id 的 `pause`/`resume`。
@@ -963,17 +1085,23 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
   路由,进入自动冻结队列、离开自动恢复,与手动 `pauseAll`/`resumeAll` 干净组合。
   `currentRoute` 读回追踪到的值。
 - **`update(id, patch)`**:向已显示浮层的 `data` 浅合并并通知监听者，不渲染、不改队列。
-  `PresentContext.data` 是 present 时的快照；实时 UI 需要后端自己维护可监听状态。
+  `PresentContext.data` 是 present 时的快照；实时 UI 通过 `dataListenable` 读取。
   **`clearWhere(test)`**:按条件批量移除(如「关闭所有 X 组」)。
 - **每浮层的 `delay` 与 `duration`**(自动关闭)。
 - **编排外部浮层系统**:一条队列统管 `showDialog`、GetX、`bot_toast`、
   `fluttertoast` 或任何你能显示/关闭的东西。
 
+- **路由 presenter**：可复用的 `DialogManager`、`BottomSheetManager`、`presentRoute`。
+- **票据和事件**：类型化 `submit<T>`、带原因的结果、异步事件流。
+- **独立暂停来源**：`hold()` 与自动 `LayermanLifecycle` 绑定。
+- **有界等待**：解析/关闭超时、`expireAfter`、槽位 `gap` / `maxQueued`。
+- **实时数据与诊断**：`dataListenable`、`resolvingIds`、`records`、`recordOf`。
+
 ## 安装
 
 ```yaml
 dependencies:
-  layerman: ^0.2.2
+  layerman: ^0.3.0
 ```
 
 ```dart
@@ -1002,13 +1130,9 @@ final manager = Layerman(gap: const Duration(milliseconds: 300));
 
 早先版本有个 `builder:`,返回一个由 manager 挂进它自有 `Overlay` 的 `Widget`。这逼着 manager 自己*变成* UI——要持有 `OverlayState`、要挂在树上、还得配一个 `OverlayManagerScope`,跟这个包存在的唯一意义相悖。
 
-`present:` 是它的严格超集。你在里面构造任意 UI——`showDialog`、`Get.dialog`、`BotToast.show`、`Navigator.push`,或自己插一个 `OverlayEntry`——再返回一个 `PresentedOverlay(dismissed, dismiss)` 句柄。`builder:` 能渲染的,一个自己持有 `OverlayEntry` 的 `present:` 后端照样能渲染——所以什么都没丢,而核心从此 headless(不 import `flutter/widgets`),跟 headless 的 TS 姊妹包对齐。
+`present:` 是它的严格超集。你在里面构造任意 UI——`showDialog`、`Get.dialog`、`BotToast.show`、`Navigator.push`,或自己插一个 `OverlayEntry`——再返回一个 `PresentedOverlay(dismissed: ..., dismiss: ...)` 句柄。`builder:` 能渲染的,一个自己持有 `OverlayEntry` 的 `present:` 后端照样能渲染——所以什么都没丢,而核心从此 headless(不 import `flutter/widgets`),跟 headless 的 TS 姊妹包对齐。
 
 ```dart
-// 之前 (0.1.x):manager 挂你的 widget
-manager.open(builder: (context, handle) => MyCard(onOk: () => handle.close('ok')));
-
-// 现在 (0.2.0):你自己挂,把关闭信号交回来
 manager.open(present: (ctx) {
   final done = Completer<String?>();
   final cancel = BotToast.showWidget(
@@ -1019,51 +1143,31 @@ manager.open(present: (ctx) {
 });
 ```
 
-路由弹窗应自行 push 并保存 Route 对象：`dismissed` 使用 `route.completed`，
+路由弹窗优先用 `DialogManager`，或自行保存 Route 对象：`dismissed` 使用 `route.completed`，
 关闭时通过路由自己的 navigator 精准关闭这一条——见下方配方。
 
 ## 基础用法
 
-### 给下面这些例子用的共享 `present:` helper
+### 共享路由 presenter
 
-下面每个例子都自行 push `DialogRoute` 来显示浮层，包了一层小 helper，关闭时精准定向到*本*
-浮层自己那条路由(和[完整 recipe](#原生-showdialog)是同一套模式,这里只是抽出来
-方便复用):
+在 `manager` 旁全局建一次，将同一个 `navigatorKey` 传给应用；Navigator 挂载后再调用
+`open`。下面的例子使用 `dialogs((ctx, close) => widget)`。
 
 ```dart
-Present<T> dialog<T>(Widget child) => (ctx) {
-  final navigator = navigatorKey.currentState!;
-  final route = DialogRoute<T>(
-    context: navigator.context,
-    settings: RouteSettings(name: 'om://${ctx.id}'),
-    builder: (_) => child,
-  );
-  navigator.push(route);
-  return PresentedOverlay<T>(
-    dismissed: route.completed, // 退场动画结束后完成，并携带 pop 的结果
-    dismiss: ([r]) async {
-      final nav = route.navigator;
-      if (nav == null || !route.isActive) return;
-      if (route.isCurrent) {
-        nav.pop(r); // 栈顶：播放退场动画
-      } else {
-        nav.removeRoute(route); // 被其它路由盖住：只移除这一条
-      }
-    },
-  );
-};
-```
+final navigatorKey = GlobalKey<NavigatorState>();
+final dialogs = DialogManager(navigatorKey, manager: manager);
+final sheets = BottomSheetManager(navigatorKey, manager: manager);
 
-保留 Route 对象，栈顶时 pop，被盖住时 removeRoute；按名字调用 popUntil 无法关闭
-被盖住的路由。`removeRoute(route)` 不传结果，以兼容 Flutter 3.27；manager 在调用
-`dismiss` 前已经交付了结果。
+// Mount this once in your app:
+final app = MaterialApp(navigatorKey: navigatorKey, home: const Scaffold());
+```
 
 ### 打开并等待结果
 
 ```dart
 final ok = await manager.open<bool>(
   id: 'confirm-delete',
-  present: dialog(Center(
+  present: dialogs((ctx, close) => Center(
     child: TextButton(
       onPressed: () => Navigator.pop(navigatorKey.currentContext!, true), // 结果 = true
       child: const Text('删除'),
@@ -1079,20 +1183,20 @@ if (ok == true) doDelete(); // 点遮罩 dismiss -> ok == null
 ### 队列 / 优先级 / replace / affix / overlap
 
 ```dart
-manager.open(id: 'welcome', present: dialog(const WelcomeSheet()));
-manager.open(id: 'promo', priority: 10, present: dialog(const PromoCard())); // 插队靠前
+manager.open(id: 'welcome', present: dialogs((ctx, close) => const WelcomeSheet()));
+manager.open(id: 'promo', priority: 10, present: dialogs((ctx, close) => const PromoCard())); // 插队靠前
 
 // 抢占当前浮层(它会被关闭,结果 null——已被 dismiss 的后端没法如实重新呈现):
-manager.open(id: 'session-expired', replace: true, present: dialog(const ExpiredDialog()));
+manager.open(id: 'session-expired', replace: true, present: dialogs((ctx, close) => const ExpiredDialog()));
 
 // 固定当前浮层,replace 顶不掉它:
-manager.open(id: 'critical', affix: true, present: dialog(const CriticalDialog()));
+manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
 // 绕过队列,立刻叠加:
-manager.open(id: 'net-error', overlap: true, present: dialog(const ErrorBanner()));
+manager.open(id: 'net-error', overlap: true, present: dialogs((ctx, close) => const ErrorBanner()));
 
 // 并行的独立串行队列:
-manager.open(id: 't1', slot: 'toast', present: dialog(const Toast('已保存')));
+manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('已保存')));
 ```
 
 ### 条件(`when` / `route` / `requiresAuth` / `setContext`)
@@ -1103,12 +1207,12 @@ manager.open(id: 't1', slot: 'toast', present: dialog(const Toast('已保存')))
 ```dart
 manager.setContext({'route': '/promo', 'auth': true}); // 把真实导航/登录态喂进来
 
-manager.open(id: 'promo', route: '/promo', present: dialog(const PromoCard()));
-manager.open(id: 'inbox', requiresAuth: true, present: dialog(const InboxHint()));
+manager.open(id: 'promo', route: '/promo', present: dialogs((ctx, close) => const PromoCard()));
+manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
 manager.open(
   id: 'vip',
   when: (ctx) => ctx['tier'] == 'gold', // 存在 when 时它是唯一权威
-  present: dialog(const VipCard()),
+  present: dialogs((ctx, close) => const VipCard()),
 );
 ```
 
@@ -1125,8 +1229,9 @@ go_router/vanilla Navigator 都能用(三者底层最终都是同一个 Flutter 
 
 ```dart
 MaterialApp(
+  navigatorKey: navigatorKey,
   navigatorObservers: [LayermanNavigatorObserver(manager)],
-  ...
+  home: const Scaffold(),
 );
 ```
 
@@ -1141,10 +1246,11 @@ MaterialApp(
 - **`MaterialApp.home` 的隐式路由名字是 `'/'`**,不是 `null`,也不是 `'/home'`——这是
   Flutter 自己的 `Navigator.defaultRouteName`。想让首页按某个特定字符串匹配条件,得用
   `initialRoute`/`routes`(或带名字的 `RouteSettings`)显式命名,别指望 `home:`。
-- **推到同一个 `Navigator` 上的路由型弹窗**(上面的 `DialogRoute` 配方给它命名为
-  `om://<id>`)在它显示期间**确实**是最顶层路由,`route` 会短暂反映
-  它的名字——这不是 bug,只是如果你同时用了路由型弹窗和别处的 `route` 条件门控,值得
-  知道这个交互。
+- **0.3.0 起默认只跟踪 `PageRoute`。** 对话框、底部弹层和菜单保留最近接受的页面路径，
+  带路由条件的弹窗不会把自己关闭，无关弹窗也不会解除免打扰区。
+  要恢复 0.2.x 行为，传 `routeFilter: (r) => true`。
+- 嵌套 Navigator 可用 `contextKey: 'tabRoute'`，在 `when` 中读取；
+  `route:` 与 `pauseOnRoutes` 仍只读取默认 `route` 键。
 
 `pauseOnRoutes` 在这基础上加了个"免打扰区":进入匹配路由会冻结整条队列(和
 `pauseAll()` 效果一样,不激活新的);离开会恢复(和 `resumeAll()` 一样)。它跟手动
@@ -1161,13 +1267,130 @@ final manager = Layerman(pauseOnRoutes: ['/checkout']);
 `route`/`when` + `dismissWhenUnmet`(不管哪个 `present:` 后端在渲染这个浮层,规则都
 一样),或者依赖某个具体后端自己的路由感知关闭能力。
 
+### `DialogManager` / `BottomSheetManager`
+
+用应用的 `navigatorKey` 全局建一次；实例只保存配置，每次展示独立持有 Route。
+可选绑定 `manager: manager`，让 builder 的 `close([result])` 经过 `beforeClose` 和结果类型校验；
+未绑定则直接关闭该路由。返回键、遮罩和拖动属于后端关闭，绕过守卫。绑定实例始终使用原 manager，
+更换 manager 时重建。单次调用的非 null 选项覆盖构造默认值：
+
+```dart
+manager.open<bool>(
+  present: sheets<bool>(
+    (ctx, close) => TextButton(onPressed: () => close(true), child: const Text('Done')),
+    isScrollControlled: true,
+    barrierDismissible: false,
+  ),
+);
+```
+
+两者默认 `barrierDismissible: true`、`useSafeArea: true`、`routeNamePrefix: 'layerman://'`。
+颜色回退到主题，对话框最终回退 `Colors.black54`。底部弹层还默认
+`isScrollControlled: false`、`enableDrag: true`、`showDragHandle: null`、`backgroundColor: null`。
+页面或自定义 Route 使用 `presentRoute`，见下方手写配方。
+
+### 结果 / 票据 / 事件（Outcome / tickets / events）
+
+`submit<T>` 与 `open<T>` 参数完全相同，返回 `OverlayTicket<T>`。`result` 是 `Future<T?>`；
+`outcome` 是 `Future<OverlayOutcome<T>>`，包含 `value` 和首次结束的 `reason`。
+兑现早于退场动画结束。类型化 `ticket.close([T? result])` 遵守守卫，`remove()` 绕过守卫，
+`update(patch)` 更新数据，`data` 为 `ValueListenable<Object?>`。旧票不能操作同 id 的新提交。
+`isActive` 包括仍受管的 pending/resolving/closing。
+`events` 是异步广播流，`OverlayEventType` 有 `queued`、`shown`、`ended`；事件含
+`id`、`slot`、`type`、可空 `reason`。提交前订阅，无历史重放；`ended` 表示首次兑现，非动画结束。
+
+```dart
+final subscription = manager.events.listen((event) {
+  debugPrint('${event.id}: ${event.type} ${event.reason}');
+});
+final ticket = manager.submit<bool>(
+  id: 'decision',
+  present: dialogs<bool>((ctx, close) => AlertDialog(
+    actions: [TextButton(onPressed: () => close(true), child: const Text('OK'))],
+  )),
+);
+ticket.update({'count': 1});
+final outcome = await ticket.outcome;
+debugPrint('${outcome.value}: ${outcome.reason}');
+await subscription.cancel();
+```
+
+### 暂停来源：`hold` 与 `LayermanLifecycle`
+
+手动暂停、`pauseOnRoutes`、未释放的 holds 按 OR 组合。`hold(reason)` 返回 `OverlayHold`，
+`release()` 幂等，`holdCount` 只统计 holds。释放一个来源不会撤销其他来源。
+`LayermanLifecycle` 默认在 `AppLifecycleState.paused`、`hidden` 获取 hold，其他状态释放；
+`pauseOn` 可覆盖集合。`attach()` 立即同步当前状态，`detach()` 解除监听并释放，均幂等。
+更换所有者时解除绑定。
+
+```dart
+final lifecycle = LayermanLifecycle(manager)..attach();
+final hold = manager.hold('payment');
+try {
+  await Future<void>.delayed(const Duration(milliseconds: 100));
+} finally {
+  hold.release();
+}
+// When the app owner is disposed or the manager is replaced:
+lifecycle.detach();
+```
+
+### 超时、`expireAfter` 与槽位选项
+
+请求后端关闭后 `dismissTimeout` 默认 10 秒，`resolveTimeout` 默认 30 秒。
+构造时两者可传 `null` 不限时；单条 `resolveTimeout: null` 表示继承，`Duration.zero` 关闭
+该条解析超时。构造时传零则立即超时，不是禁用。超时通过 `FlutterError.reportError` 上报
+`TimeoutException` 并释放槽位；解析超时原因为 `skipped`，关闭超时保留已兑现结果与原因。
+超时不会取消底层异步工作，也不保证后端 UI 已移除。
+`expireAfter` 只计算激活前的串行等待时间（含暂停），不适用于 overlap 或已激活条目，
+到期原因为 `queueExpired`。槽位 `gap` 覆盖全局间隔；正数 `maxQueued` 不含活跃项，
+超限淘汰有序队尾（`queueFull`），可能就是新提交项。
+这些截止计时不随暂停冻结，只有 `duration` 冻结。
+
+```dart
+final bounded = Layerman(
+  dismissTimeout: const Duration(seconds: 10),
+  resolveTimeout: const Duration(seconds: 30),
+  slots: const {
+    'notice': OverlaySlotOptions(gap: Duration(milliseconds: 200), maxQueued: 3),
+  },
+);
+final boundedDialogs = DialogManager(navigatorKey, manager: bounded);
+bounded.open<String>(
+  slot: 'notice',
+  expireAfter: const Duration(minutes: 1),
+  resolveTimeout: Duration.zero,
+  resolve: () async => 'Ready',
+  present: boundedDialogs<String>((ctx, close) => Text(ctx.data as String)),
+);
+// The owner eventually calls bounded.dispose().
+```
+
+### 实时数据（`dataListenable`）
+
+`PresentContext.data` 为快照，`dataListenable` 通知 `update` 和解析值的变化。
+`ticket.data` 是同一通道，结束后保留最后值。manager 刻意不 dispose 此通道，
+便于退场动画结束后解除监听；后端销毁时移除自行注册的监听者。
+
+```dart
+manager.open<void>(
+  id: 'cart',
+  data: {'count': 1},
+  present: dialogs<void>((ctx, close) => ValueListenableBuilder<Object?>(
+    valueListenable: ctx.dataListenable,
+    builder: (_, value, __) => Text('${(value as Map)['count']}'),
+  )),
+);
+manager.update('cart', {'count': 2});
+```
+
 ### 冷却(频次上限 + 持久化)
 
 ```dart
 manager.open(
   id: 'rate-us',
   cooldown: const OverlayCooldown(total: 3, day: 1, minGap: Duration(hours: 6)),
-  present: dialog(const RateUsCard()),
+  present: dialogs((ctx, close) => const RateUsCard()),
 );
 ```
 
@@ -1196,41 +1419,25 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 }
 ```
 
+**0.3.0 行为变更：** `session` / `total` 耗尽的串行条目在调度检查到时丢弃，结果为
+`null`（`capped`），不再永久等待。需要可重试的等待请使用时间型冷却，新活动使用新 id。
+
 ### 后端驱动 `resolve`
 
-仅在获得 slot 时才取数据(避免为可能永不显示的浮层白白加载);返回 `null` 静默跳过且
-不计冷却。取数期间占用 slot；普通后来者等待，但 `replace` 可以抢占并丢弃取数中的条目。
+获得槽位后才取数据。`resolve` 类型为 `Future<T?> Function()?`，与结果共用 `T`。
+返回 `null` 跳过且不记冷却。解析期间普通条目等待；`replace` 可以抢占并丢弃它。
+`ctx.data` 是解析后的值。
 
 ```dart
-manager.open<void>(
+manager.open<String>(
   id: 'offer',
-  resolve: () async => api.fetchOfferOrNull(), // null -> 跳过
-  present: (ctx) {
-    final navigator = navigatorKey.currentState!;
-    final route = DialogRoute<void>(
-      context: navigator.context,
-      settings: RouteSettings(name: 'om://${ctx.id}'),
-      builder: (_) => OfferCard(offer: ctx.data as Offer),
-    );
-    navigator.push(route);
-    return PresentedOverlay<void>(
-      dismissed: route.completed,
-      dismiss: ([_]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(); // 栈顶：播放退场动画
-        } else {
-          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
-        }
-      },
-    );
-  },
+  resolve: () async => 'Today’s offer',
+  present: dialogs<String>((ctx, close) => AlertDialog(
+    content: Text(ctx.data as String),
+    actions: [TextButton(onPressed: () => close('accepted'), child: const Text('OK'))],
+  )),
 );
 ```
-
-`ctx.data` 就是 `resolve` 取回的数据——`PresentContext.data` 是 `resolve` 返回的值
-(没写 `resolve` 时,就是你传的那个 `data:`)。
 
 ### `beforeClose` 守卫
 
@@ -1238,7 +1445,7 @@ manager.open<void>(
 manager.open(
   id: 'editor',
   beforeClose: () async => await confirmDiscard(), // 返回 false 否决关闭
-  present: dialog(const EditorSheet()),
+  present: dialogs((ctx, close) => const EditorSheet()),
 );
 ```
 
@@ -1255,15 +1462,13 @@ manager.update('cart', {'count': 3});       // 浅合并进 data,通知监听者
 manager.clearWhere((r) => (r.data as Map?)?['group'] == 'promo'); // 按条件批量清
 ```
 
-`update` 自己不会重建任何东西（manager 不持有任何 widget）——它只合并 `data` 并
-调用 `notifyListeners`。`PresentContext.data` 始终是 present 时的快照，拿同一个
-context 重建不会读到更新后的数据。实时 UI 要由后端自己维护可监听状态，并在调用
-`manager.update` 时同步更新它（example 的 update 演示就是如此）。
+`update` 对 Map 浅合并，其余值替换；通知 `dataListenable` 和 manager 监听者，不改变队列。
+实时值读取 `PresentContext.dataListenable`；`PresentContext.data` 仍为展示时的快照。
 
 ### 两阶段关闭 / 退场动画
 
 `close()` 兑现结果,并请求你的后端关闭;队列只有在后端的 `dismissed` future
-完成后才会推进,外加一个可选的 `exitDuration` 宽限。退场动画完全是你后端自己的事——
+完成并经过可选 `exitDuration` 宽限后推进；`dismissTimeout` 到期也会释放条目。退场动画完全是你后端自己的事——
 路由后端使用 `route.completed`，它在退场动画结束后携带 pop 结果完成；
 `showDialog` / `Navigator.push` 返回的 future 在 pop 开始时就完成。
 `exitDuration` 留给没有「动画结束」信号的后端。自定义后端也可以自行完成 `dismissed`：
@@ -1300,8 +1505,12 @@ manager.open<void>(
   },
 );
 
-manager.close('sheet'); // -> dismiss() -> requestClose() 播完淡出再兑现
+manager.close('sheet'); // 立即兑现；dismiss() 播完淡出后推进槽位
 ```
+
+`resolvingIds` 含解析中条目（含 overlap）；`records` 覆盖所有受管阶段，`recordOf(id)`
+返回单条快照或 `null`。`queuedIds` 在每个槽位内按 replace/优先级/FIFO 的真实顺序排列，
+后接挂起的 overlap；独立槽位之间没有全局出场顺序。
 
 ### 命令式控制与内省
 
@@ -1313,11 +1522,14 @@ manager.clear();                    // 移除全部(排队 + 活跃)
 
 manager.isShowing('sheet'); // 仅 open/closing 为 true
 manager.activeIds;          // open/closing 的 id（串行 + overlap）
-manager.queuedIds;          // 排队等待的 pending id
+manager.queuedIds;          // 槽位内按出场顺序的 pending id
+manager.resolvingIds;
+manager.records;
+manager.recordOf('sheet');
 manager.isPaused;
 ```
 
-resolving 条目占用 slot，但既不在 `activeIds` 也不在 `queuedIds` 中；
+resolving 条目在 `resolvingIds` 和 `records` 中，不在 `activeIds` / `queuedIds` 中；
 打开前 `isShowing` 为 false。
 
 `Layerman` 是 `ChangeNotifier`,可 `addListener` / `AnimatedBuilder` 在每次
@@ -1348,6 +1560,11 @@ dialog、snackbar、toast。
 
 ### 原生 `showDialog`
 
+对话框优先用 `DialogManager`。想自己控制时可手写 Route 配方：`presentRoute` 推入路由，
+用 `route.completed` 等退场结束，并定向关闭这一条路由，无需估计 `exitDuration`。
+栈顶 pop 携带结果；被覆盖时用不带结果的 `removeRoute(route)` 兼容 Flutter 3.27。
+`manager.close` 仍交付指定结果；直接用返回句柄关闭被覆盖路由时结果为 `null`。
+
 ```dart
 manager.open<bool>(
   id: 'confirm',
@@ -1355,22 +1572,10 @@ manager.open<bool>(
     final navigator = navigatorKey.currentState!;
     final route = DialogRoute<bool>(
       context: navigator.context,
-      settings: RouteSettings(name: 'om://${ctx.id}'),
-      builder: (_) => const ConfirmDialog(),
+      settings: RouteSettings(name: 'layerman://${ctx.id}'),
+      builder: (_) => const AlertDialog(content: Text('Confirm?')),
     );
-    navigator.push(route);
-    return PresentedOverlay<bool>(
-      dismissed: route.completed,
-      dismiss: ([r]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(r); // 栈顶：播放退场动画
-        } else {
-          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
-        }
-      },
-    );
+    return presentRoute(navigator, route);
   },
 );
 ```
@@ -1439,40 +1644,20 @@ manager.open<void>(
 
 ### 把导航到的页面也塞进队列
 
-一个被 push 的 `Route` 本质上就是另一种外部 presenter。保存路由对象，用
-`route.completed` 等待退场动画结束并取得 pop 结果，就能让页面参与队列
-（占 slot、受 `priority`/`replace` 管辖、显示期间挡住
-其它浮层)——push 这个动作只有轮到才会真正执行:
+页面使用 `presentRoute` 适配 `TransitionRoute<T>`；获得槽位才 push，直到退场结束才释放槽位。
 
 ```dart
-manager.open<void>(
+manager.open<bool>(
   id: 'checkout',
-  present: (ctx) {
-    final navigator = navigatorKey.currentState!;
-    final route = MaterialPageRoute<void>(
+  present: (_) => presentRoute(
+    navigatorKey.currentState!,
+    MaterialPageRoute<bool>(
       settings: const RouteSettings(name: '/checkout'),
-      builder: (_) => const CheckoutPage(),
-    );
-    navigator.push(route);
-    return PresentedOverlay<void>(
-      dismissed: route.completed,
-      dismiss: ([_]) async {
-        final nav = route.navigator;
-        if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
-          nav.pop(); // 栈顶：播放退场动画
-        } else {
-          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
-        }
-      },
-    );
-  },
+      builder: (_) => const Scaffold(body: Text('Checkout')),
+    ),
+  ),
 );
 ```
-
-(`navigatorKey` 是传给 `MaterialApp` 的 `GlobalKey<NavigatorState>`——`present`
-回调拿到的是 `PresentContext`,不是 `BuildContext`,跟上面所有 `present:` recipe
-的要求一样。)
 
 ### bot_toast
 
@@ -1556,6 +1741,22 @@ manager.open<void>(
 `OverlayCooldownStorage` / `MemoryCooldownStorage`、`OverlayRecord`、
 `Present` / `PresentContext` / `PresentedOverlay`、`OverlayPredicate`。
 
+新增类型的完整签名与默认值见上方 [Full API reference](#full-api-reference)，中英文共用同一份签名表。
+
+| 成员 / 类型 | 契约 |
+| --- | --- |
+| `submit<T>` / `OverlayTicket<T>` | 参数与 `open<T>` 相同；`id`、`slot`、`result`、`outcome`、`isActive`、`data`；`close([T? result])`、`remove()`、`update(Object? patch)`。 |
+| `OverlayOutcome<T>` / `OverlayEndReason` | `value` 与首次 `reason`；全部原因及含义见 [架构生命周期表](ARCHITECTURE.md#4-条目生命周期)。 |
+| `events` / `OverlayEvent` / `OverlayEventType` | 异步广播；事件有 `type`、`id`、`slot`、`reason`；类型为 `queued` / `shown` / `ended`。 |
+| `hold([Object? reason])` / `OverlayHold` | 独立暂停；`reason`、`isReleased`、`release()`，`holdCount` 统计未释放数量。 |
+| `OverlaySlotOptions` | `Duration? gap`、`int? maxQueued`；未提供则继承全局间隔 / 不限队列长度。 |
+| `dismissTimeout` / `resolveTimeout` / `expireAfter` | 默认关闭 10 秒、解析 30 秒、排队不限时；单条解析零时长禁用，构造参数 null 禁用。 |
+| `resolvingIds` / `records` / `recordOf(String id)` | 解析中 id / 全部条目快照 / 单条快照或 null。 |
+| `PresentContext.dataListenable` | `ValueListenable<Object?>`，实时数据；`data` 为快照。 |
+| `DialogManager` / `BottomSheetManager` / `presentRoute` | Route 型 presenter；构造配置、单次覆盖、签名见英文完整表。 |
+| `LayermanLifecycle` | `manager`、`isAttached`、`attach()`、`detach()`、`didChangeAppLifecycleState`；`pauseOn` 默认 paused / hidden。 |
+| `LayermanNavigatorObserver` | `pathOf`、`routeFilter`、`contextKey`；默认 PageRoute 过滤与 route 键。 |
+
 ## 与 TS 版的刻意差异
 
 - **不做 `stackIndex`/`isTopmost`**:层/z 序完全交给渲染这个浮层的 `present:` 后端
@@ -1564,19 +1765,20 @@ manager.open<void>(
   后端即可。
 - **时间型冷却会自唤醒**:与 headless TS 内核(仅在下一次调度触发时才重新评估)不同,
   被 `minGap` 或桶滚动挡住的 Flutter 条目会自行武装定时器,到期即自动显示;
-  `session`/`total` 永不到期,仍需等待触发。
+  `session`/`total` 耗尽后丢弃条目，结果为 null。
 
 ## 测试
 
 ```bash
 flutter test                                            # 单元(widget)测试
-cd example && flutter test integration_test -d <device> # 真机编排测试
+cd example && flutter test integration_test/orchestration_test.dart -d <serial> # 真机编排测试
 ```
 
 单元测试用 `WidgetTester` 覆盖:串行队列、关闭推进、优先级、`Future` 结果、
 `replace`/`affix`/`overlap`、条件、冷却(含自唤醒)、`resolve`、`beforeClose`、
 pause/resume、`update`/`clearWhere`、`present:` 适配器、相位切换。`example/` 是一个
 完整的真机 demo,通过管理器编排 GetX + bot_toast + 原生 `showDialog`。
+手机验证设备为华为 STG-AL00 / Android 12（实现任务报告）；Windows 桌面会抢焦点，不无人值守运行。
 
 ## 许可
 

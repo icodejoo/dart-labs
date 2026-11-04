@@ -1,6 +1,6 @@
 # Layerman 架构文档
 
-本文按 `lib/` 当前代码、`.claude/skills/layerman/SKILL.md` 校准，行为口径为 0.2.2。
+本文按 `lib/` 当前代码、`.claude/skills/layerman/SKILL.md` 校准，行为口径为 0.3.0。
 第 15 节是规划，尚未实现，其中的名字不要当成现有 API。
 
 ## 1. 定位
@@ -11,25 +11,35 @@ headless 弹层队列编排器：只决定「何时、哪个」弹层显示，�
 `open<T>()` 返回 `Future<T?>`，用法对齐 `showDialog`。
 
 依赖面：核心只用 `dart:async`、`dart:convert` 和 `package:flutter/foundation.dart`
-（`ChangeNotifier`、`FlutterError`）。只有路由观察者依赖 `package:flutter/widgets.dart`。
+（`ChangeNotifier`、`FlutterError`）。路由观察者与生命周期绑定依赖 `package:flutter/widgets.dart`，路由 presenter 依赖 Material。
 主包零第三方运行时依赖。
 
 ## 2. 文件结构与导出
 
 ```text
 lib/layerman.dart                        公开入口，只导出下列符号
-lib/src/overlay_manager.dart             引擎：Layerman 及全部内部类型
+lib/src/overlay_manager.dart             引擎：Layerman、OverlayTicket、OverlayHold 及内部状态
+lib/src/overlay_types.dart               原因、结果、事件、槽位配置
+lib/src/route_managers.dart              DialogManager / BottomSheetManager / presentRoute
+lib/src/lifecycle_binding.dart           LayermanLifecycle
 lib/src/overlay_navigator_observer.dart  LayermanNavigatorObserver
 test/layerman_test.dart                  单测主体
 test/robustness_test.dart                0.2.2 加固回归（类型校验、hydrate 门控、守卫去重等）
-test/readme_recipe_test.dart             README 路由配方回归
-example/                                 示例与 Windows 真机集成测试
+test/readme_recipe_test.dart             历史手写 Route 配方回归
+test/engine_v030_test.dart               冷却耗尽、超时、接管、数据、观测回归
+test/engine_v030b_test.dart              票据、事件、holds、过期、槽位配置
+test/observer_filter_test.dart          PageRoute 过滤与 contextKey
+test/route_managers_test.dart           Route presenter 定向关闭与配置
+test/lifecycle_binding_test.dart        生命周期暂停绑定
+example/                                Android / Windows 示例与手机集成测试
 ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 ```
 
 导出符号：`Layerman`、`OverlayPredicate`、`OverlayCooldown`、`OverlayCooldownStorage`、
 `MemoryCooldownStorage`、`OverlayRecord`、`PresentContext`、`PresentedOverlay`、
-`Present`、`LayermanNavigatorObserver`。
+`Present`、`LayermanNavigatorObserver`、`OverlayTicket`、`OverlayHold`、
+`OverlayEndReason`、`OverlayOutcome`、`OverlayEvent`、`OverlayEventType`、`OverlaySlotOptions`、
+`DialogManager`、`BottomSheetManager`、`presentRoute`、`LayermanLifecycle`。
 
 `_Entry`、`_Slot`、`_CooldownStore`、`_CooldownRecord`、`_EntryPhase` 均为库私有。
 
@@ -44,12 +54,17 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 - `_byId`：id 到条目的映射，**唯一事实来源**。异步回调一律用 `_isCurrent(e)`
   （`_byId[e.id] == e`）判断条目是否仍有效。
 - `_context`：`setContext` 合并出的条件上下文。
-- 两个暂停来源：`_manualPaused`（`pauseAll` / `resumeAll`）与 `_routeZonePaused`
-  （`pauseOnRoutes`），有效状态 `_paused` 是两者的 OR。
+- 三个暂停来源：`_manualPaused`（`pauseAll` / `resumeAll`）与 `_routeZonePaused`
+  （`pauseOnRoutes`），以及 `_holds` 中未释放的独立暂停凭证，有效状态 `_paused` 是三者的 OR。
+- `slots`：不可变的 `Map<String, OverlaySlotOptions>`，按槽覆盖全局 `gap`，可限制 `maxQueued`。
+- `submit<T>` 返回绑定单次 `_Entry` 身份的 `OverlayTicket<T>`，含结果与 outcome 两个 Future；
+  `open<T>` 委托 `submit<T>(...).result`。`_events` 异步广播 queued/shown/ended。
 - `_CooldownStore`：冷却计数；`ready()` 返回的 hydrate Future。
 
 只读观测：`activeIds`（open 或 closing）、`queuedIds`（含挂起的 overlap）、`isShowing(id)`、
-`isPaused`、`currentRoute`、`isDisposed`。`Layerman` 继承 `ChangeNotifier`，
+`isPaused`、`currentRoute`、`isDisposed`、`holdCount`；`resolvingIds` 补充解析中条目，
+`records` 覆盖全部阶段，`recordOf(id)` 返回快照或 null。`queuedIds` 按槽内真实出场顺序返回，
+后接挂起的 overlap，不承诺槽位间的全局顺序。`Layerman` 继承 `ChangeNotifier`，
 状态变化后通知监听者。
 
 ## 4. 条目生命周期
@@ -67,8 +82,28 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 | `closing → 移除` | 后端 dismissed（加 `exitDuration` 宽限）、无法由我们关闭、或 dismiss 同步抛异常 |
 | 任意阶段 `→ 移除` | `remove` / `clear` / `clearWhere`、被 `replace` 抢占、同 id 重开、`dismissWhenUnmet`：立即移除，未交付的结果补 `null`，仍在显示的后端被尽力 dismiss，不等 `dismissed` |
 
+结束原因（`OverlayEndReason`）：
+
+| 原因 | 触发 |
+| --- | --- |
+| `closed` | 显式 close / dismiss |
+| `dismissedByBackend` | 后端先报告关闭 |
+| `expired` | duration 到期 |
+| `replaced` | replace 抢占 |
+| `superseded` | 同 id 新提交覆盖 |
+| `removed` | remove / clear / clearWhere |
+| `unmet` | dismissWhenUnmet 条件失效 |
+| `skipped` | resolve 空值、异常或超时 |
+| `dropped` | overlap 不满足条件或可恢复冷却 |
+| `capped` | session / total 永久上限耗尽 |
+| `queueFull` | maxQueued 超限淘汰有序队尾 |
+| `queueExpired` | expireAfter 到期 |
+| `failed` | present 同步抛异常 |
+| `disposed` | manager 销毁 |
+
 结果只交付一次：`_settle` 用 `settled` 标记保证 `open()` 的 Future 只完成一次，
-`close` 的结果或后端 dismissed 的值先到者生效，之后的移除只补 `null`（无效）。
+`close` 的结果或后端 dismissed 的值先到者生效，之后的移除不会覆盖首次值与原因。`_settle(e, result, reason)` 必须带原因，
+首次兑现同时完成 `result` / `outcome` 并发 `ended`；不代表退场动画已经结束。关闭超时也不改写首次原因。
 
 `OverlayRecord.phase` 暴露的是 `pending` / `resolving` / `open` / `closing` 的名字。
 
@@ -76,7 +111,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.1 排序
 
-`_cmp`：`replace` 条目排在最前（replace 前排带），其次 `priority` 降序，最后 `seq` 先进先出。
+`_cmp`：`replace` 条目排在最前（replace 前排带），其次 `priority` 降序，最后 `seq` 先进先出。`_enqueue` 二分定位有序插入，调度不再反复排序。
 `replace` 是条目的不可变字段，保证被 `affix` 挡住而排队的抢占者，仍排在先到的普通项前面。
 
 ### 5.2 资格
@@ -93,18 +128,19 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.3 不满足怎么办
 
-- 串行条目：**等待**，留在队列里，下次调度触发再判断。
+- 串行条目：可恢复的不满足**等待**；调度扫描到 `permanentlyBlocked`（session / total 耗尽）
+  则丢弃并兑现 null / capped。hydrate 前不据尚未读到的 total 判定永久受阻。
 - overlap 条目：**丢弃**（结果 `null`），即「现在或永不」。暂停期间或等 hydrate 时改为挂起。
 - 时间型冷却（`minGap`、day/hour/minute 桶滚动）会自唤醒：`_schedule` 找不到合格项时，
   对最近到期者起 `cooldownTimer`，到点（多留 16ms）重新调度。`session` / `total` 不会自己到期，
-  不唤醒，只在 `open` / 关闭 / `setContext` 等调度触发时重判。
+  不唤醒，调度检查时直接丢弃。
 
 ### 5.4 调度流程 `_schedule(slot)`
 
 暂停则返回；取消旧 `cooldownTimer`；槽位被占、`gapPending`、`delayTimer` 在走、队列为空则返回；
-按 `_cmp` 排序取第一个合格项；它有 `delay` 且未跳过则起 `delayTimer` 并返回；否则 `_activate`。
+从有序队列扫描并丢弃永久受阻项，取第一个合格项；它有 `delay` 且未跳过则起 `delayTimer` 并返回；否则 `_activate`。
 
-间隔：关闭一个串行条目后 `_advanceSlot`，若构造参数 `gap > 0` 则置 `gapPending` 并起
+间隔：关闭一个串行条目后 `_advanceSlot`，若 `slots[slot]?.gap ?? gap` 大于零 则置 `gapPending` 并起
 `gapTimer`，到期再调度。条目自己的 `delay` 在它出场前再等一次，且 overlap 忽略 `delay`。
 
 ### 5.5 replace 抢占
@@ -118,8 +154,16 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.6 同 id 重开
 
-`open` 复用一个活跃 id：旧项被丢弃（结果 `null`）并释放槽位，新项 `skipGap`。
+`open` 复用一个活跃 id：旧项被丢弃（结果 `null` / superseded），新项 `skipGap`。
+若仍在同一串行槽、未暂停且合格，新项直接 `_activate` 接管，不让更高优先级排队项抢走。
+跨槽或转 overlap 时原槽重调度；不满足接管条件时正常排队。
 复用一个仍排队的 id：覆盖旧排队项。`affix` 不拦同 id 重开。
+
+### 5.7 排队期限与容量
+
+`expireAfter` 提交时起 `queueTimer`，只适用于激活前串行等待（含暂停），激活取消；
+到期移除并给出 queueExpired。`maxQueued` 必须正数，只计算等待项，入队后超限淘汰
+有序队尾（queueFull），可能淘汰本次提交。`OverlaySlotOptions.gap` 覆盖全局间隔。
 
 ## 6. 两阶段关闭
 
@@ -133,6 +177,10 @@ close(id, result)
   → exitDuration 宽限（可选）
   → _remove → 按 gap 推进槽位
 ```
+
+请求后端关闭后启动 `dismissTimeout`（默认 10 秒，构造参数 null 不限时）；
+未收到 dismissed 时上报 `TimeoutException` 并 `_remove` 释放槽位，保留已兑现结果和原因。
+这不保证后端 UI 消失。正常 dismissed、移除、接管、clear、dispose 都取消相关计时器。
 
 异步守卫返回时会重新检查条目是否仍在、是否仍是 `open`，因为它在等待期间可能已被移除。
 
@@ -160,17 +208,25 @@ final f = layerman.open<bool>(
 );
 ```
 
-- `PresentContext`：`id`、`slot`、`data`。`data` 是 present 那一刻的**快照**（`resolve` 之后的值）。
+- `PresentContext`：`id`、`slot`、`data`、`dataListenable`。后者为实时 `ValueListenable<Object?>`，
+  `update` Map 浅合并或替换后通知；`OverlayTicket.data` 为同一通道。条目结束不 dispose 通道，
+  以便后端退场时仍可解除监听；后端自行移除其注册的监听者。`data` 是 present 那一刻的**快照**（`resolve` 之后的值）。
 - `PresentedOverlay.dismissed`：必须覆盖**所有**关闭路径（点击、蒙层、返回键、超时、程序关闭）；
   它的值成为 `open()` 的结果。出错按 `null` 处理。
 - `PresentedOverlay.dismiss`：编排器驱动的关闭，必须**定点**关这一个（保存的 Route 对象：在栈顶就 `pop`，
   被盖住就 `removeRoute`；`SnackbarController.close()`；`bot_toast` 的 `CancelFunc`），不能「弹栈顶」。
-  按路由名 `popUntil` 在目标不在栈顶时什么也不做，会让条目永远停在 closing。
+  按路由名 `popUntil` 在目标不在栈顶时什么也不做，会导致关闭失效；0.3.0 看门狗能释放槽位，但不能保证该后端 UI 已移除。
   传 `null` 则编排器无法抢占它，`close` 只把它从队列摘掉，后端自管生命周期。
 - 后端异常隔离：`present` 同步抛异常则上报、丢弃条目（结果 `null`、不记冷却）、队列继续；
   `dismiss` 同步抛或异步失败只上报，不外抛。
 - `externalDone`：后端已报告关闭（或已被通知关闭）后置位，晚到的 dismissed 信号不会重复驱动移除。
   对 replace / clear / remove 掉的仍在显示的条目，先置位再尽力 dismiss（fire-and-forget）。
+
+`route_managers.dart` 提供可全局复用的 `DialogManager` / `BottomSheetManager`，只保存配置。
+`presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` 推入并保留 Route，
+`dismissed` 使用 completed，栈顶 pop(result)，被覆盖则 removeRoute(route)。后者不传 result，
+兼容 Flutter 3.27；直接关闭句柄的被覆盖路由结果 null，manager.close 已先交付指定结果。
+绑定 manager 的 builder close 走守卫；未绑定直接关路由；返回键、遮罩等始终走后端路径。
 
 ## 8. 条件与上下文
 
@@ -183,7 +239,7 @@ final f = layerman.open<bool>(
 5. `notifyListeners()`。
 
 保留键：`route`（`String`）和 `auth`（`bool`），其余键给 `when` 谓词自由使用。
-`when` 收到的是上下文的不可变副本。`currentRoute` 读回 `_context['route']`。
+`when` 收到缓存的不可变上下文视图，每次 `setContext` 后失效重建。`currentRoute` 读回 `_context['route']`。
 
 `when` 抛异常视为不满足，并上报（每个条目只报一次）。
 
@@ -210,11 +266,17 @@ final f = layerman.open<bool>(
 
 ## 10. 暂停
 
-两个来源，按 OR 组合，互不覆盖：
+三个来源，按 OR 组合，互不覆盖：
 
 - 手动：`pauseAll()` / `resumeAll()`。
 - 免打扰区：构造参数 `pauseOnRoutes`（`String` / `List<String>` / `RegExp`），每次 `setContext`
   后比对 `route`。
+
+- holds：`hold([Object? reason])` 返回 `OverlayHold`，`release()` 幂等，`holdCount` 只统计 holds。
+  所有 holds 释放且手动/路由来源也都放开才恢复。销毁后 token 标为已释放。
+- `LayermanLifecycle(manager, pauseOn: ...)` 通过 hold 接入生命周期，不是第四种暂停位；
+  默认 paused / hidden 获取，其他状态释放。attach 立即同步且幂等，detach 解除监听并释放；
+  更换 manager 前 detach。只冻结 duration，不冻结 queue/resolve/dismiss 截止计时。
 
 只有**有效**暂停状态发生边沿变化时才执行冻结或释放（`_applyPauseTransition`），所以在区内手动
 `resumeAll` 不会提前放行，离开区也不会撤销手动暂停。
@@ -228,22 +290,25 @@ final f = layerman.open<bool>(
 
 ## 11. 路由感知
 
-`LayermanNavigatorObserver(manager, {pathOf})` 只重写 `didChangeTop`，不碰旧的
+`LayermanNavigatorObserver(manager, {pathOf, routeFilter, contextKey})` 只重写 `didChangeTop`，不碰旧的
 `didPush` / `didPop` / `didRemove` / `didReplace`：后两者报告的是「变动位置」的路由，
 不一定是真正的栈顶。`didChangeTop` 还覆盖冷启动和声明式 `Navigator(pages:)`（go_router 的模型）。
 
-流程：`isDisposed` 检查 → `pathOf(topRoute)`（默认 `route.settings.name`；抛异常则
+默认 `routeFilter` 只接受 PageRoute；拒绝时不取路径、不安排回调，保留最近页面上下文。
+`routeFilter: (r) => true` 恢复 0.2.x 所有路由行为。`contextKey` 默认 route；嵌套导航可改为
+其他键并用 when 读取；route 条件和 pauseOnRoutes 仍只识别默认 route 键。
+
+流程：`isDisposed` 检查 → `routeFilter(topRoute)` → `pathOf(topRoute)`（默认 `route.settings.name`；抛异常则
 `FlutterError.reportError` 并按 `null` 处理）→ 注册 post-frame 回调 → 立刻 `scheduleFrame()`
 （否则静止帧下回调可能一直挂着）→ 回调内再查一次 `isDisposed`，然后
-`manager.setContext({'route': path})`。延后到帧后是因为某些路由器会在 build 期间触发，
+`manager.setContext({contextKey: path})`。延后到帧后是因为某些路由器会在 build 期间触发，
 同步 `setContext` 会引发 `markNeedsBuild during build`。
 
 接入后把它当作 `route` 键的唯一写者。两个易踩点：
 
 - `MaterialApp.home` 的隐式路由名是 `'/'`，不是 `null`，也不是你想的 `'/home'`；要用别的名字就走
   `initialRoute` / `routes` 或带名字的 `RouteSettings`。
-- 同一个 `Navigator` 上的路由型弹窗（`showDialog`、`Get.dialog`）在显示期间确实是栈顶路由，
-  `route` 会变成弹窗的路由名。见第 14 节。
+- 对话框、底部弹层、菜单默认被过滤，不再改写页面 route；放开过滤后自行承担弹窗路径参与条件的影响。
 
 ## 12. 错误隔离一览
 
@@ -256,9 +321,14 @@ final f = layerman.open<bool>(
 | `beforeClose` | 抛异常或返回的 Future 出错：取消本次关闭 |
 | `when` | 视为不满足，上报（每个条目一次） |
 | `OverlayCooldownStorage` | 读失败上报并退化为空计数；写失败上报，不影响调度 |
+| resolve 超时 | 默认 30 秒，上报 TimeoutException；按 skipped 跳过且不计冷却，晚到结果忽略 |
+| dismiss 超时 | 默认 10 秒，上报 TimeoutException 并释放槽位；首次结果/原因保留 |
 | `pathOf` | 上报，该路由按 `null` 处理 |
 
 `close(id, result)` 的 `result` 类型不符是调用方错误，直接抛 `ArgumentError`，条目状态不变。
+
+构造 `resolveTimeout: null` 不限时；单条 `open` / `submit` 的 resolveTimeout 为 null 则继承，
+Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超时不取消底层 Future。
 
 `dispose` 之后：`open` 在 debug 下断言，release 下返回 `null` 且不 present；
 其余写操作为无操作。
@@ -273,29 +343,17 @@ final f = layerman.open<bool>(
 - **`ChangeNotifier` 监听**：状态变化后读 `activeIds` / `queuedIds` / `isPaused` 刷新 UI；
   `update(id, patch)` 也走这个通知。
 
-## 14. 已知限制（截至 0.2.2，均经评审实测）
+## 14. 已知限制（截至 0.3.0）
 
-- `session` / `total` 上限耗尽后，条目永远排队，`open` 的 Future 不完成。
-- `dismiss` 之后 `dismissed` 不完成，或 `resolve` 不返回，槽位被永久占住，没有超时。
-- 弹窗 / 底部弹层路由会改写 `route` 上下文：带 `route` 条件的弹窗可能把自己关掉，
-  免打扰区可能被无关弹窗解除。
-- 同 id 重开会让位给更高优先级的排队项（重开的条目重新按优先级排）。
-- `update()` 的新数据后端读不到：`PresentContext.data` 是 present 时刻的快照，也没有按 id
-  读数据的公开 API；后端要显示实时数据，只能自己维护可监听状态并和 `update` 同步更新。
-- `resolving` 中的条目不出现在 `activeIds` / `queuedIds`。
-- overlap 忽略 `delay`；`requiresAuth: false` 表示「仅游客」，不是「不要求登录」。
+- overlap 忽略 `delay`。
+- `requiresAuth: false` 表示「仅游客」，不是「不要求登录」。
 - `open` 在 build 期间被调用时会同步 present，可能触发 `markNeedsBuild during build`。
 
 ## 15. 演进方向（规划中，尚未实现）
 
-以下**均不是现有 API**，名字可能调整：
+以下不是现有 API：
 
-- **类型化句柄 `OverlayTicket<T>`**：`close(T?)`、`update`、状态可监听；`open()` 仍返回 `Future<T?>`。
-- **统一资格判断 `Gate`**：结果为通过 / 等待到某时刻 / 丢弃并给出原因，取代散落的资格分支。
-- **显式状态机 + 公开操作串行派发**：避免监听者重入造成的中间态。
-- **自带基于 `Route` 对象的 presenter `DialogManager`**：全局建一次、持有 `navigatorKey`，
-  `dismissed` 用 `route.completed`，`dismiss` 用 `removeRoute`，同类的按 `XxxManager`
-  命名（如 `BottomSheetManager`）。
-- **观察者的 `routeFilter`（默认只看 `PageRoute`）与 `contextKey`**：缓解弹窗路由改写 `route`。
-- **进后台自动暂停**。
-- **结果原因与事件流**，以及 **dismiss 看门狗与 resolve 超时**（对应第 14 节的永久占槽问题）。
+- 统一资格判断 Gate：通过 / 等待到某时刻 / 丢弃并给原因，收敛散落分支。
+- 显式状态机与公开操作串行派发，避免监听者重入看到中间态。
+- 1.0 类型化 API 收口：overlap / replace 改枚举、route 参数类型化、phase 枚举。
+  具体方案等 0.3.0 在真实使用中稳定后再定。

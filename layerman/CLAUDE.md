@@ -194,3 +194,39 @@
   可用（集成测试跑真窗口，会抢焦点）。3.47 的 `pub get` 会自动给两份 analysis_options 加
   `analyzer.exclude`，并改写 example 的 pubspec.lock 和插件注册文件（后者只改换行符）。
   不是有意为之就别提交这些文件。
+
+
+## 0.3.0 决策与验收记录（2026-11-04）
+
+评审结论采用路线 A：0.2.2 先加固，0.3.0 增量扩展并修复行为，1.0 再收口。
+本批完成永久冷却耗尽丢弃、关闭/解析超时、同 id 串行接管、实时数据、完整观测，
+以及票据/首次结束原因/异步事件、holds、生命周期自动暂停、排队过期与槽位配置。
+观察者默认只接受 PageRoute，可通过 routeFilter 恢复全部路由，contextKey 支持嵌套导航。
+有序插入和 when 上下文视图缓存属于内部优化。发布包通过 .pubignore 排除本文件和 .claude/。
+
+Route 型 presenter 命名遵循用户指定的 `DialogManager`（不叫 DialogPresenter）；
+同类遵循 `XxxManager`，本批有 `BottomSheetManager`，全局建一次，只存配置、每次独立 Route。
+`presentRoute` 留给页面/自定义 Route；builder close 可绑定 manager 经过守卫。
+Flutter 3.27 兼容约束继续保留：removeRoute 不传 result。
+1.0 的 Gate、显式状态机/串行派发、overlap/replace 枚举、route 类型化、phase 枚举，
+等 0.3.0 在真实使用中稳定后再定，不把规划符号写成当前 API。
+
+验收基线（2026-11-04，0.3.0）：
+
+- 单测 `flutter test`：**199 条全绿**（本机 Flutter 3.47.0 / Dart 3.13.0）；`flutter analyze`
+  （含 example）干净。**最低版本 Flutter 3.27.4（Dart 3.6）上同样 199 条全绿**，`pub get` 与 `analyze`
+  也通过——3.27 的验证方式：`git clone --depth 1 --branch 3.27.4 file:///E:/sdk/flutter C:/f327/flutter`
+  （Windows 未开长路径，克隆目录必须很短），把 lib/test/pubspec.yaml 复制到 `C:/f327/pkg`，
+  用 `C:/f327/flutter/bin/flutter pub get --no-example` 再 `flutter test`。
+- 手机真机：华为 STG-AL00 / Android 12（序列号 `7NQBB23606003715`），
+  `cd example && flutter test integration_test/orchestration_test.dart -d 7NQBB23606003715`，
+  **26 条全绿**（原有 17 + 0.3.0 新增 9）。example 已补 Android 平台（`flutter create --platforms=android`）。
+- 手机测试的坑：①同一个 1400×900 视口在手机上排版更高，按钮会落到视口外，点之前用 `tapVisible`
+  （`ensureVisible` 后再点）。②**不要用 `WidgetsBinding.handleAppLifecycleStateChanged(paused)`
+  模拟后台**：paused/hidden/detached 会把全局出帧关掉，真机上 `pump()` 等不到帧会一直挂着，手机屏幕
+  停在 "Test starting..."；演示页和测试都改为调用 `appLifecycle.didChangeAppLifecycleState(...)`
+  （`LayermanLifecycle` 的观察者方法，走同一套 hold 逻辑但不动出帧开关）。普通 `flutter test`
+  里这个坑不会暴露，只有真机才会。
+- Windows 桌面集成测试会抢焦点，不无人值守跑。
+- 并发派 Codex 最多 2 个：3 个并发 + Gradle 守护进程会把本机内存吃光，Codex 被 OOM 杀掉
+  （`memory allocation of 536870912 bytes failed`）。Gradle/Kotlin 守护进程跑完手机测试后要结束。

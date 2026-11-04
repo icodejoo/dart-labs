@@ -39,16 +39,16 @@
   <text x="550" y="128" text-anchor="middle" class="text-label">ChangeNotifier | 公开入口</text>
   <text x="550" y="150" text-anchor="middle" class="text-api">open / close / dismiss / remove / clear / clearWhere</text>
   <text x="550" y="165" text-anchor="middle" class="text-api">setContext / update / pauseAll / resumeAll / pause / resume</text>
-  <text x="550" y="180" text-anchor="middle" class="text-api">activeIds / queuedIds / isShowing / isPaused / ready()</text>
+  <text x="550" y="180" text-anchor="middle" class="text-api">activeIds / resolvingIds / records / recordOf / ready()</text>
   <text x="550" y="196" text-anchor="middle" class="text-small">状态唯一事实来源：_byId</text>
 
   <!-- 路由观察者 -->
   <rect x="930" y="80" width="320" height="130" class="box-plugin" rx="8"/>
   <text x="1090" y="108" text-anchor="middle" class="text-title">LayermanNavigatorObserver</text>
   <text x="1090" y="130" text-anchor="middle" class="text-label">NavigatorObserver，只监听 didChangeTop</text>
-  <text x="1090" y="150" text-anchor="middle" class="text-small">pathOf(topRoute)，默认 settings.name</text>
+  <text x="1090" y="150" text-anchor="middle" class="text-small">routeFilter 默认 PageRoute；pathOf 取路径</text>
   <text x="1090" y="166" text-anchor="middle" class="text-small">post-frame + scheduleFrame</text>
-  <text x="1090" y="182" text-anchor="middle" class="text-api">setContext({'route': path})</text>
+  <text x="1090" y="182" text-anchor="middle" class="text-api">setContext({contextKey: path})</text>
   <text x="1090" y="198" text-anchor="middle" class="text-small">isDisposed 前后各检查一次</text>
 
   <path d="M 930 145 L 760 145" class="arrow-small"/>
@@ -70,7 +70,7 @@
   <text x="70" y="406" class="text-small">  本地日历桶，按 id 计数，必须显式 id</text>
   <text x="70" y="428" class="text-small">hydrate 前：带持久化上限的条目暂不满足</text>
   <text x="70" y="446" class="text-small">  串行排队，overlap 挂起；完成后统一重调度</text>
-  <text x="70" y="468" class="text-small">不满足：串行条目等待，overlap 丢弃</text>
+  <text x="70" y="468" class="text-small">不满足：串行等待；永久上限耗尽丢弃（capped）</text>
   <text x="70" y="486" class="text-small">when 抛异常 = 不满足并上报（每条目一次）</text>
 
   <!-- 调度 -->
@@ -78,13 +78,13 @@
   <text x="700" y="302" text-anchor="middle" class="text-title">调度</text>
   <text x="700" y="322" text-anchor="middle" class="text-label">_slots / _overlaps / _pendingOverlaps</text>
   <text x="520" y="348" class="text-small">每个槽位：active(0..1) + queue + gap/delay/cooldown 计时器</text>
-  <text x="520" y="368" class="text-small">_cmp：replace 前排带 → priority 降序 → seq 先进先出</text>
+  <text x="520" y="368" class="text-small">_enqueue 有序插入：replace → priority 降序 → seq FIFO</text>
   <text x="520" y="388" class="text-small">_schedule：取第一个合格项；时间型冷却自唤醒</text>
   <text x="520" y="408" class="text-small">replace：自身合格、未暂停、当前项未 affix 才抢占</text>
   <text x="520" y="426" class="text-small">  被抢占者直接关闭不回队列，跳过 gap / delay</text>
-  <text x="520" y="448" class="text-small">暂停 = _manualPaused OR _routeZonePaused（pauseOnRoutes）</text>
+  <text x="520" y="448" class="text-small">暂停 = _manualPaused OR _routeZonePaused OR holds</text>
   <text x="520" y="466" class="text-small">  冻结 duration，释放时重调度并放行挂起的 overlap</text>
-  <text x="520" y="488" class="text-small">同 id 重开：旧活跃项被丢弃，新项跳过 gap</text>
+  <text x="520" y="488" class="text-small">同 id 合格串行接管；expireAfter / maxQueued 限制等待</text>
 
   <path d="M 500 392 L 450 392" class="arrow-small"/>
   <text x="475" y="384" text-anchor="middle" class="text-small">查资格</text>
@@ -94,11 +94,11 @@
   <text x="1150" y="302" text-anchor="middle" class="text-title">条目生命周期</text>
   <text x="1150" y="322" text-anchor="middle" class="text-label">pending → resolving → open → closing → 移除</text>
   <text x="970" y="344" class="text-small">pending：入队，可带 delay，等槽位</text>
-  <text x="970" y="358" class="text-small">resolving：resolve 取数据，槽位已承诺（replace 可抢占）</text>
+  <text x="970" y="358" class="text-small">resolving：resolveTimeout 默认 30s；replace 可抢占</text>
   <text x="970" y="374" class="text-small">open：调用 present、记冷却、起 duration 计时</text>
   <text x="970" y="390" class="text-small">两阶段关闭：close → 校验 result 类型 → beforeClose</text>
   <text x="970" y="408" class="text-small">  → settle + closing → 后端 dismiss → dismissed</text>
-  <text x="970" y="426" class="text-small">  → exitDuration 宽限 → 移除 → 按 gap 推进</text>
+  <text x="970" y="426" class="text-small">  → exitDuration → 移除；dismissTimeout 防止卡槽</text>
   <text x="970" y="448" class="text-small">绕过守卫：remove / clear / duration 到期 /</text>
   <text x="970" y="464" class="text-small">  dismissWhenUnmet / replace</text>
   <text x="970" y="486" class="text-small">结果只交付一次；externalDone 防重入</text>
@@ -125,12 +125,27 @@
   <path d="M 230 700 L 230 760" class="arrow-small"/>
   <path d="M 270 760 L 270 700" class="arrow-small"/>
 
+  <!-- 0.3.0 旁路组件：沿用原画布与配色 -->
+  <rect x="470" y="590" width="210" height="110" class="box-plugin" rx="8"/>
+  <text x="575" y="614" text-anchor="middle" class="text-label">Route presenters</text>
+  <text x="575" y="636" text-anchor="middle" class="text-api">DialogManager</text>
+  <text x="575" y="654" text-anchor="middle" class="text-api">BottomSheetManager</text>
+  <text x="575" y="676" text-anchor="middle" class="text-api">presentRoute / completed</text>
+  <path d="M 680 645 L 700 645" class="arrow-small"/>
+  <rect x="470" y="760" width="210" height="120" class="box-api" rx="8"/>
+  <text x="575" y="784" text-anchor="middle" class="text-label">OverlayTicket / events</text>
+  <text x="575" y="805" text-anchor="middle" class="text-api">result / outcome / data</text>
+  <text x="575" y="825" text-anchor="middle" class="text-api">queued / shown / ended</text>
+  <text x="575" y="847" text-anchor="middle" class="text-small">holds / LayermanLifecycle</text>
+  <text x="575" y="866" text-anchor="middle" class="text-small">独立凭证，按 OR 暂停</text>
+  <path d="M 485 760 L 485 530 L 575 530 L 575 510" class="arrow-small"/>
+
   <!-- present 后端 -->
   <rect x="700" y="590" width="650" height="110" class="box-plugin" rx="8"/>
   <text x="1025" y="618" text-anchor="middle" class="text-title">present 后端（调用方提供）</text>
   <text x="1025" y="640" text-anchor="middle" class="text-label">showDialog | GetX | bot_toast | 自管 OverlayEntry</text>
   <text x="1025" y="660" text-anchor="middle" class="text-small">负责全部渲染；present 同步抛异常 = 上报并丢弃该条目</text>
-  <text x="1025" y="678" text-anchor="middle" class="text-small">PresentContext：id / slot / data 快照</text>
+  <text x="1025" y="678" text-anchor="middle" class="text-small">PresentContext：id / slot / data 快照 / dataListenable 实时</text>
 
   <path d="M 1100 510 L 1100 590" class="arrow"/>
   <text x="1112" y="556" class="text-api">present(PresentContext)</text>
@@ -152,5 +167,5 @@
 
   <!-- 说明 -->
   <text x="700" y="915" text-anchor="middle" class="text-small">实线：主调用链 | 细线：旁路与回调 | 黄色：外部扩展点或旁路组件 | 绿色：资格与协议契约</text>
-  <text x="700" y="932" text-anchor="middle" class="text-small">核心只依赖 dart:async / dart:convert / flutter/foundation；路由观察者依赖 flutter/widgets</text>
+  <text x="700" y="932" text-anchor="middle" class="text-small">核心只依赖 dart:async / dart:convert / flutter/foundation；观察者/生命周期依赖 widgets；route presenters 依赖 Material</text>
 </svg>
