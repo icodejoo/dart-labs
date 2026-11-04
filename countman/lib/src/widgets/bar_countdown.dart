@@ -83,8 +83,10 @@ class BarCountdown extends StatelessWidget {
     final scope = CountmanScope.maybeOf<Countdown>(context);
     final effStyle =
         (style ?? const BarCountdownStyle()).merge(scope?.barCountdownStyle);
-    final effW = effStyle.width ?? (effStyle.vertical == true ? 8.0 : 200.0);
-    final effH = effStyle.height ?? (effStyle.vertical == true ? 200.0 : 8.0);
+    final effW = effStyle.width ??
+        (effStyle.vertical == true ? defaultBarThickness : defaultBarLength);
+    final effH = effStyle.height ??
+        (effStyle.vertical == true ? defaultBarLength : defaultBarThickness);
     final colors = resolveProgressColors(
       context,
       color: effStyle.color,

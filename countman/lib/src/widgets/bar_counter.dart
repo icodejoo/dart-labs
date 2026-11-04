@@ -17,6 +17,7 @@ export 'bar_style.dart' show BarCounterStyle;
 /// ```dart
 /// BarCounter(to: 100, style: const BarCounterStyle(width: 240))
 /// ```
+/// 条形计数器，支持首次播放策略与竖向默认尺寸。
 class BarCounter extends StatelessWidget {
   /// 创建进度计数器；animateOnce 可选覆盖 provider 的首次播放策略。
   const BarCounter({
@@ -97,8 +98,10 @@ class BarCounter extends StatelessWidget {
     final scope = CountmanScope.maybeOf<Counter>(context);
     final effStyle =
         (style ?? const BarCounterStyle()).merge(scope?.barCounterStyle);
-    final effW = effStyle.width ?? (effStyle.vertical == true ? 8.0 : 200.0);
-    final effH = effStyle.height ?? (effStyle.vertical == true ? 200.0 : 8.0);
+    final effW = effStyle.width ??
+        (effStyle.vertical == true ? defaultBarThickness : defaultBarLength);
+    final effH = effStyle.height ??
+        (effStyle.vertical == true ? defaultBarLength : defaultBarThickness);
     final colors = resolveProgressColors(
       context,
       color: effStyle.color,

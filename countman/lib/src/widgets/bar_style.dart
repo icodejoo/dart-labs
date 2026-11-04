@@ -3,6 +3,12 @@ import 'package:flutter/widgets.dart';
 import 'painter/bar_painter.dart';
 import 'style_support.dart';
 
+/// 进度条默认主轴长度，供横向宽度和竖向高度共用。
+const double defaultBarLength = 200;
+
+/// 进度条默认横轴厚度，供横向高度和竖向宽度共用。
+const double defaultBarThickness = 8;
+
 /// Shared visual-field contract for [BarCounterStyle] / [BarCountdownStyle].
 ///
 /// [BarCounterStyle] / [BarCountdownStyle] 共享的视觉字段契约。

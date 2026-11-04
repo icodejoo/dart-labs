@@ -22,6 +22,7 @@ export 'ring_style.dart' show RingCounterStyle;
 ///   center: TextCounter(to: 100, suffix: '%'),
 /// )
 /// ```
+/// 环形计数器，稳定 ValueKey 用于 provider 的首次播放登记。
 class RingCounter extends StatelessWidget {
   /// 创建进度计数器；animateOnce 可选覆盖 provider 的首次播放策略。
   const RingCounter({
