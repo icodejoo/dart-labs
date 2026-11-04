@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import 'guard_scope.dart';
+import '../fullscreen/ownership.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
 import '../../core/keep_alive/keep_alive.dart';
@@ -476,8 +477,13 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _set(MovaHideReason.routeCovered, _routeCovered(ModalRoute.of(context)));
 
   bool _routeCovered(ModalRoute<dynamic>? route) {
-    if (route != null && !route.isCurrent) return true;
-    return _layers.any((l) => l.covered);
+    if (route != null &&
+        !route.isCurrent &&
+        !movaCoveredByFullscreen(widget.api, route)) {
+      return true;
+    }
+    return _layers.any((l) =>
+        l.covered && !movaCoveredByFullscreen(widget.api, l.route));
   }
 
   // ---- viewport --------------------------------------------------------

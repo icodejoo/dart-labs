@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaPlayer 新增 fullscreenRoute（默认 false）：开启后由应用根路由展示全屏，返回键先退出全屏，锁定时用 MovaStrs.unlock 提示解锁。路由借用同一 API、自建独立 chrome、不重复探测清晰度，退出唤出内联控制条；样式继承 MovaPlayerStyle 与旧配置回落，方向还原和 PiP/mini 仍由引擎管理。全屏路由携带后台守卫归属，自有遮挡不触发暂停；Windows 内联及路由的自定义 surface 也经过 MovaSnapshotGuard。关闭时保留原有播放器树与行为。
+
 - MovaFeedPlayer 新增宿主持有的 MovaFeedPlayerController，可查询 feed/当前索引/当前引擎、跳页和播放暂停，换控制器及卸载时解除绑定；引擎仍由组件释放。内置整条 feed 的 MovaAutoPause，可配置 autoPause（null 禁用守卫）和 routeObservers，翻页互斥仍由池负责。
 - Feed 单页 loader 抛错、open 拒绝/抛错及播放中终结错误改为可见失败界面，默认使用主题错误/重试文案，可通过 errorBuilder 自定义；失败不会因普通重建无限重试，显式重试只处理该页。当前页加载失败停止上一页声音，其他页仍可继续浏览；loader 返回 null 的结束占位保持原样。
 

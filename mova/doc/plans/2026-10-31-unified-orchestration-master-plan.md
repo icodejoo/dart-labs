@@ -1450,3 +1450,15 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 - flutter analyze lib test：0 issues。唯一一次全量 --concurrency=3 --machine：2341 绿、3 项未完成（b12 1、b14 2），另有 purity/progress_snapshot/mini 三个套件加载前连接关闭。仅补跑这 5 个文件，29/29 通过；按文件替换中断结果后，机器日志与完整 test 文件清单核对：**229 个文件、2364 项全部通过，无漏文件、无额外文件、无跳过**。不将重复补跑叠加到总数；engine_test 内两个同名参数用例分别计数，不按名称误去重。未重复全量、未 OOM、未降并发、未分片；每轮开跑前均执行指定 flutter_tester 清理。
 - 相比计划的实质差异：暴露带通知的宿主控制器而非移交内部对象所有权；单页失败同时覆盖加载、打开拒绝/抛错及运行中终结错误，显式重试避免重建空转，当前页 loader 失败停止旧页声音。新增条数与计划 +6 一致，无裁剪。CHANGELOG Unreleased 已记行为变化。CP3 真机/启动应用验证按用户约束未执行。
 - 本批两笔提交均由当前执行者亲自完成，未转派；不改 CLAUDE.md，不 push/切分支/stash/reset，不暂存生成插件文件、doc/notes、matrix-run 计划或兄弟项目。
+
+
+### C05 落地记录（2026-11-04）
+
+- 基于本 worktree detached HEAD `3765e7f6`（会话给定基线 2375），由当前执行者亲自完成一个提交，未转派；仅修改 `E:\workspaces\wt-mova-c5\mova`，未改 CLAUDE.md，未启动应用或使用真机。
+- 新增公开 API 仅 `MovaPlayer.fullscreenRoute` 构造参数/字段（中文 dartdoc，默认 false）。关闭时直接返回原有构建体，不增加路由监听、PopScope 或额外视图。开启时监听原 API 的 fullscreen/pip/mini 状态，由根 Navigator 推送 `mova/fullscreen`；同 API 多视图最多持有一个路由，隐藏页面不抢占路由。返回键经原 `setFullscreen(false)` 退出，锁定时使用生效的 `MovaStrs.unlock` 提示；换 API、关闭开关和卸载只清理自有路由，API/引擎仍归宿主。
+- 遵守 C04 D7：路由里的 MovaPlayer 不共享内联 chrome；桥接引擎按 C04 既定规则自建 chrome，继承旧读者可见态并在 ready 后计时。退出用内联 MovaUiPort.show（有 chrome 时走 chrome）唤出控制条；路由 `autoLoadQualities: false`。无桥接 API 延续 C04 的旧路径兼容规则。路由直接传生效的 MovaPlayerStyle 六节与 legacy 回落，支持全屏期间视图样式更新；不新增全屏专用样式或文案类型。
+- 方向推导、系统栏还原、PiP 回流发起引擎归属完全沿用既有 core。路由携带祖先 MovaGuardScope 的 API/parent 链，避免后台兜底绕过宿主配置。额外修改 `ui/guard/auto_pause.dart` 的路由遮挡识别：同 API 自有全屏路由不作为 routeCovered，其他覆盖照常生效；这是退出全屏状态先于路由移除时避免瞬时暂停所需的接口补充，包含根/嵌套 Navigator。原 B13 fullscreen/pip/mini 豁免不变。路由不透明遮挡标志为 false，画面由黑色 Scaffold 全覆盖，保留内联 ticker。
+- Windows：内联 opt-in 子树和整个全屏路由均包 MovaSnapshotGuard（包括宿主自定义 surface），继续通过 movaSnapshotGuardNeeded 判平台；默认渲染面已有的守卫保留。对应 Flutter 3.47.0/3.47.1 #190774；本机 SDK 3.47.0，仅做 widget/渲染对象验证，不宣称原生进出 20 次已通过。
+- 新增 8 项 widget 测试，覆盖默认关闭/运行时开关、返回/不重复清晰度探测、锁定提示/样式更新、chrome 播种隔离与计时、Windows 自定义 surface 守卫、B13 根/嵌套路由与后台守卫归属及普通页面遮挡、换 API/卸载所有权、同 API 多视图与 PiP/mini 回流。回退路由入口（保留新 API 使测试正常编译）仅跑 `test/ui/fullscreen/fullscreen_test.dart`，实测 8 红/0 绿，finally 逐字节恢复；恢复后 8 绿。既有测试与断言改写 **0**。
+- 验证：唯一一次完整 `flutter test --concurrency=3` 实测 2375 绿、8 红（230 个测试文件，2383 项，给定基线 2375 + 新增 8）。其中 B09 的 7 项在 setUp 因 worktree 缺少 `.dart_tool/b09` 失败；补建忽略目录，未改该测试。另 1 项为既有 C06 style_access 源码守卫：新增路由配置传递调用了受限的 movaLegacyOptionsOf；生产代码改为直接传递 MovaStyleScope.legacy，保持旧断言。仅补跑 b09/style_access/fullscreen 三个文件，16/16 绿；替换失败结果后共 **2383 项通过**，重复跑到的 8 项 C05 不叠加计数。全量没有 OOM、断连、降并发或分片，未重复全量；全量及补跑前均执行指定的 flutter_tester 清理。最终 `flutter analyze lib test` 0 issues，git diff --check 通过；CHANGELOG Unreleased 已记录行为变化。
+- 与总计划差异：生产改动除新 `ui/fullscreen/`、`ui/player.dart` 外，补充守卫路由识别；完整复用 C04/C06 的 chrome 与样式接口，不新增 MovaApi 成员、平台端口或依赖。不改变转屏与 PiP 所有权，不做 OS 级窗口全屏；CP3 真机/启动应用验证按用户约束未执行。不 push/切分支/stash/reset，不暂存 generated_plugin、doc/notes、matrix-run 或兄弟工程。

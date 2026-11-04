@@ -10,6 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../core/api.dart';
 import '../core/state/ui_bridge.dart';
 import 'chrome/chrome.dart';
+import 'fullscreen/fullscreen.dart';
 import '../core/kernel/restart_observer.dart';
 import '../core/model/fit.dart';
 import '../core/model/source.dart';
@@ -48,6 +49,7 @@ class MovaPlayer extends StatefulWidget {
     this.skin = const MovaDefaultSkin(),
     this.chrome,
     this.style,
+    this.fullscreenRoute = false,
     this.autoLoadQualities = true,
     this.surface,
     this.fit,
@@ -68,6 +70,11 @@ class MovaPlayer extends StatefulWidget {
   /// 本视图样式；未指定的节回落到主题扩展与旧配置。
   /// 示例：`MovaPlayer(api: engine, style: MovaPlayerStyle())`。
   final MovaPlayerStyle? style;
+
+  /// 是否用应用内路由展示全屏；默认关闭，沿用原有转屏行为。
+  /// 开启后返回键先退出全屏，锁定时提示解锁；方向与 PiP 仍由引擎管理。
+  /// 示例：`MovaPlayer(api: engine, fullscreenRoute: true)`。
+  final bool fullscreenRoute;
 
   /// Component tree provider.
   ///
@@ -336,6 +343,46 @@ class _MovaPlayerState extends State<MovaPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.fullscreenRoute) return _buildInline(context);
+    return MovaStyleScope(
+      local: widget.style,
+      legacy: MovaStyleScope.maybeOf(context)?.legacy ?? widget.api.options,
+      child: MovaScope(
+        api: widget.api,
+        child: Builder(builder: (context) {
+          final style = MovaPlayerStyle(
+            theme: MovaPlayerStyle.themeOf(context),
+            strings: MovaPlayerStyle.stringsOf(context),
+            gesture: MovaPlayerStyle.gestureOf(context),
+            controls: MovaPlayerStyle.controlsOf(context),
+            danmaku: MovaPlayerStyle.danmakuOf(context),
+            icons: MovaPlayerStyle.iconsOf(context),
+          );
+          return MovaFullscreenHost(
+            api: widget.api,
+            onExit: () {
+              if (mounted) _ui.show();
+            },
+            fullscreen: MovaStyleScope(
+              legacy: MovaStyleScope.maybeOf(context)?.legacy,
+              child: MovaPlayer(
+                api: widget.api,
+                skin: widget.skin,
+                style: style,
+                autoLoadQualities: false,
+                surface: widget.surface,
+                poster: widget.poster,
+                posterFade: widget.posterFade,
+              ),
+            ),
+            child: _buildInline(context),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildInline(BuildContext context) {
     return MovaStyleScope(
       local: widget.style,
       legacy: MovaStyleScope.maybeOf(context)?.legacy,
