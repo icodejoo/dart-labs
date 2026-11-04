@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'counter_builder.dart';
+import 'animate_once.dart';
 import 'providers.dart';
 import 'bar_style.dart';
 import 'progress_display.dart';
@@ -17,6 +18,7 @@ export 'bar_style.dart' show BarCounterStyle;
 /// BarCounter(to: 100, style: const BarCounterStyle(width: 240))
 /// ```
 class BarCounter extends StatelessWidget {
+  /// 创建进度计数器；animateOnce 可选覆盖 provider 的首次播放策略。
   const BarCounter({
     super.key,
     this.from,
@@ -26,6 +28,7 @@ class BarCounter extends StatelessWidget {
     this.allowNegative,
     this.plugin,
     this.controller,
+    this.animateOnce,
     this.style,
     this.repaintBoundary,
     this.painterBuilder,
@@ -57,6 +60,11 @@ class BarCounter extends StatelessWidget {
   /// Optional controller for imperative retarget/cancel and value read-out.
   final CounterValueController? controller;
 
+  /// 是否仅首次入场播放；null 继承 CounterProvider，false 始终播放。
+  /// 配合稳定 ValueKey 使用，例如 `BarCounter(key: ValueKey('score'), to: 10, animateOnce: true)`。
+  /// 再次挂载直接显示目标值，controller.value 同步为该显示值。
+  final bool? animateOnce;
+
   /// Visual style. Merged over the enclosing [CounterProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的默认值之上。
@@ -67,7 +75,8 @@ class BarCounter extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in bar painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   /// Called every frame with the raw animated value.
   final void Function(double value)? onUpdate;
@@ -80,14 +89,16 @@ class BarCounter extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
 
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final from = this.from ?? 0;
     final span = to - from;
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final effStyle = (style ?? const BarCounterStyle()).merge(scope?.barCounterStyle);
-    final effW = effStyle.width ?? 200.0;
-    final effH = effStyle.height ?? 8.0;
+    final effStyle =
+        (style ?? const BarCounterStyle()).merge(scope?.barCounterStyle);
+    final effW = effStyle.width ?? (effStyle.vertical == true ? 8.0 : 200.0);
+    final effH = effStyle.height ?? (effStyle.vertical == true ? 200.0 : 8.0);
     final colors = resolveProgressColors(
       context,
       color: effStyle.color,
@@ -102,11 +113,14 @@ class BarCounter extends StatelessWidget {
     final core = CounterBuilder(
       from: this.from,
       to: to,
-      duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
+      duration:
+          duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
       curve: curve ?? scope?.curve ?? Curves.easeOut,
       allowNegative: allowNegative ?? scope?.allowNegative ?? false,
       plugin: plugin ?? scope?.plugin,
       controller: controller,
+      animateOnce: animateOnce,
+      onceId: stableOnceIdFromKey(key),
       repaintBoundary: repaintBoundary ?? scope?.repaintBoundary ?? true,
       onUpdate: onUpdate,
       onComplete: onComplete,
@@ -120,10 +134,15 @@ class BarCounter extends StatelessWidget {
           progress: progress,
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
-              : barPainterFrom(effStyle, progress: progress, color: colors.fill, trackColor: colors.track),
+              : barPainterFrom(effStyle,
+                  textDirection: Directionality.maybeOf(context),
+                  progress: progress,
+                  color: colors.fill,
+                  trackColor: colors.track),
         );
       },
     );
-    return applyBoxStyle(core, padding: effStyle.padding, decoration: effStyle.decoration);
+    return applyBoxStyle(core,
+        padding: effStyle.padding, decoration: effStyle.decoration);
   }
 }

@@ -18,6 +18,10 @@ import 'package:flutter/widgets.dart';
 /// `sweepAngle: 270 * pi / 180` 即可实现部分弧的"仪表盘"样式。可选的
 /// [backgroundColor] 在环形背后填充圆盘，[showTrack] 可完全隐藏轨道。
 class RingPainter extends CustomPainter {
+  /// 默认游标半径与描边宽度的比例。
+  static const double _thumbScale = 0.7;
+
+  /// 创建进度画笔；方向性渐变需传 textDirection，如 TextDirection.rtl。
   const RingPainter({
     required this.progress,
     required this.color,
@@ -28,6 +32,7 @@ class RingPainter extends CustomPainter {
     this.strokeCap = StrokeCap.round,
     this.gradient,
     this.trackGradient,
+    this.textDirection,
     this.trackStrokeWidth,
     this.padding = EdgeInsets.zero,
     this.sweepAngle = 2 * math.pi,
@@ -57,6 +62,10 @@ class RingPainter extends CustomPainter {
 
   /// Optional gradient painted on the track, overriding [trackColor].
   final Gradient? trackGradient;
+
+  /// 渐变的文字方向；默认 null，使用方向性 Alignment 时需显式提供。
+  /// 例如 `textDirection: TextDirection.rtl`，仅影响渐变解析。
+  final TextDirection? textDirection;
 
   /// Track stroke width. Defaults to [strokeWidth] when null.
   final double? trackStrokeWidth;
@@ -125,10 +134,13 @@ class RingPainter extends CustomPainter {
   /// Center of the ring within [size]. Override to offset it.
   Offset centerFor(Size size) => rectFor(size).center;
 
-  /// Radius of the ring within [size]. Override for a custom radius rule.
+  /// 按描边与游标中较大的外伸距离预留余量，避免游标超出 size。
   double radiusFor(Size size) {
     final maxStroke = math.max(strokeWidth, trackStrokeWidth ?? strokeWidth);
-    final r = (rectFor(size).shortestSide - maxStroke) / 2;
+    final inset = showThumb
+        ? math.max(maxStroke / 2, thumbRadius ?? strokeWidth * _thumbScale)
+        : maxStroke / 2;
+    final r = rectFor(size).shortestSide / 2 - inset;
     return r < 0 ? 0 : r;
   }
 
@@ -154,38 +166,26 @@ class RingPainter extends CustomPainter {
     );
   }
 
-  /// Draws the background track arc. Override to customize or skip it.
+  /// 绘制轨道弧，并用 textDirection 解析方向性渐变。
   void paintTrack(Canvas canvas, Offset center, double radius, Paint paint) {
     if (!showTrack) return;
     paint.strokeWidth = trackStrokeWidth ?? strokeWidth;
     final rect = Rect.fromCircle(center: center, radius: radius);
     if (trackGradient != null) {
-      paint.shader = trackGradient!.createShader(rect);
+      paint.shader =
+          trackGradient!.createShader(rect, textDirection: textDirection);
     } else {
       paint.shader = null;
       paint.color = trackColor;
     }
-    canvas.drawArc(rect, startAngle, sweepAngle * (clockwise ? 1 : -1), false, paint);
+    canvas.drawArc(
+        rect, startAngle, sweepAngle * (clockwise ? 1 : -1), false, paint);
   }
 
-  /// Pure geometry behind [paintArc]: the progress arc's `(start, sweep)` after
-  /// the round/square-cap clamp. Exposed as a static so the behavior is unit
-  /// testable without a canvas.
-  ///
-  /// Round/square caps extend ~strokeWidth/2 past each endpoint. On a
-  /// (near-)full ring those two caps overlap at the seam — a bulge that also
-  /// swallows the first few percent of change (the gap must exceed a cap
-  /// radius before it shows). The clamp keeps the caps at most TOUCHING,
-  /// leaving a hairline gap that widens from the first tick — rounded ends AND
-  /// real-time separation. Partial-arc gauges never have meeting ends, so are
-  /// left unclamped. [anchorAtEnd] offsets the start by the emptied span so a
-  /// countdown's gap opens at [start] and sweeps in the drawing direction.
-  ///
-  /// [paintArc] 背后的纯几何：钳制后进度弧的 `(start, sweep)`。抽为静态，便于无
-  /// canvas 单测。圆头/方头会在端点外延伸约 strokeWidth/2；满环时两端在接缝重叠
-  /// （凸起 + 吞掉最初几个百分点）。钳制使两端至多相接、留发丝缝——既圆头又实时
-  /// 分割。部分弧不钳。[anchorAtEnd] 按已空跨度前移起点，使倒计时缺口从 [start]
-  /// 沿绘制方向扫过。
+  /// 返回进度弧的起点和有方向的 sweep，供绘制与几何测试复用。
+  /// 满环圆头/方头先扣除端帽间隙，再乘 progress，确保全区间连续变化。
+  /// 部分环及 butt 端帽保持原跨度；anchorAtEnd 为 true 时固定远端。
+  /// 参数为弧度、布局半径与 0–1 进度；例如 progress: 0.99 会立即缩短弧。
   static ({double start, double sweep}) arcGeometry({
     required double startAngle,
     required double sweepAngle,
@@ -204,21 +204,20 @@ class RingPainter extends CustomPainter {
       final capGap = strokeWidth / radius; // ~one cap diameter, in radians
       // max(0, …) guards a degenerate stroke thicker than the circumference.
       final maxSweep = math.max(0.0, sweepAngle - capGap);
-      if (drawnSweep > maxSweep) drawnSweep = maxSweep;
+      drawnSweep = maxSweep * progress;
     }
     final emptied = sweepAngle - drawnSweep;
     final start = anchorAtEnd ? startAngle + emptied * dir : startAngle;
     return (start: start, sweep: drawnSweep * dir);
   }
 
-  /// Draws the progress arc. Override to customize (multi-segment, a leading
-  /// "thumb" dot, etc).
+  /// 绘制按进度缩放的弧，并用 textDirection 解析方向性渐变。
   void paintArc(Canvas canvas, Offset center, double radius, Paint paint) {
     if (progress <= 0) return;
     paint.strokeWidth = strokeWidth;
     final rect = Rect.fromCircle(center: center, radius: radius);
     if (gradient != null) {
-      paint.shader = gradient!.createShader(rect);
+      paint.shader = gradient!.createShader(rect, textDirection: textDirection);
     } else {
       paint.shader = null;
       paint.color = color;
@@ -261,7 +260,7 @@ class RingPainter extends CustomPainter {
     );
     canvas.drawCircle(
       pos,
-      thumbRadius ?? strokeWidth * 0.7,
+      thumbRadius ?? strokeWidth * _thumbScale,
       Paint()
         ..style = PaintingStyle.fill
         ..color = thumbColor ?? color
@@ -280,8 +279,10 @@ class RingPainter extends CustomPainter {
     paintThumb(canvas, center, radius);
   }
 
+  /// 方向或视觉配置改变时重新绘制。
   @override
   bool shouldRepaint(RingPainter old) =>
+      old.textDirection != textDirection ||
       old.progress != progress ||
       old.color != color ||
       old.trackColor != trackColor ||

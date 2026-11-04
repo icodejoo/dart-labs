@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'counter_builder.dart';
+import 'animate_once.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
@@ -22,6 +23,7 @@ export 'ring_style.dart' show RingCounterStyle;
 /// )
 /// ```
 class RingCounter extends StatelessWidget {
+  /// 创建进度计数器；animateOnce 可选覆盖 provider 的首次播放策略。
   const RingCounter({
     super.key,
     this.from,
@@ -31,6 +33,7 @@ class RingCounter extends StatelessWidget {
     this.allowNegative,
     this.plugin,
     this.controller,
+    this.animateOnce,
     this.style,
     this.center,
     this.repaintBoundary,
@@ -63,6 +66,11 @@ class RingCounter extends StatelessWidget {
   /// Optional controller for imperative retarget/cancel and value read-out.
   final CounterValueController? controller;
 
+  /// 是否仅首次入场播放；null 继承 CounterProvider，false 始终播放。
+  /// 配合稳定 ValueKey 使用，例如 `RingCounter(key: ValueKey('score'), to: 10, animateOnce: true)`。
+  /// 再次挂载直接显示目标值，controller.value 同步为该显示值。
+  final bool? animateOnce;
+
   /// Visual style. Merged over the enclosing [CounterProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的默认值之上。
@@ -76,7 +84,8 @@ class RingCounter extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in ring painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   /// Called every frame with the raw animated value.
   final void Function(double value)? onUpdate;
@@ -89,12 +98,14 @@ class RingCounter extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
 
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final from = this.from ?? 0;
     final span = to - from;
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final effStyle = (style ?? const RingCounterStyle()).merge(scope?.ringCounterStyle);
+    final effStyle =
+        (style ?? const RingCounterStyle()).merge(scope?.ringCounterStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,
@@ -126,11 +137,14 @@ class RingCounter extends StatelessWidget {
     final core = CounterBuilder(
       from: this.from,
       to: to,
-      duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
+      duration:
+          duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
       curve: curve ?? scope?.curve ?? Curves.easeOut,
       allowNegative: allowNegative ?? scope?.allowNegative ?? false,
       plugin: plugin ?? scope?.plugin,
       controller: controller,
+      animateOnce: animateOnce,
+      onceId: stableOnceIdFromKey(key),
       repaintBoundary: repaintBoundary ?? scope?.repaintBoundary ?? true,
       onUpdate: onUpdate,
       onComplete: onComplete,
@@ -146,11 +160,15 @@ class RingCounter extends StatelessWidget {
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
               : ringPainterFrom(effStyle,
-                  progress: progress, color: colors.fill, trackColor: colors.track),
+                  textDirection: Directionality.maybeOf(context),
+                  progress: progress,
+                  color: colors.fill,
+                  trackColor: colors.track),
           paintChild: centerWidget,
         );
       },
     );
-    return applyBoxStyle(core, padding: effStyle.padding, decoration: effStyle.decoration);
+    return applyBoxStyle(core,
+        padding: effStyle.padding, decoration: effStyle.decoration);
   }
 }

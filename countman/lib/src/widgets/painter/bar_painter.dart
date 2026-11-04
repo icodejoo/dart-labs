@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 /// （默认）与 [vertical] 竖向、从任一端填充、渐变、更细的横轴带、逐角圆角、可隐藏
 /// 轨道。
 class BarPainter extends CustomPainter {
+  /// 创建进度画笔；方向性渐变需传 textDirection，如 TextDirection.rtl。
   const BarPainter({
     required this.progress,
     required this.color,
@@ -21,6 +22,7 @@ class BarPainter extends CustomPainter {
     this.borderRadiusGeometry,
     this.gradient,
     this.trackGradient,
+    this.textDirection,
     this.fillFromStart = true,
     this.trackHeight,
     this.showTrack = true,
@@ -43,6 +45,10 @@ class BarPainter extends CustomPainter {
 
   /// Optional gradient painted over the track, overriding [trackColor].
   final Gradient? trackGradient;
+
+  /// 渐变的文字方向；默认 null，使用方向性 Alignment 时需显式提供。
+  /// 例如 `textDirection: TextDirection.rtl`，仅影响渐变解析。
+  final TextDirection? textDirection;
 
   /// When true (default) the fill grows from the start edge — left (horizontal)
   /// or bottom (vertical); when false it grows from the opposite edge.
@@ -82,20 +88,20 @@ class BarPainter extends CustomPainter {
         : RRect.fromRectAndRadius(band, borderRadius);
   }
 
-  /// Draws the background track. Override to customize or skip it.
+  /// 绘制背景轨道，并用 textDirection 解析方向性渐变。
   void paintTrack(Canvas canvas, RRect track) {
     if (!showTrack) return;
     final paint = Paint();
     if (trackGradient != null) {
-      paint.shader = trackGradient!.createShader(track.outerRect);
+      paint.shader = trackGradient!
+          .createShader(track.outerRect, textDirection: textDirection);
     } else {
       paint.color = trackColor;
     }
     canvas.drawRRect(track, paint);
   }
 
-  /// Draws the filled portion, clipped to [track]'s shape. Override to
-  /// customize (striped pattern, a trailing "thumb", etc).
+  /// 在轨道内绘制进度填充，并用 textDirection 解析方向性渐变。
   void paintFill(Canvas canvas, RRect track, Size size) {
     final p = progress.clamp(0.0, 1.0);
     if (p <= 0) return;
@@ -114,7 +120,7 @@ class BarPainter extends CustomPainter {
     }
     final paint = Paint();
     if (gradient != null) {
-      paint.shader = gradient!.createShader(band);
+      paint.shader = gradient!.createShader(band, textDirection: textDirection);
     } else {
       paint.color = color;
     }
@@ -131,8 +137,10 @@ class BarPainter extends CustomPainter {
     paintFill(canvas, track, size);
   }
 
+  /// 方向或视觉配置改变时重新绘制。
   @override
   bool shouldRepaint(BarPainter old) =>
+      old.textDirection != textDirection ||
       old.progress != progress ||
       old.color != color ||
       old.trackColor != trackColor ||

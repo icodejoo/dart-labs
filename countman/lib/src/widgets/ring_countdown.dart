@@ -60,7 +60,8 @@ class RingCountdown extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in ring painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   final Countdown? plugin;
   final CountdownController? controller;
@@ -84,10 +85,12 @@ class RingCountdown extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onResume;
 
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = (style ?? const RingCountdownStyle()).merge(scope?.ringCountdownStyle);
+    final effStyle =
+        (style ?? const RingCountdownStyle()).merge(scope?.ringCountdownStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,
@@ -134,6 +137,7 @@ class RingCountdown extends StatelessWidget {
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
               : ringPainterFrom(effStyle,
+                  textDirection: Directionality.maybeOf(context),
                   progress: progress,
                   color: colors.fill,
                   trackColor: colors.track,
@@ -158,8 +162,8 @@ class RingCountdown extends StatelessWidget {
     //
     // 盒层（padding + decoration）不依赖值——在每 tick 的 builder 外只包一次；
     // RepaintBoundary（若有）为最外层。
-    final decorated =
-        applyBoxStyle(driver, padding: effStyle.padding, decoration: effStyle.decoration);
+    final decorated = applyBoxStyle(driver,
+        padding: effStyle.padding, decoration: effStyle.decoration);
     return effRepaint ? RepaintBoundary(child: decorated) : decorated;
   }
 }

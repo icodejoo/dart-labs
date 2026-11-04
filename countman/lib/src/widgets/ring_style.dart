@@ -127,11 +127,13 @@ mixin RingStyleFields {
 /// @returns A configured [RingPainter].
 ///
 ///   配置好的 [RingPainter]。
+/// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
 RingPainter ringPainterFrom(
   RingStyleFields s, {
   required double progress,
   required Color color,
   required Color trackColor,
+  TextDirection? textDirection,
   EdgeInsets arcInset = EdgeInsets.zero,
   bool anchorAtEnd = false,
   StrokeCap defaultStrokeCap = StrokeCap.round,
@@ -141,6 +143,7 @@ RingPainter ringPainterFrom(
     progress: progress,
     color: color,
     trackColor: trackColor,
+    textDirection: textDirection,
     strokeWidth: s.strokeWidth ?? 8.0,
     trackStrokeWidth: s.trackStrokeWidth,
     clockwise: s.clockwise ?? true,

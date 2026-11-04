@@ -7,14 +7,10 @@ import 'style_support.dart';
 ///
 /// [BarCounterStyle] / [BarCountdownStyle] 共享的视觉字段契约。
 mixin BarStyleFields {
-  /// Bar length along the main axis (width when horizontal).
-  ///
-  /// 主轴长度（水平时为宽度）。
+  /// 字面布局宽度；横向默认 200，竖向默认 8，与填充方向无关。
   double? get width;
 
-  /// Bar thickness along the cross axis (height when horizontal).
-  ///
-  /// 横轴厚度（水平时为高度）。
+  /// 字面布局高度；横向默认 8，竖向默认 200，与填充方向无关。
   double? get height;
 
   /// Cross-axis thickness of the track/fill band. Falls back to the full extent.
@@ -91,16 +87,19 @@ mixin BarStyleFields {
 /// @returns A configured [BarPainter].
 ///
 ///   配置好的 [BarPainter]。
+/// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
 BarPainter barPainterFrom(
   BarStyleFields s, {
   required double progress,
   required Color color,
   required Color trackColor,
+  TextDirection? textDirection,
 }) {
   return BarPainter(
     progress: progress,
     color: color,
     trackColor: trackColor,
+    textDirection: textDirection,
     borderRadius: s.borderRadius ?? const Radius.circular(4),
     borderRadiusGeometry: s.borderRadiusGeometry,
     gradient: s.gradient,
@@ -225,7 +224,8 @@ class BarStyle with BoxStyleFields, BarStyleFields, StyleProps {
           gradient: gradient ?? other.gradient,
           trackGradient: trackGradient ?? other.trackGradient,
           borderRadius: borderRadius ?? other.borderRadius,
-          borderRadiusGeometry: borderRadiusGeometry ?? other.borderRadiusGeometry,
+          borderRadiusGeometry:
+              borderRadiusGeometry ?? other.borderRadiusGeometry,
           fillFromStart: fillFromStart ?? other.fillFromStart,
           showTrack: showTrack ?? other.showTrack,
           vertical: vertical ?? other.vertical,

@@ -44,7 +44,7 @@ void main() {
     expect(g.sweep.abs(), closeTo(full, 1e-9));
   });
 
-  test('mid progress is exact — below the clamp threshold', () {
+  test('mid progress scales the cap-adjusted span', () {
     final g = RingPainter.arcGeometry(
       startAngle: top,
       sweepAngle: full,
@@ -55,7 +55,7 @@ void main() {
       clockwise: true,
       anchorAtEnd: true,
     );
-    expect(g.sweep.abs(), closeTo(full * 0.5, 1e-9));
+    expect(g.sweep.abs(), closeTo((full - 12 / 54) * 0.5, 1e-9));
   });
 
   test('anchorAtEnd opens the gap at startAngle, sweeping clockwise', () {
@@ -86,7 +86,7 @@ void main() {
       anchorAtEnd: false,
     );
     expect(g.start, closeTo(top, 1e-9));
-    expect(g.sweep, closeTo(0.3 * full, 1e-9));
+    expect(g.sweep, closeTo(0.3 * (full - 8 / 50), 1e-9));
   });
 
   test('partial-arc gauge is never clamped even with round caps', () {

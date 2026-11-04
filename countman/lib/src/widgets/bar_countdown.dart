@@ -52,7 +52,8 @@ class BarCountdown extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in bar painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   final Countdown? plugin;
   final CountdownController? controller;
@@ -76,12 +77,14 @@ class BarCountdown extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onResume;
 
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = (style ?? const BarCountdownStyle()).merge(scope?.barCountdownStyle);
-    final effW = effStyle.width ?? 200.0;
-    final effH = effStyle.height ?? 8.0;
+    final effStyle =
+        (style ?? const BarCountdownStyle()).merge(scope?.barCountdownStyle);
+    final effW = effStyle.width ?? (effStyle.vertical == true ? 8.0 : 200.0);
+    final effH = effStyle.height ?? (effStyle.vertical == true ? 200.0 : 8.0);
     final colors = resolveProgressColors(
       context,
       color: effStyle.color,
@@ -111,7 +114,11 @@ class BarCountdown extends StatelessWidget {
           progress: progress,
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
-              : barPainterFrom(effStyle, progress: progress, color: colors.fill, trackColor: colors.track),
+              : barPainterFrom(effStyle,
+                  textDirection: Directionality.maybeOf(context),
+                  progress: progress,
+                  color: colors.fill,
+                  trackColor: colors.track),
         );
       },
     );
@@ -120,8 +127,8 @@ class BarCountdown extends StatelessWidget {
     // RepaintBoundary (if any) is the outermost layer.
     //
     // 盒层不依赖值——在每 tick 的 builder 外只包一次；RepaintBoundary（若有）为最外层。
-    final decorated =
-        applyBoxStyle(driver, padding: effStyle.padding, decoration: effStyle.decoration);
+    final decorated = applyBoxStyle(driver,
+        padding: effStyle.padding, decoration: effStyle.decoration);
     return effRepaint ? RepaintBoundary(child: decorated) : decorated;
   }
 }
