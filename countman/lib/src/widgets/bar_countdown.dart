@@ -88,6 +88,9 @@ class BarCountdown extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onResume;
 
+  /// 剩余时间换算的 0–1 进度（剩余 / 分母）。
+  static double _progressOf(TimeParts p) => p.progress;
+
   /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
@@ -108,7 +111,8 @@ class BarCountdown extends StatelessWidget {
     );
     final effRepaint = repaintBoundary ?? scope?.repaintBoundary ?? true;
 
-    final driver = CountdownBuilder(
+    final dir = Directionality.maybeOf(context);
+    final driver = CountdownBuilder.listenable(
       to: to,
       plugin: plugin,
       total: total,
@@ -123,18 +127,33 @@ class BarCountdown extends StatelessWidget {
       onCancel: onCancel,
       onPause: onPause,
       onResume: onResume,
-      builder: (ctx, p, __) {
-        final progress = p.progress;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, parts, _) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<TimeParts>(
+            valueListenable: parts,
+            builder: (ctx, p, _) {
+              final progress = p.progress;
+              return buildProgressPaint(
+                size: Size(effW, effH),
+                progress: progress,
+                painter: custom(ctx, progress),
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<TimeParts>(
+          source: parts,
+          toProgress: _progressOf,
           size: Size(effW, effH),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : barPainterFrom(effStyle,
-                  textDirection: Directionality.maybeOf(context),
-                  progress: progress,
-                  color: colors.fill,
-                  trackColor: colors.track),
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          painterFactory: (progress) => barPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track),
         );
       },
     );

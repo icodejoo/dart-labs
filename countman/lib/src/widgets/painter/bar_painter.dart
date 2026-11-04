@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 /// Draws a filled rounded-rect bar over a track — the shared rendering core
@@ -14,8 +15,11 @@ import 'package:flutter/widgets.dart';
 /// 轨道。
 class BarPainter extends CustomPainter {
   /// 创建进度画笔；方向性渐变需传 textDirection，如 TextDirection.rtl。
+  ///
+  /// 常驻用法：传 [progressListenable]，画笔随组件生命周期只创建一次，进度变化
+  /// 通过它触发重绘（repaint）并在绘制时原地读取，不再每帧新建画笔。
   const BarPainter({
-    required this.progress,
+    required double progress,
     required this.color,
     required this.trackColor,
     this.borderRadius = const Radius.circular(4),
@@ -27,10 +31,19 @@ class BarPainter extends CustomPainter {
     this.trackHeight,
     this.showTrack = true,
     this.vertical = false,
-  });
+    this.progressListenable,
+  })  : _progress = progress,
+        super(repaint: progressListenable);
 
-  /// 0.0–1.0 fraction of the bar to fill.
-  final double progress;
+  /// 构造时给定的静态进度，[progressListenable] 为空时使用。
+  final double _progress;
+
+  /// 可选的进度来源：非空时画笔以它的值为进度，并在它通知时重绘（作为 repaint 源）。
+  /// 例如 `BarPainter(progress: 0, progressListenable: notifier, ...)`。
+  final ValueListenable<double>? progressListenable;
+
+  /// 0.0–1.0 fraction of the bar to fill. 有 [progressListenable] 时读取它的当前值。
+  double get progress => progressListenable?.value ?? _progress;
   final Color color;
   final Color trackColor;
 

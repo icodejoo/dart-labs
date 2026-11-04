@@ -96,6 +96,9 @@ class RingCountdown extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onResume;
 
+  /// 剩余时间换算的 0–1 进度（剩余 / 分母）。
+  static double _progressOf(TimeParts p) => p.progress;
+
   /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
@@ -127,7 +130,8 @@ class RingCountdown extends StatelessWidget {
           )
         : null;
 
-    final driver = CountdownBuilder(
+    final dir = Directionality.maybeOf(context);
+    final driver = CountdownBuilder.listenable(
       to: to,
       plugin: plugin,
       total: total,
@@ -143,30 +147,41 @@ class RingCountdown extends StatelessWidget {
       onPause: onPause,
       onResume: onResume,
       child: centerChild,
-      builder: (ctx, p, centerWidget) {
-        final progress = p.progress;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, parts, centerWidget) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<TimeParts>(
+            valueListenable: parts,
+            child: centerWidget,
+            builder: (ctx, p, child) {
+              final progress = p.progress;
+              return buildProgressPaint(
+                size: Size.square(effSize),
+                progress: progress,
+                painter: custom(ctx, progress),
+                paintChild: child,
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<TimeParts>(
+          source: parts,
+          toProgress: _progressOf,
           size: Size.square(effSize),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : ringPainterFrom(effStyle,
-                  textDirection: Directionality.maybeOf(context),
-                  progress: progress,
-                  color: colors.fill,
-                  trackColor: colors.track,
-                  // Countdown depletes: pin the arc's far end so the empty gap
-                  // opens at 12 o'clock and sweeps clockwise. A leading thumb
-                  // dot (on by default here, off/customizable via style) rides
-                  // the depleting edge so even a slow long countdown visibly
-                  // moves every tick while keeping rounded ends.
-                  //
-                  // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。前导游标圆点
-                  // （此处默认开，可经 style 关闭/定制）骑在递减边缘，使即便缓慢的
-                  // 长倒计时也每 tick 明显移动，同时保留圆头。
-                  anchorAtEnd: true,
-                  defaultShowThumb: true),
-          paintChild: centerWidget,
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。前导游标圆点（此处默认
+          // 开，可经 style 关闭/定制）骑在递减边缘，使缓慢的长倒计时也每 tick 明显移动，
+          // 同时保留圆头。
+          painterFactory: (progress) => ringPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track,
+              anchorAtEnd: true,
+              defaultShowThumb: true),
+          child: centerWidget,
         );
       },
     );

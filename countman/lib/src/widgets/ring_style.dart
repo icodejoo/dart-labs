@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import 'painter/ring_painter.dart';
@@ -128,9 +129,11 @@ mixin RingStyleFields {
 ///
 ///   配置好的 [RingPainter]。
 /// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
+/// 常驻用法：传 [progressListenable]（此时 [progress] 可省略），画笔只创建一次。
 RingPainter ringPainterFrom(
   RingStyleFields s, {
-  required double progress,
+  double progress = 0,
+  ValueListenable<double>? progressListenable,
   required Color color,
   required Color trackColor,
   TextDirection? textDirection,
@@ -141,6 +144,7 @@ RingPainter ringPainterFrom(
 }) {
   return RingPainter(
     progress: progress,
+    progressListenable: progressListenable,
     color: color,
     trackColor: trackColor,
     textDirection: textDirection,

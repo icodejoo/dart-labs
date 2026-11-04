@@ -91,6 +91,10 @@ class BarCounter extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
 
+  /// 由当前值换算 0–1 进度；起止相同（[span] 为 0）时视为已完成。
+  static double _progressOf(double v, double from, double span) =>
+      span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
+
   /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
@@ -115,7 +119,8 @@ class BarCounter extends StatelessWidget {
     // Box layer is value-independent — wrap it ONCE around the builder.
     //
     // 盒层不依赖值——在 builder 外只包一次。
-    final core = CounterBuilder(
+    final dir = Directionality.maybeOf(context);
+    final core = CounterBuilder.listenable(
       from: this.from,
       to: to,
       duration:
@@ -132,18 +137,33 @@ class BarCounter extends StatelessWidget {
       onReady: onReady,
       onStart: onStart,
       onCancel: onCancel,
-      builder: (ctx, v, __) {
-        final progress = span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, value, _) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<double>(
+            valueListenable: value,
+            builder: (ctx, v, _) {
+              final progress = _progressOf(v, from, span);
+              return buildProgressPaint(
+                size: Size(effW, effH),
+                progress: progress,
+                painter: custom(ctx, progress),
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<double>(
+          source: value,
+          toProgress: (v) => _progressOf(v, from, span),
           size: Size(effW, effH),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : barPainterFrom(effStyle,
-                  textDirection: Directionality.maybeOf(context),
-                  progress: progress,
-                  color: colors.fill,
-                  trackColor: colors.track),
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          painterFactory: (progress) => barPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track),
         );
       },
     );

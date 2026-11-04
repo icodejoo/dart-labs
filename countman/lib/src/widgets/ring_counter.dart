@@ -100,6 +100,10 @@ class RingCounter extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
 
+  /// 由当前值换算 0–1 进度；起止相同（[span] 为 0）时视为已完成。
+  static double _progressOf(double v, double from, double span) =>
+      span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
+
   /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
@@ -137,7 +141,8 @@ class RingCounter extends StatelessWidget {
     //
     // 盒层（padding + decoration）不依赖值——在 builder 外只包一次，使每 tick 重建
     // 不碰它。
-    final core = CounterBuilder(
+    final dir = Directionality.maybeOf(context);
+    final core = CounterBuilder.listenable(
       from: this.from,
       to: to,
       duration:
@@ -155,19 +160,36 @@ class RingCounter extends StatelessWidget {
       onStart: onStart,
       onCancel: onCancel,
       child: centerChild,
-      builder: (ctx, v, centerWidget) {
-        final progress = span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, value, centerWidget) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<double>(
+            valueListenable: value,
+            child: centerWidget,
+            builder: (ctx, v, child) {
+              final progress = _progressOf(v, from, span);
+              return buildProgressPaint(
+                size: Size.square(effSize),
+                progress: progress,
+                painter: custom(ctx, progress),
+                paintChild: child,
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<double>(
+          source: value,
+          toProgress: (v) => _progressOf(v, from, span),
           size: Size.square(effSize),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : ringPainterFrom(effStyle,
-                  textDirection: Directionality.maybeOf(context),
-                  progress: progress,
-                  color: colors.fill,
-                  trackColor: colors.track),
-          paintChild: centerWidget,
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          painterFactory: (progress) => ringPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track),
+          child: centerWidget,
         );
       },
     );

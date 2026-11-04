@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import 'painter/bar_painter.dart';
@@ -94,15 +95,18 @@ mixin BarStyleFields {
 ///
 ///   配置好的 [BarPainter]。
 /// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
+/// 常驻用法：传 [progressListenable]（此时 [progress] 可省略），画笔只创建一次。
 BarPainter barPainterFrom(
   BarStyleFields s, {
-  required double progress,
+  double progress = 0,
+  ValueListenable<double>? progressListenable,
   required Color color,
   required Color trackColor,
   TextDirection? textDirection,
 }) {
   return BarPainter(
     progress: progress,
+    progressListenable: progressListenable,
     color: color,
     trackColor: trackColor,
     textDirection: textDirection,

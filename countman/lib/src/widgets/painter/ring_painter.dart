@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 /// Draws a circular arc over a track — the shared rendering core for
@@ -22,8 +23,11 @@ class RingPainter extends CustomPainter {
   static const double _thumbScale = 0.7;
 
   /// 创建进度画笔；方向性渐变需传 textDirection，如 TextDirection.rtl。
+  ///
+  /// 常驻用法：传 [progressListenable]，画笔随组件生命周期只创建一次，进度变化
+  /// 通过它触发重绘（repaint）并在绘制时原地读取，不再每帧新建画笔。
   const RingPainter({
-    required this.progress,
+    required double progress,
     required this.color,
     required this.trackColor,
     required this.strokeWidth,
@@ -42,10 +46,19 @@ class RingPainter extends CustomPainter {
     this.showThumb = false,
     this.thumbColor,
     this.thumbRadius,
-  });
+    this.progressListenable,
+  })  : _progress = progress,
+        super(repaint: progressListenable);
 
-  /// 0.0–1.0 fraction of the arc to draw.
-  final double progress;
+  /// 构造时给定的静态进度，[progressListenable] 为空时使用。
+  final double _progress;
+
+  /// 可选的进度来源：非空时画笔以它的值为进度，并在它通知时重绘（作为 repaint 源）。
+  /// 用于“画笔常驻、进度原地更新”，例如 `RingPainter(progress: 0, progressListenable: notifier, ...)`。
+  final ValueListenable<double>? progressListenable;
+
+  /// 0.0–1.0 fraction of the arc to draw. 有 [progressListenable] 时读取它的当前值。
+  double get progress => progressListenable?.value ?? _progress;
   final Color color;
   final Color trackColor;
   final double strokeWidth;
