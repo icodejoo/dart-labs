@@ -151,6 +151,9 @@ def select_batches(manifest, only=None, start=None, fast=False):
     """Select ordered jobs and close batch dependencies / 按顺序选择并补齐批次依赖。"""
     batches = manifest['batches']
     known = {b['id'] for b in batches}
+    if only:
+        from cp3_alias import resolve
+        only = ','.join(resolve(manifest, only.split(',')))
     wanted = set(only.split(',')) if only else set(known)
     if wanted - known or (start and start not in known):
         raise ValueError(f'未知批次: {sorted(wanted-known)} {start or ""}')
