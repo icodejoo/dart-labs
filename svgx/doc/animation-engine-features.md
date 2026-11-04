@@ -21,7 +21,12 @@
 - `<svg>`/`<g>`/基础形状/`<use>`/`<switch>`/`<marker>`(usvg 解析期即展开或求值,svgx 零成本继承)。
 - `currentColor`+`PaintOrder`(`parse_svg(data, currentColor)`,`SvgPath.strokeFirst` 控制先描边后填充)。
 - 静态渐变(线性/径向,`objectBoundingBox`/`userSpaceOnUse`)。
+- `<g>` 与元素的 `opacity`（含根 `<svg>`、嵌套）：按 usvg `Group.opacity` 保留成对的入层/出层命令，Dart 用 `saveLayer` 把组整体合成；重叠子元素、同一元素的填充与描边只应用一次 opacity。`fill-opacity`/`stroke-opacity` 保持 paint 级透明度，再与各层 opacity 相乘。
+  - `opacity=0` 的子树直接跳过;`opacity=1` 不产生额外命令载荷。
+  - mask/pattern 子内容也保留 opacity 边界；图片包含在所属组内。
+  - 无 opacity 合成的列表不传逐元素命令，保留原有扁平快路径；FRB 仍为 sync + SSE。
 - `<clipPath>`、`<mask>`、`<pattern>`(基础形态)。
+  - 亮度(luminance)mask 现在正确计入遮罩内容自身的 alpha(此前一律按 255 处理)。
 - `feGaussianBlur`(仅此一种 filter 图元)。
 - `<image>`(内嵌 base64 位图,PNG/JPEG/GIF/WEBP)。
 
@@ -39,7 +44,7 @@
 - **遮罩内容 / 图案贴片内容按"朴素"方式绘制**:不再递归应用它们内部的 clip/mask/blur/pattern。也不支持遮罩内的 `<image>`。
 - **`<pattern>` 贴片分辨率上限 1024px/轴**,按图案→绝对矩阵的缩放量推算;极端放大时会糊。贴片 `ui.Image` 由 shader 持有,不显式 dispose(交给 Dart GC)。
 - **不支持嵌套 SVG**(`<image href="...svg">` 或 `ImageKind::SVG`)——静态路径直接跳过。
-- **图片 z-order 简化**:图片一律先于路径/形状绘制,不支持"图片和路径交替出现在文档顺序中、按顺序层叠"这种排布。
+- **图片 z-order 简化**:无 opacity 合成命令时，图片仍一律先于路径/形状绘制；有 opacity 合成命令时按文档顺序重放，以保持图片与路径的组边界。
 
 ### 图片来源与预算(安全策略)
 
@@ -353,6 +358,7 @@
 - 静态图片逐张解码,坏图跳过,录制失败也释放已解码图片。Picture 淘汰仅移除缓存引用,不 dispose 仍可能被使用的 Picture。
 - 静态冷加载按帧计时,异常工作也计入预算;排队按源与颜色去重,执行前跳过已卸载的调用方。
 - 动画文档缓存保留随机淘汰策略,运行时缩小上限会持续淘汰至满足限制;含图片的文档不共享。本 State 独占的解码图片在换源、卸载及过期解码完成时释放,解码失败仍展示文档并启动时钟。
+- 动画在 `TickerMode` 关闭时暂停采样,恢复后进度连续。被 Navigator 覆盖的路由、`TabBarView` 的非当前页等祖先关闭 `TickerMode` 的场景都会触发;单独的 `Offstage` 不会关闭 `TickerMode`,因此不会暂停。回归见 `test/animation/ticker_mode_test.dart`。
 - `playbackRate` 运行中切换会累计已播放的虚拟时间并重设基线,时间线保持连续。替换文本布局缓存时释放旧 `TextPainter`。
 
 ## 像素级验证结果(12 项已实现功能的真实像素验证)

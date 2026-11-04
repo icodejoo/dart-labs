@@ -1,6 +1,6 @@
 # 性能基准套件与复测记录
 
-> 从 `CLAUDE.md` 拆出。这里是**所有实测数据**——性能基准套件本身的说明、每一轮功能改动后的复测结果、`LIB=compare` 方法学的演进、以及 `SvgEffects` 重构的性能记录。验收的"标准是什么"见 `docs/acceptance-criteria.md`;为什么某些方向不做见 `docs/ffi-performance-audit.md`。
+> 从 `CLAUDE.md` 拆出。这里是**所有实测数据**——性能基准套件本身的说明、每一轮功能改动后的复测结果、`LIB=compare` 方法学的演进、以及 `SvgEffects` 重构的性能记录。验收的"标准是什么"见 `doc/acceptance-criteria.md`;为什么某些方向不做见 `doc/ffi-performance-audit.md`。
 
 ## 性能基准套件:保留,功能完备后必须复测
 
@@ -243,7 +243,7 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
   ```
 
   用 `--release` 是刻意的:据 Cargo 官方 profile-selection 表,`cargo test --release` 走 `release` profile,因此 `opt-level="z"`/`lto=true`/`codegen-units=1` 与分发产物同一套 codegen(唯一例外是 `panic`——官方文档明写 "Tests, benchmarks, build scripts, and proc macros ignore the `panic` setting",测试二进制强制 unwind)。
-- **零新依赖,刻意不用 criterion**:criterion 需要把本 crate 当 rlib 链接,就得给 `[lib] crate-type` 加 `"rlib"`,而 **rustc 对 rlib 目标拒绝做 LTO**——那会悄悄废掉 `docs/SIZE_OPTIMIZATION.md` 已落地第 2 项赖以生效的 `lto = true`,并已有他人实测 cdylib 因此翻倍的先例。改用 `std::time::Instant` + 一个 `#[global_allocator]` 计数器,够用。
+- **零新依赖,刻意不用 criterion**:criterion 需要把本 crate 当 rlib 链接,就得给 `[lib] crate-type` 加 `"rlib"`,而 **rustc 对 rlib 目标拒绝做 LTO**——那会悄悄废掉 `doc/SIZE_OPTIMIZATION.md` 已落地第 2 项赖以生效的 `lto = true`,并已有他人实测 cdylib 因此翻倍的先例。改用 `std::time::Instant` + 一个 `#[global_allocator]` 计数器,够用。
 - **语料**(优先用仓库已有真实资产,不编造):
 
   | 语料 | 内容 | 用途 |
@@ -326,7 +326,7 @@ Android 四个 ABI 不存在这个问题:当场重建优化前源码得到 491,4
 
 ### `opt-level`:实测取舍全表(**未落地,需要 owner 拍板**)
 
-既然 93%+ 的 Rust 侧成本在 usvg/roxmltree 里,唯一能碰到它们的杠杆是 codegen 参数。`docs/SIZE_OPTIMIZATION.md` 已落地第 2 项把 `opt-level` 定为 `"z"`,当时的理由是"常规 Rust release 体积优化标准做法",**没有留下与 `"s"`/`2`/`3` 的配对实测**。本轮把这张表补齐:
+既然 93%+ 的 Rust 侧成本在 usvg/roxmltree 里,唯一能碰到它们的杠杆是 codegen 参数。`doc/SIZE_OPTIMIZATION.md` 已落地第 2 项把 `opt-level` 定为 `"z"`,当时的理由是"常规 Rust release 体积优化标准做法",**没有留下与 `"s"`/`2`/`3` 的配对实测**。本轮把这张表补齐:
 
 | 配置 | `mdi1000` parse avg | vs `"z"` | arm64-v8a | armeabi-v7a | x86_64 | x86 | 四 ABI 合计 | vs `"z"` |
 |---|---|---|---|---|---|---|---|---|
@@ -337,7 +337,7 @@ Android 四个 ABI 不存在这个问题:当场重建优化前源码得到 491,4
 
 **`"s"` 是帕累托甜点**:−33% 解析耗时只换 +12% 体积,而 `2`/`3` 再多换来的 6~9 个百分点耗时要付 23~26 个百分点体积。
 
-**为什么本轮没有改**:三条理由,都不是"没时间"。①`opt-level="z"` 是 `docs/SIZE_OPTIMIZATION.md` 已落地的决策,本任务范围明确要求"不违反现有体积优化结论";②**收益在当前量级上没有可感价值**——`parse_svg` 现在是 0.0136ms,而本文件已记录 1000 图标滚动 `framesOver16.6ms=0`、`framesOver8.3ms=0`,省下 4µs 落不到任何用户可见指标上,而 +237KB(四 ABI 合计)是实打实要下发的字节;③按 CLAUDE.md"存在多个可行方案时给出选项而非单方面决定"。
+**为什么本轮没有改**:三条理由,都不是"没时间"。①`opt-level="z"` 是 `doc/SIZE_OPTIMIZATION.md` 已落地的决策,本任务范围明确要求"不违反现有体积优化结论";②**收益在当前量级上没有可感价值**——`parse_svg` 现在是 0.0136ms,而本文件已记录 1000 图标滚动 `framesOver16.6ms=0`、`framesOver8.3ms=0`,省下 4µs 落不到任何用户可见指标上,而 +237KB(四 ABI 合计)是实打实要下发的字节;③按 CLAUDE.md"存在多个可行方案时给出选项而非单方面决定"。
 **如果以后 svgx 的定位变化让首屏解析延迟真的成为瓶颈(例如单次要解析几百个大图、或下沉动画每帧采样到 Rust),这张表就是现成的决策依据,不用重新调研。**
 
 **方法学局限(必须一起读)**:时间列是**宿主 Windows x86_64 + stable 1.96 + 不带 build-std** 的 `cargo test --release` 实测;体积列是**Android 四 ABI + nightly-2026-06-24 + `-Z build-std` + `optimize_for_size`** 的真实产物字节数。**两列的编译配置不同**,所以"时间"这一列不能直接当成 Android 真机上的绝对值,只能当成 `opt-level` 之间的**相对**关系。`-Z build-std-features=optimize_for_size`(已落地第 7 项)对 std 内部实现也有同类的体积/速度取舍,本轮**未**测量——它需要走 build-std 产物 + Dart 侧端到端基准才能量化,记录为未覆盖缺口。
@@ -2683,3 +2683,19 @@ Chrome 对照复用既有 Chrome 156 的 256×256 参考 PNG 和白/深灰背景
 ### 与 E 批返工复测的关系
 
 组 opacity 的复测数据见上文「2026-11-04:动画组 opacity 合成」。
+
+
+## 2026-11-04:依赖升级后的真机 A/B(usvg 0.49 / svgtypes 0.16 / FRB 2.13)
+
+B 为升级后,U 为升级前;每台设备 3 轮 × 2。原始文件与汇总脚本不入库,位置见 `doc/handoff-2026-11-04.md` 第四节(scratchpad)。
+
+- **Windows 真机(安静模式)**:无回归。U3 的动画 FPS 为 31.66,属离群值;与同期 B3 变差、系统负载上升同向,判为环境干扰,未补跑。
+- **安卓 STG-AL00(arm64)**:B1 为冷启动,已标注;去掉 B1 后 B/U 基本一致。example 冒烟 B/U 均无 Flutter 或 FRB 错误,截图差异只在两个循环动画的相位。
+- **体积(gzip -9,同源码同工具链对比)**:Windows x64 −8.2%,Android arm64 −5.7%。
+- 具体每轮数值:待补(本文未落盘原始数据)。
+
+### 关于"安卓 svgx 输给 flutter_svg"的历史印象(改写)
+
+- 该印象的依据是旧版 flutter_svg 在滚动时大部分格子是空白(深挖十四:空白率 86.31%,平均每帧约 28 个图标被画出,而 svgx 约 210 个),两侧每帧光栅化的工作量不对等,耗时对比因此不能直接作为"谁更慢"的证据。
+- 新版 flutter_svg 2.3.2 / vector_graphics 1.2.6 在安卓上已经真正绘制图标。
+- **结论待重测**:新版的画满率尚未直接测量,不能沿用旧印象,也不能据此反向断言 svgx 领先。重测须先证明两侧每帧画出的图标数相当(见深挖十四的教训)。

@@ -1,5 +1,19 @@
 ## Unreleased
 
+**已知阻断(发布前必须处理)**:`SvgScene`/`SvgMask`/`SvgPattern` 的线格式新增了 `commands` 字段。目前只有 Windows x64 预编译库已重编,其余平台(iOS xcframework、macOS framework、Linux x64/arm64、Windows arm64,以及按需核对 Android 四个 ABI)的预编译库必须全平台重编并更新 MANIFEST 后才能发布,否则 SSE 解码错位。
+
+* Upgrade dependencies: usvg 0.49, svgtypes 0.16, flutter_rust_bridge 2.13.
+* Fix the static path's root `background-color` offset (only the main tree uses
+  the parent group transform; sub-roots keep the old behavior).
+* Static path now honors `<g>` and element `opacity`: groups composite as a whole
+  via `saveLayer`, `opacity=0` subtrees are skipped, and `opacity=1` adds no
+  extra command payload.
+* Fix luminance masks ignoring the mask content's own alpha (previously 255).
+* Bound mask/pattern command expansion with a budget to prevent amplification OOM.
+* Pause animations while `TickerMode` is disabled (covered routes, inactive
+  `TabBarView` pages); progress stays continuous on resume. `Offstage` alone
+  does not disable `TickerMode`.
+
 * Fix CSS Color 4 `#rgba` on the Dart animation path across paint attributes,
   styles, CSS keyframes, gradient stops and SMIL color channels.
 * Expand chained `<use>` references while preserving cycle detection, depth

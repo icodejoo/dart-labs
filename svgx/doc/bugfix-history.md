@@ -182,3 +182,13 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 
 - 先写失败回归再修复;Rust `cargo test`(debug/release)与 Dart `flutter test` 全量通过,与 HEAD 的 wire/帧对照、真实语料对照均无新增差异。
 - 具体数量、耗时、语料统计与对照结果见 `doc/performance-benchmarks.md`「2026-11 review 整改验证数据」,不在此重复。
+
+
+### 2026-11-04:静态路径 mask / 亮度 mask
+
+- **mask 内空 opacity 组绕过展开预算,导致命令放大**(终审发现,已修)
+  - 症状:mask 内含空的 opacity 组时,命令展开不计入预算,可被放大成大量命令(OOM 风险)。
+  - 修复:mask/pattern 的命令展开纳入同一预算。
+- **亮度 mask 忽略内容 alpha**(老问题,已修)
+  - 症状:遮罩内容自身的 alpha(如 opacity=.5 的叶子或组)按 255 处理,浏览器应为 128。
+  - 修复:亮度 mask 现在把内容 alpha 计入。

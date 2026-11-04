@@ -155,7 +155,7 @@ return ans;
 
 - **环境是 `flutter test` host VM(JIT),不是 profile AOT**。Dart 侧的 L1/L2/L3 被 JIT 拖慢,Rust 侧是 AOT 的 dll 不受影响 → **L1 占比被高估**,AOT 下只会更低。偏差方向对结论保守。
 - 10000 次 `Stopwatch.start/stop` 的开销全部计入 L1,同样是高估。
-- **headless 环境未测真实 GPU 光栅耗时**,GPU 路径只统计了 CPU 侧成本。参考量级见 `docs/performance-benchmarks.md` 的 raster avg 1.5–1.8ms(1000 图标一屏)。
+- **headless 环境未测真实 GPU 光栅耗时**,GPU 路径只统计了 CPU 侧成本。参考量级见 `doc/performance-benchmarks.md` 的 raster avg 1.5–1.8ms(1000 图标一屏)。
 - 实验二 warmup 不足导致 G1 偏高,使 raster/gpu 比值被**低估**(4.2x 是下界,修正后 6.6x)。偏差方向同样对结论保守。
 - R4 的 122us 含 3 次 `await` 的异步调度开销,可能高估;但即便扣除,9216 字节拷贝 + engine 侧纹理准备仍远大于 handoff 量级。
 
@@ -181,8 +181,17 @@ return ans;
 
 - **现有方案本来就在用 GPU**。`ui.Picture` → Impeller/Skia 就是 GPU 光栅。问题从不是"要不要 GPU",而是"用谁的 GPU"——现在用 Flutter 自己那块:零桥接、零额外上下文,Impeller 还能跨图标批合并 draw。引入第二个 GPU 上下文只是凭空多一道墙。
 - **小图标场景 GPU 也不划算**:48×48 = 2304 像素。GPU 优势在并行填充**大量**像素,而每次 draw 的固定开销(command buffer 提交、state change、同步)是常数(wgpu 的 state change 开销本身即被记录为"相对 vulkan 偏高")。这点填充量撑不起固定成本。
-- **体积直接否决**:wgpu + vello 是**几 MB 级**依赖,而本项目正为 resvg 的 0.5MB 纠结(见 `docs/SIZE_OPTIMIZATION.md`)。
+- **体积直接否决**:wgpu + vello 是**几 MB 级**依赖,而本项目正为 resvg 的 0.5MB 纠结(见 `doc/SIZE_OPTIMIZATION.md`)。
 
 **统一规律(补充调研六的延伸)**:**任何"Rust 侧自己出像素"的方案,都必须在 Rust 与 Flutter engine 之间过一道墙**——CPU 光栅过的是 memcpy 墙(实测 R4 = 122us/icon),GPU 光栅过的是 readback 墙(毫秒级,更厚)。而现有方案**根本不过墙**:它把几何(406 字节 verbs/points)交给 Flutter,由 Flutter 自己在 GPU 上光栅。
 
 **因此 `CLAUDE.md` 架构决策"光栅化交给 Flutter GPU,Rust 永不参与"的真正价值不是省 CPU,而是完全绕开了这道墙。**此结论一并闭环,后续不必再为"Rust 侧上 GPU"重新调研。
+
+
+## 补充调研八(2026-11-04,FRB 2.13 复核)
+
+依赖升级到 flutter_rust_bridge 2.13.0(`pubspec.yaml`/`Cargo.toml` 均固定到 2.13.0)后复核:
+
+- 生成代码仍走 `SseCodec`(`lib/src/rust/frb_generated.dart` 已核对),`parse_svg` 仍为 sync + SSE,主体结论与补充调研一至七不变。
+- 多 isolate 初始化竞态:见 FRB PR #3479,**2.13.0 未包含该修复**。是否影响本库(多 isolate 同时首次调用)尚未专项复现,待补。
+- 升级后的性能数据见 `doc/performance-benchmarks.md`「2026-11-04:依赖升级后的真机 A/B」。
