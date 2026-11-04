@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
+import 'support/manual_clock.dart';
+
 // CardCountdown now paints via a single CustomPainter (see card_countdown.dart)
 // instead of a per-digit widget subtree, so its digit content isn't reachable
 // via find.text(). These tests exercise the public contract (onComplete, controller,
@@ -12,18 +14,14 @@ import 'package:countman/countman.dart';
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: child)));
 
 void main() {
-  late DateTime now;
+  late ManualCountmanClock clock;
   late void Function(Duration) advance;
 
   setUp(() {
-    now = DateTime(2024, 1, 1, 12, 0, 0);
-    countdownClock = () => now;
-    advance = (d) => now = now.add(d);
+    clock = installManualClock();
+    advance = clock.advance;
   });
 
-  tearDown(() {
-    countdownClock = DateTime.now;
-  });
 
   group('CardCountdown', () {
     tearDown(Countman.destroy);

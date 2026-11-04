@@ -1,4 +1,5 @@
 import 'package:countman/countman.dart';
+import 'support/manual_clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // 本批回归覆盖回调重入、帧唤醒与任务终态，直接驱动可控帧。
@@ -108,9 +109,7 @@ void main() {
 
   for (final action in ['cancel', 'pause', 'reset']) {
     test('#4 threshold may $action before countdown completion', () {
-      var now = DateTime(2024);
-      countdownClock = () => now;
-      addTearDown(() => countdownClock = DateTime.now);
+      final clock = installManualClock();
       final p = Countdown(interval: 0)
         ..onAttach(CountmanContext(requestFrame: () {}));
       late CountdownHandle h;
@@ -132,7 +131,7 @@ void main() {
           onUpdate: (_) => updates++,
           onComplete: () => completes++));
       p.tick(Duration.zero, Duration.zero);
-      now = now.add(const Duration(seconds: 2));
+      clock.advance(const Duration(seconds: 2));
       p.tick(const Duration(seconds: 2), const Duration(seconds: 2));
       expect(updates, 1);
       expect(completes, 0);
@@ -140,9 +139,7 @@ void main() {
   }
 
   test('#4 final countdown update can cancel completion', () {
-    var now = DateTime(2024);
-    countdownClock = () => now;
-    addTearDown(() => countdownClock = DateTime.now);
+    final clock = installManualClock();
     final p = Countdown(interval: 0)
       ..onAttach(CountmanContext(requestFrame: () {}));
     late CountdownHandle h;
@@ -154,7 +151,7 @@ void main() {
         },
         onComplete: () => complete++));
     p.tick(Duration.zero, Duration.zero);
-    now = now.add(const Duration(seconds: 2));
+    clock.advance(const Duration(seconds: 2));
     p.tick(const Duration(seconds: 2), const Duration(seconds: 2));
     expect(complete, 0);
   });

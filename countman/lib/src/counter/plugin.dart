@@ -53,8 +53,8 @@ class CounterHandle {
 class Counter extends TaskQueuePlugin<CounterTask> {
   Counter({String? name}) : super(name ?? 'counter');
 
-  // Runs every frame (no interval) for smooth interpolation, so the default
-  // [beginFrame] (always-true) from the base is exactly right.
+  // 逐帧插值：基类默认的 [nextWake]（有活动任务即下一帧）正是所需，无活动任务
+  // 时 tick 返回 idle，调度器停表。
 
   @override
   void renderInitial(CounterTask task) {
@@ -64,7 +64,7 @@ class Counter extends TaskQueuePlugin<CounterTask> {
   }
 
   @override
-  bool step(CounterTask task, double dtMs, bool shouldProcess) {
+  void step(CounterTask task, double dtMs) {
     // Paused tasks are skipped by the base tick loop (via `isPaused`) and never
     // reach here, so no explicit pause guard is needed.
     //
@@ -83,16 +83,12 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     task.onUpdate?.call(task.value);
 
     // 用户回调改变状态后，旧目标的完成判定立即失效。
-    if (task.done || task.isPaused || revision != task.revision) {
-      return !task.done;
-    }
+    if (task.done || task.isPaused || revision != task.revision) return;
 
     if (complete) {
       task.done = true;
       task.onComplete?.call(task.value);
-      return false;
     }
-    return true;
   }
 
   static double _clamp(CounterTask task, double v) =>

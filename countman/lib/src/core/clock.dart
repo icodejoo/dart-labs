@@ -78,21 +78,34 @@ class SystemClock implements CountmanClock {
   AppLifecycleListener? _listener;
 
   /// 首次读钟时接入生命周期；若已在后台，也记录当前入口。
+  /// Flutter 绑定尚未初始化（例如纯 Dart 单测）时静默跳过，下次读钟再试。
   void _listen() {
     if (_listener != null) return;
-    _listener = AppLifecycleListener(onStateChange: _lifecycle);
-    final state = WidgetsBinding.instance.lifecycleState;
+    final AppLifecycleListener listener;
+    final AppLifecycleState? state;
+    try {
+      listener = AppLifecycleListener(onStateChange: _lifecycle);
+      state = WidgetsBinding.instance.lifecycleState;
+    } catch (_) {
+      return;
+    }
+    _listener = listener;
     if (state != null) _lifecycle(state);
   }
 
   /// 使用原始双钟采样校准，避免重复叠加已补偿的偏移。
   void _lifecycle(AppLifecycleState state) {
-    if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused) {
-      _calibration.pause(countdownClock().microsecondsSinceEpoch,
-          elapsedClock().inMicroseconds);
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _calibration.pause(
+        countdownClock().microsecondsSinceEpoch,
+        elapsedClock().inMicroseconds,
+      );
     } else if (state == AppLifecycleState.resumed) {
-      _calibration.resume(countdownClock().microsecondsSinceEpoch,
-          elapsedClock().inMicroseconds);
+      _calibration.resume(
+        countdownClock().microsecondsSinceEpoch,
+        elapsedClock().inMicroseconds,
+      );
     }
   }
 
@@ -121,7 +134,8 @@ class SystemClock implements CountmanClock {
 class OffsetClock implements CountmanClock {
   /// [base] 为基础时钟，[offset] 可正可负；单调钟始终透传。
   /// 例如 `OffsetClock(CountmanClock.system, Duration(seconds: 2))`。
-  OffsetClock(this.base, Duration offset) : _offsetMicros = offset.inMicroseconds;
+  OffsetClock(this.base, Duration offset)
+    : _offsetMicros = offset.inMicroseconds;
 
   /// 基础时钟实例。
   final CountmanClock base;
@@ -143,8 +157,8 @@ class ManualCountmanClock implements CountmanClock {
   /// [wallTime] 默认 Unix epoch，[monotonic] 默认零。
   /// 例如 `ManualCountmanClock(wallTime: DateTime(2026))`。
   ManualCountmanClock({DateTime? wallTime, Duration monotonic = Duration.zero})
-      : _wallMicros = wallTime?.microsecondsSinceEpoch ?? 0,
-        _monotonicMicros = monotonic.inMicroseconds;
+    : _wallMicros = wallTime?.microsecondsSinceEpoch ?? 0,
+      _monotonicMicros = monotonic.inMicroseconds;
 
   /// 原始墙钟微秒。
   int _wallMicros;

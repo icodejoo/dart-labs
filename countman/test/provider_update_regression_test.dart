@@ -1,4 +1,5 @@
 import 'package:countman/countman.dart';
+import 'support/manual_clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -134,15 +135,7 @@ void main() {
     regressionWidgetTest(
         '#13 $family callbacks and threshold update without resetting time',
         (tester) async {
-      var now = DateTime(2024);
-      var mono = Duration.zero;
-      final oldMono = elapsedClock;
-      countdownClock = () => now;
-      elapsedClock = () => mono;
-      addTearDown(() {
-        countdownClock = DateTime.now;
-        elapsedClock = oldMono;
-      });
+      final clock = installManualClock();
       final cd = Countdown(interval: 0);
       final el = Elapsed(interval: 0);
       final cc = CountdownController();
@@ -173,8 +166,7 @@ void main() {
       }
 
       await tester.pumpWidget(build(false));
-      now = now.add(const Duration(seconds: 3));
-      mono += const Duration(seconds: 3);
+      clock.advance(const Duration(seconds: 3));
       await tester.pumpWidget(build(true));
       await tester.pump(const Duration(milliseconds: 10));
       expect(threshold, 1);
@@ -182,7 +174,7 @@ void main() {
         expect(cc.remaining, const Duration(seconds: 7));
         cc.pause();
         cc.resume();
-        now = now.add(const Duration(seconds: 8));
+        clock.advance(const Duration(seconds: 8));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 10));
         expect(complete, 1);
@@ -276,9 +268,7 @@ void main() {
   regressionWidgetTest(
       '#14 card migrates controllers and plugins preserving paused remaining',
       (tester) async {
-    var now = DateTime(2024);
-    countdownClock = () => now;
-    addTearDown(() => countdownClock = DateTime.now);
+    final clock = installManualClock();
     final a = Countdown(name: 'a', interval: 0);
     final b = Countdown(name: 'b', interval: 0);
     final ca = CountdownController();
@@ -286,7 +276,7 @@ void main() {
     Widget card(Countdown p, CountdownController c) => host(CardCountdown(
         to: const Duration(seconds: 10), plugin: p, controller: c));
     await tester.pumpWidget(card(a, ca));
-    now = now.add(const Duration(seconds: 3));
+    clock.advance(const Duration(seconds: 3));
     ca.pause();
     await tester.pumpWidget(card(a, cb));
     expect(ca.isDone, isTrue);

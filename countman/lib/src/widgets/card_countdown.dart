@@ -365,7 +365,7 @@ class _CountdownCardState extends State<CardCountdown>
           _model.reversePhase = false;
         }
       });
-    final r = remainingUntil(widget.to);
+    final r = _remainingOfTo();
     _lastRemaining = r;
     _semanticRemaining.value = r;
     _showHours = _hoursFor(r);
@@ -373,12 +373,24 @@ class _CountdownCardState extends State<CardCountdown>
     _start();
   }
 
+  /// 当前生效的倒计时插件（显式传入或默认组）。
+  Countdown get _plugin => widget.plugin ?? defaultCountdown;
+
+  /// 按当前插件的时钟计算 `to` 对应的剩余时间。
+  Duration _remainingOfTo() => remainingUntil(widget.to, clock: _plugin.clock);
+
   /// 新建倒计时，可指定剩余时间和暂停状态，并重新绑定重启动作。
   void _start({Duration? remaining, bool paused = false}) {
     _handle?.cancel();
-    _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
-      // 插件迁移保留已有剩余时间，避免相对时长重新计满。
-      duration: remaining ?? remainingUntil(widget.to),
+    final plugin = _plugin;
+    // 显式剩余时间（重启/插件迁移）按相对时长，避免重新计满；
+    // 否则 Duration 走相对时长，DateTime/int/String 解析为绝对截止。
+    final anchor = remaining != null
+        ? (duration: remaining, deadline: null)
+        : countdownAnchorOf(widget.to, clock: plugin.clock);
+    _handle = plugin.add(CountdownOptions(
+      duration: anchor.duration,
+      deadline: anchor.deadline,
       onUpdate: _onTick,
       onComplete: () => widget.onComplete?.call(),
       threshold: widget.threshold,
@@ -391,7 +403,7 @@ class _CountdownCardState extends State<CardCountdown>
   /// 结束后重启倒计时，并立即同步小时列与卡片模型。
   void _relaunch({Duration? duration}) {
     // widget.duration 是翻牌动画时长，不是倒计时长度，不能参与回退。
-    final remaining = duration ?? remainingUntil(widget.to);
+    final remaining = duration ?? _remainingOfTo();
     _ctrl.stop();
     _ctrl.value = 0;
     setState(() {
@@ -482,7 +494,7 @@ class _CountdownCardState extends State<CardCountdown>
       old.controller?.detach(_handle);
       _ctrl.stop();
       _ctrl.value = 0;
-      final r = remainingUntil(widget.to);
+      final r = _remainingOfTo();
       _lastRemaining = r;
       _semanticRemaining.value = r;
       _showHours = _hoursFor(r);

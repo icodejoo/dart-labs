@@ -67,7 +67,10 @@ class CountdownBuilder extends StatefulWidget {
   final Duration? duration;
 
   /// Deadline target — [DateTime], [Duration], [int] (ms epoch), or ISO-8601
-  /// [String]. Resolved via [remainingUntil]. Takes precedence over [duration].
+  /// [String]. Takes precedence over [duration].
+  ///
+  /// [Duration] 走相对时长（单调钟锚定，改系统时间不影响）；[DateTime]、[int]、
+  /// [String] 解析为绝对截止（墙钟锚定，随系统时间变化）。
   final Object? to;
 
   /// Called on each interval tick with the shared per-task [TimeParts]
@@ -135,8 +138,15 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
   final ValueNotifier<int> _rev = ValueNotifier(0);
   CountdownHandle? _handle;
 
-  Duration get _initialRemaining =>
-      widget.to != null ? remainingUntil(widget.to!) : widget.duration!;
+  /// 当前生效的插件（显式传入 > precise 默认组 > 默认组）。
+  Countdown get _plugin =>
+      widget.plugin ??
+      (widget.precise ? defaultCountdownMs : defaultCountdown);
+
+  /// 组件配置对应的初始剩余时间，用于首个 tick 之前的显示。
+  Duration get _initialRemaining => widget.to != null
+      ? remainingUntil(widget.to!, clock: _plugin.clock)
+      : widget.duration!;
 
   @override
   void initState() {
@@ -147,13 +157,19 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
   /// 新建倒计时，省略 remaining 时使用组件的初始时长。
   void _start({Duration? remaining}) {
     _handle?.cancel();
+    final plugin = _plugin;
+    // 显式剩余时间（重启/迁移）按相对时长；否则沿用组件配置的锚点类型。
+    final anchor = remaining != null
+        ? (duration: remaining, deadline: null)
+        : widget.to != null
+            ? countdownAnchorOf(widget.to!, clock: plugin.clock)
+            : (duration: widget.duration, deadline: null);
     final r = remaining ?? _initialRemaining;
     _parts = TimeParts.of(r, r); // initial value before the first tick
     _rev.value++;
-    final plugin = widget.plugin ??
-        (widget.precise ? defaultCountdownMs : defaultCountdown);
     _handle = plugin.add(CountdownOptions(
-      duration: r,
+      duration: anchor.duration,
+      deadline: anchor.deadline,
       onUpdate: (p) {
         _parts = p;
         _rev.value++;
@@ -174,8 +190,7 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
 
   /// 结束后按显式时长、组件时长、当前截止时间的顺序重启。
   void _relaunch({Duration? duration}) {
-    _start(
-        remaining: duration ?? widget.duration ?? remainingUntil(widget.to!));
+    _start(remaining: duration ?? widget.duration);
   }
 
   /// 任务配置改变时重建，仅换控制器时保留时间、暂停状态和生命周期。

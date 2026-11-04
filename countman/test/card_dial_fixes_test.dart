@@ -2,6 +2,7 @@ import 'package:countman/countman.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/manual_clock.dart';
 
 /// 卡片语义与小时列切换用例共用的初始时长。
 const _initialDuration = Duration(minutes: 10);
@@ -60,13 +61,9 @@ FlipCardPainter painter(WidgetTester t) => t
 
 /// 验证小时扩位和倒计时语义同步。
 void main() {
-  late DateTime now;
+  late ManualCountmanClock clock;
   setUp(() {
-    now = DateTime(2026);
-    countdownClock = () => now;
-  });
-  tearDown(() {
-    countdownClock = DateTime.now;
+    clock = installManualClock(wallTime: DateTime(2026));
   });
   tearDown(Countman.destroy);
   testWidgets('123 小时拆成三个小时数字', (t) async {
@@ -86,7 +83,7 @@ void main() {
     await t.pumpWidget(
         _host(const CardCountdown(to: _initialDuration, showHours: false)));
     await t.pump();
-    now = now.add(elapsed);
+    clock.advance(elapsed);
     await t.pump(elapsed);
     await t.pumpWidget(
         _host(const CardCountdown(to: _initialDuration, showHours: true)));
@@ -105,13 +102,13 @@ void main() {
         duration: const Duration(seconds: 1),
         style: const CardCountdownStyle(transitionType: CountdownType.slide))));
     await t.pump();
-    now = now.add(const Duration(milliseconds: 1100));
+    clock.advance(const Duration(milliseconds: 1100));
     await t.pump(const Duration(milliseconds: 16));
-    now = now.add(_fineStep);
+    clock.advance(_fineStep);
     await t.pump(_fineStep);
     final before = painter(t).controller.value;
     final currentPainter = painter(t);
-    now = now.add(_fineStep);
+    clock.advance(_fineStep);
     await t.pump(_fineStep);
     expect(painter(t).controller.value, greaterThan(before));
     expect(identical(currentPainter, painter(t)), isTrue);

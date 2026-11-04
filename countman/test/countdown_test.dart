@@ -2,26 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-// All tests use a fake clock injected via [countdownClock].
-// No Future.delayed — time advances by mutating [_now] and calling tick()
-// with matching dt, keeping tests fast and deterministic.
+import 'support/manual_clock.dart';
+
+// 所有用例使用 ManualCountmanClock 注入时间，相对倒计时走单调钟。
+// 不使用 Future.delayed——通过 advance 推进手动时钟并以匹配的 dt 调用 tick()，
+// 保持测试快速且确定。
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 // 时间推进统一使用下方 advance，移除未调用的重复辅助函数。
 
 void main() {
-  late DateTime now;
-  late void Function(Duration) advance; // advances _now and returns dt
+  late ManualCountmanClock clock;
+  late void Function(Duration) advance; // 同时推进手动时钟的墙钟与单调钟
 
   setUp(() {
-    now = DateTime(2024, 1, 1, 12, 0, 0);
-    countdownClock = () => now;
-    advance = (d) => now = now.add(d);
-  });
-
-  tearDown(() {
-    countdownClock = DateTime.now; // restore
+    clock = installManualClock();
+    advance = clock.advance;
   });
 
   // ── Countdown.tick() direct unit tests ────────────────────────────────────
@@ -45,50 +42,56 @@ void main() {
       expect(got?.inSeconds, 5);
     });
 
-    test('a task added mid-cycle still reports accurate remaining, not stale by the phase offset', () {
-      // Group is 500ms into its shared 1000ms cycle (from an existing task)
-      // when a brand-new task joins. Its first render must reflect the real
-      // wall-clock remaining (~10s), not a value that's already "used up"
-      // 500ms because the group happened to be mid-cycle.
+    test('任务无论何时加入，显示都在自己剩余时间跨过整秒的那一帧变化', () {
+      // 改写理由：旧用例验证插件级相位节流（新任务要等“组内周期”），
+      // 新契约按每个任务自己的剩余时间换桶，与加入时刻无关。
       final existing = <TimeParts>[];
       plugin.add(CountdownOptions(duration: const Duration(seconds: 30), onUpdate: existing.add));
-      plugin.tick(Duration.zero, Duration.zero); // frame 1: existing task starts, _accumMs=0
-
+      plugin.tick(Duration.zero, Duration.zero); // 首帧：已有任务渲染 30s
       advance(const Duration(milliseconds: 500));
-      plugin.tick(const Duration(milliseconds: 500), const Duration(milliseconds: 500));
-      // _accumMs is now 500 — half-way through the group's 1000ms cycle,
-      // and the existing task hasn't been processed yet (accum < 1000).
-      expect(existing.length, 1); // still just the initial render
 
-      // New task joins right now, at the 500ms-into-cycle mark. Track every
-      // update it gets (not just the first) to inspect both renders below.
-      final newTaskUpdates = <TimeParts>[];
+      // 新任务在已有任务 500ms 处加入。
+      final updates = <int>[];
       plugin.add(CountdownOptions(
         duration: const Duration(seconds: 10),
-        onUpdate: newTaskUpdates.add,
+        onUpdate: (p) => updates.add(p.inMilliseconds),
       ));
-
-      // Next frame is a normal ~16ms tick — nowhere near the group's next
-      // shouldProcess boundary (which is still ~484ms away).
       advance(const Duration(milliseconds: 16));
       plugin.tick(const Duration(milliseconds: 516), const Duration(milliseconds: 16));
+      // 首帧立即渲染，只扣掉加入之后实际经过的 16ms，而不是组内相位。
+      expect(updates, [9984]);
 
-      // The new task's first render must fire on this very next frame
-      // (unconditionally, before the shouldProcess gate) and show ~10s
-      // minus only the ~16ms that actually elapsed — NOT 10s minus 500ms.
-      expect(newTaskUpdates.length, 1);
-      expect(newTaskUpdates[0].inMilliseconds, closeTo(10000 - 16, 1));
+      // 剩余降到 8.999s（再过 985ms）才换桶，与已有任务的相位无关。
+      advance(const Duration(milliseconds: 985));
+      plugin.tick(const Duration(milliseconds: 1501), const Duration(milliseconds: 985));
+      expect(updates, [9984, 8999]);
+    });
 
-      // Complete the group's cycle (500 + 16 + 484 = 1000ms since the
-      // existing task's last process) and confirm the SAME new task's
-      // second update reflects the true ~500ms that have now elapsed since
-      // it was added (16 + 484), not a value assuming a full fresh 1000ms
-      // cycle just because that's when the group happens to fire next.
-      advance(const Duration(milliseconds: 484));
-      plugin.tick(const Duration(milliseconds: 1000), const Duration(milliseconds: 484));
+    test('10 秒倒计时在剩余跨过整秒的那一帧才更新，其余帧不更新', () {
+      final updates = <int>[];
+      plugin.add(CountdownOptions(
+        duration: const Duration(seconds: 10),
+        onUpdate: (p) => updates.add(p.inMilliseconds),
+      ));
+      advance(const Duration(milliseconds: 16));
+      plugin.tick(Duration.zero, Duration.zero);
+      expect(updates, [9984]);
 
-      expect(newTaskUpdates.length, 2);
-      expect(newTaskUpdates[1].inMilliseconds, closeTo(10000 - 500, 1));
+      // 剩余 9.000s 仍属于第 9 桶，不更新；降到 8.999s 才换桶。
+      advance(const Duration(milliseconds: 984));
+      plugin.tick(const Duration(seconds: 1), const Duration(seconds: 1));
+      expect(updates, [9984]);
+      advance(const Duration(milliseconds: 1));
+      plugin.tick(const Duration(seconds: 1), const Duration(milliseconds: 1));
+      expect(updates, [9984, 8999]);
+    });
+
+    test('tick 返回距下次换桶的微秒数，完成前不早于完成时刻', () {
+      plugin.add(CountdownOptions(duration: const Duration(milliseconds: 2500)));
+      advance(const Duration(milliseconds: 100));
+      // 首帧：剩余 2.4s → 桶 2，距离降到 2.0s 以下还需 0.4s + 1us。
+      final wake = plugin.tick(Duration.zero, Duration.zero);
+      expect(wake, 2400000 - 2000000 + 1);
     });
 
     test('interval=1000: no onUpdate until 1 s of dt accumulates', () {
@@ -243,51 +246,75 @@ void main() {
       expect(calls.length, countBefore); // no calls while paused
     });
 
-    test('returns false when all tasks done', () {
+    test('全部任务完成后返回 idle', () {
       plugin.add(CountdownOptions(duration: const Duration(seconds: 1)));
       plugin.tick(Duration.zero, Duration.zero);
       advance(const Duration(seconds: 2));
-      final busy = plugin.tick(const Duration(seconds: 2), const Duration(seconds: 2));
-      expect(busy, isFalse);
+      final wake = plugin.tick(const Duration(seconds: 2), const Duration(seconds: 2));
+      expect(wake, CountmanPlugin.idle);
     });
 
-    test('returns false when all tasks paused', () {
+    test('全部任务暂停后返回 idle', () {
       final handle = plugin.add(CountdownOptions(duration: const Duration(seconds: 5)));
       plugin.tick(Duration.zero, Duration.zero);
       handle.pause();
-      final busy = plugin.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16));
-      expect(busy, isFalse);
+      final wake = plugin.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16));
+      expect(wake, CountmanPlugin.idle);
     });
 
-    test('interval remainder carries over', () {
-      // interval=1000ms. Two ticks of 600ms each = 1200ms total.
-      // First tick: accum=600 < 1000 → no process.
-      // Second tick: accum=1200 >= 1000 → process, accum becomes 200.
-      // Third tick (+600ms): accum=800 < 1000 → no process.
-      // Fourth tick (+600ms): accum=1400 >= 1000 → process again.
+    test('interval=0 的插件有活动任务时每帧都要处理', () {
+      final p = Countdown(name: 'every_frame_wake', interval: 0);
+      p.onAttach(CountmanContext(requestFrame: () {}));
+      p.add(CountdownOptions(duration: const Duration(seconds: 5)));
+      p.tick(Duration.zero, Duration.zero);
+      expect(p.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16)),
+          CountmanPlugin.nextFrame);
+    });
+
+    test('回调里新增任务（尚未渲染首帧）要求下一帧', () {
+      var added = false;
+      plugin.add(CountdownOptions(
+        duration: const Duration(seconds: 5),
+        onUpdate: (_) {
+          if (added) return;
+          added = true;
+          plugin.add(CountdownOptions(duration: const Duration(seconds: 5)));
+        },
+      ));
+      expect(plugin.tick(Duration.zero, Duration.zero), CountmanPlugin.nextFrame);
+      // 新任务渲染首帧之后，两个任务都可以休眠。
+      expect(plugin.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16)),
+          isPositive);
+    });
+
+    test('回调里 reset 使任务重新锚定，下一帧再渲染', () {
+      late CountdownHandle handle;
+      var resets = 0;
+      handle = plugin.add(CountdownOptions(
+        duration: const Duration(seconds: 5),
+        onUpdate: (_) {
+          if (resets++ == 0) handle.reset();
+        },
+      ));
+      expect(plugin.tick(Duration.zero, Duration.zero), CountmanPlugin.nextFrame);
+    });
+
+    test('更新只发生在换桶时：600ms 步长下第 1800ms 不更新', () {
+      // 改写理由：旧用例验证插件级 dt 累积与余数结转；新契约只看任务自己的
+      // 剩余时间所在的整秒桶。
       final calls = <int>[];
       plugin.add(CountdownOptions(
         duration: const Duration(seconds: 10),
         onUpdate: (r) => calls.add(r.inSeconds),
       ));
 
-      plugin.tick(Duration.zero, Duration.zero); // started, calls=[10]
-
-      advance(const Duration(milliseconds: 600));
-      plugin.tick(const Duration(milliseconds: 600), const Duration(milliseconds: 600));
-      expect(calls.length, 1); // accum=600
-
-      advance(const Duration(milliseconds: 600));
-      plugin.tick(const Duration(milliseconds: 1200), const Duration(milliseconds: 600));
-      expect(calls.length, 2); // accum crossed 1000 → processed, accum=200
-
-      advance(const Duration(milliseconds: 600));
-      plugin.tick(const Duration(milliseconds: 1800), const Duration(milliseconds: 600));
-      expect(calls.length, 2); // accum=800
-
-      advance(const Duration(milliseconds: 600));
-      plugin.tick(const Duration(milliseconds: 2400), const Duration(milliseconds: 600));
-      expect(calls.length, 3); // accum=1400 → processed again
+      plugin.tick(Duration.zero, Duration.zero); // 首帧 10s，桶 10
+      for (final ms in [600, 1200, 1800, 2400]) {
+        advance(const Duration(milliseconds: 600));
+        plugin.tick(Duration(milliseconds: ms), const Duration(milliseconds: 600));
+      }
+      // 剩余 9.4、8.8、8.2、7.6 → 桶 9、8、8、7。
+      expect(calls, [10, 9, 8, 7]);
     });
   });
 

@@ -52,12 +52,29 @@ void main() {
       expect(calls.last.inSeconds, 1);
     });
 
-    test('never completes on its own — stays busy indefinitely', () {
+    test('never completes on its own — keeps scheduling the next bucket', () {
       plugin.add(ElapsedOptions());
       plugin.tick(Duration.zero, Duration.zero);
       advance(const Duration(hours: 100));
-      final busy = plugin.tick(const Duration(hours: 100), const Duration(hours: 100));
-      expect(busy, isTrue);
+      final wake = plugin.tick(const Duration(hours: 100), const Duration(hours: 100));
+      // 恰好落在整秒上：距下一个整秒桶边界还有一整秒。
+      expect(wake, Duration.microsecondsPerSecond);
+    });
+
+    test('返回距下一个显示桶边界的微秒数', () {
+      plugin.add(ElapsedOptions());
+      plugin.tick(Duration.zero, Duration.zero);
+      advance(const Duration(milliseconds: 1250));
+      final wake = plugin.tick(const Duration(milliseconds: 1250), const Duration(milliseconds: 1250));
+      expect(wake, 750000);
+    });
+
+    test('阈值早于下一个桶边界时唤醒时间取阈值时刻', () {
+      plugin.add(ElapsedOptions(threshold: const Duration(milliseconds: 1400)));
+      plugin.tick(Duration.zero, Duration.zero);
+      advance(const Duration(milliseconds: 1250));
+      final wake = plugin.tick(const Duration(milliseconds: 1250), const Duration(milliseconds: 1250));
+      expect(wake, 150000);
     });
 
     test('onThreshold fires once when elapsed crosses threshold', () {
@@ -81,12 +98,12 @@ void main() {
       expect(count, 1);
     });
 
-    test('returns false when all tasks paused', () {
+    test('全部任务暂停后返回 idle', () {
       final handle = plugin.add(ElapsedOptions());
       plugin.tick(Duration.zero, Duration.zero);
       handle.pause();
-      final busy = plugin.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16));
-      expect(busy, isFalse);
+      final wake = plugin.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16));
+      expect(wake, CountmanPlugin.idle);
     });
   });
 

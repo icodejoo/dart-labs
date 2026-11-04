@@ -85,14 +85,18 @@ abstract final class CountdownFormat {
 ///
 /// Supported input types:
 /// - [DateTime] — used as-is.
-/// - [Duration] — resolved relative to [countdownClock] at call time.
+/// - [Duration] — resolved relative to the wall clock of [clock]
+///   (defaults to [CountmanClock.system]) at call time.
 /// - [int] — treated as milliseconds since Unix epoch.
 /// - [String] — parsed via [DateTime.parse] first, falling back to a more
 ///   lenient pattern for non-ISO strings (e.g. `2025/12/31` with slashes, or
 ///   a missing day/time). See [_parseDateString].
-DateTime resolveDeadline(Object to) {
+DateTime resolveDeadline(Object to, {CountmanClock? clock}) {
   if (to is DateTime) return to;
-  if (to is Duration) return countdownClock().add(to);
+  if (to is Duration) {
+    final wall = (clock ?? CountmanClock.system).wallMicros();
+    return DateTime.fromMicrosecondsSinceEpoch(wall + to.inMicroseconds);
+  }
   if (to is int) return DateTime.fromMillisecondsSinceEpoch(to);
   if (to is String) return _parseDateString(to);
   throw ArgumentError(
@@ -168,16 +172,37 @@ DateTime _parseDateString(String s) {
 }
 
 /// Returns the remaining [Duration] until the deadline described by [to],
-/// clamped to [Duration.zero] if already past.
-Duration remainingUntil(Object to) {
-  final d = resolveDeadline(to).difference(countdownClock());
-  return d.isNegative ? Duration.zero : d;
+/// clamped to [Duration.zero] if already past. A [Duration] is returned as-is
+/// (relative lengths do not drift between two clock reads); other types are
+/// resolved against the wall clock of [clock] (defaults to
+/// [CountmanClock.system]).
+Duration remainingUntil(Object to, {CountmanClock? clock}) {
+  if (to is Duration) return to.isNegative ? Duration.zero : to;
+  final source = clock ?? CountmanClock.system;
+  final deadline = resolveDeadline(to, clock: source);
+  final micros = deadline.microsecondsSinceEpoch - source.wallMicros();
+  return micros <= 0 ? Duration.zero : Duration(microseconds: micros);
 }
+
+/// 把组件的 `to` 解析成 [CountdownOptions] 的锚点：[Duration] 走相对时长
+/// （`duration`，单调钟锚定），其余类型解析为绝对截止（`deadline`，墙钟锚定）。
+/// 返回的记录里 `duration` 与 `deadline` 恰有一个非空。
+/// 例如 `countdownAnchorOf(Duration(minutes: 5))` 得到 `(duration: 5min, deadline: null)`。
+({Duration? duration, DateTime? deadline}) countdownAnchorOf(
+  Object to, {
+  CountmanClock? clock,
+}) => to is Duration
+    ? (duration: to, deadline: null)
+    : (duration: null, deadline: resolveDeadline(to, clock: clock));
 
 /// Options for a countdown task added via [Countdown.add] or [countdown].
 class CountdownOptions {
+  /// 必须且只能给出 [duration]（相对时长）或 [deadline]（绝对截止）之一。
+  /// 例如 `CountdownOptions(duration: Duration(minutes: 5))` 或
+  /// `CountdownOptions(deadline: DateTime(2026, 12, 31))`。
   const CountdownOptions({
-    required this.duration,
+    this.duration,
+    this.deadline,
     this.onUpdate,
     this.onComplete,
     this.threshold,
@@ -187,10 +212,18 @@ class CountdownOptions {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         (duration == null) != (deadline == null),
+         'CountdownOptions: provide exactly one of duration or deadline.',
+       );
 
-  /// Total countdown duration (counts down to [Duration.zero]).
-  final Duration duration;
+  /// 相对时长（倒数到 [Duration.zero]），按单调钟锚定：用户改系统时间不影响它，
+  /// 设备深睡期间的时长由时钟的前台恢复校准补上。与 [deadline] 二选一。
+  final Duration? duration;
+
+  /// 绝对截止时刻，按墙钟锚定：用户改系统时间会随之变化，适合“到点开售”这类
+  /// 与真实时刻绑定的倒计时。与 [duration] 二选一。暂停、恢复后改为按单调钟计时。
+  final DateTime? deadline;
 
   /// Called on each interval tick with the shared per-task [TimeParts]
   /// (pre-decomposed remaining). Update rate is controlled by [Countdown.interval].
@@ -216,11 +249,15 @@ class CountdownOptions {
   final VoidCallback? onResume;
 }
 
-/// Internal task state.
+/// 倒计时内部任务状态；锚点是整数微秒，热路径不构造对象。
 class CountdownTask extends ClockTask {
+  /// [total] 为进度分母，[endMicros] 为截止点微秒，[absolute] 为 true 时
+  /// [endMicros] 在墙钟时间轴上，否则在单调钟时间轴上。
   CountdownTask({
     required int id,
     required this.total,
+    required this.endMicros,
+    required this.absolute,
     void Function(TimeParts)? onUpdate,
     this.onComplete,
     Duration? threshold,
@@ -230,14 +267,21 @@ class CountdownTask extends ClockTask {
     super.onReady,
     super.onStart,
     super.onCancel,
-  })  : endTime = countdownClock().add(total),
-        super(id, onUpdate: onUpdate, threshold: threshold, onThreshold: onThreshold);
+  }) : super(
+         id,
+         onUpdate: onUpdate,
+         threshold: threshold,
+         onThreshold: onThreshold,
+       );
 
   /// Original duration; restored on [CountdownHandle.reset].
   Duration total;
 
-  /// Wall-clock deadline. Remaining = endTime − countdownClock().
-  DateTime endTime;
+  /// 截止点的微秒；时间轴由 [absolute] 决定。
+  int endMicros;
+
+  /// true 表示按墙钟锚定（绝对截止）；暂停恢复或重置后一律变为 false（单调钟）。
+  bool absolute;
 
   /// Snapshot of remaining when paused; null means running.
   Duration? pausedRemaining;
@@ -246,10 +290,4 @@ class CountdownTask extends ClockTask {
 
   @override
   bool get isPaused => pausedRemaining != null;
-
-  Duration get remaining {
-    if (isPaused) return pausedRemaining!;
-    final r = endTime.difference(countdownClock());
-    return r.isNegative ? Duration.zero : r;
-  }
 }

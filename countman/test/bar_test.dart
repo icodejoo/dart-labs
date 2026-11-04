@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
+import 'support/manual_clock.dart';
+
 // Mirrors ring_test.dart — BarCountdown/BarCounter share BarPainter and
 // have the same widget-wiring contract as their Ring counterparts, just a
 // different shape.
@@ -10,17 +12,15 @@ Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: chi
 
 void main() {
   group('BarCountdown', () {
-    late DateTime now;
+    late ManualCountmanClock clock;
     late void Function(Duration) advance;
 
     setUp(() {
-      now = DateTime(2024, 1, 1, 12, 0, 0);
-      countdownClock = () => now;
-      advance = (d) => now = now.add(d);
+      clock = installManualClock();
+      advance = clock.advance;
     });
 
     tearDown(() {
-      countdownClock = DateTime.now;
       Countman.destroy();
     });
 

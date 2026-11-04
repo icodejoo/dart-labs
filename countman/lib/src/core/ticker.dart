@@ -10,9 +10,9 @@ import 'types.dart';
 
 /// Shared vsync ticker — one `scheduleFrameCallback` drives all plugins.
 ///
-/// Plugins call [start] when they enqueue a task.
-/// 全部插件返回 idle 时停表；返回正数时共享一个休眠定时器。
-/// and restarts on the next [start] call.
+/// 插件在添加任务时调用 [start]。每帧收集各插件 [CountmanPlugin.tick] 返回的
+/// 唤醒时间：有插件要下一帧（或最小值不超过 20ms）就继续排帧；最小值更大就挂一个
+/// 全局唯一的休眠 Timer，到点再排帧；全部 idle 则停表，下一次 [start] 重新启动。
 /// 共享帧驱动器，逐插件隔离 tick 与销毁异常。
 class Countman {
   Countman._();
@@ -197,8 +197,9 @@ class Countman {
         try {
           final delay = plugin.tick(timestamp, dt);
           if (delay >= CountmanPlugin.nextFrame &&
-              (wake == CountmanPlugin.idle || delay < wake))
+              (wake == CountmanPlugin.idle || delay < wake)) {
             wake = delay;
+          }
         } catch (e, st) {
           FlutterError.reportError(
             FlutterErrorDetails(

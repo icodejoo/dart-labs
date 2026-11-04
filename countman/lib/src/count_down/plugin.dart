@@ -1,3 +1,4 @@
+import 'package:countman/src/core/clock.dart';
 import 'package:countman/src/core/plugin_base.dart';
 import 'package:countman/src/core/ticker.dart';
 import 'package:flutter/foundation.dart';
@@ -15,17 +16,18 @@ class CountdownHandle {
   void pause() {
     final task = _plugin.task(_id);
     if (task == null || task.done || task.isPaused) return;
-    task.pausedRemaining = task.remaining;
+    task.pausedRemaining = _plugin.remainingOf(task);
     // 暂停会使当前帧计算失效，即使回调中马上恢复。
     task.revision++;
     task.onPause?.call();
   }
 
   /// Resume a paused countdown. Restarts the ticker if it had stopped.
+  /// 恢复一律按单调钟重新锚定剩余时间（绝对截止的任务也转为相对计时）。
   void resume() {
     final task = _plugin.task(_id);
     if (task == null || task.done || !task.isPaused) return;
-    task.endTime = countdownClock().add(task.pausedRemaining!);
+    _plugin.anchorRelative(task, task.pausedRemaining!);
     task.pausedRemaining = null;
     task.reanchor(); // next interval renders without consuming time
     task.onResume?.call();
@@ -33,12 +35,12 @@ class CountdownHandle {
   }
 
   /// Reset remaining to [duration] (or the original duration if null),
-  /// then resume. No-op if already completed.
+  /// then resume. No-op if already completed. 重置按单调钟锚定总时长。
   void reset({Duration? duration}) {
     final task = _plugin.task(_id);
     if (task == null || task.done) return;
     if (duration != null) task.total = duration;
-    task.endTime = countdownClock().add(task.total);
+    _plugin.anchorRelative(task, task.total);
     task.pausedRemaining = null;
     task.reanchor();
     task.thresholdFired = false;
@@ -50,10 +52,19 @@ class CountdownHandle {
 
   /// Update only the threshold, preserving remaining time.
   /// 仅同步阈值，保留剩余时间和暂停状态。
-  void updateThreshold(Duration? threshold) =>
-      _plugin.task(_id)?.updateThreshold(threshold);
+  void updateThreshold(Duration? threshold) {
+    final task = _plugin.task(_id);
+    if (task == null) return;
+    task.updateThreshold(threshold);
+    // 休眠中的新阈值可能更早到达，需要重新计算唤醒时间。
+    if (!task.done && !task.isPaused) _plugin.requestFrame();
+  }
 
-  Duration get remaining => _plugin.task(_id)?.remaining ?? Duration.zero;
+  /// 当前剩余时间（读取实时时钟）；已取消返回 [Duration.zero]。
+  Duration get remaining {
+    final task = _plugin.task(_id);
+    return task == null ? Duration.zero : _plugin.remainingOf(task);
+  }
   bool get isPaused => _plugin.task(_id)?.isPaused ?? false;
   bool get isDone => _plugin.task(_id)?.done ?? true;
 }
@@ -62,70 +73,72 @@ class CountdownHandle {
 /// Each instance is an independent task queue (= a "group").
 ///
 /// ## Interval
-/// [interval] (milliseconds) controls how often tasks are processed:
-/// - `1000` (default) — once per second; ideal for HH:mm:ss / mm:ss displays.
+/// [interval] (milliseconds) controls how often a task's display is updated:
+/// - `1000` (default) — whenever the remaining time crosses a whole second;
+///   ideal for HH:mm:ss / mm:ss displays.
 /// - `0` — every frame; use for sub-second precision.
 ///
-/// The plugin accumulates elapsed time via `dt` each frame and processes tasks
-/// only when `accumMs >= interval`. The remainder carries forward so timing
-/// stays accurate across frames.
+/// 每个任务按**自己的剩余时间**跨过 interval 整数倍的时刻更新（桶边界），
+/// 与任务何时加入无关；两次更新之间调度器休眠，不逐帧出帧。
+/// 完成与阈值每帧检查，越过边界的那一帧触发。
 ///
 /// The **first frame** of a newly added task always renders immediately,
 /// regardless of the interval, to show the initial value without delay.
 ///
-/// ## Real-clock deadline
-/// Each task records `endTime = countdownClock().add(duration)`.
-/// Remaining = `endTime − countdownClock()`, so app-background pauses and
-/// frame drops never cause drift.
+/// ## Clock anchors
+/// - `CountdownOptions.duration` — anchored on the **monotonic** clock, so user
+///   clock changes never make the countdown jump; deep sleep is compensated by
+///   the clock's foreground-resume calibration.
+/// - `CountdownOptions.deadline` — anchored on the **wall** clock, follows
+///   system time changes (use for "ends at 20:00" style deadlines).
+/// Pause/resume/reset always re-anchor on the monotonic clock.
 ///
 /// ## Grouping
 /// Create multiple [Countdown] instances to isolate groups:
 /// ```dart
 /// final precise = Countdown(name: 'ms', interval: 0);
 /// Countman.use(precise);
-/// CountdownWidget(duration: ..., plugin: precise, builder: ...)
+/// CountdownBuilder(duration: ..., plugin: precise, builder: ...)
 /// ```
 /// 倒计时引擎：每帧共用时钟快照，完成与阈值不受显示间隔延迟。
 class Countdown extends ClockPlugin<CountdownTask> {
-  // 直接转发父类间隔参数，保留默认值与调用方式。
-  Countdown({String? name, super.interval}) : super(name ?? 'countdown');
+  /// [name] 为诊断名称（不同实例请用唯一名称），[interval] 为显示间隔毫秒，
+  /// [clock] 为时间源（默认 [CountmanClock.system]）。
+  /// 例如 `Countdown(name: 'auction', interval: 100)`。
+  Countdown({String? name, super.interval, super.clock})
+    : super(name ?? 'countdown');
 
-  /// 本帧的时钟微秒快照，所有任务共享一次读取。
-  int _frameMicros = 0;
-
-  /// 先读取时钟再累积显示节流时间，每帧只读取一次。
+  /// 剩余微秒：暂停时取冻结值，否则用本帧快照；负值钳为 0。
+  /// 不用 `clamp(0, int 最大值)`，那个 64 位字面量在 Web 上无法精确表示，会让 dart2js 编译失败。
   @override
-  bool beginFrame(double dtMs) {
-    _frameMicros = countdownClock().microsecondsSinceEpoch;
-    return super.beginFrame(dtMs);
-  }
-
-  /// 使用整数微秒计算本帧值；公开 handle getter 仍读取实时时钟。
-  /// 负值钳为 0；不用 `clamp(0, int 最大值)`，那个 64 位字面量在 Web 上无法精确表示，会让 dart2js 编译失败。
-  int _valueMicros(CountdownTask task) {
-    final us = task.pausedRemaining?.inMicroseconds ??
-        (task.endTime.microsecondsSinceEpoch - _frameMicros);
+  int valueMicrosOf(CountdownTask task) {
+    final paused = task.pausedRemaining;
+    if (paused != null) return paused.inMicroseconds;
+    final now = task.absolute ? frameWallMicros : frameMonotonicMicros;
+    final us = task.endMicros - now;
     return us < 0 ? 0 : us;
   }
 
-  // ── ClockPlugin domain hooks ──────────────────────────────────────
-
-  /// 仅在需要显示更新时构造时长。
-  @override
-  Duration valueOf(CountdownTask task) =>
-      Duration(microseconds: _valueMicros(task));
-
+  /// 进度分母：任务的初始总时长。
   @override
   Duration? totalOf(CountdownTask task) => task.total;
 
-  /// 整数比较避免逐帧构造时长。
+  /// 剩余为 0 即完成。
   @override
-  bool isComplete(CountdownTask task) => _valueMicros(task) <= 0;
+  bool isComplete(CountdownTask task) => valueMicrosOf(task) <= 0;
 
-  /// 用本帧快照判断剩余时间是否越过阈值。
+  /// 剩余降到当前桶下沿以下才会换桶：还需 `value - 桶 * 间隔 + 1` 微秒。
   @override
-  bool thresholdCrossed(CountdownTask task) =>
-      _valueMicros(task) <= task.threshold!.inMicroseconds;
+  int boundaryWake(int value, int intervalMicros) =>
+      value - (value ~/ intervalMicros) * intervalMicros + 1;
+
+  /// 剩余耗尽即完成。
+  @override
+  int completionWake(int value) => value;
+
+  /// 剩余降到阈值（含）以下视为越过。
+  @override
+  int thresholdWake(int value, int thresholdMicros) => value - thresholdMicros;
 
   @override
   void onComplete(CountdownTask task) {
@@ -140,23 +153,59 @@ class Countdown extends ClockPlugin<CountdownTask> {
   @internal
   void requestFrame() => ctx.requestFrame();
 
+  /// 读取实时时钟得到 [task] 的剩余时间（负值钳零），供句柄与控制器使用。
+  @internal
+  Duration remainingOf(CountdownTask task) {
+    final paused = task.pausedRemaining;
+    if (paused != null) return paused;
+    final c = clock;
+    final now = task.absolute ? c.wallMicros() : c.monotonicMicros();
+    final us = task.endMicros - now;
+    return us <= 0 ? Duration.zero : Duration(microseconds: us);
+  }
+
+  /// 把 [task] 改为按单调钟锚定，剩余 [remaining]。
+  @internal
+  void anchorRelative(CountdownTask task, Duration remaining) {
+    task.endMicros = clock.monotonicMicros() + remaining.inMicroseconds;
+    task.absolute = false;
+  }
+
   // ── public API ────────────────────────────────────────────────────
 
+  /// 添加一个倒计时并返回句柄；`opts.duration` 按单调钟锚定，
+  /// `opts.deadline` 按墙钟锚定。
   CountdownHandle add(CountdownOptions opts) {
     final id = nextId();
-    enqueue(CountdownTask(
-      id: id,
-      total: opts.duration,
-      onUpdate: opts.onUpdate,
-      onComplete: opts.onComplete,
-      threshold: opts.threshold,
-      onThreshold: opts.onThreshold,
-      onReady: opts.onReady,
-      onStart: opts.onStart,
-      onCancel: opts.onCancel,
-      onPause: opts.onPause,
-      onResume: opts.onResume,
-    ));
+    final c = clock;
+    final deadline = opts.deadline;
+    final Duration total;
+    final int endMicros;
+    if (deadline != null) {
+      endMicros = deadline.microsecondsSinceEpoch;
+      final remaining = endMicros - c.wallMicros();
+      total = Duration(microseconds: remaining < 0 ? 0 : remaining);
+    } else {
+      total = opts.duration!;
+      endMicros = c.monotonicMicros() + total.inMicroseconds;
+    }
+    enqueue(
+      CountdownTask(
+        id: id,
+        total: total,
+        endMicros: endMicros,
+        absolute: deadline != null,
+        onUpdate: opts.onUpdate,
+        onComplete: opts.onComplete,
+        threshold: opts.threshold,
+        onThreshold: opts.onThreshold,
+        onReady: opts.onReady,
+        onStart: opts.onStart,
+        onCancel: opts.onCancel,
+        onPause: opts.onPause,
+        onResume: opts.onResume,
+      ),
+    );
     return CountdownHandle._(id, this);
   }
 }

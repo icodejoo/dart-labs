@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
+import 'support/manual_clock.dart';
+
 /// Covers the shared [TaskQueuePlugin] base: the P0 concurrent-modification
 /// guarantee (callbacks mutating the task map mid-tick) and the count-up
 /// negative-value switch.
@@ -23,14 +25,15 @@ void main() {
       expect(Countman.pluginCount, greaterThan(0));
     });
 
-    test('name clash with an already-registered different instance → clear StateError', () {
+    test('同名的另一个实例自注册时 debug 断言，提示复用实例或换唯一 name', () {
+      // 改写理由：注册表改为按实例，不再抛 StateError；冲突在 debug 下由 assert 提示。
       Countman.destroy();
       final a = Countdown(name: 'selfreg-dup', interval: 100);
       a.add(const CountdownOptions(duration: Duration(seconds: 5))); // registers 'selfreg-dup'
       final b = Countdown(name: 'selfreg-dup', interval: 200); // same name, different instance
       expect(
         () => b.add(const CountdownOptions(duration: Duration(seconds: 5))),
-        throwsStateError,
+        throwsA(isA<AssertionError>()),
       );
     });
   });
@@ -88,9 +91,7 @@ void main() {
     });
 
     test('countdown: onComplete adds another countdown mid-tick', () {
-      var fakeNow = DateTime(2024);
-      countdownClock = () => fakeNow;
-      addTearDown(() => countdownClock = DateTime.now);
+      final clock = installManualClock();
 
       final p = Countdown(name: 'p0_cd', interval: 0);
       p.onAttach(noopCtx());
@@ -105,7 +106,7 @@ void main() {
       ));
 
       p.tick(Duration.zero, Duration.zero); // frame 1: render initial remaining
-      fakeNow = fakeNow.add(const Duration(milliseconds: 200)); // deadline passed
+      clock.advance(const Duration(milliseconds: 200)); // deadline passed
       expect(
         () => p.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16)),
         returnsNormally,
@@ -115,9 +116,7 @@ void main() {
     });
 
     test('elapsed: cancel() inside onUpdate during tick', () {
-      var fakeNow = DateTime(2024);
-      countdownClock = () => fakeNow;
-      addTearDown(() => countdownClock = DateTime.now);
+      final clock = installManualClock();
 
       final p = Elapsed(name: 'p0_el', interval: 0);
       p.onAttach(noopCtx());
@@ -126,7 +125,7 @@ void main() {
       h = p.add(ElapsedOptions(onUpdate: (_) => h.cancel()));
 
       p.tick(Duration.zero, Duration.zero); // frame 1: render initial (elapsed 0)
-      fakeNow = fakeNow.add(const Duration(milliseconds: 20));
+      clock.advance(const Duration(milliseconds: 20));
       expect(
         () => p.tick(const Duration(milliseconds: 16), const Duration(milliseconds: 16)),
         returnsNormally,
@@ -249,9 +248,7 @@ void main() {
     });
 
     test('countdown: onPause / onResume fire from the handle', () {
-      var fakeNow = DateTime(2024);
-      countdownClock = () => fakeNow;
-      addTearDown(() => countdownClock = DateTime.now);
+      installManualClock();
 
       final p = Countdown(name: 'lc_cd', interval: 0);
       p.onAttach(noopCtx());
@@ -294,9 +291,7 @@ void main() {
     });
 
     test('per-task isolation: two countdowns keep distinct parts', () {
-      var fakeNow = DateTime(2024);
-      countdownClock = () => fakeNow;
-      addTearDown(() => countdownClock = DateTime.now);
+      installManualClock();
 
       final p = Countdown(name: 'iso', interval: 0);
       p.onAttach(noopCtx());
@@ -311,10 +306,8 @@ void main() {
   });
 
   group('edge cases', () {
-    test('dt spike does not fire a burst of catch-up ticks (modulo drain)', () {
-      var fakeNow = DateTime(2024);
-      countdownClock = () => fakeNow;
-      addTearDown(() => countdownClock = DateTime.now);
+    test('dt spike does not fire a burst of catch-up ticks (bucket gating)', () {
+      final clock = installManualClock();
 
       final p = Countdown(name: 'spike', interval: 1000);
       p.onAttach(noopCtx());
@@ -327,15 +320,15 @@ void main() {
 
       p.tick(Duration.zero, Duration.zero); // frame 1: render initial (updates=1)
 
-      // Huge dt (app returned from a 5 s background) — processes exactly once.
-      fakeNow = fakeNow.add(const Duration(seconds: 5));
-      p.tick(const Duration(seconds: 5), const Duration(seconds: 5));
+      // Huge dt (app returned from a 5.5 s background) — processes exactly once.
+      clock.advance(const Duration(milliseconds: 5500));
+      p.tick(const Duration(milliseconds: 5500), const Duration(milliseconds: 5500));
       final afterSpike = updates;
 
       // Subsequent normal frames must NOT keep processing to "catch up".
       for (var i = 0; i < 3; i++) {
-        fakeNow = fakeNow.add(const Duration(milliseconds: 16));
-        p.tick(Duration(milliseconds: 5000 + 16 * (i + 1)), const Duration(milliseconds: 16));
+        clock.advance(const Duration(milliseconds: 16));
+        p.tick(Duration(milliseconds: 5500 + 16 * (i + 1)), const Duration(milliseconds: 16));
       }
       expect(updates, afterSpike); // no burst
     });

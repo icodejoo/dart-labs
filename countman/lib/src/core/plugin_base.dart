@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'clock.dart';
 import 'ticker.dart';
 import 'time_parts.dart';
 import 'types.dart';
@@ -239,6 +240,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
       if (drained && tasks.isEmpty && _pendingAdd.isEmpty && !_disposed) {
         _notifyGroup(false);
       }
+      // 休眠期间取消最后一个任务：请求一帧，让调度器看到空闲并取消定时器。
+      if (drained && tasks.isEmpty && _pendingAdd.isEmpty && !_disposed) {
+        ctx.requestFrame();
+      }
       return;
     }
     // 先标记终态、登记移除，再允许用户重入取消。
@@ -259,21 +264,20 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
 
   // ── overridable hooks ─────────────────────────────────────────────
 
-  /// Called once per frame before the task loop. Return whether tasks should
-  /// be processed this frame. Default: always (every-frame engines). Interval
-  /// engines override to gate on accumulated time.
+  /// 每帧在任务循环前调用一次，用于读取本帧共享的时钟快照等；默认无操作。
+  /// [dtMs] 为本帧活动间隔（毫秒），休眠后的首帧为 0。
   @protected
-  bool beginFrame(double dtMs) => true;
+  void beginFrame(double dtMs) {}
 
   /// Render a task's initial value on its first active frame (no time advance).
   @protected
   void renderInitial(T task);
 
-  /// Advance one active task. Return whether it is still busy (wants more
-  /// frames). Set `task.done = true` to have it evicted after the loop.
-  /// [shouldProcess] is the result of [beginFrame] for this frame.
+  /// 推进一个活动任务；需要终结时置 `task.done = true`，循环结束后统一清理。
+  /// 下次唤醒时间由 [nextWake] 另行给出，此处无返回值。
+  /// [dtMs] 为本帧活动间隔（毫秒）。
   @protected
-  bool step(T task, double dtMs, bool shouldProcess);
+  void step(T task, double dtMs);
 
   /// 初值与首次启动回调完成后检查任务；默认无操作。
   /// 子类可在此完成首帧已到期任务，保留初值、启动、完成的回调顺序。
@@ -298,7 +302,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     if (tasks.isEmpty) return CountmanPlugin.idle;
 
     final dtMs = dt.inMicroseconds / 1000.0;
-    final shouldProcess = beginFrame(dtMs);
+    beginFrame(dtMs);
 
     // Rebuild the live snapshot only if the set changed since last frame.
     //
@@ -345,7 +349,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
             continue;
           }
 
-          step(task, dtMs, shouldProcess);
+          step(task, dtMs);
         } catch (error, stack) {
           _reportTaskError(task, error, stack, '回调');
           if (!task.done && !task.isPaused && !_disposed) {
@@ -436,8 +440,8 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
   }
 }
 
-/// A [CountmanTask] driven by a wall-clock anchor, processed on an interval.
-/// Shared by countdown (deadline ahead of now) and elapsed (start behind now).
+/// 由时钟锚点驱动的任务，按自己的显示桶边界更新。
+/// 倒计时（截止点在前）与正计时（起点在后）共用。
 abstract class ClockTask extends CountmanTask {
   ClockTask(
     super.id, {
@@ -458,6 +462,10 @@ abstract class ClockTask extends CountmanTask {
   void Function()? onThreshold;
   bool thresholdFired = false;
 
+  /// 上次发出显示更新时的桶编号（`值微秒 ~/ interval 微秒`）。
+  /// 只由 [ClockPlugin] 维护；桶变化才触发下一次 `onUpdate`。
+  int lastBucket = 0;
+
   /// Update the threshold without resetting the clock anchor.
   /// 阈值独立同步，不重置计时；阈值改变后允许新阈值触发一次。
   void updateThreshold(Duration? value) {
@@ -476,44 +484,82 @@ abstract class ClockTask extends CountmanTask {
   final TimeParts parts = TimeParts.zero();
 }
 
-/// Base for interval-gated, wall-clock timer engines (countdown, elapsed).
+/// 时钟类引擎（倒计时、正计时）的基类。
 ///
-/// Adds to [TaskQueuePlugin]: plugin-level interval accumulation ([interval]
-/// ms; `0` = every frame) and once-only threshold dispatch. Subclasses supply
-/// the four domain hooks: [valueOf], [isComplete], [thresholdCrossed],
-/// [onComplete].
-/// 时钟任务每帧检查终态和阈值，普通显示更新按 interval 节流。
+/// 每帧只读一次时钟快照（墙钟与单调钟微秒，按需惰性读取），任务内部全部用整数
+/// 微秒运算。显示更新按**每个任务自己的桶边界**触发：桶 = `值微秒 ~/ interval 微秒`，
+/// 桶变化才发 `onUpdate`；完成与阈值每帧检查，不被显示间隔延迟。[tick] 返回所有活动
+/// 任务中最早的唤醒时间，调度器据此休眠，不再逐 vsync 出帧。
+///
+/// 子类提供领域钩子：[valueMicrosOf]、[totalOf]、[isComplete]、[thresholdWake]、
+/// [boundaryWake]、[completionWake]、[onComplete]。
 abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
-  ClockPlugin(super.name, {this.interval = 1000});
+  /// [interval] 为显示更新间隔（毫秒，0 或负数表示每帧）；[clock] 为时间源，
+  /// 为空时使用 [CountmanClock.system]（每次读取时解析，便于测试整体替换）。
+  /// 例如 `Countdown(name: 'ms', interval: 0, clock: ManualCountmanClock())`。
+  ClockPlugin(super.name, {this.interval = 1000, CountmanClock? clock})
+    : _clock = clock,
+      _intervalMicros = interval * Duration.microsecondsPerMillisecond;
 
   /// Processing interval in milliseconds. 0 = every frame.
   final int interval;
 
-  double _accumMs = 0;
+  /// 显示间隔的微秒数；非正数表示每帧更新。
+  final int _intervalMicros;
 
-  @override
+  /// 构造时显式指定的时钟；null 表示跟随 [CountmanClock.system]。
+  final CountmanClock? _clock;
+
+  /// 当前生效的时钟。
+  CountmanClock get clock => _clock ?? CountmanClock.system;
+
+  /// 本帧墙钟快照；[_wallRead] 为 false 时尚未读取。
+  int _frameWall = 0;
+  bool _wallRead = false;
+
+  /// 本帧单调钟快照；[_monoRead] 为 false 时尚未读取。
+  int _frameMono = 0;
+  bool _monoRead = false;
+
+  /// 本帧的墙钟微秒快照，同一帧内多次读取返回同一个值。
   @protected
-  bool beginFrame(double dtMs) {
-    _accumMs += dtMs;
-    final shouldProcess = interval <= 0 || _accumMs >= interval;
-    if (shouldProcess) {
-      if (interval > 0) {
-        // Modulo (not subtract-one) so a dt spike — e.g. the app returning
-        // from background with a multi-second dt — drops the whole backlog in
-        // one frame instead of firing a burst of catch-up ticks over the next
-        // N frames. Values come from the wall clock, so no drift results.
-        _accumMs %= interval;
-      } else {
-        _accumMs = 0; // prevent unbounded growth at interval=0
-      }
+  int get frameWallMicros {
+    if (!_wallRead) {
+      _frameWall = clock.wallMicros();
+      _wallRead = true;
     }
-    return shouldProcess;
+    return _frameWall;
   }
 
-  /// Decompose [valueOf] into the task's reused [TimeParts] and notify.
+  /// 本帧的单调钟微秒快照，同一帧内多次读取返回同一个值。
+  @protected
+  int get frameMonotonicMicros {
+    if (!_monoRead) {
+      _frameMono = clock.monotonicMicros();
+      _monoRead = true;
+    }
+    return _frameMono;
+  }
+
+  /// 新帧开始：作废上一帧的时钟快照，首次使用时再读取。
+  @override
+  @protected
+  void beginFrame(double dtMs) {
+    _wallRead = false;
+    _monoRead = false;
+  }
+
+  /// 返回 [task] 当前值所在的显示桶；每帧更新（间隔非正）时恒为 0。
+  int _bucketOf(int valueMicros) =>
+      _intervalMicros > 0 ? valueMicros ~/ _intervalMicros : 0;
+
+  /// Decompose [valueMicrosOf] into the task's reused [TimeParts] and notify.
+  /// 同时记录发出时的显示桶。
   @protected
   void emit(T task) {
-    task.parts.set(valueOf(task), totalOf(task));
+    final value = valueMicrosOf(task);
+    task.lastBucket = _bucketOf(value);
+    task.parts.setMicros(value, totalOf(task));
     task.onUpdate?.call(task.parts);
   }
 
@@ -525,52 +571,68 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// 初值与 onStart 后立即检查到期和阈值，不重复发初值。
   @override
   @protected
-  void afterInitial(T task) => _process(task, false, true);
+  void afterInitial(T task) => _process(task, true);
 
-  /// 每帧检查阈值与完成，仅普通显示更新受 interval 节流。
+  /// 每帧检查阈值与完成；只有显示桶变化（或每帧模式）才发普通更新。
   @override
   @protected
-  bool step(T task, double dtMs, bool shouldProcess) =>
-      _process(task, shouldProcess, false);
+  void step(T task, double dtMs) => _process(task, false);
 
   /// 共用逐帧判定；initial 表示首帧已发过当前快照的最终初值。
-  bool _process(T task, bool shouldProcess, bool initial) {
+  void _process(T task, bool initial) {
     final revision = task.revision;
     if (!task.thresholdFired &&
         task.threshold != null &&
-        thresholdCrossed(task)) {
+        thresholdWake(valueMicrosOf(task), task.threshold!.inMicroseconds) <=
+            0) {
       task.thresholdFired = true;
       task.onThreshold?.call();
     }
 
     // 阈值回调可能取消、暂停或重置，旧帧不再更新或完成。
-    if (task.done || task.isPaused || revision != task.revision) {
-      return !task.done;
-    }
+    if (task.done || task.isPaused || revision != task.revision) return;
 
     if (isComplete(task)) {
       if (!initial) emit(task);
-      if (task.done || task.isPaused || revision != task.revision) {
-        return !task.done;
-      }
+      if (task.done || task.isPaused || revision != task.revision) return;
       task.done = true;
       onComplete(task);
-      return false;
+      return;
     }
 
-    if (shouldProcess) emit(task);
-    return true;
+    if (initial) return;
+    if (_intervalMicros <= 0 ||
+        _bucketOf(valueMicrosOf(task)) != task.lastBucket) {
+      emit(task);
+    }
   }
 
+  /// 单个任务距下次需要处理的微秒数：显示桶边界、完成时刻、阈值时刻取最早。
+  /// 每帧更新模式或桶与上次不一致时返回下一帧。
   @override
   @protected
-  void onDispose() => _accumMs = 0;
+  int nextWake(T task) {
+    if (_intervalMicros <= 0) return CountmanPlugin.nextFrame;
+    final value = valueMicrosOf(task);
+    if (_bucketOf(value) != task.lastBucket) return CountmanPlugin.nextFrame;
+    var wake = boundaryWake(value, _intervalMicros);
+    final complete = completionWake(value);
+    if (complete != CountmanPlugin.idle && complete < wake) wake = complete;
+    final threshold = task.threshold;
+    if (threshold != null && !task.thresholdFired) {
+      final crossing = thresholdWake(value, threshold.inMicroseconds);
+      if (crossing <= 0) return CountmanPlugin.nextFrame;
+      if (crossing < wake) wake = crossing;
+    }
+    return wake <= 0 ? CountmanPlugin.nextFrame : wake;
+  }
 
   // ── domain hooks ──────────────────────────────────────────────────
 
-  /// Current value to report to `onUpdate` (remaining, or elapsed).
+  /// 任务当前值的整数微秒（倒计时为剩余并钳零，正计时为已过）。
+  /// 必须基于本帧快照 [frameWallMicros]/[frameMonotonicMicros]，且不分配对象。
   @protected
-  Duration valueOf(T task);
+  int valueMicrosOf(T task);
 
   /// The task's fixed total for progress (countdown: initial duration).
   /// `null` when there is none (elapsed).
@@ -581,11 +643,19 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   @protected
   bool isComplete(T task);
 
-  /// Whether [threshold] has been crossed in the counting direction
-  /// (countdown: remaining ≤ threshold; elapsed: elapsed ≥ threshold).
-  /// Only called when `task.threshold != null`.
+  /// 距显示桶下一次变化的微秒数，要求结果为正；[value] 为当前值微秒，
+  /// [intervalMicros] 为显示间隔微秒。
   @protected
-  bool thresholdCrossed(T task);
+  int boundaryWake(int value, int intervalMicros);
+
+  /// 距任务完成的微秒数；不会自行完成的引擎返回 [CountmanPlugin.idle]。
+  @protected
+  int completionWake(int value) => CountmanPlugin.idle;
+
+  /// 距阈值被越过的微秒数；小于等于 0 表示已越过。
+  /// [thresholdMicros] 为阈值微秒（倒计时：剩余降到阈值；正计时：已过达到阈值）。
+  @protected
+  int thresholdWake(int value, int thresholdMicros);
 
   /// Fire terminal callbacks when [isComplete] first returns true.
   @protected

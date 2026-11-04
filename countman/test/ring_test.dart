@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
+import 'support/manual_clock.dart';
+
 // RingCountdown and RingCounter share RingPainter (lib/src/widgets/ring_painter.dart).
 // Arc content isn't reachable via find.text(), so these tests exercise the
 // widget-wiring contract (onComplete, sizing, retarget, dispose) rather than
@@ -13,17 +15,15 @@ Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: chi
 
 void main() {
   group('RingCountdown', () {
-    late DateTime now;
+    late ManualCountmanClock clock;
     late void Function(Duration) advance;
 
     setUp(() {
-      now = DateTime(2024, 1, 1, 12, 0, 0);
-      countdownClock = () => now;
-      advance = (d) => now = now.add(d);
+      clock = installManualClock();
+      advance = clock.advance;
     });
 
     tearDown(() {
-      countdownClock = DateTime.now;
       Countman.destroy();
     });
 

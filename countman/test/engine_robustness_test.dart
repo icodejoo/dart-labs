@@ -1,3 +1,4 @@
+import 'package:countman/src/core/clock.dart';
 import 'package:countman/src/core/ticker.dart';
 import 'package:countman/src/core/types.dart';
 import 'package:countman/src/core/start_scheduler.dart';
@@ -9,6 +10,18 @@ import 'package:countman/src/elapsed/plugin.dart';
 import 'package:countman/src/elapsed/types.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// 统计单调钟读取次数的手动时钟。
+class _CountingClock extends ManualCountmanClock {
+  /// 自上次清零以来的单调钟读取次数。
+  int reads = 0;
+
+  @override
+  int monotonicMicros() {
+    reads++;
+    return super.monotonicMicros();
+  }
+}
 
 /// 验证异常隔离、逐帧完成和启动取消契约。
 void main() {
@@ -103,15 +116,10 @@ void main() {
     expect(errors.single.library, 'countman');
   });
   test('完成和阈值逐帧检查，每帧每组只读取一次时钟', () {
-    final old = countdownClock;
-    var now = DateTime(2026);
-    var reads = 0;
-    countdownClock = () {
-      reads++;
-      return now;
-    };
-    addTearDown(() => countdownClock = old);
-    final p = Countdown();
+    // 改写理由：相对时长改用单调钟，读数计数挂在注入的 CountmanClock 上；
+    // 显示更新改为按任务自己的桶边界，1.5s 任务在剩余降到 1s 以下的帧更新。
+    final clock = _CountingClock();
+    final p = Countdown(clock: clock);
     p.onAttach(CountmanContext(requestFrame: () {}));
     final updates = <int>[];
     var complete = false;
@@ -128,15 +136,15 @@ void main() {
     p.add(const CountdownOptions(duration: Duration(seconds: 3)));
     p.tick(Duration.zero, Duration.zero);
     for (var ms = 16; ms <= 1504; ms += 16) {
-      now = DateTime(2026).add(Duration(milliseconds: ms));
-      reads = 0;
+      clock.advance(frame);
+      clock.reads = 0;
       p.tick(Duration(milliseconds: ms), frame);
-      expect(reads, 1);
+      expect(clock.reads, 1);
       if (ms == 1248) expect(threshold, isFalse);
       if (ms == 1264) expect(threshold, isTrue);
     }
     expect(complete, isTrue);
-    expect(updates, [1500, 492, 0]);
+    expect(updates, [1500, 988, 0]);
   });
   test('零时长首帧完成，取消后同帧不能暂停或复活', () {
     final p = Countdown();

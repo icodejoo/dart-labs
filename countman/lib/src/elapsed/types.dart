@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../core/clock.dart';
 import '../core/plugin_base.dart';
 import '../core/time_parts.dart';
 
@@ -43,12 +42,12 @@ class ElapsedOptions {
   final VoidCallback? onResume;
 }
 
-/// Internal task state.
-///
-/// 秒表以单调时间锚定起点，暂停和恢复时不受墙钟变化影响。
+/// 正计时内部任务状态；以单调钟锚定起点，不受墙钟变化影响。
 class ElapsedTask extends ClockTask {
+  /// [startMicros] 为起点的单调钟微秒。
   ElapsedTask({
     required int id,
+    required this.startMicros,
     void Function(TimeParts)? onUpdate,
     Duration? threshold,
     void Function()? onThreshold,
@@ -57,17 +56,19 @@ class ElapsedTask extends ClockTask {
     super.onReady,
     super.onStart,
     super.onCancel,
-  })  : startTime = elapsedClock(),
-        super(id, onUpdate: onUpdate, threshold: threshold, onThreshold: onThreshold);
+  }) : super(
+         id,
+         onUpdate: onUpdate,
+         threshold: threshold,
+         onThreshold: onThreshold,
+       );
 
-  /// 单调时间起点；累计时间为当前单调时间减去起点。
-  Duration startTime;
+  /// 单调钟起点微秒；累计时间为当前单调钟减去它。
+  int startMicros;
 
   /// Snapshot of elapsed when paused; null means running.
   Duration? pausedElapsed;
 
   @override
   bool get isPaused => pausedElapsed != null;
-
-  Duration get elapsed => isPaused ? pausedElapsed! : elapsedClock() - startTime;
 }
