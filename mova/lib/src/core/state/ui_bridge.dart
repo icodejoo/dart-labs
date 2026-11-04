@@ -12,6 +12,9 @@ class MovaUiTimers {
   Timer? _hide;
   Timer? _hud;
 
+  /// 自动隐藏是否已登记且未到期。
+  bool get hidePending => _hide != null;
+
   /// 重新登记自动隐藏。
   void armHide(Duration delay) {
     cancelHide();

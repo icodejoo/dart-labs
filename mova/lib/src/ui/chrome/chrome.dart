@@ -218,7 +218,7 @@ void movaSetChromeControls(MovaChrome chrome, MovaCtrlsConfig controls) {
   if (chrome._controls == controls) return;
   chrome._controls = controls;
   final api = chrome._api;
-  if (chrome._autoHideTimer != null ||
+  if (chrome._timers.hidePending ||
       (api is MovaUiBridge && (api as MovaUiBridge).uiReady)) {
     chrome._armAutoHide();
   }
