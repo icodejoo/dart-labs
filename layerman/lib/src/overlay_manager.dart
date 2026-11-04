@@ -85,8 +85,8 @@ class OverlayRecord {
   /// Whether the entry currently occupies a slot / overlaps (vs queued).
   final bool active;
 
-  /// `pending` / `resolving` / `open` / `closing`.
-  final String phase;
+  /// 条目当前的生命周期阶段。
+  final OverlayPhase phase;
 
   /// 提交时复制的只读标签集合，默认空集合。
   final Set<String> tags;
@@ -219,8 +219,6 @@ class OverlayHold {
   }
 }
 
-enum _EntryPhase { pending, resolving, open, closing }
-
 /// Internal, generic-erased queue/active record.
 class _Entry {
   _Entry({
@@ -264,7 +262,7 @@ class _Entry {
   final Duration? exitDuration;
 
   final OverlayPredicate? when;
-  final Object? route;
+  final RouteMatcher? route;
   final bool? requiresAuth;
   final bool dismissWhenUnmet;
   final OverlayCooldown? cooldown;
@@ -328,7 +326,7 @@ class _Entry {
     resolveTimer = null;
   }
 
-  _EntryPhase phase = _EntryPhase.pending;
+  OverlayPhase phase = OverlayPhase.pending;
   bool skipGap = false;
   bool delayConsumed = false;
 
@@ -353,11 +351,12 @@ class _Entry {
   Timer? removeTimer;
 
   bool get isActive =>
-      phase == _EntryPhase.open ||
-      phase == _EntryPhase.closing ||
-      phase == _EntryPhase.resolving;
+      phase == OverlayPhase.open ||
+      phase == OverlayPhase.closing ||
+      phase == OverlayPhase.resolving;
 
-  bool get isShown => phase == _EntryPhase.open || phase == _EntryPhase.closing;
+  bool get isShown =>
+      phase == OverlayPhase.open || phase == OverlayPhase.closing;
 }
 
 /// Per-slot serial state.
@@ -665,14 +664,10 @@ class Layerman extends ChangeNotifier {
     OverlayCooldownStorage? cooldownStorage,
     String storageKey = 'layerman:cooldown',
     DateTime Function()? now,
-    List<Object> pauseOnRoutes = const <Object>[],
+    List<RouteMatcher> pauseOnRoutes = const <RouteMatcher>[],
   })  : assert(slots.values.every(
             (options) => options.maxQueued == null || options.maxQueued! > 0)),
         slots = Map<String, OverlaySlotOptions>.unmodifiable(slots),
-        assert(
-          pauseOnRoutes.every(_isRoutePattern),
-          'each pauseOnRoutes pattern must be a String, List<String> or RegExp',
-        ),
         _pauseOnRoutes = pauseOnRoutes,
         _now = now ?? DateTime.now {
     _cooldowns =
@@ -866,7 +861,7 @@ class Layerman extends ChangeNotifier {
   final Map<String, _Entry> _byId = <String, _Entry>{};
   final Map<String, Object?> _context = <String, Object?>{};
   int _seqCounter = 0;
-  final List<Object> _pauseOnRoutes;
+  final List<RouteMatcher> _pauseOnRoutes;
 
   /// Explicit [pauseAll]/[resumeAll] state — independent of [_routeZonePaused];
   /// the effective [_paused] is their OR, so leaving a route zone doesn't
@@ -911,7 +906,7 @@ class Layerman extends ChangeNotifier {
   /// 正在解析且占据槽位的 id，包含 overlap 中正在解析的条目。
   List<String> get resolvingIds => [
         for (final e in _byId.values)
-          if (e.phase == _EntryPhase.resolving) e.id,
+          if (e.phase == OverlayPhase.resolving) e.id,
       ];
 
   /// 所有受管条目的快照；各 slot 内先当前条目，再按出场顺序列出队列。
@@ -932,7 +927,7 @@ class Layerman extends ChangeNotifier {
 
   /// 将内部条目转换为只读状态快照。
   OverlayRecord _record(_Entry e) =>
-      OverlayRecord._(e.id, e.slot, e.data, e.isActive, e.phase.name, e.tags);
+      OverlayRecord._(e.id, e.slot, e.data, e.isActive, e.phase, e.tags);
 
   /// id 是否已展示（仅 open/closing，不含 resolving）。
   bool isShowing(String id) {
@@ -1062,7 +1057,7 @@ class Layerman extends ChangeNotifier {
       }
     }
     for (final e in _byId.values.toList()) {
-      if (!_paused && e.phase == _EntryPhase.resolving && e.hasHeldData) {
+      if (!_paused && e.phase == OverlayPhase.resolving && e.hasHeldData) {
         e.hasHeldData = false;
         _open(e);
       }
@@ -1139,14 +1134,13 @@ class Layerman extends ChangeNotifier {
   /// * [delay] — wait before this overlay appears (overrides [gap] for itself).
   /// * [duration] — auto-close this long after opening.
   /// * [expireAfter] — maximum serial queue wait; ignored for overlap.
-  /// * [replace] — preempt the slot's current overlay, show immediately
-  ///   (unless the current one is [affix]ed, or the replacer is not eligible).
-  ///   The preempted overlay is closed (its result completes `null`); backends
-  ///   cannot be faithfully re-presented, so there is no re-show.
-  /// * [affix] — protect this overlay from `replace` (explicit [close]/
-  ///   [remove]/[clear] still work; duplicate-id self-update is not blocked).
-  /// * [overlap] — bypass the queue and stack on top immediately. Conditions/
-  ///   cooldown act as a fire-gate: not eligible ⇒ dropped (result `null`).
+  /// * [mode]：默认 [OverlayMode.queue] 串行排队。
+  ///   [OverlayMode.replace] 在自身满足资格且当前条目未被 [affix] 保护时抢占；
+  ///   被抢占条目以 null 结束，不再重新展示。
+  ///   [OverlayMode.overlap] 立即绕过队列叠加；条件或冷却不满足时直接丢弃，
+  ///   结果为 null（现在或永不）。
+  /// * [affix]：保护当前条目免于抢占；[close]/[remove]/[clear] 及同 id
+  ///   重新提交仍然有效，与出场方式相互独立。
   /// * [when]/[route]/[requiresAuth] — conditions against [setContext]
   ///   (`when` overrides the sugar); [dismissWhenUnmet] (default true)
   ///   auto-dismisses a shown overlay whose conditions stop holding.
@@ -1170,11 +1164,10 @@ class Layerman extends ChangeNotifier {
     Duration? delay,
     Duration? duration,
     Duration? expireAfter,
-    bool replace = false,
+    OverlayMode mode = OverlayMode.queue,
     bool affix = false,
-    bool overlap = false,
     OverlayPredicate? when,
-    Object? route,
+    RouteMatcher? route,
     bool? requiresAuth,
     bool dismissWhenUnmet = true,
     OverlayCooldown? cooldown,
@@ -1193,9 +1186,8 @@ class Layerman extends ChangeNotifier {
         delay: delay,
         duration: duration,
         expireAfter: expireAfter,
-        replace: replace,
+        mode: mode,
         affix: affix,
-        overlap: overlap,
         when: when,
         route: route,
         requiresAuth: requiresAuth,
@@ -1208,6 +1200,8 @@ class Layerman extends ChangeNotifier {
       ).result;
 
   /// 提交条目并返回类型化票据；参数与 open 相同。
+  /// [mode] 默认串行排队；replace 抢占当前条目，overlap 仅在当下满足条件时叠加。
+  /// [route] 匹配上下文中的字符串路由，when 存在时忽略此条件。
   /// expireAfter 仅计算激活前的串行排队时间，overlap 不适用。
   /// tags 默认空集合，提交时复制，之后通过 recordOf 或 records 只读查询。
   OverlayTicket<T> submit<T>({
@@ -1220,11 +1214,10 @@ class Layerman extends ChangeNotifier {
     Duration? delay,
     Duration? duration,
     Duration? expireAfter,
-    bool replace = false,
+    OverlayMode mode = OverlayMode.queue,
     bool affix = false,
-    bool overlap = false,
     OverlayPredicate? when,
-    Object? route,
+    RouteMatcher? route,
     bool? requiresAuth,
     bool dismissWhenUnmet = true,
     OverlayCooldown? cooldown,
@@ -1240,10 +1233,8 @@ class Layerman extends ChangeNotifier {
         'cooldown is keyed by id: pass an explicit id. An auto-generated id '
         'changes on every open, so the cap would never apply.',
       );
-      assert(
-        route == null || _isRoutePattern(route),
-        'route must be a String, List<String> or RegExp',
-      );
+      final replace = mode == OverlayMode.replace;
+      final overlap = mode == OverlayMode.overlap;
       final resolvedId = id ?? 'overlay:${++_seqCounter}';
       final completer = Completer<T?>();
       final outcome = Completer<OverlayOutcome<T>>();
@@ -1376,7 +1367,7 @@ class Layerman extends ChangeNotifier {
             expireAfter,
             () => _batch(() {
                   if (!_isCurrent(entry) ||
-                      entry.phase != _EntryPhase.pending) {
+                      entry.phase != OverlayPhase.pending) {
                     return;
                   }
                   _remove(entry, reason: OverlayEndReason.queueExpired);
@@ -1552,16 +1543,9 @@ class Layerman extends ChangeNotifier {
     return true;
   }
 
-  static bool _routeMatches(Object pattern, Object? current) {
-    if (current is! String) return false;
-    if (pattern is String) return pattern == current;
-    if (pattern is List<String>) return pattern.contains(current);
-    if (pattern is RegExp) return pattern.hasMatch(current);
-    return false;
-  }
-
-  static bool _isRoutePattern(Object o) =>
-      o is String || o is List<String> || o is RegExp;
+  /// 使用类型化匹配器判断当前路由，非字符串路由不匹配。
+  static bool _routeMatches(RouteMatcher pattern, Object? current) =>
+      pattern.matches(current);
 
   /// 持久化上限必须等待读取结束才能判定。
   bool _waitingForHydrate(_Entry e) =>
@@ -1703,13 +1687,13 @@ class Layerman extends ChangeNotifier {
     if (resolver != null) {
       // Backend-driven payload: the slot is committed while resolving (not
       // interrupted by later arrivals); null ⇒ skip without opening.
-      e.phase = _EntryPhase.resolving;
+      e.phase = OverlayPhase.resolving;
       final timeout = e.resolveTimeout;
       if (timeout != null) {
         e.resolveTimer = Timer(
             timeout,
             () => _batch(() {
-                  if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) {
+                  if (!_isCurrent(e) || e.phase != OverlayPhase.resolving) {
                     return;
                   }
                   _reportError(
@@ -1732,7 +1716,7 @@ class Layerman extends ChangeNotifier {
 
   void _onResolved(_Entry e, Object? data) {
     return _batch(() {
-      if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) return;
+      if (!_isCurrent(e) || e.phase != OverlayPhase.resolving) return;
       e.resolveTimer?.cancel();
       e.resolveTimer = null;
       if (data == null) {
@@ -1758,7 +1742,7 @@ class Layerman extends ChangeNotifier {
   }
 
   void _open(_Entry e) {
-    e.phase = _EntryPhase.open;
+    e.phase = OverlayPhase.open;
     try {
       e.presentBackend();
     } catch (error, stack) {
@@ -1822,7 +1806,7 @@ class Layerman extends ChangeNotifier {
   void _thawDuration(_Entry e) {
     if (_paused || e.paused) return;
     final remaining = e.durationRemaining;
-    if (remaining == null || e.phase != _EntryPhase.open) return;
+    if (remaining == null || e.phase != OverlayPhase.open) return;
     e.durationRemaining = null;
     e.durationDeadline = _now().add(remaining);
     e.durationTimer = Timer(remaining, () => _autoClose(e));
@@ -1834,7 +1818,7 @@ class Layerman extends ChangeNotifier {
   bool _isCurrent(_Entry e) => _byId[e.id] == e;
 
   /// Whether [e] can still be meaningfully closed (actually shown).
-  bool _closable(_Entry e) => e.phase == _EntryPhase.open;
+  bool _closable(_Entry e) => e.phase == OverlayPhase.open;
 
   void _close(_Entry e, Object? result) {
     if (!_closable(e) || e.closeGuardPending) return;
@@ -1875,7 +1859,7 @@ class Layerman extends ChangeNotifier {
     e.durationTimer = null;
     e.durationRemaining = null;
     _settle(e, result, reason);
-    e.phase = _EntryPhase.closing;
+    e.phase = OverlayPhase.closing;
     _notify();
     if (!_isCurrent(e)) return; // a listener removed/replaced it meanwhile
     if (e.externalDismiss == null || e.externalDone) {
@@ -1910,9 +1894,9 @@ class Layerman extends ChangeNotifier {
       e.dismissTimer = null;
       _settle(e, result, OverlayEndReason.dismissedByBackend);
       if (!_isCurrent(e)) return; // already removed / replaced in place
-      if (e.phase == _EntryPhase.open) {
+      if (e.phase == OverlayPhase.open) {
         // Closed directly by the backend (not via our close()).
-        e.phase = _EntryPhase.closing;
+        e.phase = OverlayPhase.closing;
         _notify();
       }
       final grace = e.exitDuration;

@@ -87,7 +87,7 @@ void main() {
             if (manager.recordOf(_id) == null) {
               manager.open(
                 id: _id,
-                overlap: overlap,
+                mode: overlap ? OverlayMode.overlap : OverlayMode.queue,
                 present: (context) {
                   shown++;
                   return _present(context);
@@ -95,7 +95,7 @@ void main() {
               );
               expect(shown, 0);
               expect(manager.queuedIds, contains(_id));
-              expect(manager.recordOf(_id)!.phase, 'pending');
+              expect(manager.recordOf(_id)!.phase, OverlayPhase.pending);
             }
             return const SizedBox();
           });
@@ -114,7 +114,7 @@ void main() {
     final manager = Layerman();
     addTearDown(manager.dispose);
     await tester.pumpWidget(Builder(builder: (_) {
-      manager.open(id: _id, overlap: true, present: _present);
+      manager.open(id: _id, mode: OverlayMode.overlap, present: _present);
       manager.pauseAll();
       return const SizedBox();
     }));
@@ -167,7 +167,7 @@ void main() {
     await tester.pumpWidget(Builder(builder: (_) {
       manager.open(
           id: _id,
-          overlap: true,
+          mode: OverlayMode.overlap,
           present: (c) {
             shown++;
             return _present(c);
@@ -207,7 +207,7 @@ void main() {
     /// 重入时检查最外层提交已经完成。
     void listener() {
       expect(manager.activeIds, [_id]);
-      expect(manager.recordOf(_id)!.phase, 'open');
+      expect(manager.recordOf(_id)!.phase, OverlayPhase.open);
       if (!reentered) {
         reentered = true;
         manager.open(id: 'nested', present: _present);
@@ -313,7 +313,7 @@ void main() {
         id: 'session',
         cooldown: const OverlayCooldown(session: 1),
         present: _present,
-        overlap: true);
+        mode: OverlayMode.overlap);
     _expectStatus(
         manager.cooldownStatus('session', const OverlayCooldown(session: 1)),
         canShow: false,
@@ -332,7 +332,7 @@ void main() {
         permanent: true);
     manager.open(
         id: _id,
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 1),
         present: _present);
     expect(manager.queuedIds, [_id]);
@@ -387,7 +387,7 @@ void main() {
     for (final id in [_id, _other]) {
       manager.open(
           id: id,
-          overlap: true,
+          mode: OverlayMode.overlap,
           cooldown: const OverlayCooldown(total: 2),
           present: _present);
     }
@@ -542,12 +542,12 @@ void main() {
     manager.pauseAll();
     manager.open(
         id: _id,
-        overlap: true,
+        mode: OverlayMode.overlap,
         present: (c) {
           manager.pauseAll();
           return _present(c);
         });
-    manager.open(id: _next, overlap: true, present: _present);
+    manager.open(id: _next, mode: OverlayMode.overlap, present: _present);
     manager.resumeAll();
     expect(manager.activeIds, [_id]);
     expect(manager.queuedIds, [_next]);
@@ -562,7 +562,7 @@ void main() {
     final ticket = manager.submit(
         id: _id,
         tags: {_tag},
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: _gapCooldown,
         present: _present);
     manager.clearTag(_tag);

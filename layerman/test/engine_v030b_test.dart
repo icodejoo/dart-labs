@@ -90,10 +90,12 @@ void main() {
     addTearDown(manager.dispose);
     final first = manager.submit(present: _FakeBackend().present);
     final second = manager.submit(
-        present: _FakeBackend().present, replace: true, affix: true);
+        present: _FakeBackend().present,
+        mode: OverlayMode.replace,
+        affix: true);
     await _expectOutcome(first, OverlayEndReason.replaced);
-    final third =
-        manager.submit(present: _FakeBackend().present, replace: true);
+    final third = manager.submit(
+        present: _FakeBackend().present, mode: OverlayMode.replace);
     expect(second.isActive, isTrue);
     expect(manager.queuedIds, contains(third.id));
   });
@@ -150,7 +152,7 @@ void main() {
         manager.submit(present: _FakeBackend().present, requiresAuth: true);
     final kept = manager.submit(
         present: _FakeBackend().present,
-        overlap: true,
+        mode: OverlayMode.overlap,
         requiresAuth: true,
         dismissWhenUnmet: false);
     manager.setContext({'auth': false});
@@ -194,7 +196,9 @@ void main() {
     final manager = Layerman();
     addTearDown(manager.dispose);
     final dropped = manager.submit(
-        present: _FakeBackend().present, overlap: true, when: (_) => false);
+        present: _FakeBackend().present,
+        mode: OverlayMode.overlap,
+        when: (_) => false);
     await _expectOutcome(dropped, OverlayEndReason.dropped);
     final waiting =
         manager.submit(present: _FakeBackend().present, when: (_) => false);
@@ -209,7 +213,7 @@ void main() {
           present: _FakeBackend().present,
           id: _id,
           cooldown: const OverlayCooldown(session: 0),
-          overlap: overlap);
+          mode: overlap ? OverlayMode.overlap : OverlayMode.queue);
       await _expectOutcome(ticket, OverlayEndReason.capped);
     });
   }
@@ -263,8 +267,9 @@ void main() {
       final events = <OverlayEvent>[];
       var closed = false;
       manager.events.listen(events.add, onDone: () => closed = true);
-      final ticket =
-          manager.submit(present: _FakeBackend().present, overlap: overlap);
+      final ticket = manager.submit(
+          present: _FakeBackend().present,
+          mode: overlap ? OverlayMode.overlap : OverlayMode.queue);
       ticket.close();
       await tester.pump();
       expect(events.map((e) => e.type), [
@@ -288,7 +293,8 @@ void main() {
     final events = <OverlayEvent>[];
     manager.events.listen(events.add);
     manager.submit(present: _FakeBackend().present);
-    manager.submit(present: _FakeBackend().present, id: _id, replace: true);
+    manager.submit(
+        present: _FakeBackend().present, id: _id, mode: OverlayMode.replace);
     manager.submit(present: _FakeBackend().present, id: _id);
     await tester.pump();
     expect(
@@ -299,7 +305,7 @@ void main() {
   });
 
   testWidgets('多个 hold 与手动、路由暂停按 OR 组合，释放幂等', (tester) async {
-    final manager = Layerman(pauseOnRoutes: const [_zone]);
+    final manager = Layerman(pauseOnRoutes: const [RouteMatcher.exact(_zone)]);
     addTearDown(manager.dispose);
     final first = manager.hold(_id);
     final second = manager.hold();
@@ -367,7 +373,9 @@ void main() {
     final backend = _FakeBackend();
     final ticket = manager.submit(present: backend.present, expireAfter: _tick);
     final overlap = manager.submit(
-        present: _FakeBackend().present, overlap: true, expireAfter: _tick);
+        present: _FakeBackend().present,
+        mode: OverlayMode.overlap,
+        expireAfter: _tick);
     manager.resumeAll();
     await tester.pump(_long);
     expect(backend.shown, 1);
@@ -426,7 +434,9 @@ void main() {
     manager.submit(present: _FakeBackend().present, affix: true);
     final old = manager.submit(present: _FakeBackend().present, priority: 100);
     final replacer = manager.submit(
-        present: _FakeBackend().present, priority: -100, replace: true);
+        present: _FakeBackend().present,
+        priority: -100,
+        mode: OverlayMode.replace);
     await _expectOutcome(old, OverlayEndReason.queueFull);
     expect(manager.queuedIds, [replacer.id]);
   });
@@ -479,7 +489,9 @@ void main() {
     var eligible = true;
     final backend = _FakeBackend();
     final ticket = manager.submit(
-        present: backend.present, overlap: true, when: (_) => eligible);
+        present: backend.present,
+        mode: OverlayMode.overlap,
+        when: (_) => eligible);
     eligible = false;
     manager.resumeAll();
     await _expectOutcome(ticket, OverlayEndReason.dropped);

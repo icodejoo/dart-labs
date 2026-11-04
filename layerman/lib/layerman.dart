@@ -24,6 +24,9 @@ export 'src/overlay_manager.dart'
         Present;
 export 'src/overlay_types.dart'
     show
+        OverlayMode,
+        RouteMatcher,
+        OverlayPhase,
         OverlayEndReason,
         OverlayOutcome,
         OverlayCooldownStatus,

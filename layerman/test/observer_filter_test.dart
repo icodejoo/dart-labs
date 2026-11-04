@@ -41,7 +41,7 @@ Future<GlobalKey<NavigatorState>> _mount(
 }
 
 /// 创建管理器并保证测试结束时释放资源，兼容测试中提前销毁。
-Layerman _manager({List<String>? pauseOnRoutes}) {
+Layerman _manager({List<RouteMatcher>? pauseOnRoutes}) {
   final manager = Layerman(pauseOnRoutes: pauseOnRoutes ?? const []);
   addTearDown(() {
     if (!manager.isDisposed) manager.dispose();
@@ -110,7 +110,10 @@ void main() {
     expect(manager.currentRoute, _home);
 
     final backend = _Backend();
-    manager.open<void>(id: _promo, route: _home, present: backend.present);
+    manager.open<void>(
+        id: _promo,
+        route: const RouteMatcher.exact(_home),
+        present: backend.present);
     expect(manager.isShowing(_promo), isTrue);
     key.currentState!.push(_page(null));
     await tester.pumpAndSettle();
@@ -126,8 +129,8 @@ void main() {
     final key = await _mount(tester, [LayermanNavigatorObserver(manager)]);
     final result = manager.open<void>(
       id: _promo,
-      overlap: true,
-      route: _home,
+      mode: OverlayMode.overlap,
+      route: const RouteMatcher.exact(_home),
       present: (_) => _presentDialog(key.currentContext!),
     );
     await tester.pumpAndSettle();
@@ -146,7 +149,7 @@ void main() {
   });
 
   testWidgets('B7：免打扰页的匿名确认框不释放队列，离开页面才恢复', (tester) async {
-    final manager = _manager(pauseOnRoutes: const [_zone]);
+    final manager = _manager(pauseOnRoutes: const [RouteMatcher.exact(_zone)]);
     final key = await _mount(tester, [LayermanNavigatorObserver(manager)]);
     key.currentState!.push(_page(_zone));
     await tester.pumpAndSettle();
@@ -237,7 +240,7 @@ void main() {
   });
 
   testWidgets('自定义键供 when 读取，不改变默认路径或触发默认免打扰条件', (tester) async {
-    final manager = _manager(pauseOnRoutes: const [_zone]);
+    final manager = _manager(pauseOnRoutes: const [RouteMatcher.exact(_zone)]);
     manager.setContext(const {_routeKey: _home});
     final key = await _mount(tester, [
       LayermanNavigatorObserver(manager, contextKey: _tabKey),
@@ -251,7 +254,7 @@ void main() {
     );
     manager.open<void>(
       id: _queued,
-      route: _zone,
+      route: const RouteMatcher.exact(_zone),
       present: defaultBackend.present,
     );
     expect(backend.presented, isFalse);

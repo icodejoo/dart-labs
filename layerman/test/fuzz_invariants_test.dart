@@ -85,7 +85,7 @@ class _TicketProbe {
   /// 可被下一次提交复用的标识。
   final String id;
 
-  /// overlap 优先于 replace，决定 I1 的串行分类。
+  /// 是否以 overlap 模式提交，决定 I1 的串行分类。
   final bool overlap;
 
   /// 本次提交专属后端。
@@ -134,7 +134,8 @@ class _Scenario {
       dismissTimeout: _timeout,
       resolveTimeout: _timeout,
       cooldownStorage: MemoryCooldownStorage(),
-      pauseOnRoutes: zoneEnabled ? const [_blocked] : const [],
+      pauseOnRoutes:
+          zoneEnabled ? const [RouteMatcher.exact(_blocked)] : const [],
       slots: random.nextBool()
           ? const {'b': OverlaySlotOptions(maxQueued: 2, gap: _slow)}
           : const {},
@@ -221,8 +222,13 @@ class _Scenario {
   void submit(String id) {
     final slot = _slots[random.nextInt(_slots.length)];
     final flags = random.nextInt(8);
-    final overlap = flags == 2 || flags == 3;
-    final replace = flags == 1 || flags == 3;
+    // 保留既有种子的抽样次数和模式分布，旧组合分支映射到实际生效的 overlap。
+    final mode = switch (flags) {
+      1 => OverlayMode.replace,
+      2 || 3 => OverlayMode.overlap,
+      _ => OverlayMode.queue,
+    };
+    final overlap = mode == OverlayMode.overlap;
     final affix = flags == 4;
     final priority = random.nextInt(4) - 1;
     final resolver = random.nextInt(7);
@@ -235,7 +241,7 @@ class _Scenario {
     final duration = random.nextBool() ? null : _slow;
     final exit = random.nextBool() ? null : _slow;
     final expiry = random.nextBool() ? null : _timeout;
-    log.add('submit $id slot=$slot priority=$priority replace=$replace '
+    log.add('submit $id slot=$slot priority=$priority mode=$mode '
         'overlap=$overlap affix=$affix resolve=$resolver guard=$guard '
         'condition=$condition cooldown=$cooldown backend=${backend.mode} '
         'delay=$delay duration=$duration exit=$exit expireAfter=$expiry');
@@ -248,14 +254,13 @@ class _Scenario {
       present: backend.present,
       data: const {'initial': true},
       priority: priority,
-      replace: replace,
-      overlap: overlap,
+      mode: mode,
       affix: affix,
       delay: delay,
       duration: duration,
       exitDuration: exit,
       expireAfter: expiry,
-      route: condition == 1 ? _home : null,
+      route: condition == 1 ? const RouteMatcher.exact(_home) : null,
       requiresAuth: condition == 2 ? true : (condition == 3 ? false : null),
       when: condition == 4 ? (context) => context['auth'] == true : null,
       cooldown: switch (cooldown) {
@@ -378,7 +383,9 @@ class _Scenario {
         reason: 'I2 记录重复\n$why');
     for (final slot in _slots) {
       final serial = records.where((r) =>
-          r.slot == slot && r.phase != 'pending' && !latest[r.id]!.overlap);
+          r.slot == slot &&
+          r.phase != OverlayPhase.pending &&
+          !latest[r.id]!.overlap);
       expect(serial.length, lessThanOrEqualTo(1), reason: 'I1\n$why');
     }
     for (final id in {..._ids, _missing, ...records.map((r) => r.id)}) {
@@ -554,7 +561,7 @@ Future<void> _ordering(int seed, WidgetTester tester) async {
         id: entry.id,
         slot: slot,
         priority: entry.priority,
-        replace: entry.replace,
+        mode: entry.replace ? OverlayMode.replace : OverlayMode.queue,
         affix: entry.affix,
         present: (context) {
           actual.add(context.id);

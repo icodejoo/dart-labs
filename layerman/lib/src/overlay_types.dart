@@ -1,5 +1,90 @@
 import 'package:flutter/foundation.dart';
 
+/// 条目的出场方式，与 affix 保护声明相互独立。
+enum OverlayMode {
+  /// 默认，串行排队。
+  queue,
+
+  /// 抢占所在 slot 的当前条目。
+  replace,
+
+  /// 绕过队列叠加在上面，现在或永不。
+  overlap,
+}
+
+/// 条目当前所处的生命周期阶段。
+enum OverlayPhase {
+  /// 等待条件、冷却或槽位释放。
+  pending,
+
+  /// 已占据槽位，正在解析数据。
+  resolving,
+
+  /// 后端已展示条目。
+  open,
+
+  /// 已请求关闭，等待后端退场完成。
+  closing,
+}
+
+/// 匹配上下文中的路由；非 String 路由始终不匹配。
+///
+/// 例如 `route: const RouteMatcher.exact('/home')` 精确匹配路径，
+/// `const RouteMatcher.anyOf(['/home', '/profile'])` 匹配多个路径，
+/// `RouteMatcher.regex(RegExp(r'^/user/'))` 匹配路径模式。
+sealed class RouteMatcher {
+  /// 供内部路由匹配器初始化。
+  const RouteMatcher();
+
+  /// 创建与 [path] 精确相等的匹配器。
+  const factory RouteMatcher.exact(String path) = _ExactRoute;
+
+  /// 创建匹配 [paths] 中任一路径的匹配器；调用方不应修改该列表。
+  const factory RouteMatcher.anyOf(List<String> paths) = _AnyOfRoute;
+
+  /// 创建使用 [pattern] 的 hasMatch 判断路径的匹配器。
+  factory RouteMatcher.regex(RegExp pattern) = _RegexRoute;
+
+  /// 返回 [route] 是否匹配；null 或非 String 值返回 false。
+  bool matches(Object? route);
+}
+
+/// 精确路径匹配器。
+class _ExactRoute extends RouteMatcher {
+  /// 保存目标路径。
+  const _ExactRoute(this.path);
+
+  /// 必须完全相等的路径。
+  final String path;
+
+  @override
+  bool matches(Object? route) => route is String && route == path;
+}
+
+/// 候选路径列表匹配器。
+class _AnyOfRoute extends RouteMatcher {
+  /// 保存候选路径列表。
+  const _AnyOfRoute(this.paths);
+
+  /// 允许匹配的路径。
+  final List<String> paths;
+
+  @override
+  bool matches(Object? route) => route is String && paths.contains(route);
+}
+
+/// 正则路径匹配器。
+class _RegexRoute extends RouteMatcher {
+  /// 保存正则表达式。
+  _RegexRoute(this.pattern);
+
+  /// 用于 hasMatch 的表达式。
+  final RegExp pattern;
+
+  @override
+  bool matches(Object? route) => route is String && pattern.hasMatch(route);
+}
+
 /// 条目为什么结束，或为什么没有出场。
 enum OverlayEndReason {
   /// 管理器主动关闭。

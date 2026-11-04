@@ -6,26 +6,26 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 // 原样复制 README 中文共享 helper，确保配方直接可用。
 Present<T> dialog<T>(Widget child) => (ctx) {
-  final navigator = navigatorKey.currentState!;
-  final route = DialogRoute<T>(
-    context: navigator.context,
-    settings: RouteSettings(name: 'om://${ctx.id}'),
-    builder: (_) => child,
-  );
-  navigator.push(route);
-  return PresentedOverlay<T>(
-    dismissed: route.completed, // 退场动画结束后完成，并携带 pop 的结果
-    dismiss: ([r]) async {
-      final nav = route.navigator;
-      if (nav == null || !route.isActive) return;
-      if (route.isCurrent) {
-        nav.pop(r); // 栈顶：播放退场动画
-      } else {
-        nav.removeRoute(route); // 被其它路由盖住：只移除这一条
-      }
-    },
-  );
-};
+      final navigator = navigatorKey.currentState!;
+      final route = DialogRoute<T>(
+        context: navigator.context,
+        settings: RouteSettings(name: 'om://${ctx.id}'),
+        builder: (_) => child,
+      );
+      navigator.push(route);
+      return PresentedOverlay<T>(
+        dismissed: route.completed, // 退场动画结束后完成，并携带 pop 的结果
+        dismiss: ([r]) async {
+          final nav = route.navigator;
+          if (nav == null || !route.isActive) return;
+          if (route.isCurrent) {
+            nav.pop(r); // 栈顶：播放退场动画
+          } else {
+            nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+          }
+        },
+      );
+    };
 
 // 记录真实路由，既检查队列状态，也检查 Navigator 中实际留下了什么。
 class _RouteObserver extends NavigatorObserver {
@@ -102,7 +102,7 @@ void main() {
     final routeA = observer.named('om://a');
     manager.open<String>(
       id: 'b',
-      overlap: true,
+      mode: OverlayMode.overlap,
       present: dialog(const AlertDialog(title: Text('弹窗 B'))),
     );
     await tester.pumpAndSettle();
@@ -181,7 +181,7 @@ void main() {
       if (buried) {
         manager.open<String>(
           id: 'cover',
-          overlap: true,
+          mode: OverlayMode.overlap,
           present: dialog(const AlertDialog(title: Text('覆盖弹窗'))),
         );
         await tester.pumpAndSettle();

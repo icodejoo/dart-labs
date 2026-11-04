@@ -103,7 +103,7 @@ void main() {
       final a = manager.open<String>(id: _a, present: present);
       await tester.pumpAndSettle();
       final routeA = observer.entry(_a);
-      manager.open<String>(id: _b, overlap: true, present: present);
+      manager.open<String>(id: _b, mode: OverlayMode.overlap, present: present);
       await tester.pumpAndSettle();
       final routeB = observer.entry(_b);
       manager.open<String>(id: _c, present: present);
@@ -304,7 +304,8 @@ void main() {
       await _app(tester, key, observer);
       final a = manager.open<String>(id: _a, present: present);
       await tester.pumpAndSettle();
-      final b = manager.open<String>(id: _b, overlap: true, present: present);
+      final b = manager.open<String>(
+          id: _b, mode: OverlayMode.overlap, present: present);
       await tester.pumpAndSettle();
       final routeB = observer.entry(_b);
       closes[_a]!(_result);
@@ -480,7 +481,7 @@ void main() {
       if (buried) {
         manager.open<String>(
             id: _b,
-            overlap: true,
+            mode: OverlayMode.overlap,
             present: DialogManager(key)<String>(_dialog));
         await tester.pumpAndSettle();
         routeB = observer.entry(_b);

@@ -133,7 +133,7 @@ void main() {
     final backend = _FakeBackend<Object>();
     final result = manager.open(
         id: 'fresh',
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 9),
         present: backend.present);
     var settled = false;
@@ -158,14 +158,14 @@ void main() {
     final backend = _FakeBackend<Object>();
     final rejected = manager.open(
         id: 'bad',
-        overlap: true,
+        mode: OverlayMode.overlap,
         when: (_) => false,
         cooldown: const OverlayCooldown(total: 9),
         present: backend.present);
     expect(await rejected, isNull);
     final capped = manager.open(
         id: 'promo',
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 1),
         present: backend.present);
     expect(manager.queuedIds, ['promo']);
@@ -207,12 +207,12 @@ void main() {
     final b = _FakeBackend<Object>();
     manager.open(
         id: 'a',
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 9),
         present: a.present);
     manager.open(
         id: 'b',
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 9),
         present: b.present);
     expect(a.presented && b.presented, isTrue);
@@ -244,7 +244,7 @@ void main() {
         present: session.present);
     manager.open(
         id: 'fresh',
-        overlap: true,
+        mode: OverlayMode.overlap,
         cooldown: const OverlayCooldown(total: 9),
         present: persistent.present);
     expect(session.presented, isTrue);

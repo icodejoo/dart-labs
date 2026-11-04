@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layerman/src/overlay_manager.dart';
+import 'package:layerman/src/overlay_types.dart';
 
 /// 可手动完成关闭并捕获展示上下文的测试后端。
 class _Backend {
@@ -196,7 +197,7 @@ void main() {
     manager.open(id: nextId, present: next.present);
     manager.dismiss(stuckId);
     await tester.pump(const Duration(seconds: 9));
-    expect(manager.recordOf(stuckId)!.phase, closingId);
+    expect(manager.recordOf(stuckId)!.phase, OverlayPhase.closing);
     await tester.pump(tick);
     expect(tester.takeException(), isA<TimeoutException>());
     expect(manager.activeIds, [nextId]);
@@ -215,7 +216,7 @@ void main() {
     await tester.pump();
     await tester.pump(tick);
     expect(tester.takeException(), isNull);
-    expect(manager.recordOf(entryId)!.phase, closingId);
+    expect(manager.recordOf(entryId)!.phase, OverlayPhase.closing);
     await tester.pump(tick);
     expect(manager.records, isEmpty);
   });
@@ -227,7 +228,7 @@ void main() {
     manager.open(id: entryId, present: backend.present);
     manager.dismiss(entryId);
     await tester.pump(longWait);
-    expect(manager.recordOf(entryId)!.phase, closingId);
+    expect(manager.recordOf(entryId)!.phase, OverlayPhase.closing);
     expect(tester.takeException(), isNull);
   });
 
@@ -266,13 +267,13 @@ void main() {
     addTearDown(manager.dispose);
     final short = manager.open<Object>(
         id: 'short',
-        overlap: true,
+        mode: OverlayMode.overlap,
         resolveTimeout: const Duration(milliseconds: 1),
         resolve: () => Completer<Object?>().future,
         present: _Backend().present);
     manager.open<Object>(
         id: unlimitedId,
-        overlap: true,
+        mode: OverlayMode.overlap,
         resolveTimeout: Duration.zero,
         resolve: () => Completer<Object?>().future,
         present: _Backend().present);
@@ -386,7 +387,8 @@ void main() {
     manager.open(id: entryId, slot: otherSlot, present: _Backend().present);
     expect(manager.activeIds, contains(highId));
     expect(manager.queuedIds, [entryId]);
-    manager.open(id: entryId, overlap: true, present: _Backend().present);
+    manager.open(
+        id: entryId, mode: OverlayMode.overlap, present: _Backend().present);
     expect(manager.activeIds, containsAll([highId, otherSlot, entryId]));
   });
 
@@ -426,12 +428,12 @@ void main() {
     manager.open(id: highId, priority: 10, present: _Backend().present);
     manager.open(
         id: replacement,
-        replace: true,
+        mode: OverlayMode.replace,
         requiresAuth: true,
         present: _Backend().present);
     manager.open<Object>(
         id: overlapId,
-        overlap: true,
+        mode: OverlayMode.overlap,
         resolve: () => Completer<Object?>().future,
         present: _Backend().present);
     expect(manager.activeIds, isEmpty);
@@ -440,7 +442,7 @@ void main() {
     expect(manager.queuedIds, [replacement, highId, lowId]);
     expect(manager.records.map((r) => r.id),
         [entryId, replacement, highId, lowId, overlapId]);
-    expect(manager.recordOf(entryId)!.phase, resolvingId);
+    expect(manager.recordOf(entryId)!.phase, OverlayPhase.resolving);
     expect(manager.recordOf(entryId)!.active, isTrue);
     expect(manager.recordOf(lowId)!.active, isFalse);
     expect(manager.recordOf('missing'), isNull);
@@ -461,11 +463,12 @@ void main() {
     expect(manager.activeIds, [closingId]);
     expect(manager.isShowing(closingId), isTrue);
     expect(manager.resolvingIds, isEmpty);
-    expect(manager.recordOf(closingId)!.phase, closingId);
+    expect(manager.recordOf(closingId)!.phase, OverlayPhase.closing);
     manager.pauseAll();
-    manager.open(id: heldId, overlap: true, present: _Backend().present);
+    manager.open(
+        id: heldId, mode: OverlayMode.overlap, present: _Backend().present);
     expect(manager.queuedIds, [heldId]);
-    expect(manager.recordOf(heldId)!.phase, 'pending');
+    expect(manager.recordOf(heldId)!.phase, OverlayPhase.pending);
     expect(manager.records.map((r) => r.id), [closingId, heldId]);
     manager.clear();
     expect(manager.recordOf(closingId), isNull);
@@ -478,7 +481,10 @@ void main() {
     manager.open(id: currentId, affix: true, present: _Backend().present);
     manager.open(id: firstId, priority: 10, present: _Backend().present);
     manager.open(id: secondQueuedId, priority: 10, present: _Backend().present);
-    manager.open(id: replacement, replace: true, present: _Backend().present);
+    manager.open(
+        id: replacement,
+        mode: OverlayMode.replace,
+        present: _Backend().present);
     expect(manager.queuedIds, [replacement, firstId, secondQueuedId]);
     manager.remove(currentId);
     expect(manager.activeIds, [replacement]);
