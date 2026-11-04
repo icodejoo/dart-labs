@@ -498,8 +498,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       );
     }
 
-    content = _wrapColorTint(
-        content, style.color ?? DefaultTextStyle.of(context).style.color ?? const Color(0xFF000000));
+    // 渐变终点色只记录、不在 build 里驱动任何东西；渐变由插件任务推进。
+    _tintBaseColor = color;
     return _wrapOnce(_wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val)));
   }
 }

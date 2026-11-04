@@ -438,4 +438,141 @@ void main() {
       c.dispose();
     });
   });
+
+  group('方向变色由共享 ticker 驱动', () {
+    const green = Color(0xFF00C853);
+    const blue = Color(0xFF2962FF);
+
+    /// 统计测试期间所有被重建的元素个数。
+    int Function() countRebuilds() {
+      var n = 0;
+      debugOnRebuildDirtyWidget = (element, builtOnce) => n++;
+      addTearDown(() => debugOnRebuildDirtyWidget = null);
+      return () => n;
+    }
+
+    AnimatedCounter counter(AnimatedCounterController c, {Duration? fade}) =>
+        AnimatedCounter(
+          controller: c,
+          duration: const Duration(milliseconds: 300),
+          style: AnimatedCounterStyle(
+            textStyle: const TextStyle(color: blue),
+            increasingColor: green,
+            colorFadeDuration: fade ?? const Duration(milliseconds: 800),
+          ),
+        );
+
+    testWidgets('渐变期间不触发任何重建，只在开始时 build 一次', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(counter(c)));
+      final rebuilds = countRebuilds();
+      c.animateTo(100);
+      await t.pump(); // 开始：setState 触发的那一次 build
+      final atStart = rebuilds();
+      expect(atStart, greaterThan(0));
+      for (var i = 0; i < 60; i++) {
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      expect(rebuilds(), atStart, reason: '共约 960ms，覆盖整个滚动与渐变，期间不应有任何 build');
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('颜色从方向色渐变回原色，并在时间轴结束时精确落到原色', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(counter(c)));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 16));
+      final painter = painterOf(t);
+      expect(painter.digitColorFor(1.0), green, reason: '开始时为方向色');
+      await t.pump(const Duration(milliseconds: 350));
+      final mid = painter.digitColorFor(1.0);
+      expect(mid, isNot(green));
+      expect(mid, isNot(blue));
+      await t.pump(const Duration(milliseconds: 600));
+      expect(painter.digitColorFor(1.0), blue, reason: '渐变结束回到原色');
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('colorFadeDuration 为 0 时立即用原色', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(counter(c, fade: Duration.zero)));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 16));
+      expect(painterOf(t).digitColorFor(1.0), blue);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('方向色任务走解析出的插件，并随分组一起结算', (t) async {
+      var ready = 0;
+      var done = 0;
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(CounterProvider(
+        onGroupReady: () => ready++,
+        onAllComplete: () => done++,
+        child: counter(c),
+      )));
+      c.animateTo(100);
+      await settle(t, total: const Duration(seconds: 3));
+      expect(ready, 1);
+      expect(done, 1, reason: '渐变任务结束后分组才算空闲');
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('渐变中途卸载不留悬挂任务也不抛异常', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(counter(c)));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      await t.pumpWidget(const SizedBox());
+      await t.pump(const Duration(seconds: 2));
+      expect(t.takeException(), isNull);
+      c.dispose();
+    });
+
+    testWidgets('连续两次同方向更新：新渐变从方向色重新开始', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(counter(c)));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 700));
+      c.animateTo(200);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 16));
+      expect(painterOf(t).digitColorFor(1.0), green);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('AnimatedCounterBuilder 路径同样渐变回原色', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(AnimatedCounterBuilder(
+        controller: c,
+        duration: const Duration(milliseconds: 200),
+        style: const AnimatedCounterStyle(
+          textStyle: TextStyle(color: blue),
+          increasingColor: green,
+          colorFadeDuration: Duration(milliseconds: 400),
+        ),
+      )));
+      c.animateTo(5);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 16));
+      final digit = find.byWidgetPredicate(
+          (w) => w is Text && RegExp(r'^\d$').hasMatch(w.data ?? ''));
+      // 数字自带交叉淡入的 alpha，这里只比较色相：开始时偏绿，结束时回到蓝。
+      Color inkOf(Finder f) => t.widget<Text>(f.first).style!.color!;
+      expect(inkOf(digit).g, greaterThan(inkOf(digit).b));
+      await settle(t);
+      expect(inkOf(find.text('5')), blue);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+  });
 }

@@ -417,7 +417,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     );
 
     Widget content = widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
-    content = _wrapColorTint(content, color);
+    // 渐变终点色只记录、不在 build 里驱动任何东西；渐变由插件任务推进。
+    _tintBaseColor = color;
     return _wrapOnce(_wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val)));
   }
 }

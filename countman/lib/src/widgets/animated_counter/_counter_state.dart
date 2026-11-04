@@ -254,7 +254,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     final isDecrease  = newValue < oldValue;
     final targetColor = isIncrease ? widget.increasingColor
                       : isDecrease ? widget.decreasingColor : null;
-    if (targetColor != null) { _directionColor = targetColor; _colorAnimKey++; }
+    if (targetColor != null) _startTint(targetColor);
     _lastValue    = newValue;
     _currentValue = newValue;
 
