@@ -200,6 +200,7 @@ class OdometerCounter extends StatelessWidget {
     this.onCancel,
     this.bounceOvershoot = 0.0,
     @Deprecated('No effect; use bounceOvershoot instead')
+    @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
   })  : assert(bounceOvershoot >= 0.0),
         assert(bounceElasticity >= 1.0);
@@ -324,6 +325,7 @@ class OdometerCounter extends StatelessWidget {
   @Deprecated('No effect; use bounceOvershoot instead')
   final double bounceElasticity;
 
+  /// 将非有限端点归零，完成回调报告实际钳制显示值。
   @override
   Widget build(BuildContext context) {
     // Style: this widget's style over the enclosing provider's odometer style.
@@ -336,12 +338,15 @@ class OdometerCounter extends StatelessWidget {
     // count of the larger endpoint.
     //
     // 固定位宽前导零——机械里程表外观。位宽 = 较大端点的位数。
-    final int maxAbs = math.max((from ?? 0).abs(), to.abs()).floor();
+    final safeFrom = from != null && from!.isFinite ? from! : 0.0;
+    final safeTo = to.isFinite ? to : 0.0;
+    final displayedTo = allowNegative ? safeTo : math.max(0.0, safeTo);
+    final int maxAbs = math.max(safeFrom.abs(), displayedTo.abs()).floor();
     final int wholeDigits = maxAbs == 0 ? 1 : maxAbs.toString().length;
 
     final Widget counter = AnimatedCounter(
-      initialValue: from ?? 0,
-      value: to,
+      initialValue: safeFrom,
+      value: safeTo,
       // Honor the OS "reduce motion" flag, like CounterBuilder / CardCountdown.
       //
       // 遵循系统「减弱动态」标志，与 CounterBuilder / CardCountdown 一致。
@@ -359,7 +364,7 @@ class OdometerCounter extends StatelessWidget {
       bounceOvershoot: bounceOvershoot,
       bounceElasticity: bounceElasticity,
       onAnimationStart: onStart,
-      onAnimationEnd: onComplete == null ? null : () => onComplete!(to),
+      onAnimationEnd: onComplete == null ? null : () => onComplete!(displayedTo),
       style: AnimatedCounterStyle(
         textStyle: st?.numberTextStyle,
         numberAlignment: st?.digitAlignment?.x ?? 0.0,

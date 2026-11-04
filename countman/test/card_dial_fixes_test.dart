@@ -116,4 +116,12 @@ void main() {
     expect(local.map((p) => p.debugDisposed), everyElement(isTrue));
   });
 
+  testWidgets('Odometer 非有限端点不抛出且完成值使用实际钳制值', (t) async {
+    double? completed;
+    await t.pumpWidget(MaterialApp(home: Center(child: OdometerCounter(from: double.nan, to: -10,
+      duration: Duration.zero, onComplete: (v) => completed = v))));
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(completed, 0);
+  });
 }
