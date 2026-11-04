@@ -10,9 +10,14 @@
 
 **[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
 
+> **Upgrading from 0.2.x?** Read the
+> [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md) —
+> custom plugins, `CountdownOptions` and the relative/absolute clock semantics changed.
+
 - ⚡ **No `Timer.periodic`, no per-widget `AnimationController`** — a single `SchedulerBinding.scheduleFrameCallback` drives everything.
+- 😴 **Sleeps between updates** — a once-per-second countdown does not render a frame per vsync; the scheduler wakes up only when something is due.
 - 🚀 **Built for high concurrency** — the 100th live counter/timer costs the same as the 1st; the ticker auto-idles when nothing is animating.
-- 🎨 Counter · Countdown · Elapsed, each with text / ring / bar / odometer / dial / flip-card renderers, per-widget styles, controllers and providers.
+- 🎨 Counter · Countdown · Elapsed, each with text / ring / bar / odometer / dial / flip-card renderers, per-widget styles, a `ThemeExtension`, controllers and providers.
 
 ---
 
@@ -35,19 +40,22 @@ registrations, N timers, and N separate animation lifecycles — none of them
 aware of each other.
 
 **countman** reverses this: one `SchedulerBinding.scheduleFrameCallback` drives
-every instance. The ticker is idle between animations (auto-stops when all tasks
-finish) and wakes up on demand. Adding a hundredth counter costs the same as
-adding the first.
+every instance. Each plugin reports **when it next needs to run**; the ticker
+renders frames while something animates, **sleeps on a single global timer**
+between updates (a one-second countdown does not wake the engine 60 times a
+second), and stops when everything is idle. Adding a hundredth counter costs the
+same as adding the first.
 
 ```
-Countman (1 scheduleFrameCallback)
-  ├── Counter    — interpolates numbers from → to (every frame)
-  ├── Countdown  — wall-clock deadline timers (interval-gated)
-  └── Elapsed    — wall-clock elapsed timers (interval-gated)
+Countman (1 scheduleFrameCallback + 1 sleep timer)
+  ├── Counter    — interpolates numbers from → to (every frame while animating)
+  ├── Countdown  — relative (monotonic) or absolute (wall-clock) timers, wake per update
+  └── Elapsed    — stopwatch timers, wake per update
 ```
 
 Each engine is a `CountmanPlugin`; you can register more than one instance of
-each to isolate independent "groups".
+each to isolate independent "groups", or write your own
+([Writing a custom plugin](#writing-a-custom-plugin)).
 
 ---
 
@@ -55,7 +63,7 @@ each to isolate independent "groups".
 
 ```yaml
 dependencies:
-  countman: ^0.2.5
+  countman: ^0.3.0
 ```
 
 Requires Flutter 3.35+ (Dart 3.9+).
@@ -72,7 +80,7 @@ import 'package:countman/countman.dart';
 |---|---|---|
 | N `AnimationController`s | N | N vsync listeners |
 | N `Timer.periodic` | — | N timers |
-| **countman** | **1** | **0** |
+| **countman** | **1** | **1 shared sleep timer** |
 
 Measured at 94 concurrent `AnimatedCounter` instances (0 → 999,999,999):
 
@@ -80,7 +88,21 @@ Measured at 94 concurrent `AnimatedCounter` instances (0 → 999,999,999):
 - **Build: ~2 ms** — CustomPainter path skips widget instantiation entirely.
 - **Startup spike** is spread across frames with `StartScheduler` batching.
 
+**Sleeping scheduler (0.3.0).** Every task is processed when its own value
+crosses the next `interval` boundary (or completes, or crosses a threshold). In
+between, the scheduler arms one global timer instead of asking for a frame per
+vsync, so a text countdown at the default 1 s interval only produces frames
+around each update. Animations (`Counter`, the flip of `CardCountdown`) still
+run every frame while they move. `CardCountdown`'s cost is therefore dominated by
+its transition type and duration — `calendar` animates about 90 % of every
+second, `slide` / `flip` about 45 % — and a shorter `duration` lowers it
+proportionally.
+
 ### Head-to-head vs other packages
+
+> **Note:** the numbers below were measured with the **0.2.x scheduler**, which
+> rendered a frame on every vsync while a countdown was alive. 0.3.0 sleeps
+> between updates; the tables are kept for reference and have not been re-run.
 
 **50 concurrent countdowns**, Windows desktop **profile** mode, 15 s measurement
 window per library, run back-to-back in one session (display at 120 Hz). FPS =
@@ -89,7 +111,8 @@ CPU = share of **one** core, sampled externally from the OS process; RSS =
 resident set size. Lower is better except FPS/jank.
 
 *(50 个并发倒计时，Windows 桌面 profile 模式，每库测量 15 s，同一会话依次运行，
-显示器 120 Hz。CPU 为单核占用率，从操作系统进程外部采样。除 FPS/jank 外均越低越好。)*
+显示器 120 Hz。CPU 为单核占用率，从操作系统进程外部采样。除 FPS/jank 外均越低越好。
+以上数据基于 0.2.x 调度器测得；0.3.0 起两次更新之间休眠。)*
 
 **Card / slide mode** — countman `CardCountdown(slide)` vs [`slide_countdown`](https://pub.dev/packages/slide_countdown) `^2.0.2`:
 
@@ -126,7 +149,7 @@ the same memory.
 For plain-text countdowns the single shared ticker + `markNeedsPaint` costs
 **~35 % less CPU** than 50 independent `stop_watch_timer` streams
 (12.1 % vs 18.8 % of a core) with steadier per-frame UI time; memory is
-identical.
+identical. (Measured with the 0.2.x scheduler, see the note above.)
 
 *(纯文本倒计时下，单一共享 ticker + `markNeedsPaint` 比 50 个独立
 `stop_watch_timer` 流省约 35% CPU（单核 12.1% vs 18.8%），单帧 UI 耗时更稳；
@@ -185,7 +208,7 @@ RingCounter(
 
 Visuals live in [`RingCounterStyle`](#ring-style) (alias of `RingStyle`). Also
 supports `painterBuilder: (context, progress) => CustomPainter` for a fully
-custom arc.
+custom arc. The painter is created once and repainted in place.
 
 ### `BarCounter`
 
@@ -234,16 +257,24 @@ notation, decimals, digit grouping, color tinting and programmatic control.
 Backed by a persistent `CustomPainter` — zero widget builds per frame (the
 `AnimatedCounterBuilder` variant uses the widget-tree path instead).
 
+Configuration is grouped into three objects, each field optional:
+
+- **`format: CounterFormat`** — how the number is written (decimals, separators, compact notation, numerals).
+- **`timeline: CounterTimeline`** — how it moves (duration, curve, stagger, delay, `fast`).
+- **`style: AnimatedCounterStyle`** — how it looks (text styles, colors, padding, decoration).
+
 ```dart
 AnimatedCounter(value: 9999)
 
 AnimatedCounter(
   value: 1000000,
-  duration: const Duration(seconds: 2),
   transition: CounterTransition.slide,   // .slide·.slideScale·.slideBlur·.rotate·.flip·.flipFade
-  staggerDelay: const Duration(milliseconds: 30),
-  staggerDirection: StaggerDirection.rightToLeft,
-  thousandSeparator: ',',
+  format: const CounterFormat(thousandSeparator: ','),
+  timeline: const CounterTimeline(
+    duration: Duration(seconds: 2),
+    staggerDelay: Duration(milliseconds: 30),
+    staggerDirection: StaggerDirection.rightToLeft,
+  ),
   style: const AnimatedCounterStyle(
     textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
     increasingColor: Colors.green, decreasingColor: Colors.red,
@@ -251,47 +282,82 @@ AnimatedCounter(
 )
 
 // Currency: prefix + grouping pattern (grouping [3]=USD, [4]=CNY, [3,2]=INR)
-AnimatedCounter(value: 1234.56, prefix: r'$', fractionDigits: 2,
-    thousandSeparator: ',', groupingPattern: const [3])   // $1,234.56
+AnimatedCounter(value: 1234.56, prefix: r'$',
+    format: const CounterFormat(
+        fractionDigits: 2, thousandSeparator: ',', groupingPattern: [3]))   // $1,234.56
 
 // Compact notation
-AnimatedCounter(value: 1200000, compactNotation: true)  // "1.2M"
+AnimatedCounter(value: 1200000,
+    format: const CounterFormat(compactNotation: true))     // "1.2M"
 
 // International numerals
-AnimatedCounter(value: 2025, numeralSystem: NumeralSystem.devanagari)
+AnimatedCounter(value: 2025,
+    format: const CounterFormat(numeralSystem: NumeralSystem.devanagari))
+
+// The exact string the counter shows at rest (for labels, tests, semantics)
+const CounterFormat(thousandSeparator: ',', fractionDigits: 2).format(1234.5); // "1,234.50"
 ```
 
-Key parameters:
+> The flat parameters that duplicate these objects (`fractionDigits`,
+> `duration`, `textStyle`, …) are **deprecated** since 0.3.0 and still work with
+> the same precedence. See the [migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md#7-animatedcounter-format-timeline-style).
+
+Direct parameters:
 
 | Parameter | Default | Description |
 |---|---|---|
 | `value` | — | Target value (or drive via `controller`) |
 | `controller` | — | [`AnimatedCounterController`](#animatedcounter-controller) |
-| `duration` | `300 ms` | Animation duration |
-| `curve` | `Curves.linear` | Easing curve |
+| `plugin` | — | A `Counter` group. Resolution: this > nearest `CounterProvider` > `defaultCounter`; the provider's `onGroupReady` / `onAllComplete` apply |
+| `animateOnce` | — | Entrance plays once per stable key — see [Animate-once](#animate-once-list-friendly) |
 | `transition` | `CounterTransition.slide` | Composable look: presets `.slide`·`.slideScale`·`.slideBlur`·`.rotate`·`.flip`·`.flipFade`, or build one from a `CounterMotion` (`none`/`slide`/`rotate`/`flip`) plus `scale`/`fade`/`blur` modifiers, e.g. `CounterTransition(motion: CounterMotion.none, scale: true)` |
-| `fast` | `false` | Single-step per digit: each column moves ONE slot old→new (e.g. 1000→9999 slides 1→9 once) instead of the full cascading roll. Works with every `transition`; painter and widget paths both supported. |
+| `prefix` / `infix` / `suffix` | — | Affix text (their `*Widget` variants win) |
+| `flipDirection` | `AxisDirection.up` | Digit scroll direction |
+| `minValue` / `maxValue` | — | Clamp range |
+| `initialValue` | — | Value shown before the first animation |
+| `triggerHaptics` | `false` | Selection click on digit change |
+| `repaintBoundary` | `true` | Isolate repaint layer |
+| `semanticsLabel` | — | Fixed screen-reader label |
+| `painterBuilder` | — | Custom `CounterPainter` subclass factory |
+
+`CounterFormat` (`format:`):
+
+| Field | Default | Description |
+|---|---|---|
 | `fractionDigits` | `0` | Decimal places |
 | `wholeDigits` | `1` | Minimum integer digit slots |
 | `hideLeadingZeroes` | `true` | Hide leading zeros |
 | `thousandSeparator` | — | e.g. `','` |
 | `groupingPattern` | `[3]` | Digit grouping (`[3, 2]` for INR, `[4]` for CNY) |
 | `decimalSeparator` | `'.'` | Decimal point character |
-| `staggerDelay` | — | Per-digit stagger offset |
-| `staggerDirection` | `rightToLeft` | `leftToRight` or `rightToLeft` |
 | `compactNotation` | `false` | Show `1200000` as `1.2M` |
-| `compactAbbreviations` | K/M/B/T | Custom compact labels (`Map<num,String>`) |
-| `numeralSystem` | `latin` | `easternArabic`·`persian`·`devanagari`·`bengali` |
+| `compactFractionDigits` / `compactAbbreviations` | — / K·M·B·T | Compact precision and custom labels (`Map<num,String>`) |
 | `showPositiveSign` | `false` | Animated `+` for positive values |
-| `flipDirection` | `AxisDirection.up` | Digit scroll direction |
+| `numeralSystem` / `numeralMapper` | `latin` | `easternArabic`·`persian`·`devanagari`·`bengali`, or a custom digit mapper |
+
+`CounterTimeline` (`timeline:`):
+
+| Field | Default | Description |
+|---|---|---|
+| `duration` | `300 ms` | Animation duration |
+| `curve` | `Curves.linear` | Easing curve |
 | `reverseDuration` / `reverseCurve` | — | Timing when animating backwards |
 | `startDelay` | — | Delay before starting |
 | `speedMultiplier` | `1.0` | Scale all durations |
-| `triggerHaptics` | `false` | Selection click on digit change |
+| `staggerDelay` / `staggerDirection` | — / `rightToLeft` | Per-digit stagger offset and direction |
 | `autoEaseThreshold` | `100000` | Auto `easeInOut` for large linear ranges |
-| `repaintBoundary` | `true` | Isolate repaint layer |
-| `style` | — | `AnimatedCounterStyle` (text/affix/separator styles, alignment, `padding`, `increasingColor`/`decreasingColor`/`colorFadeDuration`, `decoration`) |
-| `painterBuilder` | — | Custom `CounterPainter` subclass factory |
+| `fast` | `false` | Single-step per digit: each column moves ONE slot old→new (e.g. 1000→9999 slides 1→9 once) instead of the full cascading roll. Works with every `transition`; painter and widget paths both supported. |
+| `curveForDigit` / `interpolation` / `bounceOvershoot` | — | Per-digit curve, custom interpolation, overshoot |
+
+`AnimatedCounterStyle` (`style:`): `textStyle`, `prefixStyle` / `infixStyle` /
+`suffixStyle` / `separatorStyle`, `numberAlignment`, `mainAxisAlignment` /
+`crossAxisAlignment`, `padding`, `useTabularFigures`, `increasingColor` /
+`decreasingColor` / `colorFadeDuration` (direction tint, driven by the shared
+ticker), `decoration`.
+
+`AnimatedCounter` follows the platform's reduce-motion setting
+(`MediaQuery.disableAnimations`): decorative animation jumps straight to the
+final value.
 
 ### `AnimatedCounterBuilder`
 
@@ -322,7 +388,10 @@ CounterBuilder(
 ```
 
 `valueTransform` maps the value before it reaches `builder`; `onUpdate` still
-sees the raw value.
+sees the raw value. `CounterBuilder.listenable` hands you a
+`ValueListenable<double>` instead and does **not** rebuild per frame — wire it
+to a `CustomPainter(repaint: …)` (`CountdownBuilder.listenable` does the same
+for `TimeParts`).
 
 ### <a name="counters-controller"></a>`CounterValueController`
 
@@ -337,10 +406,13 @@ ctrl.update(to: 9999, duration: const Duration(seconds: 1)); // retarget from cu
 ctrl.pause();
 ctrl.resume();
 ctrl.cancel();
+ctrl.restart();    // replay from the widget's current configuration
 ctrl.value;        // current animated value
 ctrl.isAnimating;  // running (not paused, not done)
 ctrl.isPaused;
 ctrl.isDone;
+ctrl.runState;     // CountmanRunState: idle / running / paused / completed
+ctrl.dispose();    // optional: release the runState notifier
 ```
 
 `update` also works after the animation finished: the widget relaunches from
@@ -348,6 +420,26 @@ the value on screen. A controller keeps working when its widget is re-keyed or
 handed to another widget, and swapping the `controller` alone never restarts
 the animation. The same holds for `CountdownController`, `ElapsedController`
 and `AnimatedCounterController`.
+
+### <a name="run-state"></a>Observing `runState`
+
+Every controller exposes its lifecycle as a `ValueListenable`, so a play/pause
+button can follow the real state without bookkeeping:
+
+```dart
+ValueListenableBuilder<CountmanRunState>(
+  valueListenable: ctrl.runStateListenable,
+  builder: (context, state, _) => IconButton(
+    icon: Icon(state == CountmanRunState.running ? Icons.pause : Icons.play_arrow),
+    onPressed: state == CountmanRunState.running ? ctrl.pause : ctrl.resume,
+  ),
+)
+```
+
+States: `idle` (not started or cancelled), `running`, `paused`, `completed`
+(finished naturally). The notifier only fires on real changes; a change made
+while a widget is building is published at the end of that frame, so listeners
+may call `setState` safely. Read `ctrl.runState` for the latest value at any time.
 
 ### <a name="animatedcounter-controller"></a>`AnimatedCounterController`
 
@@ -366,6 +458,7 @@ ctrl.restart();
 ctrl.repeat(reverse: true);
 ctrl.reverse();
 ctrl.status;            // AnimationStatus: forward / reverse / completed / dismissed
+ctrl.runState;          // CountmanRunState (also runStateListenable)
 ctrl.addStatusListener(listener);
 ```
 
@@ -376,13 +469,24 @@ ctrl.addStatusListener(listener);
 
 ## Countdown
 
-Wall-clock deadline timers. Every countdown widget accepts `to` — a
-`DateTime`, `Duration`, `int` (ms since epoch) **or** ISO-8601 `String` —
-resolved to an absolute deadline so background pauses and frame drops never
-cause drift. Shared knobs: `plugin`, `precise`, `controller`
-([`CountdownController`](#countdown-controller)), `onComplete`, `onTick`,
-`threshold` + `onThreshold`, and lifecycle `onReady`/`onStart`/`onCancel`/
-`onPause`/`onResume`.
+Every countdown widget accepts `to` — a `Duration`, `DateTime`, `int` (ms since
+epoch) **or** ISO-8601 `String`. Shared knobs: `plugin`, `precise`,
+`controller` ([`CountdownController`](#countdown-controller)), `total`,
+`rounding`, `onComplete`, `onTick`, `threshold` + `onThreshold`, and lifecycle
+`onReady`/`onStart`/`onCancel`/`onPause`/`onResume`.
+
+### Relative vs absolute: which clock?
+
+| `to` | Anchored on | System-time change |
+|---|---|---|
+| `Duration` (or `CountdownOptions.duration`) | monotonic clock | no effect — "5 more minutes" stays 5 minutes |
+| `DateTime` / `int` / `String` (or `CountdownOptions.deadline`) | wall clock | the countdown shifts — "ends at 20:00" stays 20:00 |
+
+Use a `Duration` for "N minutes from now" and a deadline for something tied to a
+real moment (a sale start, an auction end). Background pauses and frame drops
+never cause drift, and the default `SystemClock` adds back the time the device
+spent in deep sleep once the app returns to the foreground. After pause/resume
+or `reset()`, a task continues on the monotonic clock.
 
 ### `TextCountdown`
 
@@ -397,7 +501,35 @@ TextCountdown(
 )
 
 TextCountdown(to: DateTime(2026, 1, 1), formatter: CountdownFormat.dhms)
+
+// Show 10 → 1 instead of 9 → 0 (ceil rounding), template-based layout
+TextCountdown(
+  to: const Duration(seconds: 10),
+  rounding: CountdownRounding.ceil,
+  formatter: CountdownFormat.template('{s}s'),
+)
 ```
+
+### `total` and `rounding`
+
+```dart
+// Progress reflects the whole auction window, not the moment of mounting
+RingCountdown(
+  to: auctionEnd,                              // DateTime deadline
+  total: auctionEnd.difference(auctionStart),  // progress denominator
+)
+```
+
+- **`total`** sets the denominator of `TimeParts.progress` / `TimeParts.total`
+  (default: the remaining time when the task started). `reset()` still restores
+  the remaining time the task was created with.
+- **`rounding`** is `CountdownRounding.floor` (default; 9.3 s shows 9) or
+  `CountdownRounding.ceil` (9.3 s shows 10, the last whole second shows 1 and the
+  countdown completes at 0). The granularity is `interval` (1 s when
+  `interval` is 0). Completion and thresholds always use the real remaining time.
+
+Both are available on `CountdownBuilder`, `TextCountdown`, `RingCountdown`,
+`BarCountdown`, `DialCountdown` and `CardCountdown`.
 
 ### `RingCountdown`
 
@@ -467,6 +599,7 @@ CardCountdown(
   showHours: true,                     // null = auto (shown when ≥ 1 h)
   showDays: true,                      // leading days unit (default false)
   dayLabel: 'D',
+  semanticsLabel: 'Sale ends in',      // screen-reader label, default 'Countdown'
   style: const CardCountdownStyle(
     splitDigits: true,
     transitionType: CountdownType.slide,   // calendar · slide · flip
@@ -498,6 +631,9 @@ CountdownBuilder(
 )
 ```
 
+`CountdownBuilder.listenable` pushes `TimeParts` through a `ValueListenable`
+without rebuilding (see `CounterBuilder.listenable`).
+
 ### <a name="countdown-controller"></a>`CountdownController`
 
 ```dart
@@ -509,20 +645,25 @@ ctrl.pause();
 ctrl.resume();
 ctrl.reset();                                     // back to original duration (also after it finished)
 ctrl.reset(duration: const Duration(seconds: 30)); // override duration
+ctrl.restart();                                   // start over from the widget's current `to` / `total` / `rounding`
 ctrl.cancel();
 ctrl.remaining;  // Duration
 ctrl.isPaused;
 ctrl.isDone;
+ctrl.runState;   // idle / running / paused / completed — see "Observing runState"
 ```
+
+`reset` keeps the running task's length; `restart` re-reads the widget's
+configuration (for example after you changed `to` and want a fresh start).
 
 ---
 
 ## Elapsed
 
-Open-ended stopwatch timers — count up from zero indefinitely until removed or
-cancelled. Same `plugin` / `precise` / `controller`
-([`ElapsedController`](#elapsed-controller)) / `onTick` / `threshold` +
-`onThreshold` / lifecycle callbacks as Countdown.
+Stopwatch timers — count up until cancelled, or until an optional `limit`. Same
+`plugin` / `precise` / `controller` ([`ElapsedController`](#elapsed-controller)) /
+`onTick` / `threshold` + `onThreshold` / lifecycle callbacks as Countdown, plus
+`since`, `initial`, `limit` and `onComplete`.
 
 ### `TextElapsed`
 
@@ -531,7 +672,22 @@ TextElapsed()                                  // 00:00, 00:01, 00:02, …
 TextElapsed(formatter: CountdownFormat.hms)
 TextElapsed(prefix: '⏱ ', style: const TextElapsedStyle(
   textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)))
+
+TextElapsed(since: orderTime)                  // "placed 3 minutes ago" (wall clock)
+TextElapsed(initial: savedElapsed)             // resume a stopwatch (monotonic clock)
+TextElapsed(                                   // stop at 30 minutes
+  limit: const Duration(minutes: 30),
+  onComplete: () => print('time is up'),
+)
 ```
+
+- **`since`** — wall-clock start (`elapsed = now − since`); follows system-time
+  changes until the task is paused/reset. A start in the future shows 0.
+- **`initial`** — monotonic offset to start from; unaffected by system-time
+  changes. `since` and `initial` are mutually exclusive.
+- **`limit`** — at the limit the last update equals `limit`, then `onComplete`
+  fires and the task ends (`runState` becomes `completed`).
+  `ElapsedHandle.updateLimit` changes it on the fly.
 
 ### `ElapsedBuilder`
 
@@ -550,10 +706,16 @@ TextElapsed(controller: ctrl);
 ctrl.pause();
 ctrl.resume();
 ctrl.reset();     // back to zero, then resume (also after cancel)
+ctrl.restart();   // start over from the widget's `since` / `initial` / `limit`
 ctrl.cancel();
+final split = ctrl.lap();   // record a lap, returns this lap's duration
+ctrl.laps;        // List<Duration>, paused time is not counted
 ctrl.elapsed;     // Duration
 ctrl.isPaused;
+ctrl.runState;
 ```
+
+Laps are cleared by `reset()` / `restart()` and survive a plugin change.
 
 ---
 
@@ -571,6 +733,38 @@ every countdown/elapsed text widget (via `formatter:`).
 | `CountdownFormat.dhms` | `2d 03:04:05` | Whole days when ≥ 1 day, else `hms` |
 | `CountdownFormat.dhm` | `2d 03:04` | Days + hours + minutes (no seconds) |
 | `CountdownFormat.auto` | adaptive | ≥1d → `dhms` · ≥1h → `hms` · <10s → `msTenths` · else `ms` |
+| `CountdownFormat.template(pattern)` | `1天 02:03:04` | Your own layout, parsed once |
+
+### `CountdownFormat.template`
+
+For localisation and custom layouts, describe the output with tokens in braces
+(case-sensitive). The pattern is parsed once when you call `template`; each tick
+only concatenates.
+
+| Token | Meaning |
+|---|---|
+| `{d}` | days |
+| `{H}` / `{HH}` | hours 0–23 (plain / zero-padded) |
+| `{TH}` | total hours |
+| `{m}` / `{mm}` | minutes 0–59 (plain / zero-padded) |
+| `{TM}` | total minutes |
+| `{s}` / `{ss}` | seconds 0–59 (plain / zero-padded) |
+| `{S}` | tenths of a second 0–9 |
+| `{SSS}` | milliseconds, zero-padded to three digits |
+
+Other text is output as is; unknown tokens (`{x}`), an unclosed `{` and a lone
+`}` are kept literally.
+
+```dart
+TextCountdown(
+  to: deadline,
+  formatter: CountdownFormat.template('{d}天 {HH}:{mm}:{ss}'),   // 1天 02:03:04
+)
+TextCountdown(to: const Duration(minutes: 90),
+    formatter: CountdownFormat.template('剩余 {TM} 分 {ss} 秒'))   // 剩余 90 分 00 秒
+TextCountdown(to: const Duration(seconds: 10), precise: true,
+    formatter: CountdownFormat.template('{ss}.{SSS}'))
+```
 
 You can also write your own: `formatter: (t) => '${t.totalMinutes}m ${t.seconds}s'`.
 
@@ -616,7 +810,46 @@ without explicit sizes defaults to 8×200. Gradients may use
 
 Other style objects: `OdometerCounterStyle`, `DialCountdownStyle`,
 `CardCountdownStyle`, `AnimatedCounterStyle` (documented with their widgets
-above). All styles are immutable with `copyWith` and `merge`.
+above). All styles are immutable with `copyWith`, `merge` and a static `lerp`.
+
+### <a name="countman-theme"></a>`CountmanTheme` — app-wide default styles
+
+`CountmanTheme` is a `ThemeExtension`: register it once in `ThemeData.extensions`
+and every countman widget below it picks up its defaults. Fields are the style
+objects above, all optional: `textCounterStyle`, `textCountdownStyle`,
+`textElapsedStyle`, `ringCounterStyle`, `ringCountdownStyle`, `barCounterStyle`,
+`barCountdownStyle`, `dialCountdownStyle`, `cardCountdownStyle`,
+`odometerCounterStyle`, `animatedCounterStyle`.
+
+```dart
+MaterialApp(
+  theme: ThemeData(extensions: const [
+    CountmanTheme(
+      ringCounterStyle: RingCounterStyle(size: 96, strokeWidth: 10),
+      textCountdownStyle: CountmanTextStyle(
+        textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+      ),
+      cardCountdownStyle: CardCountdownStyle(cardColor: Color(0xFF212121)),
+    ),
+  ]),
+  home: const MyPage(),
+)
+
+// In your own widgets:
+final ring = CountmanTheme.of(context).ringCounterStyle;      // never null object
+final maybe = CountmanTheme.maybeOf(context);                 // null if not registered
+```
+
+Style resolution, field by field (an unset field falls through to the next
+level):
+
+1. the widget's own `style:`
+2. the enclosing provider's `*Style` parameter (**deprecated** — prefer the theme)
+3. `CountmanTheme`
+4. the built-in default
+
+Because it is a `ThemeExtension`, `Theme(data: …)` overrides and
+`ThemeData.lerp` animations work as usual (every style has a `lerp`).
 
 ---
 
@@ -628,11 +861,16 @@ provider > built-in default**.
 
 | Provider | Configures |
 |---|---|
-| `CounterProvider` | counter family — `duration`, `curve`, `allowNegative`, `textStyle`, `color`, `trackColor`, `repaintBoundary`, `animateOnce`, per-component `*Style`, `plugin`, `onGroupReady`/`onAllComplete` |
-| `CountdownProvider` | countdown family — `formatter`, `textStyle`, `color`, `trackColor`, `repaintBoundary`, `animateOnce`, per-component `*Style` (incl. `cardCountdownStyle` / `dialCountdownStyle`), `plugin`, group callbacks |
-| `ElapsedProvider` | elapsed family — `formatter`, `textStyle`, `textElapsedStyle`, `plugin`, group callbacks |
+| `CounterProvider` | counter family — `duration`, `curve`, `allowNegative`, `textStyle`, `color`, `trackColor`, `repaintBoundary`, `animateOnce`, `plugin`, `onGroupReady`/`onAllComplete` |
+| `CountdownProvider` | countdown family — `formatter`, `textStyle`, `color`, `trackColor`, `repaintBoundary`, `plugin`, group callbacks |
+| `ElapsedProvider` | elapsed family — `formatter`, `textStyle`, `plugin`, group callbacks |
 | `CountmanProvider` | all three families at once (nests the above) |
 | `CardCountdownProvider` | `CardCountdown` defaults + a shared glyph (`TextPainter`) cache across a subtree of cards |
+
+> The per-component `*Style` parameters of the providers (`ringCounterStyle`,
+> `textCountdownStyle`, …) are **deprecated** — use
+> [`CountmanTheme`](#countman-theme). `CountdownProvider.animateOnce` is
+> deprecated as well: countdowns have no entrance animation.
 
 ```dart
 CountmanProvider(
@@ -644,7 +882,10 @@ CountmanProvider(
 ```
 
 `onGroupReady` fires when a group goes idle → active (first task enqueued);
-`onAllComplete` fires when it goes active → idle (last task leaves).
+`onAllComplete` fires when it goes active → idle (last task leaves). The
+countdown family — `CountdownBuilder`, the text/ring/bar/dial widgets and
+`CardCountdown` — reads `CountdownProvider.plugin`, so group callbacks also fire
+for cards; `AnimatedCounter` reads `CounterProvider.plugin` the same way.
 
 ---
 
@@ -661,7 +902,13 @@ Widgets are convenience wrappers; you can drive the engines directly. Each is a
 final h  = counter(CounterOptions(to: 100, onUpdate: (v) => print(v)));
 final cd = countdown(CountdownOptions(duration: const Duration(minutes: 1),
     onUpdate: (parts) => print(CountdownFormat.ms(parts))));
-final el = elapsed(ElapsedOptions(onUpdate: (parts) => print(parts.inSeconds)));
+final dl = countdown(CountdownOptions(deadline: DateTime(2026, 12, 31),
+    total: const Duration(days: 30)));
+final el = elapsed(ElapsedOptions(limit: const Duration(minutes: 5),
+    onUpdate: (parts) => print(parts.inSeconds),
+    onComplete: () => print('done')));
+
+el.lap();  // ElapsedHandle: lap() / laps / updateLimit / pause / resume / reset / cancel
 
 // Default instances (auto-registered on first access):
 defaultCounter; defaultCountdown; defaultElapsed;
@@ -669,17 +916,25 @@ defaultCountdownMs; defaultElapsedMs;   // interval: 0, used by precise widgets
 
 // A custom group for isolation:
 final auction = Countdown(name: 'auction', interval: 1000);
-Countman.use(auction);                  // register (duplicate names ignored)
+Countman.use(auction);                  // register by instance
 CountdownBuilder(duration: ..., plugin: auction, builder: ...);
 
 Countman.start();   // usually implicit — plugins request frames when they add tasks
 Countman.stop();    // pause the frame loop (tasks preserved)
+Countman.unuse(auction);                 // detach + dispose one group
 Countman.destroy(); // stop + dispose every plugin
 ```
 
-> Register groups at module or long-lived-state level. `Countman.use` ignores
-> duplicate names, so a group re-created inside `initState` on a reset would
-> never receive `onAttach` and would throw on first `add()`.
+> Register groups at module or long-lived-state level and reuse the **instance**.
+> `Countman.use` ignores the same instance twice, but registering a *different*
+> instance with an existing `name` fails an `assert` in debug builds. A group a
+> page creates for itself should be removed in `dispose` with
+> `Countman.unuse(group)`.
+
+When the plugin a widget resolves changes (a new `plugin:` argument, a provider
+appearing, `precise` toggled), the running task **migrates** to the new plugin
+and keeps its remaining/elapsed time, laps, pause state and displayed value — it
+no longer restarts.
 
 ### Millisecond precision (`precise: true`)
 
@@ -707,7 +962,8 @@ ElapsedBuilder(
 In a lazy list, a counter re-runs its entrance animation every time it scrolls
 back into view. Set `animateOnce: true` **and** a stable `ValueKey`: the
 entrance plays only the first time that key is seen under a provider; later
-rebuilds jump straight to the value.
+rebuilds jump straight to the value. It works for the counter family and for
+`AnimatedCounter` / `AnimatedCounterBuilder`.
 
 ```dart
 CounterProvider(
@@ -717,10 +973,14 @@ CounterProvider(
       TextCounter(key: ValueKey(row.id), to: row.amount),
   ]),
 )
+
+AnimatedCounter(key: ValueKey(row.id), value: row.amount, animateOnce: true)
 ```
 
 The registry lives on the provider, so it survives scroll-out/in. A widget's
-own `animateOnce` overrides the provider default.
+own `animateOnce` overrides the provider default. Without a stable id or without
+a provider the widget falls back to animating every time (one debug warning, no
+assertion).
 
 ### Batch startup (`StartScheduler`)
 
@@ -738,16 +998,107 @@ StartScheduler.instance.groupBatchSize[myCounter] = 10;
 Always call `StartScheduler.instance.cancel(this)` in `dispose()` for widgets
 that enqueue, to release the closure.
 
-### Injectable clock (`countdownClock`)
+### Clocks (`CountmanClock`)
 
-Countdown/Elapsed read time through a replaceable `() → DateTime`. Override it
-in tests to advance time without real delays:
+Countdown and Elapsed read time through a `CountmanClock` with two timelines:
+`wallMicros()` (the calendar clock, changes when the user edits the time) and
+`monotonicMicros()` (never jumps). Relative durations use the monotonic one,
+deadlines use the wall one.
+
+| Clock | Use |
+|---|---|
+| `SystemClock` | The default (`CountmanClock.system`). Compensates for deep sleep: when the app returns to the foreground, the time the monotonic clock stood still is added back. |
+| `OffsetClock(base, offset)` | Server-time correction: shifts the wall clock by `offset`, passes the monotonic clock through. |
+| `ManualCountmanClock` | Deterministic tests: `advance(d)` moves both clocks, `jumpWall(d)` only the wall clock, `suspend(d)` simulates a deep sleep. |
 
 ```dart
-var fakeNow = DateTime(2024);
-countdownClock = () => fakeNow;
-fakeNow = fakeNow.add(const Duration(seconds: 3));   // "3 seconds pass"
+// Correct deadlines with the server's time (offset = serverNow - deviceNow)
+final server = OffsetClock(CountmanClock.system, serverOffset);
+final auction = Countdown(name: 'auction', clock: server);
+TextCountdown(to: auctionEnd, plugin: auction);
+
+// Tests: no real waiting
+final clock = ManualCountmanClock(wallTime: DateTime(2026));
+final cd = Countdown(name: 'test', clock: clock);
+clock.advance(const Duration(seconds: 3));   // "3 seconds pass"
+
+// Replace the global default (restore it afterwards)
+CountmanClock.system = clock;
 ```
+
+The lower-level `countdownClock` / `elapsedClock` functions still feed
+`SystemClock`.
+
+### <a name="writing-a-custom-plugin"></a>Writing a custom plugin
+
+A plugin owns a queue of tasks and tells the shared ticker **when it next needs
+to run**. Extend `TaskQueuePlugin<T>` (generic queue, per-task error isolation,
+group callbacks) or `ClockPlugin<T>` (clock-driven tasks like Countdown/Elapsed),
+or implement `CountmanPlugin` yourself.
+
+`CountmanPlugin.tick(elapsed, dt)` returns **microseconds until the next call**:
+
+- `CountmanPlugin.idle` (`-1`) — nothing to do; the ticker may stop.
+- `CountmanPlugin.nextFrame` (`0`) — run again on the next frame (animations).
+- a positive number — sleep that long first (`1000000` = one second). Waits of
+  about 20 ms or less are served by the next frame.
+
+`dt` is the interval since the previous frame and is **zero on the first frame
+after a sleep**, so sleeping plugins must read a clock instead of summing `dt`.
+`onDetach()` is called when the plugin is unregistered (`Countman.unuse` /
+`destroy`); a detached plugin may be attached again, so use `dispose()` for final
+cleanup.
+
+```dart
+class BeatTask extends CountmanTask {
+  BeatTask(super.id, {required this.periodMicros, required this.onBeat});
+  final int periodMicros;
+  final void Function(int beat) onBeat;
+  final Stopwatch watch = Stopwatch()..start();
+  int beats = 0;
+}
+
+/// Fires onBeat every period, ten times, sleeping in between.
+class Beat extends TaskQueuePlugin<BeatTask> {
+  Beat() : super('beat');
+
+  @override
+  void renderInitial(BeatTask t) => t.onBeat(0);        // first frame
+
+  @override
+  void step(BeatTask t, double dtMs) {                  // return type is void
+    final due = t.watch.elapsedMicroseconds ~/ t.periodMicros;
+    if (due > t.beats) {
+      t.beats = due;
+      t.onBeat(due);
+    }
+    if (t.beats >= 10) t.done = true;                   // evicted after this frame
+  }
+
+  /// Tell the scheduler when this task needs the next step (default: nextFrame).
+  @override
+  int nextWake(BeatTask t) {
+    final remaining = (t.beats + 1) * t.periodMicros - t.watch.elapsedMicroseconds;
+    return remaining <= 0 ? CountmanPlugin.nextFrame : remaining;
+  }
+
+  void start(Duration period, void Function(int beat) onBeat) => enqueue(
+      BeatTask(nextId(), periodMicros: period.inMicroseconds, onBeat: onBeat));
+}
+```
+
+`TaskQueuePlugin.tick` returns the earliest `nextWake` of all active tasks (or
+`idle` when the queue is empty), isolates exceptions per task, and registers the
+plugin on its first `enqueue`, so `Beat().start(...)` works without a manual
+`Countman.use`.
+
+For clock-driven tasks extend `ClockPlugin<T>` instead; it reads the clock once
+per frame and asks you for integer-microsecond hooks: `valueMicrosOf`,
+`totalOf`, `isComplete`, `boundaryWake` (time to the next display change),
+`completionWake`, `thresholdWake`, `onComplete`, optionally `displayMicrosOf`.
+The constructor takes `interval` and `clock`. See the table in the
+[migration guide](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md#2-clockplugin-subclasses-integer-microsecond-hooks)
+and the source of `Countdown` / `Elapsed` for complete examples.
 
 ### <a name="timeparts"></a>`TimeParts`
 
@@ -767,7 +1118,8 @@ the ints you need synchronously; don't retain it across frames.
 `(context, parts) => CustomPainter`; `AnimatedCounter` takes a
 `CounterPainterBuilder`. Every built-in painter (exported from
 `painter/painter.dart`) has public, individually-overridable drawing methods so
-you can subclass one instead of starting from scratch.
+you can subclass one instead of starting from scratch. `RingPainter` /
+`BarPainter` accept an optional `progressListenable` to repaint in place.
 
 ---
 
@@ -782,7 +1134,11 @@ you can subclass one instead of starting from scratch.
 - **`blur` and `flip`** transition types always use the widget path — avoid in
   large grids.
 - **Use `interval: 1000`** (the default) for HH:mm:ss displays; reach for
-  `precise:`/`interval: 0` only when you actually show sub-second digits.
+  `precise:`/`interval: 0` only when you actually show sub-second digits —
+  an every-frame group cannot sleep.
+- **`CardCountdown`** costs what its transition costs: `calendar` is in motion
+  about 90 % of every second, `slide` / `flip` about 45 %. Prefer `slide` for
+  big grids and shorten `duration` to scale the cost down.
 
 ---
 
