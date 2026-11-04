@@ -1,0 +1,46 @@
+name: layerman CI
+
+on:
+  pull_request:
+    paths:
+      - 'layerman/**'
+      - '.github/workflows/layerman-ci.yml'
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: analyze + test (stable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Dependencies
+        working-directory: layerman
+        run: flutter pub get
+      - name: Analyze
+        working-directory: layerman
+        run: flutter analyze
+      - name: Unit tests
+        working-directory: layerman
+        run: flutter test
+
+  min-sdk:
+    name: test on minimum Flutter (3.27.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.27.4
+          channel: stable
+          cache: true
+      - name: Dependencies (package only)
+        working-directory: layerman
+        run: flutter pub get --no-example
+      - name: Unit tests
+        working-directory: layerman
+        run: flutter test

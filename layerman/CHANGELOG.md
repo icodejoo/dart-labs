@@ -1,3 +1,47 @@
+## 0.2.2
+
+**Fixed**
+
+* `close(id, result)` with a `result` that isn't a `T?` of its `open<T>()` used
+  to throw a `TypeError` halfway through the close and leave the `open()` future
+  pending forever. It now throws an `ArgumentError` before touching any state,
+  so the overlay can still be closed normally afterwards.
+* Cooldown hydration race: an entry gated on a persisted cap (`total` / `day` /
+  `hour` / `minute` / `minGap`) opened before `ready()` was checked against empty
+  counters, and its write-back overwrote every other id's counters in storage
+  (hydration then overwrote the new count). Such entries now wait until the
+  store has hydrated (an `overlap` one is held, not dropped); hydration merges
+  instead of overwriting; writes are serialized (one in flight, then the latest
+  snapshot); read/write failures are reported via `FlutterError.reportError`
+  instead of being swallowed. `ready()` now completes after the queue has been
+  re-scheduled, and awaiting it before `open()` is no longer required. A
+  persisted-cap `replace` that arrives before hydration therefore queues at the
+  front instead of preempting.
+* An async `beforeClose` guard no longer runs twice when `close()` / `dismiss()`
+  is called again while it is pending; the repeated calls are ignored.
+* A throwing `when` predicate no longer escapes `open()` / `setContext()` /
+  timer callbacks: it is reported once per overlay and treated as unmet.
+* `open()` after `dispose()` no longer presents the overlay: it asserts in debug
+  and returns `null` in release. Every other mutator is a no-op after
+  `dispose()`.
+
+**Changed**
+
+* `cooldown` without an explicit `id` now asserts in debug — counters are keyed
+  by id, and an auto-generated id changes on every open, so the cap never
+  applied.
+* README route recipes now push a `Route` object, use `route.completed`
+  (completes after the exit animation, carrying the pop result) as `dismissed`,
+  and close it with `pop` when on top or `removeRoute` when buried. The previous
+  name-based `popUntil` / `Get.until` recipes silently did nothing when the
+  dialog wasn't the topmost route (e.g. under an `overlap` dialog), leaving the
+  entry stuck in `closing`. Also corrected the docs on `update()`, `activeIds` /
+  `isShowing`, and `replace` preempting a resolving entry.
+* Minimum SDK is now Dart 3.6 / Flutter 3.27 — the first release with
+  `NavigatorObserver.didChangeTop`. The previous `flutter: ">=1.17.0"` bound was
+  wrong, and `sdk: ^3.12.2` was needlessly high.
+* `ARCHITECTURE.md` / `ARCHITECTURE.svg` rewritten from the actual code.
+
 ## 0.2.1
 
 **Fixed**
