@@ -17,7 +17,19 @@ export 'src/overlay_manager.dart'
         OverlayCooldownStorage,
         MemoryCooldownStorage,
         OverlayRecord,
+        OverlayTicket,
+        OverlayHold,
         PresentContext,
         PresentedOverlay,
         Present;
+export 'src/overlay_types.dart'
+    show
+        OverlayEndReason,
+        OverlayOutcome,
+        OverlayEvent,
+        OverlayEventType,
+        OverlaySlotOptions;
 export 'src/overlay_navigator_observer.dart' show LayermanNavigatorObserver;
+export 'src/route_managers.dart'
+    show DialogManager, BottomSheetManager, presentRoute;
+export 'src/lifecycle_binding.dart' show LayermanLifecycle;

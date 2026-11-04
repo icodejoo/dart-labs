@@ -1504,7 +1504,7 @@ void main() {
   });
 
   group('cooldown — TS parity', () {
-    testWidgets('session cap blocks the second show', (tester) async {
+    testWidgets('session 上限耗尽后丢弃第二次展示', (tester) async {
       await tester.pumpWidget(const SizedBox());
       final manager = Layerman();
 
@@ -1516,10 +1516,11 @@ void main() {
       await tester.pump();
 
       final s2 = _FakeBackend<String>();
-      manager.open(id: 's', cooldown: cd, present: s2.present);
+      final dropped = manager.open(id: 's', cooldown: cd, present: s2.present);
       await tester.pump();
-      expect(s2.presented, isFalse); // capped, waits in queue
-      expect(manager.queuedIds, contains('s'));
+      expect(await dropped, isNull);
+      expect(s2.presented, isFalse);
+      expect(manager.queuedIds, isNot(contains('s')));
 
       manager.dispose();
     });

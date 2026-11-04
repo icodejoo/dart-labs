@@ -70,20 +70,23 @@ void main() {
     manager.dispose();
   });
 
-  testWidgets('B3 已满上限在读取前后均等待且不覆盖其它计数', (tester) async {
+  testWidgets('B3 已满上限读取前等待、读取后被丢弃，且不覆盖其它计数', (tester) async {
     final storage = _ControlledStorage();
     final manager = Layerman(cooldownStorage: storage);
     final promo = _FakeBackend<Object>();
-    manager.open(
+    final promoResult = manager.open(
         id: 'promo',
         cooldown: const OverlayCooldown(total: 1),
         present: promo.present);
     expect(promo.presented, isFalse);
+    expect(manager.queuedIds, contains('promo')); // 读取前无法判定，只能等
     expect(storage.snapshots, isEmpty);
     storage.readGate.complete(initial);
     await manager.ready();
+    // 0.3.0：total 已达上限永远不会解除，读取完成后直接丢弃而不是永远排队。
     expect(promo.presented, isFalse);
-    expect(manager.queuedIds, contains('promo'));
+    expect(await promoResult, isNull);
+    expect(manager.queuedIds, isNot(contains('promo')));
     final fresh = _FakeBackend<Object>();
     manager.open(
         id: 'fresh',
