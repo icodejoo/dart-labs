@@ -18,6 +18,21 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
 
   final num? value;
   final AnimatedCounterController? controller;
+
+  /// 动画任务所在的 [Counter] 插件（分组）。
+  ///
+  /// 解析顺序：本参数 > 最近 [CounterProvider] 的 plugin > [defaultCounter]；
+  /// 因而 Provider 的 `onGroupReady` / `onAllComplete` 对本组件生效。
+  /// 示例：`AnimatedCounter(value: 99, plugin: myGroup)`。
+  final Counter? plugin;
+
+  /// animate-once 开关：只在 [key]（需为稳定的 [ValueKey]）首次出现时播放入场动画，
+  /// 同一 Provider 下再次挂载直接显示终值。`null`（默认）继承最近
+  /// [CounterProvider.animateOnce]。无稳定 key 或没有 Provider 时退化为每次都动画。
+  ///
+  /// 只管入场（`initialValue` → 目标值）；挂载之后的 value / controller 变化照常动画。
+  /// 示例：`AnimatedCounter(key: ValueKey(row.id), value: row.total, animateOnce: true)`。
+  final bool? animateOnce;
   final Duration duration;
   final Duration negativeSignDuration;
   final Curve curve;
@@ -132,6 +147,8 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.timeline,
     this.value,
     this.controller,
+    this.plugin,
+    this.animateOnce,
     this.duration = const Duration(milliseconds: 300),
     this.negativeSignDuration = const Duration(milliseconds: 150),
     this.curve = Curves.linear,

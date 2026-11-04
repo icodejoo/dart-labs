@@ -7,7 +7,7 @@ enum _CounterPlayback { idle, running, paused, completed }
 
 /// 两条渲染路径共用的可中断动画状态机。
 abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W>
-    with _CounterMeasure<W>, _CounterTint<W> {
+    with _CounterScope<W>, _CounterMeasure<W>, _CounterTint<W> {
   // ── ticker ────────────────────────────────────────────────────────────────
   CounterHandle? _handle;
   CounterHandle? _bounceHandle; // separate post-animation bounce
@@ -84,14 +84,21 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   @override
   void initState() {
     super.initState();
-    _currentValue = widget.initialValue.isFinite ? widget.initialValue : 0;
+    _resolveOnce();
+    // animate-once 已播过：不播入场，挂载即显示终值。
+    final skipEntrance = _oncePart && _onceSkip;
+    final entranceStart = skipEntrance ? _effectiveValue : widget.initialValue;
+    _currentValue = entranceStart.isFinite
+        ? entranceStart.clamp(
+            widget.minValue ?? double.negativeInfinity, widget.maxValue ?? double.infinity)
+        : 0;
     _fromValue = _currentValue;
     _lastValue    = _currentValue;
     _engine.settle(_getDigitsList(_currentValue), fast: widget._timeFast);
     _currentT = 1.0;
     _bindController();
     widget.controller?.addListener(_handleControllerUpdate);
-    if (widget.initialValue != _effectiveValue) {
+    if (!skipEntrance && widget.initialValue != _effectiveValue) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _triggerTransitionWithDelay(widget.initialValue, _effectiveValue);
       });
@@ -286,7 +293,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     }
     _onAnimStatusChange(_reversing ? AnimationStatus.reverse : AnimationStatus.forward);
     if (!mounted || version != _requestVersion) return;
-    _handle = counter(CounterOptions(
+    _handle = _counterPlugin.add(CounterOptions(
       from: fromT,
       to:   1.0,
       duration: remaining,
@@ -356,7 +363,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _bounceOffsets = List<double>.filled(_engine.maxDigits, 0.0);
 
     _bounceHandle?.cancel();
-    _bounceHandle = counter(CounterOptions(
+    _bounceHandle = _counterPlugin.add(CounterOptions(
       from: 0.0,
       to: 1.0,
       duration: Duration(microseconds: totalUs.round()),

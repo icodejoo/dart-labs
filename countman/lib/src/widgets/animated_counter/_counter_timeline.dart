@@ -16,7 +16,7 @@ extension _CounterTimelineResolution<W extends _BaseAnimatedCounter> on _BaseCou
   Duration get _effectiveDuration {
     final base = _baseDuration;
     // 系统减少动画时直接落位；错峰按原始时间累加后统一缩放一次。
-    if (reduceMotion || base == Duration.zero) return Duration.zero;
+    if (_reduceMotion || base == Duration.zero) return Duration.zero;
     Duration d = base;
     final stagger = widget._timeStaggerDelay;
     if (stagger != null && stagger > Duration.zero) {

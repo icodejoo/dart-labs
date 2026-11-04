@@ -5,6 +5,7 @@
 //   _base_counter.dart               — _BaseAnimatedCounter (shared widget parameters)
 //   _counter_config.dart             — flat params / format / timeline merging
 //   _counter_timeline.dart           — effective duration / curve / speed resolution
+//   _counter_scope.dart              — CounterProvider plugin / animate-once / reduce-motion
 //   _counter_measure.dart            — number formatting, glyph measuring, semantics
 //   _counter_tint.dart               — direction colour tint (palette + style cache)
 //   _counter_controller_binding.dart — AnimatedCounterController command wiring
@@ -44,6 +45,9 @@ import 'counter_format.dart';
 import 'counter_timeline.dart';
 import '../style_support.dart';
 import '../reduce_motion.dart';
+import '../animate_once.dart';
+import '../providers.dart' show CountmanScope;
+import '../scope_resolution.dart';
 
 export 'counter_controller.dart';
 export 'types.dart';
@@ -53,6 +57,7 @@ export 'counter_timeline.dart';
 part '_base_counter.dart';
 part '_counter_config.dart';
 part '_counter_timeline.dart';
+part '_counter_scope.dart';
 part '_counter_measure.dart';
 part '_counter_tint.dart';
 part '_counter_controller_binding.dart';
@@ -101,6 +106,8 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.style,
     super.value,
     super.controller,
+    super.plugin,
+    super.animateOnce,
     @Deprecated('改用 timeline: CounterTimeline(duration: ...)')
     super.duration,
     super.negativeSignDuration,
@@ -492,6 +499,6 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
 
     content = _wrapColorTint(
         content, style.color ?? DefaultTextStyle.of(context).style.color ?? const Color(0xFF000000));
-    return _wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val));
+    return _wrapOnce(_wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val)));
   }
 }

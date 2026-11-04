@@ -45,6 +45,8 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.key,
     super.value,
     super.controller,
+    super.plugin,
+    super.animateOnce,
     @Deprecated('改用 timeline: CounterTimeline(duration: ...)')
     super.duration,
     super.negativeSignDuration,
@@ -416,6 +418,6 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
     Widget content = widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
     content = _wrapColorTint(content, color);
-    return _wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val));
+    return _wrapOnce(_wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val)));
   }
 }
