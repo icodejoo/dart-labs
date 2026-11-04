@@ -24,6 +24,13 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
     Countman.use(_fastGroup);
   }
 
+  @override
+  void dispose() {
+    // 按实例注销并销毁，下次进入页面重新创建同名实例时不会冲突。
+    Countman.unuse(_fastGroup);
+    super.dispose();
+  }
+
   void _restart() => setState(() => _seed++);
 
   @override

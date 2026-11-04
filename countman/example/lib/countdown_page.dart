@@ -1536,9 +1536,8 @@ class _DemoState extends State<_Demo> {
 // ── StatefulWidget demos ──────────────────────────────────────────────────────
 
 // Module-level singleton so Countman.use() is called once with the same
-// instance; creating a new Countdown on every initState would fail on reset
-// because Countman.use() silently ignores duplicate names, leaving the new
-// instance without an attached context.
+// instance; creating a new same-named Countdown on every initState would trip
+// the duplicate-name assertion in debug builds.
 final _msPlugin = Countdown(name: 'ms_demo', interval: 1000 ~/ 60);
 
 class _MsBuilderDemo extends StatefulWidget {
