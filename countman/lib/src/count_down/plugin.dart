@@ -85,6 +85,7 @@ class CountdownHandle {
 /// Countman.use(precise);
 /// CountdownWidget(duration: ..., plugin: precise, builder: ...)
 /// ```
+/// 倒计时引擎：每帧共用时钟快照，完成与阈值不受显示间隔延迟。
 class Countdown extends ClockPlugin<CountdownTask> {
   // 直接转发父类间隔参数，保留默认值与调用方式。
   Countdown({String? name, super.interval}) : super(name ?? 'countdown');

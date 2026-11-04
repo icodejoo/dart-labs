@@ -26,6 +26,7 @@ import 'package:flutter/scheduler.dart';
 ///
 /// Always pair [enqueue] with [cancel] in [State.dispose] to avoid memory
 /// leaks — the closure holds a reference to the State.
+/// 分帧启动调度器；批内任务可取消，异常不影响后续启动。
 class StartScheduler {
   StartScheduler._();
   static final instance = StartScheduler._();

@@ -117,10 +117,11 @@ void main() {
       reads = 0;
       p.tick(Duration(milliseconds: ms), frame);
       expect(reads, 1);
+      if (ms == 1248) expect(threshold, isFalse);
       if (ms == 1264) expect(threshold, isTrue);
     }
     expect(complete, isTrue);
-    expect(updates.last, 0);
+    expect(updates, [1500, 492, 0]);
   });
   test('零时长首帧完成，取消后同帧不能暂停或复活', () {
     final p = Countdown();
@@ -145,4 +146,78 @@ void main() {
     e.tick(Duration.zero, Duration.zero);
     expect(pauses, 0);
   });
+  testWidgets('插件 tick 抛错仍按兄弟 busy 续帧，dispose 抛错继续销毁', (tester) async {
+    final handler = FlutterError.onError;
+    FlutterError.onError = errors.add;
+    addTearDown(() => FlutterError.onError = handler);
+    Countman.use(_ThrowingPlugin());
+    var complete = false;
+    var cancelled = false;
+    final p = Counter(name: 'healthy');
+    p.add(CounterOptions(
+        to: 1, duration: frame, onComplete: (_) => complete = true));
+    await tester.pump();
+    await tester.pump(frame);
+    expect(complete, isTrue);
+    expect(errors.where((e) => e.library == 'countman'), isNotEmpty);
+    p.add(CounterOptions(to: 2, onCancel: () => cancelled = true));
+    Countman.destroy();
+    expect(cancelled, isTrue);
+    expect(Countman.pluginCount, 0);
+  });
+  testWidgets('批内 removeGroup 能取消尚未执行项', (tester) async {
+    final s = StartScheduler.instance;
+    final group = Object();
+    s.defaultBatchSize = 2;
+    var ran = false;
+    s.enqueue(() => s.removeGroup(group), tag: Object());
+    s.enqueue(() => ran = true, tag: Object(), group: group);
+    await tester.pump();
+    expect(ran, isFalse);
+  });
+  test('Elapsed 每帧共享一次快照，阈值不受显示间隔限制', () {
+    final old = elapsedClock;
+    var now = Duration.zero;
+    var reads = 0;
+    elapsedClock = () {
+      reads++;
+      return now;
+    };
+    addTearDown(() => elapsedClock = old);
+    final p = Elapsed();
+    p.onAttach(CountmanContext(requestFrame: () {}));
+    var threshold = false;
+    var updates = 0;
+    p.add(ElapsedOptions(
+        threshold: frame,
+        onThreshold: () => threshold = true,
+        onUpdate: (_) => updates++));
+    p.add(const ElapsedOptions());
+    p.tick(Duration.zero, Duration.zero);
+    now = frame;
+    reads = 0;
+    p.tick(frame, frame);
+    expect(reads, 1);
+    expect(threshold, isTrue);
+    expect(updates, 1);
+  });
+}
+
+/// 模拟不遵循任务队列骨架的第三方插件异常。
+class _ThrowingPlugin implements CountmanPlugin {
+  /// 独立名称避免干扰健康插件。
+  @override
+  String get name => 'throwing';
+
+  /// 无需使用注入的帧上下文。
+  @override
+  void onAttach(CountmanContext context) {}
+
+  /// 模拟插件级逐帧故障。
+  @override
+  bool tick(Duration elapsed, Duration dt) => throw StateError('tick');
+
+  /// 模拟第三方插件销毁故障。
+  @override
+  void dispose() => throw StateError('dispose');
 }

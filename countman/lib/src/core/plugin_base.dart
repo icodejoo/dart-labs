@@ -76,6 +76,7 @@ abstract class CountmanTask {
 /// a pending buffer while [_ticking] and drain it after the loop. Value-only
 /// mutations (retarget, pause/resume/reset) never touch map keys and are
 /// always safe.
+/// 共享任务队列骨架，逐任务隔离回调异常并保证终态清理。
 abstract class TaskQueuePlugin<T extends CountmanTask>
     implements CountmanPlugin {
   TaskQueuePlugin(this.name);
@@ -473,6 +474,7 @@ abstract class ClockTask extends CountmanTask {
 /// ms; `0` = every frame) and once-only threshold dispatch. Subclasses supply
 /// the four domain hooks: [valueOf], [isComplete], [thresholdCrossed],
 /// [onComplete].
+/// 时钟任务每帧检查终态和阈值，普通显示更新按 interval 节流。
 abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   ClockPlugin(super.name, {this.interval = 1000});
 

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'types.dart';
 
 /// Returned by [Elapsed.add].
+/// 正计时句柄，终态后的暂停、恢复与重置均无操作。
 class ElapsedHandle {
   ElapsedHandle._(this._id, this._plugin);
 
@@ -79,6 +80,7 @@ class ElapsedHandle {
 /// Countman.use(calls);
 /// TextElapsed(plugin: calls)
 /// ```
+/// 正计时引擎，每帧共享单调时钟快照并独立检查阈值。
 class Elapsed extends ClockPlugin<ElapsedTask> {
   // 直接转发父类间隔参数，保留上一批计时修复。
   Elapsed({String? name, super.interval}) : super(name ?? 'elapsed');

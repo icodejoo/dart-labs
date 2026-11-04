@@ -12,6 +12,7 @@ import 'types.dart';
 /// Plugins call [start] when they enqueue a task.
 /// The loop auto-stops when every plugin's [CountmanPlugin.tick] returns `false`,
 /// and restarts on the next [start] call.
+/// 共享帧驱动器，逐插件隔离 tick 与销毁异常。
 class Countman {
   Countman._();
 
