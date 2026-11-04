@@ -17,8 +17,12 @@ CountmanRunState _runStateOf(_CounterPlayback playback) => switch (playback) {
 abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W>
     with _CounterScope<W>, _CounterMeasure<W>, _CounterTint<W> {
   // ── ticker ────────────────────────────────────────────────────────────────
+  /// 主滚动任务句柄；完成、取消或尚未启动时可能已结束或为空。
   CounterHandle? _handle;
-  CounterHandle? _bounceHandle; // separate post-animation bounce
+
+  /// 落位回弹任务句柄，与主滚动并发运行，独立于 [_handle]。
+  CounterHandle? _bounceHandle;
+
   // Per-column post-animation bounce nudge, each a fraction of digit height
   // (empty / 0 = none). Per-column so it can be phase-shifted by the same
   // stagger delay as the roll — each place bounces as it lands. Positive
@@ -54,24 +58,38 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     if (progress == null) return _fromValue;
     return _fromValue + (_lastValue - _fromValue) * progress;
   }
+  /// 当前过渡的线性进度 0–1。
   double _currentT = 0.0;
+
+  /// 暂停时记下的进度，resume 时从这里继续。
   double _pausedT  = 0.0;
+
+  /// 是否处于 repeat 循环中；每轮结束后自动重启。
   bool _repeating  = false;
+
   // repeat 时每轮结束后是否交换端点往返播放。
   bool _repeatReverse = false;
   // 尚未真正开始的启动动作（startDelay 或批量队列中）；pause 时保留，resume 时执行。
   VoidCallback? _pendingStart;
 
   // ── digit state ───────────────────────────────────────────────────────────
+  /// startDelay 的等待定时器；到期后启动主滚动。
   Timer? _startDelayTimer;
+
+  /// 当前过渡的目标值（已钳制）。
   num   _lastValue    = 0;
+
+  /// 当前显示所依据的数值：静止时为屏幕值，动画开始后为目标值。
   @override
   num   _currentValue = 0;
+
 
   /// 数位滚动引擎：持有各列端点与当前位置，进度到位置的换算都在其中。
   /// 快速模式（widget._timeFast）下 currentDigits[i] 携带 0–1 进度。
   final _engine = DigitRollEngine();
+  /// 当前过渡是否为递减（reverse 命令会翻转它）；决定滚动方向与递减专用时长/曲线。
   bool _isAnimatingDecrease = false;
+
   // Total numeric distance |new − old| of the current transition. Drives
   // autoEase (big value jumps ease automatically) independent of the per-digit
   // wrapped trajectory.
@@ -93,6 +111,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
+  /// 当前应显示的目标值：控制器优先，其次组件的 value。
   num get _effectiveValue =>
       widget.controller != null ? widget.controller!.value : (widget.value ?? 0);
 

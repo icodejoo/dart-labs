@@ -27,6 +27,7 @@ extension _CounterTimelineResolution<W extends _BaseAnimatedCounter> on _BaseCou
         : Duration(microseconds: (d.inMicroseconds / widget._timeSpeedMultiplier).round());
   }
 
+  /// 当前过渡使用的整体曲线：递减且配置了 reverseCurve 时用它，否则用 curve。
   Curve get _effectiveCurve {
     if (_isAnimatingDecrease && widget._timeReverseCurve != null) return widget._timeReverseCurve!;
     return widget._timeCurve;
@@ -36,6 +37,7 @@ extension _CounterTimelineResolution<W extends _BaseAnimatedCounter> on _BaseCou
   AxisDirection get _effectiveFlipDirection =>
       effectiveRollDirection(widget.flipDirection, !_isAnimatingDecrease);
 
+  /// 按倍速缩放后的相邻数位启动间隔；未配置错峰时为空。
   Duration? get _effectiveStaggerDelay {
     if (widget._timeStaggerDelay == null) return null;
     return widget._timeSpeedMultiplier == 1.0
@@ -43,10 +45,12 @@ extension _CounterTimelineResolution<W extends _BaseAnimatedCounter> on _BaseCou
         : Duration(microseconds: (widget._timeStaggerDelay!.inMicroseconds / widget._timeSpeedMultiplier).round());
   }
 
+  /// 按倍速缩放后的负号展开/收起时长。
   Duration get _effectiveNegativeSignDuration => widget._timeSpeedMultiplier == 1.0
       ? widget.negativeSignDuration
       : Duration(microseconds: (widget.negativeSignDuration.inMicroseconds / widget._timeSpeedMultiplier).round());
 
+  /// 按倍速缩放后的正号展开/收起时长，未单独配置时沿用负号时长。
   Duration get _effectivePositiveSignDuration {
     final base = widget.positiveSignDuration ?? widget.negativeSignDuration;
     return widget._timeSpeedMultiplier == 1.0

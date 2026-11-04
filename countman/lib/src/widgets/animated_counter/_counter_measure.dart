@@ -11,9 +11,14 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
   final _numberFormat = CounterNumberFormat();
 
 
+  /// 原型单元格尺寸：0–9 实际字形中最宽、最高者，所有数位列共用。
   Size?       _prototypeSize;
+
+  /// 上次测量所用的文字样式，用于判断缓存是否仍有效。
   TextStyle?  _lastStyle;
+  /// 上次测量所用的字号缩放。
   TextScaler? _lastTextScaler;
+
   // Signature of the 0–9 glyphs last measured. Recompute the prototype cell
   // when it changes (e.g. numeralMapper / numeralSystem swapped) so the cell
   // keeps fitting the actual glyphs.
@@ -22,7 +27,8 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
   // numeralSystem）重新计算原型单元格，使单元格始终适配真实字形。
   String?     _lastGlyphSig;
 
-  // 初始化、动画端点和渲染使用相同的格式解析结果。
+  /// 把 [value] 按当前格式解析成显示用数字（缩写、小数位、钳制）；初始化、动画端点和
+  /// 渲染使用同一份结果。
   CounterDisplayNumber _displayNumber(num value) {
     // 控制器更新也可能伴随字典原地修改；仅配置变化时重新排序。
     _numberFormat.updateAbbreviations(widget._fmtCompactAbbreviations);
@@ -36,11 +42,13 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
     );
   }
 
+  /// 把 [targetValue] 拆成各列的累计位值，列数不少于 wholeDigits + 小数位。
   List<double> _getDigitsList(num targetValue) =>
       _displayNumber(targetValue).digits(widget._fmtWholeDigits);
 
   // ── 样式与测量 ────────────────────────────────────────────────────────────
 
+  /// 解析数字的基础文字样式：环境样式 + textStyle + 等宽数字特性 + colorResolver 颜色。
   TextStyle _resolveStyle(BuildContext context) {
     final baseStyle = DefaultTextStyle.of(context).style.merge(widget.textStyle);
     var style = (widget.useTabularFigures && widget.textStyle?.fontFeatures == null)
@@ -73,6 +81,7 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
       ? widget._fmtNumeralMapper!(digit)
       : (numeralSystemDigits[widget._fmtNumeralSystem]?[digit] ?? '$digit');
 
+  /// 样式、字号缩放或字形变化时重新测量原型单元格，否则复用缓存。
   void _updatePrototypeSize(TextStyle style, TextScaler textScaler) {
     // Resolve the glyphs first (cheap, no layout) so a change of
     // numeralMapper / numeralSystem invalidates the cached size even when the
@@ -112,6 +121,7 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
     _prototypeSize = Size(w, h);
   }
 
+  /// 套上容器装饰与语义标签；[label] 为空则不加语义。
   Widget _wrapSemantics(Widget child, String label) {
     // Apply the style's container decoration around the whole counter.
     //
@@ -130,6 +140,7 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
     return '$sign${absValue.toStringAsFixed(display.fractionDigits)}${display.suffix ?? ""}';
   }
 
+  /// 构建前缀、中缀或后缀文字；指定了 [overflow] 时包进 Flexible。
   Widget _buildAffix(String text, TextStyle? style, TextOverflow? overflow) {
     final w = Text(text, style: style, overflow: overflow);
     return overflow != null ? Flexible(child: w) : w;
