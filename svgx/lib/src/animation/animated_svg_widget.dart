@@ -46,6 +46,7 @@ import 'svgx_animation_quality.dart';
 /// ```dart
 /// SvgxAnimated.string(svgSource, width: 48, height: 48)
 /// ```
+/// `TickerMode` 关闭时暂停采样，恢复后从原进度继续；单独 `Offstage` 不会关闭时钟。
 class SvgxAnimated extends StatefulWidget {
   /// Creates the animated renderer from a raw SVG string.
   ///
@@ -179,14 +180,8 @@ class SvgxAnimated extends StatefulWidget {
 // clock has already been running for other subscribers) — this preserves the
 // exact per-instance timeline semantics the old per-instance `Ticker` had.
 //
-// Trade-off, documented rather than hidden: a `Ticker` obtained from
-// `TickerProviderStateMixin.createTicker` auto-pauses when its widget's
-// `TickerMode` ancestor is disabled (e.g. an offstage `TabBarView` page). A
-// shared, context-free ticker can't do per-subscriber muting like that — an
-// icon animating inside a hidden tab keeps ticking (cheaply: only the local
-// `Duration` math runs; `CustomPaint` isn't actually painted while offstage).
-// Backgrounding the whole app still stops everything, since `SchedulerBinding`
-// stops scheduling frames regardless of ticker muting.
+// TickerMode disables each instance by unsubscribing and preserving its local
+// timeline. The last subscriber leaving disposes the shared ticker.
 //
 // 全进程共享的 [Ticker]，驱动所有 [SvgxAnimated] 实例的时间线，而非每个实例各建
 // 一个（框架也各自调度一个）。此前 N 个并发动画图标的滚动网格意味着 N 个
@@ -199,13 +194,7 @@ class SvgxAnimated extends StatefulWidget {
 // 偏移，因此其本地时间线仍然从零开始（不受共享时钟已经为其它订阅者跑了多久
 // 影响）——这与旧的逐实例 `Ticker` 时间线语义完全一致。
 //
-// 权衡点，如实记录而非隐藏：`TickerProviderStateMixin.createTicker` 拿到的
-// `Ticker` 会在其控件的 `TickerMode` 祖先被禁用时自动暂停（例如隐藏的
-// `TabBarView` 页面）。脱离 context 的共享 ticker 做不到这种按订阅者静音——
-// 隐藏 tab 里的动画图标仍会继续 tick（开销很小：只跑本地 `Duration` 运算；
-// `CustomPaint` 在 offstage 时本就不会真正绘制）。整个应用切后台时一切仍会
-// 停止，因为 `SchedulerBinding` 在应用不可见时本就不再调度帧，与 ticker 是否
-// 静音无关。
+// TickerMode 关闭时逐实例取消订阅并保存进度；全部暂停后释放共享 ticker。
 class _SharedAnimationClock {
   _SharedAnimationClock._();
 
@@ -421,6 +410,8 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   Duration _startOffset = Duration.zero;
   Duration _virtualOffset = Duration.zero;
   bool _ownsImages = false;
+  bool _tickerModeEnabled = false;
+  bool _settled = false;
 
   // 含图片的文档从不入共享缓存，只释放本 State 独占的解码结果。
   void _disposeImages(SvgDocument document) {
@@ -506,6 +497,23 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 沿用 TickerMode.of，兼容尚未提供 valuesOf 的 Flutter。
+    // ignore: deprecated_member_use
+    final enabled = TickerMode.of(context);
+    if (enabled == _tickerModeEnabled) return;
+    _tickerModeEnabled = enabled;
+    if (enabled) {
+      _startTicking();
+    } else {
+      // 保存最后采样的进度，隐藏期间不推进时间线，也不接收共享 tick。
+      _virtualOffset = _elapsed.value;
+      _stopTicking();
+    }
+  }
+
+  @override
   void didUpdateWidget(SvgxAnimated oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source != widget.source) {
@@ -541,6 +549,7 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     _virtualOffset = Duration.zero;
     _elapsed.value = Duration.zero;
     _started = false;
+    _settled = false;
     _lastLoopIteration = 0;
     if (parsed.hasImages) {
       _imagesReady = false;
@@ -570,6 +579,12 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   }
 
   void _startTicking() {
+    if (!_tickerModeEnabled ||
+        !_imagesReady ||
+        _settled ||
+        _subscription != null) {
+      return;
+    }
     _startOffset = _SharedAnimationClock.instance.elapsed;
     _subscription = _SharedAnimationClock.instance.subscribe(
       _onGlobalTick,
@@ -606,7 +621,10 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     if (subscription == null) return;
     _SharedAnimationClock.instance.unsubscribe(subscription);
     _subscription = null;
-    if (settled) widget.onAnimationComplete?.call();
+    if (settled) {
+      _settled = true;
+      widget.onAnimationComplete?.call();
+    }
   }
 
   /// Whether the painter may substitute a clip path for an eligible `<mask>`
