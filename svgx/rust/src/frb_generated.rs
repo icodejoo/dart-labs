@@ -270,6 +270,18 @@ impl SseDecode for Vec<crate::api::svg::SvgClip> {
     }
 }
 
+impl SseDecode for Vec<crate::api::svg::SvgCommand> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::svg::SvgCommand>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::svg::SvgGradientStop> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -420,6 +432,20 @@ impl SseDecode for crate::api::svg::SvgClip {
     }
 }
 
+impl SseDecode for crate::api::svg::SvgCommand {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <u8>::sse_decode(deserializer);
+        let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_opacity = <f32>::sse_decode(deserializer);
+        return crate::api::svg::SvgCommand {
+            kind: var_kind,
+            index: var_index,
+            opacity: var_opacity,
+        };
+    }
+}
+
 impl SseDecode for crate::api::svg::SvgEffects {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -527,6 +553,7 @@ impl SseDecode for crate::api::svg::SvgMask {
         let mut var_width = <f32>::sse_decode(deserializer);
         let mut var_height = <f32>::sse_decode(deserializer);
         let mut var_paths = <Vec<crate::api::svg::SvgPath>>::sse_decode(deserializer);
+        let mut var_commands = <Vec<crate::api::svg::SvgCommand>>::sse_decode(deserializer);
         return crate::api::svg::SvgMask {
             kind: var_kind,
             x: var_x,
@@ -534,6 +561,7 @@ impl SseDecode for crate::api::svg::SvgMask {
             width: var_width,
             height: var_height,
             paths: var_paths,
+            commands: var_commands,
         };
     }
 }
@@ -581,6 +609,7 @@ impl SseDecode for crate::api::svg::SvgPattern {
         let mut var_height = <f32>::sse_decode(deserializer);
         let mut var_matrix = <Vec<f32>>::sse_decode(deserializer);
         let mut var_paths = <Vec<crate::api::svg::SvgPath>>::sse_decode(deserializer);
+        let mut var_commands = <Vec<crate::api::svg::SvgCommand>>::sse_decode(deserializer);
         return crate::api::svg::SvgPattern {
             id: var_id,
             x: var_x,
@@ -589,6 +618,7 @@ impl SseDecode for crate::api::svg::SvgPattern {
             height: var_height,
             matrix: var_matrix,
             paths: var_paths,
+            commands: var_commands,
         };
     }
 }
@@ -599,11 +629,13 @@ impl SseDecode for crate::api::svg::SvgScene {
         let mut var_width = <f32>::sse_decode(deserializer);
         let mut var_height = <f32>::sse_decode(deserializer);
         let mut var_paths = <Vec<crate::api::svg::SvgPath>>::sse_decode(deserializer);
+        let mut var_commands = <Vec<crate::api::svg::SvgCommand>>::sse_decode(deserializer);
         let mut var_images = <Vec<crate::api::svg::SvgImage>>::sse_decode(deserializer);
         return crate::api::svg::SvgScene {
             width: var_width,
             height: var_height,
             paths: var_paths,
+            commands: var_commands,
             images: var_images,
         };
     }
@@ -690,6 +722,25 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgClip {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::svg::SvgClip {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgClip> for crate::api::svg::SvgClip {
     fn into_into_dart(self) -> crate::api::svg::SvgClip {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgCommand {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.index.into_into_dart().into_dart(),
+            self.opacity.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::svg::SvgCommand {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgCommand>
+    for crate::api::svg::SvgCommand
+{
+    fn into_into_dart(self) -> crate::api::svg::SvgCommand {
         self
     }
 }
@@ -817,6 +868,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgMask {
             self.width.into_into_dart().into_dart(),
             self.height.into_into_dart().into_dart(),
             self.paths.into_into_dart().into_dart(),
+            self.commands.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -864,6 +916,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgPattern {
             self.height.into_into_dart().into_dart(),
             self.matrix.into_into_dart().into_dart(),
             self.paths.into_into_dart().into_dart(),
+            self.commands.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -883,6 +936,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgScene {
             self.width.into_into_dart().into_dart(),
             self.height.into_into_dart().into_dart(),
             self.paths.into_into_dart().into_dart(),
+            self.commands.into_into_dart().into_dart(),
             self.images.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -949,6 +1003,16 @@ impl SseEncode for Vec<crate::api::svg::SvgClip> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::svg::SvgClip>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::svg::SvgCommand> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::svg::SvgCommand>::sse_encode(item, serializer);
         }
     }
 }
@@ -1080,6 +1144,15 @@ impl SseEncode for crate::api::svg::SvgClip {
     }
 }
 
+impl SseEncode for crate::api::svg::SvgCommand {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u8>::sse_encode(self.kind, serializer);
+        <u32>::sse_encode(self.index, serializer);
+        <f32>::sse_encode(self.opacity, serializer);
+    }
+}
+
 impl SseEncode for crate::api::svg::SvgEffects {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1157,6 +1230,7 @@ impl SseEncode for crate::api::svg::SvgMask {
         <f32>::sse_encode(self.width, serializer);
         <f32>::sse_encode(self.height, serializer);
         <Vec<crate::api::svg::SvgPath>>::sse_encode(self.paths, serializer);
+        <Vec<crate::api::svg::SvgCommand>>::sse_encode(self.commands, serializer);
     }
 }
 
@@ -1188,6 +1262,7 @@ impl SseEncode for crate::api::svg::SvgPattern {
         <f32>::sse_encode(self.height, serializer);
         <Vec<f32>>::sse_encode(self.matrix, serializer);
         <Vec<crate::api::svg::SvgPath>>::sse_encode(self.paths, serializer);
+        <Vec<crate::api::svg::SvgCommand>>::sse_encode(self.commands, serializer);
     }
 }
 
@@ -1197,6 +1272,7 @@ impl SseEncode for crate::api::svg::SvgScene {
         <f32>::sse_encode(self.width, serializer);
         <f32>::sse_encode(self.height, serializer);
         <Vec<crate::api::svg::SvgPath>>::sse_encode(self.paths, serializer);
+        <Vec<crate::api::svg::SvgCommand>>::sse_encode(self.commands, serializer);
         <Vec<crate::api::svg::SvgImage>>::sse_encode(self.images, serializer);
     }
 }

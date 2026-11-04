@@ -390,11 +390,11 @@ class RustSvgxPictureCache {
   /// Records [scene]'s images (already-decoded [decodedImages], matched by
   /// index to [SvgScene.images]) then paths into a picture. Images are drawn
   /// before paths — a simplifying z-order assumption, no interleaving with
-  /// document order.
+  /// document order unless opacity commands retain that order.
   ///
   /// 把 [scene] 的图片（[decodedImages] 已解码，按下标对应 [SvgScene.images]）
   /// 再加路径录制进一张 picture。图片先于路径绘制——简化的 z-order 假设，
-  /// 不与文档顺序交错。
+  /// 有 opacity 命令时则按文档顺序保留合成边界。
   RustSvgPictureInfo _recordScene(
     SvgScene scene,
     List<ui.Image?> decodedImages,
@@ -404,13 +404,13 @@ class RustSvgxPictureCache {
       final recorder = ui.PictureRecorder();
       final canvas =
           debugWrapRecordingCanvas?.call(Canvas(recorder)) ?? Canvas(recorder);
-      for (var i = 0; i < decodedImages.length; i++) {
-        final image = decodedImages[i];
-        if (image != null) _paintImage(canvas, scene.images[i], image);
-      }
-      for (final path in scene.paths) {
-        _paintPath(canvas, path);
-      }
+      _paintCommands(
+        canvas,
+        scene.paths,
+        scene.commands,
+        images: scene.images,
+        decodedImages: decodedImages,
+      );
       final picture = recorder.endRecording();
       return RustSvgPictureInfo(picture, Size(scene.width, scene.height));
     } finally {
@@ -432,6 +432,47 @@ class RustSvgxPictureCache {
         image.dispose();
       }
       _patternTileCache = null;
+    }
+  }
+
+  /// 重放静态列表；opacity 边界包住整个子树，填充透明度仍由 paint 处理。
+  void _paintCommands(
+    Canvas canvas,
+    List<SvgPath> paths,
+    List<SvgCommand> commands, {
+    List<SvgImage> images = const [],
+    List<ui.Image?> decodedImages = const [],
+    bool nested = false,
+  }) {
+    if (commands.isEmpty) {
+      for (var i = 0; i < decodedImages.length; i++) {
+        final image = decodedImages[i];
+        if (image != null) _paintImage(canvas, images[i], image);
+      }
+      for (final path in paths) {
+        _paintPath(canvas, path, nested: nested);
+      }
+      return;
+    }
+    for (final command in commands) {
+      switch (command.kind) {
+        case 0:
+          _paintPath(canvas, paths[command.index], nested: nested);
+        case 1:
+          if (command.index < decodedImages.length) {
+            final image = decodedImages[command.index];
+            if (image != null) {
+              _paintImage(canvas, images[command.index], image);
+            }
+          }
+        case 2:
+          canvas.saveLayer(
+            null,
+            Paint()..color = Color.fromRGBO(0, 0, 0, command.opacity),
+          );
+        case 3:
+          canvas.restore();
+      }
     }
   }
 
@@ -485,9 +526,11 @@ class RustSvgxPictureCache {
     if (blur != null) canvas.restore();
     if (mask != null) {
       canvas.saveLayer(maskRect, _maskCoveragePaint(mask.kind));
-      for (final maskPath in mask.paths) {
-        _paintPath(canvas, maskPath, nested: true);
+      // 黑底让非预乘 RGB 包含内容 alpha，供亮度矩阵取覆盖度。
+      if (mask.kind == 0) {
+        canvas.drawColor(const Color(0xff000000), BlendMode.src);
       }
+      _paintCommands(canvas, mask.paths, mask.commands, nested: true);
       canvas
         ..restore()
         ..restore();
@@ -638,9 +681,11 @@ class RustSvgxPictureCache {
       // 把遮罩自身内容作为覆盖度合成：经 BlendMode.dstIn，其亮度（或 alpha）
       // 成为目标图层的 alpha。
       canvas.saveLayer(maskRect, _maskCoveragePaint(mask.kind));
-      for (final maskPath in mask.paths) {
-        _paintPath(canvas, maskPath, nested: true);
+      // 黑底让非预乘 RGB 包含内容 alpha，供亮度矩阵取覆盖度。
+      if (mask.kind == 0) {
+        canvas.drawColor(const Color(0xff000000), BlendMode.src);
       }
+      _paintCommands(canvas, mask.paths, mask.commands, nested: true);
       canvas
         ..restore()
         ..restore();
@@ -714,9 +759,7 @@ class RustSvgxPictureCache {
       final tileCanvas = Canvas(recorder)
         ..scale(pxW / pattern.width, pxH / pattern.height)
         ..translate(-pattern.x, -pattern.y);
-      for (final tilePath in pattern.paths) {
-        _paintPath(tileCanvas, tilePath, nested: true);
-      }
+      _paintCommands(tileCanvas, pattern.paths, pattern.commands, nested: true);
       // The tile's display list exists only to be rasterized into `image`,
       // and nothing keeps it afterwards — but a dropped `ui.Picture` still
       // holds its native display list until the GC finalizes it. With a

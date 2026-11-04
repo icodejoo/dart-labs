@@ -302,6 +302,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SvgCommand> dco_decode_list_svg_command(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_svg_command).toList();
+  }
+
+  @protected
   List<SvgGradientStop> dco_decode_list_svg_gradient_stop(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_svg_gradient_stop).toList();
@@ -393,6 +399,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgCommand dco_decode_svg_command(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SvgCommand(
+      kind: dco_decode_u_8(arr[0]),
+      index: dco_decode_u_32(arr[1]),
+      opacity: dco_decode_f_32(arr[2]),
+    );
+  }
+
+  @protected
   SvgEffects dco_decode_svg_effects(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -468,8 +487,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgMask dco_decode_svg_mask(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return SvgMask(
       kind: dco_decode_u_8(arr[0]),
       x: dco_decode_f_32(arr[1]),
@@ -477,6 +496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       width: dco_decode_f_32(arr[3]),
       height: dco_decode_f_32(arr[4]),
       paths: dco_decode_list_svg_path(arr[5]),
+      commands: dco_decode_list_svg_command(arr[6]),
     );
   }
 
@@ -506,8 +526,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgPattern dco_decode_svg_pattern(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return SvgPattern(
       id: dco_decode_String(arr[0]),
       x: dco_decode_f_32(arr[1]),
@@ -516,6 +536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       height: dco_decode_f_32(arr[4]),
       matrix: dco_decode_list_prim_f_32_strict(arr[5]),
       paths: dco_decode_list_svg_path(arr[6]),
+      commands: dco_decode_list_svg_command(arr[7]),
     );
   }
 
@@ -523,13 +544,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgScene dco_decode_svg_scene(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return SvgScene(
       width: dco_decode_f_32(arr[0]),
       height: dco_decode_f_32(arr[1]),
       paths: dco_decode_list_svg_path(arr[2]),
-      images: dco_decode_list_svg_image(arr[3]),
+      commands: dco_decode_list_svg_command(arr[3]),
+      images: dco_decode_list_svg_image(arr[4]),
     );
   }
 
@@ -636,6 +658,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <SvgClip>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_svg_clip(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SvgCommand> sse_decode_list_svg_command(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SvgCommand>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_svg_command(deserializer));
     }
     return ans_;
   }
@@ -792,6 +826,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SvgCommand sse_decode_svg_command(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_u_8(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_opacity = sse_decode_f_32(deserializer);
+    return SvgCommand(kind: var_kind, index: var_index, opacity: var_opacity);
+  }
+
+  @protected
   SvgEffects sse_decode_svg_effects(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_fillPattern = sse_decode_opt_box_autoadd_svg_pattern(deserializer);
@@ -886,6 +929,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_f_32(deserializer);
     var var_height = sse_decode_f_32(deserializer);
     var var_paths = sse_decode_list_svg_path(deserializer);
+    var var_commands = sse_decode_list_svg_command(deserializer);
     return SvgMask(
       kind: var_kind,
       x: var_x,
@@ -893,6 +937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       width: var_width,
       height: var_height,
       paths: var_paths,
+      commands: var_commands,
     );
   }
 
@@ -941,6 +986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_height = sse_decode_f_32(deserializer);
     var var_matrix = sse_decode_list_prim_f_32_strict(deserializer);
     var var_paths = sse_decode_list_svg_path(deserializer);
+    var var_commands = sse_decode_list_svg_command(deserializer);
     return SvgPattern(
       id: var_id,
       x: var_x,
@@ -949,6 +995,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       height: var_height,
       matrix: var_matrix,
       paths: var_paths,
+      commands: var_commands,
     );
   }
 
@@ -958,11 +1005,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_f_32(deserializer);
     var var_height = sse_decode_f_32(deserializer);
     var var_paths = sse_decode_list_svg_path(deserializer);
+    var var_commands = sse_decode_list_svg_command(deserializer);
     var var_images = sse_decode_list_svg_image(deserializer);
     return SvgScene(
       width: var_width,
       height: var_height,
       paths: var_paths,
+      commands: var_commands,
       images: var_images,
     );
   }
@@ -1079,6 +1128,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_svg_clip(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_svg_command(
+    List<SvgCommand> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_svg_command(item, serializer);
     }
   }
 
@@ -1232,6 +1293,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_svg_command(SvgCommand self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self.kind, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_f_32(self.opacity, serializer);
+  }
+
+  @protected
   void sse_encode_svg_effects(SvgEffects self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_box_autoadd_svg_pattern(self.fillPattern, serializer);
@@ -1298,6 +1367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.width, serializer);
     sse_encode_f_32(self.height, serializer);
     sse_encode_list_svg_path(self.paths, serializer);
+    sse_encode_list_svg_command(self.commands, serializer);
   }
 
   @protected
@@ -1327,6 +1397,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.height, serializer);
     sse_encode_list_prim_f_32_strict(self.matrix, serializer);
     sse_encode_list_svg_path(self.paths, serializer);
+    sse_encode_list_svg_command(self.commands, serializer);
   }
 
   @protected
@@ -1335,6 +1406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.width, serializer);
     sse_encode_f_32(self.height, serializer);
     sse_encode_list_svg_path(self.paths, serializer);
+    sse_encode_list_svg_command(self.commands, serializer);
     sse_encode_list_svg_image(self.images, serializer);
   }
 

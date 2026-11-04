@@ -62,6 +62,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SvgClip> dco_decode_list_svg_clip(dynamic raw);
 
   @protected
+  List<SvgCommand> dco_decode_list_svg_command(dynamic raw);
+
+  @protected
   List<SvgGradientStop> dco_decode_list_svg_gradient_stop(dynamic raw);
 
   @protected
@@ -99,6 +102,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgClip dco_decode_svg_clip(dynamic raw);
+
+  @protected
+  SvgCommand dco_decode_svg_command(dynamic raw);
 
   @protected
   SvgEffects dco_decode_svg_effects(dynamic raw);
@@ -176,6 +182,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SvgClip> sse_decode_list_svg_clip(SseDeserializer deserializer);
 
   @protected
+  List<SvgCommand> sse_decode_list_svg_command(SseDeserializer deserializer);
+
+  @protected
   List<SvgGradientStop> sse_decode_list_svg_gradient_stop(
     SseDeserializer deserializer,
   );
@@ -223,6 +232,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SvgClip sse_decode_svg_clip(SseDeserializer deserializer);
+
+  @protected
+  SvgCommand sse_decode_svg_command(SseDeserializer deserializer);
 
   @protected
   SvgEffects sse_decode_svg_effects(SseDeserializer deserializer);
@@ -315,6 +327,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_svg_clip(List<SvgClip> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_svg_command(
+    List<SvgCommand> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_svg_gradient_stop(
     List<SvgGradientStop> self,
     SseSerializer serializer,
@@ -376,6 +394,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_svg_clip(SvgClip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_svg_command(SvgCommand self, SseSerializer serializer);
 
   @protected
   void sse_encode_svg_effects(SvgEffects self, SseSerializer serializer);

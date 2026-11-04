@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_paths_at_depth`, `append_subtree_paths`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge`, `check_xml_depth`, `checked_styles`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `extend_inherited`, `gaussian_blur_of`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_commands`, `argb`, `build_clips_at_depth`, `build_clips`, `build_gradient`, `build_mask_at_depth`, `build_mask`, `build_pattern`, `charge`, `check_xml_depth`, `checked_styles`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `css_compound_certain`, `css_compound_matches`, `css_declarations_certain`, `css_ident`, `css_parts_match`, `css_selector_parts`, `css_space`, `css_string_end`, `current_color_insertion`, `extend_inherited`, `finish_commands`, `gaussian_blur_of`, `limit_scene_reference_depth`, `limit_source_depth`, `local_urls`, `map`, `paint_argb`, `parse_svg_document`, `parse_xml`, `resolve_paint`, `scan_css`, `some_if_present`, `source_reference_graph`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `try_scene_from_tree`, `usvg_options`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ExpansionBudget`, `GuardCss`, `Inherited`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
@@ -163,6 +163,36 @@ class SvgClip {
           verbs == other.verbs &&
           points == other.points &&
           evenOdd == other.evenOdd;
+}
+
+/// 静态显示列表命令：0 路径、1 图片、2 opacity 入层、3 出层。
+class SvgCommand {
+  /// 命令类型。
+  final int kind;
+
+  /// 路径或图片下标；图层命令不用。
+  final int index;
+
+  /// 入层不透明度；其他命令不用。
+  final double opacity;
+
+  const SvgCommand({
+    required this.kind,
+    required this.index,
+    required this.opacity,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ index.hashCode ^ opacity.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SvgCommand &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          index == other.index &&
+          opacity == other.opacity;
 }
 
 /// Bundles the clip/mask/blur/pattern fields that only apply to a minority of
@@ -503,6 +533,9 @@ class SvgMask {
   /// Mask content shapes, in absolute space. / 遮罩内容形状，绝对坐标空间。
   final List<SvgPath> paths;
 
+  /// 含 opacity 时的有序重放命令；为空时沿用原有扁平绘制。
+  final List<SvgCommand> commands;
+
   const SvgMask({
     required this.kind,
     required this.x,
@@ -510,6 +543,7 @@ class SvgMask {
     required this.width,
     required this.height,
     required this.paths,
+    required this.commands,
   });
 
   @override
@@ -519,7 +553,8 @@ class SvgMask {
       y.hashCode ^
       width.hashCode ^
       height.hashCode ^
-      paths.hashCode;
+      paths.hashCode ^
+      commands.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -531,7 +566,8 @@ class SvgMask {
           y == other.y &&
           width == other.width &&
           height == other.height &&
-          paths == other.paths;
+          paths == other.paths &&
+          commands == other.commands;
 }
 
 /// One path node: geometry (in absolute coords) plus fill/stroke.
@@ -680,6 +716,9 @@ class SvgPattern {
   /// Tile contents, in pattern-local space. / 贴片内容，图案局部空间。
   final List<SvgPath> paths;
 
+  /// 含 opacity 时的有序重放命令；为空时沿用原有扁平绘制。
+  final List<SvgCommand> commands;
+
   const SvgPattern({
     required this.id,
     required this.x,
@@ -688,6 +727,7 @@ class SvgPattern {
     required this.height,
     required this.matrix,
     required this.paths,
+    required this.commands,
   });
 
   @override
@@ -698,7 +738,8 @@ class SvgPattern {
       width.hashCode ^
       height.hashCode ^
       matrix.hashCode ^
-      paths.hashCode;
+      paths.hashCode ^
+      commands.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -711,7 +752,8 @@ class SvgPattern {
           width == other.width &&
           height == other.height &&
           matrix == other.matrix &&
-          paths == other.paths;
+          paths == other.paths &&
+          commands == other.commands;
 }
 
 /// A parsed SVG reduced to a flat list of paths with resolved paints.
@@ -727,23 +769,31 @@ class SvgScene {
   /// Draw commands in paint order. / 按绘制顺序排列的绘制命令。
   final List<SvgPath> paths;
 
+  /// 含 opacity 时的有序重放命令；为空时沿用原有扁平绘制。
+  final List<SvgCommand> commands;
+
   /// Embedded raster images, in document order (drawn before [paths] — a
-  /// simplifying z-order assumption, no interleaving with path draw order).
+  /// simplifying z-order assumption when [commands] is empty).
   ///
   /// 内嵌位图，按文档顺序排列（在 [paths] 之前绘制——简化的 z-order 假设，
-  /// 不与路径绘制顺序交错）。
+  /// 有 [commands] 时按命令顺序绘制）。
   final List<SvgImage> images;
 
   const SvgScene({
     required this.width,
     required this.height,
     required this.paths,
+    required this.commands,
     required this.images,
   });
 
   @override
   int get hashCode =>
-      width.hashCode ^ height.hashCode ^ paths.hashCode ^ images.hashCode;
+      width.hashCode ^
+      height.hashCode ^
+      paths.hashCode ^
+      commands.hashCode ^
+      images.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -753,5 +803,6 @@ class SvgScene {
           width == other.width &&
           height == other.height &&
           paths == other.paths &&
+          commands == other.commands &&
           images == other.images;
 }
