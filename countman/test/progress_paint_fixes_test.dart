@@ -86,37 +86,41 @@ void main() {
   });
   testWidgets('Ring/Bar 稳定 key 的 animateOnce 跳过重挂并同步 controller',
       (tester) async {
-    final visible = ValueNotifier(true);
+    final visible = ValueNotifier(0);
     final ring = CounterValueController();
     final bar = CounterValueController();
     await tester.pumpWidget(Directionality(
         textDirection: TextDirection.ltr,
         child: CounterProvider(
             animateOnce: true,
-            child: ValueListenableBuilder<bool>(
+            child: ValueListenableBuilder<int>(
                 valueListenable: visible,
-                builder: (_, show, child) => Center(
-                    child: show
+                builder: (_, phase, child) => Center(
+                    child: phase >= 0
                         ? Column(mainAxisSize: MainAxisSize.min, children: [
                             RingCounter(
                                 key: const ValueKey('ring'),
-                                to: 10,
+                                to: 10.0 + phase,
                                 controller: ring),
                             BarCounter(
                                 key: const ValueKey('bar'),
-                                to: 20,
+                                to: 20.0 + phase,
                                 controller: bar),
                           ])
                         : const SizedBox())))));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
-    visible.value = false;
+    visible.value = -1;
     await tester.pump();
-    visible.value = true;
+    visible.value = 0;
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(ring.value, 10);
     expect(bar.value, 20);
+    visible.value = 5;
+    await tester.pump();
+    expect(ring.value, 15);
+    expect(bar.value, 25);
     await tester.pumpWidget(const SizedBox());
     visible.dispose();
   });
