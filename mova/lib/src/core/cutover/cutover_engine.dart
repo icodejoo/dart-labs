@@ -148,7 +148,8 @@ class MovaCutoverEngine
         MovaCutover,
         MovaKeepAlive,
         MovaWarmOwner,
-        MovaUiBridge {
+        MovaUiBridge,
+        MovaUiHandoffReceiver {
   /// Creates a cutover engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -215,7 +216,42 @@ class MovaCutoverEngine
   late final _uiLinks = MovaUiConnections(
     mirror: _uiState.emit,
     onLast: () => _uiState.emit(_active.uiState),
+    onFirst: _cancelViewUiTimers,
+    onHandoff: resumeUi,
   );
+
+  MovaUiTimers? _viewUiTimers;
+
+  void _cancelViewUiTimers() {
+    _viewUiTimers?.cancel();
+    _viewUiTimers = null;
+  }
+
+  @override
+  void resumeUi(MovaUiHandoff handoff) {
+    if (_disposed) {
+      handoff.timers.cancel();
+      return;
+    }
+    _cancelViewUiTimers();
+    final active = _active;
+    if (active is MovaUiHandoffReceiver) {
+      (active as MovaUiHandoffReceiver).resumeUi(handoff);
+    } else {
+      _viewUiTimers = handoff.timers
+        ..onHide = () {
+          if (!_disposed) {
+            _uiState.emit(uiState.copyWith(controlsVisible: false));
+          }
+        }
+        ..onHud = () {
+          if (!_disposed) {
+            _uiState.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
+          }
+        };
+    }
+    _uiState.emit(handoff.state);
+  }
 
   /// 当前生效源是否就绪；代理销毁后为 false。
   @override
@@ -619,6 +655,7 @@ class MovaCutoverEngine
       _uiLinks.broadcast((sink) => sink.legacyShow(sticky: sticky));
       return;
     }
+    _cancelViewUiTimers();
     if (!_disposed) _active.showControls(sticky: sticky);
   }
 
@@ -629,6 +666,7 @@ class MovaCutoverEngine
       _uiLinks.broadcast((sink) => sink.legacyHide());
       return;
     }
+    _cancelViewUiTimers();
     if (!_disposed) _active.hideControls();
   }
 
@@ -639,6 +677,7 @@ class MovaCutoverEngine
       _uiLinks.broadcast((sink) => sink.legacyHud(hud, text));
       return;
     }
+    _cancelViewUiTimers();
     if (!_disposed) _active.showHud(hud, text: text);
   }
 
@@ -649,6 +688,7 @@ class MovaCutoverEngine
       _uiLinks.broadcast((sink) => sink.legacyDragging(v, previewAt));
       return;
     }
+    _cancelViewUiTimers();
     if (!_disposed) _active.setDragging(v, previewAt: previewAt);
   }
 
@@ -662,6 +702,7 @@ class MovaCutoverEngine
     // 幂等：重复 dispose 直接返回。
     if (_disposed) return;
     _disposed = true;
+    _cancelViewUiTimers();
     _uiLinks.close();
     _intentSnapshot = null;
     _op++;

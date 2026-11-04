@@ -18,12 +18,21 @@ import '../scope/scope.dart';
 class MovaChrome extends ChangeNotifier
     implements ValueListenable<MovaUiState> {
   /// 创建控制条可见、无 HUD、无拖动的交互态。
-  MovaChrome();
+  MovaChrome() {
+    _timers = _newTimers();
+  }
 
   final _bus = MovaBus<MovaUiState>(const MovaUiState());
   MovaCtrlsConfig _controls = const MovaCtrlsConfig();
-  Timer? _autoHideTimer;
-  Timer? _hudTimer;
+  late MovaUiTimers _timers;
+
+  MovaUiTimers _newTimers() => MovaUiTimers()
+    ..onHide = hide
+    ..onHud = () {
+      if (!_disposed) {
+        _emit(value.copyWith(hud: MovaHud.none, clearHudText: true));
+      }
+    };
   bool _sticky = false;
   bool _disposed = false;
   MovaApi? _api;
@@ -80,18 +89,32 @@ class MovaChrome extends ChangeNotifier
 
   void _unbind() {
     ++_binding;
-    _cancelTimers();
+    final timers = _timers;
+    // 拖动卸载等价于取消拖动；常显保持，否则从离开时恢复自动隐藏。
+    if (value.dragging &&
+        value.controlsVisible &&
+        !_sticky &&
+        _controls.autoHide) {
+      timers.armHide(_controls.autoHideDelay);
+    }
+    _bus.emit(value.copyWith(dragging: false, clearPreview: true));
+    _timers = _newTimers();
     unawaited(_eventSub?.cancel());
     _eventSub = null;
-    _link?.unlink();
+    final link = _link;
+    if (link is MovaUiHandoffLink) {
+      link.unlinkWith(MovaUiHandoff(value, timers));
+    } else {
+      timers.cancel();
+      link?.unlink();
+    }
     _link = null;
     _api = null;
   }
 
   void _cancelTimers() {
-    _cancelAutoHide();
-    _hudTimer?.cancel();
-    _hudTimer = null;
+    _timers.cancelHide();
+    _timers.cancelHud();
   }
 
   /// 当前交互态。
@@ -127,12 +150,8 @@ class MovaChrome extends ChangeNotifier
   /// 显示临时提示，[kMovaHudDuration] 后收起；不传文本会清空旧文本。
   void showHud(MovaHud hud, {String? text}) {
     if (_disposed) return;
-    _hudTimer?.cancel();
+    _timers.armHud(kMovaHudDuration);
     _emit(value.copyWith(hud: hud, hudText: text, clearHudText: text == null));
-    _hudTimer = Timer(kMovaHudDuration, () {
-      _hudTimer = null;
-      _emit(value.copyWith(hud: MovaHud.none, clearHudText: true));
-    });
   }
 
   /// 拖动时保持控制条可见并暂停自动隐藏；结束后清空预览并重新计时。
@@ -163,8 +182,7 @@ class MovaChrome extends ChangeNotifier
   }
 
   void _cancelAutoHide() {
-    _autoHideTimer?.cancel();
-    _autoHideTimer = null;
+    _timers.cancelHide();
   }
 
   void _armAutoHide() {
@@ -173,18 +191,18 @@ class MovaChrome extends ChangeNotifier
       return;
     }
     if (_controls.autoHide) {
-      _autoHideTimer = Timer(_controls.autoHideDelay, hide);
+      _timers.armHide(_controls.autoHideDelay);
     }
   }
 
   void _emit(MovaUiState next) {
-    if (next == value) return;
+    if (_disposed || next == value) return;
     _bus.emit(next);
     _link?.mirror(next);
     notifyListeners();
   }
 
-  /// 同步取消计时器并关闭变化流；之后各动词静默无效。
+  /// 释放本实例计时并关闭变化流；绑定时交还剩余计时，之后各动词静默无效。
   @override
   void dispose() {
     if (_disposed) return;

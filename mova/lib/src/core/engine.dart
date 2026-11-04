@@ -160,7 +160,7 @@ class _AbrLease {
 /// 应用请通过 `createMovaEngine()` 创建并接入真实平台端口。
 /// 裸构造默认使用空亮度/PiP/方向端口，供测试或自行注入端口的宿主使用；
 /// debug 下首次缺省这些端口时提示一次。例如：`final api = createMovaEngine();`。
-class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable, MovaUiBridge {
+class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable, MovaUiBridge, MovaUiHandoffReceiver {
   /// 测试用的一次性提示开关；设为 false 可重新观察裸构造提示。
   /// 示例：`MovaEngine.debugBareConstructorWarningShown = false;`。
   @visibleForTesting
@@ -484,13 +484,39 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   final MovaBus<MovaState> _state;
   late final _uiLinks = MovaUiConnections(
     mirror: _ui.emit,
+    onHandoff: resumeUi,
     onFirst: () {
+      _viewUiTimers?.cancel();
+      _viewUiTimers = null;
       _autoHideTimer?.cancel();
       _autoHideTimer = null;
       _hudTimer?.cancel();
       _hudTimer = null;
     },
   );
+
+  MovaUiTimers? _viewUiTimers;
+
+  @override
+  void resumeUi(MovaUiHandoff handoff) {
+    if (_disposed) {
+      handoff.timers.cancel();
+      return;
+    }
+    _viewUiTimers?.cancel();
+    _autoHideTimer?.cancel();
+    _autoHideTimer = null;
+    _hudTimer?.cancel();
+    _hudTimer = null;
+    _viewUiTimers = handoff.timers
+      ..onHide = hideControls
+      ..onHud = () {
+        if (!_disposed) {
+          _ui.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
+        }
+      };
+    _ui.emit(handoff.state);
+  }
 
   /// 当前源是否已宣布就绪，供新视图决定计时起点。
   @override
@@ -3250,6 +3276,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       _uiLinks.broadcast((sink) => sink.legacyShow(sticky: sticky));
       return;
     }
+    _viewUiTimers?.cancelHide();
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: true));
@@ -3268,6 +3295,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       _uiLinks.broadcast((sink) => sink.legacyHide());
       return;
     }
+    _viewUiTimers?.cancelHide();
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: false));
@@ -3283,13 +3311,17 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       _uiLinks.broadcast((sink) => sink.legacyHud(hud, text));
       return;
     }
+    _viewUiTimers?.cancelHud();
     _hudTimer?.cancel();
+    _hudTimer = Timer(kMovaHudDuration, () {
+      _hudTimer = null;
+      if (!_disposed) {
+        _ui.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
+      }
+    });
     _ui.emit(
       uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null),
     );
-    _hudTimer = Timer(kMovaHudDuration, () {
-      _ui.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
-    });
   }
 
   @override
@@ -3447,6 +3479,8 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
       orientationRestore = _orientation.reset().catchError((Object _) {});
     }
     _disposed = true;
+    _viewUiTimers?.cancel();
+    _viewUiTimers = null;
     _uiLinks.close();
     _hudTimer?.cancel();
     _hudTimer = null;

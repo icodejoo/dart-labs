@@ -8,6 +8,42 @@ import 'package:mova/src/ui/chrome/chrome.dart';
 
 void main() {
   test(
+    'HUD 同步重入只保留最新计时器，销毁后无通知',
+    () => fakeAsync((a) {
+      final c = MovaChrome();
+      var notifications = 0;
+      c.addListener(() {
+        notifications++;
+        if (c.value.hud == MovaHud.seek) c.showHud(MovaHud.volume);
+      });
+      c.showHud(MovaHud.seek);
+      expect(c.value.hud, MovaHud.volume);
+      expect(a.nonPeriodicTimerCount, 1);
+      c.dispose();
+      expect(a.nonPeriodicTimerCount, 0);
+      final before = notifications;
+      a.elapse(const Duration(seconds: 2));
+      expect(notifications, before);
+    }),
+  );
+
+  test(
+    'HUD 重入后微任务销毁不遗留计时器',
+    () => fakeAsync((a) {
+      final c = MovaChrome();
+      c.addListener(() {
+        if (c.value.hud == MovaHud.seek) {
+          c.showHud(MovaHud.volume);
+          scheduleMicrotask(c.dispose);
+        }
+      });
+      c.showHud(MovaHud.seek);
+      a.flushMicrotasks();
+      expect(a.nonPeriodicTimerCount, 0);
+      a.elapse(const Duration(seconds: 2));
+    }),
+  );
+  test(
     '初值与流重放一致',
     () => fakeAsync((a) {
       final c = MovaChrome();

@@ -1,4 +1,5 @@
 import 'package:fake_async/fake_async.dart';
+import 'package:mova/src/core/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/cutover/cutover_engine.dart';
 import 'package:mova/src/core/cutover/trigger.dart';
@@ -10,6 +11,7 @@ import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/ui_bridge.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/testing/hooks.dart';
+import 'package:mova/src/ui/chrome/chrome.dart';
 
 import '../support/fake_bridge_api.dart';
 import '../support/fake_kernel.dart';
@@ -36,6 +38,82 @@ Future<void> _flush() async {
 }
 
 void main() {
+  for (final proxy in [false, true]) {
+    test(
+      '末次解绑${proxy ? "代理" : "引擎"}镜像继续 HUD 与控制条剩余期限',
+      () => fakeAsync((a) {
+        final MovaApi e = proxy
+            ? MovaCutoverEngine(engineFactory: _engine)
+            : _engine();
+        final c = MovaChrome();
+        movaBindChrome(c, e);
+        a.flushMicrotasks();
+        c.show();
+        c.showHud(MovaHud.seek, text: '00:10');
+        a.elapse(const Duration(milliseconds: 400));
+        movaUnbindChrome(c);
+        c.dispose();
+        a.elapse(const Duration(milliseconds: 399));
+        expect(e.uiState.hud, MovaHud.seek);
+        a.elapse(const Duration(milliseconds: 1));
+        expect(e.uiState.hud, MovaHud.none);
+        expect(e.uiState.hudText, isNull);
+        a.elapse(const Duration(milliseconds: 2199));
+        expect(e.uiState.controlsVisible, isTrue);
+        a.elapse(const Duration(milliseconds: 1));
+        expect(e.uiState.controlsVisible, isFalse);
+        e.dispose();
+        a.flushMicrotasks();
+      }),
+    );
+  }
+  for (final sticky in [false, true]) {
+    test(
+      '末次解绑清理拖动预览并${sticky ? "保留常显" : "恢复隐藏"}',
+      () => fakeAsync((a) {
+        final e = _engine();
+        final c = MovaChrome();
+        movaBindChrome(c, e);
+        c.show(sticky: sticky);
+        c.setDragging(true, previewAt: const Duration(seconds: 10));
+        movaUnbindChrome(c);
+        expect(c.value.dragging, isFalse);
+        expect(c.value.previewAt, isNull);
+        expect(e.uiState.dragging, isFalse);
+        expect(e.uiState.previewAt, isNull);
+        c.dispose();
+        a.elapse(const Duration(seconds: 3));
+        expect(e.uiState.controlsVisible, sticky);
+        e.showControls();
+        a.elapse(const Duration(seconds: 3));
+        expect(e.uiState.controlsVisible, isFalse);
+        e.dispose();
+        a.flushMicrotasks();
+      }),
+    );
+  }
+  test(
+    '非末次解绑不接管其他视图的计时',
+    () => fakeAsync((a) {
+      final e = _engine();
+      final one = MovaChrome(), two = MovaChrome();
+      movaBindChrome(one, e);
+      movaBindChrome(two, e);
+      one.show();
+      two.show(sticky: true);
+      movaUnbindChrome(one);
+      one.dispose();
+      a.elapse(const Duration(seconds: 4));
+      expect(two.value.controlsVisible, isTrue);
+      expect(e.uiState.controlsVisible, isTrue);
+      movaUnbindChrome(two);
+      two.dispose();
+      a.elapse(const Duration(seconds: 4));
+      expect(e.uiState.controlsVisible, isTrue);
+      e.dispose();
+      a.flushMicrotasks();
+    }),
+  );
   test(
     '末次断开后恢复旧自动隐藏且断开幂等',
     () => fakeAsync((a) {
