@@ -1053,16 +1053,18 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 
 | 项 | 次数 | 通过标准 |
 |---|---|---|
-| A24/F4 广告各路径（pre/mid/post/pod），正片含 HLS（H15/H20/H50） | 各 5 | 续播误差 ≤500ms；`renderEpoch` 按次递增 |
+| A24/F4 广告各路径（pre/mid/post/pod），正片含 HLS（H15/H20/H50） | 各 5 | 续播误差 ≤500ms；成功无缝提交时 `renderEpoch` 按次递增，直接 open 不要求递增 |
 | 广告中暂停 10s 再续 | 10 | slot 剩余时长误差 ≤300ms；暂停期间不发 completed |
 | 广告中切后台 30s（Android，无守卫与有守卫两组） | 各 10 | 后台不发 completed、不出声；回前台按守卫语义续播 |
-| pod 第二条广告（CLAUDE.md ③） | 10 | 每条都走无缝切换（`renderEpoch` 递增 10/10） |
+| pod 第二条广告（CLAUDE.md ③） | wait/nowait 各 10 | wait 每条无缝切换（第二条 `renderEpoch` 递增 10/10）；nowait 为当前引擎直接 open 对照，不要求 epoch 递增；两组都核对源与独立首帧 |
 | 播放列表 + 广告 3 集自动连播 | 5 | 每集都有前贴片和中插；`contentEnded` 每集一次 |
 | 倍速恢复（F16）、Q13 预热静音不碰系统音量 | 各 5 | 与 CP0 一致 |
 | 后台暂停所有权：无守卫 MovaPlayer、MovaView(autoPause) V9、PiP F5/A15/A18、直播隐藏 ≥3s 回边缘 H61 | 各 5–10 | 无守卫：后台暂停且意图为假；有守卫：回前台自动续播；PiP 不暂停 |
 | audioOnly 引擎无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的引擎仍按守卫语义暂停（对照） |
 | F1/F7 事件序列、QoE 会话数 | 各 5 | 内部重试与换档不产生新 QoE 会话 |
 | Windows：广告基本路径 5、路由覆盖 V10 20 | 按项 | 0 崩溃 |
+
+2026-11-05 判据澄清：上述 pod 范围与 CP0 更正、A27 及 CHANGELOG 的“等待型”契约一致，未改变产品行为。slot 剩余时长以首帧后的有效墙钟为基准，暂停按 `playing` 降沿冻结、升沿恢复；原生媒体位置单列诊断，不代替 slot 时钟。第四轮只读证据重算及夹具交接见 [离线定性](2026-11-05-cp2-r4-offline-triage.md)，历史 FAIL 不覆盖、不改写。
 
 设备时间：Android 3 天（含 audioOnly 后台一组）+ Windows 0.5 天；预留一轮修复 1.5 天。
 
