@@ -2,7 +2,7 @@ import 'package:countman/countman.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 卡片语义与小时列切换用例共用的初始时长。
 const _initialDuration = Duration(minutes: 10);

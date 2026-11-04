@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // CountdownFormat.template：创建时解析一次，逐 tick 只做拼接。
 

@@ -6,7 +6,7 @@ import 'package:countman/countman.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 用给定主题扩展包一层 MaterialApp。
 Widget _app(Widget child, {CountmanTheme? theme}) => MaterialApp(

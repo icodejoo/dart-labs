@@ -1,5 +1,5 @@
 import 'package:countman/countman.dart';
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // 本批回归覆盖回调重入、帧唤醒与任务终态，直接驱动可控帧。

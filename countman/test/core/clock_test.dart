@@ -2,7 +2,7 @@ import 'package:countman/countman.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 验证时钟抽象：手动时钟、偏移时钟与系统时钟的前台恢复校准。
 void main() {
@@ -356,5 +356,31 @@ void main() {
 
   test('CountmanClock.system 默认是 SystemClock', () {
     expect(CountmanClock.system, isA<SystemClock>());
+  });
+
+  test('Bug #19: 墙钟变化不影响秒表与相对倒计时，只影响绝对截止倒计时', () {
+    // 改写理由：相对时长改走单调钟，只有 deadline 倒计时才跟随系统改时间。
+    final clock = installManualClock();
+    final elapsedPlugin = Elapsed(interval: 0, clock: clock);
+    elapsedPlugin.onAttach(CountmanContext(requestFrame: () {}));
+    final handle = elapsedPlugin.add(const ElapsedOptions());
+    final countdownPlugin = Countdown(interval: 0, clock: clock);
+    countdownPlugin.onAttach(CountmanContext(requestFrame: () {}));
+    final relative = countdownPlugin.add(
+      const CountdownOptions(duration: Duration(hours: 2)),
+    );
+    final absolute = countdownPlugin.add(
+      CountdownOptions(deadline: kTestWallStart.add(const Duration(hours: 2))),
+    );
+
+    clock.jumpWall(const Duration(hours: 1));
+    clock.advance(const Duration(seconds: 3));
+    expect(handle.elapsed, const Duration(seconds: 3));
+    expect(relative.remaining, const Duration(hours: 2) - const Duration(seconds: 3));
+    expect(absolute.remaining, const Duration(hours: 1) - const Duration(seconds: 3));
+    clock.jumpWall(const Duration(hours: -3));
+    expect(handle.elapsed, const Duration(seconds: 3));
+    expect(relative.remaining, const Duration(hours: 2) - const Duration(seconds: 3));
+    expect(absolute.remaining, const Duration(hours: 4) - const Duration(seconds: 3));
   });
 }

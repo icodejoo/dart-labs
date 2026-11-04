@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // CardCountdown now paints via a single CustomPainter (see card_countdown.dart)
 // instead of a per-digit widget subtree, so its digit content isn't reachable

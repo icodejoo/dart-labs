@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // Mirrors ring_test.dart — BarCountdown/BarCounter share BarPainter and
 // have the same widget-wiring contract as their Ring counterparts, just a

@@ -7,7 +7,7 @@ import 'package:countman/src/widgets/animate_once.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 计数类动画的测试时长。
 const _counterDuration = Duration(seconds: 10);

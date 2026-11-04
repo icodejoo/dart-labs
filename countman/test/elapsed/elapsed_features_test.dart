@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // 0.3.0 正计时增强：起点 since/initial、上限 limit、圈速 lap。
 // 全部用 ManualCountmanClock 控制时间；插件直接 tick，不依赖真实等待。

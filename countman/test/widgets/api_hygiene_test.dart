@@ -52,7 +52,7 @@ void main() {
 
   // 防止恒真断言与重复清理再次掩盖渲染异常或污染后续用例。
   test('Simplify 6: API tests use real assertions and one shared cleanup', () {
-    final source = File('test/api_expansion_test.dart').readAsStringSync();
+    final source = File('test/widgets/widget_api_test.dart').readAsStringSync();
     expect(source, isNot(contains('testerOk')));
     expect(
         RegExp(r'tearDown\(Countman.destroy\)').allMatches(source).length, 1);

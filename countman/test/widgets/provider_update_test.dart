@@ -1,5 +1,5 @@
 import 'package:countman/countman.dart';
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 

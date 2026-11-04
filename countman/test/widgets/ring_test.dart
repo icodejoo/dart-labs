@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // RingCountdown and RingCounter share RingPainter (lib/src/widgets/ring_painter.dart).
 // Arc content isn't reachable via find.text(), so these tests exercise the

@@ -1,7 +1,7 @@
 import 'package:countman/countman.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 单步推进的帧长；与 60Hz 接近，保证多数帧之间跨不过一个整秒。
 const _frame = Duration(milliseconds: 16);

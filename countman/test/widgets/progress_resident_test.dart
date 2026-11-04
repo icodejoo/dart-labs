@@ -5,7 +5,7 @@ import 'package:countman/countman.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 /// 帧间隔，60 帧约 1 秒。
 const _frame = Duration(milliseconds: 16);

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-import 'support/manual_clock.dart';
+import '../support/manual_clock.dart';
 
 // 所有用例使用 ManualCountmanClock 注入时间，相对倒计时走单调钟。
 // 不使用 Future.delayed——通过 advance 推进手动时钟并以匹配的 dt 调用 tick()，
