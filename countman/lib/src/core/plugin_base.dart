@@ -491,8 +491,8 @@ abstract class ClockTask extends CountmanTask {
 /// 桶变化才发 `onUpdate`；完成与阈值每帧检查，不被显示间隔延迟。[tick] 返回所有活动
 /// 任务中最早的唤醒时间，调度器据此休眠，不再逐 vsync 出帧。
 ///
-/// 子类提供领域钩子：[valueMicrosOf]、[totalOf]、[isComplete]、[thresholdWake]、
-/// [boundaryWake]、[completionWake]、[onComplete]。
+/// 子类提供领域钩子：[valueMicrosOf]、[displayMicrosOf]、[totalOf]、[isComplete]、
+/// [thresholdWake]、[boundaryWake]、[completionWake]、[onComplete]。
 abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// [interval] 为显示更新间隔（毫秒，0 或负数表示每帧）；[clock] 为时间源，
   /// 为空时使用 [CountmanClock.system]（每次读取时解析，便于测试整体替换）。
@@ -553,17 +553,23 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
     _monoRead = false;
   }
 
-  /// 返回 [task] 当前值所在的显示桶；每帧更新（间隔非正）时恒为 0。
-  int _bucketOf(int valueMicros) =>
-      _intervalMicros > 0 ? valueMicros ~/ _intervalMicros : 0;
+  /// 显示间隔的微秒数；非正数表示每帧更新。供子类按间隔取整时使用。
+  @protected
+  int get intervalMicros => _intervalMicros;
 
-  /// Decompose [valueMicrosOf] into the task's reused [TimeParts] and notify.
+  /// 返回 [task] 当前值所在的显示桶（按取整后的显示值计算）；每帧更新
+  /// （间隔非正）时恒为 0。
+  int _bucketOf(T task, int valueMicros) => _intervalMicros > 0
+      ? displayMicrosOf(task, valueMicros) ~/ _intervalMicros
+      : 0;
+
+  /// Decompose the display value into the task's reused [TimeParts] and notify.
   /// 同时记录发出时的显示桶。
   @protected
   void emit(T task) {
     final value = valueMicrosOf(task);
-    task.lastBucket = _bucketOf(value);
-    task.parts.setMicros(value, totalOf(task));
+    task.lastBucket = _bucketOf(task, value);
+    task.parts.setMicros(displayMicrosOf(task, value), totalOf(task));
     task.onUpdate?.call(task.parts);
   }
 
@@ -606,7 +612,7 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
 
     if (initial) return;
     if (_intervalMicros <= 0 ||
-        _bucketOf(valueMicrosOf(task)) != task.lastBucket) {
+        _bucketOf(task, valueMicrosOf(task)) != task.lastBucket) {
       emit(task);
     }
   }
@@ -618,9 +624,11 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   int nextWake(T task) {
     if (_intervalMicros <= 0) return CountmanPlugin.nextFrame;
     final value = valueMicrosOf(task);
-    if (_bucketOf(value) != task.lastBucket) return CountmanPlugin.nextFrame;
-    var wake = boundaryWake(value, _intervalMicros);
-    final complete = completionWake(value);
+    if (_bucketOf(task, value) != task.lastBucket) {
+      return CountmanPlugin.nextFrame;
+    }
+    var wake = boundaryWake(task, value, _intervalMicros);
+    final complete = completionWake(task, value);
     if (complete != CountmanPlugin.idle && complete < wake) wake = complete;
     final threshold = task.threshold;
     if (threshold != null && !task.thresholdFired) {
@@ -638,6 +646,12 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   @protected
   int valueMicrosOf(T task);
 
+  /// 把 [value]（[valueMicrosOf] 的结果）换算成对外显示的微秒；默认原样返回。
+  /// 倒计时按任务的取整方式在此向上取整。显示桶与 [TimeParts] 都基于它，
+  /// 而完成与阈值仍按未取整的真实值判定。必须不分配对象。
+  @protected
+  int displayMicrosOf(T task, int value) => value;
+
   /// The task's fixed total for progress (countdown: initial duration).
   /// `null` when there is none (elapsed).
   @protected
@@ -648,13 +662,13 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   bool isComplete(T task);
 
   /// 距显示桶下一次变化的微秒数，要求结果为正；[value] 为当前值微秒，
-  /// [intervalMicros] 为显示间隔微秒。
+  /// [intervalMicros] 为显示间隔微秒。取整方式等每任务配置从 [task] 读取。
   @protected
-  int boundaryWake(int value, int intervalMicros);
+  int boundaryWake(T task, int value, int intervalMicros);
 
   /// 距任务完成的微秒数；不会自行完成的引擎返回 [CountmanPlugin.idle]。
   @protected
-  int completionWake(int value) => CountmanPlugin.idle;
+  int completionWake(T task, int value) => CountmanPlugin.idle;
 
   /// 距阈值被越过的微秒数；小于等于 0 表示已越过。
   /// [thresholdMicros] 为阈值微秒（倒计时：剩余降到阈值；正计时：已过达到阈值）。

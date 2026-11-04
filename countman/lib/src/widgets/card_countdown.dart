@@ -232,6 +232,9 @@ class CardCountdown extends StatefulWidget {
     this.curve,
     this.repaintBoundary = true,
     this.plugin,
+    this.total,
+    this.rounding = CountdownRounding.floor,
+    this.semanticsLabel = 'Countdown',
     this.controller,
     this.onComplete,
     this.onTick,
@@ -295,6 +298,18 @@ class CardCountdown extends StatefulWidget {
   final bool repaintBoundary;
 
   final Countdown? plugin;
+
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间，通过 [onTick] 的
+  /// [TimeParts.progress] 读取。详见 [CountdownOptions.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。卡片显示、语义值与 [onTick] 都使用取整后的值。
+  final CountdownRounding rounding;
+
+  /// 屏幕阅读器标签，默认 `'Countdown'`；本地化时传入译文，例如 `'倒计时'`。
+  final String semanticsLabel;
+
   final CountdownController? controller;
   final void Function()? onComplete;
 
@@ -365,7 +380,7 @@ class _CountdownCardState extends State<CardCountdown>
           _model.reversePhase = false;
         }
       });
-    final r = _remainingOfTo();
+    final r = _shown(_remainingOfTo());
     _lastRemaining = r;
     _semanticRemaining.value = r;
     _showHours = _hoursFor(r);
@@ -379,6 +394,12 @@ class _CountdownCardState extends State<CardCountdown>
   /// 按当前插件的时钟计算 `to` 对应的剩余时间。
   Duration _remainingOfTo() => remainingUntil(widget.to, clock: _plugin.clock);
 
+  /// 把真实剩余时间 [r] 换算成卡片展示用的值（按 [CardCountdown.rounding] 取整，
+  /// 与引擎发出的 [TimeParts] 一致）。
+  Duration _shown(Duration r) => Duration(
+    microseconds: widget.rounding.apply(r.inMicroseconds, _plugin.interval),
+  );
+
   /// 新建倒计时，可指定剩余时间和暂停状态，并重新绑定重启动作。
   void _start({Duration? remaining, bool paused = false}) {
     _handle?.cancel();
@@ -391,6 +412,8 @@ class _CountdownCardState extends State<CardCountdown>
     _handle = plugin.add(CountdownOptions(
       duration: anchor.duration,
       deadline: anchor.deadline,
+      total: widget.total,
+      rounding: widget.rounding,
       onUpdate: _onTick,
       onComplete: () => widget.onComplete?.call(),
       threshold: widget.threshold,
@@ -404,13 +427,14 @@ class _CountdownCardState extends State<CardCountdown>
   void _relaunch({Duration? duration}) {
     // widget.duration 是翻牌动画时长，不是倒计时长度，不能参与回退。
     final remaining = duration ?? _remainingOfTo();
+    final shown = _shown(remaining);
     _ctrl.stop();
     _ctrl.value = 0;
     setState(() {
-      _lastRemaining = remaining;
-      _semanticRemaining.value = remaining;
-      _showHours = _hoursFor(remaining);
-      _model = CardModel(_digitsFor(remaining, _showHours));
+      _lastRemaining = shown;
+      _semanticRemaining.value = shown;
+      _showHours = _hoursFor(shown);
+      _model = CardModel(_digitsFor(shown, _showHours));
     });
     _start(remaining: remaining);
   }
@@ -494,7 +518,7 @@ class _CountdownCardState extends State<CardCountdown>
       old.controller?.detach(_handle);
       _ctrl.stop();
       _ctrl.value = 0;
-      final r = _remainingOfTo();
+      final r = _shown(_remainingOfTo());
       _lastRemaining = r;
       _semanticRemaining.value = r;
       _showHours = _hoursFor(r);
@@ -507,7 +531,12 @@ class _CountdownCardState extends State<CardCountdown>
           widget.controller?.attach(_handle!, relaunch: _relaunch);
         }
       }
-      if (widget.plugin != old.plugin && _handle != null && !_handle!.isDone) {
+      // 换插件、分母或取整方式都要重建任务，同时保留剩余时间与暂停状态。
+      if ((widget.plugin != old.plugin ||
+              widget.total != old.total ||
+              widget.rounding != old.rounding) &&
+          _handle != null &&
+          !_handle!.isDone) {
         final remaining = _handle!.remaining;
         final paused = _handle!.isPaused;
         _start(remaining: remaining, paused: paused);
@@ -521,7 +550,9 @@ class _CountdownCardState extends State<CardCountdown>
       //
       // showHours 翻转但截止未变——立即重排单位数，而非等下一 tick 才发现
       // （避免一帧陈旧）。
-      final r = _handle != null && !_handle!.isDone ? _handle!.remaining : _lastRemaining;
+      final r = _handle != null && !_handle!.isDone
+          ? _shown(_handle!.remaining)
+          : _lastRemaining;
       _ctrl.stop();
       _ctrl.value = 0;
       _showHours = _hoursFor(r);
@@ -738,7 +769,7 @@ class _CountdownCardState extends State<CardCountdown>
       child: inner,
       builder: (_, remaining, child) => Semantics(
         container: true,
-        label: 'Countdown',
+        label: widget.semanticsLabel,
         value: (widget.showDays ? CountdownFormat.dhms : CountdownFormat.hms)(TimeParts.of(remaining)),
         child: child,
       ),

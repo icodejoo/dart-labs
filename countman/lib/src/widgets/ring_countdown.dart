@@ -31,6 +31,8 @@ class RingCountdown extends StatelessWidget {
     this.repaintBoundary,
     this.painterBuilder,
     this.plugin,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.controller,
     this.onComplete,
     this.onTick,
@@ -64,6 +66,14 @@ class RingCountdown extends StatelessWidget {
       painterBuilder;
 
   final Countdown? plugin;
+
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
+  /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。详见 [CountdownBuilder.rounding]。
+  final CountdownRounding rounding;
   final CountdownController? controller;
   final void Function()? onComplete;
 
@@ -118,6 +128,8 @@ class RingCountdown extends StatelessWidget {
     final driver = CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
+      total: total,
+      rounding: rounding,
       controller: controller,
       onComplete: onComplete,
       onTick: onTick,

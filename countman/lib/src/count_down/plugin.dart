@@ -39,8 +39,12 @@ class CountdownHandle {
   void reset({Duration? duration}) {
     final task = _plugin.task(_id);
     if (task == null || task.done) return;
-    if (duration != null) task.total = duration;
-    _plugin.anchorRelative(task, task.total);
+    if (duration != null) {
+      task.restore = duration;
+      // 显式给定的分母不随 reset 的新时长变化。
+      if (!task.totalFixed) task.total = duration;
+    }
+    _plugin.anchorRelative(task, task.restore);
     task.pausedRemaining = null;
     task.reanchor();
     task.thresholdFired = false;
@@ -119,7 +123,12 @@ class Countdown extends ClockPlugin<CountdownTask> {
     return us < 0 ? 0 : us;
   }
 
-  /// 进度分母：任务的初始总时长。
+  /// 显示值：按任务的取整方式和插件间隔取整（默认向下，即原样）。
+  @override
+  int displayMicrosOf(CountdownTask task, int value) =>
+      task.rounding.apply(value, interval);
+
+  /// 进度分母：显式给定的 total，否则为任务创建时（或 reset 指定）的时长。
   @override
   Duration? totalOf(CountdownTask task) => task.total;
 
@@ -127,14 +136,20 @@ class Countdown extends ClockPlugin<CountdownTask> {
   @override
   bool isComplete(CountdownTask task) => valueMicrosOf(task) <= 0;
 
-  /// 剩余降到当前桶下沿以下才会换桶：还需 `value - 桶 * 间隔 + 1` 微秒。
+  /// 距显示换档的微秒数。向下取整：剩余降到当前桶下沿以下才换桶，还需
+  /// `value - 桶 * 间隔 + 1`；向上取整：剩余降到上一档整数倍（含）就换档，
+  /// 还需 `value - (档 - 1) * 间隔`，其中 `档 = ceil(value / 间隔)`。
   @override
-  int boundaryWake(int value, int intervalMicros) =>
-      value - (value ~/ intervalMicros) * intervalMicros + 1;
+  int boundaryWake(CountdownTask task, int value, int intervalMicros) {
+    if (task.rounding == CountdownRounding.ceil) {
+      return value - ((value - 1) ~/ intervalMicros) * intervalMicros;
+    }
+    return value - (value ~/ intervalMicros) * intervalMicros + 1;
+  }
 
   /// 剩余耗尽即完成。
   @override
-  int completionWake(int value) => value;
+  int completionWake(CountdownTask task, int value) => value;
 
   /// 剩余降到阈值（含）以下视为越过。
   @override
@@ -179,20 +194,23 @@ class Countdown extends ClockPlugin<CountdownTask> {
     final id = nextId();
     final c = clock;
     final deadline = opts.deadline;
-    final Duration total;
+    final Duration initial;
     final int endMicros;
     if (deadline != null) {
       endMicros = deadline.microsecondsSinceEpoch;
       final remaining = endMicros - c.wallMicros();
-      total = Duration(microseconds: remaining < 0 ? 0 : remaining);
+      initial = Duration(microseconds: remaining < 0 ? 0 : remaining);
     } else {
-      total = opts.duration!;
-      endMicros = c.monotonicMicros() + total.inMicroseconds;
+      initial = opts.duration!;
+      endMicros = c.monotonicMicros() + initial.inMicroseconds;
     }
     enqueue(
       CountdownTask(
         id: id,
-        total: total,
+        total: opts.total ?? initial,
+        restore: initial,
+        totalFixed: opts.total != null,
+        rounding: opts.rounding,
         endMicros: endMicros,
         absolute: deadline != null,
         onUpdate: opts.onUpdate,

@@ -122,12 +122,12 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
 
   /// 累计到下一个间隔整数倍还需的微秒数。
   @override
-  int boundaryWake(int value, int intervalMicros) =>
+  int boundaryWake(ElapsedTask task, int value, int intervalMicros) =>
       (value ~/ intervalMicros + 1) * intervalMicros - value;
 
   /// 正计时不会自行完成。
   @override
-  int completionWake(int value) => CountmanPlugin.idle;
+  int completionWake(ElapsedTask task, int value) => CountmanPlugin.idle;
 
   /// 累计达到阈值（含）视为越过。
   @override

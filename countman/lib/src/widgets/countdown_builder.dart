@@ -3,7 +3,7 @@ import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
 
 export 'package:countman/src/count_down/types.dart'
-    show DurationFormatter, CountdownFormat, TimeParts;
+    show DurationFormatter, CountdownFormat, CountdownRounding, TimeParts;
 
 /// A widget that drives a countdown timer on the shared ticker and
 /// exposes the remaining [Duration] via a [builder] callback.
@@ -51,6 +51,8 @@ class CountdownBuilder extends StatefulWidget {
     this.controller,
     this.plugin,
     this.precise = false,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.onComplete,
     this.onTick,
     this.threshold,
@@ -100,6 +102,15 @@ class CountdownBuilder extends StatefulWidget {
   /// 为 true 且未提供 [plugin] 时，用共享的精确组（[defaultCountdownMs]，
   /// `interval: 0`）驱动本倒计时，使亚秒格式化器每帧更新。设置了 [plugin] 时忽略。
   final bool precise;
+
+  /// 进度分母（[TimeParts.total] / [TimeParts.progress] 的分母）。为空时沿用挂载
+  /// 那一刻的剩余时间；例如拍卖整段时长：`to: end, total: end.difference(start)`。
+  /// 改变后会重建倒计时任务（与修改 [duration] / [to] 一样）。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。改变后会重建倒计时任务。
+  final CountdownRounding rounding;
 
   /// Called once when the countdown reaches [Duration.zero].
   final void Function()? onComplete;
@@ -165,11 +176,19 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
             ? countdownAnchorOf(widget.to!, clock: plugin.clock)
             : (duration: widget.duration, deadline: null);
     final r = remaining ?? _initialRemaining;
-    _parts = TimeParts.of(r, r); // initial value before the first tick
+    // 首个 tick 之前的初值：与引擎一致地取整并使用显式分母。
+    _parts = TimeParts.of(
+      Duration(
+        microseconds: widget.rounding.apply(r.inMicroseconds, plugin.interval),
+      ),
+      widget.total ?? r,
+    );
     _rev.value++;
     _handle = plugin.add(CountdownOptions(
       duration: anchor.duration,
       deadline: anchor.deadline,
+      total: widget.total,
+      rounding: widget.rounding,
       onUpdate: (p) {
         _parts = p;
         _rev.value++;
@@ -204,7 +223,9 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
     if (widget.duration != old.duration ||
         widget.to != old.to ||
         widget.plugin != old.plugin ||
-        widget.precise != old.precise) {
+        widget.precise != old.precise ||
+        widget.total != old.total ||
+        widget.rounding != old.rounding) {
       _start();
     } else if (controllerChanged && _handle != null) {
       widget.controller?.attach(_handle!, relaunch: _relaunch);

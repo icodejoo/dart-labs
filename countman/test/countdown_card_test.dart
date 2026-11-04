@@ -538,5 +538,23 @@ void main() {
 
       expect(t.takeException(), isNull);
     });
+
+    testWidgets('语义标签默认为 Countdown，可用 semanticsLabel 本地化', (t) async {
+      final handle = t.ensureSemantics();
+      await t.pumpWidget(_wrap(const CardCountdown(to: Duration(seconds: 65))));
+      await t.pump();
+      expect(find.bySemanticsLabel('Countdown'), findsOneWidget);
+
+      await t.pumpWidget(_wrap(const CardCountdown(
+        to: Duration(seconds: 65),
+        semanticsLabel: '倒计时',
+      )));
+      await t.pump();
+      expect(find.bySemanticsLabel('倒计时'), findsOneWidget);
+      expect(find.bySemanticsLabel('Countdown'), findsNothing);
+
+      Countman.destroy();
+      handle.dispose();
+    });
   });
 }

@@ -195,6 +195,37 @@ Duration remainingUntil(Object to, {CountmanClock? clock}) {
     ? (duration: to, deadline: null)
     : (duration: null, deadline: resolveDeadline(to, clock: clock));
 
+/// 倒计时的显示取整方式，由 [CountdownOptions.rounding] 选用。
+///
+/// 只影响“显示值”（[TimeParts] 的内容与显示桶边界）；完成、阈值始终按真实剩余
+/// 判定，所以 [CountdownOptions.onComplete] 仍恰在剩余到 0 时触发。
+/// 例如 `TextCountdown(to: Duration(seconds: 10), rounding: CountdownRounding.ceil)`。
+enum CountdownRounding {
+  /// 向下取整（默认）：剩余 9.3 秒显示 9，与 0.2.x 行为一致。
+  floor,
+
+  /// 向上取整：剩余 9.3 秒显示 10，最后一整秒显示 1，到 0 才完成——
+  /// 多数倒计时 UI 的习惯。取整粒度为 interval，interval 为 0 时按 1 秒。
+  /// 注意 [TimeParts.progress] 同样基于取整后的显示值。
+  ceil;
+
+  /// 每帧更新（间隔为 0）时 [ceil] 采用的取整粒度，单位微秒。
+  static const int _perFrameGranularityMicros = Duration.microsecondsPerSecond;
+
+  /// 把剩余 [micros] 微秒换算成显示微秒；[intervalMs] 为插件显示间隔毫秒。
+  /// [floor] 原样返回；[ceil] 按间隔（0 或负数按 1 秒）向上取整，非正数得 0。
+  /// 例如 `CountdownRounding.ceil.apply(9300000, 1000) == 10000000`。
+  /// 不分配对象，可用于热路径。
+  int apply(int micros, int intervalMs) {
+    if (this == floor) return micros;
+    if (micros <= 0) return 0;
+    final granularity = intervalMs > 0
+        ? intervalMs * Duration.microsecondsPerMillisecond
+        : _perFrameGranularityMicros;
+    return ((micros + granularity - 1) ~/ granularity) * granularity;
+  }
+}
+
 /// Options for a countdown task added via [Countdown.add] or [countdown].
 class CountdownOptions {
   /// 必须且只能给出 [duration]（相对时长）或 [deadline]（绝对截止）之一。
@@ -203,6 +234,8 @@ class CountdownOptions {
   const CountdownOptions({
     this.duration,
     this.deadline,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.onUpdate,
     this.onComplete,
     this.threshold,
@@ -224,6 +257,17 @@ class CountdownOptions {
   /// 绝对截止时刻，按墙钟锚定：用户改系统时间会随之变化，适合“到点开售”这类
   /// 与真实时刻绑定的倒计时。与 [duration] 二选一。暂停、恢复后改为按单调钟计时。
   final DateTime? deadline;
+
+  /// 进度分母（[TimeParts.total] / [TimeParts.progress] 的分母）。为空时沿用创建任务
+  /// 那一刻的剩余时间；给出后以它为准，例如拍卖从开始到结束的整个时段：
+  /// `CountdownOptions(deadline: end, total: end.difference(start))`，
+  /// 进度条就反映整段而不是挂载那一刻。[CountdownHandle.reset] 仍恢复创建时的剩余
+  /// 时间，不受它影响。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；设为 [CountdownRounding.ceil]
+  /// 时剩余 9.3 秒显示 10。只影响显示，不影响完成与阈值的判定时刻。
+  final CountdownRounding rounding;
 
   /// Called on each interval tick with the shared per-task [TimeParts]
   /// (pre-decomposed remaining). Update rate is controlled by [Countdown.interval].
@@ -258,6 +302,9 @@ class CountdownTask extends ClockTask {
     required this.total,
     required this.endMicros,
     required this.absolute,
+    Duration? restore,
+    this.totalFixed = false,
+    this.rounding = CountdownRounding.floor,
     void Function(TimeParts)? onUpdate,
     this.onComplete,
     Duration? threshold,
@@ -267,15 +314,25 @@ class CountdownTask extends ClockTask {
     super.onReady,
     super.onStart,
     super.onCancel,
-  }) : super(
+  }) : restore = restore ?? total,
+       super(
          id,
          onUpdate: onUpdate,
          threshold: threshold,
          onThreshold: onThreshold,
        );
 
-  /// Original duration; restored on [CountdownHandle.reset].
+  /// 进度分母；[totalFixed] 为 false 时等于 [restore]。
   Duration total;
+
+  /// [CountdownHandle.reset] 恢复到的剩余时间（创建时的剩余，或 reset 指定的时长）。
+  Duration restore;
+
+  /// true 表示分母由 [CountdownOptions.total] 显式给定，reset 改时长也不改它。
+  final bool totalFixed;
+
+  /// 显示取整方式。
+  final CountdownRounding rounding;
 
   /// 截止点的微秒；时间轴由 [absolute] 决定。
   int endMicros;

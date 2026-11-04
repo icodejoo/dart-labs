@@ -34,6 +34,8 @@ class TextCountdown extends StatelessWidget {
     this.semanticsLabel,
     this.plugin,
     this.precise = false,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.controller,
     this.onComplete,
     this.onTick,
@@ -90,6 +92,14 @@ class TextCountdown extends StatelessWidget {
   /// 更新。设置了 [plugin] 或 provider 分组时忽略。
   final bool precise;
 
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
+  /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。详见 [CountdownBuilder.rounding]。
+  final CountdownRounding rounding;
+
   /// Optional controller for pause / resume / reset.
   final CountdownController? controller;
 
@@ -127,6 +137,8 @@ class TextCountdown extends StatelessWidget {
       to: to,
       plugin: plugin ?? scope?.plugin,
       precise: precise,
+      total: total,
+      rounding: rounding,
       controller: controller,
       onComplete: onComplete,
       onTick: onTick,
