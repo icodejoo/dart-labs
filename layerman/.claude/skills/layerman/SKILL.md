@@ -39,8 +39,7 @@ route observation: `overlay_navigator_observer.dart`; official presenters:
 The core uses foundation and scheduler; adapters own widgets/Material dependencies.
 `ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 1.0.0.
 
-Test inventory (executed counts, 2026-11-04): 600 tests in total, all green on Flutter 3.47
-and on the minimum supported Flutter 3.27.4.
+Test inventory (executed counts, 2026-11-04): 782 tests in total, all green on Flutter 3.47 and on the minimum supported Flutter 3.27.4.
 
 | File under `test/` | Tests | Coverage |
 | --- | ---: | --- |
@@ -51,15 +50,18 @@ and on the minimum supported Flutter 3.27.4.
 | `engine_v030b_test.dart` | 38 | Tickets, end reasons, events, holds, expiry, slots |
 | `engine_v030c_test.dart` | 30 | Build deferral, batching, reclamation, cooldown reset, tags |
 | `api_v1_test.dart` | 6 | OverlayMode / RouteMatcher / OverlayPhase |
-| `fuzz_invariants_test.dart` | 365 | Randomized sequence invariants and repeated-dismiss regression |
+| `c1_engine_test.dart` | 23 | Auth AND, overlap delay, identity-bound close, cleanup |
+| `headless_clock_test.dart` | 8 | Binding-free clock and timer contracts |
+| `c2b_test.dart` | 9 | Exhausted caps at submission and hydration |
+| `fuzz_invariants_test.dart` | 507 | Randomized sequence invariants and repeated-dismiss regression |
 | `observer_filter_test.dart` | 11 | PageRoute filtering, contextKey |
 | `route_managers_test.dart` | 22 | Route presenters |
 | `lifecycle_binding_test.dart` | 6 | Lifecycle holds |
 
-Unit acceptance total: 600; minimum Flutter 3.27.4 acceptance total: 600.
-Phone integration (`example/integration_test/orchestration_test.dart`): 29 tests
-(17 original + 12 v0.3/1.0 cases) on the real Huawei STG-AL00 / Android 12, serial `7NQBB23606003715`.
-The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repeated-dismiss regressions.
+Unit acceptance total: 782; minimum Flutter 3.27.4 acceptance total: 782.
+Phone integration (`example/integration_test/orchestration_test.dart`): 33 tests
+(17 original + 16 v0.3/1.0 cases) on the real Huawei STG-AL00 / Android 12, serial `7NQBB23606003715`.
+The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended seeds (slow/failing hydrate, build-phase open, cooldown reset, tags, overlap delay, auth, ctx.close) and deterministic regressions; nothing is skipped.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -71,15 +73,15 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repea
 
 - **`_Slot`** per named slot: `active` (0..1 occupant: resolving/open/closing), `queue`,
   gap/delay/cooldown timers, `gapPending`. `_overlaps` = concurrent stack; `_pendingOverlaps`
-  = held while paused OR while waiting for cooldown hydration; `_byId` = single source of truth.
+  = held while paused OR while waiting for cooldown hydration; `_delayedOverlaps` waits for overlap delay; `_byId` = single source of truth.
 - **Ordering `_cmp`**: `entry.replace` (an immutable per-entry field) front-bands FIRST, then
   priority desc, then FIFO `seq` — needed so a replacer that got queued (blocked by an
   `affix`ed current) still shows ahead of already-waiting normal entries.
-- **Eligibility** = `_conditionsPass` (`when` sole authority; else `route` (`RouteMatcher`)
-  AND `requiresAuth` against `_context` set by `setContext`) + `_cooldownPass`.
+- **Eligibility** = `_conditionsPass` (`route` (`RouteMatcher`) AND `auth` AND `when`;
+  both predicates read arbitrary `_context` keys pushed by `setContext`, no reserved auth key) + `_cooldownPass`.
 - **`_schedule(slot)`**: paused → return; slot occupied/`gapPending`/a `delayTimer` pending/
   queue empty → return; pick the first ELIGIBLE entry from the ordered queue; recoverably ineligible
-  entries WAIT, exhausted session/total entries settle as capped — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
+  entries WAIT, exhausted session/total entries checked by scheduling settle as capped — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
   time-based cooldown); honor the entry's `delay` unless `skipGap`; `_activate`.
 - **`_activate`**: occupies the slot; `resolveData != null` → phase `resolving` (committed —
   ordinary arrivals can't preempt while resolving, but a `replace` can and discards it), `null` result skips WITHOUT counting
@@ -111,10 +113,10 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repea
   `OverlayCooldownStorage` (default memory; README shows a shared_preferences adapter);
   read/write failures are reported via `_reportError`. Local calendar buckets for
   day/hour/minute; rolling `minGap`; `session` in memory (never gated). Counters are keyed by
-  id → `cooldown` asserts an explicit `id`. Injectable `now` for tests.
+  id → `cooldown` asserts an explicit `id`. Injectable `OverlayClock` for shared time/timer control in tests.
 - **pause**: `pauseAll` = FULL freeze (no activation, `replace` won't discard the current
   occupant, overlaps held in `_pendingOverlaps`, durations frozen with remaining time via
-  `now`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
+  `clock.now()`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
   countdown. Internally `pauseAll`/`resumeAll` only flip `_manualPaused`; the effective
   `_paused` getter is `_manualPaused || _routeZonePaused || _holds.isNotEmpty`, and `_applyFreeze`/`_applyRelease`
   (extracted bodies) are shared with `_updateRouteZone` (see below) — neither side undoes the
@@ -172,7 +174,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repea
    when `_schedule` finds nothing eligible it arms `slot.cooldownTimer` for the soonest
    `_cooldowns.timeUntilEligible` (so a queued card can't hang forever — that was the
    "minGap 进队列但永不弹" bug). `session`/`total` never auto-clear ⇒ no wake; scheduling discards exhausted entries
-   as capped rather than leaving their futures pending forever (fixed in 0.3.0). Cancel/re-arm the
+   as capped. 1.0 completes this at submission and after hydrate even when paused or occupied; 0.3.0 only checked during scheduling. Cancel/re-arm the
    timer at the top of every `_schedule`; also cancel it in `pauseAll`/`dispose`.
 4. **`_CooldownStore._flush` must call `storage.write` DIRECTLY** — wrapping in
    `Future(...)` leaves a pending Timer that explodes flutter_test's fake async. The 0.2.2
@@ -256,7 +258,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repea
     restart are legitimate). `dispose()` itself must clear entries with disposed reason BEFORE setting `_disposed`.
 
 22. **Permanently capped serial entries must settle, not wait forever.**
-    `_schedule` uses `_CooldownStore.permanentlyBlocked`; hydrate gating must precede
+    Submission, hydration queue cleanup and `_schedule` use `_CooldownStore.permanentlyBlocked`; hydrate gating must precede
     persisted total decisions. Keep recoverable time-window waits and their wake timers.
 23. **Cancel every timeout timer on all completion/removal paths.** queueTimer stops
     at activation; resolveTimer stops on resolution; dismissTimer stops on dismissed;
@@ -305,12 +307,29 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds and the repea
     持久化计数，hydrate 不能恢复已清除计数；不复活已 capped 的条目。tags 提交时复制且只读，
     clearTag 先全部移除再推进槽位，绕过守卫，原因 removed。
 
+38. **auth 是判断函数，条件 AND。** route / auth / when 都须通过；未提供则通过，
+    auth / when 读取任意上下文键，引擎不得自行读取保留键 auth。
+39. **overlap delay 有独立等待容器。** `_delayedOverlaps` 和 overlapDelayTimer 保存等待，
+    到点才按 now-or-never 判定；remove / clear / 同 id 重开 / dispose 取消计时器并移除容器成员。
+40. **PresentContext<T>.close 绑定条目身份。** 经 beforeClose，旧 ctx 不能关闭同 id 新提交；
+    Route builder close 一律用 ctx.close。present 内同步 close 后仍需清理返回句柄，不启动 duration；
+    后端自行关闭进入退场宽限时必须取消 duration。
+41. **统一时钟与批次。** 所有计时器经 clock.createTimer，所有时间经 clock.now()。
+    debug 不变量断言在最外层 `_batch` 结束、通知前运行；所有改状态的路径都必须在 `_batch` 内，
+    包括计时器、Future 续体、帧后回调与 dispose。FakeOverlayClock 支持普通 test()，无需 Flutter 绑定。
+
 ## 1.0.0 decisions
 
 路线 A 三步已完成：0.2.2 加固 → 0.3.0 增量 → 1.0 类型收口。
 随机序列不变量测试 `test/fuzz_invariants_test.dart` 是 1.0 前置安全网，已发现 dismiss 重复请求。
-Gate 和显式状态机有意不做：现有状态由不变量测试守住，重构收益不足以抵消回归风险。
-slot 并发数/互斥、冷却记录裁剪尚未提供；旧 id 计数需永久保留 total 语义。
+Gate（统一资格判断）与显式状态机 / 操作串行派发未做，真实原因是工作量（引擎 2000+ 行），
+旧的“收益不足以抵消风险”理由站不住。它们属于内部重构，1.x 可随时做，不改变公开 API。
+debug 批次不变量断言与随机序列测试是风险缓解，已覆盖慢 / 失败 hydrate、build 期间 open、
+冷却重置、标签、overlap delay、auth、ctx.close，不能当作“已经守住状态”的完成声明。
+当前每条目有 9 个可变布尔 + 6 个计时器；_batch 仅是部分替代。
+业务资格扩展点、slot 并发数 / 互斥、显式裁剪 API 等未提供；完整状态与替代写法见 ARCHITECTURE §15。
+冷却不自动裁剪的理由成立：记录不保存用过哪些上限，任何持久化上限都会累加 total，
+按时间删除会重置 total；写入仍重写整张 JSON 表，现有 resetCooldown / clearCooldowns 需显式调用。
 
 ## 0.3.0 architecture additions
 
@@ -372,7 +391,7 @@ flutter test integration_test/orchestration_test.dart -d <serial>
 Use the Android phone (Huawei STG-AL00 / Android 12 for the reported 0.3.0 run).
 `example/android/` is present; the v0.3 Features page exercises the new APIs.
 The Windows desktop runner takes focus: do not run it unattended.
-For Task B3 documentation acceptance, do not run flutter test at all; analyze key
+For Task C4 documentation acceptance, do not run flutter test at all; analyze key
 README snippets in an external scratchpad and validate the SVG as XML instead.
 CI remains defined in `.github/workflows/layerman-ci.yml`; do not infer a local
 pass count from static declarations or a prior version's baseline.

@@ -1,7 +1,7 @@
 # Layerman 架构文档
 
 本文按 `lib/` 当前代码、`.claude/skills/layerman/SKILL.md` 校准，行为口径为 1.0.0。
-第 15 节区分有意不做与尚未提供的能力，不代表现有 API。
+第 15 节如实列出未做项、功能缺口与有意的决定，不代表现有 API。
 
 ## 1. 定位
 
@@ -20,6 +20,7 @@ headless 弹层队列编排器：只决定「何时、哪个」弹层显示，�
 lib/layerman.dart                        公开入口，只导出下列符号
 lib/src/overlay_manager.dart             引擎：Layerman、OverlayTicket、OverlayHold 及内部状态
 lib/src/overlay_types.dart               模式、路由匹配、阶段、冷却快照、原因、结果、事件、槽位配置
+lib/src/fake_clock.dart                  FakeOverlayClock（lib/testing.dart 导出）
 lib/src/route_managers.dart              DialogManager / BottomSheetManager / presentRoute
 lib/src/lifecycle_binding.dart           LayermanLifecycle
 lib/src/overlay_navigator_observer.dart  LayermanNavigatorObserver
@@ -43,7 +44,8 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 `Present`、`LayermanNavigatorObserver`、`OverlayTicket`、`OverlayHold`、
 `OverlayEndReason`、`OverlayOutcome`、`OverlayEvent`、`OverlayEventType`、`OverlaySlotOptions`、
 `DialogManager`、`BottomSheetManager`、`presentRoute`、`LayermanLifecycle`、
-`OverlayMode`、`RouteMatcher`、`OverlayPhase`、`OverlayCooldownStatus`。
+`OverlayClock`、`OverlayMode`、`RouteMatcher`、`OverlayPhase`、`OverlayCooldownStatus`。
+测试入口 `package:layerman/testing.dart` 单独导出 `FakeOverlayClock`。
 
 `_Entry`、`_Slot`、`_CooldownStore`、`_CooldownRecord` 均为库私有。
 
@@ -55,6 +57,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
   `queue`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`。
 - `_overlaps`：`mode: OverlayMode.overlap` 的并发栈，不占槽位。
 - `_pendingOverlaps`：暂停期间、或等待冷却存储 hydrate 时被挂起的 overlap。
+- `_delayedOverlaps`：等待独立 `overlapDelayTimer` 的 overlap，不占串行槽位。
 - `_byId`：id 到条目的映射，**唯一事实来源**。异步回调一律用 `_isCurrent(e)`
   （`_byId[e.id] == e`）判断条目是否仍有效。
 - `_context`：`setContext` 合并出的条件上下文。
@@ -124,9 +127,9 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 资格 = 条件 + 冷却（再加 hydrate 门控）。
 
-- 条件：给了 `when` 则它是**唯一权威**，`route` / `requiresAuth` 被忽略；否则 `route`
-  （`RouteMatcher?`）匹配 `_context['route']`，且 `requiresAuth` 与
-  `_context['auth'] == true` 一致。`requiresAuth: false` 表示「仅游客」。
+- 条件：`route` / `auth` / `when` 按 AND 短路组合，未提供则通过。
+  `route`（`RouteMatcher?`）读取 `_context['route']`；`auth` 与 `when` 都是
+  `OverlayPredicate?`，读取 `setContext` 提供的任意键，引擎不读取保留键 auth。
 - 冷却：`_CooldownStore` 逐项检查，见第 9 节。
 - hydrate 门控：存储读取完成前，带持久化上限（`total` / `day` / `hour` / `minute` /
   `minGap`）的条目视为「暂不满足」；只有 `session` 上限的条目不受影响。hydrate 完成后统一重调度。
@@ -134,12 +137,13 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.3 不满足怎么办
 
-- 串行条目：可恢复的不满足**等待**；调度扫描到 `permanentlyBlocked`（session / total 耗尽）
-  则丢弃并兑现 null / capped。hydrate 前不据尚未读到的 total 判定永久受阻。
+- 串行条目：可恢复的不满足**等待**；提交时检查 `permanentlyBlocked`（session / total 耗尽），
+  立即结束为 null / capped；hydrate 完成后扫描所有串行队列清理永久受阻项，不受暂停或 slot 占用阻挡。
+  调度扫描也保留检查。hydrate 前不据尚未读到的 total 判定永久受阻。
 - overlap 条目：**丢弃**（结果 `null`），即「现在或永不」。暂停期间或等 hydrate 时改为挂起。
 - 时间型冷却（`minGap`、day/hour/minute 桶滚动）会自唤醒：`_schedule` 找不到合格项时，
   对最近到期者起 `cooldownTimer`，到点（多留 16ms）重新调度。`session` / `total` 不会自己到期，
-  不唤醒，调度检查时直接丢弃。
+  不唤醒，提交 / hydrate / 调度检查时丢弃。
 
 ### 5.4 调度流程 `_schedule(slot)`
 
@@ -147,7 +151,8 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 从有序队列扫描并丢弃永久受阻项，取第一个合格项；它有 `delay` 且未跳过则起 `delayTimer` 并返回；否则 `_activate`。
 
 间隔：关闭一个串行条目后 `_advanceSlot`，若 `slots[slot]?.gap ?? gap` 大于零 则置 `gapPending` 并起
-`gapTimer`，到期再调度。条目自己的 `delay` 在它出场前再等一次，且 overlap 忽略 `delay`。
+`gapTimer`，到期再调度。条目自己的 `delay` 在它出场前再等一次，overlap 也遵守 `delay`：先进入 `_delayedOverlaps` 等待，
+到点移出后执行一次性资格判定；remove / clear / 同 id 重开 / dispose 均取消等待。
 
 ### 5.5 replace 抢占
 
@@ -203,7 +208,7 @@ close(id, result)
 ```dart
 final f = layerman.open<bool>(
   id: 'promo',
-  present: (PresentContext ctx) {
+  present: (PresentContext<bool> ctx) {
     final c = Completer<bool?>();
     // 展示 UI，用户操作或 dismiss 时 c.complete(...)
     return PresentedOverlay<bool>(
@@ -214,7 +219,7 @@ final f = layerman.open<bool>(
 );
 ```
 
-- `PresentContext`：`id`、`slot`、`data`、`dataListenable`。后者为实时 `ValueListenable<Object?>`，
+- `PresentContext<T>`：`id`、`slot`、`data`、`dataListenable`。后者为实时 `ValueListenable<Object?>`，
   `update` Map 浅合并或替换后通知；`OverlayTicket.data` 为同一通道。条目结束不 dispose 通道，
   以便后端退场时仍可解除监听；后端自行移除其注册的监听者。`data` 是 present 那一刻的**快照**（`resolve` 之后的值）。
 - `PresentedOverlay.dismissed`：必须覆盖**所有**关闭路径（点击、蒙层、返回键、超时、程序关闭）；
@@ -235,7 +240,13 @@ final f = layerman.open<bool>(
 `presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` 推入并保留 Route，
 `dismissed` 使用 completed，栈顶 pop(result)，被覆盖则 removeRoute(route)。后者不传 result，
 兼容 Flutter 3.27；直接关闭句柄的被覆盖路由结果 null，manager.close 已先交付指定结果。
-绑定 manager 的 builder close 走守卫；未绑定直接关路由；返回键、遮罩等始终走后端路径。
+builder close 总是经 ctx.close 走守卫；返回键、遮罩等始终走后端路径。
+
+`PresentContext<T>.close([T? result])` 绑定本次提交的 `_Entry` 身份，先确认仍是当前且
+处于 open，再经 `beforeClose`；旧上下文不能关闭同 id 的新条目。DialogManager /
+BottomSheetManager 的 builder close 直接使用 ctx.close，不再接受 manager 参数。
+present 内同步 close 时，返回后的后端句柄仍须清理，且不能启动 duration。
+后端自行 dismissed 进入 exitDuration 宽限时立即取消 duration。
 
 ## 8. 条件与上下文
 
@@ -247,17 +258,17 @@ final f = layerman.open<bool>(
 4. 对每个槽位重调度；
 5. `_notify()` 登记批次结束后的通知。
 
-保留键：`route`（`String`）和 `auth`（`bool`），其余键给 `when` 谓词自由使用。
-`when` 收到缓存的不可变上下文视图，每次 `setContext` 后失效重建。`currentRoute` 读回 `_context['route']`。
+保留键只有 `route`；`auth` / `when` 可读取任意业务键。
+`auth` / `when` 收到缓存的不可变上下文视图，每次 `setContext` 后失效重建。`currentRoute` 读回 `_context['route']`。
 
-`when` 抛异常视为不满足，并上报（每个条目只报一次）。
+`auth` / `when` 抛异常视为不满足，并上报（每个条目只报一次）。
 
 ### 8.1 类型化路由匹配
 
 `route` 接受 `RouteMatcher?`（默认 null），`pauseOnRoutes` 接受 `List<RouteMatcher>`（默认空列表）。
 `const RouteMatcher.exact(path)` 精确比较，`const RouteMatcher.anyOf(paths)` 匹配任一路径，
 `RouteMatcher.regex(pattern)` 调用 RegExp.hasMatch；`matches(Object? route)` 对 null 或非字符串返回 false。
-`anyOf` 不复制传入列表，调用方不得修改列表。`when` 存在时仍独占条目资格判定，忽略 route / requiresAuth。
+`anyOf` 不复制传入列表，调用方不得修改列表。`route`、`auth`、`when` 始终按 AND 组合。
 
 ## 9. 冷却
 
@@ -278,7 +289,7 @@ final f = layerman.open<bool>(
   `ready()` 在重调度之后完成，所以 open 前不必先 await。存储损坏或不可用时上报并退化为空计数。
   hydrate 与已有计数**合并**而非覆盖；写入串行化（同一时刻最多一次在途写入，结束后补写最新快照），
   失败会上报，不影响调度。
-- 构造参数 `now` 可注入时钟，便于测试。
+- 构造参数 `clock` 注入同源时间与计时器，便于测试。
 
 ### 9.1 查询与重置
 
@@ -288,6 +299,15 @@ Duration.zero，时间冷却时取最长剩余等待，永久受阻或等待持�
 `resetCooldown(String id)` / `clearCooldowns()` 同时清除 session 与持久化计数，复用串行写入；
 hydrate 未结束的重置也保留，旧存储不能将清掉的计数带回。重置后未暂停则重新调度，
 暂停期间仍保持冻结；已结束的 capped 条目不会复活。
+
+### 9.2 时间与计时器
+
+`Layerman(clock: OverlayClock.system)` 是默认时间源。所有时间读取经 `clock.now()`，
+所有计时器经 `clock.createTimer(...)`，包括 slot 的 gap / delay / cooldown，以及条目的
+排队过期、overlap delay、解析超时、关闭超时、duration、退场宽限。
+`package:layerman/testing.dart` 导出 `FakeOverlayClock([DateTime? start])`，默认 DateTime(2000)，
+`advance(Duration d)` 推进时间并触发窗口内计时器；`pendingTimers` 检查未取消计时器。
+可用普通 Dart test() 测引擎而无需 Flutter 绑定，Future 续体需另行排空。
 
 ## 10. 暂停
 
@@ -344,7 +364,7 @@ hydrate 未结束的重置也保留，旧存储不能将清掉的计数带回。
 | `PresentedOverlay.dismissed` | 报错按 `null` 结果处理 |
 | `resolve` | 视为返回 `null`，跳过该条目，不记冷却 |
 | `beforeClose` | 抛异常或返回的 Future 出错：取消本次关闭 |
-| `when` | 视为不满足，上报（每个条目一次） |
+| `auth` / `when` | 视为不满足，上报（每个条目一次） |
 | `OverlayCooldownStorage` | 读失败上报并退化为空计数；写失败上报，不影响调度 |
 | resolve 超时 | 默认 30 秒，上报 TimeoutException；按 skipped 跳过且不计冷却，晚到结果忽略 |
 | dismiss 超时 | 默认 10 秒，上报 TimeoutException 并释放槽位；首次结果/原因保留 |
@@ -372,7 +392,7 @@ Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超
 
 公开操作、票据关闭/移除及异步状态续体进入 `_batch`，嵌套调用增加 `_batchDepth`；
 内部状态变更统一调用 `_notify`，批次内只设置 `_notifyPending`。最外层结束先回收空槽，
-再统一通知，所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
+再在 assert 中调用 `debugCheckInvariants()`，最后统一通知，所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
 异步续体各自是独立批次；`dataListenable` 的同步值通知和 `events` 的异步广播不受此合并限制。
 
 `_inBuildPhase` 检查 `SchedulerBinding` 的 `SchedulerPhase.persistentCallbacks`。
@@ -382,6 +402,10 @@ build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-f
 沿用正常调度；同 id 接管由 `_Slot.takeover` 保留优先权。帧后展示的通知可以覆盖同帧待发通知。
 `open` 仍立即返回 Future；调用方仍需防止重复 build 反复提交，不要把 build 当一次性事件。
 这里针对展示和管理器通知，不承诺所有用户回调或后端 dismiss 都自动推迟。
+
+`debugCheckInvariants()` 核对容器身份、阶段、排序、计时器及销毁状态；失败抛 StateError。
+自动检查只在 debug 最外层批次结束执行，也可显式在 release 调用。所有改变状态的路径
+必须处于 `_batch` 内，包括计时器、Future 续体、帧后回调和 dispose。
 
 ### 13.2 slot 回收与标签
 
@@ -395,22 +419,67 @@ build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-f
 
 ## 14. 已知限制（截至 1.0.0）
 
-- overlap 忽略 `delay`。
-- `requiresAuth: false` 表示「仅游客」，不是「不要求登录」。
+- **条件是推模式**：`when` / `auth` 只在 setContext、提交、关闭、暂停释放等调度触发时
+  重新判定；闭包捕获的外部状态变化不会自动触发。条件不按时间自唤醒，时间型冷却的唤醒另算。
+- **beforeClose 仅拦管理器发起的显式关闭**：包括 close、票据 close 和 ctx.close；后端自身
+  的遮罩、返回键、拖动关闭无法被它拦截。remove / clear / duration 到期等强制路径也绕过守卫。
+- **expireAfter 仅适用于串行激活前的等待**（含暂停），不限制 overlap 或 active；
+  resolveTimeout / dismissTimeout 释放编排状态，但不能取消后端 Future 工作。
+- **编排器不拥有 UI 层级与取消能力**：后端须提供定向 dismiss；仅超时移除内部条目，不能保证
+  错误后端遗留的 UI 已消失。跨后端 z-order、返回键策略由调用方处理。
 
-## 15. 演进方向与取舍
+## 15. 未做项、功能缺口与有意的决定
 
-### 有意不做
+### Gate（统一资格判断）——未做
 
-- **Gate（统一资格判断）**：不将通过 / 等待 / 丢弃抽成新协议。当前分支已覆盖条件、
-  hydrate、冷却、暂停和重入语义，1.0 前再集中重构的收益不足以抵消回归风险。
-- **显式状态机**：不增加独立状态机与公开操作串行派发框架。现有 `OverlayPhase` 表示阶段，
-  `_batch` 处理通知边界；引擎状态由随机序列不变量测试 `test/fuzz_invariants_test.dart`
-  守住，该安全网已抓到 dismiss 重复请求缺陷。当前重构收益不足以抵消回归风险。
+真实原因是工作量：引擎已 2000+ 行，不是“风险大于收益”。这是引擎内部重构，不改变公开 API，
+1.x 里随时可以做。风险缓解已有每个批次结束的 debug 不变量断言及随机序列测试，覆盖慢 / 失败
+hydrate、build 期间 open、冷却查询重置、标签、overlap delay、auth、ctx.close；这些是安全网，
+不能据此声称结构重构已经没有必要。
 
-### 尚未提供
+**功能缺口**：没有业务自定义资格扩展点来表达“等到某时刻再判断”或“永久丢弃并给原因”。
+when / auth 只能返回 bool，不会按时间自唤醒。替代写法是用 expireAfter 限定串行等待，
+或调用方定时 setContext({}) 推动重新判定。
 
-- **slot 并发数 / 互斥关系**：串行 slot 仍只允许一个占位者，没有同 slot 多个同时出场的
-  可配置并发数，也没有跨 slot 互斥关系；overlap 仍走独立并发集合。
-- **冷却记录裁剪**：旧 id 计数需要永久保留以保证 `total` 语义，不能按年龄自动清理；
-  仅由调用方通过 resetCooldown / clearCooldowns 明确重置。
+### 显式状态机与操作串行派发——未做
+
+原因同上，是工作量。部分替代是 `_batch`（一次操作一次管理器通知、监听者看不到操作中间态）
+及 debug 不变量断言；它们不是显式状态机或操作串行派发框架。
+技术债仍在增长：每条目的隐式状态从评审时的 6 个布尔 + 2 个计时器，增长为当前 `_Entry` 的
+**9 个可变布尔 + 6 个计时器**。布尔为 externalDone、dismissRequested、skipGap、delayConsumed、
+closeGuardPending、conditionErrorReported、settled、paused、hasHeldData；计时器为 queueTimer、
+overlapDelayTimer、dismissTimer、resolveTimer、durationTimer、removeTimer。
+此计数不含 3 个只读配置布尔 replace / affix / dismissWhenUnmet、派生 getter 或 slot 的计时器。
+
+### slot 并发数 / 跨 slot 互斥——尚未提供（功能缺口）
+
+每个串行 slot 只能有一个占位者。同 slot 多个同时出场目前只能拆成多个 slot。
+跨 slot 互斥可由调用方订阅 events：某 slot 条目 shown 时 setContext({'modalOpen': true})，
+需要被压住的条目用 when 判断；dismissWhenUnmet 默认 true 会顺带关闭已显示的条目。
+调用方还须在 ended 时维护状态，多个条目时用集合计数，并处理事件异步投递期间的窗口；
+该替代写法不等于引擎提供原子的跨 slot 互斥。
+
+### 冷却记录自动裁剪——未提供，理由成立
+
+持久化记录不保存该 id 用过哪些上限，record() 对任何持久化上限都累加 total；按时间自动删除
+会悄悄重置 total 上限。可行替代是调用方显式开启的裁剪 API（未做）。每次写入仍是整张 JSON 表
+重写，id 很多时有成本。现有手段是 resetCooldown / clearCooldowns，由调用方明确重置计数。
+
+### 其余未做项（逐项状态）
+
+- 冷却按结果计数（如“不再提示”）：未做，目前在 present 成功返回后计数。
+- 可插拔冷却规则（周 / 月桶）：未做，只有现有固定频次字段。
+- 按“真正可见”计数（后端回报已展示）：未做，没有后端可见确认协议。
+- 票据上的状态可监听：未做；可用 events 按 id 过滤代替，同 id 重开需调用方区分提交。
+- 调试面板（Inspector）：未做；现有 records / recordOf / events 提供原始观测。
+- 参数对象 OverlayRequest<T>：未做，仍为 open / submit 命名参数；该名称不是当前 API。
+- 观察者同一帧多次导航合并：未做，目前每次 didChangeTop 各自排帧后回调。
+- 适配包 layerman_getx：未做，README 仅有适配配方。
+- 适配包 layerman_bot_toast：未做，README 仅有适配配方。
+
+### 有意的决定（附理由）
+
+- 不拆 package:layerman/flutter.dart：主入口一并导出依赖 Material 的 presenter；Material 属于
+  Flutter SDK，不增加第三方依赖。该独立入口目前不存在。
+- setContext 值未变也全量重新判定：setContext({}) 就是“推动重新判定”的手段；
+  冷却过期本身不是外部条件的调度触发点（串行时间型冷却另有内部唤醒计时器）。

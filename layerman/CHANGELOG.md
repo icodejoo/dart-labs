@@ -14,6 +14,13 @@
 | `pauseOnRoutes: ['/checkout', RegExp(r'^/pay')]` | `pauseOnRoutes: [const RouteMatcher.exact('/checkout'), RouteMatcher.regex(RegExp(r'^/pay'))]` |
 | A list pattern inside `pauseOnRoutes` | Wrap that pattern with `RouteMatcher.anyOf(...)`. |
 | `record.phase == 'open'` | `record.phase == OverlayPhase.open` |
+| `requiresAuth: true` | `auth: (ctx) => ctx['auth'] == true` |
+| `requiresAuth: false` (guests only) | `auth: (ctx) => ctx['auth'] != true` |
+| Fixed login boolean | Custom policy, e.g. `auth: (ctx) => ctx['role'] == 'admin'`; read any `setContext` keys. |
+| `when` overrides route/auth | `route`, `auth`, `when` combine with AND; remove unwanted conditions explicitly. |
+| `Layerman(now: callback)` | `Layerman(clock: clock)` with an `OverlayClock` providing both `now()` and `createTimer(...)`; default `OverlayClock.system`. |
+| `PresentContext` | `PresentContext<T>`, with `close([T? result])` through `beforeClose`, bound to this submission. |
+| `DialogManager(key, manager: manager)` / `BottomSheetManager(key, manager: manager)` | Remove `manager:`; builder close always uses `ctx.close` and its guard. |
 
 * `open` and `submit` replace the `replace` / `overlap` booleans with `mode`
   (default `OverlayMode.queue`). `affix` remains independent.
@@ -23,6 +30,15 @@
   `open` and `closing` values, instead of strings.
 
 **Fixed**
+
+* Complete the 0.3.0 exhausted-cap behavior: serial entries already blocked by
+  session/total settle as `capped` at submission and after hydration, even with
+  an occupied slot or while paused; they no longer wait for a scheduling scan.
+
+* Overlap now honors `delay`, judging now-or-never eligibility after waiting;
+  remove, clear, same-id reopen and dispose cancel the wait.
+* Cancel duration when backend dismissal enters exit grace. Clean up a handle
+  returned after synchronous `ctx.close()` during present, without starting duration.
 
 * Request backend `dismiss` at most once per entry. Randomized sequence tests
   found that `close` followed by `remove`, `clear` or a dismiss timeout could
@@ -37,6 +53,13 @@
   pending gap or gap/delay/cooldown timers.
 
 **Added**
+
+* `OverlayClock` unifies current time and timers. `package:layerman/testing.dart`
+  exports `FakeOverlayClock` for ordinary Dart `test()` without Flutter bindings.
+* Automatic debug invariant validation after every outermost batch via
+  `debugCheckInvariants()`; explicit calls also work in release.
+* Randomized coverage for slow/failing hydration, build-time open, cooldown
+  inspection/reset, tags, overlap delay, auth predicates and `ctx.close`.
 
 * `cooldownStatus` returning `OverlayCooldownStatus`, `resetCooldown` and
   `clearCooldowns` for inspecting and resetting session and persisted counters.

@@ -18,7 +18,7 @@
   Navigator 的层),叠加 TS 的编排语义(串行/gap/slot/priority/replace/overlap/两阶段关闭)。
 - **0.2.0 外部 presenter**:源码级调研 GetX 4.7 / bot_toast 4.1 / 编排模式后选 **Handle 模式**
   (present 返回 `{dismissed, dismiss}` 双向句柄);生态无先例。四条纪律见技能。
-- **0.3.0 TS-parity**:conditions(`when`/`route`/`requiresAuth`/`setContext`/`dismissWhenUnmet`)、
+- **0.3.0 TS-parity**:conditions(`when`/`route`/`auth`/`setContext`/`dismissWhenUnmet`)、
   cooldown(可插拔存储+注入 now)、`affix`、`beforeClose`、`pauseAll` 全冻结、`resolve`、
   `update`、`clearWhere`。**刻意不做**:stackIndex/isTopmost(自渲染 z 序=插入序)、跨 isolate
   冷却同步(共享 storage 即可)。
@@ -243,10 +243,8 @@ Flutter 3.27 兼容约束继续保留：removeRoute 不传 result。
 remove / clear / dismiss 超时会重复请求后端 dismiss 的缺陷；非幂等后端可能误关其他弹窗。
 `dismissRequested` 在第一次请求前置位，保证每条目最多请求一次，即使后端抛错也不重试。
 
-Gate（统一资格判断）与显式状态机**有意不做**：引擎状态已经由随机序列不变量测试守住，
-当前重构收益不足以抵消回归风险。OverlayPhase 类型收口和通知批次已明确现有边界，
-不再在 1.0 前引入新派发框架。slot 并发数/互斥与冷却记录裁剪**尚未提供**；
-旧 id 的计数需永久保留以保证 total 语义，重置由调用方明确发起。
+Gate 与显式状态机当时未完成；旧的“风险大于收益”解释已在下方发布前复审中撤回。
+未做项、功能缺口与有意决定以 ARCHITECTURE §15 及下方补完记录为准。
 本节取代上文 0.3.0 记录中“1.0 方案待定”的历史规划。
 
 验收基线（1.0.0，2026-11-04）：
@@ -256,3 +254,28 @@ Gate（统一资格判断）与显式状态机**有意不做**：引擎状态已
 - 关键 README 示例用 dart analyze 验证，SVG 用 Python XML 解析。
 - 验证流程继续使用手机明确 `-d` 序列号；Windows 桌面抢焦点，不无人值守跑。
   不用 handleAppLifecycleStateChanged 模拟后台，改调用 LayermanLifecycle 的观察者方法。
+
+
+## 1.0.0 发布前补完（2026-11-04）
+
+1.0.0 尚未发布，本次更新现有版本条目，不另增版本。
+复审结论：Gate / 显式状态机与操作串行派发的旧理由站不住，真实原因是工作量（引擎 2000+ 行），
+属于内部重构，1.x 可随时做。批次 debug 不变量断言和随机序列测试是风险缓解，不是完成重构的替代证明。
+当前 _Entry 为 9 个可变布尔 + 6 个计时器（不含配置与 getter）。
+
+此前漏报项：业务自定义资格扩展点；slot 并发数 / 跨 slot 互斥；显式裁剪 API 与全表 JSON 写回成本；
+冷却按结果计数及周 / 月可插拔规则；后端真正可见回报计数；票据可监听状态；Inspector；
+OverlayRequest<T> 参数对象；同帧导航合并；layerman_getx / layerman_bot_toast 适配包。
+上述均未提供，限制及替代手段逐项列于 ARCHITECTURE §14–15。
+
+用户要求 requiresAuth 改为 auth 判断函数：各业务系统的认证判断不同，还要考虑角色 / 权限，无法枚举。
+函数读取 setContext 任意键，引擎不再读取保留键 auth。when 改为与 route / auth 按 AND 组合，
+避免额外业务条件悄悄绕过路由或权限限制，减少调用方重复写判断。
+
+本批文档同步：迁移对照表、clock / FakeOverlayClock、PresentContext<T>.close、无 manager 参数的
+Route presenter、overlap delay 与取消、debug 批次不变量、清理缺陷修复，以及如实的未做项说明。
+B2 已核实提交及 hydrate 清理路径调用永久上限判断，不再等待被占 slot 的调度扫描。
+保留主入口导出 Material presenter（SDK 内置、不增第三方依赖）；setContext({}) 保留全量重判语义。
+
+验收基线：单测 **782 条全绿**（Flutter 3.47.0；最低 Flutter 3.27.4 上同样 782 条全绿，连续两次干净全量运行），0 个 skip；手机真机 **33 条全绿**（华为 STG-AL00 / Android 12，序列号 7NQBB23606003715）。如实记录一次偶发：3.27.4 有一次全量运行恰好与手机测试的 Gradle 构建并发，fuzz 文件最后一条（overlap 延迟取消）报 did not complete；该用例完全跑在假时间里、无真实时间依赖，单条、整文件、两次干净全量均无法复现，系统也无资源耗尽事件，根因未定。以后做最低版本验证时不要与手机构建并发。
+本次只验证系统临时目录中的 README 关键示例 dart analyze 和 ARCHITECTURE.svg XML；不据历史基线宣称新测试通过。

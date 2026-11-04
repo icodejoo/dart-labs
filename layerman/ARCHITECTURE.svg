@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1400 1150" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1400 1320" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
       .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
@@ -64,19 +64,19 @@
   <rect x="50" y="275" width="400" height="235" class="box-api" rx="8"/>
   <text x="250" y="302" text-anchor="middle" class="text-title">资格判断</text>
   <text x="250" y="322" text-anchor="middle" class="text-label">条件 + 冷却 + hydrate 门控</text>
-  <text x="70" y="348" class="text-small">条件：when 是唯一权威；否则 route + requiresAuth</text>
-  <text x="70" y="366" class="text-small">  上下文保留键：route / auth（setContext 合并）</text>
+  <text x="70" y="348" class="text-small">条件：route AND auth AND when</text>
+  <text x="70" y="366" class="text-small">  仅 route 保留；auth / when 读取任意业务键</text>
   <text x="70" y="388" class="text-small">冷却：session / total / day / hour / minute / minGap</text>
   <text x="70" y="406" class="text-small">  本地日历桶，按 id 计数，必须显式 id</text>
   <text x="70" y="428" class="text-small">hydrate 前：带持久化上限的条目暂不满足</text>
   <text x="70" y="446" class="text-small">  串行排队，overlap 挂起；完成后统一重调度</text>
   <text x="70" y="468" class="text-small">不满足：串行等待；永久上限耗尽丢弃（capped）</text>
-  <text x="70" y="486" class="text-small">when 抛异常 = 不满足并上报（每条目一次）</text>
+  <text x="70" y="486" class="text-small">auth / when 抛异常 = 不满足并上报（每条目一次）</text>
 
   <!-- 调度 -->
   <rect x="500" y="275" width="400" height="235" class="box" rx="8"/>
   <text x="700" y="302" text-anchor="middle" class="text-title">调度</text>
-  <text x="700" y="322" text-anchor="middle" class="text-label">_slots / _overlaps / _pendingOverlaps</text>
+  <text x="700" y="322" text-anchor="middle" class="text-label">_slots / _overlaps / _pendingOverlaps / _delayedOverlaps</text>
   <text x="520" y="348" class="text-small">每个槽位：active(0..1) + queue + gap/delay/cooldown 计时器</text>
   <text x="520" y="368" class="text-small">_enqueue 有序插入：replace → priority 降序 → seq FIFO</text>
   <text x="520" y="388" class="text-small">_schedule：取第一个合格项；时间型冷却自唤醒</text>
@@ -93,7 +93,7 @@
   <rect x="950" y="275" width="400" height="235" class="box" rx="8"/>
   <text x="1150" y="302" text-anchor="middle" class="text-title">条目生命周期</text>
   <text x="1150" y="322" text-anchor="middle" class="text-label">OverlayPhase: pending → resolving → open → closing</text>
-  <text x="970" y="344" class="text-small">pending：入队，可带 delay，等槽位</text>
+  <text x="970" y="344" class="text-small">pending：串行等槽位；overlap delay 到点才判资格</text>
   <text x="970" y="358" class="text-small">resolving：resolveTimeout 默认 30s；replace 可抢占</text>
   <text x="970" y="374" class="text-small">open：调用 present、记冷却、起 duration 计时</text>
   <text x="970" y="390" class="text-small">两阶段关闭：close → 校验 result 类型 → beforeClose</text>
@@ -145,7 +145,7 @@
   <text x="1025" y="618" text-anchor="middle" class="text-title">present 后端（调用方提供）</text>
   <text x="1025" y="640" text-anchor="middle" class="text-label">showDialog | GetX | bot_toast | 自管 OverlayEntry</text>
   <text x="1025" y="660" text-anchor="middle" class="text-small">负责全部渲染；present 同步抛异常 = 上报并丢弃该条目</text>
-  <text x="1025" y="678" text-anchor="middle" class="text-small">PresentContext：id / slot / data 快照 / dataListenable 实时</text>
+  <text x="1025" y="678" text-anchor="middle" class="text-small">PresentContext&lt;T&gt;：id / slot / data / dataListenable / close</text>
 
   <path d="M 1100 510 L 1100 590" class="arrow"/>
   <text x="1112" y="556" class="text-api">present(PresentContext)</text>
@@ -175,13 +175,13 @@
   <text x="70" y="1032" class="text-api">RouteMatcher.exact / anyOf / regex</text>
   <text x="70" y="1054" class="text-api">OverlayRecord.phase: OverlayPhase</text>
   <text x="70" y="1076" class="text-api">tags → read-only record.tags → clearTag</text>
-  <text x="70" y="1098" class="text-small">随机序列不变量测试守住状态与后端关闭次数</text>
+  <text x="70" y="1098" class="text-small">随机测试与 debug 断言缓解风险；Gate / 状态机未做</text>
   <rect x="500" y="960" width="400" height="155" class="box" rx="8"/>
   <text x="700" y="985" text-anchor="middle" class="text-title">批量通知与帧后展示</text>
   <text x="520" y="1010" class="text-api">_batch → _notify → one manager notification</text>
   <text x="520" y="1032" class="text-small">persistentCallbacks → post-frame 调度与通知</text>
   <text x="520" y="1054" class="text-small">帧后重查 disposed / pause / 条件 / hydrate</text>
-  <text x="520" y="1076" class="text-small">空 slot：无 active / queue / gapPending / 计时器</text>
+  <text x="520" y="1076" class="text-small">最外层 _batch → debugCheckInvariants() → 通知</text>
   <text x="520" y="1098" class="text-small">仅回收运行时 slot，保留 slots 配置</text>
   <rect x="950" y="960" width="400" height="155" class="box-plugin" rx="8"/>
   <text x="1150" y="985" text-anchor="middle" class="text-title">冷却查询与重置</text>
@@ -190,4 +190,19 @@
   <text x="970" y="1054" class="text-api">resetCooldown(id) / clearCooldowns()</text>
   <text x="970" y="1076" class="text-small">清 session + 持久化计数，再调度并串行写回</text>
   <text x="970" y="1098" class="text-small">旧 id 不自动裁剪，保留 total 语义</text>
+  <!-- 1.0 发布前补完：同源时钟与守卫关闭回路 -->
+  <rect x="50" y="1150" width="620" height="130" class="box-plugin" rx="8"/>
+  <text x="360" y="1177" text-anchor="middle" class="text-title">OverlayClock</text>
+  <text x="70" y="1200" class="text-api">Layerman(clock: OverlayClock.system)</text>
+  <text x="70" y="1222" class="text-small">clock.now() / clock.createTimer(...)：所有时间与计时器同源</text>
+  <text x="70" y="1244" class="text-small">testing.dart → FakeOverlayClock → advance / pendingTimers</text>
+  <text x="70" y="1266" class="text-small">普通 Dart test()，无需 Flutter 绑定</text>
+  <rect x="700" y="1150" width="650" height="130" class="box-api" rx="8"/>
+  <text x="1025" y="1177" text-anchor="middle" class="text-title">ctx.close 回路</text>
+  <text x="720" y="1200" class="text-api">PresentContext&lt;T&gt;.close(result) → 身份校验 → beforeClose</text>
+  <text x="720" y="1222" class="text-small">→ closing → 后端 dismiss → dismissed → 移除</text>
+  <text x="720" y="1244" class="text-small">DialogManager / BottomSheetManager builder close 使用同一入口</text>
+  <text x="720" y="1266" class="text-small">后端自行关闭绕过守卫；同步 ctx.close 后清理句柄、不起 duration</text>
+  <path d="M 1340 1150 L 1390 1150 L 1390 390 L 1350 390" class="arrow-small"/>
+  <path d="M 40 1150 L 20 1150 L 20 390 L 50 390" class="arrow-small"/>
 </svg>

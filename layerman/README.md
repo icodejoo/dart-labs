@@ -50,10 +50,9 @@ in your app.
   be faithfully re-presented, so it never re-shows.
 - **`affix`** — protect the current overlay from `replace` (the blocked
   replacer waits at the queue front instead).
-- **`overlap`** — bypass the queue and stack on top right now (global alerts,
-  blocking loaders). Conditions/cooldown act as a now-or-never fire-gate.
-- **Conditions** — a `when(ctx)` predicate (sole authority when present) or the
-  `route` / `requiresAuth` sugar, driven by `setContext({...})`; a shown
+- **`overlap`** — bypass the queue and stack on top (global alerts,
+  blocking loaders). After `delay`, conditions/cooldown act as a now-or-never fire-gate.
+- **Conditions** — the AND of `route`, `auth(ctx)` and `when(ctx)`, driven by `setContext({...})`; a shown
   overlay whose conditions stop holding is auto-dismissed (`dismissWhenUnmet`,
   default true — queued entries just wait).
 - **Cooldown** — `OverlayCooldown(session:, total:, day:, hour:, minute:,
@@ -154,8 +153,8 @@ call `open` after that Navigator is mounted. The examples use `dialogs((ctx, clo
 
 ```dart
 final navigatorKey = GlobalKey<NavigatorState>();
-final dialogs = DialogManager(navigatorKey, manager: manager);
-final sheets = BottomSheetManager(navigatorKey, manager: manager);
+final dialogs = DialogManager(navigatorKey);
+final sheets = BottomSheetManager(navigatorKey);
 
 // Mount this once in your app:
 final app = MaterialApp(navigatorKey: navigatorKey, home: const Scaffold());
@@ -266,8 +265,8 @@ manager.open(id: 'session-expired', mode: OverlayMode.replace, present: dialogs(
 // Protect the current overlay so a replace cannot cover it:
 manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
-// Ignore the queue and stack on top right now:
-manager.open(id: 'net-error', mode: OverlayMode.overlap, present: dialogs((ctx, close) => const ErrorBanner()));
+// Bypass the queue; judge eligibility after the delay:
+manager.open(id: 'net-error', mode: OverlayMode.overlap, delay: const Duration(seconds: 1), present: dialogs((ctx, close) => const Text('Network error')));
 
 // Independent serial queues that run in parallel:
 manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('Saved')));
@@ -278,7 +277,12 @@ manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toa
 `RouteMatcher.regex(RegExp(r'^/promo/'))` uses `hasMatch`. Null and non-string
 context routes never match.
 
-### Conditions (`when` / `route` / `requiresAuth` / `setContext`)
+
+Overlap honors `delay`: it waits first, then applies the now-or-never eligibility
+check. Remove, clear, same-id reopen and dispose cancel the waiting entry.
+Pause and pending hydration can hold it further; it never joins a serial slot.
+
+### Conditions (`when` / `route` / `auth` / `setContext`)
 
 Overlays can gate on an app-wide context you push with `setContext`. A queued
 overlay whose conditions don't hold simply **waits**; a *shown* overlay whose
@@ -291,8 +295,8 @@ manager.setContext({'route': '/promo', 'auth': true});
 // Sugar: show only on a route (RouteMatcher.exact / anyOf / regex) ...
 manager.open(id: 'promo', route: const RouteMatcher.exact('/promo'), present: dialogs((ctx, close) => const PromoCard()));
 // ... only when authenticated ...
-manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
-// ... or an arbitrary predicate (sole authority when given):
+manager.open(id: 'inbox', auth: (ctx) => ctx['auth'] == true, present: dialogs((ctx, close) => const InboxHint()));
+// Additional conditions are combined with route and auth using AND:
 manager.open(
   id: 'vip',
   when: (ctx) => ctx['tier'] == 'gold' && ctx['route'] == '/home',
@@ -300,10 +304,29 @@ manager.open(
 );
 ```
 
-`route` reserves the context key `route`; `requiresAuth` reserves `auth`.
-Everything else is free-form for `when` predicates. A `when` predicate that
-throws is reported via `FlutterError.reportError` (once per overlay) and treated
-as unmet — it never escapes `open()` / `setContext()`.
+`route`, `auth` and `when` are combined with **AND**; omitted conditions pass.
+Only `route` reads a reserved key (`route`). `auth` and `when` read any keys you
+push with `setContext`; the engine never reads an `auth` key on its own.
+A throwing `auth` or `when` is reported once per entry and treated as unmet.
+Conditions are push-driven: external state changes require `setContext`, even
+`setContext({})`, or another scheduling trigger. They do not wake on time alone.
+
+### Login and roles (`auth:` predicate)
+
+```dart
+manager.setContext({'signedIn': true, 'role': 'admin', 'route': '/admin'});
+manager.open<void>(
+  id: 'admin-hint',
+  route: const RouteMatcher.exact('/admin'),
+  auth: (ctx) => ctx['signedIn'] == true && ctx['role'] == 'admin',
+  when: (ctx) => ctx['maintenance'] != true,
+  present: dialogs<void>((ctx, close) => const Text('Admin')),
+);
+```
+
+To migrate `requiresAuth: true`, use `auth: (ctx) => ctx['auth'] == true`;
+for the former guest-only `requiresAuth: false`, use `auth: (ctx) => ctx['auth'] != true`.
+Your app chooses the keys and role/permission policy.
 
 ### Auto route awareness (`LayermanNavigatorObserver` + `pauseOnRoutes`)
 
@@ -366,11 +389,10 @@ own navigation-aware close option if it has one.
 ### `DialogManager` / `BottomSheetManager`
 
 Create once with the app's `navigatorKey`; only configuration is retained, each
-presentation owns its Route. Optional `manager: manager` makes the builder's
-`close([result])` run `beforeClose` and result validation. Without it, `close`
-directly closes that route. Back, barrier and drag dismissals are backend paths
-and bypass the guard. A bound instance stays bound to that manager; recreate it
-when replacing the manager. Per-call non-null options override constructor defaults:
+presentation owns its Route. The builder's `close([result])` always delegates to
+`ctx.close` and runs `beforeClose`. Instances can be reused across managers.
+Back, barrier and drag dismissals are backend paths and bypass the guard.
+Per-call non-null options override constructor defaults:
 
 ```dart
 manager.open<bool>(
@@ -462,7 +484,7 @@ final bounded = Layerman(
     'notice': OverlaySlotOptions(gap: Duration(milliseconds: 200), maxQueued: 3),
   },
 );
-final boundedDialogs = DialogManager(navigatorKey, manager: bounded);
+final boundedDialogs = DialogManager(navigatorKey);
 bounded.open<String>(
   slot: 'notice',
   expireAfter: const Duration(minutes: 1),
@@ -507,9 +529,10 @@ manager.open(
 );
 ```
 
-**Behavior change in 0.3.0:** exhausted `session` / `total` caps discard serial
-entries with a `null` result (`capped`) when scheduling reaches them, rather than
-waiting forever. Use time-based caps for retryable waits or a new id for a new campaign.
+**1.0.0 completion of the 0.3.0 behavior:** exhausted `session` / `total` caps
+settle serial submissions as `null` (`capped`) immediately at submission, and
+queued entries are checked again after hydration, even while the slot is occupied
+or the manager paused. Use time-based caps for retryable waits or a new id for a new campaign.
 
 All present caps must pass (AND); a cap counts when the overlay actually opens.
 Counters are keyed by `id`, so a cooldown needs an explicit `id` (asserted in
@@ -576,6 +599,29 @@ manager.open<String>(
     content: Text(ctx.data as String),
     actions: [TextButton(onPressed: () => close('accepted'), child: const Text('OK'))],
   )),
+);
+```
+
+### Closing from inside a backend (`ctx.close`)
+
+`PresentContext<T>.close([T? result])` closes its own submission through
+`beforeClose`. It binds entry identity: an old callback cannot close a reopened
+entry with the same id. Non-open entries and pending guards ignore close calls.
+Backend-driven barrier/back dismissal still bypasses the guard.
+
+```dart
+manager.open<bool>(
+  beforeClose: () => true,
+  present: (ctx) => presentRoute<bool>(
+    navigatorKey.currentState!,
+    DialogRoute<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => TextButton(
+        onPressed: () => ctx.close(true),
+        child: const Text('Done'),
+      ),
+    ),
+  ),
 );
 ```
 
@@ -926,13 +972,18 @@ Layerman({
   Duration? resolveTimeout = const Duration(seconds: 30),
   OverlayCooldownStorage? cooldownStorage, // default MemoryCooldownStorage
   String storageKey = 'layerman:cooldown',
-  DateTime Function()? now,                // injectable clock (tests)
+  OverlayClock clock = OverlayClock.system, // time and timers share one source
   List<RouteMatcher> pauseOnRoutes = const [],   // typed route matchers
 })
 ```
 
 | Member | Description |
 | --- | --- |
+| `OverlayClock clock` | Default `OverlayClock.system`; shared time/timer source. |
+| `OverlayClock` | `DateTime now()`; `Timer createTimer(Duration duration, void Function() callback)`; `static const system`. |
+| `FakeOverlayClock([DateTime? start])` | Import `package:layerman/testing.dart`; default DateTime(2000); `advance(Duration d)`, `pendingTimers`, inherited clock methods. |
+| `PresentContext<T>.close([T? result])` | Identity-bound close through beforeClose. |
+| `void debugCheckInvariants()` | Explicit invariant validation; automatic in debug after outermost batch. |
 | `final Map<String, OverlaySlotOptions> slots` | Immutable slot configuration. |
 | `final Duration? dismissTimeout` / `final Duration? resolveTimeout` | Constructor timeouts; `null` disables. |
 | `Stream<OverlayEvent> get events` | Async broadcast, no replay. |
@@ -980,15 +1031,15 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 | `Set<String>? tags` | `null` (empty set) | Copied into an immutable set, exposed by `OverlayRecord.tags`; select entries with `clearTag`. |
 | `String slot` | `''` | Named serial queue (independent lanes run in parallel). |
 | `int priority` | `0` | Higher shows first; ties break FIFO. |
-| `Duration? delay` | `null` | Appear delay before this overlay shows. |
+| `Duration? delay` | `null` | Appear delay; overlap checks now-or-never eligibility after waiting. |
 | `Duration? expireAfter` | `null` | Maximum serial wait before activation; includes pauses, ignores overlap. |
 | `Duration? resolveTimeout` | `null` (inherit) | Per-entry resolve timeout; `Duration.zero` disables. |
 | `Duration? duration` | `null` | Auto-close after this long once shown. |
 | `OverlayMode mode` | `OverlayMode.queue` | `queue`: serial; `replace`: preempt and discard the current entry (result `null`, never re-queued); `overlap`: bypass the queue, now-or-never. |
 | `bool affix` | `false` | Protect the current overlay from being `replace`d. |
-| `OverlayPredicate? when` | `null` | Condition predicate; sole authority when present. |
-| `RouteMatcher? route` | `null` | Typed matcher against `context['route']`; ignored when `when` is provided. |
-| `bool? requiresAuth` | `null` | Auth gate sugar vs `context['auth']`; `false` means guests only. |
+| `OverlayPredicate? when` | `null` | Condition predicate; AND with route and auth. |
+| `RouteMatcher? route` | `null` | Typed matcher against `context['route']`; AND with auth and when. |
+| `OverlayPredicate? auth` | `null` | Login/role/permission predicate; AND with route and when; no reserved auth key. |
 | `bool dismissWhenUnmet` | `true` | Auto-dismiss a *shown* overlay whose conditions stop holding. |
 | `OverlayCooldown? cooldown` | `null` | Frequency cap (see `OverlayCooldown`); requires an explicit `id`. |
 | `Future<T?> Function()? resolve` | `null` | Fetch the payload when granted; `null` skips without counting cooldown. |
@@ -1060,13 +1111,13 @@ Read-only snapshot handed to `clearWhere`. Fields: `final String id`,
 `final OverlayPhase phase`, `final Set<String> tags` (copied, read-only).
 Compare phases with `OverlayPhase.pending` / `resolving` / `open` / `closing`.
 
-### `Present<T>` / `PresentContext` / `PresentedOverlay<T>`
+### `Present<T>` / `PresentContext<T>` / `PresentedOverlay<T>`
 
 ```dart
-typedef Present<T> = PresentedOverlay<T> Function(PresentContext context);
+typedef Present<T> = PresentedOverlay<T> Function(PresentContext<T> context);
 ```
 
-`PresentContext` (given to your `present` callback) — fields: `final String id`,
+`PresentContext<T>` (given to your `present` callback) — fields: `final String id`,
 `final String slot`, `final Object? data`, `final ValueListenable<Object?> dataListenable`.
 
 ```dart
@@ -1099,10 +1150,10 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 
 | Constructor / call | Parameters and defaults |
 | --- | --- |
-| `DialogManager(GlobalKey<NavigatorState> navigatorKey, {...})` | `Layerman? manager`, `bool barrierDismissible = true`, `Color? barrierColor`, `bool useSafeArea = true`, `String routeNamePrefix = 'layerman://'`. |
+| `DialogManager(GlobalKey<NavigatorState> navigatorKey, {...})` | `bool barrierDismissible = true`, `Color? barrierColor`, `bool useSafeArea = true`, `String routeNamePrefix = 'layerman://'`. |
 | `BottomSheetManager(GlobalKey<NavigatorState> navigatorKey, {...})` | Same constructor parameters as `DialogManager`, plus `bool isScrollControlled = false`, `Color? backgroundColor`, `bool enableDrag = true`, `bool? showDragHandle`. |
-| `Present<T> DialogManager.call<T>(Widget Function(PresentContext ctx, void Function([T? result]) close) builder, {...})` | `bool? barrierDismissible`, `Color? barrierColor`, `bool? useSafeArea`; non-null values override constructor defaults. |
-| `Present<T> BottomSheetManager.call<T>(Widget Function(PresentContext ctx, void Function([T? result]) close) builder, {...})` | Same call parameters, plus `bool? isScrollControlled`, `Color? backgroundColor`, `bool? enableDrag`, `bool? showDragHandle`. |
+| `Present<T> DialogManager.call<T>(Widget Function(PresentContext<T> ctx, void Function([T? result]) close) builder, {...})` | `bool? barrierDismissible`, `Color? barrierColor`, `bool? useSafeArea`; non-null values override constructor defaults. |
+| `Present<T> BottomSheetManager.call<T>(Widget Function(PresentContext<T> ctx, void Function([T? result]) close) builder, {...})` | Same call parameters, plus `bool? isScrollControlled`, `Color? backgroundColor`, `bool? enableDrag`, `bool? showDragHandle`. |
 | `PresentedOverlay<T> presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` | Push and retain the route, await its completed future, target that route for dismissal. |
 | `LayermanLifecycle(Layerman manager, {Set<AppLifecycleState> pauseOn = const <AppLifecycleState>{AppLifecycleState.paused, AppLifecycleState.hidden}})` | `final Layerman manager`, `bool get isAttached`, `void attach()`, `void detach()`, `void didChangeAppLifecycleState(AppLifecycleState state)`; attach/detach are idempotent. |
 
@@ -1118,6 +1169,50 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
   a `minGap` or a bucket rollover arms a timer and shows itself the moment the
   window elapses. Exhausted `session`/`total` caps discard the entry with
   a `null` result and `OverlayEndReason.capped`.
+
+### Testing without a Flutter binding (`FakeOverlayClock`)
+
+Add `test` to your app's dev dependencies. This uses ordinary `test()`, with no
+`flutter_test` binding. The package still requires a Flutter SDK for dependencies.
+`OverlayClock` supplies both `now()` and `createTimer`; injecting only a date
+callback is no longer supported. Fake timers run on `advance`; drain Future
+continuations separately when checking backend completion.
+
+```dart
+import 'dart:async';
+import 'package:layerman/layerman.dart';
+import 'package:layerman/testing.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('注入时钟控制展示时长', () async {
+    final clock = FakeOverlayClock();
+    final manager = Layerman(clock: clock);
+    addTearDown(manager.dispose);
+    final dismissed = Completer<bool?>();
+    final result = manager.open<bool>(
+      duration: const Duration(seconds: 1),
+      present: (_) => PresentedOverlay<bool>(
+        dismissed: dismissed.future,
+        dismiss: ([value]) async { dismissed.complete(value); },
+      ),
+    );
+    clock.advance(const Duration(seconds: 1));
+    expect(await result, isNull);
+    await Future<void>.delayed(Duration.zero);
+    expect(manager.activeIds, isEmpty);
+    expect(clock.pendingTimers, 0);
+  });
+}
+```
+
+### Debug invariant checks
+
+In debug, every outermost operation batch automatically calls
+`debugCheckInvariants()` to validate container identity, phases, ordering, timers
+and disposal. Tests can call it explicitly (including in release); violations
+throw `StateError`. These checks and randomized tests reduce refactoring risk;
+they do not replace a future Gate or explicit state-machine refactor.
 
 ## Testing
 
@@ -1169,9 +1264,9 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
   浮层会被**关闭**(结果为 `null`)——一个已被 dismiss 的后端没法被如实地重新呈现,
   所以它不会再次显示。
 - **`affix`**:保护当前浮层不被 `replace` 顶掉(被挡的抢占者在队首等待)。
-- **`overlap`**:绕过队列,立刻叠加显示(全局告警、阻塞式 loading);条件/冷却对
+- **`overlap`**:绕过队列,等待 `delay` 后叠加显示(全局告警、阻塞式 loading);条件/冷却对
   overlap 是「此刻不满足即丢弃」的一次性发射门。
-- **条件**:`when(ctx)` 谓词(存在时唯一权威),或 `route` / `requiresAuth` 语法糖,
+- **条件**:`route`、`auth(ctx)`、`when(ctx)` 三者 AND,
   由 `setContext({...})` 驱动;已显示的浮层若条件不再满足会被自动撤下
   (`dismissWhenUnmet`,默认 true;排队项只是等待)。
 - **冷却**:`OverlayCooldown(session / total / day / hour / minute / minGap)`,多个
@@ -1263,8 +1358,8 @@ manager.open(present: (ctx) {
 
 ```dart
 final navigatorKey = GlobalKey<NavigatorState>();
-final dialogs = DialogManager(navigatorKey, manager: manager);
-final sheets = BottomSheetManager(navigatorKey, manager: manager);
+final dialogs = DialogManager(navigatorKey);
+final sheets = BottomSheetManager(navigatorKey);
 
 // Mount this once in your app:
 final app = MaterialApp(navigatorKey: navigatorKey, home: const Scaffold());
@@ -1356,8 +1451,8 @@ manager.open(id: 'session-expired', mode: OverlayMode.replace, present: dialogs(
 // 固定当前浮层,replace 顶不掉它:
 manager.open(id: 'critical', affix: true, present: dialogs((ctx, close) => const CriticalDialog()));
 
-// 绕过队列,立刻叠加:
-manager.open(id: 'net-error', mode: OverlayMode.overlap, present: dialogs((ctx, close) => const ErrorBanner()));
+// 绕过队列，延迟结束后判资格并叠加：
+manager.open(id: 'net-error', mode: OverlayMode.overlap, delay: const Duration(seconds: 1), present: dialogs((ctx, close) => const Text('Network error')));
 
 // 并行的独立串行队列:
 manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toast('已保存')));
@@ -1367,7 +1462,11 @@ manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toa
 `const RouteMatcher.anyOf(['/promo', '/home'])` 匹配列表任一路径；
 `RouteMatcher.regex(RegExp(r'^/promo/'))` 使用 `hasMatch`。上下文路由为 null 或非字符串时不匹配。
 
-### 条件(`when` / `route` / `requiresAuth` / `setContext`)
+
+overlap 的 `delay` 生效：先等待，再按「现在或永不」判断资格。
+remove、clear、同 id 重开、dispose 均取消等待；暂停和 hydrate 可继续挂起，且不占串行 slot。
+
+### 条件(`when` / `route` / `auth` / `setContext`)
 
 排队项若条件不满足只会**等待**;已显示项若条件不再满足会被自动撤下(除非
 `dismissWhenUnmet: false`)。
@@ -1376,17 +1475,36 @@ manager.open(id: 't1', slot: 'toast', present: dialogs((ctx, close) => const Toa
 manager.setContext({'route': '/promo', 'auth': true}); // 把真实导航/登录态喂进来
 
 manager.open(id: 'promo', route: const RouteMatcher.exact('/promo'), present: dialogs((ctx, close) => const PromoCard()));
-manager.open(id: 'inbox', requiresAuth: true, present: dialogs((ctx, close) => const InboxHint()));
+manager.open(id: 'inbox', auth: (ctx) => ctx['auth'] == true, present: dialogs((ctx, close) => const InboxHint()));
 manager.open(
   id: 'vip',
-  when: (ctx) => ctx['tier'] == 'gold', // 存在 when 时它是唯一权威
+  when: (ctx) => ctx['tier'] == 'gold', // 与 route / auth 按 AND 组合
   present: dialogs((ctx, close) => const VipCard()),
 );
 ```
 
-`route` 保留上下文键 `route`;`requiresAuth` 保留 `auth`;其余键随你在 `when` 里用。
-`when` 谓词抛异常时会经 `FlutterError.reportError` 上报(每个浮层一次)并按「不满足」处理,
-不会从 `open()` / `setContext()` 里冒出去。
+`route`、`auth`、`when` 按 **AND** 组合，未提供的条件视为通过。
+只有 `route` 读取保留键 `route`；`auth` / `when` 读取 `setContext` 推进来的任意键，
+引擎不自行读取 `auth` 键。判断函数抛错按条目上报一次并视为未满足。
+条件是推模式：外部状态变化后需调用 `setContext`（可用 `setContext({})`）或等待其他调度触发，
+不会仅因时间流逝自动重判。
+
+### 登录与角色（`auth:` 判断函数）
+
+```dart
+manager.setContext({'signedIn': true, 'role': 'admin', 'route': '/admin'});
+manager.open<void>(
+  id: 'admin-hint',
+  route: const RouteMatcher.exact('/admin'),
+  auth: (ctx) => ctx['signedIn'] == true && ctx['role'] == 'admin',
+  when: (ctx) => ctx['maintenance'] != true,
+  present: dialogs<void>((ctx, close) => const Text('Admin')),
+);
+```
+
+旧 `requiresAuth: true` 等价迁移为 `auth: (ctx) => ctx['auth'] == true`；
+旧的仅游客 `requiresAuth: false` 等价迁移为 `auth: (ctx) => ctx['auth'] != true`。
+键名以及角色、权限策略由业务决定。
 
 ### 自动路由感知(`LayermanNavigatorObserver` + `pauseOnRoutes`)
 
@@ -1438,9 +1556,8 @@ final manager = Layerman(pauseOnRoutes: const [RouteMatcher.exact('/checkout')])
 ### `DialogManager` / `BottomSheetManager`
 
 用应用的 `navigatorKey` 全局建一次；实例只保存配置，每次展示独立持有 Route。
-可选绑定 `manager: manager`，让 builder 的 `close([result])` 经过 `beforeClose` 和结果类型校验；
-未绑定则直接关闭该路由。返回键、遮罩和拖动属于后端关闭，绕过守卫。绑定实例始终使用原 manager，
-更换 manager 时重建。单次调用的非 null 选项覆盖构造默认值：
+builder 的 `close([result])` 总是委托 `ctx.close`，经过 `beforeClose`；实例可跨管理器复用。
+返回键、遮罩和拖动属于后端关闭，绕过守卫。单次调用的非 null 选项覆盖构造默认值：
 
 ```dart
 manager.open<bool>(
@@ -1523,7 +1640,7 @@ final bounded = Layerman(
     'notice': OverlaySlotOptions(gap: Duration(milliseconds: 200), maxQueued: 3),
   },
 );
-final boundedDialogs = DialogManager(navigatorKey, manager: bounded);
+final boundedDialogs = DialogManager(navigatorKey);
 bounded.open<String>(
   slot: 'notice',
   expireAfter: const Duration(minutes: 1),
@@ -1587,8 +1704,9 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 }
 ```
 
-**0.3.0 行为变更：** `session` / `total` 耗尽的串行条目在调度检查到时丢弃，结果为
-`null`（`capped`），不再永久等待。需要可重试的等待请使用时间型冷却，新活动使用新 id。
+**1.0.0 补完 0.3.0 行为：** `session` / `total` 耗尽的串行条目在提交时立即以
+`null`（`capped`）结束；hydrate 完成时再次检查队列，不受 slot 占用或暂停阻挡。
+需要可重试的等待请使用时间型冷却，新活动使用新 id。
 
 `cooldownStatus(id, cooldown)` 返回 `OverlayCooldownStatus`：`canShow` 表示全部上限通过，
 `permanentlyBlocked` 表示 session/total 耗尽。`wait` 可展示时为 `Duration.zero`，
@@ -1621,6 +1739,28 @@ manager.open<String>(
     content: Text(ctx.data as String),
     actions: [TextButton(onPressed: () => close('accepted'), child: const Text('OK'))],
   )),
+);
+```
+
+### 在后端内部关闭（`ctx.close`）
+
+`PresentContext<T>.close([T? result])` 经 `beforeClose` 关闭本次提交，绑定条目身份；
+同 id 重开后旧回调不能关掉新条目。非 open 或守卫未决时无操作。
+后端自身的遮罩、返回键关闭仍绕过守卫。
+
+```dart
+manager.open<bool>(
+  beforeClose: () => true,
+  present: (ctx) => presentRoute<bool>(
+    navigatorKey.currentState!,
+    DialogRoute<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => TextButton(
+        onPressed: () => ctx.close(true),
+        child: const Text('Done'),
+      ),
+    ),
+  ),
 );
 ```
 
@@ -1922,6 +2062,11 @@ manager.open<void>(
 
 | 1.0 成员 / 类型 | 契约 |
 | --- | --- |
+| `OverlayPredicate? auth` | 默认 null，与 route / when 按 AND；读取任意业务键。 |
+| `OverlayClock clock` | 默认 `OverlayClock.system`；`now()` 与 `createTimer(Duration, callback)` 同源。 |
+| `OverlayClock` / `FakeOverlayClock([DateTime? start])` | 测试时钟从 `package:layerman/testing.dart` 导入，默认 DateTime(2000)；`advance(Duration d)`、`pendingTimers`。 |
+| `PresentContext<T>.close([T? result])` | 绑定本次提交并经过 beforeClose。 |
+| `debugCheckInvariants()` | 显式检查不变量；debug 最外层批次结束自动执行。 |
 | `OverlayMode mode` | 默认 `OverlayMode.queue`；可选 `replace` / `overlap`，不能同时选择。 |
 | `RouteMatcher? route` / `List<RouteMatcher> pauseOnRoutes` | 默认 null / 空列表；使用 `exact` / `anyOf` / `regex`；null 或非字符串路由不匹配，`anyOf` 的输入列表不可修改。 |
 | `OverlayPhase` / `OverlayRecord.phase` | `pending` / `resolving` / `open` / `closing`，使用枚举比较。 |
@@ -1962,6 +2107,46 @@ manager.open<void>(
 - **时间型冷却会自唤醒**:与 headless TS 内核(仅在下一次调度触发时才重新评估)不同,
   被 `minGap` 或桶滚动挡住的 Flutter 条目会自行武装定时器,到期即自动显示;
   `session`/`total` 耗尽后丢弃条目，结果为 null。
+
+### 脱离 Flutter 绑定测试（`FakeOverlayClock`）
+
+应用的 dev_dependencies 加入 `test`，即可用普通 `test()` 测引擎，无需 flutter_test 绑定；
+依赖解析仍需要 Flutter SDK。`OverlayClock` 的 `now()` 和 `createTimer` 必须同源，
+不再单独注入日期回调。`advance` 触发虚拟计时器，Future 续体需另行排空。
+
+```dart
+import 'dart:async';
+import 'package:layerman/layerman.dart';
+import 'package:layerman/testing.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('注入时钟控制展示时长', () async {
+    final clock = FakeOverlayClock();
+    final manager = Layerman(clock: clock);
+    addTearDown(manager.dispose);
+    final dismissed = Completer<bool?>();
+    final result = manager.open<bool>(
+      duration: const Duration(seconds: 1),
+      present: (_) => PresentedOverlay<bool>(
+        dismissed: dismissed.future,
+        dismiss: ([value]) async { dismissed.complete(value); },
+      ),
+    );
+    clock.advance(const Duration(seconds: 1));
+    expect(await result, isNull);
+    await Future<void>.delayed(Duration.zero);
+    expect(manager.activeIds, isEmpty);
+    expect(clock.pendingTimers, 0);
+  });
+}
+```
+
+### debug 不变量检查
+
+debug 下每个最外层操作批次结束自动运行 `debugCheckInvariants()`，检查容器身份、阶段、
+排序、计时器与销毁状态。测试可显式调用（release 也可），违反契约抛 `StateError`。
+不变量断言和随机序列测试降低重构风险，不能替代尚未完成的 Gate / 显式状态机。
 
 ## 测试
 
