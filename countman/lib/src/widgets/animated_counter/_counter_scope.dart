@@ -18,6 +18,77 @@ mixin _CounterScope<W extends _BaseAnimatedCounter> on State<W> {
   /// 最近一次读到的 `MediaQuery.disableAnimations`；没有 MediaQuery 时为 null。
   bool? _mediaReduceMotion;
 
+  /// 主题（[CountmanTheme.animatedCounterStyle]）里的默认样式；没有主题时为 null。
+  AnimatedCounterStyle? _themeStyle;
+
+  // ── 有效视觉值：widget.style > 弃用的松散参数（显式设置）> 主题 > 默认 ──────
+  /// 数字文本样式。
+  TextStyle? get _effTextStyle =>
+      widget.style?.textStyle ?? widget._textStyle ?? _themeStyle?.textStyle;
+  /// 前缀文本样式（回退到 [_effTextStyle] 由调用方处理）。
+  TextStyle? get _effPrefixStyle =>
+      widget.style?.prefixStyle ?? widget._prefixStyle ?? _themeStyle?.prefixStyle;
+  /// 中缀文本样式。
+  TextStyle? get _effInfixStyle =>
+      widget.style?.infixStyle ?? widget._infixStyle ?? _themeStyle?.infixStyle;
+  /// 后缀文本样式。
+  TextStyle? get _effSuffixStyle =>
+      widget.style?.suffixStyle ?? widget._suffixStyle ?? _themeStyle?.suffixStyle;
+  /// 分隔符文本样式。
+  TextStyle? get _effSeparatorStyle =>
+      widget.style?.separatorStyle ??
+      widget._separatorStyle ??
+      _themeStyle?.separatorStyle;
+  /// 数字在槽位内的水平对齐。
+  double get _effNumberAlignment =>
+      widget.style?.numberAlignment ??
+      widget._numberAlignment ??
+      _themeStyle?.numberAlignment ??
+      _kDefaultNumberAlignment;
+  /// 装饰行的主轴对齐。
+  MainAxisAlignment get _effMainAxisAlignment =>
+      widget.style?.mainAxisAlignment ??
+      widget._mainAxisAlignment ??
+      _themeStyle?.mainAxisAlignment ??
+      _kDefaultMainAxisAlignment;
+  /// 装饰行的交叉轴对齐。
+  CrossAxisAlignment get _effCrossAxisAlignment =>
+      widget.style?.crossAxisAlignment ??
+      widget._crossAxisAlignment ??
+      _themeStyle?.crossAxisAlignment ??
+      _kDefaultCrossAxisAlignment;
+  /// 数字周围的内边距。
+  EdgeInsets get _effPadding =>
+      widget.style?.padding ??
+      widget._padding ??
+      _themeStyle?.padding ??
+      _kDefaultPadding;
+  /// 是否使用等宽数字。
+  bool get _effUseTabularFigures =>
+      widget.style?.useTabularFigures ??
+      widget._useTabularFigures ??
+      _themeStyle?.useTabularFigures ??
+      _kDefaultUseTabularFigures;
+  /// 数值增加时的着色。
+  Color? get _effIncreasingColor =>
+      widget.style?.increasingColor ??
+      widget._increasingColor ??
+      _themeStyle?.increasingColor;
+  /// 数值减少时的着色。
+  Color? get _effDecreasingColor =>
+      widget.style?.decreasingColor ??
+      widget._decreasingColor ??
+      _themeStyle?.decreasingColor;
+  /// 着色渐隐时长。
+  Duration get _effColorFadeDuration =>
+      widget.style?.colorFadeDuration ??
+      widget._colorFadeDuration ??
+      _themeStyle?.colorFadeDuration ??
+      _kDefaultColorFadeDuration;
+  /// 整个计数器外围的容器装饰（仅样式与主题）。
+  Decoration? get _effDecoration =>
+      widget.style?.decoration ?? _themeStyle?.decoration;
+
   /// 最近的 counter 作用域；不注册依赖，可在 initState 与异步回调里读取。
   CountmanScope<Counter>? get _counterScope =>
       context.getInheritedWidgetOfExactType<CountmanScope<Counter>>();
@@ -60,5 +131,7 @@ mixin _CounterScope<W extends _BaseAnimatedCounter> on State<W> {
     super.didChangeDependencies();
     // 注册对 MediaQuery 的依赖，系统减弱动画设置变化时随之更新。
     _mediaReduceMotion = MediaQuery.maybeDisableAnimationsOf(context);
+    // 注册对主题的依赖，主题（含动画中的 lerp）变化时随之重建。
+    _themeStyle = CountmanTheme.maybeOf(context)?.animatedCounterStyle;
   }
 }

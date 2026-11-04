@@ -28,6 +28,7 @@ export 'src/widgets/bar_countdown.dart';
 export 'src/widgets/bar_counter.dart';
 export 'src/widgets/animated_counter/animated_counter.dart';
 export 'src/widgets/dial_countdown.dart';
+export 'src/widgets/countman_theme.dart';
 export 'src/widgets/providers.dart';
 export 'src/widgets/painter/painter.dart';
 

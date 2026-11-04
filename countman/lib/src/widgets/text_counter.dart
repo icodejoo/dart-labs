@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'animate_once.dart';
+import 'countman_theme.dart';
 import 'counter_builder.dart';
 import 'providers.dart';
 import 'text_style.dart';
@@ -144,7 +145,10 @@ class TextCounter extends StatelessWidget {
     //
     // 解析样式：widget 样式叠加在 provider 默认文本样式之上。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final s = (style ?? const TextCounterStyle()).merge(scope?.textCounterStyle);
+    final theme = CountmanTheme.maybeOf(context);
+    final s = (style ?? const TextCounterStyle())
+        .merge(scope?.textCounterStyle)
+        .merge(theme?.textCounterStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
 
     final number = CounterBuilder(

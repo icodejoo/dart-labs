@@ -271,8 +271,8 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // 读取目标数位并把每一位精确吸附到目标。无需 all-nines 的 ε 修正，直接动画到真实目标。
     final isIncrease  = newValue > oldValue;
     final isDecrease  = newValue < oldValue;
-    final targetColor = isIncrease ? widget.increasingColor
-                      : isDecrease ? widget.decreasingColor : null;
+    final targetColor = isIncrease ? _effIncreasingColor
+                      : isDecrease ? _effDecreasingColor : null;
     if (targetColor != null) _startTint(targetColor);
     _lastValue    = newValue;
     _currentValue = newValue;

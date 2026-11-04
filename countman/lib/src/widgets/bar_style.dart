@@ -239,6 +239,33 @@ class BarStyle with BoxStyleFields, BarStyleFields, StyleProps {
           decoration: decoration ?? other.decoration,
         );
 
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、颜色、渐变、圆角、内边距、装饰逐字段插值；填充方向、朝向等不可插值字段在
+  /// `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
+  /// 例如 `BarStyle.lerp(const BarStyle(width: 200), const BarStyle(width: 300), 0.5)`。
+  static BarStyle? lerp(BarStyle? a, BarStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return BarStyle(
+      width: lerpNum(a.width, b.width, t),
+      height: lerpNum(a.height, b.height, t),
+      trackHeight: lerpNum(a.trackHeight, b.trackHeight, t),
+      color: lerpColor(a.color, b.color, t),
+      trackColor: lerpColor(a.trackColor, b.trackColor, t),
+      gradient: Gradient.lerp(a.gradient, b.gradient, t),
+      trackGradient: Gradient.lerp(a.trackGradient, b.trackGradient, t),
+      borderRadius: Radius.lerp(a.borderRadius, b.borderRadius, t),
+      borderRadiusGeometry:
+          BorderRadius.lerp(a.borderRadiusGeometry, b.borderRadiusGeometry, t),
+      fillFromStart: pickField(a.fillFromStart, b.fillFromStart, t),
+      showTrack: pickField(a.showTrack, b.showTrack, t),
+      vertical: pickField(a.vertical, b.vertical, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         width,

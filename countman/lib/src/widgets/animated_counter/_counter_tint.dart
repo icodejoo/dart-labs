@@ -49,7 +49,7 @@ mixin _CounterTint<W extends _BaseAnimatedCounter> on State<W>, _CounterScope<W>
     _colorAnimKey++;
     _tintHandle?.cancel();
     _tintHandle = null;
-    final fade = widget.colorFadeDuration;
+    final fade = _effColorFadeDuration;
     if (fade <= Duration.zero) {
       _onTintTick(1.0);
       return;

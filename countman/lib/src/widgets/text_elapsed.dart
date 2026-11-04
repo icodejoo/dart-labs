@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/types.dart'
     show DurationFormatter, CountdownFormat, TimeParts;
 import 'package:countman/src/elapsed/plugin.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'text_style.dart';
 import 'elapsed_builder.dart';
@@ -148,7 +149,10 @@ class TextElapsed extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认之上。
     final scope = CountmanScope.maybeOf<Elapsed>(context);
-    final s = (style ?? const TextElapsedStyle()).merge(scope?.textElapsedStyle);
+    final theme = CountmanTheme.maybeOf(context);
+    final s = (style ?? const TextElapsedStyle())
+        .merge(scope?.textElapsedStyle)
+        .merge(theme?.textElapsedStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 

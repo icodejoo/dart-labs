@@ -21,6 +21,7 @@ import 'package:countman/src/counter/plugin.dart';
 
 import 'reduce_motion.dart';
 import 'style_support.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'animated_counter/animated_counter.dart';
 
@@ -133,6 +134,27 @@ class OdometerCounterStyle with BoxStyleFields, StyleProps {
           padding: padding ?? other.padding,
           decoration: decoration ?? other.decoration,
         );
+
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 文字样式、对齐、内边距、装饰逐字段插值；交叉轴对齐不可插值，在 `t < 0.5` 时取
+  /// [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。已失效的弃用字段不参与。
+  /// 例如 `OdometerCounterStyle.lerp(a, b, 0.5)`。
+  static OdometerCounterStyle? lerp(
+      OdometerCounterStyle? a, OdometerCounterStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return OdometerCounterStyle(
+      numberTextStyle: TextStyle.lerp(a.numberTextStyle, b.numberTextStyle, t),
+      digitAlignment: Alignment.lerp(a.digitAlignment, b.digitAlignment, t),
+      crossAxisAlignment:
+          pickField(a.crossAxisAlignment, b.crossAxisAlignment, t),
+      prefixStyle: TextStyle.lerp(a.prefixStyle, b.prefixStyle, t),
+      suffixStyle: TextStyle.lerp(a.suffixStyle, b.suffixStyle, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -332,7 +354,9 @@ class OdometerCounter extends StatelessWidget {
     //
     // 样式：本组件样式叠加在所在 provider 的 odometer 样式之上。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final st = style?.merge(scope?.odometerCounterStyle) ?? scope?.odometerCounterStyle;
+    final themeStyle = CountmanTheme.maybeOf(context)?.odometerCounterStyle;
+    final providerStyle = scope?.odometerCounterStyle?.merge(themeStyle) ?? themeStyle;
+    final st = style?.merge(providerStyle) ?? providerStyle;
 
     // Fixed-width leading zeros — the mechanical-odometer look. Width = digit
     // count of the larger endpoint.

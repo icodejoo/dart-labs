@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_builder.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
@@ -99,8 +100,9 @@ class RingCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle =
-        (style ?? const RingCountdownStyle()).merge(scope?.ringCountdownStyle);
+    final effStyle = (style ?? const RingCountdownStyle())
+        .merge(scope?.ringCountdownStyle)
+        .merge(CountmanTheme.maybeOf(context)?.ringCountdownStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,

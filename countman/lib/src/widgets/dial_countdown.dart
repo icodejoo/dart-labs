@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_builder.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'style_support.dart';
 
@@ -57,6 +58,16 @@ class DialColors with StyleProps {
         yellow: yellow ?? this.yellow,
         red: red ?? this.red,
         off: off ?? this.off,
+      );
+
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）逐色插值。
+  /// 例如 `DialColors.lerp(const DialColors(), const DialColors(red: Colors.black), 0.5)`。
+  static DialColors lerp(DialColors a, DialColors b, double t) => DialColors(
+        normal: Color.lerp(a.normal, b.normal, t)!,
+        green: Color.lerp(a.green, b.green, t)!,
+        yellow: Color.lerp(a.yellow, b.yellow, t)!,
+        red: Color.lerp(a.red, b.red, t)!,
+        off: Color.lerp(a.off, b.off, t)!,
       );
 
   @override
@@ -381,6 +392,37 @@ class DialCountdownStyle with BoxStyleFields, StyleProps {
           decoration: decoration ?? other.decoration,
         );
 
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、配色、对齐、内边距、装饰逐字段插值；开关、阈值、刻度/弧/内环配置等不可
+  /// 插值字段在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
+  /// 例如 `DialCountdownStyle.lerp(a, b, 0.5)`。
+  static DialCountdownStyle? lerp(
+      DialCountdownStyle? a, DialCountdownStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return DialCountdownStyle(
+      size: lerpNum(a.size, b.size, t),
+      clockwise: pickField(a.clockwise, b.clockwise, t),
+      redAt: pickField(a.redAt, b.redAt, t),
+      yellowAt: pickField(a.yellowAt, b.yellowAt, t),
+      colors: lerpField<DialColors>(a.colors, b.colors, t, DialColors.lerp),
+      ticks: pickField(a.ticks, b.ticks, t),
+      arcA: pickField(a.arcA, b.arcA, t),
+      arcB: pickField(a.arcB, b.arcB, t),
+      inner: pickField(a.inner, b.inner, t),
+      glow: pickField(a.glow, b.glow, t),
+      showTicks: pickField(a.showTicks, b.showTicks, t),
+      showArcA: pickField(a.showArcA, b.showArcA, t),
+      showArcB: pickField(a.showArcB, b.showArcB, t),
+      showInner: pickField(a.showInner, b.showInner, t),
+      centerAlignment:
+          AlignmentGeometry.lerp(a.centerAlignment, b.centerAlignment, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         size,
@@ -484,7 +526,9 @@ class DialCountdown extends StatelessWidget {
     // Widget style layered over the enclosing provider's dial style.
     //
     // widget 样式叠加在所在 provider 的表盘样式之上。
-    final s = (style ?? const DialCountdownStyle()).merge(scope?.dialCountdownStyle);
+    final s = (style ?? const DialCountdownStyle())
+        .merge(scope?.dialCountdownStyle)
+        .merge(CountmanTheme.maybeOf(context)?.dialCountdownStyle);
     final effSize = s.size ?? 200.0;
     final effTicks = (s.showTicks ?? true) ? (s.ticks ?? const DialTicksConfig()) : null;
     final effArcA = (s.showArcA ?? true)

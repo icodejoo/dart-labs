@@ -3,7 +3,8 @@ part of 'animated_counter.dart';
 // ── 测量与语义 ────────────────────────────────────────────────────────────────
 
 /// 数字格式解析、原型单元格测量、文字样式解析与语义文本。
-mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
+mixin _CounterMeasure<W extends _BaseAnimatedCounter>
+    on State<W>, _CounterScope<W> {
   /// 当前数值，由状态机维护；文字颜色解析与语义文本读取它。
   num get _currentValue;
 
@@ -50,8 +51,8 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
 
   /// 解析数字的基础文字样式：环境样式 + textStyle + 等宽数字特性 + colorResolver 颜色。
   TextStyle _resolveStyle(BuildContext context) {
-    final baseStyle = DefaultTextStyle.of(context).style.merge(widget.textStyle);
-    var style = (widget.useTabularFigures && widget.textStyle?.fontFeatures == null)
+    final baseStyle = DefaultTextStyle.of(context).style.merge(_effTextStyle);
+    var style = (_effUseTabularFigures && _effTextStyle?.fontFeatures == null)
         ? baseStyle.merge(const TextStyle(fontFeatures: [FontFeature.tabularFigures()]))
         : baseStyle;
     if (widget.colorResolver != null) {
@@ -126,7 +127,7 @@ mixin _CounterMeasure<W extends _BaseAnimatedCounter> on State<W> {
     // Apply the style's container decoration around the whole counter.
     //
     // 应用样式的容器装饰，包裹整个计数器。
-    final decorated = applyBoxStyle(child, decoration: widget.decoration);
+    final decorated = applyBoxStyle(child, decoration: _effDecoration);
     if (label.isEmpty) return decorated;
     return Semantics(label: label, child: ExcludeSemantics(child: decorated));
   }

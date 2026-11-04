@@ -11,6 +11,7 @@ import 'painter/flip_card_painter.dart';
 import 'reduce_motion.dart';
 import 'scope_resolution.dart';
 import 'style_support.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 
 export 'card_countdown_provider.dart';
@@ -172,6 +173,35 @@ class CardCountdownStyle with BoxStyleFields, StyleProps {
           padding: padding ?? other.padding,
           decoration: decoration ?? other.decoration,
         );
+
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、间距、颜色、文字样式、内边距、装饰逐字段插值；过渡类型、缩放/透明效果、
+  /// 拆位开关等不可插值字段在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按
+  /// `t < 0.5` 取一端。例如 `CardCountdownStyle.lerp(a, b, 0.5)`。
+  static CardCountdownStyle? lerp(
+      CardCountdownStyle? a, CardCountdownStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return CardCountdownStyle(
+      splitDigits: pickField(a.splitDigits, b.splitDigits, t),
+      cardWidth: lerpNum(a.cardWidth, b.cardWidth, t),
+      cardHeight: lerpNum(a.cardHeight, b.cardHeight, t),
+      digitGap: lerpNum(a.digitGap, b.digitGap, t),
+      unitGap: lerpNum(a.unitGap, b.unitGap, t),
+      cardColor: lerpColor(a.cardColor, b.cardColor, t),
+      transitionType: pickField(a.transitionType, b.transitionType, t),
+      scaleEffect: pickField(a.scaleEffect, b.scaleEffect, t),
+      scaleFactor: lerpNum(a.scaleFactor, b.scaleFactor, t),
+      opacityEffect: pickField(a.opacityEffect, b.opacityEffect, t),
+      perspective: lerpNum(a.perspective, b.perspective, t),
+      textStyle: TextStyle.lerp(a.textStyle, b.textStyle, t),
+      labelStyle: TextStyle.lerp(a.labelStyle, b.labelStyle, t),
+      separatorStyle: TextStyle.lerp(a.separatorStyle, b.separatorStyle, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -751,8 +781,10 @@ class _CountdownCardState extends State<CardCountdown>
     //
     // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 cardCountdownStyle
     // > 祖先 CardCountdownProvider > 硬编码默认值。
-    final ccStyle =
+    final themeStyle = CountmanTheme.maybeOf(context)?.cardCountdownStyle;
+    final scopeStyle =
         CountmanScope.maybeOf<Countdown>(context)?.cardCountdownStyle;
+    final ccStyle = scopeStyle?.merge(themeStyle) ?? themeStyle;
     final st = widget.style?.merge(ccStyle) ?? ccStyle;
     final cardWidth = st?.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
     final cardHeight =

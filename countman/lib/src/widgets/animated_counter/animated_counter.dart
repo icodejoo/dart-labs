@@ -47,6 +47,7 @@ import 'counter_timeline.dart';
 import '../style_support.dart';
 import '../reduce_motion.dart';
 import '../animate_once.dart';
+import '../countman_theme.dart';
 import '../providers.dart' show CountmanScope;
 import '../scope_resolution.dart';
 
@@ -307,8 +308,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
         p.thousandSeparator != widget._fmtThousandSeparator ||
         p.decimalSeparator != widget._fmtDecimalSeparator ||
         p.separatorStyle != paintSepStyle ||
-        p.padding != widget.padding ||
-        p.numberAlignment != widget.numberAlignment;
+        p.padding != _effPadding ||
+        p.numberAlignment != _effNumberAlignment;
   }
 
   // ── build ─────────────────────────────────────────────────────────────────
@@ -332,7 +333,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     final Color color = style.color ??
         DefaultTextStyle.of(context).style.color ??
         const Color(0xFF000000);
-    final dh          = _prototypeSize!.height + widget.padding.vertical;
+    final dh          = _prototypeSize!.height + _effPadding.vertical;
 
     // ── painter: create or reuse in-place ──────────────────────────────────
     // Pass the RAW flipDirection (not _effectiveFlipDirection). The painter's
@@ -347,9 +348,9 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     // 方向变化只经由 update(_increasing) 流转。
     // 绘制使用已应用系统字号缩放的样式，与原型单元格测量一致。
     final paintStyle = _scaleStyle(style, textScaler);
-    final paintSepStyle = widget.separatorStyle == null
+    final paintSepStyle = _effSeparatorStyle == null
         ? null
-        : _scaleStyle(widget.separatorStyle!, textScaler);
+        : _scaleStyle(_effSeparatorStyle!, textScaler);
     if (_painterConfigChanged(paintStyle, paintSepStyle, effFD)) {
       _activePainter?.disposeCache();
       _lastPainterBuilder = widget.painterBuilder;
@@ -371,8 +372,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               thousandSeparator: widget._fmtThousandSeparator,
               decimalSeparator: widget._fmtDecimalSeparator,
               separatorStyle: paintSepStyle,
-              padding: widget.padding,
-              numberAlignment: widget.numberAlignment,
+              padding: _effPadding,
+              numberAlignment: _effNumberAlignment,
             )
           : CounterPainter(
               repaint: _repaintTrigger,
@@ -390,8 +391,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               thousandSeparator: widget._fmtThousandSeparator,
               decimalSeparator: widget._fmtDecimalSeparator,
               separatorStyle: paintSepStyle,
-              padding: widget.padding,
-              numberAlignment: widget.numberAlignment,
+              padding: _effPadding,
+              numberAlignment: _effNumberAlignment,
               fast: widget._timeFast,
               fastFrom: _engine.fastFromDigits,
               fastTo: _engine.fastToDigits,
@@ -434,15 +435,15 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
         style: style,
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: widget.mainAxisAlignment,
-          crossAxisAlignment: widget.crossAxisAlignment,
+          mainAxisAlignment: _effMainAxisAlignment,
+          crossAxisAlignment: _effCrossAxisAlignment,
           textDirection: TextDirection.ltr,
           children: [
             // Prefix
             if (widget.prefixWidget != null)
               widget.prefixWidget!
             else if (widget.prefix != null)
-              _buildAffix(widget.prefix!, widget.prefixStyle, widget.prefixOverflow),
+              _buildAffix(widget.prefix!, _effPrefixStyle, widget.prefixOverflow),
 
             // Negative sign (animated width)
             ClipRect(
@@ -479,20 +480,20 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
             if (widget.infixWidget != null)
               widget.infixWidget!
             else if (widget.infix != null)
-              _buildAffix(widget.infix!, widget.infixStyle, widget.infixOverflow),
+              _buildAffix(widget.infix!, _effInfixStyle, widget.infixOverflow),
 
             // The digit columns (painter, zero rebuild cost per frame)
             digitBox,
 
             // Compact suffix (K/M/B/T)
             if (compactSuffix != null)
-              Text(compactSuffix, style: widget.suffixStyle ?? style),
+              Text(compactSuffix, style: _effSuffixStyle ?? style),
 
             // Suffix
             if (widget.suffixWidget != null)
               widget.suffixWidget!
             else if (widget.suffix != null)
-              _buildAffix(widget.suffix!, widget.suffixStyle, widget.suffixOverflow),
+              _buildAffix(widget.suffix!, _effSuffixStyle, widget.suffixOverflow),
           ],
         ),
       );

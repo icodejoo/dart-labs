@@ -3,6 +3,14 @@ part of 'animated_counter.dart';
 // ── shared widget base ────────────────────────────────────────────────────────
 
 /// 共享数字格式与动画参数；小数位仅支持 0–20。
+/// 松散视觉参数未设置时的默认值（theme 与 style 都没给时使用）。
+const double _kDefaultNumberAlignment = 0.0;
+const MainAxisAlignment _kDefaultMainAxisAlignment = MainAxisAlignment.center;
+const CrossAxisAlignment _kDefaultCrossAxisAlignment = CrossAxisAlignment.center;
+const EdgeInsets _kDefaultPadding = EdgeInsets.zero;
+const bool _kDefaultUseTabularFigures = true;
+const Duration _kDefaultColorFadeDuration = Duration(milliseconds: 800);
+
 abstract class _BaseAnimatedCounter extends StatefulWidget {
   /// Aggregate visual style. Overrides the deprecated loose visual params
   /// field-by-field (see the resolving getters below).
@@ -49,15 +57,15 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final int fractionDigits;
   final int wholeDigits;
   final bool hideLeadingZeroes;
-  final double _numberAlignment;
+  final double? _numberAlignment;
   final String? thousandSeparator;
   final List<int> groupingPattern;
   final String decimalSeparator;
   final TextStyle? _separatorStyle;
-  final MainAxisAlignment _mainAxisAlignment;
-  final CrossAxisAlignment _crossAxisAlignment;
-  final EdgeInsets _padding;
-  final bool _useTabularFigures;
+  final MainAxisAlignment? _mainAxisAlignment;
+  final CrossAxisAlignment? _crossAxisAlignment;
+  final EdgeInsets? _padding;
+  final bool? _useTabularFigures;
   final bool showPositiveSign;
   final Duration? positiveSignDuration;
   final String? semanticsLabel;
@@ -68,7 +76,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final num? maxValue;
   final Color? _increasingColor;
   final Color? _decreasingColor;
-  final Duration _colorFadeDuration;
+  final Duration? _colorFadeDuration;
   final Widget? prefixWidget;
   final Widget? infixWidget;
   final Widget? suffixWidget;
@@ -125,14 +133,19 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
 
   /// Horizontal alignment of visible digits within the stable full-width slot.
   /// -1.0 = left, 0.0 = center (default), 1.0 = right.
-  double get numberAlignment => style?.numberAlignment ?? _numberAlignment;
-  MainAxisAlignment get mainAxisAlignment => style?.mainAxisAlignment ?? _mainAxisAlignment;
-  CrossAxisAlignment get crossAxisAlignment => style?.crossAxisAlignment ?? _crossAxisAlignment;
-  EdgeInsets get padding => style?.padding ?? _padding;
-  bool get useTabularFigures => style?.useTabularFigures ?? _useTabularFigures;
+  double get numberAlignment =>
+      style?.numberAlignment ?? _numberAlignment ?? _kDefaultNumberAlignment;
+  MainAxisAlignment get mainAxisAlignment =>
+      style?.mainAxisAlignment ?? _mainAxisAlignment ?? _kDefaultMainAxisAlignment;
+  CrossAxisAlignment get crossAxisAlignment =>
+      style?.crossAxisAlignment ?? _crossAxisAlignment ?? _kDefaultCrossAxisAlignment;
+  EdgeInsets get padding => style?.padding ?? _padding ?? _kDefaultPadding;
+  bool get useTabularFigures =>
+      style?.useTabularFigures ?? _useTabularFigures ?? _kDefaultUseTabularFigures;
   Color? get increasingColor => style?.increasingColor ?? _increasingColor;
   Color? get decreasingColor => style?.decreasingColor ?? _decreasingColor;
-  Duration get colorFadeDuration => style?.colorFadeDuration ?? _colorFadeDuration;
+  Duration get colorFadeDuration =>
+      style?.colorFadeDuration ?? _colorFadeDuration ?? _kDefaultColorFadeDuration;
 
   /// Container decoration drawn around the whole counter (style-only).
   ///
@@ -159,15 +172,15 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.fractionDigits = 0,
     this.wholeDigits = 1,
     this.hideLeadingZeroes = true,
-    double numberAlignment = 0.0,
+    double? numberAlignment,
     this.thousandSeparator,
     this.groupingPattern = const [3],
     this.decimalSeparator = '.',
     TextStyle? separatorStyle,
-    MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
-    CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.center,
-    EdgeInsets padding = EdgeInsets.zero,
-    bool useTabularFigures = true,
+    MainAxisAlignment? mainAxisAlignment,
+    CrossAxisAlignment? crossAxisAlignment,
+    EdgeInsets? padding,
+    bool? useTabularFigures,
     TextStyle? prefixStyle,
     TextStyle? infixStyle,
     TextStyle? suffixStyle,
@@ -184,7 +197,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.maxValue,
     Color? increasingColor,
     Color? decreasingColor,
-    Duration colorFadeDuration = const Duration(milliseconds: 800),
+    Duration? colorFadeDuration,
     this.prefixWidget,
     this.infixWidget,
     this.suffixWidget,

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_builder.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'bar_style.dart';
 import 'progress_display.dart';
@@ -91,8 +92,9 @@ class BarCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle =
-        (style ?? const BarCountdownStyle()).merge(scope?.barCountdownStyle);
+    final effStyle = (style ?? const BarCountdownStyle())
+        .merge(scope?.barCountdownStyle)
+        .merge(CountmanTheme.maybeOf(context)?.barCountdownStyle);
     final effW = effStyle.width ??
         (effStyle.vertical == true ? defaultBarThickness : defaultBarLength);
     final effH = effStyle.height ??

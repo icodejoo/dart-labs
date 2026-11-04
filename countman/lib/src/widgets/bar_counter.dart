@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
+import 'countman_theme.dart';
 import 'counter_builder.dart';
 import 'animate_once.dart';
 import 'providers.dart';
@@ -96,8 +97,9 @@ class BarCounter extends StatelessWidget {
     final from = this.from ?? 0;
     final span = to - from;
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final effStyle =
-        (style ?? const BarCounterStyle()).merge(scope?.barCounterStyle);
+    final effStyle = (style ?? const BarCounterStyle())
+        .merge(scope?.barCounterStyle)
+        .merge(CountmanTheme.maybeOf(context)?.barCounterStyle);
     final effW = effStyle.width ??
         (effStyle.vertical == true ? defaultBarThickness : defaultBarLength);
     final effH = effStyle.height ??

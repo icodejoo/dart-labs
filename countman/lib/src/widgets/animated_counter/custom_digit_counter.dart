@@ -268,7 +268,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             size: _prototypeSize!,
             color: color,
             style: digitStyle,
-            padding: widget.padding,
+            padding: _effPadding,
             flipDirection: _effectiveFlipDirection,
             digitBuilder: widget.digitBuilder,
             digitTransitionBuilder: widget.digitTransitionBuilder,
@@ -306,7 +306,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             if (isGroupingBoundary(integerDigitCount - i, widget._fmtGroupingPattern)) {
               integerWidgets.insert(i,
                   widget.thousandSeparatorWidget ??
-                      Text(widget._fmtThousandSeparator!, style: widget.separatorStyle));
+                      Text(widget._fmtThousandSeparator!, style: _effSeparatorStyle));
             }
           }
         }
@@ -315,15 +315,15 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
           style: style,
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: widget.mainAxisAlignment,
-            crossAxisAlignment: widget.crossAxisAlignment,
+            mainAxisAlignment: _effMainAxisAlignment,
+            crossAxisAlignment: _effCrossAxisAlignment,
             textDirection: TextDirection.ltr,
             children: [
               // Prefix
               if (widget.prefixWidget != null)
                 widget.prefixWidget!
               else if (widget.prefix != null)
-                _buildAffix(widget.prefix!, widget.prefixStyle, widget.prefixOverflow),
+                _buildAffix(widget.prefix!, _effPrefixStyle, widget.prefixOverflow),
 
               // Negative sign (animated width)
               ClipRect(
@@ -360,7 +360,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               if (widget.infixWidget != null)
                 widget.infixWidget!
               else if (widget.infix != null)
-                _buildAffix(widget.infix!, widget.infixStyle, widget.infixOverflow),
+                _buildAffix(widget.infix!, _effInfixStyle, widget.infixOverflow),
 
               // Integer digits (with thousand separators)
               ...integerWidgets,
@@ -368,7 +368,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               // Decimal separator + fraction digits
               if (effFD != 0) ...[
                 widget.decimalSeparatorWidget ??
-                    Text(widget._fmtDecimalSeparator, style: widget.separatorStyle),
+                    Text(widget._fmtDecimalSeparator, style: _effSeparatorStyle),
                 for (int i = _engine.currentDigits.length - effFD;
                     i < _engine.currentDigits.length; i++)
                   () {
@@ -380,7 +380,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       size: _prototypeSize!,
                       color: color,
                       style: digitStyle,
-                      padding: widget.padding,
+                      padding: _effPadding,
                       flipDirection: _effectiveFlipDirection,
                       digitBuilder: widget.digitBuilder,
                       digitTransitionBuilder: widget.digitTransitionBuilder,
@@ -403,13 +403,13 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
               // Compact suffix (K/M/B/T)
               if (compactSuffix != null)
-                Text(compactSuffix, style: widget.suffixStyle ?? style),
+                Text(compactSuffix, style: _effSuffixStyle ?? style),
 
               // Suffix
               if (widget.suffixWidget != null)
                 widget.suffixWidget!
               else if (widget.suffix != null)
-                _buildAffix(widget.suffix!, widget.suffixStyle, widget.suffixOverflow),
+                _buildAffix(widget.suffix!, _effSuffixStyle, widget.suffixOverflow),
             ],
           ),
         );

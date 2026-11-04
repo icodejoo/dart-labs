@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'countdown_builder.dart';
 import 'text_style.dart';
@@ -129,7 +130,10 @@ class TextCountdown extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认文本样式之上，并取默认 formatter。
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final s = (style ?? const TextCountdownStyle()).merge(scope?.textCountdownStyle);
+    final theme = CountmanTheme.maybeOf(context);
+    final s = (style ?? const TextCountdownStyle())
+        .merge(scope?.textCountdownStyle)
+        .merge(theme?.textCountdownStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 
