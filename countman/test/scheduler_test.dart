@@ -72,6 +72,33 @@ void main() {
     await t.pump(d);
   }
 
+  group('tick 返回值契约', () {
+    CountmanContext noop() => CountmanContext(requestFrame: () {});
+
+    test('Counter：有活动任务返回 nextFrame，暂停、完成或为空返回 idle', () {
+      final p = Counter(name: 'contract')..onAttach(noop());
+      expect(p.tick(Duration.zero, Duration.zero), CountmanPlugin.idle);
+      final h = p.add(
+        CounterOptions(to: 10, duration: const Duration(milliseconds: 100)),
+      );
+      expect(p.tick(Duration.zero, Duration.zero), CountmanPlugin.nextFrame);
+      h.pause();
+      expect(p.tick(_frame, _frame), CountmanPlugin.idle);
+      h.resume();
+      expect(p.tick(_frame, _frame), CountmanPlugin.nextFrame);
+      expect(
+        p.tick(const Duration(seconds: 1), const Duration(seconds: 1)),
+        CountmanPlugin.idle,
+      );
+      expect(h.isDone, isTrue);
+    });
+
+    test('常量：idle 为 -1，nextFrame 为 0', () {
+      expect(CountmanPlugin.idle, -1);
+      expect(CountmanPlugin.nextFrame, 0);
+    });
+  });
+
   group('休眠调度', () {
     testWidgets('1 秒倒计时处理一次后不再排帧而挂 Timer，约 1 秒后只出一帧', (t) async {
       final plugin = _SpyCountdown(name: 'sleepy');

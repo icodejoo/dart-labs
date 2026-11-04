@@ -513,12 +513,16 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// 当前生效的时钟。
   CountmanClock get clock => _clock ?? CountmanClock.system;
 
-  /// 本帧墙钟快照；[_wallRead] 为 false 时尚未读取。
+  /// 本帧墙钟快照。
   int _frameWall = 0;
+
+  /// 本帧墙钟快照是否已读取；false 表示尚未读取。
   bool _wallRead = false;
 
-  /// 本帧单调钟快照；[_monoRead] 为 false 时尚未读取。
+  /// 本帧单调钟快照。
   int _frameMono = 0;
+
+  /// 本帧单调钟快照是否已读取；false 表示尚未读取。
   bool _monoRead = false;
 
   /// 本帧的墙钟微秒快照，同一帧内多次读取返回同一个值。

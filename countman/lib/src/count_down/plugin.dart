@@ -140,9 +140,9 @@ class Countdown extends ClockPlugin<CountdownTask> {
   @override
   int thresholdWake(int value, int thresholdMicros) => value - thresholdMicros;
 
+  /// 触发完成回调；最终的 0 值更新及状态复核已由基类完成。
   @override
   void onComplete(CountdownTask task) {
-    // 最终更新及状态复核统一由基类完成。
     task.onComplete?.call();
   }
 

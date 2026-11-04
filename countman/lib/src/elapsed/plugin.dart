@@ -112,11 +112,13 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
     return us < 0 ? 0 : us;
   }
 
+  /// 正计时没有固定总时长，进度分母恒为空。
   @override
-  Duration? totalOf(ElapsedTask task) => null; // open-ended, no total
+  Duration? totalOf(ElapsedTask task) => null;
 
+  /// 正计时不会自行完成，恒为 false。
   @override
-  bool isComplete(ElapsedTask task) => false; // never done on its own
+  bool isComplete(ElapsedTask task) => false;
 
   /// 累计到下一个间隔整数倍还需的微秒数。
   @override
@@ -131,10 +133,9 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
   @override
   int thresholdWake(int value, int thresholdMicros) => thresholdMicros - value;
 
+  /// 不可达：[isComplete] 恒为 false，保留空实现满足基类钩子。
   @override
-  void onComplete(
-    ElapsedTask task,
-  ) {} // unreachable: isComplete is always false
+  void onComplete(ElapsedTask task) {}
 
   // ── internal accessors for handles (same library) ─────────────────
 
