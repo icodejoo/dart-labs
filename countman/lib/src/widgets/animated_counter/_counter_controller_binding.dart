@@ -63,6 +63,8 @@ extension _CounterControllerBinding<W extends _BaseAnimatedCounter> on _BaseCoun
       widget.onReverse?.call();
     };
     c.$statusGetter = () => _animationStatus;
+    // 同步当前运行状态，使中途换绑的控制器立即反映真实进度。
+    c.setRunState(_runStateOf(_playback));
   }
 
   /// 仅当控制器仍属于当前 State 时清除命令回调及归属标记。
@@ -76,5 +78,7 @@ extension _CounterControllerBinding<W extends _BaseAnimatedCounter> on _BaseCoun
     c.$repeatCallback  = null;
     c.$reverseCallback = null;
     c.$statusGetter    = null;
+    // 脱离展示组件后没有任务在跑，回到 idle。
+    c.setRunState(CountmanRunState.idle);
   }
 }

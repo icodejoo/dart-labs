@@ -5,6 +5,14 @@ part of 'animated_counter.dart';
 /// 动画生命周期；只有暂停态允许恢复。
 enum _CounterPlayback { idle, running, paused, completed }
 
+/// 把内部播放状态映射为对外的 [CountmanRunState]。
+CountmanRunState _runStateOf(_CounterPlayback playback) => switch (playback) {
+      _CounterPlayback.idle => CountmanRunState.idle,
+      _CounterPlayback.running => CountmanRunState.running,
+      _CounterPlayback.paused => CountmanRunState.paused,
+      _CounterPlayback.completed => CountmanRunState.completed,
+    };
+
 /// 两条渲染路径共用的可中断动画状态机。
 abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W>
     with _CounterScope<W>, _CounterMeasure<W>, _CounterTint<W> {
@@ -22,8 +30,18 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   List<double> _bounceOffsets = const <double>[];
   /// 当前转换版本；用户回调重入后旧转换必须退出。
   int _requestVersion = 0;
+  /// 显式播放状态的存储；读写请用 [_playback]。
+  _CounterPlayback _playbackValue = _CounterPlayback.idle;
+
   /// 显式播放状态，避免完成后 resume 重播旧任务。
-  _CounterPlayback _playback = _CounterPlayback.idle;
+  _CounterPlayback get _playback => _playbackValue;
+
+  /// 写入播放状态，并同步到绑定的控制器的 runState（相同状态不重复通知）。
+  set _playback(_CounterPlayback value) {
+    _playbackValue = value;
+    widget.controller?.setRunState(_runStateOf(value));
+  }
+
   /// 对外状态；暂停时保留最近一次播放方向。
   AnimationStatus _animationStatus = AnimationStatus.dismissed;
   /// reverse 命令的方向，与数值增减方向独立。

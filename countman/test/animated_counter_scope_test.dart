@@ -267,4 +267,175 @@ void main() {
       c.dispose();
     });
   });
+
+  group('AnimatedCounterController.runState', () {
+    /// 记录 runStateListenable 每次通知时的状态。
+    List<CountmanRunState> record(AnimatedCounterController c) {
+      final seen = <CountmanRunState>[];
+      c.runStateListenable.addListener(() => seen.add(c.runState));
+      return seen;
+    }
+
+    testWidgets('初始 idle；animateTo → running → completed，各通知一次', (t) async {
+      final c = AnimatedCounterController();
+      final seen = record(c);
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 300))));
+      expect(c.runState, CountmanRunState.idle);
+      expect(seen, isEmpty);
+      c.animateTo(100);
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      await t.pump(const Duration(milliseconds: 100));
+      expect(c.runState, CountmanRunState.running);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      expect(seen, [CountmanRunState.running, CountmanRunState.completed]);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('pause / resume 依次切换，重复调用不重复通知', (t) async {
+      final c = AnimatedCounterController();
+      final seen = record(c);
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 400))));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      c.pause();
+      expect(c.runState, CountmanRunState.paused);
+      c.pause();
+      await t.pump(const Duration(milliseconds: 200));
+      expect(c.runState, CountmanRunState.paused);
+      c.resume();
+      expect(c.runState, CountmanRunState.running);
+      c.resume();
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      expect(seen, [
+        CountmanRunState.running,
+        CountmanRunState.paused,
+        CountmanRunState.running,
+        CountmanRunState.completed,
+      ]);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('stop 回到 idle，之后的 animateTo 重新 running', (t) async {
+      final c = AnimatedCounterController();
+      final seen = record(c);
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 400))));
+      c.animateTo(100);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      c.stop();
+      expect(c.runState, CountmanRunState.idle);
+      c.animateTo(200);
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      expect(seen, [
+        CountmanRunState.running,
+        CountmanRunState.idle,
+        CountmanRunState.running,
+      ]);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('jumpTo 零时长命令直接 completed', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(AnimatedCounter(controller: c)));
+      c.jumpTo(50);
+      await t.pump();
+      expect(c.runState, CountmanRunState.completed);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('restart / reverse / repeat 重新进入 running，完成后 completed', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 200))));
+      c.animateTo(100);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      c.restart();
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      c.reverse();
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      c.repeat();
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      expect(c.runState, CountmanRunState.running);
+      c.stop();
+      expect(c.runState, CountmanRunState.idle);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('挂载即有入场动画时（controller 初值非零）已是 running', (t) async {
+      final c = AnimatedCounterController(initialValue: 80);
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 300))));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 50));
+      expect(c.runState, CountmanRunState.running);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+
+    testWidgets('组件卸载后控制器回到 idle；之后释放控制器不抛异常', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(
+          AnimatedCounter(controller: c, duration: const Duration(milliseconds: 400))));
+      c.animateTo(100);
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      await t.pumpWidget(const SizedBox());
+      expect(c.runState, CountmanRunState.idle);
+      c.dispose();
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('换绑控制器：旧的回到 idle，新的同步当前状态', (t) async {
+      final a = AnimatedCounterController();
+      final b = AnimatedCounterController();
+      Widget app(AnimatedCounterController c) => host(AnimatedCounter(
+          controller: c, duration: const Duration(milliseconds: 400)));
+      await t.pumpWidget(app(a));
+      a.animateTo(100);
+      await t.pump();
+      expect(a.runState, CountmanRunState.running);
+      await t.pumpWidget(app(b));
+      expect(a.runState, CountmanRunState.idle);
+      expect(b.runState, CountmanRunState.running);
+      await t.pumpWidget(const SizedBox());
+      a.dispose();
+      b.dispose();
+    });
+
+    testWidgets('AnimatedCounterBuilder 同样同步 runState', (t) async {
+      final c = AnimatedCounterController();
+      await t.pumpWidget(host(AnimatedCounterBuilder(
+          controller: c, duration: const Duration(milliseconds: 200))));
+      c.animateTo(100);
+      await t.pump();
+      expect(c.runState, CountmanRunState.running);
+      await settle(t);
+      expect(c.runState, CountmanRunState.completed);
+      await t.pumpWidget(const SizedBox());
+      c.dispose();
+    });
+  });
 }

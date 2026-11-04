@@ -31,6 +31,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:countman/src/counter/plugin.dart';
 import 'package:countman/src/counter/types.dart';
+import 'package:countman/src/core/run_state.dart';
 import 'package:countman/src/core/start_scheduler.dart';
 
 import '../painter/counter_painter.dart';
