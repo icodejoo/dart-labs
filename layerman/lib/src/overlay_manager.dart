@@ -159,6 +159,7 @@ class _Entry {
     required this.resolveData,
     required this.presentBackend,
     required this.settle,
+    required this.acceptsResult,
     required this.data,
   });
 
@@ -202,6 +203,16 @@ class _Entry {
   _EntryPhase phase = _EntryPhase.pending;
   bool skipGap = false;
   bool delayConsumed = false;
+
+  /// 校验擦除泛型后的关闭结果。
+  final bool Function(Object? result) acceptsResult;
+
+  /// 防止异步关闭守卫重复执行。
+  bool closeGuardPending = false;
+
+  /// 每个条目的条件异常最多上报一次。
+  bool conditionErrorReported = false;
+
   bool settled = false;
   bool paused = false;
 
@@ -218,9 +229,7 @@ class _Entry {
       phase == _EntryPhase.closing ||
       phase == _EntryPhase.resolving;
 
-  bool get isShown =>
-      phase == _EntryPhase.open || phase == _EntryPhase.closing;
-
+  bool get isShown => phase == _EntryPhase.open || phase == _EntryPhase.closing;
 }
 
 /// Per-slot serial state.
@@ -279,6 +288,16 @@ class _CooldownRecord {
       };
 }
 
+/// 统一上报引擎与存储异常，保留操作上下文。
+void _reportError(Object error, StackTrace stack, String what) {
+  FlutterError.reportError(FlutterErrorDetails(
+    exception: error,
+    stack: stack,
+    library: 'layerman',
+    context: ErrorDescription(what),
+  ));
+}
+
 String _two(int n) => n < 10 ? '0$n' : '$n';
 String _dayBucketOf(DateTime t) => '${t.year}-${_two(t.month)}-${_two(t.day)}';
 String _hourBucketOf(DateTime t) => '${_dayBucketOf(t)}T${_two(t.hour)}';
@@ -294,38 +313,89 @@ class _CooldownStore {
   final Map<String, _CooldownRecord> _persisted = <String, _CooldownRecord>{};
   final Map<String, int> _session = <String, int>{};
 
+  /// 读取成功或失败后均允许调度继续。
+  bool _hydrated = false;
+
+  /// 等待落盘的最新快照是否有变化。
+  bool _dirty = false;
+
+  /// 保证同一存储最多只有一次写入在途。
+  bool _writing = false;
+
+  /// 读取持久化计数并与内存中可能已有的记录合并。
   Future<void> hydrate() async {
     try {
       final raw = await _storage.read(_key);
-      if (raw == null) return;
-      final decoded = jsonDecode(raw) as Map<String, Object?>;
-      decoded.forEach((id, value) {
-        if (value is Map<String, Object?>) {
-          _persisted[id] = _CooldownRecord.fromJson(value);
-        } else if (value is Map) {
-          _persisted[id] =
-              _CooldownRecord.fromJson(value.cast<String, Object?>());
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, Object?>;
+        for (final entry in decoded.entries) {
+          final value = entry.value;
+          if (value is Map) {
+            final incoming =
+                _CooldownRecord.fromJson(value.cast<String, Object?>());
+            final current = _persisted[entry.key];
+            _persisted[entry.key] =
+                current == null ? incoming : _merge(current, incoming);
+          }
         }
-      });
-    } catch (_) {
-      // Corrupt or unavailable storage degrades to empty counters.
+      }
+    } catch (error, stack) {
+      _reportError(error, stack, 'while hydrating cooldown storage "$_key"');
+    } finally {
+      _hydrated = true;
+      if (_dirty) _flush();
     }
   }
 
+  /// 合并累计次数、最新时间桶和最近展示时间。
+  _CooldownRecord _merge(_CooldownRecord a, _CooldownRecord b) {
+    int count(String ab, int ac, String bb, int bc) =>
+        ab == bb ? ac + bc : (ab.compareTo(bb) > 0 ? ac : bc);
+    String bucket(String a, String b) => a.compareTo(b) >= 0 ? a : b;
+    final al = a.lastShownMs;
+    final bl = b.lastShownMs;
+    return _CooldownRecord(
+      total: a.total + b.total,
+      dayBucket: bucket(a.dayBucket, b.dayBucket),
+      dayCount: count(a.dayBucket, a.dayCount, b.dayBucket, b.dayCount),
+      hourBucket: bucket(a.hourBucket, b.hourBucket),
+      hourCount: count(a.hourBucket, a.hourCount, b.hourBucket, b.hourCount),
+      minuteBucket: bucket(a.minuteBucket, b.minuteBucket),
+      minuteCount:
+          count(a.minuteBucket, a.minuteCount, b.minuteBucket, b.minuteCount),
+      lastShownMs: al == null ? bl : (bl == null || al > bl ? al : bl),
+    );
+  }
+
+  /// 直接调用存储写入；读取或写入未决时只保留脏位。
   void _flush() {
+    _dirty = true;
+    if (!_hydrated || _writing) return;
+    _dirty = false;
+    _writing = true;
     final json = <String, Object?>{
       for (final e in _persisted.entries) e.key: e.value.toJson(),
     };
-    // Fire and forget; persistence failures must not break scheduling.
-    // Called directly (not wrapped in Future()) so synchronous storages
-    // commit immediately and no timer is left pending.
-    try {
-      unawaited(
-        _storage.write(_key, jsonEncode(json)).catchError((Object _) {}),
-      );
-    } catch (_) {
-      // Synchronous storage failure — ignore.
+    void onWriteError(Object error, StackTrace stack) {
+      _reportError(error, stack,
+          'while writing cooldown storage "$_key" (ids: ${json.keys.join(', ')})');
+      _finishWrite();
     }
+
+    try {
+      _storage.write(_key, jsonEncode(json)).then(
+        (_) => _finishWrite(),
+        onError: onWriteError,
+      );
+    } catch (error, stack) {
+      onWriteError(error, stack);
+    }
+  }
+
+  /// 在途写入结束后补写最新快照。
+  void _finishWrite() {
+    _writing = false;
+    if (_dirty) _flush();
   }
 
   // Equivalent to (and implemented via) `timeUntilEligible(...) ==
@@ -340,6 +410,7 @@ class _CooldownStore {
   /// means the cooldown already passes (any remaining block is not time-based).
   /// Used to wake a queued entry exactly when its cooldown expires.
   Duration? timeUntilEligible(String id, OverlayCooldown cd, DateTime now) {
+    if (!_hydrated && cd._needsPersistence) return null;
     if (cd.session != null && (_session[id] ?? 0) >= cd.session!) return null;
     final rec = _persisted[id];
     if (cd.total != null && (rec?.total ?? 0) >= cd.total!) return null;
@@ -441,7 +512,14 @@ class Layerman extends ChangeNotifier {
         _now = now ?? DateTime.now {
     _cooldowns =
         _CooldownStore(cooldownStorage ?? MemoryCooldownStorage(), storageKey);
-    _ready = _cooldowns.hydrate();
+    _ready = _cooldowns.hydrate().then((_) {
+      if (isDisposed) return;
+      if (!_paused) {
+        _applyRelease();
+      } else {
+        notifyListeners();
+      }
+    });
   }
 
   /// Delay inserted between one overlay closing and the next one showing.
@@ -470,8 +548,10 @@ class Layerman extends ChangeNotifier {
 
   bool get _paused => _manualPaused || _routeZonePaused;
 
-  /// Completes when persisted cooldown counters have been hydrated. Await it
-  /// before relying on `total`/`day`/... caps across restarts.
+  /// Completes when persisted cooldown counters have been hydrated and the
+  /// queue has been re-scheduled. Entries gated on persisted caps
+  /// (`total`/`day`/`hour`/`minute`/`minGap`) wait for this automatically, so
+  /// awaiting it before [open] is optional.
   Future<void> ready() => _ready;
 
   /// The `route` context key last set via [setContext] (`null` if never set).
@@ -524,6 +604,7 @@ class Layerman extends ChangeNotifier {
   /// Reserved keys used by the built-in sugar: `route` (String) and `auth`
   /// (bool). Everything else is free-form for `when` predicates.
   void setContext(Map<String, Object?> partial) {
+    if (isDisposed) return;
     _context.addAll(partial);
     _updateRouteZone();
     final shown = <_Entry>[
@@ -560,6 +641,7 @@ class Layerman extends ChangeNotifier {
   /// running `duration` timers pause. Explicit [close]/[remove]/[clear] still
   /// work. [resumeAll] releases held overlaps and re-schedules.
   void pauseAll() {
+    if (isDisposed) return;
     if (_manualPaused) return;
     final before = _paused;
     _manualPaused = true;
@@ -569,6 +651,7 @@ class Layerman extends ChangeNotifier {
   /// Undo [pauseAll]: release overlaps held while paused (if still eligible),
   /// thaw `duration` timers and re-schedule every slot.
   void resumeAll() {
+    if (isDisposed) return;
     if (!_manualPaused) return;
     final before = _paused;
     _manualPaused = false;
@@ -605,7 +688,9 @@ class Layerman extends ChangeNotifier {
     _pendingOverlaps.clear();
     for (final e in held) {
       if (!_isCurrent(e)) continue;
-      if (_eligible(e)) {
+      if (_waitingForHydrate(e)) {
+        _pendingOverlaps.add(e);
+      } else if (_eligible(e)) {
         _openOverlap(e);
       } else {
         _byId.remove(e.id);
@@ -629,6 +714,7 @@ class Layerman extends ChangeNotifier {
 
   /// Freeze [id]'s `duration` countdown (the overlay stays shown).
   void pause(String id) {
+    if (isDisposed) return;
     final e = _byId[id];
     if (e == null || e.paused) return;
     e.paused = true;
@@ -637,6 +723,7 @@ class Layerman extends ChangeNotifier {
 
   /// Resume [id]'s `duration` countdown with the remaining time.
   void resume(String id) {
+    if (isDisposed) return;
     final e = _byId[id];
     if (e == null || !e.paused) return;
     e.paused = false;
@@ -650,6 +737,7 @@ class Layerman extends ChangeNotifier {
   /// to reflect the new data should rebuild off this notification (or read
   /// `data` when it next builds).
   void update(String id, Object? patch) {
+    if (isDisposed) return;
     final e = _byId[id];
     if (e == null) return;
     final current = e.data;
@@ -688,7 +776,8 @@ class Layerman extends ChangeNotifier {
   /// * [when]/[route]/[requiresAuth] — conditions against [setContext]
   ///   (`when` overrides the sugar); [dismissWhenUnmet] (default true)
   ///   auto-dismisses a shown overlay whose conditions stop holding.
-  /// * [cooldown] — frequency caps; counts on real open.
+  /// * [cooldown] — frequency caps; counts on real open. Keyed by [id], so an
+  ///   explicit [id] is required (asserted in debug).
   /// * [resolve] — backend-driven payload: called when the entry is granted
   ///   the slot; `null` skips the overlay, otherwise the value becomes `data`.
   /// * [beforeClose] — close guard: returning `false` cancels a [close].
@@ -715,6 +804,13 @@ class Layerman extends ChangeNotifier {
     FutureOr<bool> Function()? beforeClose,
     Duration? exitDuration,
   }) {
+    assert(!isDisposed, 'Cannot open an overlay after Layerman.dispose().');
+    if (isDisposed) return Future<T?>.value(null);
+    assert(
+      cooldown == null || id != null,
+      'cooldown is keyed by id: pass an explicit id. An auto-generated id '
+      'changes on every open, so the cap would never apply.',
+    );
     assert(
       route == null || _isRoutePattern(route),
       'route must be a String, List<String> or RegExp',
@@ -739,6 +835,7 @@ class Layerman extends ChangeNotifier {
       cooldown: cooldown,
       beforeClose: beforeClose,
       resolveData: resolve == null ? null : () async => await resolve(),
+      acceptsResult: (Object? r) => r is T?,
       settle: (Object? r) {
         if (!completer.isCompleted) completer.complete(r as T?);
       },
@@ -784,10 +881,12 @@ class Layerman extends ChangeNotifier {
     if (overlap) {
       // Conditions/cooldown are a one-shot fire-gate for overlaps (TS rule:
       // "now or never") — but a paused manager holds them for resumeAll.
-      if (!_eligible(entry)) {
+      final conditionsPass = _conditionsPass(entry);
+      final waitingForHydrate = conditionsPass && _waitingForHydrate(entry);
+      if (!conditionsPass || (!waitingForHydrate && !_cooldownPass(entry))) {
         _byId.remove(entry.id);
         _settle(entry, null);
-      } else if (_paused) {
+      } else if (_paused || waitingForHydrate) {
         _pendingOverlaps.add(entry);
       } else {
         _openOverlap(entry);
@@ -831,10 +930,20 @@ class Layerman extends ChangeNotifier {
   }
 
   /// Two-phase close [id], optionally delivering [result]. A `beforeClose`
-  /// guard returning `false` cancels the close.
+  /// guard returning `false` cancels the close; while an async guard is still
+  /// pending, further `close`/`dismiss` calls for the same id are ignored.
+  ///
+  /// Throws an [ArgumentError] (leaving the overlay untouched) if [result] is
+  /// not a valid `T?` for the `open<T>()` that created this overlay.
   void close(String id, [Object? result]) {
+    if (isDisposed) return;
     final e = _byId[id];
     if (e == null) return;
+    if (e.closeGuardPending) return;
+    if (!e.acceptsResult(result)) {
+      throw ArgumentError.value(
+          result, 'result', 'Invalid result type for overlay "$id"');
+    }
     _close(e, result);
   }
 
@@ -844,6 +953,7 @@ class Layerman extends ChangeNotifier {
   /// Immediately remove [id] with no exit grace (settles `null` if it had
   /// not been settled by a prior [close]). Bypasses `beforeClose`.
   void remove(String id) {
+    if (isDisposed) return;
     final e = _byId[id];
     if (e == null) return;
     _remove(e);
@@ -852,6 +962,7 @@ class Layerman extends ChangeNotifier {
   /// Remove everything: queued and active, across all slots and overlaps.
   /// Unsettled results resolve `null`. Bypasses `beforeClose`.
   void clear() {
+    if (isDisposed) return;
     for (final s in _slots.values) {
       _cancelCooldownTimer(s);
       s.gapTimer?.cancel();
@@ -870,6 +981,7 @@ class Layerman extends ChangeNotifier {
   /// Selectively remove every entry (queued or shown) matching [test].
   /// "Close all of group X" is `clearWhere((r) => (r.data as MyData?)?.group == 'x')`.
   void clearWhere(bool Function(OverlayRecord record) test) {
+    if (isDisposed) return;
     final selected = <_Entry>[
       for (final e in _byId.values.toList())
         if (test(OverlayRecord._(
@@ -913,11 +1025,23 @@ class Layerman extends ChangeNotifier {
 
   bool _conditionsPass(_Entry e) {
     final when = e.when;
-    if (when != null) return when(Map<String, Object?>.unmodifiable(_context));
+    if (when != null) {
+      try {
+        return when(Map<String, Object?>.unmodifiable(_context));
+      } catch (error, stack) {
+        if (!e.conditionErrorReported) {
+          e.conditionErrorReported = true;
+          _reportError(
+              error, stack, 'while evaluating when for overlay "${e.id}"');
+        }
+        return false;
+      }
+    }
     if (e.route != null && !_routeMatches(e.route!, _context['route'])) {
       return false;
     }
-    if (e.requiresAuth != null && e.requiresAuth != (_context['auth'] == true)) {
+    if (e.requiresAuth != null &&
+        e.requiresAuth != (_context['auth'] == true)) {
       return false;
     }
     return true;
@@ -933,6 +1057,10 @@ class Layerman extends ChangeNotifier {
 
   static bool _isRoutePattern(Object o) =>
       o is String || o is List<String> || o is RegExp;
+
+  /// 持久化上限必须等待读取结束才能判定。
+  bool _waitingForHydrate(_Entry e) =>
+      !_cooldowns._hydrated && (e.cooldown?._needsPersistence ?? false);
 
   bool _cooldownPass(_Entry e) {
     final cd = e.cooldown;
@@ -951,7 +1079,9 @@ class Layerman extends ChangeNotifier {
     _cancelCooldownTimer(s);
     if (s.active != null) return; // slot occupied
     if (s.gapPending) return; // waiting out the transition gap
-    if (s.delayTimer != null) return; // waiting out the per-overlay appear delay
+    if (s.delayTimer != null) {
+      return; // waiting out the per-overlay appear delay
+    }
     if (s.queue.isEmpty) return;
 
     final sorted = s.queue.toList()..sort(_cmp);
@@ -994,7 +1124,9 @@ class Layerman extends ChangeNotifier {
     for (final e in s.queue) {
       final cd = e.cooldown;
       if (cd == null) continue;
-      if (!_conditionsPass(e)) continue; // conditions are event-driven, not timed
+      if (!_conditionsPass(e)) {
+        continue; // conditions are event-driven, not timed
+      }
       final w = _cooldowns.timeUntilEligible(e.id, cd, _now());
       if (w == null || w <= Duration.zero) continue;
       if (soonest == null || w < soonest) soonest = w;
@@ -1060,7 +1192,7 @@ class Layerman extends ChangeNotifier {
     } catch (error, stack) {
       // A throwing backend must not wedge the slot: report, drop the entry
       // (result null, no cooldown counted) and let the queue move on.
-      _reportBackendError(error, stack, 'while presenting an overlay');
+      _reportError(error, stack, 'while presenting overlay "${e.id}"');
       _remove(e);
       return;
     }
@@ -1073,15 +1205,6 @@ class Layerman extends ChangeNotifier {
   void _openOverlap(_Entry e) {
     _overlaps.add(e);
     _begin(e);
-  }
-
-  void _reportBackendError(Object error, StackTrace stack, String what) {
-    FlutterError.reportError(FlutterErrorDetails(
-      exception: error,
-      stack: stack,
-      library: 'layerman',
-      context: ErrorDescription(what),
-    ));
   }
 
   /// Duration expiry: an automatic teardown, so it bypasses `beforeClose`
@@ -1137,7 +1260,7 @@ class Layerman extends ChangeNotifier {
   bool _closable(_Entry e) => e.phase == _EntryPhase.open;
 
   void _close(_Entry e, Object? result) {
-    if (!_closable(e)) return;
+    if (!_closable(e) || e.closeGuardPending) return;
 
     final guard = e.beforeClose;
     if (guard == null) {
@@ -1154,13 +1277,16 @@ class Layerman extends ChangeNotifier {
       if (verdict) _doClose(e, result);
       return;
     }
+    e.closeGuardPending = true;
     verdict.then(
       (ok) {
+        e.closeGuardPending = false;
         // Re-check current state at resolution time — the entry may have been
         // removed/replaced while the guard was pending.
         if (ok && _isCurrent(e) && _closable(e)) _doClose(e, result);
       },
       onError: (Object _) {
+        e.closeGuardPending = false;
         // A failing guard cancels the close.
       },
     );
@@ -1274,11 +1400,11 @@ class Layerman extends ChangeNotifier {
   bool _callDismiss(_Entry e, Object? result) {
     try {
       e.externalDismiss!(result).catchError((Object error, StackTrace stack) {
-        _reportBackendError(error, stack, 'while dismissing an overlay');
+        _reportError(error, stack, 'while dismissing overlay "${e.id}"');
       });
       return true;
     } catch (error, stack) {
-      _reportBackendError(error, stack, 'while dismissing an overlay');
+      _reportError(error, stack, 'while dismissing overlay "${e.id}"');
       e.externalDone = true; // don't ask a broken backend a second time
       return false;
     }
@@ -1287,7 +1413,12 @@ class Layerman extends ChangeNotifier {
   void _settle(_Entry e, Object? result) {
     if (e.settled) return;
     e.settled = true;
-    e.settle(result);
+    try {
+      e.settle(result);
+    } catch (error, stack) {
+      _reportError(error, stack, 'while settling overlay "${e.id}"');
+      e.settle(null);
+    }
   }
 
   @override
