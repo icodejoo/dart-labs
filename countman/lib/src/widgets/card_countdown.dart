@@ -259,6 +259,7 @@ class CardCountdown extends StatefulWidget {
 
   /// Whether to show the hours unit.
   /// null = auto: shown only when remaining ≥ 1 hour.
+  /// 自动模式下启用 showDays 也会保留小时列；显式 false 仍可隐藏小时。
   final bool? showHours;
 
   /// 是否增加天单元；默认 false。启用后小时取 0–23，天位数按需扩展。

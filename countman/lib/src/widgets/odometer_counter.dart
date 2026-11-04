@@ -292,6 +292,7 @@ class OdometerCounter extends StatelessWidget {
   /// Called once the animation reaches [to].
   ///
   /// 动画到达 [to] 时回调一次。
+  /// 非有限端点按 0 处理；allowNegative 为 false 时回传不小于 0 的实际目标值。
   final void Function(double value)? onComplete;
 
   /// Inert (source compatibility only).

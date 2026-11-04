@@ -1129,13 +1129,6 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _prototypeSize = Size(w, h);
   }
 
-  // 动画位数与格式解析使用同一规则。
-  int _effectiveFractionDigits() => counterFractionDigits(
-    compactNotation: widget._fmtCompactNotation,
-    fractionDigits: widget._fmtFractionDigits,
-    compactFractionDigits: widget._fmtCompactFractionDigits,
-  );
-
   /// 返回当前方向色的缓存文字样式；每次配置变更最多构建一个有限色板。
   TextStyle _digitStyleFor(TextStyle base) {
     if (_tintPalette.isEmpty) return base;
