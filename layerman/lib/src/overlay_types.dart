@@ -59,6 +59,7 @@ class _ExactRoute extends RouteMatcher {
   /// 必须完全相等的路径。
   final String path;
 
+  /// 路由资格匹配条件。
   @override
   bool matches(Object? route) => route is String && route == path;
 }
@@ -71,6 +72,7 @@ class _AnyOfRoute extends RouteMatcher {
   /// 允许匹配的路径。
   final List<String> paths;
 
+  /// 返回给定路由是否满足此匹配规则。
   @override
   bool matches(Object? route) => route is String && paths.contains(route);
 }
@@ -83,6 +85,7 @@ class _RegexRoute extends RouteMatcher {
   /// 用于 hasMatch 的表达式。
   final RegExp pattern;
 
+  /// 返回给定路由是否满足此匹配规则。
   @override
   bool matches(Object? route) => route is String && pattern.hasMatch(route);
 }
@@ -250,9 +253,11 @@ class _SystemOverlayClock extends OverlayClock {
   /// 创建无状态系统时钟。
   const _SystemOverlayClock();
 
+  /// 返回当前时钟时间。
   @override
   DateTime now() => DateTime.now();
 
+  /// 创建单次计时器，返回可取消的 Timer。
   @override
   Timer createTimer(Duration duration, void Function() callback) =>
       Timer(duration, callback);

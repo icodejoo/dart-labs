@@ -7,9 +7,9 @@ const _routeNamePrefix = 'layerman://';
 
 /// 将 [route] 推入 [navigator]，返回可定向关闭且等待退场结束的句柄。
 ///
-/// 栈顶关闭会携带结果并播放退场动画；被覆盖时只移除该路由。
+/// 栈顶且无内部历史时关闭会携带结果并播放退场动画；否则只移除该路由。
 /// 为兼容 Flutter 3.27，移除时不向 Navigator 传结果，因此直接使用句柄
-/// 关闭被覆盖的路由时，`dismissed` 为 null；通过 [Layerman.close] 关闭时，
+/// 关闭被覆盖或带内部历史的路由时，`dismissed` 为 null；通过 [Layerman.close] 关闭时，
 /// 编排器仍会将指定结果交付给 `open`。已移除的路由再次关闭为无操作。
 /// 无需额外设置 `exitDuration`。页面路由也可直接适配：
 /// ```dart
@@ -34,7 +34,7 @@ PresentedOverlay<T> presentRoute<T>(
 void _dismissRoute<T>(TransitionRoute<T> route, T? result) {
   final nav = route.navigator;
   if (nav == null || !route.isActive) return;
-  if (route.isCurrent) {
+  if (route.isCurrent && !route.willHandlePopInternally) {
     nav.pop(result);
   } else {
     nav.removeRoute(route);

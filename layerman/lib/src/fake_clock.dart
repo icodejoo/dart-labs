@@ -25,6 +25,7 @@ class FakeOverlayClock extends OverlayClock {
   /// 尚未触发且未取消的计时器数量。
   int get pendingTimers => _timers.length;
 
+  /// 创建单次计时器，返回可取消的 Timer。
   @override
   Timer createTimer(Duration duration, void Function() callback) {
     final timer = _FakeTimer(this,
@@ -84,12 +85,15 @@ class _FakeTimer implements Timer {
   /// 已触发次数。
   int _tick = 0;
 
+  /// 是否已激活，包含解析、展示和退场。
   @override
   bool get isActive => _active;
 
+  /// 计时器触发次数，未触发为零，触发后为一。
   @override
   int get tick => _tick;
 
+  /// 取消本计时器，重复取消无操作。
   @override
   void cancel() {
     _active = false;

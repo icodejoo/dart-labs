@@ -304,3 +304,45 @@ slot 插队；只调度 waitingUnblock 的槽及受阻 overlap，不扩大推模
 序列号 7NQBB23606003715）。README 新增示例经临时工程 `dart analyze` 验证，SVG 经 XML 解析。
 随机序列测试里"被阻塞后解除并出场""overlap 被阻塞持有后释放"两项实际只发生 2 次和 1 次，
 这两条路径主要由 blocked_by_test 的确定性用例与不变量 (j)(k) 守住，不靠随机测试。
+
+
+## 1.0.0 发布前代码评审修复（2026-11-04）
+
+用户要求评审全部源码：Codex 两路只读初审（引擎；适配器 + example + test），主会话逐条终审并写探针
+实测取证。Codex 报 9 条全部成立（两条 P0 降为 P2，三条 demo 问题降为 P3），终审另补 7 条漏报；
+用户选择一次全部修完。1.0.0 尚未发布，只更新现有条目。
+
+引擎：判断函数（when / auth / clearWhere 的 test）统一只读，期间所有修改入口（含票据、ctx.close、
+hold.release、dispose）在任何状态变化前抛 StateError（“判断函数内不能修改 Layerman”）；条件异常
+每条目上报一次并按不满足处理，clearWhere test 异常外传。dispose 一开始就置 `_disposing`（isDisposed
+随即为 true），后端回调重入 open / submit 立即以 disposed 结束。串行 delay 绑定属主，属主离队时取消
+计时器并在最外层批次末尾重调度（debug 不变量 l）。maxQueued 移到批次末尾、激活判定之后执行，build
+期间推迟到帧后。resolve 写 data 后重查身份与阶段；update 两侧都是字符串键 Map 时保留
+Map<String, Object?>；日历桶按 now.toLocal()；hydrate 逐条隔离损坏记录并原样写回，同 id 的有效记录
+优先；present 同步结束时 ended 延到 shown 之后。适配器：Route 带内部历史（Drawer、持久底部面板）时
+改用 removeRoute。close / dismiss 只作用于 open 条目（文档写明）。_Entry 仍为 9 个可变布尔 + 6 个计时器。
+
+终审补修（Codex 修复后复核发现）：① `_flush` 原先把 `_unparsed` 展开在有效记录之后，同 id 的损坏原值
+会盖住新写入的计数和永久抑制，重启后“不再提示”失效——已改为有效记录优先并补回归；② A1 的 when / auth
+用例在谓词内断言，失败会被引擎当作条件异常吞掉——改为谓词外再断言没有上报；③ C2 的 replace 分支在旧代码
+上也能通过——改为不合格的 replace 排队项；④ 翻译注释时丢了 OverlayCooldownStorage 的示例，已补回；
+⑤ README 里堆在“编排纪律”末尾的新说明按主题挪回各章节。反向验证：新回归放到修复前的代码上跑，针对原缺陷的
+26 条全部失败。
+
+example：Pause 页改用非模态 entry；ShadSheet 复用公开的 RouteCapture，首帧前 dismiss 不留孤立 sheet；
+toast 检视保存 CancelFunc；update / affix 演示改读 ctx.dataListenable；presentCard 的关闭按钮走
+ctx.close（经过 beforeClose），`_removeRouteDismiss` 在栈顶且无内部历史时 pop、否则 removeRoute，
+保留退场动画；清理 Get.until、String/RegExp 路由参数、按 om:// 名字关闭等过时说明；新增 B2 / B3 / B4
+三条集成用例，update 用例改为断言管理器数据。B4 首轮真机失败是用例只 pump 一帧就断言，toast 退场后
+还需一帧移除，已改为 pumpAndSettle（toast 静止时不排帧，空 dismiss 仍会失败）。
+
+提交前按 git 流程跑了两轮 simplify（先本轮改动，再全部源码，都由 Codex 执行、主会话终审），采纳 8 处
+纯质量清理：抽出 `_cancelDelayTimer`、`_thawDuration` 复用 `_startDuration`、删冗余的 `!overlap` 与重复注释、
+example 的 `_removeRouteDismiss` 直接传 Route、删无用 Builder 与空列表三元、三个测试文件里完全相同的后端与
+flush 提到 `test/support/headless_backend.dart`；用例数不变。没采纳的建议（合并 `_discardActive` 与 `_remove`、
+合并 overlap 提交与释放判定、容量只扫变化的槽位等）都可能改变通知或调度时机。
+
+验收基线（主会话实测）：`flutter analyze`（含 example）干净；`flutter test` **869 条全绿**，0 skip
+（Flutter 3.47.0 / Dart 3.13.0）；手机真机 **41 条全绿**（原有 38 + 新增 3，华为 STG-AL00 /
+Android 12，序列号 7NQBB23606003715）。最低 Flutter 3.27.4 本轮未运行（本地环境已删），新代码只用了
+3.27 已有的 API（willHandlePopInternally、DateTime.toLocal），开 PR 时 CI 的 3.27.4 任务会覆盖。

@@ -5,32 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:layerman/layerman.dart';
 import 'package:layerman/testing.dart';
 
+import 'support/headless_backend.dart';
+
 const _second = Duration(seconds: 1);
-
-/// 排空引擎依赖的异步续体，不创建 Flutter 绑定。
-Future<void> _flush() => Future<void>.delayed(Duration.zero);
-
-/// 无界面的可控后端，显式确认 dismissed。
-class _Backend<T> {
-  /// 后端结束信号。
-  final done = Completer<T?>();
-
-  /// 展示时绑定的类型化上下文。
-  PresentContext<T>? context;
-
-  /// 记录是否已出场。
-  bool get shown => context != null;
-
-  /// 模拟展示与定向关闭。
-  PresentedOverlay<T> present(PresentContext<T> ctx) {
-    context = ctx;
-    return PresentedOverlay<T>(
-        dismissed: done.future,
-        dismiss: ([result]) async {
-          if (!done.isCompleted) done.complete(result);
-        });
-  }
-}
 
 /// 控制持久化水合完成时机。
 class _Storage implements OverlayCooldownStorage {
@@ -57,7 +34,7 @@ void main() {
       final clock = FakeOverlayClock();
       final manager = Layerman(clock: clock);
       addTearDown(manager.dispose);
-      final old = _Backend<int>();
+      final old = HeadlessBackend<int>();
       final ticket = manager.submit(
           id: 'a',
           present: old.present,
@@ -76,7 +53,7 @@ void main() {
         case 'dispose':
           manager.dispose();
         case 'reopen':
-          manager.open(id: 'a', present: _Backend<int>().present);
+          manager.open(id: 'a', present: HeadlessBackend<int>().present);
       }
       expect(
           (await ticket.outcome).reason,
@@ -97,7 +74,7 @@ void main() {
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
     manager.setContext({'ok': true});
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(
         present: backend.present,
         mode: OverlayMode.overlap,
@@ -119,18 +96,18 @@ void main() {
     await manager.ready();
     final capped = manager.submit(
         id: 'cap',
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         mode: OverlayMode.overlap,
         delay: _second,
         cooldown: const OverlayCooldown(session: 0));
     final first = manager.submit(
         id: 'gap',
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         cooldown: const OverlayCooldown(minGap: Duration(seconds: 2)));
     first.remove();
     final dropped = manager.submit(
         id: 'gap',
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         mode: OverlayMode.overlap,
         delay: _second,
         cooldown: const OverlayCooldown(minGap: Duration(seconds: 2)));
@@ -144,7 +121,7 @@ void main() {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(
         present: backend.present, mode: OverlayMode.overlap, delay: _second);
     manager.pauseAll();
@@ -160,7 +137,7 @@ void main() {
   test('auth 自定义用户与角色键，无需保留 auth 键', () {
     final manager = Layerman();
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     manager.open(
         present: backend.present,
         auth: (ctx) =>
@@ -186,7 +163,7 @@ void main() {
     test('AND 条件 $failed 单独不满足也不能出场', () {
       final manager = Layerman();
       addTearDown(manager.dispose);
-      final backend = _Backend<int>();
+      final backend = HeadlessBackend<int>();
       manager.setContext({
         'route': failed == 'route' ? '/other' : '/home',
         'user': failed != 'auth',
@@ -211,7 +188,7 @@ void main() {
     FlutterError.onError = errors.add;
     addTearDown(() => FlutterError.onError = previous);
     var throwAuth = true;
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     manager.open(
         present: backend.present,
         auth: (_) {
@@ -232,7 +209,7 @@ void main() {
     addTearDown(manager.dispose);
     manager.setContext({'user': true});
     final ticket = manager.submit(
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         auth: (ctx) => ctx['user'] == true,
         dismissWhenUnmet: false);
     manager.setContext({'user': false});
@@ -242,23 +219,23 @@ void main() {
   test('自建后端通过 ctx.close 交付结果', () async {
     final manager = Layerman();
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(present: backend.present);
     backend.context!.close(42);
     expect(await ticket.result, 42);
     expect((await ticket.outcome).reason, OverlayEndReason.closed);
-    await _flush();
+    await flushAsync();
     expect(manager.activeIds, isEmpty);
   });
 
   test('ctx.close 被守卫拒绝，同 id 重开后旧上下文不能关闭新票', () async {
     final manager = Layerman();
     addTearDown(manager.dispose);
-    final old = _Backend<int>();
+    final old = HeadlessBackend<int>();
     manager.open(id: 'a', present: old.present, beforeClose: () => false);
     old.context!.close(1);
     expect(manager.activeIds, ['a']);
-    final current = _Backend<int>();
+    final current = HeadlessBackend<int>();
     final ticket = manager.submit(id: 'a', present: current.present);
     old.context!.close(2);
     expect(current.done.isCompleted, isFalse);
@@ -270,7 +247,7 @@ void main() {
   test('ctx.close 守卫未决时重复调用仅执行一次，首次结果生效', () async {
     final manager = Layerman();
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final guard = Completer<bool>();
     var calls = 0;
     final ticket = manager.submit(
@@ -292,28 +269,28 @@ void main() {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     manager.open(
         present: backend.present, duration: _second, exitDuration: _second);
     backend.done.complete(1);
-    await _flush();
-    manager.open(present: _Backend<int>().present);
+    await flushAsync();
+    manager.open(present: HeadlessBackend<int>().present);
     final resolver = Completer<int?>();
     manager.open(
         slot: 'resolve',
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         resolve: () => resolver.future);
     final hold = manager.hold();
-    manager.open(present: _Backend<int>().present, mode: OverlayMode.overlap);
+    manager.open(present: HeadlessBackend<int>().present, mode: OverlayMode.overlap);
     manager.open(
-        present: _Backend<int>().present,
+        present: HeadlessBackend<int>().present,
         mode: OverlayMode.overlap,
         delay: _second);
     manager.debugCheckInvariants();
     clock.advance(_second);
     manager.debugCheckInvariants();
     resolver.complete(2);
-    await _flush();
+    await flushAsync();
     manager.debugCheckInvariants();
     hold.release();
     manager.debugCheckInvariants();
@@ -326,7 +303,7 @@ void main() {
     final storage = _Storage();
     final manager = Layerman(clock: clock, cooldownStorage: storage);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(
         id: 'hydrate',
         present: backend.present,
@@ -348,7 +325,7 @@ void main() {
     final storage = _Storage();
     final manager = Layerman(clock: clock, cooldownStorage: storage);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(
         id: 'hydrate',
         present: backend.present,
@@ -390,7 +367,7 @@ void main() {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     await tester.pumpWidget(Builder(builder: (_) {
       manager.open(
           present: backend.present, mode: OverlayMode.overlap, delay: _second);

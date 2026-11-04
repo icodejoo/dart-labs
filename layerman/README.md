@@ -314,6 +314,11 @@ A throwing `auth` or `when` is reported once per entry and treated as unmet.
 Conditions are push-driven: external state changes require `setContext`, even
 `setContext({})`, or another scheduling trigger. They do not wake on time alone.
 
+Judgment callbacks (`when`, `auth`, and the test passed to `clearWhere`) are read-only.
+Any manager mutation, ticket/context operation, hold release or dispose during them throws
+`StateError` (“判断函数内不能修改 Layerman”) before changing state. Condition errors are
+reported once per entry and treated as unmet; `clearWhere` test errors propagate. Getters remain available.
+
 ### Login and roles (`auth:` predicate)
 
 ```dart
@@ -442,6 +447,9 @@ debugPrint('${outcome.value}: ${outcome.reason}');
 await subscription.cancel();
 ```
 
+For each submission, events follow queued → shown → ended, even when `present` closes the
+entry synchronously; a presentation that throws emits no shown event, only ended (`failed`).
+
 ### Pause sources: `hold` and `LayermanLifecycle`
 
 Manual pause, `pauseOnRoutes` and unreleased holds combine with OR. `hold(reason)`
@@ -498,6 +506,12 @@ bounded.open<String>(
 // The owner eventually calls bounded.dispose().
 ```
 
+Serial `delay` waits after the slot gap; `replace` and same-id active takeover skip it.
+The delay belongs to its waiting entry: removing or overwriting that entry cancels the old
+wait and reschedules the slot. `maxQueued` is enforced after activation decisions, including
+post-frame scheduling during build; entries waiting for gap, delay, conditions, cooldown or
+blockedBy still count, and the submitted entry can still be evicted.
+
 #### Cross-slot blocking (`blockedBy`)
 
 ```dart
@@ -543,6 +557,10 @@ manager.open<void>(
 );
 manager.update('cart', {'count': 2});
 ```
+
+When both the current data and the patch are string-keyed Maps (`Map<String, Object?>` /
+`Map<String, dynamic>`), the shallow merge keeps `Map<String, Object?>`, so a backend cast such as
+`value as Map<String, dynamic>` keeps working; other Map combinations merge into a generic Map.
 
 ### Cooldown (frequency caps + persistence)
 
@@ -617,6 +635,11 @@ if (status.canShow) {
 manager.resetCooldown('promo');
 manager.clearCooldowns();
 ```
+
+Day / hour / minute caps follow the local calendar even when the clock returns UTC (for example
+server time). A malformed stored record is reported and skipped; its raw value is written back
+unchanged until a valid record for the same id replaces it or `resetCooldown` / `clearCooldowns`
+removes it, so other ids keep their counts and suppressions.
 
 #### Don't show again (`suppress`)
 
@@ -840,9 +863,12 @@ uniformly.
 Prefer `DialogManager` for dialogs. Hand-written Route recipe for custom control:
 `presentRoute` pushes your route, waits for `route.completed`, and targets that
 exact route when closing. No `exitDuration` estimate is needed. A top route is
-popped with the result; a covered route uses `removeRoute(route)` without a result
+popped with the result only when it has no internal history; a covered route uses `removeRoute(route)` without a result
 for Flutter 3.27 compatibility. `manager.close` still delivers its requested result.
 Closing a covered route directly through the returned handle yields `null`.
+
+A route with internal history (for example an open Drawer or persistent bottom sheet) also
+uses `removeRoute`; its result follows the same rules as a covered route.
 
 ```dart
 manager.open<bool>(
@@ -880,10 +906,10 @@ manager.open<bool>(
       dismiss: ([r]) async {
         final nav = route.navigator;
         if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
+        if (route.isCurrent && !route.willHandlePopInternally) {
           nav.pop(r); // on top: animated pop
         } else {
-          nav.removeRoute(route); // buried under another route: remove exactly this one
+          nav.removeRoute(route); // covered or internal history: remove exactly this one
         }
       },
     );
@@ -1073,13 +1099,13 @@ Layerman({
 | `Future<void> ready()` | Completes once the cooldown store has hydrated and the queue has been re-scheduled. Optional: all entries with `cooldown` wait for hydration automatically. |
 | `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
 | `bool get isPaused` | Whether the queue is frozen — via manual pause, a route zone, or unreleased holds. |
-| `bool get isDisposed` | Whether `dispose()` has been called — lets a deferred callback avoid calling into a torn-down manager. |
+| `bool get isDisposed` | True from the moment `dispose()` starts — lets a deferred callback avoid calling into a torn-down manager. |
 | `List<String> get activeIds` | Ids in open/closing, serial + overlaps; excludes resolving. |
 | `List<String> get queuedIds` | Pending ids in per-slot display order plus held overlaps; excludes resolving. |
 | `bool isShowing(String id)` | Whether `id` is open/closing; false while resolving. |
 | `Future<T?> open<T>({...})` | Enqueue/show an overlay through your `present:` backend; returns its result future. See below. |
-| `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
-| `void dismiss(String id)` | `close(id)` with a `null` result. |
+| `void close(String id, [Object? result])` | Closes open entries only; queued/resolving entries are unaffected (cancel with `remove`). Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
+| `void dismiss(String id)` | `close(id)` with a `null` result; open entries only, cancel queued/resolving entries with `remove`. |
 | `void remove(String id)` | Remove immediately, no exit grace; bypasses `beforeClose`. |
 | `void suppress(String id, {Duration? duration})` | Suppress submissions with cooldown; null forever, positive duration from now; only extends. |
 | `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | Inspect eligibility without incrementing counters. |
@@ -1093,7 +1119,7 @@ Layerman({
 | `void setContext(Map<String, Object?> partial)` | Merge into the condition context and re-evaluate. |
 | `void pauseAll()` / `void resumeAll()` | Full freeze / release + re-schedule. |
 | `void pause(String id)` / `void resume(String id)` | Freeze / thaw one overlay's `duration` countdown. |
-| `void dispose()` | Cancel timers, clear entries, dispose the notifier. Afterwards `open()` asserts in debug (returns `null` without presenting in release) and every other mutator is a no-op. |
+| `void dispose()` | Cancel timers, clear entries, dispose the notifier. Afterwards `open()` asserts in debug (returns `null` without presenting in release) and every other mutator is a no-op. While disposing, a backend callback that re-enters `open` / `submit` settles it as `disposed`; other mutators do nothing. |
 
 Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 `notifyListeners` (manager notifications are batched per operation).
@@ -1108,7 +1134,7 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 | `Set<String>? tags` | `null` (empty set) | Copied into an immutable set, exposed by `OverlayRecord.tags`; select entries with `clearTag`. |
 | `String slot` | `''` | Named serial queue (independent lanes run in parallel). |
 | `int priority` | `0` | Higher shows first; ties break FIFO. |
-| `Duration? delay` | `null` | Appear delay; overlap checks now-or-never eligibility after waiting. |
+| `Duration? delay` | `null` | Serial delay follows gap; replace and same-id active takeover skip it. Overlap waits before checking now-or-never eligibility. |
 | `Duration? expireAfter` | `null` | Maximum serial wait before activation; includes pauses, ignores overlap. |
 | `Duration? resolveTimeout` | `null` (inherit) | Per-entry resolve timeout; `Duration.zero` disables. |
 | `Duration? duration` | `null` | Auto-close after this long once shown. |
@@ -1570,6 +1596,10 @@ manager.open(
 条件是推模式：外部状态变化后需调用 `setContext`（可用 `setContext({})`）或等待其他调度触发，
 不会仅因时间流逝自动重判。
 
+判断回调（`when`、`auth`、`clearWhere` 的 test）只能读取状态。期间调用管理器写操作、
+票据 / context 操作、hold.release 或 dispose，均在状态变化前抛出包含“判断函数内不能修改 Layerman”
+的 StateError。条件异常每条目仅上报一次并视为不满足；clearWhere 的 test 异常向外传播，只读 getter 不受限制。
+
 ### 登录与角色（`auth:` 判断函数）
 
 ```dart
@@ -1681,6 +1711,9 @@ debugPrint('${outcome.value}: ${outcome.reason}');
 await subscription.cancel();
 ```
 
+同一提交的事件按 queued → shown → ended 顺序发出，present 内同步关闭也是如此；present 抛错时没有 shown，
+只有 ended（`failed`）。
+
 ### 暂停来源：`hold` 与 `LayermanLifecycle`
 
 手动暂停、`pauseOnRoutes`、未释放的 holds 按 OR 组合。`hold(reason)` 返回 `OverlayHold`，
@@ -1732,6 +1765,11 @@ bounded.open<String>(
 // The owner eventually calls bounded.dispose().
 ```
 
+串行 `delay` 在 gap 之后再等，replace 与同 id 活跃接管跳过；overlap 先等待再判定资格。
+delay 归等待它的条目所有：移除或覆盖该条目会取消旧等待并重新调度。maxQueued 在激活判定之后
+才约束仍在等待的条目，build 期间连同容量检查一起推迟到帧后调度完成；等待 gap、delay、条件、冷却或
+blockedBy 的条目仍计数，本次提交也可能被淘汰。
+
 #### 跨槽位阻塞（`blockedBy`）
 
 ```dart
@@ -1771,6 +1809,9 @@ manager.open<void>(
 );
 manager.update('cart', {'count': 2});
 ```
+
+当前数据与 patch 都是字符串键 Map（`Map<String, Object?>` / `Map<String, dynamic>`）时，浅合并结果保持
+`Map<String, Object?>`，后端 `value as Map<String, dynamic>` 之类的转换继续可用；其他 Map 组合合并为通用 Map。
 
 ### 冷却(频次上限 + 持久化)
 
@@ -1831,6 +1872,10 @@ if (status.canShow) {
 manager.resetCooldown('promo');
 manager.clearCooldowns();
 ```
+
+日 / 小时 / 分钟上限按本地日历计算，时钟返回 UTC（例如服务器时间）时同样如此。存储中单条记录损坏时
+上报并跳过，原值写回时保持不变，直到同 id 写入新的有效记录或 `resetCooldown` / `clearCooldowns` 删除它；
+其他 id 的计数与抑制不受影响。
 
 #### 不再提示（`suppress`）
 
@@ -2031,8 +2076,10 @@ dialog、snackbar、toast。
 
 对话框优先用 `DialogManager`。想自己控制时可手写 Route 配方：`presentRoute` 推入路由，
 用 `route.completed` 等退场结束，并定向关闭这一条路由，无需估计 `exitDuration`。
-栈顶 pop 携带结果；被覆盖时用不带结果的 `removeRoute(route)` 兼容 Flutter 3.27。
-`manager.close` 仍交付指定结果；直接用返回句柄关闭被覆盖路由时结果为 `null`。
+栈顶且无内部历史时 pop 携带结果；被覆盖时用不带结果的 `removeRoute(route)` 兼容 Flutter 3.27。
+`manager.close` 仍交付指定结果；直接用返回句柄关闭被覆盖或带内部历史的路由时结果为 `null`。
+
+带内部历史的页面（如打开的 Drawer、持久底部面板）也使用 removeRoute，结果规则与被覆盖时相同。
 
 ```dart
 manager.open<bool>(
@@ -2070,10 +2117,10 @@ manager.open<bool>(
       dismiss: ([r]) async {
         final nav = route.navigator;
         if (nav == null || !route.isActive) return;
-        if (route.isCurrent) {
+        if (route.isCurrent && !route.willHandlePopInternally) {
           nav.pop(r); // 栈顶：播放退场动画
         } else {
-          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+          nav.removeRoute(route); // 被覆盖或带内部历史：只移除这一条
         }
       },
     );
@@ -2209,7 +2256,9 @@ manager.open<void>(
 | `OverlayPredicate? auth` | 默认 null，与 route / when 按 AND；读取任意业务键。 |
 | `OverlayClock clock` | 默认 `OverlayClock.system`；`now()` 与 `createTimer(Duration, callback)` 同源。 |
 | `OverlayClock` / `FakeOverlayClock([DateTime? start])` | 测试时钟从 `package:layerman/testing.dart` 导入，默认 DateTime(2000)；`advance(Duration d)`、`pendingTimers`。 |
-| `PresentContext<T>.close([T? result])` | 绑定本次提交并经过 beforeClose。 |
+| `PresentContext<T>.close([T? result])` | 绑定本次提交并经过 beforeClose；仅作用于 open 条目。 |
+| `void close(String id, [Object? result])` / `void dismiss(String id)` | 仅关闭已展示的 open 条目，排队中和解析中的条目不受影响，取消请用 remove；close 可携带结果，dismiss 使用 null。 |
+| `void dispose()` / `bool get isDisposed` | dispose 一开始 isDisposed 即为 true；销毁中后端回调重入 open / submit 立即以 disposed 结束，其余修改无操作。 |
 | `debugCheckInvariants()` | 显式检查不变量；debug 最外层批次结束自动执行。 |
 | `OverlayMode mode` | 默认 `OverlayMode.queue`；可选 `replace` / `overlap`，不能同时选择。 |
 | `RouteMatcher? route` / `List<RouteMatcher> pauseOnRoutes` | 默认 null / 空列表；使用 `exact` / `anyOf` / `regex`；null 或非字符串路由不匹配，`anyOf` 的输入列表不可修改。 |

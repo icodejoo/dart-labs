@@ -1,49 +1,24 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layerman/layerman.dart';
 import 'package:layerman/testing.dart';
 
+import 'support/headless_backend.dart';
+
 const _second = Duration(seconds: 1);
 const _half = Duration(milliseconds: 500);
-
-/// 排空引擎依赖的异步续体，不创建 Flutter 绑定。
-Future<void> _flush() => Future<void>.delayed(Duration.zero);
-
-/// 无界面的可控后端，显式确认 dismissed。
-class _Backend<T> {
-  /// 后端结束信号。
-  final done = Completer<T?>();
-
-  /// 展示时绑定的类型化上下文。
-  PresentContext<T>? context;
-
-  /// 记录是否已出场。
-  bool get shown => context != null;
-
-  /// 模拟展示与定向关闭。
-  PresentedOverlay<T> present(PresentContext<T> ctx) {
-    context = ctx;
-    return PresentedOverlay<T>(
-        dismissed: done.future,
-        dismiss: ([result]) async {
-          if (!done.isCompleted) done.complete(result);
-        });
-  }
-}
 
 void main() {
   test('duration 到期自动关闭，未到期保持展示', () async {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
-    final backend = _Backend<int>();
+    final backend = HeadlessBackend<int>();
     final ticket = manager.submit(present: backend.present, duration: _second);
     clock.advance(_half);
     expect(manager.activeIds, [ticket.id]);
     clock.advance(_half);
     expect((await ticket.outcome).reason, OverlayEndReason.expired);
-    await _flush();
+    await flushAsync();
     expect(manager.activeIds, isEmpty);
     expect(clock.pendingTimers, 0);
   });
@@ -52,11 +27,11 @@ void main() {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock, gap: _second);
     addTearDown(manager.dispose);
-    final a = manager.submit(present: _Backend<void>().present);
-    final b = _Backend<void>();
+    final a = manager.submit(present: HeadlessBackend<void>().present);
+    final b = HeadlessBackend<void>();
     manager.open(present: b.present);
     a.close();
-    await _flush();
+    await flushAsync();
     clock.advance(_half);
     expect(b.shown, isFalse);
     clock.advance(_half);
@@ -72,9 +47,9 @@ void main() {
     await manager.ready();
     const cooldown = OverlayCooldown(minGap: _second);
     final first = manager.submit(
-        id: 'cap', present: _Backend<void>().present, cooldown: cooldown);
+        id: 'cap', present: HeadlessBackend<void>().present, cooldown: cooldown);
     first.remove();
-    final backend = _Backend<void>();
+    final backend = HeadlessBackend<void>();
     manager.open(id: 'cap', present: backend.present, cooldown: cooldown);
     clock.advance(_second);
     expect(backend.shown, isFalse);
@@ -88,7 +63,7 @@ void main() {
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
     final ticket =
-        manager.submit(present: _Backend<void>().present, duration: _second);
+        manager.submit(present: HeadlessBackend<void>().present, duration: _second);
     clock.advance(_half);
     manager.pauseAll();
     expect(clock.pendingTimers, 0);
@@ -99,7 +74,7 @@ void main() {
     expect(manager.activeIds, [ticket.id]);
     clock.advance(const Duration(milliseconds: 1));
     expect((await ticket.outcome).reason, OverlayEndReason.expired);
-    await _flush();
+    await flushAsync();
     expect(clock.pendingTimers, 0);
   });
 
@@ -108,8 +83,8 @@ void main() {
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
     final active =
-        manager.submit(present: _Backend<void>().present, expireAfter: _half);
-    final backend = _Backend<void>();
+        manager.submit(present: HeadlessBackend<void>().present, expireAfter: _half);
+    final backend = HeadlessBackend<void>();
     final queued =
         manager.submit(present: backend.present, expireAfter: _second);
     clock.advance(_second);
@@ -123,7 +98,7 @@ void main() {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
     addTearDown(manager.dispose);
-    final backend = _Backend<void>();
+    final backend = HeadlessBackend<void>();
     manager.setContext({'ready': false});
     final ticket = manager.submit(
         present: backend.present,

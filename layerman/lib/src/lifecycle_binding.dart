@@ -54,6 +54,7 @@ class LayermanLifecycle with WidgetsBindingObserver {
     _release();
   }
 
+  /// 按新的应用生命周期状态同步独立暂停来源。
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) => _sync(state);
 

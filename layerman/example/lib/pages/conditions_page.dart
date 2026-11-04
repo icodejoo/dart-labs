@@ -21,57 +21,76 @@ class _ConditionsPageState extends State<ConditionsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pageHeader(context, 'Conditions',
-              'Overlays can be conditional: route checks the current route, '
-              'when is a custom bool predicate, auth is a predicate over the context. '
-              'dismissWhenUnmet auto-closes a shown overlay when its condition stops holding. '
-              'setContext updates context and triggers re-evaluation.'),
+          pageHeader(
+            context,
+            'Conditions',
+            'Overlays can be conditional: route checks the current route, '
+                'when is a custom bool predicate, auth is a predicate over the context. '
+                'dismissWhenUnmet auto-closes a shown overlay when its condition stops holding. '
+                'setContext updates context and triggers re-evaluation.',
+          ),
           pageSection(
             context,
             'route — only show on a specific route',
             [
-              demoButton('btn-cond-promo', 'open with route: "/promo"', () {
-                openEntry('cond-promo',
+              demoButton(
+                'btn-cond-promo',
+                'route: RouteMatcher.exact("/promo")',
+                () {
+                  openEntry(
+                    'cond-promo',
                     text: 'ROUTE /promo',
                     route: const RouteMatcher.exact('/promo'),
                     dismissWhenUnmet: true,
                     hint: 'Only visible on /promo.\n'
-                        'Leaving /promo auto-dismisses this card.');
-              }),
+                        'Leaving /promo auto-dismisses this card.',
+                  );
+                },
+              ),
               demoButton('btn-goto-promo', '→ navigate to /promo', () {
-                Navigator.of(context).push(MaterialPageRoute<void>(
-                  settings: const RouteSettings(name: '/promo'),
-                  builder: (_) => const _PromoPage(),
-                ));
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    settings: const RouteSettings(name: '/promo'),
+                    builder: (_) => const _PromoPage(),
+                  ),
+                );
               }),
             ],
             subtitle:
-                '1. Tap "open with route: /promo" (card queues, invisible here)\n'
+                '1. Tap the RouteMatcher.exact button (card queues, invisible here)\n'
                 '2. Navigate to /promo → card activates\n'
                 '3. Navigate back → dismissWhenUnmet closes the card',
           ),
+          pageSection(context, 'RouteMatcher.regex — pattern matching', [
+            demoButton(
+              'btn-cond-regex',
+              'route: RouteMatcher.regex(RegExp(r"^/promo"))',
+              () {
+                openEntry(
+                  'cond-regex',
+                  text: 'REGEX route',
+                  route: RouteMatcher.regex(RegExp(r'^/promo')),
+                  hint: 'Matches any route starting with /promo',
+                );
+              },
+            ),
+          ]),
           pageSection(
             context,
-            'route with RegExp — pattern matching',
+            'RouteMatcher.anyOf — multiple eligible routes',
             [
-              demoButton('btn-cond-regex', 'route: RegExp(r"^/promo")', () {
-                openEntry('cond-regex',
-                    text: 'REGEX route',
-                    route: RouteMatcher.regex(RegExp(r'^/promo')),
-                    hint: 'Matches any route starting with /promo');
-              }),
-            ],
-          ),
-          pageSection(
-            context,
-            'route with List — multiple eligible routes',
-            [
-              demoButton('btn-cond-list', 'route: ["/promo", "/zone"]', () {
-                openEntry('cond-list',
+              demoButton(
+                'btn-cond-list',
+                'route: RouteMatcher.anyOf(["/promo", "/zone"])',
+                () {
+                  openEntry(
+                    'cond-list',
                     text: 'LIST route',
                     route: const RouteMatcher.anyOf(['/promo', '/zone']),
-                    hint: 'Eligible on /promo OR /zone');
-              }),
+                    hint: 'Eligible on /promo OR /zone',
+                  );
+                },
+              ),
             ],
           ),
           pageSection(
@@ -80,23 +99,35 @@ class _ConditionsPageState extends State<ConditionsPage> {
             [
               Row(
                 children: [
-                  const Text('when() returns: ', style: TextStyle(fontSize: 13)),
+                  const Text(
+                    'when() returns: ',
+                    style: TextStyle(fontSize: 13),
+                  ),
                   Switch(
                     value: _whenEnabled,
                     onChanged: (v) => setState(() => _whenEnabled = v),
                   ),
-                  Text(_whenEnabled ? 'true (eligible)' : 'false (waiting)',
-                      style: TextStyle(
-                          color: _whenEnabled ? Colors.green : Colors.orange)),
+                  Text(
+                    _whenEnabled ? 'true (eligible)' : 'false (waiting)',
+                    style: TextStyle(
+                      color: _whenEnabled ? Colors.green : Colors.orange,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
-              demoButton('btn-cond-when', 'open with when: (ctx) => toggle', () {
-                openCard('cond-when',
+              demoButton(
+                'btn-cond-when',
+                'open with when: (ctx) => toggle',
+                () {
+                  openCard(
+                    'cond-when',
                     text: 'WHEN',
                     when: (_) => _whenEnabled,
-                    hint: 'Only activates when the toggle above is ON');
-              }),
+                    hint: 'Only activates when the toggle above is ON',
+                  );
+                },
+              ),
               demoButton('btn-cond-nudge', 'setContext (trigger re-eval)', () {
                 om.setContext({});
               }),
@@ -119,38 +150,47 @@ class _ConditionsPageState extends State<ConditionsPage> {
                       om.setContext({'auth': v});
                     },
                   ),
-                  Text(_authEnabled ? 'authenticated' : 'not authenticated',
-                      style: TextStyle(
-                          color: _authEnabled ? Colors.green : Colors.orange)),
+                  Text(
+                    _authEnabled ? 'authenticated' : 'not authenticated',
+                    style: TextStyle(
+                      color: _authEnabled ? Colors.green : Colors.orange,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
               demoButton('btn-cond-auth', 'open with auth predicate', () {
-                openCard('cond-auth',
-                    text: 'AUTH REQUIRED',
-                    auth: (ctx) => ctx['auth'] == true,
-                    hint: 'Only activates when context["auth"] == true');
+                openCard(
+                  'cond-auth',
+                  text: 'AUTH REQUIRED',
+                  auth: (ctx) => ctx['auth'] == true,
+                  hint: 'Only activates when context["auth"] == true',
+                );
               }),
             ],
-            subtitle:
-                'The auth predicate checks context["auth"] == true. '
+            subtitle: 'The auth predicate checks context["auth"] == true. '
                 'Toggle the switch → setContext({"auth": true/false}) automatically.',
           ),
           pageSection(
             context,
             'dismissWhenUnmet: false — stay shown even if condition breaks',
             [
-              demoButton('btn-cond-stay', 'open route:/promo + dismissWhenUnmet:false', () {
-                openEntry('cond-stay',
+              demoButton(
+                'btn-cond-stay',
+                'RouteMatcher.exact("/promo") + dismissWhenUnmet:false',
+                () {
+                  openEntry(
+                    'cond-stay',
                     text: 'STAYS',
                     route: const RouteMatcher.exact('/promo'),
                     dismissWhenUnmet: false,
-                    hint: 'route:/promo but dismissWhenUnmet:false\n'
-                        'Navigating away does NOT auto-close this');
-              }),
+                    hint: 'RouteMatcher.exact("/promo"), dismissWhenUnmet:false\n'
+                        'Navigating away does NOT auto-close this',
+                  );
+                },
+              ),
             ],
-            subtitle:
-                'Normally leaving /promo dismisses the card. '
+            subtitle: 'Normally leaving /promo dismisses the card. '
                 'With dismissWhenUnmet: false it stays until manually closed.',
           ),
           pageSection(
@@ -185,7 +225,7 @@ class _PromoPage extends StatelessWidget {
         appBar: AppBar(title: const Text('/promo')),
         body: const Center(
           child: Text(
-            '/promo page\n\nCondition overlays with route: "/promo"\nare eligible here.\n\nPop back to trigger dismissWhenUnmet.',
+            '/promo page\n\nOverlays with RouteMatcher.exact("/promo")\nare eligible here.\n\nPop back to trigger dismissWhenUnmet.',
             textAlign: TextAlign.center,
           ),
         ),

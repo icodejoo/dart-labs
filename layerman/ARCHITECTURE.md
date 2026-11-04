@@ -35,6 +35,9 @@ test/fuzz_invariants_test.dart          随机序列不变量与 dismiss 去重�
 test/observer_filter_test.dart          PageRoute 过滤与 contextKey
 test/route_managers_test.dart           Route presenter 定向关闭与配置
 test/lifecycle_binding_test.dart        生命周期暂停绑定
+test/review_fixes_test.dart             评审修复，25 条纯逻辑回归
+test/review_route_fixes_test.dart       内部历史与帧后容量，3 条组件回归
+test/support/headless_backend.dart      完全重复的无界面后端与异步排空辅助
 example/                                Android / Windows 示例与手机集成测试
 ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 ```
@@ -54,7 +57,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 全部在 `Layerman` 实例内：
 
 - `_slots`：`Map<String, _Slot>`，默认槽位名 `''`。每个 `_Slot` 含 `active`（0 或 1 个占位者）、
-  `queue`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`、同 id 优先接管 `takeover`、确实等待跨槽解除的 `waitingUnblock`。
+  `queue`、延迟属主 `delayOwner`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`、同 id 优先接管 `takeover`、确实等待跨槽解除的 `waitingUnblock`。
 - `_overlaps`：`mode: OverlayMode.overlap` 的并发栈，不占串行 active，但计入 blockedBy 占用。
 - `_pendingOverlaps`：暂停期间、等待冷却存储 hydrate 或被 blockedBy 阻塞时被挂起的 overlap。
 - `_delayedOverlaps`：等待独立 `overlapDelayTimer` 的 overlap，不占串行槽位。
@@ -114,7 +117,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 结果只交付一次：`_settle` 用 `settled` 标记保证 `open()` 的 Future 只完成一次，
 `close` 的结果或后端 dismissed 的值先到者生效，之后的移除不会覆盖首次值与原因。`_settle(e, result, reason)` 必须带原因，
-首次兑现同时完成 `result` / `outcome` 并发 `ended`；不代表退场动画已经结束。关闭超时也不改写首次原因。
+首次兑现同时完成 `result` / `outcome` 并发 `ended`（present 同步结束时延至 shown 后发布）；不代表退场动画已经结束。关闭超时也不改写首次原因。
 
 `OverlayRecord.phase` 是 `OverlayPhase` 枚举：`pending` / `resolving` / `open` / `closing`，不再暴露字符串。
 `mode` 默认 `OverlayMode.queue`，可选 `replace` / `overlap`；二者不能组合，`affix` 独立。
@@ -160,6 +163,9 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 `gapTimer`，到期再调度。条目自己的 `delay` 在它出场前再等一次，overlap 也遵守 `delay`：先进入 `_delayedOverlaps` 等待，
 到点移出后执行一次性资格判定；remove / clear / 同 id 重开 / dispose 均取消等待。
 
+串行 delay 属主离开队列的所有路径均取消计时器，在同一操作的批次末尾重调度该槽；
+暂停或 build 时沿用恢复或帧后路径。到期清空属主后重新判定资格。
+
 ### 5.5 replace 抢占
 
 `open(mode: OverlayMode.replace)` 仅当自身满足资格、管理器未暂停且本 slot 未被 blockedBy 阻塞时才抢占；当前项 `affix` 则不抢占，
@@ -175,13 +181,14 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 若仍在同一串行槽、未暂停且合格，新项直接 `_activate` 接管，不让更高优先级排队项抢走。
 若被阻塞或在 build 期间，合格且未暂停的同槽新项由 `takeover` 保留接管权，解除后先于其他排队项。
 跨槽或转 overlap 时原槽重调度；不满足接管条件时正常排队。
-复用一个仍排队的 id：覆盖旧排队项。`affix` 不拦同 id 重开。
+复用一个仍排队的 id：覆盖旧排队项，取消旧属主 delay，新项按自己的 delay 重新计时。`affix` 不拦同 id 重开。
 
 ### 5.7 排队期限与容量
 
 `expireAfter` 提交时起 `queueTimer`，只适用于激活前串行等待（含暂停），激活取消；
-到期移除并给出 queueExpired。`maxQueued` 必须正数，只计算等待项，入队后超限淘汰
-有序队尾（queueFull），可能淘汰本次提交。`OverlaySlotOptions.gap` 覆盖全局间隔。
+到期移除并给出 queueExpired。`maxQueued` 必须正数，只计算等待项，激活判定后仍超限则淘汰
+有序队尾（queueFull），可能淘汰本次提交。容量在提交的接管、抢占、调度完成后检查；
+build 时推迟到帧后调度之后。等 gap / delay / 条件 / 冷却 / blockedBy 的条目仍计数。`OverlaySlotOptions.gap` 覆盖全局间隔。
 
 ### 5.8 跨 slot 阻塞
 
@@ -197,6 +204,8 @@ gap、appear delay、cooldown 等待、排队、等待中的 overlap 都不算�
 解除由最外层批次末尾的 `_releaseUnblocked` 处理，见 13.1。
 
 ## 6. 两阶段关闭
+
+close / dismiss 只作用于 open 条目；排队中、解析中的条目不受影响，取消请用 remove。
 
 ```text
 close(id, result)
@@ -240,12 +249,12 @@ final f = layerman.open<bool>(
 ```
 
 - `PresentContext<T>`：`id`、`slot`、`data`、`dataListenable`。后者为实时 `ValueListenable<Object?>`，
-  `update` Map 浅合并或替换后通知；`OverlayTicket.data` 为同一通道。条目结束不 dispose 通道，
+  `update` Map 浅合并或替换后通知；当前数据及 patch 均为字符串键 Map 时保留 Map<String, Object?> 类型；`OverlayTicket.data` 为同一通道。条目结束不 dispose 通道，
   以便后端退场时仍可解除监听；后端自行移除其注册的监听者。`data` 是 present 那一刻的**快照**（`resolve` 之后的值）。
 - `PresentedOverlay.dismissed`：必须覆盖**所有**关闭路径（点击、蒙层、返回键、超时、程序关闭）；
   它的值成为 `open()` 的结果。出错按 `null` 处理。
 - `PresentedOverlay.dismiss`：编排器驱动的关闭，必须**定点**关这一个（保存的 Route 对象：在栈顶就 `pop`，
-  被盖住就 `removeRoute`；`SnackbarController.close()`；`bot_toast` 的 `CancelFunc`），不能「弹栈顶」。
+  被盖住或带内部历史就 `removeRoute`；`SnackbarController.close()`；`bot_toast` 的 `CancelFunc`），不能「弹栈顶」。
   按路由名 `popUntil` 在目标不在栈顶时什么也不做，会导致关闭失效；0.3.0 看门狗能释放槽位，但不能保证该后端 UI 已移除。
   传 `null` 则编排器无法抢占它，`close` 只把它从队列摘掉，后端自管生命周期。
 - 后端异常隔离：`present` 同步抛异常则上报、丢弃条目（结果 `null`、不记冷却）、队列继续；
@@ -258,8 +267,8 @@ final f = layerman.open<bool>(
 
 `route_managers.dart` 提供可全局复用的 `DialogManager` / `BottomSheetManager`，只保存配置。
 `presentRoute<T>(NavigatorState navigator, TransitionRoute<T> route)` 推入并保留 Route，
-`dismissed` 使用 completed，栈顶 pop(result)，被覆盖则 removeRoute(route)。后者不传 result，
-兼容 Flutter 3.27；直接关闭句柄的被覆盖路由结果 null，manager.close 已先交付指定结果。
+`dismissed` 使用 completed，栈顶且无内部历史时 pop(result)，否则 removeRoute(route)。后者不传 result，
+兼容 Flutter 3.27；直接关闭句柄的被覆盖或带内部历史的路由结果 null，manager.close 已先交付指定结果。
 builder close 总是经 ctx.close 走守卫；返回键、遮罩等始终走后端路径。
 
 `PresentContext<T>.close([T? result])` 绑定本次提交的 `_Entry` 身份，先确认仍是当前且
@@ -267,6 +276,9 @@ builder close 总是经 ctx.close 走守卫；返回键、遮罩等始终走后�
 BottomSheetManager 的 builder close 直接使用 ctx.close，不再接受 manager 参数。
 present 内同步 close 时，返回后的后端句柄仍须清理，且不能启动 duration。
 后端自行 dismissed 进入 exitDuration 宽限时立即取消 duration。
+事件按每次提交 queued → shown → ended 排列；present 同步结束先暂存 ended，成功后在 shown 后发布。
+present 抛错没有 shown，按 failed 结束；嵌套展示使用管理器级集合和映射跟踪，不增加 _Entry 布尔。
+resolve 写数据会同步通知监听者，写完须重查销毁、当前身份和 resolving 阶段，否则不展示、不计数。
 
 ## 8. 条件与上下文
 
@@ -282,6 +294,9 @@ present 内同步 close 时，返回后的后端句柄仍须清理，且不能�
 `auth` / `when` 收到缓存的不可变上下文视图，每次 `setContext` 后失效重建。`currentRoute` 读回 `_context['route']`。
 
 `auth` / `when` 抛异常视为不满足，并上报（每个条目只报一次）。
+when / auth / clearWhere 的 test 求值期间，所有修改入口在任何状态变化前抛出
+StateError（“判断函数内不能修改 Layerman”），包括票据、PresentContext.close、hold.release、dispose。
+只读 getter 允许使用；clearWhere 的 test 异常向外传播，hold 被拒绝释放时仍保持可释放。
 
 ### 8.1 类型化路由匹配
 
@@ -306,10 +321,14 @@ present 内同步 close 时，返回后的后端句柄仍须清理，且不能�
   `storageKey`（默认 `layerman:cooldown`）下存**一个** JSON 字符串，按 id 分记录。
   默认 `MemoryCooldownStorage`，真实应用接 `shared_preferences` 一类的实现（主包不依赖）。
 - hydrate：构造时触发读取；完成前所有带 cooldown 的条目自动等待（含 session-only / 空配置）（见 5.2），完成后统一重调度，
-  `ready()` 在重调度之后完成，所以 open 前不必先 await。存储损坏或不可用时上报并退化为空计数。
+  `ready()` 在重调度之后完成，所以 open 前不必先 await。整个 JSON 无法解析或存储不可用时上报并退化为空计数。
+  单条记录解析失败只上报并跳过该条，其原始值保存在 _unparsed 中，写回时原样带回（同 id 已有有效记录时以有效记录为准），
+  仅 resetCooldown(id) / clearCooldowns() 删除；其余有效记录正常合并。
   hydrate 与已有计数**合并**而非覆盖；写入串行化（同一时刻最多一次在途写入，结束后补写最新快照），
   失败会上报，不影响调度。
 - 构造参数 `clock` 注入同源时间与计时器，便于测试。
+- 日 / 小时 / 分钟桶键与下次边界统一使用 now.toLocal()，兼容已有系统时钟桶；
+  minGap 和抑制仍按 Unix 毫秒计算。
 
 ### 9.1 查询与重置
 
@@ -402,8 +421,9 @@ suppressed > capped > dropped；`_admitOverlap` 的条件失败路径直接给 d
 | `PresentedOverlay.dismissed` | 报错按 `null` 结果处理 |
 | `resolve` | 视为返回 `null`，跳过该条目，不记冷却 |
 | `beforeClose` | 抛异常或返回的 Future 出错：取消本次关闭 |
-| `auth` / `when` | 视为不满足，上报（每个条目一次） |
-| `OverlayCooldownStorage` | 读失败上报并退化为空计数；写失败上报，不影响调度 |
+| `auth` / `when` | 修改重入先抛 StateError；所有异常视为不满足，每条目上报一次 |
+| `clearWhere` test | 修改重入先抛 StateError；异常向调用方传播 |
+| `OverlayCooldownStorage` | 整体读失败上报并退化为空计数；单条损坏隔离上报且保留原值；写失败上报，不影响调度 |
 | resolve 超时 | 默认 30 秒，上报 TimeoutException；按 skipped 跳过且不计冷却，晚到结果忽略 |
 | dismiss 超时 | 默认 10 秒，上报 TimeoutException 并释放槽位；首次结果/原因保留 |
 | `pathOf` | 上报，该路由按 `null` 处理 |
@@ -414,7 +434,8 @@ suppressed > capped > dropped；`_admitOverlap` 的条件失败路径直接给 d
 Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超时不取消底层 Future。
 
 `dispose` 之后：`open` 在 debug 下断言，release 下返回 `null` 且不 present；
-其余写操作为无操作。
+其余写操作为无操作。销毁开始即置 _disposing，清理现有项时仍发 disposed 结束事件；
+后端 dismiss 同步重入 open / submit 立即以 disposed 结算，不进入任何容器，也不触发销毁后断言。
 
 ## 13. 扩展点
 
@@ -430,7 +451,7 @@ Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超
 
 公开操作、票据关闭/移除及异步状态续体进入 `_batch`，嵌套调用增加 `_batchDepth`；
 内部状态变更统一调用 `_notify`，批次内只设置 `_notifyPending`。最外层结束先调用
-`_releaseUnblocked`，再回收空槽，再在 assert 中调用 `debugCheckInvariants()`，最后统一通知。
+delay 属主取消后的槽位调度、`_releaseUnblocked` 及容量检查，循环至无待调度槽位，再回收空槽，再在 assert 中调用 `debugCheckInvariants()`，最后统一通知。
 所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
 异步续体各自是独立批次；`dataListenable` 的同步值通知和 `events` 的异步广播不受此合并限制。
 
@@ -462,6 +483,8 @@ build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-f
   且该槽不在 `_deferredSlots` 中，则视为解除后漏调度。
 - (k) `_pendingOverlaps` 中，若未暂停、不在 build、无 `_releasePending`、slot 不受阻，
   且 `_hydrationApplied` 为真或条目不带 cooldown，则视为可释放却漏释放。
+
+- (l) delayTimer 非空时，delayOwner 必须仍在该槽的队列内。
 
 ### 13.2 slot 回收与标签
 

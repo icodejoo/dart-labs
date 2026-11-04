@@ -18,7 +18,7 @@ Present<T> dialog<T>(Widget child) => (ctx) {
         dismiss: ([r]) async {
           final nav = route.navigator;
           if (nav == null || !route.isActive) return;
-          if (route.isCurrent) {
+          if (route.isCurrent && !route.willHandlePopInternally) {
             nav.pop(r); // 栈顶：播放退场动画
           } else {
             nav.removeRoute(route); // 被其它路由盖住：只移除这一条
@@ -70,7 +70,7 @@ Present<void> checkout() => (ctx) {
         dismiss: ([_]) async {
           final nav = route.navigator;
           if (nav == null || !route.isActive) return;
-          if (route.isCurrent) {
+          if (route.isCurrent && !route.willHandlePopInternally) {
             nav.pop();
           } else {
             nav.removeRoute(route);
@@ -228,7 +228,7 @@ void main() {
           dismiss: ([r]) async {
             final nav = route.navigator;
             if (nav == null || !route.isActive) return;
-            if (route.isCurrent) {
+            if (route.isCurrent && !route.willHandlePopInternally) {
               nav.pop(r);
             } else {
               nav.removeRoute(route);

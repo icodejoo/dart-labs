@@ -7,6 +7,7 @@ import '../manager.dart';
 class OmStateBar extends StatelessWidget {
   const OmStateBar({super.key});
 
+  /// 随管理器通知刷新路由、暂停状态及条目标识。
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -33,10 +34,8 @@ class OmStateBar extends StatelessWidget {
                   const Text('⏸ PAUSED',
                       style: TextStyle(
                           color: Colors.orange, fontWeight: FontWeight.bold)),
-                Text(
-                    'active: [${active.isEmpty ? "" : active.join(", ")}]'),
-                Text(
-                    'queued: [${queued.isEmpty ? "" : queued.join(", ")}]'),
+                Text('active: [${active.join(", ")}]'),
+                Text('queued: [${queued.join(", ")}]'),
               ],
             ),
           ),

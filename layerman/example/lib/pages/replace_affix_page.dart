@@ -13,12 +13,15 @@ class ReplaceAffixPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pageHeader(context, 'Replace & Affix',
-              'mode: OverlayMode.replace preempts the current overlay of a slot and shows '
-              'immediately. The preempted overlay is CLOSED (result null) — a '
-              'dismissed backend cannot be faithfully re-presented, so it never '
-              'comes back. affix: true protects an overlay from being preempted — '
-              'replace requests queue behind it instead.'),
+          pageHeader(
+            context,
+            'Replace & Affix',
+            'mode: OverlayMode.replace preempts the current overlay of a slot and shows '
+                'immediately. The preempted overlay is CLOSED (result null) — a '
+                'dismissed backend cannot be faithfully re-presented, so it never '
+                'comes back. affix: true protects an overlay from being preempted — '
+                'replace requests queue behind it instead.',
+          ),
           pageSection(
             context,
             'replace — preempt and close the current overlay',
@@ -35,7 +38,8 @@ class ReplaceAffixPage extends StatelessWidget {
                         'r2',
                         text: 'R2',
                         mode: OverlayMode.replace,
-                        hint: 'R2 preempted R1.\nClosing me does NOT bring R1 back.',
+                        hint:
+                            'R2 preempted R1.\nClosing me does NOT bring R1 back.',
                       ),
                       child: const Text('replace with R2'),
                     ),
@@ -52,16 +56,25 @@ class ReplaceAffixPage extends StatelessWidget {
             'replace + priority — replacer sorts correctly',
             [
               demoButton(
-                  'btn-replace-prio', 'queue A (prio 0) → replace with B (prio 5)',
-                  () {
-                openCard('ra',
+                'btn-replace-prio',
+                'queue A (prio 0) → replace with B (prio 5)',
+                () {
+                  openCard(
+                    'ra',
                     text: 'A prio=0',
                     priority: 0,
-                    hint: 'B will preempt and close me — I do not come back');
-                openCard('rb',
-                    text: 'B replace prio=5', mode: OverlayMode.replace, priority: 5,
-                    hint: 'I preempted A. Closing me advances the queue, not A.');
-              }),
+                    hint: 'B will preempt and close me — I do not come back',
+                  );
+                  openCard(
+                    'rb',
+                    text: 'B replace prio=5',
+                    mode: OverlayMode.replace,
+                    priority: 5,
+                    hint:
+                        'I preempted A. Closing me advances the queue, not A.',
+                  );
+                },
+              ),
             ],
           ),
           pageSection(
@@ -88,8 +101,7 @@ class ReplaceAffixPage extends StatelessWidget {
                 );
               }),
             ],
-            subtitle:
-                'affix: true → replace only queues at the front band; '
+            subtitle: 'affix: true → replace only queues at the front band; '
                 'the current overlay is not displaced. '
                 'Duplicate-id self-update still works (not blocked by affix).',
           ),
@@ -98,42 +110,37 @@ class ReplaceAffixPage extends StatelessWidget {
             'affix + self-update (not blocked)',
             [
               demoButton('btn-affix-update', 'open affix overlay', () {
-                _affixN.value = 0;
                 om.open(
                   id: 'afix-upd',
+                  data: const {'n': 0},
                   affix: true,
                   // presentEntry (non-modal): btn-affix-update-n lives on this
                   // SAME page and a modal card would block it.
                   present: (ctx) => presentEntry(
-                    (close) => ValueListenableBuilder<int>(
-                      valueListenable: _affixN,
-                      builder: (context, n, _) =>
-                          buildCard('FIX n=$n', close, hint: 'affix but update() still works'),
+                    (close) => ValueListenableBuilder<Object?>(
+                      // affix 只防抢占，不影响实时数据更新。
+                      valueListenable: ctx.dataListenable,
+                      builder: (context, data, _) => buildCard(
+                        'FIX n=${(data as Map)['n']}',
+                        close,
+                        hint: 'affix but update() still works',
+                      ),
                     ),
                   ),
                 );
               }),
               demoButton('btn-affix-update-n', 'update n (current second)', () {
-                _affixN.value = DateTime.now().second;
-                om.update('afix-upd', <String, Object?>{'n': _affixN.value});
+                om.update('afix-upd', <String, Object?>{
+                  'n': DateTime.now().second,
+                });
               }),
             ],
             subtitle:
-                // The manager stores `data` for `resolve`/`PresentContext` only —
-                // it has no public "read current data" API once presented, so the
-                // card mirrors the live value through its own ValueNotifier
-                // (_affixN) while still calling om.update() to exercise the API.
-                '_affixN drives the visible text; om.update() is called alongside it '
-                'to demonstrate the call site.',
+                'ctx.dataListenable drives the visible text from manager data. '
+                'affix does not block update(id, patch).',
           ),
         ],
       ),
     );
   }
 }
-
-/// Local live-update source for the "affix + self-update" demo card — the
-/// headless manager has no public way to read an entry's current `data` back
-/// out once it is presented, so this mirrors what `om.update('afix-upd', ...)`
-/// writes so the card can rebuild.
-final ValueNotifier<int> _affixN = ValueNotifier<int>(0);

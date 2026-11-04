@@ -31,6 +31,17 @@
 
 **Fixed**
 
+* Reject mutations during when/auth/clearWhere tests before state changes; preserve holds on rejected release.
+* Settle reentrant submissions during dispose as disposed without entering containers.
+* Bind serial delay to its queued owner and reschedule when it leaves; enforce maxQueued after activation, including build deferral.
+* Revalidate resolve data after synchronous listeners; preserve string-keyed Map types on update.
+* Use local calendar buckets with UTC clocks; isolate and preserve malformed cooldown records
+  (a valid record written later for the same id replaces the malformed one).
+* Keep queued → shown → ended ordering when present synchronously ends; failed presentation has no shown.
+* Remove routes with internal history instead of consuming a LocalHistoryEntry; retain Flutter 3.27 compatibility.
+* Clarify delay, targeted dismiss and open-only close/dismiss contracts; document all lib declarations in Chinese.
+* Example: fix the Pause page, ShadSheet, toast inspector and update demos; card close buttons
+  go through `ctx.close` and keep their exit animation; refresh stale guidance.
 * Complete the 0.3.0 exhausted-cap behavior: serial entries already blocked by
   session/total settle as `capped` at submission and after hydration, even with
   an occupied slot or while paused; they no longer wait for a scheduling scan.

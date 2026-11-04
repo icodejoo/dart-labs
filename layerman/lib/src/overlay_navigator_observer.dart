@@ -74,11 +74,8 @@ class LayermanNavigatorObserver extends NavigatorObserver {
       if (manager.isDisposed) return;
       manager.setContext({contextKey: path});
     });
-    // A post-frame callback only fires once a frame actually runs. Navigation
-    // itself usually schedules one (the incoming/outgoing route's transition
-    // animation), but don't rely on that: without this, a route change that
-    // happens to coincide with an otherwise-idle frame (nothing else dirty)
-    // could leave the callback pending indefinitely.
+    // 帧后回调只有在实际运行帧后才触发。导航动画通常会请求帧，
+    // 但空闲时不能依赖动画，否则回调可能一直挂起。
     WidgetsBinding.instance.scheduleFrame();
   }
 }

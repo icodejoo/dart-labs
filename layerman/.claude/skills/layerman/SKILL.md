@@ -39,7 +39,7 @@ route observation: `overlay_navigator_observer.dart`; official presenters:
 The core uses foundation and scheduler; adapters own widgets/Material dependencies.
 `ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 1.0.0.
 
-Test inventory (2026-11-04, 1.0.0 with suppress / blockedBy): 841 tests in total.
+Test inventory (2026-11-04, 1.0.0 with suppress / blockedBy): 869 tests in total (841 existing + 28 review regressions).
 
 | File under `test/` | Tests | Coverage |
 | --- | ---: | --- |
@@ -59,9 +59,12 @@ Test inventory (2026-11-04, 1.0.0 with suppress / blockedBy): 841 tests in total
 | `lifecycle_binding_test.dart` | 6 | Lifecycle holds |
 | `suppress_test.dart` | 31 | Result-based suppression and hydration |
 | `blocked_by_test.dart` | 28 | Cross-slot blocking and batch release |
+| `review_fixes_test.dart` | 25 | Predicate mutation guards, dispose reentry, delay ownership, resolve reentry, capacity, Map types, local buckets, malformed records, event order, open-only close |
+| `review_route_fixes_test.dart` | 3 | Internal route history and build-deferred capacity |
+| `support/headless_backend.dart` | — | Shared identical headless backend and async flush helpers |
 
-Unit acceptance total: 841 on Flutter 3.47.0; minimum Flutter 3.27.4 acceptance total: 841.
-Phone integration (`example/integration_test/orchestration_test.dart`): 38 tests (33 existing + 5 for suppress / blockedBy) on Huawei STG-AL00 / Android 12, serial 7NQBB23606003715.
+Unit acceptance total: 869 on Flutter 3.47.0 (this review); minimum Flutter 3.27.4 historical acceptance total: 841 (new regressions not rerun there).
+Phone integration (`example/integration_test/orchestration_test.dart`): 41 tests (33 existing + 5 for suppress / blockedBy + 3 review regressions for the Pause page, ShadSheet and toast dismissal) on Huawei STG-AL00 / Android 12, serial 7NQBB23606003715.
 The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended seeds (slow/failing hydrate, build-phase open, cooldown reset, tags, overlap delay, auth, ctx.close, suppress); the random-operation seeds also draw blockedBy one-way / chain / cycle configs from an independent RNG and deterministic regressions; nothing is skipped.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
@@ -260,7 +263,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
     timer callbacks.
 21. **After `dispose()`**: `open()` asserts (debug) / returns `null` without presenting
     (release); every other public mutator is a silent no-op (async callbacks after an app
-    restart are legitimate). `dispose()` itself must clear entries with disposed reason BEFORE setting `_disposed`.
+    restart are legitimate). `dispose()` marks `_disposing` BEFORE invoking backend cleanup; reentrant open/submit settles disposed without entering containers or triggering the after-dispose assertion. Other mutators do nothing during disposal. Existing entries still clear with disposed reason before `_disposed` is set.
 
 22. **Permanently capped serial entries must settle, not wait forever.**
     Submission, hydration queue cleanup and `_schedule` use `_CooldownStore.permanentlyBlocked`; hydrate gating must precede
@@ -286,10 +289,10 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
     or deferred update; accepted routes write contextKey (default route). Built-in route
     gates and pauseOnRoutes still read route only; nested keys use when predicates.
 29. **Never pass a result to `removeRoute` at the Flutter 3.27 minimum.** That argument
-    requires 3.32; official presenters pop(result) on top, removeRoute(route) when covered.
+    requires 3.32; official presenters pop(result) only on top without internal history; otherwise removeRoute(route). Internal history follows the covered-route null-result rule.
     A covered direct handle dismissal has null result; manager.close already settled it.
 30. **Ordered queue insertion and capacity are scheduling contracts.** `_enqueue` preserves
-    replace/priority/FIFO; maxQueued evicts the ordered tail, excludes active entries;
+    replace/priority/FIFO; maxQueued evicts the ordered tail AFTER takeover/preemption/scheduling, excludes active entries; build also defers capacity until post-frame scheduling;
     expireAfter counts pre-activation serial waiting including pauses, ignores overlap.
 
 31. **批量通知只走 `_notify`。** 公开操作、票据关闭/移除和异步续体进入 `_batch`；
@@ -350,6 +353,22 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
 49. **不变量 (k)：持有 overlap 无漏释放。** pending overlap 未暂停、不在 build、无 `_releasePending`、
     slot 不受阻，且 `_hydrationApplied` 或无 cooldown 时，不能仍留在 `_pendingOverlaps`。
 
+50. **判断回调禁止修改。** when / auth / clearWhere test 执行期间，所有修改入口在任何写入前
+    抛 StateError（“判断函数内不能修改 Layerman”），包括票据、上下文关闭、hold.release、dispose。
+    条件异常每条目仅上报一次并视为不满足；clearWhere test 异常外传；只读 getter 可用。
+    hold 被拒绝释放后仍可正常释放，合法释放须在回调前置为已释放以防递归。
+51. **串行 delay 有属主。** delayTimer 非空 ⇒ delayOwner 仍在该槽队列（debug 不变量 l）。
+    所有离队路径取消属主计时器并登记本操作内重调度；同 id 排队覆盖按新 delay 重新计时。
+    到期清空属主；暂停/build 沿用恢复/帧后路径。
+52. **同步数据与展示回调重入。** resolve 写 data 后须再查销毁、当前身份、resolving，失效则
+    不 present、不计冷却、不发 shown。present 同步结束先暂存 ended，成功后 shown → ended，
+    抛错无 shown，仍按首次原因结束；管理器级集合支持嵌套，不增加 _Entry 布尔。
+53. **冷却日历与损坏记录。** day/hour/minute 桶键与边界统一 now.toLocal()，Unix 毫秒规则不变。
+    hydrate 逐条解析，损坏条目单独上报并保留原值，写回原样携带；同 id 写入有效记录后以有效记录为准（写回时有效记录覆盖原值），仅显式 reset/clear 删除。
+    整个 JSON 失败仍按旧规则上报并允许后续覆盖。
+54. **数据类型与关闭范围。** update 两侧均为 Map<String, Object?> 时保留字符串键类型，其他 Map
+    组合保持通用键。close/dismiss 只作用于 open；排队、解析中无操作，取消用 remove。
+
 ## 1.0.0 decisions
 
 路线 A 三步已完成：0.2.2 加固 → 0.3.0 增量 → 1.0 类型收口。
@@ -399,7 +418,7 @@ independently via this reasoning and via the `LayermanNavigatorObserver` design 
 2. Close only via the overlay's OWN handle: for routes, push and RETAIN the `Route` object
    (`DialogRoute` / `ModalBottomSheetRoute` / `MaterialPageRoute`, also on `Get.key.currentState!`
    for GetX — `Get.dialog` doesn't expose its route), use `route.completed` as `dismissed`, and
-   in `dismiss` `pop` it if `isCurrent`, else `removeRoute(route)` with NO result argument
+   in `dismiss` `pop` it if `isCurrent && !willHandlePopInternally`, else `removeRoute(route)` with NO result argument
    (`removeRoute`'s result param only exists since Flutter 3.32; min is 3.27). Name-based
    `popUntil`/`Get.until` silently does nothing when the route isn't topmost (e.g. under an
    overlap dialog) → incorrect adapter targeting; 0.3.0 now bounds the wait with dismissTimeout,

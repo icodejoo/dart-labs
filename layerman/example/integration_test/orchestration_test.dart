@@ -65,8 +65,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('mixed: native → GetX → bot_toast strictly one at a time',
-      (tester) async {
+  testWidgets('mixed: native → GetX → bot_toast strictly one at a time', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'External Presenters');
 
@@ -92,8 +93,9 @@ void main() {
     expect(app.om.queuedIds, isEmpty);
   });
 
-  testWidgets('serial ×3 advances the queue as each card is closed',
-      (tester) async {
+  testWidgets('serial ×3 advances the queue as each card is closed', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Queue Basics');
 
@@ -140,8 +142,9 @@ void main() {
     expect(app.om.queuedIds, isEmpty);
   });
 
-  testWidgets('affix: a replace launched from INSIDE FIX cannot cover it',
-      (tester) async {
+  testWidgets('affix: a replace launched from INSIDE FIX cannot cover it', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Replace & Affix');
 
@@ -163,8 +166,9 @@ void main() {
     await advance(tester);
   });
 
-  testWidgets('overlap: stack B from INSIDE A — both visible at once',
-      (tester) async {
+  testWidgets('overlap: stack B from INSIDE A — both visible at once', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Overlap');
 
@@ -187,8 +191,9 @@ void main() {
     await advance(tester);
   });
 
-  testWidgets('pauseAll freezes serial + overlaps; resumeAll releases',
-      (tester) async {
+  testWidgets('pauseAll freezes serial + overlaps; resumeAll releases', (
+    tester,
+  ) async {
     await boot(tester);
 
     await goTo(tester, 'Pause & Resume');
@@ -196,7 +201,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await goTo(tester, 'Replace & Affix');
-    await tester.tap(find.byKey(const Key('btn-replace-demo'))); // serial frozen
+    await tester.tap(
+      find.byKey(const Key('btn-replace-demo')),
+    ); // serial frozen
     await tester.pumpAndSettle();
 
     await goTo(tester, 'Overlap');
@@ -216,8 +223,9 @@ void main() {
     expect(find.text('B2'), findsOneWidget);
   });
 
-  testWidgets('programmatic: one card first, more enqueued seconds later',
-      (tester) async {
+  testWidgets('programmatic: one card first, more enqueued seconds later', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Queue Basics');
 
@@ -242,8 +250,9 @@ void main() {
     await advance(tester);
   });
 
-  testWidgets('two 2×2 groups; clearWhere removes exactly group A',
-      (tester) async {
+  testWidgets('two 2×2 groups; clearWhere removes exactly group A', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Overlap');
 
@@ -260,8 +269,7 @@ void main() {
     // instead (same class of issue as the pauseOnRoutes test's
     // btn-queue-in-zone). Call the manager directly instead, exactly what the
     // button's own onPressed does.
-    app.om.clearWhere(
-        (r) => r.data is Map && (r.data as Map)['group'] == 'a');
+    app.om.clearWhere((r) => r.data is Map && (r.data as Map)['group'] == 'a');
     await tester.pumpAndSettle();
     expect(find.text('A1'), findsNothing); // group A gone
     expect(find.text('A2'), findsNothing);
@@ -269,8 +277,9 @@ void main() {
     expect(find.text('B2'), findsOneWidget);
   });
 
-  testWidgets('conditions ride REAL navigation to /promo and back',
-      (tester) async {
+  testWidgets('conditions ride REAL navigation to /promo and back', (
+    tester,
+  ) async {
     await boot(tester);
     // Regression coverage for a real bug found in code review: MaterialApp's
     // implicit `home:` route reports as '/' (Flutter's own
@@ -281,7 +290,9 @@ void main() {
     expect(find.textContaining('route: /home'), findsOneWidget);
 
     await goTo(tester, 'Conditions');
-    await tester.tap(find.byKey(const Key('btn-cond-promo'))); // on /home: gated
+    await tester.tap(
+      find.byKey(const Key('btn-cond-promo')),
+    ); // on /home: gated
     await tester.pumpAndSettle();
     expect(find.text('ROUTE /promo'), findsNothing);
     expect(app.om.queuedIds, contains('cond-promo'));
@@ -296,48 +307,61 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
-    expect(find.text('ROUTE /promo'), findsNothing); // dismissWhenUnmet pulled it down
+    expect(
+      find.text('ROUTE /promo'),
+      findsNothing,
+    ); // dismissWhenUnmet pulled it down
     expect(app.om.activeIds, isEmpty);
     expect(app.om.currentRoute, '/home'); // back to the REAL '/home', not '/'
     expect(find.textContaining('route: /home'), findsOneWidget);
   });
 
   testWidgets(
-      'pauseOnRoutes: /zone auto-freezes the queue via LayermanNavigatorObserver '
-      '— zero manual setContext/pauseAll calls anywhere in app code',
-      (tester) async {
-    await boot(tester);
-    await goTo(tester, 'Pause & Resume');
+    'pauseOnRoutes: /zone auto-freezes the queue via LayermanNavigatorObserver '
+    '— zero manual setContext/pauseAll calls anywhere in app code',
+    (tester) async {
+      await boot(tester);
+      await goTo(tester, 'Pause & Resume');
 
-    await tester.tap(find.byKey(const Key('btn-queue-in-zone')));
-    await tester.pumpAndSettle();
-    expect(find.text('ZONE CARD'), findsOneWidget); // shows immediately on /home
+      await tester.tap(find.byKey(const Key('btn-queue-in-zone')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('ZONE CARD'),
+        findsOneWidget,
+      ); // shows immediately on /home
 
-    await tester.tap(find.text('close ZONE CARD'));
-    await advance(tester);
-    expect(app.om.activeIds, isEmpty);
+      await tester.tap(find.text('close ZONE CARD'));
+      await advance(tester);
+      expect(app.om.activeIds, isEmpty);
 
-    await tester.tap(find.byKey(const Key('btn-goto-zone')));
-    await tester.pumpAndSettle();
-    expect(find.text('/zone — no-overlay zone'), findsOneWidget); // real page covers HomePage
-    expect(app.om.isPaused, isTrue); // auto-frozen by entering /zone
+      await tester.tap(find.byKey(const Key('btn-goto-zone')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('/zone — no-overlay zone'),
+        findsOneWidget,
+      ); // real page covers HomePage
+      expect(app.om.isPaused, isTrue); // auto-frozen by entering /zone
 
-    // btn-queue-in-zone lives on the Pause page, now covered by the pushed
-    // /zone route — call the manager directly (equivalent effect, no UI
-    // needed) via the openCard helper re-exported by main.dart.
-    app.openCard('zone-card', text: 'ZONE CARD');
-    await tester.pumpAndSettle();
-    expect(find.text('ZONE CARD'), findsNothing); // queued, not shown while frozen
-    expect(app.om.queuedIds, contains('zone-card'));
+      // btn-queue-in-zone lives on the Pause page, now covered by the pushed
+      // /zone route — call the manager directly (equivalent effect, no UI
+      // needed) via the openCard helper re-exported by main.dart.
+      app.openCard('zone-card', text: 'ZONE CARD');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('ZONE CARD'),
+        findsNothing,
+      ); // queued, not shown while frozen
+      expect(app.om.queuedIds, contains('zone-card'));
 
-    await tester.pageBack(); // leave /zone
-    await tester.pumpAndSettle();
-    expect(app.om.isPaused, isFalse); // auto-resumed
-    expect(find.text('ZONE CARD'), findsOneWidget); // now shows
+      await tester.pageBack(); // leave /zone
+      await tester.pumpAndSettle();
+      expect(app.om.isPaused, isFalse); // auto-resumed
+      expect(find.text('ZONE CARD'), findsOneWidget); // now shows
 
-    app.om.close('zone-card');
-    await advance(tester);
-  });
+      app.om.close('zone-card');
+      await advance(tester);
+    },
+  );
 
   testWidgets('cooldown session=1 blocks the second show', (tester) async {
     await boot(tester);
@@ -356,8 +380,9 @@ void main() {
     expect(app.om.queuedIds, isNot(contains('cd-s'))); // 0.3.0：达到永久上限即丢弃。
   });
 
-  testWidgets('cooldown minGap=5s blocks, then AUTO-shows when it expires',
-      (tester) async {
+  testWidgets('cooldown minGap=5s blocks, then AUTO-shows when it expires', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Cooldown');
 
@@ -382,8 +407,9 @@ void main() {
     await advance(tester);
   });
 
-  testWidgets('resolve: fetches on grant, shows with backend data',
-      (tester) async {
+  testWidgets('resolve: fetches on grant, shows with backend data', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Lifecycle');
 
@@ -399,8 +425,9 @@ void main() {
     await advance(tester);
   });
 
-  testWidgets('beforeClose: locked per open, close vetoed until unlocked',
-      (tester) async {
+  testWidgets('beforeClose: locked per open, close vetoed until unlocked', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Lifecycle');
 
@@ -421,31 +448,98 @@ void main() {
     expect(find.textContaining('GUARD'), findsNothing);
   });
 
-  testWidgets('update(id, patch) live-updates the shown card', (tester) async {
+  testWidgets('update(id, patch) renders manager data through dataListenable', (
+    tester,
+  ) async {
     await boot(tester);
     await goTo(tester, 'Lifecycle');
 
-    await tester.tap(find.byKey(const Key('btn-upd-show')));
+    await tapVisible(tester, find.byKey(const Key('btn-upd-show')));
     await tester.pumpAndSettle();
     expect(find.text('n = 0'), findsOneWidget);
 
-    // The card text comes from a page-local notifier, so also prove the
-    // manager itself handled om.update(): it must notify its listeners.
-    var notified = 0;
-    void onChange() => notified++;
-    app.om.addListener(onChange);
-    await tester.tap(find.byKey(const Key('btn-update')));
+    await tapVisible(tester, find.byKey(const Key('btn-update')));
     await tester.pumpAndSettle();
-    app.om.removeListener(onChange);
-    expect(notified, greaterThan(0));
     expect(find.text('n = 1'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('btn-update')));
+    await tapVisible(tester, find.byKey(const Key('btn-update')));
     await tester.pumpAndSettle();
     expect(find.text('n = 2'), findsOneWidget);
 
-    await tester.tap(find.text('close n = 2'));
+    // 绕过页面计数器直接更新；只通知而不写入数据时必然失败。
+    app.om.update('upd', {'n': 37});
+    await tester.pumpAndSettle();
+    expect(find.text('n = 37'), findsOneWidget);
+    expect(find.text('n = 2'), findsNothing);
+    // 只合并其它字段时，管理器中的 n 必须保留。
+    app.om.update('upd', {'extra': 'merged!'});
+    await tester.pumpAndSettle();
+    expect(find.text('n = 37'), findsOneWidget);
+
+    await tapVisible(tester, find.text('close n = 37'));
     await advance(tester);
+  });
+
+  testWidgets('B2: pauseAll remains reachable while P1 is visible', (
+    tester,
+  ) async {
+    await boot(tester);
+    await goTo(tester, 'Pause & Resume');
+    await tapVisible(tester, find.byKey(const Key('btn-queue-3-for-pause')));
+    await tester.pumpAndSettle();
+    expect(find.text('P1'), findsOneWidget);
+    expect(app.om.queuedIds, containsAll(['p2', 'p3']));
+
+    // 真正点击页面按钮，验证非模态卡片不会挡住暂停操作。
+    await tapVisible(tester, find.byKey(const Key('btn-pause-all')));
+    await tester.pumpAndSettle();
+    expect(app.om.isPaused, isTrue);
+    await tapVisible(tester, find.text('close P1'));
+    await advance(tester);
+    expect(find.text('P1'), findsNothing);
+    expect(find.text('P2'), findsNothing);
+    expect(app.om.queuedIds, containsAll(['p2', 'p3']));
+
+    await tapVisible(tester, find.byKey(const Key('btn-resume-all')));
+    await advance(tester);
+    expect(find.text('P2'), findsOneWidget);
+    await tapVisible(tester, find.text('close P2'));
+    await advance(tester);
+    await tapVisible(tester, find.text('close P3'));
+    await advance(tester);
+  });
+
+  testWidgets('B3: removing ShadSheet before its first frame leaves no sheet', (
+    tester,
+  ) async {
+    await boot(tester);
+    await goTo(tester, 'Mixed UI Libraries');
+    await tapVisible(tester, find.byKey(const Key('btn-shad-sheet')));
+    // tapVisible 点击后不 pump，移除必须发生在 sheet 的 builder 执行前。
+    expect(app.om.activeIds, contains('shad-sheet'));
+    app.om.remove('shad-sheet');
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('layerman → showShadSheet'), findsNothing);
+    expect(app.om.activeIds, isNot(contains('shad-sheet')));
+  });
+
+  testWidgets('B4: manager close dismisses the PresentContext toast', (
+    tester,
+  ) async {
+    await boot(tester);
+    await goTo(tester, 'External Presenters');
+    await tapVisible(tester, find.byKey(const Key('btn-ctx-inspect')));
+    // 固定等待入场动画，避免等待完整自动关闭周期。
+    await tester.pump(const Duration(milliseconds: 300));
+    const message = 'ctx.id=ctx-insp  ctx.slot=inspect-slot';
+    expect(find.text(message), findsOneWidget);
+    app.om.close('ctx-insp');
+    // 跑完退场动画和随后的移除帧。toast 静止时没有排帧，pumpAndSettle 会立刻返回，
+    // 所以空 dismiss 等不到 3 秒自然超时，无法蒙混通过。
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsNothing);
+    expect(app.om.activeIds, isNot(contains('ctx-insp')));
   });
 
   testWidgets('restart rebuilds the app with a FRESH manager', (tester) async {
