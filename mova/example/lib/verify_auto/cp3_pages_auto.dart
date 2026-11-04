@@ -163,7 +163,9 @@ Future<void> runHeaders(Cp3Harness h) async {
               final valid = frame.image.width > 0 && frame.image.height > 0;
               frame.image.dispose();
               return valid;
-            } finally { codec.dispose(); }
+            } finally {
+              codec.dispose();
+            }
           } finally {
             await vtt.dispose();
           }

@@ -870,6 +870,8 @@ def main(argv=None):
         for row in rows:
             if row['status']=='BLOCKED':print(row['id']+': '+row['evidence'][:400])
         return 0
+    if args.only and 'cp3-full' in args.only.split(',') and args.baseline == BASELINE:
+        parser.error('cp3-full requires explicit --baseline CP0 ledger; historical default is not CP0')
     baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
     read_ledger(baseline)
     driver=Driver(args,manifest)

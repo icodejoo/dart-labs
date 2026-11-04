@@ -38,7 +38,10 @@ def main():
     p.add_argument('--timeout',type=int,default=900)
     args=p.parse_args()
     if not __import__('re').fullmatch(r'[A-Za-z0-9_.-]+',args.run_id) or args.runs<1:p.error('invalid run-id/runs')
+    expected_runs=60 if args.scene in ('precise-normal','precise-paused') else 160 if args.scene=='precise-cutover' else 10 if args.scene=='theme' else 5
+    if args.runs != expected_runs:p.error(f'{args.scene} requires --runs {expected_runs}')
     if args.scene.startswith('precise-'):
+        if args.build:p.error('precise requires shared suite: use run_matrix --only cp3-f3')
         from cp3_f3 import run
         return run(args)
     out=TOOL/'coverage_evidence'/('matrix-'+args.run_id);out.mkdir(exist_ok=True)

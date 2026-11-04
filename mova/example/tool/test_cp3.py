@@ -26,6 +26,32 @@ class Cp3Tests(unittest.TestCase):
         selected=select_batches(m,'cp3-f3')
         self.assertEqual([int(b['argv'][6]) for b in selected],[60,60,160])
         self.assertEqual(full[-3:],resolve(m,['cp3-f3']))
+    def test_cp2_cp3_build_and_service_previews(self):
+        import contextlib
+        import io
+        from unittest.mock import patch
+        import run_matrix as matrix
+        cases = [
+            ('cp2-adpaths', 'lib/main_cp2_suite_verify.dart', False),
+            ('cp2-rate', 'lib/main_coverage_suite.dart', True),
+            ('cp3-theme', 'lib/main_cp3_suite_verify.dart', False),
+            ('cp3-f3', 'lib/main_coverage_suite.dart', False),
+            ('cp2-adpaths,cp3-theme', 'lib/main_coverage_suite.dart', False),
+            ('cp2-rate,cp3-theme', 'lib/main_coverage_suite.dart', True),
+            ('cp2-rate,cp3-full', 'lib/main_coverage_suite.dart', True),
+            ('cp3-full', 'lib/main_coverage_suite.dart', True),
+        ]
+        for only, entry, sources in cases:
+            with self.subTest(only=only), patch.object(matrix, 'Driver', side_effect=AssertionError('offline only')):
+                output=io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(matrix.main(['--only',only,'--dry-run']),0)
+                text=output.getvalue()
+                self.assertIn(entry,text)
+                self.assertEqual('sources: ' in text,sources)
+                for batch in matrix.select_batches(json.loads(matrix.MANIFEST.read_text(encoding='utf-8')),only):
+                    self.assertIn(batch['id']+': ',text)
+
     def test_alias_cycle(self):
         with self.assertRaises(ValueError):resolve({'aliases':{'a':{'batches':['a']}}},['a'])
     def test_checks_reject_missing_duplicate_and_blocked(self):
