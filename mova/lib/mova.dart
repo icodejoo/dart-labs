@@ -134,3 +134,5 @@ export 'src/core/session/arbiter.dart' show MovaNodeFailVerdict;
 export 'src/core/capability.dart';
 
 export 'src/ui/chrome/chrome.dart' show MovaChrome;
+
+export 'src/ui/style/style.dart' show MovaPlayerStyle, MovaDanmakuStyle;

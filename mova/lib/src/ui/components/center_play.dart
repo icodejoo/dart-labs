@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -66,18 +68,22 @@ class MovaPlayPauseComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.playing,
       builder: (context, playing) {
         return Semantics(
           button: true,
-          label: playing ? '暂停' : '播放',
+          label: playing
+              ? MovaPlayerStyle.stringsOf(context).pause
+              : MovaPlayerStyle.stringsOf(context).play,
           child: Tooltip(
             // 持久小窗位于 Overlay 外时只保留按钮语义。
             message: Overlay.maybeOf(context) == null
                 ? ''
-                : (playing ? '暂停' : '播放'),
+                : (playing
+                      ? MovaPlayerStyle.stringsOf(context).pause
+                      : MovaPlayerStyle.stringsOf(context).play),
             excludeFromSemantics: true,
             child: Material(
               type: MaterialType.circle,

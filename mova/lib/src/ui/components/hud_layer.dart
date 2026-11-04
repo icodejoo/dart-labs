@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -196,7 +198,8 @@ class MovaZoomHudComponent extends MovaComponent {
         selector: (s) => s.zoom,
         builder: (context, zoom) => _HudBadge(
           api: api,
-          text: '${zoom.toStringAsFixed(1)}${api.options.strings.zoomSuffix}',
+          text:
+              '${zoom.toStringAsFixed(1)}${MovaPlayerStyle.stringsOf(context).zoomSuffix}',
         ),
       ),
     );
@@ -255,7 +258,7 @@ class _HudBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final color = Color(theme.textColor);
     return Center(
       child: Container(

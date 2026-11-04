@@ -196,8 +196,15 @@ class MovaChrome extends ChangeNotifier
 }
 
 /// 包内：更新视图的控制条配置。
-void movaSetChromeControls(MovaChrome chrome, MovaCtrlsConfig controls) =>
-    chrome._controls = controls;
+void movaSetChromeControls(MovaChrome chrome, MovaCtrlsConfig controls) {
+  if (chrome._controls == controls) return;
+  chrome._controls = controls;
+  final api = chrome._api;
+  if (chrome._autoHideTimer != null ||
+      (api is MovaUiBridge && (api as MovaUiBridge).uiReady)) {
+    chrome._armAutoHide();
+  }
+}
 
 /// 包内：绑定视图，种子只继承控制条显隐。
 void movaBindChrome(MovaChrome chrome, MovaApi api) => chrome._bind(api);

@@ -1,3 +1,6 @@
+import '../core/options/options.dart';
+import 'style/style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -44,6 +47,7 @@ class MovaPlayer extends StatefulWidget {
     required this.api,
     this.skin = const MovaDefaultSkin(),
     this.chrome,
+    this.style,
     this.autoLoadQualities = true,
     this.surface,
     this.fit,
@@ -60,6 +64,10 @@ class MovaPlayer extends StatefulWidget {
   /// 传入的实例由宿主销毁，同一时刻只能用于一个视图。
   /// 示例：`MovaPlayer(api: engine, chrome: chrome)`。
   final MovaChrome? chrome;
+
+  /// 本视图样式；未指定的节回落到主题扩展与旧配置。
+  /// 示例：`MovaPlayer(api: engine, style: MovaPlayerStyle())`。
+  final MovaPlayerStyle? style;
 
   /// Component tree provider.
   ///
@@ -134,6 +142,7 @@ class MovaPlayer extends StatefulWidget {
 ///
 /// [MovaPlayer] 的状态：缓存皮肤结构并持有当前视图的键盘焦点；播放状态仍来自 API。
 class _MovaPlayerState extends State<MovaPlayer> {
+  MovaCtrlsConfig _controls = const MovaCtrlsConfig();
   MovaChrome? _chrome;
   bool _ownsChrome = false;
   MovaUiPort get _ui => MovaUiPort.of(_chrome, widget.api);
@@ -143,7 +152,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
     _chrome = widget.chrome ?? (_ownsChrome ? MovaChrome() : null);
     final chrome = _chrome;
     if (chrome == null) return;
-    movaSetChromeControls(chrome, widget.api.options.controls);
+    movaSetChromeControls(chrome, _controls);
     movaBindChrome(chrome, widget.api);
   }
 
@@ -174,7 +183,6 @@ class _MovaPlayerState extends State<MovaPlayer> {
   @override
   void initState() {
     super.initState();
-    _attachChrome();
     _lifecycle = AppLifecycleListener(onStateChange: _onLifecycle);
     _components = widget.skin.components();
     // UI 自动入口也遵守引擎的自动探测总开关。
@@ -185,9 +193,22 @@ class _MovaPlayerState extends State<MovaPlayer> {
     _applyFit(apiChanged: true);
   }
 
+  void _resolveControls() {
+    _controls = movaResolveControls(context, widget.style, widget.api.options);
+    if (_chrome != null) movaSetChromeControls(_chrome!, _controls);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveControls();
+    if (_chrome == null) _attachChrome();
+  }
+
   @override
   void didUpdateWidget(MovaPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _resolveControls();
     if (!identical(oldWidget.chrome, widget.chrome) ||
         !identical(oldWidget.api, widget.api)) {
       final chrome = _chrome;
@@ -195,7 +216,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
           chrome != null &&
           (widget.chrome != null || widget.api is MovaUiBridge)) {
         movaUnbindChrome(chrome);
-        movaSetChromeControls(chrome, widget.api.options.controls);
+        movaSetChromeControls(chrome, _controls);
         movaBindChrome(chrome, widget.api);
       } else {
         _detachChrome();
@@ -258,7 +279,7 @@ class _MovaPlayerState extends State<MovaPlayer> {
     final editing =
         context?.findAncestorStateOfType<EditableTextState>() != null ||
         context?.widget is EditableText;
-    return widget.api.options.controls.shortcuts &&
+    return _controls.shortcuts &&
         !editing &&
         !state.locked &&
         !state.pip &&
@@ -315,150 +336,152 @@ class _MovaPlayerState extends State<MovaPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return MovaScope(
-      api: widget.api,
-      // The tree is static (components() no longer varies by state) — build it
-      // once here rather than rebuilding the whole tree on every state change;
-      // reactivity lives inside the components' own MovaSelects.
-      //
-      // 组件树是静态的（components() 不再随状态变化）——在此只构建一次，而非
-      // 每次状态变化都重建整棵树；响应式都在组件自身的 MovaSelect 里。
-      //
-      // Keyed by `widget.api`'s identity (regression fix): a handful of
-      // descendants (`_SeekBar`, the gesture layer, the preview bubble, the
-      // danmaku track) subscribe to `api`'s streams once in `initState`, not
-      // per rebuild. A host that swaps to a new `MovaApi`/engine instance while
-      // `MovaPlayer` stays mounted at the same tree position (e.g. switching
-      // sources by rebuilding with a fresh `createMovaEngine()`, exactly what
-      // this package's own example app does) — without this key — would have
-      // Flutter reuse those descendants' existing `State` objects rather than
-      // remounting them, since same-type-same-key(null) widgets update in
-      // place. Their old subscriptions would then point at the previous,
-      // now-disposed engine's closed streams forever, so e.g. the seek bar
-      // would freeze on the old engine's last position instead of following
-      // the new one. Keying by `api` forces a full remount — fresh
-      // `initState`s bound to the new instance — whenever the api reference
-      // actually changes.
-      //
-      // 按 `widget.api` 的身份做 key（回归修复）：少数后代（`_SeekBar`、手势层、
-      // 预览气泡、弹幕轨道）只在 `initState` 里订阅一次 `api` 的流，而非每次
-      // 重建都订阅。宿主若在 `MovaPlayer` 保持挂载于同一树位置的情况下换了一个
-      // 新的 `MovaApi`/引擎实例（例如换源时重新 `createMovaEngine()`——本包自己的
-      // example app 就是这么做的）——没有这个 key 的话，Flutter 会认为同类型、
-      // key 同为 null 的 widget 该原地更新，而非重新挂载这些后代，于是它们
-      // 旧的订阅会永远指向前一个、已经 dispose 的引擎的已关闭的流——进度条就
-      // 会卡在旧引擎的最后位置，而不会跟上新引擎。按 `api` 做 key，只要 api
-      // 引用真的变了就强制整棵子树重新挂载——所有 `initState` 都会用新实例
-      // 重新跑一遍。
-      child: MovaChromeScope(
-        chrome: _chrome,
-        child: MouseRegion(
-          onEnter: (_) => _showOnHover(),
-          onHover: (_) => _showOnHover(),
-          child: Shortcuts(
-            shortcuts: widget.api.options.controls.shortcuts
-                ? _playerShortcuts
-                : const {},
-            child: Actions(
-              actions: {
-                _PlayerIntent: _PlayerAction(
-                  _canHandleShortcut,
-                  (command) => unawaited(_runShortcut(command)),
-                ),
-              },
-              child: Focus(
-                focusNode: _shortcutFocus,
-                onFocusChange: (focused) {
-                  if (focused) _showOnHover();
+    return MovaStyleScope(
+      local: widget.style,
+      legacy: MovaStyleScope.maybeOf(context)?.legacy,
+      child: MovaScope(
+        api: widget.api,
+        // The tree is static (components() no longer varies by state) — build it
+        // once here rather than rebuilding the whole tree on every state change;
+        // reactivity lives inside the components' own MovaSelects.
+        //
+        // 组件树是静态的（components() 不再随状态变化）——在此只构建一次，而非
+        // 每次状态变化都重建整棵树；响应式都在组件自身的 MovaSelect 里。
+        //
+        // Keyed by `widget.api`'s identity (regression fix): a handful of
+        // descendants (`_SeekBar`, the gesture layer, the preview bubble, the
+        // danmaku track) subscribe to `api`'s streams once in `initState`, not
+        // per rebuild. A host that swaps to a new `MovaApi`/engine instance while
+        // `MovaPlayer` stays mounted at the same tree position (e.g. switching
+        // sources by rebuilding with a fresh `createMovaEngine()`, exactly what
+        // this package's own example app does) — without this key — would have
+        // Flutter reuse those descendants' existing `State` objects rather than
+        // remounting them, since same-type-same-key(null) widgets update in
+        // place. Their old subscriptions would then point at the previous,
+        // now-disposed engine's closed streams forever, so e.g. the seek bar
+        // would freeze on the old engine's last position instead of following
+        // the new one. Keying by `api` forces a full remount — fresh
+        // `initState`s bound to the new instance — whenever the api reference
+        // actually changes.
+        //
+        // 按 `widget.api` 的身份做 key（回归修复）：少数后代（`_SeekBar`、手势层、
+        // 预览气泡、弹幕轨道）只在 `initState` 里订阅一次 `api` 的流，而非每次
+        // 重建都订阅。宿主若在 `MovaPlayer` 保持挂载于同一树位置的情况下换了一个
+        // 新的 `MovaApi`/引擎实例（例如换源时重新 `createMovaEngine()`——本包自己的
+        // example app 就是这么做的）——没有这个 key 的话，Flutter 会认为同类型、
+        // key 同为 null 的 widget 该原地更新，而非重新挂载这些后代，于是它们
+        // 旧的订阅会永远指向前一个、已经 dispose 的引擎的已关闭的流——进度条就
+        // 会卡在旧引擎的最后位置，而不会跟上新引擎。按 `api` 做 key，只要 api
+        // 引用真的变了就强制整棵子树重新挂载——所有 `initState` 都会用新实例
+        // 重新跑一遍。
+        child: MovaChromeScope(
+          chrome: _chrome,
+          child: MouseRegion(
+            onEnter: (_) => _showOnHover(),
+            onHover: (_) => _showOnHover(),
+            child: Shortcuts(
+              shortcuts: _controls.shortcuts ? _playerShortcuts : const {},
+              child: Actions(
+                actions: {
+                  _PlayerIntent: _PlayerAction(
+                    _canHandleShortcut,
+                    (command) => unawaited(_runShortcut(command)),
+                  ),
                 },
-                canRequestFocus: widget.api.options.controls.shortcuts,
-                skipTraversal: !widget.api.options.controls.shortcuts,
-                child: Listener(
-                  onPointerDown: (_) {
-                    if (widget.api.options.controls.shortcuts) {
-                      _shortcutFocus.requestFocus();
-                    }
+                child: Focus(
+                  focusNode: _shortcutFocus,
+                  onFocusChange: (focused) {
+                    if (focused) _showOnHover();
                   },
-                  child: KeyedSubtree(
-                    key: ValueKey((widget.api, _chrome)),
-                    child: _skinTree ??= Builder(
-                      builder: (context) {
-                        final bundle = buildSlots(
-                          context,
-                          widget.api,
-                          _components,
-                        );
-                        final surface =
-                            widget.surface ?? const _RenderSurface();
-                        final poster = widget.poster;
-                        // The poster lives inside the `video` handed to the skin, so every
-                        // skin's chrome (spinner, error, bars) paints above it.
-                        //
-                        // 封面放在交给皮肤的 `video` 里面，因此所有皮肤的 chrome（转圈、错误层、
-                        // 控制条）都画在它之上。
-                        final video = poster == null
-                            ? surface
-                            : Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  surface,
-                                  MovaPosterLayer(
-                                    poster: poster,
-                                    fade: widget.posterFade,
-                                  ),
-                                ],
+                  canRequestFocus: _controls.shortcuts,
+                  skipTraversal: !_controls.shortcuts,
+                  child: Listener(
+                    onPointerDown: (_) {
+                      if (_controls.shortcuts) {
+                        _shortcutFocus.requestFocus();
+                      }
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey((widget.api, _chrome)),
+                      child: _skinTree ??= Builder(
+                        builder: (context) {
+                          final bundle = buildSlots(
+                            context,
+                            widget.api,
+                            _components,
+                          );
+                          final surface =
+                              widget.surface ?? const _RenderSurface();
+                          final poster = widget.poster;
+                          // The poster lives inside the `video` handed to the skin, so every
+                          // skin's chrome (spinner, error, bars) paints above it.
+                          //
+                          // 封面放在交给皮肤的 `video` 里面，因此所有皮肤的 chrome（转圈、错误层、
+                          // 控制条）都画在它之上。
+                          final video = poster == null
+                              ? surface
+                              : Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    surface,
+                                    MovaPosterLayer(
+                                      poster: poster,
+                                      fade: widget.posterFade,
+                                    ),
+                                  ],
+                                );
+                          final assembled = widget.skin.assemble(
+                            context,
+                            bundle,
+                            video,
+                          );
+                          // Publishes the video content's actual (letterboxed) display rect
+                          // to descendants of the assembled tree, so overlay components
+                          // (e.g. the STT subtitle) can align to the picture itself rather
+                          // than to the whole player box. Wraps the *whole* assembled tree
+                          // (playback + operable + persistent layers are Stack siblings —
+                          // see MovaDefaultSkin.assemble) so every layer shares the same
+                          // coordinate space as the video surface, which fills the same
+                          // constraints.
+                          //
+                          // 向已装配树的后代发布视频内容的实际（letterbox 后）显示矩形，使
+                          // 叠加层组件（如 STT 字幕）能对齐画面本身而非整个播放器容器。包裹
+                          // 的是*整棵*已装配树（播放层/操作层/常驻层是同一 Stack 的兄弟节点，
+                          // 见 MovaDefaultSkin.assemble），使每一层都与视频画面共享同一坐标
+                          // 系——两者填充的是同一份约束。
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              return MovaSelect<
+                                ({MovaFit fit, int width, int height})
+                              >(
+                                selector: (s) => (
+                                  fit: s.fit,
+                                  width: s.width,
+                                  height: s.height,
+                                ),
+                                builder: (context, value) {
+                                  final videoSize =
+                                      value.width > 0 && value.height > 0
+                                      ? Size(
+                                          value.width.toDouble(),
+                                          value.height.toDouble(),
+                                        )
+                                      : null;
+                                  final rect = computeVideoContentRect(
+                                    container: constraints.biggest,
+                                    videoSize: videoSize,
+                                    fit: value.fit,
+                                  );
+                                  return MovaVideoRectScope(
+                                    rect: rect,
+                                    child: assembled,
+                                  );
+                                },
                               );
-                        final assembled = widget.skin.assemble(
-                          context,
-                          bundle,
-                          video,
-                        );
-                        // Publishes the video content's actual (letterboxed) display rect
-                        // to descendants of the assembled tree, so overlay components
-                        // (e.g. the STT subtitle) can align to the picture itself rather
-                        // than to the whole player box. Wraps the *whole* assembled tree
-                        // (playback + operable + persistent layers are Stack siblings —
-                        // see MovaDefaultSkin.assemble) so every layer shares the same
-                        // coordinate space as the video surface, which fills the same
-                        // constraints.
-                        //
-                        // 向已装配树的后代发布视频内容的实际（letterbox 后）显示矩形，使
-                        // 叠加层组件（如 STT 字幕）能对齐画面本身而非整个播放器容器。包裹
-                        // 的是*整棵*已装配树（播放层/操作层/常驻层是同一 Stack 的兄弟节点，
-                        // 见 MovaDefaultSkin.assemble），使每一层都与视频画面共享同一坐标
-                        // 系——两者填充的是同一份约束。
-                        return LayoutBuilder(
-                          builder: (context, constraints) {
-                            return MovaSelect<
-                              ({MovaFit fit, int width, int height})
-                            >(
-                              selector: (s) => (
-                                fit: s.fit,
-                                width: s.width,
-                                height: s.height,
-                              ),
-                              builder: (context, value) {
-                                final videoSize =
-                                    value.width > 0 && value.height > 0
-                                    ? Size(
-                                        value.width.toDouble(),
-                                        value.height.toDouble(),
-                                      )
-                                    : null;
-                                final rect = computeVideoContentRect(
-                                  container: constraints.biggest,
-                                  videoSize: videoSize,
-                                  fit: value.fit,
-                                );
-                                return MovaVideoRectScope(
-                                  rect: rect,
-                                  child: assembled,
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
+                            },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),

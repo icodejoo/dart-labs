@@ -1,4 +1,6 @@
+import '../style/style.dart';
 import '../chrome/chrome.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -199,7 +201,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   Widget build(BuildContext context) {
     final at = _at;
     if (at == null) return const SizedBox.shrink();
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final width = widget.api.options.preview.frameWidth.toDouble();
     final crop = _thumb?.crop;
     final height = crop == null ? width * 9 / 16 : width * crop.h / crop.w;
@@ -284,7 +286,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   ///
   /// 返回带边框的图像 widget。
   Widget _frame(double width, double height, MovaThumbCrop? crop) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final thumb = _thumb;
     final border = Border.all(color: Color(theme.textColor), width: 1);
 

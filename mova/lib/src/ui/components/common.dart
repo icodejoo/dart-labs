@@ -1,3 +1,6 @@
+import '../../core/options/strings.dart';
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,12 +12,12 @@ import '../chrome/chrome.dart';
 /// Reusable with or without a player scope: it never reads MovaApi itself.
 /// Activation renews a nearby [MovaChrome]; appearance uses the given
 /// [MovaTheme] — the calling component is responsible for reading
-/// `api.options.theme` and passing it down.
+/// `MovaPlayerStyle.themeOf(context)` and passing it down.
 ///
 /// 控制条中通用的带主题小图标按钮。
 ///
 /// 可复用且不读取 MovaApi；播放器内激活时会续期交互态。主题使用传入的 [MovaTheme]，由
-/// 调用方组件负责读取 `api.options.theme` 并向下传递。
+/// 调用方组件负责读取 `MovaPlayerStyle.themeOf(context)` 并向下传递。
 class MovaIconButton extends StatefulWidget {
   /// The glyph to show.
   ///
@@ -72,7 +75,13 @@ class _MovaIconButtonState extends State<MovaIconButton> {
   /// 返回带语义、提示和 Enter/空格操作的按钮。
   @override
   Widget build(BuildContext context) {
-    final label = widget.label ?? _iconLabel(widget.icon, widget.caption);
+    final label =
+        widget.label ??
+        _iconLabel(
+          widget.icon,
+          widget.caption,
+          MovaPlayerStyle.stringsOf(context),
+        );
     final enabled = widget.onPressed != null;
     return Shortcuts(
       shortcuts: const {
@@ -146,22 +155,24 @@ class _MovaIconButtonState extends State<MovaIconButton> {
 }
 
 /// 按内置图标推导动作名，并附上可选的当前值文案。
-String _iconLabel(IconData icon, String? caption) {
+String _iconLabel(IconData icon, String? caption, MovaStrs strings) {
   final action = switch (icon) {
-    Icons.picture_in_picture_alt_rounded => '画中画',
-    Icons.high_quality_rounded => '清晰度',
-    Icons.aspect_ratio_rounded => '画面比例',
-    Icons.screen_rotation_rounded => '旋转屏幕',
-    Icons.fullscreen_rounded => '进入全屏',
-    Icons.fullscreen_exit_rounded => '退出全屏',
-    Icons.lock_open_rounded => '锁定控制',
-    Icons.lock_rounded => '解锁控制',
-    Icons.subtitles_rounded || Icons.subtitles_off_rounded => '字幕选择',
-    Icons.speed_rounded => '播放速度',
-    Icons.sync_rounded => '回到直播',
-    _ => '操作',
+    Icons.picture_in_picture_alt_rounded => strings.pip,
+    Icons.high_quality_rounded => strings.quality,
+    Icons.aspect_ratio_rounded => strings.aspectRatio,
+    Icons.screen_rotation_rounded => strings.rotate,
+    Icons.fullscreen_rounded => strings.enterFullscreen,
+    Icons.fullscreen_exit_rounded => strings.exitFullscreen,
+    Icons.lock_open_rounded => strings.lock,
+    Icons.lock_rounded => strings.unlock,
+    Icons.subtitles_rounded || Icons.subtitles_off_rounded => strings.subtitles,
+    Icons.speed_rounded => strings.speed,
+    Icons.sync_rounded => strings.backToLive,
+    _ => strings.action,
   };
-  return caption == null || caption.isEmpty ? action : '$action：$caption';
+  return caption == null || caption.isEmpty
+      ? action
+      : strings.labelWithValue(action, caption);
 }
 
 /// A translucent top/bottom gradient bar host that does not absorb pointer

@@ -1,6 +1,8 @@
+import '../style/style.dart';
 import '../../core/session/registry.dart';
 import '../../core/session/cursor.dart';
 import '../../core/session/timeline.dart' show MovaNodeId;
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -159,8 +161,8 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
   Widget build(BuildContext context) {
     final next = widget.controller.nextItem;
     if (!_visible || next == null) return const SizedBox.shrink();
-    final theme = widget.api.options.theme;
-    final strings = widget.api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return Align(
       alignment: Alignment.bottomRight,
       child: Padding(

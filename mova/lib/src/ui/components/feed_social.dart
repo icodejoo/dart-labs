@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -34,7 +36,13 @@ Widget _railAction({
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: Color(iconColor), size: size),
-        Text(count, style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize)),
+        Text(
+          count,
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.captionFontSize,
+          ),
+        ),
       ],
     ),
   );
@@ -99,11 +107,15 @@ class MovaSocialRailComponent extends MovaComponent {
 
   @override
   List<MovaComponent> get children => [
-        MovaAvatarComponent(item: item),
-        MovaLikeButtonComponent(controller: controller, index: index, likeNotifier: likeNotifier),
-        MovaCommentButtonComponent(item: item),
-        MovaShareButtonComponent(item: item),
-      ];
+    MovaAvatarComponent(item: item),
+    MovaLikeButtonComponent(
+      controller: controller,
+      index: index,
+      likeNotifier: likeNotifier,
+    ),
+    MovaCommentButtonComponent(item: item),
+    MovaShareButtonComponent(item: item),
+  ];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
@@ -111,7 +123,10 @@ class MovaSocialRailComponent extends MovaComponent {
       padding: const EdgeInsets.only(right: 8, bottom: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: [for (final c in children) Padding(padding: const EdgeInsets.only(top: 16), child: c)],
+        children: [
+          for (final c in children)
+            Padding(padding: const EdgeInsets.only(top: 16), child: c),
+        ],
       ),
     );
   }
@@ -149,7 +164,7 @@ class MovaAvatarComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final avatarUrl = item.avatarUrl;
     return GestureDetector(
       onTap: item.onAvatarTap,
@@ -160,12 +175,18 @@ class MovaAvatarComponent extends MovaComponent {
             radius: 22,
             backgroundColor: Color(theme.iconColor).withValues(alpha: 0.2),
             backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-            child: avatarUrl == null ? Icon(Icons.person_rounded, color: Color(theme.iconColor)) : null,
+            child: avatarUrl == null
+                ? Icon(Icons.person_rounded, color: Color(theme.iconColor))
+                : null,
           ),
           GestureDetector(
             onTap: item.onFollowTap,
             behavior: HitTestBehavior.opaque,
-            child: Icon(Icons.add_circle_rounded, color: Color(theme.accentColor), size: 20),
+            child: Icon(
+              Icons.add_circle_rounded,
+              color: Color(theme.accentColor),
+              size: 20,
+            ),
           ),
         ],
       ),
@@ -183,7 +204,11 @@ class MovaLikeButtonComponent extends MovaComponent {
   /// Creates the like-button leaf component.
   ///
   /// 创建点赞按钮叶子组件。
-  MovaLikeButtonComponent({required this.controller, required this.index, required this.likeNotifier});
+  MovaLikeButtonComponent({
+    required this.controller,
+    required this.index,
+    required this.likeNotifier,
+  });
 
   /// The feed controller owning local like state.
   ///
@@ -213,12 +238,14 @@ class MovaLikeButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return ValueListenableBuilder<({bool liked, int count})>(
       valueListenable: likeNotifier,
       builder: (context, value, _) {
         return _railAction(
-          icon: value.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          icon: value.liked
+              ? Icons.favorite_rounded
+              : Icons.favorite_border_rounded,
           iconColor: value.liked ? theme.accentColor : theme.iconColor,
           size: 32,
           count: '${value.count}',
@@ -259,7 +286,7 @@ class MovaCommentButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return _railAction(
       icon: Icons.chat_bubble_rounded,
       iconColor: theme.iconColor,
@@ -300,7 +327,7 @@ class MovaShareButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return _railAction(
       icon: Icons.reply_rounded,
       iconColor: theme.iconColor,
@@ -339,7 +366,7 @@ class MovaFeedInfoComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final author = item.authorName;
     final music = item.musicName;
     return Padding(
@@ -362,14 +389,21 @@ class MovaFeedInfoComponent extends MovaComponent {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.music_note_rounded, color: Color(theme.textColor), size: 14),
+                Icon(
+                  Icons.music_note_rounded,
+                  color: Color(theme.textColor),
+                  size: 14,
+                ),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     music,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize),
+                    style: TextStyle(
+                      color: Color(theme.textColor),
+                      fontSize: theme.captionFontSize,
+                    ),
                   ),
                 ),
               ],

@@ -1379,3 +1379,17 @@ CHANGELOG 已补三项行为变化。功能范围无偏差；请求身份与控�
 5. 同步/异步测试按实际 Stream.multi 与 widget 测试时钟推进：流关闭在真实异步区核实，代理提交和取消订阅用 pump 与真实微任务交替推进，避免假内核测试等待自己的暂停时钟；既有测试不改。
 
 C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、公告及记录均落地；CP3 真机/Windows 应用验证按会话约束未做，C05/C06/C17 不在本次任务范围。锁定、缩放、fit 等 MovaState 仍共享，旧镜像多视图以后写者为准，均为计划保留的限制。未暂存或提交 generated_plugin、doc/notes、matrix-run 计划或兄弟工程文件。
+
+
+## C06 落地记录（2026-11-04）
+
+按用户要求由主会话亲自执行、不转派，合并为两次功能提交；不改 CLAUDE.md，不启动应用、不做真机验证。
+
+### 提交 1：C06a + C06b + C06c
+
+- 新增 MovaPlayerStyle（五节 ThemeExtension、copyWith、离散 lerp、值相等与五个 xxxOf 查找口）、MovaDanmakuStyle（五字段、fromConfig/applyTo）；MovaPlayer.style / MovaView.style；MovaStrs 新增 14 个字符串字段与 labelWithValue，新增 movaDefaultLabelWithValue。新增公开入口均附中文 dartdoc。
+- 当前基线 UI 实际 59 处样式读取全部迁移（旧计划为 56 处；加 core 三处共 62 处，而非旧表 59）；保留 engine.dart 三处无视图兼容读取。内置按钮显式传入标签；旧第三方按钮仍保留图标反查回落。弹幕仅迁移样式，enabled/items 及条目引用保留。控制条在依赖更新时重读样式；只有配置真正变化才更新挂起计时，不让无关重建续期。
+- 新增测试 19（类型/查找链 8、视图 5、源码守卫 1、文案 5），保留类型和测试、撤回查找与消费实现后实测 19 红，恢复 19 绿。比子计划的前三 Task 18 项多 1：自动隐藏和快捷键拆为独立用例。真实引擎切主题 10 次，缓冲颜色更新，open/MovaSourceChange 只有一次，renderEpoch 不变。
+- flutter analyze lib test：0 issues。全量只运行一次，--concurrency=3：2331 通过、7 失败（b09_test.dart 的 .dart_tool/b09 父目录缺失，全部为 setUp 失败）；建立工作区测试目录后只重跑该文件，7/7 通过，完整清单合计 2338 项全部覆盖。没有 OOM、没有加载断连、未降并发或分片重跑全量。
+- 实测总数与用户标注基线 2301 存在 18 项差额：2338 - 新增 19 = 2319；未额外运行基线，不能把 2319 记为另一次基线实测。以本次实际日志计数为准。
+- 既有断言改写：0。core 清晰度兼容中文常量按会话批次划分留到提交 2；界面已改读文案。Deprecated 只做 dartdoc 与 CHANGELOG 公告，无成员级注解。

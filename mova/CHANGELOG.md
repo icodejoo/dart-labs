@@ -1,5 +1,9 @@
 ## Unreleased
 
+- 新增 MovaPlayerStyle（ThemeExtension）与 MovaDanmakuStyle，MovaPlayer/MovaView 支持 style。主题、文案、手势、控制条行为与弹幕样式按节依次查找：视图参数 > 主题扩展 > 旧 options > 默认。切换主题更新缓存皮肤及控制条配置，不重建引擎；弹幕开关与条目仍来自 options。
+- 按钮无障碍名称、提示及清晰度“自动/未知”展示改读 MovaStrs，新增可替换的动作文案与 labelWithValue 格式函数；内置按钮显式传标签，默认文案不变。MovaQuality 的旧中文标签本版本保留，下个版本计划改为中性值。
+- Deprecated（公告，下个版本加注解）：MovaOpts.theme/strings/gesture/controls 及 danmaku 的样式字段计划弃用，改用 MovaPlayerStyle；旧字段本版本继续作为回落值，不添加成员级 @Deprecated。
+
 - 脚本测试内核的延迟 ready 使用最新播放意图，保留 ready 前 pause/play 的最后决定；普通被动内核继续只记录命令、不自动发信号。
 
 - 预览资源门控传递请求代际和取消信号，在异步网络探针返回后、HTTP/抽帧启动前复核；取消、换源和销毁使旧调用失效，销毁不等待探针，包装器仍不销毁宿主端口。

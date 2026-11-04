@@ -1,3 +1,5 @@
+import 'style/style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -69,6 +71,7 @@ class MovaView extends StatefulWidget {
     this.fit,
     this.poster,
     this.posterFade = const Duration(milliseconds: 300),
+    this.style,
     this.skin = const MovaDefaultSkin(),
     this.options = const MovaOpts(),
     this.engineFactory,
@@ -108,6 +111,9 @@ class MovaView extends StatefulWidget {
   ///
   /// 要绘制的皮肤。
   final MovaSkin skin;
+
+  /// 本视图的样式，原样传给 MovaPlayer；优先于主题扩展。
+  final MovaPlayerStyle? style;
 
   /// Construction-time engine options; a different value recreates the engine
   /// (and reopens the current source), so change it rarely.
@@ -190,7 +196,10 @@ class _MovaViewState extends State<MovaView> {
   bool _optionsWarningShown = false;
 
   void _trackOptionsChanges(bool equal) {
-    if (equal) { _optionsChangeStreak = 0; return; }
+    if (equal) {
+      _optionsChangeStreak = 0;
+      return;
+    }
     final frame = WidgetsBinding.instance.currentFrameTimeStamp;
     if (_optionsChangeFrame != frame) {
       _optionsChangeFrame = frame;
@@ -219,7 +228,10 @@ class _MovaViewState extends State<MovaView> {
   void didUpdateWidget(MovaView oldWidget) {
     super.didUpdateWidget(oldWidget);
     final equal = widget.options.engineSectionsEqual(oldWidget.options);
-    assert(() { _trackOptionsChanges(equal); return true; }());
+    assert(() {
+      _trackOptionsChanges(equal);
+      return true;
+    }());
     if (_engine != null && !equal) {
       final dead = _engine!;
       _engine = null;
@@ -314,6 +326,7 @@ class _MovaViewState extends State<MovaView> {
     }
     final player = MovaPlayer(
       api: engine,
+      style: widget.style,
       skin: widget.skin,
       fit: widget.fit,
       poster: widget.poster,

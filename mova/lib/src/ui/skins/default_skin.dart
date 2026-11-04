@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../components/bottom_bar.dart';
@@ -11,7 +13,6 @@ import '../components/subtitle.dart';
 import '../components/top_bar.dart';
 import '../../core/api.dart';
 import '../../core/state/state.dart';
-import '../scope/scope.dart';
 import '../chrome/chrome.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
@@ -258,7 +259,6 @@ class MovaDefaultSkin implements MovaSkin {
                 children: slots.named(MovaSlot.center, statusLayerNames),
               ),
             ),
-
           ],
         ),
       ),
@@ -286,7 +286,7 @@ class _BarVisibility extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fadeDuration = MovaScope.of(context).options.controls.fadeDuration;
+    final fadeDuration = MovaPlayerStyle.controlsOf(context).fadeDuration;
     return MovaUiSelect<bool>(
       selector: (s) => s.controlsVisible,
       builder: (context, visible) {
@@ -392,8 +392,11 @@ class MovaLockToggleComponent extends MovaComponent {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: MovaIconButton(
+                label: locked
+                    ? MovaPlayerStyle.stringsOf(context).unlock
+                    : MovaPlayerStyle.stringsOf(context).lock,
                 icon: locked ? Icons.lock_rounded : Icons.lock_open_rounded,
-                theme: api.options.theme,
+                theme: MovaPlayerStyle.themeOf(context),
                 onPressed: () => api.setLocked(!locked),
               ),
             ),

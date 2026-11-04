@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -42,7 +44,8 @@ class MovaDanmakuTrackComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final config = api.options.danmaku;
+    final config = MovaPlayerStyle.danmakuOf(context)
+        .applyTo(movaLegacyOptionsOf(context).danmaku);
     if (!config.enabled || config.items.isEmpty) return const SizedBox.shrink();
     return _DanmakuTrack(api: api, config: config);
   }
@@ -78,7 +81,8 @@ class _DanmakuTrack extends StatefulWidget {
 ///
 /// [_DanmakuTrack] 的状态；持有当前可见的弹幕，以及用于检测新跨过的
 /// [MovaDanmakuItem] 的最近播放位置。
-class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTrack> {
+class _DanmakuTrackState extends State<_DanmakuTrack>
+    with MovaPlugin<_DanmakuTrack> {
   /// Currently-visible bullets, each keyed by a stable [Key] for removal.
   ///
   /// 当前可见的弹幕，各自带一个用于移除的稳定 [Key]。
@@ -134,7 +138,8 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
   ///
   /// 依当前配置重建 [_sorted]，并把 [_cursor] 重定位到 [_lastPosition] 之后的第一条。
   void _resort() {
-    _sorted = [...widget.config.items]..sort((a, b) => a.time.compareTo(b.time));
+    _sorted = [...widget.config.items]
+      ..sort((a, b) => a.time.compareTo(b.time));
     _cursor = _firstAfter(_lastPosition);
   }
 
@@ -178,7 +183,8 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
   /// 正常进度仅生成有空位的弹幕；大幅跳转只移动游标，不遍历跳过区间。
   void _onProgress(MovaProg p) {
     final position = p.position;
-    if (position < _lastPosition || position - _lastPosition > const Duration(seconds: 10)) {
+    if (position < _lastPosition ||
+        position - _lastPosition > const Duration(seconds: 10)) {
       _moveTo(position);
       return;
     }
@@ -197,7 +203,9 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
   void _spawn(MovaDanmakuItem item) {
     final track = _nextTrack % widget.config.trackCount;
     _nextTrack++;
-    setState(() => _active.add(_Spawned(key: UniqueKey(), item: item, track: track)));
+    setState(
+      () => _active.add(_Spawned(key: UniqueKey(), item: item, track: track)),
+    );
   }
 
   /// Removes the bullet keyed by [key] once its scroll animation finishes.
@@ -210,7 +218,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return IgnorePointer(
       child: Opacity(
         opacity: widget.config.opacity,
@@ -319,7 +327,8 @@ class _DanmakuBullet extends StatefulWidget {
 }
 
 /// 单条弹幕的动画状态，暂停/倍速更新均保留当前进度。
-class _DanmakuBulletState extends State<_DanmakuBullet> with SingleTickerProviderStateMixin {
+class _DanmakuBulletState extends State<_DanmakuBullet>
+    with SingleTickerProviderStateMixin {
   /// 当前划过比例；仅持有本条弹幕的时钟。
   late final AnimationController _controller;
 
@@ -327,7 +336,8 @@ class _DanmakuBulletState extends State<_DanmakuBullet> with SingleTickerProvide
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this)..addStatusListener(_onStatus);
+    _controller = AnimationController(vsync: this)
+      ..addStatusListener(_onStatus);
     _syncAnimation();
   }
 
@@ -340,7 +350,8 @@ class _DanmakuBulletState extends State<_DanmakuBullet> with SingleTickerProvide
   @override
   void didUpdateWidget(_DanmakuBullet oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.playing != widget.playing || oldWidget.rate != widget.rate ||
+    if (oldWidget.playing != widget.playing ||
+        oldWidget.rate != widget.rate ||
         oldWidget.config.crossDuration != widget.config.crossDuration) {
       _syncAnimation();
     }
@@ -375,12 +386,17 @@ class _DanmakuBulletState extends State<_DanmakuBullet> with SingleTickerProvide
           return AnimatedBuilder(
             animation: _controller,
             builder: (context, child) => Transform.translate(
-              offset: Offset(width * (1 - 2 * _controller.value), 0), child: child),
+              offset: Offset(width * (1 - 2 * _controller.value), 0),
+              child: child,
+            ),
             child: Text(
               widget.text,
               maxLines: 1,
               softWrap: false,
-              style: TextStyle(color: Color(widget.color), fontSize: widget.config.fontSize),
+              style: TextStyle(
+                color: Color(widget.color),
+                fontSize: widget.config.fontSize,
+              ),
             ),
           );
         },

@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -96,12 +98,16 @@ class MovaMiniCloseComponent extends MovaComponent {
         // 其外观本身并不随状态变化。
         selector: (s) => s.mini,
         builder: (context, _) => IconButton(
-          tooltip: Overlay.maybeOf(context) == null ? null : '关闭小窗',
+          tooltip: Overlay.maybeOf(context) == null
+              ? null
+              : MovaPlayerStyle.stringsOf(context).closeMini,
           icon: Icon(
             Icons.close,
             color: Colors.white,
             size: 18,
-            semanticLabel: Overlay.maybeOf(context) == null ? '关闭小窗' : null,
+            semanticLabel: Overlay.maybeOf(context) == null
+                ? MovaPlayerStyle.stringsOf(context).closeMini
+                : null,
           ),
           onPressed: onClose,
           padding: const EdgeInsets.all(4),

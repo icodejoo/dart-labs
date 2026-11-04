@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -37,7 +39,7 @@ class MovaBufferingComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.buffering,
       builder: (context, buffering) {
@@ -48,7 +50,9 @@ class MovaBufferingComponent extends MovaComponent {
         );
         final size = theme.bufferingSize;
         return Center(
-          child: size == null ? indicator : SizedBox.square(dimension: size, child: indicator),
+          child: size == null
+              ? indicator
+              : SizedBox.square(dimension: size, child: indicator),
         );
       },
     );
@@ -85,8 +89,8 @@ class MovaErrorComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final strings = api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<Object?>(
       selector: (s) => s.error,
       builder: (context, error) {
@@ -98,15 +102,27 @@ class MovaErrorComponent extends MovaComponent {
               Text(
                 strings.playbackError,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+                style: TextStyle(
+                  color: Color(theme.textColor),
+                  fontSize: theme.timeFontSize,
+                ),
               ),
               if (kDebugMode)
-                Text(error.toString(), textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize)),
+                Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(theme.textColor),
+                    fontSize: theme.timeFontSize,
+                  ),
+                ),
               const SizedBox(height: 8),
               IconButton(
                 tooltip: strings.retry,
-                icon: Icon(Icons.refresh_rounded, color: Color(theme.iconColor)),
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: Color(theme.iconColor),
+                ),
                 onPressed: () => api.reload(),
               ),
             ],

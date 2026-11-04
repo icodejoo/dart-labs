@@ -59,6 +59,8 @@ class MovaOpts {
   /// Gesture configuration.
   ///
   /// 手势配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaGestureConfig gesture;
 
   /// Adaptive-bitrate configuration.
@@ -69,11 +71,15 @@ class MovaOpts {
   /// Control-bar behaviour configuration.
   ///
   /// 控制条行为配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaCtrlsConfig controls;
 
   /// Scrolling-danmaku overlay configuration.
   ///
   /// 滚动弹幕叠加层配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaDanmakuConfig danmaku;
 
   /// Speech-to-text subtitle configuration.
@@ -94,11 +100,15 @@ class MovaOpts {
   /// Externalised UI copy.
   ///
   /// 外置 UI 文案。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaStrs strings;
 
   /// Externalised visual theme.
   ///
   /// 外置视觉主题。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaTheme theme;
 
   /// Seamless engine-swapping configuration.

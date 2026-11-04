@@ -1,5 +1,7 @@
+import '../style/style.dart';
 import '../chrome/chrome.dart';
 import '../../core/state/progress.dart';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -189,7 +191,7 @@ class _GestureLayerState extends State<_GestureLayer>
     final state = _api.state;
     final live = state.type == MovaStreamType.live;
     if (!live) return true;
-    if (!_api.options.gesture.allowWhenLive) return false;
+    if (!MovaPlayerStyle.gestureOf(context).allowWhenLive) return false;
     return state.liveSeekable;
   }
 
@@ -218,7 +220,7 @@ class _GestureLayerState extends State<_GestureLayer>
   /// 在这里写它会连带错误地弹出气泡。回归说明：改之前双击的进度 HUD 完全没有
   /// 文字，因为它能读的两个字段都没人填过。
   void _onDoubleTap() {
-    final cfg = _api.options.gesture;
+    final cfg = MovaPlayerStyle.gestureOf(context);
     if (!cfg.doubleTapSeek || !_seekAllowed) return;
     final backward = _lastDoubleTapDx < _size.width / 2;
     final step = cfg.doubleTapStep;
@@ -257,7 +259,7 @@ class _GestureLayerState extends State<_GestureLayer>
       return;
     }
     if (d.pointerCount >= 2) {
-      if (!_api.options.gesture.pinchZoom) return;
+      if (!MovaPlayerStyle.gestureOf(context).pinchZoom) return;
       _mode = _DragMode.zoom;
       _applyZoom(d.scale);
       return;
@@ -277,7 +279,7 @@ class _GestureLayerState extends State<_GestureLayer>
   ///
   /// 用 [scale] 乘以捏合起点的缩放基准，clamp 到 `[1.0, maxZoom]` 后应用。
   void _applyZoom(double scale) {
-    final maxZoom = _api.options.gesture.maxZoom;
+    final maxZoom = MovaPlayerStyle.gestureOf(context).maxZoom;
     final z = (_startZoom * scale).clamp(1.0, maxZoom);
     _api.setZoom(z);
   }
@@ -289,7 +291,7 @@ class _GestureLayerState extends State<_GestureLayer>
   /// 位移越过阈值后判定方向/侧别；若配置禁用了本应选中的模式，则保持
   /// [_DragMode.undecided]（不回退到其他模式）。
   _DragMode _decideMode() {
-    final cfg = _api.options.gesture;
+    final cfg = MovaPlayerStyle.gestureOf(context);
     _horizontalDrag = _cum.dx.abs() > _cum.dy.abs();
     final action = _horizontalDrag
         ? cfg.horizontal
@@ -337,7 +339,8 @@ class _GestureLayerState extends State<_GestureLayer>
   Duration _seekTargetFromCum() {
     final seconds =
         _axisFrac() *
-        _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
+        MovaPlayerStyle.gestureOf(context).hSeekSpanPerScreen.inSeconds
+            .toDouble();
     return _lastPosition + Duration(seconds: seconds.round());
   }
 
@@ -352,14 +355,20 @@ class _GestureLayerState extends State<_GestureLayer>
         movaUiOf(context).showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac = _axisFrac() *
-            (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
+        final frac =
+            _axisFrac() *
+            (_horizontalDrag
+                ? 1
+                : MovaPlayerStyle.gestureOf(context).vSensitivity);
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
         movaUiOf(context).showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac = _axisFrac() *
-            (_horizontalDrag ? 1 : _api.options.gesture.vSensitivity);
+        final frac =
+            _axisFrac() *
+            (_horizontalDrag
+                ? 1
+                : MovaPlayerStyle.gestureOf(context).vSensitivity);
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
         movaUiOf(context).showHud(MovaHud.brightness);
         break;

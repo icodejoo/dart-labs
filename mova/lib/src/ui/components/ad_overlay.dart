@@ -1,4 +1,6 @@
+import '../style/style.dart';
 import '../../core/session/events.dart' show MovaNodeStart;
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/ad/ads.dart';
@@ -111,8 +113,8 @@ class _AdOverlayViewState extends State<_AdOverlayView>
   @override
   Widget build(BuildContext context) {
     final ads = widget.ads;
-    final theme = widget.api.options.theme;
-    final strings = widget.api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     // The pending phase: the content is still playing and the viewer has not
     // been interrupted, so this renders *only* the countdown — no ad badge, and
     // no full-surface tap layer that would swallow the content's own gestures.
