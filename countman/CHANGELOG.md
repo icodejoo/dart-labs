@@ -1,5 +1,133 @@
 # Changelog
 
+## 0.3.0
+
+Migration guide: [MIGRATION.md](MIGRATION.md).
+
+### Breaking
+- `CountmanPlugin.tick` returns an `int` (microseconds until the plugin needs
+  the next frame) instead of a `bool`: `CountmanPlugin.idle` (`-1`, nothing to
+  do), `CountmanPlugin.nextFrame` (`0`) or a positive wake-up delay.
+  `CountmanPlugin` also gained a required `onDetach()`. *Migrate:* change the
+  return type, return one of those values and add an `onDetach()` (an empty
+  body is fine).
+- `TaskQueuePlugin.beginFrame` and `step` return `void`, and `step` lost its
+  `shouldProcess` parameter. The wake-up time comes from the new overridable
+  `nextWake(task)` (default `nextFrame`). *Migrate:* drop the return values and
+  the extra parameter.
+- `ClockPlugin` subclass hooks work in integer microseconds: `valueOf` became
+  `valueMicrosOf`, `thresholdCrossed` became `thresholdWake(value,
+  thresholdMicros)`, and two hooks are new and required:
+  `boundaryWake(task, value, intervalMicros)` and `completionWake(task, value)`
+  (`displayMicrosOf` is optional). The constructor accepts a `clock`.
+  *Migrate:* see the table in MIGRATION.md.
+- `CountdownOptions.duration` is optional and `CountdownOptions.deadline` is
+  new; provide exactly one. *Migrate:* keep `duration:` for relative
+  countdowns, use `deadline: DateTime(...)` for absolute ones.
+- Clock semantics: a `Duration` countdown (`duration`, or a widget's
+  `to: Duration(...)`) and every stopwatch run on the monotonic clock, so
+  changing the system time no longer affects them; a `deadline` (or a widget's
+  `to` as `DateTime` / `int` / `String`) runs on the wall clock. After
+  pause/resume or `reset()` a task continues on the monotonic clock.
+  `remainingUntil` / `resolveDeadline` take an optional `clock`. *Migrate:* if
+  you relied on a `Duration` countdown following system-time changes, pass an
+  absolute `deadline` instead.
+- The plugin registry is keyed by instance, not by name. Registering a
+  *different* instance with an existing name asserts in debug builds (release
+  builds still register it); it used to be ignored silently.
+  `Countman.unuse(plugin, {bool dispose = true})`. *Migrate:* reuse one
+  instance per group, or give every instance a unique `name`.
+- Changing the resolved plugin (or `precise`) no longer restarts running tasks;
+  they migrate to the new plugin keeping remaining / elapsed time, laps, pause
+  state and the displayed value. *Migrate:* call `controller.restart()` if you
+  relied on the restart.
+- `CounterBuilder.builder` is nullable (the constructor parameter is still
+  required) because of the new `CounterBuilder.listenable`. *Migrate:* only code
+  that reads the `builder` field of a `CounterBuilder` is affected.
+- Default styles are resolved as widget `style` > provider `*Style`
+  (deprecated) > `CountmanTheme` > built-in default. *Migrate:* move
+  provider-level `*Style` arguments into `CountmanTheme`.
+
+### Added
+- Clock abstraction: `CountmanClock` (`wallMicros`, `monotonicMicros`),
+  `SystemClock` (default; once the app returns to the foreground it adds back
+  the time the monotonic clock stood still during device deep sleep),
+  `OffsetClock` for server-time correction and `ManualCountmanClock`
+  (`advance`, `jumpWall`, `suspend`) for tests. `CountmanClock.system` can be
+  replaced globally; `Countdown` / `Elapsed` take a `clock` argument.
+- `CountdownOptions.total` (progress denominator, e.g. a whole auction window)
+  and `rounding` with `CountdownRounding { floor, ceil }` (`ceil` shows 10 for
+  9.3 s). Completion and thresholds still use the real remaining time.
+  `total` / `rounding` are forwarded by `CountdownBuilder`, `TextCountdown`,
+  `RingCountdown`, `BarCountdown`, `DialCountdown` and `CardCountdown`.
+- `CountdownFormat.template(pattern)`: tokens `{d} {H} {HH} {TH} {m} {mm} {TM}
+  {s} {ss} {S} {SSS}`, parsed once, e.g. `'{d}天 {HH}:{mm}:{ss}'`.
+- Elapsed: `ElapsedOptions.since` (wall-clock start) / `initial` (monotonic
+  offset; mutually exclusive), `limit` + `onComplete`,
+  `ElapsedHandle.updateLimit`, laps through `ElapsedHandle.lap()` / `laps` and
+  `ElapsedController.lap()` / `laps`. `ElapsedBuilder` / `TextElapsed` take
+  `since`, `initial`, `limit` and `onComplete`.
+- Controllers expose `runState` (`CountmanRunState`: idle / running / paused /
+  completed) and `runStateListenable`, plus `restart()` and `dispose()`
+  (`CounterValueController`, `CountdownController`, `ElapsedController`;
+  `AnimatedCounterController` gets `runState` / `runStateListenable`).
+  `CountmanRunStateNotifier` is the mixin behind it.
+- `CountmanTheme` (a `ThemeExtension`) carries the default style of every
+  display widget; every `*Style` has a static `lerp`;
+  `CountmanTheme.maybeOf` / `of`.
+- `AnimatedCounter` / `AnimatedCounterBuilder`: `plugin` (explicit > nearest
+  `CounterProvider` > `defaultCounter`, so the provider's `onGroupReady` /
+  `onAllComplete` apply) and `animateOnce`.
+- `CounterFormat.format(value, {minValue, maxValue})` returns the string an
+  `AnimatedCounter` shows at rest.
+- `CounterBuilder.listenable` / `CountdownBuilder.listenable` constructors push
+  values through a `ValueListenable` instead of rebuilding every tick;
+  `RingPainter` / `BarPainter` take an optional `progressListenable`.
+- `CardCountdown.semanticsLabel` (default `'Countdown'`).
+- `RingStyle` and `BarStyle` are exported themselves, not only their aliases.
+
+### Changed
+- The scheduler sleeps between updates: when no plugin needs a frame within
+  about 20 ms it arms one global timer and requests a frame when it fires. A
+  once-per-second countdown no longer produces a frame per vsync.
+- Clock tasks update when their own value crosses a multiple of `interval`
+  (per-task buckets, not a plugin-wide phase); `onComplete` fires on the frame
+  containing the deadline.
+- `CountdownBuilder` and `CardCountdown` read `CountdownProvider.plugin`, so
+  `onAllComplete` also fires for cards. `CounterBuilder`, `CountdownBuilder`,
+  `ElapsedBuilder` and `CardCountdown` resolve the plugin and the reduced-motion
+  setting the same way.
+- `AnimatedCounter` is split by responsibility (`DigitRollEngine`, one
+  `resolveDigitMotion` shared by the painter and widget-tree paths, part files
+  for config / timeline / scope / measure / tint / controller binding / state).
+  Behaviour is unchanged.
+- `AnimatedCounter` honours `MediaQuery.disableAnimations`; the direction tint
+  is driven by the shared ticker and no longer rebuilds during the fade.
+- `RingCounter` / `RingCountdown` / `BarCounter` / `BarCountdown` keep one
+  painter alive and repaint through a `Listenable`; semantics update only when
+  the integer percentage changes.
+- The three controllers moved to `lib/src/controllers/` (imports through
+  `package:countman/countman.dart` are unchanged).
+- A runState written during build is published at the end of the frame, so
+  listeners may call `setState` safely.
+- `animateOnce` without a stable id or without a provider no longer asserts: it
+  logs one debug warning and plays the animation every time.
+
+### Fixed
+- `slideScale` on the painter path no longer scales the slide offset with the
+  canvas, matching the widget-tree path.
+- `CountmanTheme` card styles apply when there is no `CardCountdownProvider`.
+
+### Deprecated
+- The 38 flat `AnimatedCounter` / `AnimatedCounterBuilder` parameters that
+  duplicate `format` / `timeline` / `style` (for example `fractionDigits`,
+  `duration`, `textStyle`). Behaviour and precedence are unchanged; move them
+  into `CounterFormat` / `CounterTimeline` / `AnimatedCounterStyle`.
+- Provider `*Style` parameters on `CounterProvider`, `CountdownProvider`,
+  `ElapsedProvider` and `CountmanProvider`: use `CountmanTheme`.
+- `CountdownProvider.animateOnce`: countdowns have no entrance animation, so the
+  flag has no effect.
+
 ## 0.2.5
 
 ### Fixed
