@@ -1,3 +1,11 @@
+import 'main_cp2_adpaths_verify.dart' as cp2_adpaths;
+import 'main_cp2_adpause_verify.dart' as cp2_adpause;
+import 'main_cp2_adbg_verify.dart' as cp2_adbg;
+import 'main_cp2_pod2_verify.dart' as cp2_pod2;
+import 'main_cp2_playlist3_verify.dart' as cp2_playlist3;
+import 'main_cp2_bgowner_verify.dart' as cp2_bgowner;
+import 'main_cp2_audioonly_bg_verify.dart' as cp2_audioonly_bg;
+import 'main_cp2_qoe_verify.dart' as cp2_qoe;
 import 'main_cp1_wakeswap_verify.dart' as cp1_wakeswap;
 import 'main_cp1_edgepause_verify.dart' as cp1_edgepause;
 import 'main_cp1_errclass_verify.dart' as cp1_errclass;
@@ -54,6 +62,14 @@ Future<void> main() async {
   kit.coverageShotHandshake = parts.length > 3 && parts[3] == 'shots';
   MovaEngine.ensureInitialized();
   switch (parts.first) {
+    case 'cp2-adpaths': cp2_adpaths.main();
+    case 'cp2-adpause': cp2_adpause.main();
+    case 'cp2-adbg': cp2_adbg.main();
+    case 'cp2-pod2': cp2_pod2.main();
+    case 'cp2-playlist3': cp2_playlist3.main();
+    case 'cp2-bgowner': cp2_bgowner.main();
+    case 'cp2-audioonly-bg': cp2_audioonly_bg.main();
+    case 'cp2-qoe': cp2_qoe.main();
     case 'cp1-wakeswap': cp1_wakeswap.main();
     case 'cp1-edgepause': cp1_edgepause.main();
     case 'cp1-errclass': cp1_errclass.main();

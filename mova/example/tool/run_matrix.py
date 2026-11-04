@@ -94,7 +94,7 @@ def validate_manifest(manifest, root=ROOT):
                 path=Path(expand([batch['result_path']], 'check', tool)[0])
                 if not path.is_relative_to(tool) or path.suffix!='.json':
                     raise ValueError('result_path 必须在 tool 内并以 .json 结尾')
-                expected_script='{tool}/coverage_cp1.py' if batch.get('cp1_driver') else '{tool}/coverage_cp0.py' if batch.get('cp0_driver') else '{tool}/coverage_gap.py'
+                expected_script='{tool}/coverage_cp2.py' if batch.get('cp2_driver') else '{tool}/coverage_cp1.py' if batch.get('cp1_driver') else '{tool}/coverage_cp0.py' if batch.get('cp0_driver') else '{tool}/coverage_gap.py'
                 if not isinstance(batch.get('argv'),list) or batch['argv'][1]!=expected_script:
                     raise ValueError('native_driver 仅用于独立 gap 驱动')
             except (KeyError,ValueError,IndexError) as e:
@@ -202,6 +202,15 @@ def cp1_result_kind(result, run_id, group, code, runs):
     if kind!='OK':return kind
     if validate_checks(group,runs,[r for r in result['records'] if r.get('kind')=='CHECK']):return 'BLOCKED'
     return 'FAIL' if any(r.get('status')=='FAIL' for r in result['verdicts']) else 'OK'
+
+
+def cp2_result_kind(result,run_id,group,code,runs):
+    kind=cp0_result_kind(result,run_id,group,code)
+    from coverage_cp2 import validate_checks
+    if kind!='OK':return kind
+    checks=[r for r in result['records'] if r.get('kind')=='CHECK']
+    if validate_checks(group,runs,checks):return 'BLOCKED'
+    return 'FAIL' if any(r.get('status')=='FAIL' for r in checks) else 'OK'
 
 
 def read_ledger(data):
@@ -512,7 +521,12 @@ class Driver:
 
     def preflight(self):
         """Check resources before changing any device setting / 改设备设置前检查资源。"""
+        forwards = self.adb('forward','--list')
         for port in self.manifest['ports']:
+            if port == 18083 and any(line.split()==[self.serial,'tcp:18083','tcp:18083'] for line in forwards.splitlines()):
+                # A pre-existing device forward is restorable, not a foreign
+                # host service. Save/restore it through original_mappings.
+                continue
             with socket.socket() as sock:
                 try:
                     sock.bind(('127.0.0.1', port))
@@ -643,6 +657,8 @@ class Driver:
         self.screen()
         if not (job.get('cp0_driver') or job.get('cp1_driver')):
             self.mappings.append(('reverse',18082))
+        if job.get('cp2_alias'):
+            self.mappings.append(('forward',18083))
         self.note('BEGIN',f'{job["description"]}；为什么：{job["why"]}',case)
         path = self.out/(self.prefix+case+'.driver.log')
         start=time.monotonic()
@@ -678,7 +694,9 @@ class Driver:
             try:
                 result_path=Path(expand([job['result_path']],self.args.run_id)[0])
                 gap_result=json.loads(result_path.read_text(encoding='utf-8'))
-                if job.get('cp1_driver'):
+                if job.get('cp2_driver'):
+                    kind=cp2_result_kind(gap_result,self.args.run_id,case.removeprefix('cp2-'),code,int(job['argv'][6]))
+                elif job.get('cp1_driver'):
                     kind=cp1_result_kind(gap_result,self.args.run_id,case.removeprefix('cp1-'),code,int(job['argv'][6]))
                 elif job.get('cp0_driver'):
                     kind=cp0_result_kind(gap_result,self.args.run_id,case.removeprefix('cp0-'),code)
@@ -779,13 +797,13 @@ def main(argv=None):
         parser.error(str(error))
     if not selected and not args.check and not args.list:
         parser.error('所选条件没有匹配批次')
-    if selected and all(b.get('cp0_driver') or b.get('cp1_driver') for b in selected):
+    if selected and all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') for b in selected):
         manifest['build']=dict(manifest['build'])
-        manifest['build']['argv']=[*manifest['build']['argv'][:2],('lib/main_cp1_suite_verify.dart' if all(b.get('cp1_driver') for b in selected) else 'lib/main_cp0_suite_verify.dart' if all(b.get('cp0_driver') for b in selected) else 'lib/main_coverage_suite.dart'),
+        manifest['build']['argv']=[*manifest['build']['argv'][:2],('lib/main_cp2_suite_verify.dart' if all(b.get('cp2_driver') and not b.get('cp2_alias') for b in selected) else 'lib/main_coverage_suite.dart' if any(b.get('cp2_driver') for b in selected) else 'lib/main_cp1_suite_verify.dart' if all(b.get('cp1_driver') for b in selected) else 'lib/main_cp0_suite_verify.dart' if all(b.get('cp0_driver') for b in selected) else 'lib/main_coverage_suite.dart'),
             '--no-daemon','--max-workers=1',
             '-Dorg.gradle.jvmargs=-Xms128m -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=96m -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2 -XX:+UseSerialGC -XX:HeapBaseMinAddress=0x100000000',
             '-Pkotlin.compiler.execution.strategy=in-process']
-        manifest['ports']=[18082,18190,18194] if any(b.get('cp1_driver') for b in selected) else [18082,18190,18192]
+        manifest['ports']=manifest['ports'] if any(b.get('cp2_alias') for b in selected) else [18082,18190,18194] if any(b.get('cp1_driver') or b.get('cp2_driver') for b in selected) else [18082,18190,18192]
     if args.check:
         import win_focus_gate
         gate=win_focus_gate.scan(TOOL)
@@ -812,7 +830,7 @@ def main(argv=None):
         for cmd in (expand(manifest['build']['argv'],args.run_id),expand(manifest['build']['repack_argv'],args.run_id)):
             print(subprocess.list2cmdline(preview(cmd,'build' if 'coverage_build.py' in cmd[1] else 'repack')))
         print('随后 zipalign、apksigner、adb install、拉回 APK sha256 / lastUpdateTime 核验')
-        services=[] if all(b.get('cp0_driver') or b.get('cp1_driver') for b in selected) else manifest['services']
+        services=[] if all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') for b in selected) else manifest['services']
         for job in services+selected:
             command=expand(job['argv'],args.run_id)
             print(job['id']+': '+subprocess.list2cmdline(command if job.get('native_driver') else preview(command,job['id'])))
@@ -851,7 +869,13 @@ def main(argv=None):
             if actual!=expected:raise RuntimeError('reused APK hash mismatch')
         else:
             driver.build()
-        if not all(b.get('cp0_driver') or b.get('cp1_driver') for b in selected):
+        if any(b.get('cp2_alias') for b in selected):
+            # Legacy pages consume live_server on 18080; the selector alone
+            # cannot provide their media. Keep service ownership/restoration
+            # in the matrix driver, while each alias owns its selector.
+            manifest['services'] = [s for s in manifest['services'] if s['id']=='sources']
+            driver.services()
+        elif not all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') for b in selected):
             driver.services()
         for job in selected:
             bad_dependencies=[d for d in job['dependencies'] if d in driver.results and driver.results[d]['kind']!='OK']
@@ -886,7 +910,7 @@ def main(argv=None):
         Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,driver.results,args.baseline),encoding='utf-8')
         print(Path(str(target)+'.md'))
-    if all(b.get('cp0_driver') or b.get('cp1_driver') for b in selected):
+    if all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') for b in selected):
         return 1 if any(r['kind']!='OK' for r in driver.results.values()) else 0
     return 1 if any(r['status']!='PASS' for r in rows) or any(r['kind']!='OK' for r in driver.results.values()) else 0
 

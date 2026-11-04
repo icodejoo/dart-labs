@@ -840,5 +840,77 @@ class Cp1CompletionTests(unittest.TestCase):
         self.assertFalse(failed['pass'])
 
 
+class Cp2Tests(unittest.TestCase):
+    def test_cp2_missing_duplicate_and_blocked_never_pass(self):
+        from coverage_cp2 import validate_checks,FIELDS
+        numbers=dict.fromkeys(FIELDS['pod2'],1)
+        for key in ('first','second'):numbers[key]=dict(path='ad',timePosMs=1000)
+        rows=[dict(kind='CHECK',id=f'CP2.pod2.{v}.{i}',status='PASS',numbers=numbers.copy()) for v in ('wait.ad2','nowait.ad2') for i in range(10)]
+        self.assertEqual(validate_checks('pod2',10,rows),[])
+        self.assertTrue(validate_checks('pod2',10,rows[:-1]))
+        self.assertTrue(validate_checks('pod2',10,rows+[rows[0]]))
+        rows[0]['status']='BLOCKED'
+        self.assertTrue(validate_checks('pod2',10,rows))
+        rows[0]['status']='FAIL'
+        self.assertEqual(validate_checks('pod2',10,rows),[])
+        result=dict(run_id='offline',group='pod2',completed=True,harness=[],missing=[],records=rows,verdicts=[dict(status='FAIL')])
+        self.assertEqual(matrix.cp2_result_kind(result,'offline','pod2',1,10),'FAIL')
+        rows[0]['numbers'].pop('epoch2')
+        self.assertEqual(matrix.cp2_result_kind(result,'offline','pod2',1,10),'BLOCKED')
+
+    def test_cp2_native_background_schema_required(self):
+        from coverage_cp2 import validate_checks,FIELDS
+        rows=[]
+        for v in ('plain','view'):
+            n=dict.fromkeys(FIELDS['bgowner'],[])
+            n.update(before=dict(path='a',timePosMs=1000),after=dict(path='a',timePosMs=1000))
+            rows.append(dict(id=f'CP2.bgowner.{v}.0',status='PASS',numbers=n))
+        self.assertTrue(validate_checks('bgowner',1,rows))
+        for r in rows:r['numbers']['backgroundSamples']=[dict(path='a',timePosMs=1000,pause='yes')]*2
+        self.assertEqual(validate_checks('bgowner',1,rows),[])
+
+    def test_cp2_pip_na_is_blocked_and_extra_verdicts_rejected(self):
+        from cp2_alias import reduce_alias
+        rows=reduce_alias('pip',1,'VERDICT V11 PASS n/a: pipSupported=false')
+        self.assertEqual(rows[0]['status'],'BLOCKED')
+        self.assertEqual(reduce_alias('pip',1,'VERDICT V11 PASS entered\nVERDICT V11 PASS entered')[0]['status'],'BLOCKED')
+        self.assertEqual(reduce_alias('pip',1,'VERDICT V11 FAIL pauseEvents=1')[0]['status'],'FAIL')
+
+    def test_cp2_liveedge_requires_hidden_and_actual_edge(self):
+        from cp2_alias import reduce_alias
+        text='VERDICT V9 PASS play=true advance=3000ms\nV9 lifecycle=[inactive,hidden,paused,resumed] play=true liveEdgeReach=true positionAdvanceOver3s=3000ms'
+        self.assertEqual(reduce_alias('liveedge',1,text)[0]['status'],'PASS')
+        self.assertEqual(reduce_alias('liveedge',1,text.replace('liveEdgeReach=true','liveEdgeReach=false'))[0]['status'],'FAIL')
+        self.assertEqual(reduce_alias('liveedge',1,text.replace('inactive,hidden,paused,resumed','inactive,resumed'))[0]['status'],'FAIL')
+
+    def test_cp2_rate_requires_both_variants_and_all_runs(self):
+        from cp2_alias import reduce_alias
+        text='\n'.join(f'RFV2|10|RESULT|{v}|run{i}|PASS|adRate settled1x=true rateAfterReturn=2.0' for v in ('V13a','V13b') for i in range(1,6))
+        rows=reduce_alias('rate',5,text)
+        self.assertEqual(len(rows),10)
+        self.assertTrue(all(r['status']=='PASS' for r in rows))
+        self.assertTrue(any(r['status']=='BLOCKED' for r in reduce_alias('rate',5,text.replace('run5','run4'))))
+
+    def test_cp2_warmmute_requires_native_system_volume(self):
+        from cp2_alias import reduce_alias
+        text='\n'.join(f'VERDICT {v} PASS shadow muted' for v in ('Q13A','Q13B','Q13C'))
+        self.assertTrue(all(r['status']=='BLOCKED' for r in reduce_alias('warmmute',1,text)))
+        volumes=[dict(marker=m,raw='volume is 7',status='OK') for m in
+            ['before','verdict:Q13A:0','verdict:Q13B:0','verdict:Q13C:0','after']]
+        self.assertTrue(all(r['status']=='PASS' for r in reduce_alias('warmmute',1,text,volumes)))
+        volumes[-1]['raw']='volume is 8'
+        self.assertTrue(all(r['status']=='FAIL' for r in reduce_alias('warmmute',1,text,volumes)))
+
+    def test_cp2_registered_counts_and_alias_sources(self):
+        manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+        batches={b['id']:b for b in manifest['batches'] if b['id'].startswith('cp2-')}
+        self.assertEqual(len(batches),14)
+        for name in ('adpause','adbg','pod2','audioonly-bg'):
+            self.assertEqual(batches['cp2-'+name]['argv'][6],'10')
+        self.assertFalse(any('windows' in name for name in batches))
+        self.assertTrue(batches['cp2-rate']['cp2_alias'])
+        self.assertEqual(matrix.validate_manifest(manifest),[])
+
+
 if __name__=='__main__':
     unittest.main()

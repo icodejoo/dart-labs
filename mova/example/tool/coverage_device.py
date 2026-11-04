@@ -17,7 +17,9 @@ HERE = Path(__file__).resolve().parent
 
 def adb(*args, binary=False):
     """Run only against the explicitly authorized device / 仅操作指定真机。"""
-    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary)
+    from cp0_device_guard import wait_online
+    wait_online(SERIAL)
+    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary, timeout=120)
 
 
 def shot(path, package=PACKAGE):

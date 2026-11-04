@@ -11,12 +11,14 @@ def wait_online(serial):
     while True:
         try:
             r=subprocess.run(['adb','-s',serial,'get-state'],capture_output=True,timeout=15)
-            state=r.stdout.decode(errors='replace').strip()
+            state=(r.stdout+r.stderr).decode(errors='replace').strip()
         except subprocess.TimeoutExpired:
             state='get-state timeout'
         if state=='device':
             _offline_since=None
             return
+        if 'unauthorized' in state:
+            subprocess.run(['adb','kill-server'],capture_output=True,timeout=30)
         if _offline_since is None:_offline_since=time.monotonic()
         deadline=_offline_since+900
         row=dict(at=time.time(),serial=serial,state=state)

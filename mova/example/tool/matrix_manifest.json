@@ -1033,8 +1033,20 @@
       "description": "CP0 P1-3 mpv auto 三档 HLS 限速五轮及不限速对照",
       "why": "默认引擎，不手选 ABR；记录原生档位和缓存状态，无产品通过线",
       "covers": [],
-      "dependencies": ["build"],
-      "argv": ["{python}", "{tool}/coverage_cp0.py", "autotier", "--run-id", "{run_id}", "--runs", "5", "--timeout", "1200"],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp0.py",
+        "autotier",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "1200"
+      ],
       "evidence_prefix": "{prefix}cp0-autotier",
       "screen_on": true,
       "fast": false,
@@ -2085,6 +2097,396 @@
       "evidence_prefix": "{prefix}s00e-native",
       "screen_on": true,
       "fast": false
+    },
+    {
+      "id": "cp2-adpaths",
+      "description": "CP2 adpaths 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adpaths",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adpaths",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adpaths.json"
+    },
+    {
+      "id": "cp2-adpause",
+      "description": "CP2 adpause 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adpause",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adpause",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adpause.json"
+    },
+    {
+      "id": "cp2-adbg",
+      "description": "CP2 adbg 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "adbg",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-adbg",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-adbg.json"
+    },
+    {
+      "id": "cp2-pod2",
+      "description": "CP2 pod2 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "pod2",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-pod2",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-pod2.json"
+    },
+    {
+      "id": "cp2-playlist3",
+      "description": "CP2 playlist3 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "playlist3",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-playlist3",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-playlist3.json"
+    },
+    {
+      "id": "cp2-bgowner",
+      "description": "CP2 bgowner 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "bgowner",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-bgowner",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-bgowner.json"
+    },
+    {
+      "id": "cp2-audioonly-bg",
+      "description": "CP2 audioonly-bg 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "audioonly-bg",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "10",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-audioonly-bg",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-audioonly-bg.json"
+    },
+    {
+      "id": "cp2-qoe",
+      "description": "CP2 qoe 独立验证页（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "qoe",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-qoe",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-qoe.json"
+    },
+    {
+      "id": "cp2-rate",
+      "description": "CP2 rate 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "rate",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-rate",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-rate.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-warmmute",
+      "description": "CP2 warmmute 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "warmmute",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-warmmute",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-warmmute.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-v9",
+      "description": "CP2 v9 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "v9",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-v9",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-v9.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-pip",
+      "description": "CP2 pip 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "pip",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-pip",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-pip.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-liveedge",
+      "description": "CP2 liveedge 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "liveedge",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-liveedge",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-liveedge.json",
+      "cp2_alias": true
+    },
+    {
+      "id": "cp2-events",
+      "description": "CP2 events 复用既有页别名（未上机）",
+      "why": "总计划§4 CP2；逐CHECK核对次数，缺证据BLOCKED",
+      "covers": [],
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "argv": [
+        "{python}",
+        "{tool}/coverage_cp2.py",
+        "events",
+        "--run-id",
+        "{run_id}",
+        "--runs",
+        "5",
+        "--timeout",
+        "7200"
+      ],
+      "evidence_prefix": "{prefix}cp2-events",
+      "screen_on": true,
+      "fast": false,
+      "timeout": 7300,
+      "native_driver": true,
+      "cp2_driver": true,
+      "result_path": "{evidence}/{prefix}cp2-events.json",
+      "cp2_alias": true
     },
     {
       "id": "gap-screen",

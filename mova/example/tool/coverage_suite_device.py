@@ -31,10 +31,22 @@ def main():
     parser.add_argument('--timeout', type=int, default=900)
     parser.add_argument('--name')
     parser.add_argument('--shot-index', action='store_true', help='retain SHOT marker/image pairs for CP1 review')
+    parser.add_argument('--cp2-volume', action='store_true')
     args = parser.parse_args()
     unlocked()
     name = args.name or (args.group + '-' + (args.only or 'all'))
     out = HERE / 'coverage_evidence'
+    out.mkdir(exist_ok=True)
+    volume_sampler = None
+    if args.cp2_volume:
+        from cp2_volume import VolumeSampler
+        def read_volume():
+            return subprocess.check_output(['adb', '-s', SERIAL, 'shell', 'cmd',
+                'media_session', 'volume', '--stream', '3', '--get'],
+                text=True, stderr=subprocess.STDOUT, timeout=1)
+        volume_sampler = VolumeSampler(out/(name+'.volume.json'), read_volume)
+        volume_sampler.submit('before')
+        volume_sampler.flush()  # Baseline must finish before launching the app.
     selector = f'{args.group}|{args.only}|{args.runs}' + ('|shots' if args.shot_index else '')
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -107,6 +119,9 @@ def main():
                     captured=result.get('captured', False) and timely,
                     hostTimeNs=received_ns, queueAgeMs=age_ms, captureEndMs=ended_ms,
                     timely=timely, phaseConfirmed=result.get('phaseConfirmed', False), capture=result)
+                if args.cp2_volume:
+                    (out/(name+'-'+stamp+'.audio.txt')).write_text(
+                        capture_adb('shell','dumpsys','audio'),encoding='utf-8')
             except Exception as error:
                 row = dict(marker=line.strip(), captured=False, error=repr(error))
             with index_path.open('a', encoding='utf-8') as index:
@@ -114,8 +129,10 @@ def main():
             shot_queue.task_done()
 
     shot_worker = threading.Thread(target=save_shots, daemon=True)
-    if args.shot_index:
+    if args.shot_index or args.cp2_volume:
         shot_worker.start()
+
+    verdict_counts = {}
 
     def read():
         with (out / (name+'.log')).open('w', encoding='utf-8') as log:
@@ -134,8 +151,17 @@ def main():
                 if 'WAIT_RESTORE' in line:
                     time.sleep(2)
                     adb('shell','am','start','-n',PKG+'/com.icodejoo.mova.mova_example.MainActivity')
+                if volume_sampler is not None and '[Q13]' in line:
+                    if ' MARK ' in line:
+                        volume_sampler.submit(line.strip())
+                    verdict = re.search(r'VERDICT (Q13[ABC]) (PASS|FAIL)', line)
+                    if verdict:
+                        variant = verdict[1]
+                        index = verdict_counts.get(variant, 0)
+                        verdict_counts[variant] = index + 1
+                        volume_sampler.submit(f'verdict:{variant}:{index}')
                 if is_capture_marker(line):
-                    if args.shot_index:
+                    if args.shot_index or args.cp2_volume:
                         # The log reader never waits for adb capture/dumps.
                         try:
                             shot_queue.put_nowait((line, time.time_ns()))
@@ -176,7 +202,12 @@ def main():
                     finished.set()
             except Exception:
                 pass
-    if args.shot_index:
+    # Persist even when a later dumpsys/capture fails. A lost logcat cannot
+    # produce the missing per-verdict markers and will reduce to BLOCKED.
+    if volume_sampler is not None:
+        volume_sampler.submit('after')
+        volume_sampler.close()
+    if args.shot_index or args.cp2_volume:
         shot_queue.put(None)
         shot_worker.join(timeout=15)
         if shot_worker.is_alive():

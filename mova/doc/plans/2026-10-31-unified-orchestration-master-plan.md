@@ -1063,10 +1063,56 @@ retry 在时移中用规格里的 `timeshiftBehind` 按当前时间重建地址�
 | audioOnly 引擎无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的引擎仍按守卫语义暂停（对照） |
 | F1/F7 事件序列、QoE 会话数 | 各 5 | 内部重试与换档不产生新 QoE 会话 |
 | Windows：广告基本路径 5、路由覆盖 V10 20 | 按项 | 0 崩溃 |
+| 项 | 次数 | 通过标准 | 自动证据 | 最终结论 |
+|---|---|---|---|---|
+| A24/F4 广告各路径（pre/mid/post/pod），正片含 HLS（H15/H20/H50） | 各 5 | 续播误差 ≤500ms；`renderEpoch` 按次递增 | PASS | PASS |
+| 广告中暂停 10s 再续 | 10 | 首帧后按 playing 边沿扣除暂停窗口的有效墙钟误差 ≤300ms；暂停冻结/漂移及不发 completed 校验保留 | PASS（判据修正，离线重判） | PASS（判据修正，离线重判） |
+| 广告中切后台 30s（Android，无守卫与有守卫两组） | 各 10 | 后台不发 completed、不出声；回前台按守卫语义续播；slot 误差按首帧后有效墙钟计算，绝对值 ≤300ms | PASS（判据修正，离线重判） | BLOCKED |
+| pod 第二条广告（CLAUDE.md ③） | wait / nowait 各 10 | wait 每条 renderEpoch 递增；nowait 按既有契约在当前引擎直接 open，不要求 epoch 递增；两条首帧均与 URI 匹配 | PASS（判据修正，离线重判） | PASS（判据修正，离线重判） |
+| 播放列表 + 广告 3 集自动连播 | 5 | 每集都有前贴片和中插；`contentEnded` 每集一次 | PASS | PASS |
+| 倍速恢复（F16）、Q13 预热静音不碰系统音量 | 各 5 | 与 CP0 一致 | PASS | BLOCKED |
+| 后台暂停所有权：无守卫 MovaPlayer、MovaView(autoPause) V9、PiP F5/A15/A18、直播隐藏 ≥3s 回边缘 H61 | 各 5–10 | 无守卫：后台暂停且意图为假；有守卫：回前台自动续播；PiP 不暂停 | PASS | BLOCKED |
+| audioOnly 引擎无守卫切后台 30s（A21 只在有 `Video` 渲染面时启用） | 10 | 后台继续出声、`playbackIntent` 不变；同组有渲染面的引擎仍按守卫语义暂停（对照） | PASS | BLOCKED |
+| F1/F7 事件序列、QoE 会话数 | 各 5 | 内部重试与换档不产生新 QoE 会话 | BLOCKED | BLOCKED |
+| Windows：广告基本路径 5、路由覆盖 V10 20 | 按项 | 0 崩溃 | BLOCKED | BLOCKED |
 
 2026-11-05 判据澄清：上述 pod 范围与 CP0 更正、A27 及 CHANGELOG 的“等待型”契约一致，未改变产品行为。slot 剩余时长以首帧后的有效墙钟为基准，暂停按 `playing` 降沿冻结、升沿恢复；原生媒体位置单列诊断，不代替 slot 时钟。第四轮只读证据重算及夹具交接见 [离线定性](2026-11-05-cp2-r4-offline-triage.md)，历史 FAIL 不覆盖、不改写。
 
 设备时间：Android 3 天（含 audioOnly 后台一组）+ Windows 0.5 天；预留一轮修复 1.5 天。
+
+
+#### 第四轮离线重判收口（2026-11-05）
+
+夹具改了 Dart 代码，第四轮 APK 里的夹具是旧的。本节只是对已有第四轮旧证据的判据修正，不是新设备证据；未构建/安装新包，未使用真机、adb 或 Gradle。修正夹具在新 APK 上的实际记录、边沿采集及缺测处理仍需新包真机复验。
+
+最终 10 行：PASS 4 / FAIL 0 / BLOCKED 6；自动证据 8 / 0 / 2。正式 ID 合计 189 PASS（含以下 15 条限定 PASS）/ 0 FAIL / 1 BLOCKED。
+QoE 缺 `CP2.qoe.manual720.4` 原始 CHECK，9 PASS/1 BLOCKED；Windows 本轮禁跑，无本轮设备证据。
+
+|第四轮原 FAIL 正式 ID|当前结论|
+|---|---|
+|CP2.pod2.nowait.ad2.0|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.1|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.2|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.3|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.4|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.5|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.6|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.7|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.8|PASS（判据修正，离线重判）|
+|CP2.pod2.nowait.ad2.9|PASS（判据修正，离线重判）|
+|CP2.adpause.pause.1|PASS（判据修正，离线重判）|
+|CP2.adpause.pause.4|PASS（判据修正，离线重判）|
+|CP2.adpause.pause.7|PASS（判据修正，离线重判）|
+|CP2.adpause.pause.9|PASS（判据修正，离线重判）|
+|CP2.adbg.guard.7|PASS（判据修正，离线重判）|
+
+人工项单列：
+
+- 听音：BLOCKED；广告暂停/后台无声、Q13预热静音、audioOnly后台持续出声；本轮原始系统媒体音量0，未做人耳听音；原生mute/pause/volume不能代替声学验收。
+- 视觉：BLOCKED；广告切换、pod第二条、三集连播、前后台无黑帧/错画需人工审阅。
+- PiP系统交互：BLOCKED；系统展开/X/mini联动、F5 keepAlive唤醒；本轮按指令不重跑已PASS的PiP自动项。
+
+广告后台、Q13、后台所有权/PiP、audioOnly 的最终 BLOCKED 保留人工缺口；新 Dart 夹具需新包真机复验。原始 FAIL 和历史结论保留于结果报告；逐项数字、证据 SHA-256、最终表理由见 [CP2 结果](2026-11-04-cp2-results.md#第四轮离线重判)。
 
 ### CP3 合并前全量（C17 之后）
 
