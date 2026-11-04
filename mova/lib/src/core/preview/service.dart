@@ -27,7 +27,7 @@ import 'source.dart';
 ///
 /// 被后来者取代的请求，其结果仍会写入缓存而非丢弃：这份开销已经付过了，而且
 /// 用户很可能会拖回那个桶（DESIGN §7.1）。
-class MovaPreviewService implements MovaPreviewApi {
+class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   /// Creates a preview service.
   ///
   /// 创建一个预览服务。
@@ -52,6 +52,32 @@ class MovaPreviewService implements MovaPreviewApi {
     this.ownsProbe = true,
     this.ownsSources = true,
   });
+
+  final Set<MovaPreviewService> _sessions = {};
+  MovaPreviewService? _parent;
+
+  @override
+  MovaPreviewSession openSession() {
+    final session = MovaPreviewService(
+      config: config,
+      cache: cache,
+      probe: probe,
+      sources: sources,
+      onBlocked: onBlocked,
+      audioOnly: audioOnly,
+      gateNetwork: gateNetwork,
+      ownsCache: false,
+      ownsProbe: false,
+      ownsSources: false,
+    ).._parent = this;
+    session._source = _source;
+    if (_disposed) {
+      unawaited(session.dispose());
+    } else {
+      _sessions.add(session);
+    }
+    return session;
+  }
 
   /// 是否为纯音频引擎；为 true 时不探测预览来源，默认 false。
   /// 示例：`MovaPreviewService(config: config, cache: cache, probe: probe, sources: [], audioOnly: true)`。
@@ -101,7 +127,8 @@ class MovaPreviewService implements MovaPreviewApi {
   /// Broadcast sink for [thumbs].
   ///
   /// [thumbs] 的广播出口。
-  final StreamController<MovaThumb?> _thumbs = StreamController<MovaThumb?>.broadcast();
+  final StreamController<MovaThumb?> _thumbs =
+      StreamController<MovaThumb?>.broadcast();
 
   /// The media currently being previewed, or null before [attach].
   ///
@@ -122,6 +149,7 @@ class MovaPreviewService implements MovaPreviewApi {
   ///
   /// 把解析工作串行化，保证同一时刻只有一个来源请求在飞。
   Future<void> _queue = Future<void>.value();
+  Future<void> _sourceQueue = Future<void>.value();
 
   /// 只保留一个最新待处理请求，避免快速拖动堆积闭包。
   ({Duration bucket, int epoch, int revision})? _pending;
@@ -169,6 +197,9 @@ class MovaPreviewService implements MovaPreviewApi {
   /// - [source]: the newly opened media, or null when the player has none /
   ///   新打开的媒体；播放器无媒体时为 null
   void attach(MovaSource? source) {
+    for (final session in _sessions) {
+      session.attach(source);
+    }
     _epoch++;
     _invalidateRequest();
     _pending = null;
@@ -177,8 +208,10 @@ class MovaPreviewService implements MovaPreviewApi {
     _debounce = null;
     _wanted = null;
     _publish(null);
-    for (final s in sources) {
-      unawaited(s.reset());
+    if (_parent == null) {
+      for (final s in sources) {
+        unawaited(s.reset());
+      }
     }
   }
 
@@ -302,7 +335,12 @@ class MovaPreviewService implements MovaPreviewApi {
           _pending = null;
           if (!_isWanted(request.epoch, request.revision)) continue;
           try {
-            await _resolve(request.bucket, request.epoch, request.revision);
+            final owner = _parent ?? this;
+            final work = owner._sourceQueue.then(
+              (_) => _resolve(request.bucket, request.epoch, request.revision),
+            );
+            owner._sourceQueue = work.catchError((Object _) {});
+            await work;
           } on Object {
             // 宿主的探针/缓存异常仅结束本次请求，循环仍接着处理最新请求。
           }
@@ -356,7 +394,8 @@ class MovaPreviewService implements MovaPreviewApi {
       final uri = Uri.tryParse(src.uri);
       final remote = uri?.scheme == 'http' || uri?.scheme == 'https';
       final allowed = config.network == MovaPreviewNet.wifiOnly && !remote
-          ? true : await previewAllowedOn(config.network, probe);
+          ? true
+          : await previewAllowedOn(config.network, probe);
       if (!_isWanted(epoch, revision)) return;
       if (!allowed) {
         _block(MovaPreviewBlockReason.network);
@@ -367,7 +406,9 @@ class MovaPreviewService implements MovaPreviewApi {
     for (final source in sources) {
       if (!_isWanted(epoch, revision)) return;
       // DVR 仍是直播；独立解码器无法可靠寻址滑动窗口，VTT 可继续提供预览。
-      if (src.type == MovaStreamType.live && source is MovaPullerThumbSource) continue;
+      if (src.type == MovaStreamType.live && source is MovaPullerThumbSource) {
+        continue;
+      }
       MovaThumb? thumb;
       try {
         final request = PreviewRequestContext(
@@ -435,9 +476,13 @@ class MovaPreviewService implements MovaPreviewApi {
   ///
   /// [MovaPreviewConfig.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
   /// 目录里堆满缩略图。
+  @override
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _parent?._sessions.remove(this);
+    final closing = Future.wait([..._sessions].map((s) => s.dispose()));
+    _sessions.clear();
     _epoch++;
     _invalidateRequest();
     _pending = null;
@@ -458,6 +503,7 @@ class MovaPreviewService implements MovaPreviewApi {
         await step(s.dispose);
       }
     }
+    await closing;
     // 先关闭来源以中止网络与解码，再等待队列收敛。
     await _queue;
     if (ownsCache) {

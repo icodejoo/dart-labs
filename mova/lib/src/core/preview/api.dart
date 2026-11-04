@@ -52,3 +52,15 @@ abstract class MovaPreviewApi {
   /// 清空缩略图缓存。
   Future<void> clear();
 }
+
+/// 可选的独立预览会话能力；每个视图独占请求、结果流与取消权。
+abstract interface class MovaPreviewSessions {
+  /// 新会话借用媒体、缓存和来源，关闭时只释放自身交互资源。
+  MovaPreviewSession openSession();
+}
+
+/// 单个视图拥有的预览请求端。
+abstract interface class MovaPreviewSession implements MovaPreviewApi {
+  /// 取消本会话并释放结果流，不销毁共享资源。
+  Future<void> dispose();
+}

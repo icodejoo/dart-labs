@@ -1,4 +1,14 @@
 import 'dart:typed_data';
+import 'dart:async';
+
+import 'package:mova/mova.dart'
+    show MovaPlayer, MovaChrome, MovaSource, MovaPreviewConfig;
+import 'package:mova/src/core/preview/api.dart';
+import 'package:mova/src/core/preview/service.dart';
+import 'package:mova/src/core/preview/cache.dart';
+import 'package:mova/src/core/preview/net_probe.dart';
+import 'package:mova/src/core/preview/source.dart';
+import '../support/fake_bridge_api.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,7 +59,121 @@ class _CutoverApi extends FakeMovaApi {
   }
 }
 
+class _GatedThumbs implements MovaThumbSource {
+  final gates = <Duration, Completer<MovaThumb?>>{};
+  @override
+  String get name => 'gated';
+  @override
+  Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) =>
+      (gates[bucket] = Completer<MovaThumb?>()).future;
+  @override
+  Future<void> reset() async {}
+  @override
+  Future<void> dispose() async {}
+}
+
+class _SessionPreview extends FakePreviewApi implements MovaPreviewSessions {
+  _SessionPreview(this.service);
+  final MovaPreviewService service;
+  @override
+  MovaPreviewSession openSession() => service.openSession();
+  @override
+  Stream<MovaThumb?> get thumbs => service.thumbs;
+  @override
+  void requestAt(Duration at) => service.requestAt(at);
+  @override
+  void cancel() => service.cancel();
+  @override
+  Future<void> dispose() => service.dispose();
+}
+
+class _SessionApi extends FakeBridgeApi {
+  _SessionApi(MovaPreviewService service) : _preview = _SessionPreview(service);
+  final _SessionPreview _preview;
+  @override
+  _SessionPreview get preview => _preview;
+}
+
 void main() {
+  for (final checkDelivery in [true, false]) {
+  testWidgets(checkDelivery ? '两个视图按会话收图' : 'B 松手不取消 A 的在途请求', (t) async {
+    final source = _GatedThumbs();
+    final service = MovaPreviewService(
+      config: const MovaPreviewConfig(
+        debounce: Duration.zero,
+        bucket: Duration(seconds: 1),
+      ),
+      cache: MovaMemoryThumbCache(),
+      probe: MovaAlwaysAllowNetProbe(),
+      sources: [source],
+    )..attach(const MovaSource('https://host/video.mp4'));
+    final api = _SessionApi(service);
+    final a = MovaChrome(), b = MovaChrome();
+    const aKey = ValueKey('preview-a'), bKey = ValueKey('preview-b');
+    await t.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: [
+            SizedBox(
+              height: 280,
+              child: MovaPlayer(key: aKey, api: api, chrome: a),
+            ),
+            SizedBox(
+              height: 280,
+              child: MovaPlayer(key: bKey, api: api, chrome: b),
+            ),
+          ],
+        ),
+      ),
+    );
+    a.setDragging(true, previewAt: const Duration(seconds: 10));
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    b.setDragging(true, previewAt: const Duration(seconds: 20));
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    source.gates[const Duration(seconds: 10)]!.complete(
+      MovaThumb(at: const Duration(seconds: 10), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    final inA = find.descendant(
+      of: find.byKey(aKey),
+      matching: find.byType(Image),
+    );
+    final inB = find.descendant(
+      of: find.byKey(bKey),
+      matching: find.byType(Image),
+    );
+    if (checkDelivery) {
+      expect(inA, findsOneWidget);
+      expect(inB, findsNothing, reason: 'A 的图不得投递到 B');
+    }
+    a.setDragging(true, previewAt: const Duration(seconds: 30));
+    await t.pump(const Duration(milliseconds: 1));
+    b.setDragging(false);
+    await t.pump(const Duration(milliseconds: 1));
+    source.gates[const Duration(seconds: 20)]!.complete(
+      MovaThumb(at: const Duration(seconds: 20), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    expect(source.gates, contains(const Duration(seconds: 30)));
+    source.gates[const Duration(seconds: 30)]!.complete(
+      MovaThumb(at: const Duration(seconds: 30), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    expect(inA, findsOneWidget);
+    expect(inB, findsNothing);
+    expect(a.value.dragging, isTrue);
+    await t.pumpWidget(const SizedBox.shrink());
+    a.dispose();
+    b.dispose();
+    await api.dispose();
+  });
+  }
+
   late FakeMovaApi api;
 
   setUp(() => api = FakeMovaApi());

@@ -117,6 +117,7 @@ class _GestureLayerState extends State<_GestureLayer>
   ///
   /// 当前单指拖动正在驱动的意图（若已判定）。
   _DragMode _mode = _DragMode.undecided;
+  late MovaUiPort _ui;
 
   /// Accumulated focal-point delta since the drag started.
   ///
@@ -170,6 +171,7 @@ class _GestureLayerState extends State<_GestureLayer>
   @override
   void initState() {
     super.initState();
+    _ui = movaUiOf(context);
     // Subscription lifecycle handled by [MovaPlugin.bind] — cancelled on
     // dispose without a manual override.
     //
@@ -179,6 +181,12 @@ class _GestureLayerState extends State<_GestureLayer>
       _lastPosition = (api as MovaProgressSource).progressValue.position;
     }
     bind(_api.progress, (p) => _lastPosition = p.position);
+  }
+
+  @override
+  void dispose() {
+    if (_mode == _DragMode.seek) _ui.setDragging(false);
+    super.dispose();
   }
 
   /// Whether seek gestures are currently allowed: always for VOD; for a

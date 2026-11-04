@@ -297,6 +297,8 @@ class _SeekBarState extends State<_SeekBar> {
   /// [_position] 落定后自动解除钉住——拖动进行中时，一次凑巧落在手指当前位置
   /// 附近的进度 tick 绝不能提前把钉住松开。
   bool _awaitingSeek = false;
+  late MovaUiPort _ui;
+  bool _ownsDrag = false;
 
   /// Subscription feeding [_position]; cancelled on dispose.
   ///
@@ -313,6 +315,7 @@ class _SeekBarState extends State<_SeekBar> {
   @override
   void initState() {
     super.initState();
+    _ui = movaUiOf(context);
     final api = widget.api;
     if (api is MovaProgressSource) {
       _position = (api as MovaProgressSource)
@@ -338,6 +341,7 @@ class _SeekBarState extends State<_SeekBar> {
   @override
   void dispose() {
     _sub?.cancel();
+    if (_ownsDrag) _ui.setDragging(false);
     super.dispose();
   }
 
@@ -381,9 +385,8 @@ class _SeekBarState extends State<_SeekBar> {
       _dragValue = v;
       _awaitingSeek = false;
     });
-    movaUiOf(
-      context,
-    ).setDragging(true, previewAt: Duration(milliseconds: v.round()));
+    _ownsDrag = true;
+    _ui.setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
   /// Commits the dragged position via [MovaApi.seek] and clears the drag
@@ -408,7 +411,8 @@ class _SeekBarState extends State<_SeekBar> {
   /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
   void _onChangeEnd(double v) {
     widget.api.seek(Duration(milliseconds: v.round()));
-    movaUiOf(context).setDragging(false);
+    _ownsDrag = false;
+    _ui.setDragging(false);
     setState(() => _awaitingSeek = true);
   }
 }

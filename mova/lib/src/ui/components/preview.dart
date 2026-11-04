@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/preview/models.dart';
+import '../../core/preview/api.dart';
 import '../../core/state/state.dart';
 import '../../core/state/ui_state.dart';
 import '../format.dart';
@@ -81,6 +82,19 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   ///
   /// 当前拖动位置；无拖动时为 null。
   Duration? _at;
+  late MovaPreviewApi _preview;
+
+  void _openPreview() {
+    final preview = widget.api.preview;
+    _preview = preview is MovaPreviewSessions
+        ? (preview as MovaPreviewSessions).openSession()
+        : preview;
+  }
+
+  void _closePreview() {
+    final preview = _preview;
+    if (preview is MovaPreviewSession) unawaited(preview.dispose());
+  }
 
   /// The thumbnail to render, or null while none has resolved yet.
   ///
@@ -110,6 +124,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   @override
   void initState() {
     super.initState();
+    _openPreview();
     // Seed synchronously from the current snapshot without setState — the
     // first build has not run yet, so assigning the fields directly is both
     // correct and flicker-free.
@@ -118,8 +133,8 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     final at = movaUiOf(context).uiState.previewAt;
     if (at != null) {
       _at = at;
-      _thumb = widget.api.preview.peekAt(at);
-      widget.api.preview.requestAt(at);
+      _thumb = _preview.peekAt(at);
+      _preview.requestAt(at);
     }
     _uiSub = movaUiOf(context).uiStates.listen((s) => _apply(s.previewAt));
     _subscribeThumbs();
@@ -136,6 +151,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     _uiSub?.cancel();
     _thumbSub?.cancel();
     _epochSub?.cancel();
+    _closePreview();
     super.dispose();
   }
 
@@ -143,7 +159,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   ///
   /// 订阅*当前*预览实例的缩略图流。
   void _subscribeThumbs() {
-    _thumbSub = widget.api.preview.thumbs.listen((t) {
+    _thumbSub = _preview.thumbs.listen((t) {
       if (!mounted) return;
       setState(() => _thumb = t);
     });
@@ -156,11 +172,14 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   /// 位置重新发请求。
   void _resubscribe() {
     _thumbSub?.cancel();
+    _closePreview();
+    _openPreview();
+    _thumb = null;
     _subscribeThumbs();
     final at = _at;
     if (at == null || !mounted) return;
-    final hit = widget.api.preview.peekAt(at);
-    widget.api.preview.requestAt(at);
+    final hit = _preview.peekAt(at);
+    _preview.requestAt(at);
     setState(() => _thumb = hit ?? _thumb);
   }
 
@@ -176,7 +195,7 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     if (at == _at) return;
     if (!mounted) return;
     if (at == null) {
-      widget.api.preview.cancel();
+      _preview.cancel();
       setState(() {
         _at = null;
         _thumb = null;
@@ -189,8 +208,8 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     //
     // 先取同步缓存命中，让已驻留的桶就在本帧渲染出来；没命中则保留上一帧，
     // 让气泡显示一张旧图而不是闪成空框。
-    final hit = widget.api.preview.peekAt(at);
-    widget.api.preview.requestAt(at);
+    final hit = _preview.peekAt(at);
+    _preview.requestAt(at);
     setState(() {
       _at = at;
       _thumb = hit ?? _thumb;

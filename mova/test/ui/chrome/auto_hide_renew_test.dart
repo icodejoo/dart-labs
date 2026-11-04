@@ -41,6 +41,36 @@ Future<void> _keyboardFit(WidgetTester t) async {
 }
 
 void main() {
+  for (final slider in [true, false]) {
+    testWidgets('锁定卸载${slider ? "底栏" : "横滑"}拖动后恢复隐藏', (t) async {
+      final api = FakeBridgeApi();
+      final c = MovaChrome();
+      await _mount(t, api, chrome: c);
+      final start = slider
+          ? t.getCenter(find.byType(Slider))
+          : t.getCenter(find.byType(MovaPlayer)) + const Offset(-100, 0);
+      final gesture = await t.startGesture(start);
+      await gesture.moveBy(const Offset(70, 0));
+      await t.pump();
+      expect(c.value.dragging, isTrue);
+      await api.setLocked(true);
+      api.push(api.state.copyWith(locked: true));
+      await t.pump();
+      await t.pump();
+      expect(c.value.dragging, isFalse);
+      expect(c.value.previewAt, isNull);
+      await api.setLocked(false);
+      api.push(api.state.copyWith(locked: false));
+      await t.pump();
+      await gesture.up();
+      await t.pump(const Duration(seconds: 3));
+      expect(c.value.controlsVisible, isFalse);
+      expect(t.takeException(), isNull);
+      await _unmount(t);
+      c.dispose();
+      await api.dispose();
+    });
+  }
   testWidgets('拖底栏五秒保持控制条和预览，松手重新计时', (t) async {
     final api = FakeBridgeApi();
     final c = MovaChrome();
