@@ -1,5 +1,58 @@
 ## Unreleased
 
+* Fix CSS Color 4 `#rgba` on the Dart animation path across paint attributes,
+  styles, CSS keyframes, gradient stops and SMIL color channels.
+* Expand chained `<use>` references while preserving cycle detection, depth
+  limits and the existing whole-instance expansion budget.
+* SMIL animate on fill/stroke/stop-color of plain elements now interpolates,
+  including multisegment values, discrete timing and inherited group paints.
+  Animating color does not drive currentColor, which still resolves from theme.
+* Support SMIL begin-value-lists with offset/syncbase instances, restart rules,
+  freeze and seeded cyclic dependencies. Expand forward loops lazily instead of
+  stopping after 64 intervals; keep their Ticker alive. Bound each animation at
+  20000 intervals, share document instance/work budgets, and flag the entire
+  connected component on truncation. Discard intervals ending at/before zero
+  before restart and quotas; omit intervals whose explicit ends all precede begin.
+  Restart/end/min/max apply only to components containing a begin list;
+  accumulate remains unsupported. Event list items never fire. Preserve the legacy
+  single-value/CSS timing paths; cover real Iconify loops and exact SVGator
+  CSS frame comparison against HEAD.
+
+* Bound static SVG reference graphs at 32 edges, including all duplicate-id
+  candidates, inline URLs, marker shorthand and use/pattern/filter href chains.
+  Independently scan CSS using simplecss 0.2.2's token boundaries (functions
+  stop at the first closing parenthesis); ambiguous syntax uses document-wide
+  expanding-subtree/non-gradient-URL edges, including ordinary subtrees reached
+  through weighted use/feImage/pattern/filter references. Common declarations
+  and pseudo selectors retain the known tag/id/class and ancestor constraints.
+  Remove the sum across independent CSS resource depths, allowing Illustrator
+  illustrations with many independent clips/masks/gradients. Keep 4000 approximate
+  rules/selectors; allow 8,000,000 element-rule pairs/CSS edges. Reject cumulative
+  elements * depth^combinators above 32M; no separate combinator count cap.
+  These conservative limits may reject valid large or ambiguous stylesheets.
+  Exercise fixed attacks in 1 MiB subprocess stacks: debug 500 seeded CSS
+  fragments / 2000 parses, release 3000 / 12000, using a 100-layer CSS chain;
+  compare complete SSE bytes with HEAD. Checked CSS resource references use a
+  native worker (64-bit 64 MiB; 32-bit 16 MiB); gradient-only CSS
+  stays inline. One/two-resource cycles retain upstream behavior. Worker stacks
+  cannot recover aborts; mobile, 32-bit and threadless stacks remain unmeasured.
+  Debug/release each pass 82 tests (3 existing ignored). Frozen corpus comparison
+  covers 11,187 sources / 22,374 parses with identical full SSE and error records;
+  no new errors; none of the 142 nonempty styled documents uses the fallback.
+  Full-suite observed ranges are about 29–37s debug / 31–51s release,
+  depending on host load (higher load can take longer). Preserve the 2880-case
+  and two real Illustrator wire snapshots. At the 8M all-matching boundary,
+  observed ranges are about 0.9–1.4s release / 4.7–5.3s debug; higher host load
+  can take longer. MDI1000's alternating seven-round mean median stays within
+  host noise: 14.851 → 14.220 µs (−4.25%; round ranges 13.059–18.104 /
+  13.584–17.560 µs).
+  parse_svg is synchronous FRB work on the calling thread, usually the UI isolate;
+  heavy in-budget inputs have observed ranges of about 0.9–1.4s release /
+  4.7–5.3s debug, depending on host load; phones may take longer. Parse untrusted
+  SVG in a background isolate. These checks cover the measured corpus and fixed
+  cases, not all SVG syntax; see
+  doc/animation-engine-features.md for measured limits and remaining risks.
+
 * Fix animated group opacity: keep opacity local to each node, multiply nested
   opacity through offscreen group compositing, and composite overlapping fill
   and stroke before fading. Preserve SMIL/CSS opacity animation and single-paint

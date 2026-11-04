@@ -44,9 +44,21 @@ strip = true
 # With panic="abort", catch_unwind is NOT a safety net (including init_app).
 # Guard untrusted SVG with input-size and depth limits before usvg conversion;
 # reject invalid/non-finite output explicitly instead of relying on unwinding.
-# Source depth 128 (1 MiB release thread stack), acyclic URL chain depth 64;
+# Source depth 128, reference depth 32 (debug + release 1 MiB probes).
+# Every inline URL, marker shorthand, use/feImage/pattern/filter href share the
+# graph (all duplicate-ID candidates). CSS follows simplecss 0.2.2 boundaries;
+# ambiguous CSS links expanding resource interiors to non-gradient URL targets.
+# No separate target-depth sum; gradient-only CSS always stays inline.
+# <=4000 approximate rules/selectors, <=8,000,000 element-rule matches/CSS edges;
+# No combinator count cap; sum(elements * depth^combinators) <=32,000,000.
+# Checked recursive CSS references use a 64 MiB worker
+# (32-bit: 16 MiB, unmeasured); gradient-only CSS parses inline.
+# Conversion/Drop stay on the worker; recursive wire paints are checked there.
+# wasm/no-thread targets parse inline. join cannot recover panic=abort/overflow;
 # reject markup entities, embedded SVG images and cycles of >=3 resources
 # before recursive parsing (one/two-resource cycles retain usvg semantics).
+# Android/iOS and 32-bit stacks remain unmeasured; budgets are conservative,
+# not a proof of all upstream recursion or a fixed CPU-time guarantee.
 # The 64 MiB encoded-image output budget silently drops excess images.
 # 输入上限 + 深度上限兜底，而不是 catch_unwind；保留 abort 的体积收益。
 panic = "abort"
