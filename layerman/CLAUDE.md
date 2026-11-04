@@ -117,6 +117,35 @@
   OverlayManager 这个名字"改成"我们决定保留 Layerman 这个名字"——变成废话)。只有**当前**（未发布的
   0.2.0 条目、以及这条新增的决策记录本身）该用新名字,历史条目一律保持发生时的原名。
 
+- **0.2.2 加固 + 全量架构评审（2026-11-04）**：评审时写了 18 条探针测试，实测确认了一批缺陷
+  （未修的清单见 `ARCHITECTURE.md` §14）。用户选定**路线 A：0.2.2 补丁 → 0.3.0 只新增 API →
+  1.0 收口（破坏性）**。0.2.2 修了 6 项：
+  ①`close(id, 类型不对的结果)` 原来抛 TypeError，且 future 永远挂起 → 现在先校验，不符抛 ArgumentError；
+  ②冷却 hydrate 竞态（`ready()` 前 open 绕过上限；整表写回抹掉其它 id；hydrate 后又覆盖新计数）
+  → 改为门控 + 合并 + 串行写 + 失败上报；
+  ③异步 `beforeClose` 未决时重复 close 会去重；
+  ④`when` 谓词抛异常会被隔离；
+  ⑤`cooldown` 必须传显式 id（debug 断言）；
+  ⑥dispose 后 open 在 debug 断言、release 返回 null。
+  README 的路由配方原来按名字 `popUntil`/`Get.until` 关闭，目标不在栈顶时静默失效，条目永远卡在
+  closing；现在改为保存 Route 对象（栈顶时 pop，被盖住时 `removeRoute`），`dismissed` 用
+  `route.completed`，不再需要 exitDuration 估计值。
+  版本下限：`didChangeTop` 从 Flutter **3.27.0** 才有（commit 88bee39f542），原来的
+  `flutter: ">=1.17.0"` 是错的；`sdk` 从 ^3.12.2 降到 ^3.6.0（分析器已按 3.6 语言版本验证）；
+  `removeRoute` 的 result 参数要 **3.32** 才有，所以配方里不传。
+  ARCHITECTURE.md/.svg 原稿写的是根本不存在的 API，已照代码重写。新增 `layerman-ci.yml`：
+  stable 上跑 analyze + test，3.27.4 上只跑 test，deploy 依赖它。
+  **命名决定（用户指定）**：0.3.0 自带的 Route 型 presenter 叫 **`DialogManager`**（不叫
+  DialogPresenter），全局建一次、持有 navigatorKey；同类的按 `XxxManager` 命名（如
+  `BottomSheetManager`）。0.3.0 待办见 ARCHITECTURE §15。
+
+## 验收基线(2026-11-04,0.2.2)
+
+- `flutter test`：**101 条全绿**（layerman_test 81 + robustness_test 15 + readme_recipe_test 5）；
+  `flutter analyze`（含 example）干净；本机 Flutter 3.47.0 / Dart 3.13.0。
+- 真机集成 17 条本轮**没有重跑**：example 的 Windows runner 会弹出普通窗口抢焦点，而本轮改动
+  不影响 example 的可见流程。要跑先问用户，或者先给 runner 加安静模式。
+
 ## 验收基线(2026-07-04)
 
 - 单测 `flutter test`:**80 全绿**(0.1.0 新增 10 条:pauseOnRoutes 组合语义 3 条 + `OverlayNavigatorObserver`
@@ -161,4 +190,7 @@
 - 与 codejoo 仓库同套习惯:提交落当前分支不新建分支;测试全绿才算完成,展示真实执行输出。
 - example 依赖 get/bot_toast 仅为演示编排;**主包保持零第三方运行时依赖**(cooldown 存储走
   抽象接口,shared_preferences 适配放 README 示例,不进依赖)。
-- 环境:Flutter 3.44.4 / Dart 3.12.2,Windows desktop 可用(集成测试跑真窗口)。
+- 环境：本机 Flutter 3.47.0 / Dart 3.13.0（2026-11-04；之前是 3.44.4 / 3.12.2），Windows desktop
+  可用（集成测试跑真窗口，会抢焦点）。3.47 的 `pub get` 会自动给两份 analysis_options 加
+  `analyzer.exclude`，并改写 example 的 pubspec.lock 和插件注册文件（后者只改换行符）。
+  不是有意为之就别提交这些文件。

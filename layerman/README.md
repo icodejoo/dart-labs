@@ -56,7 +56,7 @@ in your app.
   rollover) auto-shows the queued entry the moment it expires.
 - **Backend-driven `resolve`** — fetch the payload only when the overlay is
   granted the slot; returning `null` skips it. The slot is committed while
-  resolving (later arrivals cannot preempt it).
+  resolving; ordinary arrivals wait, but `replace` can preempt and discard it.
 - **`beforeClose` guard** — return `false` (sync or async) to veto a `close()`
   (unsaved-changes confirmations); `remove`/`clear` bypass it.
 - **`Future<T?>` results** — `open()` returns a future that resolves with the
@@ -73,7 +73,9 @@ in your app.
   freeze/resume the queue on entry/exit, composing cleanly with manual
   `pauseAll`/`resumeAll`. `currentRoute` reads the tracked value back.
 - **`update(id, patch)`** — shallow-merge into a shown overlay's `data` and
-  rebuild, without any queue change; **`clearWhere(test)`** — selective mass
+  notify listeners, without rendering or changing the queue. `PresentContext.data`
+  is a snapshot at presentation; live UI needs backend-owned listenable state.
+  **`clearWhere(test)`** — selective mass
   removal (e.g. "close everything of group X").
 - **Per-overlay `delay` and `duration`** (auto-close).
 - **Orchestrates external overlay systems** — one queue over `showDialog`,
@@ -83,7 +85,7 @@ in your app.
 
 ```yaml
 dependencies:
-  layerman: ^0.2.1
+  layerman: ^0.2.2
 ```
 
 ```dart
@@ -131,31 +133,45 @@ manager.open(present: (ctx) {
 });
 ```
 
-For `showDialog` / `Get.dialog`, `dismissed` is just the route future and `dismiss` is a `Navigator.pop` / `Get.back` that targets *this* overlay's own route — see the recipes below.
+For route-based dialogs, push and retain the Route object: use `route.completed`
+for `dismissed` and close that exact route through its own navigator — see the recipes below.
 
 ## Usage
 
 ### A shared `present:` helper for these examples
 
-Every example below shows the overlay through `showDialog`, wrapped in a tiny
+Every example below pushes a `DialogRoute`, wrapped in a tiny
 helper that targets *this* overlay's own route for a close (the same pattern
 the [full recipes](#native-showdialog) use, just factored out for brevity):
 
 ```dart
 Present<T> dialog<T>(Widget child) => (ctx) {
-  final name = 'om://${ctx.id}';
-  final future = showDialog<T>(
-    context: navigatorKey.currentContext!, // e.g. a GlobalKey<NavigatorState>
-    routeSettings: RouteSettings(name: name),
+  final navigator = navigatorKey.currentState!;
+  final route = DialogRoute<T>(
+    context: navigator.context,
+    settings: RouteSettings(name: 'om://${ctx.id}'),
     builder: (_) => child,
   );
+  navigator.push(route);
   return PresentedOverlay<T>(
-    dismissed: future, // barrier / back button / pop complete it
-    dismiss: ([r]) async => Navigator.of(navigatorKey.currentContext!)
-        .popUntil((rt) => rt.settings.name != name),
+    dismissed: route.completed, // completes after the exit animation, carrying the pop result
+    dismiss: ([r]) async {
+      final nav = route.navigator;
+      if (nav == null || !route.isActive) return;
+      if (route.isCurrent) {
+        nav.pop(r); // on top: animated pop
+      } else {
+        nav.removeRoute(route); // buried under another route: remove exactly this one
+      }
+    },
   );
 };
 ```
+
+Retain the Route object: pop it on top, or remove exactly it when buried;
+name-based popUntil cannot close a buried route. Use `removeRoute(route)`
+without a result for Flutter 3.27 compatibility; the manager has already
+delivered the result before calling `dismiss`.
 
 ### Open and await a result
 
@@ -233,7 +249,9 @@ manager.open(
 ```
 
 `route` reserves the context key `route`; `requiresAuth` reserves `auth`.
-Everything else is free-form for `when` predicates.
+Everything else is free-form for `when` predicates. A `when` predicate that
+throws is reported via `FlutterError.reportError` (once per overlay) and treated
+as unmet — it never escapes `open()` / `setContext()`.
 
 ### Auto route awareness (`LayermanNavigatorObserver` + `pauseOnRoutes`)
 
@@ -267,8 +285,8 @@ Two things Flutter itself does that are easy to miss:
   to gate on the home page by a specific string, give it one explicitly via
   `initialRoute`/`routes` (or a named `RouteSettings`) instead of `home:`.
 - **A route-backed dialog pushed onto the same `Navigator`** (the
-  `showDialog`/`Get.dialog` recipe above needs a unique route name for
-  targeted close) genuinely *is* the topmost route while it's shown, so
+  `DialogRoute` recipes above name theirs `om://<id>`) genuinely *is* the
+  topmost route while it's shown, so
   `route` reflects its name for that window — not a bug, just worth knowing
   if you combine route-backed dialogs with `route`-gated overlays elsewhere.
 
@@ -306,16 +324,22 @@ manager.open(
 ```
 
 All present caps must pass (AND); a cap counts when the overlay actually opens.
-`session` lives in memory; the rest persist. Back the store with real storage
-and await hydration before your first show:
+Counters are keyed by `id`, so a cooldown needs an explicit `id` (asserted in
+debug — an auto-generated id changes on every open). `session` lives in memory;
+the rest persist. Back the store with real storage:
 
 ```dart
 final manager = Layerman(
   cooldownStorage: SharedPrefsCooldownStorage(), // your OverlayCooldownStorage
   storageKey: 'layerman:cooldown',
 );
-await manager.ready(); // hydrate persisted counters
+await manager.ready(); // optional: counters loaded + queue re-scheduled
 ```
+
+Until the store has hydrated, an entry gated on a persisted cap (`total` /
+`day` / `hour` / `minute` / `minGap`) simply waits — an `overlap` one is held,
+not dropped — so opening before `ready()` is safe. A failed read or write is
+reported via `FlutterError.reportError` and never blocks scheduling.
 
 A minimal `shared_preferences` adapter:
 
@@ -334,24 +358,32 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 
 Fetch the payload only when the slot is granted (avoids loading data for an
 overlay that may never show). Returning `null` skips it without counting
-cooldown; the slot is committed while resolving, so later arrivals cannot
-preempt it.
+cooldown; the slot is occupied while resolving. Ordinary arrivals wait, but
+`replace` can preempt and discard the resolving entry.
 
 ```dart
 manager.open<void>(
   id: 'offer',
   resolve: () async => api.fetchOfferOrNull(), // null -> skip silently
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = showDialog<void>(
-      context: navigatorKey.currentContext!,
-      routeSettings: RouteSettings(name: name),
+    final navigator = navigatorKey.currentState!;
+    final route = DialogRoute<void>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => OfferCard(offer: ctx.data as Offer),
     );
+    navigator.push(route);
     return PresentedOverlay<void>(
-      dismissed: future,
-      dismiss: ([_]) async => Navigator.of(navigatorKey.currentContext!)
-          .popUntil((rt) => rt.settings.name != name),
+      dismissed: route.completed,
+      dismiss: ([_]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(); // on top: animated pop
+        } else {
+          nav.removeRoute(route); // buried under another route: remove exactly this one
+        }
+      },
     );
   },
 );
@@ -371,7 +403,8 @@ manager.open(
 ```
 
 `beforeClose` gates `close()`/`dismiss()` only — `remove`/`clear`/auto-dismiss
-bypass it.
+bypass it. While an async guard is pending, further `close()`/`dismiss()` calls
+for that overlay are ignored, so a double tap doesn't ask twice.
 
 ### pause / resume / update / clearWhere
 
@@ -388,21 +421,24 @@ manager.clearWhere((r) => (r.data as Map?)?['group'] == 'promo');
 ```
 
 `update` doesn't re-render anything itself (the manager owns no widgets) — it
-just notifies listeners; a `present:` backend that wants to reflect the new
-`data` should rebuild off that notification (or read `data` the next time it
-builds).
+merges `data` and calls `notifyListeners`. `PresentContext.data` remains the
+snapshot captured when `present` ran; rebuilding with that context does not
+fetch updated data. For live UI, maintain listenable state in the backend and
+update it alongside `manager.update` (as the example update demo does).
 
 ### Two-phase close / exit animation
 
 `close()` settles the result and asks your backend to close; the queue only
 advances once the backend's `dismissed` future completes, plus an optional
 `exitDuration` grace on top. The exit animation itself is entirely your
-backend's job now — play it however you like before completing `dismissed`:
+backend's job. Route backends use `route.completed`, which completes after the
+exit animation with the pop result; the future returned by `showDialog` or
+`Navigator.push` completes when pop starts. Reserve `exitDuration` for backends
+without an animation-end signal. A custom backend can complete `dismissed` itself:
 
 ```dart
 manager.open<void>(
   id: 'sheet',
-  exitDuration: const Duration(milliseconds: 250), // grace after dismissed, before the queue advances
   present: (ctx) {
     final done = Completer<void>();
     var closing = false;
@@ -443,11 +479,14 @@ manager.dismiss('sheet');           // close with null
 manager.remove('sheet');            // remove immediately, no exit grace
 manager.clear();                    // remove everything (queued + active)
 
-manager.isShowing('sheet'); // bool — active (resolving/open/closing)
-manager.activeIds;          // currently shown ids
-manager.queuedIds;          // ids waiting in queues
+manager.isShowing('sheet'); // bool — open/closing only
+manager.activeIds;          // open/closing ids (serial + overlaps)
+manager.queuedIds;          // pending ids waiting in queues
 manager.isPaused;           // bool
 ```
+
+A resolving entry occupies a slot but is in neither `activeIds` nor `queuedIds`;
+`isShowing` is false until it opens.
 
 `Layerman` is a `ChangeNotifier`, so `addListener` / `AnimatedBuilder`
 can rebuild UI (e.g. a debug HUD) on every transition.
@@ -466,13 +505,16 @@ PresentedOverlay<T>(
 )
 ```
 
-- `await open(...)` resolves through **`dismissed`** — complete it on *every*
-  close path (user tap, barrier, back button, timeout, your `dismiss`).
+- `await open(...)` resolves with the `result` passed to `close(id, result)`
+  when the manager closes it, otherwise with the value **`dismissed`**
+  completes with — so complete `dismissed` on *every* close path (user tap,
+  barrier, back button, timeout, your `dismiss`).
 - `close` / `replace` / `clear` / `remove` drive **`dismiss`** to close the
   backend on the manager's behalf.
-- `exitDuration` is a **post-dismiss grace period** before
-  the queue advances (route futures often complete when the exit animation
-  *starts*).
+- Route backends use **`route.completed`** for `dismissed`: it waits for the
+  exit animation and carries the pop result. `showDialog` / `Navigator.push`
+  futures complete when pop starts. Reserve `exitDuration` (a post-`dismissed`
+  grace period) for backends without an animation-end signal.
 
 The whole point: a single serial queue (plus priority / replace / cooldown /
 conditions) now governs dialogs, snackbars and toasts from different libraries
@@ -483,20 +525,25 @@ uniformly.
 ```dart
 manager.open<bool>(
   id: 'confirm',
-  exitDuration: const Duration(milliseconds: 200),
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = showDialog<bool>(
-      context: rootNavigatorContext, // e.g. navigatorKey.currentContext!
-      useRootNavigator: true,
-      routeSettings: RouteSettings(name: name),
+    final navigator = navigatorKey.currentState!;
+    final route = DialogRoute<bool>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => const ConfirmDialog(),
     );
+    navigator.push(route);
     return PresentedOverlay<bool>(
-      dismissed: future, // barrier / back button / pop complete it
-      // Targeted close by route name — never a bare pop of "whatever is on top":
-      dismiss: ([r]) async =>
-          Navigator.of(rootNavigatorContext).popUntil((rt) => rt.settings.name != name),
+      dismissed: route.completed,
+      dismiss: ([r]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(r); // on top: animated pop
+        } else {
+          nav.removeRoute(route); // buried under another route: remove exactly this one
+        }
+      },
     );
   },
 );
@@ -504,22 +551,44 @@ manager.open<bool>(
 
 ### GetX dialog / bottom sheet
 
+`Get.dialog` / `Get.bottomSheet` do not expose their Route objects. Push a
+`DialogRoute` directly on the same Navigator (`Get.key.currentState!`):
+
 ```dart
 manager.open<bool>(
   id: 'confirm',
-  exitDuration: const Duration(milliseconds: 200),
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = Get.dialog<bool>( // or Get.bottomSheet(...)
-      const ConfirmDialog(),
-      routeSettings: RouteSettings(name: name),
+    final navigator = Get.key.currentState!;
+    final route = DialogRoute<bool>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
+      builder: (_) => const ConfirmDialog(),
     );
+    navigator.push(route);
     return PresentedOverlay<bool>(
-      dismissed: future,
-      // Never bare Get.back()/pop-top (a snackbar could steal it):
-      dismiss: ([r]) async => Get.until((rt) => rt.settings.name != name),
+      dismissed: route.completed,
+      dismiss: ([r]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(r); // on top: animated pop
+        } else {
+          nav.removeRoute(route); // buried under another route: remove exactly this one
+        }
+      },
     );
   },
+);
+```
+
+For a bottom sheet, replace only the `route` construction above; keep the same
+push, `route.completed`, and targeted dismiss logic. `isScrollControlled` is required:
+
+```dart
+final route = ModalBottomSheetRoute<bool>(
+  settings: RouteSettings(name: 'om://${ctx.id}'),
+  builder: (_) => const ConfirmDialog(),
+  isScrollControlled: false,
 );
 ```
 
@@ -549,9 +618,9 @@ manager.open<void>(
 
 ### A navigated page as a queue entry
 
-A pushed `Route` is just another external presenter — `Navigator.push`
-returns a `Future<T?>` that completes on pop, exactly like `showDialog`. Wrap
-it the same way to make the page participate in the queue (occupy a slot,
+A pushed `Route` is just another external presenter. Retain the route and use
+`route.completed` to wait for its exit animation and pop result. This makes
+the page participate in the queue (occupy a slot,
 respect `priority`/`replace`, block other overlays while it's up) — the push
 itself only happens once the queue grants the slot:
 
@@ -559,13 +628,23 @@ itself only happens once the queue grants the slot:
 manager.open<void>(
   id: 'checkout',
   present: (ctx) {
-    final future = navigatorKey.currentState!.push(MaterialPageRoute<void>(
+    final navigator = navigatorKey.currentState!;
+    final route = MaterialPageRoute<void>(
       settings: const RouteSettings(name: '/checkout'),
       builder: (_) => const CheckoutPage(),
-    ));
+    );
+    navigator.push(route);
     return PresentedOverlay<void>(
-      dismissed: future,
-      dismiss: ([_]) async => navigatorKey.currentState!.pop(),
+      dismissed: route.completed,
+      dismiss: ([_]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(); // on top: animated pop
+        } else {
+          nav.removeRoute(route); // buried under another route: remove exactly this one
+        }
+      },
     );
   },
 );
@@ -643,18 +722,18 @@ For any library you can *show* and *close*:
 1. Call the library's show API inside `present`.
 2. Return `PresentedOverlay(dismissed:, dismiss:)`.
 3. **`dismissed`** must complete on *every* close path (user, timeout, your
-   `dismiss`). If the library has no "closed" event, synthesize it (timer /
-   `onClose` / route future).
+   `dismiss`). For routes use `route.completed` (after the exit animation).
+   Otherwise use `onClose`, or synthesize a signal if none exists.
 4. **`dismiss`** must close *that specific* overlay via its own handle — never
    "close whatever is on top".
-5. Give it a `slot` if it should run in its own lane; set `exitDuration` as the
-   grace before the queue advances.
+5. Give it a `slot` if it should run in its own lane. Reserve `exitDuration`
+   for backends without an animation-end signal; routes use `route.completed`.
 
 ### Rules of engagement (from GetX / bot_toast issue history)
 
 1. The manager owns the truth — never poll `Get.isDialogOpen` /
    `Get.isSnackbarOpen` etc.
-2. Close only via each overlay's own handle (unique `RouteSettings.name`,
+2. Close only via each overlay's own handle (the captured Route object,
    `SnackbarController`, `CancelFunc`) — never "pop whatever is on top".
 3. Disarm backend-side orchestration (`onlyOne`, `crossPage`, GetX's snackbar
    queue) — replace / dismiss decisions belong to the manager. Never
@@ -684,15 +763,15 @@ Layerman({
 | Member | Description |
 | --- | --- |
 | `final Duration gap` | Delay inserted between one overlay closing and the next showing. |
-| `Future<void> ready()` | Completes when the cooldown store has hydrated. Await before the first cooldown-gated open. |
+| `Future<void> ready()` | Completes once the cooldown store has hydrated and the queue has been re-scheduled. Optional: entries gated on persisted caps wait for it automatically. |
 | `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
 | `bool get isPaused` | Whether the queue is frozen — via `pauseAll` or a matching `pauseOnRoutes` pattern. |
 | `bool get isDisposed` | Whether `dispose()` has been called — lets a deferred callback avoid calling into a torn-down manager. |
-| `List<String> get activeIds` | Ids currently shown (resolving/open/closing), serial + overlaps. |
-| `List<String> get queuedIds` | Ids waiting in queues. |
-| `bool isShowing(String id)` | Whether `id` is currently active. |
+| `List<String> get activeIds` | Ids in open/closing, serial + overlaps; excludes resolving. |
+| `List<String> get queuedIds` | Pending ids waiting in queues; excludes resolving (which occupies a slot). |
+| `bool isShowing(String id)` | Whether `id` is open/closing; false while resolving. |
 | `Future<T?> open<T>({...})` | Enqueue/show an overlay through your `present:` backend; returns its result future. See below. |
-| `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`). |
+| `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
 | `void dismiss(String id)` | `close(id)` with a `null` result. |
 | `void remove(String id)` | Remove immediately, no exit grace; bypasses `beforeClose`. |
 | `void clear()` | Remove everything (queued + active); pending results resolve `null`. |
@@ -701,7 +780,7 @@ Layerman({
 | `void setContext(Map<String, Object?> partial)` | Merge into the condition context and re-evaluate. |
 | `void pauseAll()` / `void resumeAll()` | Full freeze / release + re-schedule. |
 | `void pause(String id)` / `void resume(String id)` | Freeze / thaw one overlay's `duration` countdown. |
-| `void dispose()` | Cancel timers, clear entries, dispose the notifier. |
+| `void dispose()` | Cancel timers, clear entries, dispose the notifier. Afterwards `open()` asserts in debug (returns `null` without presenting in release) and every other mutator is a no-op. |
 
 Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 `notifyListeners` (fired on every state transition).
@@ -724,7 +803,7 @@ Inherited from `ChangeNotifier`: `addListener` / `removeListener` /
 | `Object? route` | `null` | Route gate sugar: `String`, `List<String>` or `RegExp` vs `context['route']`. |
 | `bool? requiresAuth` | `null` | Auth gate sugar vs `context['auth']`. |
 | `bool dismissWhenUnmet` | `true` | Auto-dismiss a *shown* overlay whose conditions stop holding. |
-| `OverlayCooldown? cooldown` | `null` | Frequency cap (see `OverlayCooldown`). |
+| `OverlayCooldown? cooldown` | `null` | Frequency cap (see `OverlayCooldown`); requires an explicit `id`. |
 | `Future<T?> Function()? resolve` | `null` | Fetch the payload when granted; `null` skips without counting cooldown. |
 | `FutureOr<bool> Function()? beforeClose` | `null` | Close guard; `false`/throw vetoes `close`. |
 | `Duration? exitDuration` | `null` | Grace between your backend's `dismissed` signal and the queue advancing (lets a shared exit animation finish); `null` advances immediately. |
@@ -870,7 +949,7 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
   (默认内存;生产用 `shared_preferences`)。**时间型**上限(`minGap` 与自然桶滚动)
   到期时会**自动**把排队项弹出。
 - **后端驱动 `resolve`**:仅当浮层获得 slot 时才取数据;返回 `null` 则跳过。取数
-  期间 slot 已被占用(后来者无法抢占)。
+  期间 slot 已被占用；普通后来者等待，但 `replace` 可以抢占并丢弃取数中的条目。
 - **`beforeClose` 守卫**:返回 `false`(同步或异步)可否决一次 `close()`(如未保存
   确认);`remove`/`clear` 会绕过它。
 - **`Future<T?>` 结果**:`open()` 返回的 future 以你关闭时传入的值兑现,dismiss 则为
@@ -883,7 +962,8 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
   (router 无关:vanilla Navigator/GetX/go_router 都行);`pauseOnRoutes` 声明"免打扰区"
   路由,进入自动冻结队列、离开自动恢复,与手动 `pauseAll`/`resumeAll` 干净组合。
   `currentRoute` 读回追踪到的值。
-- **`update(id, patch)`**:向已显示浮层的 `data` 浅合并并重建,不改队列;
+- **`update(id, patch)`**:向已显示浮层的 `data` 浅合并并通知监听者，不渲染、不改队列。
+  `PresentContext.data` 是 present 时的快照；实时 UI 需要后端自己维护可监听状态。
   **`clearWhere(test)`**:按条件批量移除(如「关闭所有 X 组」)。
 - **每浮层的 `delay` 与 `duration`**(自动关闭)。
 - **编排外部浮层系统**:一条队列统管 `showDialog`、GetX、`bot_toast`、
@@ -893,7 +973,7 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
 
 ```yaml
 dependencies:
-  layerman: ^0.2.1
+  layerman: ^0.2.2
 ```
 
 ```dart
@@ -939,31 +1019,44 @@ manager.open(present: (ctx) {
 });
 ```
 
-`showDialog` / `Get.dialog` 场景下,`dismissed` 就是路由 future,`dismiss` 就是针对*本*浮层自己那条路由的 `Navigator.pop` / `Get.back`——见下方 recipe。
+路由弹窗应自行 push 并保存 Route 对象：`dismissed` 使用 `route.completed`，
+关闭时通过路由自己的 navigator 精准关闭这一条——见下方配方。
 
 ## 基础用法
 
 ### 给下面这些例子用的共享 `present:` helper
 
-下面每个例子都用 `showDialog` 来显示浮层,包了一层小 helper,关闭时精准定向到*本*
+下面每个例子都自行 push `DialogRoute` 来显示浮层，包了一层小 helper，关闭时精准定向到*本*
 浮层自己那条路由(和[完整 recipe](#原生-showdialog)是同一套模式,这里只是抽出来
 方便复用):
 
 ```dart
 Present<T> dialog<T>(Widget child) => (ctx) {
-  final name = 'om://${ctx.id}';
-  final future = showDialog<T>(
-    context: navigatorKey.currentContext!, // 比如一个 GlobalKey<NavigatorState>
-    routeSettings: RouteSettings(name: name),
+  final navigator = navigatorKey.currentState!;
+  final route = DialogRoute<T>(
+    context: navigator.context,
+    settings: RouteSettings(name: 'om://${ctx.id}'),
     builder: (_) => child,
   );
+  navigator.push(route);
   return PresentedOverlay<T>(
-    dismissed: future, // 遮罩点击 / 返回键 / pop 都会兑现它
-    dismiss: ([r]) async => Navigator.of(navigatorKey.currentContext!)
-        .popUntil((rt) => rt.settings.name != name),
+    dismissed: route.completed, // 退场动画结束后完成，并携带 pop 的结果
+    dismiss: ([r]) async {
+      final nav = route.navigator;
+      if (nav == null || !route.isActive) return;
+      if (route.isCurrent) {
+        nav.pop(r); // 栈顶：播放退场动画
+      } else {
+        nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+      }
+    },
   );
 };
 ```
+
+保留 Route 对象，栈顶时 pop，被盖住时 removeRoute；按名字调用 popUntil 无法关闭
+被盖住的路由。`removeRoute(route)` 不传结果，以兼容 Flutter 3.27；manager 在调用
+`dismiss` 前已经交付了结果。
 
 ### 打开并等待结果
 
@@ -1020,6 +1113,8 @@ manager.open(
 ```
 
 `route` 保留上下文键 `route`;`requiresAuth` 保留 `auth`;其余键随你在 `when` 里用。
+`when` 谓词抛异常时会经 `FlutterError.reportError` 上报(每个浮层一次)并按「不满足」处理,
+不会从 `open()` / `setContext()` 里冒出去。
 
 ### 自动路由感知(`LayermanNavigatorObserver` + `pauseOnRoutes`)
 
@@ -1046,8 +1141,8 @@ MaterialApp(
 - **`MaterialApp.home` 的隐式路由名字是 `'/'`**,不是 `null`,也不是 `'/home'`——这是
   Flutter 自己的 `Navigator.defaultRouteName`。想让首页按某个特定字符串匹配条件,得用
   `initialRoute`/`routes`(或带名字的 `RouteSettings`)显式命名,别指望 `home:`。
-- **推到同一个 `Navigator` 上的路由型弹窗**(上面 `showDialog`/`Get.dialog` 的 recipe
-  为了定向关闭需要一个唯一路由名)在它显示期间**确实**是最顶层路由,`route` 会短暂反映
+- **推到同一个 `Navigator` 上的路由型弹窗**(上面的 `DialogRoute` 配方给它命名为
+  `om://<id>`)在它显示期间**确实**是最顶层路由,`route` 会短暂反映
   它的名字——这不是 bug,只是如果你同时用了路由型弹窗和别处的 `route` 条件门控,值得
   知道这个交互。
 
@@ -1076,13 +1171,17 @@ manager.open(
 );
 ```
 
-所有上限按 AND 通过才显示,真正打开时计数。`session` 存内存,其余持久化。生产中接真实
-存储并在首次显示前等待 hydrate:
+所有上限按 AND 通过才显示,真正打开时计数。计数按 `id` 记,所以带冷却必须传显式 `id`
+(debug 下断言——自动生成的 id 每次都变)。`session` 存内存,其余持久化。生产中接真实存储:
 
 ```dart
 final manager = Layerman(cooldownStorage: SharedPrefsCooldownStorage());
-await manager.ready();
+await manager.ready(); // 可选:计数已加载、队列已重新调度
 ```
+
+存储 hydrate 完成前,带持久化上限(`total` / `day` / `hour` / `minute` / `minGap`)的条目
+会自动等待——`overlap` 条目挂起而不是丢弃——所以在 `ready()` 之前 open 是安全的。读或写失败
+都会经 `FlutterError.reportError` 上报,不会卡住调度。
 
 `shared_preferences` 适配器最小实现:
 
@@ -1100,23 +1199,31 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 ### 后端驱动 `resolve`
 
 仅在获得 slot 时才取数据(避免为可能永不显示的浮层白白加载);返回 `null` 静默跳过且
-不计冷却。取数期间 slot 已提交,后来者无法抢占。
+不计冷却。取数期间占用 slot；普通后来者等待，但 `replace` 可以抢占并丢弃取数中的条目。
 
 ```dart
 manager.open<void>(
   id: 'offer',
   resolve: () async => api.fetchOfferOrNull(), // null -> 跳过
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = showDialog<void>(
-      context: navigatorKey.currentContext!,
-      routeSettings: RouteSettings(name: name),
+    final navigator = navigatorKey.currentState!;
+    final route = DialogRoute<void>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => OfferCard(offer: ctx.data as Offer),
     );
+    navigator.push(route);
     return PresentedOverlay<void>(
-      dismissed: future,
-      dismiss: ([_]) async => Navigator.of(navigatorKey.currentContext!)
-          .popUntil((rt) => rt.settings.name != name),
+      dismissed: route.completed,
+      dismiss: ([_]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(); // 栈顶：播放退场动画
+        } else {
+          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+        }
+      },
     );
   },
 );
@@ -1135,7 +1242,8 @@ manager.open(
 );
 ```
 
-`beforeClose` 只拦 `close()`/`dismiss()`;`remove`/`clear`/自动撤下会绕过。
+`beforeClose` 只拦 `close()`/`dismiss()`;`remove`/`clear`/自动撤下会绕过。异步守卫
+未决期间,同一浮层后续的 `close()`/`dismiss()` 会被忽略,连点两下不会问两次。
 
 ### pause / resume / update / clearWhere
 
@@ -1147,19 +1255,22 @@ manager.update('cart', {'count': 3});       // 浅合并进 data,通知监听者
 manager.clearWhere((r) => (r.data as Map?)?['group'] == 'promo'); // 按条件批量清
 ```
 
-`update` 自己不会重建任何东西(manager 不持有任何 widget)——它只是通知监听者;
-想反映新 `data` 的 `present:` 后端得靠这个通知自己重建(或者下次构建时读 `data`)。
+`update` 自己不会重建任何东西（manager 不持有任何 widget）——它只合并 `data` 并
+调用 `notifyListeners`。`PresentContext.data` 始终是 present 时的快照，拿同一个
+context 重建不会读到更新后的数据。实时 UI 要由后端自己维护可监听状态，并在调用
+`manager.update` 时同步更新它（example 的 update 演示就是如此）。
 
 ### 两阶段关闭 / 退场动画
 
 `close()` 兑现结果,并请求你的后端关闭;队列只有在后端的 `dismissed` future
 完成后才会推进,外加一个可选的 `exitDuration` 宽限。退场动画完全是你后端自己的事——
-在完成 `dismissed` 之前想怎么播就怎么播:
+路由后端使用 `route.completed`，它在退场动画结束后携带 pop 结果完成；
+`showDialog` / `Navigator.push` 返回的 future 在 pop 开始时就完成。
+`exitDuration` 留给没有「动画结束」信号的后端。自定义后端也可以自行完成 `dismissed`：
 
 ```dart
 manager.open<void>(
   id: 'sheet',
-  exitDuration: const Duration(milliseconds: 250), // dismissed 之后、队列推进之前的宽限
   present: (ctx) {
     final done = Completer<void>();
     var closing = false;
@@ -1200,9 +1311,14 @@ manager.dismiss('sheet');           // 以 null 关闭
 manager.remove('sheet');            // 立即移除,无退场宽限
 manager.clear();                    // 移除全部(排队 + 活跃)
 
-manager.isShowing('sheet'); manager.activeIds; manager.queuedIds;
+manager.isShowing('sheet'); // 仅 open/closing 为 true
+manager.activeIds;          // open/closing 的 id（串行 + overlap）
+manager.queuedIds;          // 排队等待的 pending id
 manager.isPaused;
 ```
+
+resolving 条目占用 slot，但既不在 `activeIds` 也不在 `queuedIds` 中；
+打开前 `isShowing` 为 false。
 
 `Layerman` 是 `ChangeNotifier`,可 `addListener` / `AnimatedBuilder` 在每次
 状态变化时刷新 UI。
@@ -1219,11 +1335,13 @@ PresentedOverlay<T>(
 )
 ```
 
-- `await open(...)` 通过 **`dismissed`** 兑现——它必须在**每一条**关闭路径上完成
+- `await open(...)` 的结果:由管理器 `close(id, result)` 关闭时就是那个 `result`,否则是
+  **`dismissed`** 完成时带的值——所以 `dismissed` 必须在**每一条**关闭路径上完成
   (用户点击、遮罩、返回键、超时、你的 `dismiss`)。
 - `close` / `replace` / `clear` / `remove` 会调用 **`dismiss`** 代表管理器关闭后端。
-- `exitDuration` 是「**dismiss 之后**、队列推进之前」的宽限期(路由 future
-  往往在退场动画**开始**时就完成了)。
+- 路由后端的 `dismissed` 使用 **`route.completed`**：退场动画结束后携带 pop 结果
+  完成。`showDialog` / `Navigator.push` 的 future 在 pop 开始时就完成。
+  `exitDuration` 是 `dismissed` 之后的宽限，留给没有「动画结束」信号的后端。
 
 核心价值:一条串行队列(叠加优先级 / replace / 冷却 / 条件)统一治理来自不同库的
 dialog、snackbar、toast。
@@ -1233,19 +1351,25 @@ dialog、snackbar、toast。
 ```dart
 manager.open<bool>(
   id: 'confirm',
-  exitDuration: const Duration(milliseconds: 200),
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = showDialog<bool>(
-      context: rootNavigatorContext,
-      useRootNavigator: true,
-      routeSettings: RouteSettings(name: name),
+    final navigator = navigatorKey.currentState!;
+    final route = DialogRoute<bool>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
       builder: (_) => const ConfirmDialog(),
     );
+    navigator.push(route);
     return PresentedOverlay<bool>(
-      dismissed: future,
-      dismiss: ([r]) async => Navigator.of(rootNavigatorContext)
-          .popUntil((rt) => rt.settings.name != name), // 按路由名定向关,不 pop 栈顶
+      dismissed: route.completed,
+      dismiss: ([r]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(r); // 栈顶：播放退场动画
+        } else {
+          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+        }
+      },
     );
   },
 );
@@ -1253,19 +1377,44 @@ manager.open<bool>(
 
 ### GetX dialog / bottom sheet
 
+`Get.dialog` / `Get.bottomSheet` 不交出 Route 对象。改为在同一个
+Navigator（`Get.key.currentState!`）上直接 push `DialogRoute`：
+
 ```dart
 manager.open<bool>(
   id: 'confirm',
-  exitDuration: const Duration(milliseconds: 200),
   present: (ctx) {
-    final name = 'om://${ctx.id}';
-    final future = Get.dialog<bool>(const ConfirmDialog(),
-        routeSettings: RouteSettings(name: name));
+    final navigator = Get.key.currentState!;
+    final route = DialogRoute<bool>(
+      context: navigator.context,
+      settings: RouteSettings(name: 'om://${ctx.id}'),
+      builder: (_) => const ConfirmDialog(),
+    );
+    navigator.push(route);
     return PresentedOverlay<bool>(
-      dismissed: future,
-      dismiss: ([r]) async => Get.until((rt) => rt.settings.name != name), // 别裸调 Get.back()
+      dismissed: route.completed,
+      dismiss: ([r]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(r); // 栈顶：播放退场动画
+        } else {
+          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+        }
+      },
     );
   },
+);
+```
+
+底部弹层只需把上面的 `route` 构造替换为以下代码；其余 push、
+`route.completed` 和定向关闭逻辑相同。`isScrollControlled` 是必填参数：
+
+```dart
+final route = ModalBottomSheetRoute<bool>(
+  settings: RouteSettings(name: 'om://${ctx.id}'),
+  builder: (_) => const ConfirmDialog(),
+  isScrollControlled: false,
 );
 ```
 
@@ -1290,22 +1439,32 @@ manager.open<void>(
 
 ### 把导航到的页面也塞进队列
 
-一个被 push 的 `Route`本质上就是另一种外部 presenter——`Navigator.push` 本来就
-返回一个 pop 时 resolve 的 `Future<T?>`,跟 `showDialog` 一模一样。用同样的方式包
-一层,就能让这个页面参与队列(占 slot、受 `priority`/`replace` 管辖、显示期间挡住
+一个被 push 的 `Route` 本质上就是另一种外部 presenter。保存路由对象，用
+`route.completed` 等待退场动画结束并取得 pop 结果，就能让页面参与队列
+（占 slot、受 `priority`/`replace` 管辖、显示期间挡住
 其它浮层)——push 这个动作只有轮到才会真正执行:
 
 ```dart
 manager.open<void>(
   id: 'checkout',
   present: (ctx) {
-    final future = navigatorKey.currentState!.push(MaterialPageRoute<void>(
+    final navigator = navigatorKey.currentState!;
+    final route = MaterialPageRoute<void>(
       settings: const RouteSettings(name: '/checkout'),
       builder: (_) => const CheckoutPage(),
-    ));
+    );
+    navigator.push(route);
     return PresentedOverlay<void>(
-      dismissed: future,
-      dismiss: ([_]) async => navigatorKey.currentState!.pop(),
+      dismissed: route.completed,
+      dismiss: ([_]) async {
+        final nav = route.navigator;
+        if (nav == null || !route.isActive) return;
+        if (route.isCurrent) {
+          nav.pop(); // 栈顶：播放退场动画
+        } else {
+          nav.removeRoute(route); // 被其它路由盖住：只移除这一条
+        }
+      },
     );
   },
 );
@@ -1372,15 +1531,16 @@ manager.open<void>(
 
 1. 在 `present` 里调用该库的显示 API。
 2. 返回 `PresentedOverlay(dismissed:, dismiss:)`。
-3. **`dismissed`** 必须在**每一条**关闭路径上完成;若该库没有「已关闭」事件,就自己
-   合成(定时器 / `onClose` / 路由 future)。
+3. **`dismissed`** 必须在**每一条**关闭路径上完成；路由使用退场动画后的
+   `route.completed`，其它后端使用 `onClose`，没有信号时再自行合成。
 4. **`dismiss`** 必须通过**那一条**浮层自己的句柄关闭它——绝不「关掉栈顶那个」。
-5. 需要独立车道就给 `slot`;用 `exitDuration` 设置队列推进前的宽限。
+5. 需要独立车道就给 `slot`；`exitDuration` 留给没有「动画结束」信号的后端，
+   路由使用 `route.completed`。
 
 ### 编排纪律(源自 GetX / bot_toast 的 issue 史)
 
 1. 管理器自持真相——**绝不**去读 `Get.isDialogOpen` / `Get.isSnackbarOpen`。
-2. 只用各浮层自己的句柄关闭(唯一 `RouteSettings.name`、`SnackbarController`、
+2. 只用各浮层自己的句柄关闭（保存的 Route 对象、`SnackbarController`、
    `CancelFunc`)——绝不「关掉栈顶」。
 3. 缴械后端自带的编排(`onlyOne`、`crossPage`、GetX 的 snackbar 队列)——replace /
    dismiss 决策归管理器;**禁用** `Get.closeAllSnackbars()`(会悬挂已入队 future)。

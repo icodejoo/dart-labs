@@ -18,7 +18,7 @@ description: >-
 
 # layerman (dart-labs)
 
-`D:/workspaces/dart-labs/layerman` — a **headless Flutter overlay queue orchestrator**,
+`dart-labs/layerman` — a **headless Flutter overlay queue orchestrator**,
 the Flutter sibling of the headless TS package `@codejoo/overlaymanager`
 (`D:/workspaces/codejoo/apps/overlay-manager`). Same orchestration semantics, and since
 0.2.0 the same philosophy too: the manager decides *when*/*which* overlay shows but
@@ -33,11 +33,14 @@ backend (`showDialog`, GetX, `bot_toast`, a self-managed `OverlayEntry`, …), a
 > section and the CHANGELOG for the full list and migration recipe. Don't reintroduce any
 > of these; that's the whole point of the refactor.
 
-Engine is one file: `lib/src/overlay_manager.dart` (~1250 lines) — no more
+Engine is one file: `lib/src/overlay_manager.dart` (~1430 lines) — no more
 `overlay_manager_scope.dart` (deleted with `OverlayManagerScope`). `lib/src/overlay_navigator_observer.dart`
 is the auto route-awareness `NavigatorObserver` (unaffected by the headless refactor — it
-only feeds `route` into `setContext`, never renders). Tests: `test/layerman_test.dart`.
-Example app + real-device integration: `example/`.
+only feeds `route` into `setContext`, never renders). Tests: `test/layerman_test.dart` (main
+suite), `test/robustness_test.dart` (0.2.2 hardening), `test/readme_recipe_test.dart` (the
+README route recipes, copied verbatim — keep them in sync). Example app + real-device
+integration: `example/`. `ARCHITECTURE.md` (§14 known limitations, §15 roadmap) is the
+current architecture reference — it was rewritten from code at 0.2.2.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -49,7 +52,7 @@ Example app + real-device integration: `example/`.
 
 - **`_Slot`** per named slot: `active` (0..1 occupant: resolving/open/closing), `queue`,
   gap/delay/cooldown timers, `gapPending`. `_overlaps` = concurrent stack; `_pendingOverlaps`
-  = held while paused; `_byId` = single source of truth.
+  = held while paused OR while waiting for cooldown hydration; `_byId` = single source of truth.
 - **Ordering `_cmp`**: `entry.replace` (an immutable per-entry field) front-bands FIRST, then
   priority desc, then FIFO `seq` — needed so a replacer that got queued (blocked by an
   `affix`ed current) still shows ahead of already-waiting normal entries.
@@ -60,15 +63,16 @@ Example app + real-device integration: `example/`.
   entries WAIT — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
   time-based cooldown); honor the entry's `delay` unless `skipGap`; `_activate`.
 - **`_activate`**: occupies the slot; `resolveData != null` → phase `resolving` (committed —
-  later arrivals can't preempt while resolving), `null` result skips WITHOUT counting
+  ordinary arrivals can't preempt while resolving, but a `replace` can and discards it), `null` result skips WITHOUT counting
   cooldown (`_onResolved`); otherwise `_open` → records cooldown, calls
   `entry.presentBackend()` (invokes the caller's `present:` exactly once and wires
   `externalDismiss` to the returned `PresentedOverlay.dismiss`), starts the `duration` timer.
   There is no other rendering path — `presentBackend` is the only way an overlay ever
   becomes visible.
-- **Two-phase close**: `close` → `beforeClose` guard (false/throw cancels; an async guard's
-  continuation re-checks `_closable`/`_isCurrent` at resolution time, since the entry may
-  have been removed while it was pending) → `_doClose` → phase `closing` + settle the result
+- **Two-phase close**: `close` → `acceptsResult` type check (ArgumentError, no state change) →
+  `beforeClose` guard (false/throw cancels; while an async guard is pending `closeGuardPending`
+  makes repeated close/dismiss no-ops; its continuation re-checks `_closable`/`_isCurrent` at
+  resolution time, since the entry may have been removed while it was pending) → `_doClose` → phase `closing` + settle the result
   → calls `entry.externalDismiss(result)` (skipped if the backend already reported done) →
   its `dismissed` future firing drives `_onExternalDismissed`, which applies the optional
   `exitDuration` grace before `_remove`. `_remove` advances the slot (gap-aware) only when it
@@ -79,10 +83,16 @@ Example app + real-device integration: `example/`.
   the targeted orchestrator-driven close. `externalDone` guards re-entry (a late `dismissed`
   signal after we already force-closed must not re-drive removal); `_dismissBackendBestEffort`
   fires on replace/clear/remove of a still-showing entry.
-- **CooldownStore**: hydrate-once (`await manager.ready()`), sync reads, fire-and-forget
-  write-through to pluggable `OverlayCooldownStorage` (default memory; README shows a
-  shared_preferences adapter). Local calendar buckets for day/hour/minute; rolling `minGap`;
-  `session` in memory. Injectable `now` for tests.
+- **CooldownStore**: hydrate-once with GATING — until `hydrated`, `timeUntilEligible` returns
+  `null` for persisted caps (total/day/hour/minute/minGap), so such serial entries wait and
+  such overlaps are held in `_pendingOverlaps`; the constructor's hydrate continuation then
+  re-schedules (via `_applyRelease` when not paused) and only then completes `ready()`.
+  Hydrate MERGES into existing records; sync reads; serialized write-through (`_writing` +
+  `_dirty`: one write in flight, then the latest snapshot) to pluggable
+  `OverlayCooldownStorage` (default memory; README shows a shared_preferences adapter);
+  read/write failures are reported via `_reportError`. Local calendar buckets for
+  day/hour/minute; rolling `minGap`; `session` in memory (never gated). Counters are keyed by
+  id → `cooldown` asserts an explicit `id`. Injectable `now` for tests.
 - **pause**: `pauseAll` = FULL freeze (no activation, `replace` won't discard the current
   occupant, overlaps held in `_pendingOverlaps`, durations frozen with remaining time via
   `now`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
@@ -146,21 +156,29 @@ Example app + real-device integration: `example/`.
    re-qualify only on a scheduling trigger (show/close/`setContext`). Cancel/re-arm the
    timer at the top of every `_schedule`; also cancel it in `pauseAll`/`dispose`.
 4. **`_CooldownStore._flush` must call `storage.write` DIRECTLY** — wrapping in
-   `Future(...)` leaves a pending Timer that explodes flutter_test's fake async.
+   `Future(...)` leaves a pending Timer that explodes flutter_test's fake async. The 0.2.2
+   serialization (`_writing`/`_dirty`, re-flush from the write future's `.then`) uses only
+   future continuations (microtasks) — keep it Timer-free, and never write before `hydrated`
+   (that was the "whole-map write-back wipes other ids" bug).
 5. **`beforeClose` gates only `close()`** — `remove`/`clear`/auto-dismiss/`duration` expiry
    (`_autoClose`) bypass it.
 6. **Every entry is presented through `present:`** — there is no manager-level wiring step
    (no `attach`/`detach`, no `OverlayState`) to forget. `exitDuration` means post-dismissed
-   grace (route futures complete when the exit animation STARTS, not when it finishes);
+   grace (`showDialog`/`Navigator.push` futures complete when the exit animation STARTS; the
+   README route recipes now use `TransitionRoute.completed`, which completes AFTER it, so
+   they need no `exitDuration`);
    `externalDone` must be set before best-effort dismiss so a late `dismissed` signal can't
    re-drive removal.
-7. **`resolve` is committed once resolving** (slot held; also for `overlap`; a result that
+7. **`resolve` is committed once resolving** (slot held against ordinary arrivals — only a
+   `replace` can preempt and discard it; also for `overlap`; a result that
    arrives while paused is parked in `hasHeldData` and opened by `_applyRelease`); `null` skip does not count
    cooldown; `_onResolved` guards `_byId[id] == e && phase == resolving`.
 8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) via the entry's `data` field, then
    calls `notifyListeners()` — that's it. The manager owns no widgets, so it cannot
-   `markNeedsBuild` anything itself; a `present:` backend that wants to reflect the new
-   `data` must rebuild off that notification (or read `ctx.data` next time it builds).
+   `markNeedsBuild` anything itself. `PresentContext.data` is a SNAPSHOT taken at present
+   time and there is no public per-id data getter, so a backend that needs live data must keep
+   its own listenable state and update it alongside `update()` (the example does exactly
+   this). A live data channel is planned for 0.3.0 (`OverlayTicket`).
 9. **No `stackIndex/isTopmost`** (deliberate TS difference, unchanged by the headless
    refactor): layer/z-order is entirely up to whichever `present:` backend renders the
    overlay — the queue itself tracks and exposes none of it. No cross-isolate cooldown sync
@@ -199,11 +217,30 @@ Example app + real-device integration: `example/`.
     observer was wired in); fixed by giving the demo's home page a real name via
     `initialRoute`/`routes` instead of `home:`. Document this for consumers, don't try to paper
     over it in the engine — it's correct Flutter behavior, not a bug to "fix" generically.
-16. **A route-backed dialog (the `showDialog`/`Get.dialog` external-presenter recipe) pushed on
-    the SAME `Navigator` the observer watches genuinely IS the topmost route while shown** — its
-    synthetic `RouteSettings(name: 'om://$id')` will show up in `route` for that window. This is
-    correct per Flutter's own model, not a bug; don't add filtering logic to hide it (that would
-    silently break an app that legitimately wants to gate on dialog routes) — document it instead.
+16. **A route-backed dialog (the README `DialogRoute` recipes) pushed on the SAME `Navigator`
+    the observer watches genuinely IS the topmost route while shown** — its synthetic
+    `RouteSettings(name: 'om://$id')` will show up in `route` for that window. Correct per
+    Flutter's model, but the 2026-11-04 review confirmed two real footguns from it: a
+    `route:`-gated overlay presented as a route dialog dismisses ITSELF via `dismissWhenUnmet`,
+    and an unrelated unnamed dialog on a `pauseOnRoutes` page releases the zone. The approved
+    fix is 0.3.0's observer `routeFilter` (default: `PageRoute` only, configurable to include
+    popups). Don't add ad-hoc, non-configurable filtering before that.
+17. **`close()` validates `result` BEFORE any state change** (`acceptsResult` = `r is T?`, built
+    in `open<T>()`); a mismatch throws `ArgumentError` and leaves the entry untouched.
+    `_settle` sets `settled` then completes; if the typed completion still throws it reports
+    and completes with `null` — a set `settled` flag must never leave the future pending.
+18. **Hydration gating must not drop or misfire**: `_applyRelease` keeps overlaps that still
+    `_waitingForHydrate` in `_pendingOverlaps`; `open(overlap:)` drops immediately only when
+    CONDITIONS fail (or the cooldown fails after hydration); the hydrate continuation checks
+    `isDisposed` first.
+19. **`closeGuardPending` must be cleared on EVERY async-guard resolution path** (true, false,
+    error) — otherwise `close()` is dead for that entry forever (`remove()` still works).
+20. **`when` errors are caught in `_conditionsPass`**: reported once per entry
+    (`conditionErrorReported`), treated as unmet — never thrown out of `open()`/`setContext()`/
+    timer callbacks.
+21. **After `dispose()`**: `open()` asserts (debug) / returns `null` without presenting
+    (release); every other public mutator is a silent no-op (async callbacks after an app
+    restart are legitimate). `dispose()` itself must run `clear()` BEFORE setting `_disposed`.
 
 ## Considered and deferred: `WidgetsBindingObserver` for OS-level deep links
 
@@ -229,9 +266,14 @@ independently via this reasoning and via the `LayermanNavigatorObserver` design 
 ## External backends — rules of engagement (issue-history-proven)
 
 1. Manager owns the truth — never poll `Get.isDialogOpen`/`isSnackbarOpen`.
-2. Close only via the overlay's OWN handle: unique `RouteSettings(name: 'om://$id')` +
-   `Get.until((rt) => rt.settings.name != name)` for route dialogs; `SnackbarController.close()`;
-   bot_toast `CancelFunc`. NEVER bare `Get.back()`/pop-top (snackbar steals it).
+2. Close only via the overlay's OWN handle: for routes, push and RETAIN the `Route` object
+   (`DialogRoute` / `ModalBottomSheetRoute` / `MaterialPageRoute`, also on `Get.key.currentState!`
+   for GetX — `Get.dialog` doesn't expose its route), use `route.completed` as `dismissed`, and
+   in `dismiss` `pop` it if `isCurrent`, else `removeRoute(route)` with NO result argument
+   (`removeRoute`'s result param only exists since Flutter 3.32; min is 3.27). Name-based
+   `popUntil`/`Get.until` silently does nothing when the route isn't topmost (e.g. under an
+   overlap dialog) → the entry is stuck in `closing` forever (confirmed 2026-11-04).
+   `SnackbarController.close()`; bot_toast `CancelFunc`. NEVER bare `Get.back()`/pop-top.
 3. Disarm backend orchestration: bot_toast `onlyOne: false` + dedicated groupKey + `onClose`
    as the single completion signal; GetX's internal snackbar queue is bypassed by our
    serialization; never `Get.closeAllSnackbars()` (hangs queued futures).
@@ -241,14 +283,20 @@ independently via this reasoning and via the `LayermanNavigatorObserver` design 
 ## Verify workflow
 
 ```bash
-cd D:/workspaces/dart-labs/layerman
-flutter analyze                                   # must be clean
-flutter test                                      # 72 widget tests — the unit gate
+cd layerman                                       # from the dart-labs repo root
+flutter analyze                                   # must be clean (also analyzes example/)
+flutter test                                      # 101 tests (81 main + 15 robustness + 5 README recipes)
 
 cd example
 flutter test integration_test/orchestration_test.dart -d windows   # 17 tests, REAL window
 flutter run -d windows                            # interactive demo (25 buttons + state line)
 ```
+
+CI: `.github/workflows/layerman-ci.yml` runs analyze + test on stable and test-only on
+Flutter 3.27.4 (the declared minimum; `flutter pub get --no-example` there because the
+example needs Dart ^3.12). `deploy-layerman.yml` calls it and deploys only if it passes.
+The example's Windows runner opens a normal (focus-taking) window — the user works on this
+machine, so don't run the integration suite unattended; ask first.
 
 Integration-test gotchas (learned the hard way):
 - Tests share ONE app process: `setUp` does `om.resumeAll(); om.clear();`. Session cooldown

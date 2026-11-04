@@ -4,6 +4,7 @@
       .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
       .box-api { fill: #E8F5E9; stroke: #333; stroke-width: 1.5; }
       .box-plugin { fill: #FFF9C4; stroke: #333; stroke-width: 1.5; }
+      .frame { fill: none; stroke: #999; stroke-width: 1.5; stroke-dasharray: 6 4; }
       .text-title { font-size: 18px; font-weight: bold; font-family: Arial; }
       .text-label { font-size: 13px; font-family: Arial; }
       .text-small { font-size: 11px; font-family: Arial; }
@@ -19,108 +20,137 @@
     </marker>
   </defs>
 
-  <text x="700" y="30" text-anchor="middle" class="text-title">Layerman (Dart) 完整架构流程图</text>
-  <text x="700" y="50" text-anchor="middle" class="text-label">Flutter 层级管理库 | OverlayEntry 栈管理</text>
+  <text x="700" y="30" text-anchor="middle" class="text-title">Layerman 架构图</text>
+  <text x="700" y="50" text-anchor="middle" class="text-label">headless 弹层队列编排器 | 只决定何时、哪个显示，渲染交给 present 后端</text>
 
-  <!-- 应用层 -->
-  <rect x="50" y="80" width="200" height="120" class="box" rx="8"/>
-  <text x="150" y="110" text-anchor="middle" class="text-title">应用代码</text>
-  <text x="150" y="130" text-anchor="middle" class="text-label">Flutter App</text>
-  <text x="150" y="150" text-anchor="middle" class="text-api">LayerMan.show(layer)</text>
-  <text x="150" y="165" text-anchor="middle" class="text-api">LayerMan.queue(config)</text>
-  <text x="150" y="180" text-anchor="middle" class="text-api">LayerMan.dismiss(id)</text>
+  <!-- 应用代码 -->
+  <rect x="50" y="80" width="220" height="130" class="box" rx="8"/>
+  <text x="160" y="108" text-anchor="middle" class="text-title">应用代码</text>
+  <text x="160" y="128" text-anchor="middle" class="text-label">Flutter App</text>
+  <text x="160" y="152" text-anchor="middle" class="text-api">open&lt;T&gt;(present: ...)</text>
+  <text x="160" y="167" text-anchor="middle" class="text-api">await Future&lt;T?&gt;</text>
+  <text x="160" y="182" text-anchor="middle" class="text-api">addListener(...)</text>
 
-  <path d="M 250 140 L 320 140" class="arrow"/>
+  <path d="M 270 145 L 340 145" class="arrow"/>
 
-  <!-- Layerman 核心 -->
-  <rect x="320" y="80" width="200" height="120" class="box" rx="8"/>
-  <text x="420" y="110" text-anchor="middle" class="text-title">Layerman 核心</text>
-  <text x="420" y="130" text-anchor="middle" class="text-label">Layer Manager</text>
-  <text x="420" y="150" text-anchor="middle" class="text-api">show/dismiss/queue</text>
-  <text x="420" y="165" text-anchor="middle" class="text-api">getPriority/getNext</text>
-  <text x="420" y="180" text-anchor="middle" class="text-api">execute overlay</text>
+  <!-- Layerman API -->
+  <rect x="340" y="80" width="420" height="130" class="box" rx="8"/>
+  <text x="550" y="108" text-anchor="middle" class="text-title">Layerman API</text>
+  <text x="550" y="128" text-anchor="middle" class="text-label">ChangeNotifier | 公开入口</text>
+  <text x="550" y="150" text-anchor="middle" class="text-api">open / close / dismiss / remove / clear / clearWhere</text>
+  <text x="550" y="165" text-anchor="middle" class="text-api">setContext / update / pauseAll / resumeAll / pause / resume</text>
+  <text x="550" y="180" text-anchor="middle" class="text-api">activeIds / queuedIds / isShowing / isPaused / ready()</text>
+  <text x="550" y="196" text-anchor="middle" class="text-small">状态唯一事实来源：_byId</text>
 
-  <path d="M 420 200 L 420 260" class="arrow"/>
+  <!-- 路由观察者 -->
+  <rect x="930" y="80" width="320" height="130" class="box-plugin" rx="8"/>
+  <text x="1090" y="108" text-anchor="middle" class="text-title">LayermanNavigatorObserver</text>
+  <text x="1090" y="130" text-anchor="middle" class="text-label">NavigatorObserver，只监听 didChangeTop</text>
+  <text x="1090" y="150" text-anchor="middle" class="text-small">pathOf(topRoute)，默认 settings.name</text>
+  <text x="1090" y="166" text-anchor="middle" class="text-small">post-frame + scheduleFrame</text>
+  <text x="1090" y="182" text-anchor="middle" class="text-api">setContext({'route': path})</text>
+  <text x="1090" y="198" text-anchor="middle" class="text-small">isDisposed 前后各检查一次</text>
 
-  <!-- 处理管道 -->
-  <text x="50" y="260" class="text-label" font-weight="bold">📦 处理管道</text>
+  <path d="M 930 145 L 760 145" class="arrow-small"/>
+  <text x="845" y="136" text-anchor="middle" class="text-small">route 上下文</text>
 
-  <!-- 优先级队列 -->
-  <rect x="50" y="280" width="160" height="130" class="box-plugin" rx="5"/>
-  <text x="130" y="305" text-anchor="middle" class="text-label">优先级队列</text>
-  <text x="130" y="320" text-anchor="middle" class="text-small">Priority Queue</text>
-  <line x1="60" y1="330" x2="200" y2="330" stroke="#ccc" stroke-width="1"/>
-  <text x="130" y="348" text-anchor="middle" class="text-api">enqueue(layer)</text>
-  <text x="130" y="363" text-anchor="middle" class="text-api">FIFO / priority</text>
-  <text x="130" y="378" text-anchor="middle" class="text-api">getNextToShow()</text>
-  <text x="130" y="393" text-anchor="middle" class="text-small">队列管理</text>
+  <!-- 内部框 -->
+  <rect x="30" y="240" width="1340" height="290" class="frame" rx="10"/>
+  <text x="50" y="260" class="text-label">Layerman 内部（lib/src/overlay_manager.dart）</text>
 
-  <!-- 前置条件 -->
-  <rect x="230" y="280" width="160" height="130" class="box-plugin" rx="5"/>
-  <text x="310" y="305" text-anchor="middle" class="text-label">前置条件</text>
-  <text x="310" y="320" text-anchor="middle" class="text-small">Preconditions</text>
-  <line x1="240" y1="330" x2="380" y2="330" stroke="#ccc" stroke-width="1"/>
-  <text x="310" y="348" text-anchor="middle" class="text-api">checkRoute()</text>
-  <text x="310" y="363" text-anchor="middle" class="text-api">checkAuth()</text>
-  <text x="310" y="378" text-anchor="middle" class="text-api">predicate(fn)</text>
-  <text x="310" y="393" text-anchor="middle" class="text-small">条件验证</text>
+  <path d="M 550 210 L 550 240" class="arrow"/>
 
-  <!-- 冷却控制 -->
-  <rect x="410" y="280" width="160" height="130" class="box-plugin" rx="5"/>
-  <text x="490" y="305" text-anchor="middle" class="text-label">冷却控制</text>
-  <text x="490" y="320" text-anchor="middle" class="text-small">Cooldown</text>
-  <line x1="420" y1="330" x2="560" y2="330" stroke="#ccc" stroke-width="1"/>
-  <text x="490" y="348" text-anchor="middle" class="text-api">checkCooldown()</text>
-  <text x="490" y="363" text-anchor="middle" class="text-api">session/daily/minGap</text>
-  <text x="490" y="378" text-anchor="middle" class="text-api">getWaitTime()</text>
-  <text x="490" y="393" text-anchor="middle" class="text-small">频率限制</text>
+  <!-- 资格 -->
+  <rect x="50" y="275" width="400" height="235" class="box-api" rx="8"/>
+  <text x="250" y="302" text-anchor="middle" class="text-title">资格判断</text>
+  <text x="250" y="322" text-anchor="middle" class="text-label">条件 + 冷却 + hydrate 门控</text>
+  <text x="70" y="348" class="text-small">条件：when 是唯一权威；否则 route + requiresAuth</text>
+  <text x="70" y="366" class="text-small">  上下文保留键：route / auth（setContext 合并）</text>
+  <text x="70" y="388" class="text-small">冷却：session / total / day / hour / minute / minGap</text>
+  <text x="70" y="406" class="text-small">  本地日历桶，按 id 计数，必须显式 id</text>
+  <text x="70" y="428" class="text-small">hydrate 前：带持久化上限的条目暂不满足</text>
+  <text x="70" y="446" class="text-small">  串行排队，overlap 挂起；完成后统一重调度</text>
+  <text x="70" y="468" class="text-small">不满足：串行条目等待，overlap 丢弃</text>
+  <text x="70" y="486" class="text-small">when 抛异常 = 不满足并上报（每条目一次）</text>
 
-  <!-- 持久化存储 -->
-  <rect x="590" y="280" width="160" height="130" class="box-plugin" rx="5"/>
-  <text x="670" y="305" text-anchor="middle" class="text-label">持久化存储</text>
-  <text x="670" y="320" text-anchor="middle" class="text-small">Persistence</text>
-  <line x1="600" y1="330" x2="740" y2="330" stroke="#ccc" stroke-width="1"/>
-  <text x="670" y="348" text-anchor="middle" class="text-api">SharedPreferences</text>
-  <text x="670" y="363" text-anchor="middle" class="text-api">save shown status</text>
-  <text x="670" y="378" text-anchor="middle" class="text-api">cross-session</text>
-  <text x="670" y="393" text-anchor="middle" class="text-small">状态同步</text>
+  <!-- 调度 -->
+  <rect x="500" y="275" width="400" height="235" class="box" rx="8"/>
+  <text x="700" y="302" text-anchor="middle" class="text-title">调度</text>
+  <text x="700" y="322" text-anchor="middle" class="text-label">_slots / _overlaps / _pendingOverlaps</text>
+  <text x="520" y="348" class="text-small">每个槽位：active(0..1) + queue + gap/delay/cooldown 计时器</text>
+  <text x="520" y="368" class="text-small">_cmp：replace 前排带 → priority 降序 → seq 先进先出</text>
+  <text x="520" y="388" class="text-small">_schedule：取第一个合格项；时间型冷却自唤醒</text>
+  <text x="520" y="408" class="text-small">replace：自身合格、未暂停、当前项未 affix 才抢占</text>
+  <text x="520" y="426" class="text-small">  被抢占者直接关闭不回队列，跳过 gap / delay</text>
+  <text x="520" y="448" class="text-small">暂停 = _manualPaused OR _routeZonePaused（pauseOnRoutes）</text>
+  <text x="520" y="466" class="text-small">  冻结 duration，释放时重调度并放行挂起的 overlap</text>
+  <text x="520" y="488" class="text-small">同 id 重开：旧活跃项被丢弃，新项跳过 gap</text>
 
-  <!-- 箭头 -->
-  <path d="M 130 410 L 300 480" class="arrow-small"/>
-  <path d="M 310 410 L 350 480" class="arrow-small"/>
-  <path d="M 490 410 L 420 480" class="arrow-small"/>
-  <path d="M 670 410 L 450 480" class="arrow-small"/>
+  <path d="M 500 392 L 450 392" class="arrow-small"/>
+  <text x="475" y="384" text-anchor="middle" class="text-small">查资格</text>
 
-  <!-- OverlayEntry 创建 -->
-  <rect x="300" y="480" width="240" height="110" class="box-api" rx="8"/>
-  <text x="420" y="510" text-anchor="middle" class="text-title">Overlay 创建</text>
-  <text x="420" y="530" text-anchor="middle" class="text-label">OverlayEntry Creation</text>
-  <line x1="310" y1="540" x2="530" y2="540" stroke="#999" stroke-width="1"/>
-  <text x="350" y="558" text-anchor="middle" class="text-api">build widget tree</text>
-  <text x="490" y="558" text-anchor="middle" class="text-api">create entry</text>
-  <text x="420" y="575" text-anchor="middle" class="text-api">注入 Overlay 栈</text>
+  <!-- 生命周期 -->
+  <rect x="950" y="275" width="400" height="235" class="box" rx="8"/>
+  <text x="1150" y="302" text-anchor="middle" class="text-title">条目生命周期</text>
+  <text x="1150" y="322" text-anchor="middle" class="text-label">pending → resolving → open → closing → 移除</text>
+  <text x="970" y="344" class="text-small">pending：入队，可带 delay，等槽位</text>
+  <text x="970" y="358" class="text-small">resolving：resolve 取数据，槽位已承诺（replace 可抢占）</text>
+  <text x="970" y="374" class="text-small">open：调用 present、记冷却、起 duration 计时</text>
+  <text x="970" y="390" class="text-small">两阶段关闭：close → 校验 result 类型 → beforeClose</text>
+  <text x="970" y="408" class="text-small">  → settle + closing → 后端 dismiss → dismissed</text>
+  <text x="970" y="426" class="text-small">  → exitDuration 宽限 → 移除 → 按 gap 推进</text>
+  <text x="970" y="448" class="text-small">绕过守卫：remove / clear / duration 到期 /</text>
+  <text x="970" y="464" class="text-small">  dismissWhenUnmet / replace</text>
+  <text x="970" y="486" class="text-small">结果只交付一次；externalDone 防重入</text>
 
-  <path d="M 420 590 L 420 650" class="arrow"/>
+  <path d="M 900 392 L 950 392" class="arrow"/>
+  <text x="925" y="384" text-anchor="middle" class="text-small">激活</text>
 
-  <!-- 动画过渡 -->
-  <rect x="300" y="650" width="240" height="110" class="box" rx="8"/>
-  <text x="420" y="680" text-anchor="middle" class="text-title">动画过渡</text>
-  <text x="420" y="700" text-anchor="middle" class="text-label">Animation Transition</text>
-  <line x1="310" y1="710" x2="530" y2="710" stroke="#999" stroke-width="1"/>
-  <text x="350" y="728" text-anchor="middle" class="text-api">AnimationController</text>
-  <text x="490" y="728" text-anchor="middle" class="text-api">fade/scale/slide</text>
-  <text x="420" y="745" text-anchor="middle" class="text-api">显示动画效果</text>
+  <!-- 冷却存储 -->
+  <rect x="50" y="590" width="400" height="110" class="box-plugin" rx="8"/>
+  <text x="250" y="618" text-anchor="middle" class="text-title">_CooldownStore</text>
+  <text x="250" y="640" text-anchor="middle" class="text-small">hydrate 合并（不覆盖），读同步，写串行化</text>
+  <text x="250" y="658" text-anchor="middle" class="text-small">storageKey 下存一个 JSON；失败上报不阻塞调度</text>
+  <text x="250" y="676" text-anchor="middle" class="text-small">session 计数只在内存</text>
 
-  <path d="M 420 760 L 420 820" class="arrow"/>
+  <path d="M 250 590 L 250 510" class="arrow-small"/>
+  <text x="262" y="552" class="text-small">canShow / record</text>
 
-  <!-- 用户交互与关闭 -->
-  <rect x="300" y="820" width="240" height="110" class="box" rx="8"/>
-  <text x="420" y="850" text-anchor="middle" class="text-title">交互与关闭</text>
-  <text x="420" y="870" text-anchor="middle" class="text-label">Interaction & Dismiss</text>
-  <line x1="310" y1="880" x2="530" y2="880" stroke="#999" stroke-width="1"/>
-  <text x="350" y="898" text-anchor="middle" class="text-api">onTap/onDismiss</text>
-  <text x="490" y="898" text-anchor="middle" class="text-api">remove from stack</text>
-  <text x="420" y="915" text-anchor="middle" class="text-api">清理资源 → 下一项</text>
+  <rect x="50" y="760" width="400" height="100" class="box-api" rx="8"/>
+  <text x="250" y="788" text-anchor="middle" class="text-title">OverlayCooldownStorage</text>
+  <text x="250" y="810" text-anchor="middle" class="text-api">read(key) / write(key, value)</text>
+  <text x="250" y="830" text-anchor="middle" class="text-small">默认 MemoryCooldownStorage</text>
+  <text x="250" y="846" text-anchor="middle" class="text-small">可接 shared_preferences 等持久层</text>
 
-  <text x="50" y="930" class="text-small" font-weight="bold">完整流程：应用请求 → 优先级队列 → 条件检查 → 冷却控制 → 状态持久化 → Overlay创建 → 动画过渡 → 用户交互 → 关闭清理</text>
+  <path d="M 230 700 L 230 760" class="arrow-small"/>
+  <path d="M 270 760 L 270 700" class="arrow-small"/>
+
+  <!-- present 后端 -->
+  <rect x="700" y="590" width="650" height="110" class="box-plugin" rx="8"/>
+  <text x="1025" y="618" text-anchor="middle" class="text-title">present 后端（调用方提供）</text>
+  <text x="1025" y="640" text-anchor="middle" class="text-label">showDialog | GetX | bot_toast | 自管 OverlayEntry</text>
+  <text x="1025" y="660" text-anchor="middle" class="text-small">负责全部渲染；present 同步抛异常 = 上报并丢弃该条目</text>
+  <text x="1025" y="678" text-anchor="middle" class="text-small">PresentContext：id / slot / data 快照</text>
+
+  <path d="M 1100 510 L 1100 590" class="arrow"/>
+  <text x="1112" y="556" class="text-api">present(PresentContext)</text>
+
+  <!-- PresentedOverlay -->
+  <rect x="700" y="760" width="650" height="120" class="box-api" rx="8"/>
+  <text x="1025" y="788" text-anchor="middle" class="text-title">PresentedOverlay&lt;T&gt;</text>
+  <text x="1025" y="810" text-anchor="middle" class="text-api">dismissed: Future&lt;T?&gt;   dismiss: Future&lt;void&gt; Function([T?])?</text>
+  <text x="1025" y="830" text-anchor="middle" class="text-small">dismissed 必须覆盖所有关闭路径，它的值就是 open() 的结果</text>
+  <text x="1025" y="848" text-anchor="middle" class="text-small">dismiss 必须定点关闭这一个弹层，不能弹栈顶</text>
+  <text x="1025" y="866" text-anchor="middle" class="text-small">异常隔离：dismiss 抛错只上报；replace / clear / remove 时尽力 dismiss</text>
+
+  <path d="M 1000 700 L 1000 760" class="arrow-small"/>
+  <path d="M 1050 760 L 1050 700" class="arrow-small"/>
+
+  <!-- 返回路径：dismissed 驱动生命周期 -->
+  <path d="M 1350 820 L 1380 820 L 1380 420 L 1350 420" class="arrow-small"/>
+  <text x="1372" y="640" text-anchor="end" class="text-small" transform="rotate(-90 1372 640)">dismissed 驱动移除，dismiss 由关闭路径发出</text>
+
+  <!-- 说明 -->
+  <text x="700" y="915" text-anchor="middle" class="text-small">实线：主调用链 | 细线：旁路与回调 | 黄色：外部扩展点或旁路组件 | 绿色：资格与协议契约</text>
+  <text x="700" y="932" text-anchor="middle" class="text-small">核心只依赖 dart:async / dart:convert / flutter/foundation；路由观察者依赖 flutter/widgets</text>
 </svg>
