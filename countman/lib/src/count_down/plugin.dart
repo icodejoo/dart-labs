@@ -101,10 +101,12 @@ class Countdown extends ClockPlugin<CountdownTask> {
   }
 
   /// 使用整数微秒计算本帧值；公开 handle getter 仍读取实时时钟。
-  int _valueMicros(CountdownTask task) =>
-      (task.pausedRemaining?.inMicroseconds ??
-              (task.endTime.microsecondsSinceEpoch - _frameMicros))
-          .clamp(0, 0x7fffffffffffffff);
+  /// 负值钳为 0；不用 `clamp(0, int 最大值)`，那个 64 位字面量在 Web 上无法精确表示，会让 dart2js 编译失败。
+  int _valueMicros(CountdownTask task) {
+    final us = task.pausedRemaining?.inMicroseconds ??
+        (task.endTime.microsecondsSinceEpoch - _frameMicros);
+    return us < 0 ? 0 : us;
+  }
 
   // ── ClockPlugin domain hooks ──────────────────────────────────────
 
