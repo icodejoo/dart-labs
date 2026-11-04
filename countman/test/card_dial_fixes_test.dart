@@ -1,4 +1,5 @@
 import 'package:countman/countman.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -70,8 +71,25 @@ void main() {
     await t.pump(const Duration(milliseconds: 100));
     expect(painter(t).controller.value, greaterThan(before));
   });
-
-
+  testWidgets('Odometer 非有限端点不抛出且完成值使用实际钳制值', (t) async {
+    double? completed;
+    await t.pumpWidget(MaterialApp(home: Center(child: OdometerCounter(from: double.nan, to: -10,
+      duration: Duration.zero, onComplete: (v) => completed = v))));
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(completed, 0);
+  });
+  testWidgets('内环长倒计时绘制次数固定且复用画笔', (t) async {
+    for (final days in [1, 30]) {
+      await t.pumpWidget(MaterialApp(home: Center(child: DialCountdown(key: ValueKey(days),
+        to: Duration(days: days), style: const DialCountdownStyle(showTicks: false, showArcA: false, showArcB: false)))));
+      final p = t.widgetList<CustomPaint>(find.byType(CustomPaint)).map((w) => w.painter).whereType<CustomPainter>().single;
+      final canvas = _ArcCanvas();
+      p.paint(canvas, const Size.square(200));
+      expect(canvas.paints.length, 4);
+      expect(canvas.paints.toSet().length, 1);
+    }
+  });
   testWidgets('天单元按需扩位并将小时限制为 0–23', (t) async {
     await t.pumpWidget(const MaterialApp(home: Center(child: CardCountdown(to: Duration(days: 2, hours: 3), showDays: true, dayLabel: '天'))));
     expect(painter(t).model.committed, [2, 0, 3, 0, 0, 0, 0]);
@@ -115,13 +133,8 @@ void main() {
     await t.pumpWidget(const MaterialApp(home: Center(child: CardCountdown(to: Duration(seconds: 5), style: CardCountdownStyle(textStyle: blue)))));
     expect(local.map((p) => p.debugDisposed), everyElement(isTrue));
   });
-
-  testWidgets('Odometer 非有限端点不抛出且完成值使用实际钳制值', (t) async {
-    double? completed;
-    await t.pumpWidget(MaterialApp(home: Center(child: OdometerCounter(from: double.nan, to: -10,
-      duration: Duration.zero, onComplete: (v) => completed = v))));
-    await t.pump();
-    expect(t.takeException(), isNull);
-    expect(completed, 0);
+  test('Dial 注释无替换字符且 Odometer 构造器标记废弃参数', () {
+    expect(File('lib/src/widgets/dial_countdown.dart').readAsStringSync(), isNot(contains('\uFFFD')));
+    expect(File('lib/src/widgets/odometer_counter.dart').readAsStringSync().replaceAll('\r\n', '\n'), contains("@Deprecated('No effect; use bounceOvershoot instead')\n    this.bounceElasticity"));
   });
 }

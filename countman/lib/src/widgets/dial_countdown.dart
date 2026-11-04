@@ -110,7 +110,7 @@ class DialTicksConfig with StyleProps {
   /// How much wider a major tick is vs a minor tick (multiplier).
   final double majorWidthFactor;
 
-  /// Draw text labels on major ticks (e.g. 0, 5, 10, �?.
+  /// Draw text labels on major ticks (e.g. 0, 5, 10, …).
   final bool showLabels;
 
   /// Text style for major-tick labels (defaults to a small white font).
@@ -197,17 +197,18 @@ class DialInnerConfig with StyleProps {
 /// A circular dial countdown display that replicates the ring.ts renderer in
 /// Flutter using [CustomPainter].
 ///
-/// Four concentric rings (outermost �?innermost):
+/// Four concentric rings (outermost → innermost):
 ///
-/// 1. **Tick ring** �?60 radial tick marks; remaining-second ticks are lit in
+/// 1. **Tick ring** — 60 radial tick marks; remaining-second ticks are lit in
 ///    the current zone colour, elapsed ticks are drawn in the dim [DialColors.off]
-///    colour.  In the final minute the lit ticks cycle through red �?yellow �?///    green as the second climbs from 0.
-/// 2. **Arc A (outer)** �?three decorative arc segments that rotate
+///    colour.  In the final minute the lit ticks cycle through red → yellow →
+///    green as the second climbs from 0.
+/// 2. **Arc A (outer)** — three decorative arc segments that rotate
 ///    *counter-clockwise* one tick per elapsed second (mirrors the clockwise
 ///    countdown direction).
-/// 3. **Arc B (inner)** �?a second, thinner set of decorative arc segments
+/// 3. **Arc B (inner)** — a second, thinner set of decorative arc segments
 ///    that rotate *clockwise*, converging with arc A at zero.
-/// 4. **Progress ring** �?a grey track with a coloured overlay that drains
+/// 4. **Progress ring** — a grey track with a coloured overlay that drains
 ///    from full to empty.  The overlay is split into per-minute segments plus
 ///    the final-minute red/yellow/green sub-arcs.
 ///
@@ -538,14 +539,15 @@ class DialCountdown extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _DialPainter �?the CustomPainter that draws all four concentric rings
+// _DialPainter — the CustomPainter that draws all four concentric rings
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Internal painter.  All geometry is computed in a normalised 100×100
 /// coordinate space (matching the SVG `viewBox="0 0 100 100"` from ring.ts)
 /// and then scaled to [size] via [_scale].
 class _DialPainter extends CustomPainter {
-  const _DialPainter({
+  /// 创建表盘画笔，并在多次绘制间复用内环画笔。
+  _DialPainter({
     required this.parts,
     required this.clockwise,
     required this.redAt,
@@ -568,6 +570,15 @@ class _DialPainter extends CustomPainter {
   final DialArcConfig? arcB;
   final DialInnerConfig? inner;
   final bool glow;
+
+  /// 内环轨道画笔，避免每次重绘重新创建。
+  final Paint _innerTrackPaint = Paint()..style = PaintingStyle.stroke;
+  /// 内环所有进度弧共用画笔，绘制时只更新颜色。
+  final Paint _innerArcPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
+  /// 一分钟的毫秒数，供合并段及末分钟分区共用。
+  static const double _minuteMs = 60000;
 
   // ── Coordinate helpers ────────────────────────────────────────────────────
 
@@ -592,7 +603,7 @@ class _DialPainter extends CustomPainter {
   /// Whole minutes remaining (= remSec ÷ 60, integer part).
   int _totalMin() => _remSec() ~/ 60;
 
-  /// Seconds within the current minute (0�?9).
+  /// Seconds within the current minute (0–59).
   int _sec() => _remSec() % 60;
 
   /// True when we are in the final minute (totalMin == 0).
@@ -613,7 +624,7 @@ class _DialPainter extends CustomPainter {
     final sc = _scale(size);
     final c = _centre(size);
 
-    // Layer order (back �?front), matching ring.ts build() insertion order:
+    // Layer order (back → front), matching ring.ts build() insertion order:
     //   1. innermost progress ring  (inserted first in SVG, so it's behind arcs)
     //   2. arc A + arc B            (drawn on top of inner ring)
     //   3. outermost tick ring      (topmost ring layer)
@@ -621,7 +632,7 @@ class _DialPainter extends CustomPainter {
     //
     // Note: ring.ts inserts ticks first, then inner, then arcs in the SVG.
     // SVG paints in source order (later = on top), so the visual stack is:
-    //   ticks �?inner �?arcs, with arcs on top.
+    //   ticks → inner → arcs, with arcs on top.
     // We replicate that exact order here.
 
     _paintTicks(canvas, c, sc);
@@ -634,15 +645,15 @@ class _DialPainter extends CustomPainter {
   double _dirSign() => clockwise ? 1.0 : -1.0;
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Layer 1 �?outermost tick ring
+  // Layer 1 — outermost tick ring
   // ──────────────────────────────────────────────────────────────────────────
 
   /// Draws the outermost ring of radial tick marks.
   ///
   /// ring.ts logic (paint section, tick loop):
   ///   lit  = min(tickCfg.count, sec)   -- number of bright ticks
-  ///   i < lit  �?"on" (lit)
-  ///   i >= lit �?"off" (dim)
+  ///   i < lit  — "on" (lit)
+  ///   i >= lit — "off" (dim)
   ///   zone for lit ticks in finalMin: zoneColor(i) (so tick 0 is always red,
   ///   tick 1..redAt-1 red, redAt..yellowAt-1 yellow, yellowAt.. green).
   ///
@@ -757,16 +768,16 @@ class _DialPainter extends CustomPainter {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Layer 2 �?decorative segmented arc rings (arc A and arc B)
+  // Layer 2 — decorative segmented arc rings (arc A and arc B)
   // ──────────────────────────────────────────────────────────────────────────
 
   /// Draws one decorative segmented arc ring (either arc A or arc B).
   ///
   /// ring.ts logic (paintArc):
   ///   rotation = dir * secRem * 6   (degrees; 6°/sec = full turn in 60 s)
-  ///   Arc A: dir = −cw  �?rotates counter-clockwise as time decreases.
-  ///   Arc B: dir = +cw  �?rotates clockwise (opposite to arc A).
-  ///   At remaining=0 both are at 0° rotation �?they converge at the base pos.
+  ///   Arc A: dir = −cw  — rotates counter-clockwise as time decreases.
+  ///   Arc B: dir = +cw  — rotates clockwise (opposite to arc A).
+  ///   At remaining=0 both are at 0° rotation — they converge at the base pos.
   ///
   ///   Each segment is drawn as an open arc path (no fill, rounded linecap,
   ///   vector-effect: non-scaling-stroke).
@@ -831,110 +842,65 @@ class _DialPainter extends CustomPainter {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Layer 3 �?innermost progress ring
+  // Layer 3 — innermost progress ring
   // ──────────────────────────────────────────────────────────────────────────
 
   /// Draws the innermost progress ring: grey track + coloured drain overlay.
   ///
   /// ring.ts logic (inner section of paint()):
   ///   total = state.total (the initial duration in ms, captured at mount).
-  ///   The ring drains from full �?empty.  "Full" = TOP (12 o'clock).
-  ///   angleAt(ms) = TOP �?cw * (ms / total) * 2π
-  ///   �?at ms=total the angle is TOP (full).
-  ///   �?at ms=0     the angle is TOP (empty �?swept arc length is 0).
+  ///   The ring drains from full → empty.  "Full" = TOP (12 o'clock).
+  ///   angleAt(ms) = TOP − cw * (ms / total) * 2π
+  ///   → at ms=total the angle is TOP (full).
+  ///   → at ms=0     the angle is TOP (empty — swept arc length is 0).
   ///
   ///   Segments:
-  ///     For each whole minute j (1 �?N-1):
+  ///     For each whole minute j (1 … N-1):
   ///       from = j*60000, to = min((j+1)*60000, total)
   ///       drawn in `normal` colour (or per-minute colorAt override).
   ///     Final minute (last 60 s) split into three sub-arcs:
-  ///       [0, redAt*1000)           �?red
-  ///       [redAt*1000, yellowAt*1000) �?yellow
-  ///       [yellowAt*1000, 60000)      �?green
+  ///       [0, redAt*1000)           → red
+  ///       [redAt*1000, yellowAt*1000) → yellow
+  ///       [yellowAt*1000, 60000)      → green
   ///
   ///   Each arc: from angleAt(t0) to angleAt(min(t1, remaining)).
   ///   When remaining < t0 the arc is empty; when remaining > t1 the arc is
   ///   fully drawn.
   ///
   ///   Flutter: compute totalMs from parts.total; replicate the same math.
+  /// 合并一分钟以上的连续同色弧，长倒计时至多绘制四段，复杂度恒定。
   void _paintInner(Canvas canvas, Offset centre, double sc) {
     final cfg = inner;
     if (cfg == null) return;
-
     final radius = cfg.radius * sc;
     final strokeWidth = cfg.strokeWidth * sc;
-
-    // ── Track (grey background circle) ───────────────────────────────────
-
-    final trackPaint = Paint()
-      ..style = PaintingStyle.stroke
+    _innerTrackPaint
       ..strokeWidth = strokeWidth
-      ..color = cfg.trackColor
-      ..isAntiAlias = true;
-    canvas.drawCircle(centre, radius, trackPaint);
-
-    // ── Progress arcs ──────────────────────────────────────────────────
-
+      ..color = cfg.trackColor;
+    canvas.drawCircle(centre, radius, _innerTrackPaint);
     final totalMs = parts.total?.inMilliseconds ?? 0;
-    if (totalMs <= 0) return; // no total �?can't compute proportions
+    if (totalMs <= 0) return;
+    final rem = _remMs().toDouble().clamp(0.0, totalMs.toDouble());
+    final rect = Rect.fromCircle(center: centre, radius: radius);
+    _innerArcPaint
+      ..strokeWidth = strokeWidth
+      ..maskFilter = glow ? const MaskFilter.blur(BlurStyle.outer, 2.0) : null;
+    _drawInnerSegment(canvas, rect, totalMs, rem, _minuteMs, totalMs.toDouble(), colors.normal);
+    _drawInnerSegment(canvas, rect, totalMs, rem, yellowAt * 1000.0, _minuteMs, colors.green);
+    _drawInnerSegment(canvas, rect, totalMs, rem, redAt * 1000.0, yellowAt * 1000.0, colors.yellow);
+    _drawInnerSegment(canvas, rect, totalMs, rem, 0, redAt * 1000.0, colors.red);
+  }
 
-    final remMs = _remMs().toDouble();
-    final rem = math.max(0.0, math.min(remMs, totalMs.toDouble()));
-
-    // Converts a millisecond value to an angle on the canvas.
-    // TOP = −π/2 (12 o'clock). Full arc clockwise for cw=true.
-    // Formula mirrors ring.ts: angleAt(ms) = TOP �?cw * (ms/total) * 2π
-    // where `ms` counts from 0 (elapsed) to totalMs (full ring at start).
-    double angleAt(double ms) =>
-        -math.pi / 2 - _dirSign() * (ms / totalMs) * 2 * math.pi;
-
-    // Draw one arc segment from t0 ms to min(t1, rem) ms (both anchored at 0).
-    void drawSeg(Canvas canvas, double t0, double t1, Color color) {
-      final hi = math.min(t1, rem);
-      if (hi <= t0) return; // nothing to draw
-
-      final a0 = angleAt(t0);
-      final a1 = angleAt(hi);
-
-      // sweep is always the same sign as dirSign, magnitude = a1-a0 difference.
-      // Because angleAt decreases as ms increases (we're draining), we use the
-      // delta directly (a1 - a0 is negative for cw, positive for ccw).
-      final sweep = a1 - a0;
-      if (sweep.abs() < 1e-6) return;
-
-      final arcPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round
-        ..color = color
-        ..isAntiAlias = true;
-
-      if (glow) {
-        arcPaint.maskFilter =
-            const MaskFilter.blur(BlurStyle.outer, 2.0);
-      }
-
-      canvas.drawArc(
-        Rect.fromCircle(center: centre, radius: radius),
-        a0,
-        sweep,
-        false,
-        arcPaint,
-      );
-    }
-
-    // Per-minute segments (index 1 �?N-1, where index 0 = final minute).
-    final n = math.max(1, (totalMs / 60000).ceil());
-    for (int j = 1; j < n; j++) {
-      final from = j * 60000.0;
-      final to = math.min((j + 1) * 60000.0, totalMs.toDouble());
-      drawSeg(canvas, from, to, colors.normal);
-    }
-
-    // Final-minute sub-arcs (green �?yellow �?red, outermost time first).
-    drawSeg(canvas, yellowAt * 1000.0, 60000.0, colors.green);
-    drawSeg(canvas, redAt * 1000.0, yellowAt * 1000.0, colors.yellow);
-    drawSeg(canvas, 0.0, redAt * 1000.0, colors.red);
+  /// 绘制时间区间与剩余时间的交集；共用画笔，不创建逐段闭包或画笔。
+  void _drawInnerSegment(Canvas canvas, Rect rect, int totalMs, double remaining,
+      double from, double to, Color color) {
+    final hi = math.min(to, remaining);
+    if (hi <= from) return;
+    final factor = -_dirSign() * 2 * math.pi / totalMs;
+    final sweep = (hi - from) * factor;
+    if (sweep.abs() < 1e-6) return;
+    _innerArcPaint.color = color;
+    canvas.drawArc(rect, -math.pi / 2 + from * factor, sweep, false, _innerArcPaint);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
