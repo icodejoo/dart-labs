@@ -285,6 +285,11 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
   @protected
   bool step(T task, double dtMs, bool shouldProcess);
 
+  /// 初值与首次启动回调完成后检查任务；默认无操作。
+  /// 子类可在此完成首帧已到期任务，保留初值、启动、完成的回调顺序。
+  @protected
+  void afterInitial(T task) {}
+
   /// Extra teardown for subclasses (e.g. resetting a bootstrap flag).
   @protected
   void onDispose() {}
@@ -338,6 +343,12 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
             if (!task.startFired) {
               task.startFired = true;
               task.onStart?.call(); // once per task, even across re-anchors
+            }
+            if (!task.done &&
+                !task.isPaused &&
+                revision == task.revision &&
+                !_disposed) {
+              afterInitial(task);
             }
             if (task.done) _pendingRemove.add(task.id);
             if (!task.done && !task.isPaused && !_disposed) busy = true;
@@ -509,15 +520,24 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
     task.onUpdate?.call(task.parts);
   }
 
-  /// 首帧也检查到期与阈值，零时长任务立即结束。
+  /// 首帧先发初值，保持初值更新在 onStart 之前。
   @override
   @protected
-  void renderInitial(T task) => step(task, 0, true);
+  void renderInitial(T task) => emit(task);
+
+  /// 初值与 onStart 后立即检查到期和阈值，不重复发初值。
+  @override
+  @protected
+  void afterInitial(T task) => _process(task, false, true);
 
   /// 每帧检查阈值与完成，仅普通显示更新受 interval 节流。
   @override
   @protected
-  bool step(T task, double dtMs, bool shouldProcess) {
+  bool step(T task, double dtMs, bool shouldProcess) =>
+      _process(task, shouldProcess, false);
+
+  /// 共用逐帧判定；initial 表示首帧已发过当前快照的最终初值。
+  bool _process(T task, bool shouldProcess, bool initial) {
     final revision = task.revision;
     if (!task.thresholdFired &&
         task.threshold != null &&
@@ -532,7 +552,7 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
     }
 
     if (isComplete(task)) {
-      emit(task);
+      if (!initial) emit(task);
       if (task.done || task.isPaused || revision != task.revision) {
         return !task.done;
       }

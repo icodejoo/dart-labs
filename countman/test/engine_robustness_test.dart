@@ -127,10 +127,18 @@ void main() {
     final p = Countdown();
     p.onAttach(CountmanContext(requestFrame: () {}));
     var complete = false;
+    final events = <String>[];
     p.add(CountdownOptions(
-        duration: Duration.zero, onComplete: () => complete = true));
+        duration: Duration.zero,
+        onUpdate: (_) => events.add('update'),
+        onStart: () => events.add('start'),
+        onComplete: () {
+          events.add('complete');
+          complete = true;
+        }));
     p.tick(Duration.zero, Duration.zero);
     expect(complete, isTrue);
+    expect(events, ['update', 'start', 'complete']);
     final e = Elapsed();
     e.onAttach(CountmanContext(requestFrame: () {}));
     late ElapsedHandle handle;
