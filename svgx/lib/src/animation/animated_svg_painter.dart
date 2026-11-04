@@ -499,13 +499,20 @@ class AnimatedSvgPainter extends CustomPainter {
     SvgNode node,
     ResolvedStyle inherited, {
     bool nested = false,
+    double opacityMultiplier = 1,
   }) {
     final effectiveAttributes = _effectiveAttributes(node);
     // `display="none"` 时整棵子树都不绘制。
     if (effectiveAttributes[_kDisplayAttribute]?.trim() == _kNone) {
       return;
     }
-    final style = _resolveStyle(node, inherited, effectiveAttributes);
+    var style = _resolveStyle(node, inherited, effectiveAttributes);
+    // This is a frame-local sampled value; never mark the node as hidden.
+    // 当前帧采样为零时跳过，不缓存隐藏状态，后续动画帧仍可恢复。
+    if (style.opacity <= 0) return;
+    if (opacityMultiplier != 1) {
+      style = style.withOpacity(style.opacity * opacityMultiplier);
+    }
 
     // The id checks come first so the overwhelming majority of nodes — which
     // reference neither a `<clipPath>` nor a `<mask>` — skip two map lookups
@@ -557,20 +564,16 @@ class AnimatedSvgPainter extends CustomPainter {
     final blurSigma = node.blurSigma;
     final hasBlur = blurSigma != null && blurSigma > 0;
     ui.Path? maskClip;
-    // `!hasBlur` is not a performance guard, it is a correctness one. The
-    // exact pipeline nests the layers to produce `Mask(Blur(content))`; a clip
-    // installed on the canvas is inherited by the blur layer opened below it,
-    // which would instead produce `Blur(Mask(content))` — the blur would be
-    // clipped off at the mask boundary rather than the mask being applied to
-    // the already-spread blur. A node carrying both therefore keeps the exact
-    // pipeline. (Rejecting blur *inside* the mask definition is a separate
-    // check, in [_maskSubtreeIsBinary].)
+    // The Skia pixel probe in group_opacity_test shows that a clip installed
+    // outside a blur layer trims the filtered result: Clip(Blur(content)).
+    // It does not demonstrate pre-filter clipping. Retain !hasBlur because
+    // mask-to-clip equivalence with blur is unverified on real Impeller devices.
+    // Blur inside mask definitions is rejected separately by _maskSubtreeIsBinary.
     //
-    // `!hasBlur` 不是性能护栏，是正确性护栏。精确管线通过图层嵌套产出的是
-    // `Mask(Blur(content))`；而装在画布上的裁剪会被其下开启的模糊图层继承，于是
-    // 产出的变成 `Blur(Mask(content))`——模糊会在 mask 边界处被切掉，而不是让
-    // mask 作用于已经扩散开的模糊结果。因此同时带这两者的节点保持精确管线。
-    //（拒绝 mask 定义*内部*的模糊是另一项检查，在 [_maskSubtreeIsBinary] 里。）
+    // group_opacity_test 的 Skia 像素探针表明：在模糊层外安装 clip，裁剪的是
+    // 模糊后的结果 Clip(Blur(content))，并非先裁剪再模糊。保留 !hasBlur：
+    // mask 转 clip 与 blur 组合的等价性尚未在 Impeller 真机验证。
+    // mask 定义内部的 blur 另由 _maskSubtreeIsBinary 拒绝。
     if (maskDef != null && !hasBlur) {
       final asClip = approximateMasks();
       if (asClip && _maskIsClipEligible(maskDef)) {
@@ -578,88 +581,109 @@ class AnimatedSvgPainter extends CustomPainter {
         maskDef = null;
       }
     }
+    // Opacity is applied last: Opacity(Mask(Clip(Filter(content)))).
+    // A single paint can fold opacity into its alpha; overlapping children or
+    // fill + stroke must first composite at full element opacity.
+    final pushOpacity =
+        style.opacity < 1 &&
+        !hasBlur &&
+        clipDef == null &&
+        maskDef == null &&
+        maskClip == null &&
+        _canPushOpacity(node, style);
+    // With no mask between filter and opacity, both can use the filter paint.
+    // 无 mask 隔在 filter 与 opacity 之间时，二者共用模糊层的 Paint。
+    final blurOpacity = hasBlur && maskDef == null;
+    final opacityLayer =
+        style.opacity < 1 &&
+        !pushOpacity &&
+        !blurOpacity &&
+        (node.children.isNotEmpty ||
+            hasBlur ||
+            ((style.fill != null || style.fillGradientId != null) &&
+                style.fillOpacity > 0 &&
+                (style.stroke != null || style.strokeGradientId != null) &&
+                style.strokeOpacity > 0 &&
+                style.strokeWidth > 0));
+    if (opacityLayer) {
+      canvas.saveLayer(
+        null,
+        Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
+      );
+    }
     final needsClipMaskSave =
         clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
-    // 裁剪属于节点自己的坐标系（含自身 transform）：有 transform 的节点在
-    // 下面应用完变换后再裁剪，没有则在此直接裁剪。
     final hasOwnTransform =
         node.transformAnimations.isNotEmpty ||
         node.motionAnimations.isNotEmpty ||
         node.transform != null;
-    if (!hasOwnTransform) {
-      if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
-      if (maskClip != null) canvas.clipPath(maskClip);
+    if (hasOwnTransform) {
+      canvas.save();
+      _applyOwnTransform(canvas, node);
     }
-    // Layer nesting follows SVG's filter -> mask pipeline: the mask
-    // destination layer opens FIRST (outer) and the blur layer opens SECOND
-    // (inner, nested inside it), so closing the blur layer composites
-    // blurred content into the mask-destination layer, and the mask is then
-    // applied to that already-blurred result — i.e. `Mask(Blur(content))`,
-    // not `Blur(Mask(content))`.
-    //
-    // 图层嵌套遵循 SVG 的 filter -> mask 管线：遮罩目标图层*先*开（外层），
-    // 模糊图层*后*开（内层，嵌套其中）——这样关闭模糊图层时，模糊后的内容
-    // 会合成进遮罩目标图层，遮罩随后作用于这个已经模糊过的结果，即
-    // `Mask(Blur(content))`，而非 `Blur(Mask(content))`。
-    //
-    // The destination layer mask content composites into via BlendMode.dstIn
-    // (see _maskCoveragePaint) — opened now so it wraps everything painted
-    // below, including any transform this node applies.
-    //
-    // mask 内容经 BlendMode.dstIn（见 _maskCoveragePaint）合成进的目标图层——
-    // 现在开启，使其包裹下方绘制的一切，包括本节点应用的任何变换。
+    // Install clipping outside the filter layer so it clips the filtered
+    // result, in the node's coordinate system. Mask wraps that whole result.
     if (maskDef != null) canvas.saveLayer(null, Paint());
-    // feGaussianBlur: paint this node (and its subtree) into an offscreen
-    // layer, then blur the whole layer on composite — rather than blurring
-    // each stroke/fill individually, which is what SVG's filter semantics
-    // require (the filter applies to the element's *rendered result*, not
-    // its paint).
-    //
-    // feGaussianBlur：把本节点（含子树）绘制进一个离屏图层，合成时对整个图层
-    // 做模糊——而非逐笔画/填充分别模糊，这才符合 SVG 滤镜语义（滤镜作用于元素
-    // 的*渲染结果*，而非其涂料本身）。
+    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+    if (maskClip != null) canvas.clipPath(maskClip);
     if (hasBlur) {
       canvas.saveLayer(
         null,
         Paint()
+          ..color = Color.fromRGBO(0, 0, 0, blurOpacity ? style.opacity : 1)
           ..imageFilter = ui.ImageFilter.blur(
             sigmaX: blurSigma,
             sigmaY: blurSigma,
           ),
       );
     }
-
-    if (!hasOwnTransform) {
-      _paintNodeContent(canvas, node, style, effectiveAttributes);
-      if (hasBlur) canvas.restore();
-      if (maskDef != null) {
-        _applyMaskLayer(canvas, maskDef);
-      }
-      if (needsClipMaskSave) canvas.restore();
-      return;
-    }
-    // Multiple <animateTransform> on the same element compose in document
-    // order (SVG semantics); sequential canvas.translate/rotate/scale calls
-    // naturally accumulate in that order without needing a matrix type.
-    //
-    // 同一元素上多个 <animateTransform> 按文档顺序叠加（SVG 语义）；依次调用
-    // canvas.translate/rotate/scale 天然按该顺序累积，无需引入矩阵类型。
-    canvas.save();
-    // The element's own static transform="..." goes first; SVG composes any
-    // <animateTransform> on top of it.
-    //
-    // 元素自身的静态 transform="..." 先应用；SVG 语义下 <animateTransform>
-    // 叠加在它之上。
-    _applyOwnTransform(canvas, node);
-    if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
-    if (maskClip != null) canvas.clipPath(maskClip);
-    _paintNodeContent(canvas, node, style, effectiveAttributes);
-    canvas.restore(); // closes the transform save() a few lines above
-
+    _paintNodeContent(
+      canvas,
+      node,
+      style,
+      effectiveAttributes,
+      applyOpacity: !opacityLayer && !blurOpacity,
+      childOpacity: pushOpacity ? style.opacity : 1,
+    );
     if (hasBlur) canvas.restore();
-    if (maskDef != null) _applyMaskLayer(canvas, maskDef, node);
+    if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+    if (hasOwnTransform) canvas.restore();
     if (needsClipMaskSave) canvas.restore();
+    if (opacityLayer) canvas.restore();
+  }
+
+  /// 判断组的 opacity 能否下推到单笔叶子而不开 saveLayer。
+  /// 仅单笔几何叶子可下推；每帧检查含继承 fill/stroke 的采样样式。
+  ///
+  /// Only a single geometry paint can absorb its wrapper's opacity without
+  /// changing overlap or effect isolation. Resolve the child's sampled style,
+  /// including inherited fill/stroke, on every frame before deciding.
+  bool _canPushOpacity(SvgNode node, ResolvedStyle style) {
+    if ((node.kind != SvgNodeKind.group && node.kind != SvgNodeKind.root) ||
+        node.children.length != 1) {
+      return false;
+    }
+    final child = node.children.single;
+    if (child.children.isNotEmpty ||
+        child.maskId != null ||
+        child.clipPathId != null ||
+        (child.blurSigma ?? 0) > 0 ||
+        child.kind == SvgNodeKind.group ||
+        child.kind == SvgNodeKind.root ||
+        child.kind == SvgNodeKind.text ||
+        child.kind == SvgNodeKind.image) {
+      return false;
+    }
+    final childStyle = _resolveStyle(child, style, _effectiveAttributes(child));
+    final fill =
+        (childStyle.fill != null || childStyle.fillGradientId != null) &&
+        childStyle.fillOpacity > 0;
+    final stroke =
+        (childStyle.stroke != null || childStyle.strokeGradientId != null) &&
+        childStyle.strokeOpacity > 0 &&
+        childStyle.strokeWidth > 0;
+    return fill != stroke;
   }
 
   /// 把节点自身的变换（静态 `transform`、各 `animateTransform`、`animateMotion`）
@@ -773,11 +797,10 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 把 [maskDef] 的内容（在 [time] 采样）作为覆盖度合成到刚绘制进当前目标图层
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
   /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
-  void _applyMaskLayer(Canvas canvas, SvgNode maskDef, [SvgNode? owner]) {
+  void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
     canvas.saveLayer(null, _maskCoveragePaint(_isAlphaMask(maskDef)));
-    // 遮罩属于被遮罩节点自己的坐标系（含其自身 transform）。
+    // 当前画布已位于被遮罩节点自己的坐标系（含其自身 transform）。
     canvas.save();
-    if (owner != null) _applyOwnTransform(canvas, owner);
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);
     canvas
       ..restore()
@@ -1357,8 +1380,10 @@ class AnimatedSvgPainter extends CustomPainter {
     Canvas canvas,
     SvgNode node,
     ResolvedStyle style,
-    Map<String, String> attributes,
-  ) {
+    Map<String, String> attributes, {
+    bool applyOpacity = true,
+    double childOpacity = 1,
+  }) {
     switch (node.kind) {
       case SvgNodeKind.root:
       case SvgNodeKind.group:
@@ -1370,7 +1395,12 @@ class AnimatedSvgPainter extends CustomPainter {
         // 列表迭代器，而真实图标的树里分组占多数。
         final children = node.children;
         for (var i = 0; i < children.length; i++) {
-          _paintNode(canvas, children[i], style);
+          _paintNode(
+            canvas,
+            children[i],
+            style,
+            opacityMultiplier: childOpacity,
+          );
         }
       case SvgNodeKind.path:
       case SvgNodeKind.circle:
@@ -1380,9 +1410,11 @@ class AnimatedSvgPainter extends CustomPainter {
       case SvgNodeKind.polyline:
       case SvgNodeKind.polygon:
         final path = _geometryPath(node, attributes);
-        if (path != null) _paintShape(canvas, node, path, style);
+        if (path != null) {
+          _paintShape(canvas, node, path, style, applyOpacity: applyOpacity);
+        }
       case SvgNodeKind.text:
-        _paintText(canvas, node, style, attributes);
+        _paintText(canvas, node, style, attributes, applyOpacity: applyOpacity);
       case SvgNodeKind.image:
         final img = node.resolvedImage;
         if (img == null) {
@@ -1397,7 +1429,8 @@ class AnimatedSvgPainter extends CustomPainter {
           img,
           Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
           Rect.fromLTWH(x, y, w, h),
-          Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
+          Paint()
+            ..color = Color.fromRGBO(0, 0, 0, applyOpacity ? style.opacity : 1),
         );
     }
   }
@@ -1578,10 +1611,11 @@ class AnimatedSvgPainter extends CustomPainter {
     Canvas canvas,
     SvgNode node,
     ResolvedStyle style,
-    Map<String, String> attributes,
-  ) {
+    Map<String, String> attributes, {
+    bool applyOpacity = true,
+  }) {
     final content = node.textContent;
-    final fillAlpha = style.fillAlpha;
+    final fillAlpha = applyOpacity ? style.fillAlpha : style.fillOpacity;
     if (content == null || content.isEmpty || fillAlpha <= 0) return;
     final fill = style.fill;
     if (fill == null) return; // fill="none": SVG renders no glyphs
@@ -1655,13 +1689,13 @@ class AnimatedSvgPainter extends CustomPainter {
   /// `Color.withValues` builds a whole new [Color] from four floating-point
   /// components; at `opacity == 1` that new colour is equal to the one it was
   /// derived from, so the allocation is pure waste — and full opacity is the
-  /// default every node inherits unless an `opacity` attribute says otherwise.
+  /// default for each node unless its own `opacity` attribute says otherwise.
   ///
   /// [color] 按 [opacity] 淡化后的颜色；完全不透明时原样返回 [color]。
   ///
   /// `Color.withValues` 会用四个浮点分量构造一个全新的 [Color]；当
   /// `opacity == 1` 时新颜色与原颜色相等，这次分配纯属浪费——而完全不透明正是
-  /// 每个节点在没有 `opacity` 属性时继承到的默认值。
+  /// 每个节点在没有自身 `opacity` 属性时的默认值。
   static Color _fade(Color color, double opacity) =>
       opacity == 1 ? color : color.withValues(alpha: color.a * opacity);
 
@@ -1708,10 +1742,10 @@ class AnimatedSvgPainter extends CustomPainter {
     Canvas canvas,
     SvgNode node,
     ui.Path path,
-    ResolvedStyle style,
-  ) {
-    if (style.opacity <= 0) return;
-    final fillAlpha = style.fillAlpha;
+    ResolvedStyle style, {
+    bool applyOpacity = true,
+  }) {
+    final fillAlpha = applyOpacity ? style.fillAlpha : style.fillOpacity;
     if (fillAlpha > 0) {
       // fill-rule：几何 Path 是挂在节点上的共享缓存，默认且始终保持 nonZero。
       // 只有 evenodd 的节点才临时改写，填充画完立刻还原——默认节点只多一次字段
@@ -1736,7 +1770,7 @@ class AnimatedSvgPainter extends CustomPainter {
       }
       if (evenOdd) path.fillType = ui.PathFillType.nonZero;
     }
-    final strokeAlpha = style.strokeAlpha;
+    final strokeAlpha = applyOpacity ? style.strokeAlpha : style.strokeOpacity;
     if (strokeAlpha <= 0) return;
     final strokeShader = _gradientShader(
       style.strokeGradientId,

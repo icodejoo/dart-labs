@@ -46,16 +46,16 @@ void main() {
       expect(resolved({'opacity': '1'}), 1);
     });
 
-    test('缺失时沿用继承值', () {
+    test('缺失时使用本节点默认值 1', () {
       final parent = ResolvedStyle.initial.inherit({'opacity': '0.4'}, theme);
-      expect(parent.inherit({}, theme).opacity, 0.4);
+      expect(parent.inherit({}, theme).opacity, 1);
       expect(resolved({}), 1, reason: '默认样式的 opacity 为 1');
     });
 
-    test('非数字时沿用继承值', () {
+    test('非数字时使用本节点默认值 1', () {
       final parent = ResolvedStyle.initial.inherit({'opacity': '0.4'}, theme);
-      expect(parent.inherit({'opacity': 'abc'}, theme).opacity, 0.4);
-      expect(parent.inherit({'opacity': ''}, theme).opacity, 0.4);
+      expect(parent.inherit({'opacity': 'abc'}, theme).opacity, 1);
+      expect(parent.inherit({'opacity': ''}, theme).opacity, 1);
     });
 
     test('子节点越界值也钳制，不受父级影响', () {

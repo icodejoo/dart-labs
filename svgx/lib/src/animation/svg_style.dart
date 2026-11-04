@@ -80,7 +80,8 @@ class ResolvedStyle {
   /// Dash phase offset. / 虚线相位偏移。
   final double strokeDashoffset;
 
-  /// Element opacity in `[0, 1]`. / 元素不透明度，范围 `[0, 1]`。
+  /// This node's own opacity in `[0, 1]`; never inherited.
+  /// 本节点自身的不透明度，不沿继承链传递；祖先 opacity 在合成时相乘。
   final double opacity;
 
   /// `fill-opacity`：填充（纯色、渐变、文字）的不透明度，范围 `[0, 1]`。
@@ -98,6 +99,24 @@ class ResolvedStyle {
 
   /// 描边的最终 alpha 系数：[strokeOpacity] × [opacity]，再乘上颜色自身的 alpha。
   double get strokeAlpha => opacity * strokeOpacity;
+
+  /// Replaces local opacity when a single-paint wrapper is folded into this leaf.
+  /// 单笔包装组下推时替换本节点 opacity，其余样式保持不变。
+  ResolvedStyle withOpacity(double value) => ResolvedStyle(
+    fill: fill,
+    stroke: stroke,
+    strokeWidth: strokeWidth,
+    strokeLinecap: strokeLinecap,
+    strokeLinejoin: strokeLinejoin,
+    strokeDasharray: strokeDasharray,
+    strokeDashoffset: strokeDashoffset,
+    opacity: value,
+    fillOpacity: fillOpacity,
+    strokeOpacity: strokeOpacity,
+    fillRule: fillRule,
+    fillGradientId: fillGradientId,
+    strokeGradientId: strokeGradientId,
+  );
 
   /// Returns a copy with attributes found in [attributes] overriding the
   /// inherited ones in `this`, resolving `currentColor` against [theme].
@@ -143,7 +162,7 @@ class ResolvedStyle {
           : strokeDasharray,
       strokeDashoffset:
           _parsePixels(attributes['stroke-dashoffset']) ?? strokeDashoffset,
-      opacity: _parseUnitOpacity(attributes['opacity'], opacity),
+      opacity: _parseUnitOpacity(attributes['opacity'], 1),
       fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
       strokeOpacity: _parseUnitOpacity(
         attributes['stroke-opacity'],

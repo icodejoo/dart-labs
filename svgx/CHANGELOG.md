@@ -1,5 +1,17 @@
 ## Unreleased
 
+* Fix animated group opacity: keep opacity local to each node, multiply nested
+  opacity through offscreen group compositing, and composite overlapping fill
+  and stroke before fading. Preserve SMIL/CSS opacity animation and single-paint
+  alpha fast paths; unify effect order as filter → clip → mask → opacity.
+  For nodes with their own transform, open mask/blur layers after the transform:
+  blur sigma now scales with that transform, and clip trims the blurred result
+  (previously these nodes clipped before blurring).
+* Skip zero-opacity nodes and their subtrees for the current sampled frame;
+  rendering resumes when animated opacity becomes nonzero. Fold opacity into
+  blur layers without an intervening mask and into single-paint geometry leaves
+  under eligible single-child wrappers, avoiding unnecessary offscreen layers.
+
 * Parser/CSS/SMIL review fixes: first duplicate id wins; namespaced gradient
   inheritance and stop/animation alignment preserve document order; degenerate
   radial gradients use the final stop; only single source blurs and transparent

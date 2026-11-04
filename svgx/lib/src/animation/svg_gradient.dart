@@ -279,14 +279,16 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
 /// definition can't produce a usable shader: no stops, or a degenerate
 /// (zero-width/height) bounding box under `objectBoundingBox` units.
 ///
-/// [opacity] scales every stop's alpha (the element's own `opacity`).
+/// [opacity] scales every stop's alpha: fill/stroke opacity, multiplied by
+/// local element opacity only when no opacity layer handles it.
 ///
 /// 为在 [bounds] 上绘制的 [def] 构建 `dart:ui` shader。
 ///
 /// 当定义无法产出可用 shader 时返回 null（含义是"该渐变不绘制任何东西"）：没有
 /// 色标，或 `objectBoundingBox` 单位下包围盒退化（宽或高为 0）。
 ///
-/// [opacity] 会缩放每个色标的 alpha（即元素自身的 `opacity`）。
+/// [opacity] 缩放每个色标的 alpha：fill/stroke-opacity，以及未由合成层处理的
+/// 本节点 opacity；祖先组 opacity 由外层合成处理。
 ///
 /// Example:
 /// ```dart

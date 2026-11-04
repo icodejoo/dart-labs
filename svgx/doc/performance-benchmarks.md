@@ -2407,3 +2407,58 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=static20 --dart-defi
 **结论**:在含 mask/gradient/clipPath 的语料上,**svgx 冷启动明显更快**——总耗时 svgx 16~42ms 对 flutter_svg 84~86ms(约 2~5x),CPU 更悬殊,svgx 90~120ms 对 flutter_svg 300~310ms(约 2.6~3.4x)。方向与深挖十四~十六在纯 MDI 图标语料上的冷路径结论(svgx 大幅领先)一致,**没有出现"渐变/mask/clipPath 让 flutter_svg 反超或拉近差距"的迹象**——至少在 usvg(svgx 后端)与 vector_graphics(flutter_svg 后端)各自处理这三种技巧的路径上,svgx 的冷启动优势保持。
 
 **局限说明**:样本量很小(仅 6 个图标、每库仅 2 次运行),不能像深挖十四~十七那样做 p50/p90/p99 分位数分析;3 种技巧各只有 2 个样本,无法单独拆分出"mask 比 gradient 更/更不利于哪个库"这类细粒度结论;RSS 差异(147.80 vs 137.27 等)在这个量级的窗口下噪声占比高,不构成结论。若要进一步细化,应扩大到每种技巧各 10+ 个样本、多轮次。
+
+
+## 2026-11-04:动画组 opacity 合成
+
+`opacity` 不继承,在每个节点自身的渲染结果上应用,嵌套合成相乘。半透明组/根 SVG/use 包装节点通常增加一个 `saveLayer`（下述单笔叶子下推例外）;半透明形状同时绘制 fill 和 stroke 时也增加一个,防止交叠区域重复淡化。单笔填充/描边/图片保留乘 alpha 的快路径。无 opacity 的文档不新增离屏层;`group_opacity_test.dart` 锁定普通双矩形的完整 canvas 调用序列(7 次调用、0 次 saveLayer),并断言单笔半透明为 0 层、多子节点半透明组为 1 层、嵌套多子节点半透明组为 2 层。
+
+发现既有 `anim_bench_screen.dart` 的 spinner 含 `opacity=".25"`,真实 Iconify 语料中 184 个图标含 opacity/fill-opacity/stroke-opacity。因此新增可复现的主机侧录制微基准 `benchmark/bench_app/test/group_opacity_cost_bench_test.dart`,从既有源码抽取同一个 spinner,并筛选这 184 个图标。运行方式:给 PATH 加入仓库 `prebuilt/windows/x64`,在 `benchmark/bench_app` 下执行 `flutter test test/group_opacity_cost_bench_test.dart`。
+
+Windows、Flutter test JIT、加载当前 DLL、32×32 录制;spinner 预热/每批 10000 帧,语料预热/每批 120 帧;每进程 7 批取中位数。用改动前后代码按 B/A/A/B 顺序各跑两个独立进程(此处 A=改动前,B=改动后)。单位 µs/文档/帧:
+
+| 用例 | 改动前两次中位数 | 改动后两次中位数 | 两次中位数均值变化 |
+|---|---|---|---|
+| 既有 spinner(叶子 fill 的 opacity) | 4.606 / 5.179 | 4.689 / 4.881 | −2.2% |
+| 184 个含 opacity 的真实图标 | 12.735 / 12.462 | 12.484 / 13.527 | +3.2% |
+
+这些是 Dart 录制成本,包含 PictureRecorder 的建立/销毁,不含 GPU 光栅化、读回、parse 和逐帧 FFI。进程间有可见波动,不能把这个小幅差值当作显著的提速/回退结论。单笔 spinner 保持 0 个 opacity 层;需要真实组隔离的新场景会增加离屏合成成本,本次未测真机 GPU/FPS,不沿用旧数据承诺这些场景的 GPU 性能。
+
+Chrome headless 对嵌套组、重叠矩形、半透明 fill/stroke、filter+clip+mask+opacity 四个固定场景各抽查 7 个像素 alpha(共 28 点):嵌套组 64、重叠组 128、fill/stroke 交叠 96、组合效果裁剪外 0/内 64,与新增 Flutter 像素断言一致。本轮返工已重新跑 SVGator 378 帧全语料对照，结果见下；字体、混合模式等原有差异仍见能力清单。
+
+
+### E 批返工复测（2026-11-04）
+
+以 saveLayer 次数衡量新增离屏合成成本；Picture 录制耗时不能反映 GPU 成本。
+`group_opacity_cost_bench_test.dart` 新增计数测试，exact masks（默认，不启用 approximateMasks）、32×32，
+每个文档取 0/333/777/1501/2503ms 五帧，统计总次数。HEAD 为 `ff72b8b23db5d4d727f611b6ba4226918e59f1d1`，
+HEAD 在临时源码副本中执行；返工前用开始时保存的 E 批 painter，其他库代码与当前工作区一致。
+
+| 语料 | HEAD | E 批返工前 | 返工后 |
+|---|---:|---:|---:|
+| SVGator CSS，55 文档 × 5 帧 | 115 | 254 | **173** |
+| Iconify 真实图标，399 文档 × 5 帧 | 650 | 700 | **600** |
+
+零 opacity 在节点样式采样后立即跳过。两个优化均有与强制开层参照逐像素 RGBA 对照（允许每通道 ±1）：
+无 mask 隔层时把 opacity 合入 blur 层 Paint；单子节点包装组只在子节点为无 mask/blur/clip 的单笔几何叶子时下推 opacity。
+同时有 fill+stroke、子节点有 mask/blur/clip、多子节点均保留组隔离层；带 mask 的 blur 保留独立 opacity 层。
+覆盖带颜色 alpha、渐变、描边、自身 transform、blur+clip 的像素对照。
+`!hasBlur` 的 mask 转 clip 保护保留：Skia 测试探针显示 clip 在 blur 层外时裁剪的是模糊后结果，Impeller 真机尚未验证。
+
+同一计时基准在返工后单进程 7 批中位数：spinner **4.892 µs/文档/帧**，184 个含 opacity 图标 **12.771 µs/文档/帧**。
+仅记录主机 JIT 的 Picture 录制成本，不据此推断 GPU 性能。
+
+Chrome 对照复用既有 Chrome 156 的 256×256 参考 PNG 和白/深灰背景清单。
+用户指定 scratchpad 的 corpus_css 尚存 48 个 SVG，与原始文件字节一致；从先前 css_samples 补齐缺失 7 个到临时目录，
+完整 55 样本 / **378 帧全部成功，0 异常**。与同一 DLL 下的 HEAD 重新比较，diffRatio（任一 RGB 通道差 >32）
+**357 帧相同、20 帧更接近浏览器、1 帧多差 1 像素**（119，1501ms，白背景）。
+样本 146，1501ms：**0.0081024 → 0.0003204**（约 0.0081 → 0.0003）。
+此处“相同”指 diffRatio 相同，不宣称原始 RGBA 逐字节相同。
+中位数 **0.0033264 → 0.0030212**，p90 **0.0259033**、p99 **0.2521515**、最大值 **0.2677155** 均不变；
+超过 3% 的 35 帧、超过 6% 的 8 帧均不变。原有 luminance mask 忽略遮罩 alpha 的限制仍保留，未由本批修复。
+
+
+最终验证：PATH 前置当前 Rust 构建的 `prebuilt/windows/x64`，`flutter test` 全量 **1340 通过、4 跳过、0 失败**
+（返工前基线 1331 通过、4 跳过；新增 9 项测试）；`dart analyze lib test` **0 问题**。
+三个新增调用计数用例先在返工前实现上确认失败（零 opacity 多开层、blur+opacity 两层、单笔包装组一层），再修复。
+原有 `css_animation_pixel_test.dart` 的 255 断言未改。
