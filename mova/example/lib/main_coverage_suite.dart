@@ -6,6 +6,8 @@ import 'main_cp2_playlist3_verify.dart' as cp2_playlist3;
 import 'main_cp2_bgowner_verify.dart' as cp2_bgowner;
 import 'main_cp2_audioonly_bg_verify.dart' as cp2_audioonly_bg;
 import 'main_cp2_qoe_verify.dart' as cp2_qoe;
+import 'verify_auto/cp3_harness.dart';
+import 'verify_auto/cp3_pages_auto.dart';
 import 'main_cp1_wakeswap_verify.dart' as cp1_wakeswap;
 import 'main_cp1_edgepause_verify.dart' as cp1_edgepause;
 import 'main_cp1_errclass_verify.dart' as cp1_errclass;
@@ -81,6 +83,12 @@ Future<void> main() async {
     case 'cp1-recovery': cp1_recovery.main();
     case 'cp1-dispose120': cp1_dispose120.main();
     case 'gap': gap.main();
+    case 'cp3-cp1gap': cp3Main('cp1gap', runCp1gap, automatic: true);
+    case 'cp3-fullscreen': cp3Main('fullscreen', runFullscreen, automatic: true);
+    case 'cp3-theme': cp3Main('theme', runTheme, automatic: true);
+    case 'cp3-headers': cp3Main('headers', runHeaders, automatic: true);
+    case 'cp3-feedplayer': cp3Main('feedplayer', runFeedplayer, automatic: true);
+    case 'cp3-c04chrome': cp3Main('c04chrome', runC04chrome, automatic: true);
     case 'rerun6': rerun6.main();
 
     case 'cp0-p02': cp0_p02.main();
