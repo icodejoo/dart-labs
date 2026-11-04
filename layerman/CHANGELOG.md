@@ -52,7 +52,25 @@
 * Reclaim empty runtime slots once they have no occupant, queued entries,
   pending gap or gap/delay/cooldown timers.
 
+**Changed (behavior)**
+
+* Every submission with `cooldown` now waits for storage hydration, including
+  session-only and empty `const OverlayCooldown()` configurations, because suppress
+  is persisted. Submissions without cooldown are unaffected. Migration: code relying
+  on session-only entries appearing before `ready()` now waits for one storage read.
+
 **Added**
+
+* `Layerman.suppress(String id, {Duration? duration})` for result-based timed or
+  permanent suppression of cooldown submissions; repeated calls only extend it.
+  `resetCooldown` / `clearCooldowns` clear suppression together with counters.
+* `OverlayEndReason.suppressed` and `OverlayCooldownStatus.suppressed` expose
+  suppression outcomes and current state.
+* `OverlaySlotOptions.blockedBy` (empty `Set<String>` by default) holds new
+  activations while listed slots have serial active entries or active overlaps;
+  already activated entries continue. Unblocking runs at the outermost batch end.
+* Debug invariants (i), (j), (k): no permanently blocked serial queue entries after
+  hydration is applied, no missed unblock scheduling, and no releasable held overlaps.
 
 * `OverlayClock` unifies current time and timers. `package:layerman/testing.dart`
   exports `FakeOverlayClock` for ordinary Dart `test()` without Flutter bindings.

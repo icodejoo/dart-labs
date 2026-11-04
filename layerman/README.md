@@ -32,6 +32,9 @@ in your app.
 
 ## Features
 
+- **Don't show again** — result-based `suppress`, permanent or timed, for submissions with `cooldown`.
+- **Cross-slot blocking** — `OverlaySlotOptions.blockedBy` holds new activations while another slot is occupied.
+
 - **1.0 typed contracts** — `mode: OverlayMode.queue/replace/overlap`, `RouteMatcher`
   and `OverlayPhase` eliminate ambiguous options and string phase comparisons.
 - **Inspection and grouping** — `cooldownStatus` (`OverlayCooldownStatus`),
@@ -495,6 +498,32 @@ bounded.open<String>(
 // The owner eventually calls bounded.dispose().
 ```
 
+#### Cross-slot blocking (`blockedBy`)
+
+```dart
+final manager = Layerman(slots: {
+  'toast': OverlaySlotOptions(blockedBy: {'modal'}),
+  'banner': OverlaySlotOptions(blockedBy: {'modal'}),
+});
+```
+
+`OverlaySlotOptions.blockedBy` is a `Set<String>`, empty by default. While a listed slot
+is occupied, this slot activates no new entries. Occupied means a serial active entry
+(resolving/open/closing, including `exitDuration` grace), or an active overlap in that slot.
+Gap, appear delay, cooldown waits, queues and waiting overlaps **do not count**.
+Entries can therefore appear between two blocker entries. **Already activated entries
+keep showing and their duration continues**: a toast visible before a modal stays visible.
+
+Blocked serial entries queue; `expireAfter` and `maxQueued` still apply. Replace does not
+preempt while blocked and keeps its front-band order after release. Same-id serial reopen
+queues with takeover precedence when eligible. Overlaps that pass initial eligibility are
+held, then rechecked now-or-never on release.
+Release happens at the outermost operation batch end, so replace's remove-old/activate-new
+transition cannot let another slot slip through. Only slots actually waiting for unblock
+and held overlaps are reconsidered; this adds no condition trigger for other slots.
+Cycles follow first activation without fairness guarantees. A nonexistent slot name has
+no effect; self-blocking triggers a debug assertion.
+
 ### Live data (`dataListenable`)
 
 `PresentContext.data` is a snapshot; listen to `dataListenable` for `update`
@@ -547,9 +576,11 @@ final manager = Layerman(
 await manager.ready(); // optional: counters loaded + queue re-scheduled
 ```
 
-Until the store has hydrated, an entry gated on a persisted cap (`total` /
-`day` / `hour` / `minute` / `minGap`) simply waits — an `overlap` one is held,
-not dropped — so opening before `ready()` is safe. A failed read or write is
+Until the store has hydrated, **every submission with `cooldown`** waits, including
+session-only and empty configurations, because suppression is persisted. Serial entries
+queue; overlaps are held rather than dropped. Submissions without `cooldown` are unaffected.
+Migration: session-only entries that previously appeared before `ready()` now wait for
+one storage read. Opening before `ready()` remains safe. A failed read or write is
 reported via `FlutterError.reportError` and never blocks scheduling.
 
 A minimal `shared_preferences` adapter:
@@ -566,12 +597,15 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 ```
 
 `cooldownStatus(id, cooldown)` returns `OverlayCooldownStatus`: `canShow` means
-all caps pass; `permanentlyBlocked` means session/total exhaustion. `wait` is
+all caps and suppression pass; `permanentlyBlocked` means session/total exhaustion or permanent suppression. `wait` is
 `Duration.zero` when eligible, the longest remaining time wait otherwise, or
-`null` when permanently blocked or awaiting persisted-counter hydration.
-`resetCooldown(id)` clears that id's session and persisted counters;
-`clearCooldowns()` clears all counters. Both re-evaluate waiting entries and
-persist the reset. Resetting cannot restore entries already ended as `capped`.
+`null` when permanently blocked or awaiting cooldown-store hydration.
+`suppressed` reports an unexpired timed or permanent suppression. Before hydration,
+`canShow` is false and `wait` is null; `permanentlyBlocked` and `suppressed` still
+reflect known in-memory state (including exhausted session or locally set permanent suppression).
+`resetCooldown(id)` clears that id's session/persisted counters and suppression;
+`clearCooldowns()` clears all counters and suppression. Both re-evaluate waiting entries and
+persist the reset. Resetting cannot restore entries already ended as `capped` or `suppressed`.
 
 ```dart
 const cap = OverlayCooldown(session: 2, minGap: Duration(minutes: 5));
@@ -583,6 +617,48 @@ if (status.canShow) {
 manager.resetCooldown('promo');
 manager.clearCooldowns();
 ```
+
+#### Don't show again (`suppress`)
+
+The card closes with `'never'`, `'later'` or `null`; suppress according to that result.
+`const OverlayCooldown()` sets no count limits and only honors suppression:
+
+```dart
+Future<void> showPromo(Layerman manager, Present<String> present) async {
+  final r = await manager.open<String>(
+    id: 'promo',
+    cooldown: const OverlayCooldown(),
+    present: present,
+  );
+  if (r == 'never') manager.suppress('promo');
+  if (r == 'later') {
+    manager.suppress('promo', duration: const Duration(days: 3));
+  }
+}
+
+// e.g. a settings switch: shown while suppressed; resetCooldown('promo') re-enables.
+bool promoSuppressed(Layerman manager) =>
+    manager.cooldownStatus('promo', const OverlayCooldown()).suppressed;
+```
+
+`Layerman.suppress(String id, {Duration? duration})` suppresses from now for a
+positive `duration`; null means forever. It **only gates submissions with `cooldown:`**.
+A manual open without cooldown remains available, for example “View campaign” in settings.
+Already activated entries are unaffected. Suppression shares the counter record (JSON key
+`su`); `resetCooldown(id)` / `clearCooldowns()` also clear it.
+Repeated calls keep the later expiry, with forever winning: suppression only extends.
+Thus “suppress three days on any close, then forever on never” works in either order.
+Shortening requires a reset, which also clears counters.
+
+Permanent suppression immediately ends queued serial entries with `OverlayEndReason.suppressed`,
+even while paused, occupied or awaiting hydration. Timed suppression leaves serial entries
+waiting and self-wakes at expiry (or a later time-based cap); `expireAfter` can bound that wait.
+Overlap checks at its delay deadline or release and discards as suppressed when suppression
+blocks its cooldown. Cooldown rejection reasons take precedence as `suppressed > capped > dropped`;
+a failed route/auth/when condition still yields `dropped`.
+Permanent suppression gives `permanentlyBlocked: true, wait: null`; timed suppression's
+`wait` is the maximum of remaining suppression and other time-based waits (unless permanently
+blocked or awaiting hydration).
 
 ### Backend-driven `resolve`
 
@@ -994,7 +1070,7 @@ Layerman({
 | `OverlayRecord? recordOf(String id)` | One snapshot or `null`. |
 | `OverlayTicket<T> submit<T>({...})` | Same parameters as `open<T>`, returns a ticket. |
 | `final Duration gap` | Delay inserted between one overlay closing and the next showing. |
-| `Future<void> ready()` | Completes once the cooldown store has hydrated and the queue has been re-scheduled. Optional: entries gated on persisted caps wait for it automatically. |
+| `Future<void> ready()` | Completes once the cooldown store has hydrated and the queue has been re-scheduled. Optional: all entries with `cooldown` wait for hydration automatically. |
 | `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
 | `bool get isPaused` | Whether the queue is frozen — via manual pause, a route zone, or unreleased holds. |
 | `bool get isDisposed` | Whether `dispose()` has been called — lets a deferred callback avoid calling into a torn-down manager. |
@@ -1005,9 +1081,10 @@ Layerman({
 | `void close(String id, [Object? result])` | Two-phase close, delivering `result` (runs `beforeClose`; repeated calls while an async guard is pending are ignored). Throws `ArgumentError` — leaving the overlay untouched — if `result` isn't a `T?` of its `open<T>()`. |
 | `void dismiss(String id)` | `close(id)` with a `null` result. |
 | `void remove(String id)` | Remove immediately, no exit grace; bypasses `beforeClose`. |
+| `void suppress(String id, {Duration? duration})` | Suppress submissions with cooldown; null forever, positive duration from now; only extends. |
 | `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | Inspect eligibility without incrementing counters. |
-| `void resetCooldown(String id)` | Reset session and persisted counters for one id and re-schedule. |
-| `void clearCooldowns()` | Reset all cooldown counters and re-schedule. |
+| `void resetCooldown(String id)` | Reset session/persisted counters and suppression for one id and re-schedule. |
+| `void clearCooldowns()` | Reset all cooldown counters and suppression and re-schedule. |
 | `void clearTag(String tag)` | Remove all entries with this tag, bypass guards; outcome `removed`. |
 | `int get debugSlotCount` | Testing-only runtime slot count, excludes configuration. |
 | `void clear()` | Remove everything (queued + active); pending results resolve `null`. |
@@ -1090,7 +1167,8 @@ and `minGap` (rolling minimum spacing) are persisted. Fields: `session`,
 | `OverlayMode` | `queue`, `replace`, `overlap`; `mode` defaults to `queue`. |
 | `RouteMatcher` | `const RouteMatcher.exact(String path)`, `const RouteMatcher.anyOf(List<String> paths)`, `RouteMatcher.regex(RegExp pattern)`; `bool matches(Object? route)`. Do not mutate the `anyOf` input list. |
 | `OverlayPhase` | `pending`, `resolving`, `open`, `closing`; used by `OverlayRecord.phase`. |
-| `OverlayCooldownStatus` | `const OverlayCooldownStatus({required bool canShow, required bool permanentlyBlocked, required Duration? wait})`; final fields of the same names. |
+| `OverlayCooldownStatus.suppressed` | `final bool`; true while suppression is active; constructor default false. |
+| `OverlayCooldownStatus` | `const OverlayCooldownStatus({required bool canShow, required bool permanentlyBlocked, required Duration? wait, bool suppressed = false})`; final fields of the same names; `suppressed` reports current suppression. |
 
 ### `OverlayCooldownStorage` / `MemoryCooldownStorage`
 
@@ -1140,11 +1218,11 @@ typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 | --- | --- |
 | `OverlayTicket<T>` | `final String id`, `final String slot`; `Future<T?> get result`, `Future<OverlayOutcome<T>> get outcome`, `bool get isActive`, `ValueListenable<Object?> get data`; `void close([T? result])`, `void remove()`, `void update(Object? patch)`. No public constructor. |
 | `const OverlayOutcome<T>(T? value, OverlayEndReason reason)` | `final T? value`, `final OverlayEndReason reason`; first settlement wins. |
-| `OverlayEndReason` | `closed`, `dismissedByBackend`, `expired`, `replaced`, `superseded`, `removed`, `unmet`, `skipped`, `dropped`, `capped`, `queueFull`, `queueExpired`, `failed`, `disposed`. |
+| `OverlayEndReason` | `closed`, `dismissedByBackend`, `expired`, `replaced`, `superseded`, `removed`, `unmet`, `skipped`, `dropped`, `capped`, `suppressed`, `queueFull`, `queueExpired`, `failed`, `disposed`. |
 | `OverlayEventType` | `queued`, `shown`, `ended`. |
 | `const OverlayEvent({required OverlayEventType type, required String id, required String slot, OverlayEndReason? reason})` | Fields have the same types and are final; `reason` only on `ended`. |
 | `OverlayHold` | `final Object? reason`, `bool get isReleased`, `void release()`; no public constructor, release is idempotent. |
-| `const OverlaySlotOptions({Duration? gap, int? maxQueued})` | Final nullable fields; omitted gap inherits, omitted maxQueued is unlimited; supplied maxQueued must be positive. |
+| `const OverlaySlotOptions({Duration? gap, int? maxQueued, Set<String> blockedBy = const <String>{}})` | Final fields: nullable gap/maxQueued; omitted gap inherits, omitted maxQueued is unlimited; supplied maxQueued must be positive. `blockedBy` defaults empty and gates activation on other slots. |
 
 ### Route presenters and lifecycle binding
 
@@ -1253,6 +1331,9 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
 > `package:flutter/widgets.dart`,也不持有任何 `Overlay` 层——只保留编排语义。
 
 ## 特性
+
+- **不再提示**：按结果调用 `suppress`，永久或限时抑制带 `cooldown` 的提交。
+- **跨槽位阻塞**：`OverlaySlotOptions.blockedBy` 在其他 slot 占用时阻止新条目激活。
 
 - **串行队列**:每个 slot 一次只显示一个,当前移除后下一个才显示,可设 `gap` 间隔。
 - **具名 slot**:相互独立、可并行的多条串行队列(如 `toast` 与 `dialog`)。
@@ -1651,6 +1732,28 @@ bounded.open<String>(
 // The owner eventually calls bounded.dispose().
 ```
 
+#### 跨槽位阻塞（`blockedBy`）
+
+```dart
+final manager = Layerman(slots: {
+  'toast': OverlaySlotOptions(blockedBy: {'modal'}),
+  'banner': OverlaySlotOptions(blockedBy: {'modal'}),
+});
+```
+
+`OverlaySlotOptions.blockedBy` 类型为 `Set<String>`，默认空。列出的 slot 占用期间，本 slot
+不激活新条目。占用指串行 active（resolving / open / closing，含 `exitDuration` 宽限），
+或者该 slot 的 overlap 已激活。gap、appear delay、冷却等待、排队、等待中的 overlap **都不算占用**，
+因此被阻塞的条目可能在 blocker 的两个条目之间出场。**已激活条目继续显示，duration 照常走**：
+modal 出场前已显示的 toast 不会被关闭或暂停。
+
+被阻塞的串行条目继续排队，`expireAfter` / `maxQueued` 照常生效；replace 不抢占，解除后保留
+最前排带；合格的同 id 串行重开排队并保留接管优先权。初次资格通过的 overlap 被持有，解除后
+再做一次“现在或永不”判定。
+解除统一在最外层操作批次末尾处理，避免 replace 移走旧项、激活新项之间让其他 slot 插队。
+仅重判确实等待解除的 slot 和被持有的 overlap，不给其他 slot 增加条件重判触发点。
+环按先激活者占用，不保证公平；不存在的 slot 名无效果；自阻塞触发 debug 断言。
+
 ### 实时数据（`dataListenable`）
 
 `PresentContext.data` 为快照，`dataListenable` 通知 `update` 和解析值的变化。
@@ -1687,8 +1790,10 @@ final manager = Layerman(cooldownStorage: SharedPrefsCooldownStorage());
 await manager.ready(); // 可选:计数已加载、队列已重新调度
 ```
 
-存储 hydrate 完成前,带持久化上限(`total` / `day` / `hour` / `minute` / `minGap`)的条目
-会自动等待——`overlap` 条目挂起而不是丢弃——所以在 `ready()` 之前 open 是安全的。读或写失败
+存储 hydrate 完成前，**所有带 `cooldown` 的提交**都等待，包括仅设 session 和空配置，
+因为抑制状态需要持久化读取。串行排队，overlap 挂起而不丢弃；不带 `cooldown` 的提交不受影响。
+迁移：依赖 session-only 条目在 `ready()` 前出场的代码，现在会晚一个存储读取的时间。
+在 `ready()` 之前 open 仍然安全。读或写失败
 都会经 `FlutterError.reportError` 上报,不会卡住调度。
 
 `shared_preferences` 适配器最小实现:
@@ -1708,11 +1813,13 @@ class SharedPrefsCooldownStorage implements OverlayCooldownStorage {
 `null`（`capped`）结束；hydrate 完成时再次检查队列，不受 slot 占用或暂停阻挡。
 需要可重试的等待请使用时间型冷却，新活动使用新 id。
 
-`cooldownStatus(id, cooldown)` 返回 `OverlayCooldownStatus`：`canShow` 表示全部上限通过，
-`permanentlyBlocked` 表示 session/total 耗尽。`wait` 可展示时为 `Duration.zero`，
-时间冷却时为最长剩余等待，永久受阻或等待读取持久化计数时为 `null`。
-`resetCooldown(id)` 清除该 id 的 session 与持久化计数，`clearCooldowns()` 清除全部计数；
-两者都会重判等待条目并持久化重置，但不会复活已以 `capped` 结束的条目。
+`cooldownStatus(id, cooldown)` 返回 `OverlayCooldownStatus`：`canShow` 表示全部上限与抑制检查通过，
+`permanentlyBlocked` 表示 session/total 耗尽或永久抑制。`wait` 可展示时为 `Duration.zero`，
+时间冷却时为最长剩余等待，永久受阻或等待冷却存储 hydrate 时为 `null`。
+`suppressed` 表示当前有限时或永久抑制。hydrate 前 `canShow: false, wait: null`，
+但 `permanentlyBlocked` / `suppressed` 仍反映内存已知状态（含 session 耗尽、本会话已设置的永久抑制）。
+`resetCooldown(id)` 清除该 id 的 session、持久化计数及抑制，`clearCooldowns()` 清除全部计数及抑制；
+两者都会重判等待条目并持久化重置，但不会复活已以 `capped` 或 `suppressed` 结束的条目。
 
 ```dart
 const cap = OverlayCooldown(session: 2, minGap: Duration(minutes: 5));
@@ -1724,6 +1831,43 @@ if (status.canShow) {
 manager.resetCooldown('promo');
 manager.clearCooldowns();
 ```
+
+#### 不再提示（`suppress`）
+
+卡片关闭时返回 `'never'`、`'later'` 或 `null`，按结果决定抑制。
+`const OverlayCooldown()` 不设次数上限，只遵守 suppress：
+
+```dart
+Future<void> showPromo(Layerman manager, Present<String> present) async {
+  final r = await manager.open<String>(
+    id: 'promo',
+    cooldown: const OverlayCooldown(),
+    present: present,
+  );
+  if (r == 'never') manager.suppress('promo');
+  if (r == 'later') {
+    manager.suppress('promo', duration: const Duration(days: 3));
+  }
+}
+
+// 例如设置页的开关：被抑制时显示，调用 resetCooldown('promo') 恢复提示。
+bool promoSuppressed(Layerman manager) =>
+    manager.cooldownStatus('promo', const OverlayCooldown()).suppressed;
+```
+
+`Layerman.suppress(String id, {Duration? duration})` 从现在起抑制正数 `duration` 这段时间，
+null 表示永久。**只约束带 `cooldown:` 的提交**；不带 cooldown 的手动打开不受影响，
+例如用户在设置页主动点“查看活动”。已激活条目不受影响。抑制与计数共用一条持久化记录
+（JSON 键 `su`），`resetCooldown(id)` / `clearCooldowns()` 会一起清除。
+多次调用取更晚到期时间，永久优先，只延长不缩短；所以“任何关闭抑制三天，再对不再提示永久抑制”
+的调用顺序不影响结果。缩短只能 reset，而 reset 会同时清掉计数。
+
+永久抑制立即以 `OverlayEndReason.suppressed` 结束排队的串行条目，即使暂停中、slot 被占用或
+hydrate 未完成也一样。限时抑制让串行条目继续等待，到期自唤醒（其他时间型上限可能更晚）；
+可用 `expireAfter` 限定等待。overlap 在 delay 到点或释放时判断，抑制阻止冷却通过则以 suppressed 丢弃。
+冷却丢弃原因优先级为 `suppressed > capped > dropped`；route/auth/when 条件失败仍为 `dropped`。
+永久抑制时 `permanentlyBlocked: true, wait: null`；限时抑制的 `wait` 取剩余抑制时间与其他时间型
+等待的较大者（永久受阻或等 hydrate 时仍为 null）。
 
 ### 后端驱动 `resolve`
 
@@ -2070,8 +2214,10 @@ manager.open<void>(
 | `OverlayMode mode` | 默认 `OverlayMode.queue`；可选 `replace` / `overlap`，不能同时选择。 |
 | `RouteMatcher? route` / `List<RouteMatcher> pauseOnRoutes` | 默认 null / 空列表；使用 `exact` / `anyOf` / `regex`；null 或非字符串路由不匹配，`anyOf` 的输入列表不可修改。 |
 | `OverlayPhase` / `OverlayRecord.phase` | `pending` / `resolving` / `open` / `closing`，使用枚举比较。 |
-| `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | 查询 `canShow`、`permanentlyBlocked`、`wait`，不增加计数。 |
-| `void resetCooldown(String id)` / `void clearCooldowns()` | 重置单 id / 全部 session 和持久化计数并重调度。 |
+| `void suppress(String id, {Duration? duration})` | 只抑制带 cooldown 的提交；null 永久，正时长从现在起计，只延长。 |
+| `OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown)` | 查询 `canShow`、`permanentlyBlocked`、`wait`、`suppressed`（构造默认 false），不增加计数。 |
+| `OverlayCooldownStatus.suppressed` | `final bool`，当前是否处于抑制中；构造参数默认 false。 |
+| `void resetCooldown(String id)` / `void clearCooldowns()` | 重置单 id / 全部 session、持久化计数及抑制并重调度。 |
 | `Set<String>? tags` / `OverlayRecord.tags` | 参数默认 null（空集合）；提交时复制为只读集合。 |
 | `void clearTag(String tag)` | 批量移除带标签条目，绕过守卫，原因 `removed`。 |
 
@@ -2087,10 +2233,10 @@ manager.open<void>(
 | 成员 / 类型 | 契约 |
 | --- | --- |
 | `submit<T>` / `OverlayTicket<T>` | 参数与 `open<T>` 相同；`id`、`slot`、`result`、`outcome`、`isActive`、`data`；`close([T? result])`、`remove()`、`update(Object? patch)`。 |
-| `OverlayOutcome<T>` / `OverlayEndReason` | `value` 与首次 `reason`；全部原因及含义见 [架构生命周期表](ARCHITECTURE.md#4-条目生命周期)。 |
+| `OverlayOutcome<T>` / `OverlayEndReason` | `value` 与首次 `reason`；新增 `OverlayEndReason.suppressed` 表示抑制丢弃；全部原因及含义见 [架构生命周期表](ARCHITECTURE.md#4-条目生命周期)。 |
 | `events` / `OverlayEvent` / `OverlayEventType` | 异步广播；事件有 `type`、`id`、`slot`、`reason`；类型为 `queued` / `shown` / `ended`。 |
 | `hold([Object? reason])` / `OverlayHold` | 独立暂停；`reason`、`isReleased`、`release()`，`holdCount` 统计未释放数量。 |
-| `OverlaySlotOptions` | `Duration? gap`、`int? maxQueued`；未提供则继承全局间隔 / 不限队列长度。 |
+| `OverlaySlotOptions` | `Duration? gap`、`int? maxQueued`、`Set<String> blockedBy`（默认空）；未提供前两项则继承全局间隔 / 不限队列长度；blockedBy 按其他槽占用门控激活。 |
 | `dismissTimeout` / `resolveTimeout` / `expireAfter` | 默认关闭 10 秒、解析 30 秒、排队不限时；单条解析零时长禁用，构造参数 null 禁用。 |
 | `resolvingIds` / `records` / `recordOf(String id)` | 解析中 id / 全部条目快照 / 单条快照或 null。 |
 | `PresentContext.dataListenable` | `ValueListenable<Object?>`，实时数据；`data` 为快照。 |

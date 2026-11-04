@@ -279,3 +279,28 @@ B2 已核实提交及 hydrate 清理路径调用永久上限判断，不再等�
 
 验收基线：单测 **782 条全绿**（Flutter 3.47.0；最低 Flutter 3.27.4 上同样 782 条全绿，连续两次干净全量运行），0 个 skip；手机真机 **33 条全绿**（华为 STG-AL00 / Android 12，序列号 7NQBB23606003715）。如实记录一次偶发：3.27.4 有一次全量运行恰好与手机测试的 Gradle 构建并发，fuzz 文件最后一条（overlap 延迟取消）报 did not complete；该用例完全跑在假时间里、无真实时间依赖，单条、整文件、两次干净全量均无法复现，系统也无资源耗尽事件，根因未定。以后做最低版本验证时不要与手机构建并发。
 本次只验证系统临时目录中的 README 关键示例 dart analyze 和 ARCHITECTURE.svg XML；不据历史基线宣称新测试通过。
+
+
+## 1.0.0 发布前新增 suppress / blockedBy（2026-11-04）
+
+用户评估剩余未做项后，选定完成 suppress 与 blockedBy。1.0.0 尚未发布，直接合入现有版本。
+本记录更新此前“跨 slot 互斥 / 冷却按结果计数未提供”的历史结论：按结果调用 suppress 已支持
+“不再提示”；频次计数仍在 present 成功返回后发生，周 / 月可插拔规则、slot 并发数仍未做。
+
+suppress 只约束带 cooldown 的提交，让设置页主动“查看活动”等无 cooldown 打开仍可用；
+因此任何 cooldown（包括 session-only、空配置）都等待 hydrate，因为抑制是持久化状态。
+依赖 session-only 在 ready() 前显示的代码会晚一个存储读取的时间。hydrate 前状态查询
+canShow false / wait null，但永久受阻及 suppressed 仍反映内存已知状态。
+抑制与计数同记录 su，调用及 hydrate 合并只延长不缩短、永久优先，确保“关闭抑制三天，
+不再提示永久抑制”不受调用顺序影响。reset 才能缩短，且会一起清除计数。已激活条目不受影响。
+
+blockedBy 的占用是 serial active（resolving / open / closing 含 exitDuration）或 active overlap；
+gap、appear delay、冷却等待、队列和等待 overlap 不算占用。阻塞只拦新激活，已展示项与 duration
+继续；环不保证公平。解除统一在最外层批次末尾，防止 replace 移走旧项到激活新项的暂态让其他
+slot 插队；只调度 waitingUnblock 的槽及受阻 overlap，不扩大推模式条件重判的触发范围。
+
+验收基线（主会话实测）：单测 **841 条全绿**（Flutter 3.47.0；最低 Flutter 3.27.4 上同样 841 条全绿，
+`analyze` 干净），0 个 skip；手机真机 **38 条全绿**（原有 33 + 新增 5，华为 STG-AL00 / Android 12，
+序列号 7NQBB23606003715）。README 新增示例经临时工程 `dart analyze` 验证，SVG 经 XML 解析。
+随机序列测试里"被阻塞后解除并出场""overlap 被阻塞持有后释放"两项实际只发生 2 次和 1 次，
+这两条路径主要由 blocked_by_test 的确定性用例与不变量 (j)(k) 守住，不靠随机测试。

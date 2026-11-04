@@ -54,19 +54,22 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 全部在 `Layerman` 实例内：
 
 - `_slots`：`Map<String, _Slot>`，默认槽位名 `''`。每个 `_Slot` 含 `active`（0 或 1 个占位者）、
-  `queue`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`。
-- `_overlaps`：`mode: OverlayMode.overlap` 的并发栈，不占槽位。
-- `_pendingOverlaps`：暂停期间、或等待冷却存储 hydrate 时被挂起的 overlap。
+  `queue`、`gapTimer` / `delayTimer` / `cooldownTimer` 三个计时器、`gapPending`、同 id 优先接管 `takeover`、确实等待跨槽解除的 `waitingUnblock`。
+- `_overlaps`：`mode: OverlayMode.overlap` 的并发栈，不占串行 active，但计入 blockedBy 占用。
+- `_pendingOverlaps`：暂停期间、等待冷却存储 hydrate 或被 blockedBy 阻塞时被挂起的 overlap。
 - `_delayedOverlaps`：等待独立 `overlapDelayTimer` 的 overlap，不占串行槽位。
 - `_byId`：id 到条目的映射，**唯一事实来源**。异步回调一律用 `_isCurrent(e)`
   （`_byId[e.id] == e`）判断条目是否仍有效。
 - `_context`：`setContext` 合并出的条件上下文。
 - 三个暂停来源：`_manualPaused`（`pauseAll` / `resumeAll`）与 `_routeZonePaused`
   （`pauseOnRoutes`），以及 `_holds` 中未释放的独立暂停凭证，有效状态 `_paused` 是三者的 OR。
-- `slots`：不可变的 `Map<String, OverlaySlotOptions>`，按槽覆盖全局 `gap`，可限制 `maxQueued`。
+- `slots`：不可变的 `Map<String, OverlaySlotOptions>`，按槽覆盖全局 `gap`，可限制 `maxQueued`，并用 `blockedBy` 指定激活阻塞来源。
 - `submit<T>` 返回绑定单次 `_Entry` 身份的 `OverlayTicket<T>`，含结果与 outcome 两个 Future；
   `open<T>` 委托 `submit<T>(...).result`。`_events` 异步广播 queued/shown/ended。
-- `_CooldownStore`：冷却计数；`ready()` 返回的 hydrate Future。
+- `_CooldownStore`：冷却计数及 `_CooldownRecord.suppressedUntilMs`（JSON `su`）；`ready()` 返回 hydrate Future。
+- `_blockedByOf` 保存阻塞来源的不可变副本，`_blockerSlots` / `_blockableSlots` 分别索引来源 / 被阻塞槽；
+  `_unblockPending` 标记本批次释放过来源，批次末尾统一处理。
+- `_hydrationApplied` 表示 manager 的 hydrate 续体已应用，区别于 store 刚读完、清理还未执行的微任务窗口。
 
 只读观测：`activeIds`（open 或 closing）、`queuedIds`（含挂起的 overlap）、`isShowing(id)`、
 `isPaused`、`currentRoute`、`isDisposed`、`holdCount`；`resolvingIds` 补充解析中条目，
@@ -103,6 +106,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 | `skipped` | resolve 空值、异常或超时 |
 | `dropped` | overlap 不满足条件或可恢复冷却 |
 | `capped` | session / total 永久上限耗尽 |
+| `suppressed` | 带 cooldown 的条目因抑制结束 |
 | `queueFull` | maxQueued 超限淘汰有序队尾 |
 | `queueExpired` | expireAfter 到期 |
 | `failed` | present 同步抛异常 |
@@ -131,24 +135,26 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
   `route`（`RouteMatcher?`）读取 `_context['route']`；`auth` 与 `when` 都是
   `OverlayPredicate?`，读取 `setContext` 提供的任意键，引擎不读取保留键 auth。
 - 冷却：`_CooldownStore` 逐项检查，见第 9 节。
-- hydrate 门控：存储读取完成前，带持久化上限（`total` / `day` / `hour` / `minute` /
-  `minGap`）的条目视为「暂不满足」；只有 `session` 上限的条目不受影响。hydrate 完成后统一重调度。
+- hydrate 门控：存储读取完成前，**任何带 `cooldown` 的提交**都视为「暂不满足」，包括只有
+  session 或空 `const OverlayCooldown()`；抑制持久化且对它们均生效。不带 cooldown 的不受影响。
+  hydrate 完成后统一重调度。
   串行条目排队等待；overlap 条目被挂起，而不是丢弃。
 
 ### 5.3 不满足怎么办
 
-- 串行条目：可恢复的不满足**等待**；提交时检查 `permanentlyBlocked`（session / total 耗尽），
-  立即结束为 null / capped；hydrate 完成后扫描所有串行队列清理永久受阻项，不受暂停或 slot 占用阻挡。
+- 串行条目：可恢复的不满足**等待**；提交时检查 `permanentlyBlocked`（session / total 耗尽或永久抑制），
+  立即结束为 null / capped 或 suppressed；hydrate 完成后扫描所有串行队列清理永久受阻项，不受暂停或 slot 占用阻挡。
   调度扫描也保留检查。hydrate 前不据尚未读到的 total 判定永久受阻。
-- overlap 条目：**丢弃**（结果 `null`），即「现在或永不」。暂停期间或等 hydrate 时改为挂起。
-- 时间型冷却（`minGap`、day/hour/minute 桶滚动）会自唤醒：`_schedule` 找不到合格项时，
+- overlap 条目：**丢弃**（结果 `null`），即「现在或永不」。初次资格通过后，暂停、等 hydrate 或 blockedBy 阻塞时改为挂起，释放时重判。
+- 时间型冷却（限时抑制、`minGap`、day/hour/minute 桶滚动）会自唤醒：`_schedule` 找不到合格项时，
   对最近到期者起 `cooldownTimer`，到点（多留 16ms）重新调度。`session` / `total` 不会自己到期，
   不唤醒，提交 / hydrate / 调度检查时丢弃。
 
 ### 5.4 调度流程 `_schedule(slot)`
 
 暂停则返回；取消旧 `cooldownTimer`；槽位被占、`gapPending`、`delayTimer` 在走、队列为空则返回；
-从有序队列扫描并丢弃永久受阻项，取第一个合格项；它有 `delay` 且未跳过则起 `delayTimer` 并返回；否则 `_activate`。
+随后检查 `_slotBlocked(slot)`，若阻塞则置 `waitingUnblock = true` 并返回；
+通过后先消费合格 `takeover`，否则从有序队列扫描并丢弃永久受阻项，取第一个合格项；它有 `delay` 且未跳过则起 `delayTimer` 并返回；否则 `_activate`。
 
 间隔：关闭一个串行条目后 `_advanceSlot`，若 `slots[slot]?.gap ?? gap` 大于零 则置 `gapPending` 并起
 `gapTimer`，到期再调度。条目自己的 `delay` 在它出场前再等一次，overlap 也遵守 `delay`：先进入 `_delayedOverlaps` 等待，
@@ -156,7 +162,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 ### 5.5 replace 抢占
 
-`open(mode: OverlayMode.replace)` 仅当自身满足资格、管理器未暂停时才抢占；当前项 `affix` 则不抢占，
+`open(mode: OverlayMode.replace)` 仅当自身满足资格、管理器未暂停且本 slot 未被 blockedBy 阻塞时才抢占；当前项 `affix` 则不抢占，
 抢占者留在队列前排带，等当前项走后显示。抢占时：
 
 - 被抢占者直接关闭（`_discardActive`：结果 `null`、尽力 dismiss 后端），**不回队列**，
@@ -167,6 +173,7 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 
 `open` 复用一个活跃 id：旧项被丢弃（结果 `null` / superseded），新项 `skipGap`。
 若仍在同一串行槽、未暂停且合格，新项直接 `_activate` 接管，不让更高优先级排队项抢走。
+若被阻塞或在 build 期间，合格且未暂停的同槽新项由 `takeover` 保留接管权，解除后先于其他排队项。
 跨槽或转 overlap 时原槽重调度；不满足接管条件时正常排队。
 复用一个仍排队的 id：覆盖旧排队项。`affix` 不拦同 id 重开。
 
@@ -175,6 +182,19 @@ ARCHITECTURE.md / ARCHITECTURE.svg       本文与架构图
 `expireAfter` 提交时起 `queueTimer`，只适用于激活前串行等待（含暂停），激活取消；
 到期移除并给出 queueExpired。`maxQueued` 必须正数，只计算等待项，入队后超限淘汰
 有序队尾（queueFull），可能淘汰本次提交。`OverlaySlotOptions.gap` 覆盖全局间隔。
+
+### 5.8 跨 slot 阻塞
+
+`OverlaySlotOptions.blockedBy` 为 `Set<String>`，默认空。`_slotBlocked` 仅看来源 slot 的
+`active != null`（resolving / open / closing，含 exitDuration 宽限），或 `_overlaps` 中该 slot 的条目。
+gap、appear delay、cooldown 等待、排队、等待中的 overlap 都不算占用；不存在的 slot 名无效果。
+构造时复制阻塞集合，自阻塞触发 debug 断言；环按先激活者占用，不保证公平。
+
+阻塞只拦新激活，不关闭或暂停已激活条目，duration 继续走。串行排队仍受 expireAfter / maxQueued
+约束；replace 阻塞时不抢占，解除后按最前排带出场；同 id 重开按 5.6 保留合格接管权。
+`_admitOverlap` 先检查条件与冷却，再将合格但被阻塞的项放入 `_pendingOverlaps`；
+`_releaseOverlap` 在仍暂停、等 hydrate 或受阻时继续持有，否则再做 now-or-never 判定。
+解除由最外层批次末尾的 `_releaseUnblocked` 处理，见 13.1。
 
 ## 6. 两阶段关闭
 
@@ -285,7 +305,7 @@ present 内同步 close 时，返回后的后端句柄仍须清理，且不能�
 - 存储协议：`OverlayCooldownStorage.read(key)` / `write(key, value)`，在构造参数
   `storageKey`（默认 `layerman:cooldown`）下存**一个** JSON 字符串，按 id 分记录。
   默认 `MemoryCooldownStorage`，真实应用接 `shared_preferences` 一类的实现（主包不依赖）。
-- hydrate：构造时触发读取；完成前带持久化上限的条目自动等待（见 5.2），完成后统一重调度，
+- hydrate：构造时触发读取；完成前所有带 cooldown 的条目自动等待（含 session-only / 空配置）（见 5.2），完成后统一重调度，
   `ready()` 在重调度之后完成，所以 open 前不必先 await。存储损坏或不可用时上报并退化为空计数。
   hydrate 与已有计数**合并**而非覆盖；写入串行化（同一时刻最多一次在途写入，结束后补写最新快照），
   失败会上报，不影响调度。
@@ -294,13 +314,31 @@ present 内同步 close 时，返回后的后端句柄仍须清理，且不能�
 ### 9.1 查询与重置
 
 `cooldownStatus(String id, OverlayCooldown cooldown)` 不增加计数，返回 `OverlayCooldownStatus`：
-`canShow` 为全部上限通过，`permanentlyBlocked` 为 session / total 耗尽；`wait` 在通过时为
+`canShow` 为全部上限通过，`permanentlyBlocked` 为 session / total 耗尽或永久抑制；`wait` 在通过时为
 Duration.zero，时间冷却时取最长剩余等待，永久受阻或等待持久化 hydrate 时为 null。
-`resetCooldown(String id)` / `clearCooldowns()` 同时清除 session 与持久化计数，复用串行写入；
+`suppressed` 表示当前存在有效抑制。hydrate 前 `canShow: false, wait: null`，但
+permanentlyBlocked / suppressed 按内存已知状态给出（session 耗尽、本会话永久抑制仍可识别）。
+`resetCooldown(String id)` / `clearCooldowns()` 同时清除 session、持久化计数及抑制，复用串行写入；
 hydrate 未结束的重置也保留，旧存储不能将清掉的计数带回。重置后未暂停则重新调度，
-暂停期间仍保持冻结；已结束的 capped 条目不会复活。
+暂停期间仍保持冻结；已结束的 capped / suppressed 条目不会复活。
 
-### 9.2 时间与计时器
+### 9.2 按结果抑制
+
+`Layerman.suppress(String id, {Duration? duration})`：null 永久，非 null 必须为正，从 clock.now()
+起计算到期时间。只门控带 cooldown 的提交，手动不带 cooldown 的打开与已激活条目不受影响。
+空 `const OverlayCooldown()` 不限次数，只接受抑制。调用方可按结果在关闭后调用 suppress。
+
+抑制复用 `_CooldownRecord.suppressedUntilMs` / JSON `su`，永久用 `_suppressForeverMs` 哨兵；
+重复调用与 hydrate 合并都取更晚时间，永久优先，只延长不缩短。原因是“任何关闭抑制三天，
+不再提示抑制永久”的先后顺序不应影响结果。reset 会连同计数一起清除，hydrate 前的重置也保留。
+永久抑制立即清理该 id 的排队串行项，即使暂停、slot 占用、hydrate 未完成也以 suppressed 结束。
+限时抑制保留串行等待并自唤醒；wait 取抑制剩余与其他时间型限制的最大值。
+永久抑制时 permanentlyBlocked 为 true，wait 为 null；永久上限或 hydrate 门控也使 wait 为 null。
+
+overlap 在 delay 到点或释放时判断，抑制中丢弃。`_dropReason` 的冷却拒绝优先级是
+suppressed > capped > dropped；`_admitOverlap` 的条件失败路径直接给 dropped，不调用该优先级判断。
+
+### 9.3 时间与计时器
 
 `Layerman(clock: OverlayClock.system)` 是默认时间源。所有时间读取经 `clock.now()`，
 所有计时器经 `clock.createTimer(...)`，包括 slot 的 gap / delay / cooldown，以及条目的
@@ -391,9 +429,17 @@ Duration.zero 则关闭该条超时。构造时零时长表示立即超时。超
 ### 13.1 批量通知与 build 期间推迟
 
 公开操作、票据关闭/移除及异步状态续体进入 `_batch`，嵌套调用增加 `_batchDepth`；
-内部状态变更统一调用 `_notify`，批次内只设置 `_notifyPending`。最外层结束先回收空槽，
-再在 assert 中调用 `debugCheckInvariants()`，最后统一通知，所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
+内部状态变更统一调用 `_notify`，批次内只设置 `_notifyPending`。最外层结束先调用
+`_releaseUnblocked`，再回收空槽，再在 assert 中调用 `debugCheckInvariants()`，最后统一通知。
+所以一次公开操作最多触发一次管理器通知，监听者不会看到该操作中途的状态。
 异步续体各自是独立批次；`dataListenable` 的同步值通知和 `events` 的异步广播不受此合并限制。
+
+`_detachFromActive` 只在移走 blocker 时置 `_unblockPending`，不能在此立即调度：replace 在
+同一次提交中先摘掉旧项、再激活抢占者，立即释放会让其他 slot 趁暂时空位插队。
+`_releaseUnblocked` 等占用稳定后循环处理释放，暂停则等待恢复，build 则推迟帧后。
+它只重排 `waitingUnblock` 为真的 slot，以及可释放的受阻 overlap；不能改成对所有 slot 调
+`_applyRelease`，也不能重排所有配置了 blockedBy 的 slot。条件是推模式，全量重排会给与本次
+解除无关的 slot 增加条件重判触发点，并改变出场时机。
 
 `_inBuildPhase` 检查 `SchedulerBinding` 的 `SchedulerPhase.persistentCallbacks`。
 build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-frame 调度，
@@ -406,6 +452,16 @@ build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-f
 `debugCheckInvariants()` 核对容器身份、阶段、排序、计时器及销毁状态；失败抛 StateError。
 自动检查只在 debug 最外层批次结束执行，也可显式在 release 调用。所有改变状态的路径
 必须处于 `_batch` 内，包括计时器、Future 续体、帧后回调和 dispose。
+
+新增 debug 不变量（均在 `debugCheckInvariants` 中）：
+
+- (i) `_hydrationApplied` 为真后，串行队列中带 cooldown 的项不得 permanentlyBlocked
+  （session / total 耗尽或永久抑制）。使用 manager 续体标记，避免 store 已 hydrated、
+  manager 尚未清理队列的微任务窗口误报。
+- (j) 若 `waitingUnblock` 为真且 slot 已不受阻、未暂停、不在 build、无 `_releasePending`，
+  且该槽不在 `_deferredSlots` 中，则视为解除后漏调度。
+- (k) `_pendingOverlaps` 中，若未暂停、不在 build、无 `_releasePending`、slot 不受阻，
+  且 `_hydrationApplied` 为真或条目不带 cooldown，则视为可释放却漏释放。
 
 ### 13.2 slot 回收与标签
 
@@ -427,6 +483,12 @@ build 期间 `_schedule` 用 `_deferredSlots` 对每个 slot 去重登记 post-f
   resolveTimeout / dismissTimeout 释放编排状态，但不能取消后端 Future 工作。
 - **编排器不拥有 UI 层级与取消能力**：后端须提供定向 dismiss；仅超时移除内部条目，不能保证
   错误后端遗留的 UI 已消失。跨后端 z-order、返回键策略由调用方处理。
+- **阻塞只拦激活**：已经出场的条目继续显示，duration 继续计时，不被关闭或暂停。
+- **gap / appear delay 不算 blocker 占用**：被阻塞的条目可能在 blocker 的两个条目之间出场。
+- **阻塞环不保证公平**：先激活者占用，不提供公平轮转。
+- **抑制只约束带 cooldown 的提交**：无 cooldown 的手动打开不受影响。
+- **抑制只延长**：缩短只能 reset，而 reset 会连同计数一起清除。
+- **限时抑制的串行项持续排队到到期**：可用 expireAfter 限定等待。
 
 ## 15. 未做项、功能缺口与有意的决定
 
@@ -451,23 +513,19 @@ closeGuardPending、conditionErrorReported、settled、paused、hasHeldData；�
 overlapDelayTimer、dismissTimer、resolveTimer、durationTimer、removeTimer。
 此计数不含 3 个只读配置布尔 replace / affix / dismissWhenUnmet、派生 getter 或 slot 的计时器。
 
-### slot 并发数 / 跨 slot 互斥——尚未提供（功能缺口）
+### slot 并发数——尚未提供（功能缺口）
 
-每个串行 slot 只能有一个占位者。同 slot 多个同时出场目前只能拆成多个 slot。
-跨 slot 互斥可由调用方订阅 events：某 slot 条目 shown 时 setContext({'modalOpen': true})，
-需要被压住的条目用 when 判断；dismissWhenUnmet 默认 true 会顺带关闭已显示的条目。
-调用方还须在 ended 时维护状态，多个条目时用集合计数，并处理事件异步投递期间的窗口；
-该替代写法不等于引擎提供原子的跨 slot 互斥。
+每个串行 slot 只能有一个占位者。同 slot 多个同时出场仍只能拆成多个 slot 或用 overlap。
+跨 slot 激活互斥已由 blockedBy 提供，见 5.8。
 
 ### 冷却记录自动裁剪——未提供，理由成立
 
 持久化记录不保存该 id 用过哪些上限，record() 对任何持久化上限都累加 total；按时间自动删除
-会悄悄重置 total 上限。可行替代是调用方显式开启的裁剪 API（未做）。每次写入仍是整张 JSON 表
-重写，id 很多时有成本。现有手段是 resetCooldown / clearCooldowns，由调用方明确重置计数。
+会悄悄重置 total 上限。抑制也存在同一条记录里，按时间删除还会悄悄解除“不再提示”。
+可行替代是调用方显式开启的裁剪 API（未做）。每次写入仍是整张 JSON 表重写，id 很多时有成本。现有手段是 resetCooldown / clearCooldowns，由调用方明确重置计数。
 
 ### 其余未做项（逐项状态）
 
-- 冷却按结果计数（如“不再提示”）：未做，目前在 present 成功返回后计数。
 - 可插拔冷却规则（周 / 月桶）：未做，只有现有固定频次字段。
 - 按“真正可见”计数（后端回报已展示）：未做，没有后端可见确认协议。
 - 票据上的状态可监听：未做；可用 events 按 id 过滤代替，同 id 重开需调用方区分提交。

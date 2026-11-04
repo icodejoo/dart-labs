@@ -39,7 +39,7 @@ route observation: `overlay_navigator_observer.dart`; official presenters:
 The core uses foundation and scheduler; adapters own widgets/Material dependencies.
 `ARCHITECTURE.md` (§14 limitations, §15 roadmap) is calibrated to 1.0.0.
 
-Test inventory (executed counts, 2026-11-04): 782 tests in total, all green on Flutter 3.47 and on the minimum supported Flutter 3.27.4.
+Test inventory (2026-11-04, 1.0.0 with suppress / blockedBy): 841 tests in total.
 
 | File under `test/` | Tests | Coverage |
 | --- | ---: | --- |
@@ -57,11 +57,12 @@ Test inventory (executed counts, 2026-11-04): 782 tests in total, all green on F
 | `observer_filter_test.dart` | 11 | PageRoute filtering, contextKey |
 | `route_managers_test.dart` | 22 | Route presenters |
 | `lifecycle_binding_test.dart` | 6 | Lifecycle holds |
+| `suppress_test.dart` | 31 | Result-based suppression and hydration |
+| `blocked_by_test.dart` | 28 | Cross-slot blocking and batch release |
 
-Unit acceptance total: 782; minimum Flutter 3.27.4 acceptance total: 782.
-Phone integration (`example/integration_test/orchestration_test.dart`): 33 tests
-(17 original + 16 v0.3/1.0 cases) on the real Huawei STG-AL00 / Android 12, serial `7NQBB23606003715`.
-The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended seeds (slow/failing hydrate, build-phase open, cooldown reset, tags, overlap delay, auth, ctx.close) and deterministic regressions; nothing is skipped.
+Unit acceptance total: 841 on Flutter 3.47.0; minimum Flutter 3.27.4 acceptance total: 841.
+Phone integration (`example/integration_test/orchestration_test.dart`): 38 tests (33 existing + 5 for suppress / blockedBy) on Huawei STG-AL00 / Android 12, serial 7NQBB23606003715.
+The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended seeds (slow/failing hydrate, build-phase open, cooldown reset, tags, overlap delay, auth, ctx.close, suppress); the random-operation seeds also draw blockedBy one-way / chain / cycle configs from an independent RNG and deterministic regressions; nothing is skipped.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -72,15 +73,15 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
 ## Architecture map (lib/src/overlay_manager.dart)
 
 - **`_Slot`** per named slot: `active` (0..1 occupant: resolving/open/closing), `queue`,
-  gap/delay/cooldown timers, `gapPending`. `_overlaps` = concurrent stack; `_pendingOverlaps`
-  = held while paused OR while waiting for cooldown hydration; `_delayedOverlaps` waits for overlap delay; `_byId` = single source of truth.
+  gap/delay/cooldown timers, `gapPending`, `takeover`, `waitingUnblock`. `_overlaps` = concurrent stack; `_pendingOverlaps`
+  = held while paused OR waiting for cooldown hydration OR blockedBy; `_delayedOverlaps` waits for overlap delay; `_byId` = single source of truth.
 - **Ordering `_cmp`**: `entry.replace` (an immutable per-entry field) front-bands FIRST, then
   priority desc, then FIFO `seq` — needed so a replacer that got queued (blocked by an
   `affix`ed current) still shows ahead of already-waiting normal entries.
 - **Eligibility** = `_conditionsPass` (`route` (`RouteMatcher`) AND `auth` AND `when`;
   both predicates read arbitrary `_context` keys pushed by `setContext`, no reserved auth key) + `_cooldownPass`.
 - **`_schedule(slot)`**: paused → return; slot occupied/`gapPending`/a `delayTimer` pending/
-  queue empty → return; pick the first ELIGIBLE entry from the ordered queue; recoverably ineligible
+  queue empty → return; `_slotBlocked` → `waitingUnblock = true` and return; pick the first ELIGIBLE entry from the ordered queue; recoverably ineligible
   entries WAIT, exhausted session/total entries checked by scheduling settle as capped — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
   time-based cooldown); honor the entry's `delay` unless `skipGap`; `_activate`.
 - **`_activate`**: occupies the slot; `resolveData != null` → phase `resolving` (committed —
@@ -105,15 +106,19 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
   signal after we already force-closed must not re-drive removal); `_dismissBackendBestEffort`
   fires on replace/clear/remove of a still-showing entry.
 - **CooldownStore**: hydrate-once with GATING — until `hydrated`, `timeUntilEligible` returns
-  `null` for persisted caps (total/day/hour/minute/minGap), so such serial entries wait and
+  `null` for ALL cooldown configurations (including session-only / empty), so serial entries wait and
   such overlaps are held in `_pendingOverlaps`; the constructor's hydrate continuation then
   re-schedules (via `_applyRelease` when not paused) and only then completes `ready()`.
   Hydrate MERGES into existing records; sync reads; serialized write-through (`_writing` +
   `_dirty`: one write in flight, then the latest snapshot) to pluggable
   `OverlayCooldownStorage` (default memory; README shows a shared_preferences adapter);
   read/write failures are reported via `_reportError`. Local calendar buckets for
-  day/hour/minute; rolling `minGap`; `session` in memory (never gated). Counters are keyed by
+  day/hour/minute; rolling `minGap`; `session` counters in memory (still hydration-gated). Suppression is persisted as `su`, merged by maximum expiry; reset clears it with counters. Counters are keyed by
   id → `cooldown` asserts an explicit `id`. Injectable `OverlayClock` for shared time/timer control in tests.
+- **Cross-slot map**: `_blockedByOf` / `_blockerSlots` / `_blockableSlots` → `_slotBlocked`
+  (serial active OR `_overlaps`) → queue `waitingUnblock` / hold overlap;
+  `_detachFromActive` → `_unblockPending` → outermost `_batch` → `_releaseUnblocked`.
+  `_hydrationApplied` marks the manager hydration continuation, not just store completion.
 - **pause**: `pauseAll` = FULL freeze (no activation, `replace` won't discard the current
   occupant, overlaps held in `_pendingOverlaps`, durations frozen with remaining time via
   `clock.now()`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
@@ -265,7 +270,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
     cancelTimeouts covers settlement, remove, supersede, clear, and dispose. Late async
     results must pass `_isCurrent` / phase checks. Timeout reports must not stall the slot.
 24. **Same-id serial takeover precedes queued priority** when the old active frees the
-    same slot and the new entry is eligible/unpaused; affix cannot prevent self-reopen.
+    same slot and the new entry is eligible/unpaused/unblocked; blocked eligible reopens retain takeover; affix cannot prevent self-reopen.
     Cross-slot/overlap replacement must reschedule the old slot. Old tickets bind entry
     identity, not just id, so cannot close/update/remove a newer submission.
 25. **Do NOT dispose `dataListenable` at settlement/removal.** Backends may still read
@@ -296,7 +301,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
 33. **`OverlayMode` 互斥且默认 queue。** 只允许 queue / replace / overlap，affix 独立；
     内部 replace 前排带和 overlap 的 now-or-never 契约保持不变，不恢复旧公开布尔参数。
 34. **`RouteMatcher` 是唯一路由参数协议。** exact / anyOf / regex；null 或非 String 不匹配，
-    anyOf 调用方不得修改输入列表；when 仍独占资格判断，pauseOnRoutes 仍只读 route 键。
+    anyOf 调用方不得修改输入列表；route / auth / when 按 AND 组合，pauseOnRoutes 仍只读 route 键。
     record.phase 使用 OverlayPhase，禁止字符串比较。
 35. **后端 dismiss 每个条目只请求一次。** 共享 `dismissRequested` 在调用后端前置位，
     同步抛错和异步失败也不重试；close 后 remove / clear / dismiss 超时不能再次请求。
@@ -304,7 +309,7 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
 36. **slot 回收不能删除有计时器的 slot。** 最外层批次只回收 active 空、queue 空、
     gapPending false 且 gapTimer / delayTimer / cooldownTimer 全空的运行时槽位，保留 slots 配置。
 37. **冷却重置与标签保持身份语义。** resetCooldown / clearCooldowns 同时重置 session 与
-    持久化计数，hydrate 不能恢复已清除计数；不复活已 capped 的条目。tags 提交时复制且只读，
+    持久化计数及抑制，hydrate 不能恢复已清除状态；不复活已 capped 的条目。tags 提交时复制且只读，
     clearTag 先全部移除再推进槽位，绕过守卫，原因 removed。
 
 38. **auth 是判断函数，条件 AND。** route / auth / when 都须通过；未提供则通过，
@@ -318,6 +323,33 @@ The fuzz file covers 300 random-operation seeds, 60 ordering seeds, 120 extended
     debug 不变量断言在最外层 `_batch` 结束、通知前运行；所有改状态的路径都必须在 `_batch` 内，
     包括计时器、Future 续体、帧后回调与 dispose。FakeOverlayClock 支持普通 test()，无需 Flutter 绑定。
 
+42. **suppress 只约束带 cooldown 的提交。** null 时长永久，正时长从现在起计；
+    无 cooldown 的手动打开和已激活条目不受影响。su 与计数共用持久化记录，重复调用 / hydrate
+    合并取更晚到期，永久优先，只延长不缩短。resetCooldown / clearCooldowns 连计数一起清除。
+    永久抑制立即清理排队串行项，暂停、占用、hydrate 前也不延后；限时抑制排队自唤醒。
+    overlap 到点或释放时抑制则丢弃。冷却拒绝原因 suppressed > capped > dropped；
+    条件失败直接 dropped。永久抑制 permanentlyBlocked 为真、wait 为 null；限时 wait 与其他时间等待取大。
+43. **任何 cooldown 都等 hydrate。** 包括 session-only 和 const OverlayCooldown()（不限次数，只接受抑制）；
+    无 cooldown 不等。hydrate 前 cooldownStatus 为 canShow false / wait null，
+    permanentlyBlocked / suppressed 仍按内存已知状态（session 耗尽 / 本会话永久抑制）给出。
+44. **blockedBy 只拦激活。** 占用仅为 serial active（resolving / open / closing 含 exitDuration）
+    或该 slot 的 active overlap；gap、appear delay、冷却等待、队列、等待 overlap 都不算。
+    已激活项不关闭、不暂停，duration 继续。串行 expireAfter / maxQueued 继续有效；replace 阻塞时
+    不抢占，解除后前排；同 id 合格重开保留 takeover；overlap 持有后重新 now-or-never。
+    未知 slot 名无效果，自阻塞 debug 断言，环按先激活者占用且不保证公平。
+45. **解除只能在最外层批次末尾处理。** `_detachFromActive` 只置 `_unblockPending`，
+    不能立即调度；replace 同次提交先移旧项再激活抢占者，立即释放会让别的 slot 趁间隙插队。
+46. **解除不能扩大条件触发范围。** 不得对所有 slot 调 `_applyRelease`，也不得对所有配置 blockedBy
+    的 slot 调度；仅调度 waitingUnblock 为真的 slot，并释放受阻持有的 overlap。
+    条件是推模式，全量重判会改变无关 slot 的展示时机。暂停 / build 时沿用恢复 / 帧后路径。
+47. **不变量 (i) 与 `_hydrationApplied`。** manager hydrate 续体执行后，串行队列不得残留
+    带 cooldown 且永久受阻（session / total / 永久抑制）的项。store 读完与 manager 清理间有微任务
+    窗口，必须用 `_hydrationApplied` 避免过早断言，不能只看 store hydrated。
+48. **不变量 (j)：解除后无漏调度。** waitingUnblock 为真、slot 不受阻、未暂停、不在 build、
+    无 `_releasePending` 且不在 `_deferredSlots` 时必须报错。
+49. **不变量 (k)：持有 overlap 无漏释放。** pending overlap 未暂停、不在 build、无 `_releasePending`、
+    slot 不受阻，且 `_hydrationApplied` 或无 cooldown 时，不能仍留在 `_pendingOverlaps`。
+
 ## 1.0.0 decisions
 
 路线 A 三步已完成：0.2.2 加固 → 0.3.0 增量 → 1.0 类型收口。
@@ -327,9 +359,9 @@ Gate（统一资格判断）与显式状态机 / 操作串行派发未做，真�
 debug 批次不变量断言与随机序列测试是风险缓解，已覆盖慢 / 失败 hydrate、build 期间 open、
 冷却重置、标签、overlap delay、auth、ctx.close，不能当作“已经守住状态”的完成声明。
 当前每条目有 9 个可变布尔 + 6 个计时器；_batch 仅是部分替代。
-业务资格扩展点、slot 并发数 / 互斥、显式裁剪 API 等未提供；完整状态与替代写法见 ARCHITECTURE §15。
+业务资格扩展点、slot 并发数、显式裁剪 API 等未提供；跨 slot 激活互斥已有 blockedBy；完整状态与替代写法见 ARCHITECTURE §15。
 冷却不自动裁剪的理由成立：记录不保存用过哪些上限，任何持久化上限都会累加 total，
-按时间删除会重置 total；写入仍重写整张 JSON 表，现有 resetCooldown / clearCooldowns 需显式调用。
+按时间删除会重置 total，也会悄悄解除同记录中的“不再提示”；写入仍重写整张 JSON 表，现有 resetCooldown / clearCooldowns 需显式调用。
 
 ## 0.3.0 architecture additions
 
@@ -391,7 +423,7 @@ flutter test integration_test/orchestration_test.dart -d <serial>
 Use the Android phone (Huawei STG-AL00 / Android 12 for the reported 0.3.0 run).
 `example/android/` is present; the v0.3 Features page exercises the new APIs.
 The Windows desktop runner takes focus: do not run it unattended.
-For Task C4 documentation acceptance, do not run flutter test at all; analyze key
+For documentation-only acceptance (including G3), do not run flutter test at all; analyze key
 README snippets in an external scratchpad and validate the SVG as XML instead.
 CI remains defined in `.github/workflows/layerman-ci.yml`; do not infer a local
 pass count from static declarations or a prior version's baseline.
