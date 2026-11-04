@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use_from_same_package
 import 'package:countman/countman.dart';
 import 'package:countman/src/widgets/animated_counter/digit_column.dart';
 import 'package:flutter/widgets.dart';

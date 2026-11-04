@@ -350,18 +350,22 @@ class OdometerCounter extends StatelessWidget {
       // Honor the OS "reduce motion" flag, like CounterBuilder / CardCountdown.
       //
       // 遵循系统「减弱动态」标志，与 CounterBuilder / CardCountdown 一致。
-      duration: motionDuration(duration),
-      curve: curve,
+      timeline: CounterTimeline(
+        duration: motionDuration(duration),
+        curve: curve,
+        bounceOvershoot: bounceOvershoot,
+      ),
+      format: CounterFormat(
+        wholeDigits: wholeDigits,
+        hideLeadingZeroes: false,
+        thousandSeparator: groupSeparator,
+      ),
       transition: CounterTransition.slide,
       minValue: allowNegative ? null : 0,
-      wholeDigits: wholeDigits,
-      hideLeadingZeroes: false,
-      thousandSeparator: groupSeparator,
       prefix: prefix,
       suffix: suffix,
       prefixWidget: prefixWidget,
       suffixWidget: suffixWidget,
-      bounceOvershoot: bounceOvershoot,
       bounceElasticity: bounceElasticity,
       onAnimationStart: onStart,
       onAnimationEnd: onComplete == null ? null : () => onComplete!(displayedTo),

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use_from_same_package
 import 'package:countman/countman.dart';
 import 'dart:io';
 import 'dart:ui' as ui;

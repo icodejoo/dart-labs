@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use_from_same_package
 // 同步当前 SDK 的静态检查规范，保持原有行为。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

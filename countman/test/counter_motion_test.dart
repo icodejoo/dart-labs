@@ -31,7 +31,7 @@ class _MatrixCanvas implements Canvas {
   void restore() => m = _stack.removeLast();
 
   @override
-  void translate(double dx, double dy) => m.translate(dx, dy);
+  void translate(double dx, double dy) => m.translateByDouble(dx, dy, 0, 1);
 
   @override
   void scale(double sx, [double? sy]) =>
@@ -45,7 +45,7 @@ class _MatrixCanvas implements Canvas {
 
   @override
   void drawParagraph(ui.Paragraph paragraph, Offset offset) {
-    draws.add(m.clone()..translate(offset.dx, offset.dy));
+    draws.add(m.clone()..translateByDouble(offset.dx, offset.dy, 0, 1));
   }
 
   @override
