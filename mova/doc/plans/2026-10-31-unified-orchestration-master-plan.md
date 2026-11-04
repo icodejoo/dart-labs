@@ -1439,3 +1439,14 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 - 每次测试前执行指定 flutter_tester 清理，全部 --concurrency=3；唯一一次全量为 2335 通过、2 项断言失败（既有真实时间 seek 重发计数 + 新导入触发既有纯净性守卫）、1 个套件加载断连（video_rect），同时报告 tree 1 项与 top_bar 12 项未完成。仅补跑受影响文件：source_headers/purity/engine/top_bar 合计 121 绿，tree 8 绿，video_rect 8 绿；按全量缺口去重后完整覆盖 **2358 项**（2335 + 2 + 13 + 8），不把重复补跑相加。不重跑全量、未 OOM、未降并发、未分片。seek 原断言未改，独立补跑通过。
 - 最终 flutter analyze lib test 为 0 issues。根目录 analyze 包含 example、packages 及 HarmonyOS 试验目录的既有问题，沿用此前落地记录的 lib/test 范围。首次未解析依赖的检查无效，执行 flutter pub get 后复验；生成插件文件副作用不暂存。
 - 与计划差异：为兼容旧抽帧实现增加可选能力接口；默认抽帧器另接受可选 headers 参数。CP3 真机/应用验证按用户约束不执行。未改 CLAUDE.md，不 push/切分支/stash/reset；仅操作本 worktree 的 mova 目录。
+
+### C14：Feed 控制入口、自动暂停与单页失败
+
+- 新增 MovaFeedPlayerController（ChangeNotifier）：feed、activeIndex、activeApi、jumpToPage、pause、play；controller 由宿主持有，池/引擎仍归组件所有。替换控制器和卸载解绑，未绑定命令为空操作；索引语义沿用 core feed 的最近开始绑定索引，打开在途也能查询/控制已绑定 API。跳当前页走该页重试。
+- MovaFeedPlayer 新增 controller、autoPause、routeObservers、errorBuilder；MovaFeedErrorBuilder 接收 context/index/error/retry。autoPause 默认复用 MovaAutoPauseConfig，仅包裹整条 PageView，不给每个页面各建可见性守卫；null 禁用本组件守卫，底层 MovaPlayer 原有生命周期行为不变。guard 内根据当前 API 换绑，翻页静音仍由池管理；后台/Tab 暂停和恢复只作用于当前页。
+- 捕获当前激活及页面 loader 抛错；open false 在 core 池撤销绑定后转为可见失败；open 抛错不再逸出 widget；就绪页面通过状态流显示终结错误。默认使用 MovaPlayerStyle 的错误/重试文案，宿主可自绘；加载/打开失败走该页重新激活，播放中失败走 reload。错误和请求票据随保留窗口裁剪，普通 rebuild 不重复失败请求；当前页 loader 失败会暂停上一页，继续滑到健康页不受阻。null 结束占位、默认 cover、预热复用、封面和池所有权的既有断言均保留。
+- 新增公开 API 都有中文 dartdoc，入口经既有 mova.dart 的 feed_player 导出。只改 ui/feed_player.dart，不改 MovaApi/core feed/pool 抽象。
+- 新增 6 项 widget 测试：控制器命令与通知、换绑/卸载所有权、后台暂停恢复、非活跃 Tab/禁用守卫、loader 失败/显式重试/停止旧页声音/继续浏览、open false/抛错/播放中失败与重试。保留类型分三组回退行为：控制器绑定 2 红、旁路守卫 2 红、移除错误记录与展示 2 红；恢复 6 绿。各轮 finally 逐字节恢复生产文件。暂停变异初稿破坏空值提升而编译失败，不计入红测；修正为保留判空后旁路守卫，实测 2 项行为红。调试期间修正新夹具的 MovaApi.source 访问（收窄为 FakeMovaApi）与非法生命周期跳转；未改既有断言（0）。
+- flutter analyze lib test：0 issues。唯一一次全量 --concurrency=3 --machine：2341 绿、3 项未完成（b12 1、b14 2），另有 purity/progress_snapshot/mini 三个套件加载前连接关闭。仅补跑这 5 个文件，29/29 通过；按文件替换中断结果后，机器日志与完整 test 文件清单核对：**229 个文件、2364 项全部通过，无漏文件、无额外文件、无跳过**。不将重复补跑叠加到总数；engine_test 内两个同名参数用例分别计数，不按名称误去重。未重复全量、未 OOM、未降并发、未分片；每轮开跑前均执行指定 flutter_tester 清理。
+- 相比计划的实质差异：暴露带通知的宿主控制器而非移交内部对象所有权；单页失败同时覆盖加载、打开拒绝/抛错及运行中终结错误，显式重试避免重建空转，当前页 loader 失败停止旧页声音。新增条数与计划 +6 一致，无裁剪。CHANGELOG Unreleased 已记行为变化。CP3 真机/启动应用验证按用户约束未执行。
+- 本批两笔提交均由当前执行者亲自完成，未转派；不改 CLAUDE.md，不 push/切分支/stash/reset，不暂存生成插件文件、doc/notes、matrix-run 计划或兄弟项目。

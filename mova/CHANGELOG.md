@@ -1,5 +1,8 @@
 ## Unreleased
 
+- MovaFeedPlayer 新增宿主持有的 MovaFeedPlayerController，可查询 feed/当前索引/当前引擎、跳页和播放暂停，换控制器及卸载时解除绑定；引擎仍由组件释放。内置整条 feed 的 MovaAutoPause，可配置 autoPause（null 禁用守卫）和 routeObservers，翻页互斥仍由池负责。
+- Feed 单页 loader 抛错、open 拒绝/抛错及播放中终结错误改为可见失败界面，默认使用主题错误/重试文案，可通过 errorBuilder 自定义；失败不会因普通重建无限重试，显式重试只处理该页。当前页加载失败停止上一页声音，其他页仍可继续浏览；loader 返回 null 的结束占位保持原样。
+
 - MovaSource 新增 headers/userAgent/start：播放选项、清晰度探测、VTT/雪碧图、抽帧和 feed 预取共用源请求头，显式 UA 优先；点播起播位置通过既有 seek 寄存链下发，直播忽略。MovaApi.open 与 MovaHttpFetch.get(Uri) 签名保持不变；新增 MovaHeaderedHttpFetch 可选能力，旧 fetcher 无头退化且每实例仅 debug 提示一次；抽帧同样通过可选 MovaHeaderedFramePuller 兼容旧端口。
 
 - MovaView 仅在引擎实际消费的配置节变化时重建；主题、文案、手势、控制条及弹幕节变化通过视图更新，保留引擎、打开次数和播放状态。最新 options 作为兼容回落值下发，内联文案闭包与弹幕列表不再触发重建。
