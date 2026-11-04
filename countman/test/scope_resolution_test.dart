@@ -1,6 +1,5 @@
 // scope_resolution 是包内文件，不从 countman.dart 导出，测试直接导入。
 import 'package:countman/countman.dart';
-import 'package:countman/src/widgets/reduce_motion.dart' show reduceMotion;
 import 'package:countman/src/widgets/scope_resolution.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

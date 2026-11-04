@@ -5,7 +5,10 @@ import 'package:countman/countman.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 用于验证 mixin 的最小控制器。
-class _Controller with CountmanRunStateNotifier {}
+class _Controller with CountmanRunStateNotifier {
+  /// 释放状态通知器；mixin 的释放方法是 protected，测试经子类转发。
+  void release() => disposeRunState();
+}
 
 /// 验证控制器运行状态基础设施：初始值、通知语义与释放。
 void main() {
@@ -19,7 +22,7 @@ void main() {
       CountmanRunState.paused,
       CountmanRunState.completed,
     ]);
-    c.disposeRunState();
+    c.release();
   });
 
   test('状态变化时通知监听者并更新 runState', () {
@@ -35,7 +38,7 @@ void main() {
       CountmanRunState.completed,
     ]);
     expect(c.runState, CountmanRunState.completed);
-    c.disposeRunState();
+    c.release();
   });
 
   test('状态不变时不通知', () {
@@ -47,7 +50,7 @@ void main() {
     c.setRunState(CountmanRunState.running);
     c.setRunState(CountmanRunState.running);
     expect(notified, 1);
-    c.disposeRunState();
+    c.release();
   });
 
   test('移除监听后不再收到通知，两个控制器互不影响', () {
@@ -63,12 +66,12 @@ void main() {
     expect(notified, 1);
     expect(a.runState, CountmanRunState.paused);
     expect(b.runState, CountmanRunState.completed);
-    a.disposeRunState();
-    b.disposeRunState();
+    a.release();
+    b.release();
   });
 
   test('disposeRunState 之后不能再监听', () {
-    final c = _Controller()..disposeRunState();
+    final c = _Controller()..release();
     expect(() => c.runStateListenable.addListener(() {}), throwsFlutterError);
   });
 }
