@@ -46,6 +46,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  // 先把按钮滚进内容区再点：手机上同一个 1400×900 视口排版更高，页面底部的
+  // 触发按钮会落到视口之外或被底部状态条盖住（桌面上正好放得下）。
+  Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+  }
+
   // No more exitDuration default (it's a per-open() grace now, null unless a
   // page opts in) — the plain demo cards close immediately and only the
   // manager's `gap` (300ms, set in manager.dart) delays the next activation.
@@ -59,7 +67,7 @@ void main() {
     await boot(tester);
     await goTo(tester, 'External Presenters');
 
-    await tester.tap(find.byKey(const Key('btn-mixed')));
+    await tapVisible(tester, find.byKey(const Key('btn-mixed')));
     await tester.pumpAndSettle();
 
     expect(find.text('1/3 Native dialog'), findsOneWidget);
@@ -210,7 +218,7 @@ void main() {
     await boot(tester);
     await goTo(tester, 'Queue Basics');
 
-    await tester.tap(find.byKey(const Key('btn-prog')));
+    await tapVisible(tester, find.byKey(const Key('btn-prog')));
     await tester.pumpAndSettle();
     expect(find.text('X1'), findsOneWidget);
     expect(app.om.queuedIds, isEmpty); // only one so far
