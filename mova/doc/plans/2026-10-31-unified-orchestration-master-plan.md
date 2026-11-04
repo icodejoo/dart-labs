@@ -1427,3 +1427,15 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 4. **HUD 重入**：先登记可取消计时器，再通知监听器，重入只保留最新计时器；到期回调检查销毁状态。回归覆盖同步再 showHud 及重入后微任务销毁。
 
 **验证与偏差**：新增合计 11 项（2301 → 2312），四条 P2 共 10 条回退红测；既有断言不删改。每个提交只发起一次 `flutter test --concurrency=3` 全量，每次开跑前执行指定的 flutter_tester 清理。第一轮全量 2302 项通过，ads_transition_test.dart 加载时报 Connection closed before test suite loaded，只补跑该文件 3 项通过，合计 2305；未重跑全量。第二轮全量 2122 项通过、3 个文件加载连接中断，另 6 个文件 133 项标记 did not complete；只补跑这 9 个异常文件，205 项全绿（含前轮已通过 15 项），去重覆盖 2312 项。最终旧 UI 转发兼容路径复核后，4 个相关文件 40 项再验通过，lib/test analyze 再验 0 issues。两轮均未重复发起全量。完整清单与补跑日志保存在忽略的 `.dart_tool/c04-final-*` 本地产物。红测与恢复验证只运行受影响文件；编译错误和加载失败不计入功能红测。CHANGELOG 随两个功能块更新。未改 CLAUDE.md，未纳入 generated_plugin、doc/notes、matrix-run 或兄弟工程文件。
+
+## C07/C14 落地记录（2026-11-04）
+
+### C07：媒体规格与旁路请求头
+
+- MovaSource 新增 headers、userAgent、start、requestHeaders，pick 透传，sameAs 纳入三项；显式 UA 覆盖同名头及 mpv user-agent。mpv http-header-fields 用长度前缀转义分隔符。start 仅用于点播，负值钳零；在新流类型落入状态后，经原 seek 寄存链等待时长，不改 MovaApi.open。直播切点播也验证不会向旧内核立即 seek。
+- 新增 MovaHeaderedHttpFetch.getWithHeaders 与 movaFetchWithHeaders；原 get(Uri) 不动。默认 IO 实现逐请求带头，旧实现无头退化，每实例 assert 内提示一次。core 提示采用 print + Zone 验证，避免依赖 Flutter；全量纯净性守卫曾发现 debugPrint 导入，修复后原断言通过。
+- VTT、雪碧图、清晰度探测、预览门控包装器、feed Range 预取均接请求头。抽帧新增可选 MovaHeaderedFramePuller.extractWithHeaders，不改旧端口；默认 MovaFrameExtractor 支持带头，同地址换头重开，旧自写抽帧器沿旧入口调用。新增公开成员均有中文 dartdoc。
+- 新增测试 10：UA 合并、播放选项编码、sameAs、pick、旧 fetcher 单次提示、IO 请求隔离、VTT/雪碧图、抽帧、起播寄存、清晰度/预取。保留类型做行为回退：组合移除新行为 9 红，单独回退 sameAs 1 红，去重覆盖 10；恢复 10 绿。回退脚本 finally 逐字节恢复生产文件。初次回退发现 VTT/抽帧期望从被测 getter 派生会漏检，改为固定期望后验证变红；这是新增用例完善，既有断言改写 0。
+- 每次测试前执行指定 flutter_tester 清理，全部 --concurrency=3；唯一一次全量为 2335 通过、2 项断言失败（既有真实时间 seek 重发计数 + 新导入触发既有纯净性守卫）、1 个套件加载断连（video_rect），同时报告 tree 1 项与 top_bar 12 项未完成。仅补跑受影响文件：source_headers/purity/engine/top_bar 合计 121 绿，tree 8 绿，video_rect 8 绿；按全量缺口去重后完整覆盖 **2358 项**（2335 + 2 + 13 + 8），不把重复补跑相加。不重跑全量、未 OOM、未降并发、未分片。seek 原断言未改，独立补跑通过。
+- 最终 flutter analyze lib test 为 0 issues。根目录 analyze 包含 example、packages 及 HarmonyOS 试验目录的既有问题，沿用此前落地记录的 lib/test 范围。首次未解析依赖的检查无效，执行 flutter pub get 后复验；生成插件文件副作用不暂存。
+- 与计划差异：为兼容旧抽帧实现增加可选能力接口；默认抽帧器另接受可选 headers 参数。CP3 真机/应用验证按用户约束不执行。未改 CLAUDE.md，不 push/切分支/stash/reset；仅操作本 worktree 的 mova 目录。

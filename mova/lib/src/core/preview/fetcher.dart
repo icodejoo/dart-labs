@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+
 /// Fetches small auxiliary assets (WebVTT tracks, sprite sheets) over HTTP.
 ///
 /// A port rather than a direct `HttpClient` call so tests can serve canned
@@ -30,6 +31,35 @@ abstract class MovaHttpFetch {
   Future<void> close();
 }
 
+/// 可选的带头 HTTP 能力；旧 [MovaHttpFetch.get] 签名保持不变。
+abstract class MovaHeaderedHttpFetch implements MovaHttpFetch {
+  /// 使用 [headers] 拉取 [url]；失败返回 null，不保存到下一次请求。
+  Future<Uint8List?> getWithHeaders(Uri url, Map<String, String> headers);
+}
+
+final Expando<bool> _headerWarnings = Expando<bool>();
+
+/// 优先调用带头能力；旧实现仍调用 get，且每个实例仅在 debug 提示一次。
+Future<Uint8List?> movaFetchWithHeaders(
+  MovaHttpFetch fetcher,
+  Uri url,
+  Map<String, String> headers,
+) {
+  if (headers.isEmpty) return fetcher.get(url);
+  if (fetcher is MovaHeaderedHttpFetch) {
+    return fetcher.getWithHeaders(url, headers);
+  }
+  assert(() {
+    if (_headerWarnings[fetcher] != true) {
+      _headerWarnings[fetcher] = true;
+      // ignore: avoid_print — core 保持无 Flutter 依赖，仅 assert 内提示。
+      print('mova: fetcher 未实现 MovaHeaderedHttpFetch，旁路请求将不带请求头。');
+    }
+    return true;
+  }());
+  return fetcher.get(url);
+}
+
 /// The default [MovaHttpFetch], built on `dart:io`'s [HttpClient].
 ///
 /// Chosen over `package:http` so preview support adds no new dependency; every
@@ -40,7 +70,7 @@ abstract class MovaHttpFetch {
 ///
 /// 相比 `package:http` 选它是为了让预览功能不引入任何新依赖；所有失败路径都
 /// 收敛为 null，坏掉的缩略图轨绝不会冒充成播放错误。
-class MovaIoHttpFetcher implements MovaHttpFetch {
+class MovaIoHttpFetcher implements MovaHeaderedHttpFetch {
   /// Creates a fetcher with a per-request [timeout].
   ///
   /// 创建一个每请求超时为 [timeout] 的 fetcher。
@@ -68,7 +98,14 @@ class MovaIoHttpFetcher implements MovaHttpFetch {
   ///
   /// 示例：`await fetcher.get(Uri.parse('https://host/thumb.vtt'))`。
   @override
-  Future<Uint8List?> get(Uri url) async {
+  Future<Uint8List?> get(Uri url) => getWithHeaders(url, const {});
+
+  /// 按请求设置头；连接、响应和响应体共用原有超时及取消逻辑。
+  @override
+  Future<Uint8List?> getWithHeaders(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
     if (_closed) return null;
     final client = _client ??= (HttpClient()..connectionTimeout = timeout);
     final result = Completer<Uint8List?>();
@@ -89,6 +126,7 @@ class MovaIoHttpFetcher implements MovaHttpFetch {
           req.abort();
           return;
         }
+        headers.forEach((key, value) => req.headers.set(key, value));
         final response = await req.close();
         if (response.statusCode != HttpStatus.ok) {
           cancel();

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:media_kit/media_kit.dart';
@@ -34,7 +35,7 @@ import '../core/preview/extractor.dart';
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
-class MovaFrameExtractor implements MovaFramePuller {
+class MovaFrameExtractor implements MovaHeaderedFramePuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。
@@ -61,6 +62,7 @@ class MovaFrameExtractor implements MovaFramePuller {
   ///
   /// 隐藏播放器当前已打开的媒体；无则为 null。
   String? _openUri;
+  String? _openHeaders;
 
   /// Serialises concurrent [extract] calls onto one hidden player.
   ///
@@ -118,17 +120,24 @@ class MovaFrameExtractor implements MovaFramePuller {
     Duration at, {
     required int width,
     required bool hwdec,
+    Map<String, String> headers = const {},
   }) async {
     if (_disposed) return null;
     try {
       final player = await _ensurePlayer(width, hwdec);
       final native = player.platform;
-      if (_openUri != uri) {
-        await player.open(Media(uri), play: false);
+      final headerKey = jsonEncode(headers);
+      if (_openUri != uri || _openHeaders != headerKey) {
+        await player.open(Media(uri, httpHeaders: headers), play: false);
+        _openHeaders = headerKey;
         _openUri = uri;
         // 时长就绪前 seek 不会落地（首帧会停在第 0 帧），先等它。
         if (native is NativePlayer) {
-          final ready = await movaWaitForPreviewFrame(() async => (double.tryParse(await native.getProperty('duration')) ?? 0) > 0);
+          final ready = await movaWaitForPreviewFrame(
+            () async =>
+                (double.tryParse(await native.getProperty('duration')) ?? 0) >
+                0,
+          );
           if (!ready) return null;
         }
       }
@@ -138,12 +147,15 @@ class MovaFrameExtractor implements MovaFramePuller {
           if (native is! NativePlayer) return false;
           final target = at.inMilliseconds / 1000.0;
           return movaWaitForPreviewFrame(() async {
-            if (_disposed || await native.getProperty('seeking') != 'no') return false;
+            if (_disposed || await native.getProperty('seeking') != 'no') {
+              return false;
+            }
             final pos = double.tryParse(await native.getProperty('time-pos'));
             return pos != null && (pos - target).abs() < 0.3;
           });
         },
-        capture: () async => _disposed ? null : player.screenshot(format: 'image/jpeg'),
+        capture: () async =>
+            _disposed ? null : player.screenshot(format: 'image/jpeg'),
         settleDelay: settleDelay,
       );
     } on Object {
@@ -151,16 +163,38 @@ class MovaFrameExtractor implements MovaFramePuller {
     }
   }
 
+  /// 串行抽帧；可选 [headers] 仅作用于本次媒体请求，旧调用默认无头。
   @override
   Future<Uint8List?> extract(
     String uri,
     Duration at, {
     required int width,
     required bool hwdec,
+    Map<String, String> headers = const {},
+  }) =>
+      extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: headers);
+
+  /// 使用当前源请求头串行抽帧，同地址换鉴权时重新打开媒体。
+  @override
+  Future<Uint8List?> extractWithHeaders(
+    String uri,
+    Duration at, {
+    required int width,
+    required bool hwdec,
+    required Map<String, String> headers,
   }) {
+    headers = Map.of(headers);
     final completer = Completer<Uint8List?>();
     _queue = _queue.then((_) async {
-      completer.complete(await _extractNow(uri, at, width: width, hwdec: hwdec));
+      completer.complete(
+        await _extractNow(
+          uri,
+          at,
+          width: width,
+          hwdec: hwdec,
+          headers: headers,
+        ),
+      );
     });
     return completer.future;
   }
@@ -170,6 +204,7 @@ class MovaFrameExtractor implements MovaFramePuller {
     final player = _player;
     _player = null;
     _openUri = null;
+    _openHeaders = null;
     if (player != null) {
       try {
         await player.dispose();

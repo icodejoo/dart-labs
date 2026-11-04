@@ -98,36 +98,49 @@ class _PreviewResourceGate {
   }
 }
 
-class _PreviewHttpFetch implements MovaHttpFetch {
+class _PreviewHttpFetch implements MovaHeaderedHttpFetch {
   _PreviewHttpFetch(this.fetcher, Future<bool> Function(Uri) allow) : gate = _PreviewResourceGate(allow);
   final MovaHttpFetch fetcher;
   final _PreviewResourceGate gate;
   @override
-  Future<Uint8List?> get(Uri url) async {
+  Future<Uint8List?> get(Uri url) => getWithHeaders(url, const {});
+  @override
+  Future<Uint8List?> getWithHeaders(Uri url, Map<String, String> headers) async {
     await gate.check(url);
     gate.checkWanted();
-    return fetcher.get(url);
+    return movaFetchWithHeaders(fetcher, url, headers);
   }
   @override
   Future<void> close() async => gate.dispose(); // 仅关闭包装器，HTTP 端口由引擎持有。
 }
-
-class _PreviewFramePuller implements MovaFramePuller {
+class _PreviewFramePuller implements MovaHeaderedFramePuller {
   _PreviewFramePuller(this.puller, Future<bool> Function(Uri) allow) : gate = _PreviewResourceGate(allow);
   final MovaFramePuller puller;
   final _PreviewResourceGate gate;
   @override
-  Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) async {
+  Future<Uint8List?> extract(String uri, Duration at, {required int width, required bool hwdec}) =>
+      extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: const {});
+  @override
+  Future<Uint8List?> extractWithHeaders(
+    String uri,
+    Duration at, {
+    required int width,
+    required bool hwdec,
+    required Map<String, String> headers,
+  }) async {
     await gate.check(Uri.parse(uri));
     gate.checkWanted();
-    return puller.extract(uri, at, width: width, hwdec: hwdec);
+    final target = puller;
+    if (target is MovaHeaderedFramePuller) {
+      return target.extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: headers);
+    }
+    return target.extract(uri, at, width: width, hwdec: hwdec);
   }
   @override
   Future<void> release() => puller.release();
   @override
   Future<void> dispose() async => gate.dispose(); // 抽帧端口由宿主持有。
 }
-
 /// 单次加载尝试持有的 ABR 屏蔽租约，身份也区分同尝试内的新 seek。
 class _AbrLease {
   /// 创建归属 [attemptId] 的租约。
@@ -1689,6 +1702,10 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
         sourceIndex: 0,
       ),
     );
+    if (source.start != null && source.type == MovaStreamType.vod) {
+      await _seekOrPark(source.start! < Duration.zero ? Duration.zero : source.start!, forcePark: true);
+      if (gen != _openGen || _disposed) return false;
+    }
     _openedAt = DateTime.now();
     _reportedDuration = Duration.zero;
     // KeepAlive is requested: undo any hold and load this source paused (see
@@ -2976,7 +2993,7 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     bool untouched() => revision == 0 && revision == _qualityRevision;
     if (!base.toLowerCase().contains('.m3u8')) return;
     try {
-      final bytes = await _fetcher.get(Uri.parse(base));
+      final bytes = await movaFetchWithHeaders(_fetcher, Uri.parse(base), _source?.requestHeaders ?? const {});
       if (!current()) return;
       if (bytes == null) {
         _state.emit(state.copyWith(qualities: const [], clearQuality: untouched()));

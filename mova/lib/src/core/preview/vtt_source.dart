@@ -112,7 +112,8 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// Memoised sprite sheets in least-recently-used-first order.
   ///
   /// 按"最久未使用在前"顺序记忆的雪碧图。
-  final LinkedHashMap<String, Uint8List> _sprites = LinkedHashMap<String, Uint8List>();
+  final LinkedHashMap<String, Uint8List> _sprites =
+      LinkedHashMap<String, Uint8List>();
 
   /// Bumped by every [reset]; in-flight fetches compare it to detect that the
   /// media changed, and then drop their result instead of writing it back.
@@ -133,7 +134,9 @@ class MovaVttThumbSource implements MovaThumbSource {
   ///
   /// 返回解析出的索引；不可用时返回 null。
   Future<MovaThumbIndex?> _ensureIndex(MovaSource source) async {
-    if (_unavailable || (_retryAt != null && _now().isBefore(_retryAt!))) return null;
+    if (_unavailable || (_retryAt != null && _now().isBefore(_retryAt!))) {
+      return null;
+    }
     final cached = _index;
     if (cached != null) return cached;
 
@@ -145,7 +148,7 @@ class MovaVttThumbSource implements MovaThumbSource {
     }
     Uint8List? bytes;
     try {
-      bytes = await fetcher.get(url);
+      bytes = await movaFetchWithHeaders(fetcher, url, source.requestHeaders);
     } on PreviewPolicyBlocked {
       rethrow;
     } on PreviewRequestCancelled {
@@ -184,7 +187,7 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// Returns the sheet bytes, or null when the fetch failed.
   ///
   /// 返回雪碧图字节；拉取失败时返回 null。
-  Future<Uint8List?> _sprite(Uri url) async {
+  Future<Uint8List?> _sprite(Uri url, MovaSource source) async {
     final key = url.toString();
     final hit = _sprites.remove(key);
     if (hit != null) {
@@ -192,7 +195,11 @@ class MovaVttThumbSource implements MovaThumbSource {
       return hit;
     }
     final epoch = _epoch;
-    final bytes = await fetcher.get(url);
+    final bytes = await movaFetchWithHeaders(
+      fetcher,
+      url,
+      source.requestHeaders,
+    );
     if (bytes == null || epoch != _epoch) return null;
     if (maxSprites > 0) {
       _sprites[key] = bytes;
@@ -210,7 +217,7 @@ class MovaVttThumbSource implements MovaThumbSource {
     if (index == null || epoch != _epoch) return null;
     final cue = index.cueAt(bucket);
     if (cue == null) return null;
-    final bytes = await _sprite(cue.image);
+    final bytes = await _sprite(cue.image, source);
     if (bytes == null || epoch != _epoch) return null;
     return MovaThumb(at: bucket, bytes: bytes, crop: cue.crop);
   }

@@ -91,6 +91,9 @@ class MovaNetworkWarmFeedPrefetcher
         request.abort();
         return;
       }
+      source.requestHeaders.forEach(
+        (key, value) => request.headers.set(key, value),
+      );
       request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-$rangeBytes');
       final response = await request.close().timeout(timeout);
       if (!isCurrent()) return;

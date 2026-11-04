@@ -1,5 +1,7 @@
 ## Unreleased
 
+- MovaSource 新增 headers/userAgent/start：播放选项、清晰度探测、VTT/雪碧图、抽帧和 feed 预取共用源请求头，显式 UA 优先；点播起播位置通过既有 seek 寄存链下发，直播忽略。MovaApi.open 与 MovaHttpFetch.get(Uri) 签名保持不变；新增 MovaHeaderedHttpFetch 可选能力，旧 fetcher 无头退化且每实例仅 debug 提示一次；抽帧同样通过可选 MovaHeaderedFramePuller 兼容旧端口。
+
 - MovaView 仅在引擎实际消费的配置节变化时重建；主题、文案、手势、控制条及弹幕节变化通过视图更新，保留引擎、打开次数和播放状态。最新 options 作为兼容回落值下发，内联文案闭包与弹幕列表不再触发重建。
 - 新增 MovaIcons 与 MovaPlayerStyle.icons/iconsOf，可按视图或主题扩展替换 20 个控制界面图标（不含 feed 社交按钮）；无障碍标签继续由文案明确提供。MovaTheme.progressColor 可配置进度高亮与滑块颜色，默认 null 沿用宿主 SliderTheme，默认图标保持不变。
 - 清晰度自动/未知兼容标签提为 kMovaAutoQualityLabel/kMovaUnknownQualityLabel，保持旧值并公告下个版本改为中性值。
