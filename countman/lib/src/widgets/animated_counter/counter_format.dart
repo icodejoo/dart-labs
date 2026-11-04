@@ -21,9 +21,10 @@ class CounterFormat {
     this.showPositiveSign,
     this.numeralSystem,
     this.numeralMapper,
-  });
+  }) : assert(fractionDigits == null || (fractionDigits >= 0 && fractionDigits <= 20)),
+       assert(compactFractionDigits == null || (compactFractionDigits >= 0 && compactFractionDigits <= 20));
 
-  /// 小数位数。
+  /// 小数位数，必须为 0–20。
   final int? fractionDigits;
 
   /// 最少整数位数。
@@ -44,7 +45,7 @@ class CounterFormat {
   /// 是否使用紧凑缩写。
   final bool? compactNotation;
 
-  /// 紧凑缩写的小数位数。
+  /// 紧凑缩写的小数位数，必须为 0–20。
   final int? compactFractionDigits;
 
   /// 阈值到缩写的映射；传入后请勿修改映射。

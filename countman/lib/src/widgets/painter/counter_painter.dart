@@ -172,6 +172,21 @@ class CounterPainter extends CustomPainter {
   //（原 10·256 = 2560）。亚秒交叉淡入下 16 级不透明度肉眼无差。
   static const int _alphaBuckets = 16;
   final Map<int, ui.Paragraph> _cache = {};
+  /// 本次方向色渐变的有限色板，数字和透明度档位共同作为段落缓存键。
+  List<Color> _tintPalette = const [];
+  /// 当前方向色档位。
+  int _tintBucket = 0;
+  /// 更新方向色板；仅换色板时释放旧段落，逐帧只切换整数档位。
+  /// [colors] 为空时使用原文字色，[bucket] 必须在色板范围内。
+  /// 示例：`painter.updateTint([Colors.red, Colors.black], 0)`。
+  void updateTint(List<Color> colors, int bucket) {
+    if (!identical(colors, _tintPalette)) {
+      for (final paragraph in _cache.values) { paragraph.dispose(); }
+      _cache.clear();
+      _tintPalette = colors;
+    }
+    _tintBucket = bucket;
+  }
 
   /// Reused each column each frame by [_resolveColumnPhaseInto] so the paint
   /// hot path stays allocation-free.
@@ -183,7 +198,7 @@ class CounterPainter extends CustomPainter {
   /// (quantized to [_alphaBuckets] levels to bound the cache).
   ui.Paragraph paragraphFor(int digit, double alpha) {
     final bucket = (alpha.clamp(0.0, 1.0) * (_alphaBuckets - 1)).round();
-    final key = digit * _alphaBuckets + bucket;
+    final key = (_tintBucket * 10 + digit) * _alphaBuckets + bucket;
     return _cache.putIfAbsent(key, () {
       final str = numeralMapper != null
           ? numeralMapper!(digit)
@@ -202,8 +217,10 @@ class CounterPainter extends CustomPainter {
 
   /// 数字在不透明度 [alpha]（0–1）下的绘制颜色，叠乘原颜色自带的 alpha。
   @visibleForTesting
-  Color digitColorFor(double alpha) =>
-      color.withValues(alpha: color.a * alpha.clamp(0.0, 1.0));
+  Color digitColorFor(double alpha) {
+    final base = _tintPalette.isEmpty ? color : _tintPalette[_tintBucket];
+    return base.withValues(alpha: base.a * alpha.clamp(0.0, 1.0));
+  }
 
   /// 以完整文字样式构建并排版一段分隔符段落，宽度为 [width]。
   ui.Paragraph _buildSeparatorParagraph(String text, double width) {
@@ -236,7 +253,7 @@ class CounterPainter extends CustomPainter {
         for (int i = 0; i < n; i++) {
           final f = i < _fastFrom.length ? _fastFrom[i] : 0;
           final t = i < _fastTo.length ? _fastTo[i] : 0;
-          if (f != 0 || t != 0) { firstVisible = i; break; }
+          if ((_digitValues[i] < 1.0 && f != 0) || t != 0) { firstVisible = i; break; }
         }
       } else {
         // Normal columns carry the cumulative place value: a place is present
@@ -561,6 +578,7 @@ class CounterPainter extends CustomPainter {
       c.translate(-cx, -cy);
     }
 
+    double dx = 0;
     double dy = 0;
     switch (transition.motion) {
       case CounterMotion.none:
@@ -568,7 +586,10 @@ class CounterPainter extends CustomPainter {
       case CounterMotion.slide:
         {
           final double d = exitDirection();
-          dy = (leaving ? away : -away) * h * d;
+          final horizontal = flipDirection == AxisDirection.left || flipDirection == AxisDirection.right;
+          final horizontalDirection = (flipDirection == AxisDirection.right ? 1.0 : -1.0) * (_increasing ? 1 : -1);
+          final offset = (leaving ? away : -away) * (horizontal ? w : h) * (horizontal ? horizontalDirection : d);
+          if (horizontal) { dx = offset; } else { dy = offset; }
         }
       case CounterMotion.rotate:
         {
@@ -593,7 +614,7 @@ class CounterPainter extends CustomPainter {
         }
     }
 
-    c.drawParagraph(paragraphFor(digit, alpha), Offset(x, topY(h) + dy));
+    c.drawParagraph(paragraphFor(digit, alpha), Offset(x + dx, topY(h) + dy));
     if (needsRestore) c.restore();
   }
 

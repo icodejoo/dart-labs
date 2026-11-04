@@ -77,6 +77,8 @@ class AnimatedCounter extends _BaseAnimatedCounter {
   ///
   /// 示例：`AnimatedCounter(value: 12, format: CounterFormat(fractionDigits: 2))`。
   /// 动画示例：`AnimatedCounter(value: 12, timeline: CounterTimeline(fast: true))`。
+  /// painter 路径不支持分隔符 widget；自定义分隔符请使用 AnimatedCounterBuilder。
+  /// fractionDigits 和 compactFractionDigits 必须为 0–20；非有限数值按零显示。
   const AnimatedCounter({
     super.format,
     super.timeline,
@@ -123,7 +125,9 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.prefixWidget,
     super.infixWidget,
     super.suffixWidget,
+    @Deprecated('AnimatedCounter 的 painter 路径不支持分隔符 widget，请改用 AnimatedCounterBuilder')
     super.thousandSeparatorWidget,
+    @Deprecated('AnimatedCounter 的 painter 路径不支持分隔符 widget，请改用 AnimatedCounterBuilder')
     super.decimalSeparatorWidget,
     super.negativeSignWidget,
     super.positiveSignWidget,
@@ -175,6 +179,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
 
   @override
   void _onFrameUpdate() {
+    _activePainter?.updateTint(_tintPalette, _tintBucket);
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
         bounceOffsets: _bounceOffsets,
         fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
@@ -385,6 +390,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
                 builder: (_, double v, __) => Center(
                   widthFactor: v,
                   child: widget.negativeSignWidget != null
+                      // 自定义符号可包含任意绘制内容，无法仅靠文字颜色淡入，这是 Opacity 的必要例外。
                       ? Opacity(opacity: v, child: widget.negativeSignWidget!)
                       : Text('-', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                 ),
@@ -400,7 +406,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
                   builder: (_, double v, __) => Center(
                     widthFactor: v,
                     child: widget.positiveSignWidget != null
-                        ? Opacity(opacity: v, child: widget.positiveSignWidget!)
+                        // 自定义符号可包含任意绘制内容，无法仅靠文字颜色淡入，这是 Opacity 的必要例外。
+                      ? Opacity(opacity: v, child: widget.positiveSignWidget!)
                         : Text('+', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                   ),
                 ),

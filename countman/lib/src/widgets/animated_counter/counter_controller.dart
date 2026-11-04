@@ -54,6 +54,8 @@ class AnimatedCounterController extends ChangeNotifier {
   void repeat({bool reverse = false}) => $repeatCallback?.call(reverse: reverse);
   void reverse()                      => $reverseCallback?.call();
 
+  /// 当前播放方向或端点状态；pause 保持原方向，reverse 到起点发 dismissed。
+  /// 例如 `controller.status == AnimationStatus.reverse`。
   AnimationStatus get status => $statusGetter?.call() ?? AnimationStatus.dismissed;
 
   void addStatusListener(AnimationStatusListener listener)    => $statusListeners.add(listener);

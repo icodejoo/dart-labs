@@ -169,6 +169,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     final inner = ValueListenableBuilder<int>(
       valueListenable: _rebuildNotifier,
       builder: (ctx, _, __) {
+        final color = _digitTint ?? style.color ?? const Color(0xFF000000);
+        final digitStyle = _digitTint == null ? style : style.copyWith(color: color);
         final integerDigitCount = _currentDigitValues.length - effFD;
 
         // In fast mode _currentDigitValues carries progress (not magnitude), so
@@ -176,7 +178,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
         //
         // 快速模式下 _currentDigitValues 携带进度（非磁量），故隐藏前导零需改读端点位。
         bool digitNonZero(int j) => widget._timeFast
-            ? ((j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
+            ? ((_currentT < 1 && j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
                 (j < _fastToDigits.length && _fastToDigits[j] != 0))
             : _currentDigitValues[j].round() != 0;
 
@@ -224,7 +226,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             animationValue: _currentDigitValues[i],
             size: _prototypeSize!,
             color: color,
-            style: style,
+            style: digitStyle,
             padding: widget.padding,
             flipDirection: _effectiveFlipDirection,
             digitBuilder: widget.digitBuilder,
@@ -252,7 +254,10 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
         if (widget._fmtThousandSeparator != null) {
           int firstVisible = 0;
           if (widget._fmtHideLeadingZeroes) {
-            firstVisible = _currentDigitValues.indexWhere((d) => d.round() != 0);
+            firstVisible = -1;
+            for (var j = 0; j < integerDigitCount; j++) {
+              if (digitNonZero(j)) { firstVisible = j; break; }
+            }
             if (firstVisible == -1) firstVisible = _currentDigitValues.length - 1;
           }
           // 从右插入，保持左侧索引稳定；边界算法与 Painter 共用。
@@ -287,6 +292,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                   builder: (_, double v, __) => Center(
                     widthFactor: v,
                     child: widget.negativeSignWidget != null
+                        // 自定义符号可能包含图片等任意内容，无法用文字颜色 alpha 表达，因此例外使用 Opacity。
                         ? Opacity(opacity: v, child: widget.negativeSignWidget!)
                         : Text('-', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                   ),
@@ -302,7 +308,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                     builder: (_, double v, __) => Center(
                       widthFactor: v,
                       child: widget.positiveSignWidget != null
-                          ? Opacity(opacity: v, child: widget.positiveSignWidget!)
+                          // 自定义符号可能包含图片等任意内容，无法用文字颜色 alpha 表达，因此例外使用 Opacity。
+                        ? Opacity(opacity: v, child: widget.positiveSignWidget!)
                           : Text('+', style: TextStyle(color: color.withValues(alpha: color.a * v))),
                     ),
                   ),
@@ -331,7 +338,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       animationValue: _currentDigitValues[i],
                       size: _prototypeSize!,
                       color: color,
-                      style: style,
+                      style: digitStyle,
                       padding: widget.padding,
                       flipDirection: _effectiveFlipDirection,
                       digitBuilder: widget.digitBuilder,

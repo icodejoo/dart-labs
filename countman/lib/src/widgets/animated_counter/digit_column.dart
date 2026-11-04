@@ -113,6 +113,7 @@ class _DigitColumnState extends State<DigitColumn> {
   /// 每次 build 由 [resolveDigitPhase] 复用，使组件树路径不逐帧分配 record。
   final DigitPhase _phase = DigitPhase();
 
+  /// 构建数位过渡；fast 端点已落位时只保留实际可见字形。
   @override
   Widget build(BuildContext context) {
     if (widget.triggerHaptics) {
@@ -163,6 +164,12 @@ class _DigitColumnState extends State<DigitColumn> {
     Widget nextDigitWidget = _buildSingleDigit(
       context: context, digit: nextDigit, opacity: nxtOp, style: widget.style,
     );
+
+    if (widget.fast && widget.animationValue >= 1.0 && widget.digitTransitionBuilder == null) {
+      return SizedBox(width: w, height: h, child: Center(child:
+          _buildSingleDigit(context: context, digit: widget.fastToDigit,
+              opacity: 1, style: widget.style)));
+    }
 
     Widget transitionChild;
 
