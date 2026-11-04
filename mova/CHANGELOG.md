@@ -1,5 +1,6 @@
 ## Unreleased
 
+- 修复刚完成 setRate 就即时插播时代理快照滞后，导致广告后丢失用户倍速；广告期间仍为 1x。
 - Feed 打开失败时保留当前页和重试入口；宿主在内置守卫暂停期间显式 pause 会取消自动恢复，后续 play 仍按可见性策略处理。
 - 点播首帧前失败的自动重试和同内容备用地址保留 source.start；出画后仍使用失败续播点。
 - fullscreenRoute 开启时内联侧在路由挂载期间让出子树，避免宿主 surface/poster 的 GlobalKey 重复挂载；默认关闭路径不变。

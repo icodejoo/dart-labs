@@ -1,0 +1,26 @@
+# CP2 离线定性与修复
+
+证据只读自 `E:\workspaces\wt-mova-cp2\mova`；修改仅在 cp2fix 的 mova。
+不使用真机，单测不能代替设备复验。
+
+## 1. cp2-rate：产品缺陷
+
+`matrix-cp2-rate-resume-20261104-183441-cp2-rate.log` 的 V13b run5：
+18:36:47.502 setRate(1.5) 返回时代理 state.rate=1.0，47.528 才观测到 1.5；
+48.214 广告 started，48.248 广告 rate=1.0/epoch=1；52.323 正片仍为
+1.0/epoch=2，55.253 的延后读数仍为 1.0。五轮一致。
+
+丢失发生在 playAdNow 同步读取代理旧快照；无倒计时的 pending 立即进入
+`_beginAd` 并设置 `_landing`，后来的正片进度也不能再更新快照。
+广告计划的 1x、正片计划的显式恢复值、commit 的继承规则均按传入值执行，
+A27 prepare+commit 并未自行把 1.5 改成 1.0，错误恢复值在进入广告前已保存。
+
+修复代理 setRate 完成时发布当前生效引擎快照，并以引擎身份及 renderEpoch
+隔离迟到写入。没有新增方向枚举，沿用 MovaWarmPlan.rate。
+真实 MovaEngine + FakeKernel 回归覆盖直接返回与影子提交返回，内核最后一次
+setRate 参数和代理最终状态都为 1.5，广告时内核参数为 1.0。
+仅撤去 lib 修复后两项均变红（期望 1.5，实际 1.0），恢复修复两项通过。
+
+证据限制：该 rate 批次的 V13 夹具读取的是代理 rate；samples.txt 是进程采样，
+没有原生 mpv speed 属性读回，不能将其写成独立原生 speed 证据。
+回归在内核边界核对实际下发参数。既有断言未改写。

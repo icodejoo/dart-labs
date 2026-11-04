@@ -596,8 +596,17 @@ class MovaCutoverEngine
       _disposed ? Future<void>.value() : _active.setBrightness(v);
 
   @override
-  Future<void> setRate(double r) =>
-      _disposed ? Future<void>.value() : _active.setRate(r);
+  Future<void> setRate(double r) async {
+    if (_disposed) return;
+    final active = _active;
+    final epoch = _epoch;
+    await active.setRate(r);
+    // 底层已完成写入，但异步状态转发可能尚未抵达代理。立即插播必须读到
+    // 本次完成后的倍速；期间若已换指，则不能把旧引擎快照写到新媒体上。
+    if (!_disposed && identical(_active, active) && epoch == _epoch) {
+      _publish(snapshot: active.state);
+    }
+  }
 
   @override
   Future<void> setFit(MovaFit f) =>
@@ -1187,8 +1196,8 @@ class MovaCutoverEngine
   /// 不会让倍速/适配/缩放/音量/锁定/方向/全屏/小窗回到默认。只写与影子不同的值；
   /// 某个 setter 失败则跳过，不致命。
   ///
-  /// 换指方向在这一层分辨不出（预热计划里没有这个字段），所以倍速也一并继承；
-  /// 不允许广告变速的调用方（见 `MovaAds`）在换指后自行复位。
+  /// 未声明倍速时继承旧引擎；广告编排通过计划声明广告 1x 和正片恢复倍速，
+  /// 在影子开播之前完成设置。
   Future<void> _inheritViewSettings(
     MovaState from,
     MovaApi shadow, {
