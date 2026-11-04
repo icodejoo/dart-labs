@@ -1,0 +1,6 @@
+src/core/feed/engine_pool.dart;
+src/core/feed/feed.dart;
+src/core/feed/feed_prefetcher.dart;
+src/core/model/feed_item.dart;
+src/ui/components/feed_social.dart;
+src/ui/feed_player.dart;
