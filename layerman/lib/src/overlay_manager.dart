@@ -685,6 +685,7 @@ class Layerman extends ChangeNotifier {
         _CooldownStore(cooldownStorage ?? MemoryCooldownStorage(), storageKey);
     _ready = _cooldowns.hydrate().then((_) => _batch(() {
           if (isDisposed) return;
+          _discardPermanentlyBlockedQueues();
           if (!_paused) {
             _applyRelease();
           } else {
@@ -1440,6 +1441,16 @@ class Layerman extends ChangeNotifier {
         return ticket;
       }
 
+      // 永久上限与槽位占用、暂停及构建阶段无关，提交时即可结束。
+      if (cooldown != null &&
+          _cooldowns.permanentlyBlocked(resolvedId, cooldown)) {
+        _byId.remove(resolvedId);
+        _settle(entry, null, OverlayEndReason.capped);
+        if (freedSlot != null) _schedule(freedSlot);
+        _notify();
+        return ticket;
+      }
+
       final s = _slotFor(slot);
       // A replace only preempts the current overlay when the replacer itself is
       // eligible right now (TS invariant 5b) and the manager is not paused; an
@@ -1664,6 +1675,20 @@ class Layerman extends ChangeNotifier {
   void _cancelCooldownTimer(_Slot s) {
     s.cooldownTimer?.cancel();
     s.cooldownTimer = null;
+  }
+
+  /// hydrate 后清理所有串行队列的永久受阻项，暂停或槽位占用也不延后结算。
+  void _discardPermanentlyBlockedQueues() {
+    for (final s in _slots.values.toList()) {
+      for (final e in s.queue.toList()) {
+        final cd = e.cooldown;
+        if (cd == null || !_cooldowns.permanentlyBlocked(e.id, cd)) continue;
+        _removeFromQueue(e);
+        if (_isCurrent(e)) _byId.remove(e.id);
+        _settle(e, null, OverlayEndReason.capped);
+        _notify();
+      }
+    }
   }
 
   void _schedule(String slot) {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:layerman/src/overlay_manager.dart';
 import 'package:layerman/src/overlay_types.dart';
 
@@ -40,6 +41,40 @@ const _missing = 'missing';
 
 /// 只由本文件主动注入的异常消息。
 const _fault = '随机测试注入异常';
+
+/// 仅允许被消费的存储读取故障。
+const _readFault = '随机冷却存储读取失败';
+
+/// 自定义角色集合的上下文键。
+const _rolesKey = 'roles';
+
+/// 自定义开关的上下文键。
+const _enabledKey = 'enabled';
+
+/// 自定义租户的上下文键。
+const _tenantKey = 'tenant';
+
+/// 默认拥有的角色。
+const _readerRole = 'reader';
+
+/// 需要显式授予的角色。
+const _adminRole = 'admin';
+
+/// 延迟计时的最小边界。
+const _tick = Duration(milliseconds: 1);
+
+/// 最小持久化上限，供存储边界用例复用。
+const _persistedOnce = OverlayCooldown(total: 1);
+
+/// 最小组合上限，验证两种计数一起重置。
+const _combinedOnce = OverlayCooldown(total: 1, session: 1);
+
+/// 统计全部扩展随机族的实际执行覆盖次数。
+final _extendedCoverage = <String, int>{};
+
+/// 记录能力被实际调用的次数，最终输出以便复审。
+void _cover(String operation) => _extendedCoverage
+    .update(operation, (count) => count + 1, ifAbsent: () => 1);
 
 /// 每次提交一个后端，计数绑定提交身份而非可复用的 id。
 class _FakeBackend {
@@ -660,5 +695,819 @@ void main() {
   }
   for (var seed = 0; seed < 60; seed++) {
     testWidgets('无条件串行排序不变量 seed=$seed', (tester) => _ordering(seed, tester));
+  }
+  for (var seed = 0; seed < 120; seed++) {
+    testWidgets('慢存储与 build 扩展不变量 seed=$seed', (tester) async {
+      final scenario = _ExtendedScenario(seed, tester);
+      try {
+        for (var step = 0; step < _steps; step++) {
+          await scenario.step(step);
+        }
+        await scenario.finish();
+      } catch (error, stack) {
+        fail('${scenario.diagnostic}\n$error\n$stack');
+      }
+    });
+  }
+  test('扩展族的新增操作与正反边界实际执行次数均非零', () {
+    for (final operation in [
+      'storage0',
+      'storage1',
+      'storage2',
+      'storage3',
+      '读取失败已取走',
+      'ready 前提交',
+      'build open',
+      'build submit',
+      'cooldownStatus',
+      'resetCooldown',
+      'clearCooldowns',
+      'clearTag 命中',
+      'clearTag 未命中',
+      '带标签提交',
+      'overlap delay',
+      'AND 三条件',
+      'ctx.close 允许',
+      'ctx.close 拒绝',
+    ]) {
+      expect(_extendedCoverage[operation] ?? 0, greaterThan(0),
+          reason: '$operation\n$_extendedCoverage');
+    }
+    debugPrint('C2 随机族实际执行次数：$_extendedCoverage');
+  });
+  _extendedBoundaries();
+}
+
+/// 确定性正反边界验证随机族覆盖的契约。
+void _extendedBoundaries() {
+  testWidgets('回归 H1 seed=11：持久化条目在读取完成后出场', (tester) async {
+    final storage = _FuzzStorage(1, _slow);
+    final manager = Layerman(cooldownStorage: storage);
+    addTearDown(manager.dispose);
+    int? presentedAt;
+    manager.submit<int>(
+        id: _ids.first,
+        cooldown: _persistedOnce,
+        present: (ctx) {
+          presentedAt = ++storage.eventOrder;
+          return _FakeBackend(0).present(ctx);
+        });
+    await tester.pump();
+    expect(presentedAt, isNull);
+    expect(storage.readCompletedAt, isNull);
+    await tester.pump(_slow);
+    expect(presentedAt, greaterThan(storage.readCompletedAt!));
+  });
+  testWidgets('回归 B3 seed=0：build 内无资格 overlap 即时结束', (tester) async {
+    final manager = Layerman();
+    addTearDown(manager.dispose);
+    final backend = _FakeBackend(0);
+    late OverlayTicket<int> ticket;
+    await tester.pumpWidget(_BuildOpen(() {
+      ticket = manager.submit<int>(
+          id: _ids.first,
+          mode: OverlayMode.overlap,
+          when: (_) => false,
+          present: backend.present);
+      expect(manager.queuedIds, isNot(contains(_ids.first)));
+      expect(manager.recordOf(_ids.first), isNull);
+    }));
+    expect(await ticket.result, isNull);
+    expect((await ticket.outcome).reason, OverlayEndReason.dropped);
+    expect(backend.presents, 0);
+  });
+  testWidgets('回归 T1 seed=61：永久受阻提交即结束，清标签保留无关条目', (tester) async {
+    final manager = Layerman();
+    addTearDown(manager.dispose);
+    await tester.pump();
+    const cd = OverlayCooldown(session: 1);
+    manager.submit<int>(
+        id: _ids.first, cooldown: cd, present: _FakeBackend(0).present);
+    manager.remove(_ids.first);
+    manager.submit<int>(
+        id: _ids.last,
+        tags: {_ExtendedScenario.tags.first},
+        present: _FakeBackend(0).present);
+    final capped = manager.submit<int>(
+        id: _ids.first, cooldown: cd, present: _FakeBackend(0).present);
+    expect(manager.queuedIds, isNot(contains(_ids.first)));
+    expect((await capped.outcome).reason, OverlayEndReason.capped);
+    manager.submit<int>(id: _ids[1], present: _FakeBackend(0).present);
+    final unrelated = manager.records
+        .where((r) => !r.tags.contains(_ExtendedScenario.tags.first))
+        .map((r) => r.id)
+        .toSet();
+    expect(unrelated, contains(_ids[1]));
+    manager.clearTag(_ExtendedScenario.tags.first);
+    expect(manager.records.map((r) => r.id), containsAll(unrelated));
+    expect(manager.recordOf(_ids.last), isNull);
+  });
+  for (var mode = 0; mode < 4; mode++) {
+    for (final latency in [Duration.zero, const Duration(milliseconds: 600)]) {
+      testWidgets('存储模式=$mode 延迟=$latency：读取前冻结，读取后释放并排空写入', (tester) async {
+        final manager = Layerman(cooldownStorage: _FuzzStorage(mode, latency));
+        addTearDown(manager.dispose);
+        manager.pauseAll();
+        var ready = false;
+        manager.ready().then((_) => ready = true);
+        final backend = _FakeBackend(0);
+        manager.submit<int>(
+          id: _ids.first,
+          cooldown: _persistedOnce,
+          present: backend.present,
+        );
+        expect(ready, isFalse);
+        expect(backend.presents, 0);
+        expect(manager.cooldownStatus(_ids.first, _persistedOnce).wait, isNull);
+        await tester.pump(latency);
+        if (mode == 2) {
+          final error = tester.takeException();
+          expect(error, isA<StateError>());
+          expect((error as StateError).message, _readFault);
+        }
+        expect(tester.takeException(), isNull);
+        expect(ready, isTrue);
+        expect(backend.presents, 0);
+        manager.resumeAll();
+        expect(backend.presents, 1);
+        expect(
+            manager
+                .cooldownStatus(_ids.first, _persistedOnce)
+                .permanentlyBlocked,
+            isTrue);
+        manager.dispose();
+        await tester.pump(_drain);
+        await tester.pump(_drain);
+      });
+    }
+  }
+  for (var missing = 0; missing < 4; missing++) {
+    testWidgets('AND 条件边界：缺失条件编号=$missing', (tester) async {
+      final manager = Layerman();
+      addTearDown(manager.dispose);
+      manager.setContext({
+        'route': missing == 1 ? _blocked : _home,
+        _rolesKey: <String>{if (missing != 2) _adminRole},
+        _enabledKey: missing != 3,
+      });
+      final backend = _FakeBackend(0);
+      manager.submit<int>(
+        id: _ids.first,
+        mode: OverlayMode.overlap,
+        route: const RouteMatcher.exact(_home),
+        auth: (ctx) => (ctx[_rolesKey] as Set<String>).contains(_adminRole),
+        when: (ctx) => ctx[_enabledKey] == true,
+        present: backend.present,
+      );
+      await tester.pump();
+      expect(backend.presents, missing == 0 ? 1 : 0);
+    });
+  }
+  for (final guard in [false, true]) {
+    testWidgets('后端上下文关闭：beforeClose=$guard 决定结果与关闭原因', (tester) async {
+      final manager = Layerman();
+      addTearDown(manager.dispose);
+      late PresentContext<int> context;
+      final backend = _FakeBackend(0);
+      final ticket = manager.submit<int>(
+        beforeClose: () => guard,
+        present: (ctx) {
+          context = ctx;
+          return backend.present(ctx);
+        },
+      );
+      context.close(42);
+      await tester.pump();
+      if (guard) {
+        final outcome = await ticket.outcome;
+        expect(outcome.value, 42);
+        expect(outcome.reason, OverlayEndReason.closed);
+        expect(backend.dismisses, 1);
+      } else {
+        expect(ticket.isActive, isTrue);
+        expect(backend.dismisses, 0);
+        backend.finish(11);
+        await tester.pump();
+        expect((await ticket.outcome).value, 11);
+      }
+    });
+  }
+  for (final clearAll in [false, true]) {
+    testWidgets('冷却上限与查询：${clearAll ? 'clear' : 'reset'} 重置 session 和 total',
+        (tester) async {
+      final manager = Layerman();
+      addTearDown(manager.dispose);
+      await tester.pump();
+      await manager.ready();
+      const cd = _combinedOnce;
+      for (var epoch = 0; epoch < 2; epoch++) {
+        final shown = _FakeBackend(0);
+        manager.submit<int>(
+            id: _ids.first, cooldown: cd, present: shown.present);
+        expect(shown.presents, 1);
+        final status = manager.cooldownStatus(_ids.first, cd);
+        expect(status.canShow, isFalse);
+        expect(status.permanentlyBlocked, isTrue);
+        expect(status.wait, isNull);
+        manager.close(_ids.first);
+        await tester.pump();
+        final blocked = _FakeBackend(0);
+        final capped = manager.submit<int>(
+            id: _ids.first, cooldown: cd, present: blocked.present);
+        await tester.pump(_drain);
+        expect(blocked.presents, 0);
+        expect((await capped.outcome).reason, OverlayEndReason.capped);
+        if (clearAll) {
+          manager.clearCooldowns();
+        } else {
+          manager.resetCooldown(_ids.first);
+        }
+        final reset = manager.cooldownStatus(_ids.first, cd);
+        expect(reset.canShow, isTrue);
+        expect(reset.permanentlyBlocked, isFalse);
+        expect(reset.wait, Duration.zero);
+      }
+    });
+  }
+  testWidgets('标签批量清理保留无关项，也支持不存在的标签', (tester) async {
+    final manager = Layerman();
+    addTearDown(manager.dispose);
+    final labels = <String>{_ExtendedScenario.tags.first};
+    manager.submit<int>(
+        id: _ids.first, tags: labels, present: _FakeBackend(0).present);
+    labels.clear();
+    manager.submit<int>(id: _ids.last, present: _FakeBackend(0).present);
+    manager.clearTag(_missing);
+    expect(manager.records.length, 2);
+    manager.clearTag(_ExtendedScenario.tags.first);
+    expect(manager.records.map((r) => r.id), [_ids.last]);
+    await tester.pump();
+  });
+  testWidgets('overlap 延迟前不展示，取消的延迟条目也不会迟到展示', (tester) async {
+    final manager = Layerman();
+    addTearDown(manager.dispose);
+    final shown = _FakeBackend(0);
+    final removed = _FakeBackend(0);
+    manager.submit<int>(
+        id: _ids.first,
+        mode: OverlayMode.overlap,
+        delay: _slow,
+        present: shown.present);
+    manager.submit<int>(
+        id: _ids.last,
+        mode: OverlayMode.overlap,
+        delay: _slow,
+        present: removed.present);
+    await tester.pump(_slow - _tick);
+    expect(shown.presents, 0);
+    manager.remove(_ids.last);
+    await tester.pump(_tick);
+    expect(shown.presents, 1);
+    expect(removed.presents, 0);
+  });
+}
+
+/// 读写延迟均使用 widget 测试的 Timer 域，不依赖真实时间。
+class _FuzzStorage implements OverlayCooldownStorage {
+  /// 固定随机存储变体与延迟，便于复现。
+  _FuzzStorage(this.mode, this.latency);
+
+  /// 内存、慢读取、读取失败、慢写入四种模式。
+  final int mode;
+
+  /// 慢操作的延迟（含零毫秒边界）。
+  final Duration latency;
+
+  /// 快存储同时保存慢写完成后的快照。
+  final memory = MemoryCooldownStorage();
+
+  /// 读取与展示共用的单调事件序号。
+  int eventOrder = 0;
+
+  /// 读取开始顺序，供诊断异步边界使用。
+  int? readStartedAt;
+
+  /// 读取成功或失败的完成顺序；在返回 Future 结算前记录。
+  int? readCompletedAt;
+
+  /// 从同一 fake async 域中读取或注入指定的读取故障。
+  @override
+  Future<String?> read(String key) async {
+    readStartedAt = ++eventOrder;
+    try {
+      if (mode == 1 || mode == 2) await Future<void>.delayed(latency);
+      if (mode == 2) throw StateError(_readFault);
+      return await memory.read(key);
+    } finally {
+      readCompletedAt = ++eventOrder;
+    }
+  }
+
+  /// 慢写也使用 Timer，让测试覆盖引擎的串行补写。
+  @override
+  Future<void> write(String key, String value) async {
+    if (mode == 3) await Future<void>.delayed(latency);
+    await memory.write(key, value);
+  }
+}
+
+/// 在真正的 persistentCallbacks/build 阶段执行一次提交。
+class _BuildOpen extends StatelessWidget {
+  /// 每次挂载的回调仅执行一次，由测试提供唯一 key。
+  const _BuildOpen(this.invoke, {super.key});
+
+  /// build 内的受测操作与即时断言。
+  final VoidCallback invoke;
+
+  /// 直接在 build 内执行回调，不能提前搬到 post-frame。
+  @override
+  Widget build(BuildContext context) {
+    invoke();
+    return const SizedBox.shrink();
+  }
+}
+
+/// 扩展族每次提交的身份，不把复用 id 的旧票误认为新票。
+class _ExtendedProbe {
+  /// 固定本次提交的后端、模式及关闭守卫。
+  _ExtendedProbe(this.id, this.overlap, this.guard);
+
+  /// 冷却模型使用的可复用 id。
+  final String id;
+
+  /// 串行占位统计需要排除 overlap。
+  final bool overlap;
+
+  /// 显式关闭是否被允许。
+  final bool guard;
+
+  /// 正常且立即确认关闭的后端。
+  final backend = _FakeBackend(0);
+
+  /// 展示后保留真正的泛型上下文，供随机自关闭操作调用。
+  PresentContext<int>? context;
+
+  /// submit 的票据；open 分支只有结果 Future。
+  OverlayTicket<int>? ticket;
+
+  /// 异步生命周期事件。
+  final events = <OverlayEvent>[];
+
+  /// 完成结果，用于检查重复结算。
+  final values = <int?>[];
+
+  /// 完成原因，open 分支通过 ended 事件检查。
+  OverlayOutcome<int>? outcome;
+
+  /// build 返回时已从索引消失，必须验证即时结束且从未展示。
+  bool endedOnSubmit = false;
+
+  /// 成功的上下文关闭请求值。
+  int? selfValue;
+}
+
+/// 独立模型覆盖 hydrate、build、标签、冷却重置与条件 AND 组合。
+class _ExtendedScenario {
+  /// 每种存储都由 seed 的同一个随机源选择。
+  _ExtendedScenario(this.seed, this.tester) : random = Random(seed) {
+    final mode = random.nextInt(4);
+    _cover('storage$mode');
+    final latency = Duration(milliseconds: random.nextInt(601));
+    log.add('storage=$mode latency=$latency');
+    manager = Layerman(
+      cooldownStorage: storage = _FuzzStorage(mode, latency),
+      clock: ManualNowClock(() => now),
+    );
+    manager.ready().then((_) {
+      ready = true;
+      log.add('ready 完成 time=$now');
+    });
+    subscription = manager.events.listen((event) {
+      final candidates = probes.where((p) => p.id == event.id);
+      final probe = event.type == OverlayEventType.queued
+          ? candidates.firstWhere((p) => p.events.isEmpty)
+          : candidates.firstWhere((p) =>
+              p.events.isNotEmpty &&
+              !p.events.any((e) => e.type == OverlayEventType.ended));
+      probe.events.add(event);
+    });
+    addTearDown(manager.dispose);
+    addTearDown(subscription.cancel);
+    manager.setContext(context);
+  }
+
+  /// 可复现的随机种子。
+  final int seed;
+
+  /// fake async 驱动器。
+  final WidgetTester tester;
+
+  /// 本族唯一随机源。
+  final Random random;
+
+  /// 被测实例。
+  late final Layerman manager;
+
+  /// 存储读取与展示使用同一个事件时序。
+  late final _FuzzStorage storage;
+
+  /// 事件监听，销毁时释放。
+  late final StreamSubscription<OverlayEvent> subscription;
+
+  /// 使用远离桶边界的日历时间，H2 不受日 rollover 干扰。
+  DateTime now = DateTime(2026, 1, 1);
+
+  /// ready 的 then 已执行，而不是借用内部 hydrated 状态。
+  bool ready = false;
+
+  /// 暂停模型。
+  bool paused = false;
+
+  /// build 作用域，present 不允许在此期间发生。
+  bool building = false;
+
+  /// 最近一次自定义上下文，条件模型与引擎读同一快照。
+  Map<String, Object?> context = {
+    'route': _home,
+    _rolesKey: <String>{_readerRole},
+    _enabledKey: true,
+    _tenantKey: 0,
+  };
+
+  /// 全操作日志包含随机参数及每次 present/ready 的时间。
+  final log = <String>[];
+
+  /// 回调内仅记录违规，避免断言被引擎的错误隔离吞掉。
+  final violations = <String>[];
+
+  /// 所有提交的独立身份。
+  final probes = <_ExtendedProbe>[];
+
+  /// 同 id 最新提交，用于当前 records 的串行分类。
+  final latest = <String, _ExtendedProbe>{};
+
+  /// 两次 reset/clear 之间的展示计数；每个 id 的配置保持固定。
+  final counts = <String, int>{};
+
+  /// 小型固定上限集合，提高 total/day/minGap 出现频率。
+  static const cooldowns = <OverlayCooldown>[
+    OverlayCooldown(total: 2),
+    OverlayCooldown(session: 2),
+    OverlayCooldown(day: 2),
+    OverlayCooldown(minGap: _slow),
+    _combinedOnce,
+    OverlayCooldown(session: 1),
+  ];
+
+  /// 固定标签集合，便于制造交集和无关条目。
+  static const tags = <String>['红', '蓝', '绿'];
+
+  /// 包含 seed、完整日志的失败信息。
+  String get diagnostic => '扩展 seed=$seed\n${log.join('\n')}\n'
+      'records=${manager.records.map((r) => '${r.id}:${r.phase}:${r.tags}').toList()}';
+
+  /// 累计真实展示次数。
+  int get presents => probes.fold(0, (sum, p) => sum + p.backend.presents);
+
+  /// 对齐两个时钟，并且只消费已知的存储读取失败。
+  Future<void> pump([Duration elapsed = Duration.zero]) async {
+    now = now.add(elapsed);
+    await tester.pump(elapsed);
+    Object? error;
+    while ((error = tester.takeException()) != null) {
+      expect(error, isA<StateError>(), reason: '$diagnostic\nB2 $error');
+      expect((error as StateError).message, _readFault,
+          reason: 'B2 非存储读取故障\n$diagnostic');
+      _cover('读取失败已取走');
+    }
+    check();
+  }
+
+  /// 随机参数提交；build 模式还检查返回时同步可见性。
+  void submit(String id, {bool fromBuild = false}) {
+    final index = _ids.indexOf(id);
+    final cd = cooldowns[index];
+    final mode = OverlayMode.values[random.nextInt(OverlayMode.values.length)];
+    final slot = _slots[random.nextInt(_slots.length)];
+    final delay = random.nextBool() ? _slow : Duration.zero;
+    final guard = random.nextBool();
+    final useOpen = random.nextBool();
+    final labels = {
+      for (final tag in tags)
+        if (random.nextBool()) tag
+    };
+    final requireRoute = random.nextBool();
+    final requireRole = random.nextBool();
+    final requireWhen = random.nextBool();
+    final role = random.nextBool() ? _readerRole : _adminRole;
+    final tenant = random.nextInt(2);
+    final priority = random.nextInt(3);
+    if (!ready) _cover('ready 前提交');
+    if (fromBuild) _cover(useOpen ? 'build open' : 'build submit');
+    if (labels.isNotEmpty) _cover('带标签提交');
+    if (mode == OverlayMode.overlap && delay > Duration.zero) {
+      _cover('overlap delay');
+    }
+    if (requireRoute && requireRole && requireWhen) _cover('AND 三条件');
+    log.add('提交 $id build=$fromBuild open=$useOpen mode=$mode slot=$slot '
+        'delay=$delay guard=$guard tags=$labels route=$requireRoute '
+        'auth=$requireRole role=$role when=$requireWhen tenant=$tenant '
+        'priority=$priority cd=$index ready=$ready');
+    final probe = _ExtendedProbe(id, mode == OverlayMode.overlap, guard);
+    probes.add(probe);
+    latest[id] = probe;
+
+    /// 模型独立计算所有提供的条件，而不询问引擎资格。
+    bool conditions() =>
+        (!requireRoute || context['route'] == _home) &&
+        (!requireRole || (context[_rolesKey] as Set<String>).contains(role)) &&
+        (!requireWhen ||
+            (context[_enabledKey] == true && context[_tenantKey] == tenant));
+
+    /// 后端先记录不变量，再返回普通关闭适配器。
+    PresentedOverlay<int> present(PresentContext<int> ctx) {
+      log.add('present $id time=$now ready=$ready context=$context');
+      if (building) violations.add('B1 build 内 present $id');
+      if (!conditions()) violations.add('A1 条件未满足却 present $id');
+      final persisted = cd.total != null || cd.day != null || cd.minGap != null;
+      final presentOrder = ++storage.eventOrder;
+      if (persisted &&
+          (storage.readCompletedAt == null ||
+              presentOrder <= storage.readCompletedAt!)) {
+        violations.add('H1 存储读取完成前 present $id order=$presentOrder');
+      }
+      final count = counts.update(id, (n) => n + 1, ifAbsent: () => 1);
+      if ((cd.total != null && count > cd.total!) ||
+          (cd.session != null && count > cd.session!)) {
+        violations
+            .add('H2 $id 次数=$count total=${cd.total} session=${cd.session}');
+      }
+      if (paused) violations.add('I5 暂停期间 present $id');
+      probe.context = ctx;
+      return probe.backend.present(ctx);
+    }
+
+    final before = presents;
+    if (useOpen) {
+      manager
+          .open<int>(
+            id: id,
+            slot: slot,
+            present: present,
+            mode: mode,
+            delay: delay,
+            priority: priority,
+            cooldown: cd,
+            tags: labels,
+            route: requireRoute ? const RouteMatcher.exact(_home) : null,
+            auth: requireRole
+                ? (ctx) => (ctx[_rolesKey] as Set<String>).contains(role)
+                : null,
+            when: requireWhen
+                ? (ctx) => ctx[_enabledKey] == true && ctx[_tenantKey] == tenant
+                : null,
+            beforeClose: () => guard,
+          )
+          .then(probe.values.add);
+    } else {
+      final ticket = manager.submit<int>(
+        id: id,
+        slot: slot,
+        present: present,
+        mode: mode,
+        delay: delay,
+        priority: priority,
+        cooldown: cd,
+        tags: labels,
+        route: requireRoute ? const RouteMatcher.exact(_home) : null,
+        auth: requireRole
+            ? (ctx) => (ctx[_rolesKey] as Set<String>).contains(role)
+            : null,
+        when: requireWhen
+            ? (ctx) => ctx[_enabledKey] == true && ctx[_tenantKey] == tenant
+            : null,
+        beforeClose: () => guard,
+      );
+      probe.ticket = ticket;
+      ticket.result.then(probe.values.add);
+      ticket.outcome.then((outcome) => probe.outcome = outcome);
+    }
+    if (fromBuild) {
+      expect(presents, before, reason: 'B1\n$diagnostic');
+      final queued = manager.queuedIds.contains(id);
+      final recorded = manager.records.any((r) => r.id == id);
+      expect(queued, recorded, reason: 'B3\n$diagnostic');
+      probe.endedOnSubmit = !recorded;
+    }
+  }
+
+  /// clearTag 的影响在同一同步调用边界检查，避免后续调度干扰。
+  void clearTag(String tag) {
+    log.add('clearTag $tag');
+    _cover(manager.records.any((r) => r.tags.contains(tag))
+        ? 'clearTag 命中'
+        : 'clearTag 未命中');
+    final unrelated = manager.records
+        .where((r) => !r.tags.contains(tag))
+        .map((r) => r.id)
+        .toSet();
+    manager.clearTag(tag);
+    expect(manager.records.any((r) => r.tags.contains(tag)), isFalse,
+        reason: 'T1\n$diagnostic');
+    expect(manager.records.map((r) => r.id).toSet(), containsAll(unrelated),
+        reason: 'T1 无关条目被移除\n$diagnostic');
+  }
+
+  /// 模型先重置，允许同步重调度产生新的 present。
+  void reset([String? id]) {
+    log.add('reset $id');
+    if (id == null) {
+      _cover('clearCooldowns');
+      counts.clear();
+      manager.clearCooldowns();
+    } else {
+      _cover('resetCooldown');
+      counts.remove(id);
+      manager.resetCooldown(id);
+    }
+  }
+
+  /// 每步检查 C1 和 I1–I7，I8 继续由原来的 60 个排序种子守住。
+  void check({bool ended = false}) {
+    final why = diagnostic;
+    expect(violations, isEmpty, reason: why);
+    final records = manager.records;
+    final queued = manager.queuedIds.toSet();
+    final active = manager.activeIds.toSet();
+    final resolving = manager.resolvingIds.toSet();
+    expect(queued.intersection(active), isEmpty, reason: 'I2\n$why');
+    expect(queued.intersection(resolving), isEmpty, reason: 'I2\n$why');
+    expect(active.intersection(resolving), isEmpty, reason: 'I2\n$why');
+    expect(
+        [...manager.queuedIds, ...manager.activeIds, ...manager.resolvingIds]
+            .length,
+        records.length,
+        reason: 'I2\n$why');
+    expect(
+        {...queued, ...active, ...resolving}, records.map((r) => r.id).toSet(),
+        reason: 'I2\n$why');
+    expect(records.map((r) => r.id).toSet().length, records.length,
+        reason: 'I2\n$why');
+    for (final slot in _slots) {
+      expect(
+          records
+              .where((r) =>
+                  r.slot == slot &&
+                  r.phase != OverlayPhase.pending &&
+                  !latest[r.id]!.overlap)
+              .length,
+          lessThanOrEqualTo(1),
+          reason: 'I1\n$why');
+    }
+    for (var i = 0; i < _ids.length; i++) {
+      final id = _ids[i];
+      final status = manager.cooldownStatus(id, cooldowns[i]);
+      _cover('cooldownStatus');
+      expect(manager.isShowing(id), active.contains(id), reason: 'I2\n$why');
+      expect(
+          manager.recordOf(id)?.id, records.any((r) => r.id == id) ? id : null,
+          reason: 'I2\n$why');
+      if (status.canShow) {
+        expect(status.permanentlyBlocked, isFalse, reason: 'C1\n$why');
+        expect(status.wait, Duration.zero, reason: 'C1\n$why');
+      }
+      if (status.permanentlyBlocked) {
+        expect(status.canShow, isFalse, reason: 'C1\n$why');
+        expect(status.wait, isNull, reason: 'C1\n$why');
+      }
+    }
+    for (final p in probes) {
+      final events = p.events.map((e) => e.type).toList();
+      expect(p.values.length, lessThanOrEqualTo(1), reason: 'I3\n$why');
+      expect(events.first, OverlayEventType.queued, reason: 'I3\n$why');
+      expect(events.where((e) => e == OverlayEventType.shown).length,
+          p.backend.presents,
+          reason: 'I3\n$why');
+      expect(events.where((e) => e == OverlayEventType.ended).length,
+          p.values.length,
+          reason: 'I3\n$why');
+      expect(p.backend.presents, lessThanOrEqualTo(1), reason: 'I4\n$why');
+      expect(p.backend.dismisses, lessThanOrEqualTo(p.backend.presents),
+          reason: 'I4\n$why');
+      if (p.endedOnSubmit) {
+        expect(p.backend.presents, 0, reason: 'B3\n$why');
+        expect(p.values, [null], reason: 'B3\n$why');
+        final reason =
+            p.ticket != null ? p.outcome?.reason : p.events.last.reason;
+        expect(
+            reason, isIn([OverlayEndReason.dropped, OverlayEndReason.capped]),
+            reason: 'B3\n$why');
+      }
+      if (p.selfValue != null) {
+        expect(p.values, [p.selfValue], reason: 'X1\n$why');
+        expect(p.events.last.reason, OverlayEndReason.closed,
+            reason: 'X1\n$why');
+        if (p.ticket != null) {
+          expect(p.outcome?.value, p.selfValue, reason: 'X1\n$why');
+          expect(p.outcome?.reason, OverlayEndReason.closed,
+              reason: 'X1\n$why');
+        }
+      }
+      if (ended) expect(p.values.length, 1, reason: 'I6\n$why');
+    }
+  }
+
+  /// 混入所有新操作及普通关闭、同 id 接管、暂停和延迟释放。
+  Future<void> step(int step) async {
+    final id = _ids[random.nextInt(_ids.length)];
+    final op = random.nextInt(15);
+    log.add('步骤=$step op=$op id=$id');
+    switch (op) {
+      case 0 || 1 || 2 || 3:
+        submit(id);
+      case 4:
+        await tester.pumpWidget(Column(children: [
+          AnimatedBuilder(
+            animation: manager,
+            builder: (context, child) => const SizedBox.shrink(),
+          ),
+          _BuildOpen(() {
+            building = true;
+            try {
+              submit(id, fromBuild: true);
+            } finally {
+              building = false;
+            }
+          }, key: ValueKey('$seed:$step')),
+        ]));
+      case 5:
+        reset(id);
+      case 6:
+        reset();
+      case 7:
+        clearTag(tags[random.nextInt(tags.length)]);
+      case 8:
+        context = {
+          'route': random.nextBool() ? _home : _blocked,
+          _rolesKey: {
+            if (random.nextBool()) _readerRole,
+            if (random.nextBool()) _adminRole
+          },
+          _enabledKey: random.nextBool(),
+          _tenantKey: random.nextInt(2),
+        };
+        log.add('context=$context');
+        manager.setContext(context);
+      case 9:
+        final p = latest[id];
+        if (p?.context != null && manager.isShowing(id) && p!.values.isEmpty) {
+          log.add('ctx.close $id guard=${p.guard}');
+          final record = manager.recordOf(id);
+          p.context!.close(42);
+          if (p.guard) {
+            _cover('ctx.close 允许');
+            p.selfValue = 42;
+          } else {
+            _cover('ctx.close 拒绝');
+            expect(identical(manager.recordOf(id)?.data, record?.data), isTrue,
+                reason: 'X1\n$diagnostic');
+            expect(manager.isShowing(id), isTrue, reason: 'X1\n$diagnostic');
+            expect(p.backend.dismisses, 0, reason: 'X1\n$diagnostic');
+          }
+        }
+      case 10:
+        manager.close(id, 11);
+      case 11:
+        latest[id]?.backend.finish(7);
+      case 12:
+        paused = !paused;
+        if (paused) {
+          manager.pauseAll();
+        } else {
+          manager.resumeAll();
+        }
+      case 13:
+        manager.remove(id);
+      case 14:
+        final status = manager.cooldownStatus(id, cooldowns[_ids.indexOf(id)]);
+        log.add(
+            'status canShow=${status.canShow} permanent=${status.permanentlyBlocked} wait=${status.wait}');
+    }
+    final elapsed = Duration(milliseconds: random.nextInt(250));
+    log.add('pump $elapsed');
+    await pump(elapsed);
+  }
+
+  /// 两轮排空足够完成慢写串行补写，并验证销毁后没有迟到展示。
+  Future<void> finish() async {
+    log.add('clear + dispose');
+    manager.clear();
+    manager.dispose();
+    final before = presents;
+    await pump(_drain);
+    await pump(_drain);
+    expect(presents, before, reason: 'I7\n$diagnostic');
+    expect(manager.records, isEmpty, reason: 'I6\n$diagnostic');
+    check(ended: true);
   }
 }
