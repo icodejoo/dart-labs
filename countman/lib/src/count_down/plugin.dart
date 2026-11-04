@@ -140,7 +140,7 @@ class Countdown extends ClockPlugin<CountdownTask> {
 
 // ── CountdownController ───────────────────────────────────────────
 
-/// Imperative controller for countdown display widgets.
+/// 倒计时展示组件的命令式控制器，结束后 reset 会请求组件重启。
 ///
 /// Create once, pass to a widget via its `controller` parameter, then call
 /// [pause], [resume], [reset], or [cancel] from any parent or business logic.
@@ -149,15 +149,44 @@ class Countdown extends ClockPlugin<CountdownTask> {
 class CountdownController {
   CountdownHandle? _handle;
 
-  // Called by countdown display widgets in initState / didUpdateWidget / dispose.
-  // Not part of the end-user API.
-  // ignore: use_setters_to_change_properties
-  void attach(CountdownHandle h) => _handle = h;
-  void detach() => _handle = null;
+  /// 保存展示组件提供的重启动作。
+  void Function({Duration? duration})? _relaunch;
+
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
+  /// 例如 `controller.attach(handle, relaunch: restart)`。
+  @internal
+  void attach(CountdownHandle handle,
+      {void Function({Duration? duration})? relaunch}) {
+    _handle = handle;
+    _relaunch = relaunch;
+  }
+
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
+  /// 例如 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
+  @internal
+  void detach([CountdownHandle? handle]) {
+    if (handle != null && !identical(_handle, handle)) return;
+    _handle = null;
+    _relaunch = null;
+  }
 
   void pause() => _handle?.pause();
   void resume() => _handle?.resume();
-  void reset({Duration? duration}) => _handle?.reset(duration: duration);
+
+  /// 重置并恢复倒计时；[duration] 为空时存活任务沿用原时长，结束后采用组件配置。
+  /// 已结束或取消时请求展示组件重启，未绑定时无操作；无返回值。
+  /// 例如 `controller.reset(duration: Duration(seconds: 10))`。
+  void reset({Duration? duration}) {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      handle.reset(duration: duration);
+    } else {
+      _relaunch?.call(duration: duration);
+    }
+  }
+
   void cancel() => _handle?.cancel();
 
   Duration get remaining => _handle?.remaining ?? Duration.zero;

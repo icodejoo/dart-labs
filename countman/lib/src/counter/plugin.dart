@@ -159,7 +159,17 @@ class Counter extends TaskQueuePlugin<CounterTask> {
 
 // ── CounterValueController ─────────────────────────────────────────────
 
-/// Imperative controller for counter display widgets.
+/// 由展示组件调用的任务重启函数，业务代码不要直接调用。
+/// [to] 为目标值，[duration]、[curve] 为空时沿用组件配置；无返回值。
+/// 例如展示组件绑定时传入 `relaunch: _relaunch`。
+@internal
+typedef CounterRelaunch = void Function({
+  required double to,
+  Duration? duration,
+  Curve? curve,
+});
+
+/// 计数展示组件的命令式控制器，完成后的 update 会请求组件重启任务。
 ///
 /// Create once, pass to a widget via its `controller` parameter, then call
 /// [update] to retarget, [cancel] to remove, or read [value] for the current
@@ -169,19 +179,44 @@ class CounterValueController {
   CounterHandle? _handle;
   double _value = 0;
 
-  // Called by counter display widgets in initState / didUpdateWidget / dispose.
-  // Not part of the end-user API.
-  // ignore: use_setters_to_change_properties
-  void attach(CounterHandle h) => _handle = h;
-  void detach() => _handle = null;
+  /// 保存展示组件提供的重启动作。
+  CounterRelaunch? _relaunch;
 
-  /// Pushed by the owning widget on every frame — not user-facing.
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
+  /// 例如 `controller.attach(handle, relaunch: restart)`。
+  @internal
+  void attach(CounterHandle handle, {CounterRelaunch? relaunch}) {
+    _handle = handle;
+    _relaunch = relaunch;
+  }
+
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
+  /// 例如销毁时 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
+  @internal
+  void detach([CounterHandle? handle]) {
+    if (handle != null && !identical(_handle, handle)) return;
+    _handle = null;
+    _relaunch = null;
+  }
+
+  /// 由展示组件调用，业务代码不要直接调用；写入当前显示值 [v]，无返回值。
+  /// 例如每帧 `controller.latestValue = value`。
   @internal
   set latestValue(double v) => _value = v;
 
-  /// Retarget the animation to [to], continuing from the current value.
-  void update({required double to, Duration? duration, Curve? curve}) =>
-      _handle?.update(to: to, duration: duration, curve: curve);
+  /// 从当前值更新到 [to]；[duration]、[curve] 为空时沿用任务或组件配置。
+  /// 任务结束后请求展示组件重启，未绑定时无操作；无返回值。
+  /// 例如 `controller.update(to: 500, duration: Duration(seconds: 1))`。
+  void update({required double to, Duration? duration, Curve? curve}) {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      handle.update(to: to, duration: duration, curve: curve);
+    } else {
+      _relaunch?.call(to: to, duration: duration, curve: curve);
+    }
+  }
 
   /// Freeze the animation at its current value.
   ///

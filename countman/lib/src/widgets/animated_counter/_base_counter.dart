@@ -527,9 +527,11 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
   // ── controller binding ────────────────────────────────────────────────────
 
+  /// 将命令回调及归属标记绑定到当前 State。
   void _bindController() {
     final c = widget.controller;
     if (c == null) return;
+    c.$owner = this;
     c.$pauseCallback = () {
       _pausedT = _currentT;
       _cancelActive();
@@ -575,8 +577,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     };
   }
 
+  /// 仅当控制器仍属于当前 State 时清除命令回调及归属标记。
   void _unbindController(AnimatedCounterController? c) {
-    if (c == null) return;
+    if (c == null || !identical(c.$owner, this)) return;
+    c.$owner = null;
     c.$pauseCallback   = null;
     c.$resumeCallback  = null;
     c.$stopCallback    = null;

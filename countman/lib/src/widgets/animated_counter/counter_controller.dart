@@ -2,8 +2,9 @@
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart' show internal;
 
-/// Programmatic control over an [AnimatedCounter] widget.
+/// 动画计数组件的命令式控制器，由当前绑定的展示组件响应命令。
 ///
 /// Pass to [AnimatedCounter.controller] and call [animateTo], [jumpTo],
 /// [pause], [resume], [stop], [restart], [repeat], or [reverse].
@@ -13,6 +14,11 @@ class AnimatedCounterController extends ChangeNotifier {
 
   // Internal callbacks wired up by _AnimatedCounterState — not public API.
   // (Dart has no package-private; these are left without _ to cross file boundaries.)
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// 当前绑定的 State 标记，未绑定时为 null；例如组件绑定时 `$owner = this`。
+  @internal
+  Object? $owner;
+
   VoidCallback? $pauseCallback;
   VoidCallback? $resumeCallback;
   VoidCallback? $stopCallback;

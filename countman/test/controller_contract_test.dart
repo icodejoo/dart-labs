@@ -1,3 +1,6 @@
+// 展示组件内部绑定协议的契约测试需要直接调用内部接口。
+// ignore_for_file: invalid_use_of_internal_member
+
 import 'package:countman/countman.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,6 +51,106 @@ void main() {
     monotonic += duration;
     await tester.pump(duration);
   }
+
+  test('三个 controller 的 attach/detach 归属及旧式无参解绑兼容', () {
+    final counterPlugin = Counter();
+    final countdownPlugin = Countdown();
+    final elapsedPlugin = Elapsed();
+    final context = CountmanContext(requestFrame: () {});
+    counterPlugin.onAttach(context);
+    countdownPlugin.onAttach(context);
+    elapsedPlugin.onAttach(context);
+    final counter = CounterValueController();
+    final countdown = CountdownController();
+    final elapsed = ElapsedController();
+    final oldCounter = counterPlugin.add(CounterOptions(to: 100));
+    final newCounter = counterPlugin.add(CounterOptions(to: 200));
+    final oldCountdown =
+        countdownPlugin.add(CountdownOptions(duration: _duration));
+    final newCountdown =
+        countdownPlugin.add(CountdownOptions(duration: _duration));
+    final oldElapsed = elapsedPlugin.add(ElapsedOptions());
+    final newElapsed = elapsedPlugin.add(ElapsedOptions());
+    counter.attach(oldCounter);
+    counter.attach(newCounter);
+    countdown.attach(oldCountdown);
+    countdown.attach(newCountdown);
+    elapsed.attach(oldElapsed);
+    elapsed.attach(newElapsed);
+    counter.detach(oldCounter);
+    countdown.detach(oldCountdown);
+    elapsed.detach(oldElapsed);
+    counter.pause();
+    countdown.pause();
+    elapsed.pause();
+    expect(newCounter.isPaused, isTrue);
+    expect(newCountdown.isPaused, isTrue);
+    expect(newElapsed.isPaused, isTrue);
+    expect(oldCounter.isPaused, isFalse);
+    expect(oldCountdown.isPaused, isFalse);
+    expect(oldElapsed.isPaused, isFalse);
+    counter.detach();
+    countdown.detach();
+    elapsed.detach();
+    counter.resume();
+    countdown.resume();
+    elapsed.resume();
+    expect(newCounter.isPaused, isTrue);
+    expect(newCountdown.isPaused, isTrue);
+    expect(newElapsed.isPaused, isTrue);
+    expect(counter.isDone, isTrue);
+    expect(countdown.isDone, isTrue);
+  });
+
+  test('relaunch 仅用于已结束任务，按原参数转发且解绑后清除', () {
+    final counterPlugin = Counter();
+    final countdownPlugin = Countdown();
+    final elapsedPlugin = Elapsed();
+    final context = CountmanContext(requestFrame: () {});
+    counterPlugin.onAttach(context);
+    countdownPlugin.onAttach(context);
+    elapsedPlugin.onAttach(context);
+    final counter = CounterValueController();
+    final countdown = CountdownController();
+    final elapsed = ElapsedController();
+    final ch = counterPlugin.add(CounterOptions(to: 100));
+    final dh = countdownPlugin.add(CountdownOptions(duration: _duration));
+    final eh = elapsedPlugin.add(ElapsedOptions());
+    var counterCalls = 0;
+    var countdownCalls = 0;
+    var elapsedCalls = 0;
+    counter.attach(ch, relaunch: ({required to, duration, curve}) {
+      counterCalls++;
+      expect(to, 500);
+      expect(duration, _step);
+      expect(curve, Curves.linear);
+    });
+    countdown.attach(dh, relaunch: ({duration}) {
+      countdownCalls++;
+      expect(duration, _step);
+    });
+    elapsed.attach(eh, relaunch: () => elapsedCalls++);
+    counter.update(to: 500, duration: _step, curve: Curves.linear);
+    countdown.reset(duration: _step);
+    elapsed.reset();
+    expect([counterCalls, countdownCalls, elapsedCalls], [0, 0, 0]);
+    expect(eh.isDone, isFalse);
+    ch.cancel();
+    dh.cancel();
+    eh.cancel();
+    expect(eh.isDone, isTrue);
+    counter.update(to: 500, duration: _step, curve: Curves.linear);
+    countdown.reset(duration: _step);
+    elapsed.reset();
+    expect([counterCalls, countdownCalls, elapsedCalls], [1, 1, 1]);
+    counter.detach(ch);
+    countdown.detach(dh);
+    elapsed.detach(eh);
+    counter.update(to: 500);
+    countdown.reset();
+    elapsed.reset();
+    expect([counterCalls, countdownCalls, elapsedCalls], [1, 1, 1]);
+  });
 
   for (final kind in ['counter', 'countdown', 'elapsed', 'card']) {
     testWidgets('$kind 换 key 后新绑定仍可控制', (tester) async {

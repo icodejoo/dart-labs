@@ -55,6 +55,9 @@ class ElapsedHandle {
 
   Duration get elapsed => _plugin.task(_id)?.elapsed ?? Duration.zero;
   bool get isPaused => _plugin.task(_id)?.isPaused ?? false;
+
+  /// 返回任务是否已完成或不存在；例如取消后 `handle.isDone` 为 true。
+  bool get isDone => _plugin.task(_id)?.done ?? true;
 }
 
 /// Elapsed-time engine — drives open-ended "stopwatch" timers on the shared
@@ -126,7 +129,7 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
 
 // ── ElapsedController ──────────────────────────────────────────────
 
-/// Imperative controller for elapsed-time display widgets.
+/// 正计时展示组件的命令式控制器，取消后 reset 会请求组件重启。
 ///
 /// Create once, pass to a widget via its `controller` parameter, then call
 /// [pause], [resume], [reset], or [cancel] from any parent or business logic.
@@ -135,13 +138,42 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
 class ElapsedController {
   ElapsedHandle? _handle;
 
-  // ignore: use_setters_to_change_properties
-  void attach(ElapsedHandle h) => _handle = h;
-  void detach() => _handle = null;
+  /// 保存展示组件提供的重启动作。
+  VoidCallback? _relaunch;
+
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
+  /// 例如 `controller.attach(handle, relaunch: restart)`。
+  @internal
+  void attach(ElapsedHandle handle, {VoidCallback? relaunch}) {
+    _handle = handle;
+    _relaunch = relaunch;
+  }
+
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
+  /// 例如 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
+  @internal
+  void detach([ElapsedHandle? handle]) {
+    if (handle != null && !identical(_handle, handle)) return;
+    _handle = null;
+    _relaunch = null;
+  }
 
   void pause() => _handle?.pause();
   void resume() => _handle?.resume();
-  void reset() => _handle?.reset();
+
+  /// 清零并恢复计时；已取消时请求展示组件从零新建任务，未绑定时无操作。
+  /// 无参数、无返回值；例如 `controller.reset()`。
+  void reset() {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      handle.reset();
+    } else {
+      _relaunch?.call();
+    }
+  }
+
   void cancel() => _handle?.cancel();
 
   Duration get elapsed => _handle?.elapsed ?? Duration.zero;
