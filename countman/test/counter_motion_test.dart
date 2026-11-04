@@ -333,14 +333,27 @@ void main() {
                 expect(wdd.angle, closeTo(probe.rotateZ, 1e-6), reason: 'widget 旋转 $reason');
                 expect(pd.scale, closeTo(probe.scale, 1e-6), reason: 'painter 缩放 $reason');
                 expect(wdd.scale, closeTo(probe.scale, 1e-6), reason: 'widget 缩放 $reason');
-                // 已知差异：slide 叠加 scale 时 painter 先缩放画布再位移（位移被一并缩放），
-                // 组件树先位移再缩放。未叠加 scale 时两边位移必须与解算值一致。
+                // 位移与缩放的叠加顺序两条路径一致：位移在缩放之外，不随缩放变化。
+                // 总平移 = 位移 + 缩放中心 × (1 - scale)（缩放绕数位自身中心，
+                // painter 的中心是单元格中心，组件树的中心是文字盒中心），
+                // 因此扣除缩放中心项后，两边的位移都等于解算值——位移不随缩放变化。
+                // 未开 scale 时缩放项为 0，总平移就是解算位移。
                 // 旋转绕单元中心，平移分量随基线位置变化，不作比较。
-                if (!t.scale && t.motion != CounterMotion.rotate) {
-                  expect(pd.tx, closeTo(probe.dx, 1e-6), reason: 'painter dx $reason');
-                  expect(pd.ty, closeTo(probe.dy, 1e-6), reason: 'painter dy $reason');
-                  expect(wdd.tx, closeTo(probe.dx, 1e-6), reason: 'widget dx $reason');
-                  expect(wdd.ty, closeTo(probe.dy, 1e-6), reason: 'widget dy $reason');
+                if (t.motion != CounterMotion.rotate) {
+                  final k = t.scale ? 1 - probe.scale : 0.0;
+                  // 组件树的缩放中心 = 文字盒中心；增量矩阵在全局坐标里，取其全局位置
+                  // （getCenter 已含位移，缩放不改变中心点，故减去位移得到基线中心）。
+                  final center = tester.getCenter(find.text('$digit'));
+                  expect(pd.tx - k * _cellW / 2, closeTo(probe.dx, 1e-6),
+                      reason: 'painter dx $reason');
+                  expect(pd.ty - k * _cellH / 2, closeTo(probe.dy, 1e-6),
+                      reason: 'painter dy $reason');
+                  expect(wdd.tx,
+                      closeTo(probe.dx + k * (center.dx - probe.dx), 1e-6),
+                      reason: 'widget dx $reason');
+                  expect(wdd.ty,
+                      closeTo(probe.dy + k * (center.dy - probe.dy), 1e-6),
+                      reason: 'widget dy $reason');
                 }
               }
             }

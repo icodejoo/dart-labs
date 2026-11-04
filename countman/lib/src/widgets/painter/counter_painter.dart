@@ -562,7 +562,12 @@ class CounterPainter extends CustomPainter {
 
     final double cx = x + w / 2;
     final double cy = h / 2;
-    if (transition.scale) {
+    // 位移（slide 的 dx/dy）必须在缩放之外应用，与组件树路径（外层 translate、内层
+    // scale）一致：scale 开启时先在画布上平移，绘制 Offset 不再带位移，位移因此不随
+    // 缩放变化；未开 scale 时仍把位移直接写进 draw 的 Offset（热路径少一次变换）。
+    final bool shiftOnCanvas = transition.scale;
+    if (shiftOnCanvas) {
+      c.translate(m.dx, m.dy);
       c.translate(cx, cy);
       c.scale(m.scale, m.scale);
       c.translate(-cx, -cy);
@@ -585,7 +590,11 @@ class CounterPainter extends CustomPainter {
         return;
     }
 
-    c.drawParagraph(paragraphFor(digit, m.alpha), Offset(x + m.dx, topY(h) + m.dy));
+    c.drawParagraph(
+        paragraphFor(digit, m.alpha),
+        shiftOnCanvas
+            ? Offset(x, topY(h))
+            : Offset(x + m.dx, topY(h) + m.dy));
     if (needsRestore) c.restore();
   }
 
