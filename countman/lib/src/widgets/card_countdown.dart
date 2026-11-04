@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
@@ -411,20 +413,27 @@ class _CountdownCardState extends State<CardCountdown>
     r.inMinutes % 60, r.inSeconds % 60,
   ];
 
-  /// 天至少一位、其余至少两位，较大单位按需扩位。
+  /// 天至少一位，其余单位至少两位。
+  int _minimumUnitWidth(int index) => widget.showDays && index == 0 ? 1 : 2;
+
+  /// 单位宽度取实际位数与最小宽度的较大值，每个单位只转换一次字符串。
   List<int> _unitWidths(Duration r, bool showHours) {
     final units = _unitsFor(r, showHours);
-    return [for (var i = 0; i < units.length; i++)
-      units[i].toString().length < (widget.showDays && i == 0 ? 1 : 2)
-          ? (widget.showDays && i == 0 ? 1 : 2) : units[i].toString().length];
+    return [
+      for (var i = 0; i < units.length; i++)
+        math.max(units[i].toString().length, _minimumUnitWidth(i)),
+    ];
   }
 
-  /// 每个单元拆成独立十进制数字，禁止单格出现 10 以上的数字。
+  /// 按最小宽度补零后拆位；padLeft 保留长文本，省去重复单位列表和额外宽度列表。
   List<int> _digitsFor(Duration r, bool showHours) {
     final units = _unitsFor(r, showHours);
-    final widths = _unitWidths(r, showHours);
-    return [for (var i = 0; i < units.length; i++)
-      for (final code in units[i].toString().padLeft(widths[i], '0').codeUnits) code - 48];
+    return [
+      for (var i = 0; i < units.length; i++)
+        for (final code
+            in units[i].toString().padLeft(_minimumUnitWidth(i), '0').codeUnits)
+          code - 48,
+    ];
   }
 
   /// 同秒 tick 不拆位或重建语义；打断前先提交旧目标再计算 changedMask。
