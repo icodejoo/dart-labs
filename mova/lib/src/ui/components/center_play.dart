@@ -93,8 +93,8 @@ class MovaPlayPauseComponent extends MovaComponent {
                 onTap: () => api.playOrPause(),
                 child: Icon(
                   playing
-                      ? Icons.pause_circle_filled_rounded
-                      : Icons.play_circle_filled_rounded,
+                      ? MovaPlayerStyle.iconsOf(context).pause
+                      : MovaPlayerStyle.iconsOf(context).play,
                   size: theme.centerIconSize,
                   color: Color(theme.iconColor),
                 ),

@@ -350,9 +350,15 @@ class _SeekBarState extends State<_SeekBar> {
     return Material(
       type: MaterialType.transparency,
       child: SliderTheme(
-        data: SliderTheme.of(
-          context,
-        ).copyWith(trackHeight: theme.progressHeight),
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: theme.progressHeight,
+          activeTrackColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+          thumbColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+        ),
         child: Slider(
           value: value,
           min: 0,
@@ -546,8 +552,8 @@ class MovaBackToLiveComponent extends MovaComponent {
     final theme = MovaPlayerStyle.themeOf(context);
     final strings = MovaPlayerStyle.stringsOf(context);
     return MovaIconButton(
-      label: MovaPlayerStyle.stringsOf(context).backToLive,
-      icon: Icons.sync_rounded,
+      label: strings.labelWithValue(strings.backToLive, strings.backToLive),
+      icon: MovaPlayerStyle.iconsOf(context).backToLive,
       caption: strings.backToLive,
       theme: theme,
       onPressed: api.backToLiveEdge,

@@ -276,6 +276,7 @@ Future<void> showMovaOptionSheet(
   MovaTheme theme,
   List<MovaSheetItem> items,
 ) {
+  final checkIcon = MovaPlayerStyle.iconsOf(context).check;
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Color(theme.sheetBackgroundColor),
@@ -291,7 +292,7 @@ Future<void> showMovaOptionSheet(
                   style: TextStyle(color: Color(theme.textColor)),
                 ),
                 trailing: item.checked
-                    ? Icon(Icons.check_rounded, color: Color(theme.iconColor))
+                    ? Icon(checkIcon, color: Color(theme.iconColor))
                     : null,
                 onTap: () {
                   Navigator.of(ctx).pop();

@@ -232,17 +232,18 @@ class MovaOpts {
     );
   }
 
-  /// 比较本配置与 [other] 中引擎及当前内置 UI 实际读取的构造节，返回是否等价。
-  /// ads、playlist、mini 由宿主控制器消费，不参与引擎重建判断；
-  /// 样式节尚未迁出，仍保守比较。本方法不会更新引擎的 options 快照。
-  /// 示例：`if (!old.engineSectionsEqual(next)) recreateEngine();`。
+  /// 比较本配置与 other 中引擎实际读取的构造节，返回是否等价。
+  /// ads、playlist、mini 由宿主消费；五个样式节由视图查找，不参与引擎重建。
+  /// 本方法不会更新引擎 options 快照。示例：`old.engineSectionsEqual(next)`。
   bool engineSectionsEqual(MovaOpts other) =>
-      preview == other.preview && live == other.live &&
-      gesture == other.gesture && abr == other.abr &&
-      controls == other.controls && danmaku == other.danmaku &&
-      stt == other.stt && strings == other.strings && theme == other.theme &&
-      cutover == other.cutover && report == other.report &&
-      recovery == other.recovery && keepAlive == other.keepAlive;
+      preview == other.preview &&
+      live == other.live &&
+      abr == other.abr &&
+      stt == other.stt &&
+      cutover == other.cutover &&
+      report == other.report &&
+      recovery == other.recovery &&
+      keepAlive == other.keepAlive;
 
   @override
   bool operator ==(Object other) =>
@@ -267,6 +268,17 @@ class MovaOpts {
           keepAlive == other.keepAlive;
 
   @override
-  int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, cutover, mini, report, recovery, keepAlive));
+  int get hashCode => Object.hash(
+    preview,
+    live,
+    gesture,
+    abr,
+    controls,
+    danmaku,
+    stt,
+    playlist,
+    ads,
+    strings,
+    Object.hash(theme, cutover, mini, report, recovery, keepAlive),
+  );
 }

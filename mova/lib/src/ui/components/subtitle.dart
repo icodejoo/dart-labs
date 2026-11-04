@@ -270,7 +270,9 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaIconButton(
       label: MovaPlayerStyle.stringsOf(context).subtitles,
-      icon: _on ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+      icon: _on
+          ? MovaPlayerStyle.iconsOf(context).subtitles
+          : MovaPlayerStyle.iconsOf(context).subtitlesOff,
       theme: theme,
       onPressed: () => _showMenu(theme),
     );

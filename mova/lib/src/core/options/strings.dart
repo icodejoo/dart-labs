@@ -5,12 +5,12 @@ import '../model/fit.dart';
 /// All strings default to Simplified Chinese, matching the product's
 /// current single-locale requirement. Apps that need another locale can
 /// construct a whole replacement instance (`const MovaStrs(live: 'ON AIR')`)
-/// and pass it into [MovaOpts].
+/// and pass it into `MovaPlayerStyle(strings:)`.
 ///
 /// 播放器覆盖层的外置、可替换文案。
 ///
 /// 所有字段默认简体中文，对应产品当前的单语言需求。需要其他语言的应用可以
-/// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 [MovaOpts]。
+/// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 `MovaPlayerStyle(strings:)`。
 class MovaStrs {
   /// 播放的界面与无障碍文案。
   final String play;

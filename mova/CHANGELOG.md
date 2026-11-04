@@ -1,5 +1,9 @@
 ## Unreleased
 
+- MovaView 仅在引擎实际消费的配置节变化时重建；主题、文案、手势、控制条及弹幕节变化通过视图更新，保留引擎、打开次数和播放状态。最新 options 作为兼容回落值下发，内联文案闭包与弹幕列表不再触发重建。
+- 新增 MovaIcons 与 MovaPlayerStyle.icons/iconsOf，可按视图或主题扩展替换 20 个控制界面图标（不含 feed 社交按钮）；无障碍标签继续由文案明确提供。MovaTheme.progressColor 可配置进度高亮与滑块颜色，默认 null 沿用宿主 SliderTheme，默认图标保持不变。
+- 清晰度自动/未知兼容标签提为 kMovaAutoQualityLabel/kMovaUnknownQualityLabel，保持旧值并公告下个版本改为中性值。
+
 - 新增 MovaPlayerStyle（ThemeExtension）与 MovaDanmakuStyle，MovaPlayer/MovaView 支持 style。主题、文案、手势、控制条行为与弹幕样式按节依次查找：视图参数 > 主题扩展 > 旧 options > 默认。切换主题更新缓存皮肤及控制条配置，不重建引擎；弹幕开关与条目仍来自 options。
 - 按钮无障碍名称、提示及清晰度“自动/未知”展示改读 MovaStrs，新增可替换的动作文案与 labelWithValue 格式函数；内置按钮显式传标签，默认文案不变。MovaQuality 的旧中文标签本版本保留，下个版本计划改为中性值。
 - Deprecated（公告，下个版本加注解）：MovaOpts.theme/strings/gesture/controls 及 danmaku 的样式字段计划弃用，改用 MovaPlayerStyle；旧字段本版本继续作为回落值，不添加成员级 @Deprecated。
@@ -28,7 +32,7 @@
 
 - 新增 movaCapabilityOf<T>(api) 能力查询入口，优先保留代理自身能力，否则穿透多层 cutover 查询当前生效引擎，不修改 MovaApi。
 
-- MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节仍保守比较，debug 下连续 10 帧实际配置不等时每视图提示一次。
+- MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节从 C06 起通过视图更新；debug 下连续 10 帧实际配置不等时每视图提示一次。
 
 - MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
 

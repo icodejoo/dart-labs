@@ -75,8 +75,8 @@ class MovaVolumeHudComponent extends MovaComponent {
         builder: (context, volume) => _HudBadge(
           api: api,
           icon: volume <= 0
-              ? Icons.volume_off_rounded
-              : Icons.volume_up_rounded,
+              ? MovaPlayerStyle.iconsOf(context).volumeOff
+              : MovaPlayerStyle.iconsOf(context).volumeUp,
           text: '${volume.round()}%',
         ),
       ),
@@ -112,7 +112,7 @@ class MovaBrightnessHudComponent extends MovaComponent {
         selector: (s) => s.brightness,
         builder: (context, brightness) => _HudBadge(
           api: api,
-          icon: Icons.brightness_6_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).brightness,
           text: '${(brightness * 100).round()}%',
         ),
       ),

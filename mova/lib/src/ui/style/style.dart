@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/options/options.dart';
 import '../scope/scope.dart';
+import 'icons.dart';
 
 /// 播放器视图的样式；各节整体替换、独立回落。
 /// 优先级：视图参数 > ThemeExtension > 旧 options > 默认值。
+/// 图标节没有旧配置，对应回落直接使用默认集合。
 /// 切换主题只更新视图，不重建引擎。
 /// 示例：`MovaPlayerStyle(strings: MovaStrs(live: 'ON AIR'))`。
 @immutable
@@ -16,6 +18,7 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
     this.gesture,
     this.controls,
     this.danmaku,
+    this.icons,
   });
 
   /// 颜色与字号；null 时回落。
@@ -32,6 +35,9 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
 
   /// 弹幕展示样式；null 时回落。
   final MovaDanmakuStyle? danmaku;
+
+  /// 控制界面图标；null 时回落到主题扩展与默认集合。
+  final MovaIcons? icons;
 
   /// 返回当前视图生效的颜色与字号；在构建或事件回调中调用。
   static MovaTheme themeOf(BuildContext context) =>
@@ -55,6 +61,10 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
       _pick(context, (s) => s.danmaku) ??
       MovaDanmakuStyle.fromConfig(movaLegacyOptionsOf(context).danmaku);
 
+  /// 返回当前视图的图标集合；在构建或事件回调中调用。
+  static MovaIcons iconsOf(BuildContext context) =>
+      _pick(context, (s) => s.icons) ?? const MovaIcons();
+
   /// 返回替换指定节的拷贝；未指定的节保留。
   @override
   MovaPlayerStyle copyWith({
@@ -63,12 +73,14 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
     MovaGestureConfig? gesture,
     MovaCtrlsConfig? controls,
     MovaDanmakuStyle? danmaku,
+    MovaIcons? icons,
   }) => MovaPlayerStyle(
     theme: theme ?? this.theme,
     strings: strings ?? this.strings,
     gesture: gesture ?? this.gesture,
     controls: controls ?? this.controls,
     danmaku: danmaku ?? this.danmaku,
+    icons: icons ?? this.icons,
   );
 
   /// 离散切换；t 小于 0.5 或 other 为 null 时返回自身。
@@ -83,9 +95,11 @@ class MovaPlayerStyle extends ThemeExtension<MovaPlayerStyle> {
           strings == other.strings &&
           gesture == other.gesture &&
           controls == other.controls &&
-          danmaku == other.danmaku;
+          danmaku == other.danmaku &&
+          icons == other.icons;
   @override
-  int get hashCode => Object.hash(theme, strings, gesture, controls, danmaku);
+  int get hashCode =>
+      Object.hash(theme, strings, gesture, controls, danmaku, icons);
 }
 
 /// 弹幕展示样式；开关与条目仍来自旧配置。

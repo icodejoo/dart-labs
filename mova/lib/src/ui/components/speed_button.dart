@@ -53,7 +53,7 @@ class MovaSpeedButtonComponent extends MovaComponent {
             MovaPlayerStyle.stringsOf(context).speed,
             '${_formatRate(rate)}$suffix',
           ),
-          icon: Icons.speed_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).speed,
           theme: theme,
           caption: '${_formatRate(rate)}$suffix',
           onPressed: () => api.setRate(_nextRate(rate)),

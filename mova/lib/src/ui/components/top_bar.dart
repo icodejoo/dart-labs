@@ -163,7 +163,7 @@ class MovaPipButtonComponent extends MovaComponent {
         if (!supported) return const SizedBox.shrink();
         return MovaIconButton(
           label: MovaPlayerStyle.stringsOf(context).pip,
-          icon: Icons.picture_in_picture_alt_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).pip,
           theme: theme,
           onPressed: () => api.enterPip(),
         );
@@ -222,7 +222,7 @@ class MovaQualityButtonComponent extends MovaComponent {
                         MovaPlayerStyle.stringsOf(context),
                       ),
                     ),
-              icon: Icons.high_quality_rounded,
+              icon: MovaPlayerStyle.iconsOf(context).quality,
               theme: theme,
               caption: current == null
                   ? null
@@ -297,7 +297,7 @@ class MovaFitButtonComponent extends MovaComponent {
             MovaPlayerStyle.stringsOf(context).aspectRatio,
             MovaPlayerStyle.stringsOf(context).fitLabel(fit),
           ),
-          icon: Icons.aspect_ratio_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).aspectRatio,
           theme: theme,
           caption: MovaPlayerStyle.stringsOf(context).fitLabel(fit),
           onPressed: () => api.setFit(fit.next),
@@ -351,7 +351,7 @@ class MovaOrientationButtonComponent extends MovaComponent {
       builder: (context, orientation) {
         return MovaIconButton(
           label: MovaPlayerStyle.stringsOf(context).rotate,
-          icon: Icons.screen_rotation_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).rotate,
           theme: theme,
           onPressed: () => api.setOrientation(orientation.toggled),
         );
@@ -392,8 +392,8 @@ class MovaFullscreenButtonComponent extends MovaComponent {
               ? MovaPlayerStyle.stringsOf(context).exitFullscreen
               : MovaPlayerStyle.stringsOf(context).enterFullscreen,
           icon: fullscreen
-              ? Icons.fullscreen_exit_rounded
-              : Icons.fullscreen_rounded,
+              ? MovaPlayerStyle.iconsOf(context).exitFullscreen
+              : MovaPlayerStyle.iconsOf(context).enterFullscreen,
           theme: theme,
           onPressed: () => api.setFullscreen(!fullscreen),
         );
@@ -405,6 +405,6 @@ class MovaFullscreenButtonComponent extends MovaComponent {
 /// 包内：自动与未知档使用视图文案，自定义标签保留。
 String _qualityLabel(MovaQuality quality, MovaStrs strings) => quality.isAuto
     ? strings.auto
-    : quality.label == '未知'
+    : quality.label == kMovaUnknownQualityLabel
     ? strings.unknownQuality
     : quality.label;

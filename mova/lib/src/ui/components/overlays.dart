@@ -120,7 +120,7 @@ class MovaErrorComponent extends MovaComponent {
               IconButton(
                 tooltip: strings.retry,
                 icon: Icon(
-                  Icons.refresh_rounded,
+                  MovaPlayerStyle.iconsOf(context).retry,
                   color: Color(theme.iconColor),
                 ),
                 onPressed: () => api.reload(),

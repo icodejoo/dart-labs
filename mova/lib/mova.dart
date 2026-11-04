@@ -136,3 +136,5 @@ export 'src/core/capability.dart';
 export 'src/ui/chrome/chrome.dart' show MovaChrome;
 
 export 'src/ui/style/style.dart' show MovaPlayerStyle, MovaDanmakuStyle;
+
+export 'src/ui/style/icons.dart' show MovaIcons;

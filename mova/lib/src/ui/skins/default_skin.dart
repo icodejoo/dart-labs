@@ -395,7 +395,9 @@ class MovaLockToggleComponent extends MovaComponent {
                 label: locked
                     ? MovaPlayerStyle.stringsOf(context).unlock
                     : MovaPlayerStyle.stringsOf(context).lock,
-                icon: locked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                icon: locked
+                    ? MovaPlayerStyle.iconsOf(context).unlock
+                    : MovaPlayerStyle.iconsOf(context).lock,
                 theme: MovaPlayerStyle.themeOf(context),
                 onPressed: () => api.setLocked(!locked),
               ),

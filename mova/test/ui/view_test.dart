@@ -145,7 +145,7 @@ void main() {
       final engines = _Engines();
       await t.pumpWidget(_view(engines, _src('https://a/1.mp4')));
       await t.pump();
-      await t.pumpWidget(_view(engines, _src('https://a/1.mp4'), options: const MovaOpts(theme: MovaTheme(accentColor: 0xFF00FF00))));
+      await t.pumpWidget(_view(engines, _src('https://a/1.mp4'), options: const MovaOpts(preview: MovaPreviewConfig(frameWidth: 99))));
       await t.pump();
       expect(engines.made, hasLength(2));
       expect(engines.made.first.disposed, isTrue);

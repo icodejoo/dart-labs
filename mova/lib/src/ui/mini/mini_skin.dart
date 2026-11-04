@@ -102,7 +102,7 @@ class MovaMiniCloseComponent extends MovaComponent {
               ? null
               : MovaPlayerStyle.stringsOf(context).closeMini,
           icon: Icon(
-            Icons.close,
+            MovaPlayerStyle.iconsOf(context).closeMini,
             color: Colors.white,
             size: 18,
             semanticLabel: Overlay.maybeOf(context) == null

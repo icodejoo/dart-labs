@@ -871,7 +871,7 @@ A26、A28、A29、A30 没有改写其他既有断言。A28 的 F4 widget 用例�
 | C03 | `fix(mova): MovaView 只比较引擎实际读取的配置节` | 行为 | `ui/view.dart`、`core/options/options.dart`（`engineSectionsEqual`） | 100–200 | — | +5：父组件重建、内联 `MovaOpts` 不再重建引擎；debug 下连续 N 帧 options 不等时提示 | [已核] view.dart:188 |
 | C04 | `feat(mova): MovaChrome 承接每视图 UI 交互态，旧引擎接口桥接一个版本` | 新增/API | 新 `ui/chrome/`、组件、`core/api.dart`（dartdoc + CHANGELOG 公告，不加成员级注解）、`engine.dart`、`cutover_engine.dart` | 600–1000 | B01、B14、B15、B16 | 已落地 C04a–C04d；实测 +32 → 2301；拖动与按钮续期（P1-13）；多视图互不串扰 | 旧接口一个版本内保留；无视图行为不变；详见文末 C04 落地记录 |
 | C05 | `feat(mova): 应用内全屏路由与返回键处理（默认关）` | 新增 | 新 `ui/fullscreen/`、`ui/player.dart` | 300–500 | C04、B04 | +8 | Windows 转场快照路径要经过 `MovaSnapshotGuard`（Flutter 3.47.0/3.47.1 #190774） |
-| C06 | `feat(mova): MovaPlayerStyle，主题文案手势弹幕样式挪出 MovaOpts` | API | 新 `ui/style/`、`options.dart`（弃用公告，是否加成员级注解见待拍板 18）、组件、`core/model/quality.dart`（去写死中文） | 600–900 | C04 | +15 | 查找顺序：widget 参数 > ThemeExtension > `api.options.*`（deprecated）> 默认；切主题不重建引擎 |
+| C06 | `feat(mova): MovaPlayerStyle，主题文案手势弹幕样式挪出 MovaOpts` | API | 新 `ui/style/`、`options.dart`（弃用公告，是否加成员级注解见待拍板 18）、组件、`core/model/quality.dart`（去写死中文） | 600–900 | C04 | +29（实测） | 2026-11-04 已落地（两提交，C06e 未裁剪）；查找顺序：widget 参数 > ThemeExtension > `api.options.*`（deprecated）> 默认；切主题不重建引擎 |
 | C07 | `feat(mova): MovaSource 支持请求头、UA 与起播位置，旁路请求统一带头` | 新增 | `core/model/source.dart`、`engine.dart`（start 走寄存）、`preview/fetcher.dart`、抽帧器、`feed_prefetcher.dart` | 250–400 | B12 | +10 | `start` 放在 `MovaSource` 上，不改 `MovaApi.open` 签名；**`MovaHttpFetch.get(Uri)` 加 headers 是对宿主实现的破坏**（待拍板 17）：推荐新增可选能力接口 `MovaHeaderedHttpFetch`、原抽象签名不动，旧 fetcher 退化为不带头并 debug 提示 |
 | C08 | `refactor(mova): barrel 分入口，内部实现标记即将隐藏` | API | `lib/mova.dart` 与新入口 `skin.dart/ads.dart/feed.dart/mini.dart/extend.dart` | 200–300 | C06 | +2（导出面快照测试） | 旧入口继续导出同一符号；内部 helper 用 export 级公告（不触发包内 `deprecated_member_use_from_same_package`）；成员级 `@Deprecated` 是否加见待拍板 18 |
 | C09 | `refactor(mova): STT 撤出主入口` | API | `lib/mova.dart`、新 `lib/stt.dart` | 50–100 | C08 | +1 | 主入口保留一个版本的转导出（export 级公告，不触发包内警告）；`MovaApi.stt` 保留；STT 入口 dartdoc 注明模型下载为实验实现（P1-22） |
@@ -1385,11 +1385,30 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 
 按用户要求由主会话亲自执行、不转派，合并为两次功能提交；不改 CLAUDE.md，不启动应用、不做真机验证。
 
-### 提交 1：C06a + C06b + C06c
+### 提交 1：C06a + C06b + C06c（4f3f7410）
 
 - 新增 MovaPlayerStyle（五节 ThemeExtension、copyWith、离散 lerp、值相等与五个 xxxOf 查找口）、MovaDanmakuStyle（五字段、fromConfig/applyTo）；MovaPlayer.style / MovaView.style；MovaStrs 新增 14 个字符串字段与 labelWithValue，新增 movaDefaultLabelWithValue。新增公开入口均附中文 dartdoc。
 - 当前基线 UI 实际 59 处样式读取全部迁移（旧计划为 56 处；加 core 三处共 62 处，而非旧表 59）；保留 engine.dart 三处无视图兼容读取。内置按钮显式传入标签；旧第三方按钮仍保留图标反查回落。弹幕仅迁移样式，enabled/items 及条目引用保留。控制条在依赖更新时重读样式；只有配置真正变化才更新挂起计时，不让无关重建续期。
-- 新增测试 19（类型/查找链 8、视图 5、源码守卫 1、文案 5），保留类型和测试、撤回查找与消费实现后实测 19 红，恢复 19 绿。比子计划的前三 Task 18 项多 1：自动隐藏和快捷键拆为独立用例。真实引擎切主题 10 次，缓冲颜色更新，open/MovaSourceChange 只有一次，renderEpoch 不变。
+- 新增测试 19（类型/查找链 8、视图 5、源码守卫 1、文案 5），保留类型和测试，对查找、消费、默认值及值对象契约做行为回退/变异后实测 19 红，恢复 19 绿。比子计划的前三 Task 18 项多 1：自动隐藏和快捷键拆为独立用例。真实引擎切主题 10 次，缓冲颜色更新，open/MovaSourceChange 只有一次，renderEpoch 不变。
 - flutter analyze lib test：0 issues。全量只运行一次，--concurrency=3：2331 通过、7 失败（b09_test.dart 的 .dart_tool/b09 父目录缺失，全部为 setUp 失败）；建立工作区测试目录后只重跑该文件，7/7 通过，完整清单合计 2338 项全部覆盖。没有 OOM、没有加载断连、未降并发或分片重跑全量。
 - 实测总数与用户标注基线 2301 存在 18 项差额：2338 - 新增 19 = 2319；未额外运行基线，不能把 2319 记为另一次基线实测。以本次实际日志计数为准。
 - 既有断言改写：0。core 清晰度兼容中文常量按会话批次划分留到提交 2；界面已改读文案。Deprecated 只做 dartdoc 与 CHANGELOG 公告，无成员级注解。
+
+### 提交 2：C06d + C06e（本记录同提交）
+
+- MovaOpts.engineSectionsEqual 仅比较 preview/live/abr/stt/cutover/report/recovery/keepAlive，排除五个样式节及 C03 已排除的三类宿主配置。MovaView 以最新 options 下发兼容回落，保留引擎 options 构造快照；闭包、弹幕列表更新只改视图。
+- 清晰度中文提为公开常量 kMovaAutoQualityLabel / kMovaUnknownQualityLabel；值仍是“自动/未知”，UI 已走 MovaStrs，下个版本改中性值只做公告，本次不破坏宿主自绘标签。
+- 新增公开 API：MovaIcons（20 个 IconData 字段、const 构造与值相等），MovaPlayerStyle.icons / iconsOf 及对应构造、copyWith 参数，MovaTheme.progressColor（int?，null 保留宿主 SliderTheme）。颜色覆盖 activeTrackColor/thumbColor。图标覆盖 chrome，feed 社交及抖音点赞动画按原定范围不在集合中，并非裁剪。
+- 20 个图标字段：pip、quality、aspectRatio、rotate、enterFullscreen、exitFullscreen、lock、unlock、subtitles、subtitlesOff、speed、backToLive、play、pause、volumeOff、volumeUp、brightness、retry、check、closeMini。所有新增公开入口均有中文 dartdoc；core 未引入 Flutter，MovaApi 零新增成员。
+- 新增测试 10（五个样式节各 1 + 内联闭包/弹幕列表 1、图标/进度颜色 3、清晰度兼容常量 1），保留类型和用例做行为回退/默认值变异后 10 红，恢复 10 绿；没有用删除类型造成编译失败充数。相比子计划 C06d/e 的 5 项多 5：逐节验证增加 4，常量兼容验证增加 1。
+- 唯一一次全量 flutter test --concurrency=3：2348/2348 通过。全量后复核默认兼容性，给既有新增默认图标用例补了“回到直播：回到直播”原有完整提示断言，先实测 1 红再修复为显式 labelWithValue；只重跑受影响文件（icons/strings/bottom_bar 合计 11 项通过，live_bar 7 项通过）。其中一次命令误写不存在的 live_controls_test.dart，11 个实际用例均通过，纠正路径后只补跑 live_bar_test.dart；这不是随机加载断连。未再次跑全量。
+- flutter analyze lib test：最终 0 issues；全量与 analyze 未并行。每次测试前清理 flutter_tester，所有测试使用 --concurrency=3；无 OOM、无随机加载断连、未降并发、未分片重复全量。
+
+### 既有用例改写与最终差异
+
+- 既有用例改写 1：view_test.dart 的 changed options 用例，触发配置从 theme.accentColor 改为 preview.frameWidth=99；原有“两个引擎、旧引擎已销毁、新引擎重开原 URI”三条断言逐字保留。旧触发项把主题变化当作引擎配置变化，C06 后这一前提不成立。没有削弱重建行为验证。
+- 提交 1 的 MovaStrs 新增字段完整列表：play、pause、pip、aspectRatio、rotate、enterFullscreen、exitFullscreen、lock、unlock、subtitles、speed、action、closeMini、unknownQuality、labelWithValue；默认格式函数为 movaDefaultLabelWithValue。MovaPlayerStyle 最终共六节（前五节复用旧类型），MovaDanmakuStyle 仅五个展示字段。
+- 累计新增 29 项，每条均有红绿证据；子计划原估 23 项，本次细拆覆盖多 6 项。完整清单从第一批 2338 到最终 2348；与会话标注 2301 基线相差的 18 项仍按第一批说明保留，不倒填基线实测。
+- 偏差：真实读取为 UI 59 + core 3；清晰度 core 常量按用户分批要求放提交 2；回到直播提示兼容修正在提交 2 完成。弃用仅 dartdoc + CHANGELOG，无成员级 @Deprecated。
+- 裁剪项：无。C06a–C06e 全部落地；CP3 真机/应用验证按用户约束未执行。MovaView 引擎 options 保留构造快照、弹幕 enabled/items 仍在旧配置、无桥接 API 的 chrome 行为仍走旧路径，均为兼容设计。
+- 未修改 CLAUDE.md；不 push、不切分支、不 stash/reset；未暂存或提交 generated_plugin、doc/notes、matrix-run 计划与兄弟工程。

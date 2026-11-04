@@ -31,7 +31,7 @@ typedef MovaViewEngineFactory = MovaApi Function(MovaOpts options);
 /// view disposes it when it unmounts.
 ///
 /// 声明式播放器：给它一个 [source]，它就接管整个引擎生命周期——第一次拿到非空源
-/// 时懒创建、只有源真正变了（[MovaSource.sameAs]）才重开、[options] 变化时重建、
+/// 时懒创建、只有源真正变了（[MovaSource.sameAs]）才重开、[options] 的引擎节变化时重建、
 /// 源变为 null 时暂停、随组件销毁一并释放。命令式 API（`createMovaEngine` +
 /// `MovaPlayer`）不变，需要把引擎传来传去时仍然用它。
 ///
@@ -115,10 +115,10 @@ class MovaView extends StatefulWidget {
   /// 本视图的样式，原样传给 MovaPlayer；优先于主题扩展。
   final MovaPlayerStyle? style;
 
-  /// Construction-time engine options; a different value recreates the engine
-  /// (and reopens the current source), so change it rarely.
+  /// Construction-time engine options; changes to engine sections recreate the engine
+  /// and reopen the source. Style sections update the current view.
   ///
-  /// 引擎构造期配置；传入不同的值会重建引擎（并重开当前源），所以别频繁改。
+  /// 引擎构造期配置；引擎节变化会重建并重开当前源，五个样式节变化只更新视图。
   final MovaOpts options;
 
   /// Builds the engine; defaults to `createMovaEngine(options: o, preciseFirstFrame: poster != null)`,
@@ -324,14 +324,17 @@ class _MovaViewState extends State<MovaView> {
         child: SizedBox.expand(child: widget.poster),
       );
     }
-    final player = MovaPlayer(
-      api: engine,
-      style: widget.style,
-      skin: widget.skin,
-      fit: widget.fit,
-      poster: widget.poster,
-      posterFade: widget.posterFade,
-      autoLoadQualities: false,
+    final player = MovaStyleScope(
+      legacy: widget.options,
+      child: MovaPlayer(
+        api: engine,
+        style: widget.style,
+        skin: widget.skin,
+        fit: widget.fit,
+        poster: widget.poster,
+        posterFade: widget.posterFade,
+        autoLoadQualities: false,
+      ),
     );
     final guard = widget.autoPause;
     if (guard == null) return player;
