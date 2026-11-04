@@ -1037,7 +1037,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // 先解析字形（廉价，无需布局），使 numeralMapper / numeralSystem 变化时
     // 即便文本样式不变也能让缓存尺寸失效。
     final glyphs = [for (var d = 0; d <= 9; d++) _glyphForDigit(d)];
-    final glyphSig = glyphs.join(' ');
+    final glyphSig = glyphs.join('\u0000');
     // 缓存命中时直接返回，显式括号满足静态检查。
     if (_prototypeSize != null &&
         style == _lastStyle &&
