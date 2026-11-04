@@ -115,7 +115,8 @@ void main() {
         MaterialApp(
           home: Column(
             children: [
-              for (var i = 0; i < 3; i++) SvgxStatic(_svg(i), width: 24, height: 24),
+              for (var i = 0; i < 3; i++)
+                SvgxStatic(_svg(i), width: 24, height: 24),
             ],
           ),
         ),

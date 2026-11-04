@@ -45,40 +45,46 @@ void main() {
       ..clear();
   });
 
-  test('concurrent getOrRenderAsync for one key renders exactly once', () async {
-    if (!rustAvailable) return;
-    final cache = RustSvgxPictureCache.instance;
-    var misses = 0;
-    cache.onParseMiss = (_) => misses++;
+  test(
+    'concurrent getOrRenderAsync for one key renders exactly once',
+    () async {
+      if (!rustAvailable) return;
+      final cache = RustSvgxPictureCache.instance;
+      var misses = 0;
+      cache.onParseMiss = (_) => misses++;
 
-    // Both calls happen before either can complete — the shape a rebuilding
-    // FutureBuilder produces.
-    final first = cache.getOrRenderAsync(_svg);
-    final second = cache.getOrRenderAsync(_svg);
-    final results = await Future.wait([first, second]);
+      // Both calls happen before either can complete — the shape a rebuilding
+      // FutureBuilder produces.
+      final first = cache.getOrRenderAsync(_svg);
+      final second = cache.getOrRenderAsync(_svg);
+      final results = await Future.wait([first, second]);
 
-    expect(misses, 1, reason: 'the second caller must join the first render');
-    expect(identical(results[0], results[1]), isTrue);
-    expect(identical(results[0].picture, results[1].picture), isTrue);
-    expect(cache.length, 1);
-  });
+      expect(misses, 1, reason: 'the second caller must join the first render');
+      expect(identical(results[0], results[1]), isTrue);
+      expect(identical(results[0].picture, results[1].picture), isTrue);
+      expect(cache.length, 1);
+    },
+  );
 
-  test('a settled async render leaves no in-flight bookkeeping behind', () async {
-    if (!rustAvailable) return;
-    final cache = RustSvgxPictureCache.instance;
-    var misses = 0;
-    cache.onParseMiss = (_) => misses++;
+  test(
+    'a settled async render leaves no in-flight bookkeeping behind',
+    () async {
+      if (!rustAvailable) return;
+      final cache = RustSvgxPictureCache.instance;
+      var misses = 0;
+      cache.onParseMiss = (_) => misses++;
 
-    await cache.getOrRenderAsync(_svg);
-    cache.clear();
-    // A second render after the first settled must actually run again: if the
-    // finished future were still registered as in-flight, this would silently
-    // hand back the stale entry.
-    await cache.getOrRenderAsync(_svg);
+      await cache.getOrRenderAsync(_svg);
+      cache.clear();
+      // A second render after the first settled must actually run again: if the
+      // finished future were still registered as in-flight, this would silently
+      // hand back the stale entry.
+      await cache.getOrRenderAsync(_svg);
 
-    expect(misses, 2);
-    expect(cache.length, 1);
-  });
+      expect(misses, 2);
+      expect(cache.length, 1);
+    },
+  );
 
   test('length and approximateBytesUsed track the cached entries', () async {
     if (!rustAvailable) return;

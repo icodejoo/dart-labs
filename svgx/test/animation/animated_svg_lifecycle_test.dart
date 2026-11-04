@@ -68,7 +68,10 @@ const _quickFlash =
 Duration _clockOf(WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
     find
-        .descendant(of: find.byType(SvgxAnimated), matching: find.byType(CustomPaint))
+        .descendant(
+          of: find.byType(SvgxAnimated),
+          matching: find.byType(CustomPaint),
+        )
         .first,
   );
   return (paint.painter! as AnimatedSvgPainter).clock.value;
@@ -101,37 +104,36 @@ void main() {
   });
 
   group('onAnimationComplete', () {
-    testWidgets(
-      'fires exactly once when a finite document naturally settles',
-      (tester) async {
-        var completeCount = 0;
-        await tester.pumpWidget(
-          MaterialApp(
-            home: SvgxAnimated.string(
-              _quickFlash,
-              width: 24,
-              height: 24,
-              onAnimationComplete: () => completeCount++,
-            ),
+    testWidgets('fires exactly once when a finite document naturally settles', (
+      tester,
+    ) async {
+      var completeCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SvgxAnimated.string(
+            _quickFlash,
+            width: 24,
+            height: 24,
+            onAnimationComplete: () => completeCount++,
           ),
-        );
-        expect(completeCount, 0);
+        ),
+      );
+      expect(completeCount, 0);
 
-        // Well past the 10ms animation's total duration.
-        // 远超这个 10ms 动画的总时长。
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        expect(completeCount, 1);
+      // Well past the 10ms animation's total duration.
+      // 远超这个 10ms 动画的总时长。
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(completeCount, 1);
 
-        // Further ticks must not re-fire it (the instance has unsubscribed).
-        // 之后的 tick 不得再次触发（该实例已取消订阅）。
-        for (var i = 0; i < 10; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        expect(completeCount, 1);
-      },
-    );
+      // Further ticks must not re-fire it (the instance has unsubscribed).
+      // 之后的 tick 不得再次触发（该实例已取消订阅）。
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(completeCount, 1);
+    });
 
     testWidgets('never fires for an indefinite-loop document', (tester) async {
       var completeCount = 0;
@@ -151,43 +153,45 @@ void main() {
       expect(completeCount, 0);
     });
 
-    testWidgets('does not fire when ticking stops for another reason (source swap)', (
-      tester,
-    ) async {
-      var completeCount = 0;
-      var source = _spinner;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => SvgxAnimated.string(
-              source,
-              width: 24,
-              height: 24,
-              onAnimationComplete: () => completeCount++,
+    testWidgets(
+      'does not fire when ticking stops for another reason (source swap)',
+      (tester) async {
+        var completeCount = 0;
+        var source = _spinner;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => SvgxAnimated.string(
+                source,
+                width: 24,
+                height: 24,
+                onAnimationComplete: () => completeCount++,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 16));
-      source = _quickFlash;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => SvgxAnimated.string(
-              source,
-              width: 24,
-              height: 24,
-              onAnimationComplete: () => completeCount++,
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        source = _quickFlash;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => SvgxAnimated.string(
+                source,
+                width: 24,
+                height: 24,
+                onAnimationComplete: () => completeCount++,
+              ),
             ),
           ),
-        ),
-      );
-      expect(
-        completeCount,
-        0,
-        reason: 'stopping the old subscription for a source swap is not a settle',
-      );
-    });
+        );
+        expect(
+          completeCount,
+          0,
+          reason:
+              'stopping the old subscription for a source swap is not a settle',
+        );
+      },
+    );
   });
 
   group('onAnimationLoop', () {
@@ -250,7 +254,12 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: SvgxAnimated.string(_spinner, width: 24, height: 24, maxFps: 15),
+          home: SvgxAnimated.string(
+            _spinner,
+            width: 24,
+            height: 24,
+            maxFps: 15,
+          ),
         ),
       );
 
@@ -273,25 +282,26 @@ void main() {
       expect(distinctSamples, greaterThan(4));
     });
 
-    testWidgets('null maxFps samples every eligible tick (no extra throttling)', (
-      tester,
-    ) async {
-      tester.view.display.refreshRate = 60;
-      addTearDown(tester.view.display.resetRefreshRate);
+    testWidgets(
+      'null maxFps samples every eligible tick (no extra throttling)',
+      (tester) async {
+        tester.view.display.refreshRate = 60;
+        addTearDown(tester.view.display.resetRefreshRate);
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: SvgxAnimated.string(_spinner, width: 24, height: 24),
-        ),
-      );
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: SvgxAnimated.string(_spinner, width: 24, height: 24),
+          ),
+        );
 
-      final samples = <Duration>[];
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        samples.add(_clockOf(tester));
-      }
-      expect(samples.toSet().length, 10);
-    });
+        final samples = <Duration>[];
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          samples.add(_clockOf(tester));
+        }
+        expect(samples.toSet().length, 10);
+      },
+    );
   });
 
   group('playbackRate', () {

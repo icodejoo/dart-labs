@@ -57,7 +57,10 @@ void main() {
           animation.sample(const Duration(milliseconds: 500)),
           closeTo(50, 2),
         );
-        expect(animation.sample(const Duration(seconds: 1)), closeTo(100, 0.01));
+        expect(
+          animation.sample(const Duration(seconds: 1)),
+          closeTo(100, 0.01),
+        );
       }
     });
 
@@ -87,52 +90,46 @@ void main() {
       },
     );
 
-    test(
-      'SmilColorAnimation (stop-color): repeated resample stays paced by '
-      'distance',
-      () {
-        // Black -> near-black -> white on a gradient stop: paced by
-        // per-channel ARGB distance, so the huge second leg should dominate
-        // the timing just like the numeric case above.
+    test('SmilColorAnimation (stop-color): repeated resample stays paced by '
+        'distance', () {
+      // Black -> near-black -> white on a gradient stop: paced by
+      // per-channel ARGB distance, so the huge second leg should dominate
+      // the timing just like the numeric case above.
+      //
+      // 渐变色标上的 黑 -> 近黑 -> 白：按逐通道 ARGB 距离分配时间，巨大的
+      // 第二段理应像上面数值用例一样主导时长分配。
+      final document = _parse(
+        '<defs><linearGradient id="g">'
+        '<stop offset="0" stop-color="#000000">'
+        '<animate attributeName="stop-color" '
+        'values="#000000;#010101;#ffffff" '
+        'calcMode="paced" dur="1s" fill="freeze"/>'
+        '</stop>'
+        '<stop offset="1" stop-color="#0000ff"/>'
+        '</linearGradient></defs>',
+      );
+      final def = document.gradients['g']!;
+
+      for (var i = 0; i < 5; i++) {
+        final atStart = resampleGradientAtTime(def, Duration.zero);
+        expect(atStart.stops.first.color.r, closeTo(0, 0.01));
+
+        final atEnd = resampleGradientAtTime(def, const Duration(seconds: 1));
+        expect(atEnd.stops.first.color.r, closeTo(1, 0.01));
+
+        // Midpoint should be far past the tiny first segment's end
+        // (#010101) — roughly mid-grey — since the second (huge) leg
+        // dominates pacing.
         //
-        // 渐变色标上的 黑 -> 近黑 -> 白：按逐通道 ARGB 距离分配时间，巨大的
-        // 第二段理应像上面数值用例一样主导时长分配。
-        final document = _parse(
-          '<defs><linearGradient id="g">'
-          '<stop offset="0" stop-color="#000000">'
-          '<animate attributeName="stop-color" '
-          'values="#000000;#010101;#ffffff" '
-          'calcMode="paced" dur="1s" fill="freeze"/>'
-          '</stop>'
-          '<stop offset="1" stop-color="#0000ff"/>'
-          '</linearGradient></defs>',
+        // 中点应远远越过第一小段的终点（#010101）——大致处于中灰——因为
+        // 占主导的是第二个巨大分段。
+        final mid = resampleGradientAtTime(
+          def,
+          const Duration(milliseconds: 500),
         );
-        final def = document.gradients['g']!;
-
-        for (var i = 0; i < 5; i++) {
-          final atStart = resampleGradientAtTime(def, Duration.zero);
-          expect(atStart.stops.first.color.r, closeTo(0, 0.01));
-
-          final atEnd = resampleGradientAtTime(
-            def,
-            const Duration(seconds: 1),
-          );
-          expect(atEnd.stops.first.color.r, closeTo(1, 0.01));
-
-          // Midpoint should be far past the tiny first segment's end
-          // (#010101) — roughly mid-grey — since the second (huge) leg
-          // dominates pacing.
-          //
-          // 中点应远远越过第一小段的终点（#010101）——大致处于中灰——因为
-          // 占主导的是第二个巨大分段。
-          final mid = resampleGradientAtTime(
-            def,
-            const Duration(milliseconds: 500),
-          );
-          expect(mid.stops.first.color.r, greaterThan(0.3));
-        }
-      },
-    );
+        expect(mid.stops.first.color.r, greaterThan(0.3));
+      }
+    });
 
     test(
       'SmilMotionAnimation keyPoints: repeated sample() calls stay paced',

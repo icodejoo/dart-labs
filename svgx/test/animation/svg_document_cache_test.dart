@@ -134,7 +134,9 @@ void main() {
       var hits = 0;
       for (var pass = 0; pass < 4; pass++) {
         for (final source in sources) {
-          final document = SvgxDocumentCache.instance.getOrParse(source).document;
+          final document = SvgxDocumentCache.instance
+              .getOrParse(source)
+              .document;
           if (identical(seen[source], document)) hits++;
           seen[source] = document;
         }

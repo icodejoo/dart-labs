@@ -64,53 +64,50 @@ int _alphaAt(ByteData pixels, int x, int y) =>
     pixels.getUint8((y * _size + x) * 4 + 3);
 
 void main() {
-  test(
-    'a non-freezing animate resets to the static value after it ends, not '
-    "leaking the last sampled position into a later frame's paint of the "
-    'same node tree',
-    () async {
-      // Base (static) x=5; animate slides x from 0 to 80 over 1s with no
-      // fill="freeze" (default fill="remove"), so at t=2s (past the end) the
-      // element must show its static x=5, not the animation's end value (80)
-      // or the mid-animation value from an earlier frame (~45).
-      //
-      // 静态基准 x=5；动画在 1s 内把 x 从 0 滑到 80，未设置 fill="freeze"
-      // （默认 fill="remove"），因此 t=2s（结束之后）时元素必须显示其静态
-      // x=5，而不是动画的终值（80）或早前某帧动画进行中的值（约 45）。
-      final document = _parse(
-        '<rect x="5" y="5" width="10" height="10" fill="#ff0000">'
-        '<animate attributeName="x" values="0;80" dur="1s"/>'
-        '</rect>',
-      );
+  test('a non-freezing animate resets to the static value after it ends, not '
+      "leaking the last sampled position into a later frame's paint of the "
+      'same node tree', () async {
+    // Base (static) x=5; animate slides x from 0 to 80 over 1s with no
+    // fill="freeze" (default fill="remove"), so at t=2s (past the end) the
+    // element must show its static x=5, not the animation's end value (80)
+    // or the mid-animation value from an earlier frame (~45).
+    //
+    // 静态基准 x=5；动画在 1s 内把 x 从 0 滑到 80，未设置 fill="freeze"
+    // （默认 fill="remove"），因此 t=2s（结束之后）时元素必须显示其静态
+    // x=5，而不是动画的终值（80）或早前某帧动画进行中的值（约 45）。
+    final document = _parse(
+      '<rect x="5" y="5" width="10" height="10" fill="#ff0000">'
+      '<animate attributeName="x" values="0;80" dur="1s"/>'
+      '</rect>',
+    );
 
-      // Frame 1: mid-animation (t=0.5s, x≈40-45).
-      //
-      // 第一帧：动画进行中（t=0.5s，x≈40-45）。
-      final mid = await _renderPixelsAt(
-        document,
-        const Duration(milliseconds: 500),
-      );
-      // The rect should NOT be at its static x=5..15 position during the
-      // animation.
-      //
-      // 动画进行中，矩形不应处于其静态 x=5..15 的位置。
-      expect(_alphaAt(mid, 10, 10), 0);
+    // Frame 1: mid-animation (t=0.5s, x≈40-45).
+    //
+    // 第一帧：动画进行中（t=0.5s，x≈40-45）。
+    final mid = await _renderPixelsAt(
+      document,
+      const Duration(milliseconds: 500),
+    );
+    // The rect should NOT be at its static x=5..15 position during the
+    // animation.
+    //
+    // 动画进行中，矩形不应处于其静态 x=5..15 的位置。
+    expect(_alphaAt(mid, 10, 10), 0);
 
-      // Frame 2 (same node tree, later real time): animation has ended
-      // without freezing — must show the static x=5..15 position, not a
-      // leftover sampled value from frame 1.
-      //
-      // 第二帧（同一棵节点树，更晚的真实时间）：动画已结束且未定格——必须
-      // 显示静态 x=5..15 位置，而非第一帧残留的采样值。
-      final after = await _renderPixelsAt(document, const Duration(seconds: 2));
-      expect(_alphaAt(after, 10, 10), 255);
-      // And must not still show the animation's end-of-range position
-      // (x≈80..90) or the mid-animation position from frame 1 (x≈40..50).
-      //
-      // 且不应仍显示动画终值区域（x≈80..90）或第一帧动画进行中的位置
-      // （x≈40..50）。
-      expect(_alphaAt(after, 85, 10), 0);
-      expect(_alphaAt(after, 45, 10), 0);
-    },
-  );
+    // Frame 2 (same node tree, later real time): animation has ended
+    // without freezing — must show the static x=5..15 position, not a
+    // leftover sampled value from frame 1.
+    //
+    // 第二帧（同一棵节点树，更晚的真实时间）：动画已结束且未定格——必须
+    // 显示静态 x=5..15 位置，而非第一帧残留的采样值。
+    final after = await _renderPixelsAt(document, const Duration(seconds: 2));
+    expect(_alphaAt(after, 10, 10), 255);
+    // And must not still show the animation's end-of-range position
+    // (x≈80..90) or the mid-animation position from frame 1 (x≈40..50).
+    //
+    // 且不应仍显示动画终值区域（x≈80..90）或第一帧动画进行中的位置
+    // （x≈40..50）。
+    expect(_alphaAt(after, 85, 10), 0);
+    expect(_alphaAt(after, 45, 10), 0);
+  });
 }
