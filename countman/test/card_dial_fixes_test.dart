@@ -95,12 +95,16 @@ void main() {
                 style: const CardCountdownStyle(
                     transitionType: CountdownType.slide)))));
     await t.pump();
-    now = now.add(const Duration(seconds: 1));
+    now = now.add(const Duration(milliseconds: 1100));
     await t.pump(const Duration(milliseconds: 16));
+    now = now.add(const Duration(milliseconds: 100));
     await t.pump(const Duration(milliseconds: 100));
     final before = painter(t).controller.value;
+    final currentPainter = painter(t);
+    now = now.add(const Duration(milliseconds: 100));
     await t.pump(const Duration(milliseconds: 100));
     expect(painter(t).controller.value, greaterThan(before));
+    expect(identical(currentPainter, painter(t)), isTrue);
   });
   testWidgets('Odometer 非有限端点不抛出且完成值使用实际钳制值', (t) async {
     double? completed;

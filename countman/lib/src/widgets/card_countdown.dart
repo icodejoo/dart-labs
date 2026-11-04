@@ -423,12 +423,14 @@ class _CountdownCardState extends State<CardCountdown>
       for (final code in units[i].toString().padLeft(widths[i], '0').codeUnits) code - 48];
   }
 
-  /// 同目标 tick 保留进度，打断前先提交旧目标再计算 changedMask。
+  /// 同秒 tick 不拆位或重建语义；打断前先提交旧目标再计算 changedMask。
   void _onTick(TimeParts parts) {
     widget.onTick?.call(parts);
     final remaining = parts.value;
-    final oldWidths = _unitWidths(_lastRemaining, _showHours);
+    final previous = _lastRemaining;
     _lastRemaining = remaining;
+    if (remaining.inSeconds == previous.inSeconds) return;
+    final oldWidths = _unitWidths(previous, _showHours);
     _semanticRemaining.value = remaining;
     final showHours = _hoursFor(remaining);
     if (showHours != _showHours || !listEquals(oldWidths, _unitWidths(remaining, showHours))) {
