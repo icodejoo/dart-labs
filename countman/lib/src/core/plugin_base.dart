@@ -336,7 +336,6 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
                 _disposed) {
               // 暂停中的初值不算已启动，恢复后仍需派发首次 start。
               if (!task.done && task.isPaused) task.started = false;
-              if (task.done) _pendingRemove.add(task.id);
               if (!task.done && !task.isPaused && !_disposed) busy = true;
               continue;
             }
@@ -350,24 +349,16 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
                 !_disposed) {
               afterInitial(task);
             }
-            if (task.done) _pendingRemove.add(task.id);
             if (!task.done && !task.isPaused && !_disposed) busy = true;
             continue;
           }
 
           final stillBusy = step(task, dtMs, shouldProcess);
-          if (task.done) {
-            _pendingRemove.add(task.id);
-          } else if (stillBusy && !task.isPaused && !_disposed) {
+          if (!task.done && stillBusy && !task.isPaused && !_disposed) {
             busy = true;
           }
         } catch (error, stack) {
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: error,
-            stack: stack,
-            library: 'countman',
-            context: ErrorDescription('插件 "$name" 的任务 ${task.id} 回调异常'),
-          ));
+          _reportTaskError(task, error, stack, '回调');
           if (!task.done && !task.isPaused && !_disposed) busy = true;
         } finally {
           if (task.done) _pendingRemove.add(task.id);
@@ -400,6 +391,16 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     return busy;
   }
 
+  /// 统一报告任务异常，保留插件、任务及回调阶段的上下文。
+  void _reportTaskError(T task, Object error, StackTrace stack, String action) {
+    FlutterError.reportError(FlutterErrorDetails(
+      exception: error,
+      stack: stack,
+      library: 'countman',
+      context: ErrorDescription('插件 "$name" 的任务 ${task.id} $action异常'),
+    ));
+  }
+
   /// 封闭队列并逐项报告取消异常；子类收尾始终执行。
   @override
   void dispose() {
@@ -425,12 +426,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
         try {
           task.onCancel?.call();
         } catch (error, stack) {
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: error,
-            stack: stack,
-            library: 'countman',
-            context: ErrorDescription('插件 "$name" 的任务 ${task.id} 取消回调异常'),
-          ));
+          _reportTaskError(task, error, stack, '取消回调');
         }
       }
     } finally {
