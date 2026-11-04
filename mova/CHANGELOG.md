@@ -1,54 +1,22 @@
 ## Unreleased
 
-- MovaPlayer 新增 fullscreenRoute（默认 false）：开启后由应用根路由展示全屏，返回键先退出全屏，锁定时用 MovaStrs.unlock 提示解锁。路由借用同一 API、自建独立 chrome、不重复探测清晰度，退出唤出内联控制条；样式继承 MovaPlayerStyle 与旧配置回落，方向还原和 PiP/mini 仍由引擎管理。全屏路由携带后台守卫归属，自有遮挡不触发暂停；Windows 内联及路由的自定义 surface 也经过 MovaSnapshotGuard。关闭时保留原有播放器树与行为。
-- 新增 skin.dart、ads.dart、feed.dart、mini.dart、extend.dart 分入口及独立 stt.dart；mova.dart 本版继续导出原有全部符号。STT 主入口转导出仅保留一个版本，MovaApi.stt 保留；模型下载仍为实验实现。内部 helper 在导出级公告下版隐藏，本版不新增成员级 @Deprecated，运行行为不变。
+以下为仓库 0.4.0 之后的行为与迁移记录；尚未以新版本发布。按功能归并保留最终契约，
+逐提交测试数字见统一编排总计划与 CLAUDE.md，不在此累计。
 
-- MovaFeedPlayer 新增宿主持有的 MovaFeedPlayerController，可查询 feed/当前索引/当前引擎、跳页和播放暂停，换控制器及卸载时解除绑定；引擎仍由组件释放。内置整条 feed 的 MovaAutoPause，可配置 autoPause（null 禁用守卫）和 routeObservers，翻页互斥仍由池负责。
-- Feed 单页 loader 抛错、open 拒绝/抛错及播放中终结错误改为可见失败界面，默认使用主题错误/重试文案，可通过 errorBuilder 自定义；失败不会因普通重建无限重试，显式重试只处理该页。当前页加载失败停止上一页声音，其他页仍可继续浏览；loader 返回 null 的结束占位保持原样。
+### Breaking / Deprecated 迁移摘要
 
-- MovaSource 新增 headers/userAgent/start：播放选项、清晰度探测、VTT/雪碧图、抽帧和 feed 预取共用源请求头，显式 UA 优先；点播起播位置通过既有 seek 寄存链下发，直播忽略。MovaApi.open 与 MovaHttpFetch.get(Uri) 签名保持不变；新增 MovaHeaderedHttpFetch 可选能力，旧 fetcher 无头退化且每实例仅 debug 提示一次；抽帧同样通过可选 MovaHeaderedFramePuller 兼容旧端口。
+- `state.error` 只含终结错误；完整诊断改监听 `MovaErrorEvent.fatal/code`，恢复决策看 `MovaPlayFailure`。
+- `MovaAds.load/loadDeferred` 返回 `Future<bool>`；只 await 的调用不变，覆写者同步签名；完成微任务时序不变，Future<bool> 可用于原 Future<void> 调用点。
+  `MovaApi.open` 已在 0.3.1 改为 `Future<bool>`，自定义 API 也需同步；false 是拒绝/过期/销毁，不能当播放失败。
+- 旧命名 typedef 及 `MovaMiniHost.ctl`、`MovaAdOverlayComponent.controller` 保留带 @Deprecated 别名；
+  没有别名的动词/具名参数须按下方改名表迁移。
+- 下版弃用公告（本版不加成员级注解）：旧 UI 动词/镜像改 MovaChrome，旧样式字段改 MovaPlayerStyle，
+  MovaAbrConfig.policy 改 policyFactory。STT 主入口仅保留一个版本的转导出，改 import stt.dart；
+  导出级内部 helper 下版隐藏，MovaApi.stt 保留。
 
-- MovaView 仅在引擎实际消费的配置节变化时重建；主题、文案、手势、控制条及弹幕节变化通过视图更新，保留引擎、打开次数和播放状态。最新 options 作为兼容回落值下发，内联文案闭包与弹幕列表不再触发重建。
-- 新增 MovaIcons 与 MovaPlayerStyle.icons/iconsOf，可按视图或主题扩展替换 20 个控制界面图标（不含 feed 社交按钮）；无障碍标签继续由文案明确提供。MovaTheme.progressColor 可配置进度高亮与滑块颜色，默认 null 沿用宿主 SliderTheme，默认图标保持不变。
-- 清晰度自动/未知兼容标签提为 kMovaAutoQualityLabel/kMovaUnknownQualityLabel，保持旧值并公告下个版本改为中性值。
-
-- 新增 MovaPlayerStyle（ThemeExtension）与 MovaDanmakuStyle，MovaPlayer/MovaView 支持 style。主题、文案、手势、控制条行为与弹幕样式按节依次查找：视图参数 > 主题扩展 > 旧 options > 默认。切换主题更新缓存皮肤及控制条配置，不重建引擎；弹幕开关与条目仍来自 options。
-- 按钮无障碍名称、提示及清晰度“自动/未知”展示改读 MovaStrs，新增可替换的动作文案与 labelWithValue 格式函数；内置按钮显式传标签，默认文案不变。MovaQuality 的旧中文标签本版本保留，下个版本计划改为中性值。
-- Deprecated（公告，下个版本加注解）：MovaOpts.theme/strings/gesture/controls 及 danmaku 的样式字段计划弃用，改用 MovaPlayerStyle；旧字段本版本继续作为回落值，不添加成员级 @Deprecated。
-
-- 脚本测试内核的延迟 ready 使用最新播放意图，保留 ready 前 pause/play 的最后决定；普通被动内核继续只记录命令、不自动发信号。
-
-- 预览资源门控传递请求代际和取消信号，在异步网络探针返回后、HTTP/抽帧启动前复核；取消、换源和销毁使旧调用失效，销毁不等待探针，包装器仍不销毁宿主端口。
-
-- 预览网络策略拒绝通过专用信号透传 VTT 和服务层，不再计入 VTT 获取失败冷却，也不继续普通失败兜底；切回 Wi-Fi 可立即重试。
-- 最后一个视图解绑后，将尚未到期的 HUD/控制条计时责任交还引擎或旧镜像，保留剩余期限与常显状态，清理拖动和预览；普通引擎及 cutover 代理均适用。HUD 在同步通知监听器前登记计时器，重入和随后销毁不再留下旧计时器。
-
-- 内置预览服务为每个视图建立独立会话，共享缓存与串行来源解析，各视图只接收自己的结果、取消自己的请求。自定义预览可实现 MovaPreviewSessions 提供同等隔离。底栏或横滑拖动因锁定而卸载时释放自身拖动状态，清空预览并恢复自动隐藏。
-
-- 拖动进度条或横滑 seek 时，视图控制条与预览保持可见，松手后重新开始自动隐藏计时；控制条按下、按钮指针/键盘/语义激活会续期，常显状态保留。适用于支持桥接或显式传入 chrome 的视图，非桥接旧路径保持原行为。
-
-- 每个支持桥接的 MovaPlayer 视图各自持有 MovaChrome（可由宿主传入），控制条、HUD、拖动和预览互不串扰；cutover 换指及影子 Ready 重放保持视图交互态与计时。无视图时旧行为不变；自定义 MovaApi 默认沿用旧接口，可显式传入 chrome 启用独立交互态。有视图时就绪显隐由视图处理，普通引擎的旧读者在 MovaReady 后晚一个微任务看到镜像。
-- Deprecated（公告，下个版本加注解）：MovaApi.showControls/hideControls/showHud/setDragging/uiState/uiStates 计划下个版本弃用，改用 MovaChrome；旧动词向所有挂载视图广播，旧镜像取最后变化的视图。锁定、缩放、fit 等 MovaState 仍由引擎共享。
-
-- 收严 C12 的按需边界：自定义预览来源可能只读内存，未显式注入探针时不再根据远程媒体地址查询默认连通性；内置来源仍只在实际远程资源请求处查询，显式注入探针的自定义来源继续入口门控，never/always 策略保持。
-
-- 改名收尾：`MovaMiniHost.mini` 替代旧 `ctl` 参数/字段，`MovaAdOverlayComponent.ads` 替代旧 `controller` 字段；旧入口均保留带 `@Deprecated` 的别名，构造与渲染行为不变。包内调用和示例迁移为现名。核实工厂早已共用 `MovaEngineFactory`，已有类型别名均已标注弃用；修正文档中“枚举值不能经 typedef 访问”的过期说明。
-
-- 测试入口新增 `MovaTestKernel.scripted` 和 `MovaTestStep`：可脚本化就绪、缓冲、进度、失败与结束；就绪自动组合首帧信号，换源和销毁取消旧步骤。普通构造继续默认被动，不自动播放或发出信号。
-
-- 注入的内核、预览缓存/探针/来源/抽帧器、HTTP 与 STT 识别器由宿主销毁；自建资源仍随引擎释放。需要移交内核时用 `ownsKernel: true`，默认工厂创建的内核自动归引擎所有。STT 启动失败仅回滚，不再向播放链抛出。新增 `MovaAbrConfig.policyFactory`，每引擎创建独立策略，优先于旧 `policy`；旧实例字段下个版本弃用，本版只公告。
-
-- 推翻旧的网络探针不默认接线决定：createMovaEngine 为 wifiOnly 预览按需创建连通性探针；仅实际请求远程 VTT、雪碧图或抽帧时查询，缓存、VTT 冷却、禁用来源和本地资源不查询。测试接缝继续不接平台插件。
-
-- createMovaEngine 在 debug 下提示注入 kernel 时被忽略的默认内核参数；Android 使用默认内核并开启 tlsVerify 时断言必须提供非空 tlsCaFile。抽帧器继续默认 null，文档明确需显式注入。
+### 会话、广告与换指
 
 - 新增 movaCapabilityOf<T>(api) 能力查询入口，优先保留代理自身能力，否则穿透多层 cutover 查询当前生效引擎，不修改 MovaApi。
-
-- MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节从 C06 起通过视图更新；debug 下连续 10 帧实际配置不等时每视图提示一次。
-
-- MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
-
-- README 应用示例统一使用 createMovaEngine，首例等待并捕获打开失败；裸 MovaEngine 缺省平台端口时在 debug 下一次性提示。
 
 - 宿主抢源导致会话让位时，为已开始的原节点补发一次 MovaNodeEnd(superseded)，保持原 epoch，不报告节点失败，也不放弃宿主新影子。
 
@@ -66,123 +34,171 @@
 
 - 广告 pod 的每条等待型广告改走 prepare + 凭据提交，统一采用广告方向计划（默认 1x、就绪后停首帧、adReadyTimeout）；被宿主新 open 取代时会话让位，槽被替换时只按未就绪回落。落地窗口丢弃旧媒体的结束、错误与进度，正片预热同时考虑广告位和素材剩余时长。公开 cutoverTo 保留。
 
-- 会话对同一 epoch、节点和尝试的失败只裁决一次：广告仍由广告失败策略处理，recovery 开启时非终结诊断交给引擎；正片终结错误（恢复开启时等待 giveUp）发出 MovaNodeFail(failItem)、contentError 并回 idle，不自动换集。这扩展了 A05 刚确定的 contentError 契约，原先仅包含解析失败与正片 open 异常。
+- 会话对同一 epoch、节点和尝试的失败只裁决一次：广告仍由广告失败策略处理，recovery 开启时非终结诊断交给引擎；正片终结错误（恢复开启时等待 giveUp）发出 MovaNodeFail(failItem)、contentError 并回 idle，不自动换集。contentError 同时包含解析失败、正片 open/切换异常和终结失败。
+  Fix：广告的 cutoverTo、prepare、commit 抛出与直接 open 异常统一进入广告失败策略；直接广告 open 被宿主拒绝时跳过且不重试。正片打开/切换异常经 `MovaAds.contentError` 上报并回到 idle，宿主拒绝与过期加载不报错，不发 contentEnded。
 
 - 会话自动连播消费结束通知时校验 epoch，手动换集不再被旧通知覆盖；替换列表使在途跳转失效，广告共享列表下标及 indexChanges 跟随会话导航。跳过加载中的前贴片时，加载结果等待同一 epoch 的续播请求结算。
 
 - `MovaPlaylist(api, ads:)` 共享会话，换集携带按集广告，自动连播等待全部后贴片；此路径遵守 `playlist.enabled`，旧直连构造保持原行为。
-- `MovaAds.load/loadDeferred` 返回 `Future<bool>` 表示首段是否接受，完成微任务时序保持不变；`Future<bool>` 可用于原 `Future<void>` 调用点，继承并覆写加载方法的子类需同步返回类型。
 
 - 会话新增带纪元与节点身份的事件；按节点独立记录广告，修复 pod 中同参数 const 广告被合并的问题。广告钩子同步重载同一节点时，旧结束入口不再误续播新尝试。
 
 - 新增 `MovaSession` 多条目、按集广告与加载结果，直接构造自动识别已启用的切换能力；`MovaPlaylistItem.adBreaks` 可覆盖排期，`MovaAds.session` 提供共享访问口。
 
-- 修复嵌套不同 API 的 MovaAutoPause 遮住外层守卫的问题；MovaPlayer 按 API 查找完整祖先链，尊重外层配置的后台继续播放。
-
 - 修复被后继切换取代的内部暂停污染播放意图；等待型广告通过包内能力传递显式起播意图。广告首次打开在钩子中失败后，重试保留本次加载意图，并让位于之后的用户播放或暂停命令。
-
-- MovaPlayer 的视频后台暂停改经引擎执行，钩子、播放意图与广告时钟均可观测，命令式 keepAlive 也由引擎结束待机；默认切后台仍暂停、回前台不自动续播。无渲染面的 audioOnly 不受影响；要后台续播，可用同一 API 的 MovaAutoPause(config: MovaAutoPauseConfig(background: false)) 包裹播放器。
 
 - 换指及广告续播继承用户播放意图，暂停后跳过广告不会自动开播；自定义 engineFactory 引擎须维护 playbackIntent，意图恒假时换指后保持暂停。
 
 - 广告位与中插倒计时改用可暂停时钟：观测到播放暂停后不计入广告时长；`delayRemaining` 按同一时钟计算，加载首帧期限仍使用独立墙钟。
 
-- 补回无 END_FILE 事件泵时的主文件打开失败终结状态：在错误到达时确认泵不可用，且 stream/cplayer/ffmpeg 错误文本包含当前主文件地址才启用兜底；外挂字幕、外部音轨和 HLS 分片错误保持诊断，泵可用时仍以 END_FILE 为准。
-- 修复 END_FILE 归属与终结处理：每次实际加载前同步排空旧弱客户端队列，结束通知携带尝试编号；统一终结入口，单次尝试仅一次 fatal，重复日志保留诊断。待机失败静默降级并在唤醒时重开，open 期间的通知在返回后处理。
-
-### Breaking
-
-- `state.error` 只表示终结播放的错误。非终结内核日志不再写此字段，也不弹默认错误遮罩；`MovaErrorEvent(fatal: false)` 与 `MovaHook.onError` 仍照常通知。需要诊断所有错误的宿主请改监听 `api.events` 中的 `MovaErrorEvent`，按 `fatal` 决定是否显示失败；需要跟踪恢复决策的宿主监听 `MovaPlayFailure`。END_FILE(error)、恢复放弃、已知终结文本和 open 抛出仍写入状态；无泵时补回包含主文件地址的打开错误兜底，沿用恢复或终结裁决。
-- 错误遮罩使用 `MovaStrs.playbackError` / `retry` 文案（默认“播放失败，请重试”/“重试”）；原始错误仅在 debug 模式显示。
-
-### Changes
-
-- 新增实验性 `MovaAbrConfig.manageAuto`（默认 false）：显式开启后，auto 卡顿时由 mova 降到列表次高档，再沿用具体档位降档逻辑；遵守 ABR 总开关与 seek/换档租约。CP0 真机实测（STG-AL00、默认配置、限速夹具、90 秒窗口）：mpv 的 auto 档停留最高档、未自动降档，限速下反复缓冲；开启本开关由 mova 的 ABR 接管降档。仍为实验性，默认关。
-
 - 广告失败策略和影子放弃预热仅响应 `MovaErrorEvent.fatal == true`；非终结内核日志不再中断广告或预热，原有尝试去重及 cutover 接受结果契约不变。
 
-- 判失败不依赖 recovery：首次 open 懒启动 END_FILE 弱客户端；终结错误清缓冲并暂停，有封面时启用 RESTART。alternatives 需启用 recovery（debug 断言）。
-- recovery 关闭时 open 失败仍抛出，同时写终结 state.error；预告下一版本不再抛出，请迁移到错误事件处理。
+- Fix：引擎就绪后默认自行探测 HLS 清晰度（`MovaAbrConfig.probeVariants: true`）。同一会话的自动与显式探测共用一次请求，迟到结果更新列表但不覆盖手选档；可关闭自动探测，由宿主显式调用。auto ABR 接管仍未开启。
 
-* **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。只有终结错误写入 `state.error`；END_FILE 已接线，QoE 结算口径不变。
+- Fix：广告 pod 内后续广告失败继续推进。续播与失败按每次尝试去重，Timer 与素材结束不会重复推进；cutover 通过包内可选能力区分宿主拒绝，影子被拒立即释放，广告被拒跳过且不进入重试，也不再把旧正片画面当广告首帧。
 
-* **Fix：清晰度探测按会话与有效源地址下标去重**。故障切换后可显式探测新 master，旧地址迟到结果仍丢弃，同地址换档和重试继续共用请求。引擎销毁时关闭自建 fetcher，即使禁用 VTT 或自定义预览来源也取消在途探测；宿主注入的 fetcher（含默认 VTT 借用）由宿主关闭。
+- Fix：cutover 提交事务独占换指权。并发提交排队后重新校验槽，`cutoverTo` 只提交自身预热的槽；目标帧保持失败不阻断提交与释放，槽清理异常也保证释放生效引擎并关闭流。
 
-* **Fix：`probeVariants: false` 关闭引擎和默认 MovaPlayer / MovaView 的所有自动探测**。UI 自动入口须同时满足 `autoLoadQualities && api.options.abr.probeVariants`；`autoLoadQualities: false` 仅关闭该 UI 入口，显式 `api.loadQualities()` 不受两者影响。
+- Fix：回正片期间使用独立过渡相位，旧广告进度、结束事件及即时插播不再误触发正片排期或改写续播位置。
 
-* **Fix：直播换档与时移 seek 的 ABR 租约等待本次缓冲 true → false 后释放**。忽略 open 内部 stop 的前置 false，避免加载自身被计为卡顿；无缓冲信号时仍在 10 秒后释放，点播续播校验与换源/销毁清理保持不变。
+- Fix：cutover 用内部操作代际隔离换源、重载与并发切换；提交只释放已认领的预热槽，保留较新 prepare 的资源与相位，过期切换不再回落抢源。
 
-* **新增：播放错误事件分级**。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。本次仍将所有内核错误写入 `state.error`；END_FILE 接线及非终结错误不写 state 的行为分别由 A14、A14b 承接，QoE 结算口径不变。
+- Fix：直播影子预热不再要求追上正片位置，正片播得越久越容易降级成非无缝切换的问题。直播影子从直播边缘起播且从不 seek，位置从 0 开始，而 `MovaBufferWarm` 要求影子位置 ≥ 目标位置 − 容差，所以就绪时间≈起播延迟+正片已播位置；正片先播 7s 的变体 10/10 在 8s `readyTimeout` 处放弃预热（真机 STG-AL00 实测）。现在 `MovaWarmSignal` 新增 `live`（默认 false，自定义判据不受影响），`MovaBufferWarm` 对直播视为已到达，仍要求无卡顿 + 提前缓冲 ≥ `lookahead` + 连续 `stableTicks` 次；点播与未带 `live` 的信号行为不变。真机：正片先播 500ms/3s/7s/15s/30s 全部通过（B/C 各 5–10 次），影子就绪耗时稳定在约 3–4s、不再随正片位置增长，`readyTimeout` 仍是 8s；详见 doc/plans/2026-10-29-q13-live-warm-fix-verification.md。
 
-* **Fix：引擎就绪后默认自行探测 HLS 清晰度**（`MovaAbrConfig.probeVariants: true`）。同一会话的自动与显式探测共用一次请求，迟到结果更新列表但不覆盖手选档；可关闭自动探测，由宿主显式调用。auto ABR 接管仍未开启。
+- Fix：`dispose()` 之后各动词不再转发给已销毁的内核。此前 `pause`/`setVolume`/`setRate`/`switchQuality` 等在销毁后仍会调内核，真实 media_kit 会抛 `AssertionError('has been disposed')`（真机复测日志里的 `[Player] has been disposed` 未捕获异常可能同源）。现在 `MovaEngine`/`MovaCutoverEngine` 的所有公开动词在已销毁时静默返回（不抛、不发事件、不碰内核与端口），异步动词在 await 回来后也会复查；`MovaCutoverEngine` 销毁后的 `prepare`/`cutoverTo` 也不再新建影子引擎。
 
-* **Fix：ABR 屏蔽改为带加载尝试号的租约**。旧换档的迟到收尾不能释放新换档或 seek 的屏蔽；用户 seek 引起的缓冲不计入 ABR 卡顿，10 秒兜底上限保持不变。
+- Docs/验证页：HE V6 验证脚本修正续播窗口锚点（旧写法恒匹配会话最初首帧，曾把"V6 续播失败"误判为库缺陷）；Android 真机 V6 复测 5/5 通过，续播误差 0–40ms。覆盖测试结果见 `doc/plans/2026-10-27-device-coverage-results.md`。
 
-* **Fix：新的用户 seek 清除被取代的旧寄存/待结算目标；时长已知但首档尚未落地时再次换档，沿用最新 seek（含 0 秒），目标回声结算后也不回退到旧加载规格。时长未知时仍寄存并在就绪后补发。**
+### 视图、样式与宿主组件
 
-* **Fix：待机唤醒与回边缘重开补播遵守当前待机相位；再次待机立即作废在途唤醒，不发旧恢复事件。recovery 关闭时，后台唤醒重开失败经 state.error、MovaErrorEvent 和 hook.onError 上报，并结束恢复测量，不再超时误报恢复成功。**
+- MovaPlayer 新增 fullscreenRoute（默认 false）：开启后由应用根路由展示全屏，返回键先退出全屏，锁定时用 MovaStrs.unlock 提示解锁。路由借用同一 API、自建独立 chrome、不重复探测清晰度，退出唤出内联控制条；样式继承 MovaPlayerStyle 与旧配置回落，方向还原和 PiP/mini 仍由引擎管理。全屏路由携带后台守卫归属，自有遮挡不触发暂停；Windows 内联及路由的自定义 surface 也经过 MovaSnapshotGuard。关闭时保留原有播放器树与行为。
 
-* **Fix：内部重试重放有效加载规格，保留手选清晰度；时移重试按原固定落后量和当前时间重建地址，故障切换清时移与旧档列表。回边缘保留当前档与时长，重开后按最新播放意图开播。连续换档继承尚未落地的续播目标，恢复等待首帧期间的用户 seek 取代旧失败点。**
+- MovaView 仅在引擎实际消费的配置节变化时重建；主题、文案、手势、控制条及弹幕节变化通过视图更新，保留引擎、打开次数和播放状态。最新 options 作为兼容回落值下发，内联文案闭包与弹幕列表不再触发重建。
+  MovaView 通过 MovaOpts.engineSectionsEqual 比较构造配置，忽略宿主 ads/playlist/mini 节变化；UI 样式节从 C06 起通过视图更新；debug 下连续 10 帧实际配置不等时每视图提示一次。
 
-* **Fix：待机唤醒测量使用独立首帧闸门；换源、换档或恢复重载会以 reloaded 结束旧测量，不发送 MovaKeepAliveResume，旧恢复超时不再干扰新源首帧。**
+- 新增 MovaIcons 与 MovaPlayerStyle.icons/iconsOf，可按视图或主题扩展替换 20 个控制界面图标（不含 feed 社交按钮）；无障碍标签继续由文案明确提供。MovaTheme.progressColor 可配置进度高亮与滑块颜色，默认 null 沿用宿主 SliderTheme，默认图标保持不变。
+  清晰度自动/未知兼容标签提为 kMovaAutoQualityLabel/kMovaUnknownQualityLabel，保持旧值并公告下个版本改为中性值。
+  新增 MovaPlayerStyle（ThemeExtension）与 MovaDanmakuStyle，MovaPlayer/MovaView 支持 style。主题、文案、手势、控制条行为与弹幕样式按节依次查找：视图参数 > 主题扩展 > 旧 options > 默认。切换主题更新缓存皮肤及控制条配置，不重建引擎；弹幕开关与条目仍来自 options。
+  按钮无障碍名称、提示及清晰度“自动/未知”展示改读 MovaStrs，新增可替换的动作文案与 labelWithValue 格式函数；内置按钮显式传标签，默认文案不变。MovaQuality 的旧中文标签本版本保留，下个版本计划改为中性值。
 
-* **Fix/时序变化：待机唤醒的回边缘及重开不再占用待机队列；`setKeepAlive(false)` 在进入 resuming 时完成，不等待网络重开或首帧。网络返回后仅当前尝试按最新播放意图开播，期间 pause 不被覆盖。**
+- Deprecated（公告，下个版本加注解）：MovaOpts.theme/strings/gesture/controls 及 danmaku 的样式字段计划弃用，改用 MovaPlayerStyle；旧字段本版本继续作为回落值，不添加成员级 @Deprecated。
 
-* **Fix：被宿主拒绝的 open 不再作废在途 play/seek；暂停加载期间的播放意图在加载完成后补发，待机请求仍保持暂停加载。**
+- Deprecated（公告，下个版本加注解）：MovaApi.showControls/hideControls/showHud/setDragging/uiState/uiStates 计划下个版本弃用，改用 MovaChrome；旧动词向所有挂载视图广播，旧镜像取最后变化的视图。锁定、缩放、fit 等 MovaState 仍由引擎共享。
 
-* **Fix：广告 pod 内后续广告失败继续推进**。续播与失败按每次尝试去重，Timer 与素材结束不会重复推进；cutover 通过包内可选能力区分宿主拒绝，影子被拒立即释放，广告被拒跳过且不进入重试，也不再把旧正片画面当广告首帧。
+- 改名收尾：`MovaMiniHost.mini` 替代旧 `ctl` 参数/字段，`MovaAdOverlayComponent.ads` 替代旧 `controller` 字段；旧入口均保留带 `@Deprecated` 的别名，构造与渲染行为不变。包内调用和示例迁移为现名。核实工厂早已共用 `MovaEngineFactory`，已有类型别名均已标注弃用；修正文档中“枚举值不能经 typedef 访问”的过期说明。
 
-* **Fix：cutover 提交事务独占换指权**。并发提交排队后重新校验槽，`cutoverTo` 只提交自身预热的槽；目标帧保持失败不阻断提交与释放，槽清理异常也保证释放生效引擎并关闭流。
+- 修复嵌套不同 API 的 MovaAutoPause 遮住外层守卫的问题；MovaPlayer 按 API 查找完整祖先链，尊重外层配置的后台继续播放。
 
-* **Fix：广告的 cutoverTo、prepare、commit 抛出与直接 open 异常统一进入广告失败策略；直接广告 open 被宿主拒绝时跳过且不重试。正片打开/切换异常经 `MovaAds.contentError` 上报并回到 idle，宿主拒绝与过期加载不报错，不发 contentEnded。**
+- MovaPlayer 的视频后台暂停改经引擎执行，钩子、播放意图与广告时钟均可观测，命令式 keepAlive 也由引擎结束待机；默认切后台仍暂停、回前台不自动续播。无渲染面的 audioOnly 不受影响；要后台续播，可用同一 API 的 MovaAutoPause(config: MovaAutoPauseConfig(background: false)) 包裹播放器。
 
-* **Fix：回正片期间使用独立过渡相位，旧广告进度、结束事件及即时插播不再误触发正片排期或改写续播位置。**
+- Fix：`probeVariants: false` 关闭引擎和默认 MovaPlayer / MovaView 的所有自动探测。UI 自动入口须同时满足 `autoLoadQualities && api.options.abr.probeVariants`；`autoLoadQualities: false` 仅关闭该 UI 入口，显式 `api.loadQualities()` 不受两者影响。
 
-* **Fix：广告换集同步取消旧计时与影子，后贴片不再预热已结束的正片；广告异步操作按加载代际丢弃迟到结果，避免旧广告恢复计时、倍速或 STT。**
+- Feat/Fix：按钮默认可聚焦并带语义、tooltip 和聚焦提示；鼠标悬停唤出控制条。`MovaCtrlsConfig.shortcuts` 默认 false，启用后聚焦播放器可用空格播放/暂停、左右键跳转十秒、上下键调音量、F/Esc 全屏操作；锁定、PiP/mini 和文本输入不处理播放器快捷键。
 
-* **Fix：cutover 用内部操作代际隔离换源、重载与并发切换；提交只释放已认领的预热槽，保留较新 prepare 的资源与相位，过期切换不再回落抢源。**
+- Perf：位置标签按秒更新，MovaPlayer 缓存静态组件及构建子树；重复的标量状态镜像不再发事件，dispose 在首个 await 前取消 HUD 和控制条计时器。
 
-* **Feat/Fix：按钮默认可聚焦并带语义、tooltip 和聚焦提示；鼠标悬停唤出控制条。`MovaCtrlsConfig.shortcuts` 默认 false，启用后聚焦播放器可用空格播放/暂停、左右键跳转十秒、上下键调音量、F/Esc 全屏操作；锁定、PiP/mini 和文本输入不处理播放器快捷键。
+- Fix：竖滑灵敏度生效，patch 路径错误在 debug 下断言；锁定按钮进入组件树并跟随控制条显隐（锁定时保留解锁入口），选项弹层支持滚动。
 
-* **Perf：位置标签按秒更新，MovaPlayer 缓存静态组件及构建子树；重复的标量状态镜像不再发事件，dispose 在首个 await 前取消 HUD 和控制条计时器。
+- Fix：自动暂停守卫豁免全屏；系统 PiP 状态广播仅回流到发起进入的引擎，失败后撤销接收资格。
 
-* **Fix：竖滑灵敏度生效，patch 路径错误在 debug 下断言；锁定按钮进入组件树并跟随控制条显隐（锁定时保留解锁入口），选项弹层支持滚动。
-
-* **Fix：自动暂停守卫豁免全屏；系统 PiP 状态广播仅回流到发起进入的引擎，失败后撤销接收资格。
-
-* **Fix：直播影子预热不再要求追上正片位置，正片播得越久越容易降级成非无缝切换的问题**。直播影子从直播边缘起播且从不 seek，位置从 0 开始，而 `MovaBufferWarm` 要求影子位置 ≥ 目标位置 − 容差，所以就绪时间≈起播延迟+正片已播位置；正片先播 7s 的变体 10/10 在 8s `readyTimeout` 处放弃预热（真机 STG-AL00 实测）。现在 `MovaWarmSignal` 新增 `live`（默认 false，自定义判据不受影响），`MovaBufferWarm` 对直播视为已到达，仍要求无卡顿 + 提前缓冲 ≥ `lookahead` + 连续 `stableTicks` 次；点播与未带 `live` 的信号行为不变。真机：正片先播 500ms/3s/7s/15s/30s 全部通过（B/C 各 5–10 次），影子就绪耗时稳定在约 3–4s、不再随正片位置增长，`readyTimeout` 仍是 8s；详见 doc/plans/2026-10-29-q13-live-warm-fix-verification.md。测试 1744 → 1752（`warm_test` +6、`cutover_engine_test` +2）。
-
-* **Fix：硬解失败后成功回落软解不再误报播放错误**。精确过滤 mpv 的 `Could not open codec.` 尝试日志，保留解码器耗尽与格式识别失败的终结错误，默认关闭 recovery 时仍能报出真失败。
-
-* **Breaking（命名）：去掉 `*Controller` 后缀，standby 改名 keepAlive，swap 改名 cutover**（纯改名，行为不变；测试 1508 → 1510，新增 2 项兼容层回归）。
+- Breaking（命名）：去掉 `*Controller` 后缀，standby 改名 keepAlive，swap 改名 cutover（纯改名，行为不变）。
   * 类：`MovaAdController`→`MovaAds`、`MovaFeedController`→`MovaFeed`、`MovaPlaylistController`→`MovaPlaylist`、`MovaMiniController`→`MovaMini`、`MovaSwapController`→`MovaCutover`、`MovaStandbyController`→`MovaKeepAlive`。
   * `Swap*`→`Cutover*`（`MovaSwapEngine`/`Config`/`Change`/`Phase` 等），`Standby*`→`KeepAlive*`（`MovaStandbyConfig`/`Phase`/`Mode`/`Reason`/`Change`/`Resume`、`MovaSilentStandby` 等）。
   * 成员：`MovaState.standby`→`keepAlivePhase`（类型 `MovaKeepAlivePhase`）、`MovaOpts.standby`→`keepAlive`、`MovaOpts.swap`→`cutover`、`MovaHiddenMode.standby`→`keepAlive`、`setStandby`→`setKeepAlive`、`swapTo`→`cutoverTo`、`MovaAdController(swap:)`→`MovaAds(cutover:)`。
   * 文件/目录：`core/standby/`→`core/keep_alive/`、`core/swap/`→`core/cutover/`、`ad_controller.dart`→`ads.dart` 等（只影响直接 import `package:mova/src/...` 的代码；经 `package:mova/mova.dart` 导入不受影响）。
-  * **兼容层**：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名。**没有别名的**：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`）——这些需要按上面的对照改。
+  * 兼容层：旧类名以 `@Deprecated` typedef 保留一个版本（`lib/src/deprecated_names.dart`），`MovaState.standby`、`MovaOpts.standby`/`swap`、`MovaHiddenMode.standby` 也保留 `@Deprecated` 别名。没有别名的：改名的方法/具名参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`、`copyWith(swap:/standby:)`、`MovaAdController(swap:)`）——这些需要按上面的对照改。
   * 上报 payload 的键 `swapEnabled`（QoE 会话字段）保持原样，未改名。
 
-* **Fix：时长未知时的负向 `seek`/`seekBy` 不再下界漏钳**。时长未到时 `seek(-5s)` 被原样寄存，进度先上报负数，时长到达后还把 -5s 下发内核（已知时长的路径本来会钳到 0）。现在入口先把下界钳到 0，补发时再按时长上界钳一次。新增 3 项回归（含 `seekBy` 与已知时长对照）。
+- Fix：进系统 PiP 后 App 内小窗不收起（真机覆盖复跑 A15/F5）。`enterPip()` 会把 `MovaState.mini` 置回 false，但 `MovaMini` 控制器不知情，小窗仍挂在界面上。现在 `MovaMini` 监听被借用 api 的状态，api 自行退出小窗态时同步撤掉小窗。
 
-* **Fix：`dispose()` 之后各动词不再转发给已销毁的内核**。此前 `pause`/`setVolume`/`setRate`/`switchQuality` 等在销毁后仍会调内核，真实 media_kit 会抛 `AssertionError('has been disposed')`（真机复测日志里的 `[Player] has been disposed` 未捕获异常可能同源）。现在 `MovaEngine`/`MovaCutoverEngine` 的所有公开动词在已销毁时静默返回（不抛、不发事件、不碰内核与端口），异步动词在 await 回来后也会复查；`MovaCutoverEngine` 销毁后的 `prepare`/`cutoverTo` 也不再新建影子引擎。新增 32 项回归（`FakeKernel` 加 `throwWhenDisposed`/`callsAfterDispose` 开关，逐动词断言）。
+### 预览、Feed 与资源归属
 
-* **Fix：用户主动 `seek` 被 mpv 丢弃后进度条永久冻结（H17）**。此前只有换档续播的 seek 有“校验 + 重发”链，普通 seek 被丢弃后 `_pendingSeekTarget` 一直布防，之后所有真实位置都被当陈旧回声吞掉，直到下一次 seek。现在点播 seek 复用同一条校验重发链（最多 3 次），放弃后解除回声抑制、进度重新跟随真实位置；重发期间来了新 seek 则旧链作废，直播不 seek 的规则不变，暂停态同样成立。新增 7 项回归（另改写原 skip 的那 1 条）。
+- 新增 skin.dart、ads.dart、feed.dart、mini.dart、extend.dart 分入口及独立 stt.dart；mova.dart 本版继续导出原有全部符号。STT 主入口转导出仅保留一个版本，MovaApi.stt 保留；模型下载仍为实验实现。内部 helper 在导出级公告下版隐藏，本版不新增成员级 @Deprecated，运行行为不变。
 
-* **Fix：换档（`switchQuality`/ABR 降档）续播位置丢失**。HLS 手动连续切档时，续播 seek 在新档位报告时长的瞬间就下发，而此刻 mpv 尚未完成播放初始化，seek 被静默丢弃，播放从头开始（Android 真机本地 HLS 5 次切档仅 1 次续播成功）。现在寄存的续播 seek 等新档位落地（首帧/原生 RESTART）后再补发；4s 内始终没落地则兜底照旧补发，落地早于时长则等时长到达再发。Android 真机（STG-AL00）普通/swap 代理/暂停态各 5 次共 15/15 落点误差 0ms。新增 3 项回归并调整 1 条旧测试。
+- MovaFeedPlayer 新增宿主持有的 MovaFeedPlayerController，可查询 feed/当前索引/当前引擎、跳页和播放暂停，换控制器及卸载时解除绑定；引擎仍由组件释放。内置整条 feed 的 MovaAutoPause，可配置 autoPause（null 禁用守卫）和 routeObservers，翻页互斥仍由池负责。
+  Feed 单页 loader 抛错、open 拒绝/抛错及播放中终结错误改为可见失败界面，默认使用主题错误/重试文案，可通过 errorBuilder 自定义；失败不会因普通重建无限重试，显式重试只处理该页。当前页加载失败停止上一页声音，其他页仍可继续浏览；loader 返回 null 的结束占位保持原样。
 
-* **Fix：`setRate` 入口钳制**。倍速钳到 0.25–4.0（`kMovaMinRate`/`kMovaMaxRate`，NaN 当 1.0），内核、state、`MovaRateChange` 看到同一个值（此前 0/负数/NaN 直接下发内核，state 与事件照抄）。新增 5 项回归。
+- MovaSource 新增 headers/userAgent/start：播放选项、清晰度探测、VTT/雪碧图、抽帧和 feed 预取共用源请求头，显式 UA 优先；点播起播位置通过既有 seek 寄存链下发，直播忽略。MovaApi.open 与 MovaHttpFetch.get(Uri) 签名保持不变；新增 MovaHeaderedHttpFetch 可选能力，旧 fetcher 无头退化且每实例仅 debug 提示一次；抽帧同样通过可选 MovaHeaderedFramePuller 兼容旧端口。
 
-* **Fix：宿主上报回调抛异常不再打断引擎**。`MovaReporter.onReport`（含 `MovaApi.report` 与 QoE collector 两处调用点）抛出的异常被隔离，只通知各钩子的 `MovaHook.onError`，播放状态与后续上报不受影响（此前异常冒进事件订阅回调，变成未捕获异步错误）。新增 3 项回归。
+- 预览资源门控传递请求代际和取消信号，在异步网络探针返回后、HTTP/抽帧启动前复核；取消、换源和销毁使旧调用失效，销毁不等待探针，包装器仍不销毁宿主端口。
+  预览网络策略拒绝通过专用信号透传 VTT 和服务层，不再计入 VTT 获取失败冷却，也不继续普通失败兜底；切回 Wi-Fi 可立即重试。
+  收严 C12 的按需边界：自定义预览来源可能只读内存，未显式注入探针时不再根据远程媒体地址查询默认连通性；内置来源仍只在实际远程资源请求处查询，显式注入探针的自定义来源继续入口门控，never/always 策略保持。
+  推翻旧的网络探针不默认接线决定：createMovaEngine 为 wifiOnly 预览按需创建连通性探针；仅实际请求远程 VTT、雪碧图或抽帧时查询，缓存、VTT 冷却、禁用来源和本地资源不查询。测试接缝继续不接平台插件。
 
-* **Fix：`setVolume`/`setBrightness` 越界值**。入口先钳到 0–100 / 0–1，state、事件与端口看到同一个值（此前 state 写入越界值，系统音量被端口钳制、亮度被平台插件以 `RangeError` 拒绝后吞掉，HUD 与设备实际对不上）。新增 2 项回归。
+- 最后一个视图解绑后，将尚未到期的 HUD/控制条计时责任交还引擎或旧镜像，保留剩余期限与常显状态，清理拖动和预览；普通引擎及 cutover 代理均适用。HUD 在同步通知监听器前登记计时器，重入和随后销毁不再留下旧计时器。
 
-* **Fix：进系统 PiP 后 App 内小窗不收起**（真机覆盖复跑 A15/F5）。`enterPip()` 会把 `MovaState.mini` 置回 false，但 `MovaMini` 控制器不知情，小窗仍挂在界面上。现在 `MovaMini` 监听被借用 api 的状态，api 自行退出小窗态时同步撤掉小窗。新增 1 项回归。
+- 内置预览服务为每个视图建立独立会话，共享缓存与串行来源解析，各视图只接收自己的结果、取消自己的请求。自定义预览可实现 MovaPreviewSessions 提供同等隔离。底栏或横滑拖动因锁定而卸载时释放自身拖动状态，清空预览并恢复自动隐藏。
 
-* **Fix：重复 `dispose()` 抛异常**（A23）。`MovaEngine`/`MovaCutoverEngine` 的 `dispose()` 改为幂等，第二次调用直接返回。新增 1 项回归。
+- 拖动进度条或横滑 seek 时，视图控制条与预览保持可见，松手后重新开始自动隐藏计时；控制条按下、按钮指针/键盘/语义激活会续期，常显状态保留。适用于支持桥接或显式传入 chrome 的视图，非桥接旧路径保持原行为。
 
-* **Fix：`setZoom` 低值让画面塌缩**（A12）。小于 1.0 或 NaN 按 1.0 处理；上限仍不限制（`maxZoom` 只约束捏合手势）。新增 1 项回归。
+- 每个支持桥接的 MovaPlayer 视图各自持有 MovaChrome（可由宿主传入），控制条、HUD、拖动和预览互不串扰；cutover 换指及影子 Ready 重放保持视图交互态与计时。无视图时旧行为不变；自定义 MovaApi 默认沿用旧接口，可显式传入 chrome 启用独立交互态。有视图时就绪显隐由视图处理，普通引擎的旧读者在 MovaReady 后晚一个微任务看到镜像。
 
-* **Docs/验证页**：HE V6 验证脚本修正续播窗口锚点（旧写法恒匹配会话最初首帧，曾把"V6 续播失败"误判为库缺陷）；Android 真机 V6 复测 5/5 通过，续播误差 0–40ms。覆盖测试结果见 `doc/plans/2026-10-27-device-coverage-results.md`。
+- 测试入口新增 `MovaTestKernel.scripted` 和 `MovaTestStep`：可脚本化就绪、缓冲、进度、失败与结束；就绪自动组合首帧信号，换源和销毁取消旧步骤。普通构造继续默认被动，不自动播放或发出信号。
+
+- 注入的内核、预览缓存/探针/来源/抽帧器、HTTP 与 STT 识别器由宿主销毁；自建资源仍随引擎释放。需要移交内核时用 `ownsKernel: true`，默认工厂创建的内核自动归引擎所有。STT 启动失败仅回滚，不再向播放链抛出。新增 `MovaAbrConfig.policyFactory`，每引擎创建独立策略，优先于旧 `policy`；旧实例字段下个版本弃用，本版只公告。
+
+- MovaMini.show 与 showInPage 一致遵守 mini.enabled；关闭的 cutover 预热与缺少识别器的 STT start 在 debug 下每实例提示一次，可分别读取 cutoverEnabled 与 options.stt.hasEngine。
+
+- Fix：清晰度探测按会话与有效源地址下标去重。故障切换后可显式探测新 master，旧地址迟到结果仍丢弃，同地址换档和重试继续共用请求。引擎销毁时关闭自建 fetcher，即使禁用 VTT 或自定义预览来源也取消在途探测；宿主注入的 fetcher（含默认 VTT 借用）由宿主关闭。
+
+- Fix：广告换集同步取消旧计时与影子，后贴片不再预热已结束的正片；广告异步操作按加载代际丢弃迟到结果，避免旧广告恢复计时、倍速或 STT。
+
+### 错误、恢复、加载与平台
+
+- 脚本测试内核的延迟 ready 使用最新播放意图，保留 ready 前 pause/play 的最后决定；普通被动内核继续只记录命令、不自动发信号。
+
+- createMovaEngine 在 debug 下提示注入 kernel 时被忽略的默认内核参数；Android 使用默认内核并开启 tlsVerify 时断言必须提供非空 tlsCaFile。抽帧器继续默认 null，文档明确需显式注入。
+
+- README 应用示例统一使用 createMovaEngine，首例等待并捕获打开失败；裸 MovaEngine 缺省平台端口时在 debug 下一次性提示。
+
+- 补回无 END_FILE 事件泵时的主文件打开失败终结状态：在错误到达时确认泵不可用，且 stream/cplayer/ffmpeg 错误文本包含当前主文件地址才启用兜底；外挂字幕、外部音轨和 HLS 分片错误保持诊断，泵可用时仍以 END_FILE 为准。
+
+- 修复 END_FILE 归属与终结处理：每次实际加载前同步排空旧弱客户端队列，结束通知携带尝试编号；统一终结入口，单次尝试仅一次 fatal，重复日志保留诊断。待机失败静默降级并在唤醒时重开，open 期间的通知在返回后处理。
+
+- `state.error` 只表示终结播放的错误。非终结内核日志不再写此字段，也不弹默认错误遮罩；`MovaErrorEvent(fatal: false)` 与 `MovaHook.onError` 仍照常通知。需要诊断所有错误的宿主请改监听 `api.events` 中的 `MovaErrorEvent`，按 `fatal` 决定是否显示失败；需要跟踪恢复决策的宿主监听 `MovaPlayFailure`。END_FILE(error)、恢复放弃、已知终结文本和 open 抛出仍写入状态；无泵时补回包含主文件地址的打开错误兜底，沿用恢复或终结裁决。
+
+- 错误遮罩使用 `MovaStrs.playbackError` / `retry` 文案（默认“播放失败，请重试”/“重试”）；原始错误仅在 debug 模式显示。
+
+- 新增实验性 `MovaAbrConfig.manageAuto`（默认 false）：显式开启后，auto 卡顿时由 mova 降到列表次高档，再沿用具体档位降档逻辑；遵守 ABR 总开关与 seek/换档租约。CP0 真机实测（STG-AL00、默认配置、限速夹具、90 秒窗口）：mpv 的 auto 档停留最高档、未自动降档，限速下反复缓冲；开启本开关由 mova 的 ABR 接管降档。仍为实验性，默认关。
+
+- 判失败不依赖 recovery：首次 open 懒启动 END_FILE 弱客户端；终结错误清缓冲并暂停，有封面时启用 RESTART。alternatives 需启用 recovery（debug 断言）。
+
+- recovery 关闭时 open 失败仍抛出，同时写终结 state.error；预告下一版本不再抛出，请迁移到错误事件处理。
+
+- 新增：播放错误事件分级。`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器签名与默认语义保留。mpv 通过可选错误能力从日志保留子系统，引擎优先订阅该入口，旧内核仍可使用 error 流。日志默认非终结；`Failed to initialize a decoder`、`Failed to recognize file format.`、恢复放弃为终结，code 与 QoE 映射一致。只有终结错误写入 `state.error`；END_FILE 已接线，QoE 结算口径不变。
+
+- Fix：直播换档与时移 seek 的 ABR 租约等待本次缓冲 true → false 后释放。忽略 open 内部 stop 的前置 false，避免加载自身被计为卡顿；无缓冲信号时仍在 10 秒后释放，点播续播校验与换源/销毁清理保持不变。
+  Fix：ABR 屏蔽改为带加载尝试号的租约。旧换档的迟到收尾不能释放新换档或 seek 的屏蔽；用户 seek 引起的缓冲不计入 ABR 卡顿，10 秒兜底上限保持不变。
+
+- Fix：新的用户 seek 清除被取代的旧寄存/待结算目标；时长已知但首档尚未落地时再次换档，沿用最新 seek（含 0 秒），目标回声结算后也不回退到旧加载规格。时长未知时仍寄存并在就绪后补发。
+
+- Fix：待机唤醒与回边缘重开补播遵守当前待机相位；再次待机立即作废在途唤醒，不发旧恢复事件。recovery 关闭时，后台唤醒重开失败经 state.error、MovaErrorEvent 和 hook.onError 上报，并结束恢复测量，不再超时误报恢复成功。
+
+- Fix：内部重试重放有效加载规格，保留手选清晰度；时移重试按原固定落后量和当前时间重建地址，故障切换清时移与旧档列表。回边缘保留当前档与时长，重开后按最新播放意图开播。连续换档继承尚未落地的续播目标，恢复等待首帧期间的用户 seek 取代旧失败点。
+
+- Fix：待机唤醒测量使用独立首帧闸门；换源、换档或恢复重载会以 reloaded 结束旧测量，不发送 MovaKeepAliveResume，旧恢复超时不再干扰新源首帧。
+
+- Fix/时序变化：待机唤醒的回边缘及重开不再占用待机队列；`setKeepAlive(false)` 在进入 resuming 时完成，不等待网络重开或首帧。网络返回后仅当前尝试按最新播放意图开播，期间 pause 不被覆盖。
+
+- Fix：被宿主拒绝的 open 不再作废在途 play/seek；暂停加载期间的播放意图在加载完成后补发，待机请求仍保持暂停加载。
+
+- Fix：硬解失败后成功回落软解不再误报播放错误。精确过滤 mpv 的 `Could not open codec.` 尝试日志，保留解码器耗尽与格式识别失败的终结错误，默认关闭 recovery 时仍能报出真失败。
+
+- Fix：时长未知时的负向 `seek`/`seekBy` 不再下界漏钳。时长未到时 `seek(-5s)` 被原样寄存，进度先上报负数，时长到达后还把 -5s 下发内核（已知时长的路径本来会钳到 0）。现在入口先把下界钳到 0，补发时再按时长上界钳一次。
+
+- Fix：用户主动 `seek` 被 mpv 丢弃后进度条永久冻结（H17）。此前只有换档续播的 seek 有“校验 + 重发”链，普通 seek 被丢弃后 `_pendingSeekTarget` 一直布防，之后所有真实位置都被当陈旧回声吞掉，直到下一次 seek。现在点播 seek 复用同一条校验重发链（最多 3 次），放弃后解除回声抑制、进度重新跟随真实位置；重发期间来了新 seek 则旧链作废，直播不 seek 的规则不变，暂停态同样成立。
+
+- Fix：换档（`switchQuality`/ABR 降档）续播位置丢失。HLS 手动连续切档时，续播 seek 在新档位报告时长的瞬间就下发，而此刻 mpv 尚未完成播放初始化，seek 被静默丢弃，播放从头开始（Android 真机本地 HLS 5 次切档仅 1 次续播成功）。现在寄存的续播 seek 等新档位落地（首帧/原生 RESTART）后再补发；4s 内始终没落地则兜底照旧补发，落地早于时长则等时长到达再发。Android 真机（STG-AL00）普通/swap 代理/暂停态各 5 次共 15/15 落点误差 0ms。
+
+- Fix：`setRate` 入口钳制。倍速钳到 0.25–4.0（`kMovaMinRate`/`kMovaMaxRate`，NaN 当 1.0），内核、state、`MovaRateChange` 看到同一个值（此前 0/负数/NaN 直接下发内核，state 与事件照抄）。
+
+- Fix：宿主上报回调抛异常不再打断引擎。`MovaReporter.onReport`（含 `MovaApi.report` 与 QoE collector 两处调用点）抛出的异常被隔离，只通知各钩子的 `MovaHook.onError`，播放状态与后续上报不受影响（此前异常冒进事件订阅回调，变成未捕获异步错误）。
+
+- Fix：`setVolume`/`setBrightness` 越界值。入口先钳到 0–100 / 0–1，state、事件与端口看到同一个值（此前 state 写入越界值，系统音量被端口钳制、亮度被平台插件以 `RangeError` 拒绝后吞掉，HUD 与设备实际对不上）。
+
+- Fix：重复 `dispose()` 抛异常（A23）。`MovaEngine`/`MovaCutoverEngine` 的 `dispose()` 改为幂等，第二次调用直接返回。
+
+- Fix：`setZoom` 低值让画面塌缩（A12）。小于 1.0 或 NaN 按 1.0 处理；上限仍不限制（`maxZoom` 只约束捏合手势）。
 
 ## 0.4.0
 

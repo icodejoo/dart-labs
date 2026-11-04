@@ -1473,3 +1473,67 @@ C04 实测新增 32 项，从 2269 增至 2301。C04a–C04d 代码、回归、�
 - 每轮测试开跑前执行 `Get-Process flutter_tester -ErrorAction SilentlyContinue | Stop-Process`。本提交只启动一次全量 `flutter test --concurrency=3 --machine`：首轮 **2371 绿、7 项夹具错误**；唯一异常文件 `test/core/preview/b09_test.dart` 的 setUp 使用 `Directory('.dart_tool/b09').createTemp`，新 worktree 缺少其父目录，连带 tearDown 报未初始化。仅创建忽略的临时父目录后补跑该文件，**7/7 绿**；未改夹具或既有断言。按文件替换异常结果并与完整测试文件清单核对，最终 **230 文件、2378 项通过**（2375 + 3），无漏文件、跳过或重复计数。无 OOM、断连、降并发或目录分片，未重跑全量。日志为 `.dart_tool/c08-full.jsonl`、`c08-retry.jsonl`。
 - `flutter analyze lib test`：**0 issues**；`dart format` 与 `git diff --check` 通过。analyze 沿用此前落地记录的 lib/test 范围，未扩展到 example、packages 与 HarmonyOS 试验目录。`CHANGELOG.md` Unreleased 已记录分入口、STT 过渡与 helper 公告；运行行为没有变化。
 - 与计划差异：按用户指令合并 C08/C09 为一个提交；测试 +2/+1 合计仍为 +3，无裁剪。快照采用完整导出路径及约束而非引入 analyzer 依赖解析声明。测试环境额外补建 B09 临时目录。未改 `CLAUDE.md`，未 push、切分支、stash/reset，未用真机或启动应用；仅在当前 worktree 的 mova 目录内写文件。pub get 产生的 example/windows/flutter/generated_plugin* 修改不暂存、不纳入提交，doc/notes、matrix-run 与兄弟项目亦不纳入。
+
+## C17 文档对齐记录（2026-11-04）
+
+由当前执行者亲自完成，未转派；限定 wt-mova-c17/mova，detached，单提交。
+依据代码对齐，不改 lib 行为，不用真机。第 9 节逐项结果：
+
+- [x] CLAUDE.md：基线更新 2386，压缩最近一段 A2/CP1/A/B/C 摘要，保留旧“前一基线”链；
+  补 MovaSession、广告时钟、错误分级、加载规格、cutover 代际、待机两处修复、接线默认。
+  STT 指向 08-04 Zipformer 定案，②③④ 清账，新增总计划链接及 CP1/CP2/CP3 状态。
+- [x] SPEC.md：现行会话模块/依赖方向/命令三分法/item-node-attempt/语义表；补 _WarmSlot 与包内 MovaWarmOwner，
+  可暂停时钟/contentError、清晰度自探测/manageAuto、错误分级、chrome/bridge、style、分入口与导出快照。
+  更新 END_FILE、默认探针/抽帧及待机验证边界；历史段落以上方现行规则为准。
+- [x] DESIGN-0.2.0.md：文首说明阶段已实现，保留历史设计，现行会话/错误/UI 与签名指向 SPEC。
+- [x] README.md：复核构造示例、首屏版本、iOS 未验证；ads+playlist 共享会话示例保留，
+  contentError 含正片 open 与终结失败；错误/后台/全屏/请求头/分入口/Feed 控制器更新。
+  keepAlive 补 Windows/CP1 数据与读数限制；libmpv 接入长文迁入本目录 libmpv/README.md，
+  构建配方仍链接独立 mova-libmpv 文档，未写兄弟工程。移除旧“不保证交互”说法，补仲裁规则；
+  写明 feed Range/HLS/force close、STT 实验下载无校验和、DRM/投屏/离线下载不支持。
+- [x] CHANGELOG.md：Unreleased 按领域归并，移除重复且过期的错误分级条目，保留每条最终行为与迁移。
+  Breaking/Deprecated 汇总命名、Future<bool>、旧 UI/样式/策略/STT/helper 过渡；暂停不计广告时长。
+  Unreleased 测试计数移出正文，历史版本节不改，逐提交数字仍可查本计划及 Git 历史。
+- [x] ACCEPTANCE-MATRIX.md：新增 OR1–OR5 覆盖会话/时钟/错误/加载规格/UI 导出；统一 F3
+  稳定落点 ≤500ms 且 path 正确，<200ms 仅统计；§4.2 更新已实测 H28/H20/H50/keepAlive，
+  指向 CP1 原始证据，§7 加修订，不将三项 BLOCKED 或 CP2/CP3 改为通过。
+- [x] ROADMAP.md：标记 A/B/C 已落地及文档完成；设备检查点仍待办，挂出 §1.4 暂缓项和明确不做项。
+- [x] 本计划：回写本记录、版本对账及偏差；CP1 原结果保留，CP2/CP3 未执行。
+
+C17 行与附带 dartdoc：
+
+- [x] api.dart dispose 改为具体引擎幂等与宿主所有权说明；stt_config.dart 修成真实的
+  createMovaEngine(options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: recognizer)))。
+- [x] ④#29：patch.dart 与 mova_platform_interface.dart 的公开成员已有注释，补路径未命中规则、
+  构造器指引、PiP 查询/回流区别，并修正“每成员都有安全默认”与 getPlatformVersion 抛异常的冲突。
+  lib 四文件仅注释改动，行为文本逐项核对。
+
+版本对账（不推断远端发布状态）：
+
+| 位置 | 原值 | 结果 |
+|---|---|---|
+| pubspec.yaml | 0.4.0 | 不改 |
+| ios/mova.podspec | 0.3.0 | 元数据对齐 0.4.0 |
+| CHANGELOG | Unreleased + 0.4.0 历史节 | 保留版本边界，整理 Unreleased |
+| README 安装/首屏 | ^0.3.0 / 首次 0.1.0 | ^0.4.0 / 仓库 0.4.0，Unreleased 用 path/git |
+| CLAUDE 第 4 条 | 只记发布至 0.3.0 | 区分源版本 0.4.0、历史发布记录及 Unreleased，发版仍由用户决定 |
+
+偏差与冲突：
+
+- 代码的默认 Range 为 bytes=0-65536（含两端 65537 字节），随后 drain 整个响应，未设消费字节上限。
+  README 用“约 64KB Range 请求”并注明忽略 Range 可能拉全量；不能照计划写成硬性 64KB 上限。
+- movaObserveFlags.native 保留历史辅助返回值，工厂实际无条件给默认内核 observeNativeEvents:true；
+  文档明确首次 open 懒启动 END_FILE，不按 helper 旧返回值误写默认关闭。helper 未改行为。
+- 约 120 行 libmpv 接入长文迁入当前工程消费侧文档，以满足只在 mova 内改的限制，未写独立工程。
+- 当前已有 #29 注释，补语义缺口而非重复添加；小窗旧 surface 归因改为 media_kit 默认行为与现行引擎暂停路径，
+  未把未经对照的 surface 假说写成事实。无真机结果新增，CP1 仍未整体通过。
+
+验证：
+
+- flutter analyze lib test：0 issues（初检与最终注释复核后各一次）。
+- 唯一一次 flutter test --concurrency=3 --machine：2386/2386 通过，0 失败、0 skip，
+  done.success=true、退出码 0；未断连、未补跑、未重复全量、未降并发或分片。
+  开跑前清理 flutter_tester；为已知 B09 夹具预建忽略目录 .dart_tool/b09，未改测试。
+- lib 四文件去掉整行注释后与 HEAD 完全一致；新增示例的类型/具名参数/方法已在源码定义核实。
+- 日志保存在忽略的 .dart_tool/c17-full.jsonl、c17-full.stderr、c17-analyze*.log。
+  git diff --check 通过；未暂存禁列文件，未 push/切分支/stash/reset。

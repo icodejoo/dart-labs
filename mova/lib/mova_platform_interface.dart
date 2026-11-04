@@ -4,12 +4,13 @@ import 'mova_method_channel.dart';
 
 /// Platform contract behind mova's native features (system PiP, system
 /// volume). Platform implementations extend this class and register
-/// themselves through [instance]; every member has a safe default, so a
-/// platform without a native side simply reports "unsupported".
+/// themselves through [instance]; capability members have safe defaults, so a
+/// platform without a native side reports "unsupported" for capability calls.
+/// [getPlatformVersion] instead throws when not implemented.
 ///
 /// mova 原生能力（系统画中画、系统音量）背后的平台契约。各平台实现继承本类，
-/// 并通过 [instance] 注册；每个成员都有安全默认值，没有原生侧的平台只会回报
-/// "不支持"。
+/// 并通过 [instance] 注册；能力成员有安全默认值，没有原生侧的平台会回报
+/// 能力调用的“不支持”；[getPlatformVersion] 未实现时抛出异常。
 abstract class MovaPlatform extends PlatformInterface {
   /// Constructs a MovaPlatform.
   ///
@@ -57,7 +58,7 @@ abstract class MovaPlatform extends PlatformInterface {
 
   /// Whether this platform can enter system picture-in-picture.
   ///
-  /// 本平台是否支持进入系统画中画。
+  /// 本平台是否支持进入系统画中画。此查询不代表已经进入；实际状态经 [pipChanges] 回流。
   ///
   /// Returns `true` when supported, `false` otherwise (the default).
   ///

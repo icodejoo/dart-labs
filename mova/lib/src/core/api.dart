@@ -383,9 +383,10 @@ abstract class MovaApi {
   /// ```
   void report(MovaReportName name, {Map<String, dynamic>? params});
 
-  /// Releases all resources held by this instance; must be called exactly
-  /// once when the player is torn down.
+  /// Releases resources when the player is torn down. MovaEngine and
+  /// MovaCutoverEngine implement idempotent disposal; repeated calls are safe.
   ///
-  /// 释放该实例持有的所有资源；播放器销毁时必须且只能调用一次。
+  /// 播放器销毁时释放资源。MovaEngine 与 MovaCutoverEngine 的实现幂等，
+  /// 重复调用安全；宿主仍应明确资源所有权，及时释放自己持有的实例。
   Future<void> dispose();
 }

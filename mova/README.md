@@ -7,16 +7,12 @@ playback.
 基于 [media_kit](https://pub.dev/packages/media_kit)（libmpv/ffmpeg 内核）的
 Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
-> ⚠️ **Not production-ready yet / 尚未生产就绪**：this is a first pub.dev release
-> (`0.1.0`) of a hobby/small-team-maintained plugin. Several features have only
-> been unit-tested and have **not** been verified on real devices yet (see
-> [Known limitations](#known-limitations--已知限制) below). Use at your own risk
-> in production apps — review the limitations and test thoroughly on your
-> target devices first.
->
-> 这是一个个人/小团队维护插件的**首次** pub.dev 发布（`0.1.0`）。部分功能只过了单元
-> 测试、**尚未经过真机验证**（详见下方「已知限制」）。生产环境使用请自行评估风险，
-> 在你的目标设备上充分测试后再上线。
+> **Repository version / 仓库版本：0.4.0**（以 pubspec.yaml 为准）。
+> CHANGELOG 的 `Unreleased` 是 0.4.0 之后的仓库能力，使用 path/git 依赖才能拿到；
+> 安装某个 pub.dev 版本前请核对对应 CHANGELOG，不能把仓库功能视为已发布功能。
+> Android/Windows 有部分真机验证；iOS 未验证，CP2/CP3 仍待真机，
+> CP1 为 13 PASS / 3 BLOCKED，尚未整体通过。目标设备验收范围见
+> [SPEC](doc/SPEC.md) 与[验收矩阵](doc/ACCEPTANCE-MATRIX.md)。
 
 ## Features / 功能
 
@@ -44,7 +40,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 | | Android | iOS | Windows |
 |---|:---:|:---:|:---:|
-| 播放 / 手势 / 控制条 | ✅ | ✅ | ✅ |
+| 播放 / 手势 / 控制条 | ✅ | 未验证 | ✅ |
 | 画中画 PiP | ✅ | ❌ | ❌ |
 
 > iOS/桌面 PiP：media_kit 用 libmpv 纹理渲染，系统级 PiP 依赖 AVPlayer 路径，暂未实现，`isPipSupported()` 返回 `false`。详见 [doc/SPEC.md](doc/SPEC.md)「PiP（原生）」一节。
@@ -52,21 +48,24 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 ## Known limitations / 已知限制
 
 - iOS/桌面（Windows/macOS/Linux）暂不支持系统级画中画。
-- 桌面平台（Windows/macOS/Linux）没有"真全屏"（撑满 OS 窗口、去标题栏）能力，`setFullscreen()` 不会有可见效果，需宿主自己接 `window_manager` 一类的包（见下方「平台端口」一节）。
+- 桌面平台（Windows/macOS/Linux）没有"真全屏"（撑满 OS 窗口、去标题栏）能力，`setFullscreen()` 本身只更新状态/方向，应用内铺满可用 `MovaPlayer(fullscreenRoute: true)`；OS 窗口全屏需宿主自己接 `window_manager` 一类的包（见下方「平台端口」一节）。
 - TLS 严格校验（`createMovaEngine(tlsVerify: true, tlsCaFile: ...)`，默认关闭，此时 Android libmpv 不校验证书）：**Android 上开启必须同时传 `tlsCaFile`（PEM 格式 CA 包，例如拼接 `/system/etc/security/cacerts/` 下的证书），否则所有 HTTPS 都会失败**（瘦身 libmpv 用 mbedtls、无系统信任库）；IP 直连不校验证书主机名，仅域名生效；iOS/macOS 未验证。
 - 仅音频模式（`audioOnly`）不提供后台常驻播放、锁屏/通知栏控制、耳机线控、音频焦点、gapless、歌单——这些需要 `just_audio` + `audio_service` 一类的专用方案。
 - **带画面内核的 `VideoController` 必须真正挂到界面上才能正常销毁**（这是 media_kit 的行为，不是 mova 引入的）：`VideoController` 创建后若一直没有挂到视频组件上，`Player.dispose()` 会一直等它，真机实测 Windows 上 3/6 次、Android 上 4/5 次 dispose 撞上 8 秒超时。默认实现（`createMovaEngine()` / `MovaEngine()`）已做成**懒创建**——第一次渲染（`MovaPlayer` 挂上树，读取 `renderHandle`）时才创建，所以"创建了 engine 却没展示就销毁"是安全的。**如果你自己创建并注入 `VideoController`（传入自己构造的 `MovaMpvKernel`/`Player`，或用 `lazyVideo: false` 的内核），要自己保证它最终挂到了 UI 上再销毁**；纯逻辑、后台预热、单测等不展示画面的场景请用 `audioOnly: true`，或保持默认懒创建、不要读取 `renderHandle`。无缝切换的影子引擎例外：预热阶段就需要解码画面，会提前创建控制器。
 - **Windows 上 Flutter 3.47.0/3.47.1（Impeller）：push/pop 不透明路由会让进程原生崩溃**——引擎 bug（flutter/flutter#190774，3.47.2 已修），与 mova 无关，纯 media_kit 也崩。mova 已在 Windows 上让播放器渲染面退出页面转场快照来规避；仍建议宿主升级到 Flutter ≥ 3.47.2。自己直接用 media_kit `Video` 的页面不受这层规避保护，需自行升级或对转场关快照（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`）。
 - 自动暂停守卫（`MovaAutoPause`）的视口检测只沿祖先 `Scrollable` 计算，**不覆盖**任意 `ClipRect`/`Transform`/`Overlay` 造成的遮挡；外层 navigator 上的半透明路由要传 `routeObservers`（每个 navigator 一个观察者，不能共用）；懒加载列表如果在守卫来得及暂停之前就销毁了卡片，此后引擎归持有者管。
-- 待机（keepAlive）只经过 `flutter analyze`/`flutter test`/假内核验证，**无真机数据**：恢复耗时、`maxDuration`/`resumeTimeout` 的默认值、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台后的实际状态都待测。无声流的"继续解码、只静音"变体不省电；更省电的 `vo=null` 做法会与 media_kit 的 Android 渲染面逻辑冲突，没有实现。iOS/macOS 未验证。
-- `MovaOpts.recovery`（起播/卡顿超时与重试）与 `MovaAds`/`MovaCutoverEngine` 同时开启时，交互不在保证范围内；它们三者的失败处理各管各的，没有统一的恢复编排。
+- 待机已有 Windows release 数据（FLV 唤醒 18/18 走 grace，耗时读数为 5s 兜底，不能当首帧实测耗时），Android CP1 S1/S7/S13/S14 为 20/20；HLS、耗电、iOS/macOS 仍未充分验证。见[待机验证记录](doc/plans/2026-10-23-standby-mode.md)及 [CP1](doc/plans/2026-11-03-cp1-results.md)。
+- recovery、广告和 cutover 现由会话仲裁：非终结诊断交给引擎；恢复中等 giveUp，广告终结失败按广告策略裁决一次；正片失败进入 `contentError`，不自动换集。宿主新 open 优先，旧会话和旧影子让位。
+- Feed 的池外网络预取只做约 **64KB** 的 Range 请求（默认 `bytes=0-65536`，含两端为 65537 字节）；代码会 drain 响应，服务器忽略 Range 时可能拉完整资源；HLS 只拿 **m3u8**，不预取媒体分片。每次预取 `force close`，连接不能复用；池外直播条目的引擎仍可能满速拉流，预取不能代替限流或离线缓存。
+- STT 模型下载是**实验实现，无校验和校验**，本包不内置识别引擎。
+- **不支持 DRM、投屏、离线下载**。
 - 部分可选能力（广告编排、无缝引擎切换、App 内小窗、仅音频模式）代码已落地但真机验证程度不一，详见各自小节链接的 [doc/SPEC.md](doc/SPEC.md) 章节。
 
 ## Install / 安装
 
 ```yaml
 dependencies:
-  mova: ^0.3.0
+  mova: ^0.4.0
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：
@@ -77,6 +76,54 @@ Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：
     android:supportsPictureInPicture="true"
     android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|...">
 ```
+
+## 能力入口（仓库 Unreleased）
+
+`package:mova/mova.dart` 本版继续兼容导出原有符号。按能力可选用：
+
+| 入口 | 用途 |
+|---|---|
+| `package:mova/skin.dart` | 组件、插槽、作用域、MovaChrome、样式 |
+| `package:mova/ads.dart` | 广告及配置 |
+| `package:mova/feed.dart` | Feed 数据、组件、控制器及预取 |
+| `package:mova/mini.dart` | 小窗及配置 |
+| `package:mova/extend.dart` | 会话、cutover、预览、平台端口、上报 |
+| `package:mova/stt.dart` | STT 端口、字幕与实验模型下载 |
+
+STT 从主入口转导出只保留一个版本，建议改导入 `stt.dart`；`MovaApi.stt` 保留。
+导出上的内部 helper 隐藏公告见 [SPEC](doc/SPEC.md)，本版尚未加成员级弃用注解。
+
+## 应用内全屏与视图样式（仓库 Unreleased）
+
+```dart
+MovaPlayer(
+  api: engine,
+  fullscreenRoute: true, // 默认 false；根 Navigator 推送 mova/fullscreen
+  style: const MovaPlayerStyle(strings: MovaStrs(retry: '再试一次')),
+)
+```
+
+返回键先退出全屏，锁定时提示解锁；路由借用同一 API、自建 chrome，退出唤出内联控制条。
+方向与 PiP/mini 仍由引擎管理；Windows 自定义 surface 同样受快照守卫保护。
+`MovaPlayerStyle` 按节查找：视图参数 > ThemeExtension > 旧 options > 默认，切主题不重建引擎。
+组件可用 `MovaChrome.of(context)` 控制自己视图的 HUD/控制条/拖动；锁定、fit、zoom 仍共享。
+
+## 源请求头与起播点（仓库 Unreleased）
+
+```dart
+const source = MovaSource(
+  'https://cdn.example/video.mp4',
+  headers: {'Authorization': 'Bearer token'},
+  userAgent: 'MyApp/1.0',
+  start: Duration(seconds: 30),
+);
+```
+
+显式 userAgent 覆盖同名头。播放、清晰度探测、VTT/雪碧图、抽帧及 Feed 预取共用头，
+`start` 只用于点播，经 seek 寄存链等就绪。自定义旁路 HTTP 应实现
+`MovaHeaderedHttpFetch.getWithHeaders(Uri url, Map<String, String> headers)`；
+旧 `MovaHttpFetch.get(Uri)` 仍可用，但头会丢失，每实例只在 debug 提示一次。
+默认 IO 实现逐请求设置、不泄漏到下一请求；自定义抽帧可实现 `MovaHeaderedFramePuller`。
 
 ## Usage / 用法
 
@@ -167,9 +214,9 @@ MovaView(
 )
 ```
 
-- 第一次拿到非空 `source` 才创建引擎；`source` 真正变了（`MovaSource.sameAs`：比较 uri、type、备选地址，**不比 title**）才重开，同源重建不会重开流。
+- 第一次拿到非空 `source` 才创建引擎；`source` 真正变了（`MovaSource.sameAs`：比较 uri、type、备选地址、源选项、headers/userAgent/start，**不比 title**）才重开，同源重建不会重开流。
 - `source` 变 `null`：引擎暂停，只剩封面（没封面就是黑底）。
-- 仅引擎实际读取的配置节变化会**销毁并重建**引擎；等值内联配置、ads/playlist/mini 变化不会重建。尚未迁出的 UI 样式节仍保守比较；引擎的 options 保留构造快照。
+- 仅引擎实际读取的配置节变化会**销毁并重建**引擎；等值内联配置、ads/playlist/mini 变化不会重建。UI 样式变化只更新视图；引擎的 options 保留构造快照。
 - 打开失败走 `onOpenError`，不传就交给 `FlutterError.reportError`，不会变成未捕获的异步异常。
 - 需要把引擎传来传去（跨路由小窗等）时，继续用命令式的 `createMovaEngine()` + `MovaPlayer`；**别把 `MovaView` 持有的引擎交给 `MovaMini`**，`MovaView` 卸载时会把它销毁。
 
@@ -184,7 +231,7 @@ api.events.listen((e) {
 ```
 
 - 判据：原生 `PLAYBACK_RESTART` 最准；没订阅时退到 buffering 下降沿、连续递增位置、暂停态首个画面尺寸。原生订阅在工作却迟迟不来 RESTART，最多等 1.5s 宽限就落地。
-- **默认不开原生订阅**（每个引擎一个 mpv 弱客户端，debug 下还有 100ms 轮询；开了 `recovery` 会为"坏地址秒判"订阅 `END_FILE`，但不转发 `PLAYBACK_RESTART`，首帧判据不变）：`createMovaEngine(preciseFirstFrame: true)` 打开，首帧更准（真机上 buffering 兜底比真实 RESTART 早约 200ms，偏乐观）；`MovaView` 有 `poster` 时默认开。
+- **默认首次 open 懒订阅 END_FILE，RESTART 默认不开**（每个引擎一个 mpv 弱客户端，debug 下还有 100ms 轮询；END_FILE 与 recovery 开关无关）：`createMovaEngine(preciseFirstFrame: true)` 打开，首帧更准（真机上 buffering 兜底比真实 RESTART 早约 200ms，偏乐观）；`MovaView` 有 `poster` 时默认开。
 - `MovaPlayer(poster:)` / `MovaView(poster:)`：封面叠在传给皮肤的"画面层"里，缓冲转圈、错误层、控制条都画在它上面；`rendered` 且画面尺寸已知后淡出（`posterFade`），换源瞬间重新盖上；纯音频源封面常驻。`MovaFeedPlayer(posterUntilFirstFrame: true)` 同理，默认关闭。
 - 填充模式声明式：`MovaEngine(fit:)` / `createMovaEngine(fit:)` 给初值，`MovaPlayer(fit:)` / `MovaView(fit:)` 在挂载与**该参数变化**时应用一次；用户点 fit 按钮选的值不会被无关重建覆盖。
 - 想要没有手势、没有任何栏的纯画面：`MovaMinimalSkin(showBuffering:, showError:)`；转圈尺寸/线宽/颜色用 `MovaTheme.bufferingSize/bufferingStrokeWidth/bufferingColor`（默认 `null` 即旧外观）。
@@ -264,10 +311,11 @@ MovaView(source: src, autoPause: const MovaAutoPauseConfig())
 
 - 只用 Flutter SDK，不依赖可见性三方包：滚动视口（沿祖先 `Scrollable` 算可见比例，`minVisibleFraction` 可调）、`TickerMode`（`go_router` 的 `indexedStack` 给非活跃分支套了 `Offstage + TickerMode(enabled:false)`）、`ModalRoute.isCurrentOf`、`AppLifecycleListener`。
 - Dialog / BottomSheet 算"盖住"（对话框是半透明路由，盖在同一个 navigator 上时 `isCurrentOf` 为 false）。
-- **画中画 / App 内小窗（`state.pip || state.mini`）里不会暂停**。`inactive`（下拉通知栏、Android 系统画中画）不暂停，但会先记下"是否在播"——Android 切后台时 libmpv 会因渲染面被回收自己先暂停，不先记就会误判成"本来就没在播"，回前台也不续。
+- **全屏 / 画中画 / App 内小窗豁免页面遮挡与可见性暂停**（后台仍按守卫配置）。`inactive`（下拉通知栏、Android 系统画中画）不暂停，但会先记下"是否在播"——Android 切后台可能先收到播放暂停观测，不先记就会误判成"本来就没在播"，回前台也不续。
 - 直播恢复：暂停点可能已滑出 HLS 窗口、HTTP-FLV 连接也可能已断，所以隐藏 ≥ `liveResumeGrace`（默认 3s）后默认 `backToLiveEdge()` 再播，不足 3s 就普通 `play()`；`liveResume: MovaLiveResume.resume` 则一律普通续播。
 - **外层 navigator 上推的半透明路由**（典型：`go_router` 的 shell 分支里放卡片，根 navigator 弹对话框/透明页）`ModalRoute.isCurrentOf` 看不到，要传 `routeObservers`：**每个 navigator 一个** `RouteObserver<ModalRoute<dynamic>>`（Flutter 不允许一个 `NavigatorObserver` 挂到两个 navigator 上，会在 debug 下断言失败），把它们都传给守卫。不透明的外层路由（普通整页）转场结束后已经能经 `TickerMode` 察觉，不需要。
-- 不要给 `MovaFeedPlayer` 的页套守卫：feed 池的 `focus()` 已经在管"只有一页出声"，两套逻辑会打架。
+- `MovaFeedPlayer` 内置整条 feed 的守卫（`autoPause: null` 可禁用），不要给每一页另套守卫；翻页互斥由池管理。
+- 有视频渲染面的 `MovaPlayer` 默认经 `api.pause()` 处理后台暂停，回前台不自行续播；祖先同 API 的 `MovaAutoPause` 可接管（如 `background: false`）。旧后台暂停来自 media_kit `Video.pauseUponEnteringBackgroundMode` 默认值；已关闭该默认路径，不把 surface 回收当成已证实的唯一原因。audioOnly 无视频面，不受此兜底影响。
 
 ## 隐藏时待机（keepAlive，可选）
 
@@ -298,7 +346,7 @@ if (api is MovaKeepAlive) {
 - 状态与事件：`MovaState.keepAlivePhase`（`off`/`holding`/`fallback`/`resuming`）、`MovaKeepAliveChange`、`MovaKeepAliveResume`。有封面（`poster`）时，待机与恢复期间封面会瞬间盖上、恢复落地后淡出。
 - 待机期间 QoE 照计观看时长与卡顿（本期没有让 collector 识别待机）。
 - 宿主 widget 测试里，`MovaTestKernel` 的 `hasAudio`（默认 `null` = 媒体信息未知，此时会退回暂停）与 `fileFormat` 可编排待机场景。
-- 验证页：`example/lib/main_keep_alive_verify.dart`（只经过 `flutter analyze`，**未上机**）。
+- 验证页：`example/lib/main_keep_alive_verify.dart`；Windows 已部分实测，Android CP1 见上方记录，不能据此视为 CP2/CP3 已通过。
 
 ## widget 测试
 
@@ -445,6 +493,12 @@ MovaFeedPlayer(
 `ui/components/feed_social.dart`（点赞/评论/分享按钮、头像、信息栏，均可通过皮肤
 补丁体系增删）。详见 [doc/SPEC.md](doc/SPEC.md)「Feed」相关章节。
 
+宿主可持有 `MovaFeedPlayerController()`，传入 `MovaFeedPlayer(controller: controller, ...)`，
+通过 `feed`、`activeIndex`、`activeApi` 查询，调用 `jumpToPage(index)`、`pause()`、`play()`。
+未绑定时查询为 null、命令无操作；打开在途也可控制当前 API；控制器由宿主释放，池和引擎由组件释放。
+`autoPause`/`routeObservers` 控制整条 feed 守卫，`errorBuilder(context, index, error, retry)`
+可定制单页加载、open 拒绝/异常及运行中失败界面，显式 retry 不影响相邻页。
+
 ## 语音转字幕 / STT（可选）
 
 `MovaApi.stt`（`MovaSttApi`）暴露识别出的字幕流：组件只监听 `cues`/`current`、调用
@@ -461,18 +515,24 @@ await engine.stt.start();
 字幕文件的存放目录通过 `MovaSttModelDirProvider`/`MovaSttSubtitleDirProvider` 注入，
 默认走系统临时目录（`platform_impl/stt_model_dir_impl.dart` 等）。
 
+模型下载为实验实现，**没有校验和校验**。启用须通过
+`createMovaEngine(options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: recognizer)))`
+注入宿主持有的识别器；mova 不内置识别引擎，选型见 [08-04 定案](doc/notes/2026-08-04-stt-engine-decision.md)。
+
 ## 广告编排（可选）
 
 `MovaAds` 按排期播前/中/后贴片，并能表达广告业务的真实时序。**除广告位时长外，
 所有新能力默认关闭或默认不改变行为。**
 
 ```dart
-// 正片源延迟解析：前贴片播完之后才真正解析正片地址（DRM/签名 URL 场景）。
+// 正片源延迟解析：前贴片播完之后才真正解析正片地址（短期签名 URL 场景）。
 await ads.loadDeferred(() async {
-  final play = await api.requestPlayback(videoId);
+  final play = await playbackService.requestPlayback(videoId); // 宿主业务服务，非 MovaApi
   return MovaSource(play.url, title: play.title);
 });
-ads.contentError.listen((e) => /* 解析失败，由宿主决定是否重试 */);
+ads.contentError.listen((error) {
+  // 宿主展示重试入口；也包含正片 open 失败和运行中终结错误。
+});
 
 // 广告位时长与倒计时：duration 与素材时长解耦，delay 只对中插生效。
 MovaAdBreak(
@@ -500,6 +560,8 @@ MovaAdConfig(
 
 要点：
 
+- 广告位时长、跳过与中插 delay 使用可暂停时钟：暂停期间不计费、不消耗倒计时；加载首帧超时仍用独立墙钟，不依赖媒体时间轴。
+- `contentError` 汇入解析失败、正片 open/切换异常及运行中终结错误（开启 recovery 时等 giveUp）；宿主拒绝和过期加载不报错。失败回 idle、不发 `contentEnded`、不自动换集；`contentEnded` 只在正片及全部后贴片结束后发出。
 - `duration` 必须长于 `skippableAfter`，否则 `assertValid()` 会在 debug 下失败。
 - 就绪等待仅在宿主接了 `MovaCutover` 且 `MovaCutoverConfig.enabled` 为 `true` 时才可能生效——两者默认都是关的。
 - 失败兜底策略 `MovaAdFailPolicy` 返回 `retry` / `skipBreak` / `abandonPod`，内置 `MovaAdAbandonPod`（首次失败即放弃整个 pod）。
@@ -809,125 +871,10 @@ final engine = createMovaEngine(interceptors: [AuthGate()]);
 纯 Flutter widget）两层。`MovaApi` 是 `ui/` 唯一允许依赖的抽象——不直接触达
 `MovaKernel` 或 media_kit。完整分层说明、各模块职责见 [doc/SPEC.md](doc/SPEC.md)「架构分层」一节。
 
-## 进阶：接入自研瘦身版 libmpv（可选，仅进阶用户）
+## 自研瘦身版 libmpv
 
-默认情况下（不做任何配置）安装 mova 会走官方 `media_kit_libs_video` 依赖，能正常播放，
-只是体积比自研瘦身版大一些（Android 约 11.8MB → 6.05MB；Windows 约 14.66MB →
-13.41MB。二进制越裁越小，具体数字见各平台产物目录）。项目自己维护了一套体积更小的
-瘦身版 libmpv 构建（独立子工程 `mova-libmpv`，产物通过 CI 自动同步推送到本仓库
-`packages/` 各对应平台包内）。**这是可选的进阶操作，普通用户完全不需要做，装了 mova 也不会自动生效。**
-
-**能力面被裁过，接入前请知悉**：瘦身版去掉了 VP8/VP9 软解、收窄了音频
-decoder/demuxer 白名单、砍掉了部分协议（ftp/async/cache/subfile/httpproxy），且
-avfilter（`overlay`/`equalizer`，用于 OSD/字幕合成/音频均衡）移除后的真机播放影响
-**尚未做过系统性验证**。如果你的场景依赖这些能力，先别接入。
-
-### 机制：同名整包替换（同一套思路适用所有已落地平台）
-
-不管哪个平台，接入方式都是**同一个模式**：本仓库提供一个与官方包**同名**的 fork 包
-（`publish_to: 'none'`，只能通过 path/git 依赖引用，不会被误装），装了它并在你项目的
-`pubspec.yaml` 里用 `dependency_overrides` 指过去之后，官方包**完全退出依赖图**——
-不是"两份二进制打架、谁赢的问题"，而是从一开始就只有一个提供方，天然没有冲突，
-也不需要额外的合并规则。删掉 `dependency_overrides` 那几行，就干净回退到官方版本，
-零残留、零副作用。
-
-### Android
-
-```yaml
-# 你项目自己的 pubspec.yaml —— 复制粘贴即可用，把 ref 换成你想锁定的 commit/tag
-dependency_overrides:
-  media_kit_libs_android_video:
-    git:
-      url: https://github.com/icodejoo/dart-labs.git
-      path: mova/packages/media_kit_libs_android_video_slim
-      ref: main
-```
-
-如果你是把 `dart-labs` 仓库 clone 到自己项目旁边本地开发（而不是走 git 依赖），
-把上面 `git:` 那三行换成一行相对路径即可（假设两个仓库是兄弟目录）：
-
-```yaml
-    path: ../dart-labs/mova/packages/media_kit_libs_android_video_slim
-```
-
-不需要改任何 Gradle 文件、不需要 `pickFirsts`——加这一行依赖覆盖就是全部操作。
-这个 fork 包内含两个原生库：mova-libmpv 自建的瘦身版 `libmpv.so`，以及
-**原样提取自官方 release 的** `libmediakitandroidhelper.so`（负责 `content://`
-URI 打开等，mova-libmpv 不构建这个，必须保留，否则会丢功能）。
-
-验证方式（不用信我们说的，自己核对，`<mova-repo>` 换成你本地 clone 的路径）：
-
-```bash
-unzip -p build/app/outputs/flutter-apk/app-release.apk lib/arm64-v8a/libmpv.so | sha256sum
-sha256sum <mova-repo>/mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a/libmpv.so
-# 两个 sha256 应完全一致
-```
-
-### Windows
-
-```yaml
-dependency_overrides:
-  media_kit_libs_windows_video:
-    git:
-      url: https://github.com/icodejoo/dart-labs.git
-      path: mova/packages/media_kit_libs_windows_video_slim
-      ref: main
-```
-
-同样只需要这一行（本地 clone 用法同上，把 `git:` 换成 `path: ../dart-labs/mova/...`）；
-这个 fork 包自带自研瘦身版 `windows/libmpv-2.dll` 以及对应的导入库与公共头文件，完全自包含，
-跳过官方 7z 下载。参考本仓库 [example/pubspec.yaml](example/pubspec.yaml) 的实际写法（长期用于真机验证）。
-
-### iOS / macOS
-
-**CI 已验证到编译、链接与 WHEP 端到端冒烟；iOS 真机起播未验证（见本节末）**：
-
-```yaml
-dependency_overrides:
-  media_kit_libs_ios_video:
-    git:
-      url: https://github.com/icodejoo/dart-labs.git
-      path: mova/packages/media_kit_libs_ios_video_slim
-      ref: main
-  media_kit_libs_macos_video:
-    git:
-      url: https://github.com/icodejoo/dart-labs.git
-      path: mova/packages/media_kit_libs_macos_video_slim
-      ref: main
-```
-
-`packages/media_kit_libs_ios_video_slim` 与 `_macos_video_slim` 两个 fork 包里的
-`Frameworks/Mpv.xcframework` 由 CI（`build-mova-libmpv.yml` 的 `apple-whep` +
-`apple-package`）直接编译并回写（LFS），是 n9 线的 WHEP 版 libmpv：ffmpeg n9.0.2 + WHEP/DTLS-SRTP
-+ mpv v0.41.0，单文件静态，只依赖系统库。iOS 为真机 arm64 + 模拟器 arm64/x86_64，macOS 为
-arm64 + x86_64 的 universal；`install name` 为 `@rpath/Mpv.framework/Mpv`，最低版本 iOS 13 / macOS 10.15。
-podspec 里**没有 `prepare_command`**（CocoaPods 对 `:path` pod 不执行它），`Frameworks/.symlinks/mpv`
-由 podspec 求值时生成（已 `.gitignore`）。
-
-**TLS 行为变化**：Apple 版 libmpv 的 TLS/DTLS 全部走静态 mbedtls（securetransport 做不了 DTLS-SRTP），
-所以与 Android 一样：`tlsVerify` 为 true 时必须同时给 `tlsCaFile`（读不了系统钥匙串）；
-mbedtls 3.4 不匹配证书 SAN 里的 IP 地址，IP 字面量主机名的 https 在校验开启时必然失败，请用域名。
-ffmpeg 因此为 `--enable-version3`，整体 **LGPLv3**。
-
-**宿主 App 需要自己做的**：`NSLocalNetworkUsageDescription`（WHEP 连局域网地址时 iOS 14+ 会弹本地网络权限）；
-macOS 沙盒需要 `com.apple.security.network.client`；macOS 的 Developer ID 签名/公证、iOS 签名由宿主 App
-嵌入 framework 时完成（包内只做了 ad-hoc 签名）；App Store 出口合规问卷从"只用系统加密"变成"自带 mbedtls"，请自行确认。
-
-**仍未验证（CI 做不了）**：iOS 真机起播与 VideoToolbox 硬解（runner 上 `hwdec-current` 是 no）、前后台切换、
-真机的本地网络权限弹窗。
-详见 [doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
-「Darwin（iOS/macOS）同名替换设计」一节；欢迎有 Mac 环境的贡献者验证并回填结论。
-
-### Linux
-
-libmpv 在 Linux 上来自系统（`media_kit_video` 走 pkg-config 找 mpv/epoxy），
-不存在"包提供二进制"这个位置可占，本方案模型不适用，接入需要走系统包管理或
-自建 RPATH，不在本方案范围内。
-
-### 免责声明
-
-这是社区/进阶用法，mova 官方不对接入后的行为提供支持保证；瘦身版二进制版本与 mova
-包版本没有强绑定关系，升级前建议自己按上面的 sha256 核对方式重新验证一次。
+消费侧接入与各平台配置见 [libmpv/README.md](libmpv/README.md#接入指南从项目-readme-迁入)；
+构建配方和 CI 见独立 [mova-libmpv 文档](../mova-libmpv/README.md)。
 
 ## Roadmap / 路线图
 
