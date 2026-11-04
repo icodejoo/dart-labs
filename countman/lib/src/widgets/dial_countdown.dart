@@ -498,7 +498,7 @@ class DialCountdown extends StatelessWidget {
 
     return CountdownBuilder(
       to: to,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
       total: total,
       rounding: rounding,
       controller: controller,

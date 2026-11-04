@@ -142,7 +142,7 @@ class RingCounter extends StatelessWidget {
           duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
       curve: curve ?? scope?.curve ?? Curves.easeOut,
       allowNegative: allowNegative ?? scope?.allowNegative ?? false,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
       controller: controller,
       animateOnce: animateOnce,
       onceId: stableOnceIdFromKey(key),

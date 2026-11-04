@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import 'types.dart';
 
+export 'package:countman/src/controllers/countdown_controller.dart';
+
 /// Returned by [Countdown.add].
 class CountdownHandle {
   CountdownHandle._(this._id, this._plugin);
@@ -71,6 +73,16 @@ class CountdownHandle {
   }
   bool get isPaused => _plugin.task(_id)?.isPaused ?? false;
   bool get isDone => _plugin.task(_id)?.done ?? true;
+
+  /// 仍按墙钟锚定（从未暂停或重置）的任务返回其绝对截止时间，否则返回 null。
+  /// 由展示组件在迁移插件时调用，业务代码不要直接调用；例如迁移时保留
+  /// “到 20:00 结束”这类截止语义。
+  @internal
+  DateTime? get absoluteDeadline {
+    final task = _plugin.task(_id);
+    if (task == null || task.done || !task.absolute) return null;
+    return DateTime.fromMicrosecondsSinceEpoch(task.endMicros);
+  }
 }
 
 /// Countdown engine — drives [Duration]-based timers on the shared ticker.
@@ -226,62 +238,6 @@ class Countdown extends ClockPlugin<CountdownTask> {
     );
     return CountdownHandle._(id, this);
   }
-}
-
-// ── CountdownController ───────────────────────────────────────────
-
-/// 倒计时展示组件的命令式控制器，结束后 reset 会请求组件重启。
-///
-/// Create once, pass to a widget via its `controller` parameter, then call
-/// [pause], [resume], [reset], or [cancel] from any parent or business logic.
-/// The controller attaches to the widget's internal [CountdownHandle] after
-/// the first build.
-class CountdownController {
-  CountdownHandle? _handle;
-
-  /// 保存展示组件提供的重启动作。
-  void Function({Duration? duration})? _relaunch;
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
-  /// 例如 `controller.attach(handle, relaunch: restart)`。
-  @internal
-  void attach(CountdownHandle handle,
-      {void Function({Duration? duration})? relaunch}) {
-    _handle = handle;
-    _relaunch = relaunch;
-  }
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
-  /// 例如 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
-  @internal
-  void detach([CountdownHandle? handle]) {
-    if (handle != null && !identical(_handle, handle)) return;
-    _handle = null;
-    _relaunch = null;
-  }
-
-  void pause() => _handle?.pause();
-  void resume() => _handle?.resume();
-
-  /// 重置并恢复倒计时；[duration] 为空时存活任务沿用原时长，结束后采用组件配置。
-  /// 已结束或取消时请求展示组件重启，未绑定时无操作；无返回值。
-  /// 例如 `controller.reset(duration: Duration(seconds: 10))`。
-  void reset({Duration? duration}) {
-    final handle = _handle;
-    if (handle != null && !handle.isDone) {
-      handle.reset(duration: duration);
-    } else {
-      _relaunch?.call(duration: duration);
-    }
-  }
-
-  void cancel() => _handle?.cancel();
-
-  Duration get remaining => _handle?.remaining ?? Duration.zero;
-  bool get isPaused => _handle?.isPaused ?? false;
-  bool get isDone => _handle?.isDone ?? true;
 }
 
 // ── default instance + top-level function ─────────────────────────

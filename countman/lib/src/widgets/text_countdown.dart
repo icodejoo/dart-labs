@@ -135,7 +135,7 @@ class TextCountdown extends StatelessWidget {
 
     final number = CountdownBuilder(
       to: to,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
       precise: precise,
       total: total,
       rounding: rounding,

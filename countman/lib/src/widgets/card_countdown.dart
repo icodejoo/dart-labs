@@ -2,12 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
+import 'package:countman/src/core/run_state.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
 import 'card_countdown_provider.dart';
 import 'card_countdown_types.dart';
 import 'painter/flip_card_painter.dart';
 import 'reduce_motion.dart';
+import 'scope_resolution.dart';
 import 'style_support.dart';
 import 'providers.dart';
 
@@ -333,6 +335,16 @@ class CardCountdown extends StatefulWidget {
 class _CountdownCardState extends State<CardCountdown>
     with SingleTickerProviderStateMixin {
   CountdownHandle? _handle;
+
+  /// 当前生效的插件（显式 > 最近 CountdownProvider > 默认组），
+  /// 使 Provider 的 onGroupReady / onAllComplete 对卡片同样生效。
+  late Countdown _plugin;
+
+  /// 无存活任务时的终态：完成为 completed，其余为 idle。
+  CountmanRunState _doneState = CountmanRunState.idle;
+
+  /// 为 true 时旧任务被取消不把 runState 写成 idle（紧接着会有新任务）。
+  bool _keepRunState = false;
   late final AnimationController _ctrl;
   late bool _showHours;
   late CardModel _model;
@@ -380,6 +392,9 @@ class _CountdownCardState extends State<CardCountdown>
           _model.reversePhase = false;
         }
       });
+    // initState 里不能注册依赖，先非依赖地解析一次；之后由 didChangeDependencies 跟随变化。
+    _plugin = resolvePlugin<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
     final r = _shown(_remainingOfTo());
     _lastRemaining = r;
     _semanticRemaining.value = r;
@@ -388,8 +403,22 @@ class _CountdownCardState extends State<CardCountdown>
     _start();
   }
 
-  /// 当前生效的倒计时插件（显式传入或默认组）。
-  Countdown get _plugin => widget.plugin ?? defaultCountdown;
+  /// 解析出的插件变化（Provider 换分组）时迁移任务，保留剩余时间与暂停态。
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final plugin = resolvePluginDependent<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
+    if (!identical(plugin, _plugin)) _migrate(plugin);
+  }
+
+  /// 插件变化：存活任务迁移到新插件，保留剩余时间与暂停态；没有存活任务时只换插件。
+  void _migrate(Countdown next) {
+    final old = _handle;
+    _plugin = next;
+    if (old == null || old.isDone) return;
+    _start(remaining: old.remaining, paused: old.isPaused);
+  }
 
   /// 按当前插件的时钟计算 `to` 对应的剩余时间。
   Duration _remainingOfTo() => remainingUntil(widget.to, clock: _plugin.clock);
@@ -402,7 +431,8 @@ class _CountdownCardState extends State<CardCountdown>
 
   /// 新建倒计时，可指定剩余时间和暂停状态，并重新绑定重启动作。
   void _start({Duration? remaining, bool paused = false}) {
-    _handle?.cancel();
+    _cancelCurrent();
+    _doneState = CountmanRunState.idle;
     final plugin = _plugin;
     // 显式剩余时间（重启/插件迁移）按相对时长，避免重新计满；
     // 否则 Duration 走相对时长，DateTime/int/String 解析为绝对截止。
@@ -415,12 +445,58 @@ class _CountdownCardState extends State<CardCountdown>
       total: widget.total,
       rounding: widget.rounding,
       onUpdate: _onTick,
-      onComplete: () => widget.onComplete?.call(),
+      onComplete: _onTaskComplete,
       threshold: widget.threshold,
       onThreshold: () => widget.onThreshold?.call(),
+      onCancel: _onTaskCancel,
     ));
     if (paused) _handle!.pause();
-    widget.controller?.attach(_handle!, relaunch: _relaunch);
+    _attachController();
+  }
+
+  /// 取消当前任务；取消期间不把 runState 写成 idle，由调用方随后写入新状态。
+  void _cancelCurrent() {
+    final handle = _handle;
+    if (handle == null) return;
+    _keepRunState = true;
+    try {
+      handle.cancel();
+    } finally {
+      _keepRunState = false;
+    }
+  }
+
+  /// 任务被取消的回调：runState 回到 idle。
+  void _onTaskCancel() {
+    if (_keepRunState) return;
+    _doneState = CountmanRunState.idle;
+    widget.controller?.setRunState(CountmanRunState.idle);
+  }
+
+  /// 任务完成的回调：先更新 runState 为 completed，再转发用户 onComplete。
+  void _onTaskComplete() {
+    _doneState = CountmanRunState.completed;
+    widget.controller?.setRunState(CountmanRunState.completed);
+    widget.onComplete?.call();
+  }
+
+  /// 由任务句柄状态推导当前 runState：存活为 running / paused，否则取终态。
+  CountmanRunState _runStateNow() {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      return handle.isPaused
+          ? CountmanRunState.paused
+          : CountmanRunState.running;
+    }
+    return _doneState;
+  }
+
+  /// 绑定任务、重启动作及 runState。
+  void _attachController() {
+    final controller = widget.controller;
+    if (controller == null || _handle == null) return;
+    controller.attach(_handle!, relaunch: _relaunch, restart: _restart);
+    controller.setRunState(_runStateNow());
   }
 
   /// 结束后重启倒计时，并立即同步小时列与卡片模型。
@@ -437,6 +513,20 @@ class _CountdownCardState extends State<CardCountdown>
       _model = CardModel(_digitsFor(shown, _showHours));
     });
     _start(remaining: remaining);
+  }
+
+  /// 按组件当前配置（`to`、`total`、取整方式）从头开始，并立即同步卡片模型。
+  void _restart() {
+    final shown = _shown(_remainingOfTo());
+    _ctrl.stop();
+    _ctrl.value = 0;
+    setState(() {
+      _lastRemaining = shown;
+      _semanticRemaining.value = shown;
+      _showHours = _hoursFor(shown);
+      _model = CardModel(_digitsFor(shown, _showHours));
+    });
+    _start();
   }
 
   /// 解析小时列；显示天时默认保留小时单元。
@@ -513,9 +603,12 @@ class _CountdownCardState extends State<CardCountdown>
   @override
   void didUpdateWidget(CardCountdown old) {
     super.didUpdateWidget(old);
+    final plugin = resolvePluginDependent<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
     if (widget.to != old.to) {
       // 旧控制器解绑，新控制器由 _start 绑定。
       old.controller?.detach(_handle);
+      _plugin = plugin;
       _ctrl.stop();
       _ctrl.value = 0;
       final r = _shown(_remainingOfTo());
@@ -527,19 +620,21 @@ class _CountdownCardState extends State<CardCountdown>
     } else {
       if (widget.controller != old.controller) {
         old.controller?.detach(_handle);
-        if (_handle != null) {
-          widget.controller?.attach(_handle!, relaunch: _relaunch);
-        }
+        _attachController();
       }
       // 换插件、分母或取整方式都要重建任务，同时保留剩余时间与暂停状态。
-      if ((widget.plugin != old.plugin ||
+      final pluginChanged = !identical(plugin, _plugin);
+      if ((pluginChanged ||
               widget.total != old.total ||
               widget.rounding != old.rounding) &&
           _handle != null &&
           !_handle!.isDone) {
         final remaining = _handle!.remaining;
         final paused = _handle!.isPaused;
+        _plugin = plugin;
         _start(remaining: remaining, paused: paused);
+      } else if (pluginChanged) {
+        _plugin = plugin;
       }
       // 单独修改阈值时沿用当前任务，不重置倒计时。
       _handle?.updateThreshold(widget.threshold);

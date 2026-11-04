@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart' show internal;
 
 import 'types.dart';
 
+export 'package:countman/src/controllers/counter_value_controller.dart';
+
 /// Returned by [Counter.add]. Allows the caller to retarget
 /// or cancel the animation without holding a reference to the plugin.
 class CounterHandle {
@@ -158,98 +160,6 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     task.revision++;
     if (!paused) ctx.requestFrame();
   }
-}
-
-// ── CounterValueController ─────────────────────────────────────────────
-
-/// 由展示组件调用的任务重启函数，业务代码不要直接调用。
-/// [to] 为目标值，[duration]、[curve] 为空时沿用组件配置；无返回值。
-/// 例如展示组件绑定时传入 `relaunch: _relaunch`。
-typedef CounterRelaunch = void Function({
-  required double to,
-  Duration? duration,
-  Curve? curve,
-});
-
-/// 计数展示组件的命令式控制器，完成后的 update 会请求组件重启任务。
-///
-/// Create once, pass to a widget via its `controller` parameter, then call
-/// [update] to retarget, [cancel] to remove, or read [value] for the current
-/// animated number. The controller attaches to the widget's internal
-/// [CounterHandle] after the first build; mirrors [CountdownController].
-class CounterValueController {
-  CounterHandle? _handle;
-  double _value = 0;
-
-  /// 保存展示组件提供的重启动作。
-  CounterRelaunch? _relaunch;
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
-  /// 例如 `controller.attach(handle, relaunch: restart)`。
-  @internal
-  void attach(CounterHandle handle, {CounterRelaunch? relaunch}) {
-    _handle = handle;
-    _relaunch = relaunch;
-  }
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
-  /// 例如销毁时 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
-  @internal
-  void detach([CounterHandle? handle]) {
-    if (handle != null && !identical(_handle, handle)) return;
-    _handle = null;
-    _relaunch = null;
-  }
-
-  /// 由展示组件调用，业务代码不要直接调用；写入当前显示值 [v]，无返回值。
-  /// 例如每帧 `controller.latestValue = value`。
-  @internal
-  set latestValue(double v) => _value = v;
-
-  /// 从当前值更新到 [to]；[duration]、[curve] 为空时沿用任务或组件配置。
-  /// 任务结束后请求展示组件重启，未绑定时无操作；无返回值。
-  /// 例如 `controller.update(to: 500, duration: Duration(seconds: 1))`。
-  void update({required double to, Duration? duration, Curve? curve}) {
-    final handle = _handle;
-    if (handle != null && !handle.isDone) {
-      handle.update(to: to, duration: duration, curve: curve);
-    } else {
-      _relaunch?.call(to: to, duration: duration, curve: curve);
-    }
-  }
-
-  /// Freeze the animation at its current value.
-  ///
-  /// 将动画冻结在当前值。
-  void pause() => _handle?.pause();
-
-  /// Resume a paused animation.
-  ///
-  /// 恢复已暂停的动画。
-  void resume() => _handle?.resume();
-
-  /// Remove the underlying task immediately.
-  void cancel() => _handle?.cancel();
-
-  /// The most recent animated value reported by the widget (0 before start).
-  double get value => _value;
-
-  /// True while the animation is running (not paused, not done).
-  ///
-  /// 动画运行中（未暂停、未完成）时为 true。
-  bool get isAnimating => _handle?.isAnimating ?? false;
-
-  /// True when the animation is currently paused.
-  ///
-  /// 动画当前暂停时为 true。
-  bool get isPaused => _handle?.isPaused ?? false;
-
-  /// True once the animation has completed (or before attach).
-  ///
-  /// 动画已完成（或尚未 attach）时为 true。
-  bool get isDone => _handle?.isDone ?? true;
 }
 
 // ── default instance + top-level function ─────────────────────────

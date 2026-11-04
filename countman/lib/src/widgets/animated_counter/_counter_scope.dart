@@ -32,31 +32,23 @@ mixin _CounterScope<W extends _BaseAnimatedCounter> on State<W> {
   /// 语义与 [reduceMotionOf] 一致，但可在 build 之外调用。
   bool get _reduceMotion => _mediaReduceMotion ?? reduceMotion;
 
-  /// 有效的 animate-once：组件自身 > Provider 默认 > false。
-  bool get _effectiveAnimateOnce =>
-      widget.animateOnce ?? _counterScope?.animateOnce ?? false;
-
   /// 在挂载时解析一次 animate-once 决策；继承优先。
   ///
-  /// 祖先 [AnimateOnceScope] 已决策则遵从（不解析、不记录自己的 id，保证同一条目内
-  /// 多个数字一致）。否则成为入口：用自身 ValueKey 派生的 id 与 Provider 的注册表解析
-  /// 并记录。没有稳定 id 或没有 Provider 时退化为每次都动画，不报错。
+  /// 规则见 [resolveAnimateOnce]：祖先 [AnimateOnceScope] 已决策则遵从，否则用自身
+  /// ValueKey 派生的 id 与 Provider 的注册表解析并记录。没有稳定 id 或没有 Provider
+  /// 时退化为每次都动画，debug 下只警告一次，不断言。
   void _resolveOnce() {
-    final inherited = AnimateOnceScope.maybeOf(context);
-    if (inherited != null) {
-      _oncePart = true;
-      _onceSkip = inherited.skip;
-      _onceEntry = false;
-      return;
-    }
-    if (!_effectiveAnimateOnce) return;
-    final id = stableOnceIdFromKey(widget.key);
-    final registry = _counterScope?.once;
-    if (id == null || registry == null) return;
-    _oncePart = true;
-    _onceEntry = true;
-    // shouldAnimate 首次见到 id 时返回 true（应动画，不跳过）。
-    _onceSkip = !registry.shouldAnimate(id);
+    final decision = resolveAnimateOnce(
+      context,
+      widgetAnimateOnce: widget.animateOnce,
+      scopeAnimateOnce: _counterScope?.animateOnce,
+      registry: _counterScope?.once,
+      id: stableOnceIdFromKey(widget.key),
+      owner: 'AnimatedCounter',
+    );
+    _oncePart = decision.participates;
+    _onceSkip = decision.skip;
+    _onceEntry = decision.entry;
   }
 
   /// 入口实例把决策发布给后代；其余实例原样返回。

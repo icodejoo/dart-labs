@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import 'types.dart';
 
+export 'package:countman/src/controllers/elapsed_controller.dart';
+
 /// Returned by [Elapsed.add].
 /// 正计时句柄，终态后的暂停、恢复与重置均无操作。
 class ElapsedHandle {
@@ -75,6 +77,16 @@ class ElapsedHandle {
   /// 已记录的每圈时长快照（只读，按记录顺序）；[reset] 会清空。
   /// 例如 `handle.laps.last`。
   List<Duration> get laps => List<Duration>.unmodifiable(_laps);
+
+  /// 接管 [other] 已记录的圈速与上一圈基准，供展示组件迁移插件（新建任务）时保留圈速。
+  /// 由展示组件调用，业务代码不要直接调用；例如 `newHandle.adoptLaps(oldHandle)`。
+  @internal
+  void adoptLaps(ElapsedHandle other) {
+    _laps
+      ..clear()
+      ..addAll(other._laps);
+    _lastLap = other._lastLap;
+  }
 
   /// 动态调整上限，保留已累计的时间；传 null 取消上限。
   /// 新上限不超过当前累计时间时，下一帧即完成。
@@ -244,66 +256,6 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
     );
     return ElapsedHandle._(id, this);
   }
-}
-
-// ── ElapsedController ──────────────────────────────────────────────
-
-/// 正计时展示组件的命令式控制器，取消后 reset 会请求组件重启。
-///
-/// Create once, pass to a widget via its `controller` parameter, then call
-/// [pause], [resume], [reset], or [cancel] from any parent or business logic.
-/// The controller attaches to the widget's internal [ElapsedHandle] after
-/// the first build.
-class ElapsedController {
-  ElapsedHandle? _handle;
-
-  /// 保存展示组件提供的重启动作。
-  VoidCallback? _relaunch;
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// 绑定 [handle] 和结束后使用的 [relaunch]，替换已有绑定；无返回值。
-  /// 例如 `controller.attach(handle, relaunch: restart)`。
-  @internal
-  void attach(ElapsedHandle handle, {VoidCallback? relaunch}) {
-    _handle = handle;
-    _relaunch = relaunch;
-  }
-
-  /// 由展示组件调用，业务代码不要直接调用。
-  /// [handle] 为空时无条件解绑，否则仅解绑相同实例，并清除重启动作；无返回值。
-  /// 例如 `controller.detach(handle)`；旧式 `controller.detach()` 仍可用。
-  @internal
-  void detach([ElapsedHandle? handle]) {
-    if (handle != null && !identical(_handle, handle)) return;
-    _handle = null;
-    _relaunch = null;
-  }
-
-  void pause() => _handle?.pause();
-  void resume() => _handle?.resume();
-
-  /// 记录一圈并返回本圈时长；未绑定或任务已结束时返回 [Duration.zero]。
-  /// 例如 `final split = controller.lap();`。
-  Duration lap() => _handle?.lap() ?? Duration.zero;
-
-  /// 已记录的每圈时长（只读快照）；未绑定时为空列表。
-  List<Duration> get laps => _handle?.laps ?? const <Duration>[];
-
-  /// 清零并恢复计时；已取消时请求展示组件从零新建任务，未绑定时无操作。
-  /// 无参数、无返回值；例如 `controller.reset()`。
-  void reset() {
-    final handle = _handle;
-    if (handle != null && !handle.isDone) {
-      handle.reset();
-    } else {
-      _relaunch?.call();
-    }
-  }
-
-  void cancel() => _handle?.cancel();
-
-  Duration get elapsed => _handle?.elapsed ?? Duration.zero;
-  bool get isPaused => _handle?.isPaused ?? false;
 }
 
 // ── default instance + top-level function ─────────────────────────

@@ -337,6 +337,7 @@ class CountdownProvider extends StatefulWidget {
     this.trackColor,
     this.repaintBoundary,
     this.formatter,
+    @Deprecated('倒计时组件没有入场动画，animateOnce 不起作用，请移除')
     this.animateOnce,
     this.textCountdownStyle,
     this.ringCountdownStyle,
@@ -361,14 +362,9 @@ class CountdownProvider extends StatefulWidget {
   /// 覆盖）。
   final DurationFormatter? formatter;
 
-  /// When `true`, descendant countdown widgets carrying a stable [ValueKey]
-  /// play their entrance transition only the first time that key is seen; on
-  /// later rebuilds they show the current remaining value with no entrance
-  /// transition. A widget's own `animateOnce` overrides this.
-  ///
-  /// 为 `true` 时，携带稳定 [ValueKey] 的后代 countdown widget 只在该 key 首次
-  /// 出现时播放入场过渡；之后重建直接显示当前剩余值、无入场过渡。widget 自身的
-  /// `animateOnce` 会覆盖此值。
+  /// 无效：倒计时组件没有入场动画，没有任何组件读取这个值。
+  /// 保留仅为源码兼容，请移除；计数器的入场只播一次请用 [CounterProvider.animateOnce]。
+  @Deprecated('倒计时组件没有入场动画，animateOnce 不起作用，请移除')
   final bool? animateOnce;
 
   /// Fired when the group goes idle → active (its first task is enqueued).
@@ -426,8 +422,6 @@ class _CountdownProviderState
         allowNegative: null,
         repaintBoundary: widget.repaintBoundary,
         formatter: widget.formatter,
-        animateOnce: widget.animateOnce,
-        once: once,
         textCountdownStyle: widget.textCountdownStyle,
         ringCountdownStyle: widget.ringCountdownStyle,
         barCountdownStyle: widget.barCountdownStyle,
@@ -526,7 +520,7 @@ class _ElapsedProviderState
 ///
 /// Shared visual defaults ([textStyle] / [color] / [trackColor] /
 /// [repaintBoundary] / [animateOnce]) apply to whichever families they're
-/// relevant to; counter-only ([duration] / [curve] / [allowNegative]),
+/// relevant to（[animateOnce] 只作用于计数器，倒计时没有入场动画）; counter-only ([duration] / [curve] / [allowNegative]),
 /// countdown+elapsed ([formatter]), and each per-component `*Style` route to
 /// their respective family. Internally just nests the three providers.
 ///
@@ -630,7 +624,6 @@ class CountmanProvider extends StatelessWidget {
         color: color,
         trackColor: trackColor,
         repaintBoundary: repaintBoundary,
-        animateOnce: animateOnce,
         formatter: formatter,
         textCountdownStyle: textCountdownStyle,
         ringCountdownStyle: ringCountdownStyle,
