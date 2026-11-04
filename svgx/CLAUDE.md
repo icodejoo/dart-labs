@@ -102,9 +102,9 @@ Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28
 |---|---|---|
 | `doc/acceptance-criteria.md` | 功能验收标准 + 性能验收硬指标(1000 图标滚动、真实 FPS 等)+ 是否达标的结论性记录 | 要确认"这个库到底算不算做完了""性能门槛是什么"时 |
 | `doc/animation-engine-features.md` | **能力清单权威参考**:静态路径 + 动画路径当前分别支持/不支持哪些标签和语法,含 12 项功能的像素级验证结果 | 要确认"某个 SVG 特性 svgx 支不支持"、开发新功能前先看现状时 |
-| `doc/performance-benchmarks.md` | 性能基准套件说明 + 每一轮功能改动后的完整复测数据(`LIB=compare` 方法学、`SvgEffects` 重构前后对比等) | 要复测性能、要看某轮改动是否引入回归、要理解基准方法学演进时 |
+| `doc/performance-benchmarks.md` | 性能基准套件说明 + 每一轮功能改动后的完整复测数据(`LIB=compare` 方法学、`SvgEffects` 重构前后对比等,以及 2026-11 review 整改验证数据) | 要复测性能、要看某轮改动是否引入回归、要理解基准方法学演进时 |
 | `doc/ffi-performance-audit.md` | FFI(Dart↔Rust)数据搬运的专项审计结论:为什么不用 DCO/ZeroCopyBuffer、为什么不手写 dart:ffi、为什么不开 Dart/Rust 共享内存 arena(含 FRB 源码级证据) | 有人提议"用零拷贝/共享内存/手写 FFI 优化 parse_svg"时,先看这份,已有稳定结论 |
-| `doc/bugfix-history.md` | 历史上"发现并修复"的真实 bug 记录(3 个 demo bug、动画路径 blur 缺失等) | 想了解踩过哪些坑、或又发现类似问题要往哪追加记录时 |
+| `doc/bugfix-history.md` | 历史上"发现并修复"的真实 bug 记录(3 个 demo bug、动画路径 blur 缺失等,以及 2026-11 全量源码 review 整改) | 想了解踩过哪些坑、或又发现类似问题要往哪追加记录时 |
 | `doc/wsa-impeller-debugging.md` | WSA(Windows Subsystem for Android)上"内容全黑"问题的完整排查记录,结论:与 svgx 无关,是 Material AppBar + Impeller 模拟驱动的问题 | 在 WSA/模拟器上做目视验证遇到黑屏时 |
 | `doc/size-optimization-history.md` | 体积优化每一项改动的**完整调研过程**(动机、前提确认、实测数据、方法学局限) | 想知道"当初为什么这么决定"时 |
 | `doc/SIZE_OPTIMIZATION.md` | 体积优化**结论速查表**:已落地/候选/已排除三张表 + 验证方法论 | 讨论瘦身方向前先查这份,别重复调研 |

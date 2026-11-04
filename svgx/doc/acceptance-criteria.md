@@ -1,6 +1,6 @@
 # 验收条件(测试通过标准)
 
-> 从 `CLAUDE.md` 拆出。这里只放**标准本身**(要达到什么才算过)和**是否已达标的结论性记录**;具体测量数字、每一轮性能复测的详细数据见 `docs/performance-benchmarks.md`,FFI sync/DCO 相关的专项审计见 `docs/ffi-performance-audit.md`。
+> 从 `CLAUDE.md` 拆出。这里只放**标准本身**(要达到什么才算过)和**是否已达标的结论性记录**;具体测量数字、每一轮性能复测的详细数据见 `doc/performance-benchmarks.md`,FFI sync/DCO 相关的专项审计见 `docs/ffi-performance-audit.md`。
 
 ## 功能验收条件
 
@@ -29,7 +29,7 @@ import 'package:iconify_flutter/icons/line_md.dart';
 
 **解析边界(接口缝隙)已验证满足架构决策第 4 条**:唯一解析入口 `SvgDocument parseAnimatedSvgDocument(String source)`(`lib/src/animation/svg_document_parser.dart`),返回纯数据模型(`SvgDocument`/`SvgNode`/`SmilAnimation`,`attributes` 是 `Map<String,String>`),`package:xml` 类型只存在于这一个文件内;`svgx_widget.dart`/`animated_svg_widget.dart`/`animated_svg_painter.dart`/`smil_animation.dart` 都只依赖这个函数的返回值。将来要换 Rust 一次性解析,只需替换这一个函数的内部实现——这是自然设计出来的结构,不是事后补的。
 
-当前引擎具体支持/不支持哪些标签与语法,见 `docs/animation-engine-features.md`(能力清单,以最新状态为准)。
+当前引擎具体支持/不支持哪些标签与语法,见 `doc/animation-engine-features.md`(能力清单,以最新状态为准)。
 
 ## 性能验收条件(正式落地的硬指标)
 
@@ -56,4 +56,4 @@ import 'package:iconify_flutter/icons/line_md.dart';
    - **统计指标:真实 FPS,不是模拟/推算的**。也就是不能用"1000 / 平均帧耗时"这种从均值反推的近似值当结果,必须是**按真实墙钟时间窗口,统计实际渲染完成的帧数**——具体做法:用 `SchedulerBinding.addTimingsCallback` 拿到的每一帧真实时间戳,按 1 秒为一个窗口分桶,数每个窗口里真实落地了多少帧,这才是"真实 FPS"。同时报告 FPS 的分布(avg/min/p1 这种低分位,因为 FPS 的"最差时刻"比平均值更能反映卡顿)。
    - **判定**:这个场景下 svgx 的动画引擎必须能撑住合理的 FPS(不掉到明显卡顿的区间),且要跟 flutter_svg 侧的等价动画渲染方式做对比(如果 flutter_svg 没有直接可比的动画能力,如实说明"无等价对照",不要硬凑一个不对等的对比)。
 
-**性能验收状态:PASS(Windows 桌面 profile 模式实测)**。全部测量数据、每一轮功能改动后的复测记录、方法学演进(`LIB=compare` 单进程配对模式等)见 `docs/performance-benchmarks.md`。FFI sync 阻塞风险的专项结论见 `docs/ffi-performance-audit.md`。
+**性能验收状态:PASS(Windows 桌面 profile 模式实测)**。全部测量数据、每一轮功能改动后的复测记录、方法学演进(`LIB=compare` 单进程配对模式等)见 `doc/performance-benchmarks.md`。FFI sync 阻塞风险的专项结论见 `docs/ffi-performance-audit.md`。

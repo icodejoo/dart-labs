@@ -85,6 +85,19 @@ Svgx.string(
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
 
+## Notes and limits
+
+* **Static `<image href>`**: only embedded `data:` URIs are decoded. Local
+  paths, UNC paths and `file://` are never read, and `data:image/svg+xml` is
+  skipped. This is a behavior change from the default `usvg` resolver.
+* **SMIL `begin` lists** (`0;a.end+0.2s`) are supported on the animated path.
+  Event-based begins (`click`, ...) are not supported.
+* **`#rgba`** colors (4-digit hex) are supported on the animated path.
+* **Untrusted SVG**: `parse_svg` is a synchronous call and blocks the calling
+  thread, so parse untrusted input on a background isolate. Input beyond the
+  size/complexity limits throws an error instead of crashing; see
+  `doc/animation-engine-features.md` for the limits.
+
 ## Design
 
 Static parsing is delegated to `usvg` (the same crate `resvg` builds on), so

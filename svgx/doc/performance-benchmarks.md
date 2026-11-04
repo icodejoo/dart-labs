@@ -6,7 +6,7 @@
 
 **`benchmark/bench_app/` 不得删除/清理**,是本项目的常驻资产,不是一次性验收脚手架。
 
-- 当前的性能验收结论(全维度 PASS)只覆盖**当前已实现的功能面**(见 `docs/animation-engine-features.md` 的能力清单)。后续每完成一批新功能,**必须用同一套 `bench_app` 重新跑一遍完整基准**,不能假设新功能不影响性能结论——新增的解析分支、绘制路径本身就可能引入新的性能回归。
+- 当前的性能验收结论(全维度 PASS)只覆盖**当前已实现的功能面**(见 `doc/animation-engine-features.md` 的能力清单)。后续每完成一批新功能,**必须用同一套 `bench_app` 重新跑一遍完整基准**,不能假设新功能不影响性能结论——新增的解析分支、绘制路径本身就可能引入新的性能回归。
 - 复测时**沿用已验证的方法学**(1000 个真实 Iconify 图标、来回滚动 6 轮、svgx vs flutter_svg 独立进程对照、诚实标注平台/GC 局限),不要重新发明一套基准。
 - Android 真机复测(当前遗留缺口)应该跟"功能完备后的复测"一起做一次,而不是分别测两次。
 
@@ -345,7 +345,7 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 
 **本轮的三项优化对这个语料完全无效,如实记录**:优化前 convert 阶段 3,012.9 µs,优化后 3,007.4 µs——**没有改善**,因为这个语料 100% 由深拷主导,而不是由段转换主导。这是"尝试后确认无效"的诚实记录,不是优化成果。
 
-**为什么没有顺手修**:唯一的修法是改 wire 格式——把 mask/clip 提成一张表 + 每条路径存索引。那既能把 O(n×m) 降成 O(n+m)、把 0.93MB 线路字节砍掉一个数量级,又能让 Dart 侧同一个 mask 只光栅化一次。但它**改的是 FFI 契约**,要同步动 `rust/src/api/svg.rs` 的结构体、重跑 FRB codegen、改 `lib/src/rust_static_svg.dart` 的绘制逻辑,并重新走一遍 `docs/animation-engine-features.md` 那 12 项像素级验证。按 CLAUDE.md 的规则(多方案/跨模块改动要先给选项),记录在案不擅自动手。
+**为什么没有顺手修**:唯一的修法是改 wire 格式——把 mask/clip 提成一张表 + 每条路径存索引。那既能把 O(n×m) 降成 O(n+m)、把 0.93MB 线路字节砍掉一个数量级,又能让 Dart 侧同一个 mask 只光栅化一次。但它**改的是 FFI 契约**,要同步动 `rust/src/api/svg.rs` 的结构体、重跑 FRB codegen、改 `lib/src/rust_static_svg.dart` 的绘制逻辑,并重新走一遍 `doc/animation-engine-features.md` 那 12 项像素级验证。按 CLAUDE.md 的规则(多方案/跨模块改动要先给选项),记录在案不擅自动手。
 
 **这个形状有多现实**:真实图标资产里基本不存在(图标的 mask 通常就一两个形状)。所以这不是"必须立刻修的 bug",而是"已量化的最坏情况上界 + 现成的修法方案"。**真要修的触发条件**:出现真实用户 SVG 落进这个形状并造成可观测卡顿时。
 
@@ -416,7 +416,7 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 | 6 | `SvgxAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
 | 7 | `rust_static_svg` 的 `_replay` 形参改成 `Uint8List`/`Float32List`(FFI 桥实际返回的类型)并改用带下标的循环 | 同一进程内配对 `replay_typed_lists` vs `replay_interface_lists` | 125.2~129.2us | 118.8~121.0us | **重放循环本身 −3%~−6%**;`static_parse_record` 分辨不出(其 21.5us 大头是 Rust 解析) |
 
-**附带修掉的一个真实 bug(动画路径 `<clipPath>`)**:`_resolveClipPath` 里 `geometry.transform(matrix)` 被当成裸语句调用,但 dart:ui 的 `Path.transform` 是**返回**变换后的副本、不动接收者("Returns a copy of the path with all the segments of every sub-path transformed by the given matrix"),所以返回值被丢弃——`<clipPath>` 内容上的变换被静默忽略,同时每个裁剪节点每帧还白白分配一整份 Path 副本。改用 `addPath` 自带的 `matrix4` 参数,既正确又无中间副本。新增回归测试,并**验证过去掉修复后该测试确实失败**;该测试手工搭 `SvgNode` 树,因为 `SvgNode.transform` 由 Rust `parse_transform` 桥填入,在纯 `flutter test` 环境下会退化为 null,用标记文本解析会让测试因为错误的原因通过。详见 `docs/bugfix-history.md`。
+**附带修掉的一个真实 bug(动画路径 `<clipPath>`)**:`_resolveClipPath` 里 `geometry.transform(matrix)` 被当成裸语句调用,但 dart:ui 的 `Path.transform` 是**返回**变换后的副本、不动接收者("Returns a copy of the path with all the segments of every sub-path transformed by the given matrix"),所以返回值被丢弃——`<clipPath>` 内容上的变换被静默忽略,同时每个裁剪节点每帧还白白分配一整份 Path 副本。改用 `addPath` 自带的 `matrix4` 参数,既正确又无中间副本。新增回归测试,并**验证过去掉修复后该测试确实失败**;该测试手工搭 `SvgNode` 树,因为 `SvgNode.transform` 由 Rust `parse_transform` 桥填入,在纯 `flutter test` 环境下会退化为 null,用标记文本解析会让测试因为错误的原因通过。详见 `doc/bugfix-history.md`。
 
 ### 逐项:尝试后回退的方向(有实测,结论是不值得)
 
@@ -503,7 +503,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ## 2026-08-27 一轮:真机 1000 并发动画图标,build 瓶颈归因与消除
 
-**背景**:上一轮修掉 `saveLayer(null, ...)` 无界离屏图层的真机黑屏 bug(每帧 2450ms,见 `docs/bugfix-history.md`)之后,`LIB=anim_fps ITEMS=1000` 的瓶颈从 raster 转到了 **build**:raster avg 约 21.8ms,而 build avg 约 34ms,`real_fps` 约 21.9。本轮专门打 build。
+**背景**:上一轮修掉 `saveLayer(null, ...)` 无界离屏图层的真机黑屏 bug(每帧 2450ms,见 `doc/bugfix-history.md`)之后,`LIB=anim_fps ITEMS=1000` 的瓶颈从 raster 转到了 **build**:raster avg 约 21.8ms,而 build avg 约 34ms,`real_fps` 约 21.9。本轮专门打 build。
 
 ### 方法学:真机 logcat 分布,不是单次采样
 
@@ -2462,3 +2462,107 @@ Chrome 对照复用既有 Chrome 156 的 256×256 参考 PNG 和白/深灰背景
 （返工前基线 1331 通过、4 跳过；新增 9 项测试）；`dart analyze lib test` **0 问题**。
 三个新增调用计数用例先在返工前实现上确认失败（零 opacity 多开层、blur+opacity 两层、单笔包装组一层），再修复。
 原有 `css_animation_pixel_test.dart` 的 255 断言未改。
+
+## 2026-11 review 整改验证数据
+
+> 2026-11 全量源码 review 整改(条目见 `doc/bugfix-history.md`「2026-11 全量源码 review 整改」)的验证数据,从 `doc/animation-engine-features.md` 迁来。能力边界、阈值与限制以该文档为准,这里只放测试、耗时、对照与语料统计。以下数据均为 Windows x86_64 本机观测,不外推到移动平台。
+
+### Rust 静态解析加固验证(终审返工,2026-11-04)
+
+- **单测**:debug/release 的 `cargo test` 各 **82 passed、3 ignored**(仅原有两个基准和手动栈探针),`cargo check --locked` 通过。
+- **先失败后修复的回归**:函数内 `/*`/引号、重复 id 诱饵、资源求和误拒、选择器回溯,以及普通声明配三渐变的误拒、选择器数量硬限、模糊底稿被规则预算提前拦截。
+- **完整 wire 对照**:后代/子代/属性/`:first-child` 的 clipPath/mask 回归同时核对完整 wire 与上游期望。
+- **保守 CSS 回连边**:新增合法静态结构的图层回归,直接检查 pattern→use→g→rect 与 filter→feImage→g→rect。
+  - 无环对照的完整 wire 与去掉保守触发声明的版本一致。
+  - 长选择器改用真实嵌套目标、无输出影响的 font-family 声明,断言命中及与无 style 文档的完整 wire 一致。
+  - 未向 usvg 发送新增环输入。
+
+### 模糊测试(固定种子 `0x3a419c27012d678b`)
+
+- **规模**:debug 500 段 CSS / 2,000 次解析,release 3000 段 CSS / 12,000 次解析。
+- **输入构成**:每段放入 pattern/mask/clipPath 三资源环及链底稿,轮换 **100 层 CSS 链** 与 5000 层属性链;1 MiB 栈子进程无崩溃。
+- **进入统计**:扫描器进入次数分别为 **2000/12000**,进入 usvg 分别 **12 次(0.60%)/51 次(0.425%)**。
+  - 攻击集合以拒绝为主,断言所有解析均进入扫描器且至少 0.25% 进入 usvg。
+  - 无守卫 100 层 CSS 链在两种构建的 1 MiB 栈均复现溢出,避免只测到规则数上限。
+- **固定用例**:函数内 `/*`/引号、重复 id 诱饵、20000 规则,以及 100 层祖先上的 `nonexist * * * * * rect`(<2s)。
+- **全套耗时**:观测区间约 **debug 29–37 秒、release 31–51 秒**,受主机负载影响;本轮单次观测为 debug 37.63 秒、release 50.52 秒。
+
+### wire 对照(与返工前/HEAD)
+
+- 2880 个含/不含 currentColor 组合的 **1,055,934 字节**长度前缀完整 SSE,均一致。
+- 两个真实 Illustrator 导出(`TOR.svg`、devtools `logo.svg`)的 4 个组合 **43,178 字节**,均一致。
+- 完整 SSE 快照仍为 `65d9bcac5466df2b`;四组几何 fingerprint:
+  - MDI1000 `167a0958ca44c27b`
+  - MDI1000+currentColor `167a0958ca44c27b`
+  - effects `f9de4655be1b408f`
+  - bigpath `43cdd2e2268e3aee`
+- 100 裁剪组、100 蒙版、200 渐变的生成插画与 HEAD 完整 SSE 对照全部通过;生成插画不冒充真实导出,未找到 CorelDRAW 原始导出样本。
+
+### 扩大只读语料
+
+- 沿用已冻结、按内容去重的 **11,187 份**真实语料,HEAD/当前各 22,374 次含/不含 currentColor 解析。
+- **22,188 次成功的 43,704,420 字节 SSE 逐字节一致**;原有 186 次 Err 完全一致,新增 Err 0。含状态、长度前缀和错误文本的对照流均为 43,916,876 字节。
+- scratchpad `r8/legal_*.tsv` 对应的 44 份合法夹具(88 次解析)完整 wire 与 HEAD 逐字节一致,哈希/长度与旧 TSV 一致,新增 Err 0。
+- 结论限于这批样本,不代表所有 SVG 写法均已覆盖。
+
+### CSS 守卫的语料统计
+
+- **保守图触发率**:冻结语料中 **142 份含非空 `<style>`**(另有 4 份仅空块),修复后 **0 份走保守图:0/142=0%,占全部 11,187 份的 0%**;带目标的保守文档亦为 0。仅代表这批便利取样。
+- **规则数**:语料最大 **1105 条规则**,距 4000 上限余量 **3.62 倍**,p99=672、中位数 11。
+- **元素×规则乘积**:守卫实数最大 **969,085 次(877 元素 × 1105 规则)**,距 8,000,000 余量 8.26 倍。
+- **回溯成本**:最大 **128,528**,距 32,000,000 余量约 249 倍;语料选择器最多 1 个组合子。`r4/samples/s2.svg` 与 `corpus55/159.svg` 是同一文件。
+- **通过的合法回归**:100 个独立裁剪组、100 个蒙版、200 个渐变及 11 层 pattern CSS 链;4/5/6 组合子的小文档。
+
+### CSS 工作量预算耗时校准
+
+测量条件:上轮三次独立测量,同一 CPU 核,三轮最大值,单位 ms,包括 `parse_svg` 及结果析构。
+
+| CSS规则×绘制元素 | release | debug |
+|---|---:|---:|
+| 400×5000,不同class | 75.4 | 339.3 |
+| 200×10000,不同class | 90.8 | 388.1 |
+| 500×8000,不同class | 123.2 | 677.7 |
+| 4000×400,不同class | 175.4 | 1957.3 |
+| 4000×1998,不同class | 334.0 | 2623.8 |
+| 4000×400,全部命中 | 275.6 | 1867.1 |
+| 4000×1998,全部命中 | **1144.4** | **4864.5** |
+
+- 1998 个绘制元素加 svg/style 两元素,恰为 8M 预算边界。
+- 全命中夹具耗时观测区间约 **release 0.9–1.4 秒、debug 4.7–5.3 秒**:
+  - 复核 release 三次单次观测 1.42/1.08/1.23 秒,作者 release 观测区间 0.85–0.93 秒。
+  - 历史三轮中位数 release/debug 为 875.1/4648.2ms;并行测试 debug 单次观测曾为 7584.0ms。
+  - 本轮固定 CPU 核独立三轮:release **0.930–1.093 秒**、debug **5.284–5.950 秒**;中位数 0.999/5.661 秒,最大值 1.093/5.950 秒。
+- 上表是历史三轮最大值,不与中位数或观测区间混用。
+- 8M 是工作量折中,不是亚秒承诺,也不证明所有输入均不超过上述时间;受主机负载影响,手机可能更慢。
+
+### 普通图标性能(无回归)
+
+- 固定 CPU 核交替 7 轮,每轮 20,000 次无 currentColor 的 MDI1000 解析。
+- HEAD→当前的轮均值中位数 **14.851→14.220µs(−4.25%)**,轮内 p50 中位数 **12.6→12.8µs**。
+- 轮均值观测区间 13.059–18.104 / 13.584–17.560µs,未观察到超出该主机噪声的回归。
+
+### 动画路径回归(2026-11-04)
+
+- **新增测试**:`rgba_shorthand_test.dart` 13 项、`use_chain_test.dart` 5 项、`begin_value_list_test.dart` 30 项。
+  - 后者含 120/600/3600 秒的手算周期、20000 段硬上限及两个 <2 秒病态输入回归。
+  - 三项缺口均先以失败测试复现再修复;另有包含两个仓库真实 Iconify 循环图标的后续轮次具体数值采样。
+- **CSS 帧对照**:`css_head_frame_regression_test.dart` 可通过 `SVGX_CSS_FRAME_RECORD` 录制 HEAD、`SVGX_CSS_FRAME_BASELINE` 逐帧比较。55 个 SVGator CSS 样本 × 8 时刻共 **440 帧 RGBA** 完全一致,原有有效语料 432/432 帧绘制通过。
+
+### R2 返工验证(2026-11-04,Windows x64)
+
+- **全量测试**:`flutter test` **1389 通过、4 跳过、0 失败**(原基线 1373);`dart analyze lib test` 无问题。
+- **与 HEAD 的采样对照**:复用随机矩阵与真实语料(1500 个随机文档 + 399 个 Iconify 图标 + 55 个 CSS 样本)。
+  - 1936 个不含 begin 列表的文档 × 18 时刻 = **34848 次采样**,时长/循环标记/绘制调用与 HEAD 一致。
+  - 18 个差异文档全部含列表。55 个 CSS 样本 **440 帧 RGBA** 与独立 HEAD 快照一致。
+- **t=3600s 时间线求值**(各取 10000 帧,仅时间线,不含 GPU 光栅):
+  - 三点环每轨 3490 个区间(合计 10470),三轨采样均值约 **0.72µs/帧**。
+  - 6 秒自环 611 段,约 **0.079µs/帧**。
+  - 从 600s 直接跳到 3600s 的一次扩展分别约 **9.52ms / 0.288ms**。
+- **病态输入解析**:100 轨混合正负偏移环、60 轨两两依赖在 debug `flutter test` 中完整解析分别 **95.8ms / 59.5ms**,均断言 <2s。
+  - Dart AOT 的同一时序求解器分别 **14.1ms / 22.9ms**(不含 XML 解析)。
+  - 本机 Flutter 无 `flutter test --release` 选项,因此不把 AOT 数字表述为 release Flutter test。
+- 性能数字为本机单次观测,区间数量含 64 秒预取。
+
+### 与 E 批返工复测的关系
+
+组 opacity 的复测数据见上文「2026-11-04:动画组 opacity 合成」。
