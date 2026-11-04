@@ -28,6 +28,10 @@ class ElapsedBuilder extends StatefulWidget {
     this.child,
     this.plugin,
     this.precise = false,
+    this.since,
+    this.initial,
+    this.limit,
+    this.onComplete,
     this.controller,
     this.onTick,
     this.threshold,
@@ -37,7 +41,10 @@ class ElapsedBuilder extends StatefulWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         since == null || initial == null,
+         'ElapsedBuilder: provide at most one of since or initial.',
+       );
 
   /// Called each tick with the elapsed [TimeParts] and the pass-through [child].
   /// Update rate is set by [Elapsed.interval] on the [plugin].
@@ -67,6 +74,21 @@ class ElapsedBuilder extends StatefulWidget {
   /// 为 true 且未提供 [plugin] 时，用共享的精确组（[defaultElapsedMs]，
   /// `interval: 0`）驱动本秒表，使亚秒格式化器每帧更新。设置了 [plugin] 时忽略。
   final bool precise;
+
+  /// 墙钟锚定的起点：已经过 = 当前墙钟 − [since]，例如“下单已 3 分钟”。
+  /// 与 [initial] 互斥；详见 [ElapsedOptions.since]。改变后会重建任务。
+  final DateTime? since;
+
+  /// 单调钟锚定的起始偏移，例如恢复上次的秒表。与 [since] 互斥；详见
+  /// [ElapsedOptions.initial]。改变后会重建任务。
+  final Duration? initial;
+
+  /// 上限：到达时发出值为 [limit] 的最后一次更新、触发 [onComplete] 并结束任务。
+  /// 结束后 `controller.reset()` 会从零重新开始。修改它不会重建任务，已累计时间保留。
+  final Duration? limit;
+
+  /// 累计时间到达 [limit] 时调用一次。
+  final void Function()? onComplete;
 
   /// Optional controller for pause / resume / reset.
   ///
@@ -125,15 +147,37 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
     }
   }
 
-  /// 从零新建正计时任务，并恢复控制器的重启入口。
-  void _start() {
+  /// 当前生效的插件（显式传入 > provider 分组 > precise 默认组 > 默认组）。
+  Elapsed get _plugin =>
+      widget.plugin ??
+      _scopePlugin ??
+      (widget.precise ? defaultElapsedMs : defaultElapsed);
+
+  /// 任务创建时的累计时间（钳到 limit），用于首个 tick 之前的显示。
+  Duration _initialElapsed(Elapsed plugin) {
+    final since = widget.since;
+    var micros = since != null
+        ? plugin.clock.wallMicros() - since.microsecondsSinceEpoch
+        : widget.initial?.inMicroseconds ?? 0;
+    final limit = Elapsed.limitMicrosOf(widget.limit);
+    if (limit != null && micros > limit) micros = limit;
+    return Duration(microseconds: micros < 0 ? 0 : micros);
+  }
+
+  /// 新建正计时任务，并恢复控制器的重启入口。[fromZero] 为 true（结束后重启）时
+  /// 忽略 since / initial，从零开始，与存活任务 reset 清零的语义一致。
+  void _start({bool fromZero = false}) {
     _handle?.cancel();
-    _parts = TimeParts.of(Duration.zero);
+    final plugin = _plugin;
+    _parts = fromZero
+        ? TimeParts.of(Duration.zero)
+        : TimeParts.of(_initialElapsed(plugin));
     _rev.value++;
-    _handle = (widget.plugin ??
-            _scopePlugin ??
-            (widget.precise ? defaultElapsedMs : defaultElapsed))
-        .add(ElapsedOptions(
+    _handle = plugin.add(ElapsedOptions(
+      since: fromZero ? null : widget.since,
+      initial: fromZero ? null : widget.initial,
+      limit: widget.limit,
+      onComplete: () => widget.onComplete?.call(),
       onUpdate: (p) {
         _parts = p;
         _rev.value++;
@@ -148,8 +192,11 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
       onPause: () => widget.onPause?.call(),
       onResume: () => widget.onResume?.call(),
     ));
-    widget.controller?.attach(_handle!, relaunch: _start);
+    widget.controller?.attach(_handle!, relaunch: _relaunch);
   }
+
+  /// 任务结束或取消后的重启入口：从零开始。
+  void _relaunch() => _start(fromZero: true);
 
   /// 任务配置改变时重建，仅换控制器时保留时间、暂停状态和生命周期。
   @override
@@ -159,10 +206,17 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
     if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。
     _handle?.updateThreshold(widget.threshold);
-    if (widget.plugin != old.plugin || widget.precise != old.precise) {
+    if (widget.plugin != old.plugin ||
+        widget.precise != old.precise ||
+        widget.since != old.since ||
+        widget.initial != old.initial) {
       _start();
-    } else if (controllerChanged && _handle != null) {
-      widget.controller?.attach(_handle!, relaunch: _start);
+    } else {
+      // 动态上限单独更新，保留已累计时间。
+      if (widget.limit != old.limit) _handle?.updateLimit(widget.limit);
+      if (controllerChanged && _handle != null) {
+        widget.controller?.attach(_handle!, relaunch: _relaunch);
+      }
     }
   }
 

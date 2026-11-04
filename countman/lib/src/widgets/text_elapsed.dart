@@ -46,6 +46,10 @@ class TextElapsed extends StatelessWidget {
     this.semanticsLabel,
     this.plugin,
     this.precise = false,
+    this.since,
+    this.initial,
+    this.limit,
+    this.onComplete,
     this.controller,
     this.onTick,
     this.threshold,
@@ -55,7 +59,10 @@ class TextElapsed extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         since == null || initial == null,
+         'TextElapsed: provide at most one of since or initial.',
+       );
 
   /// Converts elapsed time ([TimeParts]) to a display string. `null` (default)
   /// inherits the enclosing [ElapsedProvider]'s formatter, then
@@ -97,6 +104,21 @@ class TextElapsed extends StatelessWidget {
   /// 更新。设置了 [plugin] 或 provider 分组时忽略。
   final bool precise;
 
+  /// 墙钟锚定的起点：已经过 = 当前墙钟 − [since]，例如“下单已 3 分钟”。
+  /// 与 [initial] 互斥；详见 [ElapsedOptions.since]。改变后会重建任务。
+  final DateTime? since;
+
+  /// 单调钟锚定的起始偏移，例如恢复上次的秒表。与 [since] 互斥；详见
+  /// [ElapsedOptions.initial]。改变后会重建任务。
+  final Duration? initial;
+
+  /// 上限：到达时发出值为 [limit] 的最后一次更新、触发 [onComplete] 并结束任务。
+  /// 结束后 `controller.reset()` 会从零重新开始。修改它不会重建任务，已累计时间保留。
+  final Duration? limit;
+
+  /// 累计时间到达 [limit] 时调用一次。
+  final void Function()? onComplete;
+
   /// Optional controller for pause / resume / reset.
   final ElapsedController? controller;
 
@@ -133,6 +155,10 @@ class TextElapsed extends StatelessWidget {
     final number = ElapsedBuilder(
       plugin: plugin,
       precise: precise,
+      since: since,
+      initial: initial,
+      limit: limit,
+      onComplete: onComplete,
       controller: controller,
       onTick: onTick,
       threshold: threshold,
