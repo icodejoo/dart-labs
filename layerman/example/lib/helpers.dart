@@ -71,7 +71,7 @@ Widget buildCard(
 /// (never "whatever's on top"), so the manager can preempt it (replace) or
 /// close it (close/remove/clear) without touching sibling routes.
 PresentedOverlay<T> presentCard<T>(
-  PresentContext ctx,
+  PresentContext<T> ctx,
   Widget Function(BuildContext context, void Function([Object? result]) close)
       contentBuilder, {
   Color barrierColor = const Color(0x00000000),
@@ -173,7 +173,7 @@ Future<T?> openCard<T>(
   bool affix = false,
   OverlayPredicate? when,
   RouteMatcher? route,
-  bool? requiresAuth,
+  OverlayPredicate? auth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
   FutureOr<bool> Function()? beforeClose,
@@ -191,7 +191,7 @@ Future<T?> openCard<T>(
       affix: affix,
       when: when,
       route: route,
-      requiresAuth: requiresAuth,
+      auth: auth,
       dismissWhenUnmet: dismissWhenUnmet,
       cooldown: cooldown,
       beforeClose: beforeClose,
@@ -268,7 +268,7 @@ Future<T?> openEntry<T>(
   bool affix = false,
   OverlayPredicate? when,
   RouteMatcher? route,
-  bool? requiresAuth,
+  OverlayPredicate? auth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
   FutureOr<bool> Function()? beforeClose,
@@ -285,7 +285,7 @@ Future<T?> openEntry<T>(
       affix: affix,
       when: when,
       route: route,
-      requiresAuth: requiresAuth,
+      auth: auth,
       dismissWhenUnmet: dismissWhenUnmet,
       cooldown: cooldown,
       beforeClose: beforeClose,
@@ -355,7 +355,7 @@ Widget pageSection(
 // ── GetX / native route-dialog presenter ───────────────────────────────────
 
 PresentedOverlay<T> presentRouteDialog<T>(
-  PresentContext ctx,
+  PresentContext<T> ctx,
   Widget dialog, {
   bool useGetx = false,
 }) {
@@ -430,7 +430,7 @@ PresentedOverlay<void> presentBotToastText(
 /// Uses a unique route name so [dismiss] can pop it precisely
 /// without touching sibling routes.
 PresentedOverlay<T> presentShadDialog<T>(
-  PresentContext ctx,
+  PresentContext<T> ctx,
   Widget dialog,
 ) {
   final name = 'om://${ctx.id}';
@@ -462,7 +462,7 @@ PresentedOverlay<T> presentShadDialog<T>(
 /// knows when the toast has auto-dismissed.  The completer is also completed
 /// immediately when [dismiss] is called (programmatic close from layerman).
 PresentedOverlay<void> presentShadToast(
-  PresentContext ctx, {
+  PresentContext<void> ctx, {
   Widget? title,
   required Widget description,
   ShadToastVariant variant = ShadToastVariant.primary,

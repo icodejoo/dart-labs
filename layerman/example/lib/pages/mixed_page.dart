@@ -142,7 +142,7 @@ class MixedPage extends StatelessWidget {
                 );
               }),
               demoButton('btn-shad-dlg-alert', 'ShadDialog.alert', () {
-                om.open(
+                om.open<bool>(
                   id: 'shad-dlg-alert',
                   present: (ctx) => presentCard<bool>(
                     ctx,

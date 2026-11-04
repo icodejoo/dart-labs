@@ -505,6 +505,12 @@ void main() {
   });
 
   group('0.3.0 真机回归', () {
+    /// 延迟出场两条用例共用的文案与操作键。
+    const ovdText = 'OVD', ovdOpenKey = 'btn-ovd-open';
+
+    /// 延迟条目的移除按钮键。
+    const ovdRemoveKey = 'btn-ovd-remove';
+
     /// 打开新能力页面，复用已有的真机启动和滚动辅助函数。
     Future<void> features(WidgetTester tester) async {
       await boot(tester);
@@ -519,8 +525,71 @@ void main() {
 
     tearDown(() {
       app.om.clear();
+      app.om.setContext({'user': null, 'roles': <String>{}});
       app.appLifecycle?.didChangeAppLifecycleState(AppLifecycleState.resumed);
       app.om.resumeAll();
+    });
+
+    testWidgets('overlap 延迟一秒，半秒内不可见而约一点二秒后出现', (tester) async {
+      await features(tester);
+      // 点击后直接计时，避免 settle 消耗延迟观测窗口。
+      await tapVisible(tester, find.byKey(const Key(ovdOpenKey)));
+      expect(find.text(ovdText), findsNothing);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text(ovdText), findsNothing);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.text(ovdText), findsOneWidget);
+      await press(tester, ovdRemoveKey);
+      expect(find.text(ovdText), findsNothing);
+    });
+
+    testWidgets('overlap 等待期间移除，两秒内始终不出场', (tester) async {
+      await features(tester);
+      await tapVisible(tester, find.byKey(const Key(ovdOpenKey)));
+      expect(find.text(ovdText), findsNothing);
+      await press(tester, ovdRemoveKey);
+      expect(find.text(ovdText), findsNothing);
+      // 分段检查整个等待窗口，防止先闪现再消失。
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.text(ovdText), findsNothing);
+      }
+      expect(app.om.activeIds, isEmpty);
+    });
+
+    testWidgets('ctx.close 锁定时被拒绝，解锁后返回 closed ok', (tester) async {
+      await features(tester);
+      const cardText = 'CTX', closeKey = 'ctx-close';
+      final label = find.byKey(const Key('ctx-outcome'));
+      await press(tester, 'btn-ctx-open');
+      expect(find.text(cardText), findsOneWidget);
+      expect(find.text('ctx-lock: on'), findsOneWidget);
+      final initial = tester.widget<Text>(label).data;
+      await press(tester, closeKey);
+      expect(find.text(cardText), findsOneWidget);
+      expect(tester.widget<Text>(label).data, initial);
+      await press(tester, 'btn-ctx-lock');
+      expect(find.text('ctx-lock: off'), findsOneWidget);
+      await press(tester, closeKey);
+      await advance(tester);
+      expect(find.text(cardText), findsNothing);
+      expect(tester.widget<Text>(label).data, 'ctx: closed ok');
+    });
+
+    testWidgets('auth 普通用户等待，VIP 放行，退出登录自动关闭', (tester) async {
+      await features(tester);
+      const cardText = 'VIP-ONLY';
+      await press(tester, 'btn-login-user');
+      await press(tester, 'btn-vip-open');
+      expect(find.text(cardText), findsNothing);
+      expect(app.om.queuedIds, contains(cardText));
+      await press(tester, 'btn-login-vip');
+      expect(find.text(cardText), findsOneWidget);
+      await press(tester, 'btn-logout');
+      await advance(tester);
+      expect(find.text(cardText), findsNothing);
+      expect(app.om.activeIds, isEmpty);
+      app.om.clear();
     });
 
     testWidgets('官方对话框打开并由自身按钮关闭', (tester) async {

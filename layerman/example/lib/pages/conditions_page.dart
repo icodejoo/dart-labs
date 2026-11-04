@@ -23,7 +23,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
         children: [
           pageHeader(context, 'Conditions',
               'Overlays can be conditional: route checks the current route, '
-              'when is a custom bool predicate, requiresAuth checks the auth context. '
+              'when is a custom bool predicate, auth is a predicate over the context. '
               'dismissWhenUnmet auto-closes a shown overlay when its condition stops holding. '
               'setContext updates context and triggers re-evaluation.'),
           pageSection(
@@ -102,12 +102,12 @@ class _ConditionsPageState extends State<ConditionsPage> {
               }),
             ],
             subtitle:
-                'when: (ctx) => bool overrides route/requiresAuth. ctx is the current setContext map. '
+                'when, route and auth must all pass (AND). ctx is the current setContext map. '
                 'Toggle OFF then open → entry waits. Toggle ON then tap setContext → activates.',
           ),
           pageSection(
             context,
-            'requiresAuth — gated by context["auth"]',
+            'auth — gated by context["auth"]',
             [
               Row(
                 children: [
@@ -125,15 +125,15 @@ class _ConditionsPageState extends State<ConditionsPage> {
                 ],
               ),
               const SizedBox(height: 8),
-              demoButton('btn-cond-auth', 'open with requiresAuth: true', () {
+              demoButton('btn-cond-auth', 'open with auth predicate', () {
                 openCard('cond-auth',
                     text: 'AUTH REQUIRED',
-                    requiresAuth: true,
+                    auth: (ctx) => ctx['auth'] == true,
                     hint: 'Only activates when context["auth"] == true');
               }),
             ],
             subtitle:
-                'requiresAuth: true checks context["auth"] == true. '
+                'The auth predicate checks context["auth"] == true. '
                 'Toggle the switch → setContext({"auth": true/false}) automatically.',
           ),
           pageSection(
