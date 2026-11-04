@@ -27,7 +27,8 @@ import 'package:iconify_flutter/icons/line_md.dart';
   3. F 已重新定位为 `benchmark/baseline_f/` 下的对比基准,不进 `lib/`。
   4. 功能验收已用原创引擎重新跑过,截图(`benchmark/acceptance_screenshot.png`)确认圆环+对勾正确渲染,`fill="none"` 修正依然生效。
 
-**解析边界(接口缝隙)已验证满足架构决策第 4 条**:唯一解析入口 `SvgDocument parseAnimatedSvgDocument(String source)`(`lib/src/animation/svg_document_parser.dart`),返回纯数据模型(`SvgDocument`/`SvgNode`/`SmilAnimation`,`attributes` 是 `Map<String,String>`),`package:xml` 类型只存在于这一个文件内;`svgx_widget.dart`/`animated_svg_widget.dart`/`animated_svg_painter.dart`/`smil_animation.dart` 都只依赖这个函数的返回值。将来要换 Rust 一次性解析,只需替换这一个函数的内部实现——这是自然设计出来的结构,不是事后补的。
+**解析边界(接口缝隙)已验证满足架构决策第 4 条**:唯一解析入口 `SvgDocument parseAnimatedSvgDocument(String source)`(`lib/src/animation/svg_document_parser.dart`),返回纯数据模型(`SvgDocument`/`SvgNode`/`SmilAnimation`,`attributes` 是 `Map<String,String>`),`package:xml` 类型只存在于这一个文件内;`svgx_widget.dart`/`animated_svg_widget.dart`/`animated_svg_painter.dart`/`smil_animation.dart` 都只依赖这个函数的返回值。
+将来要换 Rust 一次性解析,只需替换这一个函数的内部实现——这是自然设计出来的结构,不是事后补的。
 
 当前引擎具体支持/不支持哪些标签与语法,见 `doc/animation-engine-features.md`(能力清单,以最新状态为准)。
 

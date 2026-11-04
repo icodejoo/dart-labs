@@ -189,7 +189,8 @@ CSS 动画支持分五个阶段推进,每阶段独立可验证。
 
 - **覆盖**:54 个有效样本(111 为孤儿样本)全部编译、八个时刻全部绘制成功(432/432)。接线轨道:transform 471 块/620 槽位、数值 132、运动 33、`d` 变形 10、颜色 89(节点)+6(渐变 stop)、dasharray 11,**无跳过、无近似**。入库期望表 `test/animation/css_real_samples_expected.json`(样本本身不入库,需设 `SVGX_CSS_SAMPLES`)。
 - **渲染保真度缺口(由比对发现并已修)**:`fill-rule`/`clip-rule` evenodd、`mask-type="alpha"`、`feGaussianBlur` 双值、紧凑圆弧标志位、`opacity` 钳制。
-- **与 Chrome 的逐帧比对**(378 帧,256×256,viewBox 为固有尺寸,每样本取 t=1ms 与 ¼/½/¾ 等时刻;指标 diffRatio = 任一通道差 >32 的像素占比):实现根 `<svg style="background-color">` 背景、修复 `display="none"` 与 clip-path/mask 坐标系、比较器补解码 `<image>` 之后,中位数 0.33%、p90 2.6%、p99 25.2%、最大 26.8%;高于 3% 的帧 35 个、高于 6% 的 8 个。未实现根背景色时,中位数 0.34%、p90 5.4%、p99 94%、最大 97%——每个 SVGator 导出都带这个背景,所以它是必须补的一项,现已完成。
+- **与 Chrome 的逐帧比对**(378 帧,256×256,viewBox 为固有尺寸,每样本取 t=1ms 与 ¼/½/¾ 等时刻;指标 diffRatio = 任一通道差 >32 的像素占比):实现根 `<svg style="background-color">` 背景、修复 `display="none"` 与 clip-path/mask 坐标系、比较器补解码 `<image>` 之后,中位数 0.33%、p90 2.6%、p99 25.2%、最大 26.8%;高于 3% 的帧 35 个、高于 6% 的 8 个。
+  未实现根背景色时,中位数 0.34%、p90 5.4%、p99 94%、最大 97%——每个 SVGator 导出都带这个背景,所以它是必须补的一项,现已完成。
 - **比对发现并修复的两个渲染缺口**:`display="none"` 此前完全不处理(样本 159 的整套隐藏场景被画出来);`clip-path` 与 `transform` 在同一节点时,裁剪被放在父坐标系而非节点自身坐标系(按规范应随节点 transform)。修后 159 从最差 48.1% 降到 0.4% 以内。`mask` 与 `transform` 同节点时遮罩同样改为在节点自身坐标系绘制(`_applyOwnTransform` 供内容与遮罩共用)。
 - **样本 156 的 14.7% 不是渲染缺陷**:比较器没调用 `resolveImageNodes`,内嵌截图 `<image>` 没解码;补上后降到 3.4%,剩余差异来自三个 `mix-blend-mode:multiply` 渐变矩形的压暗与一处按钮位置,未深挖。
 - **仍偏差较大的样本**:137(文字用嵌入字体,26.8%)、170(6.0%)、149(4.7%)、131(4.1%)、127(3.8%)、156(3.4%)。
@@ -200,7 +201,8 @@ CSS 动画支持分五个阶段推进,每阶段独立可验证。
 
 - **接入点**:所有元素属性表都出自 `_attributesOf()`,在它之后加一步 CSS 层叠,覆盖元素、渐变 `<stop>`、`<use>` 包装元素。层叠逻辑在纯 Dart 的 `css_cascade.dart`,解析器里只有一个 XML 适配器,`package:xml` 仍只出现在 `svg_document_parser.dart`。
 - **优先级**(从低到高):XML 表现属性 → `<style>` 规则(按 specificity,再按源码顺序) → `style=""` → `!important` 规则 → `!important` 内联。选择器按最右复合条件分桶索引,不对每个元素扫描全部规则。
-- **声明的去向**:`animation*` 解析成 `SvgNode.cssAnimations`;`transform`、`offset-*`、`d`、`mix-blend-mode`、`isolation` 只存进 `SvgNode.cssProperties`,**不**覆盖属性表(CSS 的 transform 带 `px`/`deg` 单位,会被现有的 SVG transform 解析误读);其余声明覆盖属性表,恰为 `<数字>px` 的值去掉单位;含 `var()`/`calc()`/`env()`、值为 `inherit`/`initial`/`unset`/`revert` 的声明整条忽略。`@keyframes` 挂在 `SvgDocument.cssKeyframes`。
+- **声明的去向**:`animation*` 解析成 `SvgNode.cssAnimations`;`transform`、`offset-*`、`d`、`mix-blend-mode`、`isolation` 只存进 `SvgNode.cssProperties`,**不**覆盖属性表(CSS 的 transform 带 `px`/`deg` 单位,会被现有的 SVG transform 解析误读);其余声明覆盖属性表,恰为 `<数字>px` 的值去掉单位;含 `var()`/`calc()`/`env()`、值为 `inherit`/`initial`/`unset`/`revert` 的声明整条忽略。
+  `@keyframes` 挂在 `SvgDocument.cssKeyframes`。
 - **当前效果与限制**:CSS 对颜色、不透明度、描边等静态属性已经生效;**动画本身还没有播放**(阶段 3 才把 `cssAnimations` 与 `cssKeyframes` 编译进时间线,阶段 5 才让检测器识别 CSS 动画),静态的 CSS `transform` 也要等阶段 4。
 - **性能**:没有 CSS 的文档走快路径,不建索引、不分配;399 个 Iconify 图标解析中位数 81.5ms → 82.6ms(约 +1.4%,统计上不显著);55 个 SVGator 样本整体 120ms,最慢的 877 个元素的样本 20ms。
 - **真实样本**:55/55 解析成功,787 组关键帧、749 条动画,引用的关键帧无一缺失;另有 38 条动画规则指向 XML 里根本不存在的 id(SVGator 导出的残留规则,分布在 8 个样本),被自然丢弃。

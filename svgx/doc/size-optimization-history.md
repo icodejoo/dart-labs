@@ -1,6 +1,6 @@
 # 体积优化:调研过程记录
 
-> 从 `CLAUDE.md` 拆出。本文件回答"当初为什么这么决定"——每项体积优化改动落地时的完整调研过程、实测数据、方法学局限。**结论速查表**(现在采纳了什么、还剩什么候选/已排除)在 `docs/SIZE_OPTIMIZATION.md`,以后讨论瘦身方向先查那份,不要在这里重复记录汇总表;两者互补。
+> 从 `CLAUDE.md` 拆出。本文件回答"当初为什么这么决定"——每项体积优化改动落地时的完整调研过程、实测数据、方法学局限。**结论速查表**(现在采纳了什么、还剩什么候选/已排除)在 `doc/SIZE_OPTIMIZATION.md`,以后讨论瘦身方向先查那份,不要在这里重复记录汇总表;两者互补。
 
 ## `usvg` `default-features = false`(2026-08-25 首次执行,2026-08-26 因改名事故重新应用)
 
@@ -17,7 +17,8 @@
 
   与 2026-08-25 首次执行时记录的 2.05MiB→1.09MiB 不是同一组数字(不同代码状态/依赖版本下的测量,不假设完全对齐),但方向和量级一致,均确认该优化对体积有显著收益。
 - **代价**:静态路径 `<text>` 不再产生任何路径几何,是刻意接受的取舍,不是缺陷。动画路径的 `<text>`(独立的 Flutter `TextPainter` 实现)完全不受影响。
-- **测试调整**:Rust 单测 `text_is_flattened_into_glyph_outlines` 已重写为 `text_is_silently_skipped_now_that_the_text_feature_is_off`,断言含 `<text>` 的源仍能正常解析、同级形状(rect/circle)完整保留、且文本元素本身不产生任何路径。Dart 侧未发现断言"静态路径 `<text>` 渲染为矢量路径"的测试(现有 `text_pixel_test.dart`/`text_node_test.dart` 均在 `test/animation/` 下,针对 `TextPainter` 动画路径,不受影响)。
+- **测试调整**:Rust 单测 `text_is_flattened_into_glyph_outlines` 已重写为 `text_is_silently_skipped_now_that_the_text_feature_is_off`,断言含 `<text>` 的源仍能正常解析、同级形状(rect/circle)完整保留、且文本元素本身不产生任何路径。
+  Dart 侧未发现断言"静态路径 `<text>` 渲染为矢量路径"的测试(现有 `text_pixel_test.dart`/`text_node_test.dart` 均在 `test/animation/` 下,针对 `TextPainter` 动画路径,不受影响)。
 - `<text>` 的按需字体库方案(先嗅探 `<text` 再走 `system_fontdb()` 单例)已随本次撤回而废弃。
 
 ## `-Zlocation-detail=none` + `-Zfmt-debug=none`(2026-08-26)
@@ -36,8 +37,11 @@
   | x86 | 773,504 字节 | 761,224 字节 | −12,280 字节(−1.59%) |
 
   实测降幅约 1.5%–1.9%,比预期的"约 2-5% + 2%"要小,但四个 target 上全部为真实正收益,无一持平或变大。
-- **方法学局限**:仅验证了 Android 四个 target 的交叉编译与体积;未在 iOS/macOS/Linux/Windows 其余 9 个 slice 上实测(理论上同一套 RUSTFLAGS 对所有 target 生效,但未逐一验证)。`cargo test`(rust/,默认 stable 工具链,不受此 RUSTFLAGS 影响)24 通过,仅确认功能未受影响,不是该 flag 组合本身的正确性证明。因为本轮构建的是 Android(非 host 平台),未跑 `flutter test`(`frb_generated.dart` 只从 `rust/target/release/` 加载宿主库,与本次 Android 产物无关)。
-- **结论**:**保留**该改动。`tool/prebuilt_common.dart` 的 `kBaseRustFlags` 追加两个 flag;`prebuilt/android/jniLibs/*/libsvgx.so` 四个文件已用新产物覆盖;`prebuilt/MANIFEST.json` 已由构建脚本本身在写产物时同步更新(源码哈希 `1f22b2c26395d21bb2ac2d125adcd5d83225f3d8d779b75d0f276521bfd2b97e`)。其余平台的 `prebuilt/` 产物尚未用新 flag 重新构建,后续跑 CI 或本地重建这些平台时会自动带上新 flag。
+- **方法学局限**:仅验证了 Android 四个 target 的交叉编译与体积;未在 iOS/macOS/Linux/Windows 其余 9 个 slice 上实测(理论上同一套 RUSTFLAGS 对所有 target 生效,但未逐一验证)。
+  `cargo test`(rust/,默认 stable 工具链,不受此 RUSTFLAGS 影响)24 通过,仅确认功能未受影响,不是该 flag 组合本身的正确性证明。
+  因为本轮构建的是 Android(非 host 平台),未跑 `flutter test`(`frb_generated.dart` 只从 `rust/target/release/` 加载宿主库,与本次 Android 产物无关)。
+- **结论**:**保留**该改动。`tool/prebuilt_common.dart` 的 `kBaseRustFlags` 追加两个 flag;`prebuilt/android/jniLibs/*/libsvgx.so` 四个文件已用新产物覆盖;`prebuilt/MANIFEST.json` 已由构建脚本本身在写产物时同步更新(源码哈希 `1f22b2c26395d21bb2ac2d125adcd5d83225f3d8d779b75d0f276521bfd2b97e`)。
+  其余平台的 `prebuilt/` 产物尚未用新 flag 重新构建,后续跑 CI 或本地重建这些平台时会自动带上新 flag。
 
 ## `-Z build-std-features=`(清空 std 默认 feature,2026-08-26)
 
@@ -85,11 +89,12 @@
 - **正确性验证**:
   - `cargo test`(`rust/`):**24 passed / 0 failed**,与改动前一致。
   - **导出符号比对**:用 NDK 的 `llvm-nm -D --defined-only` 分别 dump 不带/带 `--icf=all` 的 x86 产物,两边都是**同样的 25 个动态导出符号,`diff` 完全一致**——桥接入口(`frb_pde_ffi_dispatcher_primary`/`_sync`、`frb_get_rust_content_hash`、`store_dart_post_cobject`、`free_zero_copy_buffer_*` 等)一个都没被折没。
-  - **真机 dlopen 冒烟**:`adb devices` 有一台在线设备(WSA,`ro.product.cpu.abi=x86_64`,API 33)。用 NDK 的 `x86_64-linux-android21-clang` 编了一个 20 行的 C 小程序,push 到 `/data/local/tmp/svgx_smoke/` 后 `dlopen` 本轮构建的 x86_64 `.so` 并逐个 `dlsym` 上述关键符号:**加载成功,9 个符号全部解析到非空地址,RESULT PASS**。同时肉眼可见 `free_zero_copy_buffer_u8`/`_i8` 落在同一地址、`_u16`/`_i16` 落在同一地址(这类同布局实例本来就会共用一份实现,不带 `--icf=all` 时同样如此)。
+  - **真机 dlopen 冒烟**:`adb devices` 有一台在线设备(WSA,`ro.product.cpu.abi=x86_64`,API 33)。用 NDK 的 `x86_64-linux-android21-clang` 编了一个 20 行的 C 小程序,push 到 `/data/local/tmp/svgx_smoke/` 后 `dlopen` 本轮构建的 x86_64 `.so` 并逐个 `dlsym` 上述关键符号:**加载成功,9 个符号全部解析到非空地址,RESULT PASS**。
+    同时肉眼可见 `free_zero_copy_buffer_u8`/`_i8` 落在同一地址、`_u16`/`_i16` 落在同一地址(这类同布局实例本来就会共用一份实现,不带 `--icf=all` 时同样如此)。
 - **方法学局限(如实标注)**:
   - 只在 Android 四个 target 上实测,iOS/macOS/Linux/Windows 未验证(且本轮改动只写在 `_crossEnv()` 的 Android 分支里,本就只对 Android 生效)。
   - 风险审查是对**本仓库自己的 Rust 源码**做的穷举;`usvg`/`svgtypes`/`flutter_rust_bridge`/std 这些依赖内部是否存在依赖函数地址唯一性的代码,只做了"本项目的调用方式不涉及"这一层推断,**没有逐依赖审计,也没有做函数指针身份相关的 fuzz**。
-  - 真机冒烟只做到"加载 + 符号解析"这一层,**没有在设备上跑通完整的 `parse_svg` 渲染链路**(WSA 上跑 Flutter example 另有 Impeller 黑屏的已知坑,见 `docs/wsa-impeller-debugging.md`),也没有跑 `flutter test`(本轮未重建宿主库)。
+  - 真机冒烟只做到"加载 + 符号解析"这一层,**没有在设备上跑通完整的 `parse_svg` 渲染链路**(WSA 上跑 Flutter example 另有 Impeller 黑屏的已知坑,见 `doc/wsa-impeller-debugging.md`),也没有跑 `flutter test`(本轮未重建宿主库)。
 - **结论**:**保留**该改动。`tool/build_prebuilt.dart` 的 Android 分支 `RUSTFLAGS` 追加 `-C link-arg=-Wl,--icf=all`;`prebuilt/android/jniLibs/*/libsvgx.so` 四个文件已用新产物覆盖;`prebuilt/MANIFEST.json` 已由 `dart run tool/build_prebuilt.dart --restage` 同步(源码哈希 `1f22b2c26395d21bb2ac2d125adcd5d83225f3d8d779b75d0f276521bfd2b97e`,与前两条一致——本轮只动链接参数,未动 Rust 源码)。
 
 ## `-Z build-std-features=optimize_for_size`(2026-08-26)
@@ -139,7 +144,7 @@
 ## `-Wl,--retain-symbols-file=<file>`(摸底后判定不做,2026-08-26)
 
 - **动机**:候选项表里最后一个未验证项,也是被标注"工程量较大、风险较高"的一项。思路是给链接器一份显式的符号白名单,把白名单之外的符号全部当死代码丢弃。网上能查到的最激进案例(LTO+DCE 组合)宣称最高 −90%,但那是"库导出面很宽、白名单能砍掉绝大部分"的场景,与 svgx 的形态是否匹配需要先摸底才知道。
-- **纪律**:按 `docs/SIZE_OPTIMIZATION.md` 候选表里自己写下的前置条件——"动手前必须先用 `nm -D`/`readelf --dyn-syms` 摸清现有符号表基线"——先摸底再决定动不动手,不凭预期直接改构建脚本。
+- **纪律**:按 `doc/SIZE_OPTIMIZATION.md` 候选表里自己写下的前置条件——"动手前必须先用 `nm -D`/`readelf --dyn-syms` 摸清现有符号表基线"——先摸底再决定动不动手,不凭预期直接改构建脚本。
 
 ### 第一步:摸清导出符号基线
 
@@ -170,7 +175,7 @@ frb_pde_ffi_dispatcher_sync
 | x86_64 | 25 | 61 | 0 | 0x561(1377 B) |
 | x86 | 25 | 61 | 0 | 0x561(1377 B) |
 
-这印证了 `docs/SIZE_OPTIMIZATION.md` 已排除区里 `-Zdefault-visibility=hidden` 那一行的判断:cdylib 已经靠 version script 把导出面收到了最小,`.text` 里的内部符号根本没进 `.dynsym`。
+这印证了 `doc/SIZE_OPTIMIZATION.md` 已排除区里 `-Zdefault-visibility=hidden` 那一行的判断:cdylib 已经靠 version script 把导出面收到了最小,`.text` 里的内部符号根本没进 `.dynsym`。
 
 ### 第二步:核实"运行时必需"的最小集合
 
@@ -185,11 +190,13 @@ frb_pde_ffi_dispatcher_sync
 两条硬事实,任一条都足以否掉这项:
 
 1. **必需集合几乎等于全集**。25 个里 15 个铁定必需,另外 10 个是运行时按名解析的 finalizer,砍掉它们的收益上限是:`.dynsym` 条目 10 × 24 B = 240 B,加 `.dynstr` 里的名字约 280 B,加 `.hash`/`.gnu.hash` 桶的少量收缩,合计 **约 600 字节,占 arm64 产物 491,384 字节的 0.12%**。而代价是把一组"看起来没人引用、其实由 VM 按名解析"的符号删掉——这正是最容易在真机上炸成 `dlsym` failed 的那类改动。收益 0.12%、风险是运行时崩溃,性价比明确为负。
-2. **这个 flag 在当前配置下根本不产生作用**。用 `ld.lld --help` 确认其定位:它和 `--strip-all` / `--discard-all` / `--discard-locals` 归在同一族,过滤的是**静态符号表 `.symtab`**,而不是动态链接必需的 `.dynsym`(后者少一个符号就会导致运行时解析失败,链接器不会替你删)。而项目 `[profile.release]` 早已开了 `strip=true`,`llvm-readelf -S` 实测四个 ABI 的产物**全都是 0 个 `.symtab` 段**(总共只有 25 个 section,连 `llvm-nm` 不带 `-D` 都直接报 `no symbols`)。也就是说这个 flag 要过滤的东西已经被 `strip=true` 整段删光了,加上它是**保证为零**的空操作,和上一条 `-Zno-unique-section-names` 是同一类结局。
+2. **这个 flag 在当前配置下根本不产生作用**。用 `ld.lld --help` 确认其定位:它和 `--strip-all` / `--discard-all` / `--discard-locals` 归在同一族,过滤的是**静态符号表 `.symtab`**,而不是动态链接必需的 `.dynsym`(后者少一个符号就会导致运行时解析失败,链接器不会替你删)。
+   而项目 `[profile.release]` 早已开了 `strip=true`,`llvm-readelf -S` 实测四个 ABI 的产物**全都是 0 个 `.symtab` 段**(总共只有 25 个 section,连 `llvm-nm` 不带 `-D` 都直接报 `no symbols`)。
+   也就是说这个 flag 要过滤的东西已经被 `strip=true` 整段删光了,加上它是**保证为零**的空操作,和上一条 `-Zno-unique-section-names` 是同一类结局。
 
 > 顺带说明网上那个 −90% 案例为什么不适用:那类场景是一个导出面很宽的 C/C++ 库(动辄成千上万个导出符号),白名单能让链接器把大片不可达代码真正 DCE 掉。svgx 是 cdylib + FRB 的 PDE 分发模式,导出面本来就只有 25 个,代码可达性早已由 `lto=true` + version script 收紧到位,没有留给白名单发挥的空间。
 
 - **是否落地**:**不落地,不做任何代码改动**。既没有新建 `tool/android_retain_symbols.txt`,也没有动 `tool/build_prebuilt.dart` 的 `_crossEnv()`。
 - **为什么没走完"实测编译对比"流程**:这次在第一步摸底就拿到了确定性结论(`.symtab` 已不存在 → flag 必然零效果;必需符号占全集 15/25 → 上限 0.12%),继续跑一遍四 ABI 交叉编译只会得到一份和 `-Zno-unique-section-names` 一模一样的全零差值表,不产生新信息。本条记录里的所有符号数、段数、字节数均为上述 `llvm-nm` / `llvm-readelf` / `ls -l` 的真实输出,不含估算(唯一的估算是"约 600 字节"这个理论上限,已在文中标明算法)。
 - **产物状态**:`prebuilt/android/jniLibs/*/libsvgx.so` 未重建、未改动,仍是 `optimize_for_size` 落地后的那组产物(arm64-v8a 491,384 / armeabi-v7a 338,856 / x86_64 548,792 / x86 572,968 字节,已用 `ls -l` 重新核对)。`MANIFEST.json` 无需 restage。
-- **结论**:候选项表里这一行更新为"已摸底,判定不做"。至此候选表三项全部有了终局结论,**暂无其他待验证候选项**;后续瘦身若还要继续,剩下的只有"砍功能/砍依赖/砍 32 位 ABI"这类产品级取舍(见 `docs/SIZE_OPTIMIZATION.md` 已排除区末尾几行),不再是加编译 flag 能解决的范畴。
+- **结论**:候选项表里这一行更新为"已摸底,判定不做"。至此候选表三项全部有了终局结论,**暂无其他待验证候选项**;后续瘦身若还要继续,剩下的只有"砍功能/砍依赖/砍 32 位 ABI"这类产品级取舍(见 `doc/SIZE_OPTIMIZATION.md` 已排除区末尾几行),不再是加编译 flag 能解决的范畴。
