@@ -504,6 +504,124 @@ void main() {
     expect(app.om.queuedIds, isEmpty);
   });
 
+  group('1.0 真机回归', () {
+    /// 抑制演示共用的卡片标识与操作键。
+    const sup = 'SUP', supOpen = 'btn-sup-open', supClose = 'sup-close';
+
+    /// 跨槽位演示共用的卡片文案和操作键。
+    const modal = 'BLK-MODAL', toast = 'BLK-TOAST', overlap = 'BLK-OVL';
+
+    /// modal 的打开与关闭操作键。
+    const modalOpen = 'btn-blk-modal', modalClose = 'blk-modal-close';
+
+    /// 打开演示页并使用稳定键点击，等待本次界面更新。
+    Future<void> press(WidgetTester tester, String key) async {
+      await tapVisible(tester, find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+    }
+
+    /// 每条用例复用真机启动与侧边导航。
+    Future<void> features(WidgetTester tester) async {
+      await boot(tester);
+      await goTo(tester, 'v0.3 Features');
+    }
+
+    tearDown(() {
+      app.om.clear();
+      app.om.clearCooldowns();
+    });
+
+    testWidgets('不再提示后同 id 不再出场，重置后恢复', (tester) async {
+      await features(tester);
+      await press(tester, supOpen);
+      expect(find.text(sup), findsOneWidget);
+      await press(tester, 'sup-never');
+      expect(find.text(sup), findsNothing);
+      expect(find.text('sup: closed never'), findsOneWidget);
+      await tapVisible(tester, find.byKey(const Key(supOpen)));
+      expect(find.text(sup), findsNothing);
+      await tester.pump();
+      expect(find.text(sup), findsNothing);
+      expect(find.text('sup: suppressed null'), findsOneWidget);
+      expect(app.om.queuedIds, isNot(contains(sup)));
+      await press(tester, 'btn-sup-status');
+      expect(
+        find.text('sup: canShow=false suppressed=true permanent=true'),
+        findsOneWidget,
+      );
+      await press(tester, 'btn-sup-reset');
+      await press(tester, supOpen);
+      expect(find.text(sup), findsOneWidget);
+      await press(tester, supClose);
+      expect(find.text(sup), findsNothing);
+      expect(find.text('sup: closed close'), findsOneWidget);
+    });
+
+    testWidgets('稍后提示：抑制期间排队，到期后自动出场', (tester) async {
+      await features(tester);
+      await press(tester, supOpen);
+      await press(tester, 'sup-later');
+      expect(find.text('sup: closed later'), findsOneWidget);
+      await tapVisible(tester, find.byKey(const Key(supOpen)));
+      await tester.pump();
+      expect(find.text(sup), findsNothing);
+      expect(app.om.queuedIds, contains(sup));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text(sup), findsNothing);
+      // 只推进时间，不用点击或 settle 推动引擎唤醒。
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(find.text(sup), findsOneWidget);
+      expect(app.om.queuedIds, isNot(contains(sup)));
+      await press(tester, supClose);
+    });
+
+    testWidgets('modal 打开期间 toast 等待，关闭后出场', (tester) async {
+      await features(tester);
+      await press(tester, modalOpen);
+      expect(find.text(modal), findsOneWidget);
+      await press(tester, 'blk-toast');
+      expect(find.text(toast), findsNothing);
+      expect(app.om.queuedIds, contains(toast));
+      expect(find.text('blk: modal=true toast=queued'), findsOneWidget);
+      await press(tester, modalClose);
+      await advance(tester);
+      expect(find.text(modal), findsNothing);
+      expect(find.text(toast), findsOneWidget);
+      expect(find.text('blk: modal=false toast=shown'), findsOneWidget);
+      await tapVisible(tester, find.text('close $toast'));
+      await advance(tester);
+    });
+
+    testWidgets('modal 打开期间 overlap toast 被持有，关闭后出场', (tester) async {
+      await features(tester);
+      await press(tester, modalOpen);
+      expect(find.text(modal), findsOneWidget);
+      await press(tester, 'blk-toast-overlap');
+      expect(find.text(overlap), findsNothing);
+      expect(app.om.queuedIds, contains(overlap));
+      await press(tester, modalClose);
+      await advance(tester);
+      expect(find.text(modal), findsNothing);
+      expect(find.text(overlap), findsOneWidget);
+      expect(app.om.queuedIds, isNot(contains(overlap)));
+      await tapVisible(tester, find.text('close $overlap'));
+      await advance(tester);
+    });
+
+    testWidgets('没有 modal 时 toast 直接出场', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-blk-toast');
+      expect(find.text(modal), findsNothing);
+      expect(find.text(toast), findsOneWidget);
+      expect(app.om.queuedIds, isNot(contains(toast)));
+      await tapVisible(tester, find.text('close $toast'));
+      await advance(tester);
+      expect(find.text(toast), findsNothing);
+    });
+  });
+
   group('0.3.0 真机回归', () {
     /// 延迟出场两条用例共用的文案与操作键。
     const ovdText = 'OVD', ovdOpenKey = 'btn-ovd-open';

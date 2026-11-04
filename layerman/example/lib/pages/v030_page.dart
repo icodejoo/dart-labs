@@ -49,6 +49,15 @@ const _userKey = 'user', _rolesKey = 'roles', _vipRole = 'vip';
 /// ticket 尚未结束时的页面文案。
 const _ctxPendingOutcome = 'ctx: - -';
 
+/// 抑制与跨槽位演示的条目标识，同时用作卡片文案。
+const _sup = 'SUP', _blkModal = 'BLK-MODAL';
+
+/// 串行与并行 toast 的标识和文案。
+const _blkToast = 'BLK-TOAST', _blkOverlap = 'BLK-OVL';
+
+/// 不限制次数，仅接受显式抑制。
+const _suppressCooldown = OverlayCooldown();
+
 /// 展示 0.3.0 的路由后端、结果、实时数据与队列保护。
 class V030Page extends StatefulWidget {
   /// 创建演示页；所有操作使用当前全局 manager。
@@ -60,6 +69,113 @@ class V030Page extends StatefulWidget {
 
 /// 保存演示结果并清理故意失联的后端视图。
 class _V030PageState extends State<V030Page> {
+  /// 最近一次抑制演示提交的结果。
+  String _supOutcome = 'sup: - -';
+
+  /// 最近查询的抑制状态。
+  String _supStatus = 'sup: -';
+
+  /// 根据本次返回值抑制后续提交，关闭始终经身份绑定的 ctx.close。
+  Future<void> _openSuppress() async {
+    final manager = om;
+    final ticket = manager.submit<String>(
+      id: _sup,
+      cooldown: _suppressCooldown,
+      present: (ctx) => presentEntry<String>(
+        (_) => Positioned(
+          right: 16,
+          bottom: 80,
+          child: SizedBox(
+            width: 260,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(_sup),
+                    for (final (key, value, label) in const [
+                      ('sup-close', 'close', '关闭'),
+                      ('sup-later', 'later', '稍后提示（5 秒）'),
+                      ('sup-never', 'never', '不再提示'),
+                    ])
+                      TextButton(
+                        key: Key(key),
+                        onPressed: () => ctx.close(value),
+                        child: Text(label),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final outcome = await ticket.outcome;
+    if (!mounted || !identical(manager, om)) return;
+    if (outcome.value == 'never') manager.suppress(_sup);
+    if (outcome.value == 'later') {
+      // 演示仅等待 5 秒；真实应用一般用天作为稍后提示的间隔。
+      manager.suppress(_sup, duration: const Duration(seconds: 5));
+    }
+    setState(() {
+      _supOutcome = 'sup: ${outcome.reason.name} ${outcome.value}';
+    });
+  }
+
+  /// 查询抑制资格快照，不改变当前提交。
+  void _querySuppressStatus() {
+    final status = om.cooldownStatus(_sup, _suppressCooldown);
+    setState(() {
+      _supStatus =
+          'sup: canShow=${status.canShow} '
+          'suppressed=${status.suppressed} '
+          'permanent=${status.permanentlyBlocked}';
+    });
+  }
+
+  /// toast 在 modal 占位期间等待；overlap 同样由 blockedBy 持有。
+  void _openBlockedToast({bool overlap = false}) {
+    final text = overlap ? _blkOverlap : _blkToast;
+    om.submit<void>(
+      id: text,
+      slot: toastSlot,
+      mode: overlap ? OverlayMode.overlap : OverlayMode.queue,
+      present: (_) => presentEntry<void>(
+        (close) => Positioned(
+          right: 16,
+          top: 24,
+          child: SizedBox(
+            width: 260,
+            height: 160,
+            child: buildCard(text, close),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 使用官方对话框占用 modal 槽位，关闭后自动放行 toast。
+  void _openBlockingModal() => om.open<void>(
+    id: _blkModal,
+    slot: modalSlot,
+    present: _dialogs<void>(
+      (ctx, close) => AlertDialog(
+        title: const Text(_blkModal),
+        actions: [
+          demoButton('blk-toast', '排队 toast', () => _openBlockedToast()),
+          demoButton(
+            'blk-toast-overlap',
+            'overlap toast',
+            () => _openBlockedToast(overlap: true),
+          ),
+          demoButton('blk-modal-close', '关闭', () => close()),
+        ],
+      ),
+    ),
+  );
+
   /// 非路由卡片的关闭锁；每次打开重置为锁定。
   bool _ctxLocked = true;
 
@@ -324,7 +440,42 @@ class _V030PageState extends State<V030Page> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        pageHeader(context, 'v0.3 Features', '官方路由后端、可观测结果和队列保护。'),
+        pageHeader(
+          context,
+          'v0.3 Features',
+          '官方路由后端、可观测结果和队列保护。1.0 新增抑制与跨槽位互斥。',
+        ),
+        pageSection(context, '不再提示（suppress）', [
+          demoButton('btn-sup-open', '打开 SUP', _openSuppress),
+          demoButton('btn-sup-status', '查询抑制状态', _querySuppressStatus),
+          demoButton('btn-sup-reset', '重置抑制', () => om.resetCooldown(_sup)),
+          Text(_supOutcome, key: const Key('sup-label')),
+          Text(_supStatus, key: const Key('sup-status')),
+        ]),
+        pageSection(context, '跨槽位互斥（blockedBy）', [
+          demoButton('btn-blk-modal', '打开 modal', _openBlockingModal),
+          demoButton('btn-blk-toast', '直接 toast', () => _openBlockedToast()),
+          ListenableBuilder(
+            listenable: om,
+            builder: (context, _) {
+              final shown =
+                  om.activeIds.contains(_blkToast) ||
+                  om.activeIds.contains(_blkOverlap);
+              final queued =
+                  om.queuedIds.contains(_blkToast) ||
+                  om.queuedIds.contains(_blkOverlap);
+              return Text(
+                'blk: modal=${om.activeIds.contains(_blkModal)} '
+                'toast=${shown
+                    ? 'shown'
+                    : queued
+                    ? 'queued'
+                    : '-'}',
+                key: const Key('blk-label'),
+              );
+            },
+          ),
+        ]),
         pageSection(context, 'overlap 延迟出场', [
           demoButton('btn-ovd-open', '延迟打开 OVD', _openOverlapDelay),
           demoButton('btn-ovd-remove', '移除 OVD', () => om.remove(_ovd)),

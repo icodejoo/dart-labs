@@ -4,12 +4,18 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 Layerman om = _fresh();
 
+/// 跨槽位互斥演示共用的槽位名。
+const toastSlot = 'toast', modalSlot = 'modal';
+
 Layerman _fresh() => Layerman(
-      gap: const Duration(milliseconds: 300),
-      dismissTimeout: const Duration(seconds: 2),
-      resolveTimeout: const Duration(seconds: 2),
-      pauseOnRoutes: const [RouteMatcher.exact('/zone')],
-    );
+  gap: const Duration(milliseconds: 300),
+  dismissTimeout: const Duration(seconds: 2),
+  resolveTimeout: const Duration(seconds: 2),
+  pauseOnRoutes: const [RouteMatcher.exact('/zone')],
+  slots: const {
+    toastSlot: OverlaySlotOptions(blockedBy: {modalSlot}),
+  },
+);
 
 Layerman createFreshManager() => _fresh();
 
