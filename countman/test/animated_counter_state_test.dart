@@ -51,13 +51,13 @@ void main() {
         controller: c, duration: const Duration(seconds: 1))));
     c.animateTo(100);
     await t.pump();
-    await t.pump(const Duration(milliseconds: 200));
+    await t.pump(const Duration(milliseconds: 233));
     final before =
         t.widgetList<DigitColumn>(find.byType(DigitColumn)).last.animationValue;
     c.animateTo(50);
     await t.pump();
     final after = t.widgetList<DigitColumn>(find.byType(DigitColumn)).last;
-    expect(after.animationValue, closeTo(before, 3));
+    expect(after.animationValue, closeTo(before, 1e-6));
     expect(after.increasing, isTrue);
     await t.pumpWidget(const SizedBox());
     c.dispose();
@@ -165,12 +165,12 @@ void main() {
               controller: c, duration: const Duration(seconds: 1))));
       c.animateTo(100);
       await t.pump();
-      await t.pump(const Duration(milliseconds: 200));
+      await t.pump(const Duration(milliseconds: 233));
       var before = position(t, usePainter);
       expect(before, inInclusiveRange(15, 25));
       c.animateTo(200);
       await t.pump();
-      expect(position(t, usePainter), closeTo(before, 2));
+      expect(position(t, usePainter), closeTo(before, 1e-6));
       for (var i = 0; i < 12; i++) {
         await t.pump(const Duration(milliseconds: 100));
         final current = position(t, usePainter);

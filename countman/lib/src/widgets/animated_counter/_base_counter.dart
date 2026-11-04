@@ -554,7 +554,8 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       _cancelActive(dropPending: true);
     }
     if (oldVal != newVal || formatChanged || timelineChanged) {
-      _triggerTransitionWithDelay(current, newVal ?? 0);
+      _triggerTransitionWithDelay(current, newVal ?? 0,
+          preserveDigits: !formatChanged && oldWidget._timeFast == widget._timeFast);
     }
   }
 
@@ -662,9 +663,12 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   // ── transition triggering ─────────────────────────────────────────────────
 
   /// 先准备端点，再延迟启动；restart 在等待期间也能使用新目标。
-  void _triggerTransitionWithDelay(num oldValue, num newValue) {
+  /// [preserveDigits] 为 false 表示格式已变，应按新格式重新拆位。
+  void _triggerTransitionWithDelay(num oldValue, num newValue, {bool preserveDigits = true}) {
+    final startDigits = preserveDigits && !_digitsAreFast && !widget._timeFast
+        ? List<double>.of(_currentDigitValues) : null;
     _requestVersion++;
-    _startAnimationTransition(oldValue, newValue);
+    _startAnimationTransition(oldValue, newValue, startDigits: startDigits);
   }
 
   /// 取消本组件所有进行中或待启动的调度（延迟定时器、批量队列、主动画、回弹）。
@@ -699,7 +703,8 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   }
 
   /// 原子准备新转换，回调重入时由版本号阻止旧请求覆盖端点。
-  void _startAnimationTransition(num oldValue, num newValue) {
+  /// [startDigits] 保留中断时各列的分数进度，避免先舍入再拆位产生小幅回跳。
+  void _startAnimationTransition(num oldValue, num newValue, {List<double>? startDigits}) {
     final version = _requestVersion;
     // 新转换先取消旧主动画、回弹与排队启动，避免旧任务覆盖新端点。
     _cancelActive(dropPending: true);
@@ -715,7 +720,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _currentT = 0;
     _playback = _CounterPlayback.running;
 
-    final oldDigits = _getDigitsList(oldValue);
+    final oldDigits = startDigits ?? _getDigitsList(oldValue);
     final targetDigits = _getDigitsList(newValue);
     // Never shrink _maxDigits — keeps SizedBox stable and numberAlignment
     // consistent when animating to a smaller value (e.g. 1000 → 7).

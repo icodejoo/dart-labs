@@ -197,6 +197,7 @@ class CounterPainter extends CustomPainter {
 
   /// Builds (or reuses) a laid-out [ui.Paragraph] for [digit] at [alpha]
   /// (quantized to [_alphaBuckets] levels to bound the cache).
+  /// 数位、方向色和透明度量化档位共同命中缓存，避免逐帧重新排版。
   ui.Paragraph paragraphFor(int digit, double alpha) {
     final bucket = (alpha.clamp(0.0, 1.0) * (_alphaBuckets - 1)).round();
     final key = (_tintBucket * 10 + digit) * _alphaBuckets + bucket;

@@ -213,7 +213,10 @@ class CardCountdownStyle with BoxStyleFields, StyleProps {
 /// [labelStyle] / [separatorStyle] are inherited from a provider (not set
 /// on this card), that cache is also shared across every card in the
 /// provider's scope.
+/// 支持天及动态小时位宽的卡片倒计时，逐数位动画和语义分别更新。
 class CardCountdown extends StatefulWidget {
+  /// 创建卡片倒计时；showDays 默认为 false，启用时使用 dayLabel 作为天标签。
+  /// 示例：`CardCountdown(to: Duration(days: 2, hours: 3), showDays: true)`。
   const CardCountdown({
     super.key,
     required this.to,
@@ -333,6 +336,7 @@ class _CountdownCardState extends State<CardCountdown>
   // cards. Bounded: at most ~10 digits + separator + label strings.
   final _localCache = CardGlyphCache();
 
+  /// 用真实剩余时间初始化卡片端点和语义，并建立共享翻牌进度。
   @override
   void initState() {
     super.initState();
@@ -590,6 +594,7 @@ class _CountdownCardState extends State<CardCountdown>
     );
   }
 
+  /// 配置变化时重建几何和画笔，tick 仅更新模型或独立语义子树。
   @override
   Widget build(BuildContext context) {
     final provider = CardCountdownProvider.of(context);

@@ -200,7 +200,6 @@ class OdometerCounter extends StatelessWidget {
     this.onCancel,
     this.bounceOvershoot = 0.0,
     @Deprecated('No effect; use bounceOvershoot instead')
-    @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
   })  : assert(bounceOvershoot >= 0.0),
         assert(bounceElasticity >= 1.0);

@@ -75,6 +75,7 @@ class CardCountdownProvider extends StatefulWidget {
   State<CardCountdownProvider> createState() => _CardCountdownProviderState();
 }
 
+/// 管理有界共享缓存，样式更换或卸载时释放原生段落。
 class _CardCountdownProviderState extends State<CardCountdownProvider> {
   // One cache per provider instance, stable across rebuilds (only recreated
   // if the provider widget itself is torn down and remounted).
@@ -91,6 +92,7 @@ class _CardCountdownProviderState extends State<CardCountdownProvider> {
     }
   }
 
+  /// 卸载时释放共享缓存持有的全部字形段落。
   @override
   void dispose() {
     _cache.clear();
