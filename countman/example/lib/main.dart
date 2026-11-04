@@ -11,6 +11,7 @@ import 'perf_page.dart';
 // web 无法编译 benchmark_page（dart:io），此时回退到桩。
 import 'benchmark_stub.dart' if (dart.library.io) 'benchmark_page.dart';
 import 'digit_test_page.dart';
+import 'advanced_page.dart';
 
 void main() {
   runApp(const CountmanDemoApp());
@@ -47,6 +48,7 @@ class CountmanDemoApp extends StatelessWidget {
         '/perf': (_) => const PerfPage(),
         '/benchmark': (_) => const BenchmarkPage(),
         '/digit-test': (_) => const DigitTestPage(),
+        '/advanced': (_) => const AdvancedPage(),
       },
     );
   }
@@ -99,6 +101,15 @@ class HomePage extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 8),
+          _PluginCard(
+            icon: Icons.tune_rounded,
+            title: '进阶 / 0.3 新特性',
+            subtitle: 'CountmanTheme · template · rounding · total\n'
+                'Elapsed since/limit/lap · OffsetClock · 自定义插件',
+            route: '/advanced',
+            color: const Color(0xFFFF7043),
+          ),
+          const SizedBox(height: 12),
           _PluginCard(
             icon: Icons.account_tree_rounded,
             title: 'Providers',

@@ -20,6 +20,7 @@ import 'package:example/provider_page.dart';
 import 'package:example/card_demo_page.dart';
 import 'package:example/countdown_demo_page.dart';
 import 'package:example/digit_test_page.dart';
+import 'package:example/advanced_page.dart';
 
 /// Pumps [page] under a MaterialApp, runs a few frames, asserts no exception,
 /// then disposes it (cancelling timers/handles) and resets the shared ticker.
@@ -52,4 +53,5 @@ void main() {
   testWidgets('CardDemoPage builds & runs', (t) => _smoke(t, const CardDemoPage()));
   testWidgets('CountdownDemoPage builds & runs', (t) => _smoke(t, const CountdownDemoPage()));
   testWidgets('DigitTestPage builds & runs', (t) => _smoke(t, const DigitTestPage()));
+  testWidgets('AdvancedPage builds & runs', (t) => _smoke(t, const AdvancedPage()));
 }
