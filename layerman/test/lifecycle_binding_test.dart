@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -133,7 +134,7 @@ void main() {
       await tester.pump(d);
     }
 
-    final manager = Layerman(now: () => clock);
+    final manager = Layerman(clock: ManualNowClock(() => clock));
     final lifecycle = LayermanLifecycle(manager)..attach();
     addTearDown(() {
       lifecycle.detach();

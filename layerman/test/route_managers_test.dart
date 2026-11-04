@@ -95,8 +95,8 @@ void main() {
       final key = GlobalKey<NavigatorState>();
       final observer = _Routes();
       final manager = _manager();
-      final dialogs = DialogManager(key, manager: manager);
-      final sheets = BottomSheetManager(key, manager: manager);
+      final dialogs = DialogManager(key);
+      final sheets = BottomSheetManager(key);
       final present =
           bottomSheet ? sheets<String>(_sheet) : dialogs<String>(_dialog);
       await _app(tester, key, observer);
@@ -189,15 +189,15 @@ void main() {
       });
     }
 
-    testWidgets('$kind：builder close 绑定编排器时守卫拒绝和放行均生效', (tester) async {
+    testWidgets('$kind：builder close 守卫拒绝和放行均生效', (tester) async {
       final key = GlobalKey<NavigatorState>();
       final observer = _Routes();
       final manager = _manager();
       var allow = false;
       var calls = 0;
       final present = bottomSheet
-          ? BottomSheetManager(key, manager: manager)<String>(_sheet)
-          : DialogManager(key, manager: manager)<String>(_dialog);
+          ? BottomSheetManager(key)<String>(_sheet)
+          : DialogManager(key)<String>(_dialog);
       await _app(tester, key, observer);
       final result = manager.open<String>(
         id: _a,
@@ -222,7 +222,7 @@ void main() {
       expect(observer.has(_a), isFalse);
     });
 
-    testWidgets('$kind：未绑定编排器时 builder close 直接关闭且绕过守卫', (tester) async {
+    testWidgets('$kind：builder close 一律经过守卫拒绝关闭', (tester) async {
       final key = GlobalKey<NavigatorState>();
       final observer = _Routes();
       final manager = _manager();
@@ -243,8 +243,11 @@ void main() {
       await tester
           .tap(find.widgetWithText(TextButton, bottomSheet ? _a : _result));
       await tester.pumpAndSettle();
-      expect(await result, _result);
-      expect(calls, 0);
+      expect(calls, 1);
+      expect(observer.has(_a), isTrue);
+      manager.remove(_a);
+      await tester.pumpAndSettle();
+      expect(await result, isNull);
       expect(observer.has(_a), isFalse);
     });
 
@@ -310,7 +313,7 @@ void main() {
       final routeB = observer.entry(_b);
       closes[_a]!(_result);
       await tester.pumpAndSettle();
-      expect(await a, isNull); // 兼容旧 Flutter，removeRoute 不传结果。
+      expect(await a, _result); // builder close 经编排器先交付结果。
       expect(observer.routes, contains(routeB));
       expect(routeB.isCurrent, isTrue);
       closes[_a]!();
@@ -323,7 +326,7 @@ void main() {
     });
   }
 
-  testWidgets('未绑定编排器的同一实例在应用重建与更换 Layerman 后可复用', (tester) async {
+  testWidgets('同一实例在应用重建与更换 Layerman 后可复用', (tester) async {
     final key = GlobalKey<NavigatorState>();
     final dialogs = DialogManager(key);
     final oldManager = Layerman();

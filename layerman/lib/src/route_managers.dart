@@ -46,13 +46,11 @@ abstract class _RouteManager {
   /// 保存配置，直到实际 present 才读取导航器。
   _RouteManager(
     GlobalKey<NavigatorState> navigatorKey, {
-    Layerman? manager,
     bool barrierDismissible = true,
     Color? barrierColor,
     bool useSafeArea = true,
     String routeNamePrefix = _routeNamePrefix,
   })  : _navigatorKey = navigatorKey,
-        _manager = manager,
         _barrierDismissible = barrierDismissible,
         _barrierColor = barrierColor,
         _useSafeArea = useSafeArea,
@@ -60,9 +58,6 @@ abstract class _RouteManager {
 
   /// 每次展示时查询的导航器键。
   final GlobalKey<NavigatorState> _navigatorKey;
-
-  /// 可选的守卫与结果类型校验入口。
-  final Layerman? _manager;
 
   /// 默认是否允许点击遮罩关闭。
   final bool _barrierDismissible;
@@ -78,7 +73,7 @@ abstract class _RouteManager {
 
   /// 为每次 present 创建独立路由及关闭回调。
   Present<T> _present<T>(
-    Widget Function(PresentContext ctx, void Function([T? result]) close)
+    Widget Function(PresentContext<T> ctx, void Function([T? result]) close)
         builder,
     TransitionRoute<T> Function(
       NavigatorState navigator,
@@ -96,18 +91,9 @@ abstract class _RouteManager {
         }
         late final TransitionRoute<T> route;
 
-        /// 将本次关闭交给指定编排器，或直接定向关闭本次路由。
-        void close([T? result]) {
-          if (_manager != null) {
-            _manager.close(ctx.id, result);
-          } else {
-            _dismissRoute(route, result);
-          }
-        }
-
         route = createRoute(
           navigator,
-          (_) => builder(ctx, close),
+          (_) => builder(ctx, ctx.close),
           RouteSettings(name: '$_prefix${ctx.id}'),
         );
         return presentRoute(navigator, route);
@@ -116,15 +102,12 @@ abstract class _RouteManager {
 
 /// 可全局复用的对话框 presenter 工厂，仅持有配置，不保存某次展示状态。
 ///
-/// 绑定 [Layerman] 后，builder 的 close 走其守卫和类型校验；未绑定则直接
-/// 关闭对应路由（用户返回或遮罩关闭也直接走路由）。更换编排器时，可复用
-/// 未绑定 manager 的实例；绑定的实例始终使用构造时指定的编排器。
+/// builder 的 close 总是通过当前条目上下文执行 beforeClose 守卫。
+/// 返回键和遮罩仍由路由关闭并通过 dismissed 上报；实例可跨编排器复用。
 class DialogManager extends _RouteManager {
   /// 使用指定导航器键；可设置默认遮罩、安全区域与路由名前缀。
-  /// [manager] 可选，用于让 builder 的 close 经过 `beforeClose`。
   DialogManager(
     super.navigatorKey, {
-    super.manager,
     super.barrierDismissible,
     super.barrierColor,
     super.useSafeArea,
@@ -135,7 +118,7 @@ class DialogManager extends _RouteManager {
   /// [builder] 接收当前条目上下文及可携带结果的 close；非空参数覆盖默认值。
   /// 展示时导航器尚未挂载会抛出 [StateError]，由编排器上报并丢弃条目。
   Present<T> call<T>(
-    Widget Function(PresentContext ctx, void Function([T? result]) close)
+    Widget Function(PresentContext<T> ctx, void Function([T? result]) close)
         builder, {
     bool? barrierDismissible,
     Color? barrierColor,
@@ -163,11 +146,10 @@ class DialogManager extends _RouteManager {
 
 /// 可全局复用的模态底部弹层 presenter 工厂，关闭契约与 [DialogManager] 相同。
 class BottomSheetManager extends _RouteManager {
-  /// 配置导航器、可选编排器、遮罩、安全区域及底部弹层的常用默认值。
+  /// 配置导航器、遮罩、安全区域及底部弹层的常用默认值。
   /// [isScrollControlled] 默认 false，允许单次调用覆盖。
   BottomSheetManager(
     super.navigatorKey, {
-    super.manager,
     super.barrierDismissible,
     super.barrierColor,
     super.useSafeArea,
@@ -195,9 +177,9 @@ class BottomSheetManager extends _RouteManager {
 
   /// 返回底部弹层 presenter；非空参数覆盖构造默认值。
   /// [builder] 接收条目上下文及 close；导航器未挂载时抛出 [StateError]。
-  /// 绑定 manager 时 close 经过守卫；否则直接关闭本次路由。
+  /// close 一律经过当前条目的 beforeClose 守卫。
   Present<T> call<T>(
-    Widget Function(PresentContext ctx, void Function([T? result]) close)
+    Widget Function(PresentContext<T> ctx, void Function([T? result]) close)
         builder, {
     bool? barrierDismissible,
     Color? barrierColor,

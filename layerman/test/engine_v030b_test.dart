@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -148,12 +149,12 @@ void main() {
     final manager = Layerman();
     addTearDown(manager.dispose);
     manager.setContext({'auth': true});
-    final first =
-        manager.submit(present: _FakeBackend().present, requiresAuth: true);
+    final first = manager.submit(
+        present: _FakeBackend().present, auth: (ctx) => ctx['auth'] == true);
     final kept = manager.submit(
         present: _FakeBackend().present,
         mode: OverlayMode.overlap,
-        requiresAuth: true,
+        auth: (ctx) => ctx['auth'] == true,
         dismissWhenUnmet: false);
     manager.setContext({'auth': false});
     await _expectOutcome(first, OverlayEndReason.unmet);
@@ -328,7 +329,8 @@ void main() {
   });
 
   testWidgets('hold 全释放才恢复，时长按剩余时间继续', (tester) async {
-    final manager = Layerman(now: () => tester.binding.clock.now());
+    final manager =
+        Layerman(clock: ManualNowClock(() => tester.binding.clock.now()));
     addTearDown(manager.dispose);
     final ticket =
         manager.submit(present: _FakeBackend().present, duration: _long);

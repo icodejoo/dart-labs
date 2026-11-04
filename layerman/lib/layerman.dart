@@ -24,6 +24,7 @@ export 'src/overlay_manager.dart'
         Present;
 export 'src/overlay_types.dart'
     show
+        OverlayClock,
         OverlayMode,
         RouteMatcher,
         OverlayPhase,

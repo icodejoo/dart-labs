@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -129,7 +130,7 @@ class _Scenario {
   _Scenario(this.seed, this.tester) : random = Random(seed) {
     zoneEnabled = random.nextBool();
     manager = Layerman(
-      now: () => clock,
+      clock: ManualNowClock(() => clock),
       gap: random.nextBool() ? Duration.zero : const Duration(milliseconds: 50),
       dismissTimeout: _timeout,
       resolveTimeout: _timeout,
@@ -261,7 +262,9 @@ class _Scenario {
       exitDuration: exit,
       expireAfter: expiry,
       route: condition == 1 ? const RouteMatcher.exact(_home) : null,
-      requiresAuth: condition == 2 ? true : (condition == 3 ? false : null),
+      auth: condition == 2
+          ? (ctx) => ctx['auth'] == true
+          : (condition == 3 ? (ctx) => ctx['auth'] != true : null),
       when: condition == 4 ? (context) => context['auth'] == true : null,
       cooldown: switch (cooldown) {
         1 => const OverlayCooldown(session: 1),

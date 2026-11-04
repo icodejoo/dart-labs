@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -144,7 +145,7 @@ void main() {
 
   testWidgets('E1-1 day 达限保留排队并在跨日时自唤醒', (tester) async {
     var now = DateTime(2026, 1, 1, 23, 59, 59);
-    final manager = Layerman(now: () => now);
+    final manager = Layerman(clock: ManualNowClock(() => now));
     addTearDown(manager.dispose);
     await manager.ready();
     const cd = OverlayCooldown(day: 1);
@@ -364,7 +365,10 @@ void main() {
     manager.open(id: entryId, present: _Backend().present);
     manager.open(id: highId, priority: 100, present: _Backend().present);
     final blocked = _Backend();
-    manager.open(id: entryId, requiresAuth: true, present: blocked.present);
+    manager.open(
+        id: entryId,
+        auth: (ctx) => ctx['auth'] == true,
+        present: blocked.present);
     expect(manager.activeIds, [highId]);
     expect(manager.queuedIds, [entryId]);
     expect(blocked.context, isNull);
@@ -429,7 +433,7 @@ void main() {
     manager.open(
         id: replacement,
         mode: OverlayMode.replace,
-        requiresAuth: true,
+        auth: (ctx) => ctx['auth'] == true,
         present: _Backend().present);
     manager.open<Object>(
         id: overlapId,

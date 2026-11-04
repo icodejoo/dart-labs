@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -291,7 +292,7 @@ void main() {
 
   testWidgets('冷却查询覆盖通过、时间等待与永久上限', (tester) async {
     var now = DateTime(2026, 1, 1, 12, 30, 30);
-    final manager = Layerman(now: () => now);
+    final manager = Layerman(clock: ManualNowClock(() => now));
     addTearDown(manager.dispose);
     await manager.ready();
     _expectStatus(manager.cooldownStatus(_id, _gapCooldown),

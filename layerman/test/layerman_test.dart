@@ -1,3 +1,4 @@
+import 'support/manual_now_clock.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -283,7 +284,7 @@ void main() {
     testWidgets('clear() cancels an armed cooldown wake timer', (tester) async {
       await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager = Layerman(now: () => t);
+      final manager = Layerman(clock: ManualNowClock(() => t));
 
       const cd = OverlayCooldown(minGap: Duration(seconds: 1));
       final g1 = _FakeBackend<String>();
@@ -1146,7 +1147,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager = Layerman(now: () => t);
+      final manager = Layerman(clock: ManualNowClock(() => t));
 
       final backend = _FakeBackend<String>();
       manager.open(
@@ -1407,8 +1408,7 @@ void main() {
     });
   });
 
-  group('conditions (when / route / requiresAuth / setContext) — TS parity',
-      () {
+  group('条件（when / route / auth / setContext）按 AND 组合', () {
     testWidgets('route gating: waits until setContext matches', (tester) async {
       await tester.pumpWidget(const SizedBox());
       final manager = Layerman();
@@ -1452,27 +1452,28 @@ void main() {
       manager.dispose();
     });
 
-    testWidgets('requiresAuth + when overrides the sugar', (tester) async {
+    testWidgets('auth、route 与 when 必须同时满足', (tester) async {
       await tester.pumpWidget(const SizedBox());
       final manager = Layerman();
 
       manager.setContext({'auth': false});
       final au = _FakeBackend<String>();
-      manager.open(id: 'au', requiresAuth: true, present: au.present);
+      manager.open(
+          id: 'au', auth: (ctx) => ctx['auth'] == true, present: au.present);
       await tester.pump();
       expect(au.presented, isFalse);
 
-      // `when` is the sole authority: ignores mismatching route/auth.
+      // when 为 true 仍须满足 route 和 auth。
       final wn = _FakeBackend<String>();
       manager.open(
         id: 'wn',
         route: const RouteMatcher.exact('/nope'),
-        requiresAuth: true,
+        auth: (ctx) => ctx['auth'] == true,
         when: (ctx) => true,
         present: wn.present,
       );
       await tester.pump();
-      expect(wn.presented, isTrue);
+      expect(wn.presented, isFalse);
 
       manager.dispose();
     });
@@ -1529,7 +1530,7 @@ void main() {
       manager.open(
         id: 'rx',
         mode: OverlayMode.replace,
-        requiresAuth: true, // auth unset -> ineligible
+        auth: (ctx) => ctx['auth'] == true, // auth unset -> ineligible
         present: rx.present,
       );
       await tester.pump();
@@ -1540,7 +1541,7 @@ void main() {
       final dropped = manager.open<String>(
         id: 'ox',
         mode: OverlayMode.overlap,
-        requiresAuth: true,
+        auth: (ctx) => ctx['auth'] == true,
         present: (ctx) {
           oxPresented = true;
           return PresentedOverlay<String>(
@@ -1581,7 +1582,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager = Layerman(now: () => t);
+      final manager = Layerman(clock: ManualNowClock(() => t));
 
       const cd = OverlayCooldown(minGap: Duration(seconds: 10));
       final g1 = _FakeBackend<String>();
@@ -1607,7 +1608,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager = Layerman(now: () => t);
+      final manager = Layerman(clock: ManualNowClock(() => t));
 
       const cd = OverlayCooldown(minGap: Duration(milliseconds: 500));
       final g1 = _FakeBackend<String>();
@@ -1633,7 +1634,7 @@ void main() {
     testWidgets('day cap resets across the local midnight', (tester) async {
       await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 23, 59);
-      final manager = Layerman(now: () => t);
+      final manager = Layerman(clock: ManualNowClock(() => t));
 
       const cd = OverlayCooldown(day: 1);
       final d1 = _FakeBackend<String>();

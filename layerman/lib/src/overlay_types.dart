@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 /// 条目的出场方式，与 affix 保护声明相互独立。
@@ -209,4 +211,32 @@ class OverlayCooldownStatus {
 
   /// 时间上限的最长剩余等待；可展示时为 Duration.zero。
   final Duration? wait;
+}
+
+/// 引擎读取时间与创建计时器的唯一来源。
+abstract class OverlayClock {
+  /// 供自定义时钟初始化。
+  const OverlayClock();
+
+  /// 系统时钟：DateTime.now 与 dart:async Timer。
+  static const OverlayClock system = _SystemOverlayClock();
+
+  /// 返回当前时间，须与计时器的时间推进同源。
+  DateTime now();
+
+  /// 创建单次计时器；返回值可用于取消等待。
+  Timer createTimer(Duration duration, void Function() callback);
+}
+
+/// 使用系统时间及当前 Zone 的计时器。
+class _SystemOverlayClock extends OverlayClock {
+  /// 创建无状态系统时钟。
+  const _SystemOverlayClock();
+
+  @override
+  DateTime now() => DateTime.now();
+
+  @override
+  Timer createTimer(Duration duration, void Function() callback) =>
+      Timer(duration, callback);
 }
