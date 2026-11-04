@@ -20,6 +20,7 @@ import 'package:flutter/widgets.dart';
 
 import '../animated_counter/types.dart';
 import '../animated_counter/digit_layout.dart';
+import '../animated_counter/digit_motion.dart';
 import 'perspective.dart';
 
 /// Factory signature for [AnimatedCounter.painterBuilder]. Receives the exact
@@ -418,7 +419,7 @@ class CounterPainter extends CustomPainter {
       final double bounceOff =
           col.index < _bounceOffsets.length ? _bounceOffsets[col.index] : 0.0;
       if (bounceOff != 0.0) {
-        canvas.translate(0, bounceOff * dh * exitDirection());
+        canvas.translate(0, digitBounceShift(_rollDirection, bounceOff, dh));
       }
       if (reveal < 1.0) {
         // saveLayer scales the whole column's alpha — only on the ≤1 fading
@@ -502,131 +503,96 @@ class CounterPainter extends CustomPainter {
     return (_phase.cur, _phase.nxt, _phase.p);
   }
 
-  /// Renders the transition by composing [CounterTransition]: an optional
-  /// motion-blur layer wrapping the [CounterMotion] movement plus the
-  /// scale/fade modifiers. Override to customize or add an effect.
-  ///
   /// 按 [CounterTransition] 组合渲染过渡：可选的运动模糊层包裹 [CounterMotion] 运动，
   /// 再叠加 scale/fade 修饰。可覆写以定制或新增效果。
+  ///
+  /// 数值（位移、旋转、缩放、透明度）统一由 [resolveDigitMotion] 解算，与组件树路径
+  /// （DigitColumn）共用同一份运动解算；本类只负责把数值应用到 Canvas。
   void paintTransition(Canvas canvas, int cur, int nxt, double p, double x, double h, double w) {
-    if (transition.blur) {
-      final sigma = (0.5 - (p - 0.5).abs()) * 8.0;
-      if (sigma >= 0.1) {
-        canvas.saveLayer(
-          Rect.fromLTWH(x, 0, w, h),
-          Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        );
-        _paintMotion(canvas, cur, nxt, p, x, h, w);
-        canvas.restore();
-        return;
-      }
+    final sigma = digitBlurSigma(transition, p);
+    if (sigma > 0) {
+      canvas.saveLayer(
+        Rect.fromLTWH(x, 0, w, h),
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      );
+      _paintMotion(canvas, cur, nxt, p, x, h, w);
+      canvas.restore();
+      return;
     }
     _paintMotion(canvas, cur, nxt, p, x, h, w);
   }
 
-  /// Draws the outgoing [cur] and incoming [nxt] digits for the current
-  /// [CounterMotion]. Flip is single-sided (one face at a time); the others
-  /// draw both digits (the scale/fade modifiers separate/blend them).
-  ///
-  /// 为当前 [CounterMotion] 绘制离场 [cur] 与入场 [nxt] 数位。flip 单面（同一时刻一面）；
-  /// 其余绘制两位（由 scale/fade 修饰分离/混合）。
+  /// 绘制离场 [cur] 与入场 [nxt] 数位；flip 同一时刻只显示一面，由
+  /// [DigitMotion.visible] 决定哪一面被跳过。
   void _paintMotion(Canvas c, int cur, int nxt, double p, double x, double h, double w) {
-    if (transition.motion == CounterMotion.flip) {
-      final showCur = p < 0.5;
-      _drawDigit(c, showCur ? cur : nxt, leaving: showCur, p: p, x: x, h: h, w: w);
-      return;
-    }
     _drawDigit(c, cur, leaving: true,  p: p, x: x, h: h, w: w);
     _drawDigit(c, nxt, leaving: false, p: p, x: x, h: h, w: w);
   }
 
-  /// Draws one digit at progress [p], composing scale + motion + fade.
-  /// [leaving] = outgoing (at rest as p→0); else incoming (at rest as p→1).
-  ///
-  /// 在进度 [p] 绘制一个数位，组合 scale + 运动 + fade。[leaving] = 离场（p→0 归位）；
-  /// 否则入场（p→1 归位）。
+  /// 复用的运动数值容器，逐数位逐帧由 [resolveDigitMotion] 写入，热路径零分配。
+  final DigitMotion _motion = DigitMotion();
+
+  /// 已折算方向后的滚动方向（递减时翻转 [flipDirection]）。
+  AxisDirection get _rollDirection => effectiveRollDirection(flipDirection, _increasing);
+
+  /// 在相位 [p] 绘制一个数位：先解算运动数值，再按 scale → 运动的顺序应用到画布。
+  /// [leaving] = 离场（p→0 归位）；否则入场（p→1 归位）。
   void _drawDigit(Canvas c, int digit,
       {required bool leaving,
       required double p,
       required double x,
       required double h,
       required double w}) {
-    final double away = leaving ? p : (1 - p); // 0 = at rest, 1 = fully displaced
-    final double alpha = transition.fade ? (1 - away) : 1.0;
-    if (alpha <= 0.001) return;
+    final m = _motion;
+    resolveDigitMotion(m,
+        transition: transition,
+        direction: _rollDirection,
+        p: p,
+        leaving: leaving,
+        width: w,
+        height: h);
+    if (!m.visible) return;
 
-    // Only scale + rotate mutate the canvas transform here; slide bakes its
-    // offset into the draw Offset and flip's applyRotateX self-saves/restores.
-    // So the default slide/none look (the hot path) skips the save/restore pair
-    // entirely, and flip only needs the outer restore if scale added a save.
-    //
-    // 此处仅 scale 与 rotate 会改动画布变换；slide 把偏移写入 draw 的 Offset，
+    // 只有 scale 与 rotate 会改动画布变换；slide 把偏移写入 draw 的 Offset，
     // flip 的 applyRotateX 自带 save/restore。故默认 slide/none（热路径）完全跳过
     // 这对 save/restore，flip 也仅在 scale 已 save 时才需外层 restore。
     final bool needsRestore =
         transition.scale || transition.motion == CounterMotion.rotate;
     if (needsRestore) c.save();
 
-    // Scale about the cell center (shrinks the leaving / grows the arriving).
+    final double cx = x + w / 2;
+    final double cy = h / 2;
     if (transition.scale) {
-      final double s = (1 - away).clamp(0.0, 1.0);
-      if (s <= 0) {
-        c.restore(); // needsRestore is true here — scale set the save.
-        return;
-      }
-      final double cx = x + w / 2;
-      final double cy = h / 2;
       c.translate(cx, cy);
-      c.scale(s, s);
+      c.scale(m.scale, m.scale);
       c.translate(-cx, -cy);
     }
 
-    double dx = 0;
-    double dy = 0;
     switch (transition.motion) {
       case CounterMotion.none:
-        break;
       case CounterMotion.slide:
-        {
-          final double d = exitDirection();
-          final horizontal = flipDirection == AxisDirection.left || flipDirection == AxisDirection.right;
-          final horizontalDirection = (flipDirection == AxisDirection.right ? 1.0 : -1.0) * (_increasing ? 1 : -1);
-          final offset = (leaving ? away : -away) * (horizontal ? w : h) * (horizontal ? horizontalDirection : d);
-          if (horizontal) { dx = offset; } else { dy = offset; }
-        }
+        break;
       case CounterMotion.rotate:
-        {
-          final double cx = x + w / 2;
-          final double cy = h / 2;
-          final double ang = (leaving ? -away : away) * math.pi / 2;
-          c.translate(cx, cy);
-          c.rotate(ang);
-          c.translate(-cx, -cy);
-        }
+        c.translate(cx, cy);
+        c.rotate(m.rotateZ);
+        c.translate(-cx, -cy);
       case CounterMotion.flip:
-        {
-          // ⚠️ perspective rotateX (setEntry 3,2) → GPU compositing layer.
-          final double cx = x + w / 2;
-          final double cy = h / 2;
-          final double ang = leaving ? -p * math.pi : (1 - p) * math.pi;
-          applyRotateX(c, Offset(cx, cy), ang, 0.002, () {
-            c.drawParagraph(paragraphFor(digit, alpha), Offset(x, topY(h)));
-          });
-          if (needsRestore) c.restore(); // only when scale added a save
-          return;
-        }
+        // ⚠️ 透视 rotateX（setEntry 3,2）→ GPU 合成层。
+        applyRotateX(c, Offset(cx, cy), m.rotateX, kDigitFlipPerspective, () {
+          c.drawParagraph(paragraphFor(digit, m.alpha), Offset(x, topY(h)));
+        });
+        if (needsRestore) c.restore(); // 仅当 scale 已 save
+        return;
     }
 
-    c.drawParagraph(paragraphFor(digit, alpha), Offset(x + dx, topY(h) + dy));
+    c.drawParagraph(paragraphFor(digit, m.alpha), Offset(x + m.dx, topY(h) + m.dy));
     if (needsRestore) c.restore();
   }
 
   double topY(double h) => (h - digitSize.height) / 2;
 
-  double exitDirection() {
-    final base = (flipDirection == AxisDirection.up || flipDirection == AxisDirection.right) ? -1.0 : 1.0;
-    return _increasing ? base : -base;
-  }
+  /// 离场一侧的符号：递增向上（-1）、递减向下（+1），随 [flipDirection] 与方向折算。
+  double exitDirection() => verticalExitSign(_rollDirection);
 
   // ── separator drawing ──────────────────────────────────────────────────────
 

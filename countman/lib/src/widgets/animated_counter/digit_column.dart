@@ -6,12 +6,12 @@
 //   + ClipRect so digit transitions run on the GPU compositor layer with no
 //   layout pass per frame.
 
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'digit_motion.dart';
 import 'types.dart';
 
 class DigitColumn extends StatefulWidget {
@@ -113,6 +113,11 @@ class _DigitColumnState extends State<DigitColumn> {
   /// 每次 build 由 [resolveDigitPhase] 复用，使组件树路径不逐帧分配 record。
   final DigitPhase _phase = DigitPhase();
 
+  /// 离场数位与入场数位的运动数值，每次 build 由 [resolveDigitMotion] 写入；
+  /// 与 painter 路径使用同一份解算。
+  final DigitMotion _curMotion = DigitMotion();
+  final DigitMotion _nxtMotion = DigitMotion();
+
   /// 构建数位过渡；fast 端点已落位时只保留实际可见字形。
   @override
   Widget build(BuildContext context) {
@@ -156,13 +161,18 @@ class _DigitColumnState extends State<DigitColumn> {
     //
     // fade 修饰：把交叉淡入不透明度写入两个数位（否则全不透明）。scale/运动/blur 在下方
     // 组合，与 painter 对齐。
-    final double curOp = widget.transition.fade ? (1 - decimal).clamp(0.0, 1.0) : 1.0;
-    final double nxtOp = widget.transition.fade ? decimal.clamp(0.0, 1.0) : 1.0;
+    // flipDirection 已按增减方向折算（见 _BaseCounterState 的有效翻转方向），故直接作为滚动方向。
+    resolveDigitMotion(_curMotion,
+        transition: widget.transition, direction: widget.flipDirection,
+        p: decimal, leaving: true, width: w, height: h);
+    resolveDigitMotion(_nxtMotion,
+        transition: widget.transition, direction: widget.flipDirection,
+        p: decimal, leaving: false, width: w, height: h);
     Widget currentDigitWidget = _buildSingleDigit(
-      context: context, digit: curDigit, opacity: curOp, style: widget.style,
+      context: context, digit: curDigit, opacity: _curMotion.alpha, style: widget.style,
     );
     Widget nextDigitWidget = _buildSingleDigit(
-      context: context, digit: nextDigit, opacity: nxtOp, style: widget.style,
+      context: context, digit: nextDigit, opacity: _nxtMotion.alpha, style: widget.style,
     );
 
     if (widget.fast && widget.animationValue >= 1.0 && widget.digitTransitionBuilder == null) {
@@ -181,9 +191,9 @@ class _DigitColumnState extends State<DigitColumn> {
       // scale modifier: shrink the leaving digit / grow the arriving one.
       if (widget.transition.scale) {
         currentDigitWidget = Transform.scale(
-            scale: (1.0 - decimal).clamp(0.0, 1.0), child: currentDigitWidget);
+            scale: _curMotion.scale, child: currentDigitWidget);
         nextDigitWidget = Transform.scale(
-            scale: decimal.clamp(0.0, 1.0), child: nextDigitWidget);
+            scale: _nxtMotion.scale, child: nextDigitWidget);
       }
 
       switch (widget.transition.motion) {
@@ -193,80 +203,76 @@ class _DigitColumnState extends State<DigitColumn> {
 
         case CounterMotion.rotate:
           transitionChild = Stack(alignment: Alignment.center, children: [
-            Transform.rotate(angle: -decimal * math.pi / 2, child: currentDigitWidget),
-            Transform.rotate(angle: (1.0 - decimal) * math.pi / 2, child: nextDigitWidget),
+            Transform.rotate(angle: _curMotion.rotateZ, child: currentDigitWidget),
+            Transform.rotate(angle: _nxtMotion.rotateZ, child: nextDigitWidget),
           ]);
 
         case CounterMotion.flip:
-          {
-            // ⚠️ Matrix4 perspective (setEntry 3,2) → GPU compositing layer.
-            final angle = decimal * math.pi;
-            transitionChild = Stack(alignment: Alignment.center, children: [
-              if (decimal < 0.5)
-                Transform(
-                  transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(-angle),
-                  alignment: Alignment.center,
-                  child: currentDigitWidget,
-                )
-              else
-                Transform(
-                  transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(math.pi - angle),
-                  alignment: Alignment.center,
-                  child: nextDigitWidget,
-                ),
-            ]);
-          }
+          // ⚠️ Matrix4 perspective (setEntry 3,2) → GPU compositing layer.
+          // 同一时刻只显示一面：哪一面由运动解算的 visible 决定。
+          transitionChild = Stack(alignment: Alignment.center, children: [
+            if (_curMotion.visible)
+              Transform(
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, kDigitFlipPerspective)
+                  ..rotateX(_curMotion.rotateX),
+                alignment: Alignment.center,
+                child: currentDigitWidget,
+              )
+            else
+              Transform(
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, kDigitFlipPerspective)
+                  ..rotateX(_nxtMotion.rotateX),
+                alignment: Alignment.center,
+                child: nextDigitWidget,
+              ),
+          ]);
 
         // ── slide: Transform.translate (post-layout compositor op, zero layout
         // cost); ClipRect bounds the slide within the digit slot. ──────────────
         case CounterMotion.slide:
-          {
-            final isHorizontal = widget.flipDirection == AxisDirection.left ||
-                widget.flipDirection == AxisDirection.right;
-            if (isHorizontal) {
-              transitionChild = ClipRect(
-                child: SizedBox(width: w, height: h,
-                  child: Stack(children: [
-                    Transform.translate(
-                      offset: Offset(_currentOffset(w, decimal) + widget.padding.left, 0),
-                      child: currentDigitWidget,
-                    ),
-                    Transform.translate(
-                      offset: Offset(_nextOffset(w, decimal) + widget.padding.left, 0),
-                      child: nextDigitWidget,
-                    ),
-                  ]),
-                ),
-              );
-            } else {
-              transitionChild = ClipRect(
-                child: SizedBox(width: w, height: h,
-                  child: Stack(children: [
-                    Transform.translate(
-                      offset: Offset(0, -_currentOffset(h, decimal) - widget.padding.bottom),
-                      child: currentDigitWidget,
-                    ),
-                    Transform.translate(
-                      offset: Offset(0, -_nextOffset(h, decimal) - widget.padding.bottom),
-                      child: nextDigitWidget,
-                    ),
-                  ]),
-                ),
-              );
-            }
+          if (isHorizontalRoll(widget.flipDirection)) {
+            transitionChild = ClipRect(
+              child: SizedBox(width: w, height: h,
+                child: Stack(children: [
+                  Transform.translate(
+                    offset: Offset(_curMotion.dx + widget.padding.left, 0),
+                    child: currentDigitWidget,
+                  ),
+                  Transform.translate(
+                    offset: Offset(_nxtMotion.dx + widget.padding.left, 0),
+                    child: nextDigitWidget,
+                  ),
+                ]),
+              ),
+            );
+          } else {
+            transitionChild = ClipRect(
+              child: SizedBox(width: w, height: h,
+                child: Stack(children: [
+                  Transform.translate(
+                    offset: Offset(0, _curMotion.dy - widget.padding.bottom),
+                    child: currentDigitWidget,
+                  ),
+                  Transform.translate(
+                    offset: Offset(0, _nxtMotion.dy - widget.padding.bottom),
+                    child: nextDigitWidget,
+                  ),
+                ]),
+              ),
+            );
           }
       }
 
       // blur modifier: ⚠️ ImageFiltered → saveLayer every frame; avoid many
       // simultaneous instances in production.
-      if (widget.transition.blur) {
-        final blurAmount = (0.5 - (decimal - 0.5).abs()) * 8.0;
-        if (blurAmount > 0.1) {
-          transitionChild = ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
-            child: transitionChild,
-          );
-        }
+      final blurAmount = digitBlurSigma(widget.transition, decimal);
+      if (blurAmount > 0) {
+        transitionChild = ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+          child: transitionChild,
+        );
       }
     }
 
@@ -278,13 +284,9 @@ class _DigitColumnState extends State<DigitColumn> {
       //
       // 沿运动方向轻推静止数位（up/right 翻转向上，否则向下），裁剪到槽内；进度为 0，
       // 故只显示目标数位。
-      final double sign = (widget.flipDirection == AxisDirection.up ||
-              widget.flipDirection == AxisDirection.right)
-          ? -1.0
-          : 1.0;
       box = ClipRect(
         child: Transform.translate(
-          offset: Offset(0, widget.bounceOffset * h * sign),
+          offset: Offset(0, digitBounceShift(widget.flipDirection, widget.bounceOffset, h)),
           child: box,
         ),
       );
@@ -293,29 +295,6 @@ class _DigitColumnState extends State<DigitColumn> {
       box = Opacity(opacity: widget.revealAlpha.clamp(0.0, 1.0), child: box);
     }
     return box;
-  }
-
-  // Offset helpers — unchanged from original.
-  double _currentOffset(double sizeValue, double decimal) {
-    switch (widget.flipDirection) {
-      case AxisDirection.up:
-      case AxisDirection.right:
-        return sizeValue * decimal;
-      case AxisDirection.down:
-      case AxisDirection.left:
-        return -(sizeValue * decimal);
-    }
-  }
-
-  double _nextOffset(double sizeValue, double decimal) {
-    switch (widget.flipDirection) {
-      case AxisDirection.up:
-      case AxisDirection.right:
-        return sizeValue * decimal - sizeValue;
-      case AxisDirection.down:
-      case AxisDirection.left:
-        return sizeValue * (1 - decimal);
-    }
   }
 
   Widget _buildSingleDigit({
