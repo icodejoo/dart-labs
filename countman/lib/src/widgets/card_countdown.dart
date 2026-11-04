@@ -366,7 +366,8 @@ class _CountdownCardState extends State<CardCountdown>
 
   /// 结束后重启倒计时，并立即同步小时列与卡片模型。
   void _relaunch({Duration? duration}) {
-    final remaining = duration ?? widget.duration ?? remainingUntil(widget.to);
+    // widget.duration 是翻牌动画时长，不是倒计时长度，不能参与回退。
+    final remaining = duration ?? remainingUntil(widget.to);
     _ctrl.stop();
     _ctrl.value = 0;
     setState(() {

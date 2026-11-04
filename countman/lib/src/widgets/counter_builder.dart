@@ -242,13 +242,8 @@ class _CounterBuilderState extends State<CounterBuilder> {
   void _attachController() {
     final controller = widget.controller;
     if (controller == null) return;
-    // 跳过入场时使用已取消的无回调任务作为归属凭据，不触发组件生命周期。
-    _handle ??= (widget.plugin ?? defaultCounter).add(CounterOptions(
-      from: _value.value,
-      to: _value.value,
-      duration: Duration.zero,
-    ))
-      ..cancel();
+    // 跳过入场时没有任务：用不入队的空句柄作归属凭据，避免误触发分组回调和多余帧。
+    _handle ??= (widget.plugin ?? defaultCounter).detachedHandle();
     controller.attach(_handle!, relaunch: _relaunch);
     controller.latestValue = _value.value;
   }

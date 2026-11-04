@@ -129,6 +129,13 @@ class Counter extends TaskQueuePlugin<CounterTask> {
   @internal
   CounterTask? taskById(int id) => taskOf(id);
 
+  /// 由展示组件调用，业务代码不要直接调用。
+  /// 返回一个不对应任何任务的句柄（`isDone` 恒为 true），用于组件当前没有动画任务
+  /// （如 animateOnce 跳过入场）时仍能绑定控制器；不会入队、不触发分组回调、不请求帧。
+  /// 例如 `controller.attach(plugin.detachedHandle(), relaunch: restart)`。
+  @internal
+  CounterHandle detachedHandle() => CounterHandle._(nextId(), this);
+
   void _retarget(int id,
       {required double to, Duration? duration, Curve? curve}) {
     final task = taskOf(id);

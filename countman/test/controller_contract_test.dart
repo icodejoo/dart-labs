@@ -549,13 +549,47 @@ void main() {
       c.cancel();
       c.reset();
       await tester.pump();
-      expect(c.remaining, _step);
+      // CardCountdown 的 duration 是翻牌动画时长，不参与重启时长的回退。
+      expect(c.remaining, card ? _duration - _step : _step);
       c.cancel();
       c.reset(duration: _duration);
       await tester.pump();
       expect(c.remaining, _duration);
     });
   }
+
+  testWidgets('animateOnce 跳过入场绑定控制器时不误触发分组回调', (tester) async {
+    var ready = 0;
+    var drained = 0;
+    final c = CounterValueController();
+    Widget page(bool show) => _host(CounterProvider(
+          animateOnce: true,
+          onGroupReady: () => ready++,
+          onAllComplete: () => drained++,
+          child: show
+              ? TextCounter(
+                  key: const ValueKey('row-1'),
+                  to: _initialTarget,
+                  duration: _step,
+                  controller: c)
+              : const SizedBox(),
+        ));
+    await tester.pumpWidget(page(true));
+    await advance(tester, _step);
+    await tester.pump();
+    expect((ready, drained), (1, 1));
+    // 移出再移入：同一 id 跳过入场，只绑定控制器，不应产生任何分组事件。
+    await tester.pumpWidget(page(false));
+    await tester.pumpWidget(page(true));
+    await tester.pump();
+    expect((ready, drained), (1, 1));
+    expect(c.value, _initialTarget);
+    // 显式命令仍能从显示值重启动画。
+    c.update(to: _updatedTarget);
+    await advance(tester, _step);
+    await tester.pump();
+    expect(c.value, _updatedTarget);
+  });
 
   testWidgets('Counter 只换 onComplete 后调用新回调', (tester) async {
     var oldCalls = 0;
