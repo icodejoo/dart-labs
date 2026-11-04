@@ -173,16 +173,16 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
       builder: (ctx, _, __) {
         final color = _digitTint ?? style.color ?? const Color(0xFF000000);
         final digitStyle = _digitStyleFor(style);
-        final integerDigitCount = _currentDigitValues.length - effFD;
+        final integerDigitCount = _engine.currentDigits.length - effFD;
 
-        // In fast mode _currentDigitValues carries progress (not magnitude), so
+        // In fast mode _engine.currentDigits carries progress (not magnitude), so
         // leading-zero visibility must read the endpoint digits instead.
         //
-        // 快速模式下 _currentDigitValues 携带进度（非磁量），故隐藏前导零需改读端点位。
+        // 快速模式下 _engine.currentDigits 携带进度（非磁量），故隐藏前导零需改读端点位。
         bool digitNonZero(int j) => widget._timeFast
-            ? ((_currentT < 1 && j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
-                (j < _fastToDigits.length && _fastToDigits[j] != 0))
-            : _currentDigitValues[j].round() != 0;
+            ? ((_currentT < 1 && j < _engine.fastFromDigits.length && _engine.fastFromDigits[j] != 0) ||
+                (j < _engine.fastToDigits.length && _engine.fastToDigits[j] != 0))
+            : _engine.currentDigits[j].round() != 0;
 
         // ── integer digits ────────────────────────────────────────────────
         final integerWidgets = <Widget>[];
@@ -217,15 +217,15 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             vis = nzI || isLast || anySigBefore;
             reveal = 1.0;
           } else {
-            final double cum = _currentDigitValues[i];
+            final double cum = _engine.currentDigits[i];
             vis = isLast || cum > _kLeadingRevealEps;
             reveal = isLast ? 1.0 : cum.clamp(0.0, 1.0);
           }
           Widget digit = DigitColumn(
-            key: ValueKey(_currentDigitValues.length - i),
-            value: _targetDigitValues[i],
-            oldValue: _oldDigitValues[i],
-            animationValue: _currentDigitValues[i],
+            key: ValueKey(_engine.currentDigits.length - i),
+            value: _engine.targetDigits[i],
+            oldValue: _engine.oldDigits[i],
+            animationValue: _engine.currentDigits[i],
             size: _prototypeSize!,
             color: color,
             style: digitStyle,
@@ -238,8 +238,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             numeralMapper: widget._fmtNumeralMapper,
             transition: widget.transition,
             fast: widget._timeFast,
-            fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
-            fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
+            fastFromDigit: i < _engine.fastFromDigits.length ? _engine.fastFromDigits[i] : 0,
+            fastToDigit: i < _engine.fastToDigits.length ? _engine.fastToDigits[i] : 0,
             increasing: !_isAnimatingDecrease,
             visible: vis,
             revealAlpha: reveal,
@@ -260,7 +260,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             for (var j = 0; j < integerDigitCount; j++) {
               if (digitNonZero(j)) { firstVisible = j; break; }
             }
-            if (firstVisible == -1) firstVisible = _currentDigitValues.length - 1;
+            if (firstVisible == -1) firstVisible = _engine.currentDigits.length - 1;
           }
           // 从右插入，保持左侧索引稳定；边界算法与 Painter 共用。
           for (int i = integerDigitCount - 1; i > firstVisible; i--) {
@@ -330,14 +330,14 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               if (effFD != 0) ...[
                 widget.decimalSeparatorWidget ??
                     Text(widget._fmtDecimalSeparator, style: widget.separatorStyle),
-                for (int i = _currentDigitValues.length - effFD;
-                    i < _currentDigitValues.length; i++)
+                for (int i = _engine.currentDigits.length - effFD;
+                    i < _engine.currentDigits.length; i++)
                   () {
                     Widget d = DigitColumn(
                       key: ValueKey('decimal$i'),
-                      value: _targetDigitValues[i],
-                      oldValue: _oldDigitValues[i],
-                      animationValue: _currentDigitValues[i],
+                      value: _engine.targetDigits[i],
+                      oldValue: _engine.oldDigits[i],
+                      animationValue: _engine.currentDigits[i],
                       size: _prototypeSize!,
                       color: color,
                       style: digitStyle,
@@ -350,8 +350,8 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       numeralMapper: widget._fmtNumeralMapper,
                       transition: widget.transition,
                       fast: widget._timeFast,
-                      fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
-                      fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
+                      fastFromDigit: i < _engine.fastFromDigits.length ? _engine.fastFromDigits[i] : 0,
+                      fastToDigit: i < _engine.fastToDigits.length ? _engine.fastToDigits[i] : 0,
                       increasing: !_isAnimatingDecrease,
                       bounceOffset: i < _bounceOffsets.length ? _bounceOffsets[i] : 0.0,
                     );

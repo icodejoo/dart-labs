@@ -1,4 +1,4 @@
-﻿// Adapted from flip_counter_plus (MIT).
+// Adapted from flip_counter_plus (MIT).
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 
 import 'package:flutter/widgets.dart';

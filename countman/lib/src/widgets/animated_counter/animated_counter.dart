@@ -28,6 +28,7 @@ import 'package:countman/src/core/start_scheduler.dart';
 import '../painter/counter_painter.dart';
 import 'counter_controller.dart';
 import 'digit_column.dart';
+import 'digit_roll_engine.dart';
 import 'grouping.dart';
 import 'number_format.dart';
 import 'types.dart';
@@ -181,25 +182,25 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   @override
   void _onFrameUpdate() {
     _activePainter?.updateTint(_tintPalette, _tintBucket);
-    _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
+    _activePainter?.update(_engine.currentDigits, !_isAnimatingDecrease,
         bounceOffsets: _bounceOffsets,
-        fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
-        targets: _targetDigitValues);
+        fast: widget._timeFast, fastFrom: _engine.fastFromDigits, fastTo: _engine.fastToDigits,
+        targets: _engine.targetDigits);
     _repaintTrigger.value++;
     if (widget.triggerHaptics) _maybeHaptic();
   }
 
   @override
   void _onAnimationComplete() {
-    _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
+    _activePainter?.update(_engine.currentDigits, !_isAnimatingDecrease,
         bounceOffsets: _bounceOffsets,
-        fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
-        targets: _targetDigitValues);
+        fast: widget._timeFast, fastFrom: _engine.fastFromDigits, fastTo: _engine.fastToDigits,
+        targets: _engine.targetDigits);
     _repaintTrigger.value++;
   }
 
   void _maybeHaptic() {
-    final hash = Object.hashAll(_currentDigitValues.map((v) => v.round()));
+    final hash = Object.hashAll(_engine.currentDigits.map((v) => v.round()));
     if (hash != _lastHapticHash) {
       _lastHapticHash = hash;
       HapticFeedback.selectionClick();
@@ -296,7 +297,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       _activePainter = widget.painterBuilder != null
           ? widget.painterBuilder!(
               repaint: _repaintTrigger,
-              digitValues: _currentDigitValues,
+              digitValues: _engine.currentDigits,
               style: paintStyle,
               digitSize: _prototypeSize!,
               transition: widget.transition,
@@ -315,7 +316,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
             )
           : CounterPainter(
               repaint: _repaintTrigger,
-              digitValues: _currentDigitValues,
+              digitValues: _engine.currentDigits,
               style: paintStyle,
               digitSize: _prototypeSize!,
               transition: widget.transition,
@@ -332,17 +333,17 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
               fast: widget._timeFast,
-              fastFrom: _fastFromDigits,
-              fastTo: _fastToDigits,
-              targets: _targetDigitValues,
+              fastFrom: _engine.fastFromDigits,
+              fastTo: _engine.fastToDigits,
+              targets: _engine.targetDigits,
             );
     } else {
       // Sync direction on every build so a direction reversal takes effect
       // immediately — before the first onUpdate fires.
-      _activePainter!.update(_currentDigitValues, !_isAnimatingDecrease,
+      _activePainter!.update(_engine.currentDigits, !_isAnimatingDecrease,
           bounceOffsets: _bounceOffsets,
-          fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
-          targets: _targetDigitValues);
+          fast: widget._timeFast, fastFrom: _engine.fastFromDigits, fastTo: _engine.fastToDigits,
+          targets: _engine.targetDigits);
     }
 
     // computeFullWidth() counts ALL n digit slots (ignores hideLeadingZeroes)
