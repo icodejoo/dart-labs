@@ -26,6 +26,7 @@ export 'src/overlay_types.dart'
     show
         OverlayEndReason,
         OverlayOutcome,
+        OverlayCooldownStatus,
         OverlayEvent,
         OverlayEventType,
         OverlaySlotOptions;

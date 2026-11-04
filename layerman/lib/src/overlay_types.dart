@@ -106,3 +106,22 @@ class OverlaySlotOptions {
   /// 排队数量上限，不包含已激活的条目。
   final int? maxQueued;
 }
+
+/// 指定冷却配置在当前时刻的资格快照。
+@immutable
+class OverlayCooldownStatus {
+  /// [canShow] 表示全部上限通过；永久受阻或等待读取时 [wait] 为 null。
+  const OverlayCooldownStatus(
+      {required this.canShow,
+      required this.permanentlyBlocked,
+      required this.wait});
+
+  /// 当前所有上限是否通过。
+  final bool canShow;
+
+  /// session 或 total 已耗尽，时间流逝不会解除。
+  final bool permanentlyBlocked;
+
+  /// 时间上限的最长剩余等待；可展示时为 Duration.zero。
+  final Duration? wait;
+}

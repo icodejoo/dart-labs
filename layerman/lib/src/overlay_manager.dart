@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'overlay_types.dart';
 
@@ -74,7 +75,8 @@ class MemoryCooldownStorage implements OverlayCooldownStorage {
 
 /// A lightweight view of one managed entry, handed to [Layerman.clearWhere].
 class OverlayRecord {
-  const OverlayRecord._(this.id, this.slot, this.data, this.active, this.phase);
+  const OverlayRecord._(
+      this.id, this.slot, this.data, this.active, this.phase, this.tags);
 
   final String id;
   final String slot;
@@ -85,6 +87,9 @@ class OverlayRecord {
 
   /// `pending` / `resolving` / `open` / `closing`.
   final String phase;
+
+  /// 提交时复制的只读标签集合，默认空集合。
+  final Set<String> tags;
 }
 
 /// Context handed to a [Present] callback when the queue grants permission to
@@ -176,12 +181,12 @@ class OverlayTicket<T> {
 
   /// 以类型化的 [result] 请求关闭；遵守 beforeClose 守卫。
   void close([T? result]) {
-    if (isActive) _manager._close(_entry, result);
+    if (isActive) _manager._batch(() => _manager._close(_entry, result));
   }
 
   /// 立即移除此条目，绕过关闭守卫。
   void remove() {
-    if (isActive) _manager._remove(_entry);
+    if (isActive) _manager._batch(() => _manager._remove(_entry));
   }
 
   /// 更新此条目数据；Map 浅合并，其余值替换。
@@ -221,6 +226,7 @@ class _Entry {
   _Entry({
     required this.id,
     required this.slot,
+    required this.tags,
     required this.priority,
     required this.seq,
     required this.replace,
@@ -245,6 +251,10 @@ class _Entry {
 
   final String id;
   final String slot;
+
+  /// 提交时复制的标签，调用方后续修改不影响条目。
+  final Set<String> tags;
+
   final int priority;
   final int seq;
   final bool replace;
@@ -272,6 +282,11 @@ class _Entry {
 
   /// Whether the backend reported (or was told) it is fully closed.
   bool externalDone = false;
+
+  /// 是否已经请求过后端 dismiss；每个条目最多请求一次，避免 close 之后
+  /// 又因 remove / clear / dismiss 超时再请求一次（对 popUntil、Get.back()
+  /// 这类非幂等后端会误关别的弹窗）。
+  bool dismissRequested = false;
 
   /// Complete the result future exactly once (typed cast lives in the closure).
   final void Function(Object? result) settle;
@@ -348,6 +363,9 @@ class _Entry {
 /// Per-slot serial state.
 class _Slot {
   _Entry? active;
+
+  /// 构建期间同 id 重开保留接管优先权。
+  _Entry? takeover;
   final List<_Entry> queue = <_Entry>[];
   Timer? gapTimer;
   Timer? delayTimer;
@@ -435,6 +453,26 @@ class _CooldownStore {
   /// 保证同一存储最多只有一次写入在途。
   bool _writing = false;
 
+  /// hydrate 前的重置墓碑，防止旧存储记录重新进入内存。
+  final _resetIds = <String>{};
+
+  /// hydrate 前是否已请求清空全部记录。
+  bool _resetAll = false;
+
+  /// 清除指定 id 或全部计数，并串行写回最新快照。
+  void reset([String? id]) {
+    if (id == null) {
+      _session.clear();
+      _persisted.clear();
+      if (!_hydrated) _resetAll = true;
+    } else {
+      _session.remove(id);
+      _persisted.remove(id);
+      if (!_hydrated) _resetIds.add(id);
+    }
+    _flush();
+  }
+
   /// 读取持久化计数并与内存中可能已有的记录合并。
   Future<void> hydrate() async {
     try {
@@ -442,6 +480,7 @@ class _CooldownStore {
       if (raw != null) {
         final decoded = jsonDecode(raw) as Map<String, Object?>;
         for (final entry in decoded.entries) {
+          if (_resetAll || _resetIds.contains(entry.key)) continue;
           final value = entry.value;
           if (value is Map) {
             final incoming =
@@ -456,6 +495,8 @@ class _CooldownStore {
       _reportError(error, stack, 'while hydrating cooldown storage "$_key"');
     } finally {
       _hydrated = true;
+      _resetIds.clear();
+      _resetAll = false;
       if (_dirty) _flush();
     }
   }
@@ -636,15 +677,130 @@ class Layerman extends ChangeNotifier {
         _now = now ?? DateTime.now {
     _cooldowns =
         _CooldownStore(cooldownStorage ?? MemoryCooldownStorage(), storageKey);
-    _ready = _cooldowns.hydrate().then((_) {
-      if (isDisposed) return;
-      if (!_paused) {
-        _applyRelease();
-      } else {
-        notifyListeners();
+    _ready = _cooldowns.hydrate().then((_) => _batch(() {
+          if (isDisposed) return;
+          if (!_paused) {
+            _applyRelease();
+          } else {
+            _notify();
+          }
+        }));
+  }
+
+  /// 当前是否处于构建帧；纯 Dart/headless 未初始化绑定时 instance 会抛出。
+  bool get _inBuildPhase {
+    try {
+      return SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 公开操作与异步状态变化的嵌套批次深度。
+  int _batchDepth = 0;
+
+  /// 当前批次是否需要通知。
+  bool _notifyPending = false;
+
+  /// 是否已经登记帧后通知。
+  bool _frameNotifyPending = false;
+
+  /// 本帧已登记调度的槽位。
+  final _deferredSlots = <String>{};
+
+  /// 是否已经登记帧后释放。
+  bool _releasePending = false;
+
+  /// 原子完成一组同步状态变化，最外层结束后回收槽位并统一通知。
+  R _batch<R>(R Function() action) {
+    _batchDepth++;
+    try {
+      return action();
+    } finally {
+      _batchDepth--;
+      if (_batchDepth == 0) {
+        _slots.removeWhere((_, s) =>
+            s.active == null &&
+            s.queue.isEmpty &&
+            s.gapTimer == null &&
+            s.delayTimer == null &&
+            s.cooldownTimer == null &&
+            !s.gapPending);
+        if (_notifyPending) {
+          _notifyPending = false;
+          _notify();
+        }
       }
+    }
+  }
+
+  /// 合并批次内通知；构建中统一延至帧后，销毁后静默忽略。
+  void _notify() {
+    if (isDisposed) return;
+    if (_batchDepth > 0) {
+      _notifyPending = true;
+      return;
+    }
+    if (_inBuildPhase) {
+      if (_frameNotifyPending) return;
+      _frameNotifyPending = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_frameNotifyPending) return;
+        _frameNotifyPending = false;
+        if (!isDisposed) _notify();
+      });
+      return;
+    }
+    // 帧后展示产生的通知同时覆盖本帧已登记的通知。
+    _frameNotifyPending = false;
+    super.notifyListeners();
+  }
+
+  /// 帧后复用暂停释放判定；暂停或 hydrate 未完成时继续等待。
+  void _deferRelease() {
+    if (_releasePending) return;
+    _releasePending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _releasePending = false;
+      if (!isDisposed) _batch(_applyRelease);
     });
   }
+
+  /// 测试用的当前运行时槽位数量，不包含 slots 配置。
+  @visibleForTesting
+  int get debugSlotCount => _slots.length;
+
+  /// 查询 [id] 在 [cooldown] 下的资格；持久化读取未完成时 wait 为 null。
+  OverlayCooldownStatus cooldownStatus(String id, OverlayCooldown cooldown) {
+    if (!_cooldowns._hydrated && cooldown._needsPersistence) {
+      return const OverlayCooldownStatus(
+          canShow: false, permanentlyBlocked: false, wait: null);
+    }
+    final wait = _cooldowns.timeUntilEligible(id, cooldown, _now());
+    return OverlayCooldownStatus(
+        canShow: wait == Duration.zero,
+        permanentlyBlocked: _cooldowns.permanentlyBlocked(id, cooldown),
+        wait: wait);
+  }
+
+  /// 清除 [id] 的 session 与持久化计数并重调度；销毁后无操作。
+  void resetCooldown(String id) => _resetCooldowns(id);
+
+  /// 清除所有冷却计数并重调度；销毁后无操作。
+  void clearCooldowns() => _resetCooldowns();
+
+  /// 复用串行持久化写入，并给排队条目重新判定资格。
+  void _resetCooldowns([String? id]) => _batch(() {
+        if (isDisposed) return;
+        _cooldowns.reset(id);
+        if (!_paused) _applyRelease();
+        _notify();
+      });
+
+  /// 移除包含 [tag] 的所有条目，先全部移除再推进，结束原因为 removed。
+  void clearTag(String tag) =>
+      clearWhere((record) => record.tags.contains(tag));
 
   /// Delay inserted between one overlay closing and the next one showing.
   final Duration gap;
@@ -674,18 +830,24 @@ class Layerman extends ChangeNotifier {
 
   /// 建立独立暂停来源；所有来源释放后才恢复，销毁后返回已释放对象。
   OverlayHold hold([Object? reason]) {
-    if (isDisposed) return OverlayHold._(reason, null);
-    final before = _paused;
-    late final OverlayHold token;
-    token = OverlayHold._(reason, () {
-      if (isDisposed) return;
+    return _batch(() {
+      if (isDisposed) return OverlayHold._(reason, null);
       final before = _paused;
-      _holds.remove(token);
+      late final OverlayHold token;
+      token = OverlayHold._(
+          reason,
+          () => _batch(() {
+                if (isDisposed) return;
+                final before = _paused;
+                _holds.remove(token);
+                _applyPauseTransition(before);
+                _notify();
+              }));
+      _holds.add(token);
       _applyPauseTransition(before);
+      _notify();
+      return token;
     });
-    _holds.add(token);
-    _applyPauseTransition(before);
-    return token;
   }
 
   /// 请求后端关闭后等待 dismissed 的时限；null 表示不限时，默认 10 秒。
@@ -770,7 +932,7 @@ class Layerman extends ChangeNotifier {
 
   /// 将内部条目转换为只读状态快照。
   OverlayRecord _record(_Entry e) =>
-      OverlayRecord._(e.id, e.slot, e.data, e.isActive, e.phase.name);
+      OverlayRecord._(e.id, e.slot, e.data, e.isActive, e.phase.name, e.tags);
 
   /// id 是否已展示（仅 open/closing，不含 resolving）。
   bool isShowing(String id) {
@@ -798,24 +960,26 @@ class Layerman extends ChangeNotifier {
   /// Reserved keys used by the built-in sugar: `route` (String) and `auth`
   /// (bool). Everything else is free-form for `when` predicates.
   void setContext(Map<String, Object?> partial) {
-    if (isDisposed) return;
-    _context.addAll(partial);
-    _contextView = null;
-    _updateRouteZone();
-    final shown = <_Entry>[
-      for (final s in _slots.values)
-        if (s.active != null) s.active!,
-      ..._overlaps,
-    ];
-    for (final e in shown) {
-      if (e.isActive && e.dismissWhenUnmet && !_conditionsPass(e)) {
-        _remove(e, reason: OverlayEndReason.unmet);
+    return _batch(() {
+      if (isDisposed) return;
+      _context.addAll(partial);
+      _contextView = null;
+      _updateRouteZone();
+      final shown = <_Entry>[
+        for (final s in _slots.values)
+          if (s.active != null) s.active!,
+        ..._overlaps,
+      ];
+      for (final e in shown) {
+        if (e.isActive && e.dismissWhenUnmet && !_conditionsPass(e)) {
+          _remove(e, reason: OverlayEndReason.unmet);
+        }
       }
-    }
-    for (final slot in _slots.keys.toList()) {
-      _schedule(slot);
-    }
-    notifyListeners();
+      for (final slot in _slots.keys.toList()) {
+        _schedule(slot);
+      }
+      _notify();
+    });
   }
 
   /// Re-check `_context['route']` against [_pauseOnRoutes] and flip
@@ -836,21 +1000,25 @@ class Layerman extends ChangeNotifier {
   /// running `duration` timers pause. Explicit [close]/[remove]/[clear] still
   /// work. [resumeAll] releases held overlaps and re-schedules.
   void pauseAll() {
-    if (isDisposed) return;
-    if (_manualPaused) return;
-    final before = _paused;
-    _manualPaused = true;
-    _applyPauseTransition(before);
+    return _batch(() {
+      if (isDisposed) return;
+      if (_manualPaused) return;
+      final before = _paused;
+      _manualPaused = true;
+      _applyPauseTransition(before);
+    });
   }
 
   /// Undo [pauseAll]: release overlaps held while paused (if still eligible),
   /// thaw `duration` timers and re-schedule every slot.
   void resumeAll() {
-    if (isDisposed) return;
-    if (!_manualPaused) return;
-    final before = _paused;
-    _manualPaused = false;
-    _applyPauseTransition(before);
+    return _batch(() {
+      if (isDisposed) return;
+      if (!_manualPaused) return;
+      final before = _paused;
+      _manualPaused = false;
+      _applyPauseTransition(before);
+    });
   }
 
   /// 手动、路由和 hold 共享的边沿触发器；仅有效暂停状态变化时冻结或恢复。
@@ -871,15 +1039,20 @@ class Layerman extends ChangeNotifier {
     for (final e in _byId.values) {
       _freezeDuration(e);
     }
-    notifyListeners();
+    _notify();
   }
 
   void _applyRelease() {
+    if (_paused || isDisposed) return;
+    if (_inBuildPhase) {
+      _deferRelease();
+      return;
+    }
     final held = List<_Entry>.of(_pendingOverlaps);
     _pendingOverlaps.clear();
     for (final e in held) {
       if (!_isCurrent(e)) continue;
-      if (_waitingForHydrate(e)) {
+      if (_paused || _waitingForHydrate(e)) {
         _pendingOverlaps.add(e);
       } else if (_eligible(e)) {
         _openOverlap(e);
@@ -889,7 +1062,7 @@ class Layerman extends ChangeNotifier {
       }
     }
     for (final e in _byId.values.toList()) {
-      if (e.phase == _EntryPhase.resolving && e.hasHeldData) {
+      if (!_paused && e.phase == _EntryPhase.resolving && e.hasHeldData) {
         e.hasHeldData = false;
         _open(e);
       }
@@ -900,25 +1073,31 @@ class Layerman extends ChangeNotifier {
     for (final slot in _slots.keys.toList()) {
       _schedule(slot);
     }
-    notifyListeners();
+    _notify();
   }
 
   /// Freeze [id]'s `duration` countdown (the overlay stays shown).
   void pause(String id) {
-    if (isDisposed) return;
-    final e = _byId[id];
-    if (e == null || e.paused) return;
-    e.paused = true;
-    _freezeDuration(e);
+    return _batch(() {
+      if (isDisposed) return;
+      final e = _byId[id];
+      if (e == null || e.paused) return;
+      e.paused = true;
+      _freezeDuration(e);
+      _notify();
+    });
   }
 
   /// Resume [id]'s `duration` countdown with the remaining time.
   void resume(String id) {
-    if (isDisposed) return;
-    final e = _byId[id];
-    if (e == null || !e.paused) return;
-    e.paused = false;
-    _thawDuration(e);
+    return _batch(() {
+      if (isDisposed) return;
+      final e = _byId[id];
+      if (e == null || !e.paused) return;
+      e.paused = false;
+      _thawDuration(e);
+      _notify();
+    });
   }
 
   /// Merge [patch] into [id]'s `data` in place (map-into-map merges shallowly,
@@ -928,16 +1107,18 @@ class Layerman extends ChangeNotifier {
   /// to PresentContext.dataListenable for live data. PresentContext.data stays
   /// the snapshot captured when present was called.
   void update(String id, Object? patch) {
-    if (isDisposed) return;
-    final e = _byId[id];
-    if (e == null) return;
-    final current = e.data;
-    if (current is Map && patch is Map) {
-      e.data = <Object?, Object?>{...current, ...patch};
-    } else {
-      e.data = patch;
-    }
-    notifyListeners();
+    return _batch(() {
+      if (isDisposed) return;
+      final e = _byId[id];
+      if (e == null) return;
+      final current = e.data;
+      if (current is Map && patch is Map) {
+        e.data = <Object?, Object?>{...current, ...patch};
+      } else {
+        e.data = patch;
+      }
+      _notify();
+    });
   }
 
   /// Enqueue (or immediately show) an overlay, rendered through [present].
@@ -952,6 +1133,7 @@ class Layerman extends ChangeNotifier {
   ///
   /// * [id] — unique key; if omitted an auto id is generated. Reusing an id
   ///   that is currently shown replaces it; reusing a queued id overrides it.
+  /// * [tags] — copied, read-only labels for clearTag and record inspection.
   /// * [slot] — independent serial queue (default `''`).
   /// * [priority] — higher shows first; ties break FIFO.
   /// * [delay] — wait before this overlay appears (overrides [gap] for itself).
@@ -982,6 +1164,7 @@ class Layerman extends ChangeNotifier {
     required Present<T> present,
     String? id,
     Object? data,
+    Set<String>? tags,
     String slot = '',
     int priority = 0,
     Duration? delay,
@@ -1004,6 +1187,7 @@ class Layerman extends ChangeNotifier {
         present: present,
         id: id,
         data: data,
+        tags: tags,
         slot: slot,
         priority: priority,
         delay: delay,
@@ -1025,10 +1209,12 @@ class Layerman extends ChangeNotifier {
 
   /// 提交条目并返回类型化票据；参数与 open 相同。
   /// expireAfter 仅计算激活前的串行排队时间，overlap 不适用。
+  /// tags 默认空集合，提交时复制，之后通过 recordOf 或 records 只读查询。
   OverlayTicket<T> submit<T>({
     required Present<T> present,
     String? id,
     Object? data,
+    Set<String>? tags,
     String slot = '',
     int priority = 0,
     Duration? delay,
@@ -1047,164 +1233,181 @@ class Layerman extends ChangeNotifier {
     FutureOr<bool> Function()? beforeClose,
     Duration? exitDuration,
   }) {
-    assert(!isDisposed, 'Cannot open an overlay after Layerman.dispose().');
-    assert(
-      cooldown == null || id != null,
-      'cooldown is keyed by id: pass an explicit id. An auto-generated id '
-      'changes on every open, so the cap would never apply.',
-    );
-    assert(
-      route == null || _isRoutePattern(route),
-      'route must be a String, List<String> or RegExp',
-    );
-    final resolvedId = id ?? 'overlay:${++_seqCounter}';
-    final completer = Completer<T?>();
-    final outcome = Completer<OverlayOutcome<T>>();
-    late final _Entry entry;
-    entry = _Entry(
-      id: resolvedId,
-      slot: slot,
-      priority: priority,
-      seq: ++_seqCounter,
-      replace: replace,
-      affix: affix,
-      delay: delay,
-      duration: duration,
-      exitDuration: exitDuration,
-      when: when,
-      route: route,
-      requiresAuth: requiresAuth,
-      dismissWhenUnmet: dismissWhenUnmet,
-      cooldown: cooldown,
-      beforeClose: beforeClose,
-      resolveData: resolve == null ? null : () async => await resolve(),
-      resolveTimeout: resolveTimeout == Duration.zero
-          ? null
-          : (resolveTimeout ?? this.resolveTimeout),
-      acceptsResult: (Object? r) => r is T?,
-      settle: (Object? r) {
-        if (!completer.isCompleted) completer.complete(r as T?);
-      },
-      settleOutcome: (r, reason) {
-        outcome.complete(OverlayOutcome<T>(r as T?, reason));
-      },
-      data: data,
-      presentBackend: () {
-        final presented = present(
-          PresentContext._(resolvedId, slot, entry.data, entry.dataNotifier),
-        );
-        final dismiss = presented.dismiss;
-        entry.externalDismiss =
-            dismiss == null ? null : (Object? r) => dismiss(r as T?);
-        presented.dismissed.then(
-          (T? r) => _onExternalDismissed(entry, r),
-          onError: (Object _) => _onExternalDismissed(entry, null),
-        );
-      },
-    );
+    return _batch(() {
+      assert(!isDisposed, 'Cannot open an overlay after Layerman.dispose().');
+      assert(
+        cooldown == null || id != null,
+        'cooldown is keyed by id: pass an explicit id. An auto-generated id '
+        'changes on every open, so the cap would never apply.',
+      );
+      assert(
+        route == null || _isRoutePattern(route),
+        'route must be a String, List<String> or RegExp',
+      );
+      final resolvedId = id ?? 'overlay:${++_seqCounter}';
+      final completer = Completer<T?>();
+      final outcome = Completer<OverlayOutcome<T>>();
+      late final _Entry entry;
+      entry = _Entry(
+        id: resolvedId,
+        tags: Set<String>.unmodifiable(tags ?? const <String>{}),
+        slot: slot,
+        priority: priority,
+        seq: ++_seqCounter,
+        replace: replace,
+        affix: affix,
+        delay: delay,
+        duration: duration,
+        exitDuration: exitDuration,
+        when: when,
+        route: route,
+        requiresAuth: requiresAuth,
+        dismissWhenUnmet: dismissWhenUnmet,
+        cooldown: cooldown,
+        beforeClose: beforeClose,
+        resolveData: resolve == null ? null : () async => await resolve(),
+        resolveTimeout: resolveTimeout == Duration.zero
+            ? null
+            : (resolveTimeout ?? this.resolveTimeout),
+        acceptsResult: (Object? r) => r is T?,
+        settle: (Object? r) {
+          if (!completer.isCompleted) completer.complete(r as T?);
+        },
+        settleOutcome: (r, reason) {
+          outcome.complete(OverlayOutcome<T>(r as T?, reason));
+        },
+        data: data,
+        presentBackend: () {
+          final presented = present(
+            PresentContext._(resolvedId, slot, entry.data, entry.dataNotifier),
+          );
+          final dismiss = presented.dismiss;
+          entry.externalDismiss =
+              dismiss == null ? null : (Object? r) => dismiss(r as T?);
+          presented.dismissed.then(
+            (T? r) => _onExternalDismissed(entry, r),
+            onError: (Object _) => _onExternalDismissed(entry, null),
+          );
+        },
+      );
 
-    final ticket =
-        OverlayTicket<T>._(this, entry, completer.future, outcome.future);
-    if (isDisposed) {
-      _settle(entry, null, OverlayEndReason.disposed);
-      return ticket;
-    }
+      final ticket =
+          OverlayTicket<T>._(this, entry, completer.future, outcome.future);
+      if (isDisposed) {
+        _settle(entry, null, OverlayEndReason.disposed);
+        return ticket;
+      }
 
-    // Handle id reuse.
-    final existing = _byId[resolvedId];
-    String? freedSlot; // serial slot the replaced entry vacated
-    if (existing != null) {
-      if (existing.isActive) {
-        // Replaced in place; old result -> null.
-        if (_discardActive(existing, OverlayEndReason.superseded)) {
-          freedSlot = existing.slot;
+      // Handle id reuse.
+      final existing = _byId[resolvedId];
+      String? freedSlot; // serial slot the replaced entry vacated
+      if (existing != null) {
+        if (existing.isActive) {
+          // Replaced in place; old result -> null.
+          if (_discardActive(existing, OverlayEndReason.superseded)) {
+            freedSlot = existing.slot;
+          }
+          entry.skipGap = true;
+        } else {
+          _removeFromQueue(existing);
+          _pendingOverlaps.remove(existing);
+          _byId.remove(existing.id);
+          _settle(existing, null, OverlayEndReason.superseded);
         }
+      }
+      _byId[resolvedId] = entry;
+      _emit(entry, OverlayEventType.queued);
+
+      // The replaced entry's old slot must not stall if the new one lives elsewhere.
+      void rescheduleFreed() {
+        if (freedSlot != null && (overlap || freedSlot != slot)) {
+          _schedule(freedSlot);
+        }
+      }
+
+      if (overlap) {
+        // Conditions/cooldown are a one-shot fire-gate for overlaps (TS rule:
+        // "now or never") — but a paused manager holds them for resumeAll.
+        final conditionsPass = _conditionsPass(entry);
+        final waitingForHydrate = conditionsPass && _waitingForHydrate(entry);
+        if (!conditionsPass || (!waitingForHydrate && !_cooldownPass(entry))) {
+          _byId.remove(entry.id);
+          _settle(entry, null, _dropReason(entry));
+        } else if (_paused || waitingForHydrate || _inBuildPhase) {
+          _pendingOverlaps.add(entry);
+          if (_inBuildPhase) _deferRelease();
+        } else {
+          _openOverlap(entry);
+        }
+        rescheduleFreed();
+        _notify();
+        return ticket;
+      }
+
+      final s = _slotFor(slot);
+      // A replace only preempts the current overlay when the replacer itself is
+      // eligible right now (TS invariant 5b) and the manager is not paused; an
+      // affixed current blocks preemption but the replacer keeps its front-band
+      // ordering and shows next.
+      if (replace && !_paused && _eligible(entry)) {
         entry.skipGap = true;
-      } else {
-        _removeFromQueue(existing);
-        _pendingOverlaps.remove(existing);
-        _byId.remove(existing.id);
-        _settle(existing, null, OverlayEndReason.superseded);
+        final cur = s.active;
+        if (cur != null && cur.isActive && !cur.affix) {
+          // A backend that's been dismissed can't be faithfully re-presented
+          // (that would re-run its side effects), so the preempted overlay is
+          // discarded (closed + result `null`), never re-queued.
+          _discardActive(cur, OverlayEndReason.replaced);
+        }
+        // TS-parity: a replace arriving during the transition gap (or appear
+        // delay) means "show me NOW" — skip the remaining gap / delay.
+        if (s.gapPending) {
+          s.gapTimer?.cancel();
+          s.gapTimer = null;
+          s.gapPending = false;
+        }
+        if (s.delayTimer != null) {
+          s.delayTimer!.cancel();
+          s.delayTimer = null;
+        }
       }
-    }
-    _byId[resolvedId] = entry;
-    _emit(entry, OverlayEventType.queued);
-
-    // The replaced entry's old slot must not stall if the new one lives elsewhere.
-    void rescheduleFreed() {
-      if (freedSlot != null && (overlap || freedSlot != slot)) {
-        _schedule(freedSlot);
+      _enqueue(s, entry);
+      if (expireAfter != null) {
+        entry.queueTimer = Timer(
+            expireAfter,
+            () => _batch(() {
+                  if (!_isCurrent(entry) ||
+                      entry.phase != _EntryPhase.pending) {
+                    return;
+                  }
+                  _remove(entry, reason: OverlayEndReason.queueExpired);
+                  _schedule(slot);
+                }));
       }
-    }
-
-    if (overlap) {
-      // Conditions/cooldown are a one-shot fire-gate for overlaps (TS rule:
-      // "now or never") — but a paused manager holds them for resumeAll.
-      final conditionsPass = _conditionsPass(entry);
-      final waitingForHydrate = conditionsPass && _waitingForHydrate(entry);
-      if (!conditionsPass || (!waitingForHydrate && !_cooldownPass(entry))) {
-        _byId.remove(entry.id);
-        _settle(entry, null, _dropReason(entry));
-      } else if (_paused || waitingForHydrate) {
-        _pendingOverlaps.add(entry);
+      final maxQueued = slots[slot]?.maxQueued;
+      if (maxQueued != null && s.queue.length > maxQueued) {
+        _remove(s.queue.last, reason: OverlayEndReason.queueFull);
+      }
+      if (_inBuildPhase &&
+          _isCurrent(entry) &&
+          freedSlot == slot &&
+          !_paused &&
+          _eligible(entry)) {
+        s.takeover = entry;
+      }
+      if (_isCurrent(entry) &&
+          !_inBuildPhase &&
+          freedSlot == slot &&
+          !overlap &&
+          !_paused &&
+          _eligible(entry)) {
+        _activate(entry);
       } else {
-        _openOverlap(entry);
+        _schedule(slot);
       }
       rescheduleFreed();
-      notifyListeners();
+      _notify();
       return ticket;
-    }
-
-    final s = _slotFor(slot);
-    // A replace only preempts the current overlay when the replacer itself is
-    // eligible right now (TS invariant 5b) and the manager is not paused; an
-    // affixed current blocks preemption but the replacer keeps its front-band
-    // ordering and shows next.
-    if (replace && !_paused && _eligible(entry)) {
-      entry.skipGap = true;
-      final cur = s.active;
-      if (cur != null && cur.isActive && !cur.affix) {
-        // A backend that's been dismissed can't be faithfully re-presented
-        // (that would re-run its side effects), so the preempted overlay is
-        // discarded (closed + result `null`), never re-queued.
-        _discardActive(cur, OverlayEndReason.replaced);
-      }
-      // TS-parity: a replace arriving during the transition gap (or appear
-      // delay) means "show me NOW" — skip the remaining gap / delay.
-      if (s.gapPending) {
-        s.gapTimer?.cancel();
-        s.gapTimer = null;
-        s.gapPending = false;
-      }
-      if (s.delayTimer != null) {
-        s.delayTimer!.cancel();
-        s.delayTimer = null;
-      }
-    }
-    _enqueue(s, entry);
-    if (expireAfter != null) {
-      entry.queueTimer = Timer(expireAfter, () {
-        if (!_isCurrent(entry) || entry.phase != _EntryPhase.pending) return;
-        _remove(entry, reason: OverlayEndReason.queueExpired);
-        _schedule(slot);
-      });
-    }
-    final maxQueued = slots[slot]?.maxQueued;
-    if (maxQueued != null && s.queue.length > maxQueued) {
-      _remove(s.queue.last, reason: OverlayEndReason.queueFull);
-    }
-    if (_isCurrent(entry) &&
-        freedSlot == slot &&
-        !overlap &&
-        !_paused &&
-        _eligible(entry)) {
-      _activate(entry);
-    } else {
-      _schedule(slot);
-    }
-    rescheduleFreed();
-    notifyListeners();
-    return ticket;
+    });
   }
 
   /// Two-phase close [id], optionally delivering [result]. A `beforeClose`
@@ -1214,15 +1417,17 @@ class Layerman extends ChangeNotifier {
   /// Throws an [ArgumentError] (leaving the overlay untouched) if [result] is
   /// not a valid `T?` for the `open<T>()` that created this overlay.
   void close(String id, [Object? result]) {
-    if (isDisposed) return;
-    final e = _byId[id];
-    if (e == null) return;
-    if (e.closeGuardPending) return;
-    if (!e.acceptsResult(result)) {
-      throw ArgumentError.value(
-          result, 'result', 'Invalid result type for overlay "$id"');
-    }
-    _close(e, result);
+    return _batch(() {
+      if (isDisposed) return;
+      final e = _byId[id];
+      if (e == null) return;
+      if (e.closeGuardPending) return;
+      if (!e.acceptsResult(result)) {
+        throw ArgumentError.value(
+            result, 'result', 'Invalid result type for overlay "$id"');
+      }
+      _close(e, result);
+    });
   }
 
   /// Dismiss [id] (close with a `null` result).
@@ -1231,10 +1436,12 @@ class Layerman extends ChangeNotifier {
   /// Immediately remove [id] with no exit grace (settles `null` if it had
   /// not been settled by a prior [close]). Bypasses `beforeClose`.
   void remove(String id) {
-    if (isDisposed) return;
-    final e = _byId[id];
-    if (e == null) return;
-    _remove(e);
+    return _batch(() {
+      if (isDisposed) return;
+      final e = _byId[id];
+      if (e == null) return;
+      _remove(e);
+    });
   }
 
   /// Remove everything: queued and active, across all slots and overlaps.
@@ -1243,44 +1450,41 @@ class Layerman extends ChangeNotifier {
 
   /// 按指定原因清空所有条目，同时取消槽位和条目计时器。
   void _clear(OverlayEndReason reason) {
-    if (isDisposed) return;
-    for (final s in _slots.values) {
-      _cancelCooldownTimer(s);
-      s.gapTimer?.cancel();
-      s.gapTimer = null;
-      s.gapPending = false;
-      s.delayTimer?.cancel();
-      s.delayTimer = null;
-    }
-    final all = _byId.values.toList();
-    for (final e in all) {
-      _remove(e, advance: false, reason: reason);
-    }
-    notifyListeners();
+    return _batch(() {
+      if (isDisposed) return;
+      for (final s in _slots.values) {
+        _cancelCooldownTimer(s);
+        s.gapTimer?.cancel();
+        s.gapTimer = null;
+        s.gapPending = false;
+        s.delayTimer?.cancel();
+        s.delayTimer = null;
+      }
+      final all = _byId.values.toList();
+      for (final e in all) {
+        _remove(e, advance: false, reason: reason);
+      }
+      _notify();
+    });
   }
 
   /// Selectively remove every entry (queued or shown) matching [test].
   /// "Close all of group X" is `clearWhere((r) => (r.data as MyData?)?.group == 'x')`.
   void clearWhere(bool Function(OverlayRecord record) test) {
-    if (isDisposed) return;
-    final selected = <_Entry>[
-      for (final e in _byId.values.toList())
-        if (test(OverlayRecord._(
-          e.id,
-          e.slot,
-          e.data,
-          e.isActive,
-          e.phase.name,
-        )))
-          e,
-    ];
-    // Remove everything first and advance afterwards, so a matching queued
-    // entry is never briefly activated just to be removed next.
-    final freed = <String>{};
-    for (final e in selected) {
-      if (_remove(e, advance: false)) freed.add(e.slot);
-    }
-    freed.forEach(_advanceSlot);
+    return _batch(() {
+      if (isDisposed) return;
+      final selected = <_Entry>[
+        for (final e in _byId.values.toList())
+          if (test(_record(e))) e,
+      ];
+      // Remove everything first and advance afterwards, so a matching queued
+      // entry is never briefly activated just to be removed next.
+      final freed = <String>{};
+      for (final e in selected) {
+        if (_remove(e, advance: false)) freed.add(e.slot);
+      }
+      freed.forEach(_advanceSlot);
+    });
   }
 
   // ── internals ──────────────────────────────────────────────────────────
@@ -1290,6 +1494,7 @@ class Layerman extends ChangeNotifier {
   void _removeFromQueue(_Entry e) {
     final s = _slots[e.slot];
     s?.queue.remove(e);
+    if (s?.takeover == e) s?.takeover = null;
   }
 
   /// 按固定排序键二分插入，维持真实出场顺序。
@@ -1380,6 +1585,16 @@ class Layerman extends ChangeNotifier {
   }
 
   void _schedule(String slot) {
+    if (isDisposed) return;
+    if (_inBuildPhase) {
+      if (_deferredSlots.add(slot)) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          _deferredSlots.remove(slot);
+          if (!isDisposed) _batch(() => _schedule(slot));
+        });
+      }
+      return;
+    }
     if (_paused) return;
     final s = _slotFor(slot);
     _cancelCooldownTimer(s);
@@ -1390,15 +1605,23 @@ class Layerman extends ChangeNotifier {
     }
     if (s.queue.isEmpty) return;
 
-    _Entry? front;
+    final takeover = s.takeover;
+    s.takeover = null;
+    _Entry? front = takeover != null &&
+            _isCurrent(takeover) &&
+            s.queue.contains(takeover) &&
+            _eligible(takeover)
+        ? takeover
+        : null;
     for (var i = 0; i < s.queue.length;) {
+      if (front != null) break;
       final e = s.queue[i];
       final cd = e.cooldown;
       if (cd != null && _cooldowns.permanentlyBlocked(e.id, cd)) {
         s.queue.removeAt(i);
         if (_isCurrent(e)) _byId.remove(e.id);
         _settle(e, null, OverlayEndReason.capped);
-        notifyListeners();
+        _notify();
         if (_paused ||
             s.active != null ||
             s.gapPending ||
@@ -1429,10 +1652,12 @@ class Layerman extends ChangeNotifier {
         front.delay! > Duration.zero) {
       front.delayConsumed = true;
       s.delayTimer?.cancel();
-      s.delayTimer = Timer(front.delay!, () {
-        s.delayTimer = null;
-        _schedule(slot);
-      });
+      s.delayTimer = Timer(
+          front.delay!,
+          () => _batch(() {
+                s.delayTimer = null;
+                _schedule(slot);
+              }));
       return;
     }
     _activate(front);
@@ -1454,11 +1679,13 @@ class Layerman extends ChangeNotifier {
     }
     if (soonest == null) return;
     // Small cushion so the timer fires strictly after the cap has cleared.
-    s.cooldownTimer = Timer(soonest + const Duration(milliseconds: 16), () {
-      s.cooldownTimer = null;
-      _schedule(slot);
-      notifyListeners();
-    });
+    s.cooldownTimer = Timer(
+        soonest + const Duration(milliseconds: 16),
+        () => _batch(() {
+              s.cooldownTimer = null;
+              _schedule(slot);
+              _notify();
+            }));
   }
 
   void _activate(_Entry e) {
@@ -1479,16 +1706,21 @@ class Layerman extends ChangeNotifier {
       e.phase = _EntryPhase.resolving;
       final timeout = e.resolveTimeout;
       if (timeout != null) {
-        e.resolveTimer = Timer(timeout, () {
-          if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) return;
-          _reportError(
-              TimeoutException('resolve "${e.id}" 等待 $timeout', timeout),
-              StackTrace.current,
-              'while resolving overlay "${e.id}"');
-          _onResolved(e, null);
-        });
+        e.resolveTimer = Timer(
+            timeout,
+            () => _batch(() {
+                  if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) {
+                    return;
+                  }
+                  _reportError(
+                      TimeoutException(
+                          'resolve "${e.id}" 等待 $timeout', timeout),
+                      StackTrace.current,
+                      'while resolving overlay "${e.id}"');
+                  _onResolved(e, null);
+                }));
       }
-      notifyListeners();
+      _notify();
       resolver().then(
         (data) => _onResolved(e, data),
         onError: (Object _) => _onResolved(e, null),
@@ -1499,26 +1731,30 @@ class Layerman extends ChangeNotifier {
   }
 
   void _onResolved(_Entry e, Object? data) {
-    if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) return;
-    e.resolveTimer?.cancel();
-    e.resolveTimer = null;
-    if (data == null) {
-      // Backend said "don't show": skip without counting cooldown.
-      final wasSerial = _detachFromActive(e);
-      _byId.remove(e.id);
-      _settle(e, null, OverlayEndReason.skipped);
-      notifyListeners();
-      if (wasSerial) _schedule(e.slot);
-      return;
-    }
-    e.data = data;
-    if (_paused) {
-      // No new activation while frozen: park the payload; [_applyRelease]
-      // opens it without re-running the resolver.
-      e.hasHeldData = true;
-      return;
-    }
-    _open(e);
+    return _batch(() {
+      if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) return;
+      e.resolveTimer?.cancel();
+      e.resolveTimer = null;
+      if (data == null) {
+        // Backend said "don't show": skip without counting cooldown.
+        final wasSerial = _detachFromActive(e);
+        _byId.remove(e.id);
+        _settle(e, null, OverlayEndReason.skipped);
+        _notify();
+        if (wasSerial) _schedule(e.slot);
+        return;
+      }
+      e.data = data;
+      if (_paused || _inBuildPhase) {
+        if (_inBuildPhase) _deferRelease();
+        // No new activation while frozen: park the payload; [_applyRelease]
+        // opens it without re-running the resolver.
+        e.hasHeldData = true;
+        _notify();
+        return;
+      }
+      _open(e);
+    });
   }
 
   void _open(_Entry e) {
@@ -1536,7 +1772,7 @@ class Layerman extends ChangeNotifier {
     final cd = e.cooldown;
     if (cd != null) _cooldowns.record(e.id, cd, _now());
     _startDuration(e);
-    notifyListeners();
+    _notify();
   }
 
   void _openOverlap(_Entry e) {
@@ -1547,9 +1783,11 @@ class Layerman extends ChangeNotifier {
   /// Duration expiry: an automatic teardown, so it bypasses `beforeClose`
   /// (which gates only an explicit [close]).
   void _autoClose(_Entry e) {
-    if (_isCurrent(e) && _closable(e)) {
-      _doClose(e, null, OverlayEndReason.expired);
-    }
+    return _batch(() {
+      if (_isCurrent(e) && _closable(e)) {
+        _doClose(e, null, OverlayEndReason.expired);
+      }
+    });
   }
 
   void _startDuration(_Entry e) {
@@ -1618,16 +1856,16 @@ class Layerman extends ChangeNotifier {
     }
     e.closeGuardPending = true;
     verdict.then(
-      (ok) {
+      (ok) => _batch(() {
         e.closeGuardPending = false;
         // Re-check current state at resolution time — the entry may have been
         // removed/replaced while the guard was pending.
         if (ok && _isCurrent(e) && _closable(e)) _doClose(e, result);
-      },
-      onError: (Object _) {
+      }),
+      onError: (Object _) => _batch(() {
         e.closeGuardPending = false;
         // A failing guard cancels the close.
-      },
+      }),
     );
   }
 
@@ -1638,7 +1876,7 @@ class Layerman extends ChangeNotifier {
     e.durationRemaining = null;
     _settle(e, result, reason);
     e.phase = _EntryPhase.closing;
-    notifyListeners();
+    _notify();
     if (!_isCurrent(e)) return; // a listener removed/replaced it meanwhile
     if (e.externalDismiss == null || e.externalDone) {
       // Backend already closed, or cannot be closed by us: just detach.
@@ -1650,37 +1888,41 @@ class Layerman extends ChangeNotifier {
       _remove(e);
     } else if (_isCurrent(e) && !e.externalDone && dismissTimeout != null) {
       final timeout = dismissTimeout!;
-      e.dismissTimer = Timer(timeout, () {
-        if (!_isCurrent(e) || e.externalDone) return;
-        _reportError(
-            TimeoutException('dismiss "${e.id}" 等待 $timeout', timeout),
-            StackTrace.current,
-            'while awaiting dismissed for overlay "${e.id}"');
-        _remove(e);
-      });
+      e.dismissTimer = Timer(
+          timeout,
+          () => _batch(() {
+                if (!_isCurrent(e) || e.externalDone) return;
+                _reportError(
+                    TimeoutException('dismiss "${e.id}" 等待 $timeout', timeout),
+                    StackTrace.current,
+                    'while awaiting dismissed for overlay "${e.id}"');
+                _remove(e);
+              }));
     }
   }
 
   /// The backend reported it is fully closed (user tap, barrier, back button,
   /// timeout, or our own dismiss). Settle and advance the queue.
   void _onExternalDismissed(_Entry e, Object? result) {
-    e.externalDone = true;
-    e.dismissTimer?.cancel();
-    e.dismissTimer = null;
-    _settle(e, result, OverlayEndReason.dismissedByBackend);
-    if (!_isCurrent(e)) return; // already removed / replaced in place
-    if (e.phase == _EntryPhase.open) {
-      // Closed directly by the backend (not via our close()).
-      e.phase = _EntryPhase.closing;
-      notifyListeners();
-    }
-    final grace = e.exitDuration;
-    if (grace != null && grace > Duration.zero) {
-      e.removeTimer?.cancel();
-      e.removeTimer = Timer(grace, () => _remove(e));
-    } else {
-      _remove(e);
-    }
+    return _batch(() {
+      e.externalDone = true;
+      e.dismissTimer?.cancel();
+      e.dismissTimer = null;
+      _settle(e, result, OverlayEndReason.dismissedByBackend);
+      if (!_isCurrent(e)) return; // already removed / replaced in place
+      if (e.phase == _EntryPhase.open) {
+        // Closed directly by the backend (not via our close()).
+        e.phase = _EntryPhase.closing;
+        _notify();
+      }
+      final grace = e.exitDuration;
+      if (grace != null && grace > Duration.zero) {
+        e.removeTimer?.cancel();
+        e.removeTimer = Timer(grace, () => _batch(() => _remove(e)));
+      } else {
+        _remove(e);
+      }
+    });
   }
 
   /// Remove an active/queued entry from the world. When [advance] is true and
@@ -1706,7 +1948,7 @@ class Layerman extends ChangeNotifier {
     _settle(e, null, reason);
 
     if (advance && wasSerialActive) _advanceSlot(e.slot);
-    notifyListeners();
+    _notify();
     return wasSerialActive;
   }
 
@@ -1717,22 +1959,21 @@ class Layerman extends ChangeNotifier {
     if (slotGap > Duration.zero) {
       s.gapPending = true;
       s.gapTimer?.cancel();
-      s.gapTimer = Timer(slotGap, () {
-        s.gapPending = false;
-        s.gapTimer = null;
-        _schedule(slot);
-        notifyListeners();
-      });
+      s.gapTimer = Timer(
+          slotGap,
+          () => _batch(() {
+                s.gapPending = false;
+                s.gapTimer = null;
+                _schedule(slot);
+                _notify();
+              }));
     } else {
       _schedule(slot);
     }
   }
 
-  // Deliberately NOT `_remove(e, advance: false)`: that also calls
-  // `notifyListeners()`, which would fire mid-`open()` with transient state
-  // (this entry gone, the new one not yet enqueued) — the caller's own
-  // trailing `notifyListeners()` is the only one that should fire here.
-  /// Returns whether [e] occupied its slot's serial `active` position.
+  /// 抢占时先分离旧条目，不推进槽位；由提交方完成入队并统一通知。
+  /// 返回旧条目是否占据串行 active 位置。
   bool _discardActive(_Entry e, OverlayEndReason reason) {
     e.cancelTimeouts();
     e.durationTimer?.cancel();
@@ -1755,6 +1996,8 @@ class Layerman extends ChangeNotifier {
   /// Ask the backend to close [e]; a sync throw or async failure is reported,
   /// never propagated. Returns false only on a synchronous failure.
   bool _callDismiss(_Entry e, Object? result) {
+    if (e.dismissRequested) return true; // 已经请求过：不再重复调用后端
+    e.dismissRequested = true;
     try {
       e.externalDismiss!(result).catchError((Object error, StackTrace stack) {
         _reportError(error, stack, 'while dismissing overlay "${e.id}"');
@@ -1793,6 +2036,10 @@ class Layerman extends ChangeNotifier {
     }
     _clear(OverlayEndReason.disposed);
     _disposed = true;
+    _deferredSlots.clear();
+    _releasePending = false;
+    _frameNotifyPending = false;
+    _notifyPending = false;
     for (final token in _holds) {
       token._release = null;
     }
