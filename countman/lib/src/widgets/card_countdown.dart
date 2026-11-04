@@ -297,6 +297,7 @@ class CardCountdown extends StatefulWidget {
   State<CardCountdown> createState() => _CountdownCardState();
 }
 
+/// 管理卡片模型、翻牌动画及倒计时控制器的任务归属。
 class _CountdownCardState extends State<CardCountdown>
     with SingleTickerProviderStateMixin {
   CountdownHandle? _handle;
@@ -348,6 +349,7 @@ class _CountdownCardState extends State<CardCountdown>
     _start();
   }
 
+  /// 新建倒计时，可指定剩余时间和暂停状态，并重新绑定重启动作。
   void _start({Duration? remaining, bool paused = false}) {
     _handle?.cancel();
     _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
@@ -359,7 +361,20 @@ class _CountdownCardState extends State<CardCountdown>
       onThreshold: () => widget.onThreshold?.call(),
     ));
     if (paused) _handle!.pause();
-    widget.controller?.attach(_handle!);
+    widget.controller?.attach(_handle!, relaunch: _relaunch);
+  }
+
+  /// 结束后重启倒计时，并立即同步小时列与卡片模型。
+  void _relaunch({Duration? duration}) {
+    final remaining = duration ?? widget.duration ?? remainingUntil(widget.to);
+    _ctrl.stop();
+    _ctrl.value = 0;
+    setState(() {
+      _lastRemaining = remaining;
+      _showHours = widget.showHours ?? remaining.inHours >= 1;
+      _model = CardModel(_digitsFor(remaining, _showHours));
+    });
+    _start(remaining: remaining);
   }
 
   List<int> _digitsFor(Duration r, bool showHours) {
@@ -402,12 +417,13 @@ class _CountdownCardState extends State<CardCountdown>
     _ctrl.forward(from: 0);
   }
 
+  /// 更新任务配置；仅替换控制器时保留卡片任务与暂停状态。
   @override
   void didUpdateWidget(CardCountdown old) {
     super.didUpdateWidget(old);
     if (widget.to != old.to) {
       // 旧控制器解绑，新控制器由 _start 绑定。
-      old.controller?.detach();
+      old.controller?.detach(_handle);
       _ctrl.stop();
       _ctrl.value = 0;
       final r = remainingUntil(widget.to);
@@ -416,8 +432,10 @@ class _CountdownCardState extends State<CardCountdown>
       _start();
     } else {
       if (widget.controller != old.controller) {
-        old.controller?.detach();
-        if (_handle != null) widget.controller?.attach(_handle!);
+        old.controller?.detach(_handle);
+        if (_handle != null) {
+          widget.controller?.attach(_handle!, relaunch: _relaunch);
+        }
       }
       if (widget.plugin != old.plugin && _handle != null && !_handle!.isDone) {
         final remaining = _handle!.remaining;
@@ -439,9 +457,10 @@ class _CountdownCardState extends State<CardCountdown>
     }
   }
 
+  /// 仅解绑当前 State 的任务，并释放翻牌动画与字形缓存。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _ctrl.dispose();
     for (final tp in _localCache.values) {
@@ -541,8 +560,8 @@ class _CountdownCardState extends State<CardCountdown>
     final digitGap = st?.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
     final unitGap = st?.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
     final cardColor = st?.cardColor ?? provider?.cardColor ?? _defaultCardColor;
-    final duration =
-        motionDuration(widget.duration ?? provider?.duration ?? _defaultDuration);
+    final duration = motionDuration(
+        widget.duration ?? provider?.duration ?? _defaultDuration);
     if (_ctrl.duration != duration) _ctrl.duration = duration;
     final effCurve = widget.curve ?? provider?.curve ?? Curves.linear;
     final splitDigits = st?.splitDigits ?? false;

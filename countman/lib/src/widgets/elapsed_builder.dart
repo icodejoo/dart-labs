@@ -102,6 +102,7 @@ class ElapsedBuilder extends StatefulWidget {
   State<ElapsedBuilder> createState() => _ElapsedBuilderState();
 }
 
+/// 管理正计时任务及控制器归属。
 class _ElapsedBuilderState extends State<ElapsedBuilder> {
   // Latest decomposed elapsed time (reused instance from the engine's onUpdate).
   TimeParts _parts = TimeParts.of(Duration.zero);
@@ -124,8 +125,11 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
     }
   }
 
+  /// 从零新建正计时任务，并恢复控制器的重启入口。
   void _start() {
     _handle?.cancel();
+    _parts = TimeParts.of(Duration.zero);
+    _rev.value++;
     _handle = (widget.plugin ??
             _scopePlugin ??
             (widget.precise ? defaultElapsedMs : defaultElapsed))
@@ -144,25 +148,28 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
       onPause: () => widget.onPause?.call(),
       onResume: () => widget.onResume?.call(),
     ));
-    widget.controller?.attach(_handle!);
+    widget.controller?.attach(_handle!, relaunch: _start);
   }
 
+  /// 任务配置改变时重建，仅换控制器时保留时间、暂停状态和生命周期。
   @override
   void didUpdateWidget(ElapsedBuilder old) {
     super.didUpdateWidget(old);
+    final controllerChanged = widget.controller != old.controller;
+    if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。
     _handle?.updateThreshold(widget.threshold);
-    if (widget.plugin != old.plugin ||
-        widget.precise != old.precise ||
-        widget.controller != old.controller) {
-      old.controller?.detach();
+    if (widget.plugin != old.plugin || widget.precise != old.precise) {
       _start();
+    } else if (controllerChanged && _handle != null) {
+      widget.controller?.attach(_handle!, relaunch: _start);
     }
   }
 
+  /// 仅解绑当前 State 的任务，再释放更新通知器。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _rev.dispose();
     super.dispose();

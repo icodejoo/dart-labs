@@ -162,7 +162,6 @@ class Counter extends TaskQueuePlugin<CounterTask> {
 /// 由展示组件调用的任务重启函数，业务代码不要直接调用。
 /// [to] 为目标值，[duration]、[curve] 为空时沿用组件配置；无返回值。
 /// 例如展示组件绑定时传入 `relaunch: _relaunch`。
-@internal
 typedef CounterRelaunch = void Function({
   required double to,
   Duration? duration,

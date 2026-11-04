@@ -126,6 +126,7 @@ class CountdownBuilder extends StatefulWidget {
   State<CountdownBuilder> createState() => _CountdownBuilderState();
 }
 
+/// 管理倒计时任务及控制器归属。
 class _CountdownBuilderState extends State<CountdownBuilder> {
   // Reused instance from the engine's onUpdate (per-task, mutated in place).
   late TimeParts _parts;
@@ -143,9 +144,10 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
     _start();
   }
 
-  void _start() {
+  /// 新建倒计时，省略 remaining 时使用组件的初始时长。
+  void _start({Duration? remaining}) {
     _handle?.cancel();
-    final r = _initialRemaining;
+    final r = remaining ?? _initialRemaining;
     _parts = TimeParts.of(r, r); // initial value before the first tick
     _rev.value++;
     final plugin = widget.plugin ??
@@ -167,27 +169,37 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
       onPause: () => widget.onPause?.call(),
       onResume: () => widget.onResume?.call(),
     ));
-    widget.controller?.attach(_handle!);
+    widget.controller?.attach(_handle!, relaunch: _relaunch);
   }
 
+  /// 结束后按显式时长、组件时长、当前截止时间的顺序重启。
+  void _relaunch({Duration? duration}) {
+    _start(
+        remaining: duration ?? widget.duration ?? remainingUntil(widget.to!));
+  }
+
+  /// 任务配置改变时重建，仅换控制器时保留时间、暂停状态和生命周期。
   @override
   void didUpdateWidget(CountdownBuilder old) {
     super.didUpdateWidget(old);
+    final controllerChanged = widget.controller != old.controller;
+    if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。
     _handle?.updateThreshold(widget.threshold);
     if (widget.duration != old.duration ||
         widget.to != old.to ||
         widget.plugin != old.plugin ||
-        widget.precise != old.precise ||
-        widget.controller != old.controller) {
-      old.controller?.detach();
+        widget.precise != old.precise) {
       _start();
+    } else if (controllerChanged && _handle != null) {
+      widget.controller?.attach(_handle!, relaunch: _relaunch);
     }
   }
 
+  /// 仅解绑当前 State 的任务，再释放更新通知器。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _rev.dispose();
     super.dispose();

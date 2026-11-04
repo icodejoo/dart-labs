@@ -8,6 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// 各类动画共用的测试时长。
 const _duration = Duration(seconds: 10);
 
+/// 计数任务的初始目标。
+const _initialTarget = 100.0;
+
+/// 控制器更新后的目标值。
+const _updatedTarget = 500.0;
+
 /// 用于推进动画而不使任务结束的时间片。
 const _step = Duration(seconds: 2);
 
@@ -47,6 +53,7 @@ void main() {
 
   /// 同时推进假时钟和共享帧调度。
   Future<void> advance(WidgetTester tester, Duration duration) async {
+    await tester.pump();
     wall = wall.add(duration);
     monotonic += duration;
     await tester.pump(duration);
@@ -63,7 +70,7 @@ void main() {
     final counter = CounterValueController();
     final countdown = CountdownController();
     final elapsed = ElapsedController();
-    final oldCounter = counterPlugin.add(CounterOptions(to: 100));
+    final oldCounter = counterPlugin.add(CounterOptions(to: _initialTarget));
     final newCounter = counterPlugin.add(CounterOptions(to: 200));
     final oldCountdown =
         countdownPlugin.add(CountdownOptions(duration: _duration));
@@ -113,7 +120,7 @@ void main() {
     final counter = CounterValueController();
     final countdown = CountdownController();
     final elapsed = ElapsedController();
-    final ch = counterPlugin.add(CounterOptions(to: 100));
+    final ch = counterPlugin.add(CounterOptions(to: _initialTarget));
     final dh = countdownPlugin.add(CountdownOptions(duration: _duration));
     final eh = elapsedPlugin.add(ElapsedOptions());
     var counterCalls = 0;
@@ -121,7 +128,7 @@ void main() {
     var elapsedCalls = 0;
     counter.attach(ch, relaunch: ({required to, duration, curve}) {
       counterCalls++;
-      expect(to, 500);
+      expect(to, _updatedTarget);
       expect(duration, _step);
       expect(curve, Curves.linear);
     });
@@ -130,7 +137,7 @@ void main() {
       expect(duration, _step);
     });
     elapsed.attach(eh, relaunch: () => elapsedCalls++);
-    counter.update(to: 500, duration: _step, curve: Curves.linear);
+    counter.update(to: _updatedTarget, duration: _step, curve: Curves.linear);
     countdown.reset(duration: _step);
     elapsed.reset();
     expect([counterCalls, countdownCalls, elapsedCalls], [0, 0, 0]);
@@ -139,14 +146,14 @@ void main() {
     dh.cancel();
     eh.cancel();
     expect(eh.isDone, isTrue);
-    counter.update(to: 500, duration: _step, curve: Curves.linear);
+    counter.update(to: _updatedTarget, duration: _step, curve: Curves.linear);
     countdown.reset(duration: _step);
     elapsed.reset();
     expect([counterCalls, countdownCalls, elapsedCalls], [1, 1, 1]);
     counter.detach(ch);
     countdown.detach(dh);
     elapsed.detach(eh);
-    counter.update(to: 500);
+    counter.update(to: _updatedTarget);
     countdown.reset();
     elapsed.reset();
     expect([counterCalls, countdownCalls, elapsedCalls], [1, 1, 1]);
@@ -162,7 +169,7 @@ void main() {
       Widget display(int key) => switch (kind) {
             'counter' => CounterBuilder(
                 key: ValueKey(key),
-                to: 100,
+                to: _initialTarget,
                 duration: _duration,
                 controller: counter,
                 builder: _number),
@@ -185,10 +192,10 @@ void main() {
       await tester.pumpWidget(_host(display(2)));
       await tester.pump();
       if (kind == 'counter') {
-        counter.update(to: 500);
+        counter.update(to: _updatedTarget);
         await tester.pump();
         await advance(tester, _duration);
-        expect(counter.value, 500);
+        expect(counter.value, _updatedTarget);
       } else if (kind == 'elapsed') {
         elapsed.pause();
         expect(elapsed.isPaused, isTrue);
@@ -217,7 +224,7 @@ void main() {
       Widget display(String id, bool attached) => switch (kind) {
             'counter' => CounterBuilder(
                 key: ValueKey(id),
-                to: 100,
+                to: _initialTarget,
                 duration: _duration,
                 controller: attached ? counter : null,
                 builder: _number),
@@ -249,11 +256,11 @@ void main() {
       if (kind == 'counter') {
         counter.pause();
         expect(counter.isPaused, isTrue);
-        counter.update(to: 500);
+        counter.update(to: _updatedTarget);
         counter.resume();
         await tester.pump();
         await advance(tester, _duration);
-        expect(counter.value, 500);
+        expect(counter.value, _updatedTarget);
       } else if (kind == 'elapsed') {
         elapsed.pause();
         expect(elapsed.isPaused, isTrue);
@@ -291,7 +298,7 @@ void main() {
 
     await tester.pumpWidget(display(1));
     await tester.pumpWidget(display(2));
-    controller.animateTo(100);
+    controller.animateTo(_initialTarget);
     await tester.pump();
     await advance(tester, _step);
     expect(controller.status, AnimationStatus.forward);
@@ -326,7 +333,7 @@ void main() {
       /// 仅替换 controller，所有任务参数保持不变。
       Widget display(int index) => _host(switch (kind) {
             'counter' => CounterBuilder(
-                to: 100,
+                to: _initialTarget,
                 duration: _duration,
                 curve: Curves.linear,
                 controller: counters[index],
@@ -376,7 +383,7 @@ void main() {
       } else {
         expect(counters[1].value, valueBefore);
         await advance(tester, _duration - _step);
-        expect(displayed, 100);
+        expect(displayed, _initialTarget);
       }
     });
   }
@@ -384,15 +391,15 @@ void main() {
   testWidgets('Counter 完成后 update 从显示值重启并到达 500', (tester) async {
     final c = CounterValueController();
     await tester.pumpWidget(_host(CounterBuilder(
-        to: 100, duration: _step, controller: c, builder: _number)));
+        to: _initialTarget, duration: _step, controller: c, builder: _number)));
     await advance(tester, _step);
     expect(c.isDone, isTrue);
-    c.update(to: 500, duration: _step, curve: Curves.linear);
+    c.update(to: _updatedTarget, duration: _step, curve: Curves.linear);
     expect(c.isDone, isFalse);
-    expect(c.value, 100);
+    expect(c.value, _initialTarget);
     await tester.pump();
     await advance(tester, _step);
-    expect(c.value, 500);
+    expect(c.value, _updatedTarget);
   });
 
   for (final card in [false, true]) {
@@ -432,16 +439,134 @@ void main() {
     expect(c.elapsed, _step);
   });
 
+  for (final skipEntrance in [false, true]) {
+    testWidgets('animateOnce 显式 update 仍播放，跳过入场=$skipEntrance', (tester) async {
+      final c = CounterValueController();
+      var ready = 0;
+      var starts = 0;
+      var cancels = 0;
+
+      /// 保留 provider 的注册表，重新挂载同一业务标识。
+      Widget display(bool visible, int key) => _host(CounterProvider(
+            animateOnce: true,
+            child: visible
+                ? CounterBuilder(
+                    key: ValueKey(key),
+                    onceId: 'once',
+                    to: _initialTarget,
+                    duration: _step,
+                    controller: c,
+                    builder: _number,
+                    onReady: () => ready++,
+                    onStart: () => starts++,
+                    onCancel: () => cancels++,
+                  )
+                : const SizedBox(),
+          ));
+
+      await tester.pumpWidget(display(true, 1));
+      await advance(tester, _step);
+      if (skipEntrance) {
+        await tester.pumpWidget(display(false, 1));
+        final lifecycle = [ready, starts, cancels];
+        await tester.pumpWidget(display(true, 2));
+        expect([ready, starts, cancels], lifecycle);
+      }
+      expect(c.value, _initialTarget);
+      expect(c.isDone, isTrue);
+      c.update(to: _updatedTarget, duration: _duration, curve: Curves.linear);
+      await advance(tester, _step);
+      expect(c.value, closeTo(180, 0.001));
+      expect(c.isAnimating, isTrue);
+      await advance(tester, _duration - _step);
+      expect(c.value, _updatedTarget);
+    });
+  }
+
+  testWidgets('Card 只换 controller 保留剩余时间和暂停状态', (tester) async {
+    final old = CountdownController();
+    final current = CountdownController();
+    await tester
+        .pumpWidget(_host(CardCountdown(to: _duration, controller: old)));
+    await advance(tester, _step);
+    old.pause();
+    final remaining = old.remaining;
+    await tester
+        .pumpWidget(_host(CardCountdown(to: _duration, controller: current)));
+    expect(current.remaining, remaining);
+    expect(current.isPaused, isTrue);
+    await advance(tester, _step);
+    expect(current.remaining, remaining);
+    old.reset();
+    expect(current.isPaused, isTrue);
+  });
+
+  testWidgets('Card 重启立即同步小时列和卡片模型', (tester) async {
+    final c = CountdownController();
+    await tester.pumpWidget(_host(CardCountdown(to: _step, controller: c)));
+    await advance(tester, _step);
+    c.reset(duration: const Duration(hours: 2));
+    await tester.pump();
+    final painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((widget) => widget.painter)
+        .whereType<FlipCardPainter>()
+        .single;
+    expect(painter.model.committed, [0, 2, 0, 0, 0, 0]);
+    expect(painter.model.target, isNull);
+    expect(painter.geom.unitLabelCenters, hasLength(3));
+    expect(c.remaining, const Duration(hours: 2));
+    c.cancel();
+    c.reset(duration: _step);
+    await tester.pump();
+    final nextPainter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((widget) => widget.painter)
+        .whereType<FlipCardPainter>()
+        .single;
+    expect(nextPainter.model.committed, [0, 0, 0, 2]);
+    expect(nextPainter.geom.unitLabelCenters, hasLength(2));
+  });
+
+  for (final card in [false, true]) {
+    testWidgets('${card ? 'Card' : 'Countdown'} relaunch 时长优先级及当前截止时间',
+        (tester) async {
+      final c = CountdownController();
+      final deadline = wall.add(_duration);
+      await tester.pumpWidget(_host(card
+          ? CardCountdown(to: deadline, controller: c)
+          : CountdownBuilder(to: deadline, controller: c, builder: _time)));
+      await advance(tester, _step);
+      c.cancel();
+      c.reset();
+      await tester.pump();
+      expect(c.remaining, _duration - _step);
+      c.cancel();
+      await tester.pumpWidget(_host(card
+          ? CardCountdown(to: deadline, duration: _step, controller: c)
+          : CountdownBuilder(
+              to: deadline, duration: _step, controller: c, builder: _time)));
+      c.cancel();
+      c.reset();
+      await tester.pump();
+      expect(c.remaining, _step);
+      c.cancel();
+      c.reset(duration: _duration);
+      await tester.pump();
+      expect(c.remaining, _duration);
+    });
+  }
+
   testWidgets('Counter 只换 onComplete 后调用新回调', (tester) async {
     var oldCalls = 0;
     var newCalls = 0;
     await tester.pumpWidget(_host(CounterBuilder(
-        to: 100,
+        to: _initialTarget,
         duration: _duration,
         builder: _number,
         onComplete: (_) => oldCalls++)));
     await tester.pumpWidget(_host(CounterBuilder(
-        to: 100,
+        to: _initialTarget,
         duration: _duration,
         builder: _number,
         onComplete: (_) => newCalls++)));

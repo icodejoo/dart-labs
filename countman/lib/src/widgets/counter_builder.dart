@@ -59,7 +59,8 @@ class CounterBuilder extends StatefulWidget {
   final CounterValueController? controller;
 
   /// Called every frame with the current animated value and the cached [child].
-  final Widget Function(BuildContext context, double value, Widget? child) builder;
+  final Widget Function(BuildContext context, double value, Widget? child)
+      builder;
 
   /// Optional value-independent subtree, passed through to [builder] unchanged
   /// every frame so it is not rebuilt.
@@ -113,6 +114,7 @@ class CounterBuilder extends StatefulWidget {
   State<CounterBuilder> createState() => _CounterBuilderState();
 }
 
+/// 管理显示值、任务归属及显式重启动画。
 class _CounterBuilderState extends State<CounterBuilder> {
   late final ValueNotifier<double> _value;
   CounterHandle? _handle;
@@ -134,6 +136,7 @@ class _CounterBuilderState extends State<CounterBuilder> {
   // 应注入 [AnimateOnceScope] 供其后代继承。
   bool _onceEntry = false;
 
+  /// 初始化显示值，跳过入场动画时也保留控制器重启入口。
   @override
   void initState() {
     super.initState();
@@ -145,6 +148,7 @@ class _CounterBuilderState extends State<CounterBuilder> {
     // 当该 id 已在 provider 下动画过时，跳过入场动画，立即显示终值。
     if (_oncePart && _onceSkip) {
       _value.value = widget.to;
+      _attachController();
     } else {
       _addTask(from: widget.from);
     }
@@ -161,7 +165,8 @@ class _CounterBuilderState extends State<CounterBuilder> {
   // Effective animate-once: widget override > provider default > false.
   //
   // 实际 animate-once：widget 覆盖 > provider 默认 > false。
-  bool get _effAnimateOnce => widget.animateOnce ?? _scope?.animateOnce ?? false;
+  bool get _effAnimateOnce =>
+      widget.animateOnce ?? _scope?.animateOnce ?? false;
 
   // Stable id: explicit onceId, else derived from a ValueKey on this widget.
   //
@@ -201,38 +206,63 @@ class _CounterBuilderState extends State<CounterBuilder> {
     _onceSkip = !reg.shouldAnimate(id);
   }
 
-  // Cancel any existing task and enqueue a fresh one starting at [from]
-  // (null = the option's default of 0 / the current displayed value).
-  void _addTask({required double? from}) {
+  /// 从 [from] 新建任务；可覆盖目标、时长与曲线，省略时使用当前组件配置。
+  void _addTask({
+    required double? from,
+    double? to,
+    Duration? duration,
+    Curve? curve,
+  }) {
     _handle?.cancel();
     _handle = (widget.plugin ?? defaultCounter).add(CounterOptions(
       from: from,
-      to: widget.to,
-      duration: motionDuration(widget.duration),
-      curve: widget.curve,
+      to: to ?? widget.to,
+      duration: motionDuration(duration ?? widget.duration),
+      curve: curve ?? widget.curve,
       allowNegative: widget.allowNegative,
       onUpdate: (v) {
         _value.value = v;
         widget.controller?.latestValue = v;
         widget.onUpdate?.call(v);
       },
-      onComplete: widget.onComplete,
-      onReady: widget.onReady,
-      onStart: widget.onStart,
-      onCancel: widget.onCancel,
+      onComplete: (v) => widget.onComplete?.call(v),
+      onReady: () => widget.onReady?.call(),
+      onStart: () => widget.onStart?.call(),
+      onCancel: () => widget.onCancel?.call(),
     ));
-    widget.controller?.attach(_handle!);
+    _attachController();
   }
 
+  /// 从当前显示值执行显式更新，绕过仅入场一次的限制。
+  void _relaunch({required double to, Duration? duration, Curve? curve}) {
+    _addTask(from: _value.value, to: to, duration: duration, curve: curve);
+  }
+
+  /// 绑定任务及重启动作，并立即同步当前显示值。
+  void _attachController() {
+    final controller = widget.controller;
+    if (controller == null) return;
+    // 跳过入场时使用已取消的无回调任务作为归属凭据，不触发组件生命周期。
+    _handle ??= (widget.plugin ?? defaultCounter).add(CounterOptions(
+      from: _value.value,
+      to: _value.value,
+      duration: Duration.zero,
+    ))
+      ..cancel();
+    controller.attach(_handle!, relaunch: _relaunch);
+    controller.latestValue = _value.value;
+  }
+
+  /// 配置变化按原策略更新任务，仅替换控制器时保留任务与生命周期。
   @override
   void didUpdateWidget(CounterBuilder old) {
     super.didUpdateWidget(old);
-    if (widget.controller != old.controller) old.controller?.detach();
+    final controllerChanged = widget.controller != old.controller;
+    if (controllerChanged) old.controller?.detach(_handle);
     if (widget.to != old.to ||
         widget.duration != old.duration ||
         widget.curve != old.curve ||
         widget.plugin != old.plugin ||
-        widget.controller != old.controller ||
         widget.allowNegative != old.allowNegative) {
       if (_oncePart) {
         // Already participating in animate-once → any later value change jumps
@@ -241,17 +271,21 @@ class _CounterBuilderState extends State<CounterBuilder> {
         // 已参与 animate-once → 之后任何值变直接跳到新值，不播动画（入场只播一次）。
         _handle?.cancel();
         _value.value = widget.to;
+        _attachController();
       } else {
         // Always create a fresh task from the current displayed value so
         // retargeting works even after the previous animation finished.
         _addTask(from: _value.value);
       }
+    } else if (controllerChanged) {
+      _attachController();
     }
   }
 
+  /// 仅解绑当前 State 的任务，再释放显示值。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _value.dispose();
     super.dispose();
@@ -270,7 +304,8 @@ class _CounterBuilderState extends State<CounterBuilder> {
         child,
       ),
     );
-    Widget result = widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
+    Widget result =
+        widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
     // As the animate-once entry, publish the decision so descendant
     // counters/countdowns inherit it instead of resolving their own id.
     //
