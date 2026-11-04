@@ -1,4 +1,5 @@
-﻿export 'src/core/types.dart';
+export 'src/core/clock.dart';
+export 'src/core/types.dart';
 export 'src/core/plugin_base.dart';
 export 'src/core/ticker.dart';
 export 'src/core/start_scheduler.dart';
