@@ -12,8 +12,156 @@ export '../core/time_parts.dart' show TimeParts;
 /// [Duration], so a formatter reads components directly with no `%` math.
 typedef DurationFormatter = String Function(TimeParts parts);
 
+/// [CountdownFormat.template] 支持的记号。
+enum _TemplateToken {
+  days,
+  hours,
+  hoursPadded,
+  totalHours,
+  minutes,
+  minutesPadded,
+  totalMinutes,
+  seconds,
+  secondsPadded,
+  tenths,
+  millis,
+}
+
+/// 记号文本（花括号内的内容）到记号的映射；区分大小写。
+const Map<String, _TemplateToken> _templateTokens = {
+  'd': _TemplateToken.days,
+  'H': _TemplateToken.hours,
+  'HH': _TemplateToken.hoursPadded,
+  'TH': _TemplateToken.totalHours,
+  'm': _TemplateToken.minutes,
+  'mm': _TemplateToken.minutesPadded,
+  'TM': _TemplateToken.totalMinutes,
+  's': _TemplateToken.seconds,
+  'ss': _TemplateToken.secondsPadded,
+  'S': _TemplateToken.tenths,
+  'SSS': _TemplateToken.millis,
+};
+
+/// 解析后的模板片段：要么是字面文字 [text]，要么是记号 [token]（二选一）。
+class _TemplateSegment {
+  /// 字面文字片段。
+  const _TemplateSegment.text(String this.text) : token = null;
+
+  /// 记号片段。
+  const _TemplateSegment.token(_TemplateToken this.token) : text = null;
+
+  /// 字面文字；记号片段为 null。
+  final String? text;
+
+  /// 记号；文字片段为 null。
+  final _TemplateToken? token;
+}
+
+/// 把 [pattern] 解析成片段列表：已知记号成片段，未知记号、未闭合的 `{`、孤立的 `}`
+/// 与普通文字一律作为字面量原样保留；相邻字面量合并。
+List<_TemplateSegment> _parseTemplate(String pattern) {
+  final segments = <_TemplateSegment>[];
+  final literal = StringBuffer();
+  void flush() {
+    if (literal.isEmpty) return;
+    segments.add(_TemplateSegment.text(literal.toString()));
+    literal.clear();
+  }
+
+  var i = 0;
+  while (i < pattern.length) {
+    if (pattern[i] == '{') {
+      final close = pattern.indexOf('}', i + 1);
+      if (close != -1) {
+        final inner = pattern.substring(i + 1, close);
+        // 内部还有 `{` 时，当前这个 `{` 只是字面量，从下一个 `{` 重新匹配。
+        if (!inner.contains('{')) {
+          final token = _templateTokens[inner];
+          if (token != null) {
+            flush();
+            segments.add(_TemplateSegment.token(token));
+          } else {
+            literal.write(pattern.substring(i, close + 1)); // 未知记号原样保留
+          }
+          i = close + 1;
+          continue;
+        }
+      }
+    }
+    literal.write(pattern[i]);
+    i++;
+  }
+  flush();
+  return segments;
+}
+
+/// 取出 [token] 在 [t] 上对应的文本。
+String _templateText(_TemplateToken token, TimeParts t) {
+  switch (token) {
+    case _TemplateToken.days:
+      return t.days.toString();
+    case _TemplateToken.hours:
+      return t.hours.toString();
+    case _TemplateToken.hoursPadded:
+      return t.hours.toString().padLeft(2, '0');
+    case _TemplateToken.totalHours:
+      return t.totalHours.toString();
+    case _TemplateToken.minutes:
+      return t.minutes.toString();
+    case _TemplateToken.minutesPadded:
+      return t.minutes.toString().padLeft(2, '0');
+    case _TemplateToken.totalMinutes:
+      return t.totalMinutes.toString();
+    case _TemplateToken.seconds:
+      return t.seconds.toString();
+    case _TemplateToken.secondsPadded:
+      return t.seconds.toString().padLeft(2, '0');
+    case _TemplateToken.tenths:
+      return (t.millis ~/ 100).toString();
+    case _TemplateToken.millis:
+      return t.millis.toString().padLeft(3, '0');
+  }
+}
+
 /// Built-in duration formatters.
 abstract final class CountdownFormat {
+  /// 测试用：[template] 已解析模板的累计次数，用来断言“只在创建时解析一次”。
+  @visibleForTesting
+  static int debugTemplateParseCount = 0;
+
+  /// 按模板生成格式化函数，便于国际化与自定义布局。模板只在本方法里解析一次，
+  /// 返回的函数逐 tick 只做拼接。
+  ///
+  /// 记号（区分大小写，花括号包裹）：
+  /// - `{d}` 天；`{H}` / `{HH}` 小时（0–23，不补零 / 补零）；`{TH}` 总小时
+  /// - `{m}` / `{mm}` 分钟（0–59，不补零 / 补零）；`{TM}` 总分钟
+  /// - `{s}` / `{ss}` 秒（0–59，不补零 / 补零）
+  /// - `{S}` 十分之一秒（0–9）；`{SSS}` 毫秒（补零到三位）
+  ///
+  /// 其他文字原样输出；未知记号（如 `{x}`）、未闭合的 `{` 与孤立的 `}` 原样保留。
+  /// 例如：
+  /// ```dart
+  /// final f = CountdownFormat.template('{d}天 {HH}:{mm}:{ss}');
+  /// TextCountdown(to: deadline, formatter: f); // 1天 02:03:04
+  /// ```
+  static DurationFormatter template(String pattern) {
+    debugTemplateParseCount++;
+    final segments = _parseTemplate(pattern);
+    if (segments.isEmpty) return (_) => '';
+    if (segments.length == 1 && segments.first.token == null) {
+      final text = segments.first.text!;
+      return (_) => text;
+    }
+    return (TimeParts t) {
+      final buffer = StringBuffer();
+      for (final segment in segments) {
+        final token = segment.token;
+        buffer.write(token == null ? segment.text : _templateText(token, t));
+      }
+      return buffer.toString();
+    };
+  }
+
   /// HH:mm:ss — always shows hours (e.g. 01:23:45).
   static String hms(TimeParts t) {
     final h = t.totalHours.toString().padLeft(2, '0');
