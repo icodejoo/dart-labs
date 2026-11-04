@@ -14,6 +14,8 @@
 // and the old "replace displaces to the queue and resumes" assertion —
 // replace now always CLOSES the preempted overlay (result null) and it never
 // reshows (see CHANGELOG 0.2.0 "Behavior").
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -25,6 +27,7 @@ void main() {
 
   // The demo manager is a global; tests share one app process.
   setUp(() {
+    app.appLifecycle?.didChangeAppLifecycleState(AppLifecycleState.resumed);
     app.om.resumeAll();
     app.om.clear();
   });
@@ -350,7 +353,7 @@ void main() {
     await tester.tap(find.byKey(const Key('btn-cds')));
     await tester.pumpAndSettle();
     expect(find.text('SESSION 1'), findsNothing); // capped for this session
-    expect(app.om.queuedIds, contains('cd-s'));
+    expect(app.om.queuedIds, isNot(contains('cd-s'))); // 0.3.0：达到永久上限即丢弃。
   });
 
   testWidgets('cooldown minGap=5s blocks, then AUTO-shows when it expires',
@@ -499,5 +502,144 @@ void main() {
     expect(find.text('Saved'), findsNothing);
     expect(app.om.activeIds, isEmpty);
     expect(app.om.queuedIds, isEmpty);
+  });
+
+  group('0.3.0 真机回归', () {
+    /// 打开新能力页面，复用已有的真机启动和滚动辅助函数。
+    Future<void> features(WidgetTester tester) async {
+      await boot(tester);
+      await goTo(tester, 'v0.3 Features');
+    }
+
+    /// 点击稳定键；模态框内的同名操作优先于被遮住的页面操作。
+    Future<void> press(WidgetTester tester, String key) async {
+      await tapVisible(tester, find.byKey(Key(key)).last);
+      await tester.pumpAndSettle();
+    }
+
+    tearDown(() {
+      app.om.clear();
+      app.appLifecycle?.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      app.om.resumeAll();
+    });
+
+    testWidgets('官方对话框打开并由自身按钮关闭', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-dm-open');
+      expect(find.text('DM-A'), findsOneWidget);
+      await press(tester, 'dm-a-close');
+      expect(find.text('DM-A'), findsNothing);
+      expect(app.om.activeIds, isEmpty);
+    });
+
+    testWidgets('B6：限定页面的对话框不会因自身路由而关闭', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-dm-route');
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('DM-A'), findsOneWidget);
+      expect(app.om.currentRoute, '/home');
+      await press(tester, 'dm-a-close');
+      expect(find.text('DM-A'), findsNothing);
+    });
+
+    testWidgets('B4：定点关闭被覆盖的 A，保留 B', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-dm-buried');
+      expect(find.text('DM-A'), findsOneWidget);
+      expect(find.text('DM-B'), findsOneWidget);
+      await press(tester, 'btn-dm-close-a');
+      expect(find.text('DM-A'), findsNothing);
+      expect(find.text('DM-B'), findsOneWidget);
+      expect(app.om.activeIds, isNot(contains('dm-a')));
+      await press(tester, 'dm-b-close');
+      expect(find.text('DM-B'), findsNothing);
+    });
+
+    testWidgets('官方底部弹层打开和关闭', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-bs-open');
+      expect(find.text('BS-1'), findsOneWidget);
+      await press(tester, 'bs-close');
+      expect(find.text('BS-1'), findsNothing);
+      expect(app.om.activeIds, isEmpty);
+    });
+
+    testWidgets('ticket 区分主动关闭与替换原因', (tester) async {
+      await features(tester);
+      expect(find.text('outcome: -'), findsOneWidget);
+      await press(tester, 'btn-outcome-open');
+      await tapVisible(tester, find.text('close OUTCOME'));
+      await advance(tester);
+      expect(find.text('outcome: closed'), findsOneWidget);
+      await press(tester, 'btn-outcome-open');
+      await press(tester, 'btn-outcome-replace');
+      expect(find.text('outcome: replaced'), findsOneWidget);
+      expect(find.text('OUTCOME'), findsNothing);
+      await tapVisible(tester, find.text('close NEXT'));
+      await advance(tester);
+    });
+
+    testWidgets('实时数据从零更新，关闭后不再显示', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-live-open');
+      expect(find.text('live n=0'), findsOneWidget);
+      await press(tester, 'btn-live-update');
+      expect(find.text('live n=0'), findsNothing);
+      expect(find.text('live n=1'), findsOneWidget);
+      await tapVisible(tester, find.text('close live n=1'));
+      await advance(tester);
+      expect(find.text('live n=1'), findsNothing);
+    });
+
+    testWidgets('失联后端在两秒超时后释放槽位并上报', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-stuck-open');
+      expect(find.text('STUCK'), findsOneWidget);
+      await press(tester, 'btn-after-stuck-open');
+      expect(app.om.queuedIds, contains('after-stuck'));
+      // 关闭后不经过 press 的 settle，避免真机耗时侵占两秒观测窗口。
+      await tapVisible(tester, find.byKey(const Key('btn-stuck-close')));
+      await tester.pump(const Duration(milliseconds: 900));
+      expect(find.text('AFTER'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 1700));
+      expect(tester.takeException(), isA<TimeoutException>());
+      await tester.pumpAndSettle();
+      expect(find.text('AFTER'), findsOneWidget);
+      expect(app.om.activeIds, isNot(contains('stuck')));
+      await tapVisible(tester, find.text('close AFTER'));
+      await advance(tester);
+      await press(tester, 'btn-stuck-clear');
+      expect(find.text('STUCK'), findsNothing);
+    });
+
+    testWidgets('后台阻止新卡出场，恢复前台后放行', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-lifecycle-pause');
+      expect(find.text('paused: true'), findsOneWidget);
+      await press(tester, 'btn-live-open');
+      expect(find.text('live n=0'), findsNothing);
+      expect(app.om.queuedIds, contains('live'));
+      await press(tester, 'btn-lifecycle-resume');
+      expect(find.text('paused: false'), findsOneWidget);
+      expect(find.text('live n=0'), findsOneWidget);
+      await tapVisible(tester, find.text('close live n=0'));
+      await advance(tester);
+    });
+
+    testWidgets('排队过期从未展示，清理占位后也不会出现', (tester) async {
+      await features(tester);
+      await press(tester, 'btn-expire-open');
+      expect(app.om.queuedIds, contains('exp'));
+      expect(find.text('EXP'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pumpAndSettle();
+      expect(app.om.queuedIds, isNot(contains('exp')));
+      expect(find.text('EXP'), findsNothing);
+      await press(tester, 'btn-expire-clear');
+      await advance(tester);
+      expect(find.text('EXP'), findsNothing);
+      expect(app.om.activeIds, isEmpty);
+    });
   });
 }
