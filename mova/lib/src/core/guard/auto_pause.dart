@@ -307,6 +307,12 @@ class MovaAutoPauseGate {
   /// 清掉 inactive 快照（未曾隐藏就回到 resumed）。
   void onResumed() => _inactiveSnapshot = null;
 
+  /// 宿主显式暂停后不再补播，清除后台切换快照。
+  void cancelResume() {
+    _owe = _Owe.none;
+    _inactiveSnapshot = null;
+  }
+
   /// Rechecks playback or exemption changes during an existing hidden period.
   /// Returns a pause (or, in keepAlive mode for a live stream the engine can
   /// hold, a keepAlive) action when [playing] and not [exempt].

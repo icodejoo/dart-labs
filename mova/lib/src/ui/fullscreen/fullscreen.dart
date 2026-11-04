@@ -32,6 +32,8 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   StreamSubscription<MovaState>? _subscription;
   Route<void>? _route;
   bool _scheduled = false;
+  // 路由持有宿主媒体组件期间，内联侧让出，直到退出动画完成。
+  bool _yieldInline = false;
   String _unlock = '';
   late final ValueNotifier<Widget> _content = ValueNotifier(widget.fullscreen);
 
@@ -127,6 +129,10 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
             ),
           ),
     );
+    setState(() => _yieldInline = true);
+    unawaited(route.completed.then((_) {
+      if (mounted && _route == null) setState(() => _yieldInline = false);
+    }));
     _route = route;
     movaFullscreenRoutes[api] = route;
     unawaited(
@@ -179,6 +185,6 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   @override
   Widget build(BuildContext context) => MovaSnapshotGuard(
     enabled: movaSnapshotGuardNeeded(),
-    child: widget.child,
+    child: _yieldInline ? const SizedBox.expand() : widget.child,
   );
 }

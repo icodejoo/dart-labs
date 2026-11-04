@@ -1809,8 +1809,9 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     //
     // 一次尝试只失败一次：超时之后同一次尝试可能还会收到原生错误。
     if (_failedAttemptId == _attemptId || _terminalAttemptId == _attemptId) return;
-    _recoveryPosition ??= state.type == MovaStreamType.vod && state.rendered
-        ? _resumeTarget
+    // 首帧前仍继承素材起播点；出画后保持已有续播点规则。
+    _recoveryPosition ??= state.type == MovaStreamType.vod
+        ? (state.rendered ? _resumeTarget : src.start ?? Duration.zero)
         : Duration.zero;
     _failedAttemptId = _attemptId;
     wd.disarm();

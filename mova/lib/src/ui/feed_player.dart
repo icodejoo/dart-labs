@@ -75,7 +75,11 @@ class MovaFeedPlayerController extends ChangeNotifier {
   }
 
   /// 暂停当前页；未绑定时为空操作。
-  Future<void> pause() async => activeApi?.pause();
+  Future<void> pause() async {
+    // 即使意图已被守卫置为暂停，也要撤销它记住的恢复欠账。
+    _owner?._guardKey.currentState?.cancelResume();
+    await activeApi?.pause();
+  }
 
   /// 播放当前页；内置可见性守卫仍可在隐藏时暂停它。
   Future<void> play() async => activeApi?.play();
@@ -261,6 +265,9 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   ///
   /// 支撑纵向"上滑下一个视频"翻页的控制器。
   final PageController _pageController = PageController();
+
+  // 守卫在引擎解绑期间保持挂载，宿主暂停可同步撤销恢复。
+  final _guardKey = GlobalKey<MovaAutoPauseState>();
 
   /// Like-state notifiers, keyed by feed index, kept alive within the current
   /// retained window so double-tap (gesture layer) and the social
@@ -579,8 +586,10 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     );
     final api = _activeApi;
     final config = widget.autoPause;
-    if (api == null || config == null) return pages;
+    // 打开失败导致 api 为空时仍保留包装，避免 PageView 重挂丢失页码。
+    if (config == null) return pages;
     return MovaAutoPause(
+      key: _guardKey,
       api: api,
       config: config,
       routeObservers: widget.routeObservers,

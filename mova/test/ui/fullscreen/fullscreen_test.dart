@@ -56,6 +56,39 @@ Future<void> _cleanup(WidgetTester t, _Api api) async {
 }
 
 void main() {
+  // surface 和 poster 的全局键都只能有一个挂载点，反复进入退出也不冲突。
+  testWidgets('P2 全屏路由让出带 GlobalKey 的 surface 与 poster', (t) async {
+    final api = _Api();
+    final surfaceKey = GlobalKey();
+    final posterKey = GlobalKey();
+    await t.pumpWidget(
+      MaterialApp(
+        home: MovaPlayer(
+          api: api,
+          fullscreenRoute: true,
+          surface: ColoredBox(key: surfaceKey, color: Colors.red),
+          poster: ColoredBox(key: posterKey, color: Colors.blue),
+        ),
+      ),
+    );
+    for (var i = 0; i < 2; i++) {
+      await api.setFullscreen(true);
+      await _settle(t);
+      expect(t.takeException(), isNull);
+      expect(find.byKey(surfaceKey), findsOneWidget);
+      expect(find.byKey(posterKey), findsOneWidget);
+      expect(
+        find.ancestor(of: find.byKey(surfaceKey), matching: _routePlayer),
+        findsOneWidget,
+      );
+      await api.setFullscreen(false);
+      await _settle(t);
+      expect(t.takeException(), isNull);
+      expect(find.byKey(surfaceKey), findsOneWidget);
+      expect(find.byKey(posterKey), findsOneWidget);
+    }
+    await _cleanup(t, api);
+  });
   testWidgets('默认关闭保持旧树与旧全屏调用，运行时开启接管已全屏状态', (t) async {
     final api = _Api();
     // 使用构造器默认值，关闭路径不增加 PopScope 或第二个视图。
@@ -178,7 +211,8 @@ void main() {
     await api.setFullscreen(true);
     await _settle(t);
     final surfaces = find.byKey(const ValueKey('custom-surface'));
-    expect(surfaces, findsNWidgets(2));
+    // 全屏期间内联侧让出，宿主 surface 仅由路由挂载一次。
+    expect(surfaces, findsOneWidget);
     for (final element in surfaces.evaluate()) {
       final guard = element.findAncestorWidgetOfExactType<MovaSnapshotGuard>();
       expect(guard, isNotNull);

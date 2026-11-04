@@ -7,6 +7,110 @@ Future<MovaFeedItem?> _load(int index) async =>
     MovaFeedItem(source: MovaSource('https://h/$index.mp4'));
 
 void main() {
+  // 非零页的引擎打开失败后，页面状态和显式重试必须一起保留。
+  for (final throws in [false, true]) {
+    testWidgets('P2 非零页打开失败保留页码并可重试 throws=$throws', (t) async {
+      final controller = MovaFeedPlayerController();
+      addTearDown(controller.dispose);
+      final api = FakeMovaApi();
+      await t.pumpWidget(
+        MaterialApp(
+          home: MovaFeedPlayer(
+            controller: controller,
+            poolSize: 1,
+            prefetchDepth: 0,
+            engineFactory: () => api,
+            loader: _load,
+            errorBuilder: (_, index, error, retry) =>
+                TextButton(onPressed: retry, child: Text('retry $index')),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      final pageState = t.state(find.byType(PageView));
+      if (throws) {
+        api.openThrows = StateError('open');
+      } else {
+        api.acceptOpens = false;
+      }
+      controller.jumpToPage(3);
+      await t.pumpAndSettle();
+      expect(controller.activeApi, isNull);
+      expect(t.state(find.byType(PageView)), same(pageState));
+      expect(t.widget<PageView>(find.byType(PageView)).controller!.page, 3);
+      expect(find.text('retry 3'), findsOneWidget);
+      api.openThrows = null;
+      api.acceptOpens = true;
+      await t.tap(find.text('retry 3'));
+      await t.pumpAndSettle();
+      expect(controller.activeIndex, 3);
+      expect(api.source?.uri, 'https://h/3.mp4');
+      expect(find.text('retry 3'), findsNothing);
+    });
+  }
+
+  // 守卫已暂停时重复的宿主 pause 仍是新的暂停决定；后续 play 仍可恢复。
+  for (final background in [false, true]) {
+    testWidgets('P2 守卫暂停期间宿主暂停撤销前台恢复 background=$background', (t) async {
+      final controller = MovaFeedPlayerController();
+      addTearDown(controller.dispose);
+      var visible = true;
+      Widget app() => MaterialApp(
+        home: TickerMode(
+          enabled: background || visible,
+          child: MovaFeedPlayer(
+            controller: controller,
+            engineFactory: FakeMovaApi.new,
+            loader: _load,
+          ),
+        ),
+      );
+      await t.pumpWidget(app());
+      await t.pumpAndSettle();
+      final api = controller.activeApi! as FakeMovaApi;
+      visible = false;
+      if (background) {
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      }
+      await t.pumpWidget(app());
+      await t.pumpAndSettle();
+      expect(api.state.playbackIntent, isFalse);
+      await controller.pause();
+      api.calls.clear();
+      visible = true;
+      if (background) {
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      }
+      await t.pumpWidget(app());
+      await t.pumpAndSettle();
+      expect(api.calls, isNot(contains('play')));
+      expect(api.state.playbackIntent, isFalse);
+      await controller.play();
+      await t.pumpAndSettle();
+      expect(api.state.playbackIntent, isTrue);
+      visible = false;
+      if (background) {
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      }
+      await t.pumpWidget(app());
+      await t.pumpAndSettle();
+      visible = true;
+      if (background) {
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      }
+      await t.pumpWidget(app());
+      await t.pumpAndSettle();
+      expect(api.state.playbackIntent, isTrue);
+    });
+  }
   testWidgets('C14 控制器查询当前页、播放暂停与跳页', (t) async {
     final controller = MovaFeedPlayerController();
     addTearDown(controller.dispose);

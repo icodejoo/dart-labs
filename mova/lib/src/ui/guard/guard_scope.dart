@@ -8,7 +8,7 @@ class MovaGuardScope extends InheritedWidget {
   const MovaGuardScope({super.key, required this.api, this.parent, required super.child});
 
   /// 当前守卫接管的播放能力面。
-  final MovaApi api;
+  final MovaApi? api; // 未绑定时仍保留作用域结构。
 
   /// 最近的祖先守卫，保留不同 API 之间的完整接管链。
   final MovaGuardScope? parent;
