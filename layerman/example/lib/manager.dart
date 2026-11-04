@@ -8,7 +8,7 @@ Layerman _fresh() => Layerman(
       gap: const Duration(milliseconds: 300),
       dismissTimeout: const Duration(seconds: 2),
       resolveTimeout: const Duration(seconds: 2),
-      pauseOnRoutes: const ['/zone'],
+      pauseOnRoutes: const [RouteMatcher.exact('/zone')],
     );
 
 Layerman createFreshManager() => _fresh();

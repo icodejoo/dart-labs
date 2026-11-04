@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
 
@@ -13,7 +14,7 @@ class ReplaceAffixPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           pageHeader(context, 'Replace & Affix',
-              'replace: true preempts the current overlay of a slot and shows '
+              'mode: OverlayMode.replace preempts the current overlay of a slot and shows '
               'immediately. The preempted overlay is CLOSED (result null) — a '
               'dismissed backend cannot be faithfully re-presented, so it never '
               'comes back. affix: true protects an overlay from being preempted — '
@@ -33,7 +34,7 @@ class ReplaceAffixPage extends StatelessWidget {
                       onPressed: () => openCard(
                         'r2',
                         text: 'R2',
-                        replace: true,
+                        mode: OverlayMode.replace,
                         hint: 'R2 preempted R1.\nClosing me does NOT bring R1 back.',
                       ),
                       child: const Text('replace with R2'),
@@ -43,7 +44,7 @@ class ReplaceAffixPage extends StatelessWidget {
               }),
             ],
             subtitle:
-                'replace: true → current is discarded (closed, result null). '
+                'mode: OverlayMode.replace → current is discarded (closed, result null). '
                 'The replacer still front-bands ahead of anything already queued.',
           ),
           pageSection(
@@ -58,7 +59,7 @@ class ReplaceAffixPage extends StatelessWidget {
                     priority: 0,
                     hint: 'B will preempt and close me — I do not come back');
                 openCard('rb',
-                    text: 'B replace prio=5', replace: true, priority: 5,
+                    text: 'B replace prio=5', mode: OverlayMode.replace, priority: 5,
                     hint: 'I preempted A. Closing me advances the queue, not A.');
               }),
             ],
@@ -78,7 +79,7 @@ class ReplaceAffixPage extends StatelessWidget {
                       onPressed: () => openCard(
                         'try',
                         text: 'TRY',
-                        replace: true,
+                        mode: OverlayMode.replace,
                         hint: 'I queued behind FIX instead of preempting',
                       ),
                       child: const Text('try to replace FIX'),

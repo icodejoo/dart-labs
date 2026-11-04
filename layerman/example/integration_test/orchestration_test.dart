@@ -1,4 +1,4 @@
-// Real-device (Windows desktop) full-API integration test.
+// Android 手机真机全 API 集成测试。
 //
 // Rewritten for the headless `present:`-only manager (see CHANGELOG 0.2.0):
 // the manager renders nothing itself, so every overlay in this app shows
@@ -625,6 +625,69 @@ void main() {
       expect(find.text('live n=0'), findsOneWidget);
       await tapVisible(tester, find.text('close live n=0'));
       await advance(tester);
+    });
+
+    testWidgets('build 中打开在帧后出现且重建不会重复提交', (tester) async {
+      await features(tester);
+      const cardText = 'BUILD-OPEN';
+      expect(find.text(cardText), findsNothing);
+      await tapVisible(tester, find.byKey(const Key('btn-build-open')));
+      expect(find.text(cardText), findsNothing);
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text(cardText), findsOneWidget);
+      await tapVisible(tester, find.text('close $cardText'));
+      await advance(tester);
+      await press(tester, 'btn-build-open');
+      expect(tester.takeException(), isNull);
+      expect(find.text(cardText), findsNothing);
+    });
+
+    testWidgets('冷却查询反映永久上限，重置后可以再次展示', (tester) async {
+      await features(tester);
+      const openKey = 'btn-cdq-open';
+      const statusKey = 'btn-cdq-status';
+      const cardText = 'CDQ';
+      const available = 'cdq: canShow=true permanent=false';
+      const blocked = 'cdq: canShow=false permanent=true';
+      final label = find.byKey(const Key('cdq-label'));
+      await press(tester, statusKey);
+      expect(tester.widget<Text>(label).data, available);
+      await press(tester, openKey);
+      expect(find.text(cardText), findsOneWidget);
+      await tapVisible(tester, find.text('close $cardText'));
+      await advance(tester);
+      await press(tester, openKey);
+      expect(find.text(cardText), findsNothing);
+      await press(tester, statusKey);
+      expect(tester.widget<Text>(label).data, blocked);
+      await press(tester, 'btn-cdq-reset');
+      await press(tester, statusKey);
+      expect(tester.widget<Text>(label).data, available);
+      await press(tester, openKey);
+      expect(find.text(cardText), findsOneWidget);
+      await tapVisible(tester, find.text('close $cardText'));
+      await advance(tester);
+    });
+
+    testWidgets('清理标签仅移除促销卡，重复清理保留无标签卡', (tester) async {
+      await features(tester);
+      const promo1 = 'TAG-P1', promo2 = 'TAG-P2', normal = 'TAG-N';
+      const clearKey = 'btn-tag-clear';
+      await press(tester, 'btn-tag-open');
+      for (final text in [promo1, promo2, normal]) {
+        expect(find.text(text), findsOneWidget);
+      }
+      await press(tester, clearKey);
+      expect(find.text(promo1), findsNothing);
+      expect(find.text(promo2), findsNothing);
+      expect(find.text(normal), findsOneWidget);
+      await press(tester, clearKey);
+      expect(find.text(normal), findsOneWidget);
+      await tapVisible(tester, find.text('close $normal'));
+      await advance(tester);
+      expect(find.text(normal), findsNothing);
     });
 
     testWidgets('排队过期从未展示，清理占位后也不会出现', (tester) async {

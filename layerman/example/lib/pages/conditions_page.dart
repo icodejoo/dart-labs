@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
 
@@ -32,7 +33,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
               demoButton('btn-cond-promo', 'open with route: "/promo"', () {
                 openEntry('cond-promo',
                     text: 'ROUTE /promo',
-                    route: '/promo',
+                    route: const RouteMatcher.exact('/promo'),
                     dismissWhenUnmet: true,
                     hint: 'Only visible on /promo.\n'
                         'Leaving /promo auto-dismisses this card.');
@@ -56,7 +57,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
               demoButton('btn-cond-regex', 'route: RegExp(r"^/promo")', () {
                 openEntry('cond-regex',
                     text: 'REGEX route',
-                    route: RegExp(r'^/promo'),
+                    route: RouteMatcher.regex(RegExp(r'^/promo')),
                     hint: 'Matches any route starting with /promo');
               }),
             ],
@@ -68,7 +69,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
               demoButton('btn-cond-list', 'route: ["/promo", "/zone"]', () {
                 openEntry('cond-list',
                     text: 'LIST route',
-                    route: const ['/promo', '/zone'],
+                    route: const RouteMatcher.anyOf(['/promo', '/zone']),
                     hint: 'Eligible on /promo OR /zone');
               }),
             ],
@@ -142,7 +143,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
               demoButton('btn-cond-stay', 'open route:/promo + dismissWhenUnmet:false', () {
                 openEntry('cond-stay',
                     text: 'STAYS',
-                    route: '/promo',
+                    route: const RouteMatcher.exact('/promo'),
                     dismissWhenUnmet: false,
                     hint: 'route:/promo but dismissWhenUnmet:false\n'
                         'Navigating away does NOT auto-close this');

@@ -111,7 +111,7 @@ PresentedOverlay<T> presentCard<T>(
 ///
 /// That shortcut only pops from the TOP of the stack, so it silently does
 /// nothing for an overlay that isn't topmost (e.g. `clearWhere` removing one
-/// of several stacked `overlap: true` cards while a sibling is still shown).
+/// of several stacked `mode: OverlayMode.overlap` cards while a sibling is still shown).
 /// It also reaches into GetX's global navigator, which throws
 /// ("contextless navigation without a GetMaterialApp") if called while no
 /// app is mounted (e.g. `om.clear()` racing a widget-tree teardown between
@@ -169,11 +169,10 @@ Future<T?> openCard<T>(
   int priority = 0,
   Duration? delay,
   Duration? duration,
-  bool replace = false,
+  OverlayMode mode = OverlayMode.queue,
   bool affix = false,
-  bool overlap = false,
   OverlayPredicate? when,
-  Object? route,
+  RouteMatcher? route,
   bool? requiresAuth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
@@ -188,9 +187,8 @@ Future<T?> openCard<T>(
       priority: priority,
       delay: delay,
       duration: duration,
-      replace: replace,
+      mode: mode,
       affix: affix,
-      overlap: overlap,
       when: when,
       route: route,
       requiresAuth: requiresAuth,
@@ -215,7 +213,7 @@ Future<T?> openCard<T>(
 /// Presents a demo card as a bare, non-modal [OverlayEntry] — no route, no
 /// barrier. Unlike [presentCard] (a real `showDialog` route, which always
 /// blocks input to whatever is behind it), this never steals touches outside
-/// its own bounds — the right backend for the Overlap page's `overlap: true`
+/// its own bounds — the right backend for the Overlap page's `mode: OverlayMode.overlap`
 /// demos, where several cards AND the page underneath (e.g. its
 /// `clearWhere` buttons) must all stay reachable at the same time.
 PresentedOverlay<T> presentEntry<T>(
@@ -266,11 +264,10 @@ Future<T?> openEntry<T>(
   int priority = 0,
   Duration? delay,
   Duration? duration,
-  bool replace = false,
+  OverlayMode mode = OverlayMode.queue,
   bool affix = false,
-  bool overlap = false,
   OverlayPredicate? when,
-  Object? route,
+  RouteMatcher? route,
   bool? requiresAuth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
@@ -284,9 +281,8 @@ Future<T?> openEntry<T>(
       priority: priority,
       delay: delay,
       duration: duration,
-      replace: replace,
+      mode: mode,
       affix: affix,
-      overlap: overlap,
       when: when,
       route: route,
       requiresAuth: requiresAuth,

@@ -281,11 +281,11 @@ class MixedPage extends StatelessWidget {
                   ),
                 );
               }),
-              // Two panels overlapping via overlap: true
+              // Two panels overlapping via mode: OverlayMode.overlap
               demoButton('btn-shad-panel-overlap', 'overlap 2 panels', () {
                 om.open(
                   id: 'shad-p1',
-                  overlap: true,
+                  mode: OverlayMode.overlap,
                   present: (ctx) => presentCard(
                     ctx,
                     (c, close) => Align(
@@ -314,7 +314,7 @@ class MixedPage extends StatelessWidget {
                 );
                 om.open(
                   id: 'shad-p2',
-                  overlap: true,
+                  mode: OverlayMode.overlap,
                   present: (ctx) => presentCard(
                     ctx,
                     (c, close) => Align(
