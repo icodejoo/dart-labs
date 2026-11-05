@@ -65,6 +65,8 @@ by both the static and animated rendering paths:
 Svgx.string(svgSource, theme: SvgxTheme(currentColor: Colors.blue))
 ```
 
+`pixelSnap: SvgxPixelSnap.auto` aligns mask/clip viewports during composition; `always`/`never` override it on all SVG widget entries (translation and positive scaling only, visual correction <1 physical pixel; layout, hits and semantics retain their original positions).
+
 ### Animation playback
 
 All five `Svgx.string/asset/network/file/memory` entries accept `controller`,

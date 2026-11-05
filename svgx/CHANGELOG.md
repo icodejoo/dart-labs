@@ -224,6 +224,10 @@
 * Fix animated luminance masks ignoring content alpha, including opacity and
   color-alpha animations, by compositing onto black within the existing layer.
 
+* Add composition-time SVG viewport pixel alignment with `SvgxPixelSnap.auto`
+  (default), `always` and `never` on every widget entry; reuse parsed risk
+  metadata and retained pictures under translation and positive scaling.
+
 ## 0.1.1
 
 * Docs: completed dartdoc coverage on the full public API surface; README no

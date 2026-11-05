@@ -1,6 +1,8 @@
 // SVG and native bitmap ImageProviders with byte sniffing and shared ImageCache.
 // SVG 动画按 Timer → vsync 采样；位图使用 Flutter 原生多帧解码与 ImageCache。
 
+// ImageProviders produce integer-pixel images; composition snapping is unnecessary.
+// ImageProvider 输出整像素图像，无需合成阶段对齐。
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

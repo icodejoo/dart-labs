@@ -17,6 +17,7 @@ import 'animation/svg_theme.dart';
 import 'animation/svgx_animation_controller.dart';
 import 'animation/svgx_animation_info.dart';
 import 'animation/svgx_animation_quality.dart';
+import 'pixel_snap_layer.dart';
 import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
 import 'svg_source_loader.dart';
@@ -85,6 +86,7 @@ class Svgx extends StatefulWidget {
     this.width,
     this.height,
     this.fit = BoxFit.contain,
+    this.pixelSnap = SvgxPixelSnap.auto,
     this.alignment = Alignment.center,
     this.colorFilter,
     this.theme,
@@ -135,6 +137,7 @@ class Svgx extends StatefulWidget {
     double? width,
     double? height,
     BoxFit fit = BoxFit.contain,
+    SvgxPixelSnap pixelSnap = SvgxPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgxTheme? theme,
@@ -160,6 +163,7 @@ class Svgx extends StatefulWidget {
     width: width,
     height: height,
     fit: fit,
+    pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
     theme: theme,
@@ -193,6 +197,7 @@ class Svgx extends StatefulWidget {
     double? width,
     double? height,
     BoxFit fit = BoxFit.contain,
+    SvgxPixelSnap pixelSnap = SvgxPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgxTheme? theme,
@@ -217,6 +222,7 @@ class Svgx extends StatefulWidget {
     width: width,
     height: height,
     fit: fit,
+    pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
     theme: theme,
@@ -245,6 +251,7 @@ class Svgx extends StatefulWidget {
     double? width,
     double? height,
     BoxFit fit = BoxFit.contain,
+    SvgxPixelSnap pixelSnap = SvgxPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgxTheme? theme,
@@ -269,6 +276,7 @@ class Svgx extends StatefulWidget {
     width: width,
     height: height,
     fit: fit,
+    pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
     theme: theme,
@@ -302,6 +310,7 @@ class Svgx extends StatefulWidget {
     double? width,
     double? height,
     BoxFit fit = BoxFit.contain,
+    SvgxPixelSnap pixelSnap = SvgxPixelSnap.auto,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgxTheme? theme,
@@ -325,6 +334,7 @@ class Svgx extends StatefulWidget {
     width: width,
     height: height,
     fit: fit,
+    pixelSnap: pixelSnap,
     alignment: alignment,
     colorFilter: colorFilter,
     theme: theme,
@@ -355,6 +365,14 @@ class Svgx extends StatefulWidget {
 
   /// How the picture is inscribed into the box. / picture 如何适配到盒子。
   final BoxFit fit;
+
+  /// Composition alignment; defaults to auto for mask/clip risk. Only positive
+  /// axis-aligned scaling and translation apply; visual edges move <1 physical
+  /// pixel. Layout, hit tests and semantics retain their original positions.
+  /// See [SvgxPixelSnap] for an example.
+  /// 合成对齐默认 auto，仅遮罩/裁剪风险启用；仅平移及轴对齐正缩放生效，边缘
+  /// 视觉修正 <1 物理像素；布局、点击及语义保留原位置，示例见 [SvgxPixelSnap]。
+  final SvgxPixelSnap pixelSnap;
 
   /// Alignment within the box. / 在盒子内的对齐方式。
   final Alignment alignment;
@@ -497,6 +515,7 @@ class _SvgxState extends State<Svgx> {
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
+        pixelSnap: widget.pixelSnap,
         alignment: widget.alignment,
         theme: widget.theme,
         quality: widget.quality,
@@ -523,6 +542,7 @@ class _SvgxState extends State<Svgx> {
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
+      pixelSnap: widget.pixelSnap,
       alignment: widget.alignment,
       colorFilter: widget.colorFilter,
       theme: widget.theme,
@@ -567,6 +587,7 @@ class _AsyncSvgx extends StatefulWidget {
     this.width,
     this.height,
     required this.fit,
+    required this.pixelSnap,
     required this.alignment,
     this.colorFilter,
     this.theme,
@@ -615,6 +636,15 @@ class _AsyncSvgx extends StatefulWidget {
   final double? width;
   final double? height;
   final BoxFit fit;
+
+  /// Composition alignment; defaults to auto for mask/clip risk. Only positive
+  /// axis-aligned scaling and translation apply; visual edges move <1 physical
+  /// pixel. Layout, hit tests and semantics retain their original positions.
+  /// See [SvgxPixelSnap] for an example.
+  /// 合成对齐默认 auto，仅遮罩/裁剪风险启用；仅平移及轴对齐正缩放生效，边缘
+  /// 视觉修正 <1 物理像素；布局、点击及语义保留原位置，示例见 [SvgxPixelSnap]。
+  final SvgxPixelSnap pixelSnap;
+
   final Alignment alignment;
   final ColorFilter? colorFilter;
   final SvgxTheme? theme;
@@ -756,6 +786,7 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
+      pixelSnap: widget.pixelSnap,
       alignment: widget.alignment,
       colorFilter: widget.colorFilter,
       theme: widget.theme,

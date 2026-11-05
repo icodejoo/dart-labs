@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import '../svg_affine.dart';
+import '../pixel_snap_layer.dart';
 import 'smil_animation.dart';
 
 import 'svg_dom.dart';
@@ -170,12 +171,11 @@ class AnimatedSvgPainter extends CustomPainter {
     if (size.isEmpty || intrinsicSize.isEmpty) return;
     final background = _backgroundPaint;
     if (background != null) canvas.drawRect(Offset.zero & size, background);
-    final fitted = applyBoxFit(fit, intrinsicSize, size);
-    final dest = fitted.destination;
-    final sx = dest.width / intrinsicSize.width;
-    final sy = dest.height / intrinsicSize.height;
-    final dx = (size.width - dest.width) * ((alignment.x + 1) / 2);
-    final dy = (size.height - dest.height) * ((alignment.y + 1) / 2);
+    final viewport = svgPaintViewport(intrinsicSize, size, fit, alignment);
+    final sx = viewport.width / intrinsicSize.width;
+    final sy = viewport.height / intrinsicSize.height;
+    final dx = viewport.left;
+    final dy = viewport.top;
 
     canvas.save();
     canvas.translate(dx, dy);

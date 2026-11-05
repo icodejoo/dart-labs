@@ -203,6 +203,14 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 - 帧基线:先以 `SVGX_CSS_FRAME_RECORD` 录制修改前状态,再用 `SVGX_CSS_FRAME_BASELINE` 对比;55 个 CSS SVG × 8 个时刻共 440 帧 RGBA 全部逐字节相同,无视口内外差异。前后 JSON 的 SHA-256 均为 `218d4c0e7e90bf40fe51bd123487e2a077f5a5bc4cc65be960d3e49e98c2f740`。
 - 最终检查:PATH 带 `prebuilt/windows/x64` 的 `flutter test --concurrency=1` 共 1793 项通过、5 项跳过、0 失败;跳过项为缺少浏览器参考帧的两项、未启用的大文档计时与路径基准各一项,以及原有写死 `skip: true` 的静态控件层级测试。新增 `SvgxStatic` 像素对照实际执行。`dart analyze lib test` 为 0 问题,改动 Dart 文件格式化与 `git diff --check` 通过;本工作区无残留 `flutter_tester`,原有未提交文件哈希保留(CHANGELOG 仅追加本条变更)。
 
+### 2026-11-05:合成阶段像素对齐
+
+- **根因**：带 mask/clipPath 的 SVG 视口落在分数物理像素时，视口裁剪与离屏遮罩的覆盖率叠加可在边缘留下灰线；静态 picture 与动画路径都受影响。
+- **为何绘制期对齐失败**：列表滚动、祖先 Transform 和根 DPR 可在 picture 已录制后只更新合成层，paint 时看到的变换不包含最终屏幕位置，缓存首次偏移也会在下一次滚动失效。
+- **方案**：按解析元数据启用新的 repaint boundary，在每次 Scene 合成时沿精确类型白名单累积物理变换，将实际 painter 视口原点和宽高取最近物理像素；未知/非轴对齐变换回退。复用 picture 和子容器 retained 路径，五种统一入口和两个底层入口均提供 auto/always/never，默认 auto 无风险时仍用原边界。applyTransform、注释逆变换与嵌套均使用本帧实际矩阵。
+- **交互与范围**：仅平移及轴对齐正缩放生效，边缘修正 <1 物理像素，布局、点击、语义不变；滤镜扩散、祖先分数裁剪与独立子树截图另有边界，见能力文档。
+- **真机验证待补**：用户已在华为 STG-AL00（Impeller GLES）验证原型静止场景的动画、静态灰线均消失；正式实现的真机滚动、父变换及 profile/release 性能仍待补。本次只使用 Windows 预编译原生库测试，不连接设备、不构建 APK。
+
 ### 2026-11-05:动画路径亮度 mask 忽略内容 alpha
 
 - 现象:动画绘制器把 mask 内容的 `fill-opacity`、`stroke-opacity`、元素/组 `opacity`、颜色 alpha 及其动画当作完全不透明,例如白色 `fill-opacity=".3"` 的液体应为 30% 覆盖度,却显示为纯黑。本条是动画路径的同类问题;上方「亮度 mask 忽略内容 alpha(老问题,已修)」记录的是静态路径。

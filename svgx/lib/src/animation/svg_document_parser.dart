@@ -139,6 +139,10 @@ class SvgDocument {
   /// 引用。
   final Map<String, SvgNode> masks;
 
+  /// Constant-time mask/clip risk from parsed registries; never scans source.
+  /// 从解析注册表以 O(1) 读取遮罩/裁剪风险，不扫描源文本。
+  bool get hasPixelSnapRisk => masks.isNotEmpty || clipPaths.isNotEmpty;
+
   /// `<linearGradient>`/`<radialGradient>` definitions by id, for elements
   /// painted with `fill="url(#id)"` / `stroke="url(#id)"`. Static only — see
   /// `svg_gradient.dart`.

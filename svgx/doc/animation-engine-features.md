@@ -348,6 +348,16 @@
   - 两台真机(vivo V2283A、华为 STG-AL00 消除臂序偏置后)验证 real_fps 均无实质提升,判定为不通用/收益不足。
   - 成本模型分析、合并方案否决推导等底层调研成果依然保留供参考。
 
+## 合成阶段像素对齐(PixelSnap)
+
+- `SvgxPixelSnap.auto` 为所有 SVG widget 入口默认值：动画直接读取文档 masks/clipPaths 注册表，静态在 picture 缓存未命中的共用录制出口读取 paths.effects 的 clips/mask 并保存布尔值；不扫描 SVG 源文本、不新建正则。静态未引用的定义可被解析器消去，不视为风险。
+- `always` 对所有文档启用；`never` 关闭。auto 无风险及 never 直接保留原 RepaintBoundary，不增加渲染对象或图层。ImageProvider 输出整像素图像，不提供此参数。
+- 目标为 painter 实际绘制视口，不是 widget 外框：两条 painter 和 boundary 布局共享固有尺寸、BoxFit、alignment 的计算。preserveAspectRatio 在各渲染路径内部的既有语义不变；SVG 内部的 viewBox 内容留白不当作新的外层视口。
+- 仅在经审计的祖先层链上支持平移、轴对齐正缩放（含根 DPR）。物理原点、宽高取最近整数，半像素原点取下界、尺寸取上界；边缘视觉修正 <1 物理像素，布局、点击和语义仍按原位置。连续移动/缩放可能有像素栅格跳变；小于半物理像素、非有限几何回退。
+- 精确类型白名单：OffsetLayer、OpacityLayer、ImageFilterLayer、TransformLayer、PixelSnapLayer、ContainerLayer、ClipRectLayer、ClipRRectLayer、ClipRSuperellipseLayer、ClipPathLayer、ColorFilterLayer、ShaderMaskLayer、BackdropFilterLayer，以及 AnnotatedRegionLayer 的 SystemUiOverlayStyle、MouseCursor、Object、String、int、double、bool 泛型实例。Dart 没有任意泛型类的精确反射；其他实例类型保守回退，不按类型名猜测。已知类的未知子类同样回退。
+- 旋转、斜切、反射、透视、未知祖先及 Leader/Follower 祖先回退为普通 offset。后代链接可通过 applyTransform 读取本帧实际修正；图层注释查找使用同一矩阵的逆变换，嵌套对齐使用父层本帧矩阵。
+- 每次合成重新计算，不会自行驱动帧或为纯滚动重录 picture；子容器仍可 retained，直接 PictureLayer 复用原 picture。祖先小数裁剪和滤镜扩散不在本修正范围。独立子树截图与屏幕捕获空间不同，应显式 never；完整根 Scene 截图包含修正。
+
 ## 驱动 Widget 与加载层(Dart)
 
 ### Dart 加载与 Widget 生命周期

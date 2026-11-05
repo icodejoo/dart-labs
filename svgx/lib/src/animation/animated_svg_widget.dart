@@ -2,6 +2,7 @@ import 'dart:math' show max;
 
 import 'package:flutter/widgets.dart';
 
+import '../pixel_snap_layer.dart';
 import 'animated_svg_painter.dart';
 import 'shared_animation_clock.dart';
 import 'svg_document_cache.dart';
@@ -48,6 +49,7 @@ class SvgxAnimated extends StatefulWidget {
   const SvgxAnimated.string(
     this.source, {
     super.key,
+    this.pixelSnap = SvgxPixelSnap.auto,
     this.width,
     this.height,
     this.fit = BoxFit.contain,
@@ -90,6 +92,14 @@ class SvgxAnimated extends StatefulWidget {
   ///
   /// 含支持的 SMIL 或 CSS 动画的原始 SVG 源。
   final String source;
+
+  /// Composition alignment; defaults to auto for mask/clip risk. Only positive
+  /// axis-aligned scaling and translation apply; visual edges move <1 physical
+  /// pixel. Layout, hit tests and semantics retain their original positions.
+  /// See [SvgxPixelSnap] for an example.
+  /// 合成对齐默认 auto，仅遮罩/裁剪风险启用；仅平移及轴对齐正缩放生效，边缘
+  /// 视觉修正 <1 物理像素；布局、点击及语义保留原位置，示例见 [SvgxPixelSnap]。
+  final SvgxPixelSnap pixelSnap;
 
   /// Target width; null uses the SVG's intrinsic width. / 目标宽度，null 用固有宽。
   final double? width;
@@ -674,6 +684,13 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     );
     // Isolate timeline repainting from otherwise static ancestors.
     // 将时间线重绘与其余静态祖先隔离。
-    return RepaintBoundary(child: child);
+    return pixelSnapBoundary(
+      child: child,
+      mode: widget.pixelSnap,
+      hasRisk: document.hasPixelSnapRisk,
+      intrinsicSize: Size(document.width, document.height),
+      fit: widget.fit,
+      alignment: widget.alignment,
+    );
   }
 }

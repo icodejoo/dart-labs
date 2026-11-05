@@ -220,6 +220,7 @@ Widget _make(
   SvgxTheme? theme,
   SvgxAnimationQuality? quality,
   ColorFilter? colorFilter,
+  SvgxPixelSnap pixelSnap = SvgxPixelSnap.auto,
 }) => switch (entry) {
   _Entry.string => Svgx.string(
     source,
@@ -239,6 +240,7 @@ Widget _make(
     theme: theme,
     quality: quality,
     colorFilter: colorFilter,
+    pixelSnap: pixelSnap,
   ),
   _Entry.asset => Svgx.asset(
     _name,
@@ -259,6 +261,7 @@ Widget _make(
     theme: theme,
     quality: quality,
     colorFilter: colorFilter,
+    pixelSnap: pixelSnap,
   ),
   _Entry.network => Svgx.network(
     _url,
@@ -278,6 +281,7 @@ Widget _make(
     theme: theme,
     quality: quality,
     colorFilter: colorFilter,
+    pixelSnap: pixelSnap,
   ),
   _Entry.file => Svgx.file(
     _File(source),
@@ -297,6 +301,7 @@ Widget _make(
     theme: theme,
     quality: quality,
     colorFilter: colorFilter,
+    pixelSnap: pixelSnap,
   ),
   _Entry.memory => Svgx.memory(
     Uint8List.fromList(utf8.encode(source)),
@@ -316,6 +321,7 @@ Widget _make(
     theme: theme,
     quality: quality,
     colorFilter: colorFilter,
+    pixelSnap: pixelSnap,
   ),
 };
 
@@ -345,6 +351,35 @@ void main() {
   });
 
   for (final entry in _Entry.values) {
+    testWidgets('${entry.name}: pixelSnap reaches both renderers', (
+      tester,
+    ) async {
+      for (final animated in [false, true]) {
+        final source = animated
+            ? _source
+            : '<svg width="24" height="24"><path d="M0 0H24V24Z"/></svg>';
+        for (final mode in SvgxPixelSnap.values) {
+          await HttpOverrides.runZoned(() async {
+            await tester.pumpWidget(
+              _host(
+                _make(entry, source: source, pixelSnap: mode, autoplay: false),
+              ),
+            );
+            await tester.pump();
+            await tester.pump();
+            final actual = animated
+                ? tester
+                      .widget<SvgxAnimated>(find.byType(SvgxAnimated))
+                      .pixelSnap
+                : tester.widget<SvgxStatic>(find.byType(SvgxStatic)).pixelSnap;
+            expect(actual, mode);
+            await tester.pumpWidget(const SizedBox());
+            SvgSourceLoader.instance.clear();
+          }, createHttpClient: (_) => _Client(source));
+        }
+      }
+    });
+
     testWidgets('${entry.name}: controller, callbacks and options', (
       tester,
     ) async {

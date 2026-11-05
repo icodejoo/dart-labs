@@ -44,3 +44,5 @@ export 'src/svg_image_provider.dart'
 // Primary public API: dispatches to animated (original SMIL engine) or
 // static (Rust) rendering.
 export 'src/svgx_widget.dart' show Svgx;
+
+export 'src/pixel_snap_layer.dart' show SvgxPixelSnap;
