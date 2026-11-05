@@ -90,7 +90,9 @@ class _AsyncPageState extends State<AsyncPage> {
       ),
       const SizedBox(height: 16),
       FilledButton(
-        onPressed: () => setState(() => _result = _run()),
+        onPressed: () => setState(() {
+          _result = _run();
+        }),
         child: const Text('Run both caches'),
       ),
       const SizedBox(height: 16),
