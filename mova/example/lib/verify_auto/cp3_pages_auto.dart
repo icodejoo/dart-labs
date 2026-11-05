@@ -125,9 +125,9 @@ Future<Map<String, dynamic>> _stats() async {
 }
 
 Future<void> runHeaders(Cp3Harness h) async {
-  // Supplement the unchanged five quality runs with native extraction and
-  // paused pool prewarming; keep their receipts distinct from Dart probes.
+  // 原生抽帧和暂停预热使用独立正负对照，不把 open 接受当解码完成。
   Future<Map<String, Object?>> nativePath(String path, int run) async {
+    final observations = <String, Object?>{};
     Future<bool> attempt(bool auth) async {
       final source = MovaSource(
         'http://127.0.0.1:18194/a.mp4?case=$path-$run-${auth ? 'yes' : 'no'}',
@@ -145,14 +145,30 @@ Future<void> runHeaders(Cp3Harness h) async {
           await thumb.dispose();
         }
       }
-      final pool = MovaFeedEnginePool(engineFactory: createMovaEngine);
+      final engine = createMovaEngine(preciseFirstFrame: true);
+      final pool = MovaFeedEnginePool(engineFactory: () => engine, size: 1);
       try {
+        await h.mount(engine, raw: true);
         await pool.bind(1, source).timeout(const Duration(seconds: 20));
-        return pool.slotFor(1)?.ready == true;
-      } on Object {
+        final accepted = pool.slotFor(1)?.ready == true;
+        await h.until(() => engine.state.error != null ||
+            (engine.state.rendered && engine.state.duration > Duration.zero &&
+             engine.state.width > 0 && engine.state.height > 0), seconds: 20);
+        final decoded = engine.state.error == null && engine.state.rendered &&
+            engine.state.duration > Duration.zero && !engine.state.playing;
+        observations[auth ? 'authorized' : 'denied'] = {
+          'accepted': accepted, 'decoded': decoded, 'state': h.snapshot(engine),
+          if (decoded) 'native': await h.native(),
+        };
+        return accepted && decoded;
+      } on Object catch (error) {
+        observations[auth ? 'authorized' : 'denied'] = {
+          'error': '$error', 'state': h.snapshot(engine),
+        };
         return false;
       } finally {
         await pool.dispose();
+        await h.release(disposeEngine: false);
       }
     }
     final positive = await attempt(true);
@@ -165,6 +181,7 @@ Future<void> runHeaders(Cp3Harness h) async {
     final bad = requests.where((r) => (r['query'] as String).endsWith('-no')).toList();
     return {
       'positive': positive, 'negative': negative, 'requests': requests,
+      'observations': observations,
       'pass': positive && !negative && good.isNotEmpty && bad.isNotEmpty &&
           good.every((r) => r['status'] == 200 && r['referer'] == 'https://cp3.example/authorized') &&
           bad.every((r) => r['status'] == 403),
