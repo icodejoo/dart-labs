@@ -1347,6 +1347,16 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     return k is MovaStatsProbe && (k as MovaStatsProbe).nativeRestartAvailable;
   }
 
+  /// The per-source network-timeout, if the current source sets one.
+  ///
+  /// 当前源显式设置的 network-timeout；未设置返回 null。
+  Duration? _sourceNetworkTimeout() {
+    final raw = _source?.mpvOptions['network-timeout'];
+    final secs = raw == null ? null : double.tryParse(raw);
+    if (secs == null || secs <= 0) return null;
+    return Duration(milliseconds: (secs * 1000).round());
+  }
+
   /// Wraps every kernel open so the gate ignores stale signals meanwhile.
   ///
   /// 包住每一次内核 open，使闸门在途期间忽略陈旧信号。
@@ -1424,8 +1434,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (_kernelOpening == 0 && state.keepAlivePhase != MovaKeepAlivePhase.holding) {
       _watchdog?.armStart(
         playing: _playIntent,
-        startTimeout: options.recovery.startTimeoutFor(uri),
-        stallTimeout: options.recovery.stallTimeoutFor(uri),
+        startTimeout: options.recovery.startTimeoutFor(uri, networkOverride: _sourceNetworkTimeout()),
+        stallTimeout: options.recovery.stallTimeoutFor(uri, networkOverride: _sourceNetworkTimeout()),
         overrideStall: true,
       );
     }

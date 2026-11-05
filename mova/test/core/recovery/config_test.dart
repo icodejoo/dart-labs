@@ -44,6 +44,12 @@ void main() {
       }
     });
 
+    test('按源 network-timeout 覆盖全局，期限随之放宽', () {
+      const c = MovaRecoveryConfig();
+      expect(c.startTimeoutFor('https://a', networkOverride: Duration(seconds: 120)), Duration(seconds: 125));
+      expect(c.stallTimeoutFor('https://a', networkOverride: Duration(seconds: 120)), Duration(seconds: 125));
+    });
+
     test('显式 startTimeout/stallTimeout 以用户值为准（含 WHEP）', () {
       const c = MovaRecoveryConfig(startTimeout: Duration(seconds: 3), stallTimeout: Duration(seconds: 4));
       expect(c.startTimeoutFor('https://a'), Duration(seconds: 3));

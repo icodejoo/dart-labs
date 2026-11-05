@@ -124,6 +124,11 @@ class MovaPreviewConfig {
   /// reuses one image.
   ///
   /// 位置对齐所用的桶大小，使同一桶内的拖动复用同一张图。
+  ///
+  /// Note: a custom [cacheKeyBuilder] only receives whole seconds, so keep
+  /// the bucket a whole number of seconds when using one.
+  ///
+  /// 注意：自定义 [cacheKeyBuilder] 只收到整秒，使用时请让桶为整秒。
   final Duration bucket;
 
   /// Whether extraction may use hardware decoding.

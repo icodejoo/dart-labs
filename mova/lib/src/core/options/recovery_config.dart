@@ -108,7 +108,10 @@ class MovaRecoveryConfig {
   /// ```dart
   /// const MovaRecoveryConfig().startTimeoutFor('whep://h'); // 85s（60+10+10+5）
   /// ```
-  Duration startTimeoutFor(String uri) => startTimeout ?? timeouts.startWindowFor(uri) + kMovaWatchdogMargin;
+  ///
+  /// - [networkOverride]: the source's own network-timeout, wins over [timeouts] / 按源 network-timeout，优先于 [timeouts]
+  Duration startTimeoutFor(String uri, {Duration? networkOverride}) =>
+      startTimeout ?? timeouts.startWindowFor(uri, networkOverride: networkOverride) + kMovaWatchdogMargin;
 
   /// [uri] 实际生效的卡顿看门狗期限；[stallWatchdog] 为 false 时为 `null`。
   ///
@@ -118,9 +121,11 @@ class MovaRecoveryConfig {
   /// - [uri]: 正在播放的地址 / the address being played
   ///
   /// Returns the deadline or null / 返回期限或 null。
-  Duration? stallTimeoutFor(String uri) {
+  ///
+  /// - [networkOverride]: the source's own network-timeout / 按源 network-timeout
+  Duration? stallTimeoutFor(String uri, {Duration? networkOverride}) {
     if (!stallWatchdog) return null;
-    return stallTimeout ?? timeouts.stallWindowFor(uri) + kMovaWatchdogMargin;
+    return stallTimeout ?? timeouts.stallWindowFor(uri, networkOverride: networkOverride) + kMovaWatchdogMargin;
   }
 
   /// Debug-checks the timeouts are positive; called by the engine on
