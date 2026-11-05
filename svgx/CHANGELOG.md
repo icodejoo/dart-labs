@@ -48,7 +48,8 @@
 
 * Add `SvgxDocumentCache.getOrParseAsync` and sequential, failure-tolerant
   `prewarm`. Image-free sources with at least 128 estimated opening tags use a
-  persistent parser isolate with native color/transform checks and shared in-flight work.
+  persistent parser isolate with native color/transform checks and shared in-flight work;
+  pre-check is a single allocation-free scan.
   Root-isolate-only UI operations retry synchronously and are remembered;
   unavailable workers fall back to synchronous parsing, with a 60-second
   cooldown after initialization or spawn failures. Parse errors propagate.

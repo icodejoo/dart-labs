@@ -46,6 +46,94 @@ const documentParseWorkerNodeThreshold = 128;
 /// Delay before retrying failed worker startup. / worker 启动失败后的重试间隔。
 const _documentParseWorkerCooldown = Duration(seconds: 60);
 
+// Shared character codes for both scans. / 两个扫描入口共用的字符码。
+const _lessThan = 0x3c;
+const _greaterThan = 0x3e;
+const _colon = 0x3a;
+const _slash = 0x2f;
+const _asciiUpperA = 0x41;
+const _asciiUpperZ = 0x5a;
+const _asciiLowerA = 0x61;
+const _asciiLowerZ = 0x7a;
+const _nonBreakingSpace = 0xa0;
+const _imageNameLength = 5;
+const _noName = -1;
+
+/// Counts opening tags and detects images in one scan, without substrings or
+/// regexes. Image detection matches `<(?:[^<>\s/:]+:)?image(?=[\s/>])`, including
+/// non-XML prefixes and tag-like text in comments/CDATA. Matching is case-sensitive.
+/// Returns immediately on an image; `tagCount` is incomplete in that case and
+/// must only be used when `hasImageElement` is false.
+/// 单次扫描计数开始标签并检测图片，不建子串或正则；图片检测与上述正则等价，
+/// 保留非 XML 前缀、注释及 CDATA 中的伪标签匹配，且大小写敏感。
+/// 命中图片即返回，此时 tagCount 不完整，仅在 hasImageElement 为 false 时可用。
+@visibleForTesting
+({int tagCount, bool hasImageElement}) scanSourceForWorker(String source) {
+  final units = source.codeUnits;
+  final length = units.length;
+  var count = 0;
+  var nameStart = _noName;
+  var hasPrefix = false;
+  for (var i = 0; i < length; i++) {
+    final unit = units[i];
+    if (unit == _lessThan) {
+      if (i + 1 < length) {
+        final next = units[i + 1];
+        if ((next >= _asciiUpperA && next <= _asciiUpperZ) ||
+            (next >= _asciiLowerA && next <= _asciiLowerZ)) {
+          count++;
+        }
+      }
+      // Every '<' restarts detection, even inside a rejected name.
+      // 每个 '<' 都重新开始检测，包括被拒绝名称内部的 '<'。
+      nameStart = i + 1;
+      hasPrefix = false;
+      continue;
+    }
+    if (nameStart == _noName) continue;
+    if (unit == _colon) {
+      // A single nonempty prefix; a second colon cannot match the regex.
+      // 仅允许一个非空前缀；第二个冒号不可能匹配正则。
+      if (!hasPrefix && i > nameStart) {
+        hasPrefix = true;
+        nameStart = i + 1;
+      } else {
+        nameStart = _noName;
+      }
+      continue;
+    }
+    // ECMAScript RegExp \s, including Unicode spaces and BOM, but not U+0085.
+    // ECMAScript 正则的 \s，含 Unicode 空白及 BOM，不含 U+0085。
+    final isSpace =
+        (unit >= 0x09 && unit <= 0x0d) ||
+        unit == 0x20 ||
+        (unit >= _nonBreakingSpace &&
+            (unit == _nonBreakingSpace ||
+                unit == 0x1680 ||
+                (unit >= 0x2000 && unit <= 0x200a) ||
+                unit == 0x2028 ||
+                unit == 0x2029 ||
+                unit == 0x202f ||
+                unit == 0x205f ||
+                unit == 0x3000 ||
+                unit == 0xfeff));
+    if (isSpace || unit == _slash || unit == _greaterThan) {
+      // Compare 'image' only at a real delimiter; EOF is not a delimiter.
+      // 仅在真实分隔符处比较 'image'；串尾不算分隔符。
+      if (i - nameStart == _imageNameLength &&
+          units[nameStart] == 0x69 &&
+          units[nameStart + 1] == 0x6d &&
+          units[nameStart + 2] == _asciiLowerA &&
+          units[nameStart + 3] == 0x67 &&
+          units[nameStart + 4] == 0x65) {
+        return (tagCount: count, hasImageElement: true);
+      }
+      nameStart = _noName;
+    }
+  }
+  return (tagCount: count, hasImageElement: false);
+}
+
 /// Counts `<` followed by an ASCII letter in one allocation-free character scan.
 /// Excludes closing tags, declarations and processing instructions; self-closing
 /// tags count once. Tag-like text inside comments/CDATA may slightly overcount.
@@ -56,9 +144,10 @@ int estimateDocumentParseNodeCount(String source) {
   final units = source.codeUnits;
   var count = 0;
   for (var i = 0; i + 1 < units.length; i++) {
-    if (units[i] != 0x3c) continue;
+    if (units[i] != _lessThan) continue;
     final next = units[i + 1];
-    if ((next >= 0x41 && next <= 0x5a) || (next >= 0x61 && next <= 0x7a)) {
+    if ((next >= _asciiUpperA && next <= _asciiUpperZ) ||
+        (next >= _asciiLowerA && next <= _asciiLowerZ)) {
       count++;
     }
   }
@@ -67,10 +156,6 @@ int estimateDocumentParseNodeCount(String source) {
 
 /// Maximum remembered root-only sources. / 最多记住的仅主线程源数量。
 const _maximumRootOnlySources = 256;
-
-/// Conservative image detection; false positives only keep work local.
-/// 保守检测图片；误命中只会让文档留在主线程。
-final _imageElement = RegExp(r'<(?:[^<>\s/:]+:)?image(?=[\s/>])');
 
 /// Process-wide bounded cache of parsed animated SVG documents, keyed by raw
 /// source string, with random eviction (see [maximumSize]).
@@ -247,10 +332,12 @@ class SvgxDocumentCache {
       if (_entries.containsKey(source) ||
           _rootOnlySources.contains(source) ||
           (_workerUnavailableUntil != null &&
-              debugWorkerClock().isBefore(_workerUnavailableUntil!)) ||
-          estimateDocumentParseNodeCount(source) <
-              documentParseWorkerNodeThreshold ||
-          _imageElement.hasMatch(source)) {
+              debugWorkerClock().isBefore(_workerUnavailableUntil!))) {
+        return SynchronousFuture(getOrParse(source));
+      }
+      final scan = scanSourceForWorker(source);
+      if (scan.hasImageElement ||
+          scan.tagCount < documentParseWorkerNodeThreshold) {
         return SynchronousFuture(getOrParse(source));
       }
     } catch (error, stack) {

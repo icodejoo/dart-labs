@@ -391,6 +391,22 @@ void main() {
     expect(worker.debugStartCount, 0);
   });
 
+  test('large namespaced images complete inline without a worker', () async {
+    final source = largeAsyncSvg(
+      extra:
+          '<svg:image xmlns:svg="http://www.w3.org/2000/svg" '
+          'width="1" height="1" href="data:image/png;base64,unused"/>',
+    );
+    var inline = false;
+    final parsed = cache.getOrParseAsync(source);
+    parsed.then((_) => inline = true);
+    expect(inline, isTrue);
+    expect((await parsed).hasImages, isTrue);
+    expect(cache.length, 0);
+    expect(worker.debugStartCount, 0);
+    expect(worker.debugRequestCount, 0);
+  });
+
   test(
     'prewarm ignores failures, continues and retains normal cache limits',
     () async {
