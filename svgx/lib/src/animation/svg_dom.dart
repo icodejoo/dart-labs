@@ -326,7 +326,7 @@ class SvgNode {
   Object? geometryCacheKey;
 
   /// Paint-time cache of this node's resolved presentation style, together
-  /// with the three identities it was resolved from
+  /// with the three input keys it was resolved from
   /// ([styleInheritedKey]/[styleAttributesKey]/[styleThemeKey]). Owned
   /// entirely by `animated_svg_painter.dart`'s `_resolveStyle` — nothing else
   /// reads or writes these four fields.
@@ -337,14 +337,14 @@ class SvgNode {
   /// owner casts on read — same arrangement as [geometryCacheKey].
   ///
   /// Why it is sound to cache: `ResolvedStyle.inherit` is a pure function of
-  /// the inherited style, the attribute map, and the theme, so identity on all
-  /// three is a conservative (stricter-than-needed) validity proof. A node
-  /// carrying `<animate>`s gets a fresh attribute map every frame and so
-  /// always misses; a node *under* an animated ancestor sees a fresh inherited
-  /// style instance and so always misses. Everything else — the large static
-  /// majority of a real icon's tree — hits.
+  /// the inherited style, the attribute map, and the theme. Style and map
+  /// identities conservatively prove validity; immutable themes can compare
+  /// by value, allowing distinct but equal widget themes to share the cache.
+  /// Changed animation samples replace the attribute map or inherited style,
+  /// invalidating the cache. Unchanged inputs — the large static majority of
+  /// a real icon's tree — hit.
   ///
-  /// 本节点已解析表现样式的绘制期缓存，连同它是由哪三个身份解析出来的
+  /// 本节点已解析表现样式的绘制期缓存，连同它是由哪三个输入键解析出来的
   /// （[styleInheritedKey]/[styleAttributesKey]/[styleThemeKey]）。完全由
   /// `animated_svg_painter.dart` 的 `_resolveStyle` 持有——没有其它地方读写这
   /// 四个字段。
@@ -355,10 +355,9 @@ class SvgNode {
   /// [geometryCacheKey] 的安排一致。
   ///
   /// 为什么这样缓存是正确的：`ResolvedStyle.inherit` 是继承样式、属性表、主题
-  /// 三者的纯函数，因此对三者做身份比较是一个保守（比必要条件更严格）的有效性
-  /// 证明。带 `<animate>` 的节点每帧拿到全新属性表，必然未命中；处于动画祖先
-  /// *之下*的节点每帧看到全新的继承样式实例，也必然未命中。其余节点——真实图标
-  /// 树里占多数的静态部分——命中。
+  /// 三者的纯函数。样式与属性表的身份保守地证明有效性；不可变主题可按值比较，
+  /// 使不同但等值的控件主题能共享缓存。动画采样值变化时会替换属性表或继承样式，
+  /// 使缓存失效。输入不变的节点——真实图标树里占多数的静态部分——命中。
   Object? cachedStyle;
 
   /// Identity of the inherited style [cachedStyle] was resolved from — see
@@ -373,9 +372,9 @@ class SvgNode {
   /// 解析出 [cachedStyle] 时所用属性表的身份——见该字段。
   Object? styleAttributesKey;
 
-  /// Identity of the theme [cachedStyle] was resolved from — see that field.
+  /// Value key of the theme [cachedStyle] was resolved from — see that field.
   ///
-  /// 解析出 [cachedStyle] 时所用主题的身份——见该字段。
+  /// 解析出 [cachedStyle] 时所用主题的值键——见该字段。
   Object? styleThemeKey;
 
   /// Paint-time cache of [transform] expanded into the column-major 4x4

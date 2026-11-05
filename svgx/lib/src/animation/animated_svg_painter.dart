@@ -245,13 +245,13 @@ class AnimatedSvgPainter extends CustomPainter {
   /// animated icon almost every node's style is *constant* — a line-md icon
   /// animates `stroke-dashoffset` or a transform, while `fill`, `stroke`,
   /// `stroke-width` and friends never move. The cache turns that whole
-  /// computation into three [identical] checks for the static majority.
+  /// computation into two identity checks and a cheap theme comparison for
+  /// the static majority.
   ///
-  /// Validity is proven by identity on all three inputs rather than by value
-  /// equality, which is both cheaper and conservative — a false miss only
-  /// costs a recompute, and a false hit is impossible. See
-  /// [SvgNode.cachedStyle] for why each input's identity is stable exactly
-  /// when the style genuinely cannot have changed.
+  /// Inherited styles and attribute maps use identity; themes use identity
+  /// first, then value equality, so equal themes from separate widgets reuse
+  /// the same shared document's cached styles. See [SvgNode.cachedStyle] for
+  /// the validity of these keys.
   ///
   /// 返回把 [inherited] 折叠进去后 [node] 的表现样式；当解析它所依赖的三个输入
   /// 都没变时，直接复用挂在节点上的缓存结果（见 [SvgNode.cachedStyle]）。
@@ -261,11 +261,11 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 全新的 [ResolvedStyle] 分配。然而真实动画图标里几乎每个节点的样式都是
   /// *恒定*的——line-md 风格图标动的是 `stroke-dashoffset` 或某个变换，而
   /// `fill`、`stroke`、`stroke-width` 之类从不变化。这个缓存把静态的大多数节点
-  /// 的整套计算压成三次 [identical] 比较。
+  /// 的整套计算压成两次身份比较和一次廉价的主题比较。
   ///
-  /// 有效性用三个输入的身份比较来证明，而不是值相等：既更便宜，又是保守的
-  /// ——误判未命中只损失一次重算，误判命中不可能发生。每个输入的身份为何恰好在
-  /// "样式确实不可能变化"时保持稳定，见 [SvgNode.cachedStyle]。
+  /// 继承样式和属性表按身份比较；主题先比较身份，再比较值，使不同控件创建的
+  /// 等值主题能复用同一共享文档的样式缓存。这些键的有效性见
+  /// [SvgNode.cachedStyle]。
   ResolvedStyle _resolveStyle(
     SvgNode node,
     ResolvedStyle inherited,
@@ -275,7 +275,7 @@ class AnimatedSvgPainter extends CustomPainter {
     if (cached != null &&
         identical(node.styleInheritedKey, inherited) &&
         identical(node.styleAttributesKey, attributes) &&
-        identical(node.styleThemeKey, theme)) {
+        (identical(node.styleThemeKey, theme) || node.styleThemeKey == theme)) {
       return cached as ResolvedStyle;
     }
     final resolved = inherited.inherit(attributes, theme);
