@@ -14,19 +14,24 @@ import 'package:flutter/rendering.dart'
     show debugProfileLayoutsEnabled, debugProfilePaintsEnabled;
 import 'package:svgx/svgx.dart';
 
+import 'anim_async_bench_screen.dart';
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'anim_parse_bench_screen.dart';
+import 'anim_transfer_bench_screen.dart';
 import 'bare_anim_grid.dart';
 import 'capture_hook.dart';
 import 'bench_screen.dart';
 import 'cmd_count_bench.dart';
 import 'compare_bench_screen.dart';
 import 'complex_svg_samples.dart';
+import 'illus_fps_bench_screen.dart';
+import 'img_bg_bench_screen.dart';
 import 'imgprovider_bench_screen.dart';
 import 'micro_bench.dart';
 import 'one_anim_bench_screen.dart';
 import 'static20_bench_screen.dart';
+import 'svg_grid_screen.dart';
 
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
@@ -119,6 +124,51 @@ Future<void> main() async {
       const MaterialApp(
         debugShowCheckedModeBanner: false,
         home: AnimParseBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'anim_async') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimAsyncBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'svg_grid') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SvgGridScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'illus_fps') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: IllusFpsBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'anim_transfer') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimTransferBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'img_bg') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: ImgBgBenchScreen(),
       ),
     );
     return;
