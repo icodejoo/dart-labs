@@ -112,7 +112,6 @@ class _FakeBackend {
         confirmed = true;
         visible.complete();
       });
-
     }
     _cover('visible$visibleMode');
     return PresentedOverlay<int>(
@@ -569,6 +568,10 @@ class _Scenario {
       expect(types.where((t) => t == OverlayEventType.shown).length,
           inInclusiveRange(0, p.backend.confirmed ? 1 : 0),
           reason: 'I3 shown 与后端展示不一致\n$detail');
+      if (p.outcomes == 0 && p.backend.confirmed) {
+        expect(types.where((t) => t == OverlayEventType.shown), hasLength(1),
+            reason: 'I3 活跃条目的成功可见确认必须产生 shown\n$detail');
+      }
       if (p.outcome != null) {
         final again = await p.ticket.outcome;
         expect(identical(again, p.outcome), isTrue,
@@ -1563,6 +1566,10 @@ class _ExtendedScenario {
       expect(events.where((e) => e == OverlayEventType.shown).length,
           inInclusiveRange(0, p.backend.confirmed ? 1 : 0),
           reason: 'I3\n$why');
+      if (p.values.isEmpty && p.backend.confirmed) {
+        expect(events.where((e) => e == OverlayEventType.shown), hasLength(1),
+            reason: 'I3 活跃条目的成功可见确认必须产生 shown\n$why');
+      }
       expect(events.where((e) => e == OverlayEventType.ended).length,
           p.values.length,
           reason: 'I3\n$why');

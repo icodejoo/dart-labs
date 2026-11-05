@@ -46,13 +46,16 @@ class _Storage implements OverlayCooldownStorage {
   /// 存储读取门闩。
   final loaded = Completer<String?>();
 
+  /// 允许写入同步重入，以验证可见确认的事件顺序。
+  VoidCallback? onWrite;
+
   /// 等待外部释放存储读取。
   @override
   Future<String?> read(String key) => loaded.future;
 
   /// 本测试只检查读取门控，写入即时完成。
   @override
-  Future<void> write(String key, String value) async {}
+  Future<void> write(String key, String value) async => onWrite?.call();
 }
 
 /// 创建实例并收集其事件，测试结束时取消订阅和销毁。
@@ -66,6 +69,7 @@ Layerman _manager(List<OverlayEvent> events, {FakeOverlayClock? clock}) {
   return manager;
 }
 
+/// 覆盖可见确认的计数、事件及调度组合。
 void main() {
   setUp(() {
     testerErrors.clear();
@@ -73,6 +77,50 @@ void main() {
     FlutterError.onError = (details) => testerErrors.add(details.exception);
     addTearDown(() => FlutterError.onError = previous);
   });
+
+  test('visible 计数持久化同步重入 remove，仍为 queued、shown、ended', () async {
+    final storage = _Storage();
+    final manager = Layerman(cooldownStorage: storage);
+    addTearDown(manager.dispose);
+    final events = <OverlayEvent>[];
+    manager.events.listen(events.add);
+    storage.loaded.complete(null);
+    await manager.ready();
+    const cd = OverlayCooldown(total: 1);
+    final backend = _Backend();
+    final ticket =
+        manager.submit(id: 'a', present: backend.present, cooldown: cd);
+    storage.onWrite = () => manager.remove('a');
+    backend.visible.complete();
+    await flushAsync();
+    expect((await ticket.outcome).reason, OverlayEndReason.removed);
+    expect(manager.cooldownStatus('a', cd).permanentlyBlocked, isTrue);
+    expect(events.map((e) => e.type), [
+      OverlayEventType.queued,
+      OverlayEventType.shown,
+      OverlayEventType.ended
+    ]);
+    manager.debugCheckInvariants();
+  });
+
+  for (final cd in [null, const OverlayCooldown(session: 1)]) {
+    test('visible 确认只在冷却状态改变时增加一次状态通知：cooldown=$cd', () async {
+      final events = <OverlayEvent>[];
+      final manager = _manager(events);
+      await manager.ready();
+      final backend = _Backend();
+      manager.submit(id: 'a', present: backend.present, cooldown: cd);
+      var notices = 0;
+      manager.addListener(() => notices++);
+      backend.visible.complete();
+      await flushAsync();
+      expect(notices, cd == null ? 0 : 1);
+      expect(events.map((e) => e.type),
+          [OverlayEventType.queued, OverlayEventType.shown]);
+      if (cd != null) expect(manager.cooldownStatus('a', cd).canShow, isFalse);
+      manager.debugCheckInvariants();
+    });
+  }
   test('visible 延迟：保持 open 占位，确认前不计数、不发 shown', () async {
     final events = <OverlayEvent>[];
     final manager = _manager(events);
@@ -267,7 +315,8 @@ void main() {
 
   test('hydrate 门控后才 present，visible 等待期间 suppress 不取消已激活项', () async {
     final storage = _Storage();
-    final manager = Layerman(cooldownStorage: storage);
+    final clock = FakeOverlayClock();
+    final manager = Layerman(cooldownStorage: storage, clock: clock);
     addTearDown(manager.dispose);
     final backend = _Backend();
     const cd = OverlayCooldown(total: 1, session: 1);
@@ -276,14 +325,69 @@ void main() {
     storage.loaded.complete(null);
     await manager.ready();
     expect(backend.presents, 1);
-    manager.suppress('a');
+    manager.suppress('a', duration: const Duration(seconds: 1));
     backend.visible.complete();
     await flushAsync();
     expect(manager.activeIds, ['a']);
     manager.remove('a');
     expect(manager.cooldownStatus('a', cd).suppressed, isTrue);
-    // 使用另一个没有抑制的上限查询，验证 session 也已计数。
+    clock.advance(const Duration(seconds: 1));
+    expect(manager.cooldownStatus('a', cd).suppressed, isFalse);
+    expect(
+        manager
+            .cooldownStatus('a', const OverlayCooldown(session: 1))
+            .permanentlyBlocked,
+        isTrue);
+    expect(
+        manager
+            .cooldownStatus('a', const OverlayCooldown(total: 1))
+            .permanentlyBlocked,
+        isTrue);
+  });
+
+  test('暂停期间确认仍计数，duration 冻结后按剩余时长关闭', () async {
+    final clock = FakeOverlayClock();
+    final events = <OverlayEvent>[];
+    final manager = _manager(events, clock: clock);
+    await manager.ready();
+    const cd = OverlayCooldown(session: 1);
+    final backend = _Backend();
+    final ticket = manager.submit(
+        id: 'a',
+        present: backend.present,
+        cooldown: cd,
+        duration: const Duration(seconds: 3));
+    clock.advance(const Duration(seconds: 1));
+    manager.pauseAll();
+    backend.visible.complete();
+    await flushAsync();
     expect(manager.cooldownStatus('a', cd).permanentlyBlocked, isTrue);
+    expect(events.last.type, OverlayEventType.shown);
+    clock.advance(const Duration(seconds: 10));
+    expect(ticket.isActive, isTrue);
+    manager.resumeAll();
+    clock.advance(const Duration(seconds: 2));
+    expect((await ticket.outcome).reason, OverlayEndReason.expired);
+    await flushAsync();
+    expect(manager.activeIds, isEmpty);
+  });
+
+  test('SynchronousFuture 成功也在 present 返回之后计数和 shown', () async {
+    final events = <OverlayEvent>[];
+    final manager = _manager(events);
+    await manager.ready();
+    const cd = OverlayCooldown(total: 1);
+    manager.submit<int>(
+        id: 'a',
+        cooldown: cd,
+        present: (_) => PresentedOverlay(
+            visible: SynchronousFuture<void>(null),
+            dismissed: Completer<int?>().future));
+    expect(manager.cooldownStatus('a', cd).canShow, isTrue);
+    await flushAsync();
+    expect(manager.cooldownStatus('a', cd).canShow, isFalse);
+    expect(events.map((e) => e.type),
+        [OverlayEventType.queued, OverlayEventType.shown]);
   });
 
   test('等待 visible 仍 blockedBy 占用，关闭后含 exitDuration 才释放', () async {

@@ -301,6 +301,7 @@ void main() {
     _expectStatus(manager.cooldownStatus(_id, _gapCooldown),
         canShow: true, wait: Duration.zero);
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     _expectStatus(manager.cooldownStatus(_id, _gapCooldown),
         canShow: false, wait: const Duration(seconds: 1));
     _expectStatus(manager.cooldownStatus(_id, const OverlayCooldown(total: 1)),
@@ -318,6 +319,7 @@ void main() {
         cooldown: const OverlayCooldown(session: 1),
         present: _present,
         mode: OverlayMode.overlap);
+    await tester.pump(); // 等待 session 的可见确认。
     _expectStatus(
         manager.cooldownStatus('session', const OverlayCooldown(session: 1)),
         canShow: false,
@@ -343,6 +345,7 @@ void main() {
     storage.readResult.complete(null);
     await manager.ready();
     expect(manager.activeIds, [_id]);
+    await tester.pump(); // hydrate 或 reset 放行后仍需等待后端可见确认。
     _expectStatus(manager.cooldownStatus(_id, const OverlayCooldown(total: 1)),
         canShow: false, permanent: true);
   });
@@ -352,12 +355,15 @@ void main() {
     addTearDown(manager.dispose);
     await manager.ready();
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     manager.close(_id);
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     expect(manager.queuedIds, [_id]);
     expect(manager.debugSlotCount, 1);
     manager.resetCooldown(_id);
     expect(manager.activeIds, [_id]);
+    await tester.pump(); // hydrate 或 reset 放行后仍需等待后端可见确认。
     _expectStatus(manager.cooldownStatus(_id, const OverlayCooldown(total: 1)),
         canShow: false, permanent: true);
     manager.resetCooldown(_id);
@@ -371,11 +377,13 @@ void main() {
     await manager.ready();
     const cooldown = OverlayCooldown(session: 1);
     manager.open(id: _id, cooldown: cooldown, present: _present);
+    await tester.pump(); // 此回归验证已展示的 session 计数。
     manager.close(_id);
     manager.resetCooldown(_id);
     _expectStatus(manager.cooldownStatus(_id, cooldown),
         canShow: true, wait: Duration.zero);
     manager.open(id: _id, cooldown: cooldown, present: _present);
+    await tester.pump(); // 此回归验证已展示的 session 计数。
     _expectStatus(manager.cooldownStatus(_id, cooldown),
         canShow: false, permanent: true);
     manager.clearCooldowns();
@@ -396,6 +404,7 @@ void main() {
           cooldown: const OverlayCooldown(total: 2),
           present: _present);
     }
+    await tester.pump(); // 等两项可见后的持久化写入进入串行队列。
     manager.resetCooldown(_id);
     expect(storage.writes.length, 1);
     storage.firstWrite!.complete();
@@ -437,6 +446,7 @@ void main() {
     final manager = Layerman(cooldownStorage: storage);
     await manager.ready();
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     manager.dispose();
     await tester.pump();
     final writes = storage.writes.length;
@@ -529,6 +539,7 @@ void main() {
     await manager.ready();
     final hold = manager.hold();
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     manager.resetCooldown(_id);
     expect(manager.activeIds, isEmpty);
     var notices = 0;
@@ -601,8 +612,10 @@ void main() {
     addTearDown(manager.dispose);
     await manager.ready();
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     manager.close(_id);
     manager.open(id: _id, cooldown: _gapCooldown, present: _present);
+    await tester.pump(); // 冷却从可见确认起生效。
     manager.remove(_id);
     expect(manager.records, isEmpty);
     expect(manager.debugSlotCount, 1);

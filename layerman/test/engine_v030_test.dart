@@ -151,6 +151,7 @@ void main() {
     await manager.ready();
     const cd = OverlayCooldown(day: 1);
     manager.open(id: dayId, cooldown: cd, present: _Backend().present);
+    await tester.pump(); // 先确认首帧可见，再测试跨日冷却。
     manager.remove(dayId);
     final next = _Backend();
     var settled = false;
@@ -172,6 +173,7 @@ void main() {
     await manager.ready();
     const cd = OverlayCooldown(session: 1);
     manager.open(id: cappedId, cooldown: cd, present: _Backend().present);
+    await tester.pump(); // 先确认可见，再验证永久上限丢弃。
     manager.remove(cappedId);
     manager.pauseAll();
     final dropped = manager.open(

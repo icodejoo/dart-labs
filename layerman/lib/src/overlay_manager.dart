@@ -2230,12 +2230,15 @@ class Layerman extends ChangeNotifier {
   /// 仅仍存活且未开始关闭的条目确认可见，按此刻时间计数并发布 shown。
   void _onVisible(_Entry e) => _batch(() {
         if (isDisposed || !_isCurrent(e) || !_closable(e)) return;
-        final cd = e.cooldown;
-        if (cd != null) _cooldowns.record(e.id, cd, clock.now());
+        // 先登记异步事件，防止 storage.write 同步重入移除时出现 ended → shown。
+        // 事件实际交付前仍会完成下面的计数更新。
         _emit(e, OverlayEventType.shown);
-        // 延迟确认可见可能耗尽同 id 排队项的上限，沿用现有清理语义。
-        _discardPermanentlyBlockedQueues();
-        _notify();
+        final cd = e.cooldown;
+        if (cd != null) {
+          _cooldowns.record(e.id, cd, clock.now());
+          _notify();
+        }
+        // 无冷却时公开快照没有变化，不额外通知状态监听者。
       });
 
   /// 延迟结束后复用 overlap 的一次性资格判定与挂起逻辑。

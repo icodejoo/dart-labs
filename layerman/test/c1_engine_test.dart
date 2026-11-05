@@ -104,6 +104,7 @@ void main() {
         id: 'gap',
         present: HeadlessBackend<int>().present,
         cooldown: const OverlayCooldown(minGap: Duration(seconds: 2)));
+    await flushAsync(); // 本用例的 dropped 以前一次已可见为前提。
     first.remove();
     final dropped = manager.submit(
         id: 'gap',
