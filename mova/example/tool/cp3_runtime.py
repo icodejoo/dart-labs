@@ -14,10 +14,10 @@ def wait_memory():
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         free_kb = int(result.stdout.strip())
         print('CP3 FreePhysicalMemory KiB:', free_kb, flush=True)
-        if free_kb >= 4 * 1024 * 1024:
+        if free_kb >= 3.5 * 1024 * 1024:
             return free_kb
         if time.monotonic() >= deadline:
-            raise RuntimeError('FreePhysicalMemory below 4 GiB for 40 minutes')
+            raise RuntimeError('FreePhysicalMemory below 3.5 GiB for 40 minutes')
         time.sleep(60)
 
 
