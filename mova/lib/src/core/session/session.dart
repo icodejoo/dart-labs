@@ -1476,6 +1476,32 @@ class MovaSession {
       }
       return;
     }
+    // A mid-roll is still warming behind the on-screen content: the content's
+    // own end/fatal failure is real and must not be swallowed. Drop the warm
+    // wait and handle it normally.
+    //
+    // 中插仍在正片身后预热：此时正片自己的结束/终结失败是真实的，不能被吞；
+    // 放弃预热等待，按正常路径处理。
+    if (_landing && _phase == MovaSessionPhase.pending && _api.state.renderEpoch == _pendingContentEpoch) {
+      final adSource = _landingSource;
+      final isAds = switch (e) {
+        MovaPlayFailure() => adSource != null && adSource.uris.contains(e.fail.uri),
+        MovaErrorEvent() => adSource != null && identical(e.source, adSource),
+        _ => false,
+      };
+      final contentEnds = !isAds &&
+          (e is MovaDone ||
+              (e is MovaErrorEvent && e.fatal) ||
+              (e is MovaPlayFailure && e.action == MovaRecoveryAction.giveUp));
+      if (contentEnds) {
+        _landing = false;
+        _landingSource = null;
+        _landingFailures.clear();
+        _adAttempt = null;
+        _adWarm = null;
+        unawaited(_cutover?.abandon());
+      }
+    }
     if (_landing &&
         (e is MovaDone ||
             e is MovaErrorEvent ||
