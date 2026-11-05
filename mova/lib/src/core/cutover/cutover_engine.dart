@@ -516,9 +516,13 @@ class MovaCutoverEngine
   @override
   Object? get renderHandle => _active.renderHandle;
 
+  /// Captures the active engine frame; returns null if replaced or unavailable.
+  /// Leaves a three-second fallback outside the active engine capture deadline.
+  /// Example: `final image = await engine.screenshot();`.
+  ///
   /// 截取生效引擎的当前画面；切换、销毁或不支持时返回 null。
   ///
-  /// 示例：`final image = await engine.screenshot();`，暂停等待上限为 2 秒。
+  /// 示例：`final image = await engine.screenshot();`。普通引擎最多等 2 秒，代理以 3 秒兜底。
   @override
   Future<Uint8List?> screenshot() async {
     if (_disposed) return null;
@@ -527,7 +531,7 @@ class MovaCutoverEngine
     if (active is! MovaFrameCapture) return null;
     try {
       final image = await (active as MovaFrameCapture).screenshot()
-          .timeout(const Duration(seconds: 2));
+          .timeout(const Duration(seconds: 3));
       return !_disposed && identical(active, _active) && epoch == _epoch &&
           image != null && image.isNotEmpty ? image : null;
     } on Object {

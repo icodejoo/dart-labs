@@ -30,6 +30,9 @@ class _CaptureApi extends FakeMovaApi implements MovaFrameCapture {
   Future<Uint8List?> screenshot() => gate.future;
 }
 
+/// Exercises bounded capture and cutover ownership.
+///
+/// 验证有界截图与切换归属。
 void main() {
   test('cutover 提交后丢弃旧生效引擎截图，后续截图转发新引擎', () async {
     final made = <_CaptureApi>[];
@@ -66,8 +69,72 @@ void main() {
     await api.dispose();
   });
 
+  test('cutover allows the inner two-second deadline to settle', () {
+    fakeAsync((clock) {
+      final active = _CaptureApi();
+      final api = MovaCutoverEngine(engineFactory: () => active);
+      Uint8List? result;
+      var done = false;
+      api.screenshot().then((image) {
+        result = image;
+        done = true;
+      });
+      Timer(
+        const Duration(seconds: 2),
+        () => active.gate.complete(Uint8List.fromList([7])),
+      );
+      clock.elapse(const Duration(seconds: 2));
+      expect(done, isTrue);
+      expect(result, [7]);
+      api.dispose();
+      clock.flushMicrotasks();
+    });
+  });
+
   for (final cutover in [false, true]) {
     final name = cutover ? 'cutover' : '普通';
+    for (final succeeds in [true, false]) {
+      test('$name playing capture retries within total budget: $succeeds', () {
+        fakeAsync((clock) {
+          final kernel = _CaptureKernel();
+          final engine = MovaEngine(
+            kernel: kernel,
+            fetcher: const MovaTestHttpFetch(),
+          );
+          final MovaApi api = cutover
+              ? MovaCutoverEngine(engineFactory: () => engine)
+              : engine;
+          final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+          pool.bind(0, const MovaSource('https://h/playing.mp4'), autoPlay: true);
+          clock.flushMicrotasks();
+          kernel.emitPlaying(true);
+          clock.flushMicrotasks();
+          expect(api.state.playing, isTrue);
+          kernel.capture = () async => succeeds && kernel.shots >= 3
+              ? Uint8List.fromList([8])
+              : null;
+          Uint8List? result;
+          var done = false;
+          (api as MovaFrameCapture).screenshot().then((image) {
+            result = image;
+            done = true;
+          });
+          clock.flushMicrotasks();
+          expect(done, isFalse);
+          clock.elapse(Duration(milliseconds: succeeds ? 150 : 1999));
+          expect(done, succeeds);
+          if (!succeeds) clock.elapse(const Duration(milliseconds: 1));
+          expect(done, isTrue);
+          expect(result, succeeds ? [8] : isNull);
+          expect(kernel.shots, greaterThan(1));
+          final shots = kernel.shots;
+          clock.elapse(const Duration(seconds: 3));
+          expect(kernel.shots, shots);
+          pool.dispose();
+          clock.flushMicrotasks();
+        });
+      });
+    }
     for (final window in [100, 350, 700, 1050, -700, -1]) {
       test('$name 真机窗口：$window', () {
         fakeAsync((async) {
@@ -190,7 +257,7 @@ void main() {
             }
             expect(done, isTrue, reason: '总等待不得超过 2 秒');
             expect(result, isNull);
-            if (scenario == '挂起' || scenario == '播放' || scenario == '异常') {
+            if (scenario == '挂起' || scenario == '异常') {
               expect(kernel.shots, 1);
             }
           }

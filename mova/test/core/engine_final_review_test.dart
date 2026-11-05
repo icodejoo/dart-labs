@@ -96,9 +96,11 @@ MovaEngine _engine(
   MovaLiveConfig live = const MovaLiveConfig(),
   MovaRecoveryConfig recovery = const MovaRecoveryConfig(),
   MovaOrientationPort? orientation,
+  List<MovaHook> interceptors = const [],
 }) => createMovaEngine(
   kernel: kernel,
   ownsKernel: true,
+  interceptors: interceptors,
   pip: MovaNoopPipPort(),
   brightness: MovaFallbackBrightnessPort(),
   orientation: orientation ?? MovaNoopOrientationPort(),
@@ -109,6 +111,27 @@ MovaEngine _engine(
     recovery: recovery,
   ),
 );
+
+/// Hook that allows opens until [gate] is set, then rejects after it completes.
+///
+/// 在设置 [gate] 前放行 open，设置后等它完成再拒绝。
+class _RejectingHook extends MovaHook {
+  /// When non-null, `beforeOpen` waits on it and rejects.
+  ///
+  /// 非空时 `beforeOpen` 等待它完成后拒绝。
+  Completer<void>? gate;
+
+  /// Allows until [gate] is set; afterwards waits and rejects.
+  ///
+  /// 设置 [gate] 前放行；之后等待并拒绝。
+  @override
+  Future<bool> beforeOpen(MovaSource source) async {
+    final g = gate;
+    if (g == null) return true;
+    await g.future;
+    return false;
+  }
+}
 
 /// Runs the final-review engine regressions with controlled interleavings.
 ///
@@ -205,6 +228,49 @@ low.m3u8
         k.emitBuffering(false);
         clock.flushMicrotasks();
         expect(k.lastSeek, const Duration(seconds: 80));
+        e.dispose();
+        clock.flushMicrotasks();
+      });
+    });
+  }
+
+  for (final rejectFirst in [false, true]) {
+    test('rejected host open during quality reload keeps the resume seek '
+        '(rejectFirst: $rejectFirst)', () {
+      fakeAsync((clock) {
+        final k = _GatedKernel();
+        final hook = _RejectingHook();
+        final e = _engine(k, interceptors: [hook]);
+        e.open(_vod);
+        clock.flushMicrotasks();
+        k.emitDuration(const Duration(minutes: 2));
+        k.emitPosition(const Duration(seconds: 42));
+        clock.flushMicrotasks();
+        k.openGate = Completer<void>();
+        e.switchQuality(_quality);
+        clock.flushMicrotasks();
+        hook.gate = Completer<void>();
+        bool? opened;
+        e.open(const MovaSource('https://h/next.mp4')).then((v) => opened = v);
+        clock.flushMicrotasks();
+        if (rejectFirst) {
+          hook.gate!.complete();
+          clock.flushMicrotasks();
+        }
+        k.openGate!.complete();
+        clock.flushMicrotasks();
+        if (!rejectFirst) {
+          hook.gate!.complete();
+          clock.flushMicrotasks();
+        }
+        expect(opened, isFalse);
+        k.emitDuration(const Duration(minutes: 2));
+        k.emitSize(1280, 720);
+        k.emitBuffering(true);
+        k.emitBuffering(false);
+        clock.flushMicrotasks();
+        expect(k.lastSeek, const Duration(seconds: 42));
+        expect(e.state.currentQuality, _quality);
         e.dispose();
         clock.flushMicrotasks();
       });
