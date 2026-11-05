@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mova/mova.dart';
 import 'cp3_harness.dart';
 
@@ -157,6 +158,10 @@ Future<void> runHeaders(Cp3Harness h) async {
         }
       }
       final engine = createMovaEngine(preciseFirstFrame: true);
+      final signals = <String>[];
+      final frameSub = engine.events.listen((event) {
+        if (event is MovaFirstFrame) signals.add(event.signal.name);
+      });
       final pool = MovaFeedEnginePool(engineFactory: () => engine, size: 1);
       try {
         await h.mount(engine, raw: true);
@@ -165,10 +170,18 @@ Future<void> runHeaders(Cp3Harness h) async {
         await h.until(() => engine.state.error != null ||
             (engine.state.rendered && engine.state.duration > Duration.zero &&
              engine.state.width > 0 && engine.state.height > 0), seconds: 20);
-        final decoded = engine.state.error == null && engine.state.rendered &&
+        final mediaReady = engine.state.error == null && engine.state.rendered &&
             engine.state.duration > Duration.zero && !engine.state.playing;
+        // 首帧 gate 可由 size/grace 兜底；实际采到图像才认领解码预热成功。
+        final image = mediaReady
+            ? await (engine.renderHandle as VideoController).player
+                .screenshot(format: 'image/jpeg')
+                .timeout(const Duration(seconds: 10))
+            : null;
+        final decoded = mediaReady && image != null && image.isNotEmpty;
         observations[auth ? 'authorized' : 'denied'] = {
           'accepted': accepted, 'decoded': decoded, 'state': h.snapshot(engine),
+          'firstFrameSignals': signals, 'imageBytes': image?.length,
           if (decoded) 'native': await h.native(),
         };
         return accepted && decoded;
@@ -179,6 +192,7 @@ Future<void> runHeaders(Cp3Harness h) async {
         return false;
       } finally {
         await pool.dispose();
+        await frameSub.cancel();
         await h.release(disposeEngine: false);
       }
     }

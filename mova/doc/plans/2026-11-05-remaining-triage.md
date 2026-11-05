@@ -15,6 +15,7 @@
 - `MovaHeaderedHttpFetch` 用于 Dart 辅助请求（清晰度/VTT/预取）；池走 engine → mpv 原生媒体加载头。原回执中 authorized Referer/200、denied 无头/403 均出现，不能据 ready 双 true 认定头丢失。
 - 修正：单引擎池挂载真实 surface，开启 preciseFirstFrame，等待 rendered+非零 duration/尺寸或错误；保留 accepted、decoded、状态和原生 path/time-pos/pause。再释放池、汇总两侧 HTTP 回执。负对照超时/错误不冒充成功，缺服务端回执仍 FAIL。
 - 需要新 APK、原 5 轮正负对照复验。解码预热尚未获得有效设备验收。
+- 补强解码判据：首帧 gate 允许 size/grace 兜底，故仅 rendered 仍不够；现在还要求暂停状态下真实 surface 的 screenshot 返回非空 JPEG，记录 imageBytes 与 firstFrameSignals，再认领 decoded=true。截图失败保留失败，不自动重试。此补强追加独立夹具提交；example analyze 仍 41→41（无新增），定向测试 3 PASS，matrix --check / Python 80 PASS。
 
 ## 3. 回执 14 条：12 条夹具判据错误，2 条普通引擎产品缺陷
 
