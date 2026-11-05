@@ -18,15 +18,24 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Dependencies
+      - name: Dependencies (package only)
         working-directory: layerman
+        run: flutter pub get --no-example
+      - name: Example dependencies
+        working-directory: layerman/example
         run: flutter pub get
       - name: Analyze
         working-directory: layerman
         run: flutter analyze
+      - name: Analyze example (README recipes included)
+        working-directory: layerman/example
+        run: flutter analyze --no-pub
       - name: Unit tests
         working-directory: layerman
-        run: flutter test
+        run: flutter test --no-pub
+      - name: README backend recipe tests
+        working-directory: layerman/example
+        run: flutter test --no-pub test/readme_backend_recipe_test.dart
 
   min-sdk:
     name: test on minimum Flutter (3.27.4)
@@ -43,4 +52,4 @@ jobs:
         run: flutter pub get --no-example
       - name: Unit tests
         working-directory: layerman
-        run: flutter test
+        run: flutter test --no-pub

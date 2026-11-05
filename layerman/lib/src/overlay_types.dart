@@ -10,7 +10,7 @@ enum OverlayMode {
   /// 抢占所在 slot 的当前条目。
   replace,
 
-  /// 绕过队列叠加在上面，现在或永不。
+  /// 绕过队列叠加；普通条件和冷却现在或永不，业务 waitUntil 可等待。
   overlap,
 }
 
@@ -125,6 +125,9 @@ enum OverlayEndReason {
   /// 被 suppress 抑制。
   suppressed,
 
+  /// 被业务 gate 永久拒绝。
+  gated,
+
   /// 槽位排队已满，被挤出队尾。
   queueFull,
 
@@ -136,6 +139,36 @@ enum OverlayEndReason {
 
   /// 管理器已销毁。
   disposed,
+}
+
+/// 业务激活资格；与 route、auth、when 及 cooldown 按 AND 组合。
+/// 只在激活前求值，不影响已解析或已展示的条目。
+/// pass 允许激活，waitUntil 等待后重判，drop 永久拒绝并以 gated 结束。
+/// gate 异常与 when/auth 有意共用每条目一次的上报名额；用法见 `OverlayGate`。
+@immutable
+class OverlayVerdict {
+  /// 允许激活，仍须通过其他资格及槽位约束。
+  const OverlayVerdict.pass()
+      : retryAt = null,
+        reason = null;
+
+  /// 等到 [retryAt] 后自动重判；已到期的时刻视为通过，仍须满足其他激活约束。
+  /// 必须按 Layerman.clock 计时，例如 `manager.clock.now().add(...)`；
+  /// FakeOverlayClock 下用 DateTime.now() 会算错截止时间。
+  /// 串行与 overlap 均可等待；期间 setContext 会重判，可提前通过、延后或永久拒绝。
+  const OverlayVerdict.waitUntil(DateTime this.retryAt) : reason = null;
+
+  /// 永久拒绝条目；业务拒绝一律以 [OverlayEndReason.gated] 结束。
+  /// 调用方可在自己的 gate 闭包里记录具体原因。
+  const OverlayVerdict.drop()
+      : retryAt = null,
+        reason = OverlayEndReason.gated;
+
+  /// 与 Layerman.clock 同源的自动重判时刻；pass 或 drop 时为 null。
+  final DateTime? retryAt;
+
+  /// drop 固定为 [OverlayEndReason.gated]；pass 或 waitUntil 时为 null。
+  final OverlayEndReason? reason;
 }
 
 /// 单次提交首次结束时的值与原因。
