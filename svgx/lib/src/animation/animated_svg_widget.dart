@@ -30,6 +30,12 @@ const _unthrottledDivisor = 1;
 /// [autoplay]、[playbackRate] 自动播放。所有挂载控件的 TickerMode 都关闭时暂停；
 /// 单独 Offstage 不暂停。
 ///
+/// [animation] is mutually exclusive with [controller]; it supplies vsync and
+/// TickerMode and bypasses shared-clock concurrency and frame skipping.
+/// Prefer controller/implicit playback for many concurrent instances.
+/// [animation] 与 [controller] 互斥，由驱动方提供 vsync 和 TickerMode，
+/// 不计入共享时钟并发，也不参与跳帧降级；大量并发推荐用 controller/隐式模式。
+///
 /// ```dart
 /// SvgxAnimated.string(svgSource, width: 48, height: 48)
 /// ```
@@ -49,6 +55,8 @@ class SvgxAnimated extends StatefulWidget {
     this.maxFps,
     this.playbackRate = _normalPlaybackRate,
     this.controller,
+    this.animation,
+    this.animationSpan,
     this.autoplay = true,
     this.onLoaded,
     this.onError,
@@ -56,6 +64,7 @@ class SvgxAnimated extends StatefulWidget {
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
+    this.onEvent,
   }) : assert(maxFps == null || maxFps > 0, 'maxFps must be positive'),
        assert(
          playbackRate > double.negativeInfinity &&
@@ -65,6 +74,14 @@ class SvgxAnimated extends StatefulWidget {
        assert(
          controller == null || playbackRate == _normalPlaybackRate,
          'Use the controller playbackRate when providing a controller',
+       ),
+       assert(
+         controller == null || animation == null,
+         'controller and animation are mutually exclusive',
+       ),
+       assert(
+         animation == null || (autoplay && playbackRate == _normalPlaybackRate),
+         'Leave autoplay and playbackRate at defaults when providing animation',
        );
 
   /// Raw SVG markup containing supported SMIL or CSS animations.
@@ -115,6 +132,8 @@ class SvgxAnimated extends StatefulWidget {
   /// 请求的时间线采样和重绘频率上限；null 表示不额外限制。共用 [controller] 时
   /// 采用挂载控件中最宽松的上限，因此其它控件的更高上限或 null 可覆盖本请求。
   /// 最终上限与 [quality] 取更大的跳帧除数。
+  /// Ignored with [animation]; sampling follows its notifications.
+  /// 传入 [animation] 时不生效，采样跟随其通知。
   final double? maxFps;
 
   /// Finite playback speed when [controller] is null: negative reverses and
@@ -123,6 +142,8 @@ class SvgxAnimated extends StatefulWidget {
   ///
   /// [controller] 为空时的有限播放速率：负值倒放，零暂停；改速率保持当前时间。
   /// 传入 [controller] 时保留默认值，改用控制器的速率。
+  /// Ignored with [animation]; must remain at the default.
+  /// 传入 [animation] 时不生效，必须保留默认值。
   final double playbackRate;
 
   /// Optional shared playback controller; its time is preserved on source swaps.
@@ -130,9 +151,28 @@ class SvgxAnimated extends StatefulWidget {
   /// 可选共享播放控制器；换源时保留其时间。
   final SvgxAnimationController? controller;
 
+  /// External document time: value × [animationSpan] (or naturalDuration).
+  /// Values usually lie in 0..1; negative times clamp to zero, positive
+  /// overshoot is allowed beyond the span. Mutually exclusive with [controller].
+  /// No started/completed events are emitted; observe the driver's status.
+  /// Disposing a Flutter AnimationController stops updates, retaining the frame;
+  /// this widget never disposes the supplied animation.
+  /// 外部文档时间为 value × [animationSpan]（或自然时长）。值通常在 0..1；
+  /// 负时间钳到零，正向超调允许超过 span。与 [controller] 互斥。
+  /// 不发 started/completed，请观察驱动方状态；释放 Flutter AnimationController
+  /// 后停止更新并保留画面，控件不会释放传入的动画。
+  final Animation<double>? animation;
+
+  /// Mapping span for [animation]; null uses the document's natural duration.
+  /// If both are unknown, reports through [onError]/[errorBuilder]/FlutterError.
+  /// [animation] 的映射时长；null 使用文档自然时长。
+  /// 两者均未知时，经 [onError]/[errorBuilder]/FlutterError 报告错误。
+  final Duration? animationSpan;
+
   /// Starts automatic playback when no [controller] is supplied.
   ///
   /// 未传 [controller] 时是否自动播放。
+  /// Ignored with [animation]; must remain true. / 传入 [animation] 时不生效，须为 true。
   final bool autoplay;
 
   /// Called once after this source and its embedded images are ready.
@@ -140,9 +180,9 @@ class SvgxAnimated extends StatefulWidget {
   /// 当前源及其内嵌图片就绪后调用一次。
   final ValueChanged<SvgxAnimationInfo>? onLoaded;
 
-  /// Receives parsing failures together with their stack traces.
+  /// Receives parsing or animation-span failures with their stack traces.
   ///
-  /// 接收解析失败及其堆栈。
+  /// 接收解析或动画映射时长失败及其堆栈。
   final void Function(Object error, StackTrace stackTrace)? onError;
 
   /// Builds replacement content on failure; null uses an empty sized box.
@@ -153,6 +193,7 @@ class SvgxAnimated extends StatefulWidget {
   /// Called once, on the first tick after this instance starts ticking.
   ///
   /// 本实例开始 ticking 后的第一个 tick 上调用一次。
+  /// Never called with [animation]. / 传入 [animation] 时不触发。
   final VoidCallback? onAnimationStart;
 
   /// Called once when a finite (non-looping) document naturally settles into
@@ -162,6 +203,7 @@ class SvgxAnimated extends StatefulWidget {
   ///
   /// 有限（非循环）文档自然播完定格时调用一次——[SvgDocument.hasIndefiniteLoop]
   /// 的文档永不触发，因其它原因（源切换、卸载或手动配置的片段）停止 ticking 时也不触发。
+  /// Never called with [animation]. / 传入 [animation] 时不触发。
   final VoidCallback? onAnimationComplete;
 
   /// Called at each `settleTime + iteration * loopPeriod` crossing for a
@@ -170,6 +212,10 @@ class SvgxAnimated extends StatefulWidget {
   /// 循环文档有已知周期时，在每次穿越 `settleTime + iteration * loopPeriod`
   /// 时调用，iteration 从一开始。
   final ValueChanged<int>? onAnimationLoop;
+
+  /// Receives playback and element begin/end/repeat events in all drive modes.
+  /// 在所有驱动模式下接收播放事件及元素 begin/end/repeat 事件。
+  final ValueChanged<SvgxAnimationEvent>? onEvent;
 
   /// Creates the renderer state. / 创建渲染状态。
   @override
@@ -195,10 +241,17 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   /// Whether this state owns the controller. / 本状态是否拥有控制器。
   bool _ownsController = false;
 
-  /// Whether legacy callbacks currently need an event subscription.
+  /// Whether widget callbacks currently need an event subscription.
   ///
-  /// 旧回调当前是否需要事件订阅。
+  /// 控件回调当前是否需要事件订阅。
   bool _bridgingEvents = false;
+
+  /// Animation currently carrying our value listener. / 当前挂载值监听的动画。
+  Animation<double>? _listenedAnimation;
+
+  /// Resolved external mapping span after document readiness.
+  /// 文档就绪后解析出的外部映射时长。
+  Duration? _animationSpan;
 
   /// Whether decoded images belong exclusively to this state.
   ///
@@ -216,6 +269,10 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   /// 用于拒绝过期的图片续体和延迟回调。
   int _parseGeneration = 0;
 
+  /// Last source generation whose loaded callback was delivered.
+  /// 最近已交付加载回调的源代数。
+  int _loadedGeneration = -1;
+
   /// Current parsing error. / 当前解析错误。
   Object? _error;
 
@@ -230,25 +287,51 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     _parseAndStart();
   }
 
-  /// Chooses the external controller or creates an implicit one.
+  /// Chooses the external controller or creates an owned drive binding.
   ///
-  /// 选择外部控制器或创建隐式控制器。
+  /// 选择外部控制器或创建自有驱动绑定。
   void _bindController() {
     _ownsController = widget.controller == null;
     _controller =
         widget.controller ??
-        SvgxAnimationController(
-          autoplay: widget.autoplay,
-          playbackRate: widget.playbackRate,
-        );
+        (widget.animation != null
+            ? SvgxAnimationController.externallyDriven()
+            : SvgxAnimationController(
+                autoplay: widget.autoplay,
+                playbackRate: widget.playbackRate,
+              ));
     _updateEventBridge();
+    _listenedAnimation = widget.animation;
+    _listenedAnimation?.addListener(_onAnimationValue);
   }
 
-  /// Subscribes only when a legacy callback needs events.
+  /// Maps each driver value change through the ready document span.
+  /// 将驱动方的每次取值变化映射到就绪文档时长。
+  void _onAnimationValue() => _syncAnimationValue();
+
+  /// Pushes the driver's current value; [emitCrossings] false makes the
+  /// initial sync after (re)attaching behave like a seek, so mounting midway
+  /// does not replay every event since zero.
+  /// 推送驱动方当前值；[emitCrossings] 为 false 时，（重新）挂载后的首次同步
+  /// 等同 seek，中途挂载不会补发从零开始的全部事件。
+  void _syncAnimationValue({bool emitCrossings = true}) {
+    final span = _animationSpan;
+    final animation = _listenedAnimation;
+    if (animation == null || span == null || !_imagesReady || _error != null) {
+      return;
+    }
+    _controller.driveTo(
+      Duration(microseconds: (animation.value * span.inMicroseconds).round()),
+      emitCrossings: emitCrossings,
+    );
+  }
+
+  /// Subscribes only when a widget callback needs events.
   ///
-  /// 仅在旧回调需要事件时订阅。
+  /// 仅在控件回调需要事件时订阅。
   void _updateEventBridge() {
     final needed =
+        widget.onEvent != null ||
         widget.onAnimationStart != null ||
         widget.onAnimationComplete != null ||
         widget.onAnimationLoop != null;
@@ -265,6 +348,12 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   ///
   /// 释放本状态的绑定，仅销毁自有控制器。
   void _unbindController() {
+    // Flutter AnimationController permits removal after dispose and clears its
+    // listeners on dispose; no ownership or status listener is needed here.
+    // Flutter AnimationController 允许释放后移除监听，释放时也会清空监听者。
+    _listenedAnimation?.removeListener(_onAnimationValue);
+    _listenedAnimation = null;
+    _animationSpan = null;
     if (_bridgingEvents) {
       _controller.removeEventListener(_onControllerEvent);
       _bridgingEvents = false;
@@ -273,10 +362,18 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     if (_ownsController) _controller.dispose();
   }
 
-  /// Forwards playback events to the legacy widget callbacks.
+  /// Forwards events to widget callbacks, rejecting reentrant binding changes.
   ///
-  /// 将播放事件转发给旧控件回调。
+  /// 将事件转发给控件回调，拒绝重入后的绑定变更。
   void _onControllerEvent(SvgxAnimationEvent event) {
+    final controller = _controller;
+    final generation = _parseGeneration;
+    widget.onEvent?.call(event);
+    if (!mounted ||
+        controller != _controller ||
+        generation != _parseGeneration) {
+      return;
+    }
     if (!_imagesReady || _error != null) return;
     if (event is SvgxAnimationStarted) {
       widget.onAnimationStart?.call();
@@ -300,21 +397,26 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     _controller.setVisible(this, enabled);
   }
 
-  /// Applies source/controller swaps and implicit playback settings.
+  /// Applies source/driver/span swaps and implicit playback settings.
   ///
-  /// 应用源或控制器切换，以及隐式播放设置。
+  /// 应用源、驱动方或映射时长切换，以及隐式播放设置。
   @override
   void didUpdateWidget(SvgxAnimated oldWidget) {
     super.didUpdateWidget(oldWidget);
     final sourceChanged = oldWidget.source != widget.source;
-    final controllerChanged = oldWidget.controller != widget.controller;
+    final controllerChanged =
+        oldWidget.controller != widget.controller ||
+        oldWidget.animation != widget.animation;
+    final spanChanged =
+        widget.animation != null &&
+        oldWidget.animationSpan != widget.animationSpan;
     final resetImplicit = sourceChanged && widget.controller == null;
     if (controllerChanged || resetImplicit) {
       _unbindController();
       _bindController();
     } else {
       _updateEventBridge();
-      if (_ownsController) {
+      if (_ownsController && widget.animation == null) {
         if (oldWidget.playbackRate != widget.playbackRate) {
           _controller.playbackRate = widget.playbackRate;
         }
@@ -331,12 +433,14 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
       final previous = _document;
       if (_ownsImages && previous != null) _disposeImages(previous);
       _parseAndStart();
-    } else if (controllerChanged) {
+    } else if (controllerChanged || spanChanged) {
       final document = _document;
-      if (_error != null) {
-        _controller.documentError(this, _error!, _errorStack!);
-      } else if (document != null && _imagesReady) {
+      if (document != null && _imagesReady) {
+        _error = null;
+        _errorStack = null;
         _attach(document);
+      } else if (_error != null) {
+        _controller.documentError(this, _error!, _errorStack!);
       } else {
         _controller.documentLoading(this);
       }
@@ -368,7 +472,6 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
           }
           setState(() => _imagesReady = true);
           _attach(document);
-          _notifyLoaded(document.info, generation);
         }
 
         Future<void>.sync(
@@ -376,36 +479,60 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
         ).then((_) => ready(), onError: (Object _, StackTrace _) => ready());
       } else {
         _attach(document);
-        _notifyLoaded(document.info, generation);
       }
     } catch (error, stack) {
       _imagesReady = false;
-      _error = error;
-      _errorStack = stack;
-      _controller.documentError(this, error, stack);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || generation != _parseGeneration) return;
-        final onError = widget.onError;
-        if (onError != null) {
-          onError(error, stack);
-        } else if (widget.errorBuilder == null) {
-          FlutterError.reportError(
-            FlutterErrorDetails(
-              exception: error,
-              stack: stack,
-              library: 'svgx',
-              context: ErrorDescription('while parsing an animated SVG'),
-            ),
-          );
-        }
-      });
+      _reportError(error, stack);
     }
   }
 
-  /// Attaches a ready document with live quality and display settings.
+  /// Routes parse and external-mapping failures through the same handlers.
+  /// 将解析与外部映射失败交给同一组处理器。
+  void _reportError(Object error, StackTrace stack) {
+    final generation = _parseGeneration;
+    _animationSpan = null;
+    _error = error;
+    _errorStack = stack;
+    _controller.documentError(this, error, stack);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          generation != _parseGeneration ||
+          !identical(error, _error)) {
+        return;
+      }
+      final onError = widget.onError;
+      if (onError != null) {
+        onError(error, stack);
+      } else if (widget.errorBuilder == null) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'svgx',
+            context: ErrorDescription('while loading an animated SVG'),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Validates external mapping and attaches a ready document.
   ///
-  /// 以实时画质和显示设置挂载已就绪的文档。
+  /// 验证外部映射并挂载就绪文档。
   void _attach(SvgDocument document) {
+    if (widget.animation != null) {
+      final span = widget.animationSpan ?? document.info.naturalDuration;
+      if (span == null) {
+        _reportError(
+          StateError(
+            'animationSpan is required when naturalDuration is unknown',
+          ),
+          StackTrace.current,
+        );
+        return;
+      }
+      _animationSpan = span;
+    }
     _controller.attach(
       this,
       document: document,
@@ -413,6 +540,8 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
       quality: _quality,
       fpsDivisor: _fpsDivisor,
     );
+    _syncAnimationValue(emitCrossings: false);
+    _notifyLoaded(document.info, _parseGeneration);
   }
 
   /// Defers load callbacks until parent builds are safe to update.
@@ -420,7 +549,11 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   /// 将加载回调延后到父级可安全更新的时机。
   void _notifyLoaded(SvgxAnimationInfo info, int generation) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && generation == _parseGeneration) {
+      if (mounted &&
+          generation == _parseGeneration &&
+          generation != _loadedGeneration &&
+          _error == null) {
+        _loadedGeneration = generation;
         widget.onLoaded?.call(info);
       }
     });

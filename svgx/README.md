@@ -67,6 +67,30 @@ Svgx.string(svgSource, theme: SvgxTheme(currentColor: Colors.blue))
 
 ### Animation quality
 
+Drive an SVG with a Flutter `Animation<double>` (including curved animations):
+
+```dart
+SvgxAnimated.string(
+  svgSource,
+  animation: myAnimationController,
+  animationSpan: const Duration(seconds: 2), // Omit to use naturalDuration.
+  onEvent: (event) => debugPrint('$event'), // Element begin/end/repeat and loops.
+)
+```
+
+Document time is `animation.value × span`: negative times clamp to zero;
+positive overshoot may exceed the span. If neither an explicit span nor a
+natural duration is known, `onError` / `errorBuilder` / `FlutterError` reports
+the failure. `animation` and `controller` are mutually exclusive; leave
+`autoplay` and `playbackRate` at their defaults with `animation`. Observe the
+driver's `AnimationStatus` for start/completion: svgx emits neither event and
+does not call `onAnimationStart` / `onAnimationComplete` in this mode.
+`onEvent` works in implicit, controller and animation modes. The driver owns
+vsync and TickerMode; these instances bypass shared-clock concurrency and
+frame skipping (`maxFps` is ignored). Prefer controller/implicit playback for
+many concurrent SVGs. Disposing the supplied Flutter AnimationController
+retains the last frame; svgx removes its listener on replacement or unmount.
+
 For the animated path, `SvgxAnimationQuality` trades fidelity for throughput
 under high concurrency (e.g. a scrolling grid of many animated icons) —
 adaptive frame-skipping is the default; see its class doc for the full set of

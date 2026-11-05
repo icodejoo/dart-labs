@@ -152,6 +152,12 @@ const _maxTimeMicros = 10000000 * Duration.microsecondsPerSecond;
 /// 一微秒，用于时间线开闭端点转换。
 const _microsecond = Duration(microseconds: 1);
 
+/// Default requested playback multiplier. / 默认请求播放倍率。
+const _normalPlaybackRate = 1.0;
+
+/// Unreflected range direction. / 尚未反射的片段方向。
+const _forwardRangeDirection = 1;
+
 /// Controls one document time shared by any number of animated widgets.
 /// 控制可供任意多个动画控件共享的文档时间。
 ///
@@ -160,10 +166,25 @@ const _microsecond = Duration(microseconds: 1);
 class SvgxAnimationController extends ChangeNotifier {
   /// Creates a controller; [playbackRate] must be finite, and zero pauses.
   /// 创建控制器；[playbackRate] 必须有限，零表示暂停。
-  SvgxAnimationController({bool autoplay = true, double playbackRate = 1.0})
-    : assert(playbackRate.isFinite),
-      _rate = playbackRate,
-      _wantsPlay = autoplay && playbackRate != 0;
+  SvgxAnimationController({
+    bool autoplay = true,
+    double playbackRate = _normalPlaybackRate,
+  }) : assert(playbackRate.isFinite),
+       _externallyDriven = false,
+       _rate = playbackRate,
+       _wantsPlay = autoplay && playbackRate != 0;
+
+  /// Creates a clock-free controller for widget animation adaptation.
+  /// 创建无时钟控制器，供控件适配外部动画。
+  @internal
+  SvgxAnimationController.externallyDriven()
+    : _externallyDriven = true,
+      _rate = _normalPlaybackRate,
+      _wantsPlay = false;
+
+  /// Whether document time comes exclusively from driveTo.
+  /// 文档时间是否完全来自 driveTo。
+  final bool _externallyDriven;
 
   /// Current document time notifier. / 当前文档时间通知器。
   final _time = ValueNotifier(Duration.zero);
@@ -194,6 +215,14 @@ class SvgxAnimationController extends ChangeNotifier {
 
   /// Requested playback direction and scale. / 请求的播放方向与倍率。
   double _rate;
+
+  /// Reflection relative to the requested rate, reset on range selection.
+  /// 相对请求倍率的反射方向，选择片段时复位。
+  int _rangeDirection = _forwardRangeDirection;
+
+  /// Effective signed speed including ping-pong reflection.
+  /// 包含往返反射的有效有符号速率。
+  double get _effectiveRate => _rate * _rangeDirection;
 
   /// Whether playback is requested independently of visibility. / 是否请求播放，不受可见性影响。
   bool _wantsPlay;
@@ -269,13 +298,17 @@ class SvgxAnimationController extends ChangeNotifier {
   /// An unbounded loop has no reverse restart endpoint: at zero, first seek
   /// to a positive time or select a range to play backwards.
   /// 无上界循环没有倒放重播终点；在零时须先跳到正时间或选择片段再倒放。
+  /// Ping-pong resumes its current reflected direction, including after pause.
+  /// 往返模式沿当前反射方向恢复，暂停后也保留方向。
   void play() {
     _assertAlive();
     final revision = ++_revision;
     if (_atBoundary && _rate != 0) {
       final unboundedReverse =
-          _rate < 0 && _rangeEnd == null && _document?.info.loops == true;
-      _time.value = _rate < 0 && !unboundedReverse ? _upper : _lower;
+          _effectiveRate < 0 &&
+          _rangeEnd == null &&
+          _document?.info.loops == true;
+      _time.value = _effectiveRate < 0 && !unboundedReverse ? _upper : _lower;
       if (_disposed || revision != _revision) return;
       _started = false;
     }
@@ -333,8 +366,30 @@ class SvgxAnimationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Pushes external document time, clamping only below zero; emits crossings
+  /// but never started/completed. Requires an externally driven controller.
+  /// With [emitCrossings] false the jump behaves like [seek]: no cues or events.
+  /// 推送外部文档时间，仅钳位负值；派发穿越事件但不发 started/completed。
+  /// 要求使用外部驱动控制器。[emitCrossings] 为 false 时等同 [seek]，不派发
+  /// cue 与事件。
+  @internal
+  void driveTo(Duration t, {bool emitCrossings = true}) {
+    _assertAlive();
+    assert(_externallyDriven);
+    if (_document == null || _status == SvgxPlaybackStatus.error) return;
+    final revision = ++_revision;
+    final previous = _time.value;
+    final next = t < Duration.zero ? Duration.zero : t;
+    if (next == previous) return;
+    _time.value = next;
+    if (!emitCrossings || _disposed || revision != _revision) return;
+    _dispatchCrossing(previous, next, revision);
+  }
+
   /// Reverses the playback rate; a completed run resumes in the new direction.
   /// 反转播放倍率；已完成的播放会沿新方向恢复。
+  /// Retains ping-pong reflection, reversing the current travel direction.
+  /// 保留往返反射状态，反转当前实际行进方向。
   void reverse() {
     _assertAlive();
     final completed = _status == SvgxPlaybackStatus.completed;
@@ -345,6 +400,8 @@ class SvgxAnimationController extends ChangeNotifier {
   /// Selects a nonempty, nonnegative range and its boundary behavior.
   /// 选择非空、非负片段及其边界行为。
   /// A completed run becomes paused. / 已完成的播放恢复为暂停状态。
+  /// Resets ping-pong reflection to the sign of playbackRate.
+  /// 将往返反射方向复位为 playbackRate 的符号方向。
   void setRange(
     Duration start,
     Duration end, {
@@ -361,17 +418,21 @@ class SvgxAnimationController extends ChangeNotifier {
     _rangeEnd = end;
     _rangeMode = mode;
     _rangeIteration = 0;
+    _rangeDirection = _forwardRangeDirection;
     _recoverRange();
   }
 
   /// Restores the document's natural playback bounds.
   /// 恢复文档自然播放边界。
+  /// Discards ping-pong reflection and uses the requested playbackRate.
+  /// 丢弃往返反射方向，沿请求的 playbackRate 播放。
   void clearRange() {
     _assertAlive();
     _revision++;
     _rangeStart = null;
     _rangeEnd = null;
     _rangeIteration = 0;
+    _rangeDirection = _forwardRangeDirection;
     _recoverRange();
   }
 
@@ -534,10 +595,10 @@ class SvgxAnimationController extends ChangeNotifier {
         Duration(microseconds: math.min(natural, _maxTimeMicros));
   }
 
-  /// Whether time has reached the endpoint in the requested direction.
-  /// 时间是否已到请求方向的端点。
+  /// Whether time has reached the endpoint in the effective direction.
+  /// 时间是否已到有效方向的端点。
   bool get _atBoundary =>
-      _rate < 0 ? _time.value <= _lower : _time.value >= _upper;
+      _effectiveRate < 0 ? _time.value <= _lower : _time.value >= _upper;
 
   /// Restricts a time to active bounds. / 将时刻限制到当前边界内。
   Duration _clamp(Duration t) => t < _lower
@@ -607,6 +668,7 @@ class SvgxAnimationController extends ChangeNotifier {
   /// 仅请求播放且至少一个控件可见时订阅共享时钟。
   void _syncSubscription() {
     final eligible =
+        !_externallyDriven &&
         _status == SvgxPlaybackStatus.playing &&
         _rate != 0 &&
         _attachments.values.any((attachment) => attachment.visible);
@@ -671,7 +733,7 @@ class SvgxAnimationController extends ChangeNotifier {
     final revision = _revision;
     final raw =
         _anchorTime.inMicroseconds +
-        (global - _anchorGlobal!).inMicroseconds * _rate;
+        (global - _anchorGlobal!).inMicroseconds * _effectiveRate;
     var remaining =
         raw.clamp(-_maxTimeMicros, _maxTimeMicros).round() -
         _time.value.inMicroseconds;
@@ -711,7 +773,7 @@ class SvgxAnimationController extends ChangeNotifier {
         );
       } else if (_rangeStart != null && _rangeMode == SvgxRangeMode.pingPong) {
         crossedRangeBoundary = true;
-        _rate = -_rate;
+        _rangeDirection = -_rangeDirection;
         remaining = -remaining;
       } else if (!forward ||
           _rangeStart != null ||

@@ -14,6 +14,19 @@
   pauses progress. Finite documents render their final frame once and stop.
   `SvgxAnimationController` does not control ImageProviders.
 
+* Add `SvgxAnimated.animation` / `animationSpan` to map Flutter animation values
+  to document time without a shared-clock subscription. Negative times clamp
+  to zero; positive overshoot is preserved. Unknown natural durations require
+  an explicit span and otherwise use the existing loading-error handlers.
+  The driver owns start/completion status; svgx emits neither event in this mode.
+  The first sync after (re)attaching behaves like a seek, so mounting midway
+  does not replay events since zero.
+* Add `SvgxAnimated.onEvent` in all three playback modes for element and loop
+  events, retaining the no-listener path without per-frame timeline queries.
+* Keep `playbackRate` stable through ping-pong reflections using an internal
+  direction. `reverse()` reverses current travel; pause/play preserves reflection,
+  while selecting or clearing a range resets it to the requested rate direction.
+
 * Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
   play/pause/stop/seek, finite signed playback rates, reversible completion,
   once/loop/ping-pong ranges, duration fitting, cues and playback/element events.

@@ -345,13 +345,51 @@ void main() {
     expect(controller.time.value, _threeQuarterSecond);
     await tester.pump(_halfSecond);
     expect(controller.time.value, _threeQuarterSecond);
-    expect(controller.playbackRate, -1);
+    expect(controller.playbackRate, 1);
     await tester.pump(_threeSeconds);
     expect(controller.time.value, _quarterSecond);
     expect(controller.playbackRate, 1);
     expect(controller.status, SvgxPlaybackStatus.playing);
     await _close(tester, controller);
   });
+
+  testWidgets(
+    'ping pong keeps rate across reflections and reverses actual travel',
+    (tester) async {
+      final controller = SvgxAnimationController(autoplay: false);
+      await tester.pumpWidget(_scene(controller));
+      controller.setRange(Duration.zero, _second, mode: SvgxRangeMode.pingPong);
+      await _play(tester, controller);
+      for (var round = 0; round < 3; round++) {
+        await tester.pump(_threeQuarterSecond);
+        expect(controller.time.value, _threeQuarterSecond);
+        await tester.pump(_halfSecond);
+        expect(controller.time.value, _threeQuarterSecond);
+        expect(controller.playbackRate, 1);
+        controller.pause();
+        await _play(tester, controller);
+        await tester.pump(_quarterSecond);
+        expect(controller.time.value, _halfSecond);
+        await tester.pump(_halfSecond);
+        expect(controller.time.value, Duration.zero);
+        expect(controller.playbackRate, 1);
+      }
+      await tester.pump(_second + _quarterSecond);
+      expect(controller.time.value, _threeQuarterSecond);
+      controller.reverse();
+      expect(controller.playbackRate, -1);
+      await tester.pump(_hundredMs);
+      expect(controller.time.value, _threeQuarterSecond + _hundredMs);
+      controller.setRange(Duration.zero, _second, mode: SvgxRangeMode.pingPong);
+      await tester.pump(_hundredMs);
+      expect(controller.time.value, _threeQuarterSecond);
+      controller.clearRange();
+      await tester.pump(_quarterSecond);
+      expect(controller.time.value, _halfSecond);
+      expect(controller.playbackRate, -1);
+      await _close(tester, controller);
+    },
+  );
 
   testWidgets('fitDuration uses natural duration and rejects unknown cycles', (
     tester,
