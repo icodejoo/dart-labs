@@ -49,6 +49,24 @@ void main() {
         expect(await result, 7);
       });
 
+      for (final offset in [Duration.zero, -_second]) {
+        test('已到期 waitUntil 提交即视为通过：$offset', () async {
+          final clock = FakeOverlayClock();
+          final manager = Layerman(clock: clock);
+          addTearDown(manager.dispose);
+          await manager.ready();
+          final backend = HeadlessBackend<void>();
+          manager.submit<void>(
+            present: backend.present,
+            mode: mode,
+            gate: (_) => OverlayVerdict.waitUntil(clock.now().add(offset)),
+          );
+          expect(backend.shown, isTrue);
+          expect(manager.queuedIds, isEmpty);
+          expect(clock.pendingTimers, 0);
+        });
+      }
+
       test('waitUntil 在截止时刻自动激活且不多留冷却余量', () async {
         final clock = FakeOverlayClock();
         final manager = Layerman(clock: clock);
@@ -291,6 +309,41 @@ void main() {
           }
         });
       }
+    });
+  }
+
+  for (final first in ['when', 'gate']) {
+    test('when 与 gate 有意共用一次异常上报名额：先抛 $first', () async {
+      final manager = Layerman(clock: FakeOverlayClock());
+      addTearDown(manager.dispose);
+      await manager.ready();
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+      var failing = first;
+      final backend = HeadlessBackend<void>();
+      manager.submit<void>(
+        present: backend.present,
+        when: (_) {
+          if (failing == 'when') throw StateError('when failure');
+          return true;
+        },
+        gate: (_) {
+          if (failing == 'gate') throw StateError('gate failure');
+          return const OverlayVerdict.pass();
+        },
+      );
+      expect(errors, hasLength(1));
+      expect(errors.single.exception.toString(), contains('$first failure'));
+      failing = first == 'when' ? 'gate' : 'when';
+      manager.setContext({});
+      expect(errors, hasLength(1));
+      expect(backend.shown, isFalse);
+      failing = '';
+      manager.setContext({});
+      expect(backend.shown, isTrue);
+      expect(errors, hasLength(1));
     });
   }
 

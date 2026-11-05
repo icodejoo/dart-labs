@@ -143,6 +143,8 @@ enum OverlayEndReason {
 
 /// 业务激活资格；与 route、auth、when 及 cooldown 按 AND 组合。
 /// 只在激活前求值，不影响已解析或已展示的条目。
+/// pass 允许激活，waitUntil 等待后重判，drop 永久拒绝并以 gated 结束。
+/// gate 异常与 when/auth 有意共用每条目一次的上报名额；用法见 `OverlayGate`。
 @immutable
 class OverlayVerdict {
   /// 允许激活，仍须通过其他资格及槽位约束。
@@ -150,8 +152,10 @@ class OverlayVerdict {
       : retryAt = null,
         reason = null;
 
-  /// 等到 [retryAt] 后自动重判；已到期的时刻视为通过。
-  /// 等待期间 setContext 会重判，可提前通过、延后或永久拒绝。
+  /// 等到 [retryAt] 后自动重判；已到期的时刻视为通过，仍须满足其他激活约束。
+  /// 必须按 Layerman.clock 计时，例如 `manager.clock.now().add(...)`；
+  /// FakeOverlayClock 下用 DateTime.now() 会算错截止时间。
+  /// 串行与 overlap 均可等待；期间 setContext 会重判，可提前通过、延后或永久拒绝。
   const OverlayVerdict.waitUntil(DateTime this.retryAt) : reason = null;
 
   /// 永久拒绝条目；业务拒绝一律以 [OverlayEndReason.gated] 结束。
@@ -160,10 +164,10 @@ class OverlayVerdict {
       : retryAt = null,
         reason = OverlayEndReason.gated;
 
-  /// 最早自动重判的时刻；null 表示本结果没有时间等待。
+  /// 与 Layerman.clock 同源的自动重判时刻；pass 或 drop 时为 null。
   final DateTime? retryAt;
 
-  /// 永久拒绝的结束原因；null 表示通过或等待。
+  /// drop 固定为 [OverlayEndReason.gated]；pass 或 waitUntil 时为 null。
   final OverlayEndReason? reason;
 }
 

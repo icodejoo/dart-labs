@@ -10,7 +10,38 @@ import 'overlay_types.dart';
 /// 1.0 起 route、auth、when 按 AND 组合，所有已提供条件必须同时满足。
 typedef OverlayPredicate = bool Function(Map<String, Object?> context);
 
-/// 读取 setContext 的只读视图，返回激活前的业务资格；回调内禁止修改管理器。
+/// 读取 setContext 合并后的只读上下文，返回激活前的业务资格。
+/// 与 route、auth、when 及 cooldown 按 AND 组合；回调内禁止修改管理器。
+/// 只在激活前求值，不重判 resolving、open 或 closing，也不触发 dismissWhenUnmet。
+///
+/// 返回 [OverlayVerdict.pass] 允许激活；[OverlayVerdict.waitUntil] 支持串行及 overlap
+/// 等待并自动重判，setContext 也可提前放行、延后或拒绝。retryAt 必须按 [Layerman.clock]
+/// 计时，例如 `manager.clock.now().add(...)`；FakeOverlayClock 下使用 DateTime.now()
+/// 会算错截止时间。已到期的 waitUntil 视为通过，仍须满足其他资格和激活约束。
+/// [OverlayVerdict.drop] 永久拒绝，一律以 [OverlayEndReason.gated] 结束；
+/// 调用方可在自己的 gate 闭包里记录具体原因。
+///
+/// 异常视为不通过：串行继续等待，overlap 以 dropped 结束。
+/// gate 与 when、auth 有意共用“每条目只上报一次”的名额，后续重判异常不重复上报。
+/// 普通条件或时间冷却不通过的 overlap 仍遵守现在或永不的规则。
+///
+/// ```dart
+/// import 'package:layerman/layerman.dart';
+///
+/// /// 提交推广提示，等待 ready 或截止时间，也可永久拒绝。
+/// OverlayTicket<void> submitPromo(Layerman manager, Present<void> present) {
+///   final retryAt = manager.clock.now().add(const Duration(minutes: 5));
+///   return manager.submit<void>(
+///     id: 'promo',
+///     present: present,
+///     gate: (context) {
+///       if (context['declined'] == true) return const OverlayVerdict.drop();
+///       if (context['ready'] == true) return const OverlayVerdict.pass();
+///       return OverlayVerdict.waitUntil(retryAt);
+///     },
+///   );
+/// }
+/// ```
 typedef OverlayGate = OverlayVerdict Function(Map<String, Object?> context);
 
 /// 频次限制配置：所有非空限制按 AND 组合，后端成功展示时计数。
@@ -1745,7 +1776,8 @@ class Layerman extends ChangeNotifier {
   /// [auth] 为登录或权限判断函数；null 表示不限，例如 `(ctx) => ctx['user'] != null`。
   /// [route] 匹配字符串路由，与 [auth]、[when] 按 AND 组合；null 表示不限制。
   /// [gate] 在 route/auth/when 通过后求值；waitUntil 支持串行及 overlap 自动重判。
-  /// gate 异常每条目仅上报一次并视为不通过；只拦激活，不触发 dismissWhenUnmet。
+  /// retryAt 使用 clock.now() 计算；已过期视为通过，drop 固定以 gated 结束。
+  /// gate 异常与 when/auth 有意共用每条目一次上报名额；只拦激活，不触发 dismissWhenUnmet。
   /// expireAfter 仅计算激活前的串行排队时间，overlap 不适用。
   /// tags 默认空集合，提交时复制，之后通过 recordOf 或 records 只读查询。
   /// 例如 `final ticket = manager.submit<bool>(id: 'confirm', present: present);`。
@@ -2157,7 +2189,7 @@ class Layerman extends ChangeNotifier {
     }
   }
 
-  /// 条件与 gate 共用每条目一次的异常上报预算。
+  /// 条件与 gate 有意共用每条目一次的异常上报名额，避免重判反复上报。
   void _reportConditionError(_Entry e, Object error, StackTrace stack) {
     if (e.conditionErrorReported) return;
     e.conditionErrorReported = true;
