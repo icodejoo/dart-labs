@@ -94,48 +94,38 @@ void main() {
         expect(clock.pendingTimers, 0);
       });
 
-      test('drop 的默认及自选原因交付 outcome 与 ended，且不计冷却', () async {
+      test('drop 固定以 gated 交付 outcome 与 ended，且不计冷却', () async {
         final manager = Layerman();
         addTearDown(manager.dispose);
         await manager.ready();
         final events = <OverlayEvent>[];
         final subscription = manager.events.listen(events.add);
         addTearDown(subscription.cancel);
-        for (final reason in [OverlayEndReason.gated, OverlayEndReason.unmet]) {
-          final backend = HeadlessBackend<int>();
-          final ticket = manager.submit<int>(
-            id: reason.name,
-            present: backend.present,
-            mode: mode,
-            cooldown: const OverlayCooldown(total: 1),
-            gate: (_) => reason == OverlayEndReason.gated
-                ? const OverlayVerdict.drop()
-                : OverlayVerdict.drop(reason),
-          );
-          final outcome = await ticket.outcome;
-          expect(outcome.reason, reason);
-          expect(outcome.value, isNull);
-          expect(await ticket.result, isNull);
-          expect(ticket.isActive, isFalse);
-          expect(backend.shown, isFalse);
-          expect(
-              manager
-                  .cooldownStatus(reason.name, const OverlayCooldown(total: 1))
-                  .canShow,
-              isTrue);
-        }
+        final backend = HeadlessBackend<int>();
+        final ticket = manager.submit<int>(
+          id: 'gated',
+          present: backend.present,
+          mode: mode,
+          cooldown: const OverlayCooldown(total: 1),
+          gate: (_) => const OverlayVerdict.drop(),
+        );
+        final outcome = await ticket.outcome;
+        expect(outcome.reason, OverlayEndReason.gated);
+        expect(outcome.value, isNull);
+        expect(await ticket.result, isNull);
+        expect(ticket.isActive, isFalse);
+        expect(backend.shown, isFalse);
+        expect(
+            manager
+                .cooldownStatus('gated', const OverlayCooldown(total: 1))
+                .canShow,
+            isTrue);
         await flushAsync();
         expect(events.map((e) => e.type), [
           OverlayEventType.queued,
           OverlayEventType.ended,
-          OverlayEventType.queued,
-          OverlayEventType.ended,
         ]);
-        expect(
-            events
-                .where((e) => e.type == OverlayEventType.ended)
-                .map((e) => e.reason),
-            [OverlayEndReason.gated, OverlayEndReason.unmet]);
+        expect(events.last.reason, OverlayEndReason.gated);
       });
 
       test('等待期间 setContext 可永久拒绝，即使暂停或被 blockedBy 阻塞', () async {

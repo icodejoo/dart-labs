@@ -154,9 +154,11 @@ class OverlayVerdict {
   /// 等待期间 setContext 会重判，可提前通过、延后或永久拒绝。
   const OverlayVerdict.waitUntil(DateTime this.retryAt) : reason = null;
 
-  /// 永久拒绝条目；原因经 outcome 与 ended 事件交付，默认 gated。
-  const OverlayVerdict.drop([OverlayEndReason this.reason = OverlayEndReason.gated])
-      : retryAt = null;
+  /// 永久拒绝条目；业务拒绝一律以 [OverlayEndReason.gated] 结束。
+  /// 调用方可在自己的 gate 闭包里记录具体原因。
+  const OverlayVerdict.drop()
+      : retryAt = null,
+        reason = OverlayEndReason.gated;
 
   /// 最早自动重判的时刻；null 表示本结果没有时间等待。
   final DateTime? retryAt;
