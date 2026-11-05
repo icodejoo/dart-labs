@@ -6,6 +6,7 @@ import 'package:layerman/layerman.dart';
 import 'package:layerman/testing.dart';
 
 import 'support/headless_backend.dart';
+import 'support/manual_now_clock.dart';
 
 /// 测试中的业务等待单位。
 const _second = Duration(seconds: 1);
@@ -290,6 +291,50 @@ void main() {
           }
         });
       }
+    });
+  }
+
+  testWidgets('业务截止已到但计时回调尚未执行时，保留唤醒可通过不变量 k', (tester) async {
+    var now = DateTime(2000);
+    final manager = Layerman(clock: ManualNowClock(() => now));
+    addTearDown(manager.dispose);
+    await manager.ready();
+    final deadline = now.add(_second);
+    final backend = HeadlessBackend<void>();
+    manager.submit<void>(
+      present: backend.present,
+      mode: OverlayMode.overlap,
+      gate: (_) => OverlayVerdict.waitUntil(deadline),
+    );
+    now = deadline;
+    manager.debugCheckInvariants();
+    expect(backend.shown, isFalse);
+    await tester.pump(_second);
+    expect(backend.shown, isTrue);
+    expect(manager.queuedIds, isEmpty);
+    manager.debugCheckInvariants();
+  });
+
+  for (final corruption in ['k-expired', 'k-hydrated']) {
+    test('不变量 k 拒绝无唤醒的业务等待：$corruption', () async {
+      final clock = FakeOverlayClock();
+      final manager = Layerman(clock: clock);
+      addTearDown(manager.dispose);
+      await manager.ready();
+      final deadline = clock.now().add(_second);
+      manager.submit<void>(
+        id: 'waiting',
+        present: HeadlessBackend<void>().present,
+        mode: OverlayMode.overlap,
+        cooldown: const OverlayCooldown(),
+        gate: (_) => OverlayVerdict.waitUntil(deadline),
+      );
+      manager.debugCheckInvariants();
+      final failure = throwsA(isA<StateError>()
+          .having((error) => error.message, '编号', contains('不变量 k'))
+          .having((error) => error.message, '条目', contains('waiting')));
+      expect(() => manager.debugCorruptInvariant(corruption, 'waiting'), failure);
+      expect(manager.debugCheckInvariants, failure);
     });
   }
 

@@ -1089,6 +1089,12 @@ class Layerman extends ChangeNotifier {
             _detachFromActive(e);
             e.phase = OverlayPhase.pending;
             _pendingOverlaps.add(e);
+          case 'k-expired':
+            _overlapGateWaits[e] = clock.now();
+            _cancelCooldownTimer(_slots[e.slot]!);
+          case 'k-hydrated':
+            _overlapGateWaits[e] = null;
+            _cancelCooldownTimer(_slots[e.slot]!);
           case 'n':
             e.externalDone = true;
           case 'o':
@@ -1159,10 +1165,17 @@ class Layerman extends ChangeNotifier {
     }
     for (final e in _pendingOverlaps) {
       check(e, 'pendingOverlaps', true);
+      final deadline = _overlapGateWaits[e];
+      // 无期限业务等待只允许用于 hydrate；到期后须已重判或仍有计时器待唤醒。
+      final waitingForGate = _overlapGateWaits.containsKey(e) &&
+          (deadline == null
+              ? !_hydrationApplied && e.cooldown != null
+              : deadline.isAfter(clock.now()) ||
+                  _slots[e.slot]?.cooldownTimer != null);
       if (_canActivate(e.slot) &&
           !_inBuildPhase &&
           !_releasePending &&
-          !_overlapGateWaits.containsKey(e) &&
+          !waitingForGate &&
           (_hydrationApplied || e.cooldown == null)) {
         throw StateError('不变量 k：${e.id} 持有的 overlap 漏释放');
       }

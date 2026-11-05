@@ -857,6 +857,71 @@ void main() {
       }
     });
   }
+  for (var seed = 0; seed < 24; seed++) {
+    testWidgets('有界业务等待最终重判并激活或结束 seed=$seed', (tester) async {
+      final random = Random(seed);
+      var now = DateTime(2000);
+      final manager = Layerman(
+        clock: ManualNowClock(() => now),
+        cooldownStorage: _FuzzStorage(1, _slow),
+        slots: const {
+          'target': OverlaySlotOptions(blockedBy: {'modal'}),
+        },
+      );
+      addTearDown(manager.dispose);
+      final blocker = manager.submit<int>(
+          slot: 'modal', present: _FakeBackend(0).present);
+      final deadline = now.add(_slow + _timeout);
+      final backend = _FakeBackend(0);
+      final reject = random.nextBool();
+      var calls = 0;
+      final ticket = manager.submit<int>(
+        id: 'waiting',
+        slot: 'target',
+        mode: seed.isEven ? OverlayMode.queue : OverlayMode.overlap,
+        cooldown: const OverlayCooldown(),
+        present: backend.present,
+        gate: (_) {
+          calls++;
+          if (now.isBefore(deadline)) return OverlayVerdict.waitUntil(deadline);
+          return reject
+              ? const OverlayVerdict.drop()
+              : const OverlayVerdict.pass();
+        },
+      );
+      expect(calls, 1);
+      expect(manager.queuedIds, contains(ticket.id));
+      manager.pauseAll();
+      // 随机打乱 hydrate、业务到期、解除阻塞及恢复，最后不再施加外部等待。
+      final actions = ['hydrate', 'deadline', 'unblock', 'resume']..shuffle(random);
+      final why = 'seed=$seed reject=$reject actions=$actions';
+      for (final action in actions) {
+        switch (action) {
+          case 'hydrate':
+            now = now.add(_slow);
+            await tester.pump(_slow);
+          case 'deadline':
+            now = now.add(_drain);
+            await tester.pump(_drain);
+          case 'unblock':
+            blocker.remove();
+          case 'resume':
+            manager.resumeAll();
+        }
+        manager.debugCheckInvariants();
+      }
+      await tester.pump();
+      expect(calls, greaterThan(1), reason: why);
+      expect(manager.queuedIds, isEmpty, reason: why);
+      expect(backend.presents, reject ? 0 : 1, reason: why);
+      if (reject) {
+        expect((await ticket.outcome).reason, OverlayEndReason.gated, reason: why);
+        expect(manager.recordOf(ticket.id), isNull, reason: why);
+      } else {
+        expect(manager.recordOf(ticket.id)!.phase, OverlayPhase.open, reason: why);
+      }
+    });
+  }
   test('扩展族的新增操作与正反边界实际执行次数均非零', () {
     for (final operation in [
       'gate pass',
