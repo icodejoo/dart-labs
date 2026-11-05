@@ -22,6 +22,7 @@
 // 每个分组只能在合适的宿主上构建（Apple 需 macOS、MSVC 需 Windows、Linux 需
 // Linux）；当前宿主构建不了的会明确报告并跳过，而不是伪造产物。
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'prebuilt_common.dart';
@@ -264,6 +265,49 @@ String? _hostTriple() {
   return null;
 }
 
+/// Cached cargo output directory, resolved once per run.
+///
+/// 每次运行只解析一次的 cargo 输出目录缓存。
+String? _resolvedCargoTargetDir;
+
+/// Returns the directory cargo actually writes to for [rustDir], honoring
+/// `CARGO_TARGET_DIR` and `build.target-dir` in cargo config.
+///
+/// Asks `cargo metadata` first, since it applies every override cargo itself
+/// applies; falls back to `CARGO_TARGET_DIR` (relative paths resolve against
+/// [rustDir], as cargo does) and finally to `<rustDir>/target`.
+///
+/// 返回 cargo 对 [rustDir] 实际写入的目录，遵循 `CARGO_TARGET_DIR` 与 cargo 配置中
+/// 的 `build.target-dir`。优先询问 `cargo metadata`，因为它应用了 cargo 自身的全部
+/// 覆盖规则；失败时回退到 `CARGO_TARGET_DIR`（相对路径按 cargo 的规则相对
+/// [rustDir] 解析），最后回退到 `<rustDir>/target`。
+String _cargoTargetDir(String rustDir) {
+  final cached = _resolvedCargoTargetDir;
+  if (cached != null) return cached;
+  final r = Process.runSync(
+    'cargo',
+    <String>['metadata', '--format-version', '1', '--no-deps'],
+    workingDirectory: rustDir,
+    runInShell: true,
+  );
+  String? dir;
+  if (r.exitCode == 0) {
+    try {
+      final json = jsonDecode(r.stdout as String) as Map<String, dynamic>;
+      dir = json['target_directory'] as String?;
+    } on FormatException {
+      dir = null;
+    }
+  }
+  if (dir == null) {
+    final env = Platform.environment['CARGO_TARGET_DIR'];
+    if (env != null && env.isNotEmpty) {
+      dir = File(env).isAbsolute ? env : '$rustDir/$env';
+    }
+  }
+  return _resolvedCargoTargetDir = dir ?? '$rustDir/target';
+}
+
 /// Runs the release cargo build for one target and returns the absolute path of
 /// the emitted artifact, or `null` if the build failed.
 ///
@@ -299,7 +343,8 @@ Future<String?> _buildTarget(
   }
 
   final out =
-      '$rustDir/target/${target.triple}/release/${target.cargoArtifact}';
+      '${_cargoTargetDir(rustDir)}/${target.triple}/release/'
+      '${target.cargoArtifact}';
   if (!File(out).existsSync()) {
     stderr.writeln('ERROR: expected artifact missing: $out');
     return null;

@@ -1,6 +1,6 @@
 ## Unreleased
 
-**已知阻断(发布前必须处理)**:`SvgScene`/`SvgMask`/`SvgPattern` 的线格式新增了 `commands` 字段。目前只有 Windows x64 预编译库已重编,其余平台(iOS xcframework、macOS framework、Linux x64/arm64、Windows arm64,以及按需核对 Android 四个 ABI)的预编译库必须全平台重编并更新 MANIFEST 后才能发布,否则 SSE 解码错位。
+**已知阻断(发布前必须处理)**:`SvgScene`/`SvgMask`/`SvgPattern` 的线格式新增了 `commands` 字段。目前 Windows x64 与 Android 四个 ABI(2026-11-05 实测旧 Android 库导致真机静态路径全部解码失败,已重编)的预编译库已更新;其余平台(iOS xcframework、macOS framework、Linux x64/arm64、Windows arm64——本机 MSVC 缺 ARM64 库)仍须重编,并在全部完成后用 `tool/build_prebuilt.dart --restage` 更新 MANIFEST(当前 MANIFEST 尚未登记新产物,`check_prebuilt` 会报不一致)才能发布,否则 SSE 解码错位。
 
 * Add byte sniffing to `NetworkSvgx`, `AssetSvgx`, `FileSvgx` and `MemorySvgx`:
   SVG uses svgx; bitmap and unknown bytes use Flutter's native decoder through
