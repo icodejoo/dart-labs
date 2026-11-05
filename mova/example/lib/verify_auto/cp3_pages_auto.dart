@@ -125,6 +125,51 @@ Future<Map<String, dynamic>> _stats() async {
 }
 
 Future<void> runHeaders(Cp3Harness h) async {
+  // Supplement the unchanged five quality runs with native extraction and
+  // paused pool prewarming; keep their receipts distinct from Dart probes.
+  Future<Map<String, Object?>> nativePath(String path, int run) async {
+    Future<bool> attempt(bool auth) async {
+      final source = MovaSource(
+        'http://127.0.0.1:18194/a.mp4?case=$path-$run-${auth ? 'yes' : 'no'}',
+        headers: auth ? const {'Referer': 'https://cp3.example/authorized'} : const {},
+      );
+      if (path == 'extract') {
+        final thumb = MovaPullerThumbSource(extractor: MovaFrameExtractor());
+        try {
+          final frame = await thumb.thumbAt(source, const Duration(seconds: 1))
+              .timeout(const Duration(seconds: 20));
+          return frame != null && frame.bytes.isNotEmpty;
+        } on Object {
+          return false;
+        } finally {
+          await thumb.dispose();
+        }
+      }
+      final pool = MovaFeedEnginePool(engineFactory: createMovaEngine);
+      try {
+        await pool.bind(1, source).timeout(const Duration(seconds: 20));
+        return pool.slotFor(1)?.ready == true;
+      } on Object {
+        return false;
+      } finally {
+        await pool.dispose();
+      }
+    }
+    final positive = await attempt(true);
+    final negative = await attempt(false);
+    final requests = ((await _stats())['requests'] as List)
+        .cast<Map<String, dynamic>>()
+        .where((r) => (r['query'] as String).startsWith('case=$path-$run-'))
+        .toList();
+    final good = requests.where((r) => (r['query'] as String).endsWith('-yes')).toList();
+    final bad = requests.where((r) => (r['query'] as String).endsWith('-no')).toList();
+    return {
+      'positive': positive, 'negative': negative, 'requests': requests,
+      'pass': positive && !negative && good.isNotEmpty && bad.isNotEmpty &&
+          good.every((r) => r['status'] == 200 && r['referer'] == 'https://cp3.example/authorized') &&
+          bad.every((r) => r['status'] == 403),
+    };
+  }
   for (final variant in ['quality', 'thumb', 'prefetch']) {
     for (var i = 0; i < 5; i++) {
       final token = '$variant-$i';
@@ -198,16 +243,23 @@ Future<void> runHeaders(Cp3Harness h) async {
           variant != 'thumb' || good.any((r) => r['path'] == '/sprite.png');
       final range =
           variant != 'prefetch' || good.any((r) => r['range'] != null);
+      final nativePaths = <String, Map<String, Object?>>{};
+      if (variant == 'quality') {
+        for (final path in ['extract', 'pool']) {
+          nativePaths[path] = await nativePath(path, i);
+        }
+      }
       h.check(
         '$variant.$i',
-        {'positive': positive, 'negative': negative, 'requests': requests},
+        {'positive': positive, 'negative': negative, 'requests': requests,
+          'nativePaths': nativePaths},
         pass:
             positive &&
             (variant == 'prefetch' || !negative) &&
             allowed &&
             denied &&
             resources &&
-            range,
+            range && nativePaths.values.every((r) => r['pass'] == true),
       );
     }
   }

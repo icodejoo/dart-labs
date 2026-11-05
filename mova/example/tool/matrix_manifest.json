@@ -2732,6 +2732,113 @@
       "result_path": "{evidence}/{prefix}cp3-precise-cutover.json"
     },
     {
+      "id": "cp3-r2-subtitles",
+      "description": "CP3 repaired subtitles fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "subtitles"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-pool",
+      "description": "CP3 repaired pool fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "pool"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-stt",
+      "description": "CP3 repaired stt fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "stt"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-receipt",
+      "description": "CP3 repaired receipt fixture revalidation",
+      "why": "Only repaired APK fixtures; original per-command counts",
+      "argv": [
+        "{python}",
+        "{tool}/cp3_r2_legacy.py",
+        "receipt"
+      ],
+      "timeout": 1800,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "cp3-r2-s3s6",
+      "description": "S3 default keepDecoding and S6 explicit pause",
+      "why": "Three runs per original scenario; unrelated keepAlive scenes excluded",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "keepAlive",
+        "--only",
+        "S3,S6",
+        "--runs",
+        "3",
+        "--timeout",
+        "1200",
+        "--name",
+        "{prefix}cp3-r2-s3s6"
+      ],
+      "timeout": 1320,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}cp3-r2-s3s6",
+      "screen_on": true,
+      "fast": false
+    },
+    {
       "id": "gap-screen",
       "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",

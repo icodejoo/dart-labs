@@ -12452,5 +12452,1078 @@
       }
     },
     "verified": true
+  },
+  "secondRoundRevalidation": {
+    "started": "2026-11-05T08:48:53.637654+08:00",
+    "head": "14ea17241859ceb222a3ed1f5ea123271ffcf9f1",
+    "apk": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-release.apk",
+    "apkSha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13",
+    "attempts": [
+      {
+        "batch": "cp3-headers",
+        "runId": "cp3-headers-r2-20261105-084854",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "FAIL",
+        "status": "FAIL",
+        "counts": {
+          "FAIL": 5,
+          "PASS": 10
+        },
+        "comparison": "旧口径 10 PASS/5 FAIL → 15 PASS；新增extract/pool使扩展整批仍FAIL",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-headers-r2-20261105-084854",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-headers-r2-20261105-084854.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-headers-r2-20261105-084854.console.log",
+        "errors": [],
+        "failures": [
+          {
+            "id": "CP3.headers.quality.0"
+          },
+          {
+            "id": "CP3.headers.quality.1"
+          },
+          {
+            "id": "CP3.headers.quality.2"
+          },
+          {
+            "id": "CP3.headers.quality.3"
+          },
+          {
+            "id": "CP3.headers.quality.4"
+          }
+        ],
+        "rawFiles": [],
+        "classification": "新增夹具缺陷：pool.slotFor.ready仅表示open已接受，不证明原生加载成功；回执快照偏早。第一次另有一次抽帧未取得图片，原因未定。",
+        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/engine_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
+        "nativePaths": {
+          "CP3.headers.quality.0": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.1": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.2": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.3": {
+            "extract": false,
+            "pool": false
+          },
+          "CP3.headers.quality.4": {
+            "extract": true,
+            "pool": false
+          }
+        },
+        "originalQualityChecks": {
+          "CP3.headers.quality.0": true,
+          "CP3.headers.quality.1": true,
+          "CP3.headers.quality.2": true,
+          "CP3.headers.quality.3": true,
+          "CP3.headers.quality.4": true
+        },
+        "sameScopeCounts": {
+          "PASS": 15
+        },
+        "supplementCounts": {
+          "extract": {
+            "PASS": 4,
+            "FAIL": 1
+          },
+          "pool": {
+            "FAIL": 5
+          }
+        }
+      },
+      {
+        "batch": "cp3-headers",
+        "runId": "cp3-headers-r2-20261105-085001",
+        "attempt": 2,
+        "exit": 1,
+        "kind": "FAIL",
+        "status": "FAIL",
+        "counts": {
+          "FAIL": 5,
+          "PASS": 10
+        },
+        "comparison": "旧口径 10 PASS/5 FAIL → 15 PASS；新增extract/pool使扩展整批仍FAIL",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-headers-r2-20261105-085001",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-headers-r2-20261105-085001.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-headers-r2-20261105-085001.console.log",
+        "errors": [],
+        "failures": [
+          {
+            "id": "CP3.headers.quality.0"
+          },
+          {
+            "id": "CP3.headers.quality.1"
+          },
+          {
+            "id": "CP3.headers.quality.2"
+          },
+          {
+            "id": "CP3.headers.quality.3"
+          },
+          {
+            "id": "CP3.headers.quality.4"
+          }
+        ],
+        "rawFiles": [],
+        "classification": "新增夹具缺陷：pool.slotFor.ready仅表示open已接受，不证明原生加载成功；回执快照偏早。第一次另有一次抽帧未取得图片，原因未定。",
+        "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:nativePath; lib/src/core/feed/engine_pool.dart:_openBinding（accepted语义）; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow（仅首试偶发）",
+        "nativePaths": {
+          "CP3.headers.quality.0": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.1": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.2": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.3": {
+            "extract": true,
+            "pool": false
+          },
+          "CP3.headers.quality.4": {
+            "extract": true,
+            "pool": false
+          }
+        },
+        "originalQualityChecks": {
+          "CP3.headers.quality.0": true,
+          "CP3.headers.quality.1": true,
+          "CP3.headers.quality.2": true,
+          "CP3.headers.quality.3": true,
+          "CP3.headers.quality.4": true
+        },
+        "sameScopeCounts": {
+          "PASS": 15
+        },
+        "supplementCounts": {
+          "extract": {
+            "PASS": 5
+          },
+          "pool": {
+            "FAIL": 5
+          }
+        }
+      },
+      {
+        "batch": "cp3-feedplayer",
+        "runId": "cp3-feedplayer-r2-20261105-085105",
+        "attempt": 1,
+        "exit": 0,
+        "kind": "OK",
+        "status": "PASS",
+        "counts": {
+          "PASS": 15
+        },
+        "comparison": "首轮专项12 PASS/3 FAIL、全量13 PASS/2 FAIL → 15 PASS；controller/autoPause/failure各5",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-feedplayer-r2-20261105-085105",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-feedplayer-r2-20261105-085105.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-feedplayer-r2-20261105-085105.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [],
+        "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
+        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+      },
+      {
+        "batch": "cp3-cp1gap-bottom",
+        "runId": "cp3-cp1gap-bottom-r2-20261105-085136",
+        "attempt": 1,
+        "exit": 0,
+        "kind": "OK",
+        "status": "PASS",
+        "counts": {
+          "PASS": 5
+        },
+        "comparison": "首轮0 PASS/5 FAIL → 5 PASS；60次VOD/live-DVR叶子挂载全部通过",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-cp1gap-bottom-r2-20261105-085136",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-cp1gap-bottom-r2-20261105-085136.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-cp1gap-bottom-r2-20261105-085136.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [],
+        "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
+        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+      },
+      {
+        "batch": "cp3-r2-subtitles",
+        "runId": "cp3-r2-subtitles-r2-20261105-085320",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "HARNESS",
+        "status": "BLOCKED",
+        "counts": {
+          "PASS": 8
+        },
+        "comparison": "首轮srt/ass/vtt为404导致FAIL；本轮包内srt缺失，四格式均缺有效CHECK → BLOCKED",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-subtitles-r2-20261105-085320",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-subtitles-r2-20261105-085320.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-subtitles-r2-20261105-085320.console.log",
+        "errors": [
+          "{'ms': 7117, 'kind': 'SCRIPT_ERROR', 'group': 'new', 'error': 'Unable to load asset: \"assets/test_subtitle.srt\".', 'stack': '#0      PlatformAssetBundle.load.<anonymous closure> (package:flutter/src/services/asset_bundle.dart:332)\\n#1      _rootRunUnary (dart:async/zone_root.dart:48)\\n#2      _CustomZone.runUnary (dart:async/zone.dart:816)\\n<asynchronous suspension>\\n#3      subtitles (package:mova_example/verify_auto/coverage_new.dart:126)\\n<asynchronous suspension>\\n#4      runNew (package:mova_example/verify_auto/coverage_new.dart:51)\\n<asynchronous suspension>\\n#5      _CoverageHomeState.run (package:mova_example/main_coverage_api.dart:207)\\n<asynchronous suspension>\\n'}",
+          "matrix-cp3-r2-subtitles-r2-20261105-085320-cp3-r2-subtitles.json: missing successful END",
+          "missing required CHECK F11.srt",
+          "missing required CHECK F11.ass",
+          "missing required CHECK F11.vtt",
+          "missing required CHECK F11.movtext",
+          "cp3-r2-subtitles: 子命令失败/缺完成标记"
+        ],
+        "failures": [],
+        "rawFiles": [
+          "matrix-cp3-r2-subtitles-r2-20261105-085320-cp3-r2-subtitles.json"
+        ],
+        "classification": "夹具/打包缺陷：pubspec未声明assets/test_subtitle.srt，首格式读取即SCRIPT_ERROR；余下ass/vtt/movtext未执行，不归产品。",
+        "suspectedLocations": "example/pubspec.yaml:114; example/lib/verify_auto/coverage_new.dart:126；前提未成立，没有证据指向lib",
+        "requestedChecks": {
+          "PASS": 0,
+          "FAIL": 0,
+          "BLOCKED": 4
+        }
+      },
+      {
+        "batch": "cp3-r2-subtitles",
+        "runId": "cp3-r2-subtitles-r2-20261105-085403",
+        "attempt": 2,
+        "exit": 1,
+        "kind": "HARNESS",
+        "status": "BLOCKED",
+        "counts": {
+          "PASS": 8
+        },
+        "comparison": "首轮srt/ass/vtt为404导致FAIL；本轮包内srt缺失，四格式均缺有效CHECK → BLOCKED",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-subtitles-r2-20261105-085403",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-subtitles-r2-20261105-085403.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-subtitles-r2-20261105-085403.console.log",
+        "errors": [
+          "{'ms': 5084, 'kind': 'SCRIPT_ERROR', 'group': 'new', 'error': 'Unable to load asset: \"assets/test_subtitle.srt\".', 'stack': '#0      PlatformAssetBundle.load.<anonymous closure> (package:flutter/src/services/asset_bundle.dart:332)\\n#1      _rootRunUnary (dart:async/zone_root.dart:48)\\n#2      _CustomZone.runUnary (dart:async/zone.dart:816)\\n<asynchronous suspension>\\n#3      subtitles (package:mova_example/verify_auto/coverage_new.dart:126)\\n<asynchronous suspension>\\n#4      runNew (package:mova_example/verify_auto/coverage_new.dart:51)\\n<asynchronous suspension>\\n#5      _CoverageHomeState.run (package:mova_example/main_coverage_api.dart:207)\\n<asynchronous suspension>\\n'}",
+          "matrix-cp3-r2-subtitles-r2-20261105-085403-cp3-r2-subtitles.json: missing successful END",
+          "missing required CHECK F11.srt",
+          "missing required CHECK F11.ass",
+          "missing required CHECK F11.vtt",
+          "missing required CHECK F11.movtext",
+          "cp3-r2-subtitles: 子命令失败/缺完成标记"
+        ],
+        "failures": [],
+        "rawFiles": [
+          "matrix-cp3-r2-subtitles-r2-20261105-085403-cp3-r2-subtitles.json"
+        ],
+        "classification": "夹具/打包缺陷：pubspec未声明assets/test_subtitle.srt，首格式读取即SCRIPT_ERROR；余下ass/vtt/movtext未执行，不归产品。",
+        "suspectedLocations": "example/pubspec.yaml:114; example/lib/verify_auto/coverage_new.dart:126；前提未成立，没有证据指向lib",
+        "requestedChecks": {
+          "PASS": 0,
+          "FAIL": 0,
+          "BLOCKED": 4
+        }
+      },
+      {
+        "batch": "cp3-r2-pool",
+        "runId": "cp3-r2-pool-r2-20261105-085435",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "OK",
+        "status": "BLOCKED",
+        "counts": {
+          "PASS": 15,
+          "BLOCKED": 7
+        },
+        "comparison": "A29.final及poolReclaimed旧FAIL → 两条源命令的6条A29 CHECK通过；资源计数缺证据仍BLOCKED",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-pool-r2-20261105-085435",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-pool-r2-20261105-085435.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-pool-r2-20261105-085435.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [
+          "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-feed.json",
+          "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json"
+        ],
+        "classification": "A29容量上限/最终页/释放修复均通过；F12/F13资源证据因/proc/self/fd动态枚举异常缺handles/cpuTicks，属于夹具观测缺口，非已证资源泄漏。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/engine_pool.dart（目标回收断言通过，未证产品错误）",
+        "repairedTargets": [
+          {
+            "id": "A29.final",
+            "passed": true,
+            "detail": "active=120 engines=2 capacity=3",
+            "numbers": null
+          },
+          {
+            "id": "A29.poolReclaimed",
+            "passed": true,
+            "detail": null,
+            "numbers": {
+              "engineCount": 0,
+              "accepts": [
+                false,
+                false
+              ]
+            }
+          },
+          {
+            "id": "A29.dispose",
+            "passed": true,
+            "detail": "pool=0 postDisposeOpen=[false, false]",
+            "numbers": null
+          },
+          {
+            "id": "A29.final",
+            "passed": true,
+            "detail": "active=120 engines=3 capacity=3",
+            "numbers": null
+          },
+          {
+            "id": "A29.poolReclaimed",
+            "passed": true,
+            "detail": null,
+            "numbers": {
+              "engineCount": 0,
+              "accepts": [
+                false,
+                false,
+                false
+              ]
+            }
+          },
+          {
+            "id": "A29.dispose",
+            "passed": true,
+            "detail": "pool=0 postDisposeOpen=[false, false, false]",
+            "numbers": null
+          }
+        ],
+        "blockedMeasurements": [
+          {
+            "id": "F12.audioCounters",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[28]",
+            "beforeError": null,
+            "afterError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/171' (OS Error: No such file or directory, errno = 2)"
+          },
+          {
+            "id": "F13.resources.20",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[32]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.40",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[34]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.60",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[36]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.80",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[38]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/171' (OS Error: No such file or directory, errno = 2)"
+          },
+          {
+            "id": "F13.resources.100",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[40]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.disposed",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085435-cp3-r2-s00d-resources.json:records[44]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/172' (OS Error: No such file or directory, errno = 2)",
+            "afterError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/156' (OS Error: No such file or directory, errno = 2)"
+          }
+        ]
+      },
+      {
+        "batch": "cp3-r2-pool",
+        "runId": "cp3-r2-pool-r2-20261105-085517",
+        "attempt": 2,
+        "exit": 1,
+        "kind": "OK",
+        "status": "BLOCKED",
+        "counts": {
+          "PASS": 15,
+          "BLOCKED": 7
+        },
+        "comparison": "A29.final及poolReclaimed旧FAIL → 两条源命令的6条A29 CHECK通过；资源计数缺证据仍BLOCKED",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-pool-r2-20261105-085517",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-pool-r2-20261105-085517.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-pool-r2-20261105-085517.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [
+          "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-feed.json",
+          "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json"
+        ],
+        "classification": "A29容量上限/最终页/释放修复均通过；F12/F13资源证据因/proc/self/fd动态枚举异常缺handles/cpuTicks，属于夹具观测缺口，非已证资源泄漏。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_resources.dart:metrics；lib/src/core/feed/engine_pool.dart（目标回收断言通过，未证产品错误）",
+        "repairedTargets": [
+          {
+            "id": "A29.final",
+            "passed": true,
+            "detail": "active=120 engines=2 capacity=3",
+            "numbers": null
+          },
+          {
+            "id": "A29.poolReclaimed",
+            "passed": true,
+            "detail": null,
+            "numbers": {
+              "engineCount": 0,
+              "accepts": [
+                false,
+                false
+              ]
+            }
+          },
+          {
+            "id": "A29.dispose",
+            "passed": true,
+            "detail": "pool=0 postDisposeOpen=[false, false]",
+            "numbers": null
+          },
+          {
+            "id": "A29.final",
+            "passed": true,
+            "detail": "active=120 engines=3 capacity=3",
+            "numbers": null
+          },
+          {
+            "id": "A29.poolReclaimed",
+            "passed": true,
+            "detail": null,
+            "numbers": {
+              "engineCount": 0,
+              "accepts": [
+                false,
+                false,
+                false
+              ]
+            }
+          },
+          {
+            "id": "A29.dispose",
+            "passed": true,
+            "detail": "pool=0 postDisposeOpen=[false, false, false]",
+            "numbers": null
+          }
+        ],
+        "blockedMeasurements": [
+          {
+            "id": "F12.audioCounters",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[28]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/163' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.20",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[32]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.40",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[34]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.60",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[36]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.80",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[38]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": null
+          },
+          {
+            "id": "F13.resources.100",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[40]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/156' (OS Error: No such file or directory, errno = 2)"
+          },
+          {
+            "id": "F13.resources.disposed",
+            "pointer": "matrix-cp3-r2-pool-r2-20261105-085517-cp3-r2-s00d-resources.json:records[44]",
+            "beforeError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/5' (OS Error: No such file or directory, errno = 2)",
+            "afterError": "PathNotFoundException: Directory listing failed, path = '/proc/self/fd/157' (OS Error: No such file or directory, errno = 2)"
+          }
+        ]
+      },
+      {
+        "batch": "cp3-r2-s3s6",
+        "runId": "cp3-r2-s3s6-r2-20261105-085601",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "OK",
+        "status": "PASS",
+        "counts": {
+          "PASS": 6
+        },
+        "comparison": "S6旧策略夹具不符导致FAIL → 显式pause的3 PASS；默认keepDecoding的S3对照3 PASS",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-s3s6-r2-20261105-085601",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-s3s6-r2-20261105-085601.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-s3s6-r2-20261105-085601.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [],
+        "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
+        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+      },
+      {
+        "batch": "cp3-r2-stt",
+        "runId": "cp3-r2-stt-r2-20261105-085806",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "OK",
+        "status": "PASS",
+        "counts": {
+          "PASS": 9
+        },
+        "comparison": "N22.sttRetry旧calls=0/running=false FAIL → calls=2/running=true PASS；rollback亦PASS（仅测试引擎回滚）",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-stt-r2-20261105-085806",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-stt-r2-20261105-085806.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-stt-r2-20261105-085806.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [
+          "matrix-cp3-r2-stt-r2-20261105-085806-cp3-r2-stt.json"
+        ],
+        "classification": "待定：保留原始载荷与运行异常，区分事件接收时快照/夹具前提和产品",
+        "suspectedLocations": "lib/src/core/engine.dart; lib/src/core/cutover/cutover_engine.dart; example/lib/verify_auto/s00d_receipt.dart"
+      },
+      {
+        "batch": "cp3-r2-receipt",
+        "runId": "cp3-r2-receipt-r2-20261105-085837",
+        "attempt": 1,
+        "exit": 1,
+        "kind": "OK",
+        "status": "FAIL",
+        "counts": {
+          "PASS": 206,
+          "FAIL": 15
+        },
+        "comparison": "同三命令首轮45条回执FAIL → 本次15条；其余历史触发路径未覆盖",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-receipt-r2-20261105-085837",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-receipt-r2-20261105-085837.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-receipt-r2-20261105-085837.console.log",
+        "errors": [
+          "cleanup: 恢复后原生读回与起始值不一致"
+        ],
+        "failures": [
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaQualityChange",
+            "differences": [
+              "quality"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-abr.json:records[347]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSizeChange",
+            "differences": [
+              "height"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-abr.json:records[375]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[205]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[210]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[215]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[225]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[230]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json:records[234]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[39]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[44]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[49]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[54]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[59]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[64]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json:records[68]"
+          }
+        ],
+        "rawFiles": [
+          "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-abr.json",
+          "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic-cutover.json",
+          "matrix-cp3-r2-receipt-r2-20261105-085837-cp3-r2-basic.json"
+        ],
+        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同引擎/世代状态，不直接认定产品回归。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/engine.dart:1009/:3014/:3107；lib/src/core/cutover/cutover_engine.dart事件代理",
+        "differenceCounts": {
+          "MovaQualityChange:quality": 1,
+          "MovaSizeChange:height": 1,
+          "MovaSeeked:position": 13
+        }
+      },
+      {
+        "batch": "cp3-r2-receipt",
+        "runId": "cp3-r2-receipt-r2-20261105-090006",
+        "attempt": 2,
+        "exit": 1,
+        "kind": "OK",
+        "status": "FAIL",
+        "counts": {
+          "PASS": 208,
+          "FAIL": 14
+        },
+        "comparison": "同三命令首轮45条回执FAIL → 本次14条；其余历史触发路径未覆盖",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-r2-receipt-r2-20261105-090006",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-r2-receipt-r2-20261105-090006.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-r2-receipt-r2-20261105-090006.console.log",
+        "errors": [],
+        "failures": [
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaQualityChange",
+            "differences": [
+              "quality"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-abr.json:records[349]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSizeChange",
+            "differences": [
+              "height"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-abr.json:records[377]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[207]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[212]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[217]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[227]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[232]"
+          },
+          {
+            "id": "A2.cutover.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json:records[236]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[39]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[44]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[49]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[59]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[64]"
+          },
+          {
+            "id": "A2.engine.receipt",
+            "event": "MovaSeeked",
+            "differences": [
+              "position"
+            ],
+            "evidence": "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json:records[68]"
+          }
+        ],
+        "rawFiles": [
+          "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-abr.json",
+          "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic-cutover.json",
+          "matrix-cp3-r2-receipt-r2-20261105-090006-cp3-r2-basic.json"
+        ],
+        "classification": "混合待定：Seeked对独立progress流的硬相等仍有夹具/契约时序问题；Size/Quality为事件相关载荷差异，缺发出时同引擎/世代状态，不直接认定产品回归。",
+        "suspectedLocations": "example/lib/verify_auto/s00d_receipt.dart:receive；lib/src/core/engine.dart:1009/:3014/:3107；lib/src/core/cutover/cutover_engine.dart事件代理",
+        "differenceCounts": {
+          "MovaQualityChange:quality": 1,
+          "MovaSizeChange:height": 1,
+          "MovaSeeked:position": 12
+        }
+      },
+      {
+        "batch": "cp2-qoe",
+        "runId": "cp3-cp2-qoe-r2-20261105-090139",
+        "attempt": 1,
+        "exit": 0,
+        "kind": "OK",
+        "status": "PASS",
+        "counts": {
+          "PASS": 10
+        },
+        "comparison": "CP2旧9 PASS/1 BLOCKED（缺manual720.4） → {'PASS': 10}；单独CHECK见manual720_4",
+        "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-cp2-qoe-r2-20261105-090139",
+        "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-cp2-qoe-r2-20261105-090139.json",
+        "console": "example\\tool\\coverage_evidence\\cp3-r2-20261105-084853\\cp3-cp2-qoe-r2-20261105-090139.console.log",
+        "errors": [],
+        "failures": [],
+        "rawFiles": [],
+        "classification": "若缺原生path/time-pos或恢复前提则BLOCKED；真实CHECK失败保留，不以旧9条PASS补齐本轮。",
+        "suspectedLocations": "example/lib/verify_auto/cp2_qoe_auto.dart:runQoe; example/lib/verify_auto/cp2_harness.dart:native; lib/src/core/engine.dart恢复/quality路径",
+        "manual720_4": [
+          {
+            "id": "CP2.qoe.manual720.4",
+            "status": "PASS",
+            "numbers": {
+              "sessionStarts": 1,
+              "sessionIds": [
+                "65f7d15338e93-bb4c0d78"
+              ],
+              "retryCount": 1,
+              "resumePositionDiffMs": 40,
+              "currentQuality": "720p"
+            }
+          }
+        ]
+      }
+    ],
+    "commits": [
+      "5625ee456e1f06f488b6b5c7c7c5a6b39393dcff",
+      "0478f58a2a088d570f75365b7dbdfe1e7beb983c",
+      "f29e8467ce9fc607a76b2e104902cd3fbbf5ec6b",
+      "93166bd39069e8d22063a5ef5a2fc9aa453ff9c1",
+      "6379fce99e43bc6e6d8f98e863f796f315dd7142",
+      "9ea08f902eb0a7b460402b41c0492eea9f2e8749",
+      "e7d9242bd9432eb206585c8c276202658deb1d5f",
+      "3f92d70033aa2d25fc98375f10586f62f7d7d87c",
+      "5b5cae71694695939cf7c4697ce95fe8d78ca6ff",
+      "002da1be6564dfc35ff6295cdff1f9798d6e4ba1",
+      "11f4045b59d481dd34b515beb9bd41559b41500a",
+      "db51f264c6e27d8c13ab99b6b7f7a1f0e44cfea7",
+      "4958d4369a950e2663d4a19b5a100a5138ee4ecf"
+    ],
+    "complete": true,
+    "unfinished": [],
+    "deviations": [
+      "首次PowerShell调用拆分-P参数导致构建任务名错误；日志本地保留，改用Python参数数组；不计作虚拟内存重试。",
+      "缺失ignored stall.mp4按首轮同参数重新生成40s H264/AAC素材；媒体不提交。",
+      "底栏旧驱动未提供18192；补齐自有真实滚动HLS、等待分片就绪及映射恢复，DVR/60次挂载断言不变。",
+      "headers保持原15 CHECK和5次每变体，quality内新增每轮extract/pool独立正负对照回执；不改产品代码。",
+      "字幕/pool/STT/回执使用新增窄批次选择器，保留原子命令次数；回执覆盖basic普通/代理及ABR，未重新覆盖所有历史触发路径。",
+      "QoE无子项续跑入口：按CP2口径整批5次×resume/manual720；失败仅再整批重试一次。",
+      "headers新增nativePaths布尔并入quality CHECK，导致原始扩展标签FAIL；已用同一不可变原始数据按旧完整判据单列15/15 PASS，不覆盖原始FAIL或冒充整批通过。",
+      "字幕首格式SRT因缺APK资产中断，余下三格式未执行；整批重试一次同故障后继续，须下次补资源并构建新包，不能在本轮换包。",
+      "receipt单批cleanup曾音量读回不一致；OEM的shell设置未生效，使用同一APK现有video/volume动作恢复volume=0，再force-stop并撤销恢复过程自有映射；USB常亮=2，最终读回见finalAudit。"
+    ],
+    "initialSettings": {
+      "power": "2",
+      "volume": "0",
+      "reverse": "\n",
+      "forward": "\n"
+    },
+    "stopReason": "全部限定批次已返回最终结果；所有失败/缺证据和重试均保留。",
+    "restoration": {
+      "before": {
+        "power": "2",
+        "volume": "0",
+        "reverse": "\n",
+        "forward": "\n"
+      },
+      "after": {
+        "power": "2",
+        "volume": "6",
+        "reverse": "\n",
+        "forward": "\n"
+      },
+      "matches": false,
+      "finalAudit": {
+        "at": "2026-11-05T09:08:08.873595+08:00",
+        "after": {
+          "power": "2",
+          "volume": "0",
+          "reverse": "\n",
+          "forward": "\n"
+        },
+        "readings": [
+          {
+            "power": "2",
+            "volume": "0",
+            "reverse": "\n",
+            "forward": "\n"
+          }
+        ],
+        "matches": true,
+        "note": "receipt/basic曾改变系统音量；OEM shell命令记日志但未生效，使用同一APK现有video/volume动作恢复，再force-stop及撤销自有映射，按整轮初始值核验。"
+      }
+    },
+    "installedApkAudit": [
+      {
+        "runId": "cp3-headers-r2-20261105-084854",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-headers-r2-20261105-085001",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-feedplayer-r2-20261105-085105",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-cp1gap-bottom-r2-20261105-085136",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-subtitles-r2-20261105-085320",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-subtitles-r2-20261105-085403",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-pool-r2-20261105-085435",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-pool-r2-20261105-085517",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-s3s6-r2-20261105-085601",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-stt-r2-20261105-085806",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-receipt-r2-20261105-085837",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-r2-receipt-r2-20261105-090006",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      },
+      {
+        "runId": "cp3-cp2-qoe-r2-20261105-090139",
+        "sha256": "06607583846c88635cccb7dddce411471e6f683e9e181d112dd8b76a62dd7d13"
+      }
+    ],
+    "offlineValidation": [
+      "run_matrix --check PASS (92 batches / 135 IDs / 6 manual)",
+      "test_cp3.py: 6 PASS",
+      "test_run_matrix.py: 66 PASS；新增批次移到gap-screen之前后通过",
+      "Gradle release BUILD SUCCESSFUL in 4m16s; max-workers=2；成功尝试前FreePhysicalMemory=4250988 KiB；无虚拟内存错误重试",
+      "git diff --check PASS（提交前再次检查）"
+    ],
+    "subtitleApkAssets": {
+      "test_subtitle.srt": false,
+      "test_subtitle.ass": true,
+      "test_subtitle.vtt": true,
+      "test_video_movtext.mp4": true
+    },
+    "finalBatchCounts": {
+      "FAIL": 2,
+      "PASS": 5,
+      "BLOCKED": 2
+    },
+    "remainingUnresolved": [
+      "TLS/C16：本轮未重跑；仍缺服务证书/CA哈希、有效期/SAN、设备CA读回、原生握手码及时间线。",
+      "V14/F16/N10：本轮未重跑；仍缺广告/正片/影子引擎与世代归属、EOF/duration、OpenSLES及错误事件时间线；V13b缺非零speed样本。",
+      "PiP/A15与V10/V10x方向：本轮未重跑；仍缺原生系统回调、请求归属及方向初态；fullscreen已通过不代替这些路径。",
+      "剩余事件时序：接收时getter不等于发出时状态；仍需engine/open attempt/renderEpoch及width/height/quality发出顺序，不能把异步差异直接关闭。",
+      "源退出根因：历史a child exited未定位子进程/退出码/stderr；本轮独立服务成功不关闭该问题。",
+      "人工：听音/视觉、PiP系统交互、真实锁屏提示、GSM/路由切换、真实STT模型/WHEP/守卫专包仍需人工或专用环境。",
+      "原全量67批及其14个BLOCKED、Windows待安静模式维持历史结论；本轮没有运行Windows验证。",
+      "本轮新增/保留：字幕srt打包缺失；池预热探针accepted/ready前提错误和迟到回执；第一次本地抽帧1次未取得图片（重试5/5通过）；动态资源/proc采样缺口。"
+    ],
+    "qoeManual720_4Evidence": [
+      {
+        "runId": "cp3-cp2-qoe-r2-20261105-090139",
+        "checks": [
+          {
+            "id": "CP2.qoe.manual720.4",
+            "status": "PASS",
+            "numbers": {
+              "sessionStarts": 1,
+              "sessionIds": [
+                "65f7d15338e93-bb4c0d78"
+              ],
+              "retryCount": 1,
+              "resumePositionDiffMs": 40,
+              "currentQuality": "720p"
+            }
+          }
+        ]
+      }
+    ],
+    "title": "第二轮复验（修复后）",
+    "auditedAt": "2026-11-05T09:08:08.873634+08:00",
+    "campaignCommits": [
+      "c7ac6b8601cbc0a664475e865de623ead35afa50 test(mova): CP3 second round final results and device restoration",
+      "4958d4369a950e2663d4a19b5a100a5138ee4ecf test(mova): CP3 repaired APK cp2-qoe attempt 1 evidence",
+      "db51f264c6e27d8c13ab99b6b7f7a1f0e44cfea7 test(mova): CP3 repaired APK cp3-r2-receipt attempt 2 evidence",
+      "11f4045b59d481dd34b515beb9bd41559b41500a test(mova): CP3 repaired APK cp3-r2-receipt attempt 1 evidence",
+      "002da1be6564dfc35ff6295cdff1f9798d6e4ba1 test(mova): CP3 repaired APK cp3-r2-stt attempt 1 evidence",
+      "5b5cae71694695939cf7c4697ce95fe8d78ca6ff test(mova): CP3 repaired APK cp3-r2-s3s6 attempt 1 evidence",
+      "3f92d70033aa2d25fc98375f10586f62f7d7d87c test(mova): CP3 repaired APK cp3-r2-pool attempt 2 evidence",
+      "e7d9242bd9432eb206585c8c276202658deb1d5f test(mova): CP3 repaired APK cp3-r2-pool attempt 1 evidence",
+      "9ea08f902eb0a7b460402b41c0492eea9f2e8749 test(mova): CP3 repaired APK cp3-r2-subtitles attempt 2 evidence",
+      "6379fce99e43bc6e6d8f98e863f796f315dd7142 test(mova): CP3 repaired APK cp3-r2-subtitles attempt 1 evidence",
+      "93166bd39069e8d22063a5ef5a2fc9aa453ff9c1 test(mova): CP3 repaired APK cp3-cp1gap-bottom attempt 1 evidence",
+      "f29e8467ce9fc607a76b2e104902cd3fbbf5ec6b test(mova): CP3 repaired APK cp3-feedplayer attempt 1 evidence",
+      "0478f58a2a088d570f75365b7dbdfe1e7beb983c test(mova): CP3 repaired APK cp3-headers attempt 2 evidence",
+      "5625ee456e1f06f488b6b5c7c7c5a6b39393dcff test(mova): CP3 repaired APK cp3-headers attempt 1 evidence"
+    ]
   }
 }

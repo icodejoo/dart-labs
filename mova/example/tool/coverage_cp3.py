@@ -94,7 +94,8 @@ def main():
         for direction in ('reverse','forward'):
             original[direction]=adb(direction,'--list')
         def mapping(direction,port):adb(direction,f'tcp:{port}',f'tcp:{port}')
-        for port in (18082,18190,18194):mapping('reverse',port)
+        reverse_ports=(18082,18190,18194,18192) if args.scene=='cp1gap' else (18082,18190,18194)
+        for port in reverse_ports:mapping('reverse',port)
         mapping('forward',18083)
         fixtures=out/(stem+'-sources');fixtures.mkdir(exist_ok=True)
         # All media fixtures live under the established verify_sources location.
@@ -111,6 +112,24 @@ def main():
             def do_GET(self):
                 return super().do_GET()
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18190),Media))
+        if args.scene=='cp1gap':
+            # The repaired Dart fixture uses a real live/DVR source, owned by
+            # this driver just like its VOD fixtures (no external stale server).
+            live=fixtures/'live';live.mkdir(exist_ok=True)
+            stream=(out/(stem+'.live-source.log')).open('w',encoding='utf-8')
+            child=subprocess.Popen(['ffmpeg','-v','error','-y','-re','-stream_loop','-1',
+                '-i',str(fixtures/'a.mp4'),'-c','copy','-f','hls','-hls_time','2',
+                '-hls_list_size','6','-hls_flags','delete_segments+omit_endlist',str(live/'live.m3u8')],
+                stdout=stream,stderr=subprocess.STDOUT,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            children.append((child,stream))
+            class Live(RangeHandler):root=str(live)
+            serve(http.server.ThreadingHTTPServer(('127.0.0.1',18192),Live))
+            deadline=time.monotonic()+30
+            while len(list(live.glob('*.ts')))<3:
+                if child.poll() is not None or time.monotonic()>deadline:
+                    raise RuntimeError('cp1gap live HLS fixture did not become ready')
+                time.sleep(.2)
         class Selector(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
                 self.send_response(200);self.end_headers();self.wfile.write(f'cp3-{args.scene}||{args.runs}'.encode())
@@ -167,7 +186,7 @@ def main():
         if original:
             try:
                 adb('shell','am','force-stop',PKG)
-                for direction,ports in [('reverse',(18082,18190,18194)),('forward',(18083,))]:
+                for direction,ports in [('reverse',locals().get('reverse_ports',(18082,18190,18194))),('forward',(18083,))]:
                     for port in ports:
                         key=f'tcp:{port}';old=next((line.split()[-1] for line in original[direction].splitlines() if key in line.split()[:2]),None)
                         if old:adb(direction,key,old)
