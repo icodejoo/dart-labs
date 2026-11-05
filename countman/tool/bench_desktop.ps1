@@ -36,7 +36,7 @@ if ($KeepWindowVisible) { . (Join-Path $PSScriptRoot 'desktop_window.ps1') }
 # pwsh -File 的逗号参数可能作为单个字符串传入，统一展开并校验。
 $Libs = @($Libs | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() })
 $validLibs = @('countmanCard', 'slide', 'countmanText', 'stopWatch',
-  'countmanCardFair', 'slide450', 'countmanCardDefault', 'countmanCardDefault30', 'coveredCounter', 'coveredCard', 'counterFree', 'counter30', 'counterGlobal30', 'counterPlugin30', 'preciseFree', 'precise30', 'preciseGlobal30', 'precisePlugin30', 'countmanCardStaggered', 'slideStaggered',
+  'countmanCardFair', 'slide450', 'countmanCardDefault', 'countmanCardDefault30', 'coveredCounter', 'coveredCard', 'counterFree', 'ringCountdown', 'dialCountdown', 'barCountdown', 'counter30', 'counterGlobal30', 'counterPlugin30', 'preciseFree', 'precise30', 'preciseGlobal30', 'precisePlugin30', 'countmanCardStaggered', 'slideStaggered',
   'cardSlideScale', 'cardSlideOpacity', 'cardFlipDefault',
   'mixedPerCard', 'mixedGroupLayer', 'mixedNoBoundary', 'mixedWrapAll')
 foreach ($lib in $Libs) {

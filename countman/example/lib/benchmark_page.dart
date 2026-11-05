@@ -52,6 +52,12 @@ enum BenchLib {
   coveredCounter,
   /// 50 张默认 calendar 卡被不透明路由覆盖，验证静音休眠。
   coveredCard,
+  /// 50 个 RingCountdown 持续刷新，作为 Ring 的真窗口基线。
+  ringCountdown,
+  /// 50 个 DialCountdown 持续刷新，作为 Dial 的真窗口基线。
+  dialCountdown,
+  /// 50 个 BarCountdown 持续刷新，作为 Bar 的真窗口基线。
+  barCountdown,
   /// 同 counterFree，fps: 30。
   counter30,
   /// 同 counter30，改由全局限帧。
@@ -292,6 +298,12 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
             _runSingle(BenchLib.coveredCard);
           case 'counterFree':
             _runSingle(BenchLib.counterFree);
+          case 'ringCountdown':
+            _runSingle(BenchLib.ringCountdown);
+          case 'dialCountdown':
+            _runSingle(BenchLib.dialCountdown);
+          case 'barCountdown':
+            _runSingle(BenchLib.barCountdown);
           case 'counter30':
             _runSingle(BenchLib.counter30);
           case 'counterGlobal30':
@@ -792,6 +804,12 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           fps: _mounted == BenchLib.counter30 ? 30 : null,
           style: TextCounterStyle(textStyle: ts),
         );
+      case BenchLib.ringCountdown:
+        return SizedBox(width: 56, height: 56, child: RingCountdown(to: dur));
+      case BenchLib.dialCountdown:
+        return SizedBox(width: 56, height: 56, child: DialCountdown(to: dur));
+      case BenchLib.barCountdown:
+        return SizedBox(width: 90, height: 12, child: BarCountdown(to: dur));
       case BenchLib.counterGlobal30:
         return TextCounter(
           to: 1e9,
