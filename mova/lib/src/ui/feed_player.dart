@@ -46,13 +46,23 @@ typedef MovaFeedErrorBuilder =
       VoidCallback retry,
     );
 
+/// Host controls for one feed player; the widget owns its engines while the
+/// host owns this controller. Queries return null and commands do nothing
+/// while detached. Example: `await controller.pause()`.
+///
 /// Feed 的宿主控制入口；组件持有引擎生命周期，宿主持有本控制器。
 /// 同时仅可挂载到一个 MovaFeedPlayer，卸载后查询返回 null、命令为空操作。
+/// 示例：`await controller.pause()`。
 class MovaFeedPlayerController extends ChangeNotifier {
   /// 创建未绑定的控制器；交给 MovaFeedPlayer.controller 后生效。
   MovaFeedPlayerController();
 
   _MovaFeedPlayerState? _owner;
+
+  /// Generation of host pause commands; play and detach invalidate pending reconciliation.
+  ///
+  /// 宿主暂停命令的代际；play 与解绑会使待补暂停失效。
+  int _pauseGeneration = 0;
 
   /// 当前 feed，可查询缓存、条目和点赞状态；不要自行 dispose。
   MovaFeed? get feed => _owner?._controller;
@@ -74,34 +84,82 @@ class MovaFeedPlayerController extends ChangeNotifier {
     }
   }
 
-  /// 暂停当前页；未绑定时为空操作。
+  /// Pauses the current page without waiting for activation. A pending
+  /// activation reapplies the pause after focus; unbound calls do nothing.
+  ///
+  /// 暂停当前页，不等待激活；在途激活聚焦后会补暂停，未绑定时为空操作。
+  ///
+  /// Returns when the current engine's pause completes.
+  ///
+  /// 当前引擎的暂停完成时返回。
   Future<void> pause() async {
     // 即使意图已被守卫置为暂停，也要撤销它记住的恢复欠账。
     final owner = _owner;
     final generation = owner?._activationGeneration;
+    final pauseGeneration = ++_pauseGeneration;
     owner?._guardKey.currentState?.cancelResume();
     await activeApi?.pause();
-    // 首帧可以早于激活收尾；等待池的 focus/play 后再次落实宿主暂停，
-    // 但不能把旧页的暂停带到后来翻到的新页。
-    await owner?._activationSettled;
-    if (owner != null &&
-        identical(_owner, owner) &&
+    if (owner != null) {
+      unawaited(
+        _pauseAfterActivation(
+          owner,
+          generation!,
+          pauseGeneration,
+        ).catchError((Object _) {}),
+      );
+    }
+  }
+
+  /// Reapplies pause after focus, isolating activation failures already shown
+  /// by the owner and skipping detached controllers, newer pages or commands.
+  ///
+  /// 聚焦后补暂停，隔离 owner 已展示的激活错误，并跳过解绑、更新的页面或命令。
+  Future<void> _pauseAfterActivation(
+    _MovaFeedPlayerState owner,
+    int generation,
+    int pauseGeneration,
+  ) async {
+    try {
+      await owner._activationSettled;
+    } on Object {
+      // Activation reports its own failure UI; pause remains best-effort.
+      //
+      // 激活自行展示失败 UI；此处仍尽力落实暂停。
+    }
+    if (identical(_owner, owner) &&
+        pauseGeneration == _pauseGeneration &&
         generation == owner._activationGeneration) {
       owner._guardKey.currentState?.cancelResume();
       await activeApi?.pause();
     }
   }
 
-  /// 播放当前页；内置可见性守卫仍可在隐藏时暂停它。
-  Future<void> play() async => activeApi?.play();
+  /// Plays the current page and cancels a pending pause reconciliation.
+  /// Visibility guards may still pause it while hidden.
+  ///
+  /// 播放当前页并取消待补暂停；内置可见性守卫仍可在隐藏时暂停它。
+  ///
+  /// Returns when the current engine's play completes; unbound calls do nothing.
+  ///
+  /// 当前引擎的播放命令完成时返回；未绑定时为空操作。
+  Future<void> play() async {
+    ++_pauseGeneration;
+    await activeApi?.play();
+  }
 
   void _attach(_MovaFeedPlayerState owner) {
     assert(_owner == null || identical(_owner, owner), '控制器不能同时挂载多个 feed');
     _owner = owner;
   }
 
+  /// Detaches [owner] and invalidates its pending pause reconciliation.
+  ///
+  /// 解绑 [owner]，使其待补暂停失效。
   void _detach(_MovaFeedPlayerState owner) {
-    if (identical(_owner, owner)) _owner = null;
+    if (identical(_owner, owner)) {
+      ++_pauseGeneration;
+      _owner = null;
+    }
   }
 
   void _changed() => notifyListeners();

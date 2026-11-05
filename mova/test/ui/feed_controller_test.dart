@@ -7,9 +7,12 @@ import '../support/fake_api.dart';
 Future<MovaFeedItem?> _load(int index) async =>
     MovaFeedItem(source: MovaSource('https://h/$index.mp4'));
 
+/// Verifies host controls, activation races, guards and per-page failures.
+///
+/// 验证宿主控制、激活竞态、守卫及逐页失败处理。
 void main() {
   for (final cold in [true, false]) {
-    testWidgets('CP3 暂停等待翻页激活收尾 cold=$cold', (t) async {
+    testWidgets('CP3 暂停及时返回且激活收尾不覆盖暂停 cold=$cold', (t) async {
       final controller = MovaFeedPlayerController();
       addTearDown(controller.dispose);
       final apis = <FakeMovaApi>[];
@@ -36,11 +39,16 @@ void main() {
       controller.jumpToPage(1);
       await t.pump();
       await t.pump();
-      final paused = controller.pause();
+      var pauseCompleted = false;
+      final paused = controller.pause().then((_) => pauseCompleted = true);
       await t.pump();
+      final completedBeforeActivation = pauseCompleted;
+      expect(target.state.playbackIntent, isFalse);
+      expect(target.state.playing, isFalse);
       gate.complete();
       await t.pumpAndSettle();
       await paused;
+      expect(completedBeforeActivation, isTrue);
       expect(controller.activeIndex, 1);
       expect(target.state.playbackIntent, isFalse);
       expect(target.state.playing, isFalse);
@@ -48,6 +56,111 @@ void main() {
       await t.pumpAndSettle();
     });
   }
+
+  testWidgets('暂停不传播在途或已结束的激活错误且最终保持暂停', (t) async {
+    final controller = MovaFeedPlayerController();
+    addTearDown(controller.dispose);
+    final api = FakeMovaApi()..pushPlayingOnVerbs = true;
+    await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+      controller: controller,
+      poolSize: 1,
+      prefetchDepth: 0,
+      autoPause: null,
+      loader: _load,
+      engineFactory: () => api,
+      errorBuilder: (_, index, error, retry) => Text('failed $index'),
+    )));
+    await t.pumpAndSettle();
+    final gate = Completer<void>();
+    api.openGate = gate;
+    api.openThrows = StateError('open failed');
+    controller.jumpToPage(1);
+    await t.pump();
+    await t.pump();
+    Object? pauseError;
+    var pauseCompleted = false;
+    final paused = controller.pause().then<void>(
+      (_) => pauseCompleted = true,
+      onError: (Object error) => pauseError = error,
+    );
+    await t.pump();
+    final completedBeforeFailure = pauseCompleted;
+    gate.complete();
+    await t.pumpAndSettle();
+    await paused;
+    expect(completedBeforeFailure, isTrue);
+    expect(pauseError, isNull);
+    expect(find.text('failed 1'), findsOneWidget);
+    await expectLater(controller.pause(), completes);
+    expect(api.state.playbackIntent, isFalse);
+    expect(api.state.playing, isFalse);
+    expect(t.takeException(), isNull);
+    await t.pumpWidget(const SizedBox());
+    await t.pumpAndSettle();
+  });
+
+  testWidgets('在途激活后的补暂停不影响后来翻到的新页', (t) async {
+    final controller = MovaFeedPlayerController();
+    addTearDown(controller.dispose);
+    final api = FakeMovaApi()..pushPlayingOnVerbs = true;
+    await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+      controller: controller,
+      poolSize: 1,
+      prefetchDepth: 0,
+      autoPause: null,
+      loader: _load,
+      engineFactory: () => api,
+    )));
+    await t.pumpAndSettle();
+    final gate = Completer<void>();
+    api.openGate = gate;
+    controller.jumpToPage(1);
+    await t.pump();
+    await t.pump();
+    final paused = controller.pause();
+    await t.pump();
+    controller.jumpToPage(2);
+    await t.pump();
+    gate.complete();
+    await t.pumpAndSettle();
+    await paused;
+    expect(controller.activeIndex, 2);
+    expect(api.state.playbackIntent, isTrue);
+    expect(api.state.playing, isTrue);
+    await t.pumpWidget(const SizedBox());
+    await t.pumpAndSettle();
+  });
+  testWidgets('在途激活后的补暂停不覆盖后续宿主播放命令', (t) async {
+    final controller = MovaFeedPlayerController();
+    addTearDown(controller.dispose);
+    final api = FakeMovaApi()..pushPlayingOnVerbs = true;
+    await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+      controller: controller,
+      poolSize: 1,
+      prefetchDepth: 0,
+      autoPause: null,
+      loader: _load,
+      engineFactory: () => api,
+    )));
+    await t.pumpAndSettle();
+    final gate = Completer<void>();
+    api.openGate = gate;
+    controller.jumpToPage(1);
+    await t.pump();
+    await t.pump();
+    final paused = controller.pause();
+    await t.pump();
+    await controller.play();
+    gate.complete();
+    await t.pumpAndSettle();
+    await paused;
+    expect(controller.activeIndex, 1);
+    expect(api.state.playbackIntent, isTrue);
+    expect(api.state.playing, isTrue);
+    await t.pumpWidget(const SizedBox());
+    await t.pumpAndSettle();
+  });
+
   // 非零页的引擎打开失败后，页面状态和显式重试必须一起保留。
   for (final throws in [false, true]) {
     testWidgets('P2 非零页打开失败保留页码并可重试 throws=$throws', (t) async {
