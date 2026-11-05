@@ -126,31 +126,45 @@ Future<Map<String, dynamic>> _stats() async {
 }
 
 Future<void> runHeaders(Cp3Harness h) async {
+  // R4 expands only the native paths; the original 15 CHECKs stay intact.
+  const r4 = bool.fromEnvironment('CP3_HEADERS_R4');
   // 原生抽帧和暂停预热使用独立正负对照，不把 open 接受当解码完成。
   Future<Map<String, Object?>> nativePath(String path, int run) async {
     final observations = <String, Object?>{};
     Future<bool> attempt(bool auth) async {
       final source = MovaSource(
         'http://127.0.0.1:18194/a.mp4?case=$path-$run-${auth ? 'yes' : 'no'}',
-        headers: auth ? const {'Referer': 'https://cp3.example/authorized'} : const {},
+        headers: auth
+            ? const {'Referer': 'https://cp3.example/authorized'}
+            : const {},
       );
       if (path == 'extract') {
         final clock = Stopwatch()..start();
         final thumb = MovaPullerThumbSource(extractor: MovaFrameExtractor());
         try {
-          final frame = await thumb.thumbAt(source, const Duration(seconds: 1))
+          final frame = await thumb
+              .thumbAt(source, const Duration(seconds: 1))
               .timeout(const Duration(seconds: 20));
           // 不自动重试覆盖第一次失败；保存空帧、耗时和鉴权归属。
           observations[auth ? 'authorized' : 'denied'] = {
-            'targetMs': 1000, 'elapsedMs': clock.elapsedMilliseconds,
-            'outcome': frame == null ? 'null' : frame.bytes.isEmpty ? 'empty' : 'frame',
+            'targetMs': 1000,
+            'elapsedMs': clock.elapsedMilliseconds,
+            'outcome': frame == null
+                ? 'null'
+                : frame.bytes.isEmpty
+                ? 'empty'
+                : 'frame',
             'bytes': frame?.bytes.length,
+            'retrySeekCount': null,
+            'retryVisibility': 'hidden player has no public retry counter',
           };
           return frame != null && frame.bytes.isNotEmpty;
         } on Object catch (error) {
           observations[auth ? 'authorized' : 'denied'] = {
-            'targetMs': 1000, 'elapsedMs': clock.elapsedMilliseconds,
-            'error': '$error', 'errorType': error.runtimeType.toString(),
+            'targetMs': 1000,
+            'elapsedMs': clock.elapsedMilliseconds,
+            'error': '$error',
+            'errorType': error.runtimeType.toString(),
           };
           return false;
         } finally {
@@ -165,29 +179,111 @@ Future<void> runHeaders(Cp3Harness h) async {
       final pool = MovaFeedEnginePool(engineFactory: () => engine, size: 1);
       try {
         await h.mount(engine, raw: true);
+        final pauseClock = Stopwatch()..start();
         await pool.bind(1, source).timeout(const Duration(seconds: 20));
+        final bindReturnedMs = pauseClock.elapsedMilliseconds;
         final accepted = pool.slotFor(1)?.ready == true;
-        await h.until(() => engine.state.error != null ||
-            (engine.state.rendered && engine.state.duration > Duration.zero &&
-             engine.state.width > 0 && engine.state.height > 0), seconds: 20);
-        final mediaReady = engine.state.error == null && engine.state.rendered &&
-            engine.state.duration > Duration.zero && !engine.state.playing;
+        await h.until(
+          () =>
+              engine.state.error != null ||
+              (engine.state.rendered &&
+                  engine.state.duration > Duration.zero &&
+                  engine.state.width > 0 &&
+                  engine.state.height > 0),
+          seconds: 20,
+        );
+        final mediaReady =
+            engine.state.error == null &&
+            engine.state.rendered &&
+            engine.state.duration > Duration.zero &&
+            !engine.state.playing;
         // 首帧 gate 可由 size/grace 兜底；实际采到图像才认领解码预热成功。
+        final controller = engine.renderHandle as VideoController;
+        final shots = <Map<String, Object?>>[];
+        var renderedFutureReady = false;
+        if (r4 && mediaReady) {
+          unawaited(
+            controller.waitUntilFirstFrameRendered
+                .then((_) {
+                  renderedFutureReady = true;
+                })
+                .catchError((Object _) {}),
+          );
+        }
+        final firstShotAtMs = pauseClock.elapsedMilliseconds;
         final image = mediaReady
             ? await (engine.renderHandle as VideoController).player
-                .screenshot(format: 'image/jpeg')
-                .timeout(const Duration(seconds: 10))
+                  .screenshot(format: 'image/jpeg')
+                  .timeout(const Duration(seconds: 10))
             : null;
         final decoded = mediaReady && image != null && image.isNotEmpty;
+        shots.add({
+          'phase': 'original-gate',
+          'atMs': firstShotAtMs,
+          'returnedMs': pauseClock.elapsedMilliseconds,
+          'bytes': image?.length,
+          'null': image == null,
+          'firstFrameRenderedFuture': renderedFutureReady,
+        });
+        if (r4 && mediaReady) {
+          // Same paused instance: retain the original result, then compare an
+          // explicit renderer-first-frame gate and timed shots without play/seek.
+          final gateStart = pauseClock.elapsedMilliseconds;
+          var gateReady = false;
+          try {
+            await controller.waitUntilFirstFrameRendered.timeout(
+              const Duration(seconds: 2),
+            );
+            gateReady = true;
+          } on Object {
+            /* retain timeout as evidence */
+          }
+          final at = pauseClock.elapsedMilliseconds;
+          final gated = await controller.player
+              .screenshot(format: 'image/jpeg')
+              .timeout(const Duration(seconds: 10));
+          shots.add({
+            'phase': 'renderer-first-frame-gate',
+            'atMs': at,
+            'returnedMs': pauseClock.elapsedMilliseconds,
+            'bytes': gated?.length,
+            'null': gated == null,
+            'gateReady': gateReady,
+            'gateWaitMs': at - gateStart,
+            'firstFrameRenderedFuture': renderedFutureReady,
+          });
+          for (final delay in [100, 300, 1000]) {
+            await _sleep(delay);
+            final at = pauseClock.elapsedMilliseconds;
+            final later = await controller.player
+                .screenshot(format: 'image/jpeg')
+                .timeout(const Duration(seconds: 10));
+            shots.add({
+              'phase': 'additional-wait-$delay',
+              'atMs': at,
+              'returnedMs': pauseClock.elapsedMilliseconds,
+              'bytes': later?.length,
+              'null': later == null,
+              'firstFrameRenderedFuture': renderedFutureReady,
+            });
+          }
+        }
         observations[auth ? 'authorized' : 'denied'] = {
-          'accepted': accepted, 'decoded': decoded, 'state': h.snapshot(engine),
-          'firstFrameSignals': signals, 'imageBytes': image?.length,
+          'accepted': accepted,
+          'decoded': decoded,
+          'state': h.snapshot(engine),
+          'firstFrameSignals': signals,
+          'imageBytes': image?.length,
+          'bindReturnedMs': bindReturnedMs,
+          'shots': shots,
+          'clockOrigin': 'immediately before pool.bind(play:false)',
           if (decoded) 'native': await h.native(),
         };
         return accepted && decoded;
       } on Object catch (error) {
         observations[auth ? 'authorized' : 'denied'] = {
-          'error': '$error', 'state': h.snapshot(engine),
+          'error': '$error',
+          'state': h.snapshot(engine),
         };
         return false;
       } finally {
@@ -196,22 +292,38 @@ Future<void> runHeaders(Cp3Harness h) async {
         await h.release(disposeEngine: false);
       }
     }
+
     final positive = await attempt(true);
     final negative = await attempt(false);
     final requests = ((await _stats())['requests'] as List)
         .cast<Map<String, dynamic>>()
         .where((r) => (r['query'] as String).startsWith('case=$path-$run-'))
         .toList();
-    final good = requests.where((r) => (r['query'] as String).endsWith('-yes')).toList();
-    final bad = requests.where((r) => (r['query'] as String).endsWith('-no')).toList();
+    final good = requests
+        .where((r) => (r['query'] as String).endsWith('-yes'))
+        .toList();
+    final bad = requests
+        .where((r) => (r['query'] as String).endsWith('-no'))
+        .toList();
     return {
-      'positive': positive, 'negative': negative, 'requests': requests,
+      'positive': positive,
+      'negative': negative,
+      'requests': requests,
       'observations': observations,
-      'pass': positive && !negative && good.isNotEmpty && bad.isNotEmpty &&
-          good.every((r) => r['status'] == 200 && r['referer'] == 'https://cp3.example/authorized') &&
+      'pass':
+          positive &&
+          !negative &&
+          good.isNotEmpty &&
+          bad.isNotEmpty &&
+          good.every(
+            (r) =>
+                r['status'] == 200 &&
+                r['referer'] == 'https://cp3.example/authorized',
+          ) &&
           bad.every((r) => r['status'] == 403),
     };
   }
+
   for (final variant in ['quality', 'thumb', 'prefetch']) {
     for (var i = 0; i < 5; i++) {
       final token = '$variant-$i';
@@ -289,19 +401,36 @@ Future<void> runHeaders(Cp3Harness h) async {
       if (variant == 'quality') {
         for (final path in ['extract', 'pool']) {
           nativePaths[path] = await nativePath(path, i);
+          if (r4) {
+            final samples = <Map<String, Object?>>[nativePaths[path]!];
+            final count = path == 'extract' ? 12 : 6;
+            for (var extra = 1; extra < count; extra++) {
+              samples.add(await nativePath(path, i + extra * 5));
+            }
+            nativePaths[path] = {
+              ...nativePaths[path]!,
+              'samples': samples,
+              'pass': samples.every((s) => s['pass'] == true),
+            };
+          }
         }
       }
       h.check(
         '$variant.$i',
-        {'positive': positive, 'negative': negative, 'requests': requests,
-          'nativePaths': nativePaths},
+        {
+          'positive': positive,
+          'negative': negative,
+          'requests': requests,
+          'nativePaths': nativePaths,
+        },
         pass:
             positive &&
             (variant == 'prefetch' || !negative) &&
             allowed &&
             denied &&
             resources &&
-            range && nativePaths.values.every((r) => r['pass'] == true),
+            range &&
+            nativePaths.values.every((r) => r['pass'] == true),
       );
     }
   }

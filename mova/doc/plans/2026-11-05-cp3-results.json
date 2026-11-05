@@ -21149,5 +21149,3806 @@
         "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-extract-extra2-r3-20261105-095924\\matrix-cp3-extract-extra2-r3-20261105-095924-build.json"
       }
     ]
+  },
+  "fourthRoundRevalidation": {
+    "started": "2026-11-05T10:21:58.964417+08:00",
+    "head": "c20f4911becbf64ece0b9c98f2abff2a3f6e03df",
+    "runId": "cp3-headers-r4-20261105-102159",
+    "commits": [
+      "8d97bd05fc4f7ae0d9dfa616def3a8b0e00df664",
+      "f20a8d208f42db5a045b31213b5155e4c65c14b1",
+      "ad4c82c90f2f6ca48bd4677816710f38a53c8e13"
+    ],
+    "deviations": [
+      "用户所述 d954901b 在本树对应 cherry-pick 6f57ca5c；起点 HEAD c20f4911。",
+      "保留原15 CHECK；每quality条目扩展12组抽帧/6组池正负对照，总60/30；不在夹具重试抽帧。",
+      "精确内部重试次数不可读，记 null/未知，不将耗时当命中证据。",
+      "暂停时钟起点为 bind(play:false) 调用前；bind返回和各截图调用/返回分别记录。",
+      "未重跑失败批次；同一批次逐样本捕获失败继续，严格只运行一次headers。"
+    ],
+    "initialSettings": {
+      "power": "2",
+      "volume": "0",
+      "reverse": "\n",
+      "forward": "\n"
+    },
+    "apkSha256": "638038a065cc8ba7912d03a1fc56ce9b9d4797e1560d0fc1b51f9d3f8eac10ca",
+    "apk": "example\\tool\\coverage_evidence\\cp3-r4-20261105-102158\\cp3-r4-release.apk",
+    "row": {
+      "batch": "cp3-headers",
+      "runId": "cp3-headers-r4-20261105-102159",
+      "attempt": 1,
+      "exit": 1,
+      "kind": "FAIL",
+      "status": "FAIL",
+      "counts": {
+        "FAIL": 5,
+        "PASS": 10
+      },
+      "comparison": "抽帧28/30→60/60；池原始null 14/30→17/30",
+      "evidence": "example\\tool\\coverage_evidence\\matrix-cp3-headers-r4-20261105-102159",
+      "rawReport": "doc\\plans\\2026-11-05-matrix-run-cp3-headers-r4-20261105-102159.json",
+      "console": "example\\tool\\coverage_evidence\\cp3-r4-20261105-102158\\batch-console.log",
+      "errors": [],
+      "failures": [
+        {
+          "id": "CP3.headers.quality.0"
+        },
+        {
+          "id": "CP3.headers.quality.1"
+        },
+        {
+          "id": "CP3.headers.quality.2"
+        },
+        {
+          "id": "CP3.headers.quality.3"
+        },
+        {
+          "id": "CP3.headers.quality.4"
+        }
+      ],
+      "rawFiles": [],
+      "classification": "原始CHECK失败保留；扩样与等待对照单列，不用延迟成功覆盖原始null",
+      "suspectedLocations": "example/lib/verify_auto/cp3_pages_auto.dart:runHeaders; lib/src/core/engine_pool.dart:_openBinding; lib/src/platform_impl/mpv_extractor_impl.dart:_extractNow",
+      "nativePaths": {
+        "CP3.headers.quality.0": {
+          "extract": true,
+          "pool": false
+        },
+        "CP3.headers.quality.1": {
+          "extract": true,
+          "pool": false
+        },
+        "CP3.headers.quality.2": {
+          "extract": true,
+          "pool": false
+        },
+        "CP3.headers.quality.3": {
+          "extract": true,
+          "pool": false
+        },
+        "CP3.headers.quality.4": {
+          "extract": true,
+          "pool": false
+        }
+      },
+      "originalQualityChecks": {
+        "CP3.headers.quality.0": true,
+        "CP3.headers.quality.1": true,
+        "CP3.headers.quality.2": true,
+        "CP3.headers.quality.3": true,
+        "CP3.headers.quality.4": true
+      }
+    },
+    "analysis": {
+      "extract": {
+        "total": 60,
+        "success": 60,
+        "null": 0,
+        "errors": [],
+        "retryHits": null,
+        "retryReason": "API has no public internal seek retry receipt",
+        "slowOver5s": [
+          {
+            "targetMs": 1000,
+            "elapsedMs": 5567,
+            "outcome": "frame",
+            "bytes": 92439,
+            "retrySeekCount": null,
+            "retryVisibility": "hidden player has no public retry counter"
+          },
+          {
+            "targetMs": 1000,
+            "elapsedMs": 5599,
+            "outcome": "frame",
+            "bytes": 92439,
+            "retrySeekCount": null,
+            "retryVisibility": "hidden player has no public retry counter"
+          },
+          {
+            "targetMs": 1000,
+            "elapsedMs": 5591,
+            "outcome": "frame",
+            "bytes": 92439,
+            "retrySeekCount": null,
+            "retryVisibility": "hidden player has no public retry counter"
+          }
+        ],
+        "previous": {
+          "success": 28,
+          "total": 30,
+          "null": 2
+        },
+        "negativeRejected": 60,
+        "elapsedMs": [
+          511,
+          624,
+          701,
+          733,
+          663,
+          667,
+          629,
+          707,
+          641,
+          754,
+          676,
+          677,
+          630,
+          727,
+          662,
+          709,
+          715,
+          702,
+          700,
+          663,
+          736,
+          706,
+          691,
+          704,
+          639,
+          5567,
+          723,
+          648,
+          675,
+          679,
+          662,
+          774,
+          667,
+          5599,
+          657,
+          648,
+          686,
+          713,
+          694,
+          676,
+          712,
+          673,
+          683,
+          609,
+          703,
+          748,
+          677,
+          5591,
+          741,
+          642,
+          731,
+          706,
+          733,
+          739,
+          675,
+          721,
+          695,
+          715,
+          654,
+          731
+        ],
+        "successRate": 1.0,
+        "previousSuccessRate": 0.9333333333333333,
+        "elapsedMsRange": [
+          511,
+          5599
+        ],
+        "retryHitsInferredFromElapsed": null,
+        "retryInference": "调用总耗时不足5000ms时，可按源码排除首次5s落地超时后的重发；超过5s的成功只能列候选，无直接回执",
+        "retryHitCandidates": 3,
+        "retryHitBoundsFromElapsed": [
+          0,
+          3
+        ]
+      },
+      "pool": {
+        "total": 30,
+        "originalNull": 17,
+        "phases": {
+          "original-gate": {
+            "total": 30,
+            "null": 17,
+            "success": 13,
+            "gateReady": 0,
+            "atMsRange": [
+              497,
+              721
+            ],
+            "sinceBindReturnMsRange": [
+              477,
+              684
+            ]
+          },
+          "renderer-first-frame-gate": {
+            "total": 30,
+            "null": 8,
+            "success": 22,
+            "gateReady": 30,
+            "atMsRange": [
+              559,
+              1141
+            ],
+            "sinceBindReturnMsRange": [
+              532,
+              1120
+            ]
+          },
+          "additional-wait-100": {
+            "total": 30,
+            "null": 0,
+            "success": 30,
+            "gateReady": 0,
+            "atMsRange": [
+              678,
+              1572
+            ],
+            "sinceBindReturnMsRange": [
+              651,
+              1551
+            ]
+          },
+          "additional-wait-300": {
+            "total": 30,
+            "null": 0,
+            "success": 30,
+            "gateReady": 0,
+            "atMsRange": [
+              1358,
+              2186
+            ],
+            "sinceBindReturnMsRange": [
+              1331,
+              2165
+            ]
+          },
+          "additional-wait-1000": {
+            "total": 30,
+            "null": 0,
+            "success": 30,
+            "gateReady": 0,
+            "atMsRange": [
+              2632,
+              3529
+            ],
+            "sinceBindReturnMsRange": [
+              2605,
+              3508
+            ]
+          }
+        },
+        "negativeRejected": 30,
+        "firstSuccess": [
+          {
+            "phase": "original-gate",
+            "atMs": 593,
+            "returnedMs": 1045,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 651,
+            "returnedMs": 1141,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 646,
+            "returnedMs": 974,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 684,
+            "returnedMs": 1189,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 1,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 613,
+            "returnedMs": 955,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 734,
+            "returnedMs": 1072,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 626,
+            "returnedMs": 930,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 614,
+            "returnedMs": 925,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 716,
+            "returnedMs": 1046,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 680,
+            "returnedMs": 1083,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 662,
+            "returnedMs": 1010,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 678,
+            "returnedMs": 1045,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 710,
+            "returnedMs": 1026,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 725,
+            "returnedMs": 1099,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 776,
+            "returnedMs": 1151,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 691,
+            "returnedMs": 1029,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 650,
+            "returnedMs": 989,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 688,
+            "returnedMs": 1105,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 737,
+            "returnedMs": 1086,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 678,
+            "returnedMs": 1050,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 582,
+            "returnedMs": 923,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 705,
+            "returnedMs": 1074,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 721,
+            "returnedMs": 1104,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 738,
+            "returnedMs": 1127,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 655,
+            "returnedMs": 1028,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "original-gate",
+            "atMs": 714,
+            "returnedMs": 998,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 786,
+            "returnedMs": 1162,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "additional-wait-100",
+            "atMs": 718,
+            "returnedMs": 1081,
+            "bytes": 81259,
+            "null": false,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 694,
+            "returnedMs": 1167,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 0,
+            "firstFrameRenderedFuture": true
+          },
+          {
+            "phase": "renderer-first-frame-gate",
+            "atMs": 707,
+            "returnedMs": 1060,
+            "bytes": 81259,
+            "null": false,
+            "gateReady": true,
+            "gateWaitMs": 1,
+            "firstFrameRenderedFuture": true
+          }
+        ],
+        "samples": [
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 25,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 593,
+                "returnedMs": 1045,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1045,
+                "returnedMs": 1316,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1417,
+                "returnedMs": 1714,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2015,
+                "returnedMs": 2377,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3378,
+                "returnedMs": 3661,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-0-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 997111995,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 21,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 651,
+                "returnedMs": 1141,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1141,
+                "returnedMs": 1471,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1572,
+                "returnedMs": 1884,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2186,
+                "returnedMs": 2528,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3529,
+                "returnedMs": 3859,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-5-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 122586991,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 23,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 646,
+                "returnedMs": 974,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 974,
+                "returnedMs": 1237,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1338,
+                "returnedMs": 1626,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1927,
+                "returnedMs": 2249,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3250,
+                "returnedMs": 3533,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-10-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 395231309,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 31,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 634,
+                "returnedMs": 683,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 684,
+                "returnedMs": 1189,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 1,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1290,
+                "returnedMs": 1617,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1918,
+                "returnedMs": 2234,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3246,
+                "returnedMs": 3564,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 26,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 613,
+                "returnedMs": 955,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 955,
+                "returnedMs": 1255,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1356,
+                "returnedMs": 1676,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1978,
+                "returnedMs": 2284,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3285,
+                "returnedMs": 3648,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-20-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 296172776,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 23,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 565,
+                "returnedMs": 612,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 612,
+                "returnedMs": 623,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 734,
+                "returnedMs": 1072,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1372,
+                "returnedMs": 1655,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2657,
+                "returnedMs": 2955,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 23,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 626,
+                "returnedMs": 930,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 930,
+                "returnedMs": 1239,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1340,
+                "returnedMs": 1638,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1940,
+                "returnedMs": 2258,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3260,
+                "returnedMs": 3568,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-1-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 536231325,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 24,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 614,
+                "returnedMs": 925,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 925,
+                "returnedMs": 1188,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1292,
+                "returnedMs": 1599,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1901,
+                "returnedMs": 2238,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3250,
+                "returnedMs": 3570,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-6-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 686897740,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 39,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 716,
+                "returnedMs": 1046,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1046,
+                "returnedMs": 1350,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1452,
+                "returnedMs": 1757,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2058,
+                "returnedMs": 2377,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3390,
+                "returnedMs": 3703,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-11-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 549026452,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 29,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 680,
+                "returnedMs": 1083,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1083,
+                "returnedMs": 1400,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1503,
+                "returnedMs": 1801,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2102,
+                "returnedMs": 2369,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3370,
+                "returnedMs": 3687,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-16-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 817095584,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 21,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 617,
+                "returnedMs": 662,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 662,
+                "returnedMs": 1010,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1117,
+                "returnedMs": 1387,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1705,
+                "returnedMs": 2017,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3019,
+                "returnedMs": 3348,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 21,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 678,
+                "returnedMs": 1045,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1046,
+                "returnedMs": 1367,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 1,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1469,
+                "returnedMs": 1754,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2056,
+                "returnedMs": 2392,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3393,
+                "returnedMs": 3704,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-26-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 1014060643,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 26,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 710,
+                "returnedMs": 1026,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1026,
+                "returnedMs": 1320,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1421,
+                "returnedMs": 1714,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2015,
+                "returnedMs": 2310,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3349,
+                "returnedMs": 3629,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-2-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 1042675795,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 32,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 558,
+                "returnedMs": 609,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 609,
+                "returnedMs": 623,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 725,
+                "returnedMs": 1099,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1401,
+                "returnedMs": 1716,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2718,
+                "returnedMs": 3035,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 46,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 577,
+                "returnedMs": 649,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 649,
+                "returnedMs": 670,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 776,
+                "returnedMs": 1151,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1453,
+                "returnedMs": 1760,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2762,
+                "returnedMs": 3131,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 45,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 615,
+                "returnedMs": 691,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 691,
+                "returnedMs": 1029,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1130,
+                "returnedMs": 1434,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1736,
+                "returnedMs": 2100,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3103,
+                "returnedMs": 3459,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 33,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 583,
+                "returnedMs": 650,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 650,
+                "returnedMs": 989,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1090,
+                "returnedMs": 1450,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1762,
+                "returnedMs": 2094,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3095,
+                "returnedMs": 3424,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 31,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 618,
+                "returnedMs": 688,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 688,
+                "returnedMs": 1105,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1206,
+                "returnedMs": 1493,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1819,
+                "returnedMs": 2155,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3159,
+                "returnedMs": 3460,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 32,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 585,
+                "returnedMs": 622,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 622,
+                "returnedMs": 636,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 737,
+                "returnedMs": 1086,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1387,
+                "returnedMs": 1686,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2687,
+                "returnedMs": 3010,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 27,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 523,
+                "returnedMs": 559,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 559,
+                "returnedMs": 577,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 678,
+                "returnedMs": 1050,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1358,
+                "returnedMs": 1630,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2632,
+                "returnedMs": 2956,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 20,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 497,
+                "returnedMs": 582,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 582,
+                "returnedMs": 923,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1024,
+                "returnedMs": 1304,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1610,
+                "returnedMs": 1917,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2919,
+                "returnedMs": 3252,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 64,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 705,
+                "returnedMs": 1074,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1074,
+                "returnedMs": 1351,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1456,
+                "returnedMs": 1720,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2021,
+                "returnedMs": 2306,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3308,
+                "returnedMs": 3585,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-18-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 417697306,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 64,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 721,
+                "returnedMs": 1104,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 1104,
+                "returnedMs": 1391,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1492,
+                "returnedMs": 1826,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2127,
+                "returnedMs": 2466,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3515,
+                "returnedMs": 3839,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-23-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 232460552,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 29,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 535,
+                "returnedMs": 624,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 624,
+                "returnedMs": 637,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 738,
+                "returnedMs": 1127,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1428,
+                "returnedMs": 1769,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2771,
+                "returnedMs": 3079,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 20,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 614,
+                "returnedMs": 655,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 655,
+                "returnedMs": 1028,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1130,
+                "returnedMs": 1444,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1745,
+                "returnedMs": 2056,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3058,
+                "returnedMs": 3389,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": true,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": 81259,
+            "bindReturnedMs": 61,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 714,
+                "returnedMs": 998,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 998,
+                "returnedMs": 1281,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1383,
+                "returnedMs": 1726,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 2027,
+                "returnedMs": 2308,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3310,
+                "returnedMs": 3620,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)",
+            "native": {
+              "path": "http://127.0.0.1:18194/a.mp4?case=pool-9-yes",
+              "timePosMs": 0,
+              "pause": "yes",
+              "duration": "120.000000",
+              "vid": "1",
+              "mute": "no",
+              "seeking": "no",
+              "engine": 484832556,
+              "epochAtRead": 0,
+              "state": {
+                "positionMs": 0,
+                "durationMs": 120000,
+                "playing": false,
+                "intent": false,
+                "buffering": false,
+                "rendered": true,
+                "renderEpoch": 0,
+                "sourceIndex": 0,
+                "fullscreen": false,
+                "pip": false,
+                "mini": false,
+                "keepAlivePhase": "off",
+                "fit": "contain",
+                "zoom": 1.0,
+                "locked": false,
+                "size": "640x360",
+                "error": null,
+                "quality": null,
+                "volume": 0.0,
+                "brightness": 0.1725490242242813,
+                "rate": 1.0,
+                "timeshiftBehindMs": null,
+                "windowMs": 120000
+              }
+            }
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 58,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 648,
+                "returnedMs": 668,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 668,
+                "returnedMs": 685,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 786,
+                "returnedMs": 1162,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1463,
+                "returnedMs": 1746,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2746,
+                "returnedMs": 3051,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 21,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 567,
+                "returnedMs": 597,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 597,
+                "returnedMs": 616,
+                "bytes": null,
+                "null": true,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 718,
+                "returnedMs": 1081,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1383,
+                "returnedMs": 1687,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 2689,
+                "returnedMs": 3062,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 40,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 647,
+                "returnedMs": 694,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 694,
+                "returnedMs": 1167,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 0,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1294,
+                "returnedMs": 1639,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1997,
+                "returnedMs": 2299,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3302,
+                "returnedMs": 3640,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          },
+          {
+            "accepted": true,
+            "decoded": false,
+            "state": {
+              "positionMs": 0,
+              "durationMs": 120000,
+              "playing": false,
+              "intent": false,
+              "buffering": false,
+              "rendered": true,
+              "renderEpoch": 0,
+              "sourceIndex": 0,
+              "fullscreen": false,
+              "pip": false,
+              "mini": false,
+              "keepAlivePhase": "off",
+              "fit": "contain",
+              "zoom": 1.0,
+              "locked": false,
+              "size": "640x360",
+              "error": null,
+              "quality": null,
+              "volume": 0.0,
+              "brightness": 0.1725490242242813,
+              "rate": 1.0,
+              "timeshiftBehindMs": null,
+              "windowMs": 120000
+            },
+            "firstFrameSignals": [
+              "restart"
+            ],
+            "imageBytes": null,
+            "bindReturnedMs": 20,
+            "shots": [
+              {
+                "phase": "original-gate",
+                "atMs": 652,
+                "returnedMs": 706,
+                "bytes": null,
+                "null": true,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "renderer-first-frame-gate",
+                "atMs": 707,
+                "returnedMs": 1060,
+                "bytes": 81259,
+                "null": false,
+                "gateReady": true,
+                "gateWaitMs": 1,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-100",
+                "atMs": 1162,
+                "returnedMs": 1484,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-300",
+                "atMs": 1785,
+                "returnedMs": 2092,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              },
+              {
+                "phase": "additional-wait-1000",
+                "atMs": 3093,
+                "returnedMs": 3395,
+                "bytes": 81259,
+                "null": false,
+                "firstFrameRenderedFuture": true
+              }
+            ],
+            "clockOrigin": "immediately before pool.bind(play:false)"
+          }
+        ],
+        "nullRecoveries": [
+          {
+            "bindReturnedMs": 31,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 634,
+              "returnedMs": 683,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 684,
+              "returnedMs": 1189,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 1,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 1,
+            "sinceBindReturnedMs": 653
+          },
+          {
+            "bindReturnedMs": 23,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 565,
+              "returnedMs": 612,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 734,
+              "returnedMs": 1072,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 122,
+            "sinceBindReturnedMs": 711
+          },
+          {
+            "bindReturnedMs": 21,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 617,
+              "returnedMs": 662,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 662,
+              "returnedMs": 1010,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 641
+          },
+          {
+            "bindReturnedMs": 32,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 558,
+              "returnedMs": 609,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 725,
+              "returnedMs": 1099,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 116,
+            "sinceBindReturnedMs": 693
+          },
+          {
+            "bindReturnedMs": 46,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 577,
+              "returnedMs": 649,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 776,
+              "returnedMs": 1151,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 127,
+            "sinceBindReturnedMs": 730
+          },
+          {
+            "bindReturnedMs": 45,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 615,
+              "returnedMs": 691,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 691,
+              "returnedMs": 1029,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 646
+          },
+          {
+            "bindReturnedMs": 33,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 583,
+              "returnedMs": 650,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 650,
+              "returnedMs": 989,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 617
+          },
+          {
+            "bindReturnedMs": 31,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 618,
+              "returnedMs": 688,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 688,
+              "returnedMs": 1105,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 657
+          },
+          {
+            "bindReturnedMs": 32,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 585,
+              "returnedMs": 622,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 737,
+              "returnedMs": 1086,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 115,
+            "sinceBindReturnedMs": 705
+          },
+          {
+            "bindReturnedMs": 27,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 523,
+              "returnedMs": 559,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 678,
+              "returnedMs": 1050,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 119,
+            "sinceBindReturnedMs": 651
+          },
+          {
+            "bindReturnedMs": 20,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 497,
+              "returnedMs": 582,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 582,
+              "returnedMs": 923,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 562
+          },
+          {
+            "bindReturnedMs": 29,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 535,
+              "returnedMs": 624,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 738,
+              "returnedMs": 1127,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 114,
+            "sinceBindReturnedMs": 709
+          },
+          {
+            "bindReturnedMs": 20,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 614,
+              "returnedMs": 655,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 655,
+              "returnedMs": 1028,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 635
+          },
+          {
+            "bindReturnedMs": 58,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 648,
+              "returnedMs": 668,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 786,
+              "returnedMs": 1162,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 118,
+            "sinceBindReturnedMs": 728
+          },
+          {
+            "bindReturnedMs": 21,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 567,
+              "returnedMs": 597,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "additional-wait-100",
+              "atMs": 718,
+              "returnedMs": 1081,
+              "bytes": 81259,
+              "null": false,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 121,
+            "sinceBindReturnedMs": 697
+          },
+          {
+            "bindReturnedMs": 40,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 647,
+              "returnedMs": 694,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 694,
+              "returnedMs": 1167,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 0,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 0,
+            "sinceBindReturnedMs": 654
+          },
+          {
+            "bindReturnedMs": 20,
+            "initial": {
+              "phase": "original-gate",
+              "atMs": 652,
+              "returnedMs": 706,
+              "bytes": null,
+              "null": true,
+              "firstFrameRenderedFuture": true
+            },
+            "firstSuccess": {
+              "phase": "renderer-first-frame-gate",
+              "atMs": 707,
+              "returnedMs": 1060,
+              "bytes": 81259,
+              "null": false,
+              "gateReady": true,
+              "gateWaitMs": 1,
+              "firstFrameRenderedFuture": true
+            },
+            "additionalWaitToSuccessMs": 1,
+            "sinceBindReturnedMs": 687
+          }
+        ],
+        "nullRecoverySinceBindReturnMsRange": [
+          562,
+          730
+        ],
+        "nullRecoveryAdditionalWaitMsRange": [
+          0,
+          127
+        ],
+        "nullRecovered": 17,
+        "previous": {
+          "total": 30,
+          "null": 14
+        }
+      }
+    },
+    "conclusion": "仍待定：抽帧本轮 60/60，上轮28/30；约5s以上成功3次，与重发后恢复相容；精确重试命中未知（耗时仅能约束0至3），不能排除open本身延迟，修复有效性仍待定。池原始null 17/30（上轮14/30）；首帧gate后null 8/30，再等100ms后null 0/30。原始null恢复17/17，支持夹具截图时机窗口；首帧future不足以保证截图就绪，原始问题未关闭。",
+    "complete": true,
+    "restoration": {
+      "before": {
+        "power": "2",
+        "volume": "0",
+        "reverse": "\n",
+        "forward": "\n"
+      },
+      "after": {
+        "power": "2",
+        "volume": "0",
+        "reverse": "\n",
+        "forward": "\n"
+      },
+      "matches": true
+    },
+    "installationVerification": {
+      "reused": true,
+      "source": "E:\\workspaces\\wt-mova-cp2fix\\mova\\example\\tool\\coverage_evidence\\cp3-r4-20261105-102158\\cp3-r4-release.apk",
+      "sha256": {
+        "signed": "638038a065cc8ba7912d03a1fc56ce9b9d4797e1560d0fc1b51f9d3f8eac10ca",
+        "device": "638038a065cc8ba7912d03a1fc56ce9b9d4797e1560d0fc1b51f9d3f8eac10ca"
+      }
+    },
+    "finished": "2026-11-05T10:33:18.644824+08:00"
   }
 }

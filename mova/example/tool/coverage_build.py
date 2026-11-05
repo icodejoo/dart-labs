@@ -40,7 +40,7 @@ for source in native.glob('*.so'):
 build_command = [
         str(example / 'android/gradlew.bat'), '-I', str(example / 'tool/coverage.init.gradle'),
         '-Ptarget-platform=android-arm64', f'-Ptarget={target}',
-        '-Pdart-defines='+','.join(base64.b64encode(s.encode()).decode() for s in ['MEDIA=http://127.0.0.1:18080/vod.mp4','AUTOEXIT=false','GOPS=25,50,100','HOLDS=3','S3_SECONDS=15','S4_SECONDS=15','S5_SECONDS=20']),
+        '-Pdart-defines='+','.join(base64.b64encode(s.encode()).decode() for s in ['MEDIA=http://127.0.0.1:18080/vod.mp4','AUTOEXIT=false','GOPS=25,50,100','HOLDS=3','S3_SECONDS=15','S4_SECONDS=15','S5_SECONDS=20', *(['CP3_HEADERS_R4=true'] if os.environ.get('MOVA_CP3_HEADERS_R4') == '1' else [])]),
         '-Pdart-obfuscation=false', '-Ptrack-widget-creation=true', '-Ptree-shake-icons=true',
         *extra_args, 'assembleProfile' if profile else 'assembleRelease',
     ]
