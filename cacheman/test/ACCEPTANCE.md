@@ -1,4 +1,4 @@
-# cacheman 阶段 0 / 1a / 1b / 2 验收矩阵
+# cacheman 阶段 0 / 1a / 1b / 2 及全量评审修复验收矩阵
 
 在指定 worktree 根目录复现（不切换目录）：
 
@@ -10,9 +10,9 @@ dart run tool/check_acceptance.dart
 flutter analyze example
 ```
 
-最近一次运行：**134/134 测试通过；lib 行覆盖率 565/565（100.00%），1 行豁免**。
+最近一次运行：**139/139 测试通过；lib 行覆盖率 561/561（100.00%），1 行豁免**；验收引用 207 条全部有效。
 包及 example analyze 无问题。生成日期：2026-11-05（会话日期，Asia/Shanghai）。
-commit 基线：`ab4e93aff5503e508aa431eb63f7dd6e7f1fedd7`（阶段 1b 终审）；本次为未提交改动。
+commit 基线：`8ad38313`（全量评审 R1–R6 修复，主会话终审复跑）。
 此摘要由最终命令验证；coverage/ 已在原有 .gitignore 中，不纳入版本控制。
 
 名称格式为“test/文件.dart :: group > test”，与源码注册名称完全一致；参数化名称列出实际展开值。
