@@ -213,6 +213,11 @@
   app directories. Native libraries under `prebuilt/` must be rebuilt for the
   fix to ship.
 
+* Fix SMIL to-only animations using parse-time underlying numeric/path/colour
+  values, including inherited presentation attributes and existing CSS cascade.
+  Approximate to-only transforms with per-type identities; other-animation
+  composition and by-animations remain unsupported.
+
 ## 0.1.1
 
 * Docs: completed dartdoc coverage on the full public API surface; README no

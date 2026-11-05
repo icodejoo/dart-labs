@@ -45,6 +45,7 @@ import 'svg_gradient.dart';
 import 'svg_path_data.dart';
 import 'svg_path_morph.dart';
 import 'svg_style.dart';
+import 'svg_theme.dart';
 import 'svgx_animation_info.dart';
 
 /// [element]'s attributes as a `local-name -> value` map, dropping any
@@ -505,7 +506,11 @@ SvgGradientDef? _buildGradient(
   if (id != null) visiting.remove(id);
   if (stops.isEmpty) return null;
 
-  final animatedNode = _parseGradientAttributeAnimations(element, context);
+  final animatedNode = _parseGradientAttributeAnimations(
+    element,
+    context,
+    attributes,
+  );
 
   final radial = element.name.local == 'radialGradient';
   final rawTransform = attributes['gradientTransform'];
@@ -585,6 +590,7 @@ const _gradientNumericAttributes = {
 SvgNode _parseGradientAttributeAnimations(
   XmlElement element,
   _ParseContext context,
+  Map<String, String> underlyingAttributes,
 ) {
   final attributes = _attributesOf(element);
   final css = _cascadeAttributes(element, context, attributes);
@@ -597,7 +603,11 @@ SvgNode _parseGradientAttributeAnimations(
         !_gradientNumericAttributes.contains(attributeName)) {
       continue;
     }
-    final anim = _parseAnimate(child);
+    final anim = _parseAnimate(
+      child,
+      context,
+      underlyingAttributes: underlyingAttributes,
+    );
     if (anim != null) {
       animations.add(anim);
       context.animations.add(anim);
@@ -646,13 +656,13 @@ SvgNode _parseGradientAttributeAnimations(
       if (grandchild.name.local != 'animate') continue;
       final attributeName = grandchild.getAttribute('attributeName');
       if (attributeName == 'stop-color') {
-        final anim = _parseAnimateColor(grandchild);
+        final anim = _parseAnimateColor(grandchild, context);
         if (anim != null) {
           colorAnimations.add(anim);
           context.animations.add(anim);
         }
       } else {
-        final anim = _parseAnimate(grandchild);
+        final anim = _parseAnimate(grandchild, context);
         if (anim != null) {
           numericAnimations.add(anim);
           context.animations.add(anim);
@@ -695,12 +705,17 @@ SmilBeginSpec _parseElementBegin(XmlElement element) => configureSmilBegin(
 /// 解析 `<animate attributeName="stop-color">` 时间线：每个关键帧词元是一个
 /// 颜色（`_normalizeColorAttributes` 接受的任意形式），在此一次性解析为十六进制，
 /// 再打包为 [SmilColorAnimation] 的 `0xAARRGGBB` 整数。
-SmilColorAnimation? _parseAnimateColor(XmlElement element) {
+SmilColorAnimation? _parseAnimateColor(
+  XmlElement element,
+  _ParseContext context,
+) {
   // 普通动画仅接受有效正时长；零时长语义留给 <set>。
   final duration = parseSmilDuration(element.getAttribute('dur'));
   if (duration <= Duration.zero) return null;
   final valuesRaw = element.getAttribute('values');
-  final from = element.getAttribute('from');
+  final from =
+      element.getAttribute('from') ??
+      (_isToAnimation(element) ? _smilUnderlyingValue(element, context) : null);
   final to = element.getAttribute('to');
   final raw = (valuesRaw != null && valuesRaw.trim().isNotEmpty)
       ? valuesRaw
@@ -871,6 +886,10 @@ class _ParseContext {
 
   final Map<String, XmlElement> elementsById;
   final List<SmilTimed> animations = <SmilTimed>[];
+
+  /// Static instance ancestry, including expanded `<use>` wrappers.
+  /// 静态实例祖先链，包含展开后的 `<use>` 包装节点。
+  final List<Map<String, String>> smilBaseStack = [];
   final Set<String> resolvingUseTargets = <String>{};
   int useDepth = 0;
 
@@ -911,6 +930,7 @@ SvgNode _parseElement(
   final attributes = _attributesOf(element);
   final css = _cascadeAttributes(element, context, attributes);
   _normalizeColorAttributes(attributes);
+  context.smilBaseStack.add(attributes);
 
   // Mark this element's own id as "being parsed" for the duration of its
   // subtree, so a <use> inside it that points back at an ancestor is caught by
@@ -941,7 +961,7 @@ SvgNode _parseElement(
       final isPath = child.getAttribute('attributeName') == _pathAttribute;
       if (!isSet &&
           _colorAttributes.contains(child.getAttribute('attributeName'))) {
-        final anim = _parseAnimateColor(child);
+        final anim = _parseAnimateColor(child, context);
         if (anim != null) {
           colorAnimations.add(anim);
           context.animations.add(anim);
@@ -953,7 +973,9 @@ SvgNode _parseElement(
           context.animations.add(anim);
         }
       } else {
-        final anim = isSet ? _parseSetNumeric(child) : _parseAnimate(child);
+        final anim = isSet
+            ? _parseSetNumeric(child)
+            : _parseAnimate(child, context);
         if (anim != null) {
           animations.add(anim);
           context.animations.add(anim);
@@ -1007,6 +1029,7 @@ SvgNode _parseElement(
     ..addAll(compiled.lists);
 
   if (markedSelfId) context.resolvingUseTargets.remove(selfId);
+  context.smilBaseStack.removeLast();
 
   final rawTransform = attributes['transform'];
   final maskId = parseUrlId(attributes['mask']);
@@ -1560,10 +1583,13 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
   context.instantiatedNodes++;
   context.resolvingUseTargets.add(id);
   context.useDepth++;
+  _normalizeColorAttributes(attributes);
+  context.smilBaseStack.add(attributes);
   final instance = target.name.local == _useTag
       ? _resolveUse(target, context)
       : _parseElement(target, targetKind, context);
   if (instance == null) context.instantiatedExtraUnits++;
+  context.smilBaseStack.removeLast();
   context.useDepth--;
   context.resolvingUseTargets.remove(id);
 
@@ -1605,8 +1631,142 @@ List<double>? _usePlacementTransform(Map<String, String> attributes) {
   return parseTransformMatrix(x == 0 && y == 0 ? raw : '$raw translate($x,$y)');
 }
 
+const _smilFill = 'fill';
+const _smilStroke = 'stroke';
+const _smilOpacity = 'opacity';
+const _smilFillOpacity = 'fill-opacity';
+const _smilStrokeOpacity = 'stroke-opacity';
+const _smilStrokeWidth = 'stroke-width';
+const _smilDashoffset = 'stroke-dashoffset';
+const _smilRx = 'rx';
+const _smilRy = 'ry';
+const _smilCx = 'cx';
+const _smilCy = 'cy';
+const _smilFx = 'fx';
+const _smilFy = 'fy';
+const _smilOffset = 'offset';
+const _smilR = 'r';
+const _smilX2 = 'x2';
+const _smilInitialColor = '#000000';
+
+/// Initial numeric values already consumed by the geometry/stop/text painters.
+/// 几何、色标与文本绘制器已有的数值初始值，不增加新的绘制通道。
+const _smilInitialNumbers = {
+  _smilR: 0.0,
+  _smilCx: 0.0,
+  _smilCy: 0.0,
+  'x': 0.0,
+  'y': 0.0,
+  'x1': 0.0,
+  _smilX2: 0.0,
+  'y1': 0.0,
+  'y2': 0.0,
+  'width': 0.0,
+  'height': 0.0,
+  _smilRx: 0.0,
+  _smilRy: 0.0,
+  _smilOffset: 0.0,
+  'stop-opacity': 1.0,
+  'font-size': 16.0,
+};
+
+/// `values` and explicit `from` always retain precedence over a base value.
+/// `values` 与显式 `from` 始终优先于基础值。
+bool _isToAnimation(XmlElement element) =>
+    element.getAttribute('from') == null &&
+    element.getAttribute('to') != null &&
+    (element.getAttribute('values')?.trim().isEmpty ?? true);
+
+/// Resolve static attributes/CSS through the renderer's own inheritance rules.
+/// Other animations' current values are deliberately excluded: this is a
+/// parse-time approximation of SMIL's underlying animated value. Unresolved
+/// paints (none/currentColor/URLs) cannot seed a literal colour timeline.
+/// 按渲染器的继承规则解析静态属性与 CSS；不包含其它动画的当前值，作为 SMIL
+/// underlying animated value 的解析期近似。none/currentColor/URL 等无法解析
+/// 的涂料不能作为字面颜色时间线的起点。
+String? _smilUnderlyingValue(
+  XmlElement animation,
+  _ParseContext context, {
+  Map<String, String>? underlyingAttributes,
+}) {
+  final target = animation.parent;
+  if (target is! XmlElement) return null;
+  final name = animation.getAttribute('attributeName');
+  if (name == null) return null;
+  final chain = context.smilBaseStack.isNotEmpty
+      ? context.smilBaseStack
+      : <Map<String, String>>[];
+  if (chain.isEmpty) {
+    final ancestors = <XmlElement>[];
+    for (XmlNode? node = target; node is XmlElement; node = node.parent) {
+      ancestors.add(node);
+    }
+    for (final element in ancestors.reversed) {
+      final attributes = _attributesOf(element);
+      _cascadeAttributes(element, context, attributes);
+      _normalizeColorAttributes(attributes);
+      chain.add(attributes);
+    }
+  }
+  final own = underlyingAttributes ?? chain.last;
+  if (_colorAttributes.contains(name)) {
+    if (name == _smilFill || name == _smilStroke) {
+      for (final attributes in chain.reversed) {
+        if (attributes.containsKey(name)) return attributes[name];
+      }
+      return name == _smilFill ? _smilInitialColor : null;
+    }
+    return own[name] ?? _smilInitialColor;
+  }
+
+  var style = ResolvedStyle.initial;
+  for (final attributes in chain) {
+    style = style.inherit(attributes, const SvgxTheme());
+  }
+  final styled = switch (name) {
+    _smilDashoffset => style.strokeDashoffset,
+    _smilStrokeWidth => style.strokeWidth,
+    _smilFillOpacity => style.fillOpacity,
+    _smilStrokeOpacity => style.strokeOpacity,
+    _smilOpacity => style.opacity,
+    _ => null,
+  };
+  if (styled != null) return styled.toString();
+
+  var raw = own[name];
+  var initial = _smilInitialNumbers[name];
+  final gradient = _gradientTags.contains(target.name.local);
+  if (gradient && _gradientNumericAttributes.contains(name)) {
+    initial = switch (name) {
+      _smilX2 => 1,
+      _smilCx || _smilCy || _smilR || _smilFx || _smilFy => 0.5,
+      _ => 0,
+    };
+    if (name == _smilFx) raw ??= own[_smilCx];
+    if (name == _smilFy) raw ??= own[_smilCy];
+  } else if (target.name.local == 'rect') {
+    if (name == _smilRx) raw ??= own[_smilRy];
+    if (name == _smilRy) raw ??= own[_smilRx];
+  }
+  final text = raw?.trim();
+  final percent =
+      (gradient || name == _smilOffset) && text != null && text.endsWith('%');
+  final number = text == null
+      ? null
+      : double.tryParse(percent ? text.substring(0, text.length - 1) : text);
+  final base = number == null || !number.isFinite
+      ? initial
+      : (percent ? number / 100 : number);
+  return base?.toString();
+}
+
+/// Parses numeric timelines; invalid duration/keyframes are ignored.
 /// 解析数值动画；缺少正时长或有效关键帧时忽略。
-SmilAnimation? _parseAnimate(XmlElement element) {
+SmilAnimation? _parseAnimate(
+  XmlElement element,
+  _ParseContext context, {
+  Map<String, String>? underlyingAttributes,
+}) {
   // 普通动画仅接受有效正时长；零时长语义留给 <set>。
   final duration = parseSmilDuration(element.getAttribute('dur'));
   if (duration <= Duration.zero) return null;
@@ -1616,6 +1776,13 @@ SmilAnimation? _parseAnimate(XmlElement element) {
     values: element.getAttribute('values'),
     from: element.getAttribute('from'),
     to: element.getAttribute('to'),
+    underlying: _isToAnimation(element)
+        ? _smilUnderlyingValue(
+            element,
+            context,
+            underlyingAttributes: underlyingAttributes,
+          )
+        : null,
   );
   if (values == null) return null;
 
@@ -1640,8 +1807,8 @@ SmilAnimation? _parseAnimate(XmlElement element) {
 /// 路径几何属性名；作用于它的 `<animate>`/`<set>` 走路径通道。
 const String _pathAttribute = 'd';
 
-/// 解析 `<animate attributeName="d">`：各帧形状兼容时可插值，否则离散。
-/// `values`/`from`-`to` 缺失或不足两帧时返回 null。
+/// Parse path morphs, using the target's own `d` for a to-animation.
+/// 解析路径变形；to-animation 使用目标自身的 `d`，形状不兼容时离散。
 SmilPathAnimation? _parseAnimatePath(XmlElement element) {
   // 普通动画仅接受有效正时长；零时长语义留给 <set>。
   final duration = parseSmilDuration(element.getAttribute('dur'));
@@ -1650,6 +1817,7 @@ SmilPathAnimation? _parseAnimatePath(XmlElement element) {
     values: element.getAttribute('values'),
     from: element.getAttribute('from'),
     to: element.getAttribute('to'),
+    underlying: (element.parent as XmlElement?)?.getAttribute(_pathAttribute),
   );
   if (frames == null) return null;
   final beginSpec = _parseElementBegin(element);
@@ -1733,7 +1901,13 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
   if (type == null) return null; // unknown type: skip, render as no transform
   final rawFrames = parseSmilTransformKeyframes(
     values: element.getAttribute('values'),
-    from: element.getAttribute('from'),
+    // Approximate underlying transform with the per-type identity.
+    // 用各类型恒等值近似 underlying transform，不分解静态变换。
+    from:
+        element.getAttribute('from') ??
+        (_isToAnimation(element)
+            ? (type == SmilTransformType.scale ? '1 1' : '0')
+            : null),
     to: element.getAttribute('to'),
   );
   if (rawFrames == null) return null;

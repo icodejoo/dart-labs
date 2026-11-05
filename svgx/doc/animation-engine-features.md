@@ -132,7 +132,9 @@
 - 时钟值支持 `HH:MM:SS(.fff)`、`MM:SS`、`Nh`、`Nmin`、`Ns`、`Nms` 和纯数字(秒);所有使用 `parseSmilDuration` 的时序字段共用此解析。
   - 非法值沿用零回退;有限时长超过 1e7 秒时饱和至 1e7 秒,正向 `begin` 超限则永不开始。
   - `NaN`/`Infinity` 仍按非法值处理。
-- `<animate>`:`values`/`from-to`、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+- `<animate>`:`values`/`from-to`/仅 `to`(to-animation)、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+  - **to-animation 基础值**:解析期取目标自身展示属性、行内 `style` 与已有 `<style>` 级联结果;继承沿用渲染器规则(`stroke-dashoffset`/`stroke-width`/`fill-opacity`/`stroke-opacity` 继承,`opacity` 与几何数值不继承),缺省取现有通道的初始值;`<use>` 取实例祖先链。`fill`/`stroke` 同样支持仅 `to` 的字面颜色插值,fill 缺省 black,stroke 缺省 none 时丢弃;基础涂料为 none/currentColor/渐变引用等无法解析的颜色时也丢弃。
+  - **近似与限制**:基础值固定在解析期,不含其它动画的叠加结果;没有实现规范中同属性其它动画作用后的当前动画值。`by-animation`(仅 `by`、`from+by`)与数值/颜色 `additive` 尚不支持,不会模拟为静态基础值加增量。
 - `fill-opacity`/`stroke-opacity`(静态属性与 `<animate>`/`<set>` 驱动均支持):
   - **继承属性**(与不继承的 `opacity` 不同),取值钳制到 `[0, 1]`;纯色、渐变着色器、`<text>` 填充都生效。
   - 最终 alpha = 颜色自身 alpha × `fill-opacity`(描边为 `stroke-opacity`)× `opacity`。
@@ -196,13 +198,13 @@
 - `<animate attributeName="d">`(路径变形):
   - 各关键帧的 `d` 在**解析期**规范化为绝对 `M`/`L`/`C`/`Q`/`A`/`Z`(相对坐标转绝对、`H`/`V`→`L`、`S`→`C`、`T`→`Q`)。
   - 命令序列与参数个数完全一致时逐参数插值,逐帧直接用数值构建 `ui.Path`(不再解析字符串);不一致则退化为**离散**(按规范,`n` 个值把时长等分为 `n` 段切换)。
-  - 支持 `values`/`from-to`、`keyTimes`、`calcMode`(`linear`/`discrete`/`spline`+`keySplines`;`paced` 对路径无定义,按 `linear` 处理)、`begin`(偏移与 syncbase)、`dur`、`repeatCount`、`fill="freeze"`。
+  - 支持 `values`/`from-to`/仅 `to`(基础值取目标 `<path>` 自身 `d`,缺失时丢弃)、`keyTimes`、`calcMode`(`linear`/`discrete`/`spline`+`keySplines`;`paced` 对路径无定义,按 `linear` 处理)、`begin`(偏移与 syncbase)、`dur`、`repeatCount`、`fill="freeze"`。
   - 计时与数值动画共用同一套设施(`SmilTimed`/`_resolveTiming`/`_locateSegment`)。
 - `<set>`:单值离散动画。
   - `begin` 之前不覆盖(显示静态属性);**无 `dur` = 活动期无限**,从 `begin` 起一直保持;有 `dur` 且无 `fill="freeze"` 时结束后撤销覆盖。
   - 数值属性(`opacity`/`fill-opacity` 等,`to` 必须是纯数字)复用数值通道,`d` 复用路径通道。
   - 无 `dur` 的 `<set>` 忽略 `repeatCount`,其结束时刻按 `begin` 计,不会让 Ticker 一直跑。
-- `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上;`accumulate="sum"` 不支持,不会逐轮累加。
+- `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上;仅 `to` 时 from 近似为各类型恒等值(translate `0 0`、scale `1 1`、rotate/skew `0`),不分解规范中的 underlying transform;`by` 与 `accumulate="sum"` 不支持,不会逐轮累加。
 - `<animateMotion>`:自身 `path="..."` 与 `<mpath href="#id">`。
   - 弧长参数化用 `dart:ui` 的 `Path.computeMetrics()`+`getTangentForOffset()`(129 个等弧长采样点,逐帧线性插值)。
   - `rotate="auto"`/`"auto-reverse"`/固定角度;`keyPoints`/`keyTimes`/`keySplines`/`calcMode`。

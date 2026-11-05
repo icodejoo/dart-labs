@@ -2512,7 +2512,15 @@ List<double>? parseSmilKeyTimes(String? raw) {
 ///
 /// 若既无 `values` 也无可用的 `from`/`to`，或任一关键帧无法解析为数字，
 /// 返回 null——只对单一数值型表现属性做动画（见 [SmilAnimation] 类注释）。
-List<double>? parseSmilValues({String? values, String? from, String? to}) {
+///
+/// [underlying] supplies the parse-time base for a to-animation only.
+/// [underlying] 仅为 to-animation 提供解析期基础值。
+List<double>? parseSmilValues({
+  String? values,
+  String? from,
+  String? to,
+  String? underlying,
+}) {
   if (values != null && values.trim().isNotEmpty) {
     final parts = values
         .split(';')
@@ -2525,6 +2533,7 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
     }
     return parts.cast<double>();
   }
+  from ??= underlying;
   if (from != null && to != null) {
     final f = double.tryParse(from.trim());
     final t = double.tryParse(to.trim());
@@ -2536,12 +2545,21 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
 
 /// 解析作用于 `d` 的 `values="path1;path2;..."`（或 `from`/`to` 简写）为路径
 /// 字符串列表；空项（如末尾多余的分号）丢弃。不足两项时返回 null。
-List<String>? parseSmilPathValues({String? values, String? from, String? to}) {
+///
+/// [underlying] is the target path's own `d`, never an inherited path.
+/// [underlying] 是目标路径自身的 `d`，不继承祖先路径。
+List<String>? parseSmilPathValues({
+  String? values,
+  String? from,
+  String? to,
+  String? underlying,
+}) {
   if (values != null && values.trim().isNotEmpty) {
     final frames = [for (final part in values.split(';')) part.trim()]
       ..removeWhere((part) => part.isEmpty);
     return frames.length < 2 ? null : frames;
   }
+  from ??= underlying;
   if (from != null && to != null) return [from.trim(), to.trim()];
   return null;
 }
