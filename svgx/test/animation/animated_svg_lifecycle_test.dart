@@ -17,13 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
 import 'package:svgx/svgx.dart';
 
-// A one-second indefinite spin — keeps ticking for the whole test instead of
-// settling. No finite animation contributes to totalDuration, so it stays
-// Duration.zero: the "no well-defined loop period" case for onAnimationLoop.
-//
-// 一秒无限旋转——整个测试期间持续 tick，不会定格。没有任何有限动画为
-// totalDuration 贡献值，因此它恒为 Duration.zero——这是 onAnimationLoop
-// "没有明确定义的循环周期"那个 case。
+// A one-second indefinite spin has a loop period even without finite tracks.
+// 一秒无限旋转即使没有有限时间线，也有明确循环周期。
 const _spinner =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
     'viewBox="0 0 24 24">'
@@ -33,13 +28,8 @@ const _spinner =
     'values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>'
     '</circle></svg>';
 
-// The same indefinite spin, plus a 100ms finite flash that contributes a
-// well-defined totalDuration — hasIndefiniteLoop stays true (the spin never
-// settles), but now there is a period for onAnimationLoop to count against.
-//
-// 同一个无限旋转，外加一个贡献了明确 totalDuration 的 100ms 有限闪烁——
-// hasIndefiniteLoop 仍为 true（旋转永不定格），但现在有一个周期可供
-// onAnimationLoop 计数。
+// A finite flash settles at 100ms; steady-state loops finish every second after it.
+// 有限闪烁在100ms稳定；之后每秒完成一个稳态循环。
 const _indefiniteWithFinitePeriod =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
     'viewBox="0 0 24 24">'
@@ -77,6 +67,7 @@ Duration _clockOf(WidgetTester tester) {
   return (paint.painter! as AnimatedSvgPainter).clock.value;
 }
 
+/// Verifies callback, speed and frame-cap contracts. / 验证回调、速率和帧率契约。
 void main() {
   setUp(SvgxDocumentCache.instance.clear);
   tearDown(SvgxDocumentCache.instance.clear);
@@ -209,11 +200,14 @@ void main() {
             ),
           ),
         );
-        // The period is 100ms; run for ~350ms in 16ms steps.
-        // 周期是 100ms；以 16ms 为步长跑约 350ms。
+        // The first loop is at 1100ms, not at the finite track's 100ms end.
+        // 首次循环为1100ms，不是有限时间线结束的100ms。
         for (var i = 0; i < 22; i++) {
           await tester.pump(const Duration(milliseconds: 16));
         }
+        expect(iterations, isEmpty);
+        await tester.pump(const Duration(seconds: 3));
+        expect(iterations, [1, 2, 3]);
         expect(iterations, isNotEmpty);
         expect(
           iterations,
@@ -223,26 +217,25 @@ void main() {
       },
     );
 
-    testWidgets(
-      'never fires when totalDuration is zero (no finite animation to derive a period from)',
-      (tester) async {
-        var loopCount = 0;
-        await tester.pumpWidget(
-          MaterialApp(
-            home: SvgxAnimated.string(
-              _spinner,
-              width: 24,
-              height: 24,
-              onAnimationLoop: (_) => loopCount++,
-            ),
+    testWidgets('fires for a pure indefinite document using its loopPeriod', (
+      tester,
+    ) async {
+      var loopCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SvgxAnimated.string(
+            _spinner,
+            width: 24,
+            height: 24,
+            onAnimationLoop: (_) => loopCount++,
           ),
-        );
-        for (var i = 0; i < 80; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        expect(loopCount, 0);
-      },
-    );
+        ),
+      );
+      for (var i = 0; i < 80; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(loopCount, 1);
+    });
   });
 
   group('maxFps', () {
@@ -347,8 +340,10 @@ void main() {
           ),
         ),
       );
-      // The 10ms animation at 10x settles within a single 16ms pumped frame.
-      // 10ms 的动画在 10 倍速下，一个 16ms 的推进帧内就会定格。
+      // First tick anchors at zero; the next 16ms tick settles at 10x.
+      // 首tick锚定零；下一个16ms tick在10倍速下完成。
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(completeCount, 0);
       await tester.pump(const Duration(milliseconds: 16));
       expect(completeCount, 1);
     });

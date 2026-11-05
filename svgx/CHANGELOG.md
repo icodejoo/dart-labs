@@ -2,6 +2,23 @@
 
 **已知阻断(发布前必须处理)**:`SvgScene`/`SvgMask`/`SvgPattern` 的线格式新增了 `commands` 字段。目前只有 Windows x64 预编译库已重编,其余平台(iOS xcframework、macOS framework、Linux x64/arm64、Windows arm64,以及按需核对 Android 四个 ABI)的预编译库必须全平台重编并更新 MANIFEST 后才能发布,否则 SSE 解码错位。
 
+* Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
+  play/pause/stop/seek, finite signed playback rates, reversible completion,
+  once/loop/ping-pong ranges, duration fitting, cues and playback/element events.
+  Shared controllers use one shared-clock subscription; all attached widgets
+  must disable `TickerMode` before their timeline pauses.
+  Unbounded reverse playback at zero requires seeking forward or selecting a
+  range; the numeric safety ceiling is never used as a restart endpoint.
+* Add `SvgxAnimated.controller`, `autoplay`, `onLoaded`, `onError` and
+  `errorBuilder`. Parse failures now emit an error and show the error builder
+  or a sized empty box; unhandled failures are reported through `FlutterError`.
+* Fix animation start offsets: the first subscribed tick preserves the current
+  document time exactly. Seek redraws immediately, including while paused.
+* Change `onAnimationLoop` to count `settleTime + k * loopPeriod` crossings
+  instead of `totalDuration` multiples. Pure indefinite animations now report
+  loops when their steady-state period is known (for example, `dur="2s"`).
+  A source change resets an implicit controller; an external controller keeps
+  its time and adopts the first ready attached document's animation information.
 * Upgrade dependencies: usvg 0.49, svgtypes 0.16, flutter_rust_bridge 2.13.
 * Fix the static path's root `background-color` offset (only the main tree uses
   the parent group transform; sub-roots keep the old behavior).

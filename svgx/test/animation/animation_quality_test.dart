@@ -63,6 +63,7 @@ Widget _grid(int count, {SvgxAnimationQuality? quality}) => MaterialApp(
   ),
 );
 
+/// Verifies quality policy and staggered scheduling. / 验证画质策略和错相调度。
 void main() {
   setUp(SvgxDocumentCache.instance.clear);
   tearDown(() {
@@ -191,6 +192,9 @@ void main() {
         );
         const count = 10;
         await tester.pumpWidget(_grid(count));
+        // First tick anchors every subscriber without advancing time.
+        // 首tick仅为各订阅者锚定，不推进时间。
+        await tester.pump(const Duration(milliseconds: 16));
         await tester.pump(const Duration(milliseconds: 16));
 
         var advanced = 0;
@@ -259,6 +263,9 @@ void main() {
       await tester.pumpWidget(
         _grid(count, quality: SvgxAnimationQuality.exact),
       );
+      // Anchor before checking the first advancing frame.
+      // 先锚定，再检查首个推进帧。
+      await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
 
       for (var i = 0; i < count; i++) {
@@ -277,6 +284,9 @@ void main() {
       );
       const count = 3;
       await tester.pumpWidget(_grid(count));
+      // Anchor before checking the first advancing frame.
+      // 先锚定，再检查首个推进帧。
+      await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
 
       for (var i = 0; i < count; i++) {

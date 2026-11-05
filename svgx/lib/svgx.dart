@@ -12,6 +12,21 @@ export 'src/animation/animated_svg_widget.dart' show SvgxAnimated;
 export 'src/animation/svg_document_cache.dart' show SvgxDocumentCache;
 export 'src/animation/svg_theme.dart' show SvgxTheme;
 export 'src/animation/svgx_animation_info.dart' show SvgxAnimationInfo;
+export 'src/animation/svgx_animation_controller.dart'
+    show
+        SvgxAnimationController,
+        SvgxPlaybackStatus,
+        SvgxRangeMode,
+        SvgxAnimationEvent,
+        SvgxAnimationLoaded,
+        SvgxAnimationStarted,
+        SvgxAnimationCompleted,
+        SvgxAnimationLooped,
+        SvgxAnimationRangeLooped,
+        SvgxAnimationElementBegin,
+        SvgxAnimationElementEnd,
+        SvgxAnimationElementRepeat,
+        SvgxAnimationError;
 // Opt-out-able, deliberately lossy performance trade-offs for the animated
 // path — read its class doc before changing the default, it says exactly what
 // fidelity is traded away and at what concurrency.

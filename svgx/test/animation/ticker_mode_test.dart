@@ -100,6 +100,7 @@ Future<void> _dispose(WidgetTester tester) async {
   expect(tester.takeException(), isNull);
 }
 
+/// Verifies visibility pauses and precise resume anchors. / 验证可见性暂停和精确恢复锚点。
 void main() {
   setUp(SvgxDocumentCache.instance.clear);
   tearDown(SvgxDocumentCache.instance.clear);
@@ -143,6 +144,10 @@ void main() {
     // 暂停期间改速率不应把隐藏时间计入播放进度。
     await tester.pumpWidget(_scene(true, rate: 2, onStart: () => starts++));
     expect(_painter(tester, 'first').time, pausedTime);
+    // Resume anchors on its first tick, preserving the paused frame exactly.
+    // 恢复首tick锚定，精确保留暂停帧。
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(_painter(tester, 'first').time, pausedTime);
     await tester.pump(const Duration(milliseconds: 16));
     expect(
       _painter(tester, 'first').time,
@@ -166,6 +171,10 @@ void main() {
     expect(_painter(tester, 'second').time, greaterThan(visibleTime));
 
     await tester.pumpWidget(_scene(true, second: true));
+    // A resubscribed controller anchors before advancing.
+    // 重新订阅的控制器先锚定再推进。
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(_painter(tester, 'first').time, hiddenTime);
     await tester.pump(const Duration(milliseconds: 16));
     expect(
       _painter(tester, 'first').time,

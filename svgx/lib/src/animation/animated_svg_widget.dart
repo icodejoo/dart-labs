@@ -1,52 +1,38 @@
-// Public animated-SVG widget: parses the source once, then drives an
-// [AnimationController] that samples the timeline and repaints every frame
-// via [AnimatedSvgPainter]. This is the original replacement for the
-// vendored F `AnimatedSvgPicture` — see svgx CLAUDE.md. Original
-// implementation.
-//
-// 公开的动画 SVG 组件：只解析一次源串，之后用 [AnimationController] 驱动，
-// 在每帧对时间线采样并通过 [AnimatedSvgPainter] 重绘。这是替代 vendor 的 F
-// 中 `AnimatedSvgPicture` 的原创实现——见 svgx CLAUDE.md。原创实现。
-
 import 'dart:math' show max;
 
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_svg_painter.dart';
+import 'shared_animation_clock.dart';
 import 'svg_document_cache.dart';
 import 'svg_dom.dart';
 import 'svg_document_parser.dart';
 import 'svg_theme.dart';
+import 'svgx_animation_controller.dart';
+import 'svgx_animation_info.dart';
 import 'svgx_animation_quality.dart';
 
-/// Renders a SMIL-animated SVG string using this project's original
-/// animation engine (parse → timeline → per-frame sample → paint).
+/// Default automatic playback speed. / 默认自动播放速率。
+const _normalPlaybackRate = 1.0;
+
+/// Samples every display frame without throttling. / 无节流时每显示帧采样。
+const _unthrottledDivisor = 1;
+
+/// Renders SMIL and CSS animated SVG strings, including `animateTransform`,
+/// `animateMotion`, and CSS `@keyframes` supported by the animation engine.
 ///
-/// See svgx CLAUDE.md for the supported SMIL subset: `<animate>` on
-/// `stroke-dashoffset` (and, generically, any single-numeric presentation
-/// attribute) with `values`/`from`-`to`, `dur`, a numeric `begin` delay, and
-/// `fill="freeze"`. `<animateTransform>`, `<animateMotion>`, and CSS
-/// `@keyframes` animation are **not supported**.
+/// Use [controller] for shared playback control, or [autoplay] and [playbackRate]
+/// for automatic playback. TickerMode pauses playback when every widget using
+/// the controller is disabled; Offstage alone does not pause it.
 ///
-/// Example:
+/// 渲染 SMIL 和 CSS 动画 SVG，支持动画引擎中的 `animateTransform`、
+/// `animateMotion` 和 CSS `@keyframes`。用 [controller] 控制共享播放，或用
+/// [autoplay]、[playbackRate] 自动播放。所有挂载控件的 TickerMode 都关闭时暂停；
+/// 单独 Offstage 不暂停。
+///
 /// ```dart
 /// SvgxAnimated.string(svgSource, width: 48, height: 48)
 /// ```
-///
-/// 用本项目原创动画引擎（解析 → 时间线 → 逐帧采样 → 绘制）渲染 SMIL 动画
-/// SVG 字符串。
-///
-/// 支持的 SMIL 子集见 svgx CLAUDE.md：作用于 `stroke-dashoffset`（泛化后可作用
-/// 于任意单一数值型表现属性）的 `<animate>`，配合 `values`/`from`-`to`、
-/// `dur`、数值型 `begin` 延迟与 `fill="freeze"`。**不支持**
-/// `<animateTransform>`、`<animateMotion>` 及 CSS `@keyframes` 动画。
-///
-/// 用例：
-/// ```dart
-/// SvgxAnimated.string(svgSource, width: 48, height: 48)
-/// ```
-/// `TickerMode` 关闭时暂停采样，恢复后从原进度继续；单独 `Offstage` 不会关闭时钟。
 class SvgxAnimated extends StatefulWidget {
   /// Creates the animated renderer from a raw SVG string.
   ///
@@ -61,16 +47,29 @@ class SvgxAnimated extends StatefulWidget {
     this.theme,
     this.quality,
     this.maxFps,
-    this.playbackRate = 1.0,
+    this.playbackRate = _normalPlaybackRate,
+    this.controller,
+    this.autoplay = true,
+    this.onLoaded,
+    this.onError,
+    this.errorBuilder,
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
   }) : assert(maxFps == null || maxFps > 0, 'maxFps must be positive'),
-       assert(playbackRate > 0, 'playbackRate must be positive');
+       assert(
+         playbackRate > double.negativeInfinity &&
+             playbackRate < double.infinity,
+         'playbackRate must be finite',
+       ),
+       assert(
+         controller == null || playbackRate == _normalPlaybackRate,
+         'Use the controller playbackRate when providing a controller',
+       );
 
-  /// Raw SVG markup containing SMIL `<animate>` elements.
+  /// Raw SVG markup containing supported SMIL or CSS animations.
   ///
-  /// 含 SMIL `<animate>` 元素的原始 SVG 源。
+  /// 含支持的 SMIL 或 CSS 动画的原始 SVG 源。
   final String source;
 
   /// Target width; null uses the SVG's intrinsic width. / 目标宽度，null 用固有宽。
@@ -96,38 +95,60 @@ class SvgxAnimated extends StatefulWidget {
   ///
   /// Pass [SvgxAnimationQuality.exact] to opt this icon out of all
   /// degradation. See [SvgxAnimationQuality] for exactly what is given up.
+  /// A shared [controller] uses the smallest divisor requested by its mounted
+  /// widgets, considering offscreen layers if any mounted document needs them.
   ///
   /// 本实例在高并发下可以拿多少"单图标动画流畅度"去换帧吞吐；null 表示使用
   /// [SvgxAnimationQuality.defaultQuality]。
   ///
   /// 传 [SvgxAnimationQuality.exact] 可让本图标完全不参与降级。具体牺牲了什么
   /// 见 [SvgxAnimationQuality]。
+  /// 共用 [controller] 时取各挂载控件要求的最小除数；任一挂载文档需要离屏图层时，
+  /// 全部画质需求都按有离屏图层计算。
   final SvgxAnimationQuality? quality;
 
-  /// Caps how often this instance samples its timeline and repaints,
-  /// independent of [quality]'s concurrency-triggered throttling; null means
-  /// no cap beyond whatever [quality] already imposes. The stricter (larger)
-  /// of the two frame divisors always wins — this can only slow an icon down
-  /// further, never speed one up past its display's refresh rate.
+  /// Requested sampling and repaint cap; null imposes no additional cap.
+  /// A shared [controller] uses the most permissive mounted widget cap, so a
+  /// higher cap or null on another widget can override this request. The
+  /// resulting cap and [quality] are combined using the larger frame divisor.
   ///
-  /// 独立于 [quality] 的并发触发降级之外，为本实例的时间线采样/重绘频率设一个
-  /// 上限；null 表示不设额外上限，只受 [quality] 约束。两者取更严格（更大）的
-  /// 那个跳帧除数——这只能让图标更慢，不会让它超过所在显示器的刷新率。
+  /// 请求的时间线采样和重绘频率上限；null 表示不额外限制。共用 [controller] 时
+  /// 采用挂载控件中最宽松的上限，因此其它控件的更高上限或 null 可覆盖本请求。
+  /// 最终上限与 [quality] 取更大的跳帧除数。
   final double? maxFps;
 
-  /// Speeds up (>1.0) or slows down (<1.0) how fast this instance's SMIL
-  /// timeline advances relative to wall-clock time; every `<animate>`
-  /// element's `begin`/`dur`/`repeatCount` scales together, since they are
-  /// all sampled against the same scaled clock.
+  /// Finite playback speed when [controller] is null: negative reverses and
+  /// zero pauses. Rate changes preserve the current time. With [controller],
+  /// leave this at its default and set the controller's rate instead.
   ///
-  /// Rate changes preserve the virtual timeline by rebasing the clock.
-  ///
-  /// 相对挂钟时间加速（>1.0）或减速（<1.0）本实例 SMIL 时间线的推进速度；每个
-  /// `&lt;animate&gt;` 元素的 `begin`/`dur`/`repeatCount` 会整体同步缩放，因为它们
-  /// 都是对同一条被缩放过的时钟采样的。
-  ///
-  /// 运行中修改速率会重设时钟基线，保持已经播放的虚拟时间连续。
+  /// [controller] 为空时的有限播放速率：负值倒放，零暂停；改速率保持当前时间。
+  /// 传入 [controller] 时保留默认值，改用控制器的速率。
   final double playbackRate;
+
+  /// Optional shared playback controller; its time is preserved on source swaps.
+  ///
+  /// 可选共享播放控制器；换源时保留其时间。
+  final SvgxAnimationController? controller;
+
+  /// Starts automatic playback when no [controller] is supplied.
+  ///
+  /// 未传 [controller] 时是否自动播放。
+  final bool autoplay;
+
+  /// Called once after this source and its embedded images are ready.
+  ///
+  /// 当前源及其内嵌图片就绪后调用一次。
+  final ValueChanged<SvgxAnimationInfo>? onLoaded;
+
+  /// Receives parsing failures together with their stack traces.
+  ///
+  /// 接收解析失败及其堆栈。
+  final void Function(Object error, StackTrace stackTrace)? onError;
+
+  /// Builds replacement content on failure; null uses an empty sized box.
+  ///
+  /// 失败时构建替代内容；null 使用指定尺寸的空盒子。
+  final ImageErrorWidgetBuilder? errorBuilder;
 
   /// Called once, on the first tick after this instance starts ticking.
   ///
@@ -137,284 +158,299 @@ class SvgxAnimated extends StatefulWidget {
   /// Called once when a finite (non-looping) document naturally settles into
   /// its final frame — never called for a document with
   /// [SvgDocument.hasIndefiniteLoop], and never called when ticking stops for
-  /// any other reason (source swap, unmount).
+  /// any other reason (source swap, unmount, or a manually configured range).
   ///
   /// 有限（非循环）文档自然播完定格时调用一次——[SvgDocument.hasIndefiniteLoop]
-  /// 的文档永不触发，因其他原因（源切换、卸载）停止 ticking 时也不触发。
+  /// 的文档永不触发，因其它原因（源切换、卸载或手动配置的片段）停止 ticking 时也不触发。
   final VoidCallback? onAnimationComplete;
 
-  /// Called each time an [SvgDocument.hasIndefiniteLoop] document completes
-  /// one more period of [SvgDocument.totalDuration], with the (1-based)
-  /// iteration count just completed.
+  /// Called at each `settleTime + iteration * loopPeriod` crossing for a
+  /// looping document with a known period; iteration starts at one.
   ///
-  /// Never called when [SvgDocument.totalDuration] is [Duration.zero] (no
-  /// finite animation in the document to derive a period from) — this is a
-  /// silent no-op, not an error, since such a document has no well-defined
-  /// loop period.
-  ///
-  /// 每当一个 [SvgDocument.hasIndefiniteLoop] 文档多播完一个
-  /// [SvgDocument.totalDuration] 周期时调用一次，参数是刚完成的（从1开始计数的）
-  /// 迭代序号。
-  ///
-  /// [SvgDocument.totalDuration] 为 [Duration.zero] 时（文档里没有任何有限动画
-  /// 可以推导出周期）永不触发——这是静默不触发，不是报错，因为这种文档本来就
-  /// 没有明确定义的循环周期。
+  /// 循环文档有已知周期时，在每次穿越 `settleTime + iteration * loopPeriod`
+  /// 时调用，iteration 从一开始。
   final ValueChanged<int>? onAnimationLoop;
 
+  /// Creates the renderer state. / 创建渲染状态。
   @override
   State<SvgxAnimated> createState() => _SvgxAnimatedState();
 }
 
-// Process-wide shared [Ticker] driving every [SvgxAnimated] instance's
-// timeline, instead of each instance creating (and the framework scheduling)
-// its own. A scroll grid of N concurrent animated icons previously meant N
-// separate `Ticker`s all registered with `SchedulerBinding` — real-device
-// profiling with N=1000 showed this scale is where the per-icon overhead
-// compounds badly (see doc/performance-benchmarks.md's anim_fps numbers).
-// One shared clock means one `Ticker`/one `SchedulerBinding` registration
-// regardless of how many icons are animating.
-//
-// Each subscriber records [SharedAnimationClock.elapsed] at the moment it
-// subscribes as its own start offset, so its local timeline still starts at
-// zero exactly when it starts ticking (unaffected by how long the shared
-// clock has already been running for other subscribers) — this preserves the
-// exact per-instance timeline semantics the old per-instance `Ticker` had.
-//
-// TickerMode disables each instance by unsubscribing and preserving its local
-// timeline. The last subscriber leaving disposes the shared ticker.
-//
-// 全进程共享的 [Ticker]，驱动所有 [SvgxAnimated] 实例的时间线，而非每个实例各建
-// 一个（框架也各自调度一个）。此前 N 个并发动画图标的滚动网格意味着 N 个
-// 独立 `Ticker` 各自向 `SchedulerBinding` 注册——真机实测 N=1000 时这个规模下
-// 单图标开销会严重叠加（见 doc/performance-benchmarks.md 的 anim_fps
-// 数据）。一个共享时钟意味着无论多少图标在动画，都只有一个
-// `Ticker`/一次 `SchedulerBinding` 注册。
-//
-// 每个订阅者在订阅那一刻记录 [SharedAnimationClock.elapsed] 作为自己的起始
-// 偏移，因此其本地时间线仍然从零开始（不受共享时钟已经为其它订阅者跑了多久
-// 影响）——这与旧的逐实例 `Ticker` 时间线语义完全一致。
-//
-// TickerMode 关闭时逐实例取消订阅并保存进度；全部暂停后释放共享 ticker。
-class _SharedAnimationClock {
-  _SharedAnimationClock._();
-
-  /// Shared instance. / 共享单例。
-  static final _SharedAnimationClock instance = _SharedAnimationClock._();
-
-  Ticker? _ticker;
-  Duration _elapsed = Duration.zero;
-  final List<_ClockSubscription> _subscriptions = <_ClockSubscription>[];
-
-  /// Display frames seen since the shared ticker started, the counter every
-  /// subscription's frame-divisor test is taken against.
-  ///
-  /// 共享 ticker 启动以来经过的显示帧数，每个订阅的帧除数判定都以它为基准。
-  int _tickCount = 0;
-
-  /// Monotonic phase allocator. Consecutive subscribers get consecutive
-  /// phases, so under any divisor N a run of subscribers spreads evenly
-  /// across all N frames of the cycle rather than all landing on the same
-  /// one — in a scrolling grid, cells mount in visual order, so this makes
-  /// "half the icons repaint this frame, the other half next frame" fall out
-  /// for free. Never reset while subscribers exist; wrap-around at 2^53 is
-  /// irrelevant since only `% divisor` is ever read.
-  ///
-  /// 单调递增的相位分配器。相邻订阅者拿到相邻相位，因此在任意除数 N 下，一串
-  /// 订阅者会均匀铺满周期里的 N 帧，而不是全挤在同一帧——滚动网格里格子是按视觉
-  /// 顺序挂载的，于是"这一帧重绘一半图标、下一帧重绘另一半"就自然成立了。有
-  /// 订阅者存在期间绝不重置；只会读它的 `% divisor`，因此 2^53 回绕无关紧要。
-  int _nextPhase = 0;
-
-  /// Elapsed time since the shared ticker last started from idle.
-  ///
-  /// 共享 ticker 上一次从空闲状态启动以来经过的时间。
-  Duration get elapsed => _elapsed;
-
-  /// How many icons are animating right now — the concurrency figure every
-  /// [SvgxAnimationQuality] gate is evaluated against.
-  ///
-  /// 当前有多少图标在播放动画——所有 [SvgxAnimationQuality] 门控判定所依据的并发
-  /// 数值。
-  int get subscriberCount => _subscriptions.length;
-
-  void _onTick(Duration elapsed) {
-    _elapsed = elapsed;
-    final tick = ++_tickCount;
-    // Concurrency is measured as "how many icons are subscribed right now",
-    // which is what the degradation threshold is defined against. Icons whose
-    // finite animations have already settled have unsubscribed themselves (see
-    // [_SvgxAnimatedState._onGlobalTick]), so a screen of mostly-finished
-    // icons correctly counts as low concurrency and stops degrading.
-    //
-    // 并发量的度量是"当前有多少图标处于订阅状态"，降级阈值正是针对这个定义的。
-    // 有限动画已经定格的图标会自行取消订阅（见
-    // [_SvgxAnimatedState._onGlobalTick]），因此一屏大多已播完的图标会正确地被
-    // 算作低并发、不再降级。
-    final concurrency = _subscriptions.length;
-    // Snapshot before iterating: a subscriber's own callback may call
-    // [unsubscribe] on itself (a finite animation settling), which would
-    // otherwise mutate [_subscriptions] mid-iteration.
-    //
-    // 迭代前先拍快照：某个订阅者自己的回调可能在其中调用 [unsubscribe]（有限
-    // 动画进入定格），若不这样做会在迭代中途修改 [_subscriptions]。
-    for (final subscription in List<_ClockSubscription>.of(_subscriptions)) {
-      // The stricter (larger) of the quality-driven divisor and this
-      // instance's own fps cap wins — either one can only slow ticking down.
-      //
-      // 画质驱动的除数和本实例自身的 fps 上限取更严格（更大）的那个——两者都只
-      // 会让 ticking 变慢。
-      final divisor = max(
-        subscription.quality().frameDivisorFor(
-          concurrency: concurrency,
-          usesOffscreenLayers: subscription.usesOffscreenLayers,
-        ),
-        subscription.fpsDivisor(),
-      );
-      // The whole point of the degradation: this subscriber's timeline does
-      // not advance on this frame, so its `CustomPaint` stays clean and the
-      // framework neither re-records its picture (UI-thread PAINT cost) nor
-      // necessarily re-runs its offscreen render passes (raster-thread cost).
-      //
-      // 降级的全部意义就在这里：本订阅者的时间线这一帧不推进，于是它的
-      // `CustomPaint` 保持干净，框架既不会重录它的 picture（UI 线程 PAINT
-      // 开销），也不一定需要重跑它的离屏渲染通道（raster 线程开销）。
-      if (divisor > 1 && (tick + subscription.phase) % divisor != 0) continue;
-      subscription.onTick(elapsed);
-    }
-  }
-
-  /// Registers [onTick] to be called with the shared elapsed time on eligible
-  /// ticks, starting the shared ticker if this is the first subscriber.
-  ///
-  /// 注册 [onTick]，在符合条件的 tick 上带着共享经过时间被调用；若这是第一个
-  /// 订阅者，则启动共享 ticker。
-  ///
-  /// [onTick] — the per-tick callback. / 逐 tick 回调。
-  ///
-  /// [usesOffscreenLayers] — whether this subscriber's document needs
-  ///   `saveLayer` (see [SvgDocument.usesOffscreenLayers]); such documents may
-  ///   be throttled harder.
-  ///
-  ///   本订阅者的文档是否需要 `saveLayer`（见
-  ///   [SvgDocument.usesOffscreenLayers]）；这类文档可能被压得更狠。
-  ///
-  /// [quality] — read on every tick rather than captured, so reassigning
-  ///   [SvgxAnimationQuality.defaultQuality] takes effect on live icons
-  ///   without them having to re-subscribe.
-  ///
-  ///   每 tick 现读而非订阅时捕获，因此重新赋值
-  ///   [SvgxAnimationQuality.defaultQuality] 对已存活的图标立即生效，无需重新
-  ///   订阅。
-  ///
-  /// Returns the handle to pass back to [unsubscribe].
-  ///
-  ///   返回用于传回 [unsubscribe] 的句柄。
-  _ClockSubscription subscribe(
-    ValueChanged<Duration> onTick, {
-    required bool usesOffscreenLayers,
-    required SvgxAnimationQuality Function() quality,
-    required int Function() fpsDivisor,
-  }) {
-    final subscription = _ClockSubscription(
-      onTick: onTick,
-      phase: _nextPhase++,
-      usesOffscreenLayers: usesOffscreenLayers,
-      quality: quality,
-      fpsDivisor: fpsDivisor,
-    );
-    _subscriptions.add(subscription);
-    _ticker ??= Ticker(_onTick)..start();
-    return subscription;
-  }
-
-  /// Unregisters [subscription]; stops (and disposes) the shared ticker once
-  /// the last subscriber leaves, resetting [elapsed] so the next subscriber
-  /// starts from a clean baseline.
-  ///
-  /// 取消注册 [subscription]；最后一个订阅者离开时停止（并 dispose）共享
-  /// ticker，同时重置 [elapsed]，使下一个订阅者从干净的基线开始。
-  void unsubscribe(_ClockSubscription subscription) {
-    _subscriptions.remove(subscription);
-    if (_subscriptions.isEmpty) {
-      _ticker?.dispose();
-      _ticker = null;
-      _elapsed = Duration.zero;
-      _tickCount = 0;
-    }
-  }
-}
-
-/// One [SvgxAnimated] instance's registration with [_SharedAnimationClock],
-/// carrying everything the clock needs to decide whether that instance gets
-/// this frame.
+/// Overrides embedded-image decoding in lifecycle tests.
 ///
-/// 一个 [SvgxAnimated] 实例在 [_SharedAnimationClock] 上的注册记录，携带时钟
-/// 判定"这一帧要不要给它"所需的全部信息。
-class _ClockSubscription {
-  /// Creates a subscription record. / 创建一条订阅记录。
-  _ClockSubscription({
-    required this.onTick,
-    required this.phase,
-    required this.usesOffscreenLayers,
-    required this.quality,
-    required this.fpsDivisor,
-  });
-
-  /// Called on every tick this subscription is eligible for.
-  ///
-  /// 在本订阅符合条件的每个 tick 上被调用。
-  final ValueChanged<Duration> onTick;
-
-  /// This subscription's offset within the frame-divisor cycle — see
-  /// [_SharedAnimationClock._nextPhase].
-  ///
-  /// 本订阅在帧除数周期内的偏移——见 [_SharedAnimationClock._nextPhase]。
-  final int phase;
-
-  /// Whether this subscription's document needs a `saveLayer` offscreen
-  /// target, which makes its frames the expensive ones.
-  ///
-  /// 本订阅的文档是否需要 `saveLayer` 离屏目标——这决定了它的帧属于昂贵的那类。
-  final bool usesOffscreenLayers;
-
-  /// Resolves the quality profile in force for this subscription, evaluated
-  /// per tick — see [_SharedAnimationClock.subscribe].
-  ///
-  /// 解析本订阅当前生效的画质配置，逐 tick 求值——见
-  /// [_SharedAnimationClock.subscribe]。
-  final SvgxAnimationQuality Function() quality;
-
-  /// Resolves this subscription's own fps-cap-derived frame divisor, read
-  /// live on every tick for the same reason [quality] is — see
-  /// [_SharedAnimationClock.subscribe].
-  ///
-  /// 解析本订阅自身由 fps 上限推导出的跳帧除数，和 [quality] 一样逐 tick 现读——
-  /// 见 [_SharedAnimationClock.subscribe]。
-  final int Function() fpsDivisor;
-}
-
-// 测试可模拟部分解码后失败，或延迟完成的卸载竞态。
+/// 在生命周期测试中替换内嵌图片解码。
 @visibleForTesting
 Future<void> Function(SvgDocument)? debugResolveAnimatedImages;
 
+/// Owns source readiness and binds the painter to controller time.
+///
+/// 管理源就绪状态，并把绘制器绑定到控制器时间。
 class _SvgxAnimatedState extends State<SvgxAnimated> {
-  late SvgDocument _document;
+  /// Current parsed source, absent after a parsing failure. / 当前解析结果，解析失败时为空。
+  SvgDocument? _document;
 
-  /// This instance's local-timeline start point, as an offset into
-  /// [_SharedAnimationClock.elapsed] captured at subscribe time — see
-  /// [_SharedAnimationClock]'s doc comment.
+  /// Controller shared with the painter. / 与绘制器共享的控制器。
+  late SvgxAnimationController _controller;
+
+  /// Whether this state owns the controller. / 本状态是否拥有控制器。
+  bool _ownsController = false;
+
+  /// Whether legacy callbacks currently need an event subscription.
   ///
-  /// 本实例本地时间线的起点，是订阅那一刻记录下的
-  /// [_SharedAnimationClock.elapsed] 偏移——见 [_SharedAnimationClock] 的文档
-  /// 注释。
-  Duration _startOffset = Duration.zero;
-  Duration _virtualOffset = Duration.zero;
-  bool _ownsImages = false;
-  bool _tickerModeEnabled = false;
-  bool _settled = false;
+  /// 旧回调当前是否需要事件订阅。
+  bool _bridgingEvents = false;
 
-  // 含图片的文档从不入共享缓存，只释放本 State 独占的解码结果。
+  /// Whether decoded images belong exclusively to this state.
+  ///
+  /// 已解码图片是否由本状态独占。
+  bool _ownsImages = false;
+
+  /// Current inherited visibility. / 当前继承的可见状态。
+  bool _tickerModeEnabled = false;
+
+  /// Whether embedded image decoding has finished. / 内嵌图片解码是否完成。
+  bool _imagesReady = true;
+
+  /// Rejects stale image continuations and deferred callbacks.
+  ///
+  /// 用于拒绝过期的图片续体和延迟回调。
+  int _parseGeneration = 0;
+
+  /// Current parsing error. / 当前解析错误。
+  Object? _error;
+
+  /// Stack associated with the current error. / 当前错误的堆栈。
+  StackTrace? _errorStack;
+
+  /// Creates the playback binding before parsing. / 解析前创建播放绑定。
+  @override
+  void initState() {
+    super.initState();
+    _bindController();
+    _parseAndStart();
+  }
+
+  /// Chooses the external controller or creates an implicit one.
+  ///
+  /// 选择外部控制器或创建隐式控制器。
+  void _bindController() {
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ??
+        SvgxAnimationController(
+          autoplay: widget.autoplay,
+          playbackRate: widget.playbackRate,
+        );
+    _updateEventBridge();
+  }
+
+  /// Subscribes only when a legacy callback needs events.
+  ///
+  /// 仅在旧回调需要事件时订阅。
+  void _updateEventBridge() {
+    final needed =
+        widget.onAnimationStart != null ||
+        widget.onAnimationComplete != null ||
+        widget.onAnimationLoop != null;
+    if (needed == _bridgingEvents) return;
+    _bridgingEvents = needed;
+    if (needed) {
+      _controller.addEventListener(_onControllerEvent);
+    } else {
+      _controller.removeEventListener(_onControllerEvent);
+    }
+  }
+
+  /// Releases this state's binding, disposing only an owned controller.
+  ///
+  /// 释放本状态的绑定，仅销毁自有控制器。
+  void _unbindController() {
+    if (_bridgingEvents) {
+      _controller.removeEventListener(_onControllerEvent);
+      _bridgingEvents = false;
+    }
+    _controller.detach(this);
+    if (_ownsController) _controller.dispose();
+  }
+
+  /// Forwards playback events to the legacy widget callbacks.
+  ///
+  /// 将播放事件转发给旧控件回调。
+  void _onControllerEvent(SvgxAnimationEvent event) {
+    if (!_imagesReady || _error != null) return;
+    if (event is SvgxAnimationStarted) {
+      widget.onAnimationStart?.call();
+    } else if (event is SvgxAnimationCompleted &&
+        event.natural &&
+        _document?.info.loops == false) {
+      widget.onAnimationComplete?.call();
+    } else if (event is SvgxAnimationLooped) {
+      widget.onAnimationLoop?.call(event.iteration);
+    }
+  }
+
+  /// Reports inherited TickerMode to the controller. / 将继承的 TickerMode 告知控制器。
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ignore: deprecated_member_use
+    final enabled = TickerMode.of(context);
+    if (enabled == _tickerModeEnabled) return;
+    _tickerModeEnabled = enabled;
+    _controller.setVisible(this, enabled);
+  }
+
+  /// Applies source/controller swaps and implicit playback settings.
+  ///
+  /// 应用源或控制器切换，以及隐式播放设置。
+  @override
+  void didUpdateWidget(SvgxAnimated oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final sourceChanged = oldWidget.source != widget.source;
+    final controllerChanged = oldWidget.controller != widget.controller;
+    final resetImplicit = sourceChanged && widget.controller == null;
+    if (controllerChanged || resetImplicit) {
+      _unbindController();
+      _bindController();
+    } else {
+      _updateEventBridge();
+      if (_ownsController) {
+        if (oldWidget.playbackRate != widget.playbackRate) {
+          _controller.playbackRate = widget.playbackRate;
+        }
+        if (oldWidget.autoplay != widget.autoplay) {
+          if (widget.autoplay) {
+            _controller.play();
+          } else {
+            _controller.pause();
+          }
+        }
+      }
+    }
+    if (sourceChanged) {
+      final previous = _document;
+      if (_ownsImages && previous != null) _disposeImages(previous);
+      _parseAndStart();
+    } else if (controllerChanged) {
+      final document = _document;
+      if (_error != null) {
+        _controller.documentError(this, _error!, _errorStack!);
+      } else if (document != null && _imagesReady) {
+        _attach(document);
+      } else {
+        _controller.documentLoading(this);
+      }
+    }
+  }
+
+  /// Parses through the sole document-cache entry point and waits for images.
+  ///
+  /// 通过唯一的文档缓存入口解析，并等待图片就绪。
+  void _parseAndStart() {
+    final generation = ++_parseGeneration;
+    _controller.documentLoading(this);
+    _document = null;
+    _ownsImages = false;
+    _error = null;
+    _errorStack = null;
+    try {
+      final parsed = SvgxDocumentCache.instance.getOrParse(widget.source);
+      final document = parsed.document;
+      _document = document;
+      _ownsImages = parsed.hasImages;
+      _imagesReady = !parsed.hasImages;
+      if (parsed.hasImages) {
+        /// Finishes only the current generation's decode. / 仅结束当前代的解码。
+        void ready() {
+          if (!mounted || generation != _parseGeneration) {
+            _disposeImages(document);
+            return;
+          }
+          setState(() => _imagesReady = true);
+          _attach(document);
+          _notifyLoaded(document.info, generation);
+        }
+
+        Future<void>.sync(
+          () => (debugResolveAnimatedImages ?? resolveImageNodes)(document),
+        ).then((_) => ready(), onError: (Object _, StackTrace _) => ready());
+      } else {
+        _attach(document);
+        _notifyLoaded(document.info, generation);
+      }
+    } catch (error, stack) {
+      _imagesReady = false;
+      _error = error;
+      _errorStack = stack;
+      _controller.documentError(this, error, stack);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _parseGeneration) return;
+        final onError = widget.onError;
+        if (onError != null) {
+          onError(error, stack);
+        } else if (widget.errorBuilder == null) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stack,
+              library: 'svgx',
+              context: ErrorDescription('while parsing an animated SVG'),
+            ),
+          );
+        }
+      });
+    }
+  }
+
+  /// Attaches a ready document with live quality and display settings.
+  ///
+  /// 以实时画质和显示设置挂载已就绪的文档。
+  void _attach(SvgDocument document) {
+    _controller.attach(
+      this,
+      document: document,
+      visible: _tickerModeEnabled,
+      quality: _quality,
+      fpsDivisor: _fpsDivisor,
+    );
+  }
+
+  /// Defers load callbacks until parent builds are safe to update.
+  ///
+  /// 将加载回调延后到父级可安全更新的时机。
+  void _notifyLoaded(SvgxAnimationInfo info, int generation) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && generation == _parseGeneration) {
+        widget.onLoaded?.call(info);
+      }
+    });
+  }
+
+  /// Resolves the widget's current quality. / 解析控件当前的画质。
+  SvgxAnimationQuality _quality() =>
+      widget.quality ?? SvgxAnimationQuality.defaultQuality;
+
+  /// Converts the live display refresh rate and cap to a divisor.
+  ///
+  /// 把实时显示刷新率和帧率上限转换为除数。
+  int _fpsDivisor() {
+    final maxFps = widget.maxFps;
+    if (maxFps == null) return _unthrottledDivisor;
+    final refreshRate = View.of(context).display.refreshRate;
+    if (refreshRate <= 0) return _unthrottledDivisor;
+    return max(_unthrottledDivisor, (refreshRate / maxFps).round());
+  }
+
+  /// Resolves paint-time mask approximation using subscriber concurrency.
+  ///
+  /// 根据订阅者并发数决定绘制时的遮罩近似。
+  bool _approximateMasks() => _quality().approximatesMasksAt(
+    SharedAnimationClock.instance.subscriberCount,
+  );
+
+  /// Releases images owned by this uncached document. / 释放未缓存文档独占的图片。
   void _disposeImages(SvgDocument document) {
+    /// Releases one subtree. / 释放一棵子树。
     void visit(SvgNode node) {
       node.resolvedImage?.dispose();
       node.resolvedImage = null;
@@ -426,363 +462,51 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     visit(document.root);
   }
 
-  /// This instance's live registration with the shared clock, or null when it
-  /// is not currently ticking.
-  ///
-  /// 本实例在共享时钟上的存活注册记录；当前未 ticking 时为 null。
-  _ClockSubscription? _subscription;
-
-  // The timeline position is published through a notifier the painter is
-  // wired to (see AnimatedSvgPainter's `clock`), not through setState. A
-  // per-tick setState would mark this element dirty and re-run build + layout
-  // for every ticking icon on every frame; a Listenable handed to
-  // CustomPainter.repaint makes the framework skip both phases and only mark
-  // the RenderCustomPaint as needing paint — which is exactly what changed.
-  // (Flutter's CustomPainter docs: the render object "will listen to the
-  // Listenable and repaint whenever the animation ticks, avoiding both the
-  // build and layout phases of the pipeline".)
-  //
-  // 时间线位置通过一个绘制器所绑定的 notifier 发布（见 AnimatedSvgPainter 的
-  // `clock`），而不是通过 setState。每 tick 一次 setState 会把本 element 标记为
-  // dirty，使每个正在 ticking 的图标每帧都重跑 build + layout；把 Listenable
-  // 交给 CustomPainter.repaint 则让框架跳过这两个阶段，只把 RenderCustomPaint
-  // 标记为需要重绘——变的正是这一点。（Flutter CustomPainter 文档原文：渲染
-  // 对象"will listen to the Listenable and repaint whenever the animation
-  // ticks, avoiding both the build and layout phases of the pipeline"。）
-  final ValueNotifier<Duration> _elapsed = ValueNotifier(Duration.zero);
-
-  // Documents with no <image> node never touch this — it starts true and
-  // stays true, so the common case pays zero extra cost. A document with
-  // images flips it false until resolveImageNodes' async decode completes,
-  // during which build() shows a plain placeholder instead of ticking.
-  //
-  // 无 <image> 节点的文档完全不会碰这个字段——恒为 true，常见场景零额外
-  // 开销。含图片的文档在 resolveImageNodes 异步解码完成前会置为 false，
-  // 期间 build() 展示占位而非开始 ticking。
-  bool _imagesReady = true;
-
-  // Bumped on every `_parseAndStart` call and captured by that call's async
-  // image-decode continuation. A source swap (`didUpdateWidget`) can start a
-  // new parse+decode before a prior one's `resolveImageNodes` future
-  // resolves; without this guard, the stale continuation would still be
-  // `mounted` and would flip `_imagesReady`/start `_ticker` for the *new*
-  // document using its own (still-live) fields, racing ahead of the new
-  // document's own decode.
-  //
-  // 每次 `_parseAndStart` 调用都会自增，并被该次调用的异步图片解码续体捕获。
-  // 源切换（`didUpdateWidget`）可能在上一次 `resolveImageNodes` 的 future
-  // 落地前就发起新的解析+解码；没有这个校验，过期的续体仍然满足 `mounted`，
-  // 会用*新*文档仍然存活的字段错误地把 `_imagesReady` 置真、启动
-  // `_ticker`，抢在新文档自己的解码完成之前。
-  int _parseGeneration = 0;
-
-  /// Whether [SvgxAnimated.onAnimationStart] has already fired for the
-  /// current document — reset on every [_parseAndStart].
-  ///
-  /// [SvgxAnimated.onAnimationStart] 是否已经为当前文档触发过——每次
-  /// [_parseAndStart] 重置。
-  bool _started = false;
-
-  /// The last (1-based) [SvgxAnimated.onAnimationLoop] iteration reported for
-  /// the current document — reset on every [_parseAndStart].
-  ///
-  /// 当前文档已报告过的最后一个（从1开始计数的）[SvgxAnimated.onAnimationLoop]
-  /// 迭代序号——每次 [_parseAndStart] 重置。
-  int _lastLoopIteration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _parseAndStart();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // 沿用 TickerMode.of，兼容尚未提供 valuesOf 的 Flutter。
-    // ignore: deprecated_member_use
-    final enabled = TickerMode.of(context);
-    if (enabled == _tickerModeEnabled) return;
-    _tickerModeEnabled = enabled;
-    if (enabled) {
-      _startTicking();
-    } else {
-      // 保存最后采样的进度，隐藏期间不推进时间线，也不接收共享 tick。
-      _virtualOffset = _elapsed.value;
-      _stopTicking();
-    }
-  }
-
-  @override
-  void didUpdateWidget(SvgxAnimated oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.source != widget.source) {
-      _stopTicking();
-      if (_ownsImages) _disposeImages(_document);
-      _parseAndStart();
-    } else if (oldWidget.playbackRate != widget.playbackRate &&
-        _subscription != null) {
-      final now = _SharedAnimationClock.instance.elapsed;
-      _virtualOffset += Duration(
-        microseconds:
-            ((now - _startOffset).inMicroseconds * oldWidget.playbackRate)
-                .round(),
-      );
-      _startOffset = now;
-    }
-  }
-
-  void _parseAndStart() {
-    // Parsing goes through the shared random-eviction cache: in a scrolling list the same
-    // icon source is mounted, disposed and re-mounted repeatedly, and the
-    // parse is by far the most expensive part of a mount (measured with
-    // `--dart-define=LIB=micro`, 399 real SMIL icons: parse 43.8us per icon
-    // vs 0.1us for a cache hit).
-    //
-    // 解析走共享的随机淘汰缓存：滚动列表里同一个图标源会被反复挂载、销毁、再挂载，
-    // 而解析是一次挂载里最贵的一环（`--dart-define=LIB=micro` 实测，399 个真实
-    // SMIL 图标：解析单图标 43.8us，缓存命中 0.1us）。
-    final generation = ++_parseGeneration;
-    final parsed = SvgxDocumentCache.instance.getOrParse(widget.source);
-    _document = parsed.document;
-    _ownsImages = parsed.hasImages;
-    _virtualOffset = Duration.zero;
-    _elapsed.value = Duration.zero;
-    _started = false;
-    _settled = false;
-    _lastLoopIteration = 0;
-    if (parsed.hasImages) {
-      _imagesReady = false;
-      // Ticking only starts once decode completes, so elapsed time (and thus
-      // the SMIL timeline) doesn't advance behind the scenes while a
-      // placeholder is showing — avoids the animation appearing to jump
-      // ahead the moment images become ready.
-      //
-      // 要等解码完成才开始 tick，避免占位展示期间时间线在背后偷跑——不然
-      // 图片就绪的瞬间动画会像是突然跳到了后面的进度。
-      final document = _document;
-      void ready() {
-        if (!mounted || generation != _parseGeneration) {
-          _disposeImages(document);
-          return;
-        }
-        setState(() => _imagesReady = true);
-        _startTicking();
-      }
-
-      (debugResolveAnimatedImages ?? resolveImageNodes)(document)
-          .then((_) => ready(), onError: (Object _, StackTrace _) => ready());
-    } else {
-      _imagesReady = true;
-      _startTicking();
-    }
-  }
-
-  void _startTicking() {
-    if (!_tickerModeEnabled ||
-        !_imagesReady ||
-        _settled ||
-        _subscription != null) {
-      return;
-    }
-    _startOffset = _SharedAnimationClock.instance.elapsed;
-    _subscription = _SharedAnimationClock.instance.subscribe(
-      _onGlobalTick,
-      usesOffscreenLayers: _document.usesOffscreenLayers,
-      // A closure rather than a captured value so a mid-flight change to
-      // either the widget's own `quality` or the global default is picked up
-      // on the next tick — see [_SharedAnimationClock.subscribe].
-      //
-      // 用闭包而非捕获的值，这样控件自身的 `quality` 或全局默认值中途发生变化
-      // 都能在下一个 tick 生效——见 [_SharedAnimationClock.subscribe]。
-      quality: () => widget.quality ?? SvgxAnimationQuality.defaultQuality,
-      fpsDivisor: _fpsDivisor,
-    );
-  }
-
-  /// Resolves [SvgxAnimated.maxFps] into a frame divisor against this
-  /// instance's current display refresh rate — read live on every tick (see
-  /// [_SharedAnimationClock.subscribe]), so it naturally follows a refresh
-  /// rate change (e.g. moving windows across displays) without resubscribing.
-  ///
-  /// 把 [SvgxAnimated.maxFps] 解析成相对本实例当前显示器刷新率的跳帧除数——
-  /// 逐 tick 现读（见 [_SharedAnimationClock.subscribe]），因此刷新率变化
-  /// （比如窗口跨屏移动）无需重新订阅就能自然生效。
-  int _fpsDivisor() {
-    final maxFps = widget.maxFps;
-    if (maxFps == null) return 1;
-    final refreshRate = View.of(context).display.refreshRate;
-    if (refreshRate <= 0) return 1;
-    return max(1, (refreshRate / maxFps).round());
-  }
-
-  void _stopTicking({bool settled = false}) {
-    final subscription = _subscription;
-    if (subscription == null) return;
-    _SharedAnimationClock.instance.unsubscribe(subscription);
-    _subscription = null;
-    if (settled) {
-      _settled = true;
-      widget.onAnimationComplete?.call();
-    }
-  }
-
-  /// Whether the painter may substitute a clip path for an eligible `<mask>`
-  /// on this frame — a method (not a field) so the closure handed to the
-  /// painter stays stable across builds while still reading the live
-  /// concurrency and quality profile.
-  ///
-  /// 本帧绘制器是否可以用裁剪路径替代合格的 `<mask>`——写成方法（而非字段），使
-  /// 交给绘制器的闭包在多次 build 间保持稳定，同时仍然读取实时的并发数与画质配置。
-  ///
-  /// Returns true when the approximation is in force.
-  ///
-  ///   近似生效时返回 true。
-  bool _approximateMasks() =>
-      (widget.quality ?? SvgxAnimationQuality.defaultQuality)
-          .approximatesMasksAt(_SharedAnimationClock.instance.subscriberCount);
-
-  void _onGlobalTick(Duration globalElapsed) {
-    final raw = globalElapsed - _startOffset;
-    final local =
-        _virtualOffset +
-        Duration(
-          microseconds: (raw.inMicroseconds * widget.playbackRate).round(),
-        );
-    _elapsed.value = local;
-    if (!_started) {
-      _started = true;
-      widget.onAnimationStart?.call();
-    }
-    final totalDuration = _document.totalDuration;
-    if (_document.hasIndefiniteLoop) {
-      // A well-defined period only exists when at least one finite animation
-      // contributed to totalDuration — otherwise this is a silent no-op, not
-      // an error, per onAnimationLoop's doc comment.
-      //
-      // 只有当至少一个有限动画对 totalDuration 有贡献时，"周期"才有明确定义——
-      // 否则按 onAnimationLoop 文档注释所写，这是静默不触发，不是报错。
-      if (totalDuration > Duration.zero) {
-        final iteration = local.inMicroseconds ~/ totalDuration.inMicroseconds;
-        if (iteration > _lastLoopIteration) {
-          _lastLoopIteration = iteration;
-          widget.onAnimationLoop?.call(iteration);
-        }
-      }
-    } else if (local >= totalDuration) {
-      // Finite (non-looping) documents stop ticking once every animation has
-      // settled into its final state, instead of burning frames forever on a
-      // now-static picture.
-      //
-      // 有限（不循环）的文档在所有动画都进入最终状态后停止 ticking，而不是
-      // 对着一张已经静止的画面持续消耗帧。
-      _stopTicking(settled: true);
-    }
-  }
-
+  /// Releases playback and owned images. / 释放播放绑定及自有图片。
   @override
   void dispose() {
-    _stopTicking();
-    if (_ownsImages) _disposeImages(_document);
-    // Safe to dispose here: the RenderCustomPaint that listens to this
-    // notifier is detached (and drops its listener) when the element is
-    // deactivated, which happens before unmount calls dispose. This is the
-    // same lifetime the CustomPainter docs assume when they suggest passing an
-    // AnimationController-backed Animation to `repaint`.
-    //
-    // 在此处 dispose 是安全的：监听本 notifier 的 RenderCustomPaint 会在 element
-    // 被 deactivate 时 detach 并摘掉监听，而这发生在 unmount 调用 dispose 之前。
-    // CustomPainter 文档建议把 AnimationController 支撑的 Animation 传给
-    // `repaint` 时，假设的正是同一套生命周期。
-    _elapsed.dispose();
+    _parseGeneration++;
+    _unbindController();
+    final document = _document;
+    if (_ownsImages && document != null) _disposeImages(document);
     super.dispose();
   }
 
+  /// Builds a placeholder, error content, or a paint-only animated surface.
+  ///
+  /// 构建占位、错误内容或仅重绘的动画画面。
   @override
   Widget build(BuildContext context) {
-    final w = widget.width ?? _document.width;
-    final h = widget.height ?? _document.height;
-    if (!_imagesReady) {
-      // Simple loading placeholder while embedded <image> bitmaps decode —
-      // no dedicated state machine, per task scope.
-      // 内嵌 <image> 位图解码期间的简单占位——按任务范围不做专门状态机。
-      return SizedBox(width: w, height: h);
+    final document = _document;
+    final w = widget.width ?? document?.width;
+    final h = widget.height ?? document?.height;
+    final error = _error;
+    if (error != null) {
+      return widget.errorBuilder?.call(context, error, _errorStack) ??
+          SizedBox(width: w, height: h);
     }
-    // No `SizedBox` around this `CustomPaint`, deliberately: a childless
-    // `CustomPaint` already sizes itself to `size`
-    // (`RenderCustomPaint.computeSizeForNoChild` returns
-    // `constraints.constrain(preferredSize)`), which is exactly what a
-    // `SizedBox(width: w, height: h)` wrapper would have produced — under every
-    // constraint regime, including a grid cell's tight constraints where both
-    // are overridden identically, and a parent tighter than the icon where both
-    // clamp the same way. The wrapper was therefore a `RenderConstrainedBox`
-    // that could not change a single pixel, and in a scrolling grid the
-    // framework paid to inflate it, attach it, lay it out and walk it once per
-    // cell per appearance. Size equivalence across all four constraint regimes,
-    // and the absence of the layer, are locked down by
-    // `test/animation/widget_tree_depth_test.dart`.
-    //
-    // 刻意不给这个 `CustomPaint` 套 `SizedBox`：无 child 的 `CustomPaint` 本就会把
-    // 自己撑到 `size`（`RenderCustomPaint.computeSizeForNoChild` 返回
-    // `constraints.constrain(preferredSize)`），这与 `SizedBox(width: w,
-    // height: h)` 包一层的结果完全一致——在任何约束状态下都一致，包括网格格子的紧
-    // 约束（两者都被同样地覆盖）以及比图标更紧的父级（两者都以同样方式收敛）。
-    // 因此那层包装只是一个不可能改变任何像素的 `RenderConstrainedBox`，而在滚动
-    // 网格里，框架要为每格每次出现付一次 inflate、attach、布局与遍历的代价。四种
-    // 约束状态下的尺寸等价性、以及该层级确实消失，由
-    // `test/animation/widget_tree_depth_test.dart` 锁定。
+    if (!_imagesReady || document == null) return SizedBox(width: w, height: h);
+    // CustomPaint supplies its own preferred size; no redundant SizedBox.
+    // CustomPaint 已提供首选尺寸，不额外包装 SizedBox。
     final child = CustomPaint(
-      size: Size(w, h),
+      size: Size(w!, h!),
       painter: AnimatedSvgPainter(
-        root: _document.root,
-        intrinsicSize: Size(_document.width, _document.height),
-        clock: _elapsed,
+        root: document.root,
+        intrinsicSize: Size(document.width, document.height),
+        clock: _controller.time,
         theme: widget.theme ?? const SvgxTheme(),
         fit: widget.fit,
         alignment: widget.alignment,
-        gradients: _document.gradients,
-        clipPaths: _document.clipPaths,
-        masks: _document.masks,
-        backgroundColor: _document.backgroundColor,
-        // Evaluated per paint, not per build: concurrency changes as cells
-        // scroll in and out, and this painter is not rebuilt on every tick
-        // (that is the whole point of driving it through `repaint`).
-        //
-        // 逐次绘制求值，而非逐次 build：并发数会随格子滚进滚出而变化，而本绘制器
-        // 并不会每 tick 重建（通过 `repaint` 驱动它的全部意义正在此）。
+        gradients: document.gradients,
+        clipPaths: document.clipPaths,
+        masks: document.masks,
+        backgroundColor: document.backgroundColor,
         approximateMasks: _approximateMasks,
-        // Carried alongside the closure only so the painter's shouldRepaint
-        // can see a runtime quality change — see AnimatedSvgPainter.quality.
-        //
-        // 与闭包一并传入，唯一目的是让绘制器的 shouldRepaint 能看到运行时的画质
-        // 变化——见 AnimatedSvgPainter.quality。
-        quality: widget.quality ?? SvgxAnimationQuality.defaultQuality,
+        quality: _quality(),
       ),
     );
-    // Kept deliberately, and re-tested rather than assumed. Removing this
-    // boundary was measured on a Huawei STG-AL00 (`LIB=anim_fps ITEMS=1000`,
-    // median of 4 runs) *after* the document-cache and style-cache fixes had
-    // moved the bottleneck from build onto raster — the case where a
-    // per-icon layer could plausibly have been the thing costing raster time.
-    // It changed nothing: real_fps 30.00 -> 30.13, build 20.25ms -> 20.24ms,
-    // raster 21.86ms -> 21.98ms, all inside run-to-run spread. So the boundary
-    // is free here, and it is retained because it is *not* free to omit for
-    // the case this benchmark doesn't cover: a single animated icon sitting
-    // inside an otherwise-static parent that repaints for its own reasons,
-    // where the boundary is what keeps this painter's per-tick repaint from
-    // dragging the parent's subtree along with it. (The grid case can't show
-    // that benefit because every icon shares one clock and so is dirty on the
-    // same frame anyway.)
-    //
-    // 刻意保留，而且是重新实测而非想当然。移除这个边界的效果在华为 STG-AL00 上
-    // 测过（`LIB=anim_fps ITEMS=1000`，4 次运行取中位数），且是在文档缓存与样式
-    // 缓存两项修复已经把瓶颈从 build 移到 raster *之后*测的——也就是"逐图标图层
-    // 可能正是 raster 耗时元凶"这个最有理由成立的时机。结果毫无变化：real_fps
-    // 30.00 -> 30.13，build 20.25ms -> 20.24ms，raster 21.86ms -> 21.98ms，全部
-    // 落在运行间波动内。所以这个边界在此场景是免费的；保留它，是因为在本基准
-    // 覆盖不到的另一种场景下"去掉"并不免费：单个动画图标处在一个因自身原因重绘
-    // 的静态父树里时，正是这个边界拦住了本绘制器的逐帧重绘去连累父级子树。
-    // （网格场景显示不出这个收益，因为所有图标共用一个时钟，本来就在同一帧全脏。）
+    // Isolate timeline repainting from otherwise static ancestors.
+    // 将时间线重绘与其余静态祖先隔离。
     return RepaintBoundary(child: child);
   }
 }
