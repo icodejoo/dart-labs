@@ -128,6 +128,8 @@ Future<Map<String, dynamic>> _stats() async {
 Future<void> runHeaders(Cp3Harness h) async {
   // R4 expands only the native paths; the original 15 CHECKs stay intact.
   const r4 = bool.fromEnvironment('CP3_HEADERS_R4');
+  // 新 APK 显式开启：独立冷实例从 bind 返回立即走有界截图能力。
+  const captureReady = bool.fromEnvironment('CP3_HEADERS_READY');
   // 原生抽帧和暂停预热使用独立正负对照，不把 open 接受当解码完成。
   Future<Map<String, Object?>> nativePath(String path, int run) async {
     final observations = <String, Object?>{};
@@ -171,7 +173,11 @@ Future<void> runHeaders(Cp3Harness h) async {
           await thumb.dispose();
         }
       }
-      final engine = createMovaEngine(preciseFirstFrame: true);
+      final MovaApi engine = path == 'pool-ready-cutover'
+          ? MovaCutoverEngine(
+              engineFactory: () => createMovaEngine(preciseFirstFrame: true),
+            )
+          : createMovaEngine(preciseFirstFrame: true);
       final signals = <String>[];
       final frameSub = engine.events.listen((event) {
         if (event is MovaFirstFrame) signals.add(event.signal.name);
@@ -183,6 +189,38 @@ Future<void> runHeaders(Cp3Harness h) async {
         await pool.bind(1, source).timeout(const Duration(seconds: 20));
         final bindReturnedMs = pauseClock.elapsedMilliseconds;
         final accepted = pool.slotFor(1)?.ready == true;
+        if (path.startsWith('pool-ready')) {
+          final at = pauseClock.elapsedMilliseconds;
+          final image = await (engine as MovaFrameCapture).screenshot();
+          final returnedMs = pauseClock.elapsedMilliseconds;
+          var decoded = false;
+          if (image != null && image.isNotEmpty) {
+            final codec = await ui.instantiateImageCodec(image);
+            try {
+              final frame = await codec.getNextFrame();
+              decoded = frame.image.width > 0 && frame.image.height > 0;
+              frame.image.dispose();
+            } finally {
+              codec.dispose();
+            }
+          }
+          observations[auth ? 'authorized' : 'denied'] = {
+            'accepted': accepted,
+            'decoded': decoded,
+            'null': image == null,
+            'imageBytes': image?.length,
+            'bindReturnedMs': bindReturnedMs,
+            'captureAtMs': at,
+            'captureReturnedMs': returnedMs,
+            'captureWaitMs': returnedMs - at,
+            'paused': !engine.state.playing,
+            'firstFrameSignals': signals,
+            'state': h.snapshot(engine),
+            'readySignal': 'nonempty screenshot result',
+          };
+          return accepted && decoded && !engine.state.playing;
+        }
+
         await h.until(
           () =>
               engine.state.error != null ||
@@ -399,9 +437,14 @@ Future<void> runHeaders(Cp3Harness h) async {
           variant != 'prefetch' || good.any((r) => r['range'] != null);
       final nativePaths = <String, Map<String, Object?>>{};
       if (variant == 'quality') {
-        for (final path in ['extract', 'pool']) {
+        for (final path in [
+          'extract',
+          'pool',
+          if (captureReady) 'pool-ready',
+          if (captureReady) 'pool-ready-cutover',
+        ]) {
           nativePaths[path] = await nativePath(path, i);
-          if (r4) {
+          if (r4 || path.startsWith('pool-ready')) {
             final samples = <Map<String, Object?>>[nativePaths[path]!];
             final count = path == 'extract' ? 12 : 6;
             for (var extra = 1; extra < count; extra++) {
@@ -410,6 +453,27 @@ Future<void> runHeaders(Cp3Harness h) async {
             nativePaths[path] = {
               ...nativePaths[path]!,
               'samples': samples,
+              if (path.startsWith('pool-ready')) ...{
+                'sampleCount': samples.length,
+                'authorizedNullCount': samples
+                    .where(
+                      (s) =>
+                          ((s['observations'] as Map)['authorized']
+                              as Map)['null'] ==
+                          true,
+                    )
+                    .length,
+                'authorizedReadyCount': samples
+                    .where(
+                      (s) =>
+                          ((s['observations'] as Map)['authorized']
+                              as Map)['decoded'] ==
+                          true,
+                    )
+                    .length,
+                'criterion':
+                    'authorized null=0 and decoded=all; denied decoded=0; paused throughout',
+              },
               'pass': samples.every((s) => s['pass'] == true),
             };
           }
@@ -584,9 +648,14 @@ class _BottomMarker extends MovaComponent {
 }
 
 Future<void> runCp1gap(Cp3Harness h) async {
-  final a = createMovaEngine(options: const MovaOpts(
-    live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr, dvrWindow: Duration(minutes: 2)),
-  ));
+  final a = createMovaEngine(
+    options: const MovaOpts(
+      live: MovaLiveConfig(
+        seekMode: MovaLiveSeekMode.dvr,
+        dvrWindow: Duration(minutes: 2),
+      ),
+    ),
+  );
   await h.mount(a);
   await a.open(h.source('a'));
   await h.until(() => a.state.rendered);
@@ -606,7 +675,9 @@ Future<void> runCp1gap(Cp3Harness h) async {
       final type = live ? MovaStreamType.live : MovaStreamType.vod;
       if (a.state.type != type) {
         await a.open(h.source(live ? 'live' : 'a', live: live));
-        await h.until(() => a.state.rendered && (!live || a.state.liveSeekable));
+        await h.until(
+          () => a.state.rendered && (!live || a.state.liveSeekable),
+        );
       }
       for (final remove in [true, false]) {
         h.customSurface = MovaPlayer(
