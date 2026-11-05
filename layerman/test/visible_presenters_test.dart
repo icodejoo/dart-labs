@@ -161,6 +161,114 @@ void main() {
     await visible.future;
   });
 
+  testWidgets('OverlayVisibility：替换未绘制确认器，旧信号失败、新信号等实际绘制',
+      (tester) async {
+    final first = Completer<void>();
+    final second = Completer<void>();
+    final failed = expectLater(first.future, throwsStateError);
+
+    /// 重建同一渲染对象，独立控制确认器和是否绘制。
+    Widget content(Completer<void> visible, bool offstage) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: Offstage(
+            offstage: offstage,
+            child: OverlayVisibility(
+                visible: visible, child: const Text('content'))));
+    await tester.pumpWidget(content(first, true));
+    final render = tester.renderObject(find.byType(OverlayVisibility,
+        skipOffstage: false));
+    await tester.pumpWidget(content(second, true));
+    await failed;
+    expect(second.isCompleted, isFalse);
+    expect(tester.renderObject(find.byType(OverlayVisibility,
+        skipOffstage: false)), same(render));
+    await tester.pumpWidget(content(second, false));
+    await second.future;
+  });
+
+  testWidgets('OverlayVisibility：旧路由覆盖回调不能确认尚未绘制的新确认器', (tester) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final first = Completer<void>();
+    final second = Completer<void>();
+    var current = first;
+    var hidden = false;
+    late StateSetter rebuild;
+    // 在首帧绘制之后、确认回调之前覆盖路由，留下旧确认器的待检查回调。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      navigatorKey.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('cover'))));
+    });
+    await tester.pumpWidget(MaterialApp(
+      navigatorKey: navigatorKey,
+      home: StatefulBuilder(builder: (_, setState) {
+        rebuild = setState;
+        return Offstage(
+            offstage: hidden,
+            child: OverlayVisibility(visible: current, child: const Text('tip')));
+      }),
+    ));
+    await tester.pumpAndSettle();
+    expect(first.isCompleted, isFalse);
+    final failed = expectLater(first.future, throwsStateError);
+    rebuild(() {
+      current = second;
+      hidden = true;
+    });
+    await tester.pump();
+    await failed;
+    navigatorKey.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(second.isCompleted, isFalse);
+    rebuild(() => hidden = false);
+    await tester.pump();
+    await second.future;
+  });
+
+  testWidgets('OverlayVisibility：替换已完成确认器，新确认器正常完成', (tester) async {
+    final first = Completer<void>();
+    final second = Completer<void>();
+
+    /// 保持组件位置不变，以复用同一个渲染对象。
+    Widget content(Completer<void> visible) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: OverlayVisibility(visible: visible, child: const Text('content')));
+    await tester.pumpWidget(content(first));
+    await first.future;
+    await tester.pumpWidget(content(second));
+    await second.future;
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OverlayVisibility：跨路由重挂载刷新捕获的路由', (tester) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final contentKey = GlobalKey();
+    final moved = ValueNotifier<bool>(false);
+    addTearDown(moved.dispose);
+    final visible = Completer<void>();
+
+    /// 同一 GlobalKey 从旧页面的 Offstage 移到新页面并参与绘制。
+    Widget content(bool offstage) => Offstage(
+        offstage: offstage,
+        child: OverlayVisibility(
+            key: contentKey, visible: visible, child: const Text('moved')));
+    await tester.pumpWidget(MaterialApp(
+      navigatorKey: navigatorKey,
+      home: ValueListenableBuilder<bool>(
+        valueListenable: moved,
+        builder: (_, value, child) => value ? const SizedBox() : content(true),
+      ),
+    ));
+    final render = tester.renderObject(find.byKey(contentKey, skipOffstage: false));
+    expect(visible.isCompleted, isFalse);
+    moved.value = true;
+    navigatorKey.currentState!.push(MaterialPageRoute<void>(
+        builder: (_) => Scaffold(body: content(false))));
+    await tester.pumpAndSettle();
+    expect(tester.renderObject(find.byKey(contentKey)), same(render));
+    expect(visible.isCompleted, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('OverlayVisibility：构建失败以错误确认，不把 ErrorWidget 当展示', (tester) async {
     final visible = Completer<void>();
     final failure = expectLater(visible.future, throwsStateError);

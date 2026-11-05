@@ -96,6 +96,7 @@ Future<void> _routeVisible<T>(ModalRoute<T> route) {
 }
 
 /// 检查首帧子树是否含 Flutter 用于替代构建失败内容的错误组件。
+/// 仅识别 ErrorWidget；应用自定义 ErrorWidget.builder 返回其他组件时无法检测。
 bool _hasBuildError(Element element) {
   if (element.widget is ErrorWidget) return true;
   var failed = false;
@@ -108,6 +109,37 @@ bool _hasBuildError(Element element) {
 /// 为自管 OverlayEntry 或第三方组件提供成功绘制后的首帧可见信号。
 /// 包住实际内容，将同一个 [visible] 的 future 交给 PresentedOverlay；
 /// 尚未绘制、被路由覆盖或构建失败时不会成功确认。
+/// 替换确认器时，尚未确认的旧信号以 StateError 完成，避免把未绘制内容记为可见。
+/// 应用若自定义 ErrorWidget.builder 返回非 ErrorWidget，构建失败检测会失效。
+///
+/// ```dart
+/// import 'dart:async';
+/// import 'package:flutter/material.dart';
+/// import 'package:layerman/layerman.dart';
+///
+/// /// 在指定 Overlay 中插入内容，独立确认首帧与退场。
+/// PresentedOverlay<void> presentTip(OverlayState overlay) {
+///   final visible = Completer<void>();
+///   final dismissed = Completer<void>();
+///   final entry = OverlayEntry(
+///     builder: (_) => OverlayVisibility(
+///       visible: visible,
+///       child: const Center(child: Material(child: Text('已保存'))),
+///     ),
+///   );
+///   overlay.insert(entry);
+///   return PresentedOverlay<void>(
+///     visible: visible.future,
+///     dismissed: dismissed.future,
+///     dismiss: ([_]) async {
+///       if (dismissed.isCompleted) return;
+///       entry.remove();
+///       entry.dispose();
+///       dismissed.complete();
+///     },
+///   );
+/// }
+/// ```
 class OverlayVisibility extends SingleChildRenderObjectWidget {
   /// 绑定本次展示的独立确认器与实际内容。
   const OverlayVisibility({
@@ -127,8 +159,22 @@ class OverlayVisibility extends SingleChildRenderObjectWidget {
   /// 更新重建后使用的确认器。
   @override
   void updateRenderObject(
-      BuildContext context, covariant RenderProxyBox renderObject) {
-    (renderObject as _VisibilityRender).visible = visible;
+    BuildContext context,
+    // 精确约束内部渲染类型，不为覆盖签名额外公开渲染实现。
+    // ignore: library_private_types_in_public_api
+    covariant _VisibilityRender renderObject,
+  ) {
+    if (!identical(renderObject.visible, visible)) {
+      final previous = renderObject.visible;
+      // 旧确认器尚未见到成功帧：以失败结束，不能成功完成并误记频次。
+      if (!previous.isCompleted) {
+        previous.completeError(StateError('可见确认器在首帧前被替换'));
+      }
+      renderObject.visible = visible;
+      renderObject.pending = false; // 旧帧末回调不能阻止新确认器登记绘制。
+    }
+    // ModalRoute.of 建立依赖；重挂载到另一条路由或路由状态改变时同步刷新。
+    renderObject.route = ModalRoute.of(context);
     renderObject.markNeedsPaint();
   }
 }
@@ -144,8 +190,8 @@ class _VisibilityRender extends RenderProxyBox {
   /// 当前展示的可见确认器。
   Completer<void> visible;
 
-  /// 所在路由；自管顶层 OverlayEntry 可以没有路由。
-  final ModalRoute<dynamic>? route;
+  /// 当前所在路由；依赖变更和跨路由重挂载时更新，顶层 OverlayEntry 可为空。
+  ModalRoute<dynamic>? route;
 
   /// 同一帧只登记一次确认。
   bool pending = false;
@@ -156,16 +202,18 @@ class _VisibilityRender extends RenderProxyBox {
     super.paint(context, offset);
     if (pending || visible.isCompleted) return;
     pending = true;
-    WidgetsBinding.instance.addPostFrameCallback(_confirm);
+    final painted = visible;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _confirm(painted));
   }
 
   /// 已参与绘制后，覆盖期间只等待下一次自然帧，不驱动空转帧。
-  void _confirm(Duration _) {
+  void _confirm(Completer<void> painted) {
+    if (!identical(visible, painted)) return; // 忽略旧确认器留下的帧末回调。
     pending = false;
     if (!attached || !element.mounted || visible.isCompleted) return;
     if (route != null && !route!.isCurrent) {
       pending = true;
-      WidgetsBinding.instance.addPostFrameCallback(_confirm);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _confirm(painted));
       return;
     }
     if (_hasBuildError(element)) {
