@@ -63,7 +63,8 @@ class Evidence:
                     self.errors.append(f'{path.name}: records 含非对象记录'); continue
                 start = max((i for i,r in enumerate(records) if r.get('kind') == 'BEGIN'), default=0)
                 records = records[start:]
-                if records and data.get('status') not in ('done', None):
+                # 命令连一条记录都没产出就失败，也必须进入整轮完整性门禁。
+                if (records or data.get('status') in ('error', 'running', 'timeout')) and data.get('status') not in ('done', None):
                     self.errors.append(f'{path.name}: 命令未完成 status={data.get("status")}')
                     continue
             else:

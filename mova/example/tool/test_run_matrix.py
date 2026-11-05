@@ -39,6 +39,10 @@ class MatrixTests(unittest.TestCase):
             self.assertFalse(compare(dict(rows=current['rows']), current)['passed'])
             (out/'unit-malformed.json').write_text('{')
             self.assertEqual(len(reduce_evidence(manifest, out, 'unit-', rules).evidence_errors), 2)
+            (out/'unit-empty-error.json').write_text(json.dumps(dict(status='error', records=[])))
+            verdicts = reduce_evidence(manifest, out, 'unit-', rules)
+            self.assertEqual(len(verdicts.evidence_errors), 3)
+            self.assertEqual(verdicts['A4']['status'], 'PASS')
 
     def test_pool_reclaimed_checks_every_created_engine_without_fixed_size(self):
         from matrix_evidence import Evidence
