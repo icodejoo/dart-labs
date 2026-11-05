@@ -361,8 +361,12 @@ class _BottomMarker extends MovaComponent {
 }
 
 Future<void> runCp1gap(Cp3Harness h) async {
-  await _open(h);
-  final a = h.api!;
+  final a = createMovaEngine(options: const MovaOpts(
+    live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr, dvrWindow: Duration(minutes: 2)),
+  ));
+  await h.mount(a);
+  await a.open(h.source('a'));
+  await h.until(() => a.state.rendered);
   for (var i = 0; i < 5; i++) {
     final observations = <Map<String, Object?>>[];
     var passed = true;
@@ -374,6 +378,13 @@ Future<void> runCp1gap(Cp3Harness h) async {
       'durationLabel',
       'backToLive',
     ]) {
+      // 直播叶子必须在真实直播/DVR 布局中挂载，不能拿 VOD 的隐藏节点作锚点。
+      final live = !['positionLabel', 'durationLabel'].contains(name);
+      final type = live ? MovaStreamType.live : MovaStreamType.vod;
+      if (a.state.type != type) {
+        await a.open(h.source(live ? 'live' : 'a', live: live));
+        await h.until(() => a.state.rendered && (!live || a.state.liveSeekable));
+      }
       for (final remove in [true, false]) {
         h.customSurface = MovaPlayer(
           api: a,
@@ -402,6 +413,8 @@ Future<void> runCp1gap(Cp3Harness h) async {
         passed = passed && ok;
         observations.add({
           'name': name,
+          'type': a.state.type.name,
+          'liveSeekable': a.state.liveSeekable,
           'remove': remove,
           'built': built,
           'marker': marker,

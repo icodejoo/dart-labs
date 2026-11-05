@@ -4,8 +4,23 @@ import 'package:mova/mova.dart';
 import '../../test/support/fake_api.dart';
 import 'package:mova_example/verify_auto/cp3_pages_auto.dart';
 import 'package:mova_example/verify_auto/cp3_harness.dart';
+import 'package:mova_example/verify_auto/s00d_receipt.dart';
 
 void main() {
+  test('回执只比较事件相关字段，保留真正载荷差异', () async {
+    final api = FakeMovaApi();
+    final checks = <Map<String, Object?>>[];
+    final audit = ReceiptAudit(api, (_, data) => checks.add(data));
+    api.push(api.state.copyWith(duration: const Duration(seconds: 100)));
+    // 状态订阅尚未交付，但无关时长变化不能让倍速事件失败。
+    audit.receive(const MovaRateChange(1));
+    expect(checks.last['pass'], isTrue);
+    audit.receive(const MovaRateChange(2));
+    expect(checks.last['pass'], isFalse);
+    expect(checks.last['differences'], ['rate']);
+    await audit.dispose();
+    await api.dispose();
+  });
   test('all CP3 scripts compile as independent entry contracts', () {
     final scripts = <Cp3Script>[
       runFullscreen,

@@ -67,7 +67,9 @@ class ReceiptAudit {
   };
 
   void receive(MovaEvent e) {
-    final expected = Map<String, Object?>.of(latest);
+    // 两条独立异步订阅没有跨流时序承诺；只把本事件声明的字段
+    // 与接收时 getter 对账。保留上一条流快照供诊断，不断言无关字段相等。
+    final expected = values(api.state);
     // Override only fields actually asserted by this event's public contract.
     expected.addAll(switch (e) {
       MovaSourceChange() => {
@@ -124,6 +126,7 @@ class ReceiptAudit {
       'event': e.runtimeType.toString(),
       'expected': expected,
       'actual': actual,
+      'lastObservedState': latest,
       'differences': differences,
       'numbers': {'fields': actual.length},
     });
