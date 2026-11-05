@@ -755,7 +755,14 @@ class MovaMpvKernel
       _pump?.discardPending();
       _eventAttempt = eventAttempt;
       _eventUri = uri;
-      await _player.open(Media(uri), play: play);
+      // media_kit 的卸载钩子会清空原生请求头；加载钩子从 Media 恢复，
+      // 因此不能只在 open 前设置 http-header-fields 属性。
+      final headers = <String, String>{};
+      for (final field in parseMpvStringList(options['http-header-fields'] ?? '') ?? <String>[]) {
+        final colon = field.indexOf(':');
+        if (colon > 0) headers[field.substring(0, colon).trim()] = field.substring(colon + 1).trim();
+      }
+      await _player.open(Media(uri, httpHeaders: headers), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
       rethrow;

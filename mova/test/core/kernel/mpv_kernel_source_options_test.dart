@@ -3,6 +3,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/core/kernel/mpv_keyvalue.dart';
 import 'package:mova/src/core/kernel/source_options_kernel.dart';
+import 'package:mova/src/core/model/source.dart';
 
 /// 记录 setProperty / command / open 顺序的假播放器；getProperty 返回当前"mpv 里的值"。
 class _FakePlayer extends Fake implements Player {
@@ -10,6 +11,7 @@ class _FakePlayer extends Fake implements Player {
   final List<String> log;
   final _FakeNative native;
   final _stream = _FakeStream();
+  final opened = <Media>[];
 
   @override
   PlatformPlayer get platform => native;
@@ -18,7 +20,10 @@ class _FakePlayer extends Fake implements Player {
   PlayerStream get stream => _stream;
 
   @override
-  Future<void> open(Playable playable, {bool play = true}) async => log.add('open:${(playable as Media).uri}');
+  Future<void> open(Playable playable, {bool play = true}) async {
+    opened.add(playable as Media);
+    log.add('open:${playable.uri}');
+  }
 
   @override
   Future<void> dispose() async {}
@@ -116,6 +121,24 @@ class _FakeStream extends Fake implements PlayerStream {
 }
 
 void main() {
+  for (final entry in {
+    'Referer': 'https://cp3.example/authorized',
+    'X-Token': '甲,乙: token',
+    'User-Agent': 'custom agent',
+  }.entries) {
+    test('C07 Media 加载钩子接收 ${entry.key} 且下次打开清除', () async {
+      final log = <String>[];
+      final player = _FakePlayer(log, _FakeNative(log));
+      final kernel = MovaMpvKernel(player: player, audioOnly: true, observeQoeSignals: false);
+      addTearDown(kernel.dispose);
+      final source = MovaSource('https://h/a.m3u8', headers: {entry.key: entry.value});
+      kernel.stageSourceOptions(source.mpvOptionsFor(source.uri));
+      await kernel.open(source.uri);
+      expect(player.opened.last.httpHeaders, source.requestHeaders);
+      await kernel.open('https://h/b.mp4');
+      expect(player.opened.last.httpHeaders, isEmpty);
+    });
+  }
   late List<String> log;
   late _FakeNative native;
   late MovaMpvKernel kernel;
