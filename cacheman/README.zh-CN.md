@@ -68,10 +68,12 @@ await cache.ensureInitialized();
 | `namespace` / `setNamespace([ns])` | 当前前缀 / 原地切换。 |
 | `container` | 底层 `get_storage` 的 `GetStorage` 实例——给需要拿到原始 container 的互操作场景用（比如用 `listenKey` 监听外部变更）。 |
 | `storageKey(key)` | `key` 实际落盘用的 key（加了命名空间前缀，`enckey` 时还会编码）——传给 `container.listenKey(...)` 的应该是这个，而不是 `key` 本身。 |
+| `watch<T>(key, onChange, {includeOwnWrites = false})` | 监听解码值，返回取消函数；跟随命名空间迁移。 |
+| `flush()` | 立即排共享保存，返回 void；错误走 onError。 |
 
 ### `CachemanOptions`
 
-`serialize`/`deserialize`、`codeable`/`codec`/`keyCodec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`——精确语义见 `lib/src/options.dart` 里每个字段的文档注释。
+`serialize`/`deserialize`、`codeable`/`codec`/`keyCodec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`、`flushDelay`、`purgeOnInit`——精确语义见 `lib/src/options.dart` 里每个字段的文档注释。
 
 不可解码的条目在读取时被删除，并通过 `onError(storageKey, error)`（或 print）上报。
 保留原始解码/反序列化异常；codec 返回 null 时使用 `FormatException`。
@@ -83,9 +85,53 @@ purge/readonly 探测不上报此类失败；raw 读取跳过解码。
 
 键绑定的快捷访问器——见 `lib/src/fast.dart`。
 
-### GetX 响应式接入（`container` + `storageKey`）
+### 共享 Hub、`watch`、`flushDelay`、`flush` 与 `purgeOnInit`
 
-`get_storage` 依赖 `get`，因此 `get` 是本包的传递依赖。`container`/`storageKey` 提供互操作接口，本包未内置 GetX 绑定。如果你使用 GetX，靠这两个就能自己搭一个类似 VueUse `useStorage` 的响应式封装：
+同 container 的 Cacheman 共用一个私有 Hub/底层监听器。自有键索引在其他实例或外部写删后自动
+重建；本实例写入以 O(1) 维护新鲜索引。不新增读值缓存。Hub/watch/延迟落盘仅用于同步 Cacheman。
+
+```dart
+final cache = Cacheman(options: const CachemanOptions(
+  namespace: 'account',
+  flushDelay: Duration(milliseconds: 200), // opt-in / 显式启用，default null
+  purgeOnInit: true,                      // opt-in / 显式启用，default false
+));
+await cache.ensureInitialized();
+final stop = cache.watch<Map<String, dynamic>>('profile', (value) {
+  print(value); // peer/external changes / 其他实例或外部变更
+});
+cache.write('profile', {'name': 'Ada'}); // readable now / 立即可读，自身事件被忽略
+cache.flush(); // queue save now / 立即排保存，没有 Future/持久化完成确认
+stop();
+```
+
+`watch` 经过本实例的解码/过期语义读取，缺失、删除或清空得到 null；支持整容器 erase，且会随
+`setNamespace` 迁移。`includeOwnWrites: true` 也接收本实例写入、续期及懒删。类型/读取/回调异常
+走 `onError`，不会打断其他监听；onError 自身抛错仍按原契约传播。对象释放时取消订阅。
+
+`flushDelay: null` 保持 get_storage 默认的每个有写入的事件循环轮次落盘。显式设为 200ms 后，
+写入和续期使用 `writeInMemory` 与共享计时器合并，取最早截止时间，连续写入不会不断推迟保存。
+崩溃可能丢失窗口内的写入。删除仍走 get_storage `remove` 并立即排落盘（没有公开的仅内存删除）；
+erase 保持原行为。`flush()` 取消计时器并立即排保存；有待保存写入时，inactive/paused/hidden/
+detached 生命周期也触发保存。这是尽力排落盘，不能同步保证磁盘写完；get_storage 2.1.1 仍丢弃
+实际落盘 Future。可捕获的原语异常上报给最近延迟写入者；主动 flush 的异常上报给调用实例。
+
+`purgeOnInit: true` 在初始化后用 `Timer.run` 调度一次非阻塞清理；await 初始化不等待清理完成，
+raw 模式跳过。AsyncCacheman 忽略这两个新选项。
+
+自带存储原语的子类必须调用 `super.custom(...)`（见 `PreferencesCache`）。这类子类默认使用独立
+Hub 身份 `this`、不订阅通知，因而不会隐式打开 GetStorage；每次枚举重扫，`watch` 抛
+UnsupportedError。只转发构造参数的普通子类（如上面的 `MyCacheman`）沿用默认构造，完整保留
+get_storage 行为：共享 Hub、`watch`、`flushDelay` 与增量键索引。需要共享通知时，覆写 `hubIdentity` 返回
+稳定底层句柄，实现 `listenRaw(ctx, onChange)`（返回取消函数，null 键代表清空）和
+`syncNotificationsRaw`；共享身份的实例必须采用一致的通知/持久化契约。异步通知仍每次重扫，
+`includeOwnWrites: false` 可能收到自己的事件，须自行判等。真正延迟持久化需覆写
+`setDeferredRaw`/`flushRaw`，否则默认退化为 `setRaw`/无操作。
+
+### GetX 响应式接入（`watch`）
+
+`get_storage` 依赖 `get`，因此 `get` 是本包的传递依赖。本包不内置 GetX 绑定，可在应用中
+用 `watch` 搭建类似 VueUse useStorage 的封装：
 
 ```dart
 import 'dart:convert';
@@ -95,43 +141,35 @@ import 'package:get/get.dart';
 /// Compare JSON-compatible values. / 比较可 JSON 序列化的值。
 bool sameValue(Object? a, Object? b) => a == b || jsonEncode(a) == jsonEncode(b);
 
-/// Bind with a feedback guard. / 带回写守卫的绑定。
-Rx<V?> reactive<V>(Cacheman cache, String key) {
+/// Own writes cannot feed back; dispose both subscriptions. / 忽略自身写入，释放两种订阅。
+({Rx<V?> rx, void Function() dispose}) reactive<V>(Cacheman cache, String key) {
   final rx = Rx<V?>(cache.read<V>(key));
-
-  // 同一 isolate 内对这个 container 的写入会更新 Rx。
-  cache.container.listenKey(cache.storageKey(key), (dynamic _) {
-    final next = cache.read<V>(key);
+  final stop = cache.watch<V>(key, (next) {
     if (!sameValue(rx.value, next)) rx.value = next;
+  }, includeOwnWrites: false);
+  final worker = ever(rx, (V? value) {
+    if (sameValue(cache.read<V>(key), value)) return;
+    value == null ? cache.remove(key) : cache.write<V>(key, value);
   });
-
-  // 回写前比较：反序列化出的 Map/List/对象每次都是新实例。
-  ever(rx, (V? v) {
-    if (sameValue(cache.read<V>(key), v)) return;
-    v == null ? cache.remove(key) : cache.write<V>(key, v);
-  });
-
-  return rx;
+  return (rx: rx, dispose: () { stop(); worker.dispose(); });
 }
 
-final token = reactive<String>(cache, 'token');
+final binding = reactive<String>(cache, 'token');
+final token = binding.rx;
 Obx(() => Text(token.value ?? 'no token'));
-token.value = 'abc123'; // 界面自动刷新，并持久化
+token.value = 'abc123';
+// On owner disposal / 对象释放时：binding.dispose();
 ```
 
-比较时先用 `==`，再对集合和带 `toJson()` 的对象比较 JSON 内容。
-对于 JSON 无法编码的值，按业务的值语义调整 `sameValue`。实际项目中应保留
-`listenKey` 返回的取消函数和 `ever` 返回的 `Worker`，并随所属对象一起释放。
+比较先用 `==`，再对集合和有 `toJson()` 的对象比较 JSON 内容；JSON 无法编码的值需按业务语义
+调整 `sameValue`。保留返回的 binding，对象释放时同时取消 watch 和 Worker。
 
-- `container.listenKey` 的回调是**同步**的；缓存写入返回前就可能重入监听器。
-  上面的守卫可避免内容相同的值反复回写。
-- 整容器 `erase()` 上报的变更键是 `""`，监听非空 `storageKey(key)` 收不到通知。
-  需要自行处理（例如通过 container 级的 `listen` 检查 `container.changes` 并重置 Rx）。
-  `cache.erase()` 在无 namespace/enckey 时走整容器清空；有作用域时逐个删除自有键并通知对应键。
-- 不同 isolate 各有独立的内存 map 和监听器；另一 isolate 的写入不会更新或通知此绑定，
-  跨 isolate 同步需要自行安排。
+- 默认通知同步；`watch` 忽略本实例写入（含续期/懒删），对每次解码生成新身份的 Map/List 也能断环。
+- 原始 `container.listenKey` 仍收不到整容器 erase（变更键 `""`）；`watch` 转给所有监听键。
+  有作用域的 erase 仍逐键删除并通知。
+- 不同 isolate 各有独立内存 map 和监听器；跨 isolate 同步须自行安排。
 
-只要可能用到 `enckey`，就应该用 `cache.storageKey(key)`，而不是 `cache.namespace + key`——codec 的编码逻辑是私有可插拔的细节，`storageKey` 已经帮你处理好了。
+直接使用 container 互操作且启用 enckey 时，应使用 `storageKey(key)`，而非 `namespace + key`。
 
 ### `debug(cache)`
 
@@ -165,7 +203,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// App-owned synchronous preferences adapter. / 应用自有的同步偏好适配器。
 class PreferencesCache extends Cacheman {
   /// Builds without opening a backend. / 构造时不打开后端。
-  PreferencesCache({super.options});
+  PreferencesCache({super.options}) : super.custom();
   /// Backend initialized by ensureInitialized. / 由 ensureInitialized 初始化的后端。
   late final SharedPreferencesWithCache prefs;
 
@@ -196,7 +234,7 @@ class PreferencesCache extends Cacheman {
 覆写全部原语即可完全避开默认后端。默认 `GetStorage(container, path)` 改为惰性创建，初始化或首次
 访问 container 时仍携带构造参数中的 path。同名容器仍遵循 GetStorage 的首次构造 path 生效规则，
 其先后现在取决于首次访问后端，而非 Cacheman 实例的构造顺序。
-同步自有键集合仍只追踪本实例写删；外部变更后可用 `setNamespace` 使其重建。
+同步自有键集合通过 Hub 版本自愈；无同步通知的子类每次查询重扫（如本例 preferences）。
 
 ### 异步原语：Hive CE LazyBox
 
@@ -318,6 +356,9 @@ final report = await large.read<Map<String, dynamic>>('report/2026');
 负责。仅适用于 IO 平台，不适用 web；值按需读取，不由 cacheman 保留。
 
 ### CacheContext 与异步 API 契约
+
+`CacheContext.storageKey` 为实际底层键；key 首次访问才解析并缓存，保留调用时的 namespace。
+订阅使用无键 init 上下文，flush 使用无键 write 上下文，保持现有 CacheOp 枚举不变。
 
 `CacheContext` 携带 `key`（未加前缀/编码的逻辑键）、`namespace`（转义后的前缀，与 getter 一致）、
 `op`（`CacheOp.init/read/write/remove/keys/clear`）。初始化、枚举、整库清空时 key 为 null；批量

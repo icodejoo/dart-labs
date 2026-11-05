@@ -24,6 +24,7 @@ flowchart TD
     Sync --> Core[Private composed _CacheCore]
     Async --> Core
     Sync --> SyncRaw[Protected synchronous primitives]
+    Sync --> Hub[hub.dart: shared identity / version / watch / flush timer]
     Async --> AsyncRaw[Protected asynchronous primitives]
     SyncRaw --> GS[Default lazy GetStorage]
     SyncRaw --> UserSync[User sync backend]
@@ -33,13 +34,15 @@ flowchart TD
 - `lib/src/cacheman.dart`: library owner and sync facade; constructor, initialization,
   primitive calls/orchestration, sync owned-key set. Defaults talk to GetStorage only
   inside primitives (container getter exposes the lazy instance for explicit interop).
+- `lib/src/hub.dart`: private part; Expando keyed by hubIdentity, one listenRaw subscription,
+  versioned owned-key healing, snapshot watch dispatch, earliest-deadline flush and lifecycle.
 - `lib/src/core.dart`: private `_CacheCore` composed by both facades; namespace escaping,
   key mapping caches, full/logical key/owns, envelope validation, dump/load, expiry,
   renewal decision returning an optional new entity without IO, raw/batch validation,
   original-error reporting. No backend branches or IO.
 - `lib/src/async_cacheman.dart`: abstract AsyncCacheman with options only, no container/path;
   awaited primitives and orchestration. No built-in backends, read-value cache or owned-key set.
-- core.dart and async_cacheman.dart are parts of cacheman.dart, sharing a private Dart
+- core.dart, hub.dart and async_cacheman.dart are parts of cacheman.dart, sharing a private Dart
   library scope. The package entry exports public types, never the core.
 - interface.dart: Codec, CachemanOnError, immutable CacheContext and CacheOp.
 - options.dart: shared CachemanOptions; deprecated CacheOptions is unused.
@@ -65,17 +68,33 @@ flowchart TD
   it constructs a pathless cached singleton. Default first access uses the supplied path;
   same-name containers still use the first actually constructed path. Because construction
   is lazy, access order determines that winner. A subclass overriding every primitive
-  must never implicitly create the default backend. Explicit container access still does.
+  must construct via `super.custom(...)` and must never implicitly create the default backend.
+  Explicit container access still does. Plain forwarding subclasses use the default constructor.
 - **No read-value cache in either facade.** Every read calls getRaw. Only key mappings
   and the synchronous owned-key set may be cached.
 - **AsyncCacheman never caches its owned-key set.** Every enumeration/length/purge/scoped
   erase calls keysRaw then filters owns. It may reuse the bounded core key mappings.
   Async initRaw defaults no-op, required hooks are getRaw/setRaw/removeRaw/keysRaw;
   clearRaw defaults to enumerating a snapshot and removing every backend key, no owns filter.
-- **Sync owned-key cache is per instance.** Lazily scan keysRaw, then track/untrack every
-  successful write (including retries), deletion and erase. setNamespace invalidates it.
-  Other instances/external writes in the same backend/namespace can make it stale; preserve
-  that documented limitation unless explicitly asked to redesign it.
+- **Sync owned-key indexes self-heal.** hubIdentity shares a Hub and one listenRaw listener.
+  Synchronous notifications increment its version; _ownSet rebuilds stale snapshots.
+  A fresh index tracks local writes/deletes in O(1), including retries; reentrant changes
+  invalidate it. setNamespace invalidates it and migrates this instance's watchers.
+  Null listenRaw or false syncNotificationsRaw means rescan on every _ownSet query.
+  The default constructor (including plain forwarding subclasses) uses GetStorage identity;
+  `Cacheman.custom` subclasses use this + no notifications unless explicitly opting in, so
+  custom backends never implicitly open GetStorage. Never decide this by runtimeType.
+- **Watch excludes own writes by default.** Mutation depth includes renewal/lazy deletion;
+  clear notifies every watcher. Snapshot dispatch tolerates subscribe/cancel in callbacks.
+  Read/type/callback errors use onError; onError itself still propagates. Unsupported watch
+  throws UnsupportedError; asynchronous notifications may include own writes (document it).
+- **Delayed flush is opt-in and sync-only.** flushDelay null preserves the default; writes
+  with a delay update memory immediately and keep the earliest shared Timer deadline.
+  Deletes still immediately queue a save. flush() is void; it cancels the Timer and saves.
+  Register lifecycle observer only while pending, remove after flush; inactive/paused/hidden/
+  detached flush. Errors go to latest delayed writer or explicit flush caller. Custom
+  subclass deferred hooks fall back to setRaw/no-op. purgeOnInit false preserves behavior;
+  true schedules Timer.run after init, skipping raw. AsyncCacheman ignores both options.
 - **Namespace escaping is stable.** Escape `%` then `:`; namespace getter is the escaped
   prefix plus colon, not the original option. setNamespace clears both key maps together.
 - **Key caches are bounded maps, not LRUs.** `_ekCache` and `_lkCache` each cap at 1024,
@@ -110,6 +129,9 @@ flowchart TD
   remove/keys/clear/init, including internal renewal/deletion. Batched CRUD passes each key.
   Cross-box routing must enumerate/clear the union. Await pending async operations before
   namespace switches; no transaction/concurrent readonly/sliding guarantees are provided.
+  key is resolved once on demand, including null, and retains the captured namespace;
+  storageKey exposes the backend key. Preserve the const constructor. Subscription uses
+  null-key init context and flush uses null-key write context (CacheOp remains unchanged).
 
 ## Verification
 
@@ -119,6 +141,9 @@ Execute at the package root; do not change directory:
 flutter analyze
 flutter test
 flutter analyze example
+flutter test --coverage
+dart run tool/coverage.dart --min=100
+dart run tool/check_acceptance.dart
 ```
 
 Wait for final command results; no pnpm typecheck, no git commit. Original

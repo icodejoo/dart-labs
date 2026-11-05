@@ -75,11 +75,13 @@ await cache.ensureInitialized();
 | `namespace` / `setNamespace([ns])` | Current prefix / switch it in place. |
 | `container` | Underlying `get_storage` `GetStorage` instance — for interop needing the raw container (e.g. `listenKey` for external change notifications). |
 | `storageKey(key)` | The actual key `key` is persisted under (namespace-prefixed, `enckey`-encoded when enabled) — pass this to `container.listenKey(...)`, not `key` itself. |
+| `watch<T>(key, onChange, {includeOwnWrites = false})` | Watch decoded values; returns cancellation and follows namespace changes. |
+| `flush()` | Queue a shared save immediately; returns void, errors use onError. |
 
 ### `CachemanOptions`
 
 `serialize`/`deserialize`, `codeable`/`codec`/`keyCodec`, `sliding`,
-`namespace`, `raw`, `force`, `readonly`, `enckey`, `onError` — see each field's doc comment in
+`namespace`, `raw`, `force`, `readonly`, `enckey`, `onError`, `flushDelay`, `purgeOnInit` — see each field's doc comment in
 `lib/src/options.dart` for exact semantics.
 
 Unreadable entries are deleted on read and reported via `onError(storageKey, error)` (or
@@ -93,11 +95,63 @@ interface — bring your own (obfuscation, real encryption, compression, whateve
 
 Key-bound shortcut accessors — see `lib/src/fast.dart`.
 
-### GetX reactive interop (`container` + `storageKey`)
+### Shared Hub, `watch`, `flushDelay`, `flush` and `purgeOnInit`
 
-`get_storage` depends on `get`, so `get` is a transitive dependency of this package.
-`container`/`storageKey` provide interop; this package ships no GetX binding. If you use GetX, they let you build a
-VueUse-`useStorage`-style reactive wrapper yourself:
+Same-container Cacheman instances share one private Hub/listener. Owned-key indexes automatically
+rebuild after peer or external container changes; local writes maintain a fresh index in O(1).
+No read-value cache is added. Hub/watch/delayed flushing apply only to synchronous Cacheman.
+
+```dart
+final cache = Cacheman(options: const CachemanOptions(
+  namespace: 'account',
+  flushDelay: Duration(milliseconds: 200), // opt-in / 显式启用，default null
+  purgeOnInit: true,                      // opt-in / 显式启用，default false
+));
+await cache.ensureInitialized();
+final stop = cache.watch<Map<String, dynamic>>('profile', (value) {
+  print(value); // peer/external changes / 其他实例或外部变更
+});
+cache.write('profile', {'name': 'Ada'}); // readable now / 立即可读，自身事件被忽略
+cache.flush(); // queue save now / 立即排保存，没有 Future/持久化完成确认
+stop();
+```
+
+`watch` reads through this instance's decoder/expiry rules; missing, deleted or cleared values
+produce null. It includes whole-container erase events and follows `setNamespace`. Set
+`includeOwnWrites: true` to also receive this instance's writes, renewal and lazy deletion.
+Type/read/callback failures use `onError` without stopping other watchers; a throwing `onError`
+still propagates as usual. Cancel subscriptions when their owner is disposed.
+
+`flushDelay: null` preserves get_storage's default flush each event-loop turn containing writes.
+Opting into 200ms coalesces writes/renewals using `writeInMemory` and a shared timer. The earliest
+deadline wins: frequent writes never postpone a pending flush. A crash may lose writes within
+that window. Deletes still call get_storage `remove` and immediately queue a flush (no public
+memory-only remove exists); erase keeps its original behavior. `flush()` cancels the timer and
+queues a save. Pending writes also flush on inactive/paused/hidden/detached lifecycle events.
+These are best-effort saves, not synchronous disk-write guarantees; get_storage 2.1.1 still
+drops its actual disk-flush Future. Observable hook failures go to the most recent delayed
+writer's onError, or the explicit flush caller's onError.
+
+`purgeOnInit: true` schedules one nonblocking `Timer.run` purge after initialization. Awaiting
+init does not await the purge; raw mode skips it. AsyncCacheman ignores both new options.
+
+Subclasses that bring their own primitives must call `super.custom(...)` (see
+`PreferencesCache`). Such subclasses get an independent Hub identity (`this`) and no
+notifications by default, so they never implicitly open GetStorage; they rescan owned keys on
+every enumeration, and `watch` throws UnsupportedError. Plain subclasses that only forward
+constructor params (like `MyCacheman` above) keep the default constructor and therefore the
+full get_storage behavior: shared Hub, `watch`, `flushDelay` and the incremental key index. For shared notifications, override `hubIdentity`
+with a stable backend handle and implement `listenRaw(ctx, onChange)` (return cancellation;
+null key means clear), plus `syncNotificationsRaw`. All instances sharing an identity must use
+the same notification/persistence contract. If notifications are asynchronous, indexes still
+rescan each time and `includeOwnWrites: false` may receive own events: compare values yourself.
+Override `setDeferredRaw`/`flushRaw` for true delayed persistence; otherwise they fall back to
+`setRaw`/no-op.
+
+### GetX reactive interop (`watch`)
+
+`get_storage` depends on `get`, so `get` is a transitive dependency. The package ships no GetX
+binding; use `watch` to build a VueUse-useStorage-style binding in your app:
 
 ```dart
 import 'dart:convert';
@@ -107,46 +161,36 @@ import 'package:get/get.dart';
 /// Compare JSON-compatible values. / 比较可 JSON 序列化的值。
 bool sameValue(Object? a, Object? b) => a == b || jsonEncode(a) == jsonEncode(b);
 
-/// Bind with a feedback guard. / 带回写守卫的绑定。
-Rx<V?> reactive<V>(Cacheman cache, String key) {
+/// Own writes cannot feed back; dispose both subscriptions. / 忽略自身写入，释放两种订阅。
+({Rx<V?> rx, void Function() dispose}) reactive<V>(Cacheman cache, String key) {
   final rx = Rx<V?>(cache.read<V>(key));
-
-  // Writes to this container in the same isolate update the Rx.
-  cache.container.listenKey(cache.storageKey(key), (dynamic _) {
-    final next = cache.read<V>(key);
+  final stop = cache.watch<V>(key, (next) {
     if (!sameValue(rx.value, next)) rx.value = next;
+  }, includeOwnWrites: false);
+  final worker = ever(rx, (V? value) {
+    if (sameValue(cache.read<V>(key), value)) return;
+    value == null ? cache.remove(key) : cache.write<V>(key, value);
   });
-
-  // Compare before writing: deserialized Maps/Lists/objects have fresh identities.
-  ever(rx, (V? v) {
-    if (sameValue(cache.read<V>(key), v)) return;
-    v == null ? cache.remove(key) : cache.write<V>(key, v);
-  });
-
-  return rx;
+  return (rx: rx, dispose: () { stop(); worker.dispose(); });
 }
 
-final token = reactive<String>(cache, 'token');
+final binding = reactive<String>(cache, 'token');
+final token = binding.rx;
 Obx(() => Text(token.value ?? 'no token'));
-token.value = 'abc123'; // updates the UI and persists
+token.value = 'abc123';
+// On owner disposal / 对象释放时：binding.dispose();
 ```
 
-The comparison uses `==` first, then JSON content for collections and objects with `toJson()`.
-For values JSON cannot encode, adapt `sameValue` to your value semantics. In production, keep
-the cancellation function returned by `listenKey` and the `Worker` returned by `ever`, and
-dispose both when the owner is disposed.
+The comparison uses `==` then JSON content for collections and objects with `toJson()`. Adapt
+`sameValue` for values JSON cannot encode. Keep the binding and dispose both subscriptions.
 
-- `container.listenKey` callbacks are **synchronous**; a cache write can re-enter your listener
-  before returning. The guard above prevents feedback writes for equal content.
-- A whole-container `erase()` reports the changed key as `""`; a listener on a nonempty
-  `storageKey(key)` receives no notification. Handle this separately (e.g. a container-level
-  `listen` checking `container.changes` and resetting your Rx). `cache.erase()` takes this path
-  without namespace/enckey; scoped erases remove owned keys individually and notify those keys.
-- Each isolate has its own in-memory map and listeners. Writes in another isolate do not
-  update or notify this binding; any cross-isolate synchronization must be arranged separately.
+- Default notifications are synchronous. `watch` excludes own writes (including renewal/lazy
+  deletion), breaking feedback for newly deserialized Map/List values.
+- Raw `container.listenKey` still misses whole-container erase (changed key `""`); `watch`
+  translates it for every watched key. Scoped erase removes owned keys individually.
+- Each isolate has its own memory map/listeners; cross-isolate changes require your own synchronization.
 
-Use `cache.storageKey(key)`, not `cache.namespace + key`, whenever `enckey` might be in play —
-the codec's encoding is a private, pluggable detail `storageKey` already accounts for.
+For direct container interop, use `storageKey(key)` instead of `namespace + key` with enckey.
 
 ### `debug(cache)`
 
@@ -187,7 +231,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// App-owned synchronous preferences adapter. / 应用自有的同步偏好适配器。
 class PreferencesCache extends Cacheman {
   /// Builds without opening a backend. / 构造时不打开后端。
-  PreferencesCache({super.options});
+  PreferencesCache({super.options}) : super.custom();
   /// Backend initialized by ensureInitialized. / 由 ensureInitialized 初始化的后端。
   late final SharedPreferencesWithCache prefs;
 
@@ -219,8 +263,8 @@ custom subclass creates that default container if it accesses the getter. Overri
 avoids it completely. The default `GetStorage(container, path)` is now lazy; initialization or first
 container access still supplies the constructor's path. Same-name containers retain GetStorage's
 first-construction-path-wins rule, now determined by first backend access rather than facade creation.
-Sync owned-key snapshots still only track changes through that instance; external mutations may
-require `setNamespace` to rebuild the snapshot.
+Sync owned-key snapshots now self-heal through Hub versions, or rescan on every query
+when the subclass lacks synchronous notifications (as in this preferences example).
 
 ### Asynchronous primitives: Hive CE LazyBox
 
@@ -345,6 +389,10 @@ limits still apply; atomic replacement, locking and recovery belong in your back
 platforms, not web. Values are read on demand and not retained by cacheman.
 
 ### Context and async API contract
+
+`CacheContext.storageKey` is the actual backend key. `key` resolves lazily once and retains
+the captured namespace. Subscription uses init with a null key; flush uses write with a null key,
+preserving the existing CacheOp enum.
 
 `CacheContext` carries `key` (logical, before namespace/encoding), `namespace` (escaped prefix, same
 as the getter) and `op` (`CacheOp.init/read/write/remove/keys/clear`). Init/enumeration/whole-backend

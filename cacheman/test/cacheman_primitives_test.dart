@@ -27,7 +27,7 @@ class _DocumentsDirectory extends PathProviderPlatform {
 /// Fully synchronous custom backend; any default container access fails the test.
 /// 完全同步的自定义后端；访问默认容器即令测试失败。
 class _MemorySync extends Cacheman {
-  _MemorySync({super.options}) : super(path: 'must-never-open');
+  _MemorySync({super.options}) : super.custom();
 
   /// Test-local raw storage. / 测试内的原始存储。
   final data = <String, Object?>{};

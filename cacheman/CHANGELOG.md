@@ -1,5 +1,18 @@
 ## Unreleased
 
+**Added (stage 1b):**
+
+- Private per-identity Hub with one backend listener, self-healing owned-key indexes,
+  typed synchronous watch/cancel, own-write suppression and namespace migration.
+- Opt-in flushDelay (shared earliest deadline), void flush(), pending-write lifecycle
+  saves and nonblocking purgeOnInit. Defaults preserve existing persistence behavior.
+- `Cacheman.custom(...)` constructor for subclasses that bring their own primitives; plain
+  forwarding subclasses keep full get_storage behavior (shared Hub, watch, flushDelay).
+- Protected notification/deferred-flush/identity hooks with conservative defaults for
+  custom subclasses; lazy memoized CacheContext.key plus actual storageKey.
+- Bilingual examples/docs and full acceptance matrix, zero-dependency coverage and
+  test-name gates; regression coverage for stages 0/1a and legacy functionality.
+
 **Added (stage 1a):**
 
 - Protected synchronous storage primitives and CacheContext/CacheOp for user subclasses;

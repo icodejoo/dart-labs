@@ -45,8 +45,24 @@ class CachemanOptions {
     this.readonly = false,
     this.enckey = false,
     this.onError,
+    this.flushDelay,
+    this.purgeOnInit = false,
   })  : serialize = serialize ?? defaultSerialize,
         deserialize = deserialize ?? defaultDeserialize;
+
+  /// Sync Cacheman only: coalesce memory writes until the earliest deadline.
+  /// Default null preserves per-event-loop flushing. Deletes still flush immediately.
+  /// A crash may lose writes within this window; recommended opt-in: 200ms.
+  /// 仅同步 Cacheman：合并内存写入到最早截止时间；默认 null 保持原行为。
+  /// 删除仍立即排落盘，崩溃可能丢失窗口内写入，推荐显式设置 200ms。
+  /// Example / 示例：`CachemanOptions(flushDelay: Duration(milliseconds: 200))`.
+  final Duration? flushDelay;
+
+  /// Sync Cacheman only: schedule expiry cleanup after initialization, without
+  /// delaying completion. Raw mode ignores it. Default false.
+  /// 仅同步 Cacheman：初始化后异步调度过期清理，不阻塞完成；raw 忽略，默认 false。
+  /// Example / 示例：`CachemanOptions(purgeOnInit: true)`.
+  final bool purgeOnInit;
 
   /// Custom entity -> string serializer, defaults to `jsonEncode`.
   ///

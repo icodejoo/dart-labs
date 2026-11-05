@@ -162,6 +162,35 @@ void main() {
     } catch (_) {}
   });
 
+  test('get_storage write remove erase notify synchronously before return', () async {
+    final cache = await newCache();
+    final events = <String>[];
+    final cancel = cache.container.listen(() {
+      events.add(cache.container.changes.keys.single);
+    });
+    final write = cache.container.write('sync', 'value');
+    expect(events, ['sync']);
+    final remove = cache.container.remove('sync');
+    expect(events, ['sync', 'sync']);
+    final erase = cache.container.erase();
+    expect(events, ['sync', 'sync', '']);
+    cancel();
+    await Future.wait([write, remove, erase]);
+  });
+
+  test('forwarding subclass keeps get_storage hub, watch and incremental index', () async {
+    final name = nextContainer();
+    final base = await newCache(container: name);
+    final sub = _Forwarding(container: name, path: tempDir.path);
+    await sub.ensureInitialized();
+    final seen = <String?>[];
+    final stop = sub.watch<String>('k', seen.add);
+    base.write('k', 'v');
+    expect(seen, ['v']);
+    expect(sub.keys(), contains('k'));
+    stop();
+  });
+
   group('basic read/write/remove', () {
     test('writes assert before initialization and succeed after awaiting it', () async {
       const key = 'guarded';
@@ -843,4 +872,11 @@ class _Wrap {
   _Wrap(this.inner);
   final Map<String, dynamic> inner;
   Map<String, dynamic> toJson() => {'inner': inner};
+}
+
+/// Plain forwarding subclass: no overridden primitives, so it must keep the
+/// default get_storage behavior (shared hub, watch, incremental index).
+/// 只转发构造参数的子类：未覆写原语，必须保留默认 get_storage 行为。
+class _Forwarding extends Cacheman {
+  _Forwarding({super.container, super.path});
 }

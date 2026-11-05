@@ -1,5 +1,12 @@
-import 'package:flutter/foundation.dart' show protected;
-import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show protected, VoidCallback;
+import 'package:flutter/widgets.dart'
+    show
+        WidgetsFlutterBinding,
+        WidgetsBinding,
+        WidgetsBindingObserver,
+        AppLifecycleState;
 import 'package:get_storage/get_storage.dart';
 
 import 'entity.dart';
@@ -8,6 +15,7 @@ import 'options.dart';
 
 part 'core.dart';
 part 'async_cacheman.dart';
+part 'hub.dart';
 
 /// Synchronous cache semantics over overridable storage primitives.
 /// 默认封装 get_storage、可覆写存储原语的同步缓存语义层。
@@ -29,12 +37,40 @@ class Cacheman {
   /// the supplied path. Subclasses may forward `super.options` etc.
   /// 同步构造；默认 container 首次访问时才按所给 path 创建，子类可转发 super.options 等。
   Cacheman({
-    String container = 'cacheman',
+    String container = _defaultContainer,
     String? path,
     CachemanOptions options = const CachemanOptions(),
   })  : _containerName = container,
         _path = path,
+        _custom = false,
         _core = _CacheCore(options);
+
+  /// For subclasses that supply their own storage primitives (no get_storage).
+  /// Hub identity defaults to `this`; notifications are off until [listenRaw]
+  /// is overridden; delayed writes fall back to [setRaw]; [flushRaw] is a no-op.
+  /// Plain forwarding subclasses should use the default constructor instead.
+  /// 供自带存储原语（不用 get_storage）的子类使用：Hub 身份默认 `this`，覆写
+  /// [listenRaw] 前不支持通知，延迟写退化为 [setRaw]，[flushRaw] 不操作。
+  /// 只转发参数的子类应使用默认构造。
+  ///
+  /// ```dart
+  /// class PrefsCache extends Cacheman {
+  ///   PrefsCache({super.options}) : super.custom();
+  ///   // override initRaw/getRaw/keysRaw/setRaw/removeRaw/clearRaw ...
+  /// }
+  /// ```
+  Cacheman.custom({CachemanOptions options = const CachemanOptions()})
+      : _containerName = _defaultContainer,
+        _path = null,
+        _custom = true,
+        _core = _CacheCore(options);
+
+  /// Default get_storage container name. / 默认 get_storage 容器名。
+  static const _defaultContainer = 'cacheman';
+
+  /// Whether a subclass supplies its own primitives via [Cacheman.custom].
+  /// 子类是否经 [Cacheman.custom] 自带存储原语。
+  final bool _custom;
 
   /// Shared storage-free semantics. / 共用的纯语义内核。
   final _CacheCore _core;
@@ -52,9 +88,31 @@ class Cacheman {
   /// Whether explicit initialization finished. / 是否已完成显式初始化。
   bool _initialized = false;
 
-  /// Per-instance owned-key snapshot; external changes can make it stale.
-  /// 本实例自有键快照，外部写删可能使其过时。
+  /// Owned-key snapshot healed by shared versions; unsupported backends rescan.
+  /// 共享版本自动修复自有键快照；无同步通知的后端每次重扫。
   Set<String>? _ownedKeysCache;
+
+  /// Version represented by the current snapshot. / 当前快照对应的版本。
+  int _indexVersion = -1;
+
+  /// Reentrant own-mutation depth for feedback-loop suppression. / 本实例嵌套写入深度，用于断环。
+  int _selfDepth = 0;
+
+  /// Subscriptions that migrate with this instance's namespace. / 随本实例命名空间迁移的订阅。
+  final _watches = <_HubWatch>{};
+
+  /// One shared hub, created only when needed. / 按需创建的共享 Hub。
+  late final _hub = _ContainerHub.of(
+    hubIdentity,
+    listen: (callback) => listenRaw(_core.context(CacheOp.init), callback),
+    synchronous: syncNotificationsRaw,
+    flush: () => flushRaw(_core.context(CacheOp.write)),
+    report: _reportHubError,
+  );
+
+  /// Reports hub flush errors on the whole-backend key. / 以整库错误键上报 Hub 落盘异常。
+  void _reportHubError(Object error) =>
+      _core._reportFlushError(_allKeys, error);
 
   /// Raw get_storage container for interop; accessing it creates it even for
   /// custom subclasses. Use `container.listenKey(storageKey('token'), ...)`.
@@ -69,6 +127,7 @@ class Cacheman {
   Future<void> ensureInitialized() async {
     await initRaw(_core.context(CacheOp.init));
     _initialized = true;
+    if (_core._opts.purgeOnInit && !_core._opts.raw) Timer.run(_purgeExpired);
   }
 
   /// Initializes the default binding and path-aware container without GetStorage.init.
@@ -112,11 +171,98 @@ class Cacheman {
   @protected
   Future<void> clearRaw(CacheContext ctx) => container.erase();
 
+  /// Shared identity: the GetStorage singleton for the default constructor
+  /// (including forwarding subclasses), `this` for [Cacheman.custom].
+  /// 共享身份：默认构造（含只转发参数的子类）为 GetStorage 单例，[Cacheman.custom] 为 `this`。
+  /// Override with your stable backend handle. / 可覆写为稳定的底层句柄。
+  @protected
+  Object get hubIdentity => _custom ? this : container;
+
+  /// Subscribe to storage keys; null denotes clear. Null return means unsupported.
+  /// Notifications must describe memory after mutation; default maps erase's empty
+  /// key to null. Subclasses opt in by overriding this hook.
+  /// 订阅存储键，null 表示整体清空；返回 null 表示不支持。通知须反映变更后的内存，
+  /// 默认把 erase 的空键转为 null；子类可覆写以支持通知。
+  /// Context uses init with no key. / 上下文使用无键 init。
+  @protected
+  VoidCallback? listenRaw(CacheContext ctx, void Function(String?) onChange) {
+    if (_custom) return null;
+    return container.listen(() {
+      final key = container.changes.keys.single;
+      onChange(key.isEmpty ? null : key);
+    });
+  }
+
+  /// Whether notifications precede mutation return; verified for get_storage 2.1.1.
+  /// 通知是否在变更原语返回前发出；已实测 get_storage 2.1.1 为同步。
+  @protected
+  bool get syncNotificationsRaw => true;
+
+  /// Memory-only write for delayed flush; custom backends fall back to setRaw.
+  /// 延迟落盘用的仅内存写；自定义底层默认退化为 setRaw。
+  @protected
+  void setDeferredRaw(CacheContext ctx, String storageKey, String value) {
+    if (_custom) {
+      setRaw(ctx, storageKey, value).catchError(
+          (Object e, StackTrace _) => _core._reportFlushError(storageKey, e));
+    } else {
+      container.writeInMemory(storageKey, value);
+    }
+  }
+
+  /// Queue persistence; custom backends whose setRaw already persists need no work.
+  /// 排一次落盘；setRaw 已持久化的自定义后端默认无需额外操作。
+  /// Context uses write with no key. / 上下文使用无键 write。
+  @protected
+  Future<void> flushRaw(CacheContext ctx) =>
+      _custom ? Future<void>.value() : container.save();
+
+  /// Queue a shared flush immediately; errors go to onError. Returns synchronously.
+  /// 立即排共享落盘；错误走 onError，同步返回。例如 `cache.flush()`。
+  void flush() => _hub.flushNow(_reportHubError);
+
+  /// Watch decoded values, including expiry semantics; cancel with the return value.
+  /// Own writes (including renewal/lazy deletion) are excluded by default, allowing
+  /// Rx feedback binding. Unsupported notifications throw UnsupportedError; with
+  /// asynchronous notifications own writes may still arrive: compare values yourself.
+  /// 监听解码值（含过期语义），返回取消函数；默认忽略本实例写入（含续期/懒删），
+  /// 可用于 Rx 双向断环。底层不支持通知时抛 UnsupportedError；异步通知可能仍收到
+  /// 本实例写入，此时调用方须自行判等。
+  /// Example / 示例：`final stop = cache.watch<int>('count', (v) => print(v)); stop();`.
+  VoidCallback watch<T>(String key, void Function(T? value) onChange,
+      {bool includeOwnWrites = false}) {
+    if (!_hub.supportsWatch) {
+      throw UnsupportedError('Backend does not support watch / 底层不支持变更通知');
+    }
+    late final _HubWatch watcher;
+    watcher = _HubWatch(key, storageKey(key), () {
+      if (!includeOwnWrites && _selfDepth > 0) return;
+      final errorKey = watcher.storageKey;
+      try {
+        onChange(read<T>(key));
+      } catch (error) {
+        _core._emitError(errorKey, error, 'watch callback failed');
+      }
+    });
+    _watches.add(watcher);
+    _hub.add(watcher);
+    return () {
+      watcher.active = false;
+      _watches.remove(watcher);
+      _hub.remove(watcher);
+    };
+  }
+
   /// Switches scope without deleting old data; invalidates key caches.
   /// 切换作用域但不删旧数据，并清空键缓存，例如 cache.setNamespace('alice')。
   void setNamespace([String? namespace]) {
     _core.setNamespace(namespace);
     _ownedKeysCache = null;
+    for (final watcher in _watches) {
+      _hub.remove(watcher);
+      watcher.storageKey = storageKey(watcher.key);
+      _hub.add(watcher);
+    }
   }
 
   /// Actual prefixed/encoded storage key, e.g. for container.listenKey.
@@ -132,15 +278,51 @@ class Cacheman {
 
   /// Removes and updates the owned-key snapshot. / 删除并维护自有键快照。
   void _del(String key) {
-    removeRaw(_core.context(CacheOp.remove, key), key).catchError(
-        (Object e, StackTrace _) => _core._reportFlushError(key, e));
-    _ownedKeysCache?.remove(key);
+    _mutate(key, () {
+      removeRaw(_core.context(CacheOp.remove, key), key).catchError(
+          (Object e, StackTrace _) => _core._reportFlushError(key, e));
+    }, remove: true);
   }
 
-  /// Lazily scans once; only this instance's mutations maintain this set.
-  /// 懒扫描一次；此集合只随本实例写删维护。
-  Set<String> _ownSet() => _ownedKeysCache ??=
-      keysRaw(_core.context(CacheOp.keys)).where(_core._owns).toSet();
+  /// Rebuild only on external changes, or always without synchronous notifications.
+  /// 外部变更时才重建；没有同步通知能力则每次重建。
+  Set<String> _ownSet() {
+    if (_ownedKeysCache == null ||
+        !_hub.synchronous ||
+        _indexVersion != _hub.version) {
+      _ownedKeysCache =
+          keysRaw(_core.context(CacheOp.keys)).where(_core._owns).toSet();
+      _indexVersion = _hub.version;
+    }
+    return _ownedKeysCache!;
+  }
+
+  /// Track only a fresh index and one notification; reentrant external mutations
+  /// invalidate it rather than incorrectly blessing a partial snapshot.
+  /// 仅对新鲜索引且恰好一次通知做增量更新；重入外部写入使索引失效，避免错误标新。
+  void _mutate(String key, VoidCallback action, {bool remove = false}) {
+    final version = _hub.version;
+    final fresh = _ownedKeysCache != null && _indexVersion == version;
+    _selfDepth++;
+    try {
+      action();
+      if (fresh &&
+          _ownedKeysCache != null &&
+          _hub.synchronous &&
+          _hub.version == version + 1) {
+        if (remove) {
+          _ownedKeysCache!.remove(key);
+        } else {
+          _ownedKeysCache!.add(key);
+        }
+        _indexVersion = _hub.version;
+      } else {
+        _ownedKeysCache = null;
+      }
+    } finally {
+      _selfDepth--;
+    }
+  }
 
   /// Snapshot safe for removal during iteration. / 允许遍历中删除的快照。
   List<String> _ownKeys() => _ownSet().toList(growable: false);
@@ -180,9 +362,17 @@ class Cacheman {
 
   /// Tracks successful memory writes, including retries. / 记录成功的内存态写入（含重试）。
   void _writeNow(String key, String value) {
-    setRaw(_core.context(CacheOp.write, key), key, value).catchError(
-        (Object e, StackTrace _) => _core._reportFlushError(key, e));
-    _ownedKeysCache?.add(key);
+    _mutate(key, () {
+      final ctx = _core.context(CacheOp.write, key);
+      final delay = _core._opts.flushDelay;
+      if (delay == null) {
+        setRaw(ctx, key, value).catchError(
+            (Object e, StackTrace _) => _core._reportFlushError(key, e));
+      } else {
+        setDeferredRaw(ctx, key, value);
+        _hub.scheduleFlush(delay, _reportHubError);
+      }
+    });
   }
 
   /// Reads with lazy expiry, decode reporting and guarded sliding renewal.
@@ -266,9 +456,14 @@ class Cacheman {
   /// 有 namespace/enckey 时删除自有键，否则清空整个后端，例如 cache.erase()。
   void erase() {
     if (namespace.isEmpty && !_core._enckey) {
-      clearRaw(_core.context(CacheOp.clear)).catchError(
-          (Object e, StackTrace _) => _core._reportFlushError(_allKeys, e));
-      _ownedKeysCache = <String>{};
+      _selfDepth++;
+      try {
+        clearRaw(_core.context(CacheOp.clear)).catchError(
+            (Object e, StackTrace _) => _core._reportFlushError(_allKeys, e));
+        _ownedKeysCache = null;
+      } finally {
+        _selfDepth--;
+      }
       return;
     }
     _ownKeys().forEach(_del);

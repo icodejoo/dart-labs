@@ -6,6 +6,7 @@ import 'pages/batch_page.dart';
 import 'pages/namespace_page.dart';
 import 'pages/advanced_page.dart';
 import 'pages/async_page.dart';
+import 'pages/hub_page.dart';
 
 class DemoShell extends StatefulWidget {
   const DemoShell({super.key});
@@ -24,6 +25,7 @@ class _DemoShellState extends State<DemoShell> {
     (label: 'Namespace', icon: Icons.folder),
     (label: 'Debug & Jsonx', icon: Icons.bug_report),
     (label: 'Layered Storage', icon: Icons.layers),
+    (label: 'Shared Hub', icon: Icons.sync),
   ];
 
   void _refresh() => setState(() {});
@@ -42,6 +44,8 @@ class _DemoShellState extends State<DemoShell> {
         return AdvancedPage(onChanged: _refresh);
       case 5:
         return AsyncPage(onChanged: _refresh);
+      case 6:
+        return const HubPage();
       default:
         return const SizedBox.shrink();
     }

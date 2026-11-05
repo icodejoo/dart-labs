@@ -17,6 +17,9 @@ flowchart TD
     Core --> Envelope[信封 / TTL / serialize / codec / 续期判定]
     Core --> Errors[原始异常与错误上报]
     Sync --> SyncRaw[可覆写同步原语 + CacheContext]
+    Sync --> Hub[hub.dart: 每底层身份共享 Hub]
+    Hub --> Notify[单监听 / 版本自愈 / watch 分发]
+    Hub --> Flush[最早截止 Timer / 生命周期 flush]
     Async --> AsyncRaw[抽象异步原语 + CacheContext]
     SyncRaw --> Default[默认：惰性 GetStorage]
     SyncRaw --> UserSync[用户：同步内存态后端]
@@ -26,6 +29,7 @@ flowchart TD
 | 文件 | 职责 |
 | --- | --- |
 | `lib/src/cacheman.dart` | 所属 Dart library；同步 API 编排、同步自有键集合缓存、默认 get_storage 原语。 |
+| `lib/src/hub.dart` | 私有共享 Hub：Expando 身份注册、单监听/版本、watch 快照分发、延迟落盘/生命周期。 |
 | `lib/src/core.dart` | 私有 `_CacheCore`，由两类分别组合持有；无 IO，统一键空间、信封、续期判定、错误处理。 |
 | `lib/src/async_cacheman.dart` | 抽象异步 API 编排，必需/可选异步原语；不维护自有键集合缓存。 |
 | `lib/src/interface.dart` | Codec、CachemanOnError、不可变 CacheContext 与 CacheOp。 |
@@ -35,7 +39,7 @@ flowchart TD
 | `lib/src/debug.dart` | 仅同步解密快照；复用普通读取的懒删/续期副作用，不回写快照。 |
 | `lib/src/jsonx.dart` | 日期、时长、集合等扩展 JSON；转义与标签形状相同的普通 Map。 |
 
-`core.dart` 和 `async_cacheman.dart` 是 `cacheman.dart` 的 part，同一 Dart library 内
+`core.dart`、`hub.dart` 和 `async_cacheman.dart` 是 `cacheman.dart` 的 part，同一 Dart library 内
 通过组合共享真正私有的 `_CacheCore`。入口导出的只有公共类；内核没有公共类型或导出入口。
 同步/异步薄层仅执行原语调用和控制流，键/信封/配置校验/错误消息不重复实现。
 
@@ -53,7 +57,7 @@ cache.write('summary', 1000, ttl: 60000);
 或默认原语时才创建 `GetStorage(container, path)`。默认初始化仍先初始化 Flutter binding，
 再等待该实例的 `initStorage`，不调用 `GetStorage.init`。因此正常的构造→初始化路径仍带 path。
 同名容器仍以 GetStorage 首次构造 path 为准；惰性化意味着先后由首次访问后端决定，
-而非 Cacheman 对象的构造顺序。覆写所有原语的子类完全不触碰 get_storage；主动访问
+而非 Cacheman 对象的构造顺序。覆写所有原语的子类须经 `Cacheman.custom` 构造，完全不触碰 get_storage；主动访问
 `container` 仍会创建默认后端，这个 getter 只提供默认后端互操作。
 
 **原语是唯一接触底层的地方。** 同步原语为 initRaw / getRaw / keysRaw / setRaw /
@@ -66,7 +70,9 @@ removeRaw / keysRaw。initRaw 默认 no-op；clearRaw 默认枚举后快照逐�
 可覆写为原生 clear。异步读写/批量/枚举/清理/切换 namespace/storageKey 均返回 Future；
 namespace getter 即时返回前缀。本阶段无异步 key(index)、快捷访问器或 debug。
 
-CacheContext 传本次逻辑 key、转义 namespace 前缀和实际 CacheOp；初始化/枚举/整库清空
+CacheContext 惰性解析并缓存本次逻辑 key，新增 storageKey；保留调用时的转义 namespace。
+listenRaw 用无键 init 上下文，flushRaw 用无键 write 上下文，保留现有 CacheOp 枚举。
+其他原语传实际 CacheOp；初始化/枚举/整库清空
 时 key 为 null。批量 CRUD 逐键传逻辑 key；续期传 write，懒删传 remove。跨 box 路由时，
 用户须保证 keysRaw 枚举全部 box、clearRaw 覆盖全部路由。切换 namespace 前等待在途操作；
 readonly、续期不是事务，包不提供并发隔离，也不负责用户后端的打开/关闭之外的生命周期。
@@ -96,8 +102,10 @@ readonly、续期不是事务，包不提供并发隔离，也不负责用户后
 - 不调用 GetStorage.init；默认 path 规则见上文。
 - 不增加进程内读值缓存。内核仅维护编码键和逻辑键两个映射，各最多 1024 项，溢出整体清空；
   setNamespace 同时清空，不做 LRU，null 键解码不缓存。
-- 仅同步层维护自有键集合：首次扫描后随本实例写删更新（包括重试），setNamespace 使其失效。
-  同后端/同 namespace 的其他实例和外部写删可能使该集合过时，保留已有边界。
+- 仅同步层维护自有键集合：Expando 按 hubIdentity 共享单个 Hub/listenRaw 订阅。
+  同步通知递增 version，索引记录 _indexVersion；本实例写删前索引新鲜时 O(1) 更新，
+  其他实例/外部写删使下次枚举重建一次。重入写入使索引失效，setNamespace 也使其失效。
+  listenRaw 返回 null 或 syncNotificationsRaw 为 false 时，每次查询全扫以保正确。
 - **AsyncCacheman 不维护自有键集合缓存**；keys()/length()/purge()/有作用域 erase 每次经 keysRaw
   枚举再过滤归属。后端自行负责性能及键元数据。过期项在读取/清理前仍计入枚举/数量。
 - TTL 为整数毫秒，expireAt 接受 DateTime 或毫秒时间戳。createdAt 是本库信封标记，
@@ -112,6 +120,21 @@ readonly、续期不是事务，包不提供并发隔离，也不负责用户后
 - 不内置后端路由/迁移/加密实现；container/storageKey 的 GetX 互操作边界见 README。
 
 ## 验证
+
+阶段 1b 新增同步原语 listenRaw / syncNotificationsRaw / setDeferredRaw / flushRaw / hubIdentity。
+默认构造（含只转发参数的子类）身份是 GetStorage 单例；`Cacheman.custom` 子类默认 this + 无通知，避免隐式打开默认后端。
+共享自定义后端须覆写身份和通知原语；各实例的通知/落盘契约须一致。
+setDeferredRaw 对 custom 子类退化为 setRaw，flushRaw 默认无操作。
+watch 以实例维护可迁移记录，Hub 分发快照；_selfDepth 抑制自身事件（含续期/懒删）。
+无通知抛 UnsupportedError；异步通知不能保证抑制自身事件，调用方须判等。
+flushDelay 默认 null、purgeOnInit 默认 false，仅同步 Cacheman 生效。延迟写保持内存立即可见，
+共享 Timer 取最早截止时间；flush() 返回 void，取消 Timer 并排保存。删除仍立即排保存。
+仅有待落盘任务时注册生命周期观察器，flush 后移除；inactive/paused/hidden/detached 时保存。
+落盘错误交最近延迟写入者或主动 flush 调用者；get_storage 丢失实际磁盘 Future 的边界保留。
+purgeOnInit 在 init 完成后用 Timer.run 非阻塞清过期，raw 跳过，不作用于 AsyncCacheman。
+
+完整验收及唯一覆盖率豁免见 `test/ACCEPTANCE.md`；执行 `flutter test --coverage`、
+`dart run tool/coverage.dart --min=100`、`dart run tool/check_acceptance.dart`。
 
 在包根目录执行 `flutter analyze`、`flutter test`、`flutter analyze example`。
 原有 cacheman_test.dart 使用真实 get_storage；cacheman_primitives_test.dart 覆写全部

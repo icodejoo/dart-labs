@@ -78,11 +78,21 @@ class _CacheCore {
   }
 
   /// Builds primitive context from a storage key. / 从存储键生成原语上下文。
-  CacheContext context(CacheOp op, [String? storageKey]) => CacheContext(
-        key: storageKey == null ? null : _logical(storageKey),
-        namespace: _ns,
-        op: op,
-      );
+  CacheContext context(CacheOp op, [String? storageKey]) {
+    final scope = _ns;
+    return CacheContext.lazy(
+      storageKey: storageKey,
+      namespace: scope,
+      op: op,
+      resolveKey: () {
+        if (storageKey == null) return null;
+        if (scope == _ns) return _logical(storageKey);
+        final decoded = _enckey ? _keyCodec!.decode(storageKey) : storageKey;
+        final full = decoded ?? storageKey;
+        return full.startsWith(scope) ? full.substring(scope.length) : full;
+      },
+    );
+  }
 
   /// Prefixes and optionally encodes a logical key, with bounded memoization.
   /// 给逻辑键加前缀并按需编码，以有界缓存复用结果。

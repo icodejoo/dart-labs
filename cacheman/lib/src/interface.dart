@@ -62,11 +62,36 @@ enum CacheOp {
 /// Example / 示例：`if (ctx.key?.startsWith('large/') ?? false) ...`.
 class CacheContext {
   /// Captures the scope at the primitive boundary. / 在原语边界记录作用域。
-  const CacheContext({this.key, required this.namespace, required this.op});
+  const CacheContext(
+      {String? key, required this.namespace, required this.op, this.storageKey})
+      : _key = key,
+        _lazy = null;
+
+  /// Defers logical-key resolution until a backend needs it.
+  /// 延迟解析逻辑键，直到后端实际访问它。
+  /// Example / 示例：`CacheContext.lazy(storageKey: 'n:x', namespace: 'n:',
+  /// op: CacheOp.read, resolveKey: () => 'x')`.
+  CacheContext.lazy(
+      {required this.storageKey,
+      required this.namespace,
+      required this.op,
+      required String? Function() resolveKey})
+      : _key = null,
+        _lazy = _LazyKey(resolveKey);
+
+  /// Explicit logical key for the compatible const constructor. / 兼容 const 构造的逻辑键。
+  final String? _key;
+
+  /// Mutable memoization lives outside the immutable context. / 惰性缓存独立于不可变上下文。
+  final _LazyKey? _lazy;
 
   /// Logical key before prefix/encoding; null for init, enumeration and clear.
   /// 加前缀/编码前的逻辑键；初始化、枚举、清空时为 null。
-  final String? key;
+  String? get key => _lazy == null ? _key : _lazy.value;
+
+  /// Actual backend key; null for operations without a key.
+  /// 实际底层键；无键操作时为 null。
+  final String? storageKey;
 
   /// Escaped namespace prefix, matching the cache's namespace getter.
   /// 转义后的命名空间前缀，与缓存的 namespace getter 一致。
@@ -75,4 +100,15 @@ class CacheContext {
   /// Actual primitive operation, which can differ from the public operation.
   /// 实际原语操作类型，可能与外层公开操作不同。
   final CacheOp op;
+}
+
+/// Resolves once, including null results. / 只解析一次，也缓存 null 结果。
+class _LazyKey {
+  _LazyKey(this.resolve);
+
+  /// Captured resolver. / 捕获的解析函数。
+  final String? Function() resolve;
+
+  /// Memoized logical key. / 缓存的逻辑键。
+  late final String? value = resolve();
 }
