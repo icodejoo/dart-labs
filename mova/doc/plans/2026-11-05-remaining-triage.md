@@ -36,3 +36,12 @@
 产品检查：`flutter analyze --no-pub lib test` 0 issues；最终 `flutter test --no-pub --concurrency=3 --reporter expanded` **2415/2415 PASS**（原基线 2411 + 新增 4）。回退原文件 2 FAIL/2 PASS；错误边界与新回归联合 12 PASS。最终全绿日志 `remaining-full-test-green.log`，回退日志 `remaining-receipt-rollback-red.log`，仅本地保留。
 
 回执夹具修正：不把不属于 MovaState 的 position 加入状态相等 CHECK；Seeked 另外保留 payloadMs、lastProgressMs、未节流 progressValueMs，显式标记 landingVerified=false。原生稳定落点仍由 F3 独立验收，不能靠这次删掉错误的跨流硬相等来关闭落点验收。Size/Quality 仍严格比载荷与接收时 getter。example 定向测试 3 PASS，包含过期 progress 不误判、真实 Size/Rate 差异仍失败；analyze 41→41，归一化路径行号后诊断集合无新增；matrix --check 92 batches / 135 IDs / 6 manual，Python 三套合计 80 PASS。
+
+## 4. 动态池资源：观测夹具缺陷及验收缺证据，未证泄漏
+
+- `cp3-r2-pool-r2-20261105-085517` 的 `cp3-r2-s00d-resources.json` records[28,32,34,36,38,40,44] 共 7 BLOCKED。`/proc/self/fd/5`、`/163` 等动态链接消失导致 Directory listing ENOENT；handles=null，且同一个 try 后面的 stat CPU 读取被跳过。records[44] engineCount=0、created=3 证明逻辑释放，不能证明原生资源全回收。另一尝试 `cp3-r2-pool-r2-20261105-085435` 同类缺口，A29 原 6 条成功不改写为资源验收通过。
+- 修夹具：task/fd 枚举 followLinks=false；线程、fd、CPU 各自捕获错误；保存单调 sampleUs、pid、processStartTicks、cpuUnit（Linux/Android 为时钟 tick，Windows 为 100ns）。CPU 不再被 fd 枚举异常抹掉；缺计数仍为未知。
+- 新增 `RESOURCE_SAMPLE`：audio.before/active/disposed.1000ms；pool.before、active.20/40/60/80/100、concurrent.120、disposed.0ms/1000ms/5000ms。每点带实际进程计数、created、engineCount；保留原 CHECK。180 秒命令上限可容纳新增 6 秒释放稳定窗。
+- 下一次新 APK 采样要求：同一进程/启动代际，在上述时点保留 RSS、线程、fd、CPU 与时间间隔。主机侧若用 adb，应配对采 `dumpsys meminfo <pid>` 的 TOTAL PSS/Native Heap/Graphics、`dumpsys media.codec` 与 `dumpsys SurfaceFlinger` 的该 PID 归属实例/层；必须保存设备支持的原文及命令返回码，字段不可读就标未知。也可用原生插件提供按实例的 decoder/surface create/dispose 计数，不能用 Dart created/engineCount 冒充。
+- 资源/性能结论还需 CP0 与当前同源、同翻页数、同冷暖状态的多轮趋势和批准硬线；现有 sample CHECK 只检查计数完整性/合理性，不宣称无泄漏或耗电改善。电量字段均不可读时不能以 RSS/CPU 替代耗电。此类可脚本采集；阈值和异常 OEM 输出归属需要人工确认。
+- 离线检查：example analyze 无新增，matrix --check 通过，Python 80 PASS。没有本轮设备资源数字，7 条原 BLOCKED 保留。

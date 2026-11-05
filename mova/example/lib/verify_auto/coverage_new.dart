@@ -371,7 +371,7 @@ Future<void> stallRelease() async {
 ///
 /// 连续切换三引擎原生音频池，包含并发切换。
 Future<void> feed({bool resources=false}) async {
-  final resourceBaseline=resources?await s00d_resources.metrics():<String,Object?>{};
+  final resourceBaseline=resources?await s00d_resources.checkpoint('pool.before'):<String,Object?>{};
   final made=<MovaApi>[];
   final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
   final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
@@ -380,16 +380,24 @@ Future<void> feed({bool resources=false}) async {
     await controller.activate(i);
     if(i%20==0) {
       c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
-      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);}
+      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.checkpoint('pool.active.$i',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);}
     }
   }
   await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
+  if (resources) {
+    await s00d_resources.checkpoint('pool.concurrent.120', created: made.length, engineCount: pool.engineCount);
+  }
   c.check('A29.final',controller.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${controller.activeIndex} engines=${made.length} capacity=${pool.size}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
   controller.dispose();
   if(resources) {
     await s00d_resources.DisposeFrames().run(()=>pool.dispose().timeout(const Duration(seconds:20)));
-    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);
+    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.checkpoint('pool.disposed.0ms',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);
+    // 释放后的稳定窗口另采，不能把逻辑池为零直接当原生解码器已回收。
+    await c.settle(1000);
+    await s00d_resources.checkpoint('pool.disposed.1000ms', created: made.length, engineCount: pool.engineCount);
+    await c.settle(4000);
+    await s00d_resources.checkpoint('pool.disposed.5000ms', created: made.length, engineCount: pool.engineCount);
   } else {await pool.dispose().timeout(const Duration(seconds:20));}
   final accepts = <bool>[];
   for (final engine in made) { accepts.add(await engine.open(c.source())); }
