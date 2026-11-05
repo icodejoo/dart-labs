@@ -286,40 +286,45 @@ class MovaFeed {
         final generation = _generation;
         final index = _pendingIndex!;
         _pendingIndex = null;
-        final item = await ensure(index);
-        if (_disposed) return;
-        // A newer index already arrived while `ensure` was resolving —
-        // `index` is stale before it ever reaches the pool; skip straight
-        // to the newer one instead of opening a page nobody will see.
-        //
-        // 在 `ensure` 解析期间已经来了更新的索引——`index` 还没碰到池就已经
-        // 过期；直接跳去处理更新的那个，而非打开一个没人会看到的页面。
-        if (_pendingIndex != null) continue;
-        if (item == null) continue;
+        try {
+          final item = await ensure(index);
+          if (_disposed) return;
+          // A newer index already arrived while `ensure` was resolving —
+          // `index` is stale before it ever reaches the pool; skip straight
+          // to the newer one instead of opening a page nobody will see.
+          //
+          // 在 `ensure` 解析期间已经来了更新的索引——`index` 还没碰到池就已经
+          // 过期；直接跳去处理更新的那个，而非打开一个没人会看到的页面。
+          if (_pendingIndex != null) continue;
+          if (item == null) continue;
 
-        final window = movaFeedWindow(index, pool.size);
-        // Retain *before* binding: the active page must be able to take an
-        // engine even when the pool is already full, and the pages worth
-        // keeping are exactly the ones still in the new window.
-        //
-        // 先 retain 再绑定：池已满时活跃页也必须能取到引擎，而值得留下的
-        // 恰好就是仍在新窗口内的那些页。
-        pool.retain(window);
-        _activeIndex = index;
-        await pool.bind(index, item.source, autoPlay: true);
-        if (_disposed) return;
-        if (!_isCurrent(generation)) continue;
-        // Everything else in the pool must go quiet — a neighbour left
-        // playing from a previous activation would keep its audio going
-        // under the page the viewer is actually watching.
-        //
-        // 池中其余引擎必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
-        // 观众真正在看的这一页底下继续出声。
-        await pool.focus(index);
+          final window = movaFeedWindow(index, pool.size);
+          // Retain *before* binding: the active page must be able to take an
+          // engine even when the pool is already full, and the pages worth
+          // keeping are exactly the ones still in the new window.
+          //
+          // 先 retain 再绑定：池已满时活跃页也必须能取到引擎，而值得留下的
+          // 恰好就是仍在新窗口内的那些页。
+          pool.retain(window);
+          _activeIndex = index;
+          await pool.bind(index, item.source, autoPlay: true);
+          if (_disposed) return;
+          if (!_isCurrent(generation)) continue;
+          // Everything else in the pool must go quiet — a neighbour left
+          // playing from a previous activation would keep its audio going
+          // under the page the viewer is actually watching.
+          //
+          // 池中其余引擎必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
+          // 观众真正在看的这一页底下继续出声。
+          await pool.focus(index);
 
-        if (!_isCurrent(generation)) continue;
-        unawaited(_warmNeighbours(index, window, generation));
-        unawaited(_primeNetwork(index, window, generation));
+          if (!_isCurrent(generation)) continue;
+          unawaited(_warmNeighbours(index, window, generation));
+          unawaited(_primeNetwork(index, window, generation));
+        } on Object {
+          if (_disposed) return;
+          if (_isCurrent(generation)) rethrow;
+        }
       }
     } finally {
       _activateLoop = null;

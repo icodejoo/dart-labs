@@ -46,7 +46,9 @@ class _WarmMuteFailurePolicy {
   bool giveUp({required bool releasing}) => releasing;
 }
 
-/// 一次预热的状态与资源；机械收拢后仍沿用原有生命周期。
+/// Owns warm-up resources and records failures through hand-off.
+///
+/// 持有预热资源，并在整个提交窗口记录失败。
 class _WarmSlot {
   /// 创建空的预热槽。
   _WarmSlot();
@@ -56,6 +58,11 @@ class _WarmSlot {
 
   /// 槽被所有者取消后不得继续换指。
   bool cancelled = false;
+
+  /// A fatal shadow error prevents promotion, even after claiming the slot.
+  ///
+  /// 影子终结错误阻止转正，即使槽已被提交认领。
+  bool failed = false;
   MovaWarmTicket? ticket;
   MovaSourceChange? lastSource;
   MovaReady? lastReady;
@@ -555,10 +562,13 @@ class MovaCutoverEngine
     return _active.play();
   }
 
-  /// 暂停命令清除事务快照，后继切换必须尊重暂停。
+  /// Clears the hand-off snapshot and keep-alive wish on an explicit pause.
+  ///
+  /// 显式暂停清除事务快照与待机意愿，后继切换必须尊重暂停。
   @override
   Future<void> pause() {
     if (_disposed) return Future<void>.value();
+    _keepAliveWanted = false;
     _intentSnapshot = null;
     movaRecordPlaybackCommand(this);
     return _active.pause();
@@ -997,6 +1007,7 @@ class MovaCutoverEngine
   /// 影子引擎自身报告播放错误时，以与 [MovaWarmVerdict.giveUp] 完全相同的方式
   /// 结束本次预热。
   void _onShadowError(_WarmSlot slot) {
+    slot.failed = true;
     if (_disposed || !identical(_slot, slot)) return;
     final c = slot.readyCompleter;
     slot.readyCompleter = null;
@@ -1101,13 +1112,17 @@ class MovaCutoverEngine
     }
   }
 
-  /// 提交仅操作已认领的槽；每次异步返回后校验操作代际。
+  /// Promotes only a current, healthy slot and honors late playback commands.
+  ///
+  /// 仅提升仍有效且健康的已认领槽，并尊重后到的播放命令。
   Future<bool> _commitNow(_WarmSlot slot, int op) async {
     final shadow = slot.engine!;
     final old = _active;
     // 在内部暂停前保存用户意图；自然播完的 playing 不能代表续播意愿。
     _intentSnapshot ??= old.state.playbackIntent;
 
+    /// Uses explicit intent only until the next user command.
+    ///
     /// 显式起播仅在没有后续用户命令时有效。
     bool wantPlay() =>
         (slot.playCommand == movaPlaybackCommand(this) ? slot.play : null) ??
@@ -1118,15 +1133,27 @@ class MovaCutoverEngine
     _handoff = handoff;
     var endReason = MovaCutoverEndReason.notReady;
 
-    /// 判断本次提交是否仍拥有换指权限。
-    bool current() => !_disposed && !slot.cancelled && op == _op && identical(_active, old);
+    /// Checks ownership and the shadow's terminal failure before promotion.
+    ///
+    /// 换指前检查事务归属与影子终结失败。
+    bool current() {
+      if (slot.failed) endReason = MovaCutoverEndReason.shadowError;
+      return !_disposed &&
+          !slot.cancelled &&
+          !slot.failed &&
+          op == _op &&
+          identical(_active, old);
+    }
 
-    /// 只释放本事务资源；过期时恢复仍生效引擎的转发订阅。
+    /// Releases this transaction and restores forwarding for the surviving player.
+    ///
+    /// 只释放本事务资源，并恢复仍生效引擎的转发订阅。
     Future<bool> bail() async {
       await _releaseSlot(slot);
       if (_handoff == handoff) _handoff = null;
       if (!_disposed && identical(_active, old)) _publish(snapshot: old.state);
-      if (current() && _slot.engine == null) {
+      if (!_disposed && !slot.cancelled && op == _op &&
+          identical(_active, old) && _slot.engine == null) {
         _setPhase(MovaCutoverPhase.idle, reason: endReason);
       }
       if (detached && !_disposed && identical(_active, old)) _attach(old);
@@ -1170,6 +1197,10 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await _detachShadow(slot);
       if (!current()) return await bail();
+      if (!wantPlay()) {
+        await shadow.pause();
+        if (!current()) return await bail();
+      }
       _intentSnapshot = null;
       _handoff = null;
       _active = shadow;

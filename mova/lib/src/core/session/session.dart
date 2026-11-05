@@ -3,6 +3,7 @@ import '../recovery/fail.dart';
 import 'arbiter.dart';
 import '../playback_commands.dart';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import '../state/state.dart';
@@ -103,7 +104,9 @@ class _SessionWarm {
   final bool owned;
 }
 
-/// 编排同一播放器的多条正片及其广告；借用播放器，销毁会话不会销毁播放器。
+/// Orchestrates content and ads on a borrowed player, yielding to host loads.
+///
+/// 编排借用播放器的正片与广告，宿主抢源时让位；销毁会话不会销毁播放器。
 ///
 /// 示例：`final session = MovaSession(api, items: episodes); await session.jumpTo(0);`。
 class MovaSession {
@@ -258,6 +261,11 @@ class MovaSession {
   /// 打开或提交落定前，旧媒体的结束、错误、首帧和进度不归新节点所有。
   bool _landing = false;
   MovaSource? _landingSource;
+
+  /// The last source loaded by this session, also valid during a transition.
+  ///
+  /// 本会话最近加载的源，在转场期间仍属于会话。
+  MovaSource? _ownedSource;
   final List<MovaEvent> _landingFailures = [];
 
   /// 缓存归属当前媒体的终结事件；结算仍走统一仲裁与尝试去重。
@@ -347,11 +355,21 @@ class MovaSession {
         : MovaWarmCommit.notReady;
   }
 
-  /// 宿主抢源仅使会话让位，不放弃或覆盖宿主的新影子。
+  /// Yields to a host load and invalidates pending session work only.
+  ///
+  /// 宿主抢源时让位，仅取消本会话的在途工作，不触碰宿主的新影子。
   void _superseded() {
     _endNode(MovaNodeEndReason.superseded);
-    _supersededEpoch = _gen;
+    _supersededEpoch = _gen++;
+    unawaited(_cancelWarmTickets());
+    _adWarm = null;
+    _contentWarm = null;
+    _adAttempt = null;
+    _resumeDepth = 0;
     _landing = false;
+    _landingSource = null;
+    _ownedSource = null;
+    _landingFailures.clear();
     _cancelAllTimers();
     _pending = null;
     _current = null;
@@ -879,6 +897,7 @@ class MovaSession {
     final bool committed;
     try {
       _landing = true;
+      _landingSource = b.source;
       final warm = await (_adWarm ??= _warm(
         b.source,
         plan: movaAdWarmPlan(_cfg),
@@ -1007,6 +1026,7 @@ class MovaSession {
     _played.add(node.id);
     _changes.add(null);
     _fire(MovaAdEventType.started, node);
+    if (!current()) return;
     _landingSource = b.source;
     _landingFailures.clear();
     _landing = !alreadyOnScreen;
@@ -1062,6 +1082,8 @@ class MovaSession {
       if (gen == _gen && identical(_adAttempt, attempt)) _landing = false;
     }
     _settleLanding();
+    if (!current()) return;
+    _ownedSource = b.source;
     // Nothing on screen yet: give the ad a bounded window to produce its first
     // frame, cancelled by that frame's own progress tick.
     //
@@ -1334,6 +1356,7 @@ class MovaSession {
     Duration at = Duration.zero,
     bool autoPlay = true,
   }) async {
+    final command = movaPlaybackCommand(_api);
     _cancelAllTimers();
     _landing = true;
     _landingSource = null;
@@ -1367,7 +1390,12 @@ class MovaSession {
         return;
       }
       if (result != MovaWarmCommit.committed) {
-        final accepted = await _api.open(c, autoPlay: autoPlay);
+        final accepted = await _api.open(
+          c,
+          autoPlay: movaPlaybackCommand(_api) == command
+              ? autoPlay
+              : _api.state.playbackIntent,
+        );
         if (gen != _gen || _disposed) return;
         if (!accepted) {
           _contentUnavailable();
@@ -1386,6 +1414,8 @@ class MovaSession {
       if (gen == _gen) _landing = false;
     }
     _settleLanding();
+    if (gen != _gen || _disposed) return;
+    _ownedSource = c;
     if (_settled.contains((
       gen,
       MovaNodeId(_epochItem, MovaNodeKind.content, 0),
@@ -1436,6 +1466,16 @@ class MovaSession {
   ///
   /// 响应媒体播放结束：广告播完则续播正片；正片播完则播后贴片（若有）再转空闲。
   void _onEvent(MovaEvent e) {
+    if (_disposed) return;
+    if (e is MovaSourceChange) {
+      if (_phase == MovaSessionPhase.idle) return;
+      if (identical(e.source, _landingSource)) {
+        _ownedSource = e.source;
+      } else if (!identical(e.source, _ownedSource)) {
+        _superseded();
+      }
+      return;
+    }
     if (_landing &&
         (e is MovaDone ||
             e is MovaErrorEvent ||
@@ -1838,7 +1878,16 @@ class MovaSession {
       default:
         break;
     }
-    _onAdEvent?.call(MovaAdEvent(type, node.adBreak!, error: error));
+    try {
+      _onAdEvent?.call(MovaAdEvent(type, node.adBreak!, error: error));
+    } catch (e, stack) {
+      developer.log(
+        'Ad lifecycle callback failed',
+        name: 'mova.session',
+        error: e,
+        stackTrace: stack,
+      );
+    }
   }
 
   /// 释放会话订阅与广告计时，返回清理完成的 Future；借用的播放器仍可用。
