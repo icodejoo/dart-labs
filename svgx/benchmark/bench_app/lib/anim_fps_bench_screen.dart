@@ -234,14 +234,14 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   final _armCollectors = <({String label, FrameTimingCollector collector})>[];
 
   // Memory probes. The static bench has reported RSS since day one, but this
-  // phase never has — so the animated path's footprint (399 parsed documents
+  // phase never has — so the animated path's footprint (the corpus documents
   // held in `SvgxDocumentCache`, 1000 live tickers, 1000 painters) has been
   // unmeasured the whole time. Same probe shape as `bench_screen.dart`:
   // a warmup floor, a peak, a post-run steady/idle pair, then what unmounting
   // the grid and dropping the document cache actually gives back.
   //
   // 内存探针。静态基准从第一天起就报 RSS，本阶段从来没有——也就是说动画路径的
-  // 占用（`SvgxDocumentCache` 里 399 份已解析文档、1000 个 ticker、1000 个
+  // 占用（`SvgxDocumentCache` 里已解析的语料文档、1000 个 ticker、1000 个
   // painter）一直没被测过。探针形状与 `bench_screen.dart` 一致：预热地板、峰值、
   // 结束后的稳态/静置，再看卸掉网格、丢掉文档缓存到底能还回来多少。
   final _rssSamplesBytes = <int>[];
@@ -258,13 +258,13 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   void initState() {
     super.initState();
     // `DOCCACHE=n` overrides SvgxDocumentCache's default cap. This corpus has
-    // 399 distinct documents against a default cap of 200, so the default
+    // more documents than the default cap of 200, so the default
     // guarantees eviction thrash: half the set is re-parsed on every pass.
     // The knob exists to measure what that thrash costs in RSS, which is a
     // cache-capacity question the suite had no way to ask before.
     //
-    // `DOCCACHE=n` 覆盖 SvgxDocumentCache 的默认上限。本语料有 399 份互异文档，
-    // 而默认上限是 200，也就是说默认配置必然抖动：每一趟都要重新解析半个语料。
+    // `DOCCACHE=n` 覆盖 SvgxDocumentCache 的默认上限。本语料的文档数量
+    // 超过默认上限 200，也就是说默认配置必然抖动：每一趟都要重新解析半个语料。
     // 这个旋钮的用途是量出这份抖动在 RSS 上的代价——这是本套件此前无法提出的
     // 缓存容量问题。
     const docCache = int.fromEnvironment('DOCCACHE');
