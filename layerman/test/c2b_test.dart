@@ -46,6 +46,7 @@ class _Backend {
   PresentedOverlay<int> present(PresentContext<int> context) {
     presents++;
     return PresentedOverlay<int>(
+      visible: Future<void>.value(),
       dismissed: done.future,
       dismiss: ([result]) async {
         if (!done.isCompleted) done.complete(result);

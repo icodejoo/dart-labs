@@ -1,7 +1,4 @@
-import 'dart:async';
-import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
 
@@ -173,19 +170,9 @@ class ExternalPage extends StatelessWidget {
                   id: 'ctx-insp',
                   slot: 'inspect-slot',
                   present: (ctx) {
-                    final done = Completer<void>();
-                    // 保存 toast 的关闭句柄，让管理器能主动关闭。
-                    final cancel = BotToast.showText(
-                      text: 'ctx.id=${ctx.id}  ctx.slot=${ctx.slot}',
+                    return presentBotToastText(
+                      'ctx.id=${ctx.id}  ctx.slot=${ctx.slot}',
                       duration: const Duration(seconds: 3),
-                      onlyOne: false,
-                      onClose: () {
-                        if (!done.isCompleted) done.complete();
-                      },
-                    );
-                    return PresentedOverlay<void>(
-                      dismissed: done.future,
-                      dismiss: ([_]) async => cancel(),
                     );
                   },
                 );

@@ -19,6 +19,7 @@ class _FakeBackend<T> {
   PresentedOverlay<T> present(PresentContext context) {
     presented = true;
     return PresentedOverlay<T>(
+      visible: Future<void>.value(),
       dismissed: _dismissed.future,
       dismiss: ([T? result]) async {
         dismissCalled = true;

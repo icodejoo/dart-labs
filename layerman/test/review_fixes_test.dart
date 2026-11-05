@@ -24,6 +24,7 @@ class _Backend {
     shows++;
     context = ctx;
     return PresentedOverlay(
+        visible: Future<void>.value(),
         dismissed: done.future,
         dismiss: ([r]) async {
           if (!done.isCompleted) done.complete(r);
@@ -161,6 +162,7 @@ void main() {
     final current = manager.submit<Object?>(
         id: 'a',
         present: (_) => PresentedOverlay(
+              visible: Future<void>.value(),
               dismissed: Completer<Object?>().future,
               dismiss: ([_]) async {
                 nested =
@@ -169,6 +171,7 @@ void main() {
                 manager.clear();
               },
             ));
+    await flushAsync(); // 此回归验证已可见条目的销毁重入。
     manager.dispose();
     expect((await current.outcome).reason, OverlayEndReason.disposed);
     expect((await nested.outcome).reason, OverlayEndReason.disposed);
@@ -318,12 +321,14 @@ void main() {
     final resolving = manager.submit<int>(
         id: 'resolving',
         resolve: () => resolver.future,
-        present: (_) =>
-            PresentedOverlay<int>(dismissed: Completer<int?>().future));
+        present: (_) => PresentedOverlay<int>(
+            visible: Future<void>.value(),
+            dismissed: Completer<int?>().future));
     final waiting = manager.submit<int>(
         id: 'waiting',
-        present: (_) =>
-            PresentedOverlay<int>(dismissed: Completer<int?>().future));
+        present: (_) => PresentedOverlay<int>(
+            visible: Future<void>.value(),
+            dismissed: Completer<int?>().future));
     manager.close('resolving', 'invalid but ignored');
     manager.dismiss('waiting');
     resolving.close(1);
@@ -364,6 +369,7 @@ void main() {
           minute: unit == 'minute' ? 1 : null);
       final ticket =
           manager.submit(id: 'a', present: _Backend().present, cooldown: cd);
+      await flushAsync(); // 先确认可见，再验证日历桶的冷却。
       ticket.remove();
       final next = unit == 'day'
           ? DateTime(2026, 11, 5)
@@ -461,28 +467,21 @@ void main() {
                 present: (inner) {
                   inner.close();
                   return PresentedOverlay(
+                      visible: Future<void>.value(),
                       dismissed: Completer<Object?>().future);
                 });
             if (fails) throw StateError('present failure');
             ctx.close();
-            return PresentedOverlay(dismissed: Completer<Object?>().future);
+            return PresentedOverlay(
+                visible: Future<void>.value(),
+                dismissed: Completer<Object?>().future);
           });
       await ticket.outcome;
       await flushAsync();
-      expect(
-          events.where((e) => e.id == 'a').map((e) => e.type),
-          fails
-              ? [OverlayEventType.queued, OverlayEventType.ended]
-              : [
-                  OverlayEventType.queued,
-                  OverlayEventType.shown,
-                  OverlayEventType.ended
-                ]);
-      expect(events.where((e) => e.id == 'b').map((e) => e.type), [
-        OverlayEventType.queued,
-        OverlayEventType.shown,
-        OverlayEventType.ended
-      ]);
+      expect(events.where((e) => e.id == 'a').map((e) => e.type),
+          [OverlayEventType.queued, OverlayEventType.ended]);
+      expect(events.where((e) => e.id == 'b').map((e) => e.type),
+          [OverlayEventType.queued, OverlayEventType.ended]);
       expect(errors.length, fails ? 1 : 0);
     });
   }

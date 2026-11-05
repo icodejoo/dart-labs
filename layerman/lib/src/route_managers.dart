@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'overlay_manager.dart';
 
@@ -11,7 +14,8 @@ const _routeNamePrefix = 'layerman://';
 /// 为兼容 Flutter 3.27，移除时不向 Navigator 传结果，因此直接使用句柄
 /// 关闭被覆盖或带内部历史的路由时，`dismissed` 为 null；通过 [Layerman.close] 关闭时，
 /// 编排器仍会将指定结果交付给 `open`。已移除的路由再次关闭为无操作。
-/// 无需额外设置 `exitDuration`。页面路由也可直接适配：
+/// 无需额外设置 `exitDuration`。ModalRoute 自动确认栈顶首帧；其它 TransitionRoute
+/// 须通过 [visible] 提供自身成功绘制的信号。页面路由也可直接适配：
 /// ```dart
 /// manager.open<bool>(
 ///   present: (_) => presentRoute(navigator, MaterialPageRoute<bool>(
@@ -21,13 +25,155 @@ const _routeNamePrefix = 'layerman://';
 /// ```
 PresentedOverlay<T> presentRoute<T>(
   NavigatorState navigator,
-  TransitionRoute<T> route,
-) {
+  TransitionRoute<T> route, {
+  Future<void>? visible,
+}) {
+  if (visible == null && route is! ModalRoute<T>) {
+    throw ArgumentError('非 ModalRoute 必须提供首帧可见信号 visible');
+  }
   navigator.push(route);
   return PresentedOverlay<T>(
+    visible: visible ?? _routeVisible(route as ModalRoute<T>),
     dismissed: route.completed,
     dismiss: ([result]) async => _dismissRoute(route, result),
   );
+}
+
+/// 等待路由首帧成功构建、布局且位于栈顶；动画或遮盖变化时重新检查。
+/// 未可见时只登记下一次自然帧的检查，不持续请求帧或驱动后台动画。
+Future<void> _routeVisible<T>(ModalRoute<T> route) {
+  final visible = Completer<void>();
+  var pending = false;
+  var ended = false;
+  final animation = route.animation;
+  final secondary = route.secondaryAnimation;
+  late final VoidCallback schedule;
+
+  /// 解除动画监听，避免关闭或已确认的路由继续持有确认器。
+  void stop() {
+    animation?.removeListener(schedule);
+    secondary?.removeListener(schedule);
+  }
+
+  /// 合并同帧检查；静止界面也显式请求首帧。
+  schedule = () {
+    if (pending || ended || visible.isCompleted) return;
+    pending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      pending = false;
+      if (ended || visible.isCompleted) return;
+      final context = route.subtreeContext;
+      if (!route.isCurrent || context == null || !context.mounted) {
+        schedule();
+        return;
+      }
+      final render = context.findRenderObject();
+      if (_hasBuildError(context as Element)) {
+        visible.completeError(StateError('路由首帧构建失败'));
+        stop();
+      } else if (render != null &&
+          render.attached &&
+          (render is! RenderBox || render.hasSize) &&
+          !route.offstage &&
+          (animation == null || animation.value > 0)) {
+        visible.complete();
+        stop();
+      } else {
+        schedule();
+      }
+    });
+  };
+
+  animation?.addListener(schedule);
+  secondary?.addListener(schedule);
+  route.completed.then((_) {
+    ended = true;
+    stop();
+  });
+  schedule();
+  WidgetsBinding.instance.scheduleFrame();
+  return visible.future;
+}
+
+/// 检查首帧子树是否含 Flutter 用于替代构建失败内容的错误组件。
+bool _hasBuildError(Element element) {
+  if (element.widget is ErrorWidget) return true;
+  var failed = false;
+  element.visitChildren((child) {
+    if (!failed) failed = _hasBuildError(child);
+  });
+  return failed;
+}
+
+/// 为自管 OverlayEntry 或第三方组件提供成功绘制后的首帧可见信号。
+/// 包住实际内容，将同一个 [visible] 的 future 交给 PresentedOverlay；
+/// 尚未绘制、被路由覆盖或构建失败时不会成功确认。
+class OverlayVisibility extends SingleChildRenderObjectWidget {
+  /// 绑定本次展示的独立确认器与实际内容。
+  const OverlayVisibility({
+    super.key,
+    required this.visible,
+    required super.child,
+  });
+
+  /// 本次展示独立的首帧确认器，构建失败时以错误完成。
+  final Completer<void> visible;
+
+  /// 创建在绘制之后确认的代理渲染对象。
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _VisibilityRender(context as Element, visible, ModalRoute.of(context));
+
+  /// 更新重建后使用的确认器。
+  @override
+  void updateRenderObject(
+      BuildContext context, covariant RenderProxyBox renderObject) {
+    (renderObject as _VisibilityRender).visible = visible;
+    renderObject.markNeedsPaint();
+  }
+}
+
+/// 实际内容参与绘制后，在帧末检查挂载、路由和构建结果。
+class _VisibilityRender extends RenderProxyBox {
+  /// 保存元素、确认器及所在路由。
+  _VisibilityRender(this.element, this.visible, this.route);
+
+  /// 用于检查首帧构建结果的元素。
+  final Element element;
+
+  /// 当前展示的可见确认器。
+  Completer<void> visible;
+
+  /// 所在路由；自管顶层 OverlayEntry 可以没有路由。
+  final ModalRoute<dynamic>? route;
+
+  /// 同一帧只登记一次确认。
+  bool pending = false;
+
+  /// 成功绘制子树后，在帧末确认，零透明度或 Offstage 不会触发绘制。
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    if (pending || visible.isCompleted) return;
+    pending = true;
+    WidgetsBinding.instance.addPostFrameCallback(_confirm);
+  }
+
+  /// 已参与绘制后，覆盖期间只等待下一次自然帧，不驱动空转帧。
+  void _confirm(Duration _) {
+    pending = false;
+    if (!attached || !element.mounted || visible.isCompleted) return;
+    if (route != null && !route!.isCurrent) {
+      pending = true;
+      WidgetsBinding.instance.addPostFrameCallback(_confirm);
+      return;
+    }
+    if (_hasBuildError(element)) {
+      visible.completeError(StateError('浮层首帧构建失败'));
+    } else {
+      visible.complete();
+    }
+  }
 }
 
 /// 只关闭指定路由，不影响覆盖它的其它路由。

@@ -378,19 +378,27 @@ class _V030PageState extends State<V030Page> {
     om.open<void>(
       id: _stuck,
       present: (_) {
+        final visible = Completer<void>();
         final never = Completer<void>();
         final entry = OverlayEntry(
-          builder: (_) => const Positioned(
+          builder: (_) => Positioned(
             right: 16,
             top: 100,
-            child: Card(
-              child: Padding(padding: EdgeInsets.all(12), child: Text('STUCK')),
+            child: OverlayVisibility(
+              visible: visible,
+              child: const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('STUCK'),
+                ),
+              ),
             ),
           ),
         );
         _stuckEntry = entry;
         Get.key.currentState!.overlay!.insert(entry);
         return PresentedOverlay<void>(
+          visible: visible.future,
           dismissed: never.future,
           dismiss: ([_]) async {},
         );

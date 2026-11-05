@@ -18,6 +18,7 @@ class _FakeBackend<T> {
   PresentedOverlay<T> present(PresentContext context) {
     presented = true;
     return PresentedOverlay<T>(
+      visible: Future<void>.value(),
       dismissed: _dismissed.future,
       dismiss: ([T? result]) async {
         dismissCalled = true;
@@ -234,6 +235,7 @@ void main() {
         present: (ctx) {
           presented = true;
           return PresentedOverlay<String>(
+              visible: Future<void>.value(),
               dismissed: Completer<String?>().future);
         },
       );
@@ -702,7 +704,9 @@ void main() {
         data: {'kind': 'promo'},
         present: (ctx) {
           seen = ctx.data;
-          return PresentedOverlay<void>(dismissed: Completer<void>().future);
+          return PresentedOverlay<void>(
+              visible: Future<void>.value(),
+              dismissed: Completer<void>().future);
         },
       );
       await tester.pump();
@@ -986,7 +990,8 @@ void main() {
       final done = Completer<String?>();
       final future = manager.open<String>(
         id: 'ext',
-        present: (ctx) => PresentedOverlay<String>(dismissed: done.future),
+        present: (ctx) => PresentedOverlay<String>(
+            visible: Future<void>.value(), dismissed: done.future),
       );
       final next = _FakeBackend<String>();
       manager.open(id: 'next', present: next.present);
@@ -1013,7 +1018,8 @@ void main() {
         data: 42,
         present: (ctx) {
           seen = ctx;
-          return PresentedOverlay<void>(dismissed: done.future);
+          return PresentedOverlay<void>(
+              visible: Future<void>.value(), dismissed: done.future);
         },
       );
       await tester.pump();
@@ -1545,6 +1551,7 @@ void main() {
         present: (ctx) {
           oxPresented = true;
           return PresentedOverlay<String>(
+              visible: Future<void>.value(),
               dismissed: Completer<String?>().future);
         },
       );
@@ -1695,6 +1702,7 @@ void main() {
         present: (ctx) {
           seenData = ctx.data;
           return PresentedOverlay<String>(
+              visible: Future<void>.value(),
               dismissed: Completer<String?>().future);
         },
       );
@@ -1725,6 +1733,7 @@ void main() {
         present: (ctx) {
           presentCalled = true;
           return PresentedOverlay<String>(
+              visible: Future<void>.value(),
               dismissed: Completer<String?>().future);
         },
       );
@@ -1750,8 +1759,8 @@ void main() {
       manager.open(
         id: 'u',
         data: {'n': 1, 'keep': 'x'},
-        present: (ctx) =>
-            PresentedOverlay<void>(dismissed: Completer<void>().future),
+        present: (ctx) => PresentedOverlay<void>(
+            visible: Future<void>.value(), dismissed: Completer<void>().future),
       );
       await tester.pump();
 
@@ -1853,6 +1862,7 @@ void main() {
       manager.open<String>(
         id: 'a',
         present: (_) => PresentedOverlay<String>(
+          visible: Future<void>.value(),
           dismissed: Completer<String?>().future,
           dismiss: ([String? r]) => throw StateError('no close'),
         ),

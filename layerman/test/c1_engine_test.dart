@@ -351,6 +351,7 @@ void main() {
         present: (ctx) {
           ctx.close(7);
           return PresentedOverlay<int>(
+              visible: Future<void>.value(),
               dismissed: done.future,
               dismiss: ([result]) async {
                 dismissCalls++;

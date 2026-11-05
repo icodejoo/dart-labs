@@ -266,7 +266,8 @@ void main() {
           id: _b,
           present: (_) {
             continued = true;
-            return PresentedOverlay<void>(dismissed: Future<void>.value());
+            return PresentedOverlay<void>(
+                visible: Future<void>.value(), dismissed: Future<void>.value());
           });
       manager.resumeAll();
       expect(

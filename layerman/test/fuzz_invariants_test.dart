@@ -79,7 +79,13 @@ void _cover(String operation) => _extendedCoverage
 /// 每次提交一个后端，计数绑定提交身份而非可复用的 id。
 class _FakeBackend {
   /// 配置正常、延迟、永不结束或展示异常。
-  _FakeBackend(this.mode);
+  _FakeBackend(this.mode, {this.visibleMode = 0});
+
+  /// 可见确认行为：即时、延迟或放弃。
+  final int visibleMode;
+
+  /// 后端是否实际发出过成功确认。
+  bool confirmed = false;
 
   /// 后端行为编号。
   final int mode;
@@ -97,7 +103,20 @@ class _FakeBackend {
   PresentedOverlay<int> present(PresentContext context) {
     presents++;
     if (mode == 3) throw StateError(_fault);
+    final visible = Completer<void>();
+    if (visibleMode == 0) {
+      confirmed = true;
+      visible.complete();
+    } else if (visibleMode == 1) {
+      Timer(_slow, () {
+        confirmed = true;
+        visible.complete();
+      });
+
+    }
+    _cover('visible$visibleMode');
     return PresentedOverlay<int>(
+      visible: visible.future,
       dismissed: done.future,
       dismiss: ([value]) async {
         dismisses++;
@@ -328,8 +347,9 @@ class _Scenario {
     final guard = random.nextInt(6);
     final condition = random.nextInt(5);
     final cooldown = random.nextInt(5);
-    final backend =
-        _FakeBackend(random.nextInt(12) == 0 ? 3 : random.nextInt(3));
+    final backend = _FakeBackend(
+        random.nextInt(12) == 0 ? 3 : random.nextInt(3),
+        visibleMode: random.nextInt(3));
     final delay = random.nextBool() ? null : _slow;
     final duration = random.nextBool() ? null : _slow;
     final exit = random.nextBool() ? null : _slow;
@@ -547,7 +567,7 @@ class _Scenario {
       expect(types.where((t) => t == OverlayEventType.ended).length, p.outcomes,
           reason: 'I3 ended 次数\n$detail');
       expect(types.where((t) => t == OverlayEventType.shown).length,
-          p.backend.mode == 3 ? 0 : p.backend.presents,
+          inInclusiveRange(0, p.backend.confirmed ? 1 : 0),
           reason: 'I3 shown 与后端展示不一致\n$detail');
       if (p.outcome != null) {
         final again = await p.ticket.outcome;
@@ -788,6 +808,9 @@ void main() {
       'suppress 永久',
       'suppress 限时',
       '限时抑制到期后激活',
+      'visible0',
+      'visible1',
+      'visible2',
       'blockedBy 单向',
       'blockedBy 链',
       'blockedBy 环',
@@ -865,6 +888,7 @@ void _extendedBoundaries() {
     const cd = OverlayCooldown(session: 1);
     manager.submit<int>(
         id: _ids.first, cooldown: cd, present: _FakeBackend(0).present);
+    await tester.pump(); // 此回归的前提是旧项已可见并耗尽上限。
     manager.remove(_ids.first);
     manager.submit<int>(
         id: _ids.last,
@@ -912,6 +936,7 @@ void _extendedBoundaries() {
         expect(backend.presents, 0);
         manager.resumeAll();
         expect(backend.presents, 1);
+        await tester.pump(); // 等 visible 确认再查询计数。
         expect(
             manager
                 .cooldownStatus(_ids.first, _persistedOnce)
@@ -987,6 +1012,7 @@ void _extendedBoundaries() {
         manager.submit<int>(
             id: _ids.first, cooldown: cd, present: shown.present);
         expect(shown.presents, 1);
+        await tester.pump(); // 即时后端的可见信号也由微任务交付。
         final status = manager.cooldownStatus(_ids.first, cd);
         expect(status.canShow, isFalse);
         expect(status.permanentlyBlocked, isTrue);
@@ -1112,7 +1138,12 @@ class _BuildOpen extends StatelessWidget {
 /// 扩展族每次提交的身份，不把复用 id 的旧票误认为新票。
 class _ExtendedProbe {
   /// 固定本次提交的后端、模式及关闭守卫。
-  _ExtendedProbe(this.id, this.overlap, this.guard);
+  _ExtendedProbe(
+      this.id, this.overlap, this.guard, this.cooldown, int visibleMode)
+      : backend = _FakeBackend(0, visibleMode: visibleMode);
+
+  /// 本次提交用于计数断言的上限。
+  final OverlayCooldown cooldown;
 
   /// 冷却模型使用的可复用 id。
   final String id;
@@ -1124,7 +1155,7 @@ class _ExtendedProbe {
   final bool guard;
 
   /// 正常且立即确认关闭的后端。
-  final backend = _FakeBackend(0);
+  final _FakeBackend backend;
 
   /// 展示后保留真正的泛型上下文，供随机自关闭操作调用。
   PresentContext<int>? context;
@@ -1178,6 +1209,15 @@ class _ExtendedScenario {
               p.events.isNotEmpty &&
               !p.events.any((e) => e.type == OverlayEventType.ended));
       probe.events.add(event);
+      if (event.type == OverlayEventType.shown) {
+        final cd = probe.cooldown;
+        final count = counts.update(event.id, (n) => n + 1, ifAbsent: () => 1);
+        if ((cd.total != null && count > cd.total!) ||
+            (cd.session != null && count > cd.session!)) {
+          violations.add(
+              'H2 ${event.id} 可见次数=$count total=${cd.total} session=${cd.session}');
+        }
+      }
     });
     addTearDown(manager.dispose);
     addTearDown(subscription.cancel);
@@ -1304,7 +1344,8 @@ class _ExtendedScenario {
         'delay=$delay guard=$guard tags=$labels route=$requireRoute '
         'auth=$requireRole role=$role when=$requireWhen tenant=$tenant '
         'priority=$priority cd=$index ready=$ready');
-    final probe = _ExtendedProbe(id, mode == OverlayMode.overlap, guard);
+    final probe = _ExtendedProbe(
+        id, mode == OverlayMode.overlap, guard, cd, random.nextInt(3));
     probes.add(probe);
     latest[id] = probe;
 
@@ -1329,12 +1370,6 @@ class _ExtendedScenario {
       if (storage.readCompletedAt == null ||
           presentOrder <= storage.readCompletedAt!) {
         violations.add('H1 存储读取完成前 present $id order=$presentOrder');
-      }
-      final count = counts.update(id, (n) => n + 1, ifAbsent: () => 1);
-      if ((cd.total != null && count > cd.total!) ||
-          (cd.session != null && count > cd.session!)) {
-        violations
-            .add('H2 $id 次数=$count total=${cd.total} session=${cd.session}');
       }
       if (paused) violations.add('I5 暂停期间 present $id');
       probe.context = ctx;
@@ -1526,7 +1561,7 @@ class _ExtendedScenario {
       expect(p.values.length, lessThanOrEqualTo(1), reason: 'I3\n$why');
       expect(events.first, OverlayEventType.queued, reason: 'I3\n$why');
       expect(events.where((e) => e == OverlayEventType.shown).length,
-          p.backend.presents,
+          inInclusiveRange(0, p.backend.confirmed ? 1 : 0),
           reason: 'I3\n$why');
       expect(events.where((e) => e == OverlayEventType.ended).length,
           p.values.length,

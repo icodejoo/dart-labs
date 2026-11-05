@@ -142,8 +142,13 @@ class PresentContext<T> {
 /// [dismiss] 必须定向关闭本弹层：保存 Route 对象，在栈顶且无内部历史时 pop，
 /// 否则 removeRoute；也可使用 SnackbarController.close() 或 CancelFunc。
 class PresentedOverlay<T> {
-  /// 绑定所有关闭路径的完成信号及可选定向关闭回调。
-  PresentedOverlay({required this.dismissed, this.dismiss});
+  /// 绑定首次可见、所有关闭路径的完成信号及可选定向关闭回调。
+  PresentedOverlay(
+      {required this.visible, required this.dismissed, this.dismiss});
+
+  /// 首次真正可见后完成；失败或结束前未完成时不计频次、不发 shown。
+  /// 必须在内容成功构建并完成首帧后确认，不能仅以已提交展示请求代替。
+  final Future<void> visible;
 
   /// 后端完全关闭时完成，并返回可空的关闭结果。
   final Future<T?> dismissed;
@@ -1217,18 +1222,8 @@ class Layerman extends ChangeNotifier {
   /// dispose 后关闭；ended 不代表退场动画结束。
   Stream<OverlayEvent> get events => _events.stream;
 
-  /// 正在执行展示回调的条目，支持嵌套展示。
-  final _presenting = <_Entry>{};
-
-  /// present 同步结束的首次原因，在 shown 或失败之后发布。
-  final _pendingEnds = <_Entry, OverlayEndReason?>{};
-
-  /// 发布事件；展示回调中的结束事件延至展示成功或失败确定之后。
+  /// 发布生命周期事件；可见前结束只有 queued、ended，不会补发 shown。
   void _emit(_Entry e, OverlayEventType type, [OverlayEndReason? reason]) {
-    if (type == OverlayEventType.ended && _presenting.contains(e)) {
-      _pendingEnds[e] = reason;
-      return;
-    }
     if (!_disposed && _events.hasListener) {
       _events.add(
           OverlayEvent(type: type, id: e.id, slot: e.slot, reason: reason));
@@ -1707,6 +1702,16 @@ class Layerman extends ChangeNotifier {
           presented.dismissed.then(
             (T? r) => _onExternalDismissed(entry, r),
             onError: (Object _) => _onExternalDismissed(entry, null),
+          );
+          // 使用普通 Future 续体，避免 SynchronousFuture 在 present 返回前确认。
+          Future<void>.value(presented.visible).then(
+            (_) => _onVisible(entry),
+            onError: (Object error, StackTrace stack) => _batch(() {
+              if (!_isCurrent(entry) || !_closable(entry)) return;
+              _reportError(error, stack,
+                  'while awaiting visible for overlay "${entry.id}"');
+              _remove(entry, reason: OverlayEndReason.failed);
+            }),
           );
         },
       );
@@ -2208,35 +2213,30 @@ class Layerman extends ChangeNotifier {
     });
   }
 
-  /// 调用后端展示，成功后发布 shown、计数并启动时长。
+  /// 调用后端并以 open 占位等待 visible；duration 从 present 返回起限制占用。
   void _open(_Entry e) {
     e.phase = OverlayPhase.open;
-    _presenting.add(e);
     try {
       e.presentBackend();
     } catch (error, stack) {
-      // 后端抛错时上报并移除条目，以 null 结束且不记冷却，继续推进队列。
       _reportError(error, stack, 'while presenting overlay "${e.id}"');
       _remove(e, reason: OverlayEndReason.failed);
-      _finishPresent(e);
       return;
     }
-    _emit(e, OverlayEventType.shown);
-    _finishPresent(e);
-    final cd = e.cooldown;
-    if (cd != null) _cooldowns.record(e.id, cd, clock.now());
     if (_isCurrent(e) && _closable(e)) _startDuration(e);
     _notify();
   }
 
-  /// 展示回调退出后交付暂存的结束事件，支持嵌套展示。
-  void _finishPresent(_Entry e) {
-    _presenting.remove(e);
-    if (_pendingEnds.containsKey(e)) {
-      final reason = _pendingEnds.remove(e);
-      _emit(e, OverlayEventType.ended, reason);
-    }
-  }
+  /// 仅仍存活且未开始关闭的条目确认可见，按此刻时间计数并发布 shown。
+  void _onVisible(_Entry e) => _batch(() {
+        if (isDisposed || !_isCurrent(e) || !_closable(e)) return;
+        final cd = e.cooldown;
+        if (cd != null) _cooldowns.record(e.id, cd, clock.now());
+        _emit(e, OverlayEventType.shown);
+        // 延迟确认可见可能耗尽同 id 排队项的上限，沿用现有清理语义。
+        _discardPermanentlyBlockedQueues();
+        _notify();
+      });
 
   /// 延迟结束后复用 overlap 的一次性资格判定与挂起逻辑。
   void _admitOverlap(_Entry e) {

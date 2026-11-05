@@ -20,6 +20,7 @@ class _Backend {
   PresentedOverlay<Object> present(PresentContext ctx) {
     context = ctx;
     return PresentedOverlay<Object>(
+      visible: Future<void>.value(),
       dismissed: done.future,
       dismiss: ([Object? result]) async {
         if (completeOnDismiss && !done.isCompleted) done.complete(result);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
@@ -230,6 +231,7 @@ class MixedPage extends StatelessWidget {
                   id: 'shad-sheet',
                   present: (ctx) {
                     // 复用路由捕获器，首帧前 remove 也不会留下孤立 sheet。
+                    final visible = Completer<void>();
                     final captured = RouteCapture<void>();
                     final future = showShadSheet<void>(
                       context: Get.overlayContext!,
@@ -237,29 +239,33 @@ class MixedPage extends StatelessWidget {
                       isDismissible: true,
                       builder: (sheetCtx) {
                         captured.capture(sheetCtx);
-                        return ShadTheme(
-                          data: ShadThemeData(
-                            colorScheme: const ShadSlateColorScheme.light(),
-                          ),
-                          child: ShadSheet(
-                            title: const Text('layerman → showShadSheet'),
-                            description: const Text(
-                              'draggable: 向下拖可关闭\n'
-                              'expandable: 拖动顶部手柄可展开/收起',
+                        return OverlayVisibility(
+                          visible: visible,
+                          child: ShadTheme(
+                            data: ShadThemeData(
+                              colorScheme: const ShadSlateColorScheme.light(),
                             ),
-                            draggable: true, // 向下拖关闭
-                            expandable: true, // 拖动手柄展开
-                            actions: [
-                              ShadButton.outline(
-                                onPressed: () => ctx.close(),
-                                child: const Text('Close'),
+                            child: ShadSheet(
+                              title: const Text('layerman → showShadSheet'),
+                              description: const Text(
+                                'draggable: 向下拖可关闭\n'
+                                'expandable: 拖动顶部手柄可展开/收起',
                               ),
-                            ],
+                              draggable: true, // 向下拖关闭
+                              expandable: true, // 拖动手柄展开
+                              actions: [
+                                ShadButton.outline(
+                                  onPressed: () => ctx.close(),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
                     );
                     return PresentedOverlay<void>(
+                      visible: visible.future,
                       dismissed: future,
                       dismiss: ([_]) async => captured.dismiss(),
                     );

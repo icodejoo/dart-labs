@@ -36,7 +36,8 @@ const _gapCooldown = OverlayCooldown(minGap: Duration(seconds: 1));
 
 /// 不自行结束的后端，不创建计时器。
 PresentedOverlay<Object?> _present(PresentContext context) =>
-    PresentedOverlay<Object?>(dismissed: Completer<Object?>().future);
+    PresentedOverlay<Object?>(
+        visible: Future<void>.value(), dismissed: Completer<Object?>().future);
 
 /// 可延迟读取、记录全部写入的测试存储。
 class _Storage implements OverlayCooldownStorage {
@@ -227,7 +228,9 @@ void main() {
     await manager.ready();
     final done = Completer<Object?>();
     manager.open(
-        id: _id, present: (_) => PresentedOverlay(dismissed: done.future));
+        id: _id,
+        present: (_) => PresentedOverlay(
+            visible: Future<void>.value(), dismissed: done.future));
     manager.open(id: _next, present: _present);
     var notices = 0;
     final snapshots = <List<String>>[];
