@@ -241,6 +241,46 @@ class OverlayHold {
   }
 }
 
+/// 激活资格的三种求值状态。
+enum _GateState {
+  /// 全部资格通过。
+  pass,
+
+  /// 等待时间或外部状态变化。
+  wait,
+
+  /// 永久拒绝或 overlap 的一次性拒绝。
+  drop,
+}
+
+/// 单次资格求值快照，不在条目上增加可变状态。
+class _GateResult {
+  /// 保存通过结果。
+  const _GateResult.pass()
+      : state = _GateState.pass,
+        wait = null,
+        reason = null;
+
+  /// 保存等待时长；null 表示由上下文、hydrate 或释放事件推动。
+  const _GateResult.wait([this.wait])
+      : state = _GateState.wait,
+        reason = null;
+
+  /// 保存丢弃条目的结束原因。
+  const _GateResult.drop(this.reason)
+      : state = _GateState.drop,
+        wait = null;
+
+  /// 本次资格状态。
+  final _GateState state;
+
+  /// 可以安排自动重判的剩余时长。
+  final Duration? wait;
+
+  /// 丢弃时交付给事件及票据的原因。
+  final OverlayEndReason? reason;
+}
+
 /// 擦除泛型后的内部排队及活跃条目。
 class _Entry {
   /// 保存单次提交的配置、结果回调与实时数据。
@@ -729,10 +769,6 @@ class _CooldownStore {
           cd.total != null &&
           (_persisted[id]?.total ?? 0) >= cd.total!);
 
-  /// 返回全部冷却限制是否通过，仅零等待通过。
-  bool canShow(String id, OverlayCooldown cd, DateTime now) =>
-      timeUntilEligible(id, cd, now) == Duration.zero;
-
   /// 返回抑制与时间型上限的最长等待；全部通过为零。
   /// 读取未完成、session / total 耗尽或永久抑制时为 null。
   /// 串行队列据此在时间限制解除后自动唤醒。
@@ -939,8 +975,9 @@ class Layerman extends ChangeNotifier {
       }
       for (final e in _pendingOverlaps.toList()) {
         if (_blockableSlots.contains(e.slot) &&
-            !_waitingForHydrate(e) &&
-            !_slotBlocked(e.slot)) {
+            _canActivate(e.slot) &&
+            _evaluateGate(e, overlap: true, callbacks: false).state !=
+                _GateState.wait) {
           _pendingOverlaps.remove(e);
           _releaseOverlap(e);
         }
@@ -1079,14 +1116,12 @@ class Layerman extends ChangeNotifier {
       for (final e in s.queue) {
         check(e, 'slot[$name].queue', true);
         if (_hydrationApplied &&
-            e.cooldown != null &&
-            _cooldowns.permanentlyBlocked(e.id, e.cooldown!)) {
+            _evaluateGate(e, callbacks: false).state == _GateState.drop) {
           throw StateError('不变量 i：${e.id} 永久受阻仍在串行队列');
         }
       }
       if (s.waitingUnblock &&
-          !_slotBlocked(name) &&
-          !_paused &&
+          _canActivate(name) &&
           !_inBuildPhase &&
           !_releasePending &&
           !_deferredSlots.contains(name)) {
@@ -1112,10 +1147,9 @@ class Layerman extends ChangeNotifier {
     }
     for (final e in _pendingOverlaps) {
       check(e, 'pendingOverlaps', true);
-      if (!_paused &&
+      if (_canActivate(e.slot) &&
           !_inBuildPhase &&
           !_releasePending &&
-          !_slotBlocked(e.slot) &&
           (_hydrationApplied || e.cooldown == null)) {
         throw StateError('不变量 k：${e.id} 持有的 overlap 漏释放');
       }
@@ -1500,7 +1534,9 @@ class Layerman extends ChangeNotifier {
   /// 重新判定持有的 overlap；仍暂停、等待读取或被阻塞时继续持有。
   void _releaseOverlap(_Entry e) {
     if (!_isCurrent(e)) return;
-    if (_paused || _waitingForHydrate(e) || _slotBlocked(e.slot)) {
+    if (!_canActivate(e.slot) ||
+        _evaluateGate(e, overlap: true, callbacks: false).state ==
+            _GateState.wait) {
       _pendingOverlaps.add(e);
     } else {
       _admitOverlap(e);
@@ -1767,10 +1803,10 @@ class Layerman extends ChangeNotifier {
       }
 
       // 永久上限与槽位占用、暂停及构建阶段无关，提交时即可结束。
-      if (cooldown != null &&
-          _cooldowns.permanentlyBlocked(resolvedId, cooldown)) {
+      final result = _evaluateGate(entry);
+      if (result.state == _GateState.drop) {
         _byId.remove(resolvedId);
-        _settle(entry, null, _dropReason(entry));
+        _settle(entry, null, result.reason!);
         if (freedSlot != null) _schedule(freedSlot);
         _notify();
         return ticket;
@@ -1779,7 +1815,7 @@ class Layerman extends ChangeNotifier {
       final s = _slotFor(slot);
       // 抢占者必须自身合格、未暂停且不受跨槽阻塞。
       // affix 阻止抢占，但抢占者保留前排顺序，等待当前条目退出。
-      if (replace && !_paused && !_slotBlocked(slot) && _eligible(entry)) {
+      if (replace && _canActivate(slot, result)) {
         entry.skipGap = true;
         final cur = s.active;
         if (cur != null && cur.isActive && !cur.affix) {
@@ -1814,15 +1850,13 @@ class Layerman extends ChangeNotifier {
           _isCurrent(entry) &&
           freedSlot == slot &&
           !_paused &&
-          _eligible(entry)) {
+          result.state == _GateState.pass) {
         s.takeover = entry;
       }
       if (_isCurrent(entry) &&
           !_inBuildPhase &&
-          !_slotBlocked(slot) &&
           freedSlot == slot &&
-          !_paused &&
-          _eligible(entry)) {
+          _canActivate(slot, result)) {
         _activate(entry);
       } else {
         _schedule(slot);
@@ -1950,8 +1984,43 @@ class Layerman extends ChangeNotifier {
   /// 缓存本次上下文的不可修改快照，供所有 when 共用。
   Map<String, Object?>? _contextView;
 
-  /// 返回条件和冷却是否同时通过。
-  bool _eligible(_Entry e) => _conditionsPass(e) && _cooldownPass(e);
+  /// 统一求值资格；overlap 保留普通条件与时间冷却不通过即丢弃的契约。
+  /// callbacks 为 false 时只读冷却状态，供清理和不变量检查使用。
+  _GateResult _evaluateGate(
+    _Entry e, {
+    bool overlap = false,
+    bool callbacks = true,
+  }) {
+    final now = clock.now();
+    final conditionsPass = !callbacks || _conditionsPass(e);
+    if (overlap && !conditionsPass) {
+      return const _GateResult.drop(OverlayEndReason.dropped);
+    }
+    final cd = e.cooldown;
+    final suppressed = cd != null && _cooldowns.suppressed(e.id, now);
+    if (cd != null && _cooldowns.permanentlyBlocked(e.id, cd)) {
+      return _GateResult.drop(
+        suppressed ? OverlayEndReason.suppressed : OverlayEndReason.capped,
+      );
+    }
+    if (!conditionsPass) return const _GateResult.wait();
+    // hydrate 也是无期限等待，串行与 overlap 共用此门控。
+    if (cd == null) return const _GateResult.pass();
+    final wait = _cooldowns.timeUntilEligible(e.id, cd, now);
+    if (wait == null) return const _GateResult.wait();
+    if (wait == Duration.zero) return const _GateResult.pass();
+    return overlap
+        ? _GateResult.drop(
+            suppressed ? OverlayEndReason.suppressed : OverlayEndReason.dropped,
+          )
+        : _GateResult.wait(wait);
+  }
+
+  /// 检查暂停、跨槽阻塞及可选资格快照；不重复调用业务判断。
+  bool _canActivate(String slot, [_GateResult? result]) =>
+      !_paused &&
+      !_slotBlocked(slot) &&
+      (result == null || result.state == _GateState.pass);
 
   /// 只读求值路由、认证与业务条件，异常每条目上报一次并视为不通过。
   bool _conditionsPass(_Entry e) {
@@ -1977,29 +2046,6 @@ class Layerman extends ChangeNotifier {
   static bool _routeMatches(RouteMatcher pattern, Object? current) =>
       pattern.matches(current);
 
-  /// 所有带 cooldown 的条目都等待读取抑制状态。
-  bool _waitingForHydrate(_Entry e) =>
-      !_cooldowns._hydrated && e.cooldown != null;
-
-  /// 抑制优先于永久上限；调用方单独保留条件不通过时的 dropped。
-  OverlayEndReason _dropReason(_Entry e) {
-    final cd = e.cooldown;
-    if (cd == null) return OverlayEndReason.dropped;
-    if (_cooldowns.suppressed(e.id, clock.now())) {
-      return OverlayEndReason.suppressed;
-    }
-    return _cooldowns.permanentlyBlocked(e.id, cd)
-        ? OverlayEndReason.capped
-        : OverlayEndReason.dropped;
-  }
-
-  /// 返回条目是否通过频次限制及抑制。
-  bool _cooldownPass(_Entry e) {
-    final cd = e.cooldown;
-    if (cd == null) return true;
-    return _cooldowns.canShow(e.id, cd, clock.now());
-  }
-
   /// 取消并清空指定槽位的冷却唤醒计时器。
   void _cancelCooldownTimer(_Slot s) {
     s.cooldownTimer?.cancel();
@@ -2017,11 +2063,11 @@ class Layerman extends ChangeNotifier {
   void _discardPermanentlyBlockedQueues() {
     for (final s in _slots.values.toList()) {
       for (final e in s.queue.toList()) {
-        final cd = e.cooldown;
-        if (cd == null || !_cooldowns.permanentlyBlocked(e.id, cd)) continue;
+        final result = _evaluateGate(e, callbacks: false);
+        if (result.state != _GateState.drop) continue;
         _removeFromQueue(e);
         if (_isCurrent(e)) _byId.remove(e.id);
-        _settle(e, null, _dropReason(e));
+        _settle(e, null, result.reason!);
         _notify();
       }
     }
@@ -2056,20 +2102,25 @@ class Layerman extends ChangeNotifier {
 
     final takeover = s.takeover;
     s.takeover = null;
+    final results = <_Entry, _GateResult>{};
+
+    /// 同一轮扫描的条件及等待时长只求值一次。
+    _GateResult evaluate(_Entry e) =>
+        results.putIfAbsent(e, () => _evaluateGate(e));
     _Entry? front = takeover != null &&
             _isCurrent(takeover) &&
             s.queue.contains(takeover) &&
-            _eligible(takeover)
+            _canActivate(slot, evaluate(takeover))
         ? takeover
         : null;
     for (var i = 0; i < s.queue.length;) {
       if (front != null) break;
       final e = s.queue[i];
-      final cd = e.cooldown;
-      if (cd != null && _cooldowns.permanentlyBlocked(e.id, cd)) {
+      final result = evaluate(e);
+      if (result.state == _GateState.drop) {
         s.queue.removeAt(i);
         if (_isCurrent(e)) _byId.remove(e.id);
-        _settle(e, null, _dropReason(e));
+        _settle(e, null, result.reason!);
         _notify();
         if (_paused ||
             s.active != null ||
@@ -2080,7 +2131,7 @@ class Layerman extends ChangeNotifier {
         continue;
       }
       i++;
-      if (_eligible(e)) {
+      if (_canActivate(slot, result)) {
         front = e;
         break;
       }
@@ -2088,7 +2139,7 @@ class Layerman extends ChangeNotifier {
     if (front == null) {
       // 当前没有合格项。仅因时间冷却受阻的条目有确定到期时刻，
       // 设置唤醒，避免冷却结束后仍永久停在队列。
-      _armCooldownWake(slot, s);
+      _armCooldownWake(slot, s, results.values);
       return; // 不合格的串行条目继续等待
     }
 
@@ -2112,16 +2163,11 @@ class Layerman extends ChangeNotifier {
     _activate(front);
   }
 
-  /// 为仅受时间冷却阻挡的条目设置最近到期的单次调度唤醒。
-  void _armCooldownWake(String slot, _Slot s) {
+  /// 直接使用本轮资格快照的等待时长，设置最近到期的单次调度唤醒。
+  void _armCooldownWake(String slot, _Slot s, Iterable<_GateResult> results) {
     Duration? soonest;
-    for (final e in s.queue) {
-      final cd = e.cooldown;
-      if (cd == null) continue;
-      if (!_conditionsPass(e)) {
-        continue; // 条件依赖事件推动，不按时间唤醒
-      }
-      final w = _cooldowns.timeUntilEligible(e.id, cd, clock.now());
+    for (final result in results) {
+      final w = result.wait;
       if (w == null || w <= Duration.zero) continue;
       if (soonest == null || w < soonest) soonest = w;
     }
@@ -2240,16 +2286,11 @@ class Layerman extends ChangeNotifier {
 
   /// 延迟结束后复用 overlap 的一次性资格判定与挂起逻辑。
   void _admitOverlap(_Entry e) {
-    final conditionsPass = _conditionsPass(e);
-    final waitingForHydrate = conditionsPass && _waitingForHydrate(e);
-    if (!conditionsPass || (!waitingForHydrate && !_cooldownPass(e))) {
+    final result = _evaluateGate(e, overlap: true);
+    if (result.state == _GateState.drop) {
       _byId.remove(e.id);
-      _settle(
-          e, null, conditionsPass ? _dropReason(e) : OverlayEndReason.dropped);
-    } else if (_paused ||
-        waitingForHydrate ||
-        _inBuildPhase ||
-        _slotBlocked(e.slot)) {
+      _settle(e, null, result.reason!);
+    } else if (!_canActivate(e.slot, result) || _inBuildPhase) {
       _pendingOverlaps.add(e);
       if (_inBuildPhase) _deferRelease();
     } else {
