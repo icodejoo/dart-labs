@@ -8,6 +8,9 @@
   Bitmap signatures override content type. `StringSvgx` remains SVG text;
   `Svgx.*` widget text loading and its LRU are unchanged. Provider-only SVG
   parameters do not affect bitmaps; gzip SVG (`svgz`) remains unsupported.
+* Parse SVG path data into internal pure typed verb/coordinate buffers before
+  building `ui.Path`, preserving legacy geometry, tolerant truncation and
+  endpoint arcs via `arcToPoint`. Motion-path metrics and sampling are unchanged.
 * Align ImageProvider SVG animation rendering with app frames using a
   `timeDilation`-aware timer and scheduler timestamps. Gaps exceeding four
   animation intervals advance only one interval; losing the last listener
