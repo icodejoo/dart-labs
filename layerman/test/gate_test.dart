@@ -392,33 +392,50 @@ void main() {
     expect(clock.pendingTimers, 0);
   });
 
-  test('一次扫描每项只求值一次，唤醒和不变量检查不额外调用条件', () async {
-    final clock = FakeOverlayClock();
-    final manager = Layerman(clock: clock);
-    addTearDown(manager.dispose);
-    await manager.ready();
-    var whenCalls = 0;
-    var gateCalls = 0;
-    final deadline = clock.now().add(_second);
-    manager.submit<void>(
-        present: HeadlessBackend<void>().present,
-        when: (_) {
-          whenCalls++;
-          return true;
-        },
-        gate: (_) {
-          gateCalls++;
-          return OverlayVerdict.waitUntil(deadline);
-        });
-    whenCalls = gateCalls = 0;
-    manager.setContext({});
-    manager.debugCheckInvariants();
-    expect(whenCalls, 1);
-    expect(gateCalls, 1);
-    clock.advance(_second);
-    expect(whenCalls, 2);
-    expect(gateCalls, 2);
-  });
+  for (final mode in [OverlayMode.queue, OverlayMode.overlap]) {
+    for (final waiting in [false, true]) {
+      test('$mode 提交、上下文和唤醒各只求值一次：等待=$waiting', () async {
+        final clock = FakeOverlayClock();
+        final manager = Layerman(clock: clock);
+        addTearDown(manager.dispose);
+        await manager.ready();
+        var whenCalls = 0;
+        var authCalls = 0;
+        var gateCalls = 0;
+        final deadline = clock.now().add(_second);
+        final backend = HeadlessBackend<void>();
+        manager.submit<void>(
+          present: backend.present,
+          mode: mode,
+          when: (_) {
+            whenCalls++;
+            return true;
+          },
+          auth: (_) {
+            authCalls++;
+            return true;
+          },
+          gate: (_) {
+            gateCalls++;
+            return waiting
+                ? OverlayVerdict.waitUntil(deadline)
+                : const OverlayVerdict.pass();
+          },
+        );
+        manager.debugCheckInvariants();
+        expect([whenCalls, authCalls, gateCalls], [1, 1, 1]);
+        expect(backend.shown, !waiting);
+        if (waiting) {
+          manager.setContext({});
+          manager.debugCheckInvariants();
+          expect([whenCalls, authCalls, gateCalls], [2, 2, 2]);
+          clock.advance(_second);
+          expect([whenCalls, authCalls, gateCalls], [3, 3, 3]);
+          expect(backend.shown, isTrue);
+        }
+      });
+    }
+  }
 
   for (final operation in [
     'setContext',

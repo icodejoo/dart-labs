@@ -1933,7 +1933,7 @@ class Layerman extends ChangeNotifier {
           _canActivate(slot, result)) {
         _activate(entry);
       } else {
-        _schedule(slot);
+        _schedule(slot, evaluated: {entry: result});
       }
       rescheduleFreed();
       _notify();

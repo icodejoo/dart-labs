@@ -368,6 +368,7 @@ class _Scenario {
     probes.add(probe);
     latest[id] = probe;
     if (blocked(slot, id)) blockedProbes.add(probe);
+    var submitGateCalls = 0;
     probe.watch(manager.submit<int>(
       id: id,
       slot: slot,
@@ -389,6 +390,7 @@ class _Scenario {
           : (condition == 3 ? (ctx) => ctx['auth'] != true : null),
       when: condition == 4 ? (context) => context['auth'] == true : null,
       gate: gateKind == 0 ? null : (ctx) {
+        submitGateCalls++;
         probe.gateThrew = gateKind == 5;
         if (probe.gateThrew) {
           _cover('gate 异常');
@@ -435,6 +437,8 @@ class _Scenario {
         return true;
       },
     ));
+    expect(submitGateCalls, lessThanOrEqualTo(1),
+        reason: 'G1 单次提交重复求值\n$diagnostic');
   }
 
   /// 执行一个随机操作；暂停状态改变时以新模型判断后续 present。
