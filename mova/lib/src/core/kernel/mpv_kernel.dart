@@ -801,7 +801,6 @@ class MovaMpvKernel
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
-      _formatProbePending = true;
     }
     if (lazyVideo && !audioOnly && _controller == null) await _yieldForMount();
     if (seq != _openSeq || _disposed) return;
@@ -812,7 +811,12 @@ class MovaMpvKernel
       if (seq != _openSeq || _disposed) return;
     }
     try {
+      // Arm the probe only now: during the mount/render waits above the OLD
+      // file may still refresh its track list, which must not be read as the new one.
+      // 到此才武装格式探测：上面等挂载/渲染面期间旧文件仍可能刷新轨道，不能当成新文件的。
+      if (_player.platform is NativePlayer) _formatProbePending = true;
       _pump?.discardPending();
+      _pump?.expectStartFile();
       _eventAttempt = eventAttempt;
       _eventUri = uri;
       await _player.open(_mediaForOpen(uri, options), play: play);

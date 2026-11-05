@@ -166,6 +166,7 @@ void main() {
           await pumpEventQueue();
           expect(errors.single.fatal, isFalse);
           expect(e.state.error, isNull);
+          backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventStartFile));
           backend.events.add(const MovaRawEvent(7, endFileReason: 4));
           backend.wake();
           await pumpEventQueue();
@@ -192,6 +193,7 @@ void main() {
       await pumpEventQueue();
       expect(engine.state.error, isNull);
       expect(calls, isNot(contains('player.pause')));
+      backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventStartFile));
       backend.events.add(const MovaRawEvent(7, endFileReason: 4));
       backend.wake();
       await pumpEventQueue();
@@ -226,6 +228,7 @@ void main() {
       expect(kernel.nativeRestartAvailable, isTrue);
       final events = <void>[];
       kernel.playbackRestarts.listen(events.add);
+      backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventStartFile));
       backend.events.add(MovaRawEvent(generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART));
       backend.wake();
       await pumpEventQueue();
@@ -308,6 +311,7 @@ void main() {
       kernel.playbackRestarts.listen(restarts.add);
       kernel.endFiles.listen(ends.add);
       backend.events.addAll([
+        const MovaRawEvent(MovaMpvEventBackend.eventStartFile),
         MovaRawEvent(generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART),
         MovaRawEvent(generated.mpv_event_id.MPV_EVENT_END_FILE, endFileReason: generated.mpv_end_file_reason.MPV_END_FILE_REASON_ERROR),
       ]);
@@ -514,6 +518,7 @@ void main() {
       kernel.endFiles.listen(endFileReasons.add);
       
       // RESTART
+      backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventStartFile));
       backend.events.add(MovaRawEvent(generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART));
       backend.wake();
       await pumpEventQueue();
@@ -521,6 +526,7 @@ void main() {
       
       // END_FILE reasons
       backend.events.addAll([
+        const MovaRawEvent(MovaMpvEventBackend.eventStartFile),
         MovaRawEvent(generated.mpv_event_id.MPV_EVENT_END_FILE, endFileReason: generated.mpv_end_file_reason.MPV_END_FILE_REASON_STOP),
         MovaRawEvent(generated.mpv_event_id.MPV_EVENT_END_FILE, endFileReason: generated.mpv_end_file_reason.MPV_END_FILE_REASON_QUIT),
         MovaRawEvent(generated.mpv_event_id.MPV_EVENT_END_FILE, endFileReason: generated.mpv_end_file_reason.MPV_END_FILE_REASON_ERROR),
