@@ -18,15 +18,17 @@ const _normalPlaybackRate = 1.0;
 /// Samples every display frame without throttling. / 无节流时每显示帧采样。
 const _unthrottledDivisor = 1;
 
-/// Renders SMIL and CSS animated SVG strings, including `animateTransform`,
-/// `animateMotion`, and CSS `@keyframes` supported by the animation engine.
+/// Renders supported SMIL `<animate>`, `<animateTransform>`, `<animateMotion>`,
+/// `<set>` and CSS `@keyframes` animation subsets. Uses implicit playback,
+/// a shared [controller], or a Flutter [animation].
 ///
 /// Use [controller] for shared playback control, or [autoplay] and [playbackRate]
 /// for automatic playback. TickerMode pauses playback when every widget using
 /// the controller is disabled; Offstage alone does not pause it.
 ///
-/// 渲染 SMIL 和 CSS 动画 SVG，支持动画引擎中的 `animateTransform`、
-/// `animateMotion` 和 CSS `@keyframes`。用 [controller] 控制共享播放，或用
+/// 渲染引擎支持的 SMIL `<animate>`、`<animateTransform>`、`<animateMotion>`、
+/// `<set>` 与 CSS `@keyframes` 子集；提供隐式、共享控制器、Flutter Animation
+/// 三种播放模式。用 [controller] 控制共享播放，或用
 /// [autoplay]、[playbackRate] 自动播放。所有挂载控件的 TickerMode 都关闭时暂停；
 /// 单独 Offstage 不暂停。
 ///

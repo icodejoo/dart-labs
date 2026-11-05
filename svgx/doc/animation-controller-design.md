@@ -1,6 +1,6 @@
 # 动画播放控制设计(控制器 + 回调 + 时间轴缩放)
 
-> 状态:设计稿(2026-11-05),形态已拍板为 **A+B**(自研控制器为主 + Flutter `Animation` 适配)。实现未开始。
+> 状态(2026-11-05):形态已拍板为 **A+B**(自研控制器为主 + Flutter `Animation` 适配)。阶段 1~4 已实现;第 5 阶段中 `SvgImageProvider` 的调度改造已随位图回退落地。尚未完成的有三项:CSS 动画名事件;真机 `anim_fps` 无回归验证(设备被占用,待补);第 9 节大文档异步解析。
 > 依据:内部引擎摸底与外部方案调研(lottie-flutter、lottie-android、Rive、SMIL DOM、Web Animations API)。行号以 2026-11-05 的 `jelon/svgx-post-upgrade` 为准。
 
 ## 1. 现状

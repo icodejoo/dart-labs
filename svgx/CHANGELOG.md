@@ -27,6 +27,17 @@
   direction. `reverse()` reverses current travel; pause/play preserves reflection,
   while selecting or clearing a range resets it to the requested rate direction.
 
+* Forward all animation controls, readiness/error callbacks and playback/element
+  events through `Svgx.string/asset/network/file/memory`, with matching constructor
+  assertions. Static sources ignore animation-only options; both renderers honor
+  `errorBuilder` / `onError`. Asset/network/file load failures use supplied handlers
+  and preserve the default ambient `ErrorWidget` behavior when neither is supplied.
+* Add an animation-control example page using original SMIL artwork and the
+  top-level `Svgx.string` API: playback, seek, signed rates, once/loop/ping-pong
+  ranges, duration fitting, recent element events and a curved Flutter driver.
+  Cover all five entries, pending-load cleanup and the real page's interactions
+  with widget tests.
+
 * Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
   play/pause/stop/seek, finite signed playback rates, reversible completion,
   once/loop/ping-pong ranges, duration fitting, cues and playback/element events.

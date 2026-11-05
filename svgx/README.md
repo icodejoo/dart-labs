@@ -54,7 +54,7 @@ Source loading isolates assets, bundles, files and header variants, and merges
 concurrent requests for the same key. HTTP connection and response-header waits
 each time out after 30 seconds.
 
-`SvgxAnimated.playbackRate` can change while mounted without jumping the timeline.
+`Svgx.playbackRate` can change while mounted without jumping the timeline.
 ImageProvider rasters are uniformly reduced to at most 4096 pixels per side,
 with their scale adjusted to preserve logical size.
 
@@ -65,12 +65,43 @@ by both the static and animated rendering paths:
 Svgx.string(svgSource, theme: SvgxTheme(currentColor: Colors.blue))
 ```
 
-### Animation quality
+### Animation playback
+
+All five `Svgx.string/asset/network/file/memory` entries accept `controller`,
+`animation`, `animationSpan`, `autoplay`, `playbackRate`, `maxFps`, `onLoaded`,
+`onError`, `errorBuilder`, `onEvent`, `onAnimationStart`, `onAnimationComplete`
+and `onAnimationLoop`, alongside `theme`, `quality` and `colorFilter`.
+
+Choose implicit playback (`autoplay: true`, `playbackRate: 1.0` by default),
+a shared `SvgxAnimationController`, or a Flutter `Animation<double>`:
+
+```dart
+final controller = SvgxAnimationController(autoplay: false);
+Svgx.string(svgSource, controller: controller, onLoaded: (info) {
+  controller.play();
+});
+// Also: pause(), stop(), reverse(), seek(Duration), signed playbackRate,
+// setRange(start, end, mode: SvgxRangeMode.pingPong), fitDuration(target).
+// Dispose caller-owned controllers when their owner is disposed.
+```
+
+Static sources ignore animation-only parameters and callbacks, including
+`onLoaded` and `onEvent`; they do not attach a controller or animation listener.
+`onError` and `errorBuilder` handle both static and animated parse failures.
+Static `onError` runs after the frame, once per failed source/theme change.
+Asset/network/file loading failures use either supplied handler; callback-only
+handling shows an empty sized box. With neither handler, load failures still
+propagate to the ambient `ErrorWidget.builder`. `errorBuilder` receives the
+original error and stack, as with Flutter images.
+
+The example app's **动画控制** button opens original SMIL demos with playback,
+seek, rates, once/loop/ping-pong ranges, duration fitting, a bounded event log,
+and a curved Flutter animation driver. No third-party SVG assets are used there.
 
 Drive an SVG with a Flutter `Animation<double>` (including curved animations):
 
 ```dart
-SvgxAnimated.string(
+Svgx.string(
   svgSource,
   animation: myAnimationController,
   animationSpan: const Duration(seconds: 2), // Omit to use naturalDuration.
@@ -90,6 +121,8 @@ vsync and TickerMode; these instances bypass shared-clock concurrency and
 frame skipping (`maxFps` is ignored). Prefer controller/implicit playback for
 many concurrent SVGs. Disposing the supplied Flutter AnimationController
 retains the last frame; svgx removes its listener on replacement or unmount.
+
+### Animation quality
 
 For the animated path, `SvgxAnimationQuality` trades fidelity for throughput
 under high concurrency (e.g. a scrolling grid of many animated icons) —

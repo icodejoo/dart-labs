@@ -14,24 +14,46 @@ import 'package:flutter/widgets.dart';
 import 'animation/animated_svg_widget.dart';
 import 'animation/animation_detector.dart';
 import 'animation/svg_theme.dart';
+import 'animation/svgx_animation_controller.dart';
+import 'animation/svgx_animation_info.dart';
 import 'animation/svgx_animation_quality.dart';
 import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
 import 'svg_source_loader.dart';
 
-/// Renders an SVG string, automatically picking the animated or static
-/// rendering path.
+/// Default implicit playback speed. / 默认隐式播放速率。
+const _normalPlaybackRate = 1.0;
+
+/// Constructor validation messages. / 构造参数校验消息。
+const _positiveMaxFps = 'maxFps must be positive';
+
+/// Invalid implicit rate message. / 非法隐式速率消息。
+const _finitePlaybackRate = 'playbackRate must be finite';
+
+/// External-controller rate message. / 外部控制器速率消息。
+const _controllerRate =
+    'Use the controller playbackRate when providing a controller';
+
+/// Mutually exclusive drivers message. / 驱动互斥消息。
+const _exclusiveDrivers = 'controller and animation are mutually exclusive';
+
+/// External-animation defaults message. / 外部动画默认参数消息。
+const _animationDefaults =
+    'Leave autoplay and playbackRate at defaults when providing animation';
+
+/// Renders static SVGs or supported SMIL `<animate>`, `<animateTransform>`,
+/// `<animateMotion>`, `<set>` and CSS `@keyframes` animations.
+/// Use implicit [autoplay]/[playbackRate], a shared [controller], or a Flutter
+/// [animation] (mutually exclusive with [controller]). Animation-only options
+/// and callbacks are ignored for static sources; [theme], [colorFilter],
+/// [onError] and [errorBuilder] apply to both rendering paths.
 ///
-/// Detects SMIL and CSS `@keyframes` via [AnimationDetector.hasAnimations],
-/// routing to [SvgxAnimated.string] (Dart) or [SvgxStatic] (Rust).
-/// The State caches the detection result by source string.
+/// 渲染静态 SVG 或支持的 SMIL 四类动画元素与 CSS `@keyframes`。
+/// 三种播放模式为隐式自动播放、共享控制器、Flutter Animation 驱动；后两者互斥。
+/// 静态源忽略动画专属参数及回调；主题、滤镜和错误处理在两条路径均生效。
 ///
-/// 按源串检测 SMIL 与 CSS `@keyframes` 动画，分别交给 Dart 动画引擎和
-/// Rust 静态渲染器；检测结果在 State 内按源串缓存。
-///
-/// Example:
 /// ```dart
-/// Svgx.string(svgSource, width: 48, height: 48)
+/// Svgx.string(svgSource, controller: controller, width: 48, height: 48)
 /// ```
 class Svgx extends StatefulWidget {
   /// Initializes the native (Rust) rendering backend. Call once, before
@@ -67,22 +89,44 @@ class Svgx extends StatefulWidget {
     this.colorFilter,
     this.theme,
     this.quality,
-  });
+    this.controller,
+    this.animation,
+    this.animationSpan,
+    this.autoplay = true,
+    this.playbackRate = _normalPlaybackRate,
+    this.maxFps,
+    this.onLoaded,
+    this.onError,
+    this.errorBuilder,
+    this.onEvent,
+    this.onAnimationStart,
+    this.onAnimationComplete,
+    this.onAnimationLoop,
+  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+       assert(
+         playbackRate > double.negativeInfinity &&
+             playbackRate < double.infinity,
+         _finitePlaybackRate,
+       ),
+       assert(
+         controller == null || playbackRate == _normalPlaybackRate,
+         _controllerRate,
+       ),
+       assert(controller == null || animation == null, _exclusiveDrivers),
+       assert(
+         animation == null || (autoplay && playbackRate == _normalPlaybackRate),
+         _animationDefaults,
+       );
 
   /// Creates the dispatch widget from an SVG asset, resolved the same way
   /// [AssetImage] resolves [name]/[bundle]/[package].
   ///
-  /// Keeps the previous SVG while loading; initially shows a blank [width]x[height] box (no `loadingBuilder`
-  /// parameter — YAGNI until a caller actually needs one) and lets a load
-  /// error propagate to the ambient [ErrorWidget.builder], matching
-  /// [Image.asset]'s default behavior.
+  /// Keeps the previous SVG while loading, or initially an empty sized box.
+  /// Load failures use [onError]/[errorBuilder] when supplied; otherwise they
+  /// propagate to the ambient [ErrorWidget.builder].
   ///
-  /// 用 SVG asset 创建分发组件，`name`/`bundle`/`package` 的解析方式与
-  /// [AssetImage] 一致。
-  ///
-  /// 加载期间保留旧 SVG；首次加载显示空白的 [width]x[height] 占位（不提供 `loadingBuilder`
-  /// 参数——在有调用方真正需要之前，属于 YAGNI）；加载失败则让错误传播给环境
-  /// [ErrorWidget.builder]，与 [Image.asset] 的默认行为一致。
+  /// 用 SVG asset 创建组件，名称、bundle 和 package 按 AssetImage 规则解析。
+  /// 加载期间保留旧图，首次为空盒子；错误交给已配置的处理器，否则传播至 ErrorWidget。
   static Widget asset(
     String name, {
     Key? key,
@@ -95,6 +139,19 @@ class Svgx extends StatefulWidget {
     ColorFilter? colorFilter,
     SvgxTheme? theme,
     SvgxAnimationQuality? quality,
+    SvgxAnimationController? controller,
+    Animation<double>? animation,
+    Duration? animationSpan,
+    bool autoplay = true,
+    double playbackRate = _normalPlaybackRate,
+    double? maxFps,
+    ValueChanged<SvgxAnimationInfo>? onLoaded,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    ImageErrorWidgetBuilder? errorBuilder,
+    ValueChanged<SvgxAnimationEvent>? onEvent,
+    VoidCallback? onAnimationStart,
+    VoidCallback? onAnimationComplete,
+    ValueChanged<int>? onAnimationLoop,
   }) => _AsyncSvgx(
     key: key,
     loadKey: (name, bundle, package),
@@ -107,6 +164,19 @@ class Svgx extends StatefulWidget {
     colorFilter: colorFilter,
     theme: theme,
     quality: quality,
+    controller: controller,
+    animation: animation,
+    animationSpan: animationSpan,
+    autoplay: autoplay,
+    playbackRate: playbackRate,
+    maxFps: maxFps,
+    onLoaded: onLoaded,
+    onError: onError,
+    errorBuilder: errorBuilder,
+    onEvent: onEvent,
+    onAnimationStart: onAnimationStart,
+    onAnimationComplete: onAnimationComplete,
+    onAnimationLoop: onAnimationLoop,
   );
 
   /// Creates the dispatch widget from an SVG fetched over HTTP(S). No
@@ -127,6 +197,19 @@ class Svgx extends StatefulWidget {
     ColorFilter? colorFilter,
     SvgxTheme? theme,
     SvgxAnimationQuality? quality,
+    SvgxAnimationController? controller,
+    Animation<double>? animation,
+    Duration? animationSpan,
+    bool autoplay = true,
+    double playbackRate = _normalPlaybackRate,
+    double? maxFps,
+    ValueChanged<SvgxAnimationInfo>? onLoaded,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    ImageErrorWidgetBuilder? errorBuilder,
+    ValueChanged<SvgxAnimationEvent>? onEvent,
+    VoidCallback? onAnimationStart,
+    VoidCallback? onAnimationComplete,
+    ValueChanged<int>? onAnimationLoop,
   }) => _AsyncSvgx(
     key: key,
     loadKey: (url, SvgSourceLoader.headersKey(headers)),
@@ -138,6 +221,19 @@ class Svgx extends StatefulWidget {
     colorFilter: colorFilter,
     theme: theme,
     quality: quality,
+    controller: controller,
+    animation: animation,
+    animationSpan: animationSpan,
+    autoplay: autoplay,
+    playbackRate: playbackRate,
+    maxFps: maxFps,
+    onLoaded: onLoaded,
+    onError: onError,
+    errorBuilder: errorBuilder,
+    onEvent: onEvent,
+    onAnimationStart: onAnimationStart,
+    onAnimationComplete: onAnimationComplete,
+    onAnimationLoop: onAnimationLoop,
   );
 
   /// Creates the dispatch widget from an SVG file on disk.
@@ -153,6 +249,19 @@ class Svgx extends StatefulWidget {
     ColorFilter? colorFilter,
     SvgxTheme? theme,
     SvgxAnimationQuality? quality,
+    SvgxAnimationController? controller,
+    Animation<double>? animation,
+    Duration? animationSpan,
+    bool autoplay = true,
+    double playbackRate = _normalPlaybackRate,
+    double? maxFps,
+    ValueChanged<SvgxAnimationInfo>? onLoaded,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    ImageErrorWidgetBuilder? errorBuilder,
+    ValueChanged<SvgxAnimationEvent>? onEvent,
+    VoidCallback? onAnimationStart,
+    VoidCallback? onAnimationComplete,
+    ValueChanged<int>? onAnimationLoop,
   }) => _AsyncSvgx(
     key: key,
     loadKey: file.path,
@@ -164,6 +273,19 @@ class Svgx extends StatefulWidget {
     colorFilter: colorFilter,
     theme: theme,
     quality: quality,
+    controller: controller,
+    animation: animation,
+    animationSpan: animationSpan,
+    autoplay: autoplay,
+    playbackRate: playbackRate,
+    maxFps: maxFps,
+    onLoaded: onLoaded,
+    onError: onError,
+    errorBuilder: errorBuilder,
+    onEvent: onEvent,
+    onAnimationStart: onAnimationStart,
+    onAnimationComplete: onAnimationComplete,
+    onAnimationLoop: onAnimationLoop,
   );
 
   /// Creates the dispatch widget from raw SVG bytes already in memory,
@@ -184,6 +306,19 @@ class Svgx extends StatefulWidget {
     ColorFilter? colorFilter,
     SvgxTheme? theme,
     SvgxAnimationQuality? quality,
+    SvgxAnimationController? controller,
+    Animation<double>? animation,
+    Duration? animationSpan,
+    bool autoplay = true,
+    double playbackRate = _normalPlaybackRate,
+    double? maxFps,
+    ValueChanged<SvgxAnimationInfo>? onLoaded,
+    void Function(Object error, StackTrace stackTrace)? onError,
+    ImageErrorWidgetBuilder? errorBuilder,
+    ValueChanged<SvgxAnimationEvent>? onEvent,
+    VoidCallback? onAnimationStart,
+    VoidCallback? onAnimationComplete,
+    ValueChanged<int>? onAnimationLoop,
   }) => Svgx.string(
     utf8.decode(bytes),
     key: key,
@@ -194,6 +329,19 @@ class Svgx extends StatefulWidget {
     colorFilter: colorFilter,
     theme: theme,
     quality: quality,
+    controller: controller,
+    animation: animation,
+    animationSpan: animationSpan,
+    autoplay: autoplay,
+    playbackRate: playbackRate,
+    maxFps: maxFps,
+    onLoaded: onLoaded,
+    onError: onError,
+    errorBuilder: errorBuilder,
+    onEvent: onEvent,
+    onAnimationStart: onAnimationStart,
+    onAnimationComplete: onAnimationComplete,
+    onAnimationLoop: onAnimationLoop,
   );
 
   /// Raw SVG markup, animated or static. / 原始 SVG 源，动画或静态均可。
@@ -231,6 +379,62 @@ class Svgx extends StatefulWidget {
   /// （静态路径渲染的是缓存好的 `ui.Picture`，没有逐帧采样可降级）。
   final SvgxAnimationQuality? quality;
 
+  /// Shared playback control; mutually exclusive with [animation].
+  /// 共享播放控制，与 [animation] 互斥。
+  final SvgxAnimationController? controller;
+
+  /// Document time = value × span; driver owns vsync and start/completion.
+  /// 文档时间为值乘映射时长；驱动方负责 vsync 和开始/完成状态。
+  final Animation<double>? animation;
+
+  /// External time span; null uses natural duration, unknown duration errors.
+  /// 外部映射时长；null 使用自然时长，无法确定时报告错误。
+  final Duration? animationSpan;
+
+  /// Starts implicit playback; must remain true with [animation].
+  /// 是否启动隐式播放；传入 [animation] 时须保留 true。
+  final bool autoplay;
+
+  /// Finite signed implicit speed; leave default with either explicit driver.
+  /// 有限有符号隐式速率；显式驱动时保留默认值。
+  final double playbackRate;
+
+  /// Positive sampling cap; ignored with [animation]. Shared controllers use
+  /// the most permissive attached cap, as in [SvgxAnimated.maxFps].
+  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
+  final double? maxFps;
+
+  /// Called when an animated source and its embedded images are ready.
+  /// 动画源及内嵌图片就绪时调用；静态源不调用。
+  final ValueChanged<SvgxAnimationInfo>? onLoaded;
+
+  /// Receives load/parse/span failures; static failures notify after the frame.
+  /// 接收加载、解析、时长映射错误；静态失败在帧结束后通知。
+  final void Function(Object error, StackTrace stackTrace)? onError;
+
+  /// Replacement on load/parse/span failure. Without either error handler,
+  /// load errors propagate to ErrorWidget; parse errors retain renderer defaults.
+  /// 加载、解析、时长映射失败时的替代内容。未设错误处理时加载错误传播至
+  /// ErrorWidget，解析错误沿用渲染器默认行为；仅设 onError 时显示空盒子。
+  final ImageErrorWidgetBuilder? errorBuilder;
+
+  /// Playback and element events in all animation drive modes.
+  /// 所有动画驱动模式的播放与元素事件。
+  final ValueChanged<SvgxAnimationEvent>? onEvent;
+
+  /// First playback tick; not called with [animation].
+  /// 首次播放 tick；[animation] 模式不调用。
+  final VoidCallback? onAnimationStart;
+
+  /// Natural finite completion, excluding manual ranges and [animation].
+  /// 有限文档自然完成；手动片段及 [animation] 模式不调用。
+  final VoidCallback? onAnimationComplete;
+
+  /// Known document loop crossings; iteration starts at one.
+  /// 已知文档周期的穿越回调；轮次从一开始。
+  final ValueChanged<int>? onAnimationLoop;
+
+  /// Creates source dispatch state. / 创建源分发状态。
   @override
   State<Svgx> createState() => _SvgxState();
 }
@@ -239,20 +443,52 @@ class Svgx extends StatefulWidget {
 /// 在 SVG 源变化时选择静态或动画渲染器。
 class _SvgxState extends State<Svgx> {
   late bool _animated;
+
+  /// Invalidates deferred static error notifications. / 使延后的静态错误通知失效。
+  int _staticErrorGeneration = 0;
+
+  /// Suppresses duplicate notifications on rebuild. / 避免重建重复通知。
+  bool _staticErrorReported = false;
   @override
   void initState() {
     super.initState();
     _animated = AnimationDetector.hasAnimations(widget.source);
   }
 
+  /// Refreshes source detection and error notification identity. / 刷新源检测与错误通知标识。
   @override
   void didUpdateWidget(Svgx oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.source != widget.source || oldWidget.theme != widget.theme) {
+      _staticErrorGeneration++;
+      _staticErrorReported = false;
+    }
     if (oldWidget.source != widget.source) {
       _animated = AnimationDetector.hasAnimations(widget.source);
     }
   }
 
+  /// Builds fallback content and defers one notification per source/theme.
+  /// 构建替代内容，并为每次源或主题变更延后通知一次。
+  Widget _buildStaticError(
+    BuildContext context,
+    Object error,
+    StackTrace stack,
+  ) {
+    if (!_staticErrorReported && widget.onError != null) {
+      _staticErrorReported = true;
+      final generation = _staticErrorGeneration;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && generation == _staticErrorGeneration) {
+          widget.onError?.call(error, stack);
+        }
+      });
+    }
+    return widget.errorBuilder?.call(context, error, stack) ??
+        SizedBox(width: widget.width, height: widget.height);
+  }
+
+  /// Dispatches the source and forwards renderer options. / 分发源并转发渲染参数。
   @override
   Widget build(BuildContext context) {
     if (_animated) {
@@ -264,6 +500,19 @@ class _SvgxState extends State<Svgx> {
         alignment: widget.alignment,
         theme: widget.theme,
         quality: widget.quality,
+        controller: widget.controller,
+        animation: widget.animation,
+        animationSpan: widget.animationSpan,
+        autoplay: widget.autoplay,
+        playbackRate: widget.playbackRate,
+        maxFps: widget.maxFps,
+        onLoaded: widget.onLoaded,
+        onError: widget.onError,
+        errorBuilder: widget.errorBuilder,
+        onEvent: widget.onEvent,
+        onAnimationStart: widget.onAnimationStart,
+        onAnimationComplete: widget.onAnimationComplete,
+        onAnimationLoop: widget.onAnimationLoop,
       );
       return widget.colorFilter == null
           ? child
@@ -277,6 +526,9 @@ class _SvgxState extends State<Svgx> {
       alignment: widget.alignment,
       colorFilter: widget.colorFilter,
       theme: widget.theme,
+      errorBuilder: widget.onError != null || widget.errorBuilder != null
+          ? _buildStaticError
+          : null,
     );
   }
 }
@@ -307,6 +559,7 @@ class _SvgxState extends State<Svgx> {
 /// 变化时才在 [didUpdateWidget] 里重新加载——[Image] 不会为一个没变的
 /// [AssetImage] 每次重建都重新加载，是同一个道理。
 class _AsyncSvgx extends StatefulWidget {
+  /// Creates a source loader with renderer options. / 创建携带渲染参数的源加载器。
   const _AsyncSvgx({
     super.key,
     required this.loadKey,
@@ -318,7 +571,34 @@ class _AsyncSvgx extends StatefulWidget {
     this.colorFilter,
     this.theme,
     this.quality,
-  });
+    this.controller,
+    this.animation,
+    this.animationSpan,
+    this.autoplay = true,
+    this.playbackRate = _normalPlaybackRate,
+    this.maxFps,
+    this.onLoaded,
+    this.onError,
+    this.errorBuilder,
+    this.onEvent,
+    this.onAnimationStart,
+    this.onAnimationComplete,
+    this.onAnimationLoop,
+  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+       assert(
+         playbackRate > double.negativeInfinity &&
+             playbackRate < double.infinity,
+         _finitePlaybackRate,
+       ),
+       assert(
+         controller == null || playbackRate == _normalPlaybackRate,
+         _controllerRate,
+       ),
+       assert(controller == null || animation == null, _exclusiveDrivers),
+       assert(
+         animation == null || (autoplay && playbackRate == _normalPlaybackRate),
+         _animationDefaults,
+       );
 
   /// Identity of what [load] fetches — compared by value in
   /// [_AsyncSvgxState.didUpdateWidget] to decide whether to reload.
@@ -340,13 +620,72 @@ class _AsyncSvgx extends StatefulWidget {
   final SvgxTheme? theme;
   final SvgxAnimationQuality? quality;
 
+  /// Shared playback control; mutually exclusive with [animation].
+  /// 共享播放控制，与 [animation] 互斥。
+  final SvgxAnimationController? controller;
+
+  /// Document time = value × span; driver owns vsync and start/completion.
+  /// 文档时间为值乘映射时长；驱动方负责 vsync 和开始/完成状态。
+  final Animation<double>? animation;
+
+  /// External time span; null uses natural duration, unknown duration errors.
+  /// 外部映射时长；null 使用自然时长，无法确定时报告错误。
+  final Duration? animationSpan;
+
+  /// Starts implicit playback; must remain true with [animation].
+  /// 是否启动隐式播放；传入 [animation] 时须保留 true。
+  final bool autoplay;
+
+  /// Finite signed implicit speed; leave default with either explicit driver.
+  /// 有限有符号隐式速率；显式驱动时保留默认值。
+  final double playbackRate;
+
+  /// Positive sampling cap; ignored with [animation]. Shared controllers use
+  /// the most permissive attached cap, as in [SvgxAnimated.maxFps].
+  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
+  final double? maxFps;
+
+  /// Called when an animated source and its embedded images are ready.
+  /// 动画源及内嵌图片就绪时调用；静态源不调用。
+  final ValueChanged<SvgxAnimationInfo>? onLoaded;
+
+  /// Receives load/parse/span failures; static failures notify after the frame.
+  /// 接收加载、解析、时长映射错误；静态失败在帧结束后通知。
+  final void Function(Object error, StackTrace stackTrace)? onError;
+
+  /// Replacement on load/parse/span failure. Without either error handler,
+  /// load errors propagate to ErrorWidget; parse errors retain renderer defaults.
+  /// 加载、解析、时长映射失败时的替代内容。未设错误处理时加载错误传播至
+  /// ErrorWidget，解析错误沿用渲染器默认行为；仅设 onError 时显示空盒子。
+  final ImageErrorWidgetBuilder? errorBuilder;
+
+  /// Playback and element events in all animation drive modes.
+  /// 所有动画驱动模式的播放与元素事件。
+  final ValueChanged<SvgxAnimationEvent>? onEvent;
+
+  /// First playback tick; not called with [animation].
+  /// 首次播放 tick；[animation] 模式不调用。
+  final VoidCallback? onAnimationStart;
+
+  /// Natural finite completion, excluding manual ranges and [animation].
+  /// 有限文档自然完成；手动片段及 [animation] 模式不调用。
+  final VoidCallback? onAnimationComplete;
+
+  /// Known document loop crossings; iteration starts at one.
+  /// 已知文档周期的穿越回调；轮次从一开始。
+  final ValueChanged<int>? onAnimationLoop;
+
   @override
   State<_AsyncSvgx> createState() => _AsyncSvgxState();
 }
 
+/// Retains source text and rejects stale load results. / 保留源文本并丢弃过期加载结果。
 class _AsyncSvgxState extends State<_AsyncSvgx> {
   String? _source;
   Object? _error;
+
+  /// Original load failure stack. / 原始加载失败堆栈。
+  StackTrace? _errorStack;
 
   // 每次加载使用独立代次，防止 A→B→A 时第一次 A 的结果抢先覆盖。
   int _loadGeneration = 0;
@@ -357,12 +696,14 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
     _load();
   }
 
+  /// Reloads only when source identity changes. / 仅源标识变化时重新加载。
   @override
   void didUpdateWidget(_AsyncSvgx oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.loadKey != oldWidget.loadKey) _load();
   }
 
+  /// Loads one generation and delivers handled failures once. / 加载一代源并交付一次失败通知。
   void _load() {
     final generation = ++_loadGeneration;
     // Clear a stale error from a previous [loadKey] immediately — otherwise
@@ -373,6 +714,7 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
     // `build()` 会一直把旧错误当成新 key 的结果抛出来。
     if (_error != null) {
       _error = null;
+      _errorStack = null;
     }
     Future<String>.sync(widget.load).then(
       (source) {
@@ -386,19 +728,26 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
         if (!mounted || generation != _loadGeneration) return;
         setState(() {
           _error = error;
+          _errorStack = stackTrace;
         });
+        widget.onError?.call(error, stackTrace);
       },
     );
   }
 
+  /// Builds loaded content or preserves the configured failure policy. / 构建内容并遵循失败处理策略。
   @override
   Widget build(BuildContext context) {
-    // Propagate to the ambient ErrorWidget.builder, matching Image.asset's
-    // default (no errorBuilder parameter — YAGNI until asked for).
-    //
-    // 传播给环境 ErrorWidget.builder，与 Image.asset 的默认行为一致（没有
-    // errorBuilder 参数——在有人要之前属于 YAGNI）。
-    if (_error != null) throw _error!;
+    if (_error != null) {
+      final builder = widget.errorBuilder;
+      if (builder != null) {
+        return builder(context, _error!, _errorStack);
+      }
+      if (widget.onError != null) {
+        return SizedBox(width: widget.width, height: widget.height);
+      }
+      Error.throwWithStackTrace(_error!, _errorStack!);
+    }
     if (_source == null) {
       return SizedBox(width: widget.width, height: widget.height);
     }
@@ -411,6 +760,19 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
       colorFilter: widget.colorFilter,
       theme: widget.theme,
       quality: widget.quality,
+      controller: widget.controller,
+      animation: widget.animation,
+      animationSpan: widget.animationSpan,
+      autoplay: widget.autoplay,
+      playbackRate: widget.playbackRate,
+      maxFps: widget.maxFps,
+      onLoaded: widget.onLoaded,
+      onError: widget.onError,
+      errorBuilder: widget.errorBuilder,
+      onEvent: widget.onEvent,
+      onAnimationStart: widget.onAnimationStart,
+      onAnimationComplete: widget.onAnimationComplete,
+      onAnimationLoop: widget.onAnimationLoop,
     );
   }
 }
