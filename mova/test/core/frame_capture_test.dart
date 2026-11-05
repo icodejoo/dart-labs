@@ -68,6 +68,60 @@ void main() {
 
   for (final cutover in [false, true]) {
     final name = cutover ? 'cutover' : '普通';
+    for (final window in [100, 350, 700, 1050, -700, -1]) {
+      test('$name 真机窗口：$window', () {
+        fakeAsync((async) {
+          final kernel = _CaptureKernel();
+          final engine = MovaEngine(
+            kernel: kernel,
+            fetcher: const MovaTestHttpFetch(),
+          );
+          final MovaApi api = cutover
+              ? MovaCutoverEngine(engineFactory: () => engine)
+              : engine;
+          final pool = MovaFeedEnginePool(engineFactory: () => api, size: 1);
+          pool.bind(0, const MovaSource('https://h/a.mp4'));
+          async.flushMicrotasks();
+          if (window > 0) {
+            kernel.emitSize(1280, 720);
+            async.flushMicrotasks();
+            expect(api.state.rendered, isTrue);
+          } else if (window == -700) {
+            // bind 后首帧信号也会消耗原实现的总预算。
+            Timer(const Duration(milliseconds: 600), () {
+              kernel.emitSize(1280, 720);
+            });
+          }
+          final start = async.elapsed;
+          final readyMs = window > 0 ? window : 700;
+          final image = Uint8List.fromList([1, 2, 3]);
+          kernel.capture = () async {
+            if ((async.elapsed - start).inMilliseconds < readyMs) {
+              return null;
+            }
+            // 原始 CHECK 中成功截图还需数百毫秒才返回编码图片。
+            await Future<void>.delayed(const Duration(milliseconds: 350));
+            return image;
+          };
+          Uint8List? result;
+          var done = false;
+          (api as MovaFrameCapture).screenshot().then((value) {
+            result = value;
+            done = true;
+          });
+          async.flushMicrotasks();
+          async.elapse(const Duration(seconds: 2));
+          expect(done, isTrue);
+          expect(result, image, reason: '首帧不能替代实际截图成功，编码耗时也须计入预算');
+          expect(kernel.shots, greaterThan(1));
+          pool.dispose();
+          async.flushMicrotasks();
+          final shots = kernel.shots;
+          async.elapse(const Duration(seconds: 3));
+          expect(kernel.shots, shots);
+        });
+      });
+    }
     for (final scenario in ['窗口', '超时', '挂起', '切源', '销毁', '播放', '异常', '空字节']) {
       test('$name 暂停截图：$scenario', () {
         fakeAsync((async) {
@@ -122,13 +176,19 @@ void main() {
           async.flushMicrotasks();
           if (['窗口', '空字节'].contains(scenario)) {
             expect(done, isFalse, reason: '首次空帧不能提前宣称失败或就绪');
-            async.elapse(const Duration(milliseconds: 50));
+            async.elapse(const Duration(milliseconds: 150));
             expect(done, isTrue);
             expect(result, image);
             expect(kernel.shots, 3);
           } else {
-            async.elapse(const Duration(seconds: 1));
-            expect(done, isTrue, reason: '总等待不得超过 1 秒');
+            if (scenario == '超时' || scenario == '挂起') {
+              async.elapse(const Duration(milliseconds: 1999));
+              expect(done, isFalse, reason: '不能在旧的 1 秒上限提前结束');
+              async.elapse(const Duration(milliseconds: 1));
+            } else {
+              async.elapse(const Duration(seconds: 2));
+            }
+            expect(done, isTrue, reason: '总等待不得超过 2 秒');
             expect(result, isNull);
             if (scenario == '挂起' || scenario == '播放' || scenario == '异常') {
               expect(kernel.shots, 1);

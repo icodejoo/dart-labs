@@ -2,7 +2,9 @@
 
 - headers 夹具新增 `CP3_HEADERS_READY`：独立普通/cutover 暂停池实例在 bind 返回后立即使用有界截图能力，统计授权截图 null 与实际图片解码成功次数，保留拒绝鉴权及原始截图对照。须构建新 APK 复验。
 
-- 新增可选 `MovaFrameCapture.screenshot()`，普通与 cutover 引擎均支持；暂停预热在总计 1 秒内等到非空截图才完成，超时/失败返回 null，切源、销毁或切换后的旧结果丢弃。不播放、不 seek，MovaApi 不增加成员，池 bind/ready 与原首帧事件保持原语义。
+- 修正第五轮暂停池截图等待不足：`MovaFrameCapture.screenshot()` 普通与 cutover 的总预算统一为 2 秒（含原生截图及编码），不再以 rendered 门控截图；空结果按 50ms 起、递增至 250ms 的间隔重新调用内核，实际非空图片才算成功。超时/失败仍返回 null；`CP3_HEADERS_READY` 的 null=0/30、解码成功=30/30 判据保持不变，须新 APK 复验。
+
+- 新增可选 `MovaFrameCapture.screenshot()`，普通与 cutover 引擎均支持；暂停预热在总计 2 秒内等到非空截图才完成，超时/失败返回 null，切源、销毁或切换后的旧结果丢弃。不播放、不 seek，MovaApi 不增加成员，池 bind/ready 与原首帧事件保持原语义。
 
 - 预览抽帧首次 seek 落地等待超时后自动重发一次 seek 并重新确认落点；再次超时仍返回 null，不截取未确认帧。duration 就绪超时和截图失败保持返回 null。
 

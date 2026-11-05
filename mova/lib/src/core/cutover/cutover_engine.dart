@@ -511,7 +511,7 @@ class MovaCutoverEngine
 
   /// 截取生效引擎的当前画面；切换、销毁或不支持时返回 null。
   ///
-  /// 示例：`final image = await engine.screenshot();`，暂停等待上限为 1 秒。
+  /// 示例：`final image = await engine.screenshot();`，暂停等待上限为 2 秒。
   @override
   Future<Uint8List?> screenshot() async {
     if (_disposed) return null;
@@ -520,7 +520,7 @@ class MovaCutoverEngine
     if (active is! MovaFrameCapture) return null;
     try {
       final image = await (active as MovaFrameCapture).screenshot()
-          .timeout(const Duration(seconds: 1));
+          .timeout(const Duration(seconds: 2));
       return !_disposed && identical(active, _active) && epoch == _epoch &&
           image != null && image.isNotEmpty ? image : null;
     } on Object {

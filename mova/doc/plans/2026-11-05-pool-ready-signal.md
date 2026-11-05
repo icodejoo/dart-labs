@@ -55,3 +55,41 @@ final image = api is MovaFrameCapture
 headers 保留原始 extract/pool 检查与 R4 renderer/timed 对照；增加 pool-ready（普通）和 pool-ready-cutover（cutover 门面）独立实例，每个 quality 检查各 6 次，共每侧 30 次授权、30 次拒绝。每次真实挂载，bind 返回后立即调用新能力，不先等待原始截图或额外 sleep。保存 bindReturnedMs、captureAtMs/ReturnedMs/WaitMs、null、字节数、实际图片解码结果、暂停状态、首帧来源与鉴权 HTTP 回执。
 
 验收：每侧授权截图 null=0/30，图片可解码=30/30，保持暂停；拒绝对照解码成功=0/30且回执403；记录耗时分布，API 总等待上限1秒（设备调度耗时单列，不能以宽松计时替代产品单测）。超时/null 必须保留失败，不能再加 sleep 重试覆盖。原始路径仍可能 null，不能用新增组成功抹去旧原始证据。新组通过代表可选截图入口解决可读窗口，不代表旧 renderer future 被升级成合成器 fence，也不代表 CP3 整体通过。
+
+
+## 第五轮无效的原因与修正
+
+本节替代上文的 25ms、rendered 门控及 1 秒上限描述；历史验证记录保留。此次仅离线读取第五轮原始 CHECK，不运行真机、adb 或 Gradle。
+
+### 原始时序与候选排查
+
+只读证据：`example/tool/coverage_evidence/matrix-cp3-headers-r5-20261105-111319/matrix-cp3-headers-r5-20261105-111319-cp3-headers.json` 的 CHECK → numbers.nativePaths → samples.observations.authorized。完整首批普通 null=16/30、cutover null=11/30；27 次失败全部等待约 1 秒才返回（普通 1001–1085ms，cutover 1001–1024ms），返回时均 rendered=true、firstFrameSignals=[restart]。成功组也紧贴预算：普通 792–999ms，cutover 854–1029ms，后者包含设备调度延迟。
+
+旧路径 quality.0 的第 5 个样本（samples[4]）：bind 32ms 返回；581ms 发起原始截图，612ms 返回 null；renderer gate 已完成，612ms 再截、633ms 仍 null；额外等 100ms 后于 734ms 下发，1117ms 才返回 81259 字节。另一样本 bind 57ms，647→685ms null，685→697ms null，798→1059ms 成功。因此“再等 100ms 能截到”包含随后数百毫秒的截图/编码耗时，不能推导为 bind 后 100ms 即可取得编码图片。第四轮 562–730ms 的首次成功窗口也不能代替第五轮调用到编码返回的总预算。
+
+定性：旧实现已重试实际截图，但其从 screenshot 调用开始的 1 秒预算同时覆盖等待 rendered、内核初始化/锁、截图与编码；bind 后立即调用约在 9–92ms，较旧路径更早开始计时，剩余预算不足。cutover 外层另有同样 1 秒截断。失败与预算耗尽吻合，不能宣称首帧信号后已经截图就绪。
+
+- a：排除 Dart 层缓存同一个失败 Future。循环每次调用 `_kernel.screenshot()`，MovaMpvKernel 每次透传 player.screenshot；锁定 media_kit 1.2.6 的 NativePlayer 每次通过 lock.synchronized 执行 function、compute(_screenshot)，没有截图结果缓存。
+- b：25ms 间隔并不长；计时也没有在 bind 返回前启动。问题是总预算从紧接 bind 的新入口开始，未留足信号等待和成功图片返回的共同耗时。
+- c：旧代码并非首帧信号一到就成功退出，null 后确实重试；但 rendered 是下发截图的必要门槛，额外消耗预算且不是可读 fence。本次直接移除门槛。
+- d：代码在 `_kernelOpening != 0` 时确会立即返回 null，但第五轮授权失败均等待约 1 秒，不支持这一机制是该批失败主因；bind/open 代际保护仍保留。
+- e：旧代码只有非空字节才返回图片，null/空字节不会当成功；夹具还实际解码图片。本批不存在“空结果被认成功”的证据。
+
+原始 CHECK 没有记录新入口内部每次底层截图的起止，不能进一步断言每个 null 是哪条 mpv 命令或 GPU 阶段造成；本次修正针对已经证实的总预算及门控问题，不冒充原生根因的逐命令追踪。
+
+### 产品修正与回归
+
+普通引擎在有效源/代际内立即调用内核截图，以非空图片为唯一成功判据；空结果按 50、100、150、200、250ms，之后保持 250ms 的间隔重新下发截图。总计 2 秒包含所有等待与截图/编码，超时仍明确返回 null；挂起命令不会并发重发，迟到结果丢弃，完成后无后台重试。异常仍明确返回 null。播放态保留单次尝试，不播放、不 seek、不新增 MovaApi 成员。cutover 外层上限同步为 2 秒，保持 active/epoch/销毁检查。
+
+假内核新增 12 条测试，普通/cutover 各 6 条：首帧已到但前 N 次截图为 null（100、350、700、1050ms 后可读），成功编码另需 350ms；以及首帧迟到 600ms、首帧未通知但 700ms 已可读。直接在原产品实现上运行，新旧合计 30 条中 **8 红、22 绿**，均为行为断言失败，无编译失败。修正后专项 30 条全绿。700ms 与 1050ms 两侧、迟到首帧两侧、未通知首帧两侧合计 8 条由红转绿。原有永久 null/挂起测试同时断言 1999ms 尚未完成、2000ms 返回 null；保留空字节恢复、切源、销毁、播放、异常及 cutover 提交边界测试。
+
+### 新 APK 复验要求
+
+重新构建包含本修正的 APK，同时开启 `CP3_HEADERS_READY=true` 与 `CP3_HEADERS_R4=true`。夹具代码和验收判据不变：普通与 cutover 分别完整授权 30 次，null=0/30、实际解码成功=30/30且保持暂停；各自拒绝对照 30 次解码成功=0/30且 HTTP403。仍从 bind 返回立即调用，不加夹具 sleep 或外层重试。保留原始路径、renderer gate、额外 100ms 对照及所有失败记录。分析 captureWaitMs 分布是否越过原 1 秒但在新 2 秒内成功；设备调度延迟单列，不能放宽产品单测的 2 秒总上限。若仍 null，下一步需逐次底层调用时序证据，不能将本次离线全绿当成真机验收通过。
+
+
+本次最终离线验证：
+
+- `flutter analyze --no-pub lib test`：No issues found，0 issues。
+- `flutter test --no-pub --concurrency=3 --reporter expanded`：仅运行一次全量，2448 项全绿（2436 + 12），用时 2:07。
+- `git diff --check` 通过。未修改夹具、CLAUDE.md 或 MovaApi；未运行真机、adb、Gradle，未构建 APK。

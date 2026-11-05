@@ -1189,7 +1189,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     }
   }
 
-  /// 获取可读的当前帧，暂停首帧窗口最多等待 1 秒；失败返回 null。
+  /// 获取可读的当前帧，暂停时最多等待 2 秒；失败返回 null。
   ///
   /// 示例：`final image = await engine.screenshot();`。不改变播放意图。
   @override
@@ -1198,24 +1198,32 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     final gen = _openGen;
     final attempt = _attemptId;
     var expired = false;
-    bool current() => !expired && !_disposed && gen == _openGen &&
-        attempt == _attemptId && _source != null && _kernelOpening == 0;
-    // 超时覆盖整个循环（含原生截图），不是每次重试各等 1 秒。
+    bool current() =>
+        !expired &&
+        !_disposed &&
+        gen == _openGen &&
+        attempt == _attemptId &&
+        _source != null &&
+        _kernelOpening == 0;
+    // 超时从本次调用起覆盖整个循环（含原生截图），不按重试次数重置。
     Future<Uint8List?> capture() async {
+      var intervalMs = 50;
       while (current()) {
-        if (state.rendered) {
-          final image = await _kernel.screenshot();
-          if (!current()) return null;
-          if (image != null && image.isNotEmpty) return image;
-        }
+        // 首帧信号不代表截图可读，也不应阻止直接验证当前帧。
+        // 每次重新下发内核截图，只有本次非空结果才能完成为成功。
+        final image = await _kernel.screenshot();
+        if (!current()) return null;
+        if (image != null && image.isNotEmpty) return image;
         if (state.playing || !current()) return null;
-        // 暂停态可能不再发事件，以真实取帧结果轮询，不等待下一事件。
-        await Future<void>.delayed(const Duration(milliseconds: 25));
+        // 暂停态可能不再发事件，递增间隔至 250ms，避免密集空帧请求。
+        await Future<void>.delayed(Duration(milliseconds: intervalMs));
+        if (intervalMs < 250) intervalMs += 50;
       }
       return null;
     }
+
     try {
-      return await capture().timeout(const Duration(seconds: 1));
+      return await capture().timeout(const Duration(seconds: 2));
     } on Object {
       // 原生失败与超时都明确返回 null，不把异常当就绪。
       return null;
