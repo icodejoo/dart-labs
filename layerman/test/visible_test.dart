@@ -78,6 +78,82 @@ void main() {
     addTearDown(() => FlutterError.onError = previous);
   });
 
+  for (final ending in [
+    'close', 'expired', 'backend', 'remove', 'clear', 'dispose', 'syncClose',
+  ]) {
+    test('未确认 visible 就 $ending：仅一条调试日志且不影响结果', () async {
+      final logs = <String?>[];
+      final previous = debugPrint;
+      debugPrint = (message, {wrapWidth}) => logs.add(message);
+      addTearDown(() => debugPrint = previous);
+      final events = <OverlayEvent>[];
+      final clock = FakeOverlayClock();
+      final manager = _manager(events, clock: clock);
+      await manager.ready();
+      final backend = _Backend();
+      const cd = OverlayCooldown(session: 1);
+      final ticket = manager.submit<int>(
+        id: 'pending-visible',
+        cooldown: cd,
+        duration: const Duration(seconds: 1),
+        present: (ctx) {
+          if (ending == 'syncClose') ctx.close(7);
+          return backend.present(ctx);
+        },
+      );
+      switch (ending) {
+        case 'close': ticket.close(7);
+        case 'expired': clock.advance(const Duration(seconds: 1));
+        case 'backend': backend.done.complete(7);
+        case 'remove': ticket.remove();
+        case 'clear': manager.clear();
+        case 'dispose': manager.dispose();
+      }
+      await flushAsync();
+      final outcome = await ticket.outcome;
+      expect(outcome.reason, switch (ending) {
+        'close' || 'syncClose' => OverlayEndReason.closed,
+        'expired' => OverlayEndReason.expired,
+        'backend' => OverlayEndReason.dismissedByBackend,
+        'dispose' => OverlayEndReason.disposed,
+        _ => OverlayEndReason.removed,
+      });
+      expect(logs, hasLength(1));
+      expect(logs.single, contains('pending-visible'));
+      expect(logs.single, contains('before visible completed'));
+      expect(events.where((event) => event.type == OverlayEventType.shown), isEmpty);
+      if (!manager.isDisposed) {
+        expect(manager.cooldownStatus('pending-visible', cd).canShow, isTrue);
+      }
+      backend.visible.complete();
+      await flushAsync();
+      expect(logs, hasLength(1));
+      expect(events.where((event) => event.type == OverlayEventType.shown), isEmpty);
+    });
+  }
+
+  for (final signal in ['success', 'failure', 'presentThrow']) {
+    test('visible $signal：结束时不误报仍在等待', () async {
+      final logs = <String?>[];
+      final previous = debugPrint;
+      debugPrint = (message, {wrapWidth}) => logs.add(message);
+      addTearDown(() => debugPrint = previous);
+      final manager = _manager([]);
+      await manager.ready();
+      final backend = _Backend();
+      final ticket = manager.submit<int>(present: (ctx) {
+        if (signal == 'presentThrow') throw StateError('present failed');
+        return backend.present(ctx);
+      });
+      if (signal == 'success') backend.visible.complete();
+      if (signal == 'failure') backend.visible.completeError(StateError('not visible'));
+      await flushAsync();
+      ticket.remove();
+      await ticket.outcome;
+      expect(logs, isEmpty);
+    });
+  }
+
   test('visible 计数持久化同步重入 remove，仍为 queued、shown、ended', () async {
     final storage = _Storage();
     final manager = Layerman(cooldownStorage: storage);
