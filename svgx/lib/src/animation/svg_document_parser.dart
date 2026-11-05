@@ -45,6 +45,7 @@ import 'svg_gradient.dart';
 import 'svg_path_data.dart';
 import 'svg_path_morph.dart';
 import 'svg_style.dart';
+import 'svgx_animation_info.dart';
 
 /// [element]'s attributes as a `local-name -> value` map, dropping any
 /// namespace prefix.
@@ -66,6 +67,8 @@ class SvgDocument {
     required this.height,
     required this.totalDuration,
     required this.hasIndefiniteLoop,
+    required this.info,
+    this.timelines = const [],
     this.gradients = const {},
     this.cssKeyframes = const {},
     this.clipPaths = const {},
@@ -74,6 +77,17 @@ class SvgDocument {
     this.useExpansionTruncated = false,
     this.backgroundColor,
   });
+
+  /// Duration information for this document.
+  ///
+  /// 本文档的时长信息。
+  final SvgxAnimationInfo info;
+
+  /// All animation timelines, with identified timelines in document order,
+  /// including clip, mask, and gradient definitions.
+  ///
+  /// 全部动画时间线；有 id 的时间线按文档顺序排列，包含裁剪、遮罩和渐变定义。
+  final List<SmilTimeline> timelines;
 
   /// Whether painting this document requires at least one `canvas.saveLayer`
   /// offscreen render target — true when any element carries a `mask`
@@ -278,6 +292,25 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     if (end > maxEnd) maxEnd = end;
   }
 
+  final timelines = context.animations.whereType<SmilTimeline>().toList();
+  // Definitions are parsed separately; restore source order for named events.
+  // 定义单独解析，因此在这里恢复具名事件的源文档顺序；相同 id 保持登记顺序。
+  final sourceOrder = <String, int>{};
+  for (final id in elementsById.keys) {
+    sourceOrder[id] = sourceOrder.length;
+  }
+  final registrationOrder = <SmilTimeline, int>{
+    for (var i = 0; i < timelines.length; i++) timelines[i]: i,
+  };
+  timelines.sort((a, b) {
+    final order = (sourceOrder[a.elementId] ?? sourceOrder.length).compareTo(
+      sourceOrder[b.elementId] ?? sourceOrder.length,
+    );
+    return order != 0
+        ? order
+        : registrationOrder[a]!.compareTo(registrationOrder[b]!);
+  });
+
   return SvgDocument(
     root: root,
     cssKeyframes: sheet?.keyframes ?? const {},
@@ -285,12 +318,83 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     height: height,
     totalDuration: maxEnd,
     hasIndefiniteLoop: hasIndefiniteLoop,
+    info: _animationInfo(timelines, hasIndefiniteLoop),
+    timelines: List.unmodifiable(timelines),
     gradients: gradients,
     clipPaths: clipPaths,
     masks: masks,
     usesOffscreenLayers: context.sawOffscreenLayer,
     useExpansionTruncated: context.useExpansionTruncated,
     backgroundColor: _parseRootBackground(root.attributes),
+  );
+}
+
+/// Maximum accepted loop period, checked before integer multiplication.
+///
+/// 可接受的最大循环周期，整数乘法之前先检查上限。
+const _maxLoopPeriod = Duration(seconds: 60);
+
+/// Iterations in a complete alternating cycle.
+///
+/// 一个完整交替循环包含的迭代数。
+const _alternatingCycleLength = 2;
+
+/// Computes new duration metadata without changing legacy duration accounting.
+///
+/// 计算新增时长信息，不改变原有时长统计。
+SvgxAnimationInfo _animationInfo(List<SmilTimeline> timelines, bool loops) {
+  var settleTime = Duration.zero;
+  int? period;
+  var unknownPeriod = false;
+  for (final timeline in timelines) {
+    if (timeline.begin == kSmilNeverBegins) continue;
+    final intervals = timeline.intervals;
+    final intervalEnd = timeline.intervalEnd;
+    final zeroDurationList =
+        timeline.duration == Duration.zero && intervalEnd == kSmilNeverBegins;
+    final infinite =
+        timeline.hasPendingInstances ||
+        (intervals != null
+            ? intervalEnd == kSmilNeverBegins && !zeroDurationList
+            : timeline.repeatCount.indefinite);
+    final end = infinite
+        ? timeline.begin
+        : intervals != null
+        ? (zeroDurationList ? intervals.last.begin : intervalEnd)
+        : timeline.begin +
+              smilActiveDuration(timeline.duration, timeline.repeatCount);
+    if (end != null && end > settleTime) settleTime = end;
+    if (!infinite || unknownPeriod) continue;
+    if (intervals != null || timeline.beginSpec.entries != null) {
+      unknownPeriod = true;
+      continue;
+    }
+    var micros = timeline.duration.inMicroseconds;
+    final alternating =
+        timeline.direction == SmilDirection.alternate ||
+        timeline.direction == SmilDirection.alternateReverse;
+    final limit = _maxLoopPeriod.inMicroseconds;
+    if (micros <= 0 ||
+        micros > limit ~/ (alternating ? _alternatingCycleLength : 1)) {
+      unknownPeriod = true;
+      continue;
+    }
+    if (alternating) micros *= _alternatingCycleLength;
+    final factor = period == null ? 1 : period ~/ period.gcd(micros);
+    // Dividing before multiplying bounds both the result and intermediates.
+    // 先除后乘，保证结果和中间值均不会溢出或超过上限。
+    if (factor > limit ~/ micros) {
+      unknownPeriod = true;
+    } else {
+      period = factor * micros;
+    }
+  }
+  return SvgxAnimationInfo(
+    settleTime: settleTime,
+    loops: loops,
+    loopPeriod: loops && !unknownPeriod && period != null
+        ? Duration(microseconds: period)
+        : null,
   );
 }
 

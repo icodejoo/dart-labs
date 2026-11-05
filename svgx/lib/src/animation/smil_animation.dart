@@ -449,6 +449,14 @@ abstract class SmilTimeline implements SmilTimed {
   Duration? get intervalEnd =>
       intervals?.isNotEmpty == true ? intervals!.last.end : null;
 
+  /// Makes resolved list intervals through [time] available in [intervals].
+  /// Earlier queries preserve intervals already available; single begins do
+  /// nothing.
+  ///
+  /// 使 [intervals] 包含截至 [time] 的已解析列表区间；向前查询保留已有区间，
+  /// 单值开始时间线不受影响。
+  void extendIntervalsThrough(Duration time) => _listResolver?.extend(time);
+
   /// 解析全局时刻的迭代进度；未开始或已结束且不定格时返回 null。
   _Timing? _timingAt(Duration t) {
     _listResolver?.extend(t);
@@ -2304,10 +2312,21 @@ const _maxSmilMicros = 10000000 * Duration.microsecondsPerSecond;
 /// 有限重复的活动时长；超大乘积饱和到约 115 天，避免 Infinity.round()。
 Duration smilActiveDuration(Duration duration, SmilRepeatCount repeatCount) =>
     Duration(
-      microseconds: (duration.inMicroseconds * repeatCount.count)
-          .clamp(0, _maxSmilMicros)
-          .round(),
+      microseconds: smilActiveDurationMicroseconds(duration, repeatCount),
     );
+
+/// Returns [duration] times [repeatCount.count] in integer microseconds,
+/// clamped to the engine's supported time range. The indefinite flag does not
+/// make this numeric duration unbounded.
+///
+/// 返回 [duration] 乘 [repeatCount.count] 的整数微秒数，并按引擎支持范围钳位；
+/// 无限标志不使这个数值时长变为无界。
+int smilActiveDurationMicroseconds(
+  Duration duration,
+  SmilRepeatCount repeatCount,
+) => (duration.inMicroseconds * repeatCount.count)
+    .clamp(0, _maxSmilMicros)
+    .round();
 
 /// 时间线饱和加法。先限制两个操作数，确保相加本身也不会发生整数回绕。
 Duration addSmilTime(Duration a, Duration b) => Duration(

@@ -13,6 +13,13 @@
 * Pause animations while `TickerMode` is disabled (covered routes, inactive
   `TabBarView` pages); progress stays continuous on resume. `Offstage` alone
   does not disable `TickerMode`.
+* Animated path: per-node style cache compares themes by value, so instances
+  sharing one parsed document with equal but distinct `SvgxTheme` objects no
+  longer miss the cache every frame.
+* Add `SvgxAnimationInfo` (`settleTime`, `loops`, `loopPeriod`,
+  `naturalDuration`), computed once at parse time. `loopPeriod` is the LCM of
+  indefinite animations' periods (alternate counts twice), null when unknown or
+  over 60s — groundwork for the upcoming playback controller.
 
 * Fix CSS Color 4 `#rgba` on the Dart animation path across paint attributes,
   styles, CSS keyframes, gradient stops and SMIL color channels.

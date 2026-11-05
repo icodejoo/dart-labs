@@ -11,6 +11,7 @@ export 'src/rust/frb_generated.dart' show RustLib;
 export 'src/animation/animated_svg_widget.dart' show SvgxAnimated;
 export 'src/animation/svg_document_cache.dart' show SvgxDocumentCache;
 export 'src/animation/svg_theme.dart' show SvgxTheme;
+export 'src/animation/svgx_animation_info.dart' show SvgxAnimationInfo;
 // Opt-out-able, deliberately lossy performance trade-offs for the animated
 // path — read its class doc before changing the default, it says exactly what
 // fidelity is traded away and at what concurrency.
