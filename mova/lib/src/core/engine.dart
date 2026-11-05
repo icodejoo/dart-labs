@@ -1936,7 +1936,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _recoverTimer?.cancel();
     _recoverTimer = Timer(delay, () {
       _recoverTimer = null;
-      if (attempt == _attemptId) unawaited(_recover(index, cause, gen));
+      if (attempt == _attemptId && _terminalAttemptId != attempt) {
+        unawaited(_recover(index, cause, gen));
+      }
     });
   }
 
@@ -2088,9 +2090,13 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _terminalError(MovaGiveUpError(fail));
   }
 
-  /// 终结 [err] 的播放尝试，统一清缓冲、发错误并暂停内核。
+  /// Terminates [err]'s attempt, cancels recovery, clears buffering and pauses.
+  ///
+  /// 终结 [err] 的播放尝试，取消恢复、清缓冲、发错误并暂停内核。
   void _terminalError(Object err, {String? subsystem, bool defer = true}) {
     if (_disposed) return;
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
     if (defer && _kernelOpening > 0) {
       _deferredTerminal ??= (error: err, subsystem: subsystem);
       return;
@@ -2473,6 +2479,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       ..onBuffering(state.buffering);
   }
 
+  /// Plays only while this request still owns the session and pause sequence.
+  ///
+  /// 仅在本次请求仍持有会话与暂停代际时播放。
   @override
   Future<void> play() async {
     // Disposed: silent no-op.
@@ -2500,7 +2509,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (keepAlivePhase == MovaKeepAlivePhase.holding) return;
     if (_keepAliveRequested && keepAlivePhase != MovaKeepAlivePhase.resuming) {
       final p = await _enqueueKeepAlive(() => _enterKeepAlive(viaPlay: true));
-      if (_disposed) return;
+      if (_disposed || gen != _sessionGen || pauses != _pauseSeq) return;
       if (p == MovaKeepAlivePhase.holding) {
         await _kernel.play();
         return;
@@ -2519,7 +2528,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     // 播放"的可见效果。直播没有可回退的"播放完"位置，因此只对点播生效。
     if (state.completed && state.type == MovaStreamType.vod) {
       await _kernel.seek(Duration.zero);
-      if (_disposed) return;
+      if (_disposed || gen != _sessionGen || pauses != _pauseSeq) return;
     }
     await _kernel.play();
   }
@@ -2851,8 +2860,21 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _emitEvent(MovaSeeked(target));
   }
 
+  /// Seeks by [delta], using window coordinates for URL time-shift streams.
+  ///
+  /// 按 [delta] 相对跳转，URL 时移流使用窗口坐标。
   @override
-  Future<void> seekBy(Duration delta) => seek(_lastPosition + delta);
+  Future<void> seekBy(Duration delta) {
+    var position = _lastPosition;
+    if (state.type == MovaStreamType.live &&
+        options.live.seekMode == MovaLiveSeekMode.timeshift) {
+      final lag = _currentLoad?.timeshiftBehind ?? Duration.zero;
+      position = state.seekableWindow > lag
+          ? state.seekableWindow - lag
+          : Duration.zero;
+    }
+    return seek(position + delta);
+  }
 
   /// Forwards warm-up mute to capable kernels, bypassing the volume port.
   /// Unsupported kernels continue without warm-up mute.
@@ -2982,6 +3004,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     }
   }
 
+  /// Applies fullscreen [v] while preserving any forced orientation.
+  ///
+  /// 应用全屏状态 [v]，并保留强制方向。
   @override
   Future<void> setFullscreen(bool v) async {
     // Disposed: silent no-op.
@@ -2991,7 +3016,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     final changed = state.fullscreen != v;
     final leaving = state.fullscreen && !v;
     _state.emit(state.copyWith(fullscreen: v));
-    if (leaving) {
+    if (leaving && state.orientation == MovaOrientation.auto) {
       await _orientation.reset();
     } else {
       await _applyOrientation();
@@ -3161,6 +3186,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       resumeAt: live ? null : pos,
       reason: LoadReason.quality,
     );
+    final seekChain = _seekChain;
     try {
       if (!await _loadKernel(playUri, play: _loadPlays)) {
         _releaseAbrHold(lease);
@@ -3177,7 +3203,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     // 加载命令一下发就宣布新档位：续播 seek 可能要寄存到时长到达才生效，把
     // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
     _emitEvent(MovaQualityChange(q));
-    if (!live && pos > Duration.zero) {
+    if (!live && pos > Duration.zero && seekChain == _seekChain) {
       // The duration can already be known by now (reported while the load
       // command was in flight); parking only on "no duration" would then send
       // the seek before the variant lands and mpv would silently drop it.
@@ -3191,18 +3217,28 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       // [_applyParkedSeek] 补发后校验。
       await _seekOrPark(pos, forcePark: !_variantLanded);
       if (_parkedSeek != null) _holdParkUntilLanding();
-    } else if (!live) {
+    } else if (!live && seekChain == _seekChain) {
       _releaseAbrHold(lease);
     }
   }
 
-  /// 下降一档（供 ABR 监测调用）；最低档或档位不足两个时无操作。
+  /// Downshifts once for ABR, keeping variants with height on the video ladder.
+  /// Does nothing at the lowest eligible variant or with fewer than two variants.
+  /// Returns when switching finishes; example: `await engine.downshiftQuality()`.
+  ///
+  /// 下降一档（供 ABR 监测调用）；有高度的当前档仅在视频档中降档。
+  /// 最低可选档或档位不足两个时无操作。
   /// auto 接管为实验性，默认关；显式启用 manageAuto 时从 auto 转到次高档。
   /// 返回换档完成的 Future；示例：`await engine.downshiftQuality()`。
   Future<void> downshiftQuality() async {
     final cur = state.currentQuality;
     if (cur == null || (cur.isAuto && !options.abr.manageAuto)) return;
-    final variants = state.qualities.where((q) => !q.isAuto).toList();
+    final variants = state.qualities
+        .where((q) => !q.isAuto && (cur.height == null || q.height != null))
+        .toList();
+    // Auto has no readable active variant; experimental management picks the
+    // second entry without assuming mpv has selected the highest variant.
+    //
     // auto 没有可读的实际档位；实验性接管直接选择列表次高档，
     // 不把 mpv 的实际选档当作已经验证的最高档。
     final idx = cur.isAuto ? 0 : variants.indexWhere((q) => q.uri == cur.uri);
@@ -3532,6 +3568,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   @override
   void markRetired() => _retired = true;
 
+  /// Releases owned resources without waiting for paused public subscribers.
+  ///
+  /// 释放自有资源，不等待已暂停的公共流订阅。
   @override
   Future<void> dispose() async {
     // Disposing while the mini window still renders this engine leaves the
@@ -3605,10 +3644,13 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     await _errorSub.cancel();
     _qoe?.onTeardown();
     await _qoe?.cancel();
-    await _state.close();
-    await _ui.close();
-    await _events.close();
-    await _progressRaw.close();
+    // Paused consumers must not delay native resource teardown.
+    //
+    // 暂停的消费者不得阻塞原生资源释放。
+    unawaited(_state.close());
+    unawaited(_ui.close());
+    unawaited(_events.close());
+    unawaited(_progressRaw.close());
     await _previewService.dispose();
     await _sttService.dispose();
     if (_ownsKernel) await _kernel.dispose();
@@ -3632,8 +3674,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _updateTimeshift(_lastPosition);
   }
 
-  /// Recomputes [MovaState.timeshiftBehind] from [position] and announces the
-  /// transition on the event stream.
+  /// Recomputes DVR lag from [position], or keeps URL time-shift lag fixed,
+  /// and announces transitions on the event stream.
   ///
   /// The lag is quantised to whole seconds before comparison: position ticks
   /// arrive several times a second, and emitting a new [MovaState] for every
@@ -3641,7 +3683,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// high-frequency one — exactly what phase A avoided by keeping position out
   /// of [MovaState]. Second-level precision is all the `-MM:SS` indicator needs.
   ///
-  /// 依据 [position] 重算 [MovaState.timeshiftBehind]，并在事件流上广播其变化。
+  /// 依据 [position] 重算 DVR 落后量，URL 时移则保留固定落后量，并广播变化。
   ///
   /// 落后量在比较前先量化到整秒：position 每秒到达数次，若每次亚秒级变化都发一个
   /// 新的 [MovaState]，去重后的 [states] 流就会退化成高频流——这正是阶段 A 把
@@ -3650,9 +3692,16 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// - [position]: latest known playhead position / 最近已知的播放位置
   void _updateTimeshift(Duration position) {
     final live = state.type == MovaStreamType.live && state.liveSeekable;
-    final raw = live
-        ? behindOf(position, state.seekableWindow, options.live.edgeThreshold)
-        : null;
+    Duration? raw;
+    if (live && options.live.seekMode == MovaLiveSeekMode.timeshift) {
+      // URL media positions start at zero; they cannot determine live-edge lag.
+      //
+      // 时移媒体位置从零开始，无法用来计算距直播边缘的落后量。
+      final lag = _currentLoad?.timeshiftBehind ?? Duration.zero;
+      raw = lag > options.live.edgeThreshold ? lag : null;
+    } else if (live) {
+      raw = behindOf(position, state.seekableWindow, options.live.edgeThreshold);
+    }
     final behind = raw == null ? null : Duration(seconds: raw.inSeconds);
     if (behind == state.timeshiftBehind) return;
     if (behind == null) {
