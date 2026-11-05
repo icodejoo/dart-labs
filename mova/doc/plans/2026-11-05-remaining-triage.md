@@ -55,3 +55,39 @@
 - 仅修观测：每次正负对照记录 targetMs、elapsedMs、outcome(null/empty/frame)、bytes，外层异常另记 error/type，不增加重试，不改 lib。
 - 下一次需新 APK 保留这些首试诊断；若仍 null，还需按隐藏播放器实例/请求 token 关联 open、duration、seeking/time-pos、screenshot/原生错误的时间线和媒体响应体校验，再决定是否修产品。已返回 null 时 API 不暴露内部阶段，不能承诺本次夹具改动单独就足以定因。B07 原生准确落点仍未验收。
 - 离线检查：example analyze 无新增，编译/回执定向测试 3 PASS，matrix --check 与 Python 80 PASS。
+
+## 6. CP1 三条总项重新评估
+
+已在 `2026-11-03-cp1-results.md` 追加“后续证据关闭”，保留原结论和 JSON：
+
+|原总项|本次裁决|后续动作/人工边界|需要新 APK|
+|---|---|---|---|
+|终审7b / fallback|历史责任归因仍 BLOCKED；功能通过不能证明旧相对 URI 失败根因|缺旧响应/跳转正文、服务退出码与 mpv 失败时间线；可先离线补全原归档，仍需复现则安排受控设备/服务|仅离线补归档不需要；设备复现须按最终代码构建|
+|B块|总行仍 BLOCKED；仅 B.bottomPatch 自动结构判据后续关闭|`cp3-cp1gap-bottom-r2-20261105-085136` records[161,275,401,519,637]，5 CHECK/60 挂载；B07 的目标帧/原生落点、OEM 亮度/显示恢复、弹幕 CP0 分布或批准硬线仍缺。画面和亮度感受需人工；性能硬线需负责人确认|底栏关闭本身不需要；B07/亮度等补测应使用新包|
+|Windows|仍 BLOCKED，缺 CP0 配对基线；CP2/CP3 没有新 Windows 比较证据|安静模式下两版 F3 三模式/dispose/HE V6；既有 V10 功能 PASS 不变。Android fullscreen 成功不替代 Windows 基线|不需要 Android APK；需要 Windows 构建及运行环境|
+
+这三条总行并没有因底栏子项关闭而变成全部 PASS。CP2 报告的额外 POD2 自动证据与视觉人工边界，也已在 CP1 追加节说明。
+
+证据可用性限制：本 worktree 提供的 coverage_evidence 原始目录是本次 CP3 第二轮记录；旧 CP1/CP2 路径在结果文档中有引用，但相应原始文件不在此树。已直接检查可用的第二轮 JSON、driver/logcat、代码与 matrix-run；不能声称对不存在的历史原始文件完成重新审计。未到其他 worktree 查找或复制，也未用摘要补造缺失证据。
+
+## 检查、提交与执行偏差
+
+- 产品：analyze lib/test **0 issues**；最终全量 `flutter test --no-pub --concurrency=3` **2415 PASS**；四条新增回归中两条实际回退再次变红，另两条保护在途换档和嵌套通知。根 lib/test 在全绿后未再改行为。
+- 夹具：example analyze 基线与最终均 **41 条既有诊断，新增 0**（比较时仅去除路径行列号）；`cp3_pages_test.dart` **3 PASS**。`run_matrix.py --check` **92 batches / 135 IDs / 6 manual PASS**；`test_run_matrix.py` **66**、`test_win_policy.py` **11**、`test_win_job.py` **3**，合计 **80 PASS**；最后一次池采图补强后再次检查通过。
+- 全量尝试均保留本地日志：首次在 +1374 时 Dart VM OOM，未得完整结论；第二次 2414 PASS/1 FAIL，暴露失败通知的 accepted 边界变化，修复后相关 12 PASS；第三次 2401 已通过、14 项 did not complete（无断言失败，退出原因未定位），涉及三个 UI 文件单独 25/25 PASS；最终第四次 2415/2415 全绿。不将前面三次伪装成通过。
+- Python 首次从 example 目录按模块执行导致 3 个 import error，改为在 example/tool 执行同一测试后 80 PASS。测试日志仅本地保留，未加入原始 coverage_evidence、matrix-run 或任何禁止添加的路径。
+- 无设备/adb/Gradle、新 APK、Windows 被测应用执行；没有分派、push、切分支、stash、reset、修改 CLAUDE.md，也未操作其他 worktree。同步投递属于产品行为变化，已记 CHANGELOG；夹具行为变化也逐次记录。
+
+|提交|类别|结果|
+|---|---|---|
+|bd05c3db|字幕夹具|补齐 SRT 资产声明|
+|20c21861|池预热夹具|等待媒体/错误及回执|
+|90dc2201|产品修复|普通引擎状态事件同步投递；2415 PASS|
+|1e123f92|回执夹具|分离 Seeked 独立流诊断|
+|aeede0a5|资源夹具|独立计数及释放稳定窗|
+|0b548a71|抽帧夹具|保留首试空帧/异常耗时|
+|2fdfd879|池预热补强|实际暂停图像及信号来源|
+
+CP1/CP3 结果追加节及本报告收口由最后一个 `test(mova)` 提交保存，自身 hash 见最终汇报。
+
+新 APK 设备复验清单：①字幕 SRT/ASS/WebVTT/mov_text 四 CHECK/画面；②headers 原 15 项，加 5 轮抽帧与池预热正负对照（须有授权图像/拒绝回执，首试失败保留）；③receipt basic/basic-cutover/abr 三命令；④pool/audio 全阶段原生计数与配对资源基线。抽帧偶发/B07 仍需内部阶段和目标帧证据；CP1 亮度/弹幕/7b/Windows 的额外条件如上，不能靠这一轮新包自动全部关闭。
