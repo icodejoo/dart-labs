@@ -143,6 +143,11 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
       }
       await player.seek(at);
       return await movaCapturePreviewFrame(
+        retrySeek: () async {
+          if (_disposed) return false;
+          await player.seek(at);
+          return true;
+        },
         landed: () async {
           if (native is! NativePlayer) return false;
           final target = at.inMilliseconds / 1000.0;
@@ -247,15 +252,22 @@ Future<bool> movaWaitForPreviewFrame(
 }
 
 /// 仅在 [landed] 确认落地后等待 [settleDelay] 并调用 [capture] 截图。
-/// 返回编码帧；未落地或异常返回 null，防止错误帧入缓存。
+/// 首次未落地时可通过 [retrySeek] 重发一次 seek；再次未落地或异常返回 null。
+/// 不重试截图失败，防止错误帧入缓存。
 /// 示例：`await movaCapturePreviewFrame(landed: check, capture: screenshot)`。
 Future<Uint8List?> movaCapturePreviewFrame({
   required Future<bool> Function() landed,
   required Future<Uint8List?> Function() capture,
+  Future<bool> Function()? retrySeek,
   Duration settleDelay = Duration.zero,
 }) async {
   try {
-    if (!await landed()) return null;
+    if (!await landed()) {
+      // 仅恢复一次落地超时；重发后仍须完整确认位置，不能截取旧帧。
+      if (retrySeek == null || !await retrySeek() || !await landed()) {
+        return null;
+      }
+    }
     if (settleDelay > Duration.zero) await Future<void>.delayed(settleDelay);
     return await capture();
   } on Object {
