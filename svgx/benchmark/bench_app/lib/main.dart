@@ -16,6 +16,7 @@ import 'package:svgx/svgx.dart';
 
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
+import 'anim_parse_bench_screen.dart';
 import 'bare_anim_grid.dart';
 import 'capture_hook.dart';
 import 'bench_screen.dart';
@@ -111,6 +112,15 @@ Future<void> main() async {
   }
   if (_libName == 'bare') {
     runApp(MaterialApp(home: BareAnimGrid(itemCount: _items)));
+    return;
+  }
+  if (_libName == 'anim_parse') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimParseBenchScreen(),
+      ),
+    );
     return;
   }
   if (_libName == 'anim') {
