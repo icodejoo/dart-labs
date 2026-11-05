@@ -102,6 +102,10 @@ class MovaAudioExtractor implements MovaAudioPuller {
     if (_disposed) return null;
     Player? owned;
     StreamSubscription<bool>? sub;
+    // Output path created by this call; deleted unless ownership is handed over.
+    // 本次创建的输出路径；未成功移交给调用方时在释放播放器后删除。
+    String? createdPath;
+    var handedOver = false;
     final cancelled = Completer<void>();
     _cancel = cancelled;
     try {
@@ -110,6 +114,7 @@ class MovaAudioExtractor implements MovaAudioPuller {
         if (_disposed || cancelled.isCompleted) return null;
         final outPath =
             '$dir${Platform.pathSeparator}mova_stt_audio_${DateTime.now().microsecondsSinceEpoch}.wav';
+        createdPath = outPath;
         final player = owned = _player = _playerFactory();
         final native = player.platform;
         if (native is NativePlayer) {
@@ -149,6 +154,7 @@ class MovaAudioExtractor implements MovaAudioPuller {
       sub = null;
       await _release(owned);
       if (outPath == null || !await File(outPath).exists()) return null;
+      handedOver = true;
       return outPath;
     } on Object {
       return null;
@@ -156,6 +162,17 @@ class MovaAudioExtractor implements MovaAudioPuller {
       if (!cancelled.isCompleted) cancelled.complete();
       await sub?.cancel();
       await _release(owned);
+      // The player is gone, so nothing is still writing the partial file.
+      // 播放器已释放，不会再有写入，可安全删除残留的半成品 WAV。
+      final leftover = createdPath;
+      if (!handedOver && leftover != null) {
+        try {
+          final f = File(leftover);
+          if (await f.exists()) await f.delete();
+        } on Object {
+          // 清理失败不影响返回值。
+        }
+      }
       if (identical(_cancel, cancelled)) _cancel = null;
     }
   }
