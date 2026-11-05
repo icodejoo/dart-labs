@@ -46,6 +46,12 @@ class _FakeNative extends Fake implements NativePlayer {
   final List<String> callLog;
   _FakeNative(this.callLog);
 
+  /// Optional setup barriers for bounded teardown tests.
+  ///
+  /// 用于有界销毁测试的可选准备阻塞点。
+  Completer<int>? handleBarrier;
+  Completer<void>? observeBarrier;
+
   /// 原生属性操作为空实现，支持首次 open 的准备阶段。
   @override
   Future<String> getProperty(String name, {bool waitForInitialization = true}) async => '';
@@ -57,12 +63,13 @@ class _FakeNative extends Fake implements NativePlayer {
   @override
   Future<int> get handle async {
     callLog.add('native.handle');
-    return 12345;
+    return handleBarrier == null ? 12345 : await handleBarrier!.future;
   }
 
   @override
   Future<void> observeProperty(String name, Future<void> Function(String) callback, {bool waitForInitialization = true}) async {
     callLog.add('native.observeProperty:$name');
+    await observeBarrier?.future;
   }
 }
 
@@ -379,6 +386,48 @@ void main() {
       expect(factoryCalled, isFalse);
       await kernel.dispose();
     });
+
+    for (final blockObserver in [true, false]) {
+      test('B4 dispose bounds native setup and rejects late registration observer=$blockObserver', () async {
+        final calls = <String>[];
+        final player = _FakePlayer(calls);
+        final native = player._platform!;
+        if (blockObserver) {
+          native.observeBarrier = Completer<void>();
+        } else {
+          native.handleBarrier = Completer<int>();
+        }
+        var created = 0;
+        final kernel = MovaMpvKernel(
+          player: player,
+          audioOnly: true,
+          observeQoeSignals: true,
+          observeNativeEvents: true,
+          backendFactory: (_, _) {
+            created++;
+            return FakeMpvEventBackend();
+          },
+        );
+        var opened = false;
+        kernel.open('https://h/late.mp4').then((_) => opened = true);
+        await pumpEventQueue();
+        var disposed = false;
+        kernel.dispose().then((_) => disposed = true);
+        await pumpEventQueue();
+        expect(disposed, isFalse);
+        await Future<void>.delayed(const Duration(seconds: 5));
+        await pumpEventQueue();
+        expect(disposed, isTrue);
+        expect(calls.where((v) => v == 'player.dispose'), hasLength(1));
+        expect(created, 0);
+        native.observeBarrier?.complete();
+        native.handleBarrier?.complete(12345);
+        await pumpEventQueue();
+        expect(opened, isTrue);
+        expect(created, 0);
+        expect(kernel.endFileAvailable, isFalse);
+      });
+    }
 
     test('immediate dispose race loop', () async {
       int createSum = 0;

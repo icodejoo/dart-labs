@@ -368,7 +368,20 @@ class MovaAutoPauseGate {
     _reasons
       ..clear()
       ..addAll(_active.where(config.watches));
-    return _transition(wasHidden, playing, live, exempt, now, null, keepAliveCapable);
+    // A held stream must obey a newly selected pause mode or background watch.
+    // Keep the original hidden timestamp and change the obligation to resume.
+    //
+    // 待机流须遵循新选的暂停模式或后台监视；保留隐藏起点，恢复义务改为续播。
+    if (wasHidden && hidden && !exempt && _owe == _Owe.wake &&
+        (config.hiddenMode == MovaHiddenMode.pause ||
+            _reasons.contains(MovaHideReason.background))) {
+      _owe = _Owe.resume;
+      return MovaGuardAction.pause;
+    }
+    final reason = _reasons.contains(MovaHideReason.background)
+        ? MovaHideReason.background
+        : null;
+    return _transition(wasHidden, playing, live, exempt, now, reason, keepAliveCapable);
   }
 
   /// Sets one reason on/off and returns the action to take.

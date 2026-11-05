@@ -183,6 +183,39 @@ void main() {
     expect(sb(g, off, false, playing: false), MovaGuardAction.pause);
   });
 
+  test('B6 reconfigure keepAlive to pause preserves the hidden cycle', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
+    expect(sb(g, off, true), MovaGuardAction.keepAlive);
+    expect(g.reconfigure(const MovaAutoPauseConfig(), playing: true,
+        live: true, exempt: false, now: _t0.add(const Duration(seconds: 2)),
+        keepAliveCapable: true), MovaGuardAction.pause);
+    expect(g.reconfigure(const MovaAutoPauseConfig(), playing: false,
+        live: true, exempt: false, now: _t0.add(const Duration(seconds: 2)),
+        keepAliveCapable: true), MovaGuardAction.none);
+    expect(sb(g, off, false, playing: false, at: const Duration(seconds: 4)),
+        MovaGuardAction.reloadEdge);
+  });
+
+  test('B6 enabling background watch downgrades an already hidden keepAlive', () {
+    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(
+        hiddenMode: MovaHiddenMode.keepAlive, background: false));
+    expect(sb(g, off, true), MovaGuardAction.keepAlive);
+    expect(sb(g, MovaHideReason.background, true, playing: false), MovaGuardAction.none);
+    expect(g.reconfigure(keepAliveCfg, playing: false, live: true,
+        exempt: false, now: _t0, keepAliveCapable: true), MovaGuardAction.pause);
+    expect(sb(g, off, false, playing: false), MovaGuardAction.none);
+    expect(sb(g, MovaHideReason.background, false, playing: false), MovaGuardAction.resume);
+  });
+
+  test('B6 newly watched background uses inactive intent when reconfigured', () {
+    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(background: false));
+    g.onInactive(playing: true);
+    expect(sb(g, MovaHideReason.background, true, playing: false), MovaGuardAction.none);
+    expect(g.reconfigure(keepAliveCfg, playing: false, live: true,
+        exempt: false, now: _t0, keepAliveCapable: true), MovaGuardAction.pause);
+    expect(sb(g, MovaHideReason.background, false, playing: false), MovaGuardAction.resume);
+  });
+
   test('20. hiddenMode defaults to pause and takes part in == and hashCode', () {
     expect(const MovaAutoPauseConfig().hiddenMode, MovaHiddenMode.pause);
     expect(keepAliveCfg, isNot(const MovaAutoPauseConfig()));

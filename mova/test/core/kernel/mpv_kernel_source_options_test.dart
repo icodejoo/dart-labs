@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
@@ -64,6 +66,12 @@ class _FakeNative extends Fake implements NativePlayer {
   /// 为 true 时 setProperty / command 抛错（模拟 mpv 拒绝该选项）。
   bool failSet = false;
 
+  /// One-shot barriers for property and list writes.
+  ///
+  /// 属性及列表写入的一次性阻塞点。
+  Future<void> Function()? beforeSet;
+  Future<void> Function()? beforeCommand;
+
   /// mpv 拒绝（解析失败）的写入记录，对应真机上的 `Expected '=' and a value.`。
   final List<String> rejected = [];
 
@@ -77,6 +85,9 @@ class _FakeNative extends Fake implements NativePlayer {
   @override
   Future<void> setProperty(String name, String value, {bool waitForInitialization = true}) async {
     await Future<void>.delayed(Duration.zero);
+    final barrier = beforeSet;
+    beforeSet = null;
+    await barrier?.call();
     if (failSet) throw StateError('rejected');
     if (name == 'demuxer-lavf-o') {
       final parsed = parseMpvKeyValueList(value);
@@ -97,6 +108,9 @@ class _FakeNative extends Fake implements NativePlayer {
   @override
   Future<void> command(List<String> command, {bool waitForInitialization = true}) async {
     await Future<void>.delayed(Duration.zero);
+    final barrier = beforeCommand;
+    beforeCommand = null;
+    await barrier?.call();
     if (failSet) throw StateError('rejected');
     final [cmd, name, op, value] = command;
     expect(cmd, 'change-list');
@@ -278,6 +292,71 @@ void main() {
     log = <String>[];
     native = _FakeNative(log);
     kernel = MovaMpvKernel(player: _FakePlayer(log, native), audioOnly: true, observeQoeSignals: false);
+  });
+
+  for (final listWrite in [true, false]) {
+    test('B2 overlapping opens serialize source options listWrite=$listWrite', () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      // Pause A inside a native write, then request B with different values.
+      //
+      // 将 A 阻塞在原生写入内，再请求选项值不同的 B。
+      Future<void> blockWrite() async {
+        entered.complete();
+        await release.future;
+      }
+
+      if (listWrite) {
+        native.beforeCommand = blockWrite;
+      } else {
+        native.beforeSet = blockWrite;
+      }
+      final defaults = Map.of(native.lavf);
+      kernel.stageSourceOptions({'demuxer-lavf-o': 'media_timeout=100', 'cache': 'no'});
+      final first = kernel.open('a');
+      await entered.future;
+      kernel.stageSourceOptions({'demuxer-lavf-o': 'media_timeout=200', 'cache': 'yes'});
+      final second = kernel.open('b');
+      await pumpEventQueue();
+      expect(log, isNot(contains('set:cache=yes')));
+      release.complete();
+      await Future.wait([first, second]);
+      expect(log.where((v) => v.startsWith('open:')), ['open:b']);
+      expect(native.props['cache'], 'yes');
+      expect(native.lavf['media_timeout'], '200');
+      await kernel.open('c');
+      expect(native.props['cache'], 'auto');
+      expect(native.lavf, defaults);
+      await kernel.dispose();
+    });
+  }
+
+  test('B2 overlapping restore preserves option baselines for the newest source', () async {
+    final defaults = Map.of(native.lavf);
+    kernel.stageSourceOptions({'demuxer-lavf-o': 'media_timeout=100', 'cache': 'no'});
+    await kernel.open('a');
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    native.beforeCommand = () async {
+      entered.complete();
+      await release.future;
+    };
+    kernel.stageSourceOptions({'demuxer-lavf-o': 'media_timeout=200', 'cache': 'yes'});
+    final second = kernel.open('b');
+    await entered.future;
+    kernel.stageSourceOptions({'demuxer-lavf-o': 'media_timeout=300', 'cache': 'always'});
+    final third = kernel.open('c');
+    await pumpEventQueue();
+    expect(log, isNot(contains('set:cache=always')));
+    release.complete();
+    await Future.wait([second, third]);
+    expect(log.where((v) => v.startsWith('open:')), ['open:a', 'open:c']);
+    expect(native.props['cache'], 'always');
+    expect(native.lavf['media_timeout'], '300');
+    await kernel.open('d');
+    expect(native.props['cache'], 'auto');
+    expect(native.lavf, defaults);
+    await kernel.dispose();
   });
 
   test('内核具备按源选项能力', () {

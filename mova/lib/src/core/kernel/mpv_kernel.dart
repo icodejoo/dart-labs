@@ -704,6 +704,11 @@ class MovaMpvKernel
   /// 已下发的按源选项在下发前的原值（属性名 → 原值）；非空即有待还原项，下次 [open] 先还原。
   final Map<String, String> _appliedOptions = {};
 
+  /// Serializes option restoration and application across overlapping opens.
+  ///
+  /// 串行化重叠加载的选项还原和下发。
+  Future<void> _sourceOptionsQueue = Future<void>.value();
+
   /// 已下发的键值列表选项：选项名 → 本源加入的键及其原值（`null` 表示原来没有该键）。
   /// 还原时只删这些键、把有原值的补回去，不碰列表里别的项。
   final Map<String, Map<String, String?>> _appliedLists = {};
@@ -780,16 +785,19 @@ class MovaMpvKernel
     await _ensureNativeEvents();
     final seq = ++_openSeq;
     _formatProbePending = false;
-    // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
-    await _restoreLiveCache();
-    // A newer open() (or dispose) superseded this one while it was waiting.
+    // Finish each option transaction before another load can restore its values.
     //
-    // 等待期间已被更新的 open()（或 dispose）取代。
-    if (seq != _openSeq || _disposed) return;
-    // 先还原上一个源的按源选项，再下发本源的：选项不跨源泄漏。
-    await _restoreSourceOptions();
-    if (seq != _openSeq || _disposed) return;
-    await _applySourceOptions(options);
+    // 每次选项事务完成后，下一次加载才能还原它保存的原值。
+    final setup = _sourceOptionsQueue.then((_) async {
+      if (seq != _openSeq || _disposed) return;
+      await _restoreLiveCache();
+      if (seq != _openSeq || _disposed) return;
+      await _restoreSourceOptions();
+      if (seq != _openSeq || _disposed) return;
+      await _applySourceOptions(options);
+    });
+    _sourceOptionsQueue = setup.then<void>((_) {}, onError: (Object _) {});
+    await setup;
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
@@ -860,16 +868,21 @@ class MovaMpvKernel
     await _restartController.close();
     await _endFileController.close();
     await _optionErrors.close();
-    // 必须等构造期发起的原生观察者注册落地，才能销毁 _player——见
-    // _observeSetup 的文档注释。
-    // 因为 observeProperty 自身也 await 同一个初始化 future，如果
-    // handle 挂起会拖死 dispose，因此加一个 5 秒的超时。
+    // Bound both setup tasks together; a late handle checks _disposed before
+    // creating a client, so it cannot register after player teardown.
+    //
+    // 两项准备任务共用等待上限；迟到的句柄在创建客户端前检查 _disposed，
+    // 不会在播放器销毁后注册客户端。
     try {
-      await _observeSetup?.timeout(const Duration(seconds: 5));
+      await Future.wait<void>([
+        ?_observeSetup,
+        ?_nativeSetup,
+      ]).timeout(const Duration(seconds: 5));
     } catch (_) {
-      // 超时或抛错吞掉继续销毁
+      // Continue teardown after a setup failure or timeout.
+      //
+      // 准备失败或超时后继续释放资源。
     }
-    await _nativeSetup;
     await _pump?.dispose();
     await _attemptEnds.close();
     await _player.dispose();
