@@ -2,6 +2,18 @@
 
 **已知阻断(发布前必须处理)**:`SvgScene`/`SvgMask`/`SvgPattern` 的线格式新增了 `commands` 字段。目前只有 Windows x64 预编译库已重编,其余平台(iOS xcframework、macOS framework、Linux x64/arm64、Windows arm64,以及按需核对 Android 四个 ABI)的预编译库必须全平台重编并更新 MANIFEST 后才能发布,否则 SSE 解码错位。
 
+* Add byte sniffing to `NetworkSvgx`, `AssetSvgx`, `FileSvgx` and `MemorySvgx`:
+  SVG uses svgx; bitmap and unknown bytes use Flutter's native decoder through
+  the supplied decode callback, preserving `ResizeImage` and animated GIF/WebP.
+  Bitmap signatures override content type. `StringSvgx` remains SVG text;
+  `Svgx.*` widget text loading and its LRU are unchanged. Provider-only SVG
+  parameters do not affect bitmaps; gzip SVG (`svgz`) remains unsupported.
+* Align ImageProvider SVG animation rendering with app frames using a
+  `timeDilation`-aware timer and scheduler timestamps. Gaps exceeding four
+  animation intervals advance only one interval; losing the last listener
+  pauses progress. Finite documents render their final frame once and stop.
+  `SvgxAnimationController` does not control ImageProviders.
+
 * Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
   play/pause/stop/seek, finite signed playback rates, reversible completion,
   once/loop/ping-pong ranges, duration fitting, cues and playback/element events.

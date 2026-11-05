@@ -85,6 +85,35 @@ Svgx.string(
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
 
+### Migrating mixed-format images
+
+Replace `Image.network(url)` with `Image(image: NetworkSvgx(url))` when a URL
+may return SVG or a bitmap. `AssetSvgx`, `FileSvgx` and `MemorySvgx` also detect
+SVG bytes and fall back to Flutter's native decoder for PNG/JPEG/GIF/WebP/BMP
+and other engine-supported formats, including animated GIF/WebP.
+`StringSvgx` remains an SVG markup input. `Svgx.asset/network/file` widgets
+keep their existing SVG-only text loading behavior.
+
+```dart
+Image(image: NetworkSvgx(url))
+Image(image: ResizeImage(NetworkSvgx(url), width: 128))
+```
+
+Bitmap decoding honors `ResizeImage`; migrate `Image.network`'s `cacheWidth`
+and `cacheHeight` using `ResizeImage.resizeIfNeeded(cacheWidth, cacheHeight,
+NetworkSvgx(url))`. Provider `width`/`height` select SVG raster resolution
+only; provider `colorFilter`, `theme` and
+`animationFrameRate` do not affect bitmaps. Use `Image.color` and
+`Image.colorBlendMode` to tint either format. Flutter's `ImageCache` caches
+provider results; raw provider bytes do not use the widgets' text LRU.
+
+SVG animations pause without listeners, follow `timeDilation`, and stop at
+their final frame for finite documents. Frame gaps exceeding four animation
+intervals count as a pause and advance only one interval on resume.
+`SvgxAnimationController` does not control ImageProviders. Gzip SVG (`svgz`)
+is unsupported: gzip payloads go to the native decoder and retain its error.
+Web is unsupported by this native FFI / `dart:io` implementation.
+
 ## Notes and limits
 
 * **Static `<image href>`**: only embedded `data:` URIs are decoded. Local

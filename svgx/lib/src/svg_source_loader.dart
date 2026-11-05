@@ -5,13 +5,32 @@
 // 共享的异步 SVG 源文本加载器 + 有界缓存，供 asset/网络加载。使
 // `Svgx.asset`/`Svgx.network` 与 `SvgImageProvider.asset`/`.network` 不会
 // 对同一个源重复拉取。
+// Image providers now use the independent byte entry points below; only the
+// existing text entry points share the source-text LRU with Svgx widgets.
+// ImageProvider 现使用下方独立字节入口；只有原有文本入口与 Svgx 控件共享文本 LRU。
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show NetworkImageLoadException;
 import 'package:flutter/services.dart';
+
+/// Original network image bytes and the optional HTTP content type.
+/// 网络图片的原始字节及可选 HTTP 内容类型。
+class SvgSourceBytes {
+  /// Wraps [bytes] and optional [contentType] without decoding them.
+  /// 包装 [bytes] 与可选 [contentType]，不进行解码。
+  const SvgSourceBytes(this.bytes, {this.contentType});
+
+  /// Original image payload. / 原始图片载荷。
+  final Uint8List bytes;
+
+  /// HTTP content type, or null when absent. / HTTP 内容类型，缺失时为 null。
+  final String? contentType;
+}
 
 /// Loads and caches SVG source text fetched from an asset bundle or a URL.
 ///
@@ -23,6 +42,8 @@ import 'package:flutter/services.dart';
 ///
 /// 不属于公开 API——只经由 [SvgSourceLoader.asset]/[SvgSourceLoader.network]
 /// 到达，供 `Svgx.asset`/`.network` 控件构造函数与 `SvgImageProvider` 使用。
+/// Byte entry points serve ImageProviders without changing the text cache.
+/// 字节入口供 ImageProvider 使用，不改变原有文本缓存。
 class SvgSourceLoader {
   SvgSourceLoader._();
 
@@ -33,6 +54,97 @@ class SvgSourceLoader {
   /// 每个网络阶段的超时；测试可覆盖默认的 30 秒。
   @visibleForTesting
   static Duration networkTimeout = const Duration(seconds: 30);
+
+  /// Shared byte client outside override scopes; consolidate handles HTTP gzip.
+  /// 覆盖作用域外共享的字节客户端；HTTP gzip 由 consolidate 处理。
+  static final HttpClient _defaultByteClient = HttpClient()
+    ..autoUncompress = false;
+
+  /// Clients shared within each HttpOverrides scope, without retaining scopes.
+  /// 每个 HttpOverrides 作用域内共享客户端，不强引用作用域。
+  static final Expando<HttpClient> _overrideByteClients = Expando<HttpClient>();
+
+  /// Returns the byte client belonging to the current override scope.
+  /// 返回当前覆盖作用域所属的字节客户端。
+  static HttpClient get _byteClient {
+    final overrides = HttpOverrides.current;
+    if (overrides == null) return _defaultByteClient;
+    return _overrideByteClients[overrides] ??= HttpClient()
+      ..autoUncompress = false;
+  }
+
+  /// Loads raw asset [name], optionally from [bundle] and [package].
+  /// Returns original bytes; this does not populate the text cache.
+  /// 从可选 [bundle]、[package] 加载资源 [name] 的原始字节，不写入文本缓存。
+  Future<Uint8List> assetBytes(
+    String name, {
+    AssetBundle? bundle,
+    String? package,
+  }) async {
+    final key = package == null ? name : 'packages/$package/$name';
+    final data = await (bundle ?? rootBundle).load(key);
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  }
+
+  /// Reads original bytes from [file] without populating the text cache.
+  /// 从 [file] 读取原始字节，不写入文本缓存。
+  Future<Uint8List> fileBytes(File file) => file.readAsBytes();
+
+  /// Fetches original image bytes and content type from [url], forwarding
+  /// [headers] and cumulative progress to [onBytesReceived]. Non-200 responses
+  /// throw [NetworkImageLoadException]; each network phase uses [networkTimeout].
+  /// Failed or timed-out requests are aborted without closing the shared client.
+  /// 从 [url] 获取原始图片字节及类型，透传 [headers]，通过 [onBytesReceived]
+  /// 报告累计进度；非 200 抛 [NetworkImageLoadException]，各阶段限时 [networkTimeout]。
+  /// 失败或超时只中止当前请求，不关闭共享客户端。
+  Future<SvgSourceBytes> networkBytes(
+    String url, {
+    Map<String, String>? headers,
+    void Function(int cumulativeBytesLoaded, int? expectedTotalBytes)?
+    onBytesReceived,
+  }) async {
+    final requestHeaders = headers == null
+        ? null
+        : Map<String, String>.of(headers);
+    final uri = Uri.base.resolve(url);
+    final timeout = networkTimeout;
+    var connectionTimedOut = false;
+    final request = await _byteClient
+        .getUrl(uri)
+        .then((request) {
+          if (connectionTimedOut) request.abort();
+          return request;
+        })
+        .timeout(
+          timeout,
+          onTimeout: () {
+            connectionTimedOut = true;
+            throw TimeoutException('Svgx image connection timed out', timeout);
+          },
+        );
+    try {
+      requestHeaders?.forEach(request.headers.add);
+      final response = await request.close().timeout(timeout);
+      if (response.statusCode != HttpStatus.ok) {
+        await response.drain<void>().timeout(timeout);
+        throw NetworkImageLoadException(
+          statusCode: response.statusCode,
+          uri: uri,
+        );
+      }
+      final bytes = await consolidateHttpClientResponseBytes(
+        response,
+        onBytesReceived: onBytesReceived,
+      ).timeout(timeout);
+      return SvgSourceBytes(
+        bytes,
+        contentType: response.headers.value(HttpHeaders.contentTypeHeader),
+      );
+    } catch (error, stack) {
+      request.abort(error, stack);
+      rethrow;
+    }
+  }
 
   final Map<String, Future<String>> _inFlight = {};
   int _generation = 0;

@@ -154,6 +154,8 @@ SvgxAnimated.string(src,
 
 ## 7. `SvgImageProvider` 的时钟评审
 
+> 状态(2026-11-05):7.3 的第 1、2 条已实现,与位图回退一起落地(Network/Asset/File/MemorySvgx 按字节嗅探,非 SVG 交给原生解码)。调度方式:`Timer(interval × timeDilation)` → `scheduleFrameCallback`;两帧间隔超过 4 个 interval 视为暂停,只推进 1 个 interval;有限文档发出末帧后停止。第 3 条(控制器)仍不做。问题 3"后台持续渲染"已用 binding 模拟验证,尚未在真机上测 CPU。
+
 **结论:不用共享时钟不是 Flutter 不支持,而是当初的实现选择;现在的写法有几处实际问题,建议改为 Flutter 官方 GIF 解码器的调度方式。**
 
 ### 7.1 事实
