@@ -398,9 +398,6 @@ class _Entry {
   /// 每个条目的条件异常最多上报一次。
   bool conditionErrorReported = false;
 
-  /// 首次结果是否已经交付。
-  bool settled = false;
-
   /// 是否单独暂停此条目的时长。
   bool paused = false;
 
@@ -2490,8 +2487,7 @@ class Layerman extends ChangeNotifier {
 
   /// 仅交付一次结果与结束原因，取消超时并发布 ended。
   void _settle(_Entry e, Object? result, OverlayEndReason reason) {
-    if (e.settled) return;
-    e.settled = true;
+    if (e.endReason != null) return;
     e.cancelTimeouts();
     e.endReason ??= reason;
     try {
