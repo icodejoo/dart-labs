@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'package:flutter/foundation.dart' show internal;
 import 'package:flutter/widgets.dart';
 import 'card_countdown_types.dart';
 
@@ -10,9 +11,10 @@ import 'card_countdown_types.dart';
 /// actually inherits (left unset on the card itself), cards in scope also
 /// share a glyph-level [TextPainter] cache keyed by `(text, style)` — the
 /// same digit/separator/label rendered by many cards is laid out once and
-/// reused, not re-shaped on every card every frame. A card that overrides
-/// one of these styles uses its own local cache for that style instead, so
-/// per-card customizations never pollute the shared pool.
+/// reused, not re-shaped on every card every frame. Overridden styles with
+/// equal values share a separate reference-counted cache across cards;
+/// the last user releases its paragraphs.
+/// 显式的相同样式跨卡共享，最后一个使用者释放，不占用 Provider 的缓存。
 ///
 /// Uses the standard subscribing [InheritedWidget] lookup: changing a
 /// [CardCountdownProvider]'s config rebuilds every [CardCountdown] in its
@@ -162,7 +164,7 @@ class CardCountdownProviderData {
   final double? perspective;
 
   /// Shared glyph cache — see the class-level doc on [CardCountdownProvider]
-  /// for which cards actually use it vs their own local cache.
+  /// for which cards use it or the separate cache shared by equal styles.
   final Map<(String, TextStyle), TextPainter> cache;
 }
 
@@ -195,6 +197,11 @@ class _CardCountdownScope extends InheritedWidget {
 class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
   /// 缓存上限覆盖数字的 16 档透明度及标签和分隔符。
   static const int capacity = 512;
+  /// 段落删除、替换或清空后的版本，供 painter 丢弃已失效引用。
+  @internal
+  int get generation => _generation;
+  /// 缓存版本只在可能释放段落时递增。
+  int _generation = 0;
   /// 插入顺序也是最早可淘汰的顺序。
   final _entries = <(String, TextStyle), TextPainter>{};
   /// 返回已缓存段落，未命中时为 null。
@@ -204,7 +211,10 @@ class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
   @override
   void operator []=((String, TextStyle) key, TextPainter value) {
     final old = _entries.remove(key);
-    if (old != null && !identical(old, value)) old.dispose();
+    if (old != null && !identical(old, value)) {
+      _generation++;
+      old.dispose();
+    }
     if (_entries.length >= capacity) remove(_entries.keys.first);
     _entries[key] = value;
   }
@@ -214,6 +224,7 @@ class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
   /// 清空并释放所有段落。
   @override
   void clear() {
+    _generation++;
     for (final painter in _entries.values) { painter.dispose(); }
     _entries.clear();
   }
@@ -221,7 +232,10 @@ class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
   @override
   TextPainter? remove(Object? key) {
     final painter = _entries.remove(key);
-    painter?.dispose();
+    if (painter != null) {
+      _generation++;
+      painter.dispose();
+    }
     return painter;
   }
 }

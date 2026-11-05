@@ -454,6 +454,7 @@ class DialCountdown extends StatelessWidget {
     this.painterBuilder,
     this.builder,
     this.plugin,
+    this.fps,
     this.total,
     this.rounding = CountdownRounding.floor,
     this.controller,
@@ -466,7 +467,10 @@ class DialCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
   ///
@@ -494,6 +498,10 @@ class DialCountdown extends StatelessWidget {
   // ── Countman integration ──────────────────────────────────────────────────
 
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
   /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
@@ -530,19 +538,11 @@ class DialCountdown extends StatelessWidget {
         .merge(scope?.dialCountdownStyle)
         .merge(CountmanTheme.maybeOf(context)?.dialCountdownStyle);
     final effSize = s.size ?? 200.0;
-    final effTicks = (s.showTicks ?? true) ? (s.ticks ?? const DialTicksConfig()) : null;
-    final effArcA = (s.showArcA ?? true)
-        ? (s.arcA ?? const DialArcConfig(radius: 35.5, strokeWidth: 2.4))
-        : null;
-    final effArcB = (s.showArcB ?? true)
-        ? (s.arcB ??
-            const DialArcConfig(radius: 31.5, strokeWidth: 1.3, segments: 3, spanDegrees: 60))
-        : null;
-    final effInner = (s.showInner ?? true) ? (s.inner ?? const DialInnerConfig()) : null;
 
     return CountdownBuilder(
       to: to,
       plugin: plugin,
+      fps: fps,
       total: total,
       rounding: rounding,
       controller: controller,
@@ -560,22 +560,11 @@ class DialCountdown extends StatelessWidget {
           container: true,
           label: 'Countdown',
           value: '${(parts.progress * 100).round()}%',
-          child: CustomPaint(
+          child: _DialPaint(
             size: Size.square(effSize),
-            painter: painterBuilder != null
-                ? painterBuilder!(ctx, parts)
-                : _DialPainter(
-                    parts: parts,
-                    clockwise: s.clockwise ?? true,
-                    redAt: s.redAt ?? 3,
-                    yellowAt: s.yellowAt ?? 10,
-                    colors: s.colors ?? const DialColors(),
-                    ticks: effTicks,
-                    arcA: effArcA,
-                    arcB: effArcB,
-                    inner: effInner,
-                    glow: s.glow ?? false,
-                  ),
+            parts: parts,
+            style: s,
+            customPainter: painterBuilder?.call(ctx, parts),
             child: builder != null
                 ? SizedBox.square(
                     dimension: effSize,
@@ -594,6 +583,64 @@ class DialCountdown extends StatelessWidget {
   }
 }
 
+// 私有宿主持有画笔，倒计时逐帧更新时复用文字段落。
+class _DialPaint extends StatefulWidget {
+  const _DialPaint({
+    required this.size,
+    required this.parts,
+    required this.style,
+    this.customPainter,
+    this.child,
+  });
+
+  final Size size;
+  final TimeParts parts;
+  final DialCountdownStyle style;
+  final CustomPainter? customPainter;
+  final Widget? child;
+
+  @override
+  State<_DialPaint> createState() => _DialPaintState();
+}
+
+class _DialPaintState extends State<_DialPaint> {
+  final _repaint = ValueNotifier(false);
+  _DialPainter? _painter;
+
+  @override
+  void didUpdateWidget(_DialPaint oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.customPainter != null) {
+      _painter?.disposeLabels();
+      _painter = null;
+    } else {
+      _painter?.update(widget.parts, widget.style);
+      // 同一个 painter 不会触发 shouldRepaint，主动标记本帧重绘。
+      _repaint.value = !_repaint.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _painter?.disposeLabels();
+    _repaint.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.customPainter == null && _painter == null) {
+      _painter = _DialPainter(repaint: _repaint)
+        ..update(widget.parts, widget.style);
+    }
+    return CustomPaint(
+      size: widget.size,
+      painter: widget.customPainter ?? _painter,
+      child: widget.child,
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // _DialPainter — the CustomPainter that draws all four concentric rings
 // ─────────────────────────────────────────────────────────────────────────────
@@ -602,30 +649,106 @@ class DialCountdown extends StatelessWidget {
 /// coordinate space (matching the SVG `viewBox="0 0 100 100"` from ring.ts)
 /// and then scaled to [size] via [_scale].
 class _DialPainter extends CustomPainter {
-  /// 创建表盘画笔，并在多次绘制间复用内环画笔。
-  _DialPainter({
-    required this.parts,
-    required this.clockwise,
-    required this.redAt,
-    required this.yellowAt,
-    required this.colors,
-    required this.ticks,
-    required this.arcA,
-    required this.arcB,
-    required this.inner,
-    required this.glow,
-  });
+  /// 由宿主持有并逐帧更新，文字缓存随宿主释放。
+  _DialPainter({required Listenable repaint}) : super(repaint: repaint);
 
-  final TimeParts parts;
-  final bool clockwise;
-  final int redAt;
-  final int yellowAt;
-  final DialColors colors;
-  final DialTicksConfig? ticks;
-  final DialArcConfig? arcA;
-  final DialArcConfig? arcB;
-  final DialInnerConfig? inner;
-  final bool glow;
+  late TimeParts parts;
+  late bool clockwise;
+  late int redAt;
+  late int yellowAt;
+  late DialColors colors;
+  DialTicksConfig? ticks;
+  DialArcConfig? arcA;
+  DialArcConfig? arcB;
+  DialInnerConfig? inner;
+  late bool glow;
+
+  final _labels = <TextPainter>[];
+  /// 仅用于验证缓存生命周期，不暴露组件 API。
+  @visibleForTesting
+  int get debugLabelCount => _labels.length;
+
+  double? _labelScale;
+  TextStyle? _labelStyle;
+  TextStyle? _labelConfigStyle;
+  Color? _labelColor;
+
+  /// 仅文字集合或实际文字样式变化时丢弃旧段落。
+  void update(TimeParts value, DialCountdownStyle style) {
+    final nextTicks = (style.showTicks ?? true)
+        ? (style.ticks ?? const DialTicksConfig())
+        : null;
+    final nextColors = style.colors ?? const DialColors();
+    if (nextTicks == null ||
+        !nextTicks.showLabels ||
+        nextTicks.count != ticks?.count ||
+        nextTicks.majorEvery != ticks?.majorEvery) {
+      disposeLabels();
+    }
+    parts = value;
+    clockwise = style.clockwise ?? true;
+    redAt = style.redAt ?? 3;
+    yellowAt = style.yellowAt ?? 10;
+    colors = nextColors;
+    ticks = nextTicks;
+    arcA = (style.showArcA ?? true)
+        ? (style.arcA ?? const DialArcConfig(radius: 35.5, strokeWidth: 2.4))
+        : null;
+    arcB = (style.showArcB ?? true)
+        ? (style.arcB ??
+            const DialArcConfig(
+                radius: 31.5, strokeWidth: 1.3, segments: 3, spanDegrees: 60))
+        : null;
+    inner = (style.showInner ?? true)
+        ? (style.inner ?? const DialInnerConfig())
+        : null;
+    glow = style.glow ?? false;
+  }
+
+  /// 清空时同步释放底层段落，不保留失效样式。
+  void disposeLabels() {
+    for (final label in _labels) {
+      label.dispose();
+    }
+    _labels.clear();
+    _labelScale = null;
+    _labelStyle = null;
+    _labelConfigStyle = null;
+    _labelColor = null;
+  }
+
+  /// 字符串、样式及排版只在缓存失效时创建。
+  void _prepareLabels(DialTicksConfig cfg, double sc) {
+    if (!cfg.showLabels || cfg.majorEvery <= 0 || cfg.count <= 0) return;
+    if (_labels.isNotEmpty &&
+        cfg.labelStyle == _labelConfigStyle &&
+        (cfg.labelStyle != null ||
+            (_labelScale == sc && _labelColor == colors.off))) {
+      return;
+    }
+    final style = cfg.labelStyle ??
+        TextStyle(
+          color: colors.off,
+          fontSize: 7.0 * sc,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        );
+    // 原始配置可以不同；实际样式相等时仍保留同一批段落。
+    if (_labelStyle != style) disposeLabels();
+    _labelScale = sc;
+    _labelStyle = style;
+    _labelConfigStyle = cfg.labelStyle;
+    _labelColor = colors.off;
+    if (_labels.isNotEmpty) return;
+    for (var i = 0; i < cfg.count; i += cfg.majorEvery) {
+      final label = TextPainter(
+        text: TextSpan(text: '$i', style: style),
+        textDirection: TextDirection.ltr,
+      );
+      // 排版异常时也由宿主回收已创建的文字资源。
+      _labels.add(label);
+      label.layout();
+    }
+  }
 
   /// 内环轨道画笔，避免每次重绘重新创建。
   final Paint _innerTrackPaint = Paint()..style = PaintingStyle.stroke;
@@ -725,6 +848,7 @@ class _DialPainter extends CustomPainter {
     final cfg = ticks;
     if (cfg == null) return;
 
+    _prepareLabels(cfg, sc);
     final count = cfg.count;
     // _sec() returns remSec % 60, which is 0 at exact minute boundaries
     // (e.g. 60 s or 120 s remaining).  At those boundaries all ticks should be
@@ -801,26 +925,11 @@ class _DialPainter extends CustomPainter {
     DialTicksConfig cfg,
     double sc,
   ) {
-    final style = cfg.labelStyle ??
-        TextStyle(
-          color: colors.off,
-          fontSize: 7.0 * sc,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        );
-    final tp = TextPainter(
-      text: TextSpan(text: '$i', style: style),
-      textDirection: TextDirection.ltr,
-    );
-    // 临时文字资源绘制后立即释放，异常时也保证回收。
-    try {
-      tp.layout();
-      final labelR = tickR - tickLen - 3.0 * sc;
-      final lx = centre.dx + labelR * math.cos(angle) - tp.width / 2;
-      final ly = centre.dy + labelR * math.sin(angle) - tp.height / 2;
-      tp.paint(canvas, Offset(lx, ly));
-    } finally {
-      tp.dispose();
-    }
+    final tp = _labels[i ~/ cfg.majorEvery];
+    final labelR = tickR - tickLen - 3.0 * sc;
+    final lx = centre.dx + labelR * math.cos(angle) - tp.width / 2;
+    final ly = centre.dy + labelR * math.sin(angle) - tp.height / 2;
+    tp.paint(canvas, Offset(lx, ly));
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -965,11 +1074,8 @@ class _DialPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DialPainter old) {
-    // TimeParts is mutated in place (same object reference every rebuild), so
-    // reference comparison or value comparison both return false — the old value
-    // is already overwritten by the time shouldRepaint runs.  Simply return true:
-    // the painter is only triggered once per second by CountdownBuilder's _rev
-    // notifier, so the per-repaint cost is negligible.
+    // TimeParts 原地更新，旧值已被覆盖；保持始终重绘的语义。
+    // 常驻画笔通过 repaint 通知刷新，标签排版不再随帧重复。
     return true;
   }
 }

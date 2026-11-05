@@ -30,6 +30,6 @@ export 'src/widgets/animated_counter/animated_counter.dart';
 export 'src/widgets/dial_countdown.dart';
 export 'src/widgets/countman_theme.dart';
 export 'src/widgets/providers.dart';
-export 'src/widgets/painter/painter.dart';
+export 'src/widgets/painter/painter.dart' hide transformRotateX;
 export 'src/widgets/ring_style.dart' show RingStyle;
 export 'src/widgets/bar_style.dart' show BarStyle;
