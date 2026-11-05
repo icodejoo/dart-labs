@@ -1,171 +1,137 @@
 ---
 name: cacheman
 description: >-
-  Work on cacheman — a type-safe wrapper over get_storage (persistent, `ls`), one class
-  (`Cacheman`): TTL & absolute expiry, sliding renewal, namespaces, pluggable
-  serialize/deserialize, an optional Codec hook (no implementation shipped), enckey key
-  obfuscation, raw/readonly modes, batch ops, an owned-key cache, a Jsonx serializer, and
-  fast/lazy/batchFast key-bound accessors, and a public container/storageKey escape hatch for
-  external interop (e.g. GetX reactive wiring). Flutter-only (get_storage dependency),
-  Dart/Flutter sibling of `@codejoo/storage` (TypeScript). Read BEFORE modifying anything
-  under lib/src/ or changing CachemanOptions semantics. Covers Cacheman's internal
-  invariants, the owned-key cache gotcha, sliding renewal after at least 10% of ttl elapsed, force's sync-only
-  retry, and the verify workflow. Triggers on: Cacheman(), ensureInitialized, ls, CachemanOptions,
-  CacheEntity, sliding, namespace, enckey, codeable, raw mode, readonly, force, onError,
-  Jsonx, fast/lazy/batchFast, debug(), read/write/erase, container, storageKey, listenKey.
+  Work on cacheman: synchronous Cacheman with overridable get_storage primitives,
+  abstract AsyncCacheman for user-owned async backends, and a private composed core
+  for TTL, sliding expiry, namespaces, envelopes, codecs and errors. Read before
+  changing lib/src or CachemanOptions. Preserve synchronous CRUD, bounded key maps,
+  raw/readonly rules, ownership and force's distinct sync/awaited failure boundaries.
 ---
 
 # cacheman
 
-Flutter package (`get_storage: ^2.1.1` — the only runtime dependency besides `flutter`
-itself). One `Cacheman` class (`lib/src/cacheman.dart`) implements the whole read/write/
-expiry/namespace logic directly — no internal `Engine` indirection; `ls` is a `Cacheman`
-instance talking directly to a `GetStorage` container (no backend abstraction seam — it
-only ever had one real implementation, so it was removed; also no in-process read cache —
-every `read` goes straight to `GetStorage`), wired up from one `CachemanOptions`. Entry point
-`lib/cacheman.dart` re-exports everything callers need. Tests: `test/cacheman_test.dart`
-(every case goes through a real `Cacheman()` + `await ensureInitialized()` backed by real
-`get_storage`, since `Cacheman` no longer accepts an injected fake backend — a shared
-`setUp`/`tearDown` builds a fresh temp dir + `FakePathProviderPlatform` per test, and each
-test picks a fresh container name). `example/lib/` is a runnable Flutter app (`flutter run
-example/lib/main.dart`) exercising every public feature — update it alongside the READMEs
-on any public API change.
-
-**`Cacheman()`'s constructor is plain and synchronous; `ensureInitialized()` (an instance
-method, not a static factory) is the only `Future` boundary in the whole API** — every other
-method is synchronous, because `get_storage` is sync-after-init (see `Cacheman`'s class doc
-for the full "why" vs the TS sibling's async IndexedDB tier). Do not add async methods to
-`Cacheman` without re-reading that design note — it's a deliberate constraint, not an
-oversight. There used to be a static `Cacheman.create()` factory instead; it was removed in
-favor of this plain-constructor + `ensureInitialized()` split specifically so external code
-can `extend Cacheman` and forward constructor params via `super(...)` — a static factory
-can't be subclassed that way, and Dart constructors can't be `async`.
-
-`Cacheman`'s public CRUD surface is `read`/`readAll`, `write`/`writeAll`, `remove`/
-`removeAll`, `erase` (plus `keys`/`key(index)`/`length`/`purge`/`setNamespace`,
-unaffected by that rename). `Cacheman` holds its `GetStorage` (`_gs`) directly as a private
-field — there is no `Store`/`MemoCache` contract to satisfy anymore and no memo read cache;
-adding a second backend would mean giving `Cacheman` an internal branch, not resurrecting an
-injected-interface seam. `Cacheman.destroy()` was removed along with the memo cache — there
-was nothing left for it to release.
-
-`Cacheman.container` (public `GetStorage` getter) and `Cacheman.storageKey(key)` (public
-`_fullKey` wrapper — namespace-prefixed, `enckey`-encoded when enabled) exist purely for
-external interop that needs the raw, real storage key — e.g. wiring `container.listenKey(
-storageKey(key), ...)` up to a GetX `Rx` for a VueUse-`useStorage`-style reactive layer. Use
-`storageKey(key)`, not `namespace + key`, whenever `enckey` might be involved — the codec's
-encoding is a private, pluggable implementation detail that can't be reproduced externally.
-
-The two READMEs (`README.md` EN, `README.zh-CN.md` ZH) are the canonical usage docs — keep
-both in sync on any public API change. Every field in `lib/src/*.dart` already carries a
-bilingual (EN + 中文) doc comment; match that convention for anything new.
+Flutter package, runtime dependencies only Flutter and `get_storage: ^2.1.1`.
+The user owns any additional backend dependency. Read ARCHITECTURE.md and both READMEs
+before public API changes; keep example/lib up to date. All new APIs/fields/methods
+carry concise EN + 中文 documentation. Public contracts include usage examples.
 
 ## Architecture map
 
-- **`lib/src/interface.dart`** — `Codec` (`encode`/`decode` string transform, no
-  implementation shipped), `CachemanOnError` typedef. (The former `Store`/`MemoCache`
-  backend contracts were removed — `Cacheman` now talks directly to `GetStorage`, see below.)
-- **`lib/src/options.dart`** — `CacheOptions` (deprecated, unused — pass `ttl`/`expireAt` to `write` directly),
-  `CachemanOptions` (instance-level configuration for `Cacheman`).
-- **`lib/src/entity.dart`** — `CacheEntity` (the write envelope: `value`/`expireAt`/
-  `createdAt`/`ttl`), `defaultSerialize`/`defaultDeserialize` (plain `jsonEncode`/
-  `jsonDecode`). `createdAt` doubles as "this entry was written by this library" — never
-  drop it when adding a new field, it's what stops a coincidentally-shaped foreign entry
-  from being mistaken for an expired one.
-- **`lib/src/cacheman.dart`** — the whole `Cacheman` class: the constructor (builds `_gs`
-  directly from the `GetStorage` container and one `CachemanOptions`) plus `ensureInitialized()`
-  (awaits `_gs`'s disk load), plus all the logic: `read`/`readAll`, `write`/`writeAll`,
-  `remove`/`removeAll`, `erase`,
-  `key`/`keys`/`length`/`purge`/`setNamespace`. `_gs` (the `GetStorage` container:
-  `_gs.write`/`.remove`/`.erase` calls are fire-and-forget with best-effort `.catchError`
-  handlers; get_storage 2.1.1 drops the actual flush Future, so real disk errors cannot
-  reach `onError` through them). `_hydrate` deletes unreadable entries and reports the
-  original exception (or FormatException for a null codec result); purge/readonly probes
-  remain quiet.
-  There is no in-process read cache — every `read` re-fetches from `_gs`.
-- **`lib/src/fast.dart`** — `FastAccessor<V>`, `fast`/`lazy`/`batchFast` — key-bound
-  accessor sugar over a `Cacheman` (its own `get`/`set`/`remove` methods forward to
-  `Cacheman.read`/`Cacheman.write`/`Cacheman.remove` — the accessor's own method names were
-  not part of the earlier `Engine`-CRUD rename).
-- **`lib/src/debug.dart`** — `debug(Cacheman)`: decrypted snapshot, never writes the snapshot
-  back (doesn't pollute `keys()`/`length`); ordinary read side effects still apply
-  (lazy-expiry deletion, sliding renewal, unreadable-entry deletion/reporting).
-- **`lib/src/jsonx.dart`** — `Jsonx.encode`/`Jsonx.decode<T>`: a `toEncodable`/`reviver` pair
-  round-tripping `DateTime`/`Duration`/`Set`/`BigInt`/`Uri`/`RegExp` via a strict
-  `{'#t': tag, 'value': ...}` tagged shape (`_isTagged` requires *exactly* those two keys,
-  so it never collides with real user data that happens to carry a same-named field).
-
-## `Cacheman` invariants (do NOT break)
-
-- **`Cacheman()`'s constructor does NOT call `GetStorage.init(container)`.** That factory
-  method internally caches instances by container name with `path` baked in as `null` on
-  first call — passing `path:` later would silently be ignored on a cache hit. Instead, the
-  constructor builds `GetStorage(container, path)` directly itself; `ensureInitialized()`
-  then awaits that instance's own `initStorage` and calls
-  `WidgetsFlutterBinding.ensureInitialized()` (normally `init()`'s job). Do not "simplify"
-  this back to `GetStorage.init(...)`.
-- **Writes assert explicit initialization in debug builds.** `_initialized` becomes true
-  only after `ensureInitialized()` awaits `initStorage`; `_persist` asserts before its
-  retry try/catch so misuse is not swallowed. Release behavior stays unchanged.
-- **The owned-key cache (`_ownedKeysCache`) is per-`Cacheman`-instance, not per-backend.**
-  It's lazily built via a full scan (`_gs.getKeys<Iterable<dynamic>>().where(_owns)`) on
-  first access, then incrementally maintained by `_trackOwned`/`_untrackOwned` as *this*
-  instance writes/deletes. **Two `Cacheman` instances sharing the same namespace on the
-  same backend (e.g. two separate `Cacheman()` instances for the same
-  container+namespace) can drift this cache stale** — a write through instance A is
-  invisible to instance B's cache. Fine for the normal one-instance-per-namespace usage
-  (per-account isolation); do not assume it's safe for concurrent same-namespace instances
-  without addressing this first. `setNamespace` invalidates the cache wholesale (ownership
-  predicate changed).
-- **Sliding renewal only fires once at least 10% of the ttl has elapsed (at most 90%
-  remains)** (`entity.expireAt! - now <= entity.ttl! * 0.9`) — reads while more than 90%
-  remains do NOT trigger a write-back. Preserve this guard: it exists specifically to stop
-  high-frequency reads from amplifying into high-frequency writes.
-- **`force`'s retry only covers a *synchronous* write exception** (e.g. a custom
-  `serialize` throwing) — `_persist` catches, purges expired entries, retries once, then
-  reports via `onError`. Actual disk-flush failures are async and are *never* retried;
-  get_storage 2.1.1's write Future cannot carry them, so `_reportFlushError` is best-effort
-  only. Don't conflate `_reportError` (sync) with `_reportFlushError` (async). Note there's no real-backend way to force a
-  *synchronous* `get_storage` write failure in tests anymore (the old `FakeStore.failNext`
-  seam is gone) — `test/cacheman_test.dart`'s "force / onError" group instead verifies that
-  flush failures do not throw synchronously out of an initialized `write()`; it does not
-  guarantee `onError` for a real disk failure. Throwing serializers cover sync retries.
-- **`raw: true` requires a `String` value** — anything else is warned and the write is
-  skipped (`T value` checked `is! String` in `Cacheman.write`). This mirrors a fix in the TS
-  sibling; don't silently coerce non-strings.
-- **`readonly: true` short-circuits `write` before the raw/entity branch** — `_alive` checks
-  presence without renewal/deletion/reporting; a stored null counts as present. A second
-  `write` on a live key is a silent no-op; it fires again once the key expires.
-- **`enckey` requires `keyCodec ?? codec`** — without one, the constructor prints a warning
-  and keys stay plaintext (`_enckey` checks both the flag and `_keyCodec`). Same pattern for
-  `codeable` without a value codec. `_ekCache` (encoded keys) and `_lkCache` (storage key →
-  logical key) are each capped at `_keyCacheLimit` (1024), cleared wholesale on overflow
-  and together on `setNamespace` — bounded maps, not LRUs. Null key decodes retain the
-  original fallback behavior and are not memoized.
-- **`_persist` calls `_trackOwned` on every successful write, including retries** — if you
-  add a new write path, remember to call `_trackOwned`/`_untrackOwned` so the owned-key
-  cache stays consistent; the cache is *not* self-healing except via a full rebuild
-  triggered by `setNamespace`.
-
-## Verify workflow
-
-Run these commands at the package root（在包根目录执行）:
-
-```bash
-flutter analyze         # acceptance gate — must be clean
-flutter test             # test/cacheman_test.dart — all groups run against a real get_storage backend
-flutter analyze example   # independently analyze the example package (entry: example/lib/main.dart)
-dart pub publish --dry-run   # release readiness check before bumping/publishing
+```mermaid
+flowchart TD
+    App[Application chooses parallel instances] --> Sync[Cacheman: synchronous facade]
+    App --> Async[AsyncCacheman: awaited facade]
+    Sync --> Core[Private composed _CacheCore]
+    Async --> Core
+    Sync --> SyncRaw[Protected synchronous primitives]
+    Async --> AsyncRaw[Protected asynchronous primitives]
+    SyncRaw --> GS[Default lazy GetStorage]
+    SyncRaw --> UserSync[User sync backend]
+    AsyncRaw --> UserAsync[User LazyBox / files / other IO]
 ```
 
-The `Cacheman()` integration tests need a working `path_provider` platform channel
-even though an explicit `path:` is passed (get_storage's io backend unconditionally calls
-`getApplicationDocumentsDirectory()` first) — `test/cacheman_test.dart`'s
-`FakePathProviderPlatform` satisfies that call; its returned path is never actually used.
-On Windows, `get_storage` never closes its file handle, so the temp dir cleanup in
-`tearDown` is best-effort only, not a correctness assertion — don't turn a cleanup failure
-into a test failure.
+- `lib/src/cacheman.dart`: library owner and sync facade; constructor, initialization,
+  primitive calls/orchestration, sync owned-key set. Defaults talk to GetStorage only
+  inside primitives (container getter exposes the lazy instance for explicit interop).
+- `lib/src/core.dart`: private `_CacheCore` composed by both facades; namespace escaping,
+  key mapping caches, full/logical key/owns, envelope validation, dump/load, expiry,
+  renewal decision returning an optional new entity without IO, raw/batch validation,
+  original-error reporting. No backend branches or IO.
+- `lib/src/async_cacheman.dart`: abstract AsyncCacheman with options only, no container/path;
+  awaited primitives and orchestration. No built-in backends, read-value cache or owned-key set.
+- core.dart and async_cacheman.dart are parts of cacheman.dart, sharing a private Dart
+  library scope. The package entry exports public types, never the core.
+- interface.dart: Codec, CachemanOnError, immutable CacheContext and CacheOp.
+- options.dart: shared CachemanOptions; deprecated CacheOptions is unused.
+- entity.dart: CacheEntity value/expireAt/createdAt/ttl, default JSON serialization.
+- fast.dart: FastAccessor/fast/lazy/batchFast only support synchronous Cacheman.
+- debug.dart: synchronous decrypted snapshot, normal read side effects, never writes
+  a snapshot back. Async variants of accessors/debug/key(index) are out of scope.
+- jsonx.dart: optional extended JSON; strict two-key type tags, escapes same-shaped
+  ordinary maps and supports toJson fallback. No unsolicited serializer changes.
 
-Always update both READMEs for any public API or semantics change, and keep new
-`CachemanOptions`/`CacheOptions` fields' doc comments bilingual (EN + 中文), matching every
-existing field.
+## Invariants (do NOT break)
+
+- **Primitives are the only backend contact points.** Both facades own semantics;
+  users extend them and override primitives, not a new injected Store interface.
+  Do not ship Hive/files/SharedPreferences backends or dependencies in lib.
+- **Cacheman construction is synchronous; public CRUD stays synchronous.**
+  ensureInitialized awaits initRaw before setting the initialization flag. Protected
+  sync mutation primitives update memory before return; Future<void> only carries
+  background flush failures. Never defer memory updates in a sync override.
+- **GetStorage stays lazy (`late final`).** Constructor retains container/path, no
+  GetStorage construction until container/default primitive access. Default initRaw
+  initializes Flutter binding then awaits container.initStorage. Never call GetStorage.init:
+  it constructs a pathless cached singleton. Default first access uses the supplied path;
+  same-name containers still use the first actually constructed path. Because construction
+  is lazy, access order determines that winner. A subclass overriding every primitive
+  must never implicitly create the default backend. Explicit container access still does.
+- **No read-value cache in either facade.** Every read calls getRaw. Only key mappings
+  and the synchronous owned-key set may be cached.
+- **AsyncCacheman never caches its owned-key set.** Every enumeration/length/purge/scoped
+  erase calls keysRaw then filters owns. It may reuse the bounded core key mappings.
+  Async initRaw defaults no-op, required hooks are getRaw/setRaw/removeRaw/keysRaw;
+  clearRaw defaults to enumerating a snapshot and removing every backend key, no owns filter.
+- **Sync owned-key cache is per instance.** Lazily scan keysRaw, then track/untrack every
+  successful write (including retries), deletion and erase. setNamespace invalidates it.
+  Other instances/external writes in the same backend/namespace can make it stale; preserve
+  that documented limitation unless explicitly asked to redesign it.
+- **Namespace escaping is stable.** Escape `%` then `:`; namespace getter is the escaped
+  prefix plus colon, not the original option. setNamespace clears both key maps together.
+- **Key caches are bounded maps, not LRUs.** `_ekCache` and `_lkCache` each cap at 1024,
+  clear wholesale on overflow. Successful logical decoding is memoized; null decoding
+  retains the original fallback and is not memoized. enckey requires keyCodec ?? codec;
+  codeable requires codec. Missing codecs warn and degrade to plaintext.
+- **createdAt marks library envelopes.** Expiry/lazy deletion/purge require it so foreign
+  expireAt-shaped data survives. Do not drop it during renewal. Owns filtering is based
+  on namespace and successful enckey decoding, as before; it does not read every value.
+- **Sliding threshold is inclusive**: `expireAt - now <= ttl * 0.9`, at least 10% elapsed.
+  Above 90% remaining, no write-back. Core returns an entity copy, never mutates in place.
+- **Raw only accepts String.** Other values warn and skip; no coercion. Raw bypasses
+  envelope/value codec/ttl, including purge, but still applies namespace/key encoding.
+- **Readonly checks presence before raw/entity branches.** A stored null value counts;
+  probe does not renew/delete/report decode errors. Expired keys can be replaced.
+- **Force boundaries differ intentionally.** Sync: catch synchronous serialization/codec/
+  setRaw throws, purge expired, retry once; never retry background mutation Future failures.
+  Async: catch serialization or awaited setRaw failure, await purge, retry once, then onError.
+  Async renewal failures report and return the original read value (purge failure is caught
+  too). get_storage 2.1.1 drops the actual flush Future, so onError for real disk failure is
+  best-effort, never guaranteed. onError callbacks themselves are not swallowed.
+- **Initialization assertions remain outside retry catches** in debug builds; release
+  behavior is unchanged. A failed initRaw must not mark initialized.
+- **Decode reporting preserves phase 0.** Read deletes then reports original error once;
+  null value-codec decode produces FormatException. Purge/readonly load probes stay quiet;
+  raw bypasses load. Other backend IO errors normally propagate.
+- **Erase protects namespace OR enckey scopes.** Only with neither does erase call clearRaw
+  on the whole backend, including foreign keys. Keep existing enckey-only protection in
+  AsyncCacheman too; do not interpret “no namespace” as permission to drop that protection.
+- **CacheContext identifies actual primitive calls.** Logical key before prefix/encoding;
+  null for init/keys/clear. Namespace is the escaped prefix; CacheOp is actual read/write/
+  remove/keys/clear/init, including internal renewal/deletion. Batched CRUD passes each key.
+  Cross-box routing must enumerate/clear the union. Await pending async operations before
+  namespace switches; no transaction/concurrent readonly/sliding guarantees are provided.
+
+## Verification
+
+Execute at the package root; do not change directory:
+
+```bash
+flutter analyze
+flutter test
+flutter analyze example
+```
+
+Wait for final command results; no pnpm typecheck, no git commit. Original
+`test/cacheman_test.dart` assertions stay unchanged. Real get_storage tests need a
+FakePathProviderPlatform even with explicit path (IO backend queries documents first).
+Windows file handles remain open; existing temp cleanup is best-effort. New tests:
+`cacheman_primitives_test.dart` uses a fully overridden sync Map with a throwing container
+getter; `async_cacheman_test.dart` uses a local Map, failure budgets and a persistence gate.
+No test backend enters lib. The example has an independent pubspec and an interactive
+parallel-cache page with its own simple AsyncCacheman Map subclass.
+
+After verification inspect git status and git diff --stat; revert only unrelated pub-get
+changes with `git checkout -- <file>`. Do not revert user changes. Both READMEs must remain
+aligned, including Hive CE LazyBox, pure dart:io filename-safe storageKey mapping and
+SharedPreferencesWithCache illustrations (app dependencies only). Before a separate
+release task, use dart pub publish --dry-run; it is not required for this stage.

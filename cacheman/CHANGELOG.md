@@ -1,5 +1,19 @@
 ## Unreleased
 
+**Added (stage 1a):**
+
+- Protected synchronous storage primitives and CacheContext/CacheOp for user subclasses;
+  the default GetStorage container is lazy and still receives the supplied path on first use.
+- Abstract AsyncCacheman with awaited CRUD, TTL/absolute/sliding expiry, namespace/enckey,
+  codecs, raw/readonly/force, ownership-aware enumeration and scoped erase. No built-in
+  asynchronous backend or extra dependency; no read-value or owned-key set cache.
+- Private composed core shared by both facades for key spaces, envelopes, validation,
+  renewal decisions and original-error reporting. Existing synchronous APIs stay intact.
+- Bilingual layered-storage docs with app-side SharedPreferencesWithCache, Hive CE LazyBox
+  and dart:io examples, an interactive parallel-cache demo and primitive/async regression tests.
+- Document preserved enckey-only erase protection, sync versus awaited force failures,
+  backend lifecycle/concurrency boundaries and lazy container first-access path precedence.
+
 **Fixes:**
 
 - Align architecture, bilingual READMEs and contributor skill with the actual synchronous API,

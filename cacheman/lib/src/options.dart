@@ -6,7 +6,8 @@ import 'interface.dart';
 ///
 /// 单次 `write` 的选项载体。没有任何方法接受它——请直接把 `ttl`/`expireAt`
 /// 当命名参数传给 `write`/`writeAll`。
-@Deprecated('No method accepts it; pass ttl/expireAt to write()/writeAll() directly. Removed in the next breaking release.')
+@Deprecated(
+    'No method accepts it; pass ttl/expireAt to write()/writeAll() directly. Removed in the next breaking release.')
 class CacheOptions {
   const CacheOptions({this.ttl, this.expireAt});
 
@@ -27,9 +28,9 @@ class CacheOptions {
   final Object? expireAt;
 }
 
-/// Instance-level options for [Cacheman].
+/// Shared instance-level options for Cacheman and AsyncCacheman.
 ///
-/// [Cacheman] 的实例级配置。
+/// Cacheman 与 AsyncCacheman 共用的实例级配置。
 class CachemanOptions {
   const CachemanOptions({
     String Function(CacheEntity)? serialize,
@@ -102,16 +103,20 @@ class CachemanOptions {
   /// 一个坑）。
   final bool raw;
 
-  /// On a write exception, purge expired entries and retry the write once;
+  /// In Cacheman, on a write exception, purge expired entries and retry once;
   /// otherwise log and give up. Only triggers for a *synchronous* failure
   /// (e.g. a custom [serialize]/codec throwing). Real disk-flush failures are
   /// asynchronous, never retried, and with get_storage 2.1.1 don't reach
   /// [onError] at all (its write Future can't carry them).
   ///
-  /// 写入抛异常时，清理过期条目后重试一次；否则记录日志并放弃。只对**同步**
+  /// Cacheman 写入抛异常时清理过期后重试一次，否则记录日志并放弃。只对**同步**
   /// 失败（比如自定义 [serialize]/codec 抛错）触发。真正的落盘失败是异步的、
   /// 从不重试，而且 get_storage 2.1.1 下根本到不了 [onError]（它的 write
   /// Future 带不出错误）。
+  ///
+  /// AsyncCacheman instead catches awaited setRaw failures as well as
+  /// serialization errors, purges and retries once; it awaits renewal writes.
+  /// AsyncCacheman 也捕获 await setRaw 失败，清过期后重试一次；续期等待写入完成。
   final bool force;
 
   /// Write-once: only write when the key is empty (absent/expired);

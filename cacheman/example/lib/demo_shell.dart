@@ -5,6 +5,7 @@ import 'pages/ttl_page.dart';
 import 'pages/batch_page.dart';
 import 'pages/namespace_page.dart';
 import 'pages/advanced_page.dart';
+import 'pages/async_page.dart';
 
 class DemoShell extends StatefulWidget {
   const DemoShell({super.key});
@@ -22,6 +23,7 @@ class _DemoShellState extends State<DemoShell> {
     (label: 'Batch & Fast', icon: Icons.list_alt),
     (label: 'Namespace', icon: Icons.folder),
     (label: 'Debug & Jsonx', icon: Icons.bug_report),
+    (label: 'Layered Storage', icon: Icons.layers),
   ];
 
   void _refresh() => setState(() {});
@@ -38,6 +40,8 @@ class _DemoShellState extends State<DemoShell> {
         return NamespacePage(onChanged: _refresh);
       case 4:
         return AdvancedPage(onChanged: _refresh);
+      case 5:
+        return AsyncPage(onChanged: _refresh);
       default:
         return const SizedBox.shrink();
     }
@@ -57,8 +61,10 @@ class _DemoShellState extends State<DemoShell> {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-          child: Text('cacheman demo',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          child: Text(
+            'cacheman demo',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
         for (final item in _items)
           NavigationDrawerDestination(
@@ -88,9 +94,7 @@ class _DemoShellState extends State<DemoShell> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_items[_selectedIndex].label),
-      ),
+      appBar: AppBar(title: Text(_items[_selectedIndex].label)),
       drawer: nav,
       body: body,
     );
@@ -107,8 +111,10 @@ class _StatusBar extends StatelessWidget {
         children: [
           const Icon(Icons.storage, size: 14),
           const SizedBox(width: 4),
-          Text('ls: ${cache.length} keys',
-              style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            'ls: ${cache.length} keys',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ],
       ),
     );

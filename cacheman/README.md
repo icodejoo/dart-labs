@@ -9,7 +9,7 @@ with one unified API: TTL & absolute expiry, sliding renewal, namespaces, plugga
 serialization, an optional codec hook, and a key-bound shortcut helper. The Dart/Flutter sibling of
 `@codejoo/storage` (TypeScript).
 
-Fully synchronous after a single `await cache.ensureInitialized()` call — see `Cacheman`'s class
+`Cacheman` stays fully synchronous after a single `await cache.ensureInitialized()` call — see `Cacheman`'s class
 doc for why.
 
 ## Install
@@ -45,7 +45,7 @@ Constructs a `Cacheman` (persistent, `get_storage`-backed) exposing all CRUD met
 
 ### `cache.ensureInitialized()`
 
-The only `Future` boundary in the API. Awaits `get_storage`'s disk load for this instance's
+The only `Future` boundary in Cacheman's CRUD API. Awaits `get_storage`'s disk load for this instance's
 container.
 
 Subclassing: `Cacheman`'s constructor and `ensureInitialized()` are both plain, non-factory members,
@@ -160,10 +160,220 @@ Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `l
 result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippable, by design: custom
 `Enum`s and `Map`s with non-`String` keys — see `lib/src/jsonx.dart`'s doc comment.
 
+## Layered storage / custom backends
+
+Use multiple instances in parallel: small, frequently accessed data in synchronous `Cacheman`
+(default `get_storage`, which loads the entire container into memory), large values in your
+`AsyncCacheman` subclass backed by on-demand disk IO. The caches do not route or migrate data
+automatically; choose the instance at the call site. Neither facade adds a read-value cache.
+Cacheman owns namespace, TTL/absolute expiry, sliding renewal, envelopes, serialization/codecs,
+raw/readonly, force and ownership semantics; subclasses implement only backend primitives.
+No Hive, files, SharedPreferences backend or extra dependency ships in `lib/`.
+
+### Synchronous primitives: SharedPreferencesWithCache
+
+Override all six protected hooks: `initRaw`, `getRaw`, `keysRaw`, `setRaw`, `removeRaw`, `clearRaw`.
+Getters/enumeration are synchronous. Mutations must finish the memory update **before returning**;
+their `Future<void>` only reports background persistence errors. Those Future failures are reported,
+never retried by `force`; synchronous serialize/primitive exceptions may purge and retry once.
+Keep your mutation overrides non-`async` and forward to the backend's immediate memory update.
+
+Illustrative app-side adapter (add `shared_preferences` to your app, not this package):
+
+```dart
+import 'package:cacheman/cacheman.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// App-owned synchronous preferences adapter. / 应用自有的同步偏好适配器。
+class PreferencesCache extends Cacheman {
+  /// Builds without opening a backend. / 构造时不打开后端。
+  PreferencesCache({super.options});
+  /// Backend initialized by ensureInitialized. / 由 ensureInitialized 初始化的后端。
+  late final SharedPreferencesWithCache prefs;
+
+  @override
+  Future<void> initRaw(CacheContext ctx) async {
+    prefs = await SharedPreferencesWithCache.create(
+      cacheOptions: const SharedPreferencesWithCacheOptions(),
+    );
+  }
+
+  @override
+  Object? getRaw(CacheContext ctx, String k) => prefs.get(k);
+  @override
+  Iterable<String> keysRaw(CacheContext ctx) => prefs.keys;
+  @override
+  Future<void> setRaw(CacheContext ctx, String k, String v) => prefs.setString(k, v);
+  @override
+  Future<void> removeRaw(CacheContext ctx, String k) => prefs.remove(k);
+  @override
+  Future<void> clearRaw(CacheContext ctx) => prefs.clear();
+}
+```
+
+[SharedPreferencesWithCache](https://pub.dev/packages/shared_preferences) supplies cached synchronous
+reads. Its current [implementation](https://github.com/flutter/packages/blob/main/packages/shared_preferences/shared_preferences/lib/src/shared_preferences_async.dart)
+updates its cache before returning the persistence Future. Verify that contract for your chosen
+backend/version. `Cacheman.container` is still the default GetStorage escape hatch: even a fully
+custom subclass creates that default container if it accesses the getter. Overriding all hooks
+avoids it completely. The default `GetStorage(container, path)` is now lazy; initialization or first
+container access still supplies the constructor's path. Same-name containers retain GetStorage's
+first-construction-path-wins rule, now determined by first backend access rather than facade creation.
+Sync owned-key snapshots still only track changes through that instance; external mutations may
+require `setNamespace` to rebuild the snapshot.
+
+### Asynchronous primitives: Hive CE LazyBox
+
+`AsyncCacheman({options})` is abstract and has no container/path parameters. Implement `getRaw`,
+`setRaw`, `removeRaw`, `keysRaw`; `initRaw` optionally opens the backend (default no-op).
+`clearRaw` optionally overrides the default enumerate-and-remove implementation, which clears every
+key returned by `keysRaw`. All hooks receive actual storage keys; values written are strings.
+[Hive CE LazyBox](https://pub.dev/documentation/hive_ce/latest/hive_ce/LazyBox-class.html) loads each
+value from the backend on demand instead of keeping all values in memory (key metadata still lives
+in the backend). Configure Hive in the app before initializing this adapter; use a dedicated
+string-keyed LazyBox. Add `hive_ce` only to the consuming app.
+
+```dart
+import 'package:cacheman/cacheman.dart';
+import 'package:hive_ce/hive.dart';
+
+/// App-owned on-demand disk cache. / 应用自有的按需磁盘缓存。
+class HiveCache extends AsyncCacheman {
+  /// Opens the named box during initialization. / 初始化时打开指定 box。
+  HiveCache(this.boxName, {super.options});
+  /// Dedicated box name. / 专用 box 名称。
+  final String boxName;
+  /// Application owns closing this handle. / 应用负责关闭此句柄。
+  late final LazyBox<String> box;
+
+  @override
+  Future<void> initRaw(CacheContext ctx) async {
+    box = await Hive.openLazyBox<String>(boxName);
+  }
+  @override
+  Future<Object?> getRaw(CacheContext ctx, String k) async => await box.get(k);
+  @override
+  Future<void> setRaw(CacheContext ctx, String k, String v) => box.put(k, v);
+  @override
+  Future<void> removeRaw(CacheContext ctx, String k) => box.delete(k);
+  @override
+  Future<Iterable<String>> keysRaw(CacheContext ctx) async => box.keys.cast<String>();
+  @override
+  Future<void> clearRaw(CacheContext ctx) async { await box.clear(); }
+}
+
+// First configure Hive's directory in your app: Hive.init(cacheDirectory).
+// 先在应用内配置 Hive 目录：Hive.init(cacheDirectory)。
+final small = Cacheman(options: const CachemanOptions(namespace: 'small'));
+final large = HiveCache('large', options: const CachemanOptions(namespace: 'reports'));
+await small.ensureInitialized();
+await large.ensureInitialized();
+small.write('report', 1000); // small summary / 小型摘要
+await large.write('report', List.generate(1000, (i) => {'row': i}), ttl: 60000);
+final report = await large.read<List<dynamic>>('report');
+// The application owns box lifecycle: await large.box.close() when finished.
+// 应用负责 box 生命周期：使用完毕后 await large.box.close()。
+```
+
+### Asynchronous primitives: one dart:io file per key
+
+The filename encodes the **storageKey** with UTF-8 + base64url, including its namespace/codec
+transformation. Logical keys such as `report/2026` cannot introduce path separators.
+
+```dart
+import 'dart:convert' show base64Url, utf8;
+import 'dart:io';
+import 'package:cacheman/cacheman.dart';
+
+/// App-owned IO-only per-key file adapter. / 应用自有的每键文件适配器，仅限 IO 平台。
+class DirectoryCache extends AsyncCacheman {
+  /// Uses a dedicated directory. / 使用缓存专用目录。
+  DirectoryCache(this.directory, {super.options});
+  /// Backend directory. / 后端目录。
+  final Directory directory;
+  /// Recognized file suffix. / 可识别的文件后缀。
+  static const suffix = '.cache';
+
+  /// Maps storageKey to a safe filename. / 将 storageKey 映射为安全文件名。
+  File fileFor(String k) => File(
+    '${directory.path}${Platform.pathSeparator}${base64Url.encode(utf8.encode(k))}$suffix',
+  );
+
+  @override
+  Future<void> initRaw(CacheContext ctx) async {
+    await directory.create(recursive: true);
+  }
+  @override
+  Future<Object?> getRaw(CacheContext ctx, String k) async {
+    final file = fileFor(k);
+    return await file.exists() ? await file.readAsString() : null;
+  }
+  @override
+  Future<void> setRaw(CacheContext ctx, String k, String v) async {
+    await fileFor(k).writeAsString(v, flush: true);
+  }
+  @override
+  Future<void> removeRaw(CacheContext ctx, String k) async {
+    final file = fileFor(k);
+    if (await file.exists()) await file.delete();
+  }
+  @override
+  Future<Iterable<String>> keysRaw(CacheContext ctx) async {
+    final keys = <String>[];
+    await for (final entry in directory.list(followLinks: false)) {
+      if (entry is! File) continue;
+      final name = entry.uri.pathSegments.last;
+      if (!name.endsWith(suffix)) continue;
+      try {
+        keys.add(utf8.decode(base64Url.decode(name.substring(0, name.length - suffix.length))));
+      } on FormatException { /* ignore foreign filenames / 忽略外部文件名 */ }
+    }
+    return keys;
+  }
+  // clearRaw defaults to keysRaw + removeRaw; no recursive directory deletion.
+  // clearRaw 默认 keysRaw + removeRaw，不递归删除目录。
+}
+
+final large = DirectoryCache(Directory('cache-data'));
+await large.ensureInitialized();
+await large.write('report/2026', {'rows': 1000});
+final report = await large.read<Map<String, dynamic>>('report/2026');
+```
+
+This minimal IO example uses a dedicated directory and assumes serialized access. File-name length
+limits still apply; atomic replacement, locking and recovery belong in your backend. It is for IO
+platforms, not web. Values are read on demand and not retained by cacheman.
+
+### Context and async API contract
+
+`CacheContext` carries `key` (logical, before namespace/encoding), `namespace` (escaped prefix, same
+as the getter) and `op` (`CacheOp.init/read/write/remove/keys/clear`). Init/enumeration/whole-backend
+clear have a null key; batch CRUD invokes a primitive per key with its logical key. Internal lazy
+deletes and renewals use remove/write contexts. Use it for logging or routing by logical key prefix;
+if you route across boxes, `keysRaw` must enumerate their union and `clearRaw` must cover them all.
+
+Await `ensureInitialized`, `read<T>`/`readAll`, `write`/`writeAll`, `remove`/`removeAll`, `erase`,
+`keys()`, `length()`, `purge()` and `setNamespace()` on AsyncCacheman.
+`namespace` and `storageKey()` stay synchronous (no backend IO). TTL/expireAt and default values match Cacheman.
+There is no async `key(index)`, `fast`/`lazy`/`batchFast` or `debug()` in this stage.
+Every async enumeration calls `keysRaw` and filters ownership; no owned-key set is cached.
+Expired keys remain in enumeration/counts until read/purge, as in Cacheman.
+
+- With namespace **or enckey**, `erase()` removes only owned keys; with neither, it calls
+  `clearRaw` for the entire backend, including foreign keys. This preserves Cacheman's existing
+  enckey-only protection too.
+- `force` catches serialization and awaited `setRaw` failures, purges expired entries and retries
+  once, then calls `onError(storageKey, error)` or prints. Renewal awaits persistence; failed renewal
+  still returns the previously read value. This differs from synchronous background flush Futures.
+- Decode failures are deleted and reported before returning the default; purge/readonly probes stay
+  quiet. Other backend IO failures propagate; an `onError` callback that throws also propagates.
+- Await pending operations before switching namespace. Readonly and sliding are not transactions;
+  arrange concurrent access, backend lifecycle and durability in your subclass/application.
+
 ## Example
 
 A complete, runnable app exercising every feature above (persistent tier, ttl, sliding, namespace,
-batch ops, `fast`/`lazy`/`batchFast`, `debug()`, `codeable`/`enckey`, `Jsonx`, `raw`/`readonly`)
+batch ops, `fast`/`lazy`/`batchFast`, `debug()`, `codeable`/`enckey`, `Jsonx`, `raw`/`readonly`, parallel sync/async caches)
 is in [`example/`](./example/):
 
 ```bash
@@ -172,13 +382,11 @@ flutter run example/lib/main.dart
 
 ## Differences from `@codejoo/storage` (the TS sibling)
 
-- **Fully synchronous** after `await cache.ensureInitialized()` — `get_storage` is sync-after-init, so there's no `db`/async
-  tier the way the TS version has `ls`/`ss` (sync) vs `db` (async IndexedDB).
-- **One tier, not three**: only the persistent tier — no in-memory `ss` tier and no IndexedDB
-  equivalent needed.
+- **Synchronous Cacheman**, plus an abstract **AsyncCacheman** for user-provided backends.
+  No built-in disk tier, memory `ss` tier or automatic routing; instances can run in parallel.
 - **No built-in codec.** The TS version ships obfuscation codecs; this package only exposes the
   `Codec` interface.
-- **`force`'s retry only covers synchronous write failures** (e.g. a custom `serialize` throwing) —
+- **Cacheman `force` retries only synchronous write failures** (e.g. a custom `serialize` throwing) —
   `get_storage`'s actual disk-flush failures are asynchronous and never retried; with 2.1.1 its write Future
   can't carry them, so `onError` is only guaranteed for synchronous failures (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
 - No `crossTab` equivalent (a browser-tab concept with no Flutter analogue).
