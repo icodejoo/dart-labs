@@ -510,6 +510,7 @@ class _Scenario {
 
   /// 检查 I1–I4，同时比对独立暂停模型。
   Future<void> check({bool ended = false}) async {
+    manager.debugCheckInvariants();
     final why = diagnostic;
     expect(violations, isEmpty, reason: why);
     final records = manager.records;
@@ -1593,6 +1594,7 @@ class _ExtendedScenario {
 
   /// 每步检查 C1 和 I1–I7，I8 继续由原来的 60 个排序种子守住。
   void check({bool ended = false}) {
+    manager.debugCheckInvariants();
     final why = diagnostic;
     expect(violations, isEmpty, reason: why);
     final records = manager.records;
