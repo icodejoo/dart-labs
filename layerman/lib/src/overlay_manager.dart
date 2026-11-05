@@ -1032,7 +1032,7 @@ class Layerman extends ChangeNotifier {
   @visibleForTesting
   int get debugSlotCount => _slots.length;
 
-  /// 测试专用：反转抑制、阻塞等待或 overlap 持有状态，以验证反向不变量。
+  /// 测试专用：破坏指定编号的状态约束，以验证批次末尾及显式不变量检查。
   @visibleForTesting
   void debugCorruptInvariant(String kind, String id) => _batch(() {
         final e = _byId[id]!;
@@ -1045,6 +1045,14 @@ class Layerman extends ChangeNotifier {
             _detachFromActive(e);
             e.phase = OverlayPhase.pending;
             _pendingOverlaps.add(e);
+          case 'm':
+            e.externalDone = true;
+          case 'n':
+            e.hasHeldData = true;
+          case 'o':
+            e.durationRemaining = const Duration(seconds: 1);
+          case 'p':
+            _settle(e, null, OverlayEndReason.removed);
         }
       });
 
@@ -1121,6 +1129,26 @@ class Layerman extends ChangeNotifier {
       check(e, 'delayedOverlaps', true);
     }
     for (final e in _byId.values) {
+      if (e.externalDone && e.phase != OverlayPhase.closing) {
+        throw StateError(
+            '不变量 m：${e.id} 的 externalDone 为 true，但仍受管且阶段 ${e.phase} 不是 closing');
+      }
+      if (e.hasHeldData && e.phase != OverlayPhase.resolving) {
+        throw StateError(
+            '不变量 n：${e.id} 的 hasHeldData 为 true，但阶段 ${e.phase} 不是 resolving');
+      }
+      // build 期间解除全局暂停会登记帧后恢复，暂时保留 durationRemaining。
+      if (e.durationRemaining != null &&
+          !_paused &&
+          !e.paused &&
+          !_releasePending) {
+        throw StateError('不变量 o：${e.id} 保留 durationRemaining，但未暂停且无帧后恢复待办');
+      }
+      // 结果先交付，closing 仍须占位至后端退场或关闭超时；其他阶段不得保留已结束条目。
+      if (e.endReason != null && e.phase != OverlayPhase.closing) {
+        throw StateError(
+            '不变量 p：${e.id} 已结束（${e.endReason}）却仍在 _byId，阶段 ${e.phase} 不是 closing');
+      }
       final containers = locations[e] ?? [];
       if (containers.length != 1) {
         throw StateError('不变量 a：${e.id} 必须恰在一个容器，实际 $containers');
