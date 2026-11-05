@@ -74,6 +74,22 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
   // 主动拖动期间小窗须瞬时跟手——落位动画只在松手后的吸边阶段生效。
   bool _dragging = false;
 
+  /// Recomputes geometry when the borrowed engine or its sizing changes.
+  ///
+  /// 借用的引擎或尺寸配置变化时重新计算窗口几何。
+  @override
+  void didUpdateWidget(covariant MovaMiniWindow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.api, oldWidget.api) ||
+        widget.config.width != oldWidget.config.width ||
+        widget.config.aspectRatio != oldWidget.config.aspectRatio) {
+      _rect = null;
+      _lastBounds = null;
+      _lastInsets = null;
+      _dragging = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(

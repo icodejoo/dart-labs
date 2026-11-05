@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
+import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/ui/components/gesture_layer.dart';
@@ -10,6 +11,26 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
+  testWidgets('stationary seek gesture commits the last displayed target', (tester) async {
+    final api = FakeMovaApi();
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
+    api.pushProgress(const MovaProg(position: Duration(seconds: 10)));
+    await tester.pump();
+    final gesture = await tester.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(30, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(180, 0));
+    await tester.pump();
+    final displayed = api.lastPreviewAt;
+    api.pushProgress(const MovaProg(position: Duration(seconds: 15)));
+    await tester.pump(const Duration(seconds: 5));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(api.lastSeek, isNotNull);
+    expect(api.lastSeek, displayed);
+    await api.dispose();
+  });
+
   testWidgets('left vertical drag raises brightness (mainstream default)', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(volume: 50, brightness: 0.5));

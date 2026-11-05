@@ -163,6 +163,11 @@ class _GestureLayerState extends State<_GestureLayer>
   /// [MovaApi.state] 里）。
   Duration _lastPosition = Duration.zero;
 
+  /// Playback position captured at the start of a drag.
+  ///
+  /// 拖动开始时捕获的播放位置。
+  Duration _startPosition = Duration.zero;
+
   /// Shorthand for the capability surface this state drives.
   ///
   /// 该状态驱动的能力面的简写访问器。
@@ -256,6 +261,7 @@ class _GestureLayerState extends State<_GestureLayer>
     _cum = Offset.zero;
     _startedLeft = d.localFocalPoint.dx < _size.width / 2;
     _startZoom = _api.state.zoom;
+    _startPosition = _lastPosition;
   }
 
   /// Interprets drag/pinch movement and drives the matching intent.
@@ -349,7 +355,7 @@ class _GestureLayerState extends State<_GestureLayer>
         _axisFrac() *
         MovaPlayerStyle.gestureOf(context).hSeekSpanPerScreen.inSeconds
             .toDouble();
-    return _lastPosition + Duration(seconds: seconds.round());
+    return _startPosition + Duration(seconds: seconds.round());
   }
 
   /// Emits the intent value derived from accumulated movement.

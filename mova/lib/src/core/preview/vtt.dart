@@ -90,14 +90,14 @@ MovaThumbIndex parseVttThumbs(String content, {required Uri base}) {
     if (path.isEmpty) continue;
 
     final f = _kXywh.firstMatch(fragment);
-    final crop = f == null
+    final x = f == null ? null : int.tryParse(f.group(1)!);
+    final y = f == null ? null : int.tryParse(f.group(2)!);
+    final w = f == null ? null : int.tryParse(f.group(3)!);
+    final h = f == null ? null : int.tryParse(f.group(4)!);
+    final crop = x == null || y == null || w == null || h == null ||
+            x < 0 || y < 0 || w <= 0 || h <= 0
         ? null
-        : MovaThumbCrop(
-            x: int.parse(f.group(1)!),
-            y: int.parse(f.group(2)!),
-            w: int.parse(f.group(3)!),
-            h: int.parse(f.group(4)!),
-          );
+        : MovaThumbCrop(x: x, y: y, w: w, h: h);
 
     final Uri image;
     try {
