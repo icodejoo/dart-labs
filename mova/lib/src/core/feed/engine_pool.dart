@@ -18,13 +18,15 @@ import '../model/source.dart';
 /// Returns a fresh engine, never a shared one.
 ///
 /// 返回一个全新的引擎，绝不能是共享实例。
+/// Feed 与 Cutover 共用同一工厂类型；旧 MovaSwapEngine 别名也接受本类型。
+/// 示例：`MovaEngineFactory make = createMovaEngine`，每次调用返回全新引擎。
 typedef MovaEngineFactory = MovaApi Function();
 
 /// A pool engine currently bound to one feed index, plus whether its media
 /// has finished opening.
 ///
 /// [ready] is `false` between [MovaFeedEnginePool.bind] being called and its
-/// `open()` resolving — the window during which the UI should paint a
+/// `open()` resolving with acceptance — the window during which the UI should paint a
 /// placeholder instead of the video surface. It is *not* a "first frame has
 /// been rendered" signal: media_kit exposes no repeatable event for that
 /// (`VideoController.waitUntilFirstFrameRendered` is a one-shot `Completer`
@@ -34,7 +36,7 @@ typedef MovaEngineFactory = MovaApi Function();
 ///
 /// 池中一个当前绑定到某个 feed 索引的引擎，以及它的媒体是否已打开完毕。
 ///
-/// 从调用 [MovaFeedEnginePool.bind] 到其 `open()` resolve 之间，[ready] 为
+/// 从调用 [MovaFeedEnginePool.bind] 到其 `open()` 接受并 resolve 之间，[ready] 为
 /// `false`——这段窗口内 UI 应绘制占位而非视频画面。它*不是*"首帧已渲染"信号：
 /// media_kit 没有暴露可重复触发的首帧事件
 /// （`VideoController.waitUntilFirstFrameRendered` 是一次性 `Completer`，
@@ -54,9 +56,9 @@ class MovaFeedSlot {
   /// 绑定到该 feed 索引的引擎。
   final MovaApi api;
 
-  /// Whether this slot's media has finished opening.
+  /// Whether this slot's media open was accepted and has resolved.
   ///
-  /// 该 slot 的媒体是否已打开完毕。
+  /// 该 slot 的媒体打开是否已被接受并完成。
   final bool ready;
 }
 
@@ -66,24 +68,24 @@ class MovaFeedSlot {
 /// [MovaFeedEnginePool] 内部某个引擎的当前绑定；是对外发放的不可变
 /// [MovaFeedSlot] 快照背后的可变簿记。
 class _Binding {
-  /// Creates a binding for [api] pointing at [uri].
+  /// Creates a binding for [api] pointing at [source].
   ///
-  /// 为 [api] 创建一个指向 [uri] 的绑定。
+  /// 为 [api] 创建一个指向 [source] 的绑定。
   ///
   /// - [api]: the engine holding this binding / 持有该绑定的引擎
-  /// - [uri]: the source uri this binding opened / 该绑定打开的源 uri
-  _Binding({required this.api, required this.uri});
+  /// - [source]: 本绑定打开的完整媒体规格
+  _Binding({required this.api, required this.source});
 
   /// The engine holding this binding.
   ///
   /// 持有该绑定的引擎。
   final MovaApi api;
 
-  /// The source uri this binding opened; compared by string because
-  /// [MovaSource] has no value equality.
-  ///
-  /// 该绑定打开的源 uri；按字符串比较，因为 [MovaSource] 没有值相等。
-  final String uri;
+  /// 已打开的完整规格，以 sameAs 判断是否可复用。
+  final MovaSource source;
+
+  /// 首次打开操作；重复绑定共享结果，不提前播放旧画面。
+  late final Future<void> opening;
 
   /// Whether `open()` for this binding has resolved.
   ///
@@ -225,14 +227,14 @@ class MovaFeedEnginePool {
 
   /// Binds an engine to [index] and opens [source] on it.
   ///
-  /// Reuses the existing binding when [index] already holds the same uri, so
+  /// Reuses the existing binding when [index] already holds a sameAs source, so
   /// re-activating a page the viewer swiped back to costs nothing. Otherwise
   /// takes an idle engine, creating a new one only while the pool is below
   /// [size], and evicting the binding farthest from [index] once it is full.
   ///
   /// 把一个引擎绑定到 [index] 并在其上打开 [source]。
   ///
-  /// 若 [index] 已经绑定着同一个 uri 则直接复用，使观众往回滑到某页时不产生
+  /// 若 [index] 已经绑定着 sameAs 相同的媒体规格 则直接复用，使观众往回滑到某页时不产生
   /// 任何开销。否则取一个空闲引擎；仅在池未满时才新建，池满时淘汰离 [index]
   /// 最远的那个绑定。
   ///
@@ -255,8 +257,14 @@ class MovaFeedEnginePool {
     if (_disposed) return;
 
     final existing = _bound[index];
-    if (existing != null && existing.uri == source.uri) {
-      if (autoPlay) await existing.api.play();
+    if (existing != null && existing.source.sameAs(source)) {
+      await existing.opening;
+      if (!_disposed &&
+          identical(_bound[index], existing) &&
+          existing.ready &&
+          autoPlay) {
+        await existing.api.play();
+      }
       return;
     }
 
@@ -267,11 +275,29 @@ class MovaFeedEnginePool {
     if (existing != null) _release(index);
 
     final api = _acquire(index);
-    final binding = _Binding(api: api, uri: source.uri);
+    final binding = _Binding(api: api, source: source);
     _bound[index] = binding;
+    binding.opening = _openBinding(index, binding, autoPlay: autoPlay);
     _notify();
+    await binding.opening;
+  }
 
-    await api.open(source, autoPlay: autoPlay);
+  /// 打开 [binding]，仅当前绑定可认领接受结果；失败撤销绑定后保留错误给调用方。
+  Future<void> _openBinding(
+    int index,
+    _Binding binding, {
+    required bool autoPlay,
+  }) async {
+    bool accepted;
+    try {
+      accepted = await binding.api.open(binding.source, autoPlay: autoPlay);
+    } on Object {
+      if (!_disposed && identical(_bound[index], binding)) {
+        _release(index);
+        _notify();
+      }
+      rethrow;
+    }
 
     // The binding may have been evicted or replaced while `open()` was in
     // flight (a fast swipe can retain a new window mid-open). Marking a
@@ -282,7 +308,11 @@ class MovaFeedEnginePool {
     // retain 一个新窗口）。把已被取代的绑定标记为就绪，等于告诉 UI 去显示
     // 一个已经不属于该索引的画面。
     if (_disposed || _bound[index] != binding) return;
-    binding.ready = true;
+    if (accepted) {
+      binding.ready = true;
+    } else {
+      _release(index);
+    }
     _notify();
   }
 
@@ -317,7 +347,9 @@ class MovaFeedEnginePool {
     // 而不是每次上滑都串行付出 (N-1) 次原生往返（这是 feed 最热的路径）。
     await Future.wait(
       _bound.entries.toList().map(
-        (e) => e.key == index ? e.value.api.play() : e.value.api.pause(),
+        (e) => e.key == index && e.value.ready
+            ? e.value.api.play()
+            : e.value.api.pause(),
       ),
     );
   }
@@ -423,7 +455,7 @@ class MovaFeedEnginePool {
   void _release(int index) {
     final binding = _bound.remove(index);
     if (binding == null) return;
-    unawaited(binding.api.pause());
+    unawaited(binding.api.pause().catchError((Object _) {}));
     _idle.add(binding.api);
   }
 

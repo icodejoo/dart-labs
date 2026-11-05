@@ -15,6 +15,8 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import http.server
+import threading
 
 import run_matrix as matrix
 
@@ -23,12 +25,22 @@ class Blocked(Exception):
     pass
 
 
+def canonical_checks(rows):
+    """Expose named raw CHECKs from completed, error-free gap cases only."""
+    ended = {r['case'] for r in rows if r.get('kind') == 'END'}
+    errors = {r['case'] for r in rows if r.get('kind') == 'ERROR'}
+    return [dict(r['data'], kind='CHECK', originGapIndex=i,
+                 originGapCase=r['case'], originGapRun=r.get('run'))
+            for i, r in enumerate(rows) if r.get('kind') == 'CHECK'
+            and r.get('case') in ended-errors and isinstance(r.get('data'), dict)]
+
+
 class GapDriver(matrix.Driver):
     def screen(self):
-        window=self.adb('shell','dumpsys','window')
-        if not matrix.is_unlocked(window):
-            raise Blocked('device must be awake and unlocked; rendering evidence blocked')
-        return window
+        try:
+            return super().screen(wait=600)
+        except matrix.DeviceLocked as error:
+            raise Blocked(str(error)) from error
 
     def note(self, kind, detail, case='gap:HARNESS.driver'):
         line = f'[MOVA-COV] {datetime.now().astimezone().isoformat(timespec="milliseconds")} <run={self.logical_run_id}> <case={case}> {kind} {detail}'
@@ -84,6 +96,27 @@ class GapDriver(matrix.Driver):
         raise RuntimeError('HARNESS watchdog: no expected device handshake')
 
     def launch(self):
+        # CP3 uses a shared suite rather than the old gap-only entry APK.
+        # An existing CP0 selector owns its own lifecycle; do not replace it.
+        if os.environ.get('MOVA_CP3_CAMPAIGN') == '1':
+            class Selector(http.server.BaseHTTPRequestHandler):
+                def do_GET(self):
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'gap||30')
+
+                def log_message(self, *args):
+                    pass
+
+            try:
+                self.campaign_selector = http.server.ThreadingHTTPServer(('127.0.0.1', 18082), Selector)
+            except OSError:
+                self.campaign_selector = None
+            if self.campaign_selector:
+                threading.Thread(target=self.campaign_selector.serve_forever, daemon=True).start()
+                self.adb('reverse', 'tcp:18082', 'tcp:18082')
+                self.mappings.append(('reverse', 18082))
+                self.note('STEP', 'CP3 shared APK selector: gap||30 on 18082')
         self.adb('forward', 'tcp:18086', 'tcp:18086')
         self.mappings.append(('forward', 18086))
         self.adb('reverse', 'tcp:18085', 'tcp:18085')
@@ -101,6 +134,13 @@ class GapDriver(matrix.Driver):
                                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         self.children.append((proc, stream))
         self.note('RET', f'logcat pid={proc.pid} started')
+
+    def cleanup(self):
+        selector = getattr(self, 'campaign_selector', None)
+        if selector:
+            selector.shutdown()
+            selector.server_close()
+        super().cleanup()
 
     def media(self, fixtures):
         if not (fixtures / 'generation.json').is_file():
@@ -239,6 +279,14 @@ class GapDriver(matrix.Driver):
                         self.mark('late-error-sent')
             if data['phase'] == 'done':
                 (self.out / 'gap.json').write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+                # Canonical CHECKs are raw observations, not the derived gap
+                # verdict list. Preserve their original row index and only
+                # export a case after its END and without a harness ERROR.
+                canonical = canonical_checks(data['rows'])
+                destination = matrix.TOOL/'coverage_evidence'/('matrix-'+args.run_id)
+                destination.mkdir(parents=True, exist_ok=True)
+                (destination/('matrix-'+args.run_id+'-gap-'+args.group+'-checks.json')).write_text(
+                    json.dumps(dict(status='done', records=canonical), ensure_ascii=False, indent=2), encoding='utf-8')
                 if not product_rows:
                     raise RuntimeError('no per-case verdicts')
                 harness = [r for r in data['rows'] if r['kind'] == 'ERROR']

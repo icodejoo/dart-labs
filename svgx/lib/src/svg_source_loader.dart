@@ -10,6 +10,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Loads and caches SVG source text fetched from an asset bundle or a URL.
@@ -28,6 +29,31 @@ class SvgSourceLoader {
   /// Shared instance. / 共享单例。
   static final SvgSourceLoader instance = SvgSourceLoader._();
 
+  /// Timeout for each network phase; tests may override the 30-second default.
+  /// 每个网络阶段的超时；测试可覆盖默认的 30 秒。
+  @visibleForTesting
+  static Duration networkTimeout = const Duration(seconds: 30);
+
+  final Map<String, Future<String>> _inFlight = {};
+  int _generation = 0;
+  // Expando 按 bundle 身份分配编号，避免不同 bundle 的同名资源碰撞。
+  final Expando<int> _bundleIds = Expando<int>();
+  int _nextBundleId = 0;
+
+  /// Returns a stable JSON key for [headers], sorted by header name, for
+  /// cache and in-flight request identity. Null or empty maps return `[]`.
+  /// Header names and values are preserved exactly as supplied.
+  ///
+  /// 将 [headers] 按头名称排序并返回稳定的 JSON 键，用于缓存和在途请求去重。
+  /// 参数为 null 或空映射时返回 `[]`；头名称和值保留原样。
+  static String headersKey(Map<String, String>? headers) {
+    final keys = headers?.keys.toList() ?? <String>[];
+    keys.sort();
+    return jsonEncode([
+      for (final key in keys) [key, headers![key]],
+    ]);
+  }
+
   final LinkedHashMap<String, String> _cache = LinkedHashMap<String, String>();
 
   /// Max cached source strings before least-recently-used ones are dropped.
@@ -44,7 +70,8 @@ class SvgSourceLoader {
   Future<String> asset(String name, {AssetBundle? bundle, String? package}) {
     final key = package == null ? name : 'packages/$package/$name';
     final effectiveBundle = bundle ?? rootBundle;
-    return _cached(key, () => effectiveBundle.loadString(key));
+    final id = _bundleIds[effectiveBundle] ??= _nextBundleId++;
+    return _cached('asset:$id:$key', () => effectiveBundle.loadString(key));
   }
 
   /// Loads the SVG source from [file] on disk, caching the result by its
@@ -56,33 +83,48 @@ class SvgSourceLoader {
   /// 从磁盘上的 [file] 加载 SVG 源，按其路径缓存结果。只在缓存未命中时才重新读
   /// 文件——缓存之后文件在磁盘上被改动，要等这条缓存被 [maximumSize] 的 LRU
   /// 淘汰才会被重新读取，与 [network] 记录的"一次性拉取"取舍一致。
-  Future<String> file(File file) => _cached(file.path, file.readAsString);
+  Future<String> file(File file) =>
+      _cached('file:${file.path}', file.readAsString);
 
   /// Loads the SVG source at [url] over plain HTTP(S), caching the result by
   /// [url]. No caching headers are honored — this is a one-shot fetch, not an
   /// HTTP cache; repeated builds hit [maximumSize]'s in-memory LRU instead.
+  /// Connection, response headers, and the entire response body each have
+  /// a separate 30-second timeout (up to 90 seconds total).
   ///
   /// 通过 HTTP(S) 加载 [url] 处的 SVG 源，按 [url] 缓存结果。不处理任何 HTTP
   /// 缓存头——这是一次性拉取，不是 HTTP 缓存；重复构建靠 [maximumSize] 的内存
   /// LRU 命中。
+  /// 连接、响应头、完整响应体各自限时 30 秒（合计最多 90 秒）。
   Future<String> network(String url, {Map<String, String>? headers}) {
-    return _cached(url, () async {
-      final client = HttpClient();
-      try {
-        final request = await client.getUrl(Uri.parse(url));
-        headers?.forEach(request.headers.add);
-        final response = await request.close();
-        if (response.statusCode != HttpStatus.ok) {
-          throw HttpException(
-            'Svgx.network: $url returned HTTP ${response.statusCode}',
-            uri: Uri.parse(url),
-          );
+    final requestHeaders = headers == null
+        ? null
+        : Map<String, String>.of(headers);
+    return _cached(
+      'net:${jsonEncode([url, headersKey(requestHeaders)])}',
+      () async {
+        final timeout = networkTimeout;
+        final client = HttpClient();
+        try {
+          final request = await client.getUrl(Uri.parse(url)).timeout(timeout);
+          requestHeaders?.forEach(request.headers.add);
+          final response = await request.close().timeout(timeout);
+          if (response.statusCode != HttpStatus.ok) {
+            throw HttpException(
+              'Svgx.network: $url returned HTTP ${response.statusCode}',
+              uri: Uri.parse(url),
+            );
+          }
+          // 先收集字节再解码，让非法 UTF-8 的异常落在当前 Future 上。
+          final bytes = await response
+              .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk))
+              .timeout(timeout);
+          return utf8.decode(bytes);
+        } finally {
+          client.close(force: true);
         }
-        return await response.transform(utf8.decoder).join();
-      } finally {
-        client.close();
-      }
-    });
+      },
+    );
   }
 
   Future<String> _cached(String key, Future<String> Function() load) async {
@@ -91,14 +133,35 @@ class SvgSourceLoader {
       _cache[key] = hit; // move to most-recently-used
       return hit;
     }
-    final value = await load();
-    _cache[key] = value;
-    while (_cache.length > maximumSize) {
-      _cache.remove(_cache.keys.first);
+    final pending = _inFlight[key];
+    if (pending != null) return pending;
+    final generation = _generation;
+    final future = Future<String>.sync(load).then((value) {
+      if (generation != _generation) return value;
+      _cache[key] = value;
+      while (_cache.isNotEmpty && _cache.length > maximumSize) {
+        _cache.remove(_cache.keys.first);
+      }
+      return value;
+    });
+    _inFlight[key] = future;
+    void cleanup() {
+      if (identical(_inFlight[key], future)) _inFlight.remove(key);
     }
-    return value;
+
+    future.then(
+      (_) => cleanup(),
+      onError: (Object _, StackTrace _) => cleanup(),
+    );
+    return future;
   }
 
-  /// Drops every cached source string. / 清空全部已缓存源文本。
-  void clear() => _cache.clear();
+  /// Drops cached sources and invalidates in-flight cache writes. Existing
+  /// callers still receive their results; new callers start a fresh load.
+  /// 清空缓存并使在途加载的缓存写入失效；旧调用方仍收到结果，新调用方重新加载。
+  void clear() {
+    _generation++;
+    _cache.clear();
+    _inFlight.clear();
+  }
 }

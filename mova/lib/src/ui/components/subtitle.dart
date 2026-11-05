@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -117,7 +119,7 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
   Widget build(BuildContext context) {
     final cue = _cue;
     if (cue == null) return const SizedBox.shrink();
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return IgnorePointer(
       // A LayoutBuilder rather than Positioned: this widget is a plain
       // (non-Positioned) child of the overlay slot's Stack, so it already
@@ -144,12 +146,18 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
           // 找不到 MovaVideoRectScope 时（例如本组件在测试里被脱离
           // MovaPlayer 单独渲染）退化为整个容器，复刻修复前"对齐整个容器"的
           // 行为。
-          final rect = MovaVideoRectScope.of(context, fallback: Offset.zero & container);
+          final rect = MovaVideoRectScope.of(
+            context,
+            fallback: Offset.zero & container,
+          );
           return Padding(
             padding: EdgeInsets.only(
               left: rect.left,
               right: (container.width - rect.right).clamp(0, double.infinity),
-              bottom: (container.height - rect.bottom + _bottomGap).clamp(0, double.infinity),
+              bottom: (container.height - rect.bottom + _bottomGap).clamp(
+                0,
+                double.infinity,
+              ),
             ),
             child: Align(
               alignment: Alignment.bottomCenter,
@@ -160,7 +168,10 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
                 // 固定 key，便于测试/验证探针在不匹配文本内容的情况下定位到
                 // 渲染出的气泡 RenderBox。
                 key: const ValueKey('movaSubtitleCueBubble'),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Color(theme.barGradientColor),
                   borderRadius: BorderRadius.circular(4),
@@ -256,9 +267,12 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaIconButton(
-      icon: _on ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+      label: MovaPlayerStyle.stringsOf(context).subtitles,
+      icon: _on
+          ? MovaPlayerStyle.iconsOf(context).subtitles
+          : MovaPlayerStyle.iconsOf(context).subtitlesOff,
       theme: theme,
       onPressed: () => _showMenu(theme),
     );
@@ -272,7 +286,7 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
   void _showMenu(MovaTheme theme) {
     final languages = widget.api.stt.languages;
-    final strings = widget.api.options.strings;
+    final strings = MovaPlayerStyle.stringsOf(context);
     showMovaOptionSheet(context, theme, [
       MovaSheetItem(
         label: languages.join('/'),

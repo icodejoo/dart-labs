@@ -2,13 +2,15 @@ import 'package:dio/dio.dart';
 import '../cache_store.dart';
 import '../client.dart';
 import '../clock.dart';
+import '../config.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
 import '../request.dart';
 import '../response.dart';
 import '../stages.dart';
-import 'mock.dart';
+import 'source.dart';
 
 part 'cache_internal.dart';
 
@@ -118,7 +120,7 @@ class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = 'dioman:cache';
+  static const pluginName = diomanCacheName;
 
   /// 请求级 bool、Duration 或配置键。
   static final option = DiomanOptionKey<DiomanCacheOptions>(pluginName);
@@ -288,13 +290,6 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
         : enqueue(() => persist!.erase());
   }
 
-  /// 递归复制 Map/List；其余载荷按引用保留。
-  Object? deep(Object? data) {
-    if (data is Map) return data.map((k, v) => MapEntry(k, deep(v)));
-    if (data is List) return data.map(deep).toList();
-    return data;
-  }
-
   /// 数据副本经扩展工厂创建，保留所有响应元信息。
   DiomanResponse<dynamic> clone(
       DiomanContext<R> ctx, DiomanResponse<dynamic> r, Object strategy) {
@@ -304,7 +299,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
     if (strategy is Object? Function(Object?)) {
       copied = strategy(data);
     } else if (strategy == DiomanClonePolicy.deep) {
-      copied = deep(data);
+      copied = cloneDiomanConfig(data);
     } else if (strategy == DiomanClonePolicy.shallow) {
       copied = data is Map
           ? Map.of(data)
@@ -383,6 +378,7 @@ class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
       }
       final r = await next();
       final cancel = ctx.cancelled();
+      if (r.kind == DiomanKind.internal) return r;
       if (cancel != null) return cancel;
       var stored = false;
       if (valid() && (o.shouldStore?.call(r) ?? r.ok)) {

@@ -52,6 +52,11 @@ class ColdMountFrameBudget {
   static const Duration frameBudget = Duration(milliseconds: 8);
 
   Duration _spent = Duration.zero;
+  Duration? _frameStamp;
+  int _resetGeneration = 0;
+  bool _resetScheduled = false;
+  final Map<Object, Future<Object?>> _byKey = {};
+  final Map<Object, Map<Object, bool Function()>> _activeByKey = {};
   final List<void Function()> _pending = <void Function()>[];
   bool _retryScheduled = false;
 
@@ -63,7 +68,18 @@ class ColdMountFrameBudget {
   /// 本帧是否仍有预算容纳下一次同步冷渲染。[SvgxStatic.build] 在直接调用
   /// [RustSvgxPictureCache.getOrRender] 之前会先查这个；一旦本帧内变为 false,
   /// 之后的冷源就转而走 [runDeferred]。
-  bool get hasRoom => _spent < frameBudget;
+  bool get hasRoom {
+    final scheduler = SchedulerBinding.instance;
+    if (scheduler.schedulerPhase == SchedulerPhase.idle) {
+      return _spent < frameBudget;
+    }
+    final stamp = scheduler.currentFrameTimeStamp;
+    if (_frameStamp != stamp) {
+      _frameStamp = stamp;
+      _spent = Duration.zero;
+    }
+    return _spent < frameBudget;
+  }
 
   /// Runs [work] (a synchronous cold render) and charges its wall-clock time
   /// against this frame's budget. Callers should only call this when
@@ -75,10 +91,22 @@ class ColdMountFrameBudget {
   /// [hasRoom] 为 true 时调用；否则改用 [runDeferred]——一帧的 build 阶段本就
   /// 由 Flutter 按顺序处理各控件，天然有序、不存在竞态。
   T runNow<T>(T Function() work) {
+    hasRoom; // 在本帧第一次记账前更新帧时间戳。
     final stopwatch = Stopwatch()..start();
-    final result = work();
-    _spent += stopwatch.elapsed;
-    return result;
+    if (!_resetScheduled) {
+      _resetScheduled = true;
+      final generation = _resetGeneration;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (generation != _resetGeneration) return;
+        _spent = Duration.zero;
+        _resetScheduled = false;
+      });
+    }
+    try {
+      return work();
+    } finally {
+      _spent += stopwatch.elapsed;
+    }
   }
 
   /// Queues [work] to run once a future frame has budget room again, and
@@ -90,9 +118,29 @@ class ColdMountFrameBudget {
   /// 把 [work] 排入队列，等未来某一帧预算恢复后执行，返回一个到时完成的
   /// [Future]。在当前帧 [hasRoom] 已为 false 时由 [SvgxStatic.build] 调用——
   /// 复用 `<image>` 解码路径已有的那套 [FutureBuilder] + 占位符脚手架来接住它。
-  Future<T> runDeferred<T>(T Function() work) {
+  Future<T> runDeferred<T>(
+    T Function() work, {
+    Object? key,
+    Object? owner,
+    bool Function()? isActive,
+  }) {
+    // 同键共享队列项；每个调用方都留下存活检查，至少一个仍挂载才执行。
+    if (key != null && _byKey.containsKey(key)) {
+      _activeByKey[key]![owner ?? Object()] = isActive ?? () => true;
+      return _byKey[key]! as Future<T>;
+    }
+    if (key != null) {
+      _activeByKey[key] = {owner ?? Object(): isActive ?? () => true};
+    }
     final completer = Completer<T>();
+    if (key != null) _byKey[key] = completer.future;
     _pending.add(() {
+      final active = key == null
+          ? (isActive?.call() ?? true)
+          : _activeByKey.remove(key)!.values.any((check) => check());
+      if (key != null) _byKey.remove(key);
+      // 全部卸载时丢弃闭包；FutureBuilder 也已卸载，无需发布结果。
+      if (!active) return;
       try {
         completer.complete(work());
       } catch (error, stackTrace) {
@@ -128,9 +176,7 @@ class ColdMountFrameBudget {
     _spent = Duration.zero;
     while (_pending.isNotEmpty && hasRoom) {
       final next = _pending.removeAt(0);
-      final stopwatch = Stopwatch()..start();
-      next();
-      _spent += stopwatch.elapsed;
+      runNow(next);
     }
     if (_pending.isNotEmpty) _scheduleRetry();
   }
@@ -142,6 +188,11 @@ class ColdMountFrameBudget {
   @visibleForTesting
   void debugReset() {
     _spent = Duration.zero;
+    _frameStamp = null;
+    _resetGeneration++;
+    _resetScheduled = false;
+    _byKey.clear();
+    _activeByKey.clear();
     _pending.clear();
     _retryScheduled = false;
   }

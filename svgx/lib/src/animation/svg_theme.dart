@@ -30,4 +30,10 @@ class SvgxTheme {
   ///
   /// 替换 `currentColor` 关键字所用的颜色。
   final Color currentColor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SvgxTheme && other.currentColor == currentColor;
+  @override
+  int get hashCode => currentColor.hashCode;
 }

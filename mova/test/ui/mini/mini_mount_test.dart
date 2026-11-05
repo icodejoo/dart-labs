@@ -17,7 +17,7 @@ void main() {
     testWidgets('ctl.api == null renders nothing extra; child renders normally', (tester) async {
       final ctl = MovaMini();
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('home'),
       ));
       expect(find.text('home'), findsOneWidget);
@@ -28,7 +28,7 @@ void main() {
       final ctl = MovaMini();
       final api = FakeMovaApi(options: const MovaOpts());
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('home'),
       ));
       await ctl.show(api);
@@ -40,7 +40,7 @@ void main() {
       final ctl = MovaMini();
       final api = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('home'),
       ));
       await ctl.show(api);
@@ -58,7 +58,7 @@ void main() {
       final ctl = MovaMini();
       final api = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('home'),
       ));
       await ctl.show(api);
@@ -72,7 +72,7 @@ void main() {
       final navKey = GlobalKey<NavigatorState>();
       await tester.pumpWidget(MaterialApp(
         navigatorKey: navKey,
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('page1'),
       ));
       await ctl.show(api);
@@ -93,7 +93,7 @@ void main() {
       final ctl = MovaMini();
       final api = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: const Text('home'),
       ));
       await ctl.show(api);
@@ -110,10 +110,10 @@ void main() {
       final api = FakeMovaApi(options: _enabledOpts);
       final key = GlobalKey();
       await tester.pumpWidget(MaterialApp(
-        home: MovaMiniHost(key: key, ctl: ctl1, child: const Text('home')),
+        home: MovaMiniHost(key: key, mini: ctl1, child: const Text('home')),
       ));
       await tester.pumpWidget(MaterialApp(
-        home: MovaMiniHost(key: key, ctl: ctl2, child: const Text('home')),
+        home: MovaMiniHost(key: key, mini: ctl2, child: const Text('home')),
       ));
       await ctl2.show(api);
       await tester.pump();
@@ -292,7 +292,7 @@ void main() {
       final ctlB = MovaMini();
       final apiB = FakeMovaApi(options: const MovaOpts(mini: config));
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctlB, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctlB, child: child!),
         home: const SizedBox(),
       ));
       await ctlB.show(apiB);
@@ -324,7 +324,7 @@ void main() {
       ctlB.onTapContent = (_) => ctlB.hide();
       final apiB = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctlB, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctlB, child: child!),
         home: const SizedBox(),
       ));
       await ctlB.show(apiB);
@@ -341,7 +341,7 @@ void main() {
       final api = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
-        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: ctl, child: child!),
         home: Builder(builder: (context) {
           ctx = context;
           return const SizedBox();

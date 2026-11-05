@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:media_kit/media_kit.dart';
@@ -34,7 +35,7 @@ import '../core/preview/extractor.dart';
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
-class MovaFrameExtractor implements MovaFramePuller {
+class MovaFrameExtractor implements MovaHeaderedFramePuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。
@@ -61,6 +62,7 @@ class MovaFrameExtractor implements MovaFramePuller {
   ///
   /// 隐藏播放器当前已打开的媒体；无则为 null。
   String? _openUri;
+  String? _openHeaders;
 
   /// Serialises concurrent [extract] calls onto one hidden player.
   ///
@@ -111,85 +113,88 @@ class MovaFrameExtractor implements MovaFramePuller {
     return player;
   }
 
-  /// Performs one extraction on the hidden player, without queueing.
-  ///
-  /// 在隐藏播放器上执行一次抽帧，不做排队。
-  ///
-  /// - [uri]: the media address / 媒体地址
-  /// - [at]: the position to extract / 要抽取的位置
-  /// - [width]: target width in pixels / 目标宽度（像素）
-  /// - [hwdec]: whether hardware decoding may be used / 是否允许硬件解码
-  ///
-  /// Returns the encoded frame, or null on any failure.
-  ///
-  /// 返回编码后的帧；任何失败都返回 null。
-  /// 以 [pollInterval] 轮询 [done]，直到为真或超过 [timeout]；异常视为"还没好"。
-  ///
-  /// 返回是否在超时前完成。
-  Future<bool> _waitFor(
-    Future<bool> Function() done, {
-    Duration pollInterval = const Duration(milliseconds: 30),
-    Duration timeout = const Duration(seconds: 5),
-  }) async {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      try {
-        if (await done()) return true;
-      } on Object {
-        // 属性暂不可读（媒体未加载完）——继续等。
-      }
-      await Future<void>.delayed(pollInterval);
-    }
-    return false;
-  }
-
+  /// 在隐藏播放器上抽取 [uri] 的 [at] 帧；失败返回 null。
+  /// [width] 为目标宽度，[hwdec] 控制硬解。
   Future<Uint8List?> _extractNow(
     String uri,
     Duration at, {
     required int width,
     required bool hwdec,
+    Map<String, String> headers = const {},
   }) async {
     if (_disposed) return null;
     try {
       final player = await _ensurePlayer(width, hwdec);
       final native = player.platform;
-      if (_openUri != uri) {
-        await player.open(Media(uri), play: false);
+      final headerKey = jsonEncode(headers);
+      if (_openUri != uri || _openHeaders != headerKey) {
+        await player.open(Media(uri, httpHeaders: headers), play: false);
+        _openHeaders = headerKey;
         _openUri = uri;
         // 时长就绪前 seek 不会落地（首帧会停在第 0 帧），先等它。
         if (native is NativePlayer) {
-          final ready = await _waitFor(() async => (double.tryParse(await native.getProperty('duration')) ?? 0) > 0);
+          final ready = await movaWaitForPreviewFrame(
+            () async =>
+                (double.tryParse(await native.getProperty('duration')) ?? 0) >
+                0,
+          );
           if (!ready) return null;
         }
       }
       await player.seek(at);
-      if (native is NativePlayer) {
-        // 轮询 seeking/time-pos 判定 seek 真正落地，而不是固定睡一会儿（250ms 会截到
-        // 相邻位置的旧帧，真机实测）。
-        final target = at.inMilliseconds / 1000.0;
-        await _waitFor(() async {
-          if (await native.getProperty('seeking') != 'no') return false;
-          final pos = double.tryParse(await native.getProperty('time-pos'));
-          return pos != null && (pos - target).abs() < 0.3;
-        });
-      }
-      await Future<void>.delayed(settleDelay);
-      return await player.screenshot(format: 'image/jpeg');
+      return await movaCapturePreviewFrame(
+        landed: () async {
+          if (native is! NativePlayer) return false;
+          final target = at.inMilliseconds / 1000.0;
+          return movaWaitForPreviewFrame(() async {
+            if (_disposed || await native.getProperty('seeking') != 'no') {
+              return false;
+            }
+            final pos = double.tryParse(await native.getProperty('time-pos'));
+            return pos != null && (pos - target).abs() < 0.3;
+          });
+        },
+        capture: () async =>
+            _disposed ? null : player.screenshot(format: 'image/jpeg'),
+        settleDelay: settleDelay,
+      );
     } on Object {
       return null;
     }
   }
 
+  /// 串行抽帧；可选 [headers] 仅作用于本次媒体请求，旧调用默认无头。
   @override
   Future<Uint8List?> extract(
     String uri,
     Duration at, {
     required int width,
     required bool hwdec,
+    Map<String, String> headers = const {},
+  }) =>
+      extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: headers);
+
+  /// 使用当前源请求头串行抽帧，同地址换鉴权时重新打开媒体。
+  @override
+  Future<Uint8List?> extractWithHeaders(
+    String uri,
+    Duration at, {
+    required int width,
+    required bool hwdec,
+    required Map<String, String> headers,
   }) {
+    headers = Map.of(headers);
     final completer = Completer<Uint8List?>();
     _queue = _queue.then((_) async {
-      completer.complete(await _extractNow(uri, at, width: width, hwdec: hwdec));
+      completer.complete(
+        await _extractNow(
+          uri,
+          at,
+          width: width,
+          hwdec: hwdec,
+          headers: headers,
+        ),
+      );
     });
     return completer.future;
   }
@@ -199,6 +204,7 @@ class MovaFrameExtractor implements MovaFramePuller {
     final player = _player;
     _player = null;
     _openUri = null;
+    _openHeaders = null;
     if (player != null) {
       try {
         await player.dispose();
@@ -214,5 +220,45 @@ class MovaFrameExtractor implements MovaFramePuller {
   Future<void> dispose() async {
     _disposed = true;
     await release();
+  }
+}
+
+/// 轮询 [done] 确认落地；[timeout] 为总期限，[pollInterval] 为轮询间隔。
+/// 返回是否及时确认；异常按未就绪处理。示例：`await movaWaitForPreviewFrame(check)`。
+Future<bool> movaWaitForPreviewFrame(
+  Future<bool> Function() done, {
+  Duration pollInterval = const Duration(milliseconds: 30),
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) break;
+    try {
+      if (await done().timeout(remaining, onTimeout: () => false)) return true;
+    } on Object {
+      // 媒体属性暂不可读时继续轮询。
+    }
+    final rest = deadline.difference(DateTime.now());
+    if (rest <= Duration.zero) break;
+    await Future<void>.delayed(rest < pollInterval ? rest : pollInterval);
+  }
+  return false;
+}
+
+/// 仅在 [landed] 确认落地后等待 [settleDelay] 并调用 [capture] 截图。
+/// 返回编码帧；未落地或异常返回 null，防止错误帧入缓存。
+/// 示例：`await movaCapturePreviewFrame(landed: check, capture: screenshot)`。
+Future<Uint8List?> movaCapturePreviewFrame({
+  required Future<bool> Function() landed,
+  required Future<Uint8List?> Function() capture,
+  Duration settleDelay = Duration.zero,
+}) async {
+  try {
+    if (!await landed()) return null;
+    if (settleDelay > Duration.zero) await Future<void>.delayed(settleDelay);
+    return await capture();
+  } on Object {
+    return null;
   }
 }

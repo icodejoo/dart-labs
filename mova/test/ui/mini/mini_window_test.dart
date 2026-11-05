@@ -41,7 +41,7 @@ void main() {
 
   setUp(() {
     ctl = MovaMini();
-    api = FakeMovaApi(options: const MovaOpts());
+    api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
   });
 
   for (final corner in MovaMiniCorner.values) {

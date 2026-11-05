@@ -1,3 +1,7 @@
+import '../ad/ads.dart';
+import '../session/session.dart';
+import '../session/events.dart';
+import '../session/registry.dart';
 import 'dart:async';
 
 import '../api.dart';
@@ -21,19 +25,14 @@ import '../model/playlist.dart';
 /// 从不持有它，"下一集"卡片直接读该控制器而非经 [MovaApi]。其项/下标/自动续播取自
 /// [MovaOpts.playlist]；首次 [MovaApi.open]（或调用 [jumpTo]）仍由宿主执行。
 ///
-/// **Composing with ads:** both this controller and a `MovaAds` react to
-/// [MovaDone]; do not enable both against one player at once. Set
-/// [MovaPlaylistConfig.autoPlayNext] to `false` and drive [next] from
-/// `MovaAds.contentEnded` instead so ads and content-advance don't race.
-///
-/// **与广告组合：** 本控制器与 `MovaAds` 都响应 [MovaDone]；不要在同一
-/// 播放器上同时启用二者的自动行为。应把 [MovaPlaylistConfig.autoPlayNext] 设为
-/// `false`，改由 `MovaAds.contentEnded` 驱动 [next]，避免广告与换集争抢。
+/// 与广告组合时传入 `ads:` 共享会话，在正片及后贴片结束后自动连播。
+/// 新代码推荐直接使用 MovaSession；本类作为薄适配器长期保留。
 class MovaPlaylist {
   /// Creates a controller bound to [api], seeded from [MovaOpts.playlist].
   ///
   /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.playlist]。
   ///
+  /// - [ads]: 可选广告控制器，传入后换集走共享会话并遵守 enabled。
   /// - [api]: the player capability surface to drive / 要驱动的播放器能力面
   ///
   /// Example / 示例:
@@ -41,13 +40,46 @@ class MovaPlaylist {
   /// final playlist = MovaPlaylist(api);
   /// await playlist.jumpTo(0); // open the first item
   /// ```
-  MovaPlaylist(this._api)
-      : _items = _api.options.playlist.items,
-        _autoPlayNext = _api.options.playlist.autoPlayNext {
+  /// [ads] 非空时共享其会话，换集带广告，全部后贴片结束后自动下一集。
+  /// 返回新控制器；不销毁借用的会话。示例：`MovaPlaylist(api, ads: ads)`。
+  MovaPlaylist(this._api, {MovaAds? ads})
+    : _items = _api.options.playlist.items,
+      _autoPlayNext = _api.options.playlist.autoPlayNext,
+      _enabled = _api.options.playlist.enabled,
+      _session = ads?.session {
     final start = _api.options.playlist.initialIndex;
     _index = _items.isEmpty ? 0 : start.clamp(0, _items.length - 1);
-    _sub = _api.events.listen(_onEvent);
+    final session = _session;
+    if (session == null) {
+      _sub = _api.events.listen(_onEvent);
+    } else {
+      movaPlaylistSessions[this] = session;
+      session.setItems(_items, initialIndex: _index);
+      _endSub = movaContentEndEpochs(session).listen((epoch) {
+        if (epoch == session.cursor.epoch &&
+            _enabled &&
+            _autoPlayNext &&
+            hasNext) {
+          unawaited(next());
+        }
+      });
+      _itemSub = session.events.listen((event) {
+        if (event is MovaItemChange && !_disposed) {
+          _indexChanges.add(event.index);
+        }
+      });
+    }
   }
+
+  /// 会话路径遵守的播放列表开关；旧直连路径保持原行为。
+  final bool _enabled;
+
+  /// 广告适配器借出的共享会话。
+  final MovaSession? _session;
+
+  /// 会话路径只订阅全部后贴片结束信号。
+  StreamSubscription<int>? _endSub;
+  StreamSubscription<MovaSessionEvent>? _itemSub;
 
   final MovaApi _api;
   final List<MovaPlaylistItem> _items;
@@ -78,32 +110,32 @@ class MovaPlaylist {
   /// The index currently playing.
   ///
   /// 当前正在播放的下标。
-  int get currentIndex => _index;
+  int get currentIndex => _session?.cursor.item ?? _index;
 
   /// The item currently playing, or null when the list is empty.
   ///
   /// 当前正在播放的项；列表为空时为 null。
-  MovaPlaylistItem? get currentItem => _at(_index);
+  MovaPlaylistItem? get currentItem => _at(currentIndex);
 
   /// The item that [next] would open, or null when at the end.
   ///
   /// [next] 将打开的项；已在末尾时为 null。
-  MovaPlaylistItem? get nextItem => _at(_index + 1);
+  MovaPlaylistItem? get nextItem => _at(currentIndex + 1);
 
   /// The item that [previous] would open, or null when at the start.
   ///
   /// [previous] 将打开的项；已在开头时为 null。
-  MovaPlaylistItem? get previousItem => _at(_index - 1);
+  MovaPlaylistItem? get previousItem => _at(currentIndex - 1);
 
   /// Whether a next item exists.
   ///
   /// 是否存在下一项。
-  bool get hasNext => _index + 1 < _items.length;
+  bool get hasNext => currentIndex + 1 < _items.length;
 
   /// Whether a previous item exists.
   ///
   /// 是否存在上一项。
-  bool get hasPrevious => _index - 1 >= 0;
+  bool get hasPrevious => currentIndex - 1 >= 0;
 
   /// Emits the new index whenever navigation changes the current item.
   ///
@@ -117,7 +149,11 @@ class MovaPlaylist {
   /// Returns once the open request has been issued (no-op at the end).
   ///
   /// 在打开请求发出后返回（已在末尾时为空操作）。
-  Future<void> next() => hasNext ? jumpTo(_index + 1) : Future<void>.value();
+  Future<void> next() => _session != null
+      ? _navigateSession(forward: true)
+      : hasNext
+      ? jumpTo(_index + 1)
+      : Future<void>.value();
 
   /// Goes back to the previous item, if any.
   ///
@@ -126,8 +162,20 @@ class MovaPlaylist {
   /// Returns once the open request has been issued (no-op at the start).
   ///
   /// 在打开请求发出后返回（已在开头时为空操作）。
-  Future<void> previous() =>
-      hasPrevious ? jumpTo(_index - 1) : Future<void>.value();
+  Future<void> previous() => _session != null
+      ? _navigateSession(forward: false)
+      : hasPrevious
+      ? jumpTo(_index - 1)
+      : Future<void>.value();
+
+  Future<void> _navigateSession({required bool forward}) async {
+    if (_disposed || !_enabled) return;
+    if (forward) {
+      await _session!.next();
+    } else {
+      await _session!.previous();
+    }
+  }
 
   /// Jumps to [index] and opens its source; out-of-range indices are ignored.
   ///
@@ -142,6 +190,12 @@ class MovaPlaylist {
   ///
   /// - [index]: the target item index / 目标项下标
   Future<void> jumpTo(int index) async {
+    final session = _session;
+    if (session != null) {
+      if (_disposed || !_enabled || index < 0 || index >= _items.length) return;
+      await session.jumpTo(index);
+      return;
+    }
     if (index < 0 || index >= _items.length) return;
     final gen = ++_jumpGen;
     final accepted = await _api.open(_items[index].source);
@@ -185,6 +239,11 @@ class MovaPlaylist {
   /// 释放事件订阅并关闭下标流；宿主销毁控制器时调用一次。
   Future<void> dispose() async {
     _disposed = true;
+    if (_session != null) {
+      await _endSub?.cancel();
+      await _itemSub?.cancel();
+      movaPlaylistSessions[this] = null;
+    }
     await _sub?.cancel();
     await _indexChanges.close();
   }

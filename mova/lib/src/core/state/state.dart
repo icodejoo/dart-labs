@@ -154,9 +154,9 @@ class MovaState {
   /// 若正在时移，当前播放头落后直播边缘的时长。
   final Duration? timeshiftBehind;
 
-  /// The last playback error, if any.
-  ///
-  /// 最近一次的播放错误（若有）。
+  /// 最近一次终结播放的错误；非终结内核日志只经 MovaErrorEvent 与错误钩子通知。
+  /// 从 A14b 起收窄此字段，诊断监听请迁移到事件流；新 open 或恢复成功会清空。
+  /// 示例：`if (engine.state.error != null) showRetry()`。
   final Object? error;
 
   /// Title of the currently open source, or null before [MovaState] has any

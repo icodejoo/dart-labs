@@ -1,7 +1,10 @@
+import '../style/style.dart';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import '../../core/model/danmaku.dart';
+import '../../core/events/events.dart';
 import '../../core/options/danmaku_config.dart';
 import '../../core/state/progress.dart';
 import '../scope/plugin.dart';
@@ -41,7 +44,8 @@ class MovaDanmakuTrackComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final config = api.options.danmaku;
+    final config = MovaPlayerStyle.danmakuOf(context)
+        .applyTo(movaLegacyOptionsOf(context).danmaku);
     if (!config.enabled || config.items.isEmpty) return const SizedBox.shrink();
     return _DanmakuTrack(api: api, config: config);
   }
@@ -77,7 +81,8 @@ class _DanmakuTrack extends StatefulWidget {
 ///
 /// [_DanmakuTrack] 的状态；持有当前可见的弹幕，以及用于检测新跨过的
 /// [MovaDanmakuItem] 的最近播放位置。
-class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTrack> {
+class _DanmakuTrackState extends State<_DanmakuTrack>
+    with MovaPlugin<_DanmakuTrack> {
   /// Currently-visible bullets, each keyed by a stable [Key] for removal.
   ///
   /// 当前可见的弹幕，各自带一个用于移除的稳定 [Key]。
@@ -114,6 +119,8 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
     super.initState();
     _resort();
     bind(api.progress, _onProgress);
+    bind(api.states, (_) => setState(() {}));
+    bind(api.events, _onEvent);
   }
 
   @override
@@ -131,7 +138,8 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
   ///
   /// 依当前配置重建 [_sorted]，并把 [_cursor] 重定位到 [_lastPosition] 之后的第一条。
   void _resort() {
-    _sorted = [...widget.config.items]..sort((a, b) => a.time.compareTo(b.time));
+    _sorted = [...widget.config.items]
+      ..sort((a, b) => a.time.compareTo(b.time));
     _cursor = _firstAfter(_lastPosition);
   }
 
@@ -156,38 +164,36 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
     return lo;
   }
 
-  /// Spawns every [MovaDanmakuItem] whose [MovaDanmakuItem.time] falls in
-  /// `(_lastPosition, position]`, then advances [_lastPosition].
-  ///
-  /// Only fires forward — a backward seek simply moves the window without
-  /// replaying comments already passed, matching how a real danmaku overlay
-  /// behaves on scrub.
-  ///
-  /// 生成所有 [MovaDanmakuItem.time] 落在 `(_lastPosition, position]` 区间内的
-  /// 弹幕，随后推进 [_lastPosition]。
-  ///
-  /// 只在前进方向触发——向后跳转只会移动窗口，不会重放已经过去的弹幕，
-  /// 符合真实弹幕在拖动时的行为。
+  /// 换源或显式 seek 时清屏，直接把游标移到目标之后。
+  void _onEvent(MovaEvent event) {
+    if (event is MovaSeek) {
+      _moveTo(event.target);
+    } else if (event is MovaSourceChange) {
+      _moveTo(Duration.zero);
+    }
+  }
+
+  /// 二分定位 [position] 并清除旧时间轴上的活动弹幕。
+  void _moveTo(Duration position) {
+    _cursor = _firstAfter(position);
+    _lastPosition = position;
+    setState(_active.clear);
+  }
+
+  /// 正常进度仅生成有空位的弹幕；大幅跳转只移动游标，不遍历跳过区间。
   void _onProgress(MovaProg p) {
     final position = p.position;
-    if (position > _lastPosition) {
-      // Forward: [_cursor] already sits at the first item past _lastPosition;
-      // spawn every item up to and including `position`, advancing the cursor.
-      //
-      // 前进：[_cursor] 已指向 _lastPosition 之后的第一条；生成直到（含）
-      // `position` 的每条弹幕，并推进游标。
-      while (_cursor < _sorted.length && _sorted[_cursor].time <= position) {
-        _spawn(_sorted[_cursor]);
-        _cursor++;
-      }
-    } else if (position < _lastPosition) {
-      // Backward seek: reposition the cursor to the new position; a later
-      // forward tick then replays from there, matching the pre-cursor behavior.
-      //
-      // 后跳 seek：把游标重定位到新位置；之后的前进 tick 会从此处重放，
-      // 与引入游标之前的行为一致。
-      _cursor = _firstAfter(position);
+    if (position < _lastPosition ||
+        position - _lastPosition > const Duration(seconds: 10)) {
+      _moveTo(position);
+      return;
     }
+    final end = _firstAfter(position);
+    final limit = widget.config.trackCount * 2;
+    while (_cursor < end && _active.length < limit) {
+      _spawn(_sorted[_cursor++]);
+    }
+    _cursor = end;
     _lastPosition = position;
   }
 
@@ -197,7 +203,9 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
   void _spawn(MovaDanmakuItem item) {
     final track = _nextTrack % widget.config.trackCount;
     _nextTrack++;
-    setState(() => _active.add(_Spawned(key: UniqueKey(), item: item, track: track)));
+    setState(
+      () => _active.add(_Spawned(key: UniqueKey(), item: item, track: track)),
+    );
   }
 
   /// Removes the bullet keyed by [key] once its scroll animation finishes.
@@ -210,7 +218,7 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return IgnorePointer(
       child: Opacity(
         opacity: widget.config.opacity,
@@ -223,6 +231,8 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with MovaPlugin<_DanmakuTr
                 color: spawned.item.color ?? theme.textColor,
                 track: spawned.track,
                 config: widget.config,
+                playing: widget.api.state.playing,
+                rate: widget.api.state.rate,
                 onFinished: () => _retire(spawned.key),
               ),
           ],
@@ -265,7 +275,7 @@ class _Spawned {
 ///
 /// 单条滚动弹幕；在 [_DanmakuBulletConfig.crossDuration] 内从刚超出右边缘
 /// 滚动到刚超出左边缘，结束后调用 [onFinished] 供持有方移除。
-class _DanmakuBullet extends StatelessWidget {
+class _DanmakuBullet extends StatefulWidget {
   /// Creates a scrolling bullet.
   ///
   /// 创建一条滚动弹幕。
@@ -276,6 +286,8 @@ class _DanmakuBullet extends StatelessWidget {
     required this.track,
     required this.config,
     required this.onFinished,
+    required this.playing,
+    required this.rate,
   });
 
   /// The comment text.
@@ -303,27 +315,88 @@ class _DanmakuBullet extends StatelessWidget {
   /// 滚动动画结束时调用。
   final VoidCallback onFinished;
 
+  /// 当前是否播放，暂停时停止动画时钟。
+  final bool playing;
+
+  /// 当前播放倍速，决定弹幕划过速度。
+  final double rate;
+
+  /// 创建独立的可暂停动画状态。
+  @override
+  State<_DanmakuBullet> createState() => _DanmakuBulletState();
+}
+
+/// 单条弹幕的动画状态，暂停/倍速更新均保留当前进度。
+class _DanmakuBulletState extends State<_DanmakuBullet>
+    with SingleTickerProviderStateMixin {
+  /// 当前划过比例；仅持有本条弹幕的时钟。
+  late final AnimationController _controller;
+
+  /// 初始化动画，并在完成时通知轨道回收。
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this)
+      ..addStatusListener(_onStatus);
+    _syncAnimation();
+  }
+
+  /// 动画完成后回收弹幕。
+  void _onStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) widget.onFinished();
+  }
+
+  /// 播放态或倍速变化时更新动画。
+  @override
+  void didUpdateWidget(_DanmakuBullet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playing != widget.playing ||
+        oldWidget.rate != widget.rate ||
+        oldWidget.config.crossDuration != widget.config.crossDuration) {
+      _syncAnimation();
+    }
+  }
+
+  /// 暂停保持当前位置，恢复时用当前倍速走完剩余比例。
+  void _syncAnimation() {
+    _controller.stop();
+    final rate = widget.rate > 0 ? widget.rate : 1.0;
+    final micros = (widget.config.crossDuration.inMicroseconds / rate).round();
+    _controller.duration = Duration(microseconds: micros < 1 ? 1 : micros);
+    if (widget.playing && !_controller.isCompleted) _controller.forward();
+  }
+
+  /// 离场释放动画时钟。
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 按动画比例从右向左移动文案。
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: config.trackHeight * track,
+      top: widget.config.trackHeight * widget.track,
       left: 0,
       right: 0,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: width, end: -width),
-            duration: config.crossDuration,
-            onEnd: onFinished,
-            builder: (context, dx, child) {
-              return Transform.translate(offset: Offset(dx, 0), child: child);
-            },
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) => Transform.translate(
+              offset: Offset(width * (1 - 2 * _controller.value), 0),
+              child: child,
+            ),
             child: Text(
-              text,
+              widget.text,
               maxLines: 1,
               softWrap: false,
-              style: TextStyle(color: Color(color), fontSize: config.fontSize),
+              style: TextStyle(
+                color: Color(widget.color),
+                fontSize: widget.config.fontSize,
+              ),
             ),
           );
         },

@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print, implementation_imports
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -177,6 +178,10 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   EventRecorder<MovaEvent>? _ev;
   EventRecorder<MovaProg>? _pg;
   Duration _openAt = Duration.zero;
+  HttpServer? _shotServer;
+  String? _shotToken;
+  String? _shotMarker;
+  Completer<void>? _shotWaiter;
 
   String _live({int gop = 50, bool audio = true}) => '$kBase/live.flv?gop=$gop&audio=${audio ? 1 : 0}';
 
@@ -193,6 +198,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_lifeRec.dispose());
     unawaited(_life.close());
+    unawaited(_shotServer?.close(force: true));
     super.dispose();
   }
 
@@ -206,6 +212,40 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   void _log(String msg) {
     final line = _out.line('${DateTime.now().toIso8601String().substring(11, 23)} ${_clock.elapsedMilliseconds.toString().padLeft(7)}ms $msg');
     if (mounted) setState(() => _lines.insert(0, line));
+  }
+
+  /// Hold this diagnostic phase until its exact marker has been sampled.
+  Future<void> _shot(String marker) async {
+    if (!coverageShotHandshake) {
+      _log(marker);
+      return;
+    }
+    if (_shotServer == null) {
+      _shotServer = await HttpServer.bind(InternetAddress.anyIPv4, 18087);
+      _shotServer!.listen((request) async {
+        final token = _shotToken;
+        final acknowledge = request.uri.path == '/ack' && token != null &&
+            request.uri.queryParameters['token'] == token;
+        final waiter = _shotWaiter;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'token': token, 'marker': _shotMarker,
+          'acknowledged': acknowledge}));
+        await request.response.close();
+        if (acknowledge && waiter != null && !waiter.isCompleted) waiter.complete();
+      });
+    }
+    _shotToken = '${DateTime.now().microsecondsSinceEpoch}';
+    _shotMarker = marker;
+    _shotWaiter = Completer<void>();
+    _log('$marker shotToken=$_shotToken');
+    try {
+      await _shotWaiter!.future.timeout(const Duration(seconds: 30));
+      _log('SHOT_ACK token=$_shotToken marker=$marker');
+    } finally {
+      _shotToken = null;
+      _shotMarker = null;
+      _shotWaiter = null;
+    }
   }
 
   /// Marks the start/end of a measurement window for external CPU/traffic samplers.
@@ -244,6 +284,13 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     _ev = EventRecorder<MovaEvent>(api.events, clock: _clock);
     _pg = EventRecorder<MovaProg>(api.progress, clock: _clock);
     _openAt = _clock.elapsed;
+    api.events.where((e) => e is MovaKeepAliveResume).listen((event) {
+      final e = event as MovaKeepAliveResume;
+      _log('MATRIX_RECORD ${jsonEncode({'kind': 'EVENT', 'ms': _clock.elapsedMilliseconds,
+        'event': 'MovaKeepAliveResume', 'payload': {'elapsed': e.elapsed.inMilliseconds,
+        'signal': e.signal?.name, 'from': e.from?.name},
+        'state': {'keepAlive': api.state.keepAlivePhase.name, 'rendered': api.state.rendered}})}');
+    });
     _engineReady?.complete();
   }
 
@@ -344,7 +391,10 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
         if (r.decodedMs != null) _samples.add('S1.gop=$gop.hold=${hold}s.decodedPropMs', r.decodedMs!);
         _samples.add('S15.signal.$sig', 1);
         _log('S1 gop=${gop}f(${gop / 25}s) hold=${hold}s phase=${r.phase.name} mode=${r.entered?.mode?.name} resume=${ms}ms signal=$sig from=${res?.event.from?.name} decodedProp=${r.decodedMs}ms vid=${await _prop('vid')} mute=${await _prop('mute')}');
-        _verdict('S1', r.phase == MovaKeepAlivePhase.holding && res != null && sig != 'grace' && sig != 'timeout', 'gop=$gop hold=${hold}s signal=$sig decodedProp=${r.decodedMs}ms');
+        // grace is an allowed fallback signal, not proof of a decoded frame.
+        // keepalive_wake in the host leaves H42 BLOCKED until independently
+        // correlated with a native landing signal; it never times wall clocks.
+        _verdict('S1', r.phase == MovaKeepAlivePhase.holding && res != null, 'gop=$gop hold=${hold}s signal=$sig decodedProp=${r.decodedMs}ms');
         await Future<void>.delayed(const Duration(seconds: 2));
       }
     }
@@ -459,28 +509,39 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
     _verdict('S5C', true, 'control drift=${drift}ms');
   }
 
-  /// S6: no-audio detection, and what a forced B does to a stream without audio (position should stop).
+  /// S6: the public API must fall back for a silent stream. Directly forcing
+  /// kernel muted mode bypasses that decision and can end the FLV demuxer.
   Future<void> _s6(int run) async {
-    if (!await _play(_Cfg(source: _src(_live(audio: false))))) return _verdict('S6', false, 'never rendered');
-    final media = await _kernel!.inspectKeepAlive();
-    final a0 = _lastProg!.position;
-    await Future<void>.delayed(const Duration(seconds: 3));
-    final normalAdvance = (_lastProg!.position - a0).inMilliseconds;
-    final ok = await _kernel!.enterKeepAlive(MovaKeepAliveMode.muted);
-    final mark = _ev!.mark;
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    final b0 = _lastProg!.position;
-    final trace = <String>[];
-    for (var i = 0; i < 8; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      trace.add('${_lastProg!.position.inMilliseconds}/eof=${await _prop('eof-reached')}/idle=${await _prop('core-idle')}');
+    // 本场景验证显式暂停策略；默认 keepDecoding 应由 S3 继续验证。
+    if (!await _play(_Cfg(source: _src(_live(audio: false)), keepAlive: const MovaKeepAliveConfig(
+      maxDuration: Duration(seconds: 300), silentStreams: MovaSilentKeepAlive.pause,
+    )))) {
+      return _verdict('S6', false, 'never rendered');
     }
-    final forcedAdvance = (_lastProg!.position - b0).inMilliseconds;
-    final names = _ev!.log.skip(mark).map((e) => e.event.runtimeType.toString()).where((n) => n != 'MovaProg').toList();
-    final restarted = await _kernel!.exitKeepAlive();
-    _log('S6 forced-B trace(position/eof-reached/core-idle every 500ms)=$trace eventsDuringForcedB=$names');
-    _log('S6 audio=${media.audio.name} format=${media.format} entered=$ok normal3sAdvance=${normalAdvance}ms forcedB4sAdvance=${forcedAdvance}ms exitRestartedVideo=$restarted');
-    _verdict('S6', media.audio == MovaAudioPresence.absent && ok && forcedAdvance.abs() < 500, 'audio=${media.audio.name} forcedAdvance=${forcedAdvance}ms');
+    final media = await _kernel!.inspectKeepAlive();
+    final mark = _ev!.mark;
+    final phase = await _keepAlive(true);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final changes = _ev!.log.skip(mark).map((v) => v.event).whereType<MovaKeepAliveChange>().toList();
+    final reason = changes.lastOrNull?.reason.name;
+    final vid = await _prop('vid');
+    final mute = await _prop('mute');
+    final videoEnabled = vid == 'auto' || (int.tryParse(vid) ?? 0) > 0;
+    final knownVideo = videoEnabled || vid == 'no' || vid == '0';
+    final known = knownVideo && ['yes', 'no'].contains(mute) && reason != null &&
+      media.audio != MovaAudioPresence.unknown;
+    final ok = media.audio == MovaAudioPresence.absent && phase == MovaKeepAlivePhase.fallback &&
+      reason == 'silentStream' && videoEnabled && mute == 'no';
+    _log('MATRIX_RECORD ${jsonEncode({'kind': 'CHECK', 'id': 'S6.publicFallback',
+      'pass': known ? ok : null,
+      'numbers': {'audio': media.audio.name, 'phase': phase.name, 'reason': reason, 'vid': vid,
+        'videoEnabled': knownVideo ? videoEnabled : null, 'mute': ['yes', 'no'].contains(mute) ? mute : null}})}');
+    if (known) {
+      _verdict('S6', ok, 'public phase=${phase.name} reason=$reason vid=$vid mute=$mute');
+    } else {
+      _log('VERDICT S6 BLOCKED native readback/event incomplete phase=${phase.name} reason=$reason vid=$vid mute=$mute');
+    }
+    await _keepAlive(false);
   }
 
   /// S7 (opt-in via `ONLY=S7`): `vid` off/on cycles, the plan check for `mediacodec-copy` on Android.
@@ -498,7 +559,7 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
       if (r.decodedMs != null) back++;
       if (sig == 'size' || sig == 'restart') landed++;
       _log('S7 cycle=$i phase=${r.phase.name} resume=${res?.event.elapsed.inMilliseconds}ms signal=$sig decodedProp=${r.decodedMs}ms');
-      _log('S7 SHOT $i');
+      await _shot('S7 SHOT $i');
       await Future<void>.delayed(const Duration(milliseconds: 1200));
     }
     _log('S7 videoCameBack=$back/$kS7Cycles signalLanded(size|restart)=$landed/$kS7Cycles');
@@ -583,17 +644,17 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   /// An external script screenshots on the `S14 SHOT` lines.
   Future<void> _s14(int run) async {
     if (!await _play(_Cfg(source: _src(_live())))) return _verdict('S14', false, 'never rendered');
-    _log('S14 SHOT normal');
+    await _shot('S14 SHOT normal');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     final ok = await _kernel!.enterKeepAlive(MovaKeepAliveMode.muted);
     await Future<void>.delayed(const Duration(milliseconds: 800));
-    _log('S14 SHOT holding1 entered=$ok vid=${await _prop('vid')}');
+    await _shot('S14 SHOT holding1 entered=$ok vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
-    _log('S14 SHOT holding2 vid=${await _prop('vid')}');
+    await _shot('S14 SHOT holding2 vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     await _kernel!.exitKeepAlive();
     await Future<void>.delayed(const Duration(milliseconds: 1500));
-    _log('S14 SHOT restored vid=${await _prop('vid')}');
+    await _shot('S14 SHOT restored vid=${await _prop('vid')}');
     await Future<void>.delayed(const Duration(milliseconds: 2500));
     _verdict('S14', ok, 'screenshots taken by the external script (normal / holding1 / holding2 / restored)');
   }

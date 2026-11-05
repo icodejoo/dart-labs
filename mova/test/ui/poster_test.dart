@@ -1,3 +1,5 @@
+import 'package:mova/mova.dart' show MovaCutoverEngine, MovaOpts, MovaCutoverConfig, MovaSource, MovaWarmPlan, MovaEagerWarm;
+import 'package:mova/src/core/kernel/restart_observer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/keep_alive/keep_alive.dart';
@@ -52,7 +54,54 @@ Future<void> _push(WidgetTester t, FakeMovaApi api, MovaState s) async {
 AnimatedOpacity _opacity(WidgetTester t) =>
     t.widget<AnimatedOpacity>(find.descendant(of: find.byType(MovaPosterLayer), matching: find.byType(AnimatedOpacity)));
 
+/// 记录封面对可选精确首帧能力的请求。
+class _RestartApi extends FakeMovaApi implements MovaRestartObserver {
+  /// [options] 控制代理预热；默认保持原配置。
+  _RestartApi({super.options});
+
+  /// 请求次数，便于检测动态挂载。
+  int requests = 0;
+  /// 记录一次精确首帧请求。
+  @override
+  void observeRestarts() => requests++;
+}
+
 void main() {
+  testWidgets('A14 cutover forwards poster restarts to current and later shadow engines', (t) async {
+    final engines = <_RestartApi>[];
+    final proxy = MovaCutoverEngine(engineFactory: () {
+      final e = _RestartApi(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true)));
+      engines.add(e);
+      return e;
+    });
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: proxy, poster: _poster)));
+    expect(engines.single.requests, 1);
+    await t.runAsync(() => proxy.prepare(const MovaSource('https://h/shadow.mp4'), plan: const MovaWarmPlan(trigger: MovaEagerWarm())));
+    expect(engines, hasLength(2));
+    expect(engines.last.requests, 1);
+    proxy.observeRestarts();
+    expect(engines.last.requests, 2);
+    await t.pumpWidget(const SizedBox());
+    await t.runAsync(proxy.dispose);
+  });
+
+  testWidgets('A14 poster requests native restarts', (t) async {
+    final api = _RestartApi();
+    await _mount(t, api, _RecordingSkin());
+    expect(api.requests, 1);
+    await api.dispose();
+  });
+
+  testWidgets('A14 adding a poster later requests restarts while no poster leaves fallback', (t) async {
+    final api = _RestartApi();
+    final skin = _RecordingSkin();
+    await _mount(t, api, skin, poster: null);
+    expect(api.requests, 0);
+    await _mount(t, api, skin);
+    expect(api.requests, 1);
+    await api.dispose();
+  });
+
   testWidgets('poster: null adds no layer and hands the raw surface to the skin', (t) async {
     final api = FakeMovaApi();
     final skin = _RecordingSkin();

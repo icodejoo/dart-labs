@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../components/bottom_bar.dart';
@@ -9,8 +11,9 @@ import '../components/overlays.dart';
 import '../components/preview.dart';
 import '../components/subtitle.dart';
 import '../components/top_bar.dart';
+import '../../core/api.dart';
 import '../../core/state/state.dart';
-import '../scope/scope.dart';
+import '../chrome/chrome.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/patch.dart';
@@ -31,8 +34,7 @@ import 'skin.dart';
 /// [buildPersistentLayer]) so a subclass can re-lay-out just one layer without
 /// copying the whole thing — playback (raw video) / operable (gesture + bar
 /// chrome, gated by auto-hide/pip/lock/mini) / persistent (lock mask +
-/// toggle, always mounted and ungated, since it is what *controls* those
-/// states). Full design rationale and the "override just one layer" contract:
+/// toggle; the unlocked toggle follows control visibility). Full design rationale and the "override just one layer" contract:
 /// doc/DESIGN-0.3.0-plugin-skin.md §7.2.
 ///
 /// 内置 [MovaSkin]：对点播与直播都复刻 0.1.0 的默认外观，并扩展了 0.1.0 从未有
@@ -45,13 +47,24 @@ import 'skin.dart';
 /// （[buildPlaybackLayer]/[buildOperableLayer]/[buildPersistentLayer]），使
 /// 子类无需整体照抄即可只重排其中一层——播放层（原始画面）/ 操作层（手势 +
 /// 栏 chrome，受自动隐藏/画中画/锁定/小窗门控）/ 常驻层（锁定遮罩 + 切换按钮，
-/// 恒挂载且不受门控，因为它本身就是控制这些状态的入口）。完整设计理由与"只
+/// 解锁入口常驻，未锁定的按钮跟随控制条显隐）。完整设计理由与"只
 /// 覆写一层"的契约见 doc/DESIGN-0.3.0-plugin-skin.md §7.2。
 class MovaDefaultSkin implements MovaSkin {
   /// Creates the default skin, optionally applying [patches] to its tree.
   ///
   /// 创建默认皮肤，可选地对其组件树应用 [patches]。
-  const MovaDefaultSkin({this.patches = const []});
+  const MovaDefaultSkin({
+    this.patches = const [],
+    this.statusLayerNames = const {
+      MovaBufferingComponent.componentName,
+      MovaErrorComponent.componentName,
+    },
+  });
+
+  /// 独立于控制条和锁定的 center 组件名称；空集合保留原有分层。
+  ///
+  /// 示例：`MovaDefaultSkin(statusLayerNames: {'error'})` 只提升错误层。
+  final Set<String> statusLayerNames;
 
   /// Structural patches applied to the base tree in [components], in order.
   ///
@@ -70,6 +83,7 @@ class MovaDefaultSkin implements MovaSkin {
     MovaBufferingComponent(),
     MovaErrorComponent(),
     MovaLockMaskComponent(),
+    MovaLockToggleComponent(),
   ], patches);
 
   @override
@@ -156,7 +170,13 @@ class MovaDefaultSkin implements MovaSkin {
                             child: Column(children: slots[MovaSlot.top]),
                           ),
                           Positioned.fill(
-                            child: Stack(children: slots[MovaSlot.center]),
+                            child: Stack(
+                              children: slots.named(
+                                MovaSlot.center,
+                                statusLayerNames,
+                                exclude: true,
+                              ),
+                            ),
                           ),
                           Positioned(
                             left: 0,
@@ -211,16 +231,13 @@ class MovaDefaultSkin implements MovaSkin {
     );
   }
 
-  /// Layer 3 — the persistent overlay + lock/unlock toggle. Always mounted,
-  /// transparent to hits by default, and never gated by auto-hide/pip/lock,
-  /// since the toggle is the very control that *changes* those states. Only
-  /// the pieces that must intercept touches (the opaque lock mask) do so.
-  /// Override to change what stays reachable regardless of those states.
+  /// Layer 3 — persistent overlays, including the patchable lock toggle.
+  /// Status overlays ignore control visibility; the unlocked toggle follows it.
   ///
-  /// 第 3 层——常驻叠加层 + 锁定/解锁切换。恒挂载、默认对点击穿透，且不受
-  /// 自动隐藏/画中画/锁定门控——切换按钮本身就是**改变**那些状态的入口。
-  /// 只有必须拦截点击的部分（不透明锁定遮罩）才吸收事件。覆写以改变哪些内容
-  /// 不论那些状态如何都保持可达。
+  /// 第 3 层——常驻状态叠加层及可 patch 的锁定按钮。状态层独立于控制条；
+  /// 未锁定的按钮跟随控制条隐藏，锁定后保留解锁入口，PiP/mini 时隐藏按钮。
+  /// [context] 为当前上下文，[slots] 为组件槽；返回常驻层。
+  /// 示例：子类可调用 `super.buildPersistentLayer(context, slots)` 复用本层。
   ///
   /// Wrapped in a [RepaintBoundary] for the same reason as the other two
   /// layers: this one rarely repaints (only on lock-state change), so
@@ -236,7 +253,12 @@ class MovaDefaultSkin implements MovaSkin {
         child: Stack(
           children: [
             Stack(children: slots[MovaSlot.overlay]),
-            const _LockToggleButton(),
+            _HideWhen(
+              selector: (s) => s.pip || s.mini,
+              child: Stack(
+                children: slots.named(MovaSlot.center, statusLayerNames),
+              ),
+            ),
           ],
         ),
       ),
@@ -264,7 +286,7 @@ class _BarVisibility extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fadeDuration = MovaScope.of(context).options.controls.fadeDuration;
+    final fadeDuration = MovaPlayerStyle.controlsOf(context).fadeDuration;
     return MovaUiSelect<bool>(
       selector: (s) => s.controlsVisible,
       builder: (context, visible) {
@@ -273,7 +295,11 @@ class _BarVisibility extends StatelessWidget {
           child: AnimatedOpacity(
             opacity: visible ? 1 : 0,
             duration: fadeDuration,
-            child: child,
+            child: Listener(
+              behavior: HitTestBehavior.deferToChild,
+              onPointerDown: (_) => movaUiOf(context).touch(),
+              child: child,
+            ),
           ),
         );
       },
@@ -333,45 +359,53 @@ class _HideWhen extends StatelessWidget {
   }
 }
 
-/// The single lock/unlock toggle button, in both directions.
+/// 可通过 `lockToggle` 路径替换或移除的锁定按钮；解锁入口保持可达。
 ///
-/// Lives in the skin's persistent layer (see [MovaDefaultSkin.assemble]):
-/// always mounted, never gated by [_BarVisibility]'s idle auto-hide, by
-/// [_LockedHidden], or by [_PipHidden]. It has to stay reachable regardless of
-/// any of those states, because it is the one control that *changes* them —
-/// an auto-hidden lock button would leave no way to lock in the first place,
-/// and a lock-hidden one no way to unlock.
-///
-/// 唯一的锁定/解锁切换按钮，两个方向共用同一个组件。
-///
-/// 位于皮肤的常驻层（见 [MovaDefaultSkin.assemble]）：恒定挂载，不受
-/// [_BarVisibility] 的闲置自动隐藏、[_LockedHidden]、[_PipHidden] 任何一个门控。
-/// 它必须在这些状态下都可达，因为它本身就是**改变**这些状态的那个控制——
-/// 若被自动隐藏隐去，压根没法锁定；若被锁定隐去，压根没法解锁。
-class _LockToggleButton extends StatelessWidget {
-  /// Creates the lock-toggle layer.
-  ///
-  /// 创建锁定切换按钮层。
-  const _LockToggleButton();
+/// 示例：`MovaPatch.remove(MovaLockToggleComponent.componentName)`。
+class MovaLockToggleComponent extends MovaComponent {
+  /// 创建默认锁定按钮组件；无参数，供皮肤树使用。
+  MovaLockToggleComponent();
 
+  /// 组件路径名；示例：`MovaPatch.remove('lockToggle')`。
+  static const String componentName = 'lockToggle';
+
+  /// 返回锁定按钮的组件名。
   @override
-  Widget build(BuildContext context) {
-    final api = MovaScope.of(context);
-    return MovaSelect<bool>(
-      selector: (s) => s.locked,
-      builder: (context, locked) {
-        return Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: MovaIconButton(
-              icon: locked ? Icons.lock_rounded : Icons.lock_open_rounded,
-              theme: api.options.theme,
-              onPressed: () => api.setLocked(!locked),
+  String get name => componentName;
+
+  /// 返回常驻叠加槽，使锁定时仍能解锁。
+  @override
+  MovaSlot get slot => MovaSlot.overlay;
+
+  /// 根据 [api] 构建锁定按钮；[children] 未使用，返回受显隐规则约束的按钮。
+  ///
+  /// 示例：通常由 `buildSlots(context, api, skin.components())` 调用。
+  @override
+  Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+    return _HideWhen(
+      selector: (s) => s.pip || s.mini,
+      child: MovaSelect<bool>(
+        selector: (s) => s.locked,
+        builder: (context, locked) {
+          final button = Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: MovaIconButton(
+                label: locked
+                    ? MovaPlayerStyle.stringsOf(context).unlock
+                    : MovaPlayerStyle.stringsOf(context).lock,
+                icon: locked
+                    ? MovaPlayerStyle.iconsOf(context).unlock
+                    : MovaPlayerStyle.iconsOf(context).lock,
+                theme: MovaPlayerStyle.themeOf(context),
+                onPressed: () => api.setLocked(!locked),
+              ),
             ),
-          ),
-        );
-      },
+          );
+          return locked ? button : _BarVisibility(child: button);
+        },
+      ),
     );
   }
 }

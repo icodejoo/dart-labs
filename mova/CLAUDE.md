@@ -14,11 +14,11 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **各阶段的逐 Task 实现计划都在 [doc/plans/](doc/plans/)**，按功能分文件存放，按 Task
 >    顺序执行即可。
-> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`、`0.3.0`（`0.3.0` 约 2026-10-01 发布，含小窗、广告编排、无缝切换、
->    清晰度自适应、仅音频模式、QoE、TLS 开关等，见 CHANGELOG 的 `0.3.0` 节）。**宿主易用性增强（首帧/封面/`MovaView`/
->    恢复与多地址/自动暂停/测试替身）及之后的 keepAlive 属于 `Unreleased`**，发版前 pub.dev 上没有；发版时机由用户决定。
->    回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库 path/git 依赖。注意：下文各节标题里的"0.2.0"
->    是历史合并记法，版本号现以 pubspec 为准。
+> 4. **版本对照**：仓库 `pubspec.yaml` 与 `ios/mova.podspec` 为 **0.4.0**，README 安装示例同号，
+>    CHANGELOG 有 `0.4.0` 历史节；其后宿主易用性、keepAlive 与统一编排 A/B/C 块属于 **Unreleased**。
+>    历史发布记录只明确记载 0.1.0/0.2.0/0.3.0；不能仅凭仓库版本断言 0.4.0 已上 pub.dev。
+>    发版由用户决定，回答功能可用性前先区分 pub.dev 版本与本仓库 path/git 依赖。
+>    旧章节标题里的“0.2.0”是历史合并记法，版本以 pubspec 为准。
 > 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
 >    原生 mpv 事件（`PLAYBACK_RESTART`/`END_FILE`）改由自建的 dart:ffi 弱客户端订阅
 >    （`core/kernel/mpv_event_pump.dart` + `platform_impl/mpv_event_backend_ffi.dart`），
@@ -30,14 +30,39 @@
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
 支持点播/直播，发布到 pub.dev。属于 `dart-labs` monorepo 的子工程。
 
-## 当前状态（0.2.0）
+## 当前状态（仓库 0.4.0，后续变更 Unreleased）
 
 > **命名（2026-10-27 起）**：已去掉 `*Controller` 后缀（`MovaAds`/`MovaFeed`/`MovaPlaylist`/`MovaMini`），`Standby*`→`KeepAlive*`（`MovaState.keepAlivePhase`、`MovaHiddenMode.keepAlive`、`setKeepAlive`），`Swap*`→`Cutover*`（`MovaCutoverEngine`、`cutoverTo`）。下文各节里的类名/成员名已按新名机械替换，`doc/plans/` 里的历史计划保持旧名原文；旧名以 `@Deprecated` typedef 保留一个版本，见 `lib/src/deprecated_names.dart` 与 CHANGELOG。
 >
-> **测试基线：1752 项全绿**（2026-10-29 直播影子预热就绪判据修复 +8：`MovaWarmSignal.live` + `MovaBufferWarm` 对直播不再要求追上正片位置，`warm_test` +6、`cutover_engine_test` +2，较 1744；真机 STG-AL00 正片先播 500ms/3s/7s/15s/30s 全部通过，见 [doc/plans/2026-10-29-q13-live-warm-fix-verification.md](doc/plans/2026-10-29-q13-live-warm-fix-verification.md)；`flutter analyze lib test` 0 issues；**前一基线 1744 项全绿**（2026-10-28 codec 回落误报修复 +6：`isBenignMpvError` 精确过滤单次尝试失败的 `Could not open codec.`，真正的 `Failed to initialize a decoder…`/`Failed to recognize file format.` 仍上报，Android 真机 10bit HEVC/AV1/4K 三样本 `MovaErrorEvent` 0 次已验证，较 1738；**前一基线 1738 项全绿**（2026-10-28 验收矩阵合并为 [doc/ACCEPTANCE-MATRIX.md](doc/ACCEPTANCE-MATRIX.md)〔三档 + 假设清单 H1–H78 + 缺口清单，取代 2026-10-27 的 test-matrix/matrix-v2/ledger 三份〕后按其 P0/P1 缺口补单测，本机 `flutter test` 实跑，0 skip，较 1519 +219：1519→1694〔+175，补单测，另有 3 项 skip〕→1738〔+41 项新增，3 项 skip 转正；这一段含修单测挖出的 3 个 bug 及其回归〕；矩阵 §6 前两项待拍板已由用户拍板并落地：`setRate` 入口钳到 0.25–4.0、NaN 当 1.0，宿主上报回调抛异常被隔离〔只通知钩子 `MovaHook.onError`，不发 `MovaErrorEvent`、不写 `state.error`〕；单测挖出的 3 个 bug：时长未知时负向 seek 寄存前钳到 0、dispose 后 `MovaEngine`/`MovaCutoverEngine` 全部公开动词 no-op〔cutover 销毁后不再新建影子引擎〕、所有点播 seek 都走“校验 + 重发”链〔最多 3 次；DVR 直播 seek 未接校验链，记为矩阵 P2 缺口〕，均见 CHANGELOG `Unreleased`；`flutter analyze lib test` 0 issues；真机 gap 用例已写、离线校验通过，**未上机**，见矩阵 §5.2；默认内核工厂的单测〔矩阵 P1-14〕仍缺，需 lib 加 `@visibleForTesting` 注入点）；**前一基线 1519 项全绿**（2026-10-27 第四轮复测 F3/A17 残余 5/280 失败〔ABR 夹入 0 例〕的根因：seek 被 mpv 丢弃后内核只回声旧位置，被位置监听抑制，`_lastPosition` 停在自己写入的目标值，续播校验链误判已落地而不重发；已让校验判据要求 `_pendingSeekTarget` 已被接近目标的回声清掉，+1 项回归，较 1518；**真机复测结论（2026-10-27，STG-AL00，release）**：rerun6 主矩阵 279/280 通过〔cutover 160/160、普通 60/60、暂停 59/60，ABR 夹入 0 例〕，唯一失败 paused/37〔1 次 seek、已命中目标 RESTART 但落点后 96ms 读回 0，原因待证〕在 rerun7 暂停态补跑 60/60 中未复现；弱网组两项各 10/10 成功降档〔自动 3.6–5.2s、手动换档后 8.5–16.2s，未见 ABR 被永久屏蔽〕；趋势 rerun3 20.68% → rerun4 13.43% → rerun5 1.79% → rerun6 0.36%；**F3/A17 判为通过，附 paused/37 一项已知未复现**；遗留待办：自动弱网组销毁期 `[Player] has been disposed` UNCAUGHT〔堆栈在 media_kit，未深查〕；报告见 [retest5](doc/plans/2026-10-27-device-coverage-android-retest5.md)、[retest6](doc/plans/2026-10-27-device-coverage-android-retest6.md)，前序 [retest4](doc/plans/2026-10-27-device-coverage-android-retest4.md)；前一基线 1518：2026-10-27 第三轮复测定位 F3/A17 残余失败 38/283 的共同根因是换档续播自身制造的缓冲被 ABR 当成卡顿、在续播链中途触发降档；已加续播链内屏蔽 ABR 〔`_abrHold`，续播校验收尾或 10s 兜底解除〕，+1 项回归，较 1517 〔复测起点，比下文 1515 多出的 2 项来自此前提交〕；本机实跑，当时真机复测尚未重跑，之后的结论见上，见 [doc/plans/2026-10-27-device-coverage-android-retest3.md](doc/plans/2026-10-27-device-coverage-android-retest3.md)；前一基线 1515：2026-10-27 覆盖测试复跑后修 A15/F5 小窗跟随 PiP 收起、A23 dispose 幂等、A12 setZoom 下限，本机实跑，较 1510 +5 〔含 2 项 A8/A9 钳制回归与 3 项新回归〕，复跑结果见 [doc/plans/2026-10-27-device-coverage-rerun.md](doc/plans/2026-10-27-device-coverage-rerun.md)：PASS 109/FAIL 21/BLOCKED 5，F3/A17 换档续播间歇失败〔40 次 1 次〕尚未定位；前一基线 1510：2026-10-27 真机覆盖测试终审后修 F3 换档续播竞态、A8/A9 音量亮度钳制，本机实跑，较 1503 +5 〔1503 为覆盖测试起点，比下文 1472 多出的 31 项来自此前提交〕；Android 覆盖测试与终审结论见 [doc/plans/2026-10-27-device-coverage-results.md](doc/plans/2026-10-27-device-coverage-results.md) 文末「终审」；HE V6 在 Android 真机 5/5 通过，此前"V6 从头播"是验证脚本锚点缺陷；`open()` 的归零发生在 `beforeOpen` 之后、内核加载前，不是严格同步；前一基线 1472：2026-10-26 恢复层六项修复〔恢复后清错误/放弃清缓冲/确定性失败快速重试/直播持续重连/按源 mpv 选项/直播时长节流〕后本机实跑，较 1424 +48；1424 为：2026-10-26 评审遗留项（PiP/cutover/倍速/`open` 返回值等）修复后本机实跑，较上一轮 1409 +15；上一轮为全量评审修复后，较 1364 +45；2026-10-25 合并 WHEP 分支后为 1364；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> **测试基线：2411 项全绿**（CP3 定性：请求头透传 mpv 播放、feed 暂停不被待激活覆盖 +7，较 2404；CP2 离线定性：倍速恢复、中插续播点两项产品修复 +6、pod 隔离诊断 +2，较 2396；2026-11-04 C05/C08/C09 与 C05/C07/C14 评审修复 +10（2386→2396，较 C17 文档批）；`flutter analyze lib test` 0 issues）：统一编排 A2（A17–A30）及终审、CP1 测量与夹具收口、A/B/C 块（C01–C16）均已合入；本次仅文档与注释，未新增测试。CP1 真机 13 PASS/0 FAIL/3 BLOCKED，尚未整体通过，见 [结果](doc/plans/2026-11-03-cp1-results.md)；CP2/CP3 待真机。最近一段基线压缩至此，不再追加嵌套链；**前一基线 2088 项全绿**（2026-11-03 统一编排 A1 块收尾：A14–A16 终审修复（END_FILE 绑定加载尝试与单次结算、待机静默、无泵兜底）+26、END_FILE 过滤按实际加载尝试号 +4，较 2058；A1 块 A01–A16 全部落地；**前一基线 2058 项全绿**（2026-11-03 统一编排 A14–A16 与 A11–A13 终审修复：判失败不依赖 recovery +11、state.error 只放终结错误 +8、广告与影子只认终结错误 +4、auto 档接管开关 +5、直播租约/探测去重/自建 fetcher/probeVariants +19，较 2011；**前一基线 2011 项全绿**（2026-11-03 统一编排 A11–A13 与 A06–A10 终审修复：ABR 租约 +6、清晰度探测 +6、播放错误分级 +10、待机补播与后台重开错误出口等 +8，较 1981；**前一基线 1981 项全绿**（2026-11-03 统一编排 A06–A10 与 A01–A05 终审修复：被拒 open 与 keepAlive 唤醒 +14、加载规格记录与重放 +12、cutover 提交事务独占等 +16、广告 pod 同步失败与 cutover 拒绝识别等 +42，较 1896；**前一基线 1896 项全绿**（2026-11-03 统一编排 A01–A05：cutover 预热状态收进 _WarmSlot +0、操作代际与提交事务归属 +12、换集与后贴片不复用旧影子 +10、回正片过渡期不把广告进度当正片位置 +3、广告与正片 open 失败汇流 +6，较 1865；**前一基线 1865 项全绿**（2026-11-03 统一编排 B13–B16：守卫豁免全屏与 PiP 回流归属 +4、手势与皮肤小缺陷 +8、镜像事件去重与计时器 +6、桌面与无障碍 +10，较 1837；B 块 16 个提交全部落地；**前一基线 1837 项全绿**（2026-11-03 统一编排 B09–B12：缩略图字节限额 +8、抽取器释放与 STT 会话代际 +5、引擎池尊重 open 结果 +6、feed 滑窗回收 +6，较 1812；**前一基线 1812 项全绿**（2026-11-03 统一编排 B05–B08：QoE 结算与上报重试 +10、弹幕游标与上限 +6、预览请求期限 +5、预览队列最新优先 +6，较 1785；**前一基线 1785 项全绿**（2026-11-03 统一编排 B01–B04：缓冲错误层不随控制条隐藏 +4、进度快照 +6、底栏按名取子节点 +6、亮度播种与离场还原 +9，较 1760；**前一基线 1760 项全绿**（2026-11-03 统一编排准备块 S01/A19：测试脚手架 +5、FakeMovaApi 意图契约 +3，较 1752，lib 零改动，分支 `jelon/mova-orchestration`；**前一基线 1752 项全绿**（2026-10-29 直播影子预热就绪判据修复 +8：`MovaWarmSignal.live` + `MovaBufferWarm` 对直播不再要求追上正片位置，`warm_test` +6、`cutover_engine_test` +2，较 1744；真机 STG-AL00 正片先播 500ms/3s/7s/15s/30s 全部通过，见 [doc/plans/2026-10-29-q13-live-warm-fix-verification.md](doc/plans/2026-10-29-q13-live-warm-fix-verification.md)；`flutter analyze lib test` 0 issues；**前一基线 1744 项全绿**（2026-10-28 codec 回落误报修复 +6：`isBenignMpvError` 精确过滤单次尝试失败的 `Could not open codec.`，真正的 `Failed to initialize a decoder…`/`Failed to recognize file format.` 仍上报，Android 真机 10bit HEVC/AV1/4K 三样本 `MovaErrorEvent` 0 次已验证，较 1738；**前一基线 1738 项全绿**（2026-10-28 验收矩阵合并为 [doc/ACCEPTANCE-MATRIX.md](doc/ACCEPTANCE-MATRIX.md)〔三档 + 假设清单 H1–H78 + 缺口清单，取代 2026-10-27 的 test-matrix/matrix-v2/ledger 三份〕后按其 P0/P1 缺口补单测，本机 `flutter test` 实跑，0 skip，较 1519 +219：1519→1694〔+175，补单测，另有 3 项 skip〕→1738〔+41 项新增，3 项 skip 转正；这一段含修单测挖出的 3 个 bug 及其回归〕；矩阵 §6 前两项待拍板已由用户拍板并落地：`setRate` 入口钳到 0.25–4.0、NaN 当 1.0，宿主上报回调抛异常被隔离〔只通知钩子 `MovaHook.onError`，不发 `MovaErrorEvent`、不写 `state.error`〕；单测挖出的 3 个 bug：时长未知时负向 seek 寄存前钳到 0、dispose 后 `MovaEngine`/`MovaCutoverEngine` 全部公开动词 no-op〔cutover 销毁后不再新建影子引擎〕、所有点播 seek 都走“校验 + 重发”链〔最多 3 次；DVR 直播 seek 未接校验链，记为矩阵 P2 缺口〕，均见 CHANGELOG `Unreleased`；`flutter analyze lib test` 0 issues；真机 gap 用例已写、离线校验通过，**未上机**，见矩阵 §5.2；默认内核工厂的单测〔矩阵 P1-14〕仍缺，需 lib 加 `@visibleForTesting` 注入点）；**前一基线 1519 项全绿**（2026-10-27 第四轮复测 F3/A17 残余 5/280 失败〔ABR 夹入 0 例〕的根因：seek 被 mpv 丢弃后内核只回声旧位置，被位置监听抑制，`_lastPosition` 停在自己写入的目标值，续播校验链误判已落地而不重发；已让校验判据要求 `_pendingSeekTarget` 已被接近目标的回声清掉，+1 项回归，较 1518；**真机复测结论（2026-10-27，STG-AL00，release）**：rerun6 主矩阵 279/280 通过〔cutover 160/160、普通 60/60、暂停 59/60，ABR 夹入 0 例〕，唯一失败 paused/37〔1 次 seek、已命中目标 RESTART 但落点后 96ms 读回 0，原因待证〕在 rerun7 暂停态补跑 60/60 中未复现；弱网组两项各 10/10 成功降档〔自动 3.6–5.2s、手动换档后 8.5–16.2s，未见 ABR 被永久屏蔽〕；趋势 rerun3 20.68% → rerun4 13.43% → rerun5 1.79% → rerun6 0.36%；**F3/A17 判为通过，附 paused/37 一项已知未复现**；遗留待办：自动弱网组销毁期 `[Player] has been disposed` UNCAUGHT〔堆栈在 media_kit，未深查〕；报告见 [retest5](doc/plans/2026-10-27-device-coverage-android-retest5.md)、[retest6](doc/plans/2026-10-27-device-coverage-android-retest6.md)，前序 [retest4](doc/plans/2026-10-27-device-coverage-android-retest4.md)；前一基线 1518：2026-10-27 第三轮复测定位 F3/A17 残余失败 38/283 的共同根因是换档续播自身制造的缓冲被 ABR 当成卡顿、在续播链中途触发降档；已加续播链内屏蔽 ABR 〔`_abrHold`，续播校验收尾或 10s 兜底解除〕，+1 项回归，较 1517 〔复测起点，比下文 1515 多出的 2 项来自此前提交〕；本机实跑，当时真机复测尚未重跑，之后的结论见上，见 [doc/plans/2026-10-27-device-coverage-android-retest3.md](doc/plans/2026-10-27-device-coverage-android-retest3.md)；前一基线 1515：2026-10-27 覆盖测试复跑后修 A15/F5 小窗跟随 PiP 收起、A23 dispose 幂等、A12 setZoom 下限，本机实跑，较 1510 +5 〔含 2 项 A8/A9 钳制回归与 3 项新回归〕，复跑结果见 [doc/plans/2026-10-27-device-coverage-rerun.md](doc/plans/2026-10-27-device-coverage-rerun.md)：PASS 109/FAIL 21/BLOCKED 5，F3/A17 换档续播间歇失败〔40 次 1 次〕尚未定位；前一基线 1510：2026-10-27 真机覆盖测试终审后修 F3 换档续播竞态、A8/A9 音量亮度钳制，本机实跑，较 1503 +5 〔1503 为覆盖测试起点，比下文 1472 多出的 31 项来自此前提交〕；Android 覆盖测试与终审结论见 [doc/plans/2026-10-27-device-coverage-results.md](doc/plans/2026-10-27-device-coverage-results.md) 文末「终审」；HE V6 在 Android 真机 5/5 通过，此前"V6 从头播"是验证脚本锚点缺陷；`open()` 的归零发生在 `beforeOpen` 之后、内核加载前，不是严格同步；前一基线 1472：2026-10-26 恢复层六项修复〔恢复后清错误/放弃清缓冲/确定性失败快速重试/直播持续重连/按源 mpv 选项/直播时长节流〕后本机实跑，较 1424 +48；1424 为：2026-10-26 评审遗留项（PiP/cutover/倍速/`open` 返回值等）修复后本机实跑，较上一轮 1409 +15；上一轮为全量评审修复后，较 1364 +45；2026-10-25 合并 WHEP 分支后为 1364；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
+
+### 统一编排 A/B/C 块现状
+
+总计划：[2026-10-31 unified orchestration](doc/plans/2026-10-31-unified-orchestration-master-plan.md)。
+A/B 块及 C01–C16 已落地，C17 对齐文档；设备检查点不能由单测代替。
+
+- **MovaSession**：纯 Dart 编排，item/node/attempt 三分；广告与 `MovaPlaylist(api, ads:)`
+  共享会话，自动连播等待全部后贴片；宿主 open 抢源时旧会话让位。
+- **广告时钟**：首帧后按 playing 边沿可暂停计时，暂停不计费，不依赖媒体时间轴；
+  首帧超时另用墙钟。contentError 包含解析失败、正片 open/切换异常和终结失败，
+  recovery 开启时等 giveUp；拒绝/过期不报错，失败不发 contentEnded、不自动换集。
+- **错误分级**：state.error 只放终结错误，诊断看 MovaErrorEvent.fatal/code 与 hook；
+  默认 END_FILE 判失败不依赖 recovery，单次实际加载尝试只结算一次。
+- **加载规格**：内部重试重放有效地址、手选档与时移/续播目标，最新 seek 和播放意图优先，
+  不重建 QoE 会话；故障切换清旧时移与档列表。
+- **cutover 操作代际**：_WarmSlot 持有预热资源，提交只认领自己的槽；包内 MovaWarmOwner
+  凭据取消/提交不伤宿主新影子，换指窗口与补发事件受 render epoch 和抢源校验保护。
+- **UI 与入口**：MovaChrome 每视图隔离交互态，包内 MovaUiBridge 过渡旧镜像；
+  MovaPlayerStyle 六节样式不重建引擎，fullscreenRoute 默认关；skin/ads/feed/mini/extend/stt
+  分入口已提供，旧入口与成员的下一版迁移公告见 SPEC 与 CHANGELOG。
+- **接线默认**：工厂首次 open 懒订阅 END_FILE，RESTART 由 reporter/preciseFirstFrame/封面按需启用；
+  默认 extractor 为 null，显式注入才抽帧；wifiOnly 默认探针仅在真实远程资源请求时接线/查询，
+  缓存、本地及禁用来源不查，自定义来源无显式 probe 时不凭媒体地址触发查询。
+- **待机两处修复**：唤醒用独立首帧闸门，重载以 reloaded 终止旧测量；回边缘重开不占待机队列，
+  setKeepAlive(false) 进入 resuming 即返回，网络返回复查意图，失败进入终结错误出口。
 
 以下按功能分组呈现已完成能力（原按 0.2.0–0.6.0 版本号分阶段记录，现已合并，
 版本号统一记为 0.2.0；具体日期/commit/测试数字均为客观事实，原样保留）。
@@ -84,7 +109,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   `MovaFeedPlayer(posterUntilFirstFrame:)`）、`MovaMinimalSkin` + `MovaTheme` 缓冲三字段、`MovaView` + `MovaSource.sameAs`。
 - **超时与恢复**（`MovaOpts.recovery`，默认关）：`MovaRecoveryConfig`/`MovaPlayFail`/`MovaRecoveryPolicy`（默认 `MovaRetryThenFailover`）/
   `MovaPlayWatchdog`（`core/recovery/`，不导出）；引擎侧 `_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`，事件 `MovaPlayFailure`/
-  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**；开启时 `createMovaEngine` 经 `movaObserveFlags(recovery:)` 打开原生事件泵但 `observeRestarts: false`（只要 `END_FILE` 做坏地址秒判，不转发 `PLAYBACK_RESTART`，首帧判据不变）
+  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍抛出并写终结状态、不建恢复 Timer，但默认仍订阅 `endFiles`**；工厂首次 open 懒创建弱客户端，RESTART 按 reporter/preciseFirstFrame/封面启用
   （`MovaAds` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
 - **多地址**：`MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、`MovaFailover`；备选只在 recovery 开启时使用，排序留给宿主。
 - **自动暂停守卫**：`core/guard/auto_pause.dart`（纯 Dart gate）+ `ui/guard/auto_pause.dart`（`MovaAutoPause`，只用 Flutter SDK）、
@@ -279,8 +304,8 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
   比例重新映射到新 bounds，再钳制兜底），新增 3 项单测，复测确认转屏后稳定贴住原
   角落附近。② **与系统 PiP 互斥——真机确认通过**：小窗态下触发 `enterPip()`，先
   `setMini(false)` 收起小窗再进系统 PiP，未叠加/花屏。③ **切后台再回前台——播放会
-  自动暂停，需手动点续播**：排查确认这不是 mini window 引入的 bug，是 Android 系统级
-  行为（切后台 GPU 渲染 Surface 被回收，libmpv 检测到 surface 丢失自动暂停），全屏
+  自动暂停，需手动点续播**：排查确认这不是 mini window 引入的 bug，来自 media_kit
+  `Video.pauseUponEnteringBackgroundMode` 默认行为（旧记录的 surface 回收归因未经对照证实），全屏
   播放切后台同样会暂停，非小窗特有——若要"前后台自动续播"需单独立项评估。
   顺带修复一个 demo 自身次生 bug：`_MisuseDemoState` 触发 assert 后若同一帧内又导航
   到别的入口，新引擎事件流回调会在 widget 树锁定期间同步刷新，已改为
@@ -376,9 +401,16 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 ## 剩余任务
 
 **全量评审遗留（2026-10-26，修复见 CHANGELOG `Unreleased`；逐项交接见 [doc/plans/2026-10-26-review-leftovers-handoff.md](doc/plans/2026-10-26-review-leftovers-handoff.md)）**：① **PiP 退出后 `state.pip` 不复位——已修复**：新增可选端口能力 `MovaPipObservable.changes`（`pipChanged` 通道回流，Android 插件监听配置变化推送），引擎据此复位 `state.pip` 并发 `MovaPipChange`；Android 展开与点 X 均已复位，Dart 通道层有单测，见 CHANGELOG `Unreleased` 与验收矩阵 N9/A18/H55；
-② `MovaWarmPlan` 没有方向字段，cutover 提交对两个方向一律继承 rate，广告侧靠 `MovaAds` 复位 1x 兜底（content→ad 换指后有几个微任务的短暂窗口），根治需给 plan 加方向；
-③ 真机 V12 观察到 pod 里第二条广告的 `cutoverTo` 回落成了主引擎普通 `open`（`_playAd` 里 `unawaited(abandon()); await cutoverTo()` 的写法 HEAD 就有，未确认与本轮 cutover 改动有无关系）；
-④ 评审里未处理的 P3：#10 `play/seek` 钩子异步返回后校验、#13 模型下载校验（`sha256` 全库未使用，实现需加 `crypto` 依赖，须先征得同意）、#19 预览队列吞异常、#22 STT 启动失败回滚、#24 手势轴向、#25 `trackCount`/`maxZoom` 构造期 assert、#29 `patch.dart`/`mova_platform_interface.dart` 缺注释。
+② **已处理**：`MovaWarmPlan.rate` 声明广告 1x 与正片恢复倍速，提交前下发，无需新增方向枚举。
+③ **已处理**：abandon 同步复位及 pod 预热仲裁已修，等待型 pod 现逐条用归属凭据提交；设备复验按检查点跟踪。
+④ **已处理/明确不做**：#10 异步钩子校验、#19 预览队列异常隔离、#22 STT 启动回滚、
+#24 手势轴向、#25 构造 assert 均已落地；#29 补丁/平台成员注释已核实并补充路径与能力语义。
+#13 模型下载 sha256 本轮不做，按总计划 §1.4 随 STT 外迁暂缓，实验下载无校验和的限制已写 README，
+不再保留成等待批准加依赖的任务。
+
+**统一编排设备待办**：CP1 为 COMPLETE_WITH_BLOCKERS（13 PASS/3 BLOCKED），CP2/CP3 待真机；
+C 块代码与文档完成不代表设备验收通过。后台暂停现由 MovaPlayer 经 api.pause 处理，
+祖先同 API 守卫可接管，audioOnly 不受视频面兜底影响；详见 SPEC。
 
 **瘦身版 libmpv 独立包发布——Android/Windows 已落地并验证，iOS/macOS 结构已落地但完全
 未验证（没有 Mac，不能算完成），每次启动请提醒用户此项仍有待实现的计划**：
@@ -551,27 +583,14 @@ Windows + Impeller 引擎 bug（flutter/flutter#190774，3.47.2 修）：页面�
    落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
    澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
    不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（已用 `MovaMini` 落地）。
-2. **实时语音转文字字幕——可行性 + 音频抽取 spike + 动态加载调研均已完成；方向 2026-08-01
-   倾向 whisper.cpp，待用户确认依赖后拆 Task**：方向是**各平台原生轻量抽取 API**（Android
-   `MediaExtractor`+`MediaCodec`、iOS `AVAssetReader`）+ **平台原生 STT**（Android
-   ML Kit / iOS `SFSpeechAudioBufferRecognitionRequest`，均系统自带、走原生插件代码，
-   不算新依赖）+ 字幕叠层组件；PCM 抽取与 STT 调用同一次原生方法内完成，不过 Dart 侧。
-   spike 验证过"起第二个 media_kit `Player` 用 `Media(start:,end:)` 分块"技术上可行，
-   但双播放器 CPU/内存翻倍，**已否决**，改走上述原生 API 路线。曾建议默认依赖
-   whisper.cpp，已推翻；曾评估 MCP 兜底转写，**已否决**（请求/响应协议非实时流式、
-   延迟不可控，且与 MCP 钩子"被动暴露上下文"的本职冲突）——缺口复用既有
-   `MovaVolumePort`/`CallbackVolumePort` 的注入模式给宿主一个通用 `MovaSttEngine` 口子
-   即可，不专门补 MCP。完整调研 + spike 实测数据见
-   [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
-   附录 A，回写见 [doc/PRD.md](doc/PRD.md) ADR。**macOS（无原生插件，需从零搭建）与
-   Windows（SAPI/COM，无项目内先例）暂缓**，逐 Task 落地计划见 `doc/plans/`。AI MCP
-   接入钩子（被动暴露上下文/接受指令，与字幕转写解耦）仍是纯架构预留，未评估、未排期。
-   **⚠️ 2026-08-01 方向调整（覆盖上文"平台原生优先"）**：动态加载调研
-   [doc/notes/2026-08-01-dynamic-loading.md](doc/notes/2026-08-01-dynamic-loading.md)
-   厘清「引擎=代码 / 模型=数据」——whisper.cpp 引擎仅几 MB 随包，模型是数据、运行时下载、
-   全平台合规（iOS 有官方 ODR/Background Assets）、天然满足"不内置模型"，**化解了此前对
-   whisper.cpp 的两个顾虑**，方向倾向 whisper.cpp（四端统一、避开 Android ML Kit alpha 坑）；
-   **引入 whisper.cpp 依赖仍需用户正式确认后才拆落地 Task**。
+2. **实时语音转文字字幕**：以 [2026-08-04 引擎定案](doc/notes/2026-08-04-stt-engine-decision.md)
+   为准：sherpa-onnx Zipformer，识别实现归 mova_stt，mova 本体只提供 MovaSttEngine 端口，
+   不内置引擎；旧“倾向 whisper.cpp/等待确认依赖”方向已废止。STT 接口、字幕组件与实验模型
+   下载已提供，但没有从当前视频自动抽 PCM 喂识别器的完整链路；下载无校验和。
+   改用 `package:mova/stt.dart`，主入口仅转导出一个版本，MovaApi.stt 保留。
+   使用 `createMovaEngine(options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: recognizer)))`
+   注入，识别器由宿主销毁；STT start 失败回滚且不向播放链抛出。
+
 
 ## 约定
 

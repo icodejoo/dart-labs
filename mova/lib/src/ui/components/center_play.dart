@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -66,20 +68,37 @@ class MovaPlayPauseComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.playing,
       builder: (context, playing) {
-        return Material(
-          type: MaterialType.circle,
-          color: Colors.transparent,
-          child: InkResponse(
-            radius: 36,
-            onTap: () => api.playOrPause(),
-            child: Icon(
-              playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
-              size: theme.centerIconSize,
-              color: Color(theme.iconColor),
+        return Semantics(
+          button: true,
+          label: playing
+              ? MovaPlayerStyle.stringsOf(context).pause
+              : MovaPlayerStyle.stringsOf(context).play,
+          child: Tooltip(
+            // 持久小窗位于 Overlay 外时只保留按钮语义。
+            message: Overlay.maybeOf(context) == null
+                ? ''
+                : (playing
+                      ? MovaPlayerStyle.stringsOf(context).pause
+                      : MovaPlayerStyle.stringsOf(context).play),
+            excludeFromSemantics: true,
+            child: Material(
+              type: MaterialType.circle,
+              color: Colors.transparent,
+              child: InkResponse(
+                radius: 36,
+                onTap: () => api.playOrPause(),
+                child: Icon(
+                  playing
+                      ? MovaPlayerStyle.iconsOf(context).pause
+                      : MovaPlayerStyle.iconsOf(context).play,
+                  size: theme.centerIconSize,
+                  color: Color(theme.iconColor),
+                ),
+              ),
             ),
           ),
         );

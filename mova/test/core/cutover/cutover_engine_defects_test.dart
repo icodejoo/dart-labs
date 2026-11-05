@@ -298,6 +298,7 @@ void main() {
   test('#17 commit migrates user view settings from the old engine onto the shadow before play', () async {
     final api = build((_) => FakeMovaApi(options: opts));
     made[0].push(made[0].state.copyWith(
+          playbackIntent: true,
           rate: 2.0,
           fit: MovaFit.cover,
           zoom: 1.5,

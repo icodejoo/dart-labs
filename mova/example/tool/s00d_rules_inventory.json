@@ -1,0 +1,2655 @@
+{
+  "complete": [
+    "A11",
+    "A2",
+    "A26",
+    "C12",
+    "C13",
+    "C17",
+    "C5",
+    "C6",
+    "C8",
+    "F7",
+    "N15",
+    "N17",
+    "N21",
+    "N23",
+    "N5",
+    "U3",
+    "U8"
+  ],
+  "added": {
+    "A2": [
+      "A2.engine.receipt",
+      "A2.cutover.receipt"
+    ],
+    "A7": [
+      "A7.retry.0",
+      "A7.retry.1",
+      "A7.retry.2",
+      "A7.retry.100"
+    ],
+    "C5": [
+      "C5.start.true.true",
+      "C5.reset.true.true",
+      "C5.auto.true.true",
+      "C5.sticky.true.true",
+      "C5.hide.true.true",
+      "C5.start.true.false",
+      "C5.reset.true.false",
+      "C5.auto.true.false",
+      "C5.sticky.true.false",
+      "C5.hide.true.false",
+      "C5.start.false.true",
+      "C5.reset.false.true",
+      "C5.auto.false.true",
+      "C5.sticky.false.true",
+      "C5.hide.false.true",
+      "C5.start.false.false",
+      "C5.reset.false.false",
+      "C5.auto.false.false",
+      "C5.sticky.false.false",
+      "C5.hide.false.false",
+      "C5.defaults",
+      "C5.paint.true.true",
+      "C5.paint.true.false",
+      "C5.paint.false.true",
+      "C5.paint.false.false"
+    ],
+    "C6": [
+      "C6.spawn.false",
+      "C6.spawn.true",
+      "C6.scroll",
+      "C6.unique",
+      "C6.retired"
+    ],
+    "C8": [
+      "C8.card.true",
+      "C8.cancel.true",
+      "C8.auto.true",
+      "C8.card.false",
+      "C8.cancel.false",
+      "C8.auto.false",
+      "C8.now"
+    ],
+    "A26": [
+      "A26.persistent",
+      "A26.tap",
+      "A26.page",
+      "A26.setRect",
+      "A26.hide",
+      "A26.close",
+      "U8.drag",
+      "U8.snap",
+      "U8.fling",
+      "U8.resize"
+    ],
+    "C12": [
+      "C12.defaultOff",
+      "A26.persistent",
+      "A26.tap",
+      "A26.page",
+      "A26.setRect",
+      "A26.hide",
+      "A26.close",
+      "U8.drag",
+      "U8.snap",
+      "U8.fling",
+      "U8.resize"
+    ],
+    "U8": [
+      "U8.drag",
+      "U8.snap",
+      "U8.fling",
+      "U8.resize",
+      "A26.persistent",
+      "A26.tap",
+      "A26.page",
+      "A26.setRect",
+      "A26.hide",
+      "A26.close"
+    ],
+    "N17": [
+      "N17.lazy",
+      "N17.owned",
+      "N17.same",
+      "N17.alternatives",
+      "N17.null",
+      "N17.options",
+      "N17.error",
+      "N17.dispose"
+    ],
+    "A11": [
+      "A11.declared",
+      "A11.once",
+      "A11.render.contain",
+      "A11.render.cover",
+      "A11.render.fill"
+    ],
+    "U1": [
+      "U1.surface",
+      "U1.borrowed",
+      "U1.feedOwned",
+      "U1.feedSource",
+      "U1.feedDispose"
+    ],
+    "N21": [
+      "N21.staged",
+      "N21.guard.windows",
+      "N21.guard.android"
+    ],
+    "N15": [
+      "N15.cover",
+      "N15.fade",
+      "N15.recover",
+      "N15.noSize",
+      "N15.feedCover",
+      "N15.feedFade",
+      "N15.feedRecover",
+      "N15.renderFade",
+      "N15.renderFadeDone",
+      "F7.nativeFirstFrame"
+    ],
+    "U3": [
+      "U3.title",
+      "U3.pipHidden",
+      "U3.fit",
+      "U3.fullscreenOn",
+      "U3.fullscreenOff",
+      "U3.qualityCount",
+      "U3.qualityMenu",
+      "U3.qualitySelect",
+      "U3.pipClick",
+      "U3.directionDesktop",
+      "U3.directionMobile",
+      "U3.direction1",
+      "U3.direction2"
+    ],
+    "U4": [
+      "U4.disabled",
+      "U4.enabled",
+      "U4.drag",
+      "U4.commit",
+      "U4.label"
+    ],
+    "U5": [
+      "U5.play",
+      "U5.pause",
+      "U5.rates",
+      "U5.volume",
+      "U5.brightness",
+      "U5.seek",
+      "U5.zoom"
+    ],
+    "C3": [
+      "C3.left.false",
+      "C3.right.false",
+      "U6.tap.false",
+      "U6.doubleRight.false",
+      "U6.doubleLeft.false",
+      "U6.horizontal.false",
+      "U6.pinch.false",
+      "U6.longPress.false",
+      "U6.region.false",
+      "C3.left.true",
+      "C3.right.true",
+      "U6.tap.true",
+      "U6.doubleRight.true",
+      "U6.doubleLeft.true",
+      "U6.horizontal.true",
+      "U6.pinch.true",
+      "U6.longPress.true",
+      "U6.region.true"
+    ],
+    "U6": [
+      "C3.left.false",
+      "C3.right.false",
+      "U6.tap.false",
+      "U6.doubleRight.false",
+      "U6.doubleLeft.false",
+      "U6.horizontal.false",
+      "U6.pinch.false",
+      "U6.longPress.false",
+      "U6.region.false",
+      "C3.left.true",
+      "C3.right.true",
+      "U6.tap.true",
+      "U6.doubleRight.true",
+      "U6.doubleLeft.true",
+      "U6.horizontal.true",
+      "U6.pinch.true",
+      "U6.longPress.true",
+      "U6.region.true"
+    ],
+    "A13": [
+      "A13.unlock.false",
+      "A13.unlock.true",
+      "A13.lock.false",
+      "A13.lock.true"
+    ],
+    "F7": [
+      "F7.false.ended.endCount",
+      "F7.false.ended.summary",
+      "F7.false.ended.truncated",
+      "F7.false.ended.firstFrameCount",
+      "F7.false.ended.firstFrame",
+      "F7.false.stopped.endCount",
+      "F7.false.stopped.summary",
+      "F7.false.stopped.truncated",
+      "F7.false.stopped.firstFrameCount",
+      "F7.false.stopped.firstFrame",
+      "F7.false.failed.endCount",
+      "F7.false.failed.summary",
+      "F7.false.failed.truncated",
+      "F7.false.failed.firstFrameCount",
+      "F7.false.failed.firstFrame",
+      "F7.false.abandoned.endCount",
+      "F7.false.abandoned.summary",
+      "F7.false.abandoned.truncated",
+      "F7.false.truncated.endCount",
+      "F7.false.truncated.summary",
+      "F7.false.truncated.truncated",
+      "F7.false.truncated.firstFrameCount",
+      "F7.false.truncated.firstFrame",
+      "F7.false.disabled.endCount",
+      "F7.false.disabled.summary",
+      "F7.false.disabled.truncated",
+      "F7.false.disabled.firstFrameCount",
+      "F7.false.disabled.firstFrame",
+      "F7.true.ended.endCount",
+      "F7.true.ended.summary",
+      "F7.true.ended.truncated",
+      "F7.true.ended.firstFrameCount",
+      "F7.true.ended.firstFrame",
+      "F7.true.stopped.endCount",
+      "F7.true.stopped.summary",
+      "F7.true.stopped.truncated",
+      "F7.true.stopped.firstFrameCount",
+      "F7.true.stopped.firstFrame",
+      "F7.true.failed.endCount",
+      "F7.true.failed.summary",
+      "F7.true.failed.truncated",
+      "F7.true.failed.firstFrameCount",
+      "F7.true.failed.firstFrame",
+      "F7.true.abandoned.endCount",
+      "F7.true.abandoned.summary",
+      "F7.true.abandoned.truncated",
+      "F7.true.truncated.endCount",
+      "F7.true.truncated.summary",
+      "F7.true.truncated.truncated",
+      "F7.true.truncated.firstFrameCount",
+      "F7.true.truncated.firstFrame",
+      "F7.true.disabled.endCount",
+      "F7.true.disabled.summary",
+      "F7.true.disabled.truncated",
+      "F7.true.disabled.firstFrameCount",
+      "F7.true.disabled.firstFrame",
+      "F7.heartbeat",
+      "F7.nativeFirstFrame",
+      "F7.nativeSample",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT"
+    ],
+    "C13": [
+      "F7.false.ended.endCount",
+      "F7.false.ended.summary",
+      "F7.false.ended.truncated",
+      "F7.false.ended.firstFrameCount",
+      "F7.false.ended.firstFrame",
+      "F7.false.stopped.endCount",
+      "F7.false.stopped.summary",
+      "F7.false.stopped.truncated",
+      "F7.false.stopped.firstFrameCount",
+      "F7.false.stopped.firstFrame",
+      "F7.false.failed.endCount",
+      "F7.false.failed.summary",
+      "F7.false.failed.truncated",
+      "F7.false.failed.firstFrameCount",
+      "F7.false.failed.firstFrame",
+      "F7.false.abandoned.endCount",
+      "F7.false.abandoned.summary",
+      "F7.false.abandoned.truncated",
+      "F7.false.truncated.endCount",
+      "F7.false.truncated.summary",
+      "F7.false.truncated.truncated",
+      "F7.false.truncated.firstFrameCount",
+      "F7.false.truncated.firstFrame",
+      "F7.false.disabled.endCount",
+      "F7.false.disabled.summary",
+      "F7.false.disabled.truncated",
+      "F7.false.disabled.firstFrameCount",
+      "F7.false.disabled.firstFrame",
+      "F7.true.ended.endCount",
+      "F7.true.ended.summary",
+      "F7.true.ended.truncated",
+      "F7.true.ended.firstFrameCount",
+      "F7.true.ended.firstFrame",
+      "F7.true.stopped.endCount",
+      "F7.true.stopped.summary",
+      "F7.true.stopped.truncated",
+      "F7.true.stopped.firstFrameCount",
+      "F7.true.stopped.firstFrame",
+      "F7.true.failed.endCount",
+      "F7.true.failed.summary",
+      "F7.true.failed.truncated",
+      "F7.true.failed.firstFrameCount",
+      "F7.true.failed.firstFrame",
+      "F7.true.abandoned.endCount",
+      "F7.true.abandoned.summary",
+      "F7.true.abandoned.truncated",
+      "F7.true.truncated.endCount",
+      "F7.true.truncated.summary",
+      "F7.true.truncated.truncated",
+      "F7.true.truncated.firstFrameCount",
+      "F7.true.truncated.firstFrame",
+      "F7.true.disabled.endCount",
+      "F7.true.disabled.summary",
+      "F7.true.disabled.truncated",
+      "F7.true.disabled.firstFrameCount",
+      "F7.true.disabled.firstFrame",
+      "F7.heartbeat",
+      "F7.nativeFirstFrame",
+      "F7.nativeSample",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT"
+    ],
+    "N23": [
+      "F7.false.ended.endCount",
+      "F7.false.ended.summary",
+      "F7.false.ended.truncated",
+      "F7.false.ended.firstFrameCount",
+      "F7.false.ended.firstFrame",
+      "F7.false.stopped.endCount",
+      "F7.false.stopped.summary",
+      "F7.false.stopped.truncated",
+      "F7.false.stopped.firstFrameCount",
+      "F7.false.stopped.firstFrame",
+      "F7.false.failed.endCount",
+      "F7.false.failed.summary",
+      "F7.false.failed.truncated",
+      "F7.false.failed.firstFrameCount",
+      "F7.false.failed.firstFrame",
+      "F7.false.abandoned.endCount",
+      "F7.false.abandoned.summary",
+      "F7.false.abandoned.truncated",
+      "F7.false.truncated.endCount",
+      "F7.false.truncated.summary",
+      "F7.false.truncated.truncated",
+      "F7.false.truncated.firstFrameCount",
+      "F7.false.truncated.firstFrame",
+      "F7.false.disabled.endCount",
+      "F7.false.disabled.summary",
+      "F7.false.disabled.truncated",
+      "F7.false.disabled.firstFrameCount",
+      "F7.false.disabled.firstFrame",
+      "F7.true.ended.endCount",
+      "F7.true.ended.summary",
+      "F7.true.ended.truncated",
+      "F7.true.ended.firstFrameCount",
+      "F7.true.ended.firstFrame",
+      "F7.true.stopped.endCount",
+      "F7.true.stopped.summary",
+      "F7.true.stopped.truncated",
+      "F7.true.stopped.firstFrameCount",
+      "F7.true.stopped.firstFrame",
+      "F7.true.failed.endCount",
+      "F7.true.failed.summary",
+      "F7.true.failed.truncated",
+      "F7.true.failed.firstFrameCount",
+      "F7.true.failed.firstFrame",
+      "F7.true.abandoned.endCount",
+      "F7.true.abandoned.summary",
+      "F7.true.abandoned.truncated",
+      "F7.true.truncated.endCount",
+      "F7.true.truncated.summary",
+      "F7.true.truncated.truncated",
+      "F7.true.truncated.firstFrameCount",
+      "F7.true.truncated.firstFrame",
+      "F7.true.disabled.endCount",
+      "F7.true.disabled.summary",
+      "F7.true.disabled.truncated",
+      "F7.true.disabled.firstFrameCount",
+      "F7.true.disabled.firstFrame",
+      "F7.heartbeat",
+      "F7.nativeFirstFrame",
+      "F7.nativeSample",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "REPORT",
+      "N23.policy.stream.false",
+      "N23.policy.stream.true",
+      "N23.policy.file.false",
+      "N23.policy.file.true",
+      "N23.policy.ffmpeg.false",
+      "N23.policy.ffmpeg.true",
+      "N23.policy.vd.false",
+      "N23.policy.vd.true",
+      "N23.policy.ad.false",
+      "N23.policy.ad.true",
+      "N23.policy.cplayer.false",
+      "N23.policy.cplayer.true",
+      "N23.policy.other.false",
+      "N23.policy.other.true",
+      "N23.custom",
+      "N23.error.stream.false",
+      "N23.error.stream.true",
+      "N23.error.file.false",
+      "N23.error.file.true",
+      "N23.error.ffmpeg.false",
+      "N23.error.ffmpeg.true",
+      "N23.error.vd.false",
+      "N23.error.vd.true",
+      "N23.error.ad.false",
+      "N23.error.ad.true",
+      "N23.error.cplayer.false",
+      "N23.error.cplayer.true",
+      "N23.error.other.false",
+      "N23.error.other.true"
+    ],
+    "C17": [
+      "C17.headers.one",
+      "C17.headers.two"
+    ],
+    "N13": [
+      "N13.clients.off",
+      "N13.clients.recovery",
+      "N13.clients.precise",
+      "N13.clients.reporterOff",
+      "N13.clients.qoe"
+    ],
+    "N5": [
+      "N5.restart.off",
+      "N5.restart.recovery",
+      "N5.restart.precise",
+      "N5.restart.reporterOff",
+      "N5.restart.qoe",
+      "N5.endFile"
+    ],
+    "F14": [
+      "F14.disposed.off",
+      "F14.disposed.recovery",
+      "F14.disposed.precise",
+      "F14.disposed.reporterOff",
+      "F14.disposed.qoe"
+    ],
+    "F12": [
+      "F12.audioCounters"
+    ],
+    "F13": [
+      "F13.resources.20",
+      "F13.resources.40",
+      "F13.resources.60",
+      "F13.resources.80",
+      "F13.resources.100",
+      "F13.resources.disposed",
+      "F13.disposeFrames",
+      "A29.poolReclaimed"
+    ],
+    "F9": [
+      "F9.nativeAudio"
+    ],
+    "U7": [],
+    "U9": [],
+    "N12": []
+  },
+  "remaining": [
+    "A7",
+    "A13",
+    "C3",
+    "U1",
+    "U4",
+    "U5",
+    "U6",
+    "U7",
+    "U9",
+    "F9",
+    "F12",
+    "F13",
+    "F14",
+    "N12",
+    "N13"
+  ],
+  "checks": [
+    {
+      "matrix_id": "A2",
+      "check_id": "A2.engine.receipt",
+      "file": "example/lib/verify_auto/s00d_receipt.dart"
+    },
+    {
+      "matrix_id": "A2",
+      "check_id": "A2.cutover.receipt",
+      "file": "example/lib/verify_auto/s00d_receipt.dart"
+    },
+    {
+      "matrix_id": "A7",
+      "check_id": "A7.retry.0",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "A7",
+      "check_id": "A7.retry.1",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "A7",
+      "check_id": "A7.retry.2",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "A7",
+      "check_id": "A7.retry.100",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "A11",
+      "check_id": "A11.declared",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A11",
+      "check_id": "A11.once",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A11",
+      "check_id": "A11.render.contain",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "A11",
+      "check_id": "A11.render.cover",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "A11",
+      "check_id": "A11.render.fill",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "A13",
+      "check_id": "A13.unlock.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A13",
+      "check_id": "A13.unlock.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A13",
+      "check_id": "A13.lock.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A13",
+      "check_id": "A13.lock.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.persistent",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.tap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.page",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.setRect",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.hide",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "A26.close",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "U8.drag",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "U8.snap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "U8.fling",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "A26",
+      "check_id": "U8.resize",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "C3.left.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "C3.right.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.tap.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.doubleRight.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.doubleLeft.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.horizontal.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.pinch.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.longPress.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.region.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "C3.left.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "C3.right.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.tap.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.doubleRight.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.doubleLeft.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.horizontal.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.pinch.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.longPress.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C3",
+      "check_id": "U6.region.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.start.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.reset.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.auto.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.sticky.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.hide.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.start.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.reset.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.auto.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.sticky.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.hide.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.start.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.reset.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.auto.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.sticky.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.hide.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.start.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.reset.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.auto.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.sticky.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.hide.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.defaults",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.paint.true.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.paint.true.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.paint.false.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C5",
+      "check_id": "C5.paint.false.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C6",
+      "check_id": "C6.spawn.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C6",
+      "check_id": "C6.spawn.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C6",
+      "check_id": "C6.scroll",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C6",
+      "check_id": "C6.unique",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C6",
+      "check_id": "C6.retired",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.card.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.cancel.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.auto.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.card.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.cancel.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.auto.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C8",
+      "check_id": "C8.now",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "C12.defaultOff",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.persistent",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.tap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.page",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.setRect",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.hide",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "A26.close",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "U8.drag",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "U8.snap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "U8.fling",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C12",
+      "check_id": "U8.resize",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.false.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.true.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.heartbeat",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.nativeFirstFrame",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "check_id": "F7.nativeSample",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "C17",
+      "check_id": "C17.headers.one",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "C17",
+      "check_id": "C17.headers.two",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "U1",
+      "check_id": "U1.surface",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U1",
+      "check_id": "U1.borrowed",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U1",
+      "check_id": "U1.feedOwned",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U1",
+      "check_id": "U1.feedSource",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U1",
+      "check_id": "U1.feedDispose",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.title",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.pipHidden",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.fit",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.fullscreenOn",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.fullscreenOff",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.qualityCount",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.qualityMenu",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.qualitySelect",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.pipClick",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.directionDesktop",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.directionMobile",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.direction1",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U3",
+      "check_id": "U3.direction2",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U4",
+      "check_id": "U4.disabled",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U4",
+      "check_id": "U4.enabled",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U4",
+      "check_id": "U4.drag",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U4",
+      "check_id": "U4.commit",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U4",
+      "check_id": "U4.label",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.play",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.pause",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.rates",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.volume",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.brightness",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.seek",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U5",
+      "check_id": "U5.zoom",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "C3.left.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "C3.right.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.tap.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.doubleRight.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.doubleLeft.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.horizontal.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.pinch.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.longPress.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.region.false",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "C3.left.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "C3.right.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.tap.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.doubleRight.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.doubleLeft.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.horizontal.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.pinch.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.longPress.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U6",
+      "check_id": "U6.region.true",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "U8.drag",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "U8.snap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "U8.fling",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "U8.resize",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.persistent",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.tap",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.page",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.setRect",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.hide",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "U8",
+      "check_id": "A26.close",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.false.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.true.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.heartbeat",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.nativeFirstFrame",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "check_id": "F7.nativeSample",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F9",
+      "check_id": "F9.nativeAudio",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F12",
+      "check_id": "F12.audioCounters",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.20",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.40",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.60",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.80",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.100",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.resources.disposed",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "F13.disposeFrames",
+      "file": "example/lib/verify_auto/s00d_resources.dart"
+    },
+    {
+      "matrix_id": "F13",
+      "check_id": "A29.poolReclaimed",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F14",
+      "check_id": "F14.disposed.off",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F14",
+      "check_id": "F14.disposed.recovery",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F14",
+      "check_id": "F14.disposed.precise",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F14",
+      "check_id": "F14.disposed.reporterOff",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "F14",
+      "check_id": "F14.disposed.qoe",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.restart.off",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.restart.recovery",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.restart.precise",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.restart.reporterOff",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.restart.qoe",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N5",
+      "check_id": "N5.endFile",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N13",
+      "check_id": "N13.clients.off",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N13",
+      "check_id": "N13.clients.recovery",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N13",
+      "check_id": "N13.clients.precise",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N13",
+      "check_id": "N13.clients.reporterOff",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N13",
+      "check_id": "N13.clients.qoe",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.cover",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.fade",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.recover",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.noSize",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.feedCover",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.feedFade",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.feedRecover",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.renderFade",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "N15.renderFadeDone",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N15",
+      "check_id": "F7.nativeFirstFrame",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.lazy",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.owned",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.same",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.alternatives",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.null",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.options",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.error",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N17",
+      "check_id": "N17.dispose",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N21",
+      "check_id": "N21.staged",
+      "file": "example/test/s00d_widgets_test.dart"
+    },
+    {
+      "matrix_id": "N21",
+      "check_id": "N21.guard.windows",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N21",
+      "check_id": "N21.guard.android",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.false.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.ended.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.ended.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.ended.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.ended.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.ended.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.stopped.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.stopped.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.stopped.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.stopped.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.stopped.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.failed.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.failed.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.failed.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.failed.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.failed.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.abandoned.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.abandoned.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.abandoned.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.truncated.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.truncated.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.truncated.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.truncated.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.truncated.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.disabled.endCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.disabled.summary",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.disabled.truncated",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.disabled.firstFrameCount",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.true.disabled.firstFrame",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.heartbeat",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.nativeFirstFrame",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "F7.nativeSample",
+      "file": "example/lib/verify_auto/s00d_native.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.stream.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.stream.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.file.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.file.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.ffmpeg.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.ffmpeg.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.vd.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.vd.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.ad.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.ad.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.cplayer.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.cplayer.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.other.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.policy.other.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.custom",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.stream.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.stream.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.file.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.file.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.ffmpeg.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.ffmpeg.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.vd.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.vd.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.ad.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.ad.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.cplayer.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.cplayer.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.other.false",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "check_id": "N23.error.other.true",
+      "file": "example/lib/verify_auto/s00d_contract.dart"
+    }
+  ],
+  "record_requirements": [
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch15-qoe-ended.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch15-qoe-stopped.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch15-qoe-failed.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch15-qoe-abandoned.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch15-qoe-truncated.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "C13",
+      "name": "REPORT",
+      "files": "*batch17-qoe-stall-release.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch15-qoe-ended.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch15-qoe-stopped.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch15-qoe-failed.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch15-qoe-abandoned.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch15-qoe-truncated.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "F7",
+      "name": "REPORT",
+      "files": "*batch17-qoe-stall-release.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch15-qoe-ended.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch15-qoe-stopped.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch15-qoe-failed.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch15-qoe-abandoned.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch15-qoe-truncated.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    },
+    {
+      "matrix_id": "N23",
+      "name": "REPORT",
+      "files": "*batch17-qoe-stall-release.json",
+      "file": "example/lib/verify_auto/coverage_new.dart"
+    }
+  ]
+}

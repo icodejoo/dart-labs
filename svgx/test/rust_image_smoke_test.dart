@@ -8,6 +8,7 @@
 // 测试套件因与被测功能无关的环境限制而失败。
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:svgx/src/rust/api/svg.dart';
 import 'package:svgx/svgx.dart';
 
 const _pngBase64 =

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -149,7 +150,7 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
       const Duration(seconds: 3);
 
   /// 稳定插件名称。
-  static const pluginName = 'dioman:retry';
+  static const pluginName = diomanRetryName;
 
   /// 请求级选项键。
   static final option = DiomanOptionKey<DiomanRetryOptions>(pluginName);
@@ -164,9 +165,8 @@ class DiomanRetry<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
 
   /// 预合并配置并建立客户端独立实例。
   @override
-  DiomanPluginInstance<R> setup(Dioman<R> client) => _Retry<R>(
-      this,
-      DiomanRetryOptions(
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Retry<R>(DiomanRetryOptions(
           max: max,
           methods: methods,
           statusCodes: statusCodes,
@@ -200,10 +200,7 @@ DiomanRetryOptions _merge(DiomanRetryOptions a, DiomanRetryOptions b) =>
 class _Retry<R extends DiomanResponse<dynamic>>
     extends DiomanPluginInstance<R> {
   /// 保存预合并配置。
-  _Retry(this.config, this.base);
-
-  /// 插件配置。
-  final DiomanRetry<R> config;
+  _Retry(this.base);
 
   /// 预合并配置。
   final DiomanRetryOptions base;

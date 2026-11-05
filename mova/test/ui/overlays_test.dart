@@ -3,10 +3,64 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/components/overlays.dart';
 
+import 'package:mova/src/ui/player.dart';
+import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/core/state/ui_state.dart';
+
 import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
+  testWidgets('隐藏控制条仍显示缓冲状态', (t) async {
+    final api = FakeMovaApi();
+    api.push(const MovaState(buffering: true));
+    api.pushUi(const MovaUiState(controlsVisible: false));
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    expect(
+      find.byType(CircularProgressIndicator).hitTestable(),
+      findsOneWidget,
+    );
+    await api.dispose();
+  });
+
+  testWidgets('锁定时错误层仍可重试', (t) async {
+    final api = FakeMovaApi();
+    api.push(const MovaState(locked: true, error: 'boom'));
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    await t.tap(find.byIcon(Icons.refresh_rounded));
+    expect(api.calls, contains('reload'));
+    await api.dispose();
+  });
+
+  testWidgets('pip 和 mini 仍隐藏状态层', (t) async {
+    final api = FakeMovaApi();
+    for (final state in [
+      const MovaState(pip: true, buffering: true),
+      const MovaState(mini: true, error: 'boom'),
+    ]) {
+      api.push(state);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+      await t.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('boom'), findsNothing);
+    }
+    await api.dispose();
+  });
+
+  testWidgets('自定义皮肤可保留原 center 门控', (t) async {
+    final api = FakeMovaApi();
+    api.push(const MovaState(locked: true, error: 'boom'));
+    await t.pumpWidget(
+      MaterialApp(
+        home: MovaPlayer(
+          api: api,
+          skin: const MovaDefaultSkin(statusLayerNames: {}),
+        ),
+      ),
+    );
+    expect(find.text('boom'), findsNothing);
+    await api.dispose();
+  });
   testWidgets('buffering overlay shows only while buffering', (t) async {
     final api = FakeMovaApi();
     await pumpComponent(t, api, MovaBufferingComponent());

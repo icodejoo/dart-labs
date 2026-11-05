@@ -1,3 +1,6 @@
+import '../style/style.dart';
+import '../chrome/chrome.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,6 +12,7 @@ import '../format.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+import '../slots/tree.dart';
 import 'common.dart';
 
 /// Adaptive composite for the bottom control bar, serving both VOD and live
@@ -47,17 +51,40 @@ class MovaBottomBarComponent extends MovaComponent {
 
   @override
   List<MovaComponent> get children => [
-        MovaPositionLabelComponent(), // 0 VOD
-        MovaLiveBadgeComponent(), // 1 live
-        MovaSeekBarComponent(), // 2 shared
-        MovaTimeshiftLabelComponent(), // 3 live
-        MovaDurationLabelComponent(), // 4 VOD
-        MovaBackToLiveComponent(), // 5 live
-      ];
+    MovaPositionLabelComponent(), // 0 VOD
+    MovaLiveBadgeComponent(), // 1 live
+    MovaSeekBarComponent(), // 2 shared
+    MovaTimeshiftLabelComponent(), // 3 live
+    MovaDurationLabelComponent(), // 4 VOD
+    MovaBackToLiveComponent(), // 5 live
+  ];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
+    // 自定义插入节点跟随前一个已知节点；移除后不再依赖任何列表下标。
+    final groups = <String, List<Widget>>{};
+    final names = this.children.map((child) => child.name).toSet();
+    String? anchor;
+    for (final child in children) {
+      if (child is MovaBuiltChild && names.contains(child.name)) {
+        anchor = child.name;
+      }
+      if (anchor != null) groups.putIfAbsent(anchor, () => []).add(child);
+    }
+
+    /// 返回 [name] 对应节点及紧随其后的自定义节点，缺失时返回空列表。
+    List<Widget> group(String name) => groups[name] ?? const [];
+
+    /// 只将名为 seekBar 的节点撑开，保留自定义插入内容的自然宽度。
+    List<Widget> seekWidgets() => [
+      for (final child in group(MovaSeekBarComponent.componentName))
+        if (child is MovaBuiltChild &&
+            child.name == MovaSeekBarComponent.componentName)
+          Expanded(child: child)
+        else
+          child,
+    ];
     return MovaSelect<({MovaStreamType type, bool seekable})>(
       selector: (s) => (type: s.type, seekable: s.liveSeekable),
       builder: (context, v) {
@@ -65,19 +92,19 @@ class MovaBottomBarComponent extends MovaComponent {
             ? Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[1], // liveBadge
-                  if (v.seekable) Expanded(child: children[2]) else const Spacer(),
-                  children[3], // timeshift
-                  children[5], // backToLive
+                  ...group(MovaLiveBadgeComponent.componentName),
+                  if (v.seekable) ...seekWidgets() else const Spacer(),
+                  ...group(MovaTimeshiftLabelComponent.componentName),
+                  ...group(MovaBackToLiveComponent.componentName),
                   const SizedBox(width: 4),
                 ],
               )
             : Row(
                 children: [
                   const SizedBox(width: 8),
-                  children[0], // positionLabel
-                  Expanded(child: children[2]), // seekBar
-                  children[4], // durationLabel
+                  ...group(MovaPositionLabelComponent.componentName),
+                  ...seekWidgets(),
+                  ...group(MovaDurationLabelComponent.componentName),
                   const SizedBox(width: 8),
                 ],
               );
@@ -109,13 +136,16 @@ class MovaPositionLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    return MovaProgSelect<Duration>(
-      selector: (p) => p.position,
-      builder: (context, position) {
+    final theme = MovaPlayerStyle.themeOf(context);
+    return MovaProgSelect<int>(
+      selector: (p) => p.position.inSeconds,
+      builder: (context, seconds) {
         return Text(
-          formatDuration(position ?? Duration.zero),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          formatDuration(Duration(seconds: seconds ?? 0)),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -144,13 +174,16 @@ class MovaDurationLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration>(
       selector: (s) => s.duration,
       builder: (context, duration) {
         return Text(
           formatDuration(duration),
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.timeFontSize,
+          ),
         );
       },
     );
@@ -264,6 +297,8 @@ class _SeekBarState extends State<_SeekBar> {
   /// [_position] 落定后自动解除钉住——拖动进行中时，一次凑巧落在手指当前位置
   /// 附近的进度 tick 绝不能提前把钉住松开。
   bool _awaitingSeek = false;
+  late MovaUiPort _ui;
+  bool _ownsDrag = false;
 
   /// Subscription feeding [_position]; cancelled on dispose.
   ///
@@ -280,6 +315,15 @@ class _SeekBarState extends State<_SeekBar> {
   @override
   void initState() {
     super.initState();
+    _ui = movaUiOf(context);
+    final api = widget.api;
+    if (api is MovaProgressSource) {
+      _position = (api as MovaProgressSource)
+          .progressValue
+          .position
+          .inMilliseconds
+          .toDouble();
+    }
     _sub = widget.api.progress.listen((p) {
       setState(() {
         _position = p.position.inMilliseconds.toDouble();
@@ -297,19 +341,28 @@ class _SeekBarState extends State<_SeekBar> {
   @override
   void dispose() {
     _sub?.cancel();
+    if (_ownsDrag) _ui.setDragging(false);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final max = widget.duration.inMilliseconds.toDouble();
     final enabled = max > 0;
     final value = (_dragValue ?? _position).clamp(0.0, enabled ? max : 0.0);
     return Material(
       type: MaterialType.transparency,
       child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(trackHeight: theme.progressHeight),
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: theme.progressHeight,
+          activeTrackColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+          thumbColor: theme.progressColor == null
+              ? null
+              : Color(theme.progressColor!),
+        ),
         child: Slider(
           value: value,
           min: 0,
@@ -332,7 +385,8 @@ class _SeekBarState extends State<_SeekBar> {
       _dragValue = v;
       _awaitingSeek = false;
     });
-    widget.api.setDragging(true, previewAt: Duration(milliseconds: v.round()));
+    _ownsDrag = true;
+    _ui.setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
   /// Commits the dragged position via [MovaApi.seek] and clears the drag
@@ -357,7 +411,8 @@ class _SeekBarState extends State<_SeekBar> {
   /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
   void _onChangeEnd(double v) {
     widget.api.seek(Duration(milliseconds: v.round()));
-    widget.api.setDragging(false);
+    _ownsDrag = false;
+    _ui.setDragging(false);
     setState(() => _awaitingSeek = true);
   }
 }
@@ -392,15 +447,17 @@ class MovaLiveBadgeComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final strings = api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.timeshiftBehind == null,
       builder: (context, atEdge) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: Color(atEdge ? theme.accentColor : theme.timeshiftBadgeColor),
+            color: Color(
+              atEdge ? theme.accentColor : theme.timeshiftBadgeColor,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
@@ -445,7 +502,7 @@ class MovaTimeshiftLabelComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<Duration?>(
       selector: (s) => s.timeshiftBehind,
       builder: (context, behind) {
@@ -496,10 +553,11 @@ class MovaBackToLiveComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    final strings = api.options.strings;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaIconButton(
-      icon: Icons.sync_rounded,
+      label: strings.labelWithValue(strings.backToLive, strings.backToLive),
+      icon: MovaPlayerStyle.iconsOf(context).backToLive,
       caption: strings.backToLive,
       theme: theme,
       onPressed: api.backToLiveEdge,

@@ -9,15 +9,20 @@ import subprocess
 import time
 import urllib.request
 import urllib.parse
+import os
+import sys
 from shot_guard import PACKAGE, guarded_screencap
 
 SERIAL = "7NQBB23606003715"
 HERE = Path(__file__).resolve().parent
+_campaign_api_checked = False
 
 
 def adb(*args, binary=False):
     """Run only against the explicitly authorized device / 仅操作指定真机。"""
-    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary)
+    from cp0_device_guard import wait_online
+    wait_online(SERIAL)
+    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary, timeout=120)
 
 
 def shot(path, package=PACKAGE):
@@ -39,6 +44,25 @@ def unlocked():
 
 
 def request(path):
+    global _campaign_api_checked
+    if os.environ.get('MOVA_CP3_CAMPAIGN') == '1' and not _campaign_api_checked and path.startswith('/run?'):
+        # Short-first ordering can leave a HE/gap page foreground. Establish
+        # the API control prerequisite before sending the first test command;
+        # never retry or replace a command that has already been sent.
+        ready = False
+        try:
+            with urllib.request.urlopen('http://127.0.0.1:18083/', timeout=2) as response:
+                current = json.load(response)
+                ready = 'status' in current and isinstance(current.get('records'), list)
+        except (OSError, ValueError):
+            pass
+        if not ready:
+            print('CP3 API prerequisite: select api page before first command', flush=True)
+            subprocess.run([sys.executable, HERE / 'coverage_suite_device.py', 'api',
+                            '--name', 'cp3-api-prerequisite', '--timeout', '60'],
+                           check=True, timeout=90,
+                           creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        _campaign_api_checked = True
     with urllib.request.urlopen("http://127.0.0.1:18083" + path, timeout=10) as response:
         return json.load(response)
 

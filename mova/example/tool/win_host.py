@@ -1,6 +1,7 @@
 """Own only the Windows release probes and persist their native journals."""
 from pathlib import Path
 import json, subprocess, sys, time, urllib.request, urllib.parse
+import win_policy
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -26,7 +27,7 @@ def start(build):
         source = subprocess.Popen([sys.executable,'-u','-m','http.server','18094','--bind','127.0.0.1','--directory',str(HERE/'rerun-sources')], stdout=log,stderr=log,creationflags=subprocess.CREATE_NO_WINDOW)
         state['source'] = source.pid
     exe = ROOT/'example/build/windows/x64/runner/Release/mova_example.exe'
-    proc = subprocess.Popen([str(exe)],cwd=exe.parent)
+    proc = win_policy.launch(exe, exe.parent)  # 统一入口：不激活、小窗、压底
     state['app'] = proc.pid
     state['build'] = build
     state.setdefault('history',[]).append({'build':build,'app':proc.pid,'exe':str(exe)})

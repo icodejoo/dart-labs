@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -194,16 +195,16 @@ void main() {
   });
 
   group('engine → hooks.onError', () {
-    test('a kernel error reaches every hook, throwing one included, and still lands in state', () async {
+    test('a kernel error reaches every hook, throwing one included, without writing nonterminal state', () async {
       final k = FakeKernel();
       final bad = _ErrorHook(throwing: true);
       final good = _ErrorHook();
-      final e = MovaEngine(kernel: k, interceptors: [bad, good]);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [bad, good]);
       k.emitError('boom');
       await Future<void>.delayed(Duration.zero);
       expect(bad.errors, ['boom']);
       expect(good.errors, ['boom']);
-      expect(e.state.error, 'boom');
+      expect(e.state.error, isNull);
       await e.dispose();
     });
 
@@ -211,7 +212,7 @@ void main() {
       fakeAsync((async) {
         final k = FakeKernel();
         final hook = _ErrorHook();
-        final e = MovaEngine(
+        final e = MovaEngine(fetcher: const MovaTestHttpFetch(),
           kernel: k,
           interceptors: [hook],
           options: const MovaOpts(
@@ -242,7 +243,7 @@ void main() {
     // 引擎对下一次调用仍可用。
     test('beforePlay: play() throws to the caller and playbackIntent stays unchanged', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       final before = e.state.playbackIntent;
       await expectLater(e.play(), throwsA(isA<StateError>()));
       expect(e.state.playbackIntent, before);
@@ -252,7 +253,7 @@ void main() {
 
     test('beforeSeek: seek() throws to the caller and nothing reaches the kernel', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       await expectLater(e.seek(const Duration(seconds: 5)), throwsA(isA<StateError>()));
       expect(k.calls, isNot(contains('seek')));
       await e.dispose();
@@ -260,7 +261,7 @@ void main() {
 
     test('beforeOpen: open() throws to the caller and no source is loaded', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k, interceptors: [_ThrowingBeforeHook()]);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k, interceptors: [_ThrowingBeforeHook()]);
       await expectLater(e.open(const MovaSource(_uri)), throwsA(isA<StateError>()));
       expect(k.openedUris, isEmpty);
       await e.dispose();

@@ -5,12 +5,15 @@
 import argparse
 import http.server
 import json
+import queue
+import re
 from pathlib import Path
 import subprocess
 import threading
 import time
 import urllib.request
-from coverage_device import adb, unlocked, capture, shot
+from coverage_device import adb, unlocked, capture, shot, SERIAL
+from cp1_capture import is_capture_marker
 
 PKG = 'com.icodejoo.mova.mova_example.coverage'
 HERE = Path(__file__).resolve().parent
@@ -27,11 +30,24 @@ def main():
     parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--timeout', type=int, default=900)
     parser.add_argument('--name')
+    parser.add_argument('--shot-index', action='store_true', help='retain SHOT marker/image pairs for CP1 review')
+    parser.add_argument('--cp2-volume', action='store_true')
     args = parser.parse_args()
     unlocked()
     name = args.name or (args.group + '-' + (args.only or 'all'))
     out = HERE / 'coverage_evidence'
-    selector = f'{args.group}|{args.only}|{args.runs}'
+    out.mkdir(exist_ok=True)
+    volume_sampler = None
+    if args.cp2_volume:
+        from cp2_volume import VolumeSampler
+        def read_volume():
+            return subprocess.check_output(['adb', '-s', SERIAL, 'shell', 'cmd',
+                'media_session', 'volume', '--stream', '3', '--get'],
+                text=True, stderr=subprocess.STDOUT, timeout=1)
+        volume_sampler = VolumeSampler(out/(name+'.volume.json'), read_volume)
+        volume_sampler.submit('before')
+        volume_sampler.flush()  # Baseline must finish before launching the app.
+    selector = f'{args.group}|{args.only}|{args.runs}' + ('|shots' if args.shot_index else '')
 
     class Handler(http.server.BaseHTTPRequestHandler):
         calls=0
@@ -49,6 +65,8 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     adb('reverse', 'tcp:18082', 'tcp:18082')
     adb('forward', 'tcp:18083', 'tcp:18083')
+    if args.shot_index:
+        adb('forward', 'tcp:18087', 'tcp:18087')
     adb('shell', 'am', 'force-stop', PKG)
     print(adb('shell', 'am', 'start', '-n', PKG + '/com.icodejoo.mova.mova_example.MainActivity'), flush=True)
     end = time.monotonic() + args.timeout
@@ -62,6 +80,59 @@ def main():
     lines = []
     finished = threading.Event()
     acted = set()
+    shot_queue = queue.Queue(maxsize=4)
+
+    def save_shots():
+        from shot_guard import guarded_frame_pair
+        from cp1_capture import capture_phase
+        def phase_fetch(path):
+            with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(
+                    'http://127.0.0.1:18087'+path, timeout=5) as response:
+                return json.load(response)
+        def capture_adb(*args, binary=False):
+            return subprocess.check_output(['adb', '-s', SERIAL, *args],
+                text=not binary, timeout=8)
+        index_path = out/(name+'.shots.jsonl')
+        while True:
+            item = shot_queue.get()
+            if item is None:
+                shot_queue.task_done()
+                return
+            line, received_ns = item
+            stamp = str(received_ns)
+            path = out/(name+'-'+stamp+'.png')
+            second = out/(name+'-'+stamp+'-motion.png')
+            age_ms = (time.time_ns()-received_ns)/1e6
+            result = dict(captured=False, reason='stale marker')
+            try:
+                token = re.search(r'shotToken=(\d+)', line)
+                if token:
+                    result = capture_phase(capture_adb, PKG, [path, second], token[1], phase_fetch)
+                elif age_ms <= 700:
+                    result = guarded_frame_pair(adb, PKG, [path, second])
+                # S7's old APK holds the SHOT window only 1200ms. Refuse late
+                # frames instead of silently assigning the next scene to it.
+                deadline_ms = 1200 if 'S7 SHOT ' in line else 2000
+                ended_ms = (result.get('frames', [{}])[-1].get('endNs', time.time_ns())-received_ns)/1e6
+                timely = result.get('phaseConfirmed') is True if token else age_ms <= 700 and ended_ms <= deadline_ms
+                row = dict(marker=line.strip(), path=str(path), motionPath=str(second),
+                    captured=result.get('captured', False) and timely,
+                    hostTimeNs=received_ns, queueAgeMs=age_ms, captureEndMs=ended_ms,
+                    timely=timely, phaseConfirmed=result.get('phaseConfirmed', False), capture=result)
+                if args.cp2_volume:
+                    (out/(name+'-'+stamp+'.audio.txt')).write_text(
+                        capture_adb('shell','dumpsys','audio'),encoding='utf-8')
+            except Exception as error:
+                row = dict(marker=line.strip(), captured=False, error=repr(error))
+            with index_path.open('a', encoding='utf-8') as index:
+                index.write(json.dumps(row,ensure_ascii=False)+'\n')
+            shot_queue.task_done()
+
+    shot_worker = threading.Thread(target=save_shots, daemon=True)
+    if args.shot_index or args.cp2_volume:
+        shot_worker.start()
+
+    verdict_counts = {}
 
     def read():
         with (out / (name+'.log')).open('w', encoding='utf-8') as log:
@@ -80,9 +151,32 @@ def main():
                 if 'WAIT_RESTORE' in line:
                     time.sleep(2)
                     adb('shell','am','start','-n',PKG+'/com.icodejoo.mova.mova_example.MainActivity')
-                if ' SHOT ' in line or ' MARK ' in line:
+                if volume_sampler is not None and '[Q13]' in line:
+                    if ' MARK ' in line:
+                        volume_sampler.submit(line.strip())
+                    verdict = re.search(r'VERDICT (Q13[ABC]) (PASS|FAIL)', line)
+                    if verdict:
+                        variant = verdict[1]
+                        index = verdict_counts.get(variant, 0)
+                        verdict_counts[variant] = index + 1
+                        volume_sampler.submit(f'verdict:{variant}:{index}')
+                if is_capture_marker(line):
+                    if args.shot_index or args.cp2_volume:
+                        # The log reader never waits for adb capture/dumps.
+                        try:
+                            shot_queue.put_nowait((line, time.time_ns()))
+                        except queue.Full:
+                            with (out/(name+'.shots.jsonl')).open('a',encoding='utf-8') as index:
+                                index.write(json.dumps(dict(marker=line.strip(),captured=False,
+                                    reason='capture queue full'))+'\n')
+                        continue
                     stamp = str(time.time_ns())
-                    shot(out/(name+'-'+stamp+'.png'), PKG)
+                    image_path=out/(name+'-'+stamp+'.png')
+                    captured=shot(image_path, PKG)
+                    if args.shot_index:
+                        with (out/(name+'.shots.jsonl')).open('a',encoding='utf-8') as index:
+                            index.write(json.dumps(dict(marker=line.strip(),path=str(image_path),captured=captured,
+                                hostTimeNs=int(stamp)),ensure_ascii=False)+'\n')
                     (out/(name+'-'+stamp+'.audio.txt')).write_text(adb('shell','dumpsys','audio'),encoding='utf-8')
                 if 'AUTORUN DONE' in line or 'Q13 DONE' in line or 'ALL DONE' in line or 'ALL_DONE' in line or ('RFV2|' in line and '|DONE|' in line):
                     finished.set()
@@ -108,6 +202,16 @@ def main():
                     finished.set()
             except Exception:
                 pass
+    # Persist even when a later dumpsys/capture fails. A lost logcat cannot
+    # produce the missing per-verdict markers and will reduce to BLOCKED.
+    if volume_sampler is not None:
+        volume_sampler.submit('after')
+        volume_sampler.close()
+    if args.shot_index or args.cp2_volume:
+        shot_queue.put(None)
+        shot_worker.join(timeout=15)
+        if shot_worker.is_alive():
+            raise RuntimeError('capture worker did not finish')
     for category in ['window','activity','audio','meminfo','batterystats']:
         cmd=['shell','dumpsys',category]
         if category=='meminfo': cmd.append(PKG)

@@ -105,18 +105,44 @@ class MovaAbrConfig {
   /// 是否启用 ABR 降档。
   final bool enabled;
 
+  /// 就绪后是否自动探测 HLS 档位；默认开启，不代表接管 auto ABR。
+  /// false 关闭引擎及默认 UI 的全部自动探测；UI 自动入口还要求其
+  /// `autoLoadQualities` 为 true，两者都为 true 才自动探测。
+  /// 宿主显式调用 `api.loadQualities()` 不受这两个开关影响。
+  /// 示例：`MovaAbrConfig(probeVariants: false)` 由宿主手动探测。
+  final bool probeVariants;
+
+  /// 是否由 mova 接管 auto 档降档；实验性，默认关。
+  /// 开启后卡顿触发时从 auto 转到列表次高档，后续沿用既有降档策略。
+  /// 不推断 mpv 当前实际选档；仍需 [enabled] 开启，且探测到至少两个具体档位。
+  /// 示例：`MovaAbrConfig(manageAuto: true)`。
+  /// CP0 真机实测（STG-AL00、默认配置、限速夹具、90 秒窗口）：mpv 的 auto 档停留最高档、
+  /// 未自动降档，限速下反复缓冲；开启本开关由 mova 的 ABR 接管降档。仍为实验性，默认关。
+  final bool manageAuto;
+
   /// Custom downshift policy; null selects the default [MovaBufferAbr].
   ///
   /// 自定义降档策略；为 null 时选用默认的 [MovaBufferAbr]。
+  /// 此实例由宿主持有；下个版本弃用，推荐改用 [policyFactory] 避免跨引擎共享状态。
   final MovaAbrPolicy? policy;
+
+  /// 每次创建引擎时调用一次，返回该引擎独享的 ABR 策略；优先于 [policy]。
+  /// 不传时继续使用旧实例或默认策略，不会额外创建策略。
+  /// 示例：`MovaAbrConfig(policyFactory: () => MovaBufferAbr(threshold: 2))`。
+  final MovaAbrPolicy Function()? policyFactory;
 
   /// Creates an ABR config; enabled by default with a stall threshold of 3.
   ///
   /// 创建 ABR 配置；默认启用，卡顿阈值为 3。
+  /// [manageAuto] 为实验性 auto 降档接管，默认关，返回配置实例。
+  /// 示例：`const MovaAbrConfig(manageAuto: true, stallThreshold: 3)`。
   const MovaAbrConfig({
     this.stallThreshold = 3,
     this.enabled = true,
+    this.probeVariants = true,
+    this.manageAuto = false,
     this.policy,
+    this.policyFactory,
   });
 
   @override
@@ -126,8 +152,11 @@ class MovaAbrConfig {
           runtimeType == other.runtimeType &&
           stallThreshold == other.stallThreshold &&
           enabled == other.enabled &&
-          policy == other.policy;
+          probeVariants == other.probeVariants &&
+          manageAuto == other.manageAuto &&
+          policy == other.policy &&
+          policyFactory == other.policyFactory;
 
   @override
-  int get hashCode => Object.hash(stallThreshold, enabled, policy);
+  int get hashCode => Object.hash(stallThreshold, enabled, probeVariants, manageAuto, policy, policyFactory);
 }

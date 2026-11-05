@@ -26,6 +26,23 @@ class MovaSource {
   /// 媒体地址（网络 URL 或本地文件路径）。
   final String uri;
 
+  /// 媒体及旁路资源的请求头；同名 UA 由 [userAgent] 覆盖。
+  final Map<String, String> headers;
+
+  /// 本源的 User-Agent；优先于 [headers] 和 mpvOptions 中的 UA。
+  final String? userAgent;
+
+  /// 点播起播位置；默认不跳转，负值按零处理，直播忽略。
+  final Duration? start;
+
+  /// 合并后的请求头，供播放、预览和预取共用；返回新 Map。
+  Map<String, String> get requestHeaders => {
+    for (final e in headers.entries)
+      if (userAgent == null || e.key.toLowerCase() != 'user-agent')
+        e.key: e.value,
+    'User-Agent': ?userAgent,
+  };
+
   /// Stream type; drives which control-bar layout is used.
   ///
   /// 流类型；决定使用哪套控制条布局。
@@ -80,6 +97,9 @@ class MovaSource {
   ///
   /// - [uri]: media address / 媒体地址
   /// - [type]: stream type, defaults to VOD / 流类型，默认点播
+  /// - [headers]: 媒体和旁路资源请求头
+  /// - [userAgent]: 显式 UA，覆盖同名请求头
+  /// - [start]: 点播起播位置，默认不跳转
   /// - [title]: optional title / 可选标题
   /// - [alternatives]: fallback addresses, see [alternatives] / 备选地址，见 [alternatives]
   /// - [mpvOptions]: per-source libmpv options, see [mpvOptions] / 按源 libmpv 选项，见 [mpvOptions]
@@ -99,6 +119,9 @@ class MovaSource {
     this.uri, {
     this.type = MovaStreamType.vod,
     this.title,
+    this.headers = const {},
+    this.userAgent,
+    this.start,
     this.alternatives = const [],
     this.mpvOptions = const {},
     this.demuxerOptions = const {},
@@ -128,18 +151,32 @@ class MovaSource {
   ///     .mpvOptionsFor('whep+http://h/x'); // {'demuxer-lavf-o': 'media_timeout=3000000'}
   /// ```
   Map<String, String> mpvOptionsFor(String address, {MovaTimeouts? timeouts}) {
-    final out = <String, String>{...?timeouts?.mpvOptionsFor(address), ...mpvOptions};
+    final out = <String, String>{
+      ...?timeouts?.mpvOptionsFor(address),
+      ...mpvOptions,
+    };
+    if (requestHeaders.isNotEmpty) {
+      out['http-header-fields'] = requestHeaders.entries
+          .map((e) => _lavfValue('${e.key}: ${e.value}'))
+          .join(',');
+    }
+    if (userAgent != null) out['user-agent'] = userAgent!;
     final lavf = Map<String, String>.of(demuxerOptions);
     final whepTimeout = whepMediaTimeout;
     if (whepTimeout != null && address.toLowerCase().startsWith('whep')) {
-      lavf.putIfAbsent('media_timeout', () => whepTimeout.inMicroseconds.toString());
+      lavf.putIfAbsent(
+        'media_timeout',
+        () => whepTimeout.inMicroseconds.toString(),
+      );
     }
     final own = out[_kDemuxerLavfOption] ?? '';
     timeouts?.demuxerOptionsFor(address).forEach((k, v) {
       if (!own.contains('$k=')) lavf.putIfAbsent(k, () => v);
     });
     if (lavf.isNotEmpty) {
-      final built = lavf.entries.map((e) => '${e.key}=${_lavfValue(e.value)}').join(',');
+      final built = lavf.entries
+          .map((e) => '${e.key}=${_lavfValue(e.value)}')
+          .join(',');
       out[_kDemuxerLavfOption] = own.isEmpty ? built : '$own,$built';
     }
     return out;
@@ -149,8 +186,9 @@ class MovaSource {
   /// a separator, quote, `%` or whitespace).
   ///
   /// 按 mpv 键值列表语法给 [value] 加引（含分隔符、引号、`%` 或空白时用 `%长度%值`）。
-  static String _lavfValue(String value) =>
-      _needsQuoting.hasMatch(value) ? '%${utf8.encode(value).length}%$value' : value;
+  static String _lavfValue(String value) => _needsQuoting.hasMatch(value)
+      ? '%${utf8.encode(value).length}%$value'
+      : value;
 
   /// Builds a source from candidate addresses: trims, drops empty/null and
   /// duplicates keeping order; the first becomes [uri], the rest
@@ -163,6 +201,9 @@ class MovaSource {
   ///
   /// - [candidates]: raw addresses, best first / 原始地址，最优在前
   /// - [type]: stream type / 流类型
+  /// - [headers]: 媒体和旁路资源请求头
+  /// - [userAgent]: 显式 UA，覆盖同名请求头
+  /// - [start]: 点播起播位置，默认不跳转
   /// - [title]: optional title / 可选标题
   /// - [mpvOptions]: per-source libmpv options / 按源 libmpv 选项
   /// - [demuxerOptions]: per-source `demuxer-lavf-o` entries / 按源 demuxer 选项
@@ -177,6 +218,9 @@ class MovaSource {
     Iterable<String?> candidates, {
     MovaStreamType type = MovaStreamType.vod,
     String? title,
+    Map<String, String> headers = const {},
+    String? userAgent,
+    Duration? start,
     Map<String, String> mpvOptions = const {},
     Map<String, String> demuxerOptions = const {},
     Duration? whepMediaTimeout,
@@ -193,6 +237,9 @@ class MovaSource {
       clean.first,
       type: type,
       title: title,
+      headers: headers,
+      userAgent: userAgent,
+      start: start,
       alternatives: clean.sublist(1),
       mpvOptions: mpvOptions,
       demuxerOptions: demuxerOptions,
@@ -214,9 +261,17 @@ class MovaSource {
   /// const MovaSource('https://a/live.flv').sameAs(const MovaSource('https://a/live.flv', title: 'x')); // true
   /// ```
   bool sameAs(MovaSource other) {
+    if (!_sameMap(headers, other.headers) ||
+        userAgent != other.userAgent ||
+        start != other.start) {
+      return false;
+    }
     if (uri != other.uri || type != other.type) return false;
     if (whepMediaTimeout != other.whepMediaTimeout) return false;
-    if (!_sameMap(mpvOptions, other.mpvOptions) || !_sameMap(demuxerOptions, other.demuxerOptions)) return false;
+    if (!_sameMap(mpvOptions, other.mpvOptions) ||
+        !_sameMap(demuxerOptions, other.demuxerOptions)) {
+      return false;
+    }
     if (alternatives.length != other.alternatives.length) return false;
     for (var i = 0; i < alternatives.length; i++) {
       if (alternatives[i] != other.alternatives[i]) return false;

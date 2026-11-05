@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sourceHash": "f82a206ad55d6d7581ad57eb94ce80add412ecea4e3ce3cc0c04371c8318034d",
+  "sourceHash": "52944b33cb8d2d60b3ac99c83e05a1761ed3415cd84633189596302362611c84",
   "toolchain": "nightly-2026-06-24",
   "artifacts": {
     "../ios/svgx.xcframework/Info.plist": {
@@ -116,12 +116,12 @@
       "builtAt": "2026-08-26T12:03:09.647859Z"
     },
     "windows/x64/svgx.dll": {
-      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
-      "sha256": "3becadc7662e5b459a8436ae16346618a83f7da9285613ef2e46811b0e48a62b",
-      "bytes": 446976,
+      "sourceHash": "52944b33cb8d2d60b3ac99c83e05a1761ed3415cd84633189596302362611c84",
+      "sha256": "c0c2227c03a56f4ce049c10f8e934b192586d12314957736aa003a8c81890542",
+      "bytes": 462336,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T13:23:54.916713Z"
+      "builtAt": "2026-11-03T23:47:15.626223Z"
     }
   }
 }

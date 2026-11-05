@@ -17,6 +17,7 @@
 // 加载则自行跳过，约定同 `rust_image_smoke_test.dart`。
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:svgx/src/rust/api/svg.dart';
 import 'package:svgx/svgx.dart';
 
 const _gradientSvg = '''

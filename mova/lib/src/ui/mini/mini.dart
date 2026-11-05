@@ -51,7 +51,7 @@ enum MovaMiniMount {
 /// await mini.showInPage(context, api);
 ///
 /// // 方式 B：跨路由持久（宿主自己在 MaterialApp.builder 里放 Stack）
-/// // MaterialApp(builder: (c, child) => MovaMiniHost(ctl: mini, child: child!))
+/// // MaterialApp(builder: (c, child) => MovaMiniHost(mini: mini, child: child!))
 /// await mini.show(api, skin: const MovaMiniSkin());
 /// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
 /// ```
@@ -119,6 +119,7 @@ class MovaMini extends ChangeNotifier {
   /// 同一个 [api] 重复调用是幂等的。已有小窗时 show 另一个 [api]，会先把前一个
   /// 的 `mini` 置回 false（此处永不 dispose 它）。
   Future<void> show(MovaApi api, {MovaSkin skin = const MovaMiniSkin()}) async {
+    if (!api.options.mini.enabled) return;
     if (identical(_api, api) && _mount == MovaMiniMount.persistent) return;
     await _switchTo(api, skin);
     _detachEntry();

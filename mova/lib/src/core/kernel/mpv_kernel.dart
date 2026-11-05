@@ -1,3 +1,5 @@
+import 'attempt_event_kernel.dart';
+import 'restart_observer.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -8,6 +10,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../report/stats_probe.dart';
 import '../keep_alive/keep_alive.dart';
 import 'kernel.dart';
+import 'classified_error_kernel.dart';
+import '../model/playback_error.dart';
 import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
@@ -59,7 +63,7 @@ const String _kVidAuto = 'auto';
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements MovaAttemptEventKernel, MovaRestartObserver, MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -80,13 +84,9 @@ class MovaMpvKernel
   /// This "default `--vid=no`" premise must be re-verified upon upgrading
   /// media_kit.
   ///
-  /// [observeQoeSignals] controls whether to perform the extra native
-  /// `paused-for-cache` property observation and the native event subscription
-  /// ([playbackRestarts]/[endFiles]) — all three exist exclusively for the QoE
-  /// layer. Callers without a [MovaReporter] should pass `false` so the
-  /// constructor completely skips these FFI round-trips, ensuring the "zero cost
-  /// if no reporter" promise holds true down at this level (it previously only
-  /// applied one layer up in [MovaQoeCollector]).
+  /// [observeQoeSignals] controls the extra `paused-for-cache` observation.
+  /// Native event clients start lazily on the first [open], independently
+  /// controlled by [observeNativeEvents].
   ///
   /// [backendFactory] provides a factory for the native event backend.
   ///
@@ -106,11 +106,9 @@ class MovaMpvKernel
   ///
   /// 升级 media_kit 时须重验"默认 `--vid=no`"这一条。
   ///
-  /// [observeQoeSignals] 控制要不要做额外的原生 `paused-for-cache` 属性观察和
-  /// 原生事件订阅（[playbackRestarts]/[endFiles]）——这三者全部
-  /// 只服务 QoE 层。没有配置 [MovaReporter] 的调用方应传 `false`，让构造期
-  /// 完全跳过这几次 FFI 往返，使"没有 reporter 就零开销"这条承诺在这一层
-  /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
+  /// [observeQoeSignals] 只控制额外的 `paused-for-cache` 属性观察。
+  /// 原生事件弱客户端由 [observeNativeEvents] 控制，首次 [open] 才启动；
+  /// 标准工厂即使未启用 recovery 也订阅 END_FILE 以检测终结失败。
   ///
   /// [observeNativeEvents] 单独控制原生事件订阅（[playbackRestarts]/[endFiles]）：
   /// 为 `null`（默认）时跟随 [observeQoeSignals]，既有调用点行为不变；显式传 `true`
@@ -176,8 +174,8 @@ class MovaMpvKernel
       _heightSeen = true;
       _emitSize();
     });
-    final wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
-    if (!observeQoeSignals && !wantNative) return;
+    _wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
+    if (!observeQoeSignals && !_wantNative) return;
     // Observe mpv's own `paused-for-cache` — the *real* rebuffer signal,
     // distinct from the `buffering` stream's merge of `core-idle` +
     // `paused-for-cache` (see MovaStatsProbe.stalling doc). Only real
@@ -205,7 +203,6 @@ class MovaMpvKernel
               // `buffering` 判据，其余上报功能不受影响。
             });
       }
-      if (wantNative) setup = setup.then((_) => _observeNativeEvents(native));
       _observeSetup = setup;
     }
   }
@@ -343,11 +340,55 @@ class MovaMpvKernel
   /// 用于事件抽水的泵实例。
   MovaMpvEventPump? _pump;
 
+  /// 当前原生加载对应的引擎尝试。
+  int _eventAttempt = 0;
+
+  /// 下一次实际 loadfile 才生效的尝试编号。
+  int _pendingEventAttempt = 0;
+
+  /// 最近实际加载的主文件地址，用于无泵时放行被旧过滤器排除的 ffmpeg 打开错误。
+  String _eventUri = '';
+
+  /// 带身份的结束通知，异步投递仍保留产生时的尝试。
+  final _attemptEnds = StreamController<MovaAttemptEnd>.broadcast();
+
+  @override
+  Stream<MovaAttemptEnd> get attemptEnds => _attemptEnds.stream;
+
+  @override
+  bool get endFileAvailable => _pump?.isActive ?? false;
+
+  @override
+  void prepareAttempt(int attempt) {
+    _pendingEventAttempt = attempt;
+  }
+
   /// 后端工厂函数，用于创建 MovaMpvEventBackend。
   final MovaMpvEventBackendFactory? _backendFactory;
 
   /// 是否转发原生 `PLAYBACK_RESTART`；为 false 时只转发 END_FILE。
-  final bool _observeRestarts;
+  bool _observeRestarts;
+
+  /// 首次 open 才启动事件泵，构造期只记住订阅意图。
+  bool _wantNative = false;
+
+  /// 原生事件泵的单次启动任务，供并发 open 与 dispose 共用。
+  Future<void>? _nativeSetup;
+
+  /// 启用 RESTART 转发；事件泵仍在首次 open 才启动，无返回值。
+  /// 示例：`kernel.observeRestarts()`。
+  @override
+  void observeRestarts() => _observeRestarts = true;
+
+  /// 在打开媒体前保证弱客户端就绪；失败沿用静默降级。
+  Future<void> _ensureNativeEvents() async {
+    final native = _player.platform;
+    if (!_wantNative || _disposed || native is! NativePlayer) return;
+    await (_nativeSetup ??= () async {
+      await _observeSetup;
+      if (!_disposed) await _observeNativeEvents(native);
+    }());
+  }
 
   /// 全局单调递增计数器，为每个事件泵生成唯一名字。
   static int _pumpNameCounter = 0;
@@ -413,6 +454,7 @@ class MovaMpvKernel
           final mapped = _mapEndFileReason(reason);
           if (mapped != null) {
             _endFileController.add(mapped);
+            _attemptEnds.add((attempt: _eventAttempt, reason: mapped));
           }
         }
       },
@@ -677,10 +719,13 @@ class MovaMpvKernel
 
   @override
   Future<void> open(String uri, {bool play = true}) async {
+    // 同步取走身份，避免等待原生准备时被后一次 open 覆盖。
+    final eventAttempt = _pendingEventAttempt;
     // 同步取走暂存项：它只属于紧随其后的这一次 open，不被后来的 open 误用。
     final options = _stagedOptions;
     _stagedOptions = const {};
     await _tlsSetup;
+    await _ensureNativeEvents();
     final seq = ++_openSeq;
     _formatProbePending = false;
     // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
@@ -707,7 +752,17 @@ class MovaMpvKernel
       if (seq != _openSeq || _disposed) return;
     }
     try {
-      await _player.open(Media(uri), play: play);
+      _pump?.discardPending();
+      _eventAttempt = eventAttempt;
+      _eventUri = uri;
+      // media_kit 的卸载钩子会清空原生请求头；加载钩子从 Media 恢复，
+      // 因此不能只在 open 前设置 http-header-fields 属性。
+      final headers = <String, String>{};
+      for (final field in parseMpvStringList(options['http-header-fields'] ?? '') ?? <String>[]) {
+        final colon = field.indexOf(':');
+        if (colon > 0) headers[field.substring(0, colon).trim()] = field.substring(colon + 1).trim();
+      }
+      await _player.open(Media(uri, httpHeaders: headers), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
       rethrow;
@@ -765,7 +820,9 @@ class MovaMpvKernel
     } catch (_) {
       // 超时或抛错吞掉继续销毁
     }
+    await _nativeSetup;
     await _pump?.dispose();
+    await _attemptEnds.close();
     await _player.dispose();
   }
 
@@ -792,6 +849,14 @@ class MovaMpvKernel
 
   @override
   Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
+
+  /// 按 media_kit 的错误过滤保留日志前缀；无泵时额外放行含主文件地址的 ffmpeg 错误。
+  @override
+  Stream<MovaKernelError> get kernelErrors => _player.stream.log
+      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text) ||
+          (!endFileAvailable && _eventUri.isNotEmpty && log.level == 'error' &&
+              log.prefix == 'ffmpeg' && log.text.contains(_eventUri)))
+      .map((log) => MovaKernelError(log.text, log.prefix));
 
   @override
   Object? get renderHandle {
@@ -1055,4 +1120,13 @@ class MovaMpvKernel
     }
     return restarted;
   }
+}
+
+/// 判断日志是否对应 media_kit 1.2.6 的 stream.error，并排除已知良性诊断。
+/// [prefix]/[level]/[text] 为 PlayerLog 已裁剪的原字段；返回 true 才转发错误。
+/// 示例：`isMovaMpvErrorLog(prefix: 'ffmpeg', level: 'error', text: 'tcp: reset')`。
+bool isMovaMpvErrorLog({required String prefix, required String level, required String text}) {
+  if (level != 'error' || isBenignMpvError(text)) return false;
+  return const {'file', 'vd', 'ad', 'cplayer', 'stream'}.contains(prefix) ||
+      (prefix == 'ffmpeg' && text.startsWith('tcp:'));
 }

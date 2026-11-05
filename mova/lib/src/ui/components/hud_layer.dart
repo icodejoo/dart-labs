@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -73,8 +75,8 @@ class MovaVolumeHudComponent extends MovaComponent {
         builder: (context, volume) => _HudBadge(
           api: api,
           icon: volume <= 0
-              ? Icons.volume_off_rounded
-              : Icons.volume_up_rounded,
+              ? MovaPlayerStyle.iconsOf(context).volumeOff
+              : MovaPlayerStyle.iconsOf(context).volumeUp,
           text: '${volume.round()}%',
         ),
       ),
@@ -110,7 +112,7 @@ class MovaBrightnessHudComponent extends MovaComponent {
         selector: (s) => s.brightness,
         builder: (context, brightness) => _HudBadge(
           api: api,
-          icon: Icons.brightness_6_rounded,
+          icon: MovaPlayerStyle.iconsOf(context).brightness,
           text: '${(brightness * 100).round()}%',
         ),
       ),
@@ -196,7 +198,8 @@ class MovaZoomHudComponent extends MovaComponent {
         selector: (s) => s.zoom,
         builder: (context, zoom) => _HudBadge(
           api: api,
-          text: '${zoom.toStringAsFixed(1)}${api.options.strings.zoomSuffix}',
+          text:
+              '${zoom.toStringAsFixed(1)}${MovaPlayerStyle.stringsOf(context).zoomSuffix}',
         ),
       ),
     );
@@ -255,7 +258,7 @@ class _HudBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     final color = Color(theme.textColor);
     return Center(
       child: Container(

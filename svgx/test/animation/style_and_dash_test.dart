@@ -96,12 +96,12 @@ void main() {
       expect(second, first);
     });
 
-    test('a value that is not a number degrades to zero, not a throw', () {
+    test('an invalid token invalidates the whole dash pattern', () {
       expect(
         ResolvedStyle.initial.inherit({
           'stroke-dasharray': '4 oops',
         }, theme).strokeDasharray,
-        <double>[4, 0],
+        isEmpty,
       );
     });
   });

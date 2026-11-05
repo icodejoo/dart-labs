@@ -5,6 +5,7 @@ Android 覆盖回归入口；list/check/dry-run 完全离线。
 import argparse
 import ast
 from collections import Counter
+from matrix_evidence import reduce_evidence
 from datetime import datetime
 import hashlib
 import json
@@ -14,6 +15,7 @@ import re
 import shutil
 import socket
 import subprocess
+import win_job
 import sys
 import time
 
@@ -92,7 +94,8 @@ def validate_manifest(manifest, root=ROOT):
                 path=Path(expand([batch['result_path']], 'check', tool)[0])
                 if not path.is_relative_to(tool) or path.suffix!='.json':
                     raise ValueError('result_path 必须在 tool 内并以 .json 结尾')
-                if not isinstance(batch.get('argv'),list) or batch['argv'][1]!='{tool}/coverage_gap.py':
+                expected_script='{tool}/coverage_cp3.py' if batch.get('cp3_driver') else '{tool}/coverage_cp2.py' if batch.get('cp2_driver') else '{tool}/coverage_cp1.py' if batch.get('cp1_driver') else '{tool}/coverage_cp0.py' if batch.get('cp0_driver') else '{tool}/coverage_gap.py'
+                if not isinstance(batch.get('argv'),list) or batch['argv'][1]!=expected_script:
                     raise ValueError('native_driver 仅用于独立 gap 驱动')
             except (KeyError,ValueError,IndexError) as e:
                 errors.append(f'{ident}: 非法 native_driver 元数据: {e}')
@@ -101,6 +104,14 @@ def validate_manifest(manifest, root=ROOT):
                 errors.append(f'{ident}: 缺少 {key}')
         if not isinstance(batch.get('timeout'), (int, float)) or batch['timeout'] <= 0:
             errors.append(f'{ident}: 非法 timeout')
+    try:
+        from cp3_alias import resolve
+        known = {b['id'] for b in manifest.get('batches', [])}
+        for alias in manifest.get('aliases', {}):
+            unknown=set(resolve(manifest,[alias]))-known
+            if unknown: errors.append(f'{alias}: unknown alias targets {sorted(unknown)}')
+    except (ValueError, KeyError, TypeError) as error:
+        errors.append('invalid aliases: '+str(error))
     manuals = manifest.get('manual', [])
     if len({row['id'] for row in manuals}) != len(manuals):
         errors.append('manual 编号重复')
@@ -148,6 +159,9 @@ def select_batches(manifest, only=None, start=None, fast=False):
     """Select ordered jobs and close batch dependencies / 按顺序选择并补齐批次依赖。"""
     batches = manifest['batches']
     known = {b['id'] for b in batches}
+    if only:
+        from cp3_alias import resolve
+        only = ','.join(resolve(manifest, only.split(',')))
     wanted = set(only.split(',')) if only else set(known)
     if wanted - known or (start and start not in known):
         raise ValueError(f'未知批次: {sorted(wanted-known)} {start or ""}')
@@ -179,6 +193,35 @@ def gap_result_kind(result, run_id, group, code):
     if code not in (0,1) or result['harness']:
         return 'HARNESS'
     return 'OK' if result['completed'] else 'BLOCKED'
+
+
+def cp0_result_kind(result, run_id, group, code):
+    """CP0 completes on evidence presence, never on a product threshold."""
+    if result.get('run_id')!=run_id or result.get('group')!=group:
+        raise ValueError('CP0 identity mismatch')
+    if not isinstance(result.get('harness'),list) or not isinstance(result.get('records'),list):
+        raise ValueError('CP0 schema mismatch')
+    if code not in (0,1) or result['harness']:return 'HARNESS'
+    if result.get('missing') or result.get('completed') is not True or not result.get('verdicts'):return 'BLOCKED'
+    return 'OK'
+
+
+def cp1_result_kind(result, run_id, group, code, runs):
+    """Require complete CP1 measurements and keep product failures visible."""
+    kind=cp0_result_kind(result,run_id,group,code)
+    from coverage_cp1 import validate_checks
+    if kind!='OK':return kind
+    if validate_checks(group,runs,[r for r in result['records'] if r.get('kind')=='CHECK']):return 'BLOCKED'
+    return 'FAIL' if any(r.get('status')=='FAIL' for r in result['verdicts']) else 'OK'
+
+
+def cp2_result_kind(result,run_id,group,code,runs):
+    kind=cp0_result_kind(result,run_id,group,code)
+    from coverage_cp2 import validate_checks
+    if kind!='OK':return kind
+    checks=[r for r in result['records'] if r.get('kind')=='CHECK']
+    if validate_checks(group,runs,checks):return 'BLOCKED'
+    return 'FAIL' if any(r.get('status')=='FAIL' for r in checks) else 'OK'
 
 
 def read_ledger(data):
@@ -226,12 +269,25 @@ def make_rows(manifest, results, explicit):
         status, detail = 'BLOCKED', manual.get(ident, '缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。')
         if ident not in manual and not completed:
             detail = '覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。'
-        if ident not in manual and completed and ident in explicit:
+        if ident not in manual and ident in explicit and (completed or explicit[ident].get('evidence_only')):
             status, detail = explicit[ident]['status'], explicit[ident]['evidence']
+            # Evidence reducers require each source/command to be complete.
+            # A different child of a legacy umbrella batch (e.g. subtitles)
+            # must not invalidate a complete cutover command's own CHECKs.
         rows.append(dict(id=ident, status=status, evidence=detail, batches=names,
                          reproduction='python example/tool/run_matrix.py --only ' + ','.join(names) if names else 'manual',
-                         pointers=evidence))
+                         pointers=evidence, subitems=explicit.get(ident, {}).get('subitems', [])))
     return rows
+
+
+def replay_results(manifest, out, prefix):
+    """Read process completion markers only, never legacy VERDICT lines."""
+    path=Path(out)/(prefix+'driver.log')
+    content=path.read_text(encoding='utf-8',errors='replace') if path.exists() else ''
+    found={name:dict(kind=kind,driver=path.name,error='' if kind=='OK' else '原始批次未成功完成')
+           for name,kind in re.findall(r'<case=([^>]+)> END exit=-?\d+ seconds=[\d.]+ kind=(\w+)',content)}
+    return {b['id']:found.get(b['id'],dict(kind='BLOCKED',driver=path.name,error='缺批次 END 完成记录/批次未执行'))
+            for b in manifest['batches'] if not (b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver'))}
 
 
 def render_summary(run_id, rows, comparison, results, baseline):
@@ -248,9 +304,13 @@ def render_summary(run_id, rows, comparison, results, baseline):
     for row in rows:
         detail = (row['evidence'] + ' ' + ' '.join(row['pointers'])).replace('|','/').replace('\n',' ')
         lines.append(f'| {row["id"]} | {row["status"]} | {detail} | `{row["reproduction"]}` |')
+    lines += ['', '| 子项 | 结论 | 原始证据 |', '|---|---|---|']
+    for row in rows:
+        for sub in row.get('subitems', []):
+            lines.append(f"| {sub['id']} | {sub['status']} | {sub['evidence'].replace('|', '/')} |")
     gap_results = [(name,r['gap_result']) for name,r in results.items() if 'gap_result' in r]
     if gap_results:
-        lines += ['', 'Gap 扩展子项（不改变上方 v1 135 编号台账；完整证据见独立 gap.json）：', '',
+        lines += ['', 'Gap / CP0 扩展子项（不改变上方 v1 135 编号台账；完整数字见独立批次 JSON）：', '',
                   '| 批次 | case | 结论 | 原因 |', '|---|---|---|---|']
         for name,result in gap_results:
             for verdict in result.get('verdicts',[]):
@@ -297,6 +357,43 @@ def existing_verdicts(out, prefix):
             verdicts[ident] = dict(status='PASS' if all(r['pass'] for r,p in matches) else 'FAIL',
                                    evidence='复用 rerun_finalize 引用的两实现完整编号 CHECK：' +
                                    '; '.join(f'{p.name}: {r}' for r,p in matches))
+    return verdicts
+
+
+def subitem_verdicts(out, prefix):
+    """按本轮原始 CHECK 子项收口，保留每条证据及缺失判据。"""
+    grouped = {}
+    for path in sorted(out.glob(prefix + '*.json')):
+        try:
+            data = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        records = data.get('records', [])
+        start = max((i for i, r in enumerate(records) if r.get('kind') == 'BEGIN'), default=0)
+        for r in records[start:]:
+            ident = r.get('id', '')
+            if r.get('kind') != 'CHECK' or not re.fullmatch(r'(?:[ACUFN]\d+|E[12])(?:\.[\w.-]+)?', ident):
+                continue
+            grouped.setdefault(ident.split('.')[0], []).append((path.name, r))
+    verdicts = {}
+    for ident, checks in grouped.items():
+        subitems = {}
+        for name, check in checks:
+            subitems.setdefault(check['id'], []).append((name, check))
+        rows = []
+        for key, samples in sorted(subitems.items()):
+            values = [r.get('pass') for _, r in samples]
+            status = 'FAIL' if any(v is False for v in values) else (
+                'PASS' if all(v is True for v in values) else 'BLOCKED')
+            rows.append(dict(id=key, status=status, evidence='; '.join(
+                f'{name}: {json.dumps(r, ensure_ascii=False)}' for name, r in samples)))
+        # 子项失败足以证明整项失败；子项全绿不代表未实现的验收条件通过。
+        status = 'FAIL' if any(r['status'] == 'FAIL' for r in rows) else 'BLOCKED'
+        verdicts[ident] = dict(status=status, subitems=rows,
+            evidence='子项自动判据：' + ', '.join(f"{r["id"]}={r["status"]}" for r in rows)
+            + ('；其余条件缺完整自动判据。' if status == 'BLOCKED' else '；原始 CHECK 失败。'))
     return verdicts
 
 
@@ -371,6 +468,8 @@ class Driver:
 
         部分设备（STG-AL00）没有 `media` 命令，音量读写改走 `cmd media_session volume`（输出格式相同）。
         """
+        from cp0_device_guard import wait_online
+        wait_online(self.serial)
         if args[:3] == ('shell', 'media', 'volume'):
             args = ('shell', 'cmd', 'media_session', 'volume') + tuple(args[3:])
         return self.command(['adb', '-s', self.serial, *args], binary=binary)
@@ -433,7 +532,12 @@ class Driver:
 
     def preflight(self):
         """Check resources before changing any device setting / 改设备设置前检查资源。"""
+        forwards = self.adb('forward','--list')
         for port in self.manifest['ports']:
+            if port == 18083 and any(line.split()==[self.serial,'tcp:18083','tcp:18083'] for line in forwards.splitlines()):
+                # A pre-existing device forward is restorable, not a foreign
+                # host service. Save/restore it through original_mappings.
+                continue
             with socket.socket() as sock:
                 try:
                     sock.bind(('127.0.0.1', port))
@@ -562,7 +666,10 @@ class Driver:
         """Run a bounded process tree and preserve harness failures / 有界执行进程树并留存错误。"""
         case = job['id']
         self.screen()
-        self.mappings.append(('reverse',18082))
+        if not (job.get('cp0_driver') or job.get('cp1_driver') or job.get('cp2_driver') or job.get('cp3_driver')):
+            self.mappings.append(('reverse',18082))
+        if job.get('cp2_alias'):
+            self.mappings.append(('forward',18083))
         self.note('BEGIN',f'{job["description"]}；为什么：{job["why"]}',case)
         path = self.out/(self.prefix+case+'.driver.log')
         start=time.monotonic()
@@ -577,12 +684,17 @@ class Driver:
             child=subprocess.Popen(command,cwd=ROOT,env=self.env,
                                    stdout=stream,stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+            # 作业对象：驱动的所有后代（含 ffmpeg 等孤儿）随作业关闭一起被杀，不依赖父子链
+            job_guard=win_job.KillOnCloseJob()
+            job_guard.assign(child.pid)
             try:
                 code=child.wait(timeout=job['timeout'])
             except (subprocess.TimeoutExpired, KeyboardInterrupt):
                 self.kill_tree(child)
                 code=-1
                 error='验证器超时/中断'
+            finally:
+                job_guard.close()
         markers=list(self.out.glob(self.prefix+case+'.harness-errors.jsonl'))
         # Existing suite drivers sometimes exit 0 even when their completion marker is absent.
         runmeta=self.out/(self.prefix+case+'.run.json')
@@ -593,7 +705,21 @@ class Driver:
             try:
                 result_path=Path(expand([job['result_path']],self.args.run_id)[0])
                 gap_result=json.loads(result_path.read_text(encoding='utf-8'))
-                kind=gap_result_kind(gap_result,self.args.run_id,case.removeprefix('gap-'),code)
+                if job.get('cp3_driver'):
+                    from cp3_checks import validate_checks
+                    kind=cp0_result_kind(gap_result,self.args.run_id,job['argv'][2],code)
+                    if kind=='OK':
+                        if validate_checks(job['argv'][2],int(job['argv'][6]),[r for r in gap_result['records'] if r.get('kind')=='CHECK']):
+                            kind='BLOCKED'
+                        elif any(v.get('status')=='FAIL' for v in gap_result['verdicts']):kind='FAIL'
+                elif job.get('cp2_driver'):
+                    kind=cp2_result_kind(gap_result,self.args.run_id,case.removeprefix('cp2-'),code,int(job['argv'][6]))
+                elif job.get('cp1_driver'):
+                    kind=cp1_result_kind(gap_result,self.args.run_id,case.removeprefix('cp1-'),code,int(job['argv'][6]))
+                elif job.get('cp0_driver'):
+                    kind=cp0_result_kind(gap_result,self.args.run_id,case.removeprefix('cp0-'),code)
+                else:
+                    kind=gap_result_kind(gap_result,self.args.run_id,case.removeprefix('gap-'),code)
             except (OSError,ValueError,KeyError) as e:
                 kind='HARNESS';error=f'gap completion metadata: {e}'
         self.results[case]=dict(kind=kind,exit=code,seconds=time.monotonic()-start,driver=str(path),error=error or ('子命令失败/缺完成标记' if kind=='HARNESS' else ''))
@@ -605,7 +731,7 @@ class Driver:
         if kind!='OK' or observations:
             self.capture_failure(case)
         # Full-ID product verdicts are independent of the verifier exit code.
-        product_failure=any(v['status']=='FAIL' for v in existing_verdicts(self.out,self.prefix).values())
+        product_failure=bool(observations)
         if gap_result is not None:
             product_failure |= any(v.get('status')=='FAIL' for v in gap_result.get('verdicts',[]))
         if product_failure:
@@ -671,9 +797,11 @@ def main(argv=None):
     for flag in ('list','check','fast','dry-run','fail-fast'):
         parser.add_argument('--'+flag,action='store_true')
     parser.add_argument('--only')
+    parser.add_argument('--reuse-apk', type=Path, help='复用已构建 APK；安装后拉回核对 SHA256，不重新构建')
     parser.add_argument('--from',dest='start')
     parser.add_argument('--run-id',default=datetime.now().strftime('%Y%m%d-%H%M%S'))
     parser.add_argument('--baseline',type=Path,default=BASELINE)
+    parser.add_argument('--replay',type=Path,help='离线重放该目录中的原始证据；不访问设备')
     args=parser.parse_args(argv)
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,79}',args.run_id):
         parser.error('run-id 只允许字母数字、点、下划线和短横线，最多80字符')
@@ -687,7 +815,20 @@ def main(argv=None):
         parser.error(str(error))
     if not selected and not args.check and not args.list:
         parser.error('所选条件没有匹配批次')
+    if selected and all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected):
+        manifest['build']=dict(manifest['build'])
+        manifest['build']['argv']=[*manifest['build']['argv'][:2],('lib/main_cp3_suite_verify.dart' if all(b.get('cp3_driver') and not b['id'].startswith('cp3-precise-') for b in selected) else 'lib/main_cp2_suite_verify.dart' if all(b.get('cp2_driver') and not b.get('cp2_alias') for b in selected) else 'lib/main_coverage_suite.dart' if any(b.get('cp2_driver') or b.get('cp3_driver') for b in selected) else 'lib/main_cp1_suite_verify.dart' if all(b.get('cp1_driver') for b in selected) else 'lib/main_cp0_suite_verify.dart' if all(b.get('cp0_driver') for b in selected) else 'lib/main_coverage_suite.dart'),
+            '--no-daemon','--max-workers=1',
+            '-Dorg.gradle.jvmargs=-Xms128m -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:ReservedCodeCacheSize=96m -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2 -XX:+UseSerialGC -XX:HeapBaseMinAddress=0x100000000',
+            '-Pkotlin.compiler.execution.strategy=in-process']
+        manifest['ports']=manifest['ports'] if any(b.get('cp2_alias') for b in selected) else [18082,18190,18194] if any(b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected) else [18082,18190,18192]
     if args.check:
+        import win_focus_gate
+        gate=win_focus_gate.scan(TOOL)
+        if gate:
+            print('WIN FOCUS GATE FAIL: 发现抢焦点/绕过统一入口的写法（见 win_policy.py / win_focus_gate.py）')
+            print(win_focus_gate.format_problems(gate))
+            return 1
         print(f'CHECK PASS: {len(manifest["batches"])} batches / 135 IDs / {len(manifest["manual"])} manual; 无设备操作')
         return 0
     if args.list:
@@ -704,14 +845,33 @@ def main(argv=None):
         def preview(cmd,case):
             """Print the actual compatibility wrapper without creating it / 不创建目录，只打印实际包装命令。"""
             return [sys.executable,str(TOOL/'matrix_compat.py'),str(out),prefix,case,*cmd[1:]]
-        for cmd in ([sys.executable,str(TOOL/'coverage_build.py'),'lib/main_coverage_suite.dart'],[sys.executable,str(TOOL/'coverage_repack.py')]):
+        for cmd in (expand(manifest['build']['argv'],args.run_id),expand(manifest['build']['repack_argv'],args.run_id)):
             print(subprocess.list2cmdline(preview(cmd,'build' if 'coverage_build.py' in cmd[1] else 'repack')))
         print('随后 zipalign、apksigner、adb install、拉回 APK sha256 / lastUpdateTime 核验')
-        for job in manifest['services']+selected:
+        services=[] if all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected) else manifest['services']
+        if not services and any(b.get('cp2_alias') for b in selected):
+            services=[s for s in manifest['services'] if s['id']=='sources']
+        for job in services+selected:
             command=expand(job['argv'],args.run_id)
             print(job['id']+': '+subprocess.list2cmdline(command if job.get('native_driver') else preview(command,job['id'])))
         print('finally：force-stop、恢复媒体音量/USB 常亮、移除自有映射、终止自有服务树；生成 MD/JSON')
         return 0
+    if args.replay:
+        baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
+        explicit=reduce_evidence(manifest,args.replay,f'matrix-{args.run_id}-')
+        results=replay_results(manifest,args.replay,f'matrix-{args.run_id}-')
+        rows=make_rows(manifest,results,explicit)
+        comparison=compare_ledgers(rows,baseline)
+        target=ROOT/'doc/plans'/f'{datetime.now():%Y-%m-%d}-matrix-replay-{args.run_id}'
+        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=results,evidence=str(args.replay),evidenceErrors=list(explicit.evidence_errors))
+        Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+        Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,results,args.baseline),encoding='utf-8')
+        print(json.dumps(data['counts']))
+        for row in rows:
+            if row['status']=='BLOCKED':print(row['id']+': '+row['evidence'][:400])
+        return 1 if explicit.evidence_errors else 0
+    if args.only and 'cp3-full' in args.only.split(',') and args.baseline == BASELINE:
+        parser.error('cp3-full requires explicit --baseline CP0 ledger; historical default is not CP0')
     baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
     read_ledger(baseline)
     driver=Driver(args,manifest)
@@ -719,14 +879,39 @@ def main(argv=None):
     checkpoint.write_text('# 本轮自动检查点\n\n| 编号 | 结论 | 本次原因与证据 |\n|---|---|---|\n'+''.join(f'| {i} | BLOCKED | 待本轮证据。 |\n' for i in manifest['ids']),encoding='utf-8')
     try:
         driver.preflight()
-        driver.build()
-        driver.services()
+        if args.reuse_apk:
+            apk=args.reuse_apk.resolve()
+            expected=hashlib.sha256(apk.read_bytes()).hexdigest()
+            driver.adb('install','-r',str(apk))
+            remote=driver.adb('shell','pm','path',PACKAGE).strip().removeprefix('package:')
+            pulled=driver.out/(driver.prefix+'device-pulled.apk')
+            driver.adb('pull',remote,str(pulled))
+            actual=hashlib.sha256(pulled.read_bytes()).hexdigest()
+            (driver.out/(driver.prefix+'build.json')).write_text(json.dumps(dict(reused=True,source=str(apk),sha256=dict(signed=expected,device=actual))),encoding='utf-8')
+            if actual!=expected:raise RuntimeError('reused APK hash mismatch')
+        else:
+            driver.build()
+        if not all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected):
+            driver.services()
+        elif any(b.get('cp2_alias') for b in selected):
+            # Legacy pages consume live_server on 18080; the selector alone
+            # cannot provide their media. Keep service ownership/restoration
+            # in the matrix driver, while each alias owns its selector.
+            manifest['services'] = [s for s in manifest['services'] if s['id']=='sources']
+            driver.services()
         for job in selected:
             bad_dependencies=[d for d in job['dependencies'] if d in driver.results and driver.results[d]['kind']!='OK']
             if bad_dependencies:
                 driver.results[job['id']]=dict(kind='BLOCKED',driver=str(driver.log),error=f'依赖失败 {bad_dependencies}')
                 continue
             try:
+                # rerun6 owns 18084; release this run's shared fixtures before
+                # the final CP3 precise phase; gap-screen owns its fixtures.
+                if job['id'].startswith('cp3-precise-') and driver.children:
+                    for child, stream in driver.children:
+                        driver.kill_tree(child)
+                        stream.close()
+                    driver.children.clear()
                 if not driver.batch(job) and args.fail_fast:
                     break
             except DeviceLocked as error:
@@ -742,8 +927,7 @@ def main(argv=None):
         driver.results['driver']=dict(kind='HARNESS',driver=str(driver.log),error=str(error))
     finally:
         driver.cleanup()
-        explicit={i:dict(status=s,evidence=d) for i,s,d in re.findall(r'^\| (\S+) \| (PASS|FAIL) \| (.*?) \|$',checkpoint.read_text(encoding='utf-8'),re.M)}
-        explicit.update(existing_verdicts(driver.out,driver.prefix))
+        explicit=reduce_evidence(manifest,driver.out,driver.prefix)
         rows=make_rows(manifest,driver.results,explicit)
         for row in rows:
             driver.note('EXPECT','完整本轮编号判据通过；缺判据或验证器错误则 BLOCKED',row['id'])
@@ -751,10 +935,19 @@ def main(argv=None):
             driver.note('VERDICT',row['status'],row['id'])
         comparison=compare_ledgers(rows,baseline)
         target=ROOT/'doc/plans'/f'{datetime.now():%Y-%m-%d}-matrix-run-{args.run_id}'
-        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=driver.results,baseline=str(args.baseline),evidence=str(driver.out))
+        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=driver.results,baseline=str(args.baseline),evidence=str(driver.out),evidenceErrors=list(explicit.evidence_errors))
+        if args.only and 'cp3-full' in args.only.split(','):
+            from cp3_compare import compare
+            data['cp3Gate']=compare(baseline,dict(rows=rows,evidenceErrors=data['evidenceErrors']))
         Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,driver.results,args.baseline),encoding='utf-8')
         print(Path(str(target)+'.md'))
+    if data['evidenceErrors']:
+        return 1
+    if args.only and 'cp3-full' in args.only.split(','):
+        return 0 if data['cp3Gate']['passed'] and all(r['kind']=='OK' for r in driver.results.values()) else 1
+    if all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected):
+        return 1 if any(r['kind']!='OK' for r in driver.results.values()) else 0
     return 1 if any(r['status']!='PASS' for r in rows) or any(r['kind']!='OK' for r in driver.results.values()) else 0
 
 

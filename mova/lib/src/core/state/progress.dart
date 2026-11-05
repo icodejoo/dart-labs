@@ -37,9 +37,21 @@ class MovaProg {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is MovaProg && other.position == position && other.buffer == buffer;
+    return other is MovaProg &&
+        other.position == position &&
+        other.buffer == buffer;
   }
 
   @override
   int get hashCode => Object.hash(position, buffer);
+}
+
+/// 可选的同步进度能力；不要求已有 MovaApi 实现增加成员。
+///
+/// 示例：`if (api is MovaProgressSource) print(api.progressValue.position);`
+abstract interface class MovaProgressSource {
+  /// 返回当前播放位置与缓冲快照，无参数；不等待下一个 tick。
+  ///
+  /// 示例：`final position = source.progressValue.position;`
+  MovaProg get progressValue;
 }

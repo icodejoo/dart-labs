@@ -20,6 +20,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:svgx/src/rust/api/svg.dart';
 import 'package:svgx/svgx.dart';
 
 /// Full-size blue square clipped to its left half.

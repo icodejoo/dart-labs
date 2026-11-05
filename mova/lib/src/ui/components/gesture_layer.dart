@@ -1,3 +1,7 @@
+import '../style/style.dart';
+import '../chrome/chrome.dart';
+import '../../core/state/progress.dart';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -107,11 +111,13 @@ class _GestureLayer extends StatefulWidget {
 ///
 /// [_GestureLayer] 的状态机；手势数学与 0.1.0 的
 /// `_MovaGestDetectState` 完全一致，只是出口改为 [MovaApi] 调用。
-class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLayer> {
+class _GestureLayerState extends State<_GestureLayer>
+    with MovaPlugin<_GestureLayer> {
   /// Which intent the current one-finger drag is driving, if decided.
   ///
   /// 当前单指拖动正在驱动的意图（若已判定）。
   _DragMode _mode = _DragMode.undecided;
+  late MovaUiPort _ui;
 
   /// Accumulated focal-point delta since the drag started.
   ///
@@ -165,11 +171,22 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   @override
   void initState() {
     super.initState();
+    _ui = movaUiOf(context);
     // Subscription lifecycle handled by [MovaPlugin.bind] — cancelled on
     // dispose without a manual override.
     //
     // 订阅生命周期交给 [MovaPlugin.bind]——无需手写 dispose 即会在销毁时取消。
+    final api = _api;
+    if (api is MovaProgressSource) {
+      _lastPosition = (api as MovaProgressSource).progressValue.position;
+    }
     bind(_api.progress, (p) => _lastPosition = p.position);
+  }
+
+  @override
+  void dispose() {
+    if (_mode == _DragMode.seek) _ui.setDragging(false);
+    super.dispose();
   }
 
   /// Whether seek gestures are currently allowed: always for VOD; for a
@@ -182,14 +199,15 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
     final state = _api.state;
     final live = state.type == MovaStreamType.live;
     if (!live) return true;
-    if (!_api.options.gesture.allowWhenLive) return false;
+    if (!MovaPlayerStyle.gestureOf(context).allowWhenLive) return false;
     return state.liveSeekable;
   }
 
   /// Records the tap position so double-tap can tell left from right.
   ///
   /// 记录点击位置，供双击判定左/右半屏。
-  void _onDoubleTapDown(TapDownDetails d) => _lastDoubleTapDx = d.localPosition.dx;
+  void _onDoubleTapDown(TapDownDetails d) =>
+      _lastDoubleTapDx = d.localPosition.dx;
 
   /// Applies a double-tap seek toward the tapped side, gated the same way
   /// as horizontal drag-seek.
@@ -210,23 +228,23 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 在这里写它会连带错误地弹出气泡。回归说明：改之前双击的进度 HUD 完全没有
   /// 文字，因为它能读的两个字段都没人填过。
   void _onDoubleTap() {
-    final cfg = _api.options.gesture;
+    final cfg = MovaPlayerStyle.gestureOf(context);
     if (!cfg.doubleTapSeek || !_seekAllowed) return;
     final backward = _lastDoubleTapDx < _size.width / 2;
     final step = cfg.doubleTapStep;
     final target = _lastPosition + (backward ? -step : step);
     _api.seek(target);
-    _api.showHud(MovaHud.seek, text: formatDuration(target));
+    movaUiOf(context).showHud(MovaHud.seek, text: formatDuration(target));
   }
 
   /// Toggles control-bar visibility on a plain (non-double) tap.
   ///
   /// 单击（非双击）时切换控制条显隐。
   void _onTap() {
-    if (_api.uiState.controlsVisible) {
-      _api.hideControls();
+    if (movaUiOf(context).uiState.controlsVisible) {
+      movaUiOf(context).hide();
     } else {
-      _api.showControls();
+      movaUiOf(context).show();
     }
   }
 
@@ -249,7 +267,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
       return;
     }
     if (d.pointerCount >= 2) {
-      if (!_api.options.gesture.pinchZoom) return;
+      if (!MovaPlayerStyle.gestureOf(context).pinchZoom) return;
       _mode = _DragMode.zoom;
       _applyZoom(d.scale);
       return;
@@ -269,7 +287,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   ///
   /// 用 [scale] 乘以捏合起点的缩放基准，clamp 到 `[1.0, maxZoom]` 后应用。
   void _applyZoom(double scale) {
-    final maxZoom = _api.options.gesture.maxZoom;
+    final maxZoom = MovaPlayerStyle.gestureOf(context).maxZoom;
     final z = (_startZoom * scale).clamp(1.0, maxZoom);
     _api.setZoom(z);
   }
@@ -281,7 +299,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 位移越过阈值后判定方向/侧别；若配置禁用了本应选中的模式，则保持
   /// [_DragMode.undecided]（不回退到其他模式）。
   _DragMode _decideMode() {
-    final cfg = _api.options.gesture;
+    final cfg = MovaPlayerStyle.gestureOf(context);
     _horizontalDrag = _cum.dx.abs() > _cum.dy.abs();
     final action = _horizontalDrag
         ? cfg.horizontal
@@ -313,7 +331,8 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// own axis: rightwards or upwards is positive.
   ///
   /// 锁定拖动沿自身轴相对手势面的带符号进度比例：向右或向上为正。
-  double _axisFrac() => _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
+  double _axisFrac() =>
+      _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
 
   /// Maps the drag accumulated so far onto a target position, scaled by
   /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
@@ -326,7 +345,10 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 的实时预览与 [_onScaleEnd] 的提交共用，使二者对拖动落点的判断绝不会
   /// 不一致。
   Duration _seekTargetFromCum() {
-    final seconds = _axisFrac() * _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
+    final seconds =
+        _axisFrac() *
+        MovaPlayerStyle.gestureOf(context).hSeekSpanPerScreen.inSeconds
+            .toDouble();
     return _lastPosition + Duration(seconds: seconds.round());
   }
 
@@ -337,18 +359,26 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
     switch (_mode) {
       case _DragMode.seek:
         final target = _seekTargetFromCum();
-        _api.setDragging(true, previewAt: target);
-        _api.showHud(MovaHud.seek);
+        movaUiOf(context).setDragging(true, previewAt: target);
+        movaUiOf(context).showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac = _axisFrac(); // up/right = louder
+        final frac =
+            _axisFrac() *
+            (_horizontalDrag
+                ? 1
+                : MovaPlayerStyle.gestureOf(context).vSensitivity);
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
-        _api.showHud(MovaHud.volume);
+        movaUiOf(context).showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac = _axisFrac(); // up/right = brighter
+        final frac =
+            _axisFrac() *
+            (_horizontalDrag
+                ? 1
+                : MovaPlayerStyle.gestureOf(context).vSensitivity);
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
-        _api.showHud(MovaHud.brightness);
+        movaUiOf(context).showHud(MovaHud.brightness);
         break;
       case _DragMode.undecided:
       case _DragMode.zoom:
@@ -364,7 +394,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   void _onScaleEnd(ScaleEndDetails d) {
     if (_mode == _DragMode.seek) {
       _api.seek(_seekTargetFromCum());
-      _api.setDragging(false);
+      movaUiOf(context).setDragging(false);
     }
     _mode = _DragMode.undecided;
   }

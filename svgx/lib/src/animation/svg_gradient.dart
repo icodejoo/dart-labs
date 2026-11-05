@@ -31,6 +31,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 
 import '../svg_affine.dart';
+import 'smil_animation.dart';
 import 'svg_dom.dart';
 import 'svg_style.dart';
 
@@ -151,7 +152,7 @@ class SvgGradientDef {
 /// 覆盖后的属性表）[resampleGradientAtTime] 的逐帧重建。`stop-color` 无法解析
 /// 时返回 null。
 SvgGradientStop? stopFromAttributes(Map<String, String> attributes) {
-  final color = parseSvgHexColor(attributes['stop-color'] ?? '#000000');
+  final color = parseSvgHexColor(attributes[kStopColorAttribute] ?? '#000000');
   if (color == null) return null;
   final raw = (attributes['offset'] ?? '0').trim();
   final offset = raw.endsWith('%')
@@ -163,6 +164,34 @@ SvgGradientStop? stopFromAttributes(Map<String, String> attributes) {
     color.withValues(alpha: color.a * stopOpacity.clamp(0.0, 1.0)),
   );
 }
+
+/// `<stop>` 的颜色属性名，也是 [SmilColorAnimation] 的默认属性名。
+const String kStopColorAttribute = 'stop-color';
+
+/// 把打包为 `0xAARRGGBB` 的颜色 [argb] 重排成属性表里使用的 `#RRGGBBAA`
+/// 大写十六进制字符串（alpha 在末尾，`parseSvgHexColor` 要的就是这个顺序）。
+///
+/// [argb] 不得是 [kSmilColorNone] 哨兵，调用方须先处理。
+///
+/// 返回形如 `#FF0000FF` 的字符串。
+///
+/// ```dart
+/// smilColorToHex(0xFFFF0000); // '#FF0000FF'
+/// ```
+String smilColorToHex(int argb) {
+  final a = (argb >> 24) & 0xFF,
+      r = (argb >> 16) & 0xFF,
+      g = (argb >> 8) & 0xFF,
+      b = argb & 0xFF;
+  return '#${_hexBytes[r]}${_hexBytes[g]}${_hexBytes[b]}${_hexBytes[a]}';
+}
+
+/// 0~255 对应的两位大写十六进制，供逐帧转换颜色时查表，免去临时字符串。
+final List<String> _hexBytes = List.generate(
+  256,
+  (i) => i.toRadixString(16).padLeft(2, '0').toUpperCase(),
+  growable: false,
+);
 
 /// Resamples [def]'s animated geometry/stops at global timeline time [time],
 /// returning a fresh [SvgGradientDef]. A def with no [SvgGradientDef.animatedNode]
@@ -214,19 +243,12 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
       if (v != null) effective[animation.attributeName] = v.toString();
     }
     for (final colorAnimation in stopNode.colorAnimations) {
+      // 只认 stop-color；其它属性名（例如误挂的 fill）忽略。
+      if (colorAnimation.attributeName != kStopColorAttribute) continue;
       final v = colorAnimation.sample(time);
-      if (v == null) continue;
-      // v is 0xAARRGGBB (see SmilColorAnimation); parseSvgHexColor wants
-      // #RRGGBBAA (alpha last), hence the reorder.
-      // v 是 0xAARRGGBB（见 SmilColorAnimation）；parseSvgHexColor 要的是
-      // #RRGGBBAA（alpha 在末尾），因此重新排列字节顺序。
-      final a = (v >> 24) & 0xFF,
-          r = (v >> 16) & 0xFF,
-          g = (v >> 8) & 0xFF,
-          b = v & 0xFF;
-      effective['stop-color'] =
-          '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'
-              .toUpperCase();
+      // stop 上的 none 没有意义，跳过，不能把哨兵 -1 当成 0xFFFFFFFF 写进去。
+      if (v == null || v == kSmilColorNone) continue;
+      effective[kStopColorAttribute] = smilColorToHex(v);
     }
     stops.add(stopFromAttributes(effective) ?? original);
   }
@@ -257,14 +279,16 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
 /// definition can't produce a usable shader: no stops, or a degenerate
 /// (zero-width/height) bounding box under `objectBoundingBox` units.
 ///
-/// [opacity] scales every stop's alpha (the element's own `opacity`).
+/// [opacity] scales every stop's alpha: fill/stroke opacity, multiplied by
+/// local element opacity only when no opacity layer handles it.
 ///
 /// 为在 [bounds] 上绘制的 [def] 构建 `dart:ui` shader。
 ///
 /// 当定义无法产出可用 shader 时返回 null（含义是"该渐变不绘制任何东西"）：没有
 /// 色标，或 `objectBoundingBox` 单位下包围盒退化（宽或高为 0）。
 ///
-/// [opacity] 会缩放每个色标的 alpha（即元素自身的 `opacity`）。
+/// [opacity] 缩放每个色标的 alpha：fill/stroke-opacity，以及未由合成层处理的
+/// 本节点 opacity；祖先组 opacity 由外层合成处理。
 ///
 /// Example:
 /// ```dart
@@ -300,6 +324,13 @@ ui.Shader? buildGradientShader(
     offsets.add(1);
   }
 
+  if (def.radial && def.r <= 0) {
+    // SVG's degenerate radial gradient is the last stop's solid color.
+    return ui.Gradient.linear(Offset.zero, const Offset(1, 0), [
+      colors.last,
+      colors.last,
+    ]);
+  }
   final matrix = _shaderMatrix(def, bounds);
   if (def.radial) {
     final focalX = def.fx ?? def.cx;

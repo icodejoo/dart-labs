@@ -1,10 +1,10 @@
+import 'package:mova/mova.dart';
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit/generated/libmpv/bindings.dart' as generated;
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/core/kernel/mpv_event_backend.dart';
-import 'package:mova/src/core/report/stats_probe.dart';
 
 import '../../support/fake_mpv_event_backend.dart';
 
@@ -22,9 +22,18 @@ class _FakePlayer extends Fake implements Player {
   @override
   PlayerStream get stream => _stream;
 
+  /// 暂停只记调用，验证旧结束通知不会暂停新源。
+  @override
+  Future<void> pause() async => callLog.add('player.pause');
+
+  /// 模拟打开，不产生真实原生资源。
+  @override
+  Future<void> open(Playable playable, {bool play = true}) async {}
+
   @override
   Future<void> dispose() async {
     callLog.add('player.dispose');
+    await _stream.logs.close();
   }
 }
 
@@ -36,6 +45,14 @@ class _FakePlatformPlayer extends Fake implements PlatformPlayer {
 class _FakeNative extends Fake implements NativePlayer {
   final List<String> callLog;
   _FakeNative(this.callLog);
+
+  /// 原生属性操作为空实现，支持首次 open 的准备阶段。
+  @override
+  Future<String> getProperty(String name, {bool waitForInitialization = true}) async => '';
+
+  /// 记录路径无需触碰 FFI。
+  @override
+  Future<void> setProperty(String name, String value, {bool waitForInitialization = true}) async {}
 
   @override
   Future<int> get handle async {
@@ -50,6 +67,8 @@ class _FakeNative extends Fake implements NativePlayer {
 }
 
 class _FakeStream extends Fake implements PlayerStream {
+  /// 原始错误级日志，可验证适配器的 ffmpeg 过滤。
+  final logs = StreamController<PlayerLog>.broadcast();
   @override
   Stream<Tracks> get tracks => const Stream.empty();
   @override
@@ -80,7 +99,7 @@ class _FakeStream extends Fake implements PlayerStream {
   Stream<String> get error => const Stream.empty();
 
   @override
-  Stream<PlayerLog> get log => const Stream.empty();
+  Stream<PlayerLog> get log => logs.stream;
 }
 
 class _SharedLogBackend extends FakeMpvEventBackend {
@@ -108,6 +127,105 @@ class _SharedLogBackend extends FakeMpvEventBackend {
 
 void main() {
   group('MovaMpvKernel Events', () {
+    for (final createFail in [true, false]) {
+      test('F-I ffmpeg main error fallback only when client unavailable createFail=$createFail', () async {
+        final player = _FakePlayer([]);
+        final backend = FakeMpvEventBackend()..createFail = createFail;
+        final kernel = MovaMpvKernel(
+          player: player, audioOnly: true, observeNativeEvents: true,
+          observeRestarts: false, backendFactory: (_, _) => backend,
+        );
+        final e = MovaEngine(kernel: kernel, options: const MovaOpts(
+          controls: MovaCtrlsConfig(autoHide: false),
+        ));
+        final errors = <MovaErrorEvent>[];
+        e.events.where((v) => v is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
+        const uri = 'https://h/main.mp4';
+        await e.open(const MovaSource(uri));
+        expect(kernel.endFileAvailable, !createFail);
+        expect(kernel.nativeRestartAvailable, isFalse);
+        player._stream.logs.add(const PlayerLog(prefix: 'ffmpeg', level: 'warn', text: 'Failed to open $uri'));
+        await pumpEventQueue();
+        expect(errors, isEmpty);
+        player._stream.logs.add(const PlayerLog(prefix: 'ffmpeg', level: 'error', text: 'Failed to open $uri'));
+        await pumpEventQueue();
+        if (createFail) {
+          expect(errors.single.fatal, isTrue);
+          expect(errors.single.code, 'network');
+          expect(e.state.error, isNotNull);
+        } else {
+          expect(errors, isEmpty, reason: '泵可用时保留原有非 tcp ffmpeg 过滤');
+          player._stream.logs.add(const PlayerLog(prefix: 'stream', level: 'error', text: 'Failed to open $uri'));
+          await pumpEventQueue();
+          expect(errors.single.fatal, isFalse);
+          expect(e.state.error, isNull);
+          backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+          backend.wake();
+          await pumpEventQueue();
+          expect(errors.map((v) => v.fatal), [false, true]);
+        }
+        await e.dispose();
+      });
+    }
+
+    test('F-J queued A END_FILE after open B cannot terminate or pause B', () async {
+      final calls = <String>[];
+      final backend = FakeMpvEventBackend();
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(calls), audioOnly: true, observeNativeEvents: true,
+        backendFactory: (_, _) => backend,
+      );
+      final engine = MovaEngine(kernel: kernel, options: const MovaOpts(
+        controls: MovaCtrlsConfig(autoHide: false),
+      ));
+      await engine.open(const MovaSource('https://h/A.mp4'));
+      backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+      await engine.open(const MovaSource('https://h/B.mp4'));
+      backend.wake();
+      await pumpEventQueue();
+      expect(engine.state.error, isNull);
+      expect(calls, isNot(contains('player.pause')));
+      backend.events.add(const MovaRawEvent(7, endFileReason: 4));
+      backend.wake();
+      await pumpEventQueue();
+      expect(engine.state.error, MovaEndFileReason.error);
+      expect(calls.where((v) => v == 'player.pause'), hasLength(1));
+      await engine.dispose();
+    });
+
+    test('A14 pump stays absent until first open and repeated opens share one client', () async {
+      var created = 0;
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer([]), audioOnly: true, observeNativeEvents: true,
+        backendFactory: (_, _) { created++; return FakeMpvEventBackend(); },
+      );
+      await pumpEventQueue();
+      expect(created, 0);
+      await kernel.open('https://h/1.mp4');
+      await kernel.open('https://h/2.mp4');
+      expect(created, 1);
+      await kernel.dispose();
+    });
+
+    test('A14 observeRestarts enables an already opened END_FILE only pump', () async {
+      final backend = FakeMpvEventBackend();
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer([]), audioOnly: true, observeNativeEvents: true,
+        observeRestarts: false, backendFactory: (_, _) => backend,
+      );
+      await kernel.open('https://h/1.mp4');
+      expect(kernel.nativeRestartAvailable, isFalse);
+      kernel.observeRestarts();
+      expect(kernel.nativeRestartAvailable, isTrue);
+      final events = <void>[];
+      kernel.playbackRestarts.listen(events.add);
+      backend.events.add(MovaRawEvent(generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART));
+      backend.wake();
+      await pumpEventQueue();
+      expect(events, hasLength(1));
+      await kernel.dispose();
+    });
+
     test('observeQoeSignals=false never calls backendFactory', () {
       final callLog = <String>[];
       final player = _FakePlayer(callLog);
@@ -159,6 +277,7 @@ void main() {
           return FakeMpvEventBackend();
         },
       );
+      await kernel.open('https://h/a.mp4');
       await pumpEventQueue();
       expect(factoryCalled, isTrue);
       expect(callLog, isNot(contains('native.observeProperty:paused-for-cache')));
@@ -175,6 +294,7 @@ void main() {
         observeRestarts: false,
         backendFactory: (native, addr) => backend,
       );
+      await kernel.open('https://h/a.mp4');
       await pumpEventQueue();
       final restarts = <void>[];
       final ends = <MovaEndFileReason>[];
@@ -200,6 +320,7 @@ void main() {
         observeNativeEvents: true,
         backendFactory: (native, addr) => FakeMpvEventBackend(),
       );
+      await kernel.open('https://h/a.mp4');
       await pumpEventQueue();
       expect(kernel.nativeRestartAvailable, isTrue);
       await kernel.dispose();
@@ -232,6 +353,7 @@ void main() {
         observeQoeSignals: true,
         backendFactory: (native, addr) => _SharedLogBackend(callLog, () {}, () {}),
       );
+      await kernel.open('https://h/a.mp4');
       await pumpEventQueue();
       final observe = callLog.indexOf('native.observeProperty:paused-for-cache');
       final create = callLog.indexOf('backend.createClient');
@@ -278,8 +400,12 @@ void main() {
           }
         );
         
-        // immediately dispose
+        // 发起加载后立即销毁，覆盖建泵准备与销毁交错。
+        final opening = kernel.open('https://h/race.mp4');
+        // 一半覆盖注册前销毁，一半确保真实创建客户端后立即销毁。
+        if (i.isOdd) await opening;
         await kernel.dispose();
+        await opening;
         await pumpEventQueue();
         
         final destroyIndex = callLog.indexOf('backend.destroy');
@@ -288,6 +414,7 @@ void main() {
           expect(destroyIndex, lessThan(playerDisposeIndex));
         }
       }
+      expect(createSum, greaterThan(0));
       expect(createSum, equals(destroySum));
     });
 
@@ -328,6 +455,7 @@ void main() {
         backendFactory: (native, addr) => backend,
       );
       
+      await kernel.open('https://h/a.mp4');
       await pumpEventQueue(); // ensure pump is started
       
       final restarts = <void>[];

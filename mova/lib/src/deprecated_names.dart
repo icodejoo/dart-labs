@@ -9,13 +9,10 @@ import 'core/options/keep_alive_config.dart';
 import 'core/playlist/playlist.dart';
 import 'ui/mini/mini.dart';
 
-// Old names kept for one release so hosts can migrate gradually.
-// Only type positions and constructors are covered: static members (enum values)
-// are not reachable through a type alias, and renamed members/parameters
-// (`setStandby`, `swapTo`, `MovaOpts(swap:/standby:)`) have no alias — see CHANGELOG.
-//
-// 旧名保留一个版本，方便宿主逐步迁移。只覆盖类型位置与构造器：枚举值等静态成员无法经类型别名访问，
-// 改名的成员/参数（`setStandby`、`swapTo`、`MovaOpts(swap:/standby:)`）没有别名——见 CHANGELOG。
+// 旧类型名均以 @Deprecated 别名保留一个版本，构造器和当前 Dart 支持的枚举值可经别名访问。
+// 工厂已统一使用 MovaEngineFactory，无需另建 Swap/Controller 工厂名。
+// 改名的方法/具名参数（setStandby、swapTo、MovaOpts(swap:/standby:)）没有桥接。
+// 小窗宿主 ctl 与广告覆盖层 controller 的成员兼容入口定义在各自组件中。
 
 /// Old name of [MovaAds] / [MovaAds] 的旧名。
 @Deprecated('Use MovaAds')

@@ -22,26 +22,18 @@ import 'svg_source_loader.dart';
 /// Renders an SVG string, automatically picking the animated or static
 /// rendering path.
 ///
-/// Detection is done via [AnimationDetector.hasAnimations]: if the source
-/// contains SMIL (`<animate>`, `<set>`) animation markers, it renders through
-/// [SvgxAnimated.string] (this project's original SMIL engine); otherwise it
-/// renders through [SvgxStatic] (Rust `usvg` parser → cached [ui.Picture]).
-/// CSS `@keyframes`/`animation-*` animation is not yet detected/supported —
-/// see `lib/src/animation/animation_detector.dart`.
+/// Detects SMIL and CSS `@keyframes` via [AnimationDetector.hasAnimations],
+/// routing to [SvgxAnimated.string] (Dart) or [SvgxStatic] (Rust).
+/// The State caches the detection result by source string.
 ///
-/// 渲染 SVG 字符串，自动选择动画或静态渲染路径。
-///
-/// 通过 [AnimationDetector.hasAnimations] 判定：若源串含 SMIL（`<animate>`、
-/// `<set>`）动画标记，走 [SvgxAnimated.string]（本项目原创 SMIL 引擎）；否则走
-/// [SvgxStatic]（Rust `usvg` 解析器 → 缓存的 [ui.Picture]）。CSS
-/// `@keyframes`/`animation-*` 动画暂不检测/支持——见
-/// `lib/src/animation/animation_detector.dart`。
+/// 按源串检测 SMIL 与 CSS `@keyframes` 动画，分别交给 Dart 动画引擎和
+/// Rust 静态渲染器；检测结果在 State 内按源串缓存。
 ///
 /// Example:
 /// ```dart
 /// Svgx.string(svgSource, width: 48, height: 48)
 /// ```
-class Svgx extends StatelessWidget {
+class Svgx extends StatefulWidget {
   /// Initializes the native (Rust) rendering backend. Call once, before
   /// rendering any Svgx widget — typically in `main()` before `runApp`.
   /// Calling it again after the first successful call is a no-op.
@@ -80,7 +72,7 @@ class Svgx extends StatelessWidget {
   /// Creates the dispatch widget from an SVG asset, resolved the same way
   /// [AssetImage] resolves [name]/[bundle]/[package].
   ///
-  /// Shows a blank [width]x[height] box while loading (no `loadingBuilder`
+  /// Keeps the previous SVG while loading; initially shows a blank [width]x[height] box (no `loadingBuilder`
   /// parameter — YAGNI until a caller actually needs one) and lets a load
   /// error propagate to the ambient [ErrorWidget.builder], matching
   /// [Image.asset]'s default behavior.
@@ -88,7 +80,7 @@ class Svgx extends StatelessWidget {
   /// 用 SVG asset 创建分发组件，`name`/`bundle`/`package` 的解析方式与
   /// [AssetImage] 一致。
   ///
-  /// 加载期间显示一个空白的 [width]x[height] 占位（不提供 `loadingBuilder`
+  /// 加载期间保留旧 SVG；首次加载显示空白的 [width]x[height] 占位（不提供 `loadingBuilder`
   /// 参数——在有调用方真正需要之前，属于 YAGNI）；加载失败则让错误传播给环境
   /// [ErrorWidget.builder]，与 [Image.asset] 的默认行为一致。
   static Widget asset(
@@ -106,7 +98,8 @@ class Svgx extends StatelessWidget {
   }) => _AsyncSvgx(
     key: key,
     loadKey: (name, bundle, package),
-    load: () => SvgSourceLoader.instance.asset(name, bundle: bundle, package: package),
+    load: () =>
+        SvgSourceLoader.instance.asset(name, bundle: bundle, package: package),
     width: width,
     height: height,
     fit: fit,
@@ -136,7 +129,7 @@ class Svgx extends StatelessWidget {
     SvgxAnimationQuality? quality,
   }) => _AsyncSvgx(
     key: key,
-    loadKey: (url, headers),
+    loadKey: (url, SvgSourceLoader.headersKey(headers)),
     load: () => SvgSourceLoader.instance.network(url, headers: headers),
     width: width,
     height: height,
@@ -162,7 +155,7 @@ class Svgx extends StatelessWidget {
     SvgxAnimationQuality? quality,
   }) => _AsyncSvgx(
     key: key,
-    loadKey: file,
+    loadKey: file.path,
     load: () => SvgSourceLoader.instance.file(file),
     width: width,
     height: height,
@@ -218,7 +211,10 @@ class Svgx extends StatelessWidget {
   /// Alignment within the box. / 在盒子内的对齐方式。
   final Alignment alignment;
 
-  /// Optional recolor filter. / 可选的重着色滤镜。
+  /// Optional recolor filter; the animated path uses [ColorFiltered], with
+  /// no extra layer when unset.
+  ///
+  /// 可选重着色滤镜；动画路径通过 ColorFiltered 应用，未设置时无额外层。
   final ColorFilter? colorFilter;
 
   /// Theme controlling `currentColor`, honored by both the animated and
@@ -236,26 +232,51 @@ class Svgx extends StatelessWidget {
   final SvgxAnimationQuality? quality;
 
   @override
+  State<Svgx> createState() => _SvgxState();
+}
+
+/// Selects the static or animated renderer when the SVG source changes.
+/// 在 SVG 源变化时选择静态或动画渲染器。
+class _SvgxState extends State<Svgx> {
+  late bool _animated;
+  @override
+  void initState() {
+    super.initState();
+    _animated = AnimationDetector.hasAnimations(widget.source);
+  }
+
+  @override
+  void didUpdateWidget(Svgx oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.source != widget.source) {
+      _animated = AnimationDetector.hasAnimations(widget.source);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (AnimationDetector.hasAnimations(source)) {
-      return SvgxAnimated.string(
-        source,
-        width: width,
-        height: height,
-        fit: fit,
-        alignment: alignment,
-        theme: theme,
-        quality: quality,
+    if (_animated) {
+      final child = SvgxAnimated.string(
+        widget.source,
+        width: widget.width,
+        height: widget.height,
+        fit: widget.fit,
+        alignment: widget.alignment,
+        theme: widget.theme,
+        quality: widget.quality,
       );
+      return widget.colorFilter == null
+          ? child
+          : ColorFiltered(colorFilter: widget.colorFilter!, child: child);
     }
     return SvgxStatic(
-      source,
-      width: width,
-      height: height,
-      fit: fit,
-      alignment: alignment,
-      colorFilter: colorFilter,
-      theme: theme,
+      widget.source,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      alignment: widget.alignment,
+      colorFilter: widget.colorFilter,
+      theme: widget.theme,
     );
   }
 }
@@ -327,13 +348,8 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
   String? _source;
   Object? _error;
 
-  /// [loadKey] the currently-held [_source]/[_error] resulted from — guards
-  /// against a stale in-flight load resolving after [loadKey] has already
-  /// moved on to a different asset/URL.
-  ///
-  /// 当前持有的 [_source]/[_error] 对应的 [loadKey]——防止一次仍在途的旧加载
-  /// 在 [loadKey] 已经换成别的 asset/URL 之后才 resolve，覆盖新结果。
-  Object? _resultKey;
+  // 每次加载使用独立代次，防止 A→B→A 时第一次 A 的结果抢先覆盖。
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -348,7 +364,7 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
   }
 
   void _load() {
-    final key = widget.loadKey;
+    final generation = ++_loadGeneration;
     // Clear a stale error from a previous [loadKey] immediately — otherwise
     // `build()` keeps throwing it for the new key while this fresh load is
     // still in flight.
@@ -358,20 +374,18 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
     if (_error != null) {
       _error = null;
     }
-    widget.load().then(
+    Future<String>.sync(widget.load).then(
       (source) {
-        if (!mounted || widget.loadKey != key) return;
+        if (!mounted || generation != _loadGeneration) return;
         setState(() {
           _source = source;
           _error = null;
-          _resultKey = key;
         });
       },
       onError: (Object error, StackTrace stackTrace) {
-        if (!mounted || widget.loadKey != key) return;
+        if (!mounted || generation != _loadGeneration) return;
         setState(() {
           _error = error;
-          _resultKey = key;
         });
       },
     );
@@ -385,7 +399,7 @@ class _AsyncSvgxState extends State<_AsyncSvgx> {
     // 传播给环境 ErrorWidget.builder，与 Image.asset 的默认行为一致（没有
     // errorBuilder 参数——在有人要之前属于 YAGNI）。
     if (_error != null) throw _error!;
-    if (_source == null || _resultKey != widget.loadKey) {
+    if (_source == null) {
       return SizedBox(width: widget.width, height: widget.height);
     }
     return Svgx.string(

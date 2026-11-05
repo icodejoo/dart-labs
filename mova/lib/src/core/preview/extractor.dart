@@ -49,6 +49,18 @@ abstract class MovaFramePuller {
   Future<void> dispose();
 }
 
+/// 可选的带头抽帧能力；不改变旧抽帧端口的签名。
+abstract class MovaHeaderedFramePuller implements MovaFramePuller {
+  /// 用本次 [headers] 抽取指定位置的帧；请求头不跨源复用。
+  Future<Uint8List?> extractWithHeaders(
+    String uri,
+    Duration at, {
+    required int width,
+    required bool hwdec,
+    required Map<String, String> headers,
+  });
+}
+
 /// Adapts a [MovaFramePuller] to the [MovaThumbSource] contract so the preview
 /// service can treat extraction as just another entry in its ordered source
 /// list.
@@ -93,12 +105,16 @@ class MovaPullerThumbSource implements MovaThumbSource {
 
   @override
   Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) async {
-    final bytes = await extractor.extract(
-      source.uri,
-      bucket,
-      width: width,
-      hwdec: hwdec,
-    );
+    final puller = extractor;
+    final bytes = puller is MovaHeaderedFramePuller
+        ? await puller.extractWithHeaders(
+            source.uri,
+            bucket,
+            width: width,
+            hwdec: hwdec,
+            headers: source.requestHeaders,
+          )
+        : await puller.extract(source.uri, bucket, width: width, hwdec: hwdec);
     if (bytes == null) return null;
     return MovaThumb(at: bucket, bytes: bytes);
   }

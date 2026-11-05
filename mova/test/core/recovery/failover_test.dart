@@ -1,3 +1,4 @@
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -20,7 +21,7 @@ const _c = 'https://h/c.m3u8';
 /// recovery。
 class _Rig {
   _Rig(this.kernel, {bool enabled = true, MovaLiveConfig live = const MovaLiveConfig()})
-      : engine = MovaEngine(
+      : engine = MovaEngine(fetcher: const MovaTestHttpFetch(),
           kernel: kernel,
           options: MovaOpts(
             recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: enabled, policy: const MovaFailoverOnly()),
@@ -113,13 +114,19 @@ void main() {
     });
   });
 
-  test('recovery disabled: alternatives are never used, however long we wait', () {
+  test('recovery disabled: alternatives are rejected by debug assertion', () {
     fakeAsync((async) {
       final k = FakeKernel();
       final r = _Rig(k, enabled: false);
-      r.open(async, const MovaSource(_a, alternatives: [_b]));
+      Object? rejected;
+      r.engine.open(const MovaSource(_a, alternatives: [_b])).catchError((Object e) {
+        rejected = e;
+        return false;
+      });
+      async.flushMicrotasks();
+      expect(rejected, isA<AssertionError>());
       async.elapse(const Duration(minutes: 10));
-      expect(k.openedUris, [_a]);
+      expect(k.openedUris, isEmpty);
       expect(r.engine.state.sourceIndex, 0);
       expect(r.events.whereType<MovaFailover>(), isEmpty);
     });

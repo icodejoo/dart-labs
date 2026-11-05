@@ -92,7 +92,7 @@ class _MiniWindowDemoApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'mova mini-window demo',
         theme: ThemeData.dark(useMaterial3: true),
-        builder: (context, child) => MovaMiniHost(ctl: _miniCtl, child: child!),
+        builder: (context, child) => MovaMiniHost(mini: _miniCtl, child: child!),
         home: const _HubPage(),
       );
 }

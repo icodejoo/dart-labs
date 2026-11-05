@@ -11,6 +11,9 @@ import time
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'coverage_media'
 OUT.mkdir(exist_ok=True)
+# 外部字幕探针也使用 APK 对应的同一份资产，缓存目录存在时仍补齐。
+for suffix in ('srt', 'ass', 'vtt'):
+    (OUT/f'test_subtitle.{suffix}').write_bytes((ROOT.parent/'assets'/f'test_subtitle.{suffix}').read_bytes())
 source=ROOT/'coverage_sources/stall.mp4'
 
 

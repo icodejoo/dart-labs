@@ -14,8 +14,16 @@ final serverUrl =
 final netemUrl =
     Platform.environment['TESTKIT_NETEM'] ?? 'http://127.0.0.1:47090';
 
-/// 代理上游，固定使用已启动的业务服务。
-final upstream = Uri.parse(serverUrl).authority;
+/// 代理上游，固定使用已启动的业务服务；https 线上部署带 scheme，netem 会做 TLS 并改写 Host。
+final upstream = Uri.parse(serverUrl).scheme == 'https'
+    ? Uri.parse(serverUrl).origin
+    : Uri.parse(serverUrl).authority;
+
+/// 线上限流绕过 token（TESTKIT_TOKEN），空串表示不带；只读环境变量，不写进报告。
+final testkitToken = Platform.environment['TESTKIT_TOKEN'] ?? '';
+
+/// 限流绕过请求头名。
+const testkitTokenHeader = 'x-testkit-token';
 
 /// 完整矩阵的网络维度。
 const matrixNetworks = [
@@ -109,6 +117,9 @@ class ServiceGuardAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? stream,
       Future<void>? cancelFuture) async {
+    if (testkitToken.isNotEmpty) {
+      options.headers[testkitTokenHeader] = testkitToken;
+    }
     final response = await inner.fetch(options, stream, cancelFuture);
     if (!guardedStatuses.contains(response.statusCode)) return response;
     // 429/503 才读响应体：场景脚本主动注入的放行，真实限流/熔断照旧整轮停止。

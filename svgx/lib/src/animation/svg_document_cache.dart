@@ -28,7 +28,7 @@ import 'svg_document_parser.dart';
 /// safe. Icon assets essentially never embed bitmaps, so this exclusion costs
 /// nothing in practice and keeps the mutable-state hazard out entirely.
 ///
-/// 进程级 LRU 缓存，缓存已解析的动画 SVG 文档，键为原始源串。
+/// 进程级随机淘汰缓存，缓存已解析的动画 SVG 文档，键为原始源串。
 ///
 /// 只缓存**不含** `<image>` 节点的文档。图片节点解码出的位图由
 /// `resolveImageNodes` 存在**节点自身**上，把这类文档在多个控件间共享就意味着
@@ -140,7 +140,9 @@ class SvgxDocumentCache {
     final hasImages = documentHasImages(document);
     if (!hasImages) {
       _entries[source] = document;
-      if (_entries.length > maximumSize) _evictOne();
+      while (_entries.isNotEmpty && _entries.length > maximumSize) {
+        _evictOne();
+      }
     }
     return (document: document, hasImages: hasImages);
   }
