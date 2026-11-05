@@ -1103,6 +1103,8 @@ class Layerman extends ChangeNotifier {
             e.durationRemaining = const Duration(seconds: 1);
           case 'q':
             _settle(e, null, OverlayEndReason.removed);
+          case 'q-unsettled':
+            e.phase = OverlayPhase.closing;
         }
       });
 
@@ -1213,10 +1215,11 @@ class Layerman extends ChangeNotifier {
           !_releasePending) {
         throw StateError('不变量 p：${e.id} 保留 durationRemaining，但未暂停且无帧后恢复待办');
       }
-      // 结果先交付，closing 仍须占位至后端退场或关闭超时；其他阶段不得保留已结束条目。
-      if (e.endReason != null && e.phase != OverlayPhase.closing) {
+      // 仍在 _byId 的已结束条目当且仅当处于 closing，等待后端退场或关闭超时。
+      // 仅 _doClose 与 _onExternalDismissed 进入 closing，两者都先 _settle。
+      if ((e.endReason != null) != (e.phase == OverlayPhase.closing)) {
         throw StateError(
-            '不变量 q：${e.id} 已结束（${e.endReason}）却仍在 _byId，阶段 ${e.phase} 不是 closing');
+            '不变量 q：${e.id} 的 closing 阶段与已结束（${e.endReason}）不等价，阶段 ${e.phase}');
       }
       final containers = locations[e] ?? [];
       if (containers.length != 1) {

@@ -48,6 +48,23 @@ void main() {
     });
   }
 
+  test('不变量 q：未结算却进入 closing 被自动和显式检查捕获', () async {
+    final manager = Layerman(clock: FakeOverlayClock());
+    addTearDown(manager.dispose);
+    await manager.ready();
+    final ticket =
+        manager.submit<int>(id: 'unsettled', present: _SlowBackend().present);
+    final failure = throwsA(isA<StateError>()
+        .having((error) => error.message, '编号', contains('不变量 q'))
+        .having((error) => error.message, '条目', contains('unsettled'))
+        .having((error) => error.message, '原因', contains('不等价')));
+    expect(
+        () => manager.debugCorruptInvariant('q-unsettled', ticket.id), failure);
+    expect(manager.debugCheckInvariants, failure);
+    ticket.remove();
+    expect((await ticket.outcome).reason, OverlayEndReason.removed);
+  });
+
   test('已交付结果的 closing 条目继续占位，后端退场后还可等待宽限', () async {
     final clock = FakeOverlayClock();
     final manager = Layerman(clock: clock);
