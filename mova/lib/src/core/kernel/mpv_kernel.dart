@@ -649,6 +649,55 @@ class MovaMpvKernel
     _sizeController.add(MovaSize(width: _lastWidth, height: _lastHeight));
   }
 
+  /// Recoverable option diagnostics, shared by the legacy and classified exits.
+  ///
+  /// 可恢复的选项诊断，供旧错误出口和分类错误出口共同使用。
+  final _optionErrors = StreamController<MovaKernelError>.broadcast();
+
+  /// Unique across kernels and retries in this isolate, like Media's cache.
+  ///
+  /// 与 Media 缓存同属 isolate，在不同内核和重试之间保持唯一。
+  static int _mediaLoadId = 0;
+
+  /// Creates a load-specific network cache key without changing the HTTP target.
+  /// Fragments stay in mpv's path / Media cache but are not sent over HTTP.
+  /// Keep Media headers: media_kit clears the property in its unload hook.
+  ///
+  /// 创建每次加载独立的网络缓存键，不改变 HTTP 请求目标。
+  /// 片段保留在 mpv path / Media 缓存里，但不会发送到 HTTP 服务端。
+  /// 保留 Media 请求头透传，因为 media_kit 的卸载钩子会清空属性。
+  Media _mediaForOpen(String uri, Map<String, String> options) {
+    final fields = parseMpvStringList(options['http-header-fields'] ?? '');
+    Map<String, String>? headers;
+    if (fields == null) {
+      _optionErrors.add(
+        const MovaKernelError(
+          'Invalid http-header-fields: malformed mpv string list',
+          'mova-options',
+        ),
+      );
+    } else {
+      headers = <String, String>{};
+      for (final field in fields) {
+        final colon = field.indexOf(':');
+        if (colon > 0) {
+          headers[field.substring(0, colon).trim()] = field
+              .substring(colon + 1)
+              .trim();
+        }
+      }
+    }
+    final parsed = Uri.tryParse(uri);
+    final network =
+        parsed != null &&
+        parsed.hasAuthority &&
+        !const {'file', 'content', 'asset', 'fd'}.contains(parsed.scheme);
+    final resource = network && options.containsKey('http-header-fields')
+        ? '$uri${uri.contains('#') ? '&' : '#'}mova-load=${++_mediaLoadId}'
+        : uri;
+    return Media(resource, httpHeaders: headers);
+  }
+
   /// 暂存、待下一次 [open] 应用的按源选项；[open] 一开头就取走并清空。
   Map<String, String> _stagedOptions = const {};
 
@@ -717,6 +766,9 @@ class MovaMpvKernel
     }
   }
 
+  /// Opens the staged source with headers isolated to this load attempt.
+  ///
+  /// 打开暂存的媒体源，请求头按本次加载尝试隔离。
   @override
   Future<void> open(String uri, {bool play = true}) async {
     // 同步取走身份，避免等待原生准备时被后一次 open 覆盖。
@@ -755,14 +807,7 @@ class MovaMpvKernel
       _pump?.discardPending();
       _eventAttempt = eventAttempt;
       _eventUri = uri;
-      // media_kit 的卸载钩子会清空原生请求头；加载钩子从 Media 恢复，
-      // 因此不能只在 open 前设置 http-header-fields 属性。
-      final headers = <String, String>{};
-      for (final field in parseMpvStringList(options['http-header-fields'] ?? '') ?? <String>[]) {
-        final colon = field.indexOf(':');
-        if (colon > 0) headers[field.substring(0, colon).trim()] = field.substring(colon + 1).trim();
-      }
-      await _player.open(Media(uri, httpHeaders: headers), play: play);
+      await _player.open(_mediaForOpen(uri, options), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
       rethrow;
@@ -801,6 +846,9 @@ class MovaMpvKernel
   Future<Uint8List?> screenshot() async =>
       audioOnly || _controller == null ? null : _player.screenshot(format: 'image/jpeg');
 
+  /// Releases player resources and option diagnostics.
+  ///
+  /// 释放播放器资源及选项诊断。
   @override
   Future<void> dispose() async {
     _disposed = true;
@@ -811,6 +859,7 @@ class MovaMpvKernel
     await _stallingController.close();
     await _restartController.close();
     await _endFileController.close();
+    await _optionErrors.close();
     // 必须等构造期发起的原生观察者注册落地，才能销毁 _player——见
     // _observeSetup 的文档注释。
     // 因为 observeProperty 自身也 await 同一个初始化 future，如果
@@ -847,16 +896,37 @@ class MovaMpvKernel
   @override
   Stream<MovaSize> get size => _sizeController.stream;
 
+  /// Reports player errors and recoverable option diagnostics.
+  ///
+  /// 报告播放器错误及可恢复的选项诊断。
   @override
-  Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
+  Stream<Object> get error => _mergeDiagnostics(
+    _player.stream.error.where((e) => !isBenignMpvError(e)),
+    _optionErrors.stream.map((e) => e.error),
+  );
 
-  /// 按 media_kit 的错误过滤保留日志前缀；无泵时额外放行含主文件地址的 ffmpeg 错误。
+  /// Preserves log prefixes and includes recoverable option diagnostics.
+  ///
+  /// 保留日志前缀并包含可恢复的选项诊断。
   @override
-  Stream<MovaKernelError> get kernelErrors => _player.stream.log
-      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text) ||
-          (!endFileAvailable && _eventUri.isNotEmpty && log.level == 'error' &&
-              log.prefix == 'ffmpeg' && log.text.contains(_eventUri)))
-      .map((log) => MovaKernelError(log.text, log.prefix));
+  Stream<MovaKernelError> get kernelErrors => _mergeDiagnostics(
+    _player.stream.log
+        .where(
+          (log) =>
+              isMovaMpvErrorLog(
+                prefix: log.prefix,
+                level: log.level,
+                text: log.text,
+              ) ||
+              (!endFileAvailable &&
+                  _eventUri.isNotEmpty &&
+                  log.level == 'error' &&
+                  log.prefix == 'ffmpeg' &&
+                  log.text.contains(_eventUri)),
+        )
+        .map((log) => MovaKernelError(log.text, log.prefix)),
+    _optionErrors.stream,
+  );
 
   @override
   Object? get renderHandle {
@@ -1130,3 +1200,32 @@ bool isMovaMpvErrorLog({required String prefix, required String level, required 
   return const {'file', 'vd', 'ad', 'cplayer', 'stream'}.contains(prefix) ||
       (prefix == 'ffmpeg' && text.startsWith('tcp:'));
 }
+
+/// Merges diagnostics without eagerly subscribing to the player stream.
+///
+/// 合并诊断流，保持播放器流的惰性订阅。
+Stream<T> _mergeDiagnostics<T>(Stream<T> player, Stream<T> diagnostics) =>
+    Stream<T>.multi((sink) {
+      var done = 0;
+      // Close only after both inputs have finished.
+      //
+      // 两个输入都结束后才关闭输出。
+      void onDone() {
+        if (++done == 2) sink.close();
+      }
+
+      final first = player.listen(
+        sink.add,
+        onError: sink.addError,
+        onDone: onDone,
+      );
+      final second = diagnostics.listen(
+        sink.add,
+        onError: sink.addError,
+        onDone: onDone,
+      );
+      sink.onCancel = () async {
+        await first.cancel();
+        await second.cancel();
+      };
+    }, isBroadcast: true);
