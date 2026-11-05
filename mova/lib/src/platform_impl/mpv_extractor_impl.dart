@@ -43,7 +43,18 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   /// - [settleDelay]: extra wait after the seek has been observed to land (the
   ///   landing itself is polled) and before screenshotting /
   ///   在观察到 seek 落地（落地本身靠轮询判定）之后、截图之前的额外等待时长
-  MovaFrameExtractor({this.settleDelay = const Duration(milliseconds: 60)});
+  /// - [playerFactory]: optional player factory for lifecycle tests /
+  ///   生命周期测试可注入的播放器工厂
+  MovaFrameExtractor({
+    this.settleDelay = const Duration(milliseconds: 60),
+    Player Function()? playerFactory,
+  }) : _playerFactory = playerFactory ?? Player.new;
+
+  /// Creates the owned hidden player; injectable for lifecycle tests.
+  ///
+  /// 创建持有的隐藏播放器；允许生命周期测试注入替身。
+  final Player Function() _playerFactory;
+  int _generation = 0;
 
   /// Extra wait after the seek has landed, before screenshotting.
   ///
@@ -88,33 +99,47 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   Future<Player> _ensurePlayer(int width, bool hwdec) async {
     final existing = _player;
     if (existing != null) return existing;
-    final player = Player();
-    final native = player.platform;
-    if (native is NativePlayer) {
-      // 不创建 VideoController：无界面下它的初始化永远完成不了（真机实测），会让后续
-      // setProperty 一直等，extract 永不返回。改为手动开视频解码（vid=auto）并把 vo
-      // 设为 null——mpv 仍会解码，screenshot() 取得到帧。
-      await native.setProperty('ao', 'null');
-      await native.setProperty('vo', 'null');
-      await native.setProperty('vid', 'auto');
-      await native.setProperty('hwdec', hwdec ? 'auto' : 'no');
-      await native.setProperty('hr-seek', 'yes');
-      await native.setProperty('cache', 'no');
-      // `width` is intentionally unused here: neither `vf=scale` nor
-      // VideoControllerConfiguration sizing shrinks screenshot() output on
-      // Windows (Task 1 spike, plan appendix A), so no mpv-side scaling is
-      // attempted.
-      //
-      // `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
-      // Windows 上 `vf=scale` 与 VideoControllerConfiguration 都不能真正
-      // 缩小 screenshot() 的输出，因此不在 mpv 层做任何缩放尝试。
-    }
+    final generation = _generation;
+    final player = _playerFactory();
     _player = player;
-    return player;
+    try {
+      final native = player.platform;
+      if (native is NativePlayer) {
+        // 不创建 VideoController：无界面下它的初始化永远完成不了（真机实测），会让后续
+        // setProperty 一直等，extract 永不返回。改为手动开视频解码（vid=auto）并把 vo
+        // 设为 null——mpv 仍会解码，screenshot() 取得到帧。
+        for (final property in <String, String>{
+          'ao': 'null',
+          'vo': 'null',
+          'vid': 'auto',
+          'hwdec': hwdec ? 'auto' : 'no',
+          'hr-seek': 'yes',
+          'cache': 'no',
+        }.entries) {
+          await native.setProperty(property.key, property.value);
+          if (_disposed || generation != _generation) {
+            throw StateError('Preview initialization cancelled');
+          }
+        }
+        // `width` is intentionally unused here: neither `vf=scale` nor
+        // VideoControllerConfiguration sizing shrinks screenshot() output on
+        // Windows (Task 1 spike, plan appendix A), so no mpv-side scaling is
+        // attempted.
+        //
+        // `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
+        // Windows 上 `vf=scale` 与 VideoControllerConfiguration 都不能真正
+        // 缩小 screenshot() 的输出，因此不在 mpv 层做任何缩放尝试。
+      }
+      return player;
+    } on Object {
+      if (identical(_player, player)) await release();
+      rethrow;
+    }
   }
 
-  /// 在隐藏播放器上抽取 [uri] 的 [at] 帧；失败返回 null。
-  /// [width] 为目标宽度，[hwdec] 控制硬解。
+  /// Extracts a frame only while this operation owns the hidden player.
+  ///
+  /// 仅在操作仍持有隐藏播放器时抽帧；失败或过期返回 null。
   Future<Uint8List?> _extractNow(
     String uri,
     Duration at, {
@@ -123,12 +148,20 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     Map<String, String> headers = const {},
   }) async {
     if (_disposed) return null;
+    final generation = _generation;
+
+    /// Checks that release or disposal has not superseded this operation.
+    ///
+    /// 检查操作尚未被释放或销毁取代。
+    bool current() => !_disposed && generation == _generation;
     try {
       final player = await _ensurePlayer(width, hwdec);
+      if (!current()) return null;
       final native = player.platform;
       final headerKey = jsonEncode(headers);
       if (_openUri != uri || _openHeaders != headerKey) {
         await player.open(Media(uri, httpHeaders: headers), play: false);
+        if (!current()) return null;
         _openHeaders = headerKey;
         _openUri = uri;
         // 时长就绪前 seek 不会落地（首帧会停在第 0 帧），先等它。
@@ -138,13 +171,15 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
                 (double.tryParse(await native.getProperty('duration')) ?? 0) >
                 0,
           );
-          if (!ready) return null;
+          if (!ready || !current()) return null;
         }
       }
+      if (!current()) return null;
       await player.seek(at);
+      if (!current()) return null;
       return await movaCapturePreviewFrame(
         retrySeek: () async {
-          if (_disposed) return false;
+          if (!current()) return false;
           await player.seek(at);
           return true;
         },
@@ -152,7 +187,7 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
           if (native is! NativePlayer) return false;
           final target = at.inMilliseconds / 1000.0;
           return movaWaitForPreviewFrame(() async {
-            if (_disposed || await native.getProperty('seeking') != 'no') {
+            if (!current() || await native.getProperty('seeking') != 'no') {
               return false;
             }
             final pos = double.tryParse(await native.getProperty('time-pos'));
@@ -160,7 +195,7 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
           });
         },
         capture: () async =>
-            _disposed ? null : player.screenshot(format: 'image/jpeg'),
+            !current() ? null : player.screenshot(format: 'image/jpeg'),
         settleDelay: settleDelay,
       );
     } on Object {
@@ -205,7 +240,11 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }
 
   @override
+  /// Invalidates in-flight work before releasing the owned player.
+  ///
+  /// 先使在途操作过期，再释放持有的播放器。
   Future<void> release() async {
+    ++_generation;
     final player = _player;
     _player = null;
     _openUri = null;
@@ -222,6 +261,9 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }
 
   @override
+  /// Permanently cancels extraction and releases native resources.
+  ///
+  /// 永久取消抽帧并释放原生资源。
   Future<void> dispose() async {
     _disposed = true;
     await release();

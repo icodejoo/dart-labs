@@ -13,6 +13,7 @@ import '../../core/options/theme.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+import '../slots/tree.dart';
 import 'common.dart';
 import 'subtitle.dart';
 
@@ -60,7 +61,11 @@ class MovaTopBarComponent extends MovaComponent {
   ];
 
   @override
+  /// Expands only the title role after applying patches.
+  ///
+  /// 应用补丁后仅让标题角色撑开。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
+    if (children.isEmpty) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
     return MovaGradBar(
       top: true,
@@ -68,8 +73,12 @@ class MovaTopBarComponent extends MovaComponent {
       child: Row(
         children: [
           const SizedBox(width: 8),
-          Expanded(child: children[0]),
-          ...children.sublist(1),
+          for (final child in children)
+            if (child is MovaBuiltChild &&
+                child.layoutName == MovaTitleComponent.componentName)
+              Expanded(child: child)
+            else
+              child,
         ],
       ),
     );

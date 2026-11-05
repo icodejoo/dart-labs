@@ -55,7 +55,32 @@ Future<void> _cleanup(WidgetTester t, _Api api) async {
   await api.dispose();
 }
 
+/// Verifies route ownership and fullscreen transitions.
+///
+/// 验证路由所有权与全屏转换。
 void main() {
+  testWidgets('E4 reentry during exit waits for the old GlobalKey route', (
+    t,
+  ) async {
+    final api = _Api();
+    final surfaceKey = GlobalKey();
+    await t.pumpWidget(_app(api, surface: SizedBox(key: surfaceKey)));
+    await api.setFullscreen(true);
+    await _settle(t);
+    await api.setFullscreen(false);
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 30));
+    await api.setFullscreen(true);
+    await t.pump();
+    expect(t.takeException(), isNull);
+    expect(_routePlayer, findsOneWidget);
+    await _settle(t);
+    expect(api.state.fullscreen, isTrue);
+    expect(_routePlayer, findsOneWidget);
+    expect(find.byKey(surfaceKey), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await _cleanup(t, api);
+  });
   // surface 和 poster 的全局键都只能有一个挂载点，反复进入退出也不冲突。
   testWidgets('P2 全屏路由让出带 GlobalKey 的 surface 与 poster', (t) async {
     final api = _Api();

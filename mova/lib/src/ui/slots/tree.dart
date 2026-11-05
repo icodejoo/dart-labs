@@ -91,7 +91,15 @@ List<MovaComponent> _replaceAt(
   final rest = segments.skip(1).join('/');
   return nodes.map((node) {
     if (node.name != head) return node;
-    if (rest.isEmpty) return replacement;
+    if (rest.isEmpty) {
+      return _CopyComponent(
+        replacement,
+        replacement.children,
+        layoutName: node is _CopyComponent
+            ? node.layoutName ?? node.name
+            : node.name,
+      );
+    }
     return _CopyComponent(node, _replaceAt(node.children, rest, replacement));
   }).toList();
 }
@@ -161,12 +169,18 @@ List<MovaComponent> _insertAfterAt(
 /// 注意：此包装不保留 [source] 的具体运行时类型——对被打过补丁的祖先节点做
 /// `is SomeConcreteType` 判断不会命中。
 class _CopyComponent extends MovaComponent {
+  /// Copies structure while inheriting the source's layout role.
+  ///
+  /// 复制结构并继承原节点的布局角色。
   _CopyComponent(
     this._source,
     this.children, {
     this.slotOverride,
     this.orderOverride,
-  });
+    String? layoutName,
+  }) : layoutName =
+           layoutName ??
+           (_source is _CopyComponent ? _source.layoutName : null);
 
   /// The original component being wrapped.
   ///
@@ -182,6 +196,11 @@ class _CopyComponent extends MovaComponent {
   ///
   /// 覆盖用的 order（若提供）；否则回退到 [_source] 自身的 order。
   final int? orderOverride;
+
+  /// Original layout role retained when a replacement changes its name.
+  ///
+  /// 替换组件改名时保留的原布局角色。
+  final String? layoutName;
 
   @override
   final List<MovaComponent> children;
@@ -301,19 +320,37 @@ Widget _buildRecursive(
 ) {
   final builtChildren = [
     for (final child in component.children)
-      MovaBuiltChild(name: child.name, child: _buildRecursive(context, api, child)),
+      MovaBuiltChild(
+        name: child.name,
+        layoutName: child is _CopyComponent ? child.layoutName : null,
+        child: _buildRecursive(context, api, child),
+      ),
   ];
   return component.build(context, api, builtChildren);
 }
 
-/// 带组件名的已构建子节点，供组合组件按名称布局。
+/// A built child carrying both its addressing name and layout role.
+///
+/// 带寻址名称与布局角色的已构建子节点。
 ///
 /// 示例：`children.whereType<MovaBuiltChild>().first.name` 读取首个名称。
 class MovaBuiltChild extends StatelessWidget {
-  /// 用 [name] 标记 [child]，返回保留原组件内容的包装节点。
+  /// Wraps [child] with [name] and an optional original [layoutName].
+  ///
+  /// 用 [name] 及可选的原始 [layoutName] 包装 [child]。
   ///
   /// 示例：`MovaBuiltChild(name: 'title', child: Text('标题'))`。
-  const MovaBuiltChild({super.key, required this.name, required this.child});
+  const MovaBuiltChild({
+    super.key,
+    required this.name,
+    required this.child,
+    String? layoutName,
+  }) : layoutName = layoutName ?? name;
+
+  /// Layout role, independent of the replacement's addressing name.
+  ///
+  /// 布局角色，独立于替换组件的寻址名称。
+  final String layoutName;
 
   /// 原组件名称；示例：`node.name == 'seekBar'`。
   final String name;
@@ -362,4 +399,3 @@ class _BuiltEntry {
   /// 该顶层组件已构建好的 widget。
   final Widget widget;
 }
-

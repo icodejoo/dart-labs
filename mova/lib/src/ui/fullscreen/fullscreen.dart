@@ -31,6 +31,7 @@ class MovaFullscreenHost extends StatefulWidget {
 class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   StreamSubscription<MovaState>? _subscription;
   Route<void>? _route;
+  bool _closing = false;
   bool _scheduled = false;
   // 路由持有宿主媒体组件期间，内联侧让出，直到退出动画完成。
   bool _yieldInline = false;
@@ -88,6 +89,9 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
+  /// Owns the route until its exit animation has fully completed.
+  ///
+  /// 持有路由直到退出动画完全结束。
   void _open() {
     final api = widget.api;
     final navigator = Navigator.of(context, rootNavigator: true);
@@ -130,27 +134,41 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
           ),
     );
     setState(() => _yieldInline = true);
-    unawaited(route.completed.then((_) {
-      if (mounted && _route == null) setState(() => _yieldInline = false);
-    }));
+    unawaited(
+      route.completed.then((_) {
+        if (!identical(_route, route)) return;
+        _route = null;
+        _closing = false;
+        if (identical(movaFullscreenRoutes[api], route)) {
+          movaFullscreenRoutes[api] = null;
+        }
+        if (mounted) {
+          setState(() => _yieldInline = false);
+          _schedule();
+        } else {
+          _content.dispose();
+        }
+      }),
+    );
     _route = route;
     movaFullscreenRoutes[api] = route;
     unawaited(
       navigator.push(route).then((_) {
-        if (!identical(_route, route)) return;
-        _route = null;
-        movaFullscreenRoutes[api] = null;
+        if (!identical(_route, route) || _closing) return;
+        _closing = true;
         if (api.state.fullscreen) unawaited(api.setFullscreen(false));
         if (mounted) widget.onExit();
       }),
     );
   }
 
+  /// Starts exit while retaining ownership through route completion.
+  ///
+  /// 启动退出，并保留所有权直至路由完全移除。
   void _close(MovaApi api, {bool notify = true, bool deferred = false}) {
     final route = _route;
-    if (route == null) return;
-    _route = null;
-    movaFullscreenRoutes[api] = null;
+    if (route == null || _closing) return;
+    _closing = true;
     final navigator = route.navigator;
     void remove() {
       if (navigator != null && navigator.mounted && route.isActive) {
@@ -171,6 +189,9 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   }
 
   @override
+  /// Releases route content after its final animation completes.
+  ///
+  /// 最终退场动画结束后释放路由内容。
   void dispose() {
     unawaited(_subscription?.cancel());
     final owned = _route != null;
@@ -178,7 +199,7 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
     if (owned && widget.api.state.fullscreen) {
       unawaited(widget.api.setFullscreen(false));
     }
-    _content.dispose();
+    if (_route == null) _content.dispose();
     super.dispose();
   }
 

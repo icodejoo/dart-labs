@@ -84,7 +84,9 @@ class MovaFeedPlayerController extends ChangeNotifier {
     // 首帧可以早于激活收尾；等待池的 focus/play 后再次落实宿主暂停，
     // 但不能把旧页的暂停带到后来翻到的新页。
     await owner?._activationSettled;
-    if (owner != null && identical(_owner, owner) && generation == owner._activationGeneration) {
+    if (owner != null &&
+        identical(_owner, owner) &&
+        generation == owner._activationGeneration) {
       owner._guardKey.currentState?.cancelResume();
       await activeApi?.pause();
     }
@@ -302,6 +304,25 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   final Map<int, Object> _requested = <int, Object>{};
   final Map<int, Object> _errors = {};
   int _activationGeneration = 0;
+  int? _endIndex;
+
+  /// Records the first unavailable page and returns the loader result.
+  ///
+  /// 记录首个不可用页面并返回加载结果。
+  Future<MovaFeedItem?> _load(int index) async {
+    if (_endIndex != null && index >= _endIndex!) return null;
+    final item = await widget.loader(index);
+    if (mounted && item == null && (_endIndex == null || index < _endIndex!)) {
+      setState(() => _endIndex = index);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients || index == 0) return;
+        if ((_pageController.page ?? 0) >= index) {
+          _pageController.jumpToPage(index - 1);
+        }
+      });
+    }
+    return item;
+  }
 
   MovaApi? get _activeApi {
     final index = _controller.activeIndex;
@@ -314,8 +335,14 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   // 当前翻页的打开、聚焦和互斥暂停全部完成后才落定。
   Future<void>? _activationSettled;
 
-  /// 激活 [index] 并同步收缩页面状态窗口；返回激活结果。
+  /// Activates a valid page and pauses playback beyond the known end.
+  ///
+  /// 激活有效页面；进入已知终点以外时暂停播放。
   Future<void> _activate(int index) async {
+    if (_endIndex != null && index >= _endIndex!) {
+      await _activeApi?.pause();
+      return;
+    }
     final generation = ++_activationGeneration;
     try {
       final result = _controller.activate(index);
@@ -323,6 +350,12 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
       _prunePageState();
       await result;
       if (!mounted || generation != _activationGeneration) return;
+      if (_controller.peek(index) == null) {
+        for (final bound in _pool.boundIndices) {
+          await _pool.slotFor(bound)?.api.pause();
+        }
+        return;
+      }
       if (_controller.peek(index) != null &&
           _controller.slotFor(index)?.ready != true) {
         _recordFailure(index, StateError('媒体打开未被接受'));
@@ -409,6 +442,9 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   }
 
   @override
+  /// Connects the loader through the page-end tracker.
+  ///
+  /// 将加载器接入分页终点追踪。
   void initState() {
     super.initState();
     _pool = MovaFeedEnginePool(
@@ -419,7 +455,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     );
     _controller = MovaFeed(
       pool: _pool,
-      loader: widget.loader,
+      loader: _load,
       prefetchDepth: widget.prefetchDepth,
       prefetcher: widget.prefetcher,
     );
@@ -590,8 +626,12 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   }
 
   @override
+  /// Limits paging to the first confirmed loader end.
+  ///
+  /// 将分页限制在加载器首次确认的终点之前。
   Widget build(BuildContext context) {
     final pages = PageView.builder(
+      itemCount: _endIndex,
       controller: _pageController,
       scrollDirection: Axis.vertical,
       onPageChanged: _activate,

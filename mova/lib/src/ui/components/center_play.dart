@@ -33,8 +33,15 @@ class MovaCenterPlayComponent extends MovaComponent {
   List<MovaComponent> get children => [MovaPlayPauseComponent()];
 
   @override
+  /// Builds the remaining patched controls, including an empty result.
+  ///
+  /// 构建补丁后保留的控件，允许全部移除。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return Center(child: children[0]);
+    if (children.isEmpty) return const SizedBox.shrink();
+    if (children.length == 1) return Center(child: children.single);
+    return Center(
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
   }
 }
 
