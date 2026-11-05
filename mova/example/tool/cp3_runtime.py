@@ -23,6 +23,6 @@ def wait_memory():
 
 def virtual_memory_error(text):
     return any(s in text.lower() for s in (
-        'paging file is too small', 'insufficient memory', 'not enough memory',
+        'paging file is too small', 'insufficient memory', 'not enough memory', 'out of memory',
         'could not reserve enough space', 'native memory allocation',
         'os::commit_memory', 'error=1455', 'error 1455', '虚拟内存', '页面文件太小'))

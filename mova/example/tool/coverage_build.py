@@ -44,7 +44,7 @@ build_command = [
         '-Pdart-obfuscation=false', '-Ptrack-widget-creation=true', '-Ptree-shake-icons=true',
         *extra_args, 'assembleProfile' if profile else 'assembleRelease',
     ]
-for attempt in range(4 if campaign else 1):
+for attempt in range(int(os.environ.get('MOVA_CP3_BUILD_MAX_ATTEMPTS', '4')) if campaign else 1):
     if campaign:
         wait_memory()
     with (example / 'tool/coverage_isolated_build.log').open('w', encoding='utf-8') as log:
