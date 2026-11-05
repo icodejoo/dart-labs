@@ -27,6 +27,30 @@ class MatrixTests(unittest.TestCase):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
 
+    def test_evidence_txt_is_lazy_and_volume_still_checks_native_values(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            root=Path(folder)
+            unused=root/'unit-unused.logcat.txt'
+            unused.write_text('unrelated capture',encoding='utf-8')
+            for mode in ('engine','cutover'):
+                for value in (-10,0,1,30,50,100,110):
+                    native=root/f'unit-rerun-native-{mode}-volume{value}.native.txt'
+                    native.write_text(f'volume is {round(15*max(0,min(100,value))/100)} in range [0..15]',encoding='utf-8')
+            real_read=Path.read_text
+            reads=[]
+            def guarded(path,*args,**kwargs):
+                self.assertNotEqual(path,unused,'unrelated TXT must never be loaded')
+                reads.append(path.name)
+                return real_read(path,*args,**kwargs)
+            with patch.object(Path,'read_text',guarded):
+                evidence=Evidence(root,'unit-')
+                self.assertEqual(reads,[])
+                self.assertEqual(evidence.volume()[0],'PASS')
+                self.assertEqual(len(reads),14)
+                (root/'unit-rerun-native-engine-volume30.native.txt').write_text('volume is 15 in range [0..15]',encoding='utf-8')
+                self.assertEqual(evidence.volume()[0],'FAIL')
+
     def test_s00e_native_host_parsers_keep_unknown_and_target_device(self):
         import coverage_s00e as host
         self.assertEqual(host.brightness('123\n'), 123)

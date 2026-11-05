@@ -222,6 +222,8 @@ def main():
                     (out/(stem+'.crash.logcat.txt')).write_text(adb('logcat','-d','-v','threadtime'),encoding='utf-8')
                     harness.append('app process exited; see crash.logcat.txt');break
                 time.sleep(.25);continue
+            if 'completed' not in data:
+                raise RuntimeError('CP0 control schema mismatch: selected scene is not registered in installed shared suite; no valid CP0 samples')
             for r in records:
                 if r['kind']!='HOST' or r['id'] in acted:continue
                 acted.add(r['id']);unlocked()

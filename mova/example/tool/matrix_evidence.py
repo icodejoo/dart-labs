@@ -35,7 +35,10 @@ class Evidence:
         self.logs = {}
         self.errors = []
         self.files = set()
-        self.texts={p.name:p.read_text(encoding="utf-8",errors="replace") for p in Path(out).glob(prefix+"*.txt")}
+        # Full device campaigns retain gigabytes of logcat TXT captures. Only
+        # the native-volume rule consumes TXT, so index paths without loading
+        # unrelated captures into memory. Original evidence remains untouched.
+        self.texts={p.name:p for p in Path(out).glob(prefix+"*.txt")}
         for path in sorted(Path(out).glob(prefix + '*.json')):
             # CP0 has its own measurement ledger (us stamps / *Ms state keys).
             # It cannot supply or invalidate v1's legacy event assertions.
@@ -255,7 +258,7 @@ class Evidence:
                 suffix=f'rerun-native-{mode}-volume{v}.native.txt'
                 file=next((f for f in self.texts if f.endswith(suffix)),None)
                 if not file:values.append('BLOCKED');details.append('缺 '+suffix);continue
-                text=self.texts[file]
+                text=self.texts[file].read_text(encoding='utf-8',errors='replace')
                 match=re.search(r'volume is (\d+) in range \[(\d+)\.\.(\d+)\]',text)
                 if not match:values.append('BLOCKED');details.append(file+': 缺原生音量读回');continue
                 got,lo,hi=map(int,match.groups());target=lo+(hi-lo)*max(0,min(100,v))/100
