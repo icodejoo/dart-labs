@@ -216,7 +216,7 @@ void main() {
       id: 'sheet',
       present: (ctx) {
         final navigator = navigatorKey.currentState!;
-        // 对应 README 的 Get.key.currentState!，使用同一个 Navigator。
+        // 此处只验证普通 Navigator 的 Route 逻辑；Get.key 配方由 example/test/readme_backend_recipe_test.dart 验证。
         final route = ModalBottomSheetRoute<bool>(
           settings: RouteSettings(name: 'om://${ctx.id}'),
           builder: (_) => const Text('底部弹层'),
