@@ -133,26 +133,39 @@ void main() {
     );
   }
 
+  // Reports callback errors and stacks to the host zone while playback continues.
+  //
+  // 回调错误和堆栈交给宿主 Zone，广告串播与正片续播照常完成。
   test(
-    'C8 throwing ad callbacks cannot block the pod or content resume',
+    'C8 throwing ad callbacks reach the host zone without blocking pod or content resume',
     () async {
-      final api = FakeMovaApi();
+      final reportedErrors = <Object>[];
+      final reportedStacks = <StackTrace>[];
+      final hostZone = runZonedGuarded(() => Zone.current, (error, stack) {
+        reportedErrors.add(error);
+        reportedStacks.add(stack);
+      })!;
+      final api = hostZone.run(() => FakeMovaApi());
       final seen = <MovaAdEventType>[];
-      final session = MovaSession(
-        api,
-        ads: MovaAdConfig(
-          enabled: true,
-          breaks: const [
-            _pre,
-            MovaAdBreak(
-              kind: MovaAdBreakKind.pre,
-              source: MovaSource('https://host/pre2.mp4'),
-            ),
-          ],
-          onAdEvent: (event) {
-            seen.add(event.type);
-            throw StateError('host callback');
-          },
+      final callbackError = StateError('host callback');
+      final callbackStack = StackTrace.current;
+      final session = hostZone.run(
+        () => MovaSession(
+          api,
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: const [
+              _pre,
+              MovaAdBreak(
+                kind: MovaAdBreakKind.pre,
+                source: MovaSource('https://host/pre2.mp4'),
+              ),
+            ],
+            onAdEvent: (event) {
+              seen.add(event.type);
+              Error.throwWithStackTrace(callbackError, callbackStack);
+            },
+          ),
         ),
       );
       addTearDown(() async {
@@ -161,15 +174,24 @@ void main() {
       });
       final errors = <Object>[];
       session.contentError.listen(errors.add);
-      expect(await session.load(_content), MovaLoadOutcome.accepted);
-      api.emitDone();
+      expect(
+        await hostZone.run(() => session.load(_content)),
+        MovaLoadOutcome.accepted,
+      );
+      hostZone.run(api.emitDone);
       await settleOperations();
       expect(api.source?.uri, 'https://host/pre2.mp4');
-      api.emitDone();
+      hostZone.run(api.emitDone);
       await settleOperations();
       expect(api.source, _content);
       expect(session.cursor.phase, MovaSessionPhase.content);
+      expect(api.state.playbackIntent, isTrue);
       expect(seen.where((e) => e == MovaAdEventType.completed), hasLength(2));
+      expect(seen.where((e) => e == MovaAdEventType.started), hasLength(2));
+      expect(reportedErrors, hasLength(seen.length));
+      expect(reportedErrors, everyElement(same(callbackError)));
+      expect(reportedStacks, hasLength(seen.length));
+      expect(reportedStacks, everyElement(same(callbackStack)));
       expect(errors, isEmpty);
       expect(api.state.error, isNull);
     },

@@ -1861,10 +1861,11 @@ class MovaSession {
     await _contentWarm;
   }
 
-  /// Notifies the host hook of an ad lifecycle [type] for break [b], carrying
-  /// [error] for failures.
+  /// Notifies the host of an ad lifecycle [type] for [node], carrying [error]
+  /// for failures, and reports callback exceptions to the current zone.
   ///
-  /// 就广告位 [b] 的生命周期 [type] 通知宿主钩子；失败时携带 [error]。
+  /// 通知宿主 [node] 的广告生命周期 [type]，失败时携带 [error]；
+  /// 回调异常隔离后交给当前 Zone 上报，继续广告与正片流程。
   void _fire(MovaAdEventType type, MovaTimelineNode node, {Object? error}) {
     switch (type) {
       case MovaAdEventType.started:
@@ -1887,6 +1888,7 @@ class MovaSession {
         error: e,
         stackTrace: stack,
       );
+      Zone.current.handleUncaughtError(e, stack);
     }
   }
 

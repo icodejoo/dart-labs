@@ -65,6 +65,36 @@ void main() {
     });
   }
 
+  test('C1 pause then play during detach promotes a playing shadow', () async {
+    final rig = OperationRig();
+    addTearDown(rig.api.dispose);
+    final old = rig.engines.first as DetachGatedApi;
+    old.pushPlayingOnVerbs = true;
+    await rig.api.pause();
+    final shadow = await rig.warm('successor');
+    shadow.pushPlayingOnVerbs = true;
+    final gate = old.detachGate = Completer<void>();
+    addTearDown(() {
+      if (!gate.isCompleted) gate.complete();
+    });
+    final committing = rig.api.commit();
+    await settleOperations();
+    expect(rig.api.active, same(old));
+    expect(shadow.calls, contains('pause'));
+    expect(shadow.state.playing, isFalse);
+    await rig.api.pause();
+    await rig.api.play();
+    expect(old.state.playbackIntent, isTrue);
+    expect(shadow.state.playbackIntent, isFalse);
+    gate.complete();
+    expect(await committing, isTrue);
+    expect(rig.api.active, same(shadow));
+    expect(shadow.state.playbackIntent, isTrue);
+    expect(shadow.state.playing, isTrue);
+    expect(rig.api.state.playbackIntent, isTrue);
+    expect(rig.api.state.playing, isTrue);
+  });
+
   test(
     'C10 pause then play clears the keepAlive wish for the next engine',
     () async {

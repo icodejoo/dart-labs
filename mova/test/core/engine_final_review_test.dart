@@ -348,6 +348,153 @@ low.m3u8
     });
   });
 
+  test('A9 URL timeshift adds paused time, preserves it on play and clears at edge', () {
+    fakeAsync((clock) {
+      final k = MovaTestKernel();
+      final e = _engine(
+        k,
+        live: MovaLiveConfig(
+          seekMode: MovaLiveSeekMode.timeshift,
+          dvrWindow: const Duration(minutes: 10),
+          urlBuilder: (base, behind, now) => '$base?behind=${behind.inSeconds}',
+        ),
+      )..debugClock = () => DateTime.utc(2026).add(clock.elapsed);
+      final changes = <Duration>[];
+      e.events.listen((event) {
+        if (event is MovaTimeShiftChange) {
+          expect(event.behind, e.state.timeshiftBehind);
+          changes.add(event.behind);
+        }
+      });
+      e.open(_live);
+      clock.flushMicrotasks();
+      e.seek(const Duration(minutes: 7));
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 10));
+      k.emitPosition(const Duration(seconds: 10));
+      clock.flushMicrotasks();
+      expect(e.state.timeshiftBehind, const Duration(seconds: 180));
+
+      e.pause();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 15));
+      e.pause();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 15));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 210));
+      expect(changes.last, const Duration(seconds: 210));
+      expect(changes, hasLength(31));
+      e.play();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 20));
+      k.emitPosition(const Duration(seconds: 30));
+      clock.flushMicrotasks();
+      expect(e.state.timeshiftBehind, const Duration(seconds: 210));
+      expect(changes, hasLength(31));
+
+      e.pause();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 5));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 215));
+      e.backToLiveEdge();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 30));
+      k.emitPosition(const Duration(seconds: 1));
+      clock.flushMicrotasks();
+      expect(e.state.timeshiftBehind, isNull);
+      expect(e.debugCurrentLoad!.timeshiftBehind, isNull);
+      e.seekBy(const Duration(seconds: -20));
+      clock.flushMicrotasks();
+      expect(e.state.timeshiftBehind, const Duration(seconds: 20));
+      e.dispose();
+      clock.flushMicrotasks();
+      expect(clock.periodicTimerCount, 0);
+    });
+  });
+
+  test('A9 URL timeshift seekBy includes ongoing pause and rebases its clock', () {
+    fakeAsync((clock) {
+      final behinds = <Duration>[];
+      final k = MovaTestKernel();
+      final e = _engine(
+        k,
+        live: MovaLiveConfig(
+          seekMode: MovaLiveSeekMode.timeshift,
+          dvrWindow: const Duration(minutes: 10),
+          urlBuilder: (base, behind, now) {
+            expect(now, DateTime.utc(2026).add(clock.elapsed));
+            behinds.add(behind);
+            return '$base?behind=${behind.inSeconds}';
+          },
+        ),
+      )..debugClock = () => DateTime.utc(2026).add(clock.elapsed);
+      e.open(_live);
+      clock.flushMicrotasks();
+      e.seek(const Duration(minutes: 7));
+      clock.flushMicrotasks();
+      e.pause();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(milliseconds: 30500));
+      e.seekBy(const Duration(seconds: 10));
+      clock.flushMicrotasks();
+      expect(behinds, [const Duration(seconds: 180), const Duration(seconds: 200)]);
+      expect(e.state.timeshiftBehind, const Duration(seconds: 200));
+      clock.elapse(const Duration(seconds: 10));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 210));
+      e.play();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 10));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 210));
+      e.dispose();
+      clock.flushMicrotasks();
+    });
+  });
+
+  test('A9 URL timeshift retry preserves accumulated pause without double counting', () {
+    fakeAsync((clock) {
+      final behinds = <Duration>[];
+      final k = MovaTestKernel();
+      final e = _engine(
+        k,
+        recovery: const MovaRecoveryConfig(
+          enabled: true,
+          policy: MovaRetryThenFailover(retryDelay: Duration(milliseconds: 10)),
+        ),
+        live: MovaLiveConfig(
+          seekMode: MovaLiveSeekMode.timeshift,
+          dvrWindow: const Duration(minutes: 10),
+          urlBuilder: (base, behind, now) {
+            behinds.add(behind);
+            return '$base?behind=${behind.inSeconds}';
+          },
+        ),
+      )..debugClock = () => DateTime.utc(2026).add(clock.elapsed);
+      e.open(_live);
+      clock.flushMicrotasks();
+      e.seek(const Duration(minutes: 7));
+      clock.flushMicrotasks();
+      e.pause();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 30));
+      k.emitEndFile(MovaEndFileReason.error);
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(milliseconds: 10));
+      expect(behinds, [
+        const Duration(seconds: 180),
+        const Duration(milliseconds: 210010),
+      ]);
+      expect(e.state.timeshiftBehind, const Duration(seconds: 210));
+      clock.elapse(const Duration(seconds: 10));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 220));
+      e.play();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 10));
+      expect(e.state.timeshiftBehind, const Duration(seconds: 220));
+      e.dispose();
+      clock.flushMicrotasks();
+    });
+  });
+
   for (final orientation in MovaOrientation.values) {
     test('A12 fullscreen exit preserves $orientation orientation', () async {
       final port = _Orientation();

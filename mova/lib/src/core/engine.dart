@@ -465,8 +465,79 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// 当前正在播放的地址下标。
   int _sourceIndex = 0;
 
-  /// 最近一次有效加载规格，供重试及回边缘重放。
-  LoadSpec? _currentLoad;
+  /// The latest effective load specification, before pause-time adjustment.
+  ///
+  /// 最近一次有效加载规格，尚未加上暂停时间。
+  LoadSpec? _loadSpec;
+
+  /// Returns the effective specification for replay.
+  ///
+  /// 返回用于重放的有效加载规格。
+  LoadSpec? get _currentLoad => _loadSpec;
+
+  /// Starts a new lag baseline and releases the previous pause timer.
+  ///
+  /// 建立新的落后量基准，并释放上次暂停计时器。
+  set _currentLoad(LoadSpec? value) {
+    _timeshiftPauseTimer?.cancel();
+    _timeshiftPauseTimer = null;
+    _timeshiftPausedSince = null;
+    _timeshiftPaused = Duration.zero;
+    _loadSpec = value;
+    _syncTimeshiftPause();
+  }
+
+  /// Pause time accumulated since the current URL time-shift load.
+  ///
+  /// 当前 URL 时移加载以来累计的暂停时间。
+  Duration _timeshiftPaused = Duration.zero;
+
+  /// Start of the current pause interval, or null while playing.
+  ///
+  /// 当前暂停区间的开始时间，播放中为 null。
+  DateTime? _timeshiftPausedSince;
+
+  /// Refreshes paused lag even when the kernel emits no position ticks.
+  ///
+  /// 即使内核不发进度，也更新暂停期间的落后量。
+  Timer? _timeshiftPauseTimer;
+
+  /// Returns URL lag including completed and ongoing pauses.
+  ///
+  /// 返回包含已结束及进行中暂停时间的 URL 落后量。
+  Duration get _urlTimeshiftBehind {
+    final base = _currentLoad?.timeshiftBehind;
+    if (base == null) return Duration.zero;
+    final since = _timeshiftPausedSince;
+    final elapsed = since == null ? Duration.zero : debugClock().difference(since);
+    return base + _timeshiftPaused + (elapsed.isNegative ? Duration.zero : elapsed);
+  }
+
+  /// Tracks accepted pause/play intent without counting playback buffering.
+  ///
+  /// 跟踪已接受的暂停和播放意图，不累计播放中的缓冲时间。
+  void _syncTimeshiftPause() {
+    final paused = !_disposed &&
+        options.live.seekMode == MovaLiveSeekMode.timeshift &&
+        _currentLoad?.timeshiftBehind != null &&
+        !_playIntent;
+    if (paused) {
+      _timeshiftPausedSince ??= debugClock();
+      _timeshiftPauseTimer ??= Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _updateTimeshift(_lastPosition),
+      );
+    } else {
+      final since = _timeshiftPausedSince;
+      if (since != null) {
+        final elapsed = debugClock().difference(since);
+        if (!elapsed.isNegative) _timeshiftPaused += elapsed;
+      }
+      _timeshiftPausedSince = null;
+      _timeshiftPauseTimer?.cancel();
+      _timeshiftPauseTimer = null;
+    }
+  }
 
   /// 读取加载记录供白盒测试使用；尚未加载时返回 null。
   /// 示例：`expect(engine.debugCurrentLoad?.uri, kernel.lastUri)`。
@@ -599,10 +670,10 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   // ---- keepAlive (see doc/plans/2026-10-23-standby-mode.md) ----
   // ---- 待机（见 doc/plans/2026-10-23-standby-mode.md）----
 
-  /// Clock for keepAlive timing; tests cutover it because `DateTime.now()` does not
+  /// Clock for keepAlive and URL time-shift pauses; tests replace it because `DateTime.now()` does not
   /// follow `fakeAsync`.
   ///
-  /// 待机计时用的时钟；测试里替换它，因为 `DateTime.now()` 不跟随 `fakeAsync`。
+  /// 待机及 URL 时移暂停计时用的时钟；测试里替换它，因为 `DateTime.now()` 不跟随 `fakeAsync`。
   @visibleForTesting
   DateTime Function() debugClock = DateTime.now;
 
@@ -1957,7 +2028,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     final previous = _currentLoad;
     final resumeAt = _recoveryPosition ?? Duration.zero;
     final reason = index == _sourceIndex ? LoadReason.retry : LoadReason.failover;
-    final behind = reason == LoadReason.retry ? previous?.timeshiftBehind : null;
+    final behind = reason == LoadReason.retry && previous?.timeshiftBehind != null
+        ? _urlTimeshiftBehind
+        : null;
     if (index != _sourceIndex) {
       // Switching address: the quality list belonged to the old address's
       // master playlist.
@@ -1979,7 +2052,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(
       duration: Duration.zero,
-      timeshiftBehind: behind,
+      timeshiftBehind: behind == null ? null : Duration(seconds: behind.inSeconds),
       clearTimeshift: behind == null,
       currentQuality: reason == LoadReason.retry ? previous?.quality : null,
       clearQuality: reason == LoadReason.failover || previous?.quality == null,
@@ -1989,13 +2062,14 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // open() 只提交加载；即使已有时长，也不代表已可呈现。
     _recoveryAwaitingFrame = resumeAt > Duration.zero;
-    // 重试时重放有效 URL；时移按原固定落后量及当前时间重新构造。
-    // 时移的基地址沿用 _seekTimeshift 的源地址，故障切换则使用新地址。
+    // Rebuild retries with the lag including accumulated pauses.
+    //
+    // 重试按包含累计暂停时间的落后量重建地址。
     final builder = options.live.urlBuilder;
     final uri = reason == LoadReason.failover
         ? _activeUri
         : behind != null && builder != null
-            ? builder(_activeUri, behind, DateTime.now())
+            ? builder(_activeUri, behind, debugClock())
             : previous?.uri ?? _activeUri;
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
@@ -2498,6 +2572,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (!allowed || _disposed || gen != _sessionGen || pauses != _pauseSeq) return;
     movaRecordPlaybackCommand(this);
     _state.emit(state.copyWith(playbackIntent: true));
+    _syncTimeshiftPause();
+    if (_currentLoad?.timeshiftBehind != null) _updateTimeshift(_lastPosition);
     _watchdog?.onPlaying(true);
     // KeepAlive: a held stream is already playing (muted, no picture), and while
     // a request stands a play() starts in keepAlive instead of making a hidden
@@ -2533,6 +2609,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     await _kernel.play();
   }
 
+  /// Pauses playback and starts accumulating URL time-shift lag.
+  ///
+  /// 暂停播放，并开始累计 URL 时移落后量。
   @override
   Future<void> pause() {
     // Disposed: silent no-op.
@@ -2542,6 +2621,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     movaRecordPlaybackCommand(this);
     _pauseSeq++;
     _state.emit(state.copyWith(playbackIntent: false));
+    _syncTimeshiftPause();
     _watchdog?.onPlaying(false);
     // The plain path stays byte-identical when keepAlive was never involved.
     //
@@ -2838,7 +2918,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _emitEvent(MovaSeek(target));
     _armAttempt(autoPlay: _loadPlays);
     final lease = _holdAbr();
-    final uri = builder(_activeUri, behind, DateTime.now());
+    final uri = builder(_activeUri, behind, debugClock());
     _currentLoad = LoadSpec(
       sourceIndex: _sourceIndex,
       uri: uri,
@@ -2850,12 +2930,13 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       _releaseAbrHold(lease);
       return;
     }
-    if (behind <= options.live.edgeThreshold) {
+    final lag = Duration(seconds: _urlTimeshiftBehind.inSeconds);
+    if (lag <= options.live.edgeThreshold) {
       _state.emit(state.copyWith(clearTimeshift: true));
       _emitEvent(const MovaLiveEdgeReach());
     } else {
-      _state.emit(state.copyWith(timeshiftBehind: behind));
-      _emitEvent(MovaTimeShiftChange(behind));
+      _state.emit(state.copyWith(timeshiftBehind: lag));
+      _emitEvent(MovaTimeShiftChange(lag));
     }
     _emitEvent(MovaSeeked(target));
   }
@@ -2868,7 +2949,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     var position = _lastPosition;
     if (state.type == MovaStreamType.live &&
         options.live.seekMode == MovaLiveSeekMode.timeshift) {
-      final lag = _currentLoad?.timeshiftBehind ?? Duration.zero;
+      final lag = _urlTimeshiftBehind;
       position = state.seekableWindow > lag
           ? state.seekableWindow - lag
           : Duration.zero;
@@ -3608,6 +3689,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       orientationRestore = _orientation.reset().catchError((Object _) {});
     }
     _disposed = true;
+    _timeshiftPauseTimer?.cancel();
+    _timeshiftPauseTimer = null;
     _viewUiTimers?.cancel();
     _viewUiTimers = null;
     _uiLinks.close();
@@ -3674,7 +3757,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _updateTimeshift(_lastPosition);
   }
 
-  /// Recomputes DVR lag from [position], or keeps URL time-shift lag fixed,
+  /// Recomputes DVR lag from [position], or adds paused time to URL lag,
   /// and announces transitions on the event stream.
   ///
   /// The lag is quantised to whole seconds before comparison: position ticks
@@ -3683,7 +3766,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// high-frequency one — exactly what phase A avoided by keeping position out
   /// of [MovaState]. Second-level precision is all the `-MM:SS` indicator needs.
   ///
-  /// 依据 [position] 重算 DVR 落后量，URL 时移则保留固定落后量，并广播变化。
+  /// 依据 [position] 重算 DVR 落后量，URL 时移则加上暂停时间，并广播变化。
   ///
   /// 落后量在比较前先量化到整秒：position 每秒到达数次，若每次亚秒级变化都发一个
   /// 新的 [MovaState]，去重后的 [states] 流就会退化成高频流——这正是阶段 A 把
@@ -3697,7 +3780,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       // URL media positions start at zero; they cannot determine live-edge lag.
       //
       // 时移媒体位置从零开始，无法用来计算距直播边缘的落后量。
-      final lag = _currentLoad?.timeshiftBehind ?? Duration.zero;
+      final lag = _urlTimeshiftBehind;
       raw = lag > options.live.edgeThreshold ? lag : null;
     } else if (live) {
       raw = behindOf(position, state.seekableWindow, options.live.edgeThreshold);

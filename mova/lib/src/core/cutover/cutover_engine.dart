@@ -1112,9 +1112,10 @@ class MovaCutoverEngine
     }
   }
 
-  /// Promotes only a current, healthy slot and honors late playback commands.
+  /// Promotes only a current, healthy slot and reapplies the latest play or pause
+  /// intent immediately before promotion.
   ///
-  /// 仅提升仍有效且健康的已认领槽，并尊重后到的播放命令。
+  /// 仅提升仍有效且健康的已认领槽，并在换指前重新下发最新的播放或暂停意图。
   Future<bool> _commitNow(_WarmSlot slot, int op) async {
     final shadow = slot.engine!;
     final old = _active;
@@ -1197,10 +1198,12 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await _detachShadow(slot);
       if (!current()) return await bail();
-      if (!wantPlay()) {
+      if (wantPlay()) {
+        await shadow.play();
+      } else {
         await shadow.pause();
-        if (!current()) return await bail();
       }
+      if (!current()) return await bail();
       _intentSnapshot = null;
       _handoff = null;
       _active = shadow;

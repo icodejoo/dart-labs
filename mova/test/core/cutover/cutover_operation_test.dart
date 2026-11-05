@@ -97,6 +97,8 @@ class DetachGatedApi extends FakeMovaApi {
   }
 }
 
+/// Verifies commit interleavings with newer loads, warm-ups and disposal.
+///
 /// 验证提交事务与较新的加载、预热和销毁之间的交错。
 void main() {
   late OperationRig rig;
@@ -387,7 +389,8 @@ void main() {
     final results = await Future.wait([rig.api.commit(), rig.api.commit()]);
     expect(results.where((r) => r), hasLength(1));
     expect(rig.api.active, same(a));
-    expect(a.calls.where((c) => c == 'play'), hasLength(1));
+    expect(rig.api.state.renderEpoch, 1);
+    expect(a.disposeCount, 0);
   });
 
   test('cutoverTo 等 ready 时 dispose 不回落 open', () async {
