@@ -114,7 +114,12 @@ class Cacheman {
   Future<void> ensureInitialized() async {
     WidgetsFlutterBinding.ensureInitialized();
     await _gs.initStorage;
+    _initialized = true;
   }
+
+  /// Whether this instance has finished its explicit initialization boundary.
+  /// 本实例是否已经完成显式初始化边界。
+  bool _initialized = false;
 
   /// The `get_storage` container this instance persists to.
   ///
@@ -179,7 +184,17 @@ class Cacheman {
 
   bool get _enckey => _opts.enckey && _keyCodec != null;
 
+  /// Maximum entries per key mapping cache; overflow clears the whole map.
+  /// 每个键映射缓存的容量上限；溢出时整体清空。
+  static const int _keyCacheLimit = 1024;
+
+  /// Memoized namespace-prefixed key -> encoded storage key.
+  /// 命名空间前缀键 -> 编码后的存储键缓存。
   final Map<String, String> _ekCache = <String, String>{};
+
+  /// Memoized storage key -> namespace-stripped logical key for enumeration.
+  /// 枚举用的存储键 -> 去命名空间前缀的逻辑键缓存。
+  final Map<String, String> _lkCache = <String, String>{};
 
   /// Current namespace prefix (`''` if none set).
   ///
@@ -195,6 +210,8 @@ class Cacheman {
   /// 的引用继续生效；只做隔离，不清除上个命名空间的落盘数据。
   void setNamespace([String? namespace]) {
     _ns = _initialNs(namespace);
+    _ekCache.clear();
+    _lkCache.clear();
     _ownedKeysCache = null; // ownership predicate (_owns) just changed — stale under the old ns
   }
 
@@ -212,18 +229,18 @@ class Cacheman {
   /// 可插拔的私有实现细节）。
   String storageKey(String key) => _fullKey(key);
 
+  /// Prefixes and optionally encodes a logical key, with bounded memoization.
+  /// 给逻辑键加前缀并按需编码，以有界缓存复用结果。
   String _fullKey(String key) {
     final nk = '$_ns$key';
     if (!_enckey) return nk;
     final cached = _ekCache[nk];
     if (cached != null) return cached;
-    if (_ekCache.length >= 1024) _ekCache.clear(); // 防动态键名场景无限增长
+    if (_ekCache.length >= _keyCacheLimit) _ekCache.clear();
     final encoded = _keyCodec!.encode(nk);
     _ekCache[nk] = encoded;
     return encoded;
   }
-
-  String _decKey(String storageKey) => _enckey ? (_keyCodec!.decode(storageKey) ?? storageKey) : storageKey;
 
   /// Whether this storage key is owned by this instance (namespace matches;
   /// with `enckey`, it must decode successfully).
@@ -237,9 +254,21 @@ class Cacheman {
     return storageKey.startsWith(_ns);
   }
 
+  /// Decodes and strips the namespace, caching only successful key decodes.
+  /// 解码并去掉命名空间，仅缓存成功的键解码结果。
   String _logical(String storageKey) {
-    final fk = _decKey(storageKey);
-    return _ns.isNotEmpty && fk.startsWith(_ns) ? fk.substring(_ns.length) : fk;
+    if (_enckey) {
+      final cached = _lkCache[storageKey];
+      if (cached != null) return cached;
+    }
+    final decoded = _enckey ? _keyCodec!.decode(storageKey) : storageKey;
+    final fk = decoded ?? storageKey;
+    final logical = _ns.isNotEmpty && fk.startsWith(_ns) ? fk.substring(_ns.length) : fk;
+    if (_enckey && decoded != null) {
+      if (_lkCache.length >= _keyCacheLimit) _lkCache.clear();
+      _lkCache[storageKey] = logical;
+    }
+    return logical;
   }
 
   // ── serialize / codec ────────────────────────────────────────────────────
@@ -249,11 +278,17 @@ class Cacheman {
     return _codeable ? _opts.codec!.encode(s) : s;
   }
 
-  CacheEntity? _load(String raw) {
+  /// Loads an envelope, optionally forwarding the original decode failure.
+  /// 加载信封，可选转交原始解码异常。
+  /// Purge/readonly probes omit the callback to avoid repeated scan reports.
+  /// purge/readonly 探测不传回调，避免重复扫描刷屏。
+  CacheEntity? _load(String raw, {void Function(Object error)? onFailure}) {
     try {
       final text = _codeable ? _opts.codec!.decode(raw) : raw;
-      return text == null ? null : _opts.deserialize(text);
-    } catch (_) {
+      if (text == null) throw const FormatException('Value codec returned null; entry cannot be decoded');
+      return _opts.deserialize(text);
+    } catch (error) {
+      onFailure?.call(error);
       return null;
     }
   }
@@ -350,6 +385,7 @@ class Cacheman {
   /// [CachemanOptions.serialize]/codec is caught too. The try/catch only ever
   /// catches a *synchronous* failure and is the only thing
   /// [CachemanOptions.force] retries against.
+  /// Debug builds assert initialization outside the retry/error handler.
   ///
   /// 把 [build] 生成的字符串写到 [storageKey] 下。
   ///
@@ -360,7 +396,9 @@ class Cacheman {
   /// [build] 在 try/catch 里生成字符串，所以自定义 [CachemanOptions.serialize]/
   /// codec 抛错也会被接住。try/catch 只捕获**同步**失败，这也是
   /// [CachemanOptions.force] 唯一会重试的对象。
+  /// 调试模式在重试/错误处理之外断言已初始化。
   bool _persist(String storageKey, String Function() build) {
+    assert(_initialized, 'Must await ensureInitialized() before writing. / 写入前必须先 await ensureInitialized()。');
     try {
       _writeNow(storageKey, build());
       return true;
@@ -429,22 +467,25 @@ class Cacheman {
     return entity.value;
   }
 
+  /// Resolves a read; deletes and reports unreadable entries before falling back.
+  /// 解析读取结果；不可解码的条目删除并上报后回退默认值。
   dynamic _hydrate(String? raw, String storageKey, dynamic fallback) {
     if (raw == null) return fallback;
     if (_opts.raw) return raw;
-    final entity = _load(raw);
-    if (entity == null) {
+    final entity = _load(raw, onFailure: (error) {
       _del(storageKey);
-      return fallback;
-    }
-    return _resolve(entity, storageKey, fallback);
+      _emitError(storageKey, error, 'decode failed for "$storageKey", entry removed');
+    });
+    return entity == null ? fallback : _resolve(entity, storageKey, fallback);
   }
 
   // ── public: read ─────────────────────────────────────────────────────────
 
-  /// Reads a key. Returns [defaultValue] if absent/expired.
+  /// Reads a key. Returns [defaultValue] if absent/expired/unreadable.
+  /// Unreadable entries are deleted and reported via [CachemanOptions.onError] or print.
   ///
-  /// 读取一个键。不存在/已过期时返回 [defaultValue]。
+  /// 读取一个键。不存在/已过期/不可解码时返回 [defaultValue]。
+  /// 不可解码的条目被删除，并通过 [CachemanOptions.onError] 或 print 上报。
   T? read<T>(String key, [T? defaultValue]) {
     final storageKey = _fullKey(key);
     return _hydrate(_gsGet(storageKey), storageKey, defaultValue) as T?;

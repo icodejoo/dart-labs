@@ -60,6 +60,34 @@ Future<Cacheman> _ready(Cacheman cache) async {
   return cache;
 }
 
+/// Counts key decoding to verify enumeration reuses logical mappings.
+/// 统计键解码次数，验证枚举会复用逻辑键映射。
+class _CountingCodec extends FakeCodec {
+  /// Number of decode calls. / 解码调用次数。
+  int decodeCalls = 0;
+
+  /// Counts and delegates to the reversible test codec.
+  /// 计数后转发到可逆的测试 codec。
+  @override
+  String? decode(String value) {
+    decodeCalls++;
+    return super.decode(value);
+  }
+}
+
+/// Fails decoding with a known exception. / 用已知异常模拟解码失败。
+class _ThrowingCodec extends FakeCodec {
+  /// Stores the error to throw. / 保存要抛出的异常。
+  _ThrowingCodec(this.error);
+
+  /// Original error used to verify identity. / 用于验证同一性的原始异常。
+  final Object error;
+
+  /// Throws the original error unchanged. / 原样抛出原始异常。
+  @override
+  String? decode(String value) => throw error;
+}
+
 void main() {
   late Directory tempDir;
   var containerSeq = 0;
@@ -135,6 +163,26 @@ void main() {
   });
 
   group('basic read/write/remove', () {
+    test('writes assert before initialization and succeed after awaiting it', () async {
+      const key = 'guarded';
+      const value = 'ready';
+      for (final raw in [false, true]) {
+        final cache = Cacheman(
+          container: nextContainer(),
+          path: tempDir.path,
+          options: CachemanOptions(raw: raw),
+        );
+        expect(
+          () => cache.write(key, value),
+          throwsA(isA<AssertionError>().having((error) => error.message, 'message', contains('await ensureInitialized()'))),
+        );
+        await cache.ensureInitialized();
+        expect(cache.read<String>(key), isNull);
+        cache.write(key, value);
+        expect(cache.read<String>(key), value);
+      }
+    });
+
     test('write then read roundtrips', () async {
       final e = await newCache();
       e.write('a', 'hello');
@@ -336,25 +384,149 @@ void main() {
   });
 
   group('codec / enckey', () {
+    const damagedKey = 'damaged';
+    const fallback = 'fallback';
+    const secret = 'secret';
+
+    test('enckey keys()/key() reuse decoded logical keys across repeated enumeration', () async {
+      const keys = ['x', 'y'];
+      final codec = _CountingCodec();
+      final e = await newCache(enckey: true, codec: codec, namespace: 'a');
+      e.writeAll(keys, [1, 2]);
+      expect(e.keys(), keys);
+      final calls = codec.decodeCalls;
+      expect(e.keys(), keys);
+      expect(e.key(0), keys.first);
+      expect(e.key(1), keys.last);
+      expect(codec.decodeCalls, calls);
+    });
+
+    test('setNamespace clears enckey logical mappings before enumerating the new scope', () async {
+      const firstNs = 'a';
+      const firstKey = 'x';
+      const secondKey = 'y';
+      const fullKey = '$firstNs:$firstKey';
+      final e = await newCache(enckey: true, codec: FakeCodec(), namespace: firstNs);
+      e.write(firstKey, 1);
+      expect(e.keys(), [firstKey]);
+      e.setNamespace();
+      expect(e.keys(), [fullKey]); // same storage key, different logical key
+      expect(e.key(0), fullKey);
+      e.setNamespace('b');
+      expect(e.keys(), isEmpty);
+      e.write(secondKey, 2);
+      expect(e.keys(), [secondKey]);
+      e.setNamespace(firstNs);
+      expect(e.keys(), [firstKey]);
+      expect(e.key(0), firstKey);
+    });
+
     test('codeable + codec obfuscates the persisted string but reads decode transparently', () async {
       final container = nextContainer();
       final e = await newCache(container: container, codeable: true, codec: FakeCodec());
-      e.write('a', 'secret');
-      expect(e.read<String>('a'), 'secret');
+      e.write('a', secret);
+      expect(e.read<String>('a'), secret);
       // read the raw persisted string straight from get_storage (same
       // cached instance, already initialized) to confirm it never shows the
       // plaintext.
       final gsRaw = GetStorage(container).read<dynamic>('a');
       expect(gsRaw, isA<String>());
-      expect(gsRaw as String, isNot(contains('secret')));
+      expect(gsRaw as String, isNot(contains(secret)));
     });
 
-    test('a decode failure (wrong codec/corrupted data) is treated as a miss, not a throw', () async {
+    test('a null codec result is reported once, deleted and returned as the default', () async {
+      const key = damagedKey;
       final container = nextContainer();
       final withCodec = await newCache(container: container, codeable: true, codec: FakeCodec('right'));
-      withCodec.write('a', 'secret');
-      final wrongCodec = await newCache(container: container, codeable: true, codec: FakeCodec('wrong'));
-      expect(wrongCodec.read<String>('a'), isNull);
+      withCodec.write(key, secret);
+      final errors = <(String, Object)>[];
+      final wrongCodec = await newCache(
+        container: container,
+        codeable: true,
+        codec: FakeCodec('wrong'),
+        onError: (key, error) => errors.add((key, error)),
+      );
+      wrongCodec.purge();
+      wrongCodec.purge();
+      expect(errors, isEmpty);
+      expect(wrongCodec.container.hasData(key), isTrue);
+      expect(wrongCodec.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+      expect(errors.single.$1, key);
+      expect(errors.single.$2, isA<FormatException>());
+      expect(wrongCodec.container.hasData(key), isFalse);
+      expect(wrongCodec.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+    });
+
+    test('a throwing replacement codec reports the original exception once and deletes the entry', () async {
+      const key = damagedKey;
+      final container = nextContainer();
+      final writer = await newCache(container: container, codeable: true, codec: FakeCodec());
+      writer.write(key, secret);
+      final failure = StateError('decode failed');
+      final errors = <(String, Object)>[];
+      final reader = await newCache(
+        container: container,
+        codeable: true,
+        codec: _ThrowingCodec(failure),
+        onError: (key, error) => errors.add((key, error)),
+      );
+      expect(reader.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+      expect(errors.single.$1, key);
+      expect(errors.single.$2, same(failure));
+      expect(reader.container.hasData(key), isFalse);
+      expect(reader.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+    });
+
+    test('a throwing replacement deserialize reports once after deleting the entry', () async {
+      const key = damagedKey;
+      final container = nextContainer();
+      final writer = await newCache(container: container);
+      writer.write(key, secret);
+      final failure = FormatException('deserialize failed');
+      final errors = <(String, Object)>[];
+      final reader = await _ready(Cacheman(
+        container: container,
+        path: tempDir.path,
+        options: CachemanOptions(
+          deserialize: (_) => throw failure,
+          onError: (key, error) {
+            expect(writer.container.hasData(key), isFalse);
+            errors.add((key, error));
+          },
+        ),
+      ));
+      expect(reader.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+      expect(errors.single.$1, key);
+      expect(errors.single.$2, same(failure));
+      expect(reader.container.hasData(key), isFalse);
+      expect(reader.read<String>(key, fallback), fallback);
+      expect(errors, hasLength(1));
+    });
+
+    test('raw reads bypass throwing codecs/deserializers and do not report decode errors', () async {
+      const key = 'raw';
+      const value = 'untouched';
+      final errors = <Object>[];
+      final cache = await _ready(Cacheman(
+        container: nextContainer(),
+        path: tempDir.path,
+        options: CachemanOptions(
+          raw: true,
+          codeable: true,
+          codec: _ThrowingCodec(StateError('must not decode')),
+          deserialize: (_) => throw StateError('must not deserialize'),
+          onError: (_, error) => errors.add(error),
+        ),
+      ));
+      cache.write(key, value);
+      expect(cache.read<String>(key), value);
+      expect(cache.container.hasData(key), isTrue);
+      expect(errors, isEmpty);
     });
 
     test('enckey obfuscates the storage key so foreign readers cannot see it', () async {

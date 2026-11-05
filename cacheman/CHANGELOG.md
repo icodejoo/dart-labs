@@ -1,3 +1,19 @@
+## Unreleased
+
+**Fixes:**
+
+- Align architecture, bilingual READMEs and contributor skill with the actual synchronous API,
+  sliding renewal after at least 10% of TTL elapsed, and get_storage's transitive `get` dependency;
+  remove the obsolete architecture SVG and correct example verification paths.
+- Guard the GetX interop example against collection/object feedback loops; document synchronous
+  listeners, whole-container erase notifications and isolate-local storage maps.
+- Cache decoded logical keys for `enckey` enumeration (bounded to 1024 entries); invalidate key
+  caches on namespace changes.
+- Report read-time decode/deserialization failures via `onError` or print while still deleting
+  unreadable entries and returning the default value; keep purge scans quiet.
+- Assert initialization before persistence in debug builds; release behavior is unchanged.
+- Raise the Flutter minimum to 3.24.0 to match the Dart 3.5 SDK constraint.
+
 ## 0.6.0
 
 **Breaking:**

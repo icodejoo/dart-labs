@@ -23,13 +23,14 @@ abstract class Codec {
   String? decode(String value);
 }
 
-/// Write-failure callback (a throwing `serialize`/codec, `force`-retry still
-/// failing). Guaranteed for synchronous failures only: with get_storage 2.1.1
-/// real disk-flush errors (disk full, permission) never reach it. When provided it replaces the default `print`-based log, so the
-/// caller can observe failures (`set` returns `void`, so a failure is
-/// otherwise invisible).
+/// Failure callback: exhausted synchronous write retries, or an unreadable entry
+/// deleted by a read. Receives the storage key and original exception (a null
+/// codec result uses FormatException). Replaces the default print-based log.
+/// Purge/readonly probes do not report decode failures; with get_storage 2.1.1
+/// real disk-flush errors (disk full, permission) never reach this callback.
 ///
-/// 写入失败回调（`serialize`/codec 抛错、`force` 重试仍失败）。只保证同步
-/// 失败会触发：get_storage 2.1.1 下真正的落盘错误（磁盘满、权限）到不了这里。提供时取代默认的
-/// `print` 日志，让调用方能感知失败（`set` 返回 `void`，失败本不可见）。
+/// 失败回调：同步写入重试耗尽，或读取时删除不可解码的条目。接收实际存储键和
+/// 原始异常（codec 返回 null 时使用 FormatException），取代默认 print 日志。
+/// purge/readonly 探测不上报解码失败；get_storage 2.1.1 下真正的落盘错误
+/// （磁盘满、权限）到不了此回调。
 typedef CachemanOnError = void Function(String key, Object error);

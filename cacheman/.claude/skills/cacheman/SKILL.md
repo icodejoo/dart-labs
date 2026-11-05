@@ -9,7 +9,7 @@ description: >-
   external interop (e.g. GetX reactive wiring). Flutter-only (get_storage dependency),
   Dart/Flutter sibling of `@codejoo/storage` (TypeScript). Read BEFORE modifying anything
   under lib/src/ or changing CachemanOptions semantics. Covers Cacheman's internal
-  invariants, the owned-key cache gotcha, sliding-renewal's 90% threshold, force's sync-only
+  invariants, the owned-key cache gotcha, sliding renewal after at least 10% of ttl elapsed, force's sync-only
   retry, and the verify workflow. Triggers on: Cacheman(), ensureInitialized, ls, CachemanOptions,
   CacheEntity, sliding, namespace, enckey, codeable, raw mode, readonly, force, onError,
   Jsonx, fast/lazy/batchFast, debug(), read/write/erase, container, storageKey, listenKey.
@@ -77,15 +77,19 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   (awaits `_gs`'s disk load), plus all the logic: `read`/`readAll`, `write`/`writeAll`,
   `remove`/`removeAll`, `erase`,
   `key`/`keys`/`length`/`purge`/`setNamespace`. `_gs` (the `GetStorage` container:
-  `_gs.write`/`.remove`/`.erase` calls are fire-and-forget with `.catchError` → `onError`,
-  because get_storage's disk flush is async and debounced, decoupled from any single call).
+  `_gs.write`/`.remove`/`.erase` calls are fire-and-forget with best-effort `.catchError`
+  handlers; get_storage 2.1.1 drops the actual flush Future, so real disk errors cannot
+  reach `onError` through them). `_hydrate` deletes unreadable entries and reports the
+  original exception (or FormatException for a null codec result); purge/readonly probes
+  remain quiet.
   There is no in-process read cache — every `read` re-fetches from `_gs`.
 - **`lib/src/fast.dart`** — `FastAccessor<V>`, `fast`/`lazy`/`batchFast` — key-bound
   accessor sugar over a `Cacheman` (its own `get`/`set`/`remove` methods forward to
   `Cacheman.read`/`Cacheman.write`/`Cacheman.remove` — the accessor's own method names were
   not part of the earlier `Engine`-CRUD rename).
-- **`lib/src/debug.dart`** — `debug(Cacheman)`: read-only decrypted snapshot, never writes
-  back (doesn't pollute `keys()`/`length`).
+- **`lib/src/debug.dart`** — `debug(Cacheman)`: decrypted snapshot, never writes the snapshot
+  back (doesn't pollute `keys()`/`length`); ordinary read side effects still apply
+  (lazy-expiry deletion, sliding renewal, unreadable-entry deletion/reporting).
 - **`lib/src/jsonx.dart`** — `Jsonx.encode`/`Jsonx.decode<T>`: a `toEncodable`/`reviver` pair
   round-tripping `DateTime`/`Duration`/`Set`/`BigInt`/`Uri`/`RegExp` via a strict
   `{'#t': tag, 'value': ...}` tagged shape (`_isTagged` requires *exactly* those two keys,
@@ -100,6 +104,9 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   then awaits that instance's own `initStorage` and calls
   `WidgetsFlutterBinding.ensureInitialized()` (normally `init()`'s job). Do not "simplify"
   this back to `GetStorage.init(...)`.
+- **Writes assert explicit initialization in debug builds.** `_initialized` becomes true
+  only after `ensureInitialized()` awaits `initStorage`; `_persist` asserts before its
+  retry try/catch so misuse is not swallowed. Release behavior stays unchanged.
 - **The owned-key cache (`_ownedKeysCache`) is per-`Cacheman`-instance, not per-backend.**
   It's lazily built via a full scan (`_gs.getKeys<Iterable<dynamic>>().where(_owns)`) on
   first access, then incrementally maintained by `_trackOwned`/`_untrackOwned` as *this*
@@ -110,31 +117,31 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   (per-account isolation); do not assume it's safe for concurrent same-namespace instances
   without addressing this first. `setNamespace` invalidates the cache wholesale (ownership
   predicate changed).
-- **Sliding renewal only fires past 90% of the ttl elapsed** (`entity.expireAt! - now <=
-  entity.ttl! * 0.9`) — a hot read well within its ttl does NOT trigger a write-back. Don't
-  lower this threshold casually; it exists specifically to stop high-frequency reads from
-  amplifying into high-frequency writes.
+- **Sliding renewal only fires once at least 10% of the ttl has elapsed (at most 90%
+  remains)** (`entity.expireAt! - now <= entity.ttl! * 0.9`) — reads while more than 90%
+  remains do NOT trigger a write-back. Preserve this guard: it exists specifically to stop
+  high-frequency reads from amplifying into high-frequency writes.
 - **`force`'s retry only covers a *synchronous* write exception** (e.g. a custom
   `serialize` throwing) — `_persist` catches, purges expired entries, retries once, then
-  reports via `onError`. The actual disk-flush failures are async (`.catchError` on the
-  `_gs.write` Future) and are *never* retried — they only ever reach `onError` via
-  `_reportFlushError`. Don't conflate the two failure paths (`_reportError` for the sync one,
-  `_reportFlushError` for the async one). Note there's no real-backend way to force a
+  reports via `onError`. Actual disk-flush failures are async and are *never* retried;
+  get_storage 2.1.1's write Future cannot carry them, so `_reportFlushError` is best-effort
+  only. Don't conflate `_reportError` (sync) with `_reportFlushError` (async). Note there's no real-backend way to force a
   *synchronous* `get_storage` write failure in tests anymore (the old `FakeStore.failNext`
-  seam is gone) — `test/cacheman_test.dart`'s "force / onError" group instead verifies the
-  async flush-failure→`onError` path and that `write()` never throws synchronously.
+  seam is gone) — `test/cacheman_test.dart`'s "force / onError" group instead verifies that
+  flush failures do not throw synchronously out of an initialized `write()`; it does not
+  guarantee `onError` for a real disk failure. Throwing serializers cover sync retries.
 - **`raw: true` requires a `String` value** — anything else is warned and the write is
   skipped (`T value` checked `is! String` in `Cacheman.write`). This mirrors a fix in the TS
   sibling; don't silently coerce non-strings.
-- **`readonly: true` short-circuits `write` before the raw/entity branch** — the actual
-  write only runs if `read<dynamic>(key) == null`. A second `write` on a live key is a
-  silent no-op; it fires again once the key expires.
-- **`enckey` requires a `codec`** — without one, `Cacheman`'s constructor prints a warning
-  and keys stay plaintext (`_enckey` getter is `_opts.enckey && _opts.codec != null`, so
-  this is enforced structurally, not just documented). Same pattern for `codeable` without
-  a codec. `_ekCache` (encrypted-key memoization) is capped at 1024 entries, cleared
-  wholesale on overflow — a guard against unbounded growth under dynamic key names, not an
-  LRU.
+- **`readonly: true` short-circuits `write` before the raw/entity branch** — `_alive` checks
+  presence without renewal/deletion/reporting; a stored null counts as present. A second
+  `write` on a live key is a silent no-op; it fires again once the key expires.
+- **`enckey` requires `keyCodec ?? codec`** — without one, the constructor prints a warning
+  and keys stay plaintext (`_enckey` checks both the flag and `_keyCodec`). Same pattern for
+  `codeable` without a value codec. `_ekCache` (encoded keys) and `_lkCache` (storage key →
+  logical key) are each capped at `_keyCacheLimit` (1024), cleared wholesale on overflow
+  and together on `setNamespace` — bounded maps, not LRUs. Null key decodes retain the
+  original fallback behavior and are not memoized.
 - **`_persist` calls `_trackOwned` on every successful write, including retries** — if you
   add a new write path, remember to call `_trackOwned`/`_untrackOwned` so the owned-key
   cache stays consistent; the cache is *not* self-healing except via a full rebuild
@@ -142,11 +149,12 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
 
 ## Verify workflow
 
+Run these commands at the package root（在包根目录执行）:
+
 ```bash
-cd D:/workspaces/dart-labs/cacheman
 flutter analyze         # acceptance gate — must be clean
 flutter test             # test/cacheman_test.dart — all groups run against a real get_storage backend
-flutter analyze example/cacheman_example.dart   # example is analyzed separately, not part of the main lib scan
+flutter analyze example   # independently analyze the example package (entry: example/lib/main.dart)
 dart pub publish --dry-run   # release readiness check before bumping/publishing
 ```
 

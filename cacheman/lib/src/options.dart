@@ -128,8 +128,13 @@ class CachemanOptions {
   /// 变换。二者至少要有一个，否则警告并降级为明文键。
   final bool enckey;
 
-  /// Write-failure callback. Guaranteed for synchronous failures only.
+  /// Write/decode-failure callback, receiving the storage key and original error.
+  /// Read-time decode failures delete the entry before reporting; a null codec
+  /// result is reported as a FormatException. Purge/readonly probes stay quiet.
+  /// Real disk-flush errors are not guaranteed to reach this callback.
   ///
-  /// 写入失败回调。只保证同步失败会触发。
+  /// 写入/解码失败回调，接收实际存储键和原始异常。读取解码失败先删除条目再上报；
+  /// codec 返回 null 时上报 FormatException。purge/readonly 探测保持静默。
+  /// 真正的落盘错误不保证能到达此回调。
   final CachemanOnError? onError;
 }

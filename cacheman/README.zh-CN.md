@@ -58,7 +58,7 @@ await cache.ensureInitialized();
 
 | 方法 | 说明 |
 | --- | --- |
-| `read<T>(key, [default])` | 读取；缺失/过期 → `default`（或 `null`）。 |
+| `read<T>(key, [default])` | 读取；缺失/过期/不可解码 → `default`（或 `null`）。 |
 | `write<T>(key, value, {ttl, expireAt})` | 写入。`ttl` 单位毫秒。 |
 | `remove(key)` | 删除。 |
 | `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | 批量，按位置对应。 |
@@ -71,7 +71,11 @@ await cache.ensureInitialized();
 
 ### `CachemanOptions`
 
-`serialize`/`deserialize`、`codeable`/`codec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`——精确语义见 `lib/src/engine.dart` 里每个字段的文档注释。
+`serialize`/`deserialize`、`codeable`/`codec`/`keyCodec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`——精确语义见 `lib/src/options.dart` 里每个字段的文档注释。
+
+不可解码的条目在读取时被删除，并通过 `onError(storageKey, error)`（或 print）上报。
+保留原始解码/反序列化异常；codec 返回 null 时使用 `FormatException`。
+purge/readonly 探测不上报此类失败；raw 读取跳过解码。
 
 **本包不内置任何 codec 实现。** `Codec` 只是一个 `encode`/`decode` 字符串接口——混淆、真加密、压缩，怎么实现随你。
 
@@ -81,17 +85,31 @@ await cache.ensureInitialized();
 
 ### GetX 响应式接入（`container` + `storageKey`）
 
-本包**不依赖** `get`——`container`/`storageKey` 只是留出的互操作接口，不是内置的 GetX 集成。如果你自己用 GetX，靠这两个就能自己搭一个类似 VueUse `useStorage` 的响应式封装：
+`get_storage` 依赖 `get`，因此 `get` 是本包的传递依赖。`container`/`storageKey` 提供互操作接口，本包未内置 GetX 绑定。如果你使用 GetX，靠这两个就能自己搭一个类似 VueUse `useStorage` 的响应式封装：
 
 ```dart
+import 'dart:convert';
+import 'package:cacheman/cacheman.dart';
+import 'package:get/get.dart';
+
+/// Compare JSON-compatible values. / 比较可 JSON 序列化的值。
+bool sameValue(Object? a, Object? b) => a == b || jsonEncode(a) == jsonEncode(b);
+
+/// Bind with a feedback guard. / 带回写守卫的绑定。
 Rx<V?> reactive<V>(Cacheman cache, String key) {
   final rx = Rx<V?>(cache.read<V>(key));
 
-  // 外部写入（其他实例/隔离区）会同步更新 Rx。
-  cache.container.listenKey(cache.storageKey(key), (dynamic _) => rx.value = cache.read<V>(key));
+  // 同一 isolate 内对这个 container 的写入会更新 Rx。
+  cache.container.listenKey(cache.storageKey(key), (dynamic _) {
+    final next = cache.read<V>(key);
+    if (!sameValue(rx.value, next)) rx.value = next;
+  });
 
-  // 本地改 Rx 会写回 cacheman（ttl/serialize 等语义仍然生效）。
-  ever(rx, (V? v) => v == null ? cache.remove(key) : cache.write<V>(key, v));
+  // 回写前比较：反序列化出的 Map/List/对象每次都是新实例。
+  ever(rx, (V? v) {
+    if (sameValue(cache.read<V>(key), v)) return;
+    v == null ? cache.remove(key) : cache.write<V>(key, v);
+  });
 
   return rx;
 }
@@ -100,6 +118,18 @@ final token = reactive<String>(cache, 'token');
 Obx(() => Text(token.value ?? 'no token'));
 token.value = 'abc123'; // 界面自动刷新，并持久化
 ```
+
+比较时先用 `==`，再对集合和带 `toJson()` 的对象比较 JSON 内容。
+对于 JSON 无法编码的值，按业务的值语义调整 `sameValue`。实际项目中应保留
+`listenKey` 返回的取消函数和 `ever` 返回的 `Worker`，并随所属对象一起释放。
+
+- `container.listenKey` 的回调是**同步**的；缓存写入返回前就可能重入监听器。
+  上面的守卫可避免内容相同的值反复回写。
+- 整容器 `erase()` 上报的变更键是 `""`，监听非空 `storageKey(key)` 收不到通知。
+  需要自行处理（例如通过 container 级的 `listen` 检查 `container.changes` 并重置 Rx）。
+  `cache.erase()` 在无 namespace/enckey 时走整容器清空；有作用域时逐个删除自有键并通知对应键。
+- 不同 isolate 各有独立的内存 map 和监听器；另一 isolate 的写入不会更新或通知此绑定，
+  跨 isolate 同步需要自行安排。
 
 只要可能用到 `enckey`，就应该用 `cache.storageKey(key)`，而不是 `cache.namespace + key`——codec 的编码逻辑是私有可插拔的细节，`storageKey` 已经帮你处理好了。
 
@@ -123,7 +153,7 @@ flutter run example/lib/main.dart
 
 ## 跟 `@codejoo/storage`（TS 姊妹项目）的差异
 
-- **`create()` 之后全同步**——`get_storage` 初始化完就是同步的，所以不像 TS 版那样需要 `ls`/`ss`（同步）之外再搞一个 `db`（异步 IndexedDB）层。
+- **`await cache.ensureInitialized()` 之后全同步**——`get_storage` 初始化完就是同步的，所以不像 TS 版那样需要 `ls`/`ss`（同步）之外再搞一个 `db`（异步 IndexedDB）层。
 - **一层，不是三层**：只有持久层——没有内存 `ss` 层，也不需要 IndexedDB 的等价物。
 - **不内置 codec。** TS 版自带混淆 codec；这个包只暴露 `Codec` 接口。
 - **`force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的、从不重试；而 2.1.1 的 write Future 带不出这类错误，所以 `onError` 只保证同步失败会触发（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
