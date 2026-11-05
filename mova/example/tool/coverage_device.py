@@ -78,7 +78,9 @@ def capture(name):
             args.append("com.icodejoo.mova.mova_example.coverage")
         (out / f"{name}.{category}.txt").write_text(adb(*args), encoding="utf-8")
     (out / f"{name}.json").write_text(json.dumps(request("/"), ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / f"{name}.logcat.txt").write_text(adb("logcat", "-d", "-v", "threadtime"), encoding="utf-8")
+    # OEM log buffers may contain invalid UTF-8. Preserve original bytes so
+    # successful commands do not fail during the final evidence capture.
+    (out / f"{name}.logcat.txt").write_bytes(adb("logcat", "-d", "-v", "threadtime", binary=True))
     print(out / name, flush=True)
 
 
@@ -109,6 +111,29 @@ def main():
             # 只消费本条命令的标记，避免把历史字幕/内存采样错拍到本次文件名下。
             command_start = max((i for i, r in enumerate(response['records']) if r.get('kind') == 'BEGIN'), default=0)
             for row in response['records'][command_start:]:
+                if row.get('kind') == 'RESOURCE_SAMPLE' and ('resource', row['ms']) not in sampled:
+                    sampled.add(('resource', row['ms']))
+                    # Host snapshots follow the marker; retain timestamps rather
+                    # than claiming simultaneous native-instance measurements.
+                    base = HERE/'coverage_evidence'/f"{a.name or a.group}.{row['phase']}"
+                    captures = []
+                    for category, tail in [('meminfo', [str(row['pid'])]),
+                                           ('media.codec', []), ('SurfaceFlinger', [])]:
+                        started = time.time()
+                        argv = ['adb', '-s', SERIAL, 'shell', 'dumpsys', category, *tail]
+                        try:
+                            from cp0_device_guard import wait_online
+                            wait_online(SERIAL)
+                            result = subprocess.run(argv, capture_output=True, timeout=30)
+                            Path(str(base)+'.'+category+'.txt').write_bytes(result.stdout)
+                            Path(str(base)+'.'+category+'.stderr.txt').write_bytes(result.stderr)
+                            captures.append(dict(argv=argv, exit=result.returncode,
+                                                 started=started, ended=time.time()))
+                        except Exception as error:
+                            captures.append(dict(argv=argv, started=started,
+                                                 ended=time.time(), error=repr(error)))
+                    Path(str(base)+'.native.json').write_text(json.dumps(
+                        dict(marker=row, captures=captures), ensure_ascii=False, indent=2), encoding='utf-8')
                 if row.get('kind')=='MEM_SAMPLE' and row['round'] not in sampled:
                     sampled.add(row['round'])
                     (HERE/'coverage_evidence'/f"{a.name or a.group}.round{row['round']}.meminfo.txt").write_text(adb('shell','dumpsys','meminfo','com.icodejoo.mova.mova_example.coverage'),encoding='utf-8')
