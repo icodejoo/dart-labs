@@ -41,6 +41,17 @@ void main() {
     return (api, MovaPlaylist(api));
   }
 
+  test('C14 disposed playlist navigation never opens media', () async {
+    final (api, playlist) = build(initialIndex: 1);
+    addTearDown(api.dispose);
+    await playlist.dispose();
+    await playlist.jumpTo(0);
+    await playlist.next();
+    await playlist.previous();
+    expect(api.calls, isEmpty);
+    expect(playlist.currentIndex, 1);
+  });
+
   test('seeds index from config and clamps out-of-range initialIndex', () {
     final (_, c1) = build(initialIndex: 1);
     expect(c1.currentIndex, 1);

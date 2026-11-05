@@ -20,6 +20,26 @@ const _pre = MovaAdBreak(
 ///
 /// 覆盖宿主抢源、延迟解析期间的播放意图和广告回调异常。
 void main() {
+  test('C5 started callback disposal prevents the ad open', () async {
+    final api = FakeMovaApi();
+    addTearDown(api.dispose);
+    late MovaSession session;
+    Future<void>? disposing;
+    session = MovaSession(
+      api,
+      ads: MovaAdConfig(
+        enabled: true,
+        breaks: [_pre],
+        onAdEvent: (event) {
+          if (event.type == MovaAdEventType.started) disposing = session.dispose();
+        },
+      ),
+    );
+    await session.load(_content);
+    await disposing;
+    expect(api.openCalls, 0);
+  });
+
   for (final kind in ['pre', 'mid', 'content']) {
     test('C2 host takeover during $kind yields without reopening content', () {
       fakeAsync((clock) {

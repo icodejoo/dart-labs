@@ -80,6 +80,11 @@ class _WarmSlot {
   /// 后台预热的引擎。
   MovaApi? engine;
 
+  /// Completes when timeout, cancellation or disposal releases this slot.
+  ///
+  /// 超时、取消或销毁释放本槽时完成。
+  final released = Completer<void>();
+
   /// 本槽对应的源。
   MovaSource? source;
 
@@ -212,6 +217,21 @@ class MovaCutoverEngine
 
   /// 当前预热的全部状态与资源。
   _WarmSlot _slot = _WarmSlot();
+
+  /// Owns the claimed slot until its commit finishes.
+  ///
+  /// 持有已认领槽，直到提交结束。
+  _WarmSlot? _committingSlot;
+
+  /// Tracks explicit rate commands that arrive during hand-off.
+  ///
+  /// 跟踪换指期间到达的显式倍速命令。
+  int _rateRevision = 0;
+
+  /// Latest explicitly requested rate, reapplied to the shadow before hand-off.
+  ///
+  /// 最近一次显式请求的倍速，换指前补写到影子。
+  double? _requestedRate;
 
   /// 打开、重载、一次性切换和销毁共用的操作代际。
   int _op = 0;
@@ -636,6 +656,8 @@ class MovaCutoverEngine
     if (_disposed) return;
     final active = _active;
     final epoch = _epoch;
+    _rateRevision++;
+    _requestedRate = r;
     await active.setRate(r);
     // 底层已完成写入，但异步状态转发可能尚未抵达代理。立即插播必须读到
     // 本次完成后的倍速；期间若已换指，则不能把旧引擎快照写到新媒体上。
@@ -752,9 +774,13 @@ class MovaCutoverEngine
     _intentSnapshot = null;
     _op++;
     final cleanup = _abandonWarm(reason: MovaCutoverEndReason.disposed);
+    final claimed = _committingSlot;
+    final claimedCleanup = claimed == null
+        ? Future<void>.value()
+        : _releaseSlot(claimed);
     try {
       // 同时观察两个清理任务，避免一个挂起时另一个先报出未观察异常。
-      await Future.wait([_detach(), cleanup]);
+      await Future.wait([_detach(), cleanup, claimedCleanup]);
     } finally {
       try {
         await _active.dispose();
@@ -953,56 +979,66 @@ class MovaCutoverEngine
     _setPhase(MovaCutoverPhase.warming);
     if (_disposed || op != _op || !identical(_slot, slot)) return null;
 
-    // Unsupported kernels warm audibly rather than changing system volume.
-    //
-    // 不支持的内核允许预热出声，避免改动系统音量。
-    if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
-      await _setWarmMute(slot, true);
-      if (_disposed || !identical(_slot, slot)) return null;
-    }
-    try {
-      final accepted = await shadow.open(source, autoPlay: true);
-      // The ready timer may have abandoned (and disposed) this shadow while
-      // open() was pending; the owner already cleaned up, so just bail out.
+    /// Initializes the shadow while release remains independently awaitable.
+    ///
+    /// 初始化影子，同时允许释放信号独立结束等待。
+    Future<_WarmSlot?> initialize() async {
+      // Unsupported kernels warm audibly rather than changing system volume.
       //
-      // open() 挂起期间就绪计时器可能已放弃（并销毁）该影子；善后已由处理方完成，
-      // 直接退出。
-      if (_disposed || !identical(_slot, slot)) return null;
-      if (!accepted) {
-        slot.rejected = true;
-        await _abandonWarm(reason: MovaCutoverEndReason.notReady);
-        return slot;
+      // 不支持的内核允许预热出声，避免改动系统音量。
+      try {
+        if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
+          await _setWarmMute(slot, true);
+          if (_disposed || !identical(_slot, slot)) return null;
+        }
+        final accepted = await shadow.open(source, autoPlay: true);
+        // The ready timer may have abandoned (and disposed) this shadow while
+        // open() was pending; the owner already cleaned up, so just bail out.
+        //
+        // open() 挂起期间就绪计时器可能已放弃（并销毁）该影子；善后已由处理方完成，
+        // 直接退出。
+        if (_disposed || !identical(_slot, slot)) return null;
+        if (!accepted) {
+          slot.rejected = true;
+          await _abandonWarm(reason: MovaCutoverEndReason.notReady);
+          return slot;
+        }
+        // Seeking to zero right after open() buys nothing and is pure risk: a seek
+        // issued before the first frame lands has been observed to wedge the
+        // player on device. The pre-roll→content and content→ad directions both
+        // warm at zero, so this guard covers the common case.
+        //
+        // 刚 open() 完就 seek(0) 毫无收益、纯属风险敞口：首帧落地前下发的 seek 在
+        // 真机上被观测到会把播放器卡死。前贴片→正片与正片→广告两个方向都在 0 处
+        // 预热，因此这道守卫覆盖的正是常见情形。
+        if (!slot.live && at > Duration.zero) await shadow.seek(at);
+      } catch (_) {
+        // Recoverable and handled internally: clean the shadow up and let the
+        // caller fall back to a normal open. No MovaErrorEvent on the main stream
+        // — a background warm-up failure must not be mistaken for a failure of
+        // the healthy engine that is on screen (e.g. an ad being played).
+        //
+        // 可恢复且内部处理：清理影子，由调用方回落为普通打开。不往主事件流发
+        // MovaErrorEvent——后台预热失败不能被误判成在屏健康引擎（如在播广告）的失败。
+        if (_disposed || !identical(_slot, slot)) return null;
+        await _abandonWarm(reason: MovaCutoverEndReason.shadowError);
+        return null;
       }
-      // Seeking to zero right after open() buys nothing and is pure risk: a seek
-      // issued before the first frame lands has been observed to wedge the
-      // player on device. The pre-roll→content and content→ad directions both
-      // warm at zero, so this guard covers the common case.
-      //
-      // 刚 open() 完就 seek(0) 毫无收益、纯属风险敞口：首帧落地前下发的 seek 在
-      // 真机上被观测到会把播放器卡死。前贴片→正片与正片→广告两个方向都在 0 处
-      // 预热，因此这道守卫覆盖的正是常见情形。
-      if (!slot.live && at > Duration.zero) await shadow.seek(at);
-    } catch (_) {
-      // Recoverable and handled internally: clean the shadow up and let the
-      // caller fall back to a normal open. No MovaErrorEvent on the main stream
-      // — a background warm-up failure must not be mistaken for a failure of
-      // the healthy engine that is on screen (e.g. an ad being played).
-      //
-      // 可恢复且内部处理：清理影子，由调用方回落为普通打开。不往主事件流发
-      // MovaErrorEvent——后台预热失败不能被误判成在屏健康引擎（如在播广告）的失败。
+
       if (_disposed || !identical(_slot, slot)) return null;
-      await _abandonWarm(reason: MovaCutoverEndReason.shadowError);
-      return null;
+
+      slot.buffering = false;
+      slot.stateSub = shadow.states.listen((s) => slot.buffering = s.buffering);
+      slot.progressSub = shadow.progress.listen(
+        (p) => _evaluate(slot, p.position, p.buffer),
+      );
+      return slot;
     }
 
-    if (_disposed || !identical(_slot, slot)) return null;
-
-    slot.buffering = false;
-    slot.stateSub = shadow.states.listen((s) => slot.buffering = s.buffering);
-    slot.progressSub = shadow.progress.listen(
-      (p) => _evaluate(slot, p.position, p.buffer),
-    );
-    return slot;
+    return Future.any([
+      initialize(),
+      slot.released.future.then<_WarmSlot?>((_) => slot.rejected ? slot : null),
+    ]);
   }
 
   /// Ends the warm-up the same way a [MovaWarmVerdict.giveUp] does when the
@@ -1110,8 +1146,10 @@ class MovaCutoverEngine
       // 同步认领整个槽；后续 prepare 可独立占用新的空槽。
       _slot = _WarmSlot();
       _cancelReadyTimer(slot);
+      _committingSlot = slot;
       return await _commitNow(slot, op);
     } finally {
+      if (identical(_committingSlot, slot)) _committingSlot = null;
       done.complete();
     }
   }
@@ -1123,6 +1161,7 @@ class MovaCutoverEngine
   Future<bool> _commitNow(_WarmSlot slot, int op) async {
     final shadow = slot.engine!;
     final old = _active;
+    var appliedRateRevision = _rateRevision;
     // 在内部暂停前保存用户意图；自然播完的 playing 不能代表续播意愿。
     _intentSnapshot ??= old.state.playbackIntent;
 
@@ -1202,12 +1241,31 @@ class MovaCutoverEngine
       if (!current()) return await bail();
       await _detachShadow(slot);
       if (!current()) return await bail();
-      if (wantPlay()) {
-        await shadow.play();
-      } else {
-        await shadow.pause();
+      // Reconcile late rate and playback commands together; each await may
+      // admit another command before ownership moves to the shadow.
+      //
+      // 一并协调后到的倍速和播放命令；每次等待都可能在换指前收到新命令。
+      while (true) {
+        final playCommand = movaPlaybackCommand(this);
+        if (wantPlay()) {
+          await shadow.play();
+        } else {
+          await shadow.pause();
+        }
+        if (!current()) return await bail();
+        while (appliedRateRevision != _rateRevision) {
+          appliedRateRevision = _rateRevision;
+          try {
+            await shadow.setRate(_requestedRate!);
+          } catch (_) {
+            // Keep settings inheritance best effort, as above.
+            //
+            // 与前面的设置继承一致，写入失败不阻断换指。
+          }
+          if (!current()) return await bail();
+        }
+        if (playCommand == movaPlaybackCommand(this)) break;
       }
-      if (!current()) return await bail();
       _intentSnapshot = null;
       _handoff = null;
       _active = shadow;
@@ -1325,6 +1383,7 @@ class MovaCutoverEngine
   Future<void> _releaseSlot(_WarmSlot slot) async {
     final shadow = slot.engine;
     slot.engine = null;
+    if (!slot.released.isCompleted) slot.released.complete();
     _cancelReadyTimer(slot);
     final c = slot.readyCompleter;
     slot.readyCompleter = null;
@@ -1409,6 +1468,12 @@ class MovaCutoverEngine
     final accepted = await active.open(source, autoPlay: autoPlay);
     if (_disposed || op != _op || !accepted) {
       return (seamless: false, accepted: false);
+    }
+    if (rate != null) {
+      await active.setRate(rate);
+      if (_disposed || op != _op || !identical(_active, active)) {
+        return (seamless: false, accepted: false);
+      }
     }
     // 零点不提前 seek，避免首帧落地前卡住媒体管线；直播不 seek。
     if (source.type != MovaStreamType.live && at > Duration.zero) {

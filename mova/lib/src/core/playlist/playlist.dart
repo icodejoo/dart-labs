@@ -190,6 +190,7 @@ class MovaPlaylist {
   ///
   /// - [index]: the target item index / 目标项下标
   Future<void> jumpTo(int index) async {
+    if (_disposed) return;
     final session = _session;
     if (session != null) {
       if (_disposed || !_enabled || index < 0 || index >= _items.length) return;
