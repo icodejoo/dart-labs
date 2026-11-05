@@ -355,30 +355,31 @@ Widget pageSection(
   String title,
   List<Widget> buttons, {
   String? subtitle,
-}) => Padding(
-  padding: const EdgeInsets.only(bottom: 20),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-      ),
-      if (subtitle != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Text(
-            subtitle,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
-        ),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 8, children: buttons),
-      const SizedBox(height: 12),
-      const Divider(),
-    ],
-  ),
-);
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: buttons),
+          const SizedBox(height: 12),
+          const Divider(),
+        ],
+      ),
+    );
 
 // ── GetX / native route-dialog presenter ───────────────────────────────────
 
