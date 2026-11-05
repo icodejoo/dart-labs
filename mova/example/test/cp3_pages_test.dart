@@ -18,6 +18,14 @@ void main() {
     audit.receive(const MovaRateChange(2));
     expect(checks.last['pass'], isFalse);
     expect(checks.last['differences'], ['rate']);
+    // progress 订阅尚未交付不是 state 载荷错误，也不能据此声明原生已落地。
+    audit.receive(const MovaSeeked(Duration(seconds: 5)));
+    expect(checks.last['pass'], isTrue);
+    expect((checks.last['seekReceipt'] as Map)['lastProgressMs'], 0);
+    expect((checks.last['seekReceipt'] as Map)['landingVerified'], isFalse);
+    audit.receive(const MovaSizeChange(640, 360));
+    expect(checks.last['pass'], isFalse);
+    expect(checks.last['differences'], ['width', 'height']);
     await audit.dispose();
     await api.dispose();
   });

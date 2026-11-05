@@ -34,3 +34,5 @@
 仍需新 APK 重跑 basic / basic-cutover / abr 三命令；离线回归不回写原始 208 PASS/14 FAIL，也不关闭未覆盖历史路径。
 
 产品检查：`flutter analyze --no-pub lib test` 0 issues；最终 `flutter test --no-pub --concurrency=3 --reporter expanded` **2415/2415 PASS**（原基线 2411 + 新增 4）。回退原文件 2 FAIL/2 PASS；错误边界与新回归联合 12 PASS。最终全绿日志 `remaining-full-test-green.log`，回退日志 `remaining-receipt-rollback-red.log`，仅本地保留。
+
+回执夹具修正：不把不属于 MovaState 的 position 加入状态相等 CHECK；Seeked 另外保留 payloadMs、lastProgressMs、未节流 progressValueMs，显式标记 landingVerified=false。原生稳定落点仍由 F3 独立验收，不能靠这次删掉错误的跨流硬相等来关闭落点验收。Size/Quality 仍严格比载荷与接收时 getter。example 定向测试 3 PASS，包含过期 progress 不误判、真实 Size/Rate 差异仍失败；analyze 41→41，归一化路径行号后诊断集合无新增；matrix --check 92 batches / 135 IDs / 6 manual，Python 三套合计 80 PASS。
