@@ -1019,7 +1019,7 @@ manager.open<void>(
     // 原生 showToast 没有可见回报；使用可确认首帧的 FToast widget。
     final visible = Completer<void>();
     final done = Completer<void>();
-    final toast = FToast()..init(context); // 已挂载页面中、Overlay 下的 context。
+    final toast = FToast()..init(navigatorKey.currentContext!); // 已挂载页面中、Overlay 下的 context。
     toast.showToast(
       child: OverlayVisibility(visible: visible, child: const Card(child: Text('Copied'))),
       toastDuration: const Duration(seconds: 2),
@@ -2234,7 +2234,7 @@ manager.open<void>(
     // 原生 showToast 没有可见回报；使用可确认首帧的 FToast widget。
     final visible = Completer<void>();
     final done = Completer<void>();
-    final toast = FToast()..init(context); // 已挂载页面中、Overlay 下的 context。
+    final toast = FToast()..init(navigatorKey.currentContext!); // 已挂载页面中、Overlay 下的 context。
     toast.showToast(
       child: OverlayVisibility(visible: visible, child: const Card(child: Text('Copied'))),
       toastDuration: const Duration(seconds: 2),
