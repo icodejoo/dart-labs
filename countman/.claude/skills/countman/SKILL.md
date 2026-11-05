@@ -8,8 +8,8 @@ description: Work on countman — a high-performance Flutter counter/countdown/e
 One shared `scheduleFrameCallback` (`Countman`) drives all animations; engines
 are pluggable `CountmanPlugin` instances. No per-widget `Timer.periodic`. Since
 0.3.0 the ticker **sleeps between updates** (one global `Timer`) instead of
-rendering a frame per vsync. `CardCountdown` is the one widget that keeps an
-`AnimationController` per card (kept on purpose, see DECISIONS.md).
+rendering a frame per vsync. `CardCountdown` uses internal `CardProgress`
+animations in one private shared Counter group; fps lowers actual frames.
 
 Design history and overturned decisions: `DECISIONS.md`. Architecture:
 `ARCHITECTURE.md`. Upgrade notes: `MIGRATION.md`.
@@ -25,7 +25,7 @@ Countman (static singleton — 1 scheduleFrameCallback + 1 sleep Timer)
 ```
 
 `Countman` API: `use(plugin)`, `start()`, `stop()`, `unuse(plugin, {dispose})`,
-`destroy()`. Registry is **by instance**: same instance twice is a no-op, a
+`destroy()`；`Countman.fps`（`double?`，默认 null，运行时下一帧生效）。 Registry is **by instance**: same instance twice is a no-op, a
 *different* instance with an existing `name` asserts in debug (release
 registers it). Create plugins at module / long-lived-state level and reuse the
 instance; a page-owned group is removed in `dispose` with `Countman.unuse`.
@@ -37,7 +37,8 @@ instance; a page-owned group is removed in `dispose` with `Countman.unuse`.
 `CountmanPlugin.tick(elapsed, dt)` returns **microseconds until the next call**:
 `CountmanPlugin.idle` (-1, nothing to do), `nextFrame` (0) or a positive delay.
 `Countman` takes the minimum: anything ≤ 20 ms (or a pending request) → next
-frame; larger → arm the global sleep `Timer`; all idle → stop. `dt` is **0 on
+frame; larger → arm the global sleep `Timer`; all idle → stop. Throttled and
+muted waits bypass the 20 ms window and use the Timer. `dt` is **0 on
 the first frame after a sleep**, so sleeping plugins read a clock, never sum
 `dt`. `onDetach()` is required (called by `unuse`/`destroy`; may re-attach);
 `dispose()` is final.
@@ -102,6 +103,11 @@ the first frame after a sleep**, so sleeping plugins read a clock, never sum
 options `CounterOptions`/`CountdownOptions`/`ElapsedOptions`; `CountmanTask`,
 `ClockTask`, `TaskQueuePlugin`, `ClockPlugin`, `CountmanContext`.
 
+**限帧 API** — `Counter` / `Countdown` / `Elapsed` 插件与各 `*Options`、Builder、
+展示组件（含两种 AnimatedCounter 与 CardCountdown）都有 `fps`。实例 > 插件 >
+`Countman.fps`，null 逐级回退，最终 null 跟随 vsync；非法值 debug assert、release
+当 null。示例：`Countman.fps = 30; TextCounter(to: 100, fps: 15);`。
+
 **Providers** — `CounterProvider`, `CountdownProvider`, `ElapsedProvider`,
 `CountmanProvider`, `CardCountdownProvider` (+ glyph cache). Provider `*Style`
 params and `CountdownProvider.animateOnce` are **deprecated**.
@@ -162,6 +168,7 @@ flip + `scale`/`fade`/`blur`; presets `.slide`(default)/`.slideScale`/
 | `lib/src/widgets/countman_theme.dart` | `CountmanTheme` |
 | `lib/src/widgets/{providers,animate_once,reduce_motion,style_support,progress_display}.dart` | providers, animate-once registry, shared style/color helpers |
 | `lib/src/widgets/{text,ring,bar}_*.dart`, `dial_countdown.dart`, `odometer_counter.dart` | display widgets; `{ring,bar}_style.dart` = `RingStyle`/`BarStyle` |
+| `lib/src/widgets/card_progress.dart` | internal Animation<double>, one shared Counter motion group |
 | `lib/src/widgets/card_countdown{,_types,_provider}.dart` | `CardCountdown`, `CountdownType`/`SlideEffect`, provider |
 | `lib/src/widgets/animated_counter/animated_counter.dart` | library root: `AnimatedCounter`, painter path; `part`s below |
 | `…/animated_counter/_base_counter.dart` | shared widget params |
@@ -269,8 +276,9 @@ class Beat extends TaskQueuePlugin<BeatTask> {
    `resolveDigitMotion` must not allocate. Reuse task state, the per-task
    `TimeParts`, the `DigitMotion` / `DigitPhase` holders.
 2. **Sleep, don't poll** — clock tasks give an accurate `nextWake`; never rely
-   on being ticked every frame. `interval: 0` / `precise` groups cannot sleep.
-   Sleeping plugins read a clock; `dt` is 0 after a sleep.
+   on being ticked every frame. Visible `interval: 0` / `precise` tasks without fps cannot sleep.
+   Sleeping plugins read a clock; `dt` is 0 after a sleep. Muted precise tasks
+   can sleep too.
 3. **Per-task boundary** — task callbacks run inside `TaskQueuePlugin.tick`'s
    per-task try/catch/finally (errors → `FlutterError.reportError`; done tasks
    always evicted; `Countman` also isolates per plugin). Keep new callback
@@ -301,13 +309,33 @@ class Beat extends TaskQueuePlugin<BeatTask> {
     enqueue via `StartScheduler`, else the closure leaks the `State`.
 11. **No `Opacity` for fades** — use `color.withValues(alpha:)`; `Opacity` forces
     `saveLayer` every fractional-alpha frame.
-12. **dt accumulation only for `Counter`** — it is frame-driven; Flutter's
-    first-frame `elapsed` is unreliable in tests.
+12. **Counter 未限帧仍累加 dt** — 默认路径不额外读钟或逐帧分配；限帧路径必须
+    改读系统单调钟差值（休眠后 dt == 0），不可把动画变慢。只限制可见显示更新，
+    完成/阈值按真实时刻唤醒，终值必须强制发出；静音优先，不受 fps 影响。
+
+13. **不可见休眠，muted ≠ paused** — 默认订阅 TickerMode；静音不改 runState、不
+    reanchor、不触发 onPause/onResume，onUpdate/onTick 不投递。完成与阈值仍按真实
+    时间唤醒；Counter 取消静音按单调钟补算，跳到真实推进位置（方案 A）。
+    首帧静音仍初始化 started/onStart；取消静音作废显示桶并 requestFrame，回调留在
+    逐任务边界内。新任务直接静音入队，迁移保留静音与用户暂停；全部静音时正数
+    等待均走 Timer，跳过可见任务的 20ms 连续排帧窗口。
 
 ---
 
 ## Gotchas
 
+- **限帧对齐** — Counter / ClockPlugin 以固定网格推进显示节拍，跳过错失时隙，
+  不按实际渲染时刻重设锚点。读取首个 view 的 `display.refreshRate`（无有效值回退
+  60Hz，添加任务时刷新缓存），以半个 vsync 为容差；在 `allowed - tol` 请求下一帧，
+  限帧等待跳过 20ms 轮询窗口。目标显示率不超过屏幕刷新率：
+  `period <= vsyncPeriod * 1.05` 视为不限帧。显示桶边界与完成/阈值仍按精确时刻，
+  不减容差。CardCountdown 进度同样由共享 Counter 驱动，fps 真正降低出帧；
+  端点必发，曲线仍由常驻 painter 应用，calendar 往返各用 duration。
+
+- **不可见休眠** — `Countman.muteWhenHidden = false` 须在挂载前设置；组件层完全
+  不订阅 TickerMode。原生 Offstage 本身不关闭 TickerMode，请配套
+  `TickerMode(enabled: !offstage)`。CardCountdown 隐藏/恢复时清零翻牌进度，并取消
+  共享 Counter 动画任务；静音终态可同步一次最终显示，仍不投递 onUpdate。
 - **Web compile** — never write integer literals above 2^53 (e.g.
   `0x7fffffffffffffff`, often used as a clamp max): dart2js can't represent
   them, `clamp` becomes `num`, and the web build (the example is deployed to
@@ -332,7 +360,7 @@ class Beat extends TaskQueuePlugin<BeatTask> {
   force the widget path (~0.85 ms/digit/frame) — avoid at scale.
 - **`repaintBoundary` at scale** — for >~10 concurrent instances set `false` and
   let one ancestor layer composite the grid.
-- **`CardCountdown` cost** is its transition's cost (calendar ≈ 90 % of each
+- **`CardCountdown` fps** lowers actual frames via the shared ticker. Its cost is its transition's cost (calendar ≈ 90 % of each
   second in motion, slide/flip ≈ 45 %); shorten `duration` to reduce it.
 - **`animateOnce`** needs a stable `ValueKey` (or `onceId`) and a provider to
   register against; otherwise it degrades to always-animate with one debug

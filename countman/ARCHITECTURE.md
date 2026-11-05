@@ -81,6 +81,34 @@ flowchart TD
 - 运行代次（`_generation`）与 `_requested` 标记防止回调里 `stop()` / `destroy()` / 新增任务造成丢帧或旧帧继续驱动旧列表。
 - 逐插件隔离：单个插件 `tick` 抛异常经 `FlutterError.reportError` 上报，不影响其他插件；`destroy()` 同样逐插件隔离。
 
+### 2.3 显示限帧 fps
+
+实例（Options / 组件）> 插件 > `Countman.fps`，null 逐级回退至跟随 vsync。
+只过滤可见显示更新，完成与阈值仍取最早唤醒，终值强制发出；静音优先。
+Counter 限帧按系统单调钟差值推进，避免休眠后 dt == 0 丢时间；默认仍累加 dt。
+Counter / ClockPlugin 按固定网格推进限帧节拍，跳过错失时隙、不补发历史帧。
+首个 view 的 `display.refreshRate` 决定 vsync 周期（无有效值回退 60Hz，添加任务时
+刷新缓存），以半个 vsync 为容差：`now >= allowed - tol` 可显示，下一帧请求等待为
+`allowed - tol - now`。限帧正数等待走全局 Timer，跳过 20ms 连续排帧窗口；提示
+跟随逐任务、逐插件的最早等待，避免其它较晚唤醒使其重新轮询。
+ClockPlugin 显示唤醒取桶边界与限帧请求时刻较晚者，再与完成/阈值取最早；桶和
+事件不减容差，不提前。目标显示率不超过屏幕刷新率，
+`period <= vsyncPeriod * 1.05` 视为不限帧。
+CardCountdown 的进度任务使用同一套 Counter 限帧调度，真正降低出帧，端点始终精确通知。
+
+### 2.4 不可见休眠
+
+组件默认订阅 `TickerMode.getNotifier`（内部 `HiddenTaskState`），隐藏时令任务
+`muted = true`：不投递 onUpdate/onTick，不改变 runState/isPaused、不重新锚定，也不
+触发 onPause/onResume。首帧仍初始化 started/onStart；静音 ClockPlugin 仅取完成与
+阈值的最早唤醒，无二者则 idle。Counter 记录单调钟，静音只睡到终点，恢复时补算
+真实流逝并跳到当前位置（方案 A）；用户暂停期间不推进。取消静音作废显示桶并
+requestFrame，回调仍在逐任务边界内，热路径只新增字段判断。终态可同步一次最终显示。
+全部静音时通过内部 CountmanSleepHint 跳过 20ms 连续排帧窗口，正数等待均走 Timer。
+新任务以静音状态入队，插件迁移保留静音。CardCountdown 隐藏/恢复取消共享 Counter
+进度任务，直接落定模型并清零动画进度；不额外订阅 TickerMode。
+`Countman.muteWhenHidden = false` 在挂载前关闭订阅；原生 Offstage 需配套 TickerMode。
+
 ## 3. 插件体系
 
 ```mermaid
@@ -140,7 +168,7 @@ classDiagram
 
 | 引擎 | 基类 | 说明 |
 |---|---|---|
-| `Counter` | `TaskQueuePlugin` | 数值插值，`dt` 累积，逐帧；`CounterTask` 不可暂停外的行为由 `paused` 控制 |
+| `Counter` | `TaskQueuePlugin` | 数值插值，默认 `dt` 累积、限帧读单调钟；`CounterTask` 不可暂停外的行为由 `paused` 控制 |
 | `Countdown` | `ClockPlugin` | 相对时长走单调钟，绝对截止走墙钟；支持 `total`、`rounding` |
 | `Elapsed` | `ClockPlugin` | `since`（墙钟）/ `initial`（单调钟）、`limit`、圈速 |
 
@@ -225,7 +253,7 @@ flowchart LR
 
 ### 6.3 其他组件细节
 
-- `CardCountdown`：每张卡一个 `AnimationController` 驱动一个 `FlipCardPainter`。调度器休眠后，两次翻牌之间不出帧；翻牌期间无论由哪个 ticker 驱动都必须逐帧绘制，所以并入共享 ticker 省不下帧，0.3.0 维持原设计。其开销主要由过渡类型和时长决定（calendar 往返两段，约 90% 的时间在动；slide 约 45%）。
+- `CardCountdown`：内部 `CardProgress`（`Animation<double>`）由私有共享 `Counter` 任务组驱动常驻 `FlipCardPainter`，不再创建每卡 Ticker。fps 对卡片同样真正降低出帧，沿用实例 > 所用 Countdown 插件 > 全局；曲线仍在 painter 应用，calendar 往返两段各用 duration，slide/flip 单程。HiddenTaskState 唯一订阅 TickerMode，隐藏/恢复取消动画任务并清零、落定当前值。原保留 AnimationController 的结论已被真窗口数据推翻，见 DECISIONS.md。
 - `DialCountdown`：自带 painter，`builder` 填充中心。
 - `StartScheduler`：把密集网格的首次启动分摊到多帧（`defaultBatchSize` / `groupBatchSize`），组件销毁时必须 `cancel(this)`。
 
@@ -278,7 +306,7 @@ flowchart LR
 
 1. **零分配热路径**：`Counter.step`、时钟引擎的 `tick`、`resolveDigitMotion` 不创建对象；复用任务状态、每任务 `TimeParts`、`DigitMotion` / `DigitPhase` 持有者。
 2. **常驻 painter**：`CounterPainter` / `RingPainter` / `BarPainter` / `FlipCardPainter` 在组件生命周期（或配置变化）内只创建一次，经 `update()` + `repaint: Listenable` 原地更新，绝不逐帧新建。
-3. **休眠调度**：时钟任务不得靠逐帧轮询判断到期；必须给出准确的 `nextWake`。`interval: 0`（`precise`）会让该组无法休眠，只在真的显示亚秒位时使用。
+3. **休眠调度**：时钟任务不得靠逐帧轮询判断到期；必须给出准确的 `nextWake`。未限帧的 `interval: 0`（`precise`）会让该组无法休眠，只在真的显示亚秒位时使用。
 4. **每帧只读一次时钟**：`beginFrame` 作废快照，`frameWallMicros` / `frameMonotonicMicros` 惰性读取；完成与阈值每帧检查，只有显示更新被 `interval` 节流。
 5. **逐任务边界**：任务回调的异常不得越过 `TaskQueuePlugin.tick` 的 `try/catch/finally`；终态任务一定被清理。
 6. **每次 `add` 都 `requestFrame()`**：`Countman.start()` 幂等；休眠中新增任务会打断休眠。

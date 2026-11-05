@@ -21,6 +21,44 @@
 
 ---
 
+## 不可见时休眠
+
+组件默认随 `TickerMode(enabled: false)`（包括 Flutter 静音的被覆盖路由）休眠。
+隐藏期间 **onUpdate/onTick 不投递**，完成与阈值仍按真实时刻触发；恢复直接显示
+当前值，Counter 跳到按真实时间推进后的位置（方案 A）。静音不等于暂停：不改变
+runState/isPaused、不触发 onPause/onResume，用户已暂停的任务仍保持暂停。
+CardCountdown 隐藏与恢复时直接落定翻牌，不停在动画半程。
+
+单独使用原生 `Offstage` 时请配套 `TickerMode(enabled: !offstage)`，Offstage 本身不
+会静音 ticker。如需保留原行为，在挂载组件前关闭开关（完全不订阅 TickerMode）：
+
+```dart
+Countman.muteWhenHidden = false; // 默认 true
+```
+
+## 限帧 fps
+
+`fps` 只限制可见显示更新，以减少 CPU / Raster 开销；完成与阈值按真实时刻
+触发，最后一帧强制落到终值。优先级为实例 > 插件 > 全局，null 逐级回退，最终
+null 跟随 vsync（默认行为不变）。非法值（非有限正数）debug 断言、release 当 null。
+
+```dart
+Countman.fps = 30; // 全局，运行时修改从下一帧生效
+final group = Counter(name: 'prices', fps: 20); // 插件覆盖
+TextCounter(to: 999, plugin: group, fps: 10); // 单实例覆盖
+CardCountdown(to: Duration(minutes: 5), fps: 30);
+// 直接引擎：group.add(CounterOptions(to: 999, fps: 15));
+Countman.fps = null; // 恢复全局跟随 vsync
+```
+
+Counter 与时钟引擎按固定网格推进显示节拍，依据首个 view 的 `display.refreshRate`
+对齐 vsync（无有效值回退 60Hz，添加任务时刷新缓存），跳过错失时隙、不补历史帧。
+以半个 vsync 为容差接受稍早的帧，全局 Timer 在 `allowed - tol` 请求下一帧，
+限帧等待跳过 20ms 连续排帧窗口，避免空轮询帧。目标显示率不超过屏幕刷新率，
+`period <= vsyncPeriod * 1.05` 视为不限帧。显示桶边界、完成与阈值仍取精确时刻，
+不减容差、不提前。静音优先，隐藏任务无视 fps，恢复立即显示当前值。
+CardCountdown 的翻牌进度由共享 Counter 驱动，fps 同样真正降低出帧，时长和曲线保持原语义。
+
 ## 截图
 
 | 计数器 | 倒计时 | 计时 |
@@ -88,7 +126,7 @@ import 'package:countman/countman.dart';
 **休眠调度器（0.3.0）。** 每个任务只在自己的值跨过下一个 `interval` 边界（或完成、
 或越过阈值）时才被处理。其间调度器只挂一个全局定时器，而不是每个 vsync 都请求一帧；
 因此默认 1 秒间隔的文本倒计时只在每次更新前后出帧。动画（`Counter`、`CardCountdown`
-的翻牌）在运动期间仍逐帧运行。所以 `CardCountdown` 的开销主要由过渡类型和时长决定：
+的翻牌）不限帧时在运动期间仍逐帧运行。所以 `CardCountdown` 的开销主要由过渡类型和时长决定：
 `calendar` 每秒约 90% 的时间在动画，`slide` / `flip` 约 45%，缩短 `duration` 会成比例降低开销。
 
 ### 与其他包的正面对比
@@ -554,7 +592,7 @@ DialCountdown(
 ### `CardCountdown`
 
 翻牌显示；每个时间单位（H/M/S）是一张卡片，数字变化时播放动画。
-每张卡片一个 `AnimationController` 驱动一个 `CustomPainter` ——
+共享 Counter 进度任务驱动常驻 `CustomPainter` ——
 数字变化绝不重建 widget 树。
 
 ```dart
@@ -1071,16 +1109,22 @@ class Beat extends TaskQueuePlugin<BeatTask> {
 ## 性能建议
 
 - **`repaintBoundary`** —— 开启（多数组件的默认值）会让每个组件拥有自己的
-  合成图层。少量时很好；对于密集网格（>~10 个），把它设为 `false`，
-  让一个祖先图层统一覆盖。
+  重绘层，某个组件刷新时不会连累旁边的内容。密集网格（>~10 个）关掉它、改用
+  **只包住这些计时器的一个共享边界**，只能省一点 UI 线程时间（50 张卡实测约
+  0.4 ms/帧），对 Raster、CPU、内存没有收益；而边界放错代价更大：共享边界如果
+  同时包着页面其他内容，或者根本没有边界，每次刷新都会把这些内容一起重绘（混合
+  页面实测 UI 耗时多 0.6–1.1 ms/帧，p99 最高到 2.3 倍）。除非计时器单独成组，
+  否则保持默认值。
 - 用 `StartScheduler` **批量启动网格**（见上文）。
 - 大规模下**避免使用 `digitBuilder` / `digitTransitionBuilder`** —— 它们会强制走
   widget 路径（~0.85 ms/位/帧），而不是 CustomPainter 路径。
 - **`blur` 和 `flip`** 过渡类型始终走 widget 路径 —— 在大网格中请避免。
 - HH:mm:ss 显示请**使用 `interval: 1000`**（默认值）；只有真正显示亚秒数字时，
   才使用 `precise:`/`interval: 0` —— 每帧分组无法休眠。
-- **`CardCountdown`** 的开销取决于过渡本身：`calendar` 每秒约 90% 的时间在运动，
+- **`CardCountdown`** 的 fps 同样真正降低出帧；开销也取决于过渡本身：`calendar` 每秒约 90% 的时间在运动，
   `slide` / `flip` 约 45%。大网格优先选 `slide`，并缩短 `duration` 来按比例降低开销。
+  `calendar` 往返两段，帧数约为 `slide` 的 2 倍。与 `slide_countdown` 对等对比时，
+  使用 `slide` 过渡并设置 `duration: Duration(milliseconds: 250)`。
 
 ---
 

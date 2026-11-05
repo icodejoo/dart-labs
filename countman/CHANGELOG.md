@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- 修复 fps 的 vsync 对齐漂移（60Hz 下 precise Countdown 30fps 降为 20fps）
+  及 Counter 空轮询帧：固定网格推进，按屏幕刷新率以半个 vsync 容差对齐唤醒，
+  达到屏幕刷新率时不再节流；显示桶、完成与阈值不提前。
+
+### Changed
+- 新增 `Countman.fps` 全局显示上限与插件 / Options / 组件实例覆盖，默认 null
+  保持原行为；完成与阈值不受限帧影响。Counter 限帧读单调钟，CardCountdown
+  改由私有共享 Counter 进度任务驱动，fps 真正降低出帧；静音优先。
+- `FlipCardPainter.controller` 放宽为 `Animation<double>`，继续接受 AnimationController；
+  卡片无独立 Flutter Ticker，保持 calendar 往返、单程过渡、减弱动画与像素输出。
+- 组件默认随 TickerMode 不可见休眠：不投递 onUpdate/onTick，完成与阈值仍按真实
+  时间触发；恢复直接显示当前值，Counter 采用真实时间推进的方案 A。新增
+  `Countman.muteWhenHidden` 开关；CardCountdown 隐藏/恢复时落定翻牌。
+- `CardCountdown` shares glyph caches across equal styles and reuses painter
+  glyph references and rotation matrices, reducing memory and paint overhead
+  without API or visual changes. Clarified calendar's two-segment duration.
+
 ## 0.3.0
 
 Migration guide: [MIGRATION.md](MIGRATION.md).

@@ -21,6 +21,50 @@
 
 ---
 
+## Hidden widgets
+
+Widgets sleep under `TickerMode(enabled: false)` (including routes muted by
+Flutter). Hidden widgets do not deliver `onUpdate` / `onTick`; completion and
+threshold callbacks still fire when due. Visibility resumes at the current
+value; Counter animations jump to their real-time position. Muting does not
+pause the task or change `runState`, and never calls `onPause` / `onResume`.
+CardCountdown settles its flip immediately when hidden or shown.
+
+For a bare `Offstage`, also wrap the child in `TickerMode(enabled: !offstage)`;
+Offstage itself does not mute tickers. To retain the previous update behavior,
+set this before mounting widgets (no TickerMode subscription):
+
+```dart
+Countman.muteWhenHidden = false; // default: true
+```
+
+## Frame cap fps
+
+Display updates resolve `fps` from instance > plugin > `Countman.fps`.
+Null falls back; all-null follows vsync, preserving the default behavior.
+Completion and thresholds stay on real time; the terminal value always renders.
+Invalid values (not finite and positive) assert in debug and act as null in release.
+
+```dart
+Countman.fps = 30; // global; runtime changes apply on the next frame
+final group = Counter(name: 'prices', fps: 20);
+TextCounter(to: 999, plugin: group, fps: 10); // instance override
+CardCountdown(to: Duration(minutes: 5), fps: 30);
+// Direct engine: group.add(CounterOptions(to: 999, fps: 15));
+Countman.fps = null; // global follows vsync again
+```
+
+Counter and clock engines advance a fixed display grid aligned using the first
+view's `display.refreshRate` (60Hz fallback, cached until a task is added).
+A half-vsync tolerance accepts slightly early frames; the shared Timer requests
+the next frame at `allowed - tolerance`, avoiding empty polling frames. Missed
+slots are skipped. The target rate never exceeds the display refresh rate;
+`period <= vsyncPeriod * 1.05` is treated as uncapped. Display bucket boundaries,
+completion and thresholds keep their exact timing without this tolerance.
+Muting takes priority and ignores fps; showing a widget immediately displays
+its current value. CardCountdown uses a shared Counter motion group, so fps
+also reduces its actual frame rate while preserving transition duration and curve.
+
 ## Screenshots
 
 | Counter | Countdown | Elapsed |
@@ -93,7 +137,7 @@ crosses the next `interval` boundary (or completes, or crosses a threshold). In
 between, the scheduler arms one global timer instead of asking for a frame per
 vsync, so a text countdown at the default 1 s interval only produces frames
 around each update. Animations (`Counter`, the flip of `CardCountdown`) still
-run every frame while they move. `CardCountdown`'s cost is therefore dominated by
+run every frame while they move unless capped with fps. `CardCountdown`'s cost is therefore dominated by
 its transition type and duration — `calendar` animates about 90 % of every
 second, `slide` / `flip` about 45 % — and a shorter `duration` lowers it
 proportionally.
@@ -586,7 +630,7 @@ DialCountdown(
 ### `CardCountdown`
 
 Flip-card display; each time unit (H/M/S) is a card that animates on digit
-change. One `AnimationController` per card drives a single `CustomPainter` —
+change. Shared Counter progress drives a single persistent `CustomPainter` —
 digit changes never rebuild the widget tree.
 
 ```dart
@@ -1126,8 +1170,14 @@ you can subclass one instead of starting from scratch. `RingPainter` /
 ## Performance tips
 
 - **`repaintBoundary`** — on (default for most) gives each widget its own
-  compositor layer. Great for a handful; for dense grids (>~10) set it `false`
-  and let one ancestor layer cover everything.
+  repaint layer, so one ticking widget never repaints its neighbours. Turning it
+  off for a dense grid (>~10) and sharing **one boundary that wraps only the
+  timers** saves a little UI-thread time (measured ≈0.4 ms/frame for 50 cards)
+  but nothing on Raster, CPU or memory. Getting the boundary wrong is far more
+  expensive: if the shared boundary also wraps other page content, or there is
+  no boundary at all, every tick repaints that content too (measured +0.6–1.1
+  ms/frame UI time on a mixed page, p99 up to 2.3×). Keep the default unless the
+  timers sit alone in their own group.
 - **Batch grid startup** with `StartScheduler` (above).
 - **Avoid `digitBuilder` / `digitTransitionBuilder`** at scale — they force the
   widget path (~0.85 ms/digit/frame) instead of the CustomPainter path.
@@ -1136,9 +1186,12 @@ you can subclass one instead of starting from scratch. `RingPainter` /
 - **Use `interval: 1000`** (the default) for HH:mm:ss displays; reach for
   `precise:`/`interval: 0` only when you actually show sub-second digits —
   an every-frame group cannot sleep.
-- **`CardCountdown`** costs what its transition costs: `calendar` is in motion
+- **`CardCountdown`**: fps also lowers actual frames via the shared ticker. Its transition costs: `calendar` is in motion
   about 90 % of every second, `slide` / `flip` about 45 %. Prefer `slide` for
-  big grids and shorten `duration` to scale the cost down.
+  big grids and shorten `duration` to scale the cost down. Calendar has two
+  segments and produces about twice as many frames as slide. For an equivalent
+  comparison with `slide_countdown`, use the slide transition with
+  `duration: Duration(milliseconds: 250)`.
 
 ---
 

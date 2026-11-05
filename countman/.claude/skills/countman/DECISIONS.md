@@ -325,11 +325,72 @@
 - 无稳定 id 或无 Provider 时：debug 警告一次，退化为每次都动画。理由：这是“优化没生效”，不是
   “程序错误”，不该让页面崩。
 
-### CardCountdown 每卡一个 AnimationController：评估后保留
-- **评估**：用 0.3.0 调度器 + `ManualCountmanClock`，统计 3 秒（188 个 16 ms 时隙）内有排帧的时隙数：
-  `TextCountdown` = 1；`CardCountdown` 默认 calendar 过渡 = 175（往返两段，450 ms × 2，每秒约 900 ms
-  在动）；slide 过渡 = 88（单程 450 ms）。
-- **结论**：保留。`Countdown` 插件本身每秒只贡献约 1 帧，卡片的帧几乎全来自翻牌动画本身；
-  动画期间无论由哪个 ticker 驱动都必须逐帧绘制，所以把每卡的 `AnimationController` 并入共享 ticker
-  省不下帧，只换来写法统一。
-- **后果**：卡片开销由过渡类型与时长决定（README 的性能建议已写明：缩短 `duration` 可成比例降低）。
+### CardCountdown 每卡一个 AnimationController：被 fps 的真窗口数据推翻
+- **原结论的前提**：不限帧时翻牌期间需要逐 vsync 绘制；并入共享 ticker 省不下这些帧。
+  原模拟 3 秒内 TextCountdown 出帧 1 次、calendar 175 次、slide 88 次，因而曾决定保留。
+- **什么变了**：现在有 fps，需要让调度器在动画采样之间真正休眠；共享 ticker 已自行
+  支持 TickerMode，原先依靠 Flutter Ticker 静音的理由也不再成立。
+- **真窗口证据**：卡片 fps:30 前后 FPS 为 54.7→54.5，CPU 130%→118% 在噪声内；
+  只节流 painter 通知仍由每卡 Ticker 在每个 vsync 请求帧。Counter / precise Countdown
+  用共享 ticker 则从 60→30.1 FPS，CPU 降低 50% 以上。
+- **新设计**：内部 CardProgress 实现 Animation<double>，所有卡片共用私有惰性 Counter
+  任务组；每段为线性 from→to，曲线仍在常驻 painter 应用。calendar 完成前程后反程，
+  各用完整 duration；slide/flip 单程，提交时机不变。任务从启动时刻锚定单调钟，避免
+  休眠首帧 dt==0 丢时间；热路径复用更新 tear-off，状态回调处于逐任务边界内。
+- fps 沿用实例 > 所用 Countdown 插件 > 全局；插件/实例变化同步活动 handle，
+  全局仍由引擎动态读取。隐藏/恢复取消动画并直接落定；只订阅一次 HiddenTaskState。
+  FlipCardPainter.controller 放宽为 Animation<double>，仍接受 AnimationController。
+
+
+### 不可见休眠与 muted ≠ paused
+- 默认跟随 `TickerMode` 静音，`Countman.muteWhenHidden = false` 可在挂载前关闭。
+  原生 `Offstage` 不提供静音信号，调用方需配套 `TickerMode(enabled: !offstage)`。
+- 静音不改变 runState/isPaused，不重新锚定，不触发 onPause/onResume；onUpdate/onTick
+  不投递，阈值和完成仍按真实时刻唤醒并处于逐任务异常边界内。首帧静音仍初始化
+  started 并发一次 onStart，跳过显示回调；终态可同步最终显示，不补发静音期间更新。
+- **Counter 选方案 A：可见时跳到真实推进位置**。静音用系统单调钟补算 elapsed，
+  只为终点安排休眠；用户暂停时间排除在外。理由：路由返回时展示与当前时间一致，
+  避免用户等待不可见期间早应结束的装饰动画，不从暂停处续播。
+- ClockPlugin 取消静音使 lastBucket 失效并 requestFrame，保留休眠后 dt == 0；
+  插件迁移与新建任务保留静音。CardCountdown 使用共享 Counter 进度任务，
+  隐藏与恢复均直接落定当前模型并清零翻牌进度，避免卡在动画半程。
+
+
+### fps：只限显示，实例覆盖插件与全局
+- `Countman.fps` 默认 null；插件、Options 与组件的同名配置按实例 > 插件 > 全局
+  逐级回退。运行时全局修改打断休眠，下一帧生效；非法值 debug 断言、release 当 null。
+- 完成/阈值属于时间事件，不应因省绘制开销而推迟；显示限帧与桶边界取较晚者，
+  再与完成/阈值取最早唤醒。终点强制显示精确终值，静音优先沿用不可见休眠逻辑。
+- Counter 限帧后会走休眠 Timer，而唤醒首帧 dt == 0，因此仅限帧路径改按系统
+  单调钟差值推进；未限帧保持原 dt 路径。显示节拍跳过错失时隙，避免 vsync 量化
+  导致累计降速；暂停排除流逝，迁移与重定向保留真实进度。
+- CardCountdown 的进度并入共享 Counter，fps 同样真正降低出帧；端点精确投递，
+  时长、曲线及 calendar 两段提交语义保持不变。旧重绘节流方案已由真窗口证据推翻。
+- Counter / ClockPlugin 的显示节拍按固定网格推进，以 `display.refreshRate`
+  提供的 vsync 周期作对齐，容差为半个 vsync；显示请求点为 `allowed - tol`，
+  正数限帧等待均走全局 Timer。目标显示率不超过屏幕刷新率，
+  `period <= vsyncPeriod * 1.05` 视为不限；桶边界、完成与阈值不减容差。
+
+
+### 限帧漂移 bug：实际渲染锚点改为固定网格 + 对齐唤醒
+- **根因**：ClockPlugin 用实际渲染时刻 `lastEmitMicros + period` 当下一次锚点。
+  60Hz 下 30fps 的 Timer 在约 33.3ms 到期后才请求帧，再等一个 vsync，周期变成
+  50ms，形成 30→20fps 漂移。Counter 虽已有固定网格，但两种引擎都在 ≤20ms
+  等待窗口逐 vsync 轮询，抖动下出现没有显示更新的空帧。
+- **修复**：两者共用固定网格（`next += k * period`），跳过错失时隙、不补历史帧；
+  读取首个 view 的 `display.refreshRate`，有效有限正数才采用，否则回退 60Hz。
+  添加任务时刷新缓存，热路径不分配。容差 `tol = vsyncPeriod / 2`，
+  `now >= allowed - tol` 可显示；`nextWake` 的限帧分量返回
+  `allowed - tol - now`，通过 Timer 提前请求目标 vsync，跳过 20ms 轮询窗口。
+  最早等待逐任务、逐插件携带窗口提示，较晚的普通桶等待不应让限帧重新轮询。
+- **保持**：只调整限帧分量；显示唤醒仍取桶边界与限帧请求时刻较晚者，再与
+  完成/阈值取最早。桶与事件都不提前，终点强制精确；静音优先且不读取 fps，
+  Counter 限帧仍用单调钟推进。目标显示率不超过屏幕刷新率，
+  `period <= vsyncPeriod * 1.05` 等同不限，避免屏幕已到上限时额外节流。
+- **之前为何漏测**：固定步长 pump 直接交付每一帧，没有 vsync 量化，也没有模拟
+  Timer 到期后必须等待下一个 vsync 的行为，只数 onUpdate 还会漏掉空轮询帧。
+- **防回归**：`test/core/vsync_throttle_test.dart` 每 1ms 推进 Timer，仅在有请求且
+  达到 vsync 边界时 pump；模拟 Hz 同步设置 `debugRefreshRateHz` 并在结束复位。
+  Counter 与 precise Countdown 覆盖 60/120Hz、30/20fps（120Hz 加 60fps）、
+  0/±1.5ms 抖动、1/50 任务；断言更新率目标 ±1/s、出帧不超过更新率 +1.5/s。
+  另测 50fps@60Hz（47–53/s）和 60fps@60Hz 等同不限，并验证桶/阈值/终点不提前。
