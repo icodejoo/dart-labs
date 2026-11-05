@@ -69,52 +69,6 @@ void main() {
       });
     });
 
-    test('起始闸门：START_FILE 之前的 END_FILE/RESTART 属于旧文件被丢弃，之后放行', () {
-      fakeAsync((async) {
-        final pump = createPump();
-        pump.start(Future.value());
-        async.flushMicrotasks();
-
-        pump.expectStartFile();
-        backend.events.addAll([
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 4),
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-          const MovaRawEvent(MovaMpvEventBackend.eventStartFile),
-          const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 4),
-          const MovaRawEvent(MovaMpvEventBackend.eventPlaybackRestart),
-        ]);
-        backend.wake();
-
-        expect(endFileReasons, [4]);
-        expect(restartCount, 1);
-      });
-    });
-
-    test('起始闸门：START_FILE 迟迟不来 3 秒后自动失效；restrict 失败时不生效', () {
-      fakeAsync((async) {
-        var clock = DateTime(2026);
-        final pump = createPump()..now = () => clock;
-        pump.start(Future.value());
-        async.flushMicrotasks();
-        pump.expectStartFile();
-        clock = clock.add(MovaMpvEventPump.startGateTimeout + const Duration(milliseconds: 1));
-        backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 4));
-        backend.wake();
-        expect(endFileReasons, [4]);
-      });
-      endFileReasons.clear();
-      fakeAsync((async) {
-        backend.restrictFail = true;
-        final pump = createPump();
-        pump.start(Future.value());
-        async.flushMicrotasks();
-        pump.expectStartFile();
-        backend.events.add(const MovaRawEvent(MovaMpvEventBackend.eventEndFile, endFileReason: 4));
-        backend.wake();
-        expect(endFileReasons, [4]);
-      });
-    });
-
     test('I6: 一次 wake 排空多个事件，全同步不 await', () {
       fakeAsync((async) {
         final pump = createPump();
@@ -446,7 +400,7 @@ void main() {
       });
     });
 
-    test('restrictEvents 收到的集合恰为 SHUTDOWN, START_FILE, END_FILE, PLAYBACK_RESTART', () {
+    test('restrictEvents 收到的集合恰为 SHUTDOWN, END_FILE, PLAYBACK_RESTART', () {
       fakeAsync((async) {
         final pump = createPump();
         pump.start(Future.value());
@@ -454,7 +408,6 @@ void main() {
         
         expect(backend.lastRestrictedEvents, {
           MovaMpvEventBackend.eventShutdown,
-          MovaMpvEventBackend.eventStartFile,
           MovaMpvEventBackend.eventEndFile,
           MovaMpvEventBackend.eventPlaybackRestart,
         });

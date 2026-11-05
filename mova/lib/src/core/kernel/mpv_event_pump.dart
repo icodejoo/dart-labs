@@ -99,9 +99,8 @@ class MovaMpvEventPump {
       }
 
       // 即使 restrict 部分失败，也继续 armWakeup
-      _startTracked = _backend.restrictEvents({
+      _backend.restrictEvents({
         MovaMpvEventBackend.eventShutdown,
-        MovaMpvEventBackend.eventStartFile,
         MovaMpvEventBackend.eventEndFile,
         MovaMpvEventBackend.eventPlaybackRestart,
       });
@@ -151,35 +150,6 @@ class MovaMpvEventPump {
     }
   }
 
-  /// Time source; replaceable in tests. / 时间源，测试可替换。
-  DateTime Function() now = DateTime.now;
-
-  /// How long the start gate may stay closed if START_FILE never shows up.
-  ///
-  /// START_FILE 迟迟不来时，起始闸门最长保持关闭的时间。
-  static const Duration startGateTimeout = Duration(seconds: 3);
-
-  /// Whether START_FILE is reliably subscribed (all event requests succeeded).
-  ///
-  /// START_FILE 是否确实订阅成功（全部事件请求成功）。
-  bool _startTracked = false;
-
-  /// While set and unexpired, RESTART/END_FILE belong to the previous file.
-  ///
-  /// 非空且未过期时，RESTART/END_FILE 属于上一个文件。
-  DateTime? _gateUntil;
-
-  /// Marks that a new load was just issued: END_FILE/RESTART that arrive before
-  /// the new file's START_FILE belong to the replaced file and are dropped.
-  /// No-op unless START_FILE is subscribed; self-expires after [startGateTimeout].
-  ///
-  /// 标记刚下发了新加载：新文件 START_FILE 之前到达的 END_FILE/RESTART 属于被替换的旧文件，
-  /// 直接丢弃。START_FILE 未订阅成功时不生效；超过 [startGateTimeout] 自动失效。
-  void expectStartFile() {
-    if (!isActive || !_startTracked) return;
-    _gateUntil = now().add(startGateTimeout);
-  }
-
   /// 同步丢弃新加载之前积压的旧文件事件。
   void discardPending() {
     if (!isActive) return;
@@ -218,21 +188,6 @@ class MovaMpvEventPump {
         break;
       }
 
-      if (event.id == MovaMpvEventBackend.eventStartFile) {
-        _gateUntil = null;
-        continue;
-      }
-      final gate = _gateUntil;
-      if (gate != null) {
-        if (now().isBefore(gate)) {
-          if (event.id == MovaMpvEventBackend.eventPlaybackRestart ||
-              event.id == MovaMpvEventBackend.eventEndFile) {
-            continue;
-          }
-        } else {
-          _gateUntil = null;
-        }
-      }
       if (event.id == MovaMpvEventBackend.eventPlaybackRestart) {
         try {
           onRestart();

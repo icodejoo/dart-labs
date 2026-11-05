@@ -19,9 +19,6 @@ abstract class MovaMpvEventBackend {
   /// mpv 的 SHUTDOWN 事件 ID。
   static const int eventShutdown = 1;
 
-  /// mpv 的 START_FILE 事件 ID。
-  static const int eventStartFile = 6;
-
   /// mpv 的 END_FILE 事件 ID。
   static const int eventEndFile = 7;
 

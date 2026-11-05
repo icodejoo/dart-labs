@@ -816,7 +816,6 @@ class MovaMpvKernel
       // 到此才武装格式探测：上面等挂载/渲染面期间旧文件仍可能刷新轨道，不能当成新文件的。
       if (_player.platform is NativePlayer) _formatProbePending = true;
       _pump?.discardPending();
-      _pump?.expectStartFile();
       _eventAttempt = eventAttempt;
       _eventUri = uri;
       await _player.open(_mediaForOpen(uri, options), play: play);
