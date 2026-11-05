@@ -217,6 +217,16 @@ class MovaMini extends ChangeNotifier {
       if (!identical(_api, api)) await api.setMini(false);
       return false;
     }
+    // The engine refused the mini window (e.g. system PiP is active): drop the
+    // handover so no empty window is mounted.
+    // 引擎拒绝了小窗（如系统 PiP 中）：撤销交接，不挂空窗口。
+    if (!api.state.mini) {
+      if (identical(_api, api)) {
+        _api = null;
+        _rect = null;
+      }
+      return false;
+    }
     _unwatch();
     // Subscribe after entry so the initial false state cannot cancel it.
     //

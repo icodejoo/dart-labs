@@ -3242,6 +3242,10 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // 已销毁：静默空操作。
     if (_disposed) return;
+    // The in-app mini window and fullscreen are mutually exclusive: fullscreen wins.
+    // 小窗与全屏互斥：进入全屏时先收起小窗。
+    if (v && state.mini) await setMini(false);
+    if (_disposed) return;
     final changed = state.fullscreen != v;
     final leaving = state.fullscreen && !v;
     _state.emit(state.copyWith(fullscreen: v));
@@ -3261,6 +3265,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     // 已销毁：静默空操作。
     if (_disposed) return;
     if (state.mini == v) return; // 幂等，避免无谓事件
+    // System PiP owns the window: a mini request is refused (state.mini stays false).
+    // 系统 PiP 占着窗口时拒绝小窗请求（state.mini 保持 false）。
+    if (v && state.pip) return;
     if (v && state.keepAlivePhase != MovaKeepAlivePhase.off) await setKeepAlive(false);
     if (v && state.fullscreen) await setFullscreen(false);
     if (_disposed) return;
