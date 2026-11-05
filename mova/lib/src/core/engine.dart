@@ -1,5 +1,6 @@
 import 'playback_commands.dart';
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -541,7 +542,11 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
 
   final MovaBus<MovaUiState> _ui = MovaBus<MovaUiState>(const MovaUiState());
   final StreamController<MovaEvent> _events =
-      StreamController<MovaEvent>.broadcast();
+      StreamController<MovaEvent>.broadcast(sync: true);
+  // 在状态更新后立即交付事件，避免下一条原生属性或宿主换档先覆盖 getter。
+  // 回调内产生的事件排在当前通知之后，不能重入同步广播控制器。
+  final Queue<MovaEvent> _pendingEvents = Queue();
+  bool _emittingEvent = false;
   final StreamController<MovaProg> _progressRaw =
       StreamController<MovaProg>.broadcast();
   late final Stream<MovaProg> _progress;
@@ -1622,8 +1627,30 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
   /// 向事件流发出 [e]；引擎已销毁或事件流已关闭时静默丢弃（异步续体可能在
   /// dispose 之后才恢复）。
   void _emitEvent(MovaEvent e) {
+    // 失败通知沿用异步边界：open 的 accepted 结果与会话终结裁决各自结算。
+    if (e is MovaErrorEvent || e is MovaPlayFailure) {
+      scheduleMicrotask(() => _deliverEvent(e));
+      return;
+    }
+    _deliverEvent(e);
+  }
+
+  void _deliverEvent(MovaEvent e) {
     if (_disposed || _events.isClosed) return;
-    _events.add(e);
+    _pendingEvents.add(e);
+    if (_emittingEvent) return;
+    _emittingEvent = true;
+    try {
+      while (_pendingEvents.isNotEmpty) {
+        if (_disposed || _events.isClosed) {
+          _pendingEvents.clear();
+          break;
+        }
+        _events.add(_pendingEvents.removeFirst());
+      }
+    } finally {
+      _emittingEvent = false;
+    }
   }
 
   @override
