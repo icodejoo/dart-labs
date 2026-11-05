@@ -263,12 +263,13 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   /// Current inherited visibility. / 当前继承的可见状态。
   bool _tickerModeEnabled = false;
 
-  /// Whether embedded image decoding has finished. / 内嵌图片解码是否完成。
+  /// Whether parsing and embedded image decoding have finished.
+  /// 解析和内嵌图片解码是否完成。
   bool _imagesReady = true;
 
-  /// Rejects stale image continuations and deferred callbacks.
+  /// Rejects stale parse/image continuations and deferred callbacks.
   ///
-  /// 用于拒绝过期的图片续体和延迟回调。
+  /// 用于拒绝过期的解析、图片续体和延迟回调。
   int _parseGeneration = 0;
 
   /// Last source generation whose loaded callback was delivered.
@@ -449,9 +450,9 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     }
   }
 
-  /// Parses through the sole document-cache entry point and waits for images.
+  /// Parses through the async cache, preserving synchronous small-source frames.
   ///
-  /// 通过唯一的文档缓存入口解析，并等待图片就绪。
+  /// 通过异步缓存入口解析，保持小源同步首帧，并等待图片就绪。
   void _parseAndStart() {
     final generation = ++_parseGeneration;
     _controller.documentLoading(this);
@@ -459,32 +460,63 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     _ownsImages = false;
     _error = null;
     _errorStack = null;
+    _imagesReady = false;
+    _animationSpan = null;
+    var synchronous = true;
     try {
-      final parsed = SvgxDocumentCache.instance.getOrParse(widget.source);
-      final document = parsed.document;
-      _document = document;
-      _ownsImages = parsed.hasImages;
-      _imagesReady = !parsed.hasImages;
-      if (parsed.hasImages) {
-        /// Finishes only the current generation's decode. / 仅结束当前代的解码。
-        void ready() {
-          if (!mounted || generation != _parseGeneration) {
-            _disposeImages(document);
-            return;
-          }
-          setState(() => _imagesReady = true);
-          _attach(document);
-        }
+      SvgxDocumentCache.instance
+          .getOrParseAsync(widget.source)
+          .then(
+            (parsed) {
+              if (!mounted || generation != _parseGeneration) return;
+              try {
+                _acceptParsed(parsed, generation);
+              } catch (error, stack) {
+                _reportError(error, stack);
+              }
+              if (!synchronous && mounted && generation == _parseGeneration) {
+                setState(() {});
+              }
+            },
+            onError: (Object error, StackTrace stack) {
+              if (!mounted || generation != _parseGeneration) return;
+              _reportError(error, stack);
+              if (!synchronous) setState(() {});
+            },
+          );
+    } catch (error, stack) {
+      _reportError(error, stack);
+    } finally {
+      synchronous = false;
+    }
+  }
 
-        Future<void>.sync(
-          () => (debugResolveAnimatedImages ?? resolveImageNodes)(document),
-        ).then((_) => ready(), onError: (Object _, StackTrace _) => ready());
-      } else {
+  /// Continues a current parse through root-isolate image decoding and attach.
+  /// 将当前解析结果继续交给主 isolate 图片解码及挂载流程。
+  void _acceptParsed(
+    ({SvgDocument document, bool hasImages}) parsed,
+    int generation,
+  ) {
+    final document = parsed.document;
+    _document = document;
+    _ownsImages = parsed.hasImages;
+    _imagesReady = !parsed.hasImages;
+    if (parsed.hasImages) {
+      /// Finishes only the current generation's decode. / 仅结束当前代的解码。
+      void ready() {
+        if (!mounted || generation != _parseGeneration) {
+          _disposeImages(document);
+          return;
+        }
+        setState(() => _imagesReady = true);
         _attach(document);
       }
-    } catch (error, stack) {
-      _imagesReady = false;
-      _reportError(error, stack);
+
+      Future<void>.sync(
+        () => (debugResolveAnimatedImages ?? resolveImageNodes)(document),
+      ).then((_) => ready(), onError: (Object _, StackTrace _) => ready());
+    } else {
+      _attach(document);
     }
   }
 

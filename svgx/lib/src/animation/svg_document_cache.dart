@@ -15,7 +15,62 @@
 import 'dart:collection';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
+import 'document_parse_worker.dart';
 import 'svg_document_parser.dart';
+
+/// Worker cutoff in estimated opening tags. / worker 阈值，以估算开始标签计。
+/// Windows host, 55 SVGator samples, 2026-11-05: three full warm-up passes,
+/// then min-of-5 synchronous parses per source (no cache or file I/O timed).
+/// Windows 主机，55 个 SVGator 样本：整组预热三轮，再逐源取五次同步解析最小值，
+/// 计时不含缓存及文件读取。分桶如下 / Tags vs host parse time in ms:
+///
+/// | Tags / 标签 | Samples / 数量 | Median / 中位 | Range / 范围 |
+/// |-------------|----------------|---------------|--------------|
+/// | <50         | 41             | 0.364         | 0.155–2.557  |
+/// | 50–99       | 6              | 1.001         | 0.500–1.941  |
+/// | 100–199     | 4              | 3.233         | 0.840–6.458  |
+/// | 200–399     | 3              | 6.915         | 6.580–8.068  |
+/// | >=400       | 1              | 17.004        | 17.004       |
+///
+/// Fit: ms = 0.1249 + 0.01978 * tags (r=0.9663); 3ms predicts 145 tags.
+/// Choose 128 conservatively: a 131-tag source takes 4.099ms; all six >=3ms
+/// sources use the worker, while 48/55 sources stay local. Tags approximate
+/// parse cost, not rendered node count; long paths/text can still cost more.
+/// 回归的 3ms 点约为 145 标签；保守取 128，覆盖 131 标签却耗时 4.099ms 的样本。
+/// 全部六个 >=3ms 样本进入 worker，48/55 留在主线程。标签仅近似解析成本，
+/// 不等于渲染节点数；长路径或文本仍可能耗时较多。
+const documentParseWorkerNodeThreshold = 128;
+
+/// Delay before retrying failed worker startup. / worker 启动失败后的重试间隔。
+const _documentParseWorkerCooldown = Duration(seconds: 60);
+
+/// Counts `<` followed by an ASCII letter in one allocation-free character scan.
+/// Excludes closing tags, declarations and processing instructions; self-closing
+/// tags count once. Tag-like text inside comments/CDATA may slightly overcount.
+/// 单次遍历 codeUnits，不建子串或正则；只数 `<` 后跟 ASCII 字母的开始标签。
+/// 闭合标签、声明及处理指令不计，自闭合计一次；注释或 CDATA 内伪标签允许少量多计。
+@visibleForTesting
+int estimateDocumentParseNodeCount(String source) {
+  final units = source.codeUnits;
+  var count = 0;
+  for (var i = 0; i + 1 < units.length; i++) {
+    if (units[i] != 0x3c) continue;
+    final next = units[i + 1];
+    if ((next >= 0x41 && next <= 0x5a) || (next >= 0x61 && next <= 0x7a)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/// Maximum remembered root-only sources. / 最多记住的仅主线程源数量。
+const _maximumRootOnlySources = 256;
+
+/// Conservative image detection; false positives only keep work local.
+/// 保守检测图片；误命中只会让文档留在主线程。
+final _imageElement = RegExp(r'<(?:[^<>\s/:]+:)?image(?=[\s/>])');
 
 /// Process-wide bounded cache of parsed animated SVG documents, keyed by raw
 /// source string, with random eviction (see [maximumSize]).
@@ -48,6 +103,31 @@ class SvgxDocumentCache {
 
   final LinkedHashMap<String, SvgDocument> _entries =
       LinkedHashMap<String, SvgDocument>();
+
+  /// Shared futures for large, image-free sources. / 无图片大源共用的在途 Future。
+  final _inFlight =
+      <String, Future<({SvgDocument document, bool hasImages})>>{};
+
+  /// Bounded root-only memoization, independent of document eviction.
+  /// 有上限的仅主线程记忆，独立于文档缓存淘汰。
+  final _rootOnlySources = <String>{};
+
+  /// Prevents cleared caches being refilled by old work. / 防止旧请求重新填充已清空的缓存。
+  int _cacheGeneration = 0;
+
+  /// Startup failures temporarily bypass workers. / 启动失败后暂时绕过 worker。
+  DateTime? _workerUnavailableUntil;
+
+  /// One diagnostic per process, reset by tests. / 每进程仅打印一次，测试可重置。
+  bool _didLogWorkerUnavailable = false;
+
+  /// Injectable cooldown clock. / 可注入的冷却时钟。
+  @visibleForTesting
+  DateTime Function() debugWorkerClock = DateTime.now;
+
+  /// Injectable startup retry delay. / 可注入的启动重试间隔。
+  @visibleForTesting
+  Duration debugWorkerCooldown = _documentParseWorkerCooldown;
 
   /// Max cached documents before a randomly-chosen one is dropped (see
   /// [_evictOne]).
@@ -136,7 +216,82 @@ class SvgxDocumentCache {
     // 命中路径正是本类最热的路径。
     final hit = _entries[source];
     if (hit != null) return (document: hit, hasImages: false);
-    final document = parseAnimatedSvgDocument(source);
+    return _remember(source, parseAnimatedSvgDocument(source));
+  }
+
+  /// Returns [source]'s document and whether images still need decoding.
+  /// Cache hits and small sources complete synchronously; large image-free
+  /// sources parse in a persistent worker. Root-only UI operations retry on the
+  /// calling isolate and are remembered. Worker infrastructure failures retry
+  /// locally; startup failures also pause worker attempts for a cooldown.
+  /// Parse failures retain their original error. Initialize svgx's native
+  /// backend before calling this API.
+  /// Image documents stay uncached and require decoding on the root isolate.
+  /// Concurrent worker requests for the same source share a future.
+  ///
+  /// 返回 [source] 的文档与图片待解码标志。缓存命中及小源同步完成，无图片大源
+  /// 在常驻 worker 解析。仅主 isolate 支持的 UI 操作会重试并记住；worker 基础设施
+  /// 失败回退本地，启动失败另加冷却期；解析错误原样抛出。调用前须初始化原生后端。
+  /// 含图片文档不缓存，须在主 isolate 解码；同源并发 worker 请求共用 Future。
+  /// 适合大插画加载与启动预热。
+  ///
+  /// ```dart
+  /// final parsed = await SvgxDocumentCache.instance.getOrParseAsync(svgSource);
+  /// ```
+  Future<({SvgDocument document, bool hasImages})> getOrParseAsync(
+    String source,
+  ) {
+    final pending = _inFlight[source];
+    if (pending != null) return pending;
+    try {
+      if (_entries.containsKey(source) ||
+          _rootOnlySources.contains(source) ||
+          (_workerUnavailableUntil != null &&
+              debugWorkerClock().isBefore(_workerUnavailableUntil!)) ||
+          estimateDocumentParseNodeCount(source) <
+              documentParseWorkerNodeThreshold ||
+          _imageElement.hasMatch(source)) {
+        return SynchronousFuture(getOrParse(source));
+      }
+    } catch (error, stack) {
+      return Future.error(error, stack);
+    }
+    final generation = _cacheGeneration;
+    late final Future<({SvgDocument document, bool hasImages})> result;
+    result = _parseInWorker(source, generation).whenComplete(() {
+      if (identical(_inFlight[source], result)) _inFlight.remove(source);
+    });
+    _inFlight[source] = result;
+    return result;
+  }
+
+  /// Pre-parses [sources] sequentially, ignoring each failure and continuing.
+  /// Completes when all sources have been attempted; normal cache limits and
+  /// image exclusions apply. Initialize the native backend before calling.
+  ///
+  /// 逐个预解析 [sources]，忽略单项失败并继续；全部尝试后完成，沿用缓存上限和
+  /// 图片排除规则。调用前须初始化原生后端。
+  ///
+  /// ```dart
+  /// await SvgxDocumentCache.instance.prewarm(illustrations);
+  /// ```
+  Future<void> prewarm(Iterable<String> sources) async {
+    for (final source in sources) {
+      try {
+        await getOrParseAsync(source);
+      } catch (_) {
+        // Loading the asset later still reports its error normally.
+        // 稍后正式加载资产时仍会正常报告该错误。
+      }
+    }
+  }
+
+  /// Caches a fresh document using the same image exclusion on both paths.
+  /// 两条路径用相同的图片排除规则缓存新文档。
+  ({SvgDocument document, bool hasImages}) _remember(
+    String source,
+    SvgDocument document,
+  ) {
     final hasImages = documentHasImages(document);
     if (!hasImages) {
       _entries[source] = document;
@@ -145,6 +300,75 @@ class SvgxDocumentCache {
       }
     }
     return (document: document, hasImages: hasImages);
+  }
+
+  /// Retries UI restrictions and unavailable infrastructure on the root isolate.
+  /// UI 限制或基础设施不可用时在主 isolate 重试，解析错误保持原样。
+  Future<({SvgDocument document, bool hasImages})> _parseInWorker(
+    String source,
+    int generation,
+  ) async {
+    try {
+      final document = await DocumentParseWorker.instance.parse(source);
+      if (generation != _cacheGeneration) {
+        return (document: document, hasImages: documentHasImages(document));
+      }
+      final hit = _entries[source];
+      return hit != null
+          ? (document: hit, hasImages: false)
+          : _remember(source, document);
+    } on RootIsolateParseError {
+      if (_rootOnlySources.length >= _maximumRootOnlySources) {
+        _rootOnlySources.remove(
+          _rootOnlySources.elementAt(
+            _evictionRandom.nextInt(_rootOnlySources.length),
+          ),
+        );
+      }
+      _rootOnlySources.add(source);
+      return _parseOnRoot(source, generation);
+    } on DocumentParseWorkerUnavailable catch (error) {
+      if (error.shouldCooldown) {
+        _workerUnavailableUntil = debugWorkerClock().add(debugWorkerCooldown);
+      }
+      if (!_didLogWorkerUnavailable) {
+        _didLogWorkerUnavailable = true;
+        final reason = error.cause
+            .toString()
+            .replaceAll('\r', ' ')
+            .replaceAll('\n', ' ');
+        debugPrint(
+          'SVGX document parse worker unavailable '
+          '(${error.kind.name}: $reason); falling back to root parsing.',
+          wrapWidth: null,
+        );
+      }
+      return _parseOnRoot(source, generation);
+    }
+  }
+
+  /// A fallback must not refill a cleared cache. / 回退不得重新填充已清空的缓存。
+  ({SvgDocument document, bool hasImages}) _parseOnRoot(
+    String source,
+    int generation,
+  ) {
+    if (generation == _cacheGeneration) return getOrParse(source);
+    final document = parseAnimatedSvgDocument(source);
+    return (document: document, hasImages: documentHasImages(document));
+  }
+
+  /// Stops background work and clears asynchronous memoization for tests.
+  /// 测试用：停止后台工作并清空异步记忆。
+  @visibleForTesting
+  Future<void> debugResetAsyncParsing() async {
+    await DocumentParseWorker.instance.dispose();
+    _rootOnlySources.clear();
+    _inFlight.clear();
+    _workerUnavailableUntil = null;
+    _didLogWorkerUnavailable = false;
+    debugWorkerClock = DateTime.now;
+    debugWorkerCooldown = _documentParseWorkerCooldown;
+    clear();
   }
 
   /// Random source for [_evictOne]. Seeded deterministically so a debugging
@@ -195,7 +419,10 @@ class SvgxDocumentCache {
   /// Clears the cache (used by tests / low-memory handlers).
   ///
   /// 清空缓存（供测试 / 低内存处理调用）。
-  void clear() => _entries.clear();
+  void clear() {
+    _cacheGeneration++;
+    _entries.clear();
+  }
 
   /// Number of parsed documents currently held. / 当前缓存的已解析文档数量。
   ///

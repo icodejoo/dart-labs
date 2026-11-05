@@ -211,4 +211,11 @@ SvgxAnimated.string(src,
 - 按源码长度设阈值,超过阈值的走异步路径;复用控件已有的"占位 + 就绪后开跑"状态机(`_imagesReady`),配合 `onLoaded`。
 - 提供公开的预热 API(`SvgxDocumentCache` 异步预解析)。
 
+**后台 isolate spike 结果(2026-11-05,Windows x64,`flutter test`,副本实验,未改仓库)**:
+- **`ui.Path` 在后台 isolate 无法创建**(`UI actions are only available on root isolate`,调用点 `parseSvgPathData` → `new Path()`)。凡含运动路径(`animateMotion`、CSS `offset-path`)或需要 `ui.Path` 的路径解析的文档,后台解析必然失败:55 个 SVGator 样本 7 个失败(含最慢前几名的 156、104、221),真实 SMIL 图标样本约 6/21 失败。159、109 能成功。
+- **Rust FFI**:后台 isolate 不初始化时不会报错,而是**静默降级成 null**,与主 isolate 结果不一致(语料对照出现 1250 处差异);默认初始化或传绝对路径的 `RustLib.init` 在后台可用。必须在 worker 里显式初始化并断言。
+- **回传**:刚解析完的文档可以用复制或 `Isolate.exit` 回传;若节点上已缓存了 `cachedGeometry`(`ui.Path`),则不可发送。成功的文档与主 isolate 解析结果逐像素、逐采样、事件均等价(1104 个像素对照、13180 个采样点、1380 个事件)。
+- **成本**:159.svg 主线程同步解析 min 28ms / 中位 46ms;后台总耗时相近,但主线程只承担接收:复制约 2.4~5.7ms,`Isolate.exit` 约 1.6~4.4ms,根 isolate 定时器间隙 ≤约 3ms。每次新起 isolate 的首次冷启动总耗时约 230~250ms(初始化约 29ms,冷解析约 200ms),需要常驻 worker 摊销。
+- **结论**:直接把现有解析搬进 isolate 不可行,卡在 `ui.Path`。可选路线见聊天记录/下一步决策。
+
 同一轮的单图标稳态 ARM 补测(`LIB=one_anim`)只有 1 次有效,另 2 次因设备被占用出现 0 帧阶段,作废。这 1 次的边际成本:普通图标 UI 约 257µs、GPU 约 47µs;带 mask 的图标 UI 约 311µs、GPU 约 285µs。16 个带 mask 的图标同屏仍是 60fps,UI 和 GPU 各占约 30% 的帧预算。待补 2 次后再写入 `performance-benchmarks.md`。

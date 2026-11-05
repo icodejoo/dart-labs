@@ -43,6 +43,15 @@
   Same-named animations on different elements each emit their own events;
   CSS names remain separate from SMIL syncbase ids. Sampling is unchanged.
 
+* Add `SvgxDocumentCache.getOrParseAsync` and sequential, failure-tolerant
+  `prewarm`. Image-free sources with at least 128 estimated opening tags use a
+  persistent parser isolate with native color/transform checks and shared in-flight work.
+  Root-isolate-only UI operations retry synchronously and are remembered;
+  unavailable workers fall back to synchronous parsing, with a 60-second
+  cooldown after initialization or spawn failures. Parse errors propagate.
+  `SvgxAnimated` shows a sized placeholder until ready,
+  preserves synchronous small-source frames and rejects stale completions.
+
 * Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
   play/pause/stop/seek, finite signed playback rates, reversible completion,
   once/loop/ping-pong ranges, duration fitting, cues and playback/element events.
