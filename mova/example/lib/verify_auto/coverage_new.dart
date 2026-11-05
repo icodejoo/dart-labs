@@ -641,7 +641,7 @@ Future<void> hls(Map<String,String> args) async {
   var qualitySeen = false;
   var gateMs = -1;
   Future<bool> variantReady() async {
-    final path = await native.getProperty('path');
+    final path = (await native.getProperty('path')).split('#').first;
     if (qualitySeen && a.state.duration > Duration.zero && path == expectedUri) {
       if (gateMs < 0) {
         gateMs = c.clock.elapsedMilliseconds;
@@ -667,7 +667,7 @@ Future<void> hls(Map<String,String> args) async {
     final run = iteration;
     pending = pending.then((_) async {
       final p = await position();
-      final path = await native.getProperty('path');
+      final path = (await native.getProperty('path')).split('#').first;
       await variantReady();
       final eligible = gateMs >= 0 && path == expectedUri;
       restarts.add(p);

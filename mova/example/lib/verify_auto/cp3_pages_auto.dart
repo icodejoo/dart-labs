@@ -415,7 +415,8 @@ Future<void> runHeaders(Cp3Harness h) async {
                 await h.until(() async {
                   final read = await h.native();
                   observation['selectedNative'] = read;
-                  selectedPath = read['path'] as String?;
+                  // mova 给带头网络源追加 #mova-load=N 隔离进程级缓存，比较时去掉。
+                  selectedPath = (read['path'] as String?)?.split('#').first;
                   return selectedPath == expected;
                 }, seconds: 10);
               }
