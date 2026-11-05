@@ -165,7 +165,7 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 - 真机：CP3 headers 15/15（R1/R2/R3，夹具需去掉  片段后比较）、fullscreen 10/10（R5）、feedplayer 15/15（R4）；CP2：adpaths 39/40（hls.pod.3 续播落点偏 823ms）、adpause/adbg/pod2/playlist3/bgowner/audioonly-bg/qoe 全过、rate 10/10（R6，上轮 5 FAIL）、warmmute 15/15、v9 5/5（撤闸门后）、liveedge 5/5、events 5/5、pip 4/5（run0 ，疑首次调用时 pipSupported 异步未就绪，未证实）。
 - 补测（手机归还后）：R7 新增 CP2 `qoepause` 场景（卡顿进行中暂停 30 秒再恢复），5/5 通过，`stallMs` 283–946ms，不含暂停期；pip 复测 5/5，上次 run0 `enterPip=false` 未复现，按首次调用波动记录。
 - B1 两种方案都被真机证伪，已撤销并关闭：① START_FILE 起始闸门（HE V9 1/5）；② 按 `playlist_entry_id` 过滤 id 严格更小的 END_FILE（失败开放，单测过，但 cp1-recovery 开启后 16 项通过即夹具超时，关闭后 20/20；cp1-errclass 15/15、he-recovery V5/V6 3/3 不受影响）。根因未查明（怀疑 `playlist/0/id` 与 END_FILE 的 id 在换档/恢复重载时关系不是单调的假设）。要重开需先在真机上打日志对照两类 id。补充事实（读 media_kit 1.2.6 `real.dart`）：`Player.open` = `stop` → `playlist-clear` → `loadlist append` → `playlist-play-index`，旧文件先被显式 stop（END_FILE 原因为 stop，不是 error）；B1 的误归属只可能发生在 `discardPending()` 到 `stop` 生效之间（首次 open 时要先等视频控制器就绪，窗口最长），后果是新尝试多一次误判重试。
-- adpaths 重跑两次都是 39/40，失败项每次不同（hls.pod.3 +823ms、hls.mid.4 -600ms），其余 HLS 样本 ±80ms 内，判为 HLS 切片粒度抖动，非确定性回归。
+- **C6 已回滚**：C6 修复（中插预热期间正片自然结束/终结失败不被吞）上机后 CP2 adpaths 三次都是 39/40（HLS 续播离群 +823/-600/-600ms），基线 2 次与「仅回退 C6」1 次均 40/40，回滚 C6 后 HEAD 再跑 40/40，确认该改动在 HLS 中插路径引入回归（机理未查明）。C6 仍是未修的窄窗口缺陷：要重做需先在真机上复现「中插预热期间正片 EOF」并保证 adpaths 不回退。
 - iOS 无 Mac，无法验证。
 
 ## 4. 真机复验（未做，优先级最高）
