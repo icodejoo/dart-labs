@@ -605,12 +605,6 @@ class AnimatedSvgPainter extends CustomPainter {
                 (style.stroke != null || style.strokeGradientId != null) &&
                 style.strokeOpacity > 0 &&
                 style.strokeWidth > 0));
-    if (opacityLayer) {
-      canvas.saveLayer(
-        null,
-        Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
-      );
-    }
     final needsClipMaskSave =
         clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
@@ -622,11 +616,20 @@ class AnimatedSvgPainter extends CustomPainter {
       canvas.save();
       _applyOwnTransform(canvas, node);
     }
-    // Install clipping outside the filter layer so it clips the filtered
-    // result, in the node's coordinate system. Mask wraps that whole result.
-    if (maskDef != null) canvas.saveLayer(null, Paint());
+    // Install clips before ALL effect layers, in the node's coordinate system.
+    // A layer's final composite uses the clip active when it was opened; a clip
+    // added inside the layer only constrains its draws. No render pass is added.
+    // 在节点坐标系中先装裁剪，再开所有效果图层。图层最终合成使用开层时的父级
+    // 裁剪；层内追加的裁剪只约束层内绘制。不增加渲染通道。
     if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
     if (maskClip != null) canvas.clipPath(maskClip);
+    if (opacityLayer) {
+      canvas.saveLayer(
+        null,
+        Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
+      );
+    }
+    if (maskDef != null) canvas.saveLayer(null, Paint());
     if (hasBlur) {
       canvas.saveLayer(
         null,
@@ -648,9 +651,9 @@ class AnimatedSvgPainter extends CustomPainter {
     );
     if (hasBlur) canvas.restore();
     if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+    if (opacityLayer) canvas.restore();
     if (hasOwnTransform) canvas.restore();
     if (needsClipMaskSave) canvas.restore();
-    if (opacityLayer) canvas.restore();
   }
 
   /// 判断组的 opacity 能否下推到单笔叶子而不开 saveLayer。
@@ -798,7 +801,12 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
   /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
   void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
-    canvas.saveLayer(null, _maskCoveragePaint(_isAlphaMask(maskDef)));
+    final alpha = _isAlphaMask(maskDef);
+    canvas.saveLayer(null, _maskCoveragePaint(alpha));
+    // Flatten luminance content over black so unpremultiplied RGB includes
+    // its alpha before the matrix reads it, matching the static renderer.
+    // 亮度内容先合成到黑底，使矩阵读取的非预乘 RGB 包含内容 alpha，与静态路径一致。
+    if (!alpha) canvas.drawColor(const Color(0xff000000), BlendMode.src);
     // 当前画布已位于被遮罩节点自己的坐标系（含其自身 transform）。
     canvas.save();
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);

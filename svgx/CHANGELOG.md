@@ -218,6 +218,12 @@
   Approximate to-only transforms with per-type identities; other-animation
   composition and by-animations remain unsupported.
 
+* Install element clips before opacity/mask/filter layers in the animated
+  renderer, so their composites honor the clip; no offscreen passes added.
+
+* Fix animated luminance masks ignoring content alpha, including opacity and
+  color-alpha animations, by compositing onto black within the existing layer.
+
 ## 0.1.1
 
 * Docs: completed dartdoc coverage on the full public API surface; README no

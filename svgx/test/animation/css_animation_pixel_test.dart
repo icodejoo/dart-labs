@@ -125,7 +125,7 @@ rect{animation:a 1s linear infinite alternate}</style>$_rect''');
       }
     }
   });
-  test('M2 已知限制：mask 内 opacity 正确采样但透过区域仍不透明', () async {
+  test('M2 mask 内 CSS opacity 动画改变覆盖度', () async {
     final doc = parsePixelDoc('''<style>
 @keyframes a{from{opacity:0}to{opacity:1}}.fade{animation:a 1s linear}
 </style><defs><mask id="m"><rect class="fade" width="20" height="20" fill="#fff"/>
@@ -133,12 +133,13 @@ rect{animation:a 1s linear infinite alternate}</style>$_rect''');
     final track = doc.masks['m']!.children.single.animations.single;
     expect(track.sample(_at(250)), .25);
     expect(track.sample(_at(750)), .75);
-    // 最小复现：矩形遮罩的 opacity 从 0 到 1，当前 painter 仍按不透明区域处理。
+    // Sampled opacity must contribute to luminance coverage.
+    // 采样后的 opacity 必须计入亮度 mask 的覆盖度。
     final early = await renderAt(doc, _at(250));
     final late = await renderAt(doc, _at(750));
     for (var x = 2; x < 18; x++) {
-      expect(alphaAt(early, x, 10), 255);
-      expect(alphaAt(late, x, 10), 255);
+      expect(alphaAt(early, x, 10), 64);
+      expect(alphaAt(late, x, 10), 191);
     }
   });
   test('阶段四：fill 颜色通道生效，动画结束后回到静态外观', () async {
