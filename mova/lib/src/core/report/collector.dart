@@ -109,6 +109,11 @@ class MovaQoeCollector {
   int _stallIndex = 0;
   bool _lastStalled = false;
   bool _playing = false;
+
+  /// Playback has landed, independently of whether TTFF is measured.
+  ///
+  /// 播放已落地，与是否测量 TTFF 相互独立。
+  bool _landed = false;
   Timer? _heartbeatTimer;
 
   /// The most recent native `MPV_EVENT_END_FILE` reason for the current
@@ -180,6 +185,7 @@ class MovaQoeCollector {
     _stallIndex = 0;
     _lastStalled = false;
     _playing = false;
+    _landed = false;
     _lastEndFileReason = null;
     _validMaxPositionMs = 0;
     _lastFfmpegErrorAt = null;
@@ -312,7 +318,7 @@ class MovaQoeCollector {
     final at = _now();
     _tally.tick(at);
     if (!_config.qoe) return;
-    if (_ttff.wasArmed && !_ttff.landed) {
+    if (_ttff.wasArmed && !_landed) {
       final armedAt = _ttff.armedAt;
       _emit(MovaReportEvent(
         kind: MovaReportKind.error,
@@ -330,6 +336,9 @@ class MovaQoeCollector {
     _sessionId = null;
   }
 
+  /// Reports the session outcome using playback landing and valid positions.
+  ///
+  /// 根据播放落地状态和有效位置上报会话结果。
   void _emitSessionEnd(DateTime at) {
     // 2026-09-29 架构更新：优先用原生 `MPV_EVENT_END_FILE` 原因佐证（未到达时
     // 严格退化为旧的 resolveSessionEnd 行为，见 resolveSessionEndNative 文档）。
@@ -337,7 +346,7 @@ class MovaQoeCollector {
       nativeReason: _lastEndFileReason,
       fatalSeen: _fatalSeen,
       completed: _completed,
-      firstFrame: _ttff.landed,
+      firstFrame: _landed,
     );
     var reason = baseReason;
     if (baseReason == MovaSessionEnd.ended &&
@@ -397,7 +406,7 @@ class MovaQoeCollector {
     if (!_sessionOpen || !_config.qoe) return;
     if (_seekBuffering && !_lastStalled) _seekBuffering = false;
     _tally.recordPosition(position);
-    if (_ttff.landed && position.inMilliseconds > _validMaxPositionMs) {
+    if (_landed && position.inMilliseconds > _validMaxPositionMs) {
       _validMaxPositionMs = position.inMilliseconds;
     }
     if (_nativeRestartLive) return;
@@ -539,9 +548,14 @@ class MovaQoeCollector {
         _seekBuffering = true;
       case MovaPlay():
         _tally.tick(at);
-        // 首帧落地前不计观看时长：失败/迟迟起不来的源 playing 意图为 true，但没在看。
+        // Playing can rise before the first frame; only first-frame or native
+        // RESTART signals land manual playback accounting.
+        //
+        // 播放态可能早于首帧上升；手动起播只由首帧或原生 RESTART 信号落地记账。
         _playing = true;
         _syncPlaying();
+      case MovaFirstFrame():
+        _landManualPlayback(at);
       case MovaPause():
         _tally.tick(at);
         _tally.setPlaying(false);
@@ -605,38 +619,58 @@ class MovaQoeCollector {
   void _onRestart() {
     if (!_config.qoe) return;
     final at = _now();
+    _landManualPlayback(at);
     final elapsed = _ttff.onNativeRestart(at);
     if (elapsed == null) return;
     _emitFirstFrame(elapsed, at, signal: 'restart');
   }
 
-  /// Feeds the tally's playing flag: watch time only accrues once the first
-  /// frame has landed (a failing/never-starting source has a `playing` intent
-  /// but isn't being watched).
+  /// Uses native RESTART exclusively for TTFF when its subscription is live.
   ///
-  /// 同步 tally 的播放态：首帧落地后才计观看时长（失败/起不来的源有 playing
-  /// 意图，但并没有在看）。
   /// 原生 RESTART 订阅在工作时，TTFF 只认它（buffering/位置兜底更早但更粗）。
   bool get _nativeRestartLive => _probe?.nativeRestartAvailable ?? false;
 
-  void _syncPlaying() => _tally.setPlaying(_playing && _ttff.landed);
-
-  void _emitFirstFrame(Duration elapsed, DateTime at, {required String signal}) {
+  /// Enables manual-play accounting without emitting an autoplay TTFF.
+  ///
+  /// 启用手动起播的统计，不发出自动起播 TTFF。
+  void _landManualPlayback(DateTime at) {
+    if (!_sessionOpen || _ttff.wasArmed || _landed) return;
     _tally.tick(at);
+    _landed = true;
     _syncPlaying();
-    _emit(MovaReportEvent(
-      kind: MovaReportKind.event,
-      name: MovaReportName.firstFrame,
-      params: {
-        'ttffMs': elapsed.inMilliseconds,
-        'audioOnly': _audioOnly,
-        'streamType': _streamType == MovaStreamType.live ? 'live' : 'vod',
-        'signal': signal,
-      },
-      priority: MovaReportPriority.immediate,
-      at: at,
-      sessionId: _sessionId,
-    ));
+  }
+
+  /// Applies playback and landing state to watch-time accounting.
+  ///
+  /// 将播放与落地状态同步给观看计时。
+  void _syncPlaying() => _tally.setPlaying(_playing && _landed);
+
+  /// Lands autoplay accounting and emits its measured TTFF once.
+  ///
+  /// 落地自动播放统计，并发出单次 TTFF 测量。
+  void _emitFirstFrame(
+    Duration elapsed,
+    DateTime at, {
+    required String signal,
+  }) {
+    _tally.tick(at);
+    _landed = true;
+    _syncPlaying();
+    _emit(
+      MovaReportEvent(
+        kind: MovaReportKind.event,
+        name: MovaReportName.firstFrame,
+        params: {
+          'ttffMs': elapsed.inMilliseconds,
+          'audioOnly': _audioOnly,
+          'streamType': _streamType == MovaStreamType.live ? 'live' : 'vod',
+          'signal': signal,
+        },
+        priority: MovaReportPriority.immediate,
+        at: at,
+        sessionId: _sessionId,
+      ),
+    );
   }
 
   /// Handles a native `MPV_EVENT_END_FILE` reason — recorded for
@@ -655,6 +689,9 @@ class MovaQoeCollector {
 
   void _onStalling(bool stalled) => _onStallObservation(stalled, _now(), signal: 'cache');
 
+  /// Counts rebuffering only after playback has landed.
+  ///
+  /// 仅在播放落地后统计卡顿。
   void _onStallObservation(bool stalled, DateTime at, {required String signal}) {
     if (!_sessionOpen) return;
     if (_seekBuffering) {
@@ -670,7 +707,7 @@ class MovaQoeCollector {
     //
     // 首帧之前的卡顿属于起播耗时，不是卡顿——由 TTFF 计费，绝不重复计费
     // （见 §D2）。
-    if (!_ttff.landed) return;
+    if (!_landed) return;
     _tally.tick(at);
     _tally.setStalled(stalled);
     final policy = _stallPolicy;
@@ -699,6 +736,9 @@ class MovaQoeCollector {
     _pendingLogAt = _now();
   }
 
+  /// Preserves engine error classification, using logs for missing details.
+  ///
+  /// 保留引擎的错误分级，仅用日志补全缺失信息。
   void _onError(MovaErrorEvent event) {
     final at = _now();
     if (!_config.qoe) {
@@ -724,13 +764,21 @@ class MovaQoeCollector {
     }
     _pendingLog = null;
     _pendingLogAt = null;
-    final verdict = _errorPolicy.classify(event.error, subsystem: subsystem, afterFirstFrame: _ttff.landed);
-    if (verdict.fatal) _fatalSeen = true;
+    final verdict = event.code != null
+        ? MovaErrorVerdict(fatal: event.fatal, code: event.code!)
+        : _errorPolicy.classify(
+            event.error,
+            subsystem: subsystem,
+            afterFirstFrame: _landed,
+          );
+    final fatal = event.fatal || verdict.fatal;
+    final code = event.code ?? verdict.code;
+    if (fatal) _fatalSeen = true;
     _emit(MovaReportEvent(
       kind: MovaReportKind.error,
       name: MovaReportName.error,
-      params: {'error': event.error.toString(), 'fatal': verdict.fatal, 'code': verdict.code},
-      priority: verdict.fatal ? MovaReportPriority.immediate : MovaReportPriority.batched,
+      params: {'error': event.error.toString(), 'fatal': fatal, 'code': code},
+      priority: fatal ? MovaReportPriority.immediate : MovaReportPriority.batched,
       at: at,
       sessionId: _sessionId,
     ));
