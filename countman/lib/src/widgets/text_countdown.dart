@@ -34,6 +34,7 @@ class TextCountdown extends StatelessWidget {
     this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.fps,
     this.precise = false,
     this.total,
     this.rounding = CountdownRounding.floor,
@@ -47,7 +48,10 @@ class TextCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
@@ -84,6 +88,10 @@ class TextCountdown extends StatelessWidget {
 
   /// Optional [Countdown] group. Defaults to [defaultCountdown].
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Drive on the shared precise group ([defaultCountdownMs], `interval: 0`)
   /// so sub-second formatters update every frame. Ignored when [plugin] or a
@@ -140,6 +148,7 @@ class TextCountdown extends StatelessWidget {
     final number = CountdownBuilder(
       to: to,
       plugin: plugin,
+      fps: fps,
       precise: precise,
       total: total,
       rounding: rounding,

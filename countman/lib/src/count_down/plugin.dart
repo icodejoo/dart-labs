@@ -4,6 +4,7 @@ import 'package:countman/src/core/ticker.dart';
 import 'package:flutter/foundation.dart';
 
 import 'types.dart';
+import '../core/fps.dart';
 
 export 'package:countman/src/controllers/countdown_controller.dart';
 
@@ -13,6 +14,24 @@ class CountdownHandle {
 
   final int _id;
   final Countdown _plugin;
+
+  /// 同步组件帧率配置；不重启任务或改变用户暂停状态。
+  @internal
+  set fps(double? value) {
+    final task = _plugin.task(_id);
+    if (task != null) _plugin.setTaskFps(task, value);
+  }
+
+  /// 由组件同步可见性；不触发暂停/恢复回调。
+  @internal
+  set muted(bool value) {
+    final task = _plugin.task(_id);
+    if (task != null) _plugin.setMuted(task, value);
+  }
+
+  /// 当前任务的静音状态，供插件迁移使用。
+  @internal
+  bool get muted => _plugin.task(_id)?.muted ?? false;
 
   /// Freeze the countdown at its current remaining time.
   void pause() {
@@ -119,9 +138,9 @@ class CountdownHandle {
 /// 倒计时引擎：每帧共用时钟快照，完成与阈值不受显示间隔延迟。
 class Countdown extends ClockPlugin<CountdownTask> {
   /// [name] 为诊断名称（不同实例请用唯一名称），[interval] 为显示间隔毫秒，
-  /// [clock] 为时间源（默认 [CountmanClock.system]）。
+  /// [clock] 为时间源（默认 [CountmanClock.system]）；[fps] 为可空显示上限，null 继承全局。
   /// 例如 `Countdown(name: 'auction', interval: 100)`。
-  Countdown({String? name, super.interval, super.clock})
+  Countdown({String? name, super.interval, super.clock, super.fps})
     : super(name ?? 'countdown');
 
   /// 剩余微秒：暂停时取冻结值，否则用本帧快照；负值钳为 0。
@@ -202,7 +221,11 @@ class Countdown extends ClockPlugin<CountdownTask> {
 
   /// 添加一个倒计时并返回句柄；`opts.duration` 按单调钟锚定，
   /// `opts.deadline` 按墙钟锚定。
-  CountdownHandle add(CountdownOptions opts) {
+  CountdownHandle add(CountdownOptions opts) => addMuted(opts);
+
+  /// 以指定静音状态直接入队，避免隐藏组件首帧投递显示回调。
+  @internal
+  CountdownHandle addMuted(CountdownOptions opts, {bool muted = false}) {
     final id = nextId();
     final c = clock;
     final deadline = opts.deadline;
@@ -234,7 +257,8 @@ class Countdown extends ClockPlugin<CountdownTask> {
         onCancel: opts.onCancel,
         onPause: opts.onPause,
         onResume: opts.onResume,
-      ),
+      )..fps = validFps(opts.fps)
+      ..muted = muted,
     );
     return CountdownHandle._(id, this);
   }

@@ -202,6 +202,7 @@ class OdometerCounter extends StatelessWidget {
     this.allowNegative = false,
     @Deprecated('No effect; use AnimatedCounter directly')
     this.plugin,
+    this.fps,
     @Deprecated('No effect; use AnimatedCounter directly')
     this.controller,
     this.style,
@@ -223,7 +224,11 @@ class OdometerCounter extends StatelessWidget {
     this.bounceOvershoot = 0.0,
     @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
-  })  : assert(bounceOvershoot >= 0.0),
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(bounceOvershoot >= 0.0),
         assert(bounceElasticity >= 1.0);
 
   /// Start value (default 0).
@@ -257,6 +262,10 @@ class OdometerCounter extends StatelessWidget {
   // 已失效，仅保留源码兼容性。
   @Deprecated('No effect; use AnimatedCounter directly')
   final Counter? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Inert (source compatibility only).
   ///
@@ -369,6 +378,8 @@ class OdometerCounter extends StatelessWidget {
     final int wholeDigits = maxAbs == 0 ? 1 : maxAbs.toString().length;
 
     final Widget counter = AnimatedCounter(
+      plugin: plugin,
+      fps: fps,
       initialValue: safeFrom,
       value: safeTo,
       // Honor the OS "reduce motion" flag, like CounterBuilder / CardCountdown.

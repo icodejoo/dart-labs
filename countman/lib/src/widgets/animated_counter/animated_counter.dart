@@ -45,6 +45,7 @@ import 'types.dart';
 import 'counter_format.dart';
 import 'counter_timeline.dart';
 import '../style_support.dart';
+import '../hidden_task_state.dart';
 import '../reduce_motion.dart';
 import '../animate_once.dart';
 import '../countman_theme.dart';
@@ -109,6 +110,7 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.value,
     super.controller,
     super.plugin,
+    super.fps,
     super.animateOnce,
     @Deprecated('改用 timeline: CounterTimeline(duration: ...)')
     super.duration,

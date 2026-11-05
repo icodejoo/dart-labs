@@ -4,6 +4,8 @@ import 'clock.dart';
 import 'ticker.dart';
 import 'time_parts.dart';
 import 'types.dart';
+import 'sleep_hint.dart';
+import 'fps.dart';
 
 /// Base state for a single task owned by a [TaskQueuePlugin].
 ///
@@ -14,6 +16,22 @@ abstract class CountmanTask {
   CountmanTask(this.id, {this.onReady, this.onStart, this.onCancel});
 
   final int id;
+
+  /// 实例显示上限；null 继续查找插件与全局。
+  @internal
+  double? fps;
+
+  /// 上次显示更新的单调钟微秒；-1 表示下一帧立即显示。
+  @internal
+  int lastEmitMicros = -1;
+
+  /// 下一次显示的计划时刻；按固定网格推进，不追发错失时隙。
+  @internal
+  int nextAllowedMicros = -1;
+
+  /// 网格所用间隔；配置变化时重新锚定。
+  @internal
+  int framePeriodMicros = 0;
 
   /// Set true after the task's first active frame renders its initial value.
   /// Cleared on re-anchor (e.g. counter retarget) so the next frame renders
@@ -31,6 +49,10 @@ abstract class CountmanTask {
 
   /// Set true once the task has completed and should be removed.
   bool done = false;
+
+  /// 是否抑制显示更新；静音独立于暂停，不改变逻辑时钟与运行状态。
+  @internal
+  bool muted = false;
 
   /// Re-anchor the task: make the next active frame render the current state
   /// WITHOUT advancing time (dt), and WITHOUT re-firing [onStart]. Used by
@@ -79,8 +101,53 @@ abstract class CountmanTask {
 /// always safe.
 /// 共享任务队列骨架，逐任务隔离回调异常并保证终态清理。
 abstract class TaskQueuePlugin<T extends CountmanTask>
-    implements CountmanPlugin {
-  TaskQueuePlugin(this.name);
+    implements CountmanPlugin, CountmanSleepHint {
+  /// [name] 为诊断名，[fps] 为帧/秒上限；null 继承全局。示例：`super('group', fps: 30)`。
+  TaskQueuePlugin(this.name, {double? fps}) : _fps = validFps(fps);
+
+  /// 插件显示刷新上限，返回帧/秒；null 继承全局。示例：`Counter(fps: 30)`。
+  double? get fps => _fps;
+
+  /// 构造时已校验的插件上限。
+  final double? _fps;
+
+  /// 解析实例 > 插件 > 全局；0 表示不限，静音路径不读取此值。
+  @internal
+  int frameIntervalOf(T task) {
+    final period = fpsIntervalMicros(task.fps ?? fps ?? Countman.fps);
+    return period <= vsyncPeriodMicros() * 1.05 ? 0 : period;
+  }
+
+  /// 半个 vsync 容差，仅用于显示限帧，不提前桶边界或时间事件。
+  @internal
+  int get frameToleranceMicros => vsyncPeriodMicros() ~/ 2;
+
+  /// 当前网格时刻；运行时改配置令下一帧重建网格。
+  @internal
+  int allowedFrameMicros(T task, int period) => task.framePeriodMicros == period
+      ? task.nextAllowedMicros : -1;
+
+  /// 消费当前时隙；按网格跳过已错失或已进入容差的时隙，避免追帧。
+  @internal
+  void recordFrameEmit(T task, int now, int period) {
+    var next = task.nextAllowedMicros;
+    if (next < 0 || task.lastEmitMicros < 0 || task.framePeriodMicros != period) {
+      next = now;
+    }
+    task.nextAllowedMicros = next +
+        ((now + frameToleranceMicros - next) ~/ period + 1) * period;
+    task.framePeriodMicros = period;
+    task.lastEmitMicros = now;
+  }
+
+  /// 动态同步组件上限，不重启任务；显示回调仍在逐任务边界内。
+  @internal
+  void setTaskFps(T task, double? value) {
+    task.fps = validFps(value);
+    task.lastEmitMicros = -1;
+    task.nextAllowedMicros = -1;
+    ctx.requestFrame();
+  }
 
   @override
   final String name;
@@ -116,6 +183,15 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
 
   int _uid = 0;
   bool _ticking = false;
+
+  /// 最早唤醒是否来自未限帧的可见任务；限帧与静音等待走 Timer。
+  bool _useFrameWindow = false;
+
+  /// 只对最早唤醒决定是否使用 20ms 连续排帧窗口。
+  @override
+  @internal
+  bool get useFrameWindow => _useFrameWindow;
+
   final List<T> _pendingAdd = <T>[];
   final List<int> _pendingRemove = <int>[];
 
@@ -194,6 +270,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
   @protected
   void enqueue(T task) {
     _ensureUsable();
+    vsyncPeriodMicros(refresh: true);
     if (!_attached) Countman.use(this);
     final wasIdle = tasks.isEmpty && _pendingAdd.isEmpty;
     if (_ticking) {
@@ -262,6 +339,15 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     return null;
   }
 
+  /// 设置任务静音并使旧帧失效；不改变任务集合或暂停状态。
+  @internal
+  void setMuted(T task, bool muted) {
+    if (task.done || task.muted == muted) return;
+    task.muted = muted;
+    task.revision++;
+    ctx.requestFrame();
+  }
+
   // ── overridable hooks ─────────────────────────────────────────────
 
   /// 每帧在任务循环前调用一次，用于读取本帧共享的时钟快照等；默认无操作。
@@ -315,6 +401,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
     }
 
     var wake = CountmanPlugin.idle;
+    _useFrameWindow = false;
     _ticking = true;
     try {
       for (var li = 0; li < _live.length; li++) {
@@ -326,7 +413,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
           if (!task.started) {
             task.started = true;
             final revision = task.revision;
-            renderInitial(task);
+            if (!task.muted) renderInitial(task);
             // 初值回调可取消、暂停或重定目标；不继续发送旧版本的 start。
             if (task.done ||
                 task.isPaused ||
@@ -361,7 +448,13 @@ abstract class TaskQueuePlugin<T extends CountmanTask>
             final delay = task.started
                 ? nextWake(task)
                 : CountmanPlugin.nextFrame;
-            if (wake == CountmanPlugin.idle || delay < wake) wake = delay;
+            if (delay >= 0 && (wake == CountmanPlugin.idle || delay < wake)) {
+              wake = delay;
+              _useFrameWindow = !task.muted && frameIntervalOf(task) == 0;
+            } else if (delay >= 0 && delay == wake && !task.muted &&
+                frameIntervalOf(task) == 0) {
+              _useFrameWindow = true;
+            }
           }
         }
       }
@@ -497,7 +590,7 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// [interval] 为显示更新间隔（毫秒，0 或负数表示每帧）；[clock] 为时间源，
   /// 为空时使用 [CountmanClock.system]（每次读取时解析，便于测试整体替换）。
   /// 例如 `Countdown(name: 'ms', interval: 0, clock: ManualCountmanClock())`。
-  ClockPlugin(super.name, {this.interval = 1000, CountmanClock? clock})
+  ClockPlugin(super.name, {this.interval = 1000, CountmanClock? clock, super.fps})
     : _clock = clock,
       _intervalMicros = interval * Duration.microsecondsPerMillisecond;
 
@@ -567,16 +660,34 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// 同时记录发出时的显示桶。
   @protected
   void emit(T task) {
+    if (task.muted) return;
     final value = valueMicrosOf(task);
+    final period = frameIntervalOf(task);
+    if (period > 0) recordFrameEmit(task, frameMonotonicMicros, period);
     task.lastBucket = _bucketOf(task, value);
     task.parts.setMicros(displayMicrosOf(task, value), totalOf(task));
     task.onUpdate?.call(task.parts);
   }
 
+  /// 取消静音时作废显示桶，下一帧必须推送当前值；不重新锚定。
+  @override
+  @internal
+  void setMuted(T task, bool muted) {
+    if (!muted && task.muted) {
+      task.lastBucket = -1;
+      task.lastEmitMicros = -1;
+      task.nextAllowedMicros = -1;
+    }
+    super.setMuted(task, muted);
+  }
+
   /// 首帧先发初值，保持初值更新在 onStart 之前。
   @override
   @protected
-  void renderInitial(T task) => emit(task);
+  void renderInitial(T task) {
+    task.nextAllowedMicros = -1;
+    emit(task);
+  }
 
   /// 初值与 onStart 后立即检查到期和阈值，不重复发初值。
   @override
@@ -611,23 +722,44 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
     }
 
     if (initial) return;
-    if (_intervalMicros <= 0 ||
-        _bucketOf(task, valueMicrosOf(task)) != task.lastBucket) {
+    if (task.muted) return;
+    final period = frameIntervalOf(task);
+    if ((task.lastEmitMicros < 0 || period == 0 ||
+            frameMonotonicMicros >= allowedFrameMicros(task, period) - frameToleranceMicros) &&
+        (_intervalMicros <= 0 || task.lastBucket == -1 ||
+            _bucketOf(task, valueMicrosOf(task)) != task.lastBucket)) {
       emit(task);
     }
   }
 
   /// 单个任务距下次需要处理的微秒数：显示桶边界、完成时刻、阈值时刻取最早。
-  /// 每帧更新模式或桶与上次不一致时返回下一帧。
+  /// 显示取桶边界与限帧时刻的较晚者，再与完成/阈值取最早。
   @override
   @protected
   int nextWake(T task) {
-    if (_intervalMicros <= 0) return CountmanPlugin.nextFrame;
     final value = valueMicrosOf(task);
-    if (_bucketOf(task, value) != task.lastBucket) {
-      return CountmanPlugin.nextFrame;
+    if (task.muted) {
+      var wake = completionWake(task, value);
+      final threshold = task.threshold;
+      if (threshold != null && !task.thresholdFired) {
+        final crossing = thresholdWake(value, threshold.inMicroseconds);
+        if (crossing <= 0) return CountmanPlugin.nextFrame;
+        if (wake == CountmanPlugin.idle || crossing < wake) wake = crossing;
+      }
+      return wake == CountmanPlugin.idle
+          ? wake
+          : (wake <= 0 ? CountmanPlugin.nextFrame : wake);
     }
-    var wake = boundaryWake(task, value, _intervalMicros);
+    var wake = _intervalMicros <= 0 || task.lastBucket == -1 ||
+            _bucketOf(task, value) != task.lastBucket
+        ? CountmanPlugin.nextFrame
+        : boundaryWake(task, value, _intervalMicros);
+    final period = frameIntervalOf(task);
+    if (period > 0 && task.lastEmitMicros >= 0) {
+      final allowed = allowedFrameMicros(task, period) -
+          frameToleranceMicros - frameMonotonicMicros;
+      if (allowed > wake) wake = allowed;
+    }
     final complete = completionWake(task, value);
     if (complete != CountmanPlugin.idle && complete < wake) wake = complete;
     final threshold = task.threshold;

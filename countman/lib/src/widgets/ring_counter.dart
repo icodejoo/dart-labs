@@ -34,6 +34,7 @@ class RingCounter extends StatelessWidget {
     this.curve,
     this.allowNegative,
     this.plugin,
+    this.fps,
     this.controller,
     this.animateOnce,
     this.style,
@@ -45,7 +46,10 @@ class RingCounter extends StatelessWidget {
     this.onReady,
     this.onStart,
     this.onCancel,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Start value. Defaults to 0.
   final double? from;
@@ -64,6 +68,10 @@ class RingCounter extends StatelessWidget {
 
   /// Optional [Counter] group for isolation. Defaults to the shared instance.
   final Counter? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Optional controller for imperative retarget/cancel and value read-out.
   final CounterValueController? controller;
@@ -150,6 +158,7 @@ class RingCounter extends StatelessWidget {
       curve: curve ?? scope?.curve ?? Curves.easeOut,
       allowNegative: allowNegative ?? scope?.allowNegative ?? false,
       plugin: plugin,
+      fps: fps,
       controller: controller,
       animateOnce: animateOnce,
       onceId: stableOnceIdFromKey(key),

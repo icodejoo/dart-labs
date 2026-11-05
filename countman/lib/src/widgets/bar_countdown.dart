@@ -27,6 +27,7 @@ class BarCountdown extends StatelessWidget {
     this.repaintBoundary,
     this.painterBuilder,
     this.plugin,
+    this.fps,
     this.total,
     this.rounding = CountdownRounding.floor,
     this.controller,
@@ -39,7 +40,10 @@ class BarCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
@@ -59,6 +63,10 @@ class BarCountdown extends StatelessWidget {
       painterBuilder;
 
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
   /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
@@ -115,6 +123,7 @@ class BarCountdown extends StatelessWidget {
     final driver = CountdownBuilder.listenable(
       to: to,
       plugin: plugin,
+      fps: fps,
       total: total,
       rounding: rounding,
       controller: controller,

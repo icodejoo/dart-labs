@@ -1,17 +1,65 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
 import '../support/manual_clock.dart';
+import 'package:countman/src/widgets/card_progress.dart';
 
 // CardCountdown now paints via a single CustomPainter (see card_countdown.dart)
 // instead of a per-digit widget subtree, so its digit content isn't reachable
 // via find.text(). These tests exercise the public contract (onComplete, controller,
 // plugin, `to`/showHours changes, dispose) and rely on Flutter's own
 // leaked-Timer/Ticker detection at test teardown to catch a missing
-// AnimationController.dispose() or CountdownHandle.cancel().
+// CardProgress.dispose() or CountdownHandle.cancel().
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: child)));
+
+/// 缓存生命周期用例共用的倒计时与推进间隔。
+const _cacheDuration = Duration(seconds: 65);
+const _cacheTick = Duration(seconds: 1);
+const _cacheFrame = Duration(milliseconds: 100);
+const _cacheTextStyle = TextStyle(fontSize: 23, color: Colors.indigo);
+const _cacheLabelStyle = TextStyle(fontSize: 12, color: Colors.teal);
+const _cacheSeparatorStyle = TextStyle(fontSize: 18, color: Colors.orange);
+
+/// 从卡片子树获取画笔，避免依赖私有 State 的实现。
+List<FlipCardPainter> _cardPainters(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(find.byType(CustomPaint))
+    .map((widget) => widget.painter)
+    .whereType<FlipCardPainter>()
+    .toList();
+
+/// 建立可保持 State 的显式样式卡片。
+Widget _cacheCard({Key? key, TextStyle textStyle = _cacheTextStyle}) => CardCountdown(
+    key: key,
+    to: _cacheDuration,
+    style: CardCountdownStyle(
+      textStyle: textStyle,
+      labelStyle: _cacheLabelStyle,
+      separatorStyle: _cacheSeparatorStyle,
+      transitionType: CountdownType.slide,
+      scaleEffect: SlideEffect.both,
+      opacityEffect: SlideEffect.both,
+    ));
+
+/// 收集当前三个角色持有的段落，便于卸载后检查原生资源释放。
+List<TextPainter> _paragraphs(FlipCardPainter painter) => {
+  ...painter.digitCache.values,
+  ...painter.sepCache.values,
+  ...painter.labelCache.values,
+}.toList();
+
+/// 使用真实画布验证本地引用没有指向已释放段落。
+void _paintCard(FlipCardPainter painter) {
+  final recorder = ui.PictureRecorder();
+  try {
+    painter.paint(Canvas(recorder), painter.geom.size);
+  } finally {
+    recorder.endRecording().dispose();
+  }
+}
 
 void main() {
   late ManualCountmanClock clock;
@@ -25,6 +73,148 @@ void main() {
 
   group('CardCountdown', () {
     tearDown(Countman.destroy);
+
+    testWidgets('相等显式样式跨卡共享，热重载与最后卸载成对释放', (t) async {
+      final equalStyle = TextStyle(
+          fontSize: _cacheTextStyle.fontSize, color: _cacheTextStyle.color);
+      expect(equalStyle, _cacheTextStyle);
+      expect(identical(equalStyle, _cacheTextStyle), isFalse);
+      const firstKey = ValueKey('cache-first');
+      const secondKey = ValueKey('cache-second');
+      await t.pumpWidget(_wrap(Column(children: [
+        _cacheCard(key: firstKey),
+        _cacheCard(key: secondKey, textStyle: equalStyle),
+      ])));
+      final painters = _cardPainters(t);
+      final cache = painters.first.digitCache;
+      final initialParagraphs = _paragraphs(painters.first);
+      expect(cache, same(painters.last.digitCache));
+      expect(painters.first.sepCache, same(painters.last.sepCache));
+      expect(painters.first.labelCache, same(painters.last.labelCache));
+
+      final reassemble = t.binding.reassembleApplication();
+      await t.pump();
+      await reassemble;
+      expect(_cardPainters(t).first.digitCache, same(cache));
+      expect(initialParagraphs.map((p) => p.debugDisposed), everyElement(isFalse));
+
+      await t.pumpWidget(_wrap(Column(children: [_cacheCard(key: secondKey)])));
+      expect(_cardPainters(t).single.digitCache, same(cache));
+      advance(_cacheTick);
+      await t.pump(_cacheTick);
+      await t.pump(_cacheFrame);
+      _paintCard(_cardPainters(t).single);
+      expect(t.takeException(), isNull);
+      expect(initialParagraphs.map((p) => p.debugDisposed), everyElement(isFalse));
+
+      final allParagraphs = _paragraphs(_cardPainters(t).single);
+      await t.pumpWidget(_wrap(const SizedBox()));
+      expect(allParagraphs, isNotEmpty);
+      expect(allParagraphs.map((p) => p.debugDisposed), everyElement(isTrue));
+      expect(cache, isEmpty);
+      await t.pumpWidget(_wrap(_cacheCard()));
+      expect(_cardPainters(t).single.digitCache, isNot(same(cache)));
+    });
+
+    testWidgets('样式切换先释放旧缓存，再获取新缓存', (t) async {
+      await t.pumpWidget(_wrap(_cacheCard()));
+      final cache = _cardPainters(t).single.digitCache;
+      final oldParagraphs = cache.values.toList();
+      await t.pumpWidget(_wrap(_cacheCard(textStyle: const TextStyle(color: Colors.red))));
+      final painter = _cardPainters(t).single;
+      expect(painter.digitCache, isNot(same(cache)));
+      expect(cache, isEmpty);
+      expect(oldParagraphs.map((p) => p.debugDisposed), everyElement(isTrue));
+      _paintCard(painter);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('样式切换保留另一张卡仍在使用的旧缓存', (t) async {
+      const firstKey = ValueKey('switch-first');
+      const secondKey = ValueKey('switch-second');
+      await t.pumpWidget(_wrap(Column(children: [
+        _cacheCard(key: firstKey), _cacheCard(key: secondKey),
+      ])));
+      final oldCache = _cardPainters(t).first.digitCache;
+      final oldParagraphs = oldCache.values.toList();
+      await t.pumpWidget(_wrap(Column(children: [
+        _cacheCard(key: firstKey, textStyle: const TextStyle(color: Colors.red)),
+        _cacheCard(key: secondKey),
+      ])));
+      expect(_cardPainters(t).last.digitCache, same(oldCache));
+      expect(oldParagraphs.map((p) => p.debugDisposed), everyElement(isFalse));
+      advance(_cacheTick);
+      await t.pump(_cacheTick);
+      await t.pump(_cacheFrame);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(_wrap(const SizedBox()));
+      expect(oldParagraphs.map((p) => p.debugDisposed), everyElement(isTrue));
+    });
+
+    testWidgets('Provider 继承与显式样式切换不混淆缓存所有权', (t) async {
+      /// 保持 Provider 与卡片的 State，只切换样式来源。
+      Widget host(bool explicit) => _wrap(CardCountdownProvider(
+        textStyle: _cacheTextStyle,
+        labelStyle: _cacheLabelStyle,
+        separatorStyle: _cacheSeparatorStyle,
+        child: explicit ? _cacheCard() : const CardCountdown(to: _cacheDuration),
+      ));
+      await t.pumpWidget(host(true));
+      final pooled = _cardPainters(t).single.digitCache;
+      final pooledParagraphs = pooled.values.toList();
+      await t.pumpWidget(host(false));
+      final inherited = _cardPainters(t).single.digitCache;
+      expect(inherited, isNot(same(pooled)));
+      expect(pooledParagraphs.map((p) => p.debugDisposed), everyElement(isTrue));
+      final inheritedParagraphs = inherited.values.toList();
+      await t.pumpWidget(host(true));
+      expect(_cardPainters(t).single.digitCache, isNot(same(inherited)));
+      expect(inheritedParagraphs.map((p) => p.debugDisposed), everyElement(isFalse));
+      await t.pumpWidget(_wrap(const SizedBox()));
+      expect(inheritedParagraphs.map((p) => p.debugDisposed), everyElement(isTrue));
+    });
+
+    for (final mutation in ['clear', 'remove', 'replace', 'fifo']) {
+      testWidgets('generation 在 $mutation 后使数字和标签引用失效', (t) async {
+        await t.pumpWidget(_wrap(_cacheCard()));
+        final painter = _cardPainters(t).single;
+        painter.model
+          ..target = painter.model.committed.map((digit) => (digit + 1) % 10).toList()
+          ..changedMask = List.filled(painter.geom.cells.length, true);
+        // ignore: invalid_use_of_internal_member
+        (painter.controller as CardProgress).forward(from: .375);
+        _paintCard(painter);
+        final caches = {painter.digitCache, painter.sepCache, painter.labelCache};
+        for (final map in caches) {
+          final cache = map as CardGlyphCache;
+          final generation = cache.generation;
+          final key = cache.keys.first;
+          switch (mutation) {
+            case 'clear':
+              cache.clear();
+            case 'remove':
+              cache.remove(key);
+            case 'replace':
+              cache[key] = TextPainter(
+                text: TextSpan(text: key.$1, style: key.$2),
+                textDirection: TextDirection.ltr,
+              )..layout();
+            case 'fifo':
+              for (var i = 0; i < CardGlyphCache.capacity; i++) {
+                final text = 'eviction-$i';
+                cache[(text, key.$2)] = TextPainter(
+                  text: TextSpan(text: text, style: key.$2),
+                  textDirection: TextDirection.ltr,
+                )..layout();
+              }
+          }
+          expect(cache.generation, greaterThan(generation));
+        }
+        expect(() => _paintCard(painter), returnsNormally);
+        await t.pump(_cacheFrame);
+        expect(t.takeException(), isNull);
+      });
+    }
 
     testWidgets('renders and ticks down without throwing (merged digits)', (t) async {
       await t.pumpWidget(_wrap(const CardCountdown(to: Duration(seconds: 65))));

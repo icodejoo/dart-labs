@@ -7,7 +7,7 @@ part of 'animated_counter.dart';
 /// 渐变由解析出的 [Counter] 插件上的一个 0→1 任务驱动（共享 ticker），onUpdate 里
 /// 量化成有限档位并通知两条渲染路径重绘；build 阶段只记录基准色，不产生任何副作用，
 /// 渐变期间不会重建 State。色板与文字样式按档位缓存，帧间复用。
-mixin _CounterTint<W extends _BaseAnimatedCounter> on State<W>, _CounterScope<W> {
+mixin _CounterTint<W extends _BaseAnimatedCounter> on State<W>, _CounterScope<W>, HiddenTaskState<W> {
   /// 每帧通知两条渲染路径刷新；由状态机实现。
   void _onFrameUpdate();
 
@@ -54,15 +54,19 @@ mixin _CounterTint<W extends _BaseAnimatedCounter> on State<W>, _CounterScope<W>
       _onTintTick(1.0);
       return;
     }
-    _tintHandle = _counterPlugin.add(CounterOptions(
+    _tintHandle = _counterPlugin.addMuted(CounterOptions(
+      fps: widget.fps,
       from: 0.0,
       to: 1.0,
       duration: fade,
       curve: Curves.linear,
       allowNegative: false,
       onUpdate: _onTintTick,
-      onComplete: (_) => _tintHandle = null,
-    ));
+      onComplete: (_) {
+        _onTintTick(1);
+        _tintHandle = null;
+      },
+    ), muted: taskMuted);
   }
 
   /// 渐变进度 [t]（0–1）到达：必要时重建色板，档位变化才通知渲染路径。

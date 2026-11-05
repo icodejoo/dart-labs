@@ -31,7 +31,7 @@ class _TickCanvas implements Canvas {
 void main() {
   tearDown(Countman.destroy);
 
-  testWidgets('Dial 刻度标签绘制后释放段落资源', (tester) async {
+  testWidgets('Dial 刻度标签缓存到组件卸载时释放', (tester) async {
     await tester.pumpWidget(const Directionality(
       textDirection: TextDirection.ltr,
       child: DialCountdown(
@@ -44,6 +44,8 @@ void main() {
     final canvas = _TickCanvas();
     paint.painter!.paint(canvas, const Size.square(200));
     expect(canvas.paragraphs, hasLength(12));
+    expect(canvas.paragraphs.map((p) => p.debugDisposed), everyElement(isFalse));
+    await tester.pumpWidget(const SizedBox.shrink());
     expect(canvas.paragraphs.map((p) => p.debugDisposed), everyElement(isTrue));
   });
 

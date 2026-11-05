@@ -376,6 +376,10 @@ enum CountdownRounding {
 
 /// Options for a countdown task added via [Countdown.add] or [countdown].
 class CountdownOptions {
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 仅限制显示，终值与事件不延迟。示例：`CountdownOptions(duration: Duration(seconds: 1), fps: 30)`。
+  final double? fps;
+
   /// 必须且只能给出 [duration]（相对时长）或 [deadline]（绝对截止）之一。
   /// 例如 `CountdownOptions(duration: Duration(minutes: 5))` 或
   /// `CountdownOptions(deadline: DateTime(2026, 12, 31))`。
@@ -385,6 +389,7 @@ class CountdownOptions {
     this.total,
     this.rounding = CountdownRounding.floor,
     this.onUpdate,
+    this.fps,
     this.onComplete,
     this.threshold,
     this.onThreshold,
@@ -394,6 +399,10 @@ class CountdownOptions {
     this.onPause,
     this.onResume,
   }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
          (duration == null) != (deadline == null),
          'CountdownOptions: provide exactly one of duration or deadline.',
        );

@@ -13,6 +13,10 @@ export '../core/clock.dart' show elapsedClock;
 /// make it stop at an upper bound, and [since] / [initial] to start from a
 /// non-zero elapsed time.
 class ElapsedOptions {
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 仅限制显示，终值与事件不延迟。示例：`ElapsedOptions(fps: 30)`。
+  final double? fps;
+
   /// [since] 与 [initial] 互斥，最多给一个。
   /// 例如 `ElapsedOptions(since: orderTime, limit: Duration(minutes: 30))`。
   const ElapsedOptions({
@@ -21,6 +25,7 @@ class ElapsedOptions {
     this.limit,
     this.onComplete,
     this.onUpdate,
+    this.fps,
     this.threshold,
     this.onThreshold,
     this.onReady,
@@ -29,6 +34,10 @@ class ElapsedOptions {
     this.onPause,
     this.onResume,
   }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
          since == null || initial == null,
          'ElapsedOptions: provide at most one of since or initial.',
        );

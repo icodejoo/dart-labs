@@ -46,6 +46,7 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.value,
     super.controller,
     super.plugin,
+    super.fps,
     super.animateOnce,
     @Deprecated('改用 timeline: CounterTimeline(duration: ...)')
     super.duration,

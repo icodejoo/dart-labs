@@ -46,6 +46,7 @@ class TextElapsed extends StatelessWidget {
     this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.fps,
     this.precise = false,
     this.since,
     this.initial,
@@ -61,6 +62,10 @@ class TextElapsed extends StatelessWidget {
     this.onPause,
     this.onResume,
   }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
          since == null || initial == null,
          'TextElapsed: provide at most one of since or initial.',
        );
@@ -96,6 +101,10 @@ class TextElapsed extends StatelessWidget {
 
   /// Optional [Elapsed] group. Defaults to [defaultElapsed].
   final Elapsed? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Drive on the shared precise group ([defaultElapsedMs], `interval: 0`) so
   /// sub-second formatters update every frame. Ignored when [plugin] or a
@@ -158,6 +167,7 @@ class TextElapsed extends StatelessWidget {
 
     final number = ElapsedBuilder(
       plugin: plugin,
+      fps: fps,
       precise: precise,
       since: since,
       initial: initial,

@@ -7,6 +7,7 @@ import 'package:countman/src/counter/types.dart';
 import 'animate_once.dart';
 import 'providers.dart';
 import 'scope_resolution.dart';
+import 'hidden_task_state.dart';
 
 /// A widget that drives a counter animation on the shared ticker and
 /// exposes the current value via a [builder] callback.
@@ -34,6 +35,7 @@ class CounterBuilder extends StatefulWidget {
     this.curve = Curves.easeOut,
     this.allowNegative = false,
     this.plugin,
+    this.fps,
     this.controller,
     required Widget Function(BuildContext context, double value, Widget? child)
         this.builder,
@@ -47,7 +49,11 @@ class CounterBuilder extends StatefulWidget {
     this.repaintBoundary = true,
     this.animateOnce,
     this.onceId,
-  }) : listenableBuilder = null;
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       listenableBuilder = null;
 
   /// 创建“常驻子树”构建器：[listenableBuilder] 只在首次构建与配置变化时调用，
   /// 逐帧数值通过传入的 [ValueListenable] 推送，由子树里的 painter / Listenable
@@ -72,6 +78,7 @@ class CounterBuilder extends StatefulWidget {
     this.curve = Curves.easeOut,
     this.allowNegative = false,
     this.plugin,
+    this.fps,
     this.controller,
     required Widget Function(
             BuildContext context, ValueListenable<double> value, Widget? child)
@@ -85,7 +92,11 @@ class CounterBuilder extends StatefulWidget {
     this.repaintBoundary = true,
     this.animateOnce,
     this.onceId,
-  })  : builder = null,
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       builder = null,
         valueTransform = null;
 
   final double? from;
@@ -101,6 +112,10 @@ class CounterBuilder extends StatefulWidget {
   /// [CounterProvider]'s group, then the shared [defaultCounter] instance
   /// (equivalent to the top-level `counter()`).
   final Counter? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// Optional controller for imperative retarget/cancel and value read-out.
   final CounterValueController? controller;
@@ -172,7 +187,12 @@ class CounterBuilder extends StatefulWidget {
 }
 
 /// 管理显示值、任务归属、插件迁移、运行状态及显式重启动画。
-class _CounterBuilderState extends State<CounterBuilder> {
+class _CounterBuilderState extends State<CounterBuilder>
+    with HiddenTaskState<CounterBuilder> {
+  /// 同步组件可见性；静音不会改变控制器运行状态。
+  @override
+  void onTaskMuteChanged(bool muted) => _handle?.muted = muted;
+
   /// 当前显示值，Builder 与监听者都读取它。
   late final ValueNotifier<double> _value;
 
@@ -280,6 +300,9 @@ class _CounterBuilderState extends State<CounterBuilder> {
 
   /// 任务完成的回调：先更新 runState 为 completed，再转发用户 onComplete。
   void _onTaskComplete(double v) {
+    // 静音终点不投递 onUpdate，但保留终态显示与控制器值。
+    _value.value = v;
+    widget.controller?.latestValue = v;
     _doneState = CountmanRunState.completed;
     widget.controller?.setRunState(CountmanRunState.completed);
     widget.onComplete?.call(v);
@@ -297,7 +320,8 @@ class _CounterBuilderState extends State<CounterBuilder> {
   }) {
     _cancelCurrent(silent: silent);
     _doneState = CountmanRunState.idle;
-    _handle = _plugin.add(CounterOptions(
+    _handle = _plugin.addMuted(CounterOptions(
+      fps: widget.fps,
       from: from,
       to: to ?? widget.to,
       duration: _motion(duration ?? widget.duration),
@@ -312,7 +336,7 @@ class _CounterBuilderState extends State<CounterBuilder> {
       onReady: () => widget.onReady?.call(),
       onStart: () => widget.onStart?.call(),
       onCancel: _onTaskCancel,
-    ));
+    ), muted: taskMuted);
     if (paused) _handle!.pause();
     _attachController();
   }
@@ -323,7 +347,8 @@ class _CounterBuilderState extends State<CounterBuilder> {
     final old = _handle;
     _plugin = next;
     if (old == null || old.isDone) return;
-    _addTask(from: _value.value, silent: true, paused: old.isPaused);
+    _handle = old.migrateTo(next);
+    _attachController();
   }
 
   /// 从当前显示值执行显式更新，绕过仅入场一次的限制。
@@ -360,6 +385,7 @@ class _CounterBuilderState extends State<CounterBuilder> {
   @override
   void didUpdateWidget(CounterBuilder old) {
     super.didUpdateWidget(old);
+    if (widget.fps != old.fps) _handle?.fps = widget.fps;
     final controllerChanged = widget.controller != old.controller;
     if (controllerChanged) old.controller?.detach(_handle);
     final plugin = resolvePluginDependent<Counter>(context,

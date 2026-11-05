@@ -5,6 +5,7 @@ import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
 
 import 'scope_resolution.dart';
+import 'hidden_task_state.dart';
 
 export 'package:countman/src/count_down/types.dart'
     show DurationFormatter, CountdownFormat, CountdownRounding, TimeParts;
@@ -60,6 +61,7 @@ class CountdownBuilder extends StatefulWidget {
     this.child,
     this.controller,
     this.plugin,
+    this.fps,
     this.precise = false,
     this.total,
     this.rounding = CountdownRounding.floor,
@@ -72,7 +74,11 @@ class CountdownBuilder extends StatefulWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  })  : listenableBuilder = null,
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       listenableBuilder = null,
         assert(duration != null || to != null,
             'Provide either `duration` or `to`.');
 
@@ -101,6 +107,7 @@ class CountdownBuilder extends StatefulWidget {
     this.child,
     this.controller,
     this.plugin,
+    this.fps,
     this.precise = false,
     this.total,
     this.rounding = CountdownRounding.floor,
@@ -113,7 +120,11 @@ class CountdownBuilder extends StatefulWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  })  : builder = null,
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       builder = null,
         assert(duration != null || to != null,
             'Provide either `duration` or `to`.');
 
@@ -154,6 +165,10 @@ class CountdownBuilder extends StatefulWidget {
   /// Override the default [Countdown] group. Useful for isolating timer sets.
   /// 未设置时取最近 [CountdownProvider] 的分组。
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// When true and no [plugin] is supplied, drives this countdown on the shared
   /// precise ([defaultCountdownMs], `interval: 0`) group so sub-second
@@ -223,7 +238,12 @@ class _PartsListenable implements ValueListenable<TimeParts> {
 }
 
 /// 管理倒计时任务、插件迁移、运行状态及控制器归属。
-class _CountdownBuilderState extends State<CountdownBuilder> {
+class _CountdownBuilderState extends State<CountdownBuilder>
+    with HiddenTaskState<CountdownBuilder> {
+  /// 同步组件可见性；静音不会改变控制器运行状态。
+  @override
+  void onTaskMuteChanged(bool muted) => _handle?.muted = muted;
+
   // Reused instance from the engine's onUpdate (per-task, mutated in place).
   late TimeParts _parts;
   // Bumped each tick to drive a rebuild (TimeParts is reused, so identity
@@ -304,6 +324,11 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
 
   /// 任务完成的回调：先更新 runState 为 completed，再转发用户 onComplete。
   void _onTaskComplete() {
+    // 静音时没有最终 onUpdate，单独同步终态显示。
+    if (taskMuted) {
+      _parts.setMicros(0, _parts.total);
+      _rev.value++;
+    }
     _doneState = CountmanRunState.completed;
     widget.controller?.setRunState(CountmanRunState.completed);
     widget.onComplete?.call();
@@ -339,7 +364,8 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
       total ?? widget.total ?? r,
     );
     _rev.value++;
-    _handle = plugin.add(CountdownOptions(
+    _handle = plugin.addMuted(CountdownOptions(
+      fps: widget.fps,
       duration: anchor.duration,
       deadline: anchor.deadline,
       total: total ?? widget.total,
@@ -360,7 +386,7 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
         if (!_quietPause) widget.onPause?.call();
       },
       onResume: () => widget.onResume?.call(),
-    ));
+    ), muted: taskMuted);
     if (paused) {
       _quietPause = true;
       try {
@@ -419,6 +445,7 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
   @override
   void didUpdateWidget(CountdownBuilder old) {
     super.didUpdateWidget(old);
+    if (widget.fps != old.fps) _handle?.fps = widget.fps;
     final controllerChanged = widget.controller != old.controller;
     if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。

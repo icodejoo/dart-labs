@@ -12,7 +12,10 @@ extension _CounterControllerBinding<W extends _BaseAnimatedCounter> on _BaseCoun
     c.$pauseCallback = () {
       if (_playback != _CounterPlayback.running) return;
       _playback = _CounterPlayback.paused;
-      _pausedT = _currentT;
+      // 静音时显示进度未更新，暂停前先取得真实推进位置。
+      _pausedT = _handle?.currentValue ?? _currentT;
+      _currentT = _pausedT;
+      _updateCurrentDigitValues();
       _cancelActive();
       widget.onPause?.call();
     };

@@ -7,6 +7,8 @@ import 'package:flutter/scheduler.dart';
 import 'plugin_base.dart' show LazyDefault;
 import 'start_scheduler.dart';
 import 'types.dart';
+import 'sleep_hint.dart';
+import 'fps.dart';
 
 /// Shared vsync ticker — one `scheduleFrameCallback` drives all plugins.
 ///
@@ -16,6 +18,24 @@ import 'types.dart';
 /// 共享帧驱动器，逐插件隔离 tick 与销毁异常。
 class Countman {
   Countman._();
+
+  /// 是否让组件随 TickerMode 静音，默认 true；静音时不投递 onUpdate/onTick，
+  /// 完成与阈值仍按真实时间触发。设置为 false 后组件不订阅 TickerMode。
+  /// 此开关在组件依赖解析时读取，建议在挂载组件前设置；无返回值。
+  /// 示例：`Countman.muteWhenHidden = false;`。
+  static bool muteWhenHidden = true;
+
+  /// 全局显示刷新上限（帧/秒）；null 跟随 vsync。仅限显示，完成/阈值不延迟。
+  /// 返回当前设置；非法值 debug 断言、release 视为 null。
+  /// 示例：`Countman.fps = 30;`；运行时修改从下一帧生效。
+  static double? get fps => _fps;
+  static set fps(double? value) {
+    _fps = validFps(value);
+    if (_running) start();
+  }
+
+  /// 全局限帧配置，默认不限制。
+  static double? _fps;
 
   static final _ctx = CountmanContext(requestFrame: start);
 
@@ -181,6 +201,8 @@ class Countman {
     _hasLast = true;
 
     var wake = CountmanPlugin.idle;
+    // 最早等待来自限帧或静音任务时走 Timer，避免逐 vsync 空轮询。
+    var useFrameWindow = false;
     if (_snapshotDirty) {
       _snapshot
         ..clear()
@@ -199,6 +221,12 @@ class Countman {
           if (delay >= CountmanPlugin.nextFrame &&
               (wake == CountmanPlugin.idle || delay < wake)) {
             wake = delay;
+            useFrameWindow = plugin is! CountmanSleepHint ||
+                (plugin as CountmanSleepHint).useFrameWindow;
+          } else if (delay >= 0 && delay == wake &&
+              (plugin is! CountmanSleepHint ||
+                  (plugin as CountmanSleepHint).useFrameWindow)) {
+            useFrameWindow = true;
           }
         } catch (e, st) {
           FlutterError.reportError(
@@ -222,9 +250,10 @@ class Countman {
       }
     }
     if (!_running || generation != _generation) return;
-    if (_requested || (wake >= 0 && wake <= _frameWindowMicros)) {
+    if (_requested || wake == 0 ||
+        (useFrameWindow && wake > 0 && wake <= _frameWindowMicros)) {
       _frameId = SchedulerBinding.instance.scheduleFrameCallback(_loop);
-    } else if (wake > _frameWindowMicros) {
+    } else if (wake > 0) {
       _hasLast = false;
       _sleepTimer = Timer(Duration(microseconds: wake), _wake);
     } else {

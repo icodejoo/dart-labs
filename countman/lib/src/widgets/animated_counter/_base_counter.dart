@@ -34,6 +34,9 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   /// 示例：`AnimatedCounter(value: 99, plugin: myGroup)`。
   final Counter? plugin;
 
+  /// 实例显示刷新上限，返回帧/秒；null 继承插件再到全局。示例：`fps: 30`。
+  final double? fps;
+
   /// animate-once 开关：只在 [key]（需为稳定的 [ValueKey]）首次出现时播放入场动画，
   /// 同一 Provider 下再次挂载直接显示终值。`null`（默认）继承最近
   /// [CounterProvider.animateOnce]。无稳定 key 或没有 Provider 时退化为每次都动画。
@@ -161,6 +164,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.value,
     this.controller,
     this.plugin,
+    this.fps,
     this.animateOnce,
     this.duration = const Duration(milliseconds: 300),
     this.negativeSignDuration = const Duration(milliseconds: 150),
@@ -233,7 +237,11 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
     this.fast = false,
-  })  : _textStyle = textStyle,
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       _textStyle = textStyle,
         _prefixStyle = prefixStyle,
         _infixStyle = infixStyle,
         _suffixStyle = suffixStyle,

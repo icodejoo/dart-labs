@@ -15,7 +15,15 @@ CountmanRunState _runStateOf(_CounterPlayback playback) => switch (playback) {
 
 /// 两条渲染路径共用的可中断动画状态机。
 abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W>
-    with _CounterScope<W>, _CounterMeasure<W>, _CounterTint<W> {
+    with HiddenTaskState<W>, _CounterScope<W>, _CounterMeasure<W>, _CounterTint<W> {
+  /// 主滚动、回弹与变色都随可见性休眠，保留各自的暂停状态。
+  @override
+  void onTaskMuteChanged(bool muted) {
+    _handle?.muted = muted;
+    _bounceHandle?.muted = muted;
+    _tintHandle?.muted = muted;
+  }
+
   // ── ticker ────────────────────────────────────────────────────────────────
   /// 主滚动任务句柄；完成、取消或尚未启动时可能已结束或为空。
   CounterHandle? _handle;
@@ -146,6 +154,11 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   @override
   void didUpdateWidget(W oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.fps != oldWidget.fps) {
+      _handle?.fps = widget.fps;
+      _bounceHandle?.fps = widget.fps;
+      _tintHandle?.fps = widget.fps;
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_handleControllerUpdate);
       _unbindController(oldWidget.controller);
@@ -330,7 +343,8 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     }
     _onAnimStatusChange(_reversing ? AnimationStatus.reverse : AnimationStatus.forward);
     if (!mounted || version != _requestVersion) return;
-    _handle = _counterPlugin.add(CounterOptions(
+    _handle = _counterPlugin.addMuted(CounterOptions(
+      fps: widget.fps,
       from: fromT,
       to:   1.0,
       duration: remaining,
@@ -343,6 +357,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       onComplete: (_) {
         if (!mounted || version != _requestVersion) return;
         _currentT = 1.0;
+        _updateCurrentDigitValues();
         _playback = _CounterPlayback.completed;
         _onAnimationComplete();
         _onAnimStatusChange(_reversing ? AnimationStatus.dismissed : AnimationStatus.completed);
@@ -352,7 +367,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
           _launchHandle(fromT: 0);
         }
       },
-    ));
+    ), muted: taskMuted);
 
     // Bounce runs CONCURRENTLY with the roll (started here, not in onComplete),
     // so each column bounces the instant IT finishes rolling rather than after
@@ -400,7 +415,8 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _bounceOffsets = List<double>.filled(_engine.maxDigits, 0.0);
 
     _bounceHandle?.cancel();
-    _bounceHandle = _counterPlugin.add(CounterOptions(
+    _bounceHandle = _counterPlugin.addMuted(CounterOptions(
+      fps: widget.fps,
       from: 0.0,
       to: 1.0,
       duration: Duration(microseconds: totalUs.round()),
@@ -417,7 +433,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         _onFrameUpdate();
         _bounceHandle = null;
       },
-    ));
+    ), muted: taskMuted);
   }
 
   // ── digit computation ─────────────────────────────────────────────────────

@@ -157,7 +157,9 @@ void main() {
 
   group('FlipCardPainter（CardCountdown）', () {
     /// 卡片倒计时：1 分 5 秒起，字体统一为 Roboto。
-    const card = CardCountdown(
+    final cardController = CountdownController();
+    final card = CardCountdown(
+      controller: cardController,
       to: Duration(minutes: 1, seconds: 5),
       style: CardCountdownStyle(
         textStyle: TextStyle(fontFamily: _font, fontSize: 44, color: Colors.white),
@@ -177,7 +179,9 @@ void main() {
       await tester.pump();
       clock.advance(const Duration(seconds: 1));
       await tester.pump(const Duration(seconds: 1)); // 秒位变化，翻牌开始
-      await tester.pump(); // 动画控制器在下一帧才取得起点
+      cardController.pause(); // 固定同一秒的目标，单独推进共享翻牌任务。
+      await tester.pump();
+      clock.advance(const Duration(milliseconds: 225));
       await tester.pump(const Duration(milliseconds: 225));
       await _expectGolden('flip_card_transition');
     });

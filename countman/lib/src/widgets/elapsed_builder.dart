@@ -4,6 +4,7 @@ import 'package:countman/src/count_down/types.dart' show TimeParts;
 import 'package:countman/src/elapsed/plugin.dart';
 import 'package:countman/src/elapsed/types.dart';
 import 'scope_resolution.dart';
+import 'hidden_task_state.dart';
 
 /// Low-level open-ended elapsed-time (stopwatch) widget that exposes the
 /// current [TimeParts] via a [builder] — the elapsed counterpart to
@@ -28,6 +29,7 @@ class ElapsedBuilder extends StatefulWidget {
     required this.builder,
     this.child,
     this.plugin,
+    this.fps,
     this.precise = false,
     this.since,
     this.initial,
@@ -43,6 +45,10 @@ class ElapsedBuilder extends StatefulWidget {
     this.onPause,
     this.onResume,
   }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
          since == null || initial == null,
          'ElapsedBuilder: provide at most one of since or initial.',
        );
@@ -67,6 +73,10 @@ class ElapsedBuilder extends StatefulWidget {
   /// 可选的 [Elapsed] 分组。默认取最近 [ElapsedProvider] 的分组，再到
   /// [defaultElapsed]。
   final Elapsed? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
 
   /// When true and no [plugin] is supplied, drives this stopwatch on the shared
   /// precise ([defaultElapsedMs], `interval: 0`) group so sub-second formatters
@@ -126,7 +136,12 @@ class ElapsedBuilder extends StatefulWidget {
 }
 
 /// 管理正计时任务、插件迁移、运行状态及控制器归属。
-class _ElapsedBuilderState extends State<ElapsedBuilder> {
+class _ElapsedBuilderState extends State<ElapsedBuilder>
+    with HiddenTaskState<ElapsedBuilder> {
+  /// 同步组件可见性；静音不会改变控制器运行状态。
+  @override
+  void onTaskMuteChanged(bool muted) => _handle?.muted = muted;
+
   // Latest decomposed elapsed time (reused instance from the engine's onUpdate).
   TimeParts _parts = TimeParts.of(Duration.zero);
   // Bumped each tick to drive a rebuild (TimeParts is mutated in place).
@@ -208,6 +223,11 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
 
   /// 到达上限的回调：先更新 runState 为 completed，再转发用户 onComplete。
   void _onTaskComplete() {
+    // 静音时没有最终 onUpdate，单独同步终态显示。
+    if (taskMuted) {
+      _parts.setMicros(widget.limit?.inMicroseconds ?? _parts.inMicroseconds, null);
+      _rev.value++;
+    }
     _doneState = CountmanRunState.completed;
     widget.controller?.setRunState(CountmanRunState.completed);
     widget.onComplete?.call();
@@ -238,7 +258,8 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
     _parts = TimeParts.of(shown);
     _rev.value++;
     final useConfigStart = !fromZero && resumeAt == null;
-    _handle = plugin.add(ElapsedOptions(
+    _handle = plugin.addMuted(ElapsedOptions(
+      fps: widget.fps,
       since: useConfigStart ? widget.since : null,
       initial: fromZero
           ? null
@@ -260,7 +281,7 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
         if (!_quietPause) widget.onPause?.call();
       },
       onResume: () => widget.onResume?.call(),
-    ));
+    ), muted: taskMuted);
     if (adoptLapsFrom != null) _handle!.adoptLaps(adoptLapsFrom);
     if (paused) {
       _quietPause = true;
@@ -316,6 +337,7 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
   @override
   void didUpdateWidget(ElapsedBuilder old) {
     super.didUpdateWidget(old);
+    if (widget.fps != old.fps) _handle?.fps = widget.fps;
     final controllerChanged = widget.controller != old.controller;
     if (controllerChanged) old.controller?.detach(_handle);
     // 动态阈值单独更新，避免为配置变化重建任务。

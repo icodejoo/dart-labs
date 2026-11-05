@@ -4,6 +4,7 @@ import 'package:countman/src/core/types.dart';
 import 'package:flutter/foundation.dart';
 
 import 'types.dart';
+import '../core/fps.dart';
 
 export 'package:countman/src/controllers/elapsed_controller.dart';
 
@@ -14,6 +15,24 @@ class ElapsedHandle {
 
   final int _id;
   final Elapsed _plugin;
+
+  /// 同步组件帧率配置；不重启任务或改变用户暂停状态。
+  @internal
+  set fps(double? value) {
+    final task = _plugin.task(_id);
+    if (task != null) _plugin.setTaskFps(task, value);
+  }
+
+  /// 由组件同步可见性；不触发暂停/恢复回调。
+  @internal
+  set muted(bool value) {
+    final task = _plugin.task(_id);
+    if (task != null) _plugin.setMuted(task, value);
+  }
+
+  /// 当前任务的静音状态，供插件迁移使用。
+  @internal
+  bool get muted => _plugin.task(_id)?.muted ?? false;
 
   /// 已记录的每圈时长；句柄持有，任务结束后仍可读取。
   final List<Duration> _laps = <Duration>[];
@@ -148,9 +167,9 @@ class ElapsedHandle {
 /// 正计时引擎，每帧共享单调时钟快照并独立检查阈值。
 class Elapsed extends ClockPlugin<ElapsedTask> {
   /// [name] 为诊断名称（不同实例请用唯一名称），[interval] 为显示间隔毫秒，
-  /// [clock] 为时间源（默认 [CountmanClock.system]）。
+  /// [clock] 为时间源（默认 [CountmanClock.system]）；[fps] 为可空显示上限，null 继承全局。
   /// 例如 `Elapsed(name: 'call-durations', interval: 100)`。
-  Elapsed({String? name, super.interval, super.clock})
+  Elapsed({String? name, super.interval, super.clock, super.fps})
     : super(name ?? 'elapsed');
 
   /// 把用户给的上限换算成非负微秒；null 表示无上限。
@@ -231,7 +250,11 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
 
   /// 添加一个正计时并返回句柄。起点：`opts.since` 按墙钟锚定；`opts.initial`
   /// 按单调钟锚定为已有该偏移；都没给则从当前单调钟起算（从零开始）。
-  ElapsedHandle add(ElapsedOptions opts) {
+  ElapsedHandle add(ElapsedOptions opts) => addMuted(opts);
+
+  /// 以指定静音状态直接入队，避免隐藏组件首帧投递显示回调。
+  @internal
+  ElapsedHandle addMuted(ElapsedOptions opts, {bool muted = false}) {
     final id = nextId();
     final since = opts.since;
     final initialMicros = opts.initial?.inMicroseconds ?? 0;
@@ -252,7 +275,8 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
         onCancel: opts.onCancel,
         onPause: opts.onPause,
         onResume: opts.onResume,
-      ),
+      )..fps = validFps(opts.fps)
+      ..muted = muted,
     );
     return ElapsedHandle._(id, this);
   }
