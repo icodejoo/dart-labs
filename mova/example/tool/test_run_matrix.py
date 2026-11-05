@@ -22,6 +22,34 @@ import run_matrix as matrix
 
 
 class MatrixTests(unittest.TestCase):
+    def test_integrity_gate_does_not_poison_unrelated_rows(self):
+        from matrix_evidence import reduce_evidence
+        from cp3_compare import compare
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out = Path(folder)
+            (out/'unit-good.json').write_text(json.dumps(dict(status='done', records=[dict(kind='CHECK', id='A4.ok', **{'pass': True})])))
+            (out/'unit-bad.json').write_text(json.dumps(dict(status='error', records=[dict(kind='CHECK', id='A22.ok', **{'pass': True})])))
+            manifest = dict(ids=['A4', 'A22'], manual=[])
+            rules = {key: dict(requires=[dict(kind='check', ident=key+'.ok')]) for key in manifest['ids']}
+            verdicts = reduce_evidence(manifest, out, 'unit-', rules)
+            self.assertEqual(verdicts['A4']['status'], 'PASS')
+            self.assertEqual(verdicts['A22']['status'], 'BLOCKED')
+            self.assertEqual(len(verdicts.evidence_errors), 1)
+            current = dict(rows=[dict(id='A4', status='PASS')], evidenceErrors=verdicts.evidence_errors)
+            self.assertFalse(compare(dict(rows=current['rows']), current)['passed'])
+            (out/'unit-malformed.json').write_text('{')
+            self.assertEqual(len(reduce_evidence(manifest, out, 'unit-', rules).evidence_errors), 2)
+
+    def test_pool_reclaimed_checks_every_created_engine_without_fixed_size(self):
+        from matrix_evidence import Evidence
+        rules = json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf8'))
+        clauses = next(r['assertions'] for r in rules['A29']['requires'] if r.get('ident') == 'A29.poolReclaimed')
+        for accepts in ([False, False], [False, False, False]):
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'PASS')
+        for accepts in ([], [False, True]):
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'FAIL')
+        self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=1, accepts=[False, False])), clauses), 'FAIL')
+
     """Test manifest, selection, verdicts and report logic / 测清单、选择、判定和汇总。"""
     def setUp(self):
         """Read only the manifest / 只读清单。"""
@@ -453,10 +481,12 @@ class MatrixTests(unittest.TestCase):
             out=Path(folder)
             for mode in ('basic','basic-cutover'):
                 records=[dict(kind='RATE',input=v,actual=99) for v in (.5,1,1.5,2,-1,0)]
-                records += [dict(kind='EVENT',event='MovaRateChange',payload=dict(value=v)) for v in (.5,1,1.5,2,.25,.25)]
+                records += [dict(kind='EVENT',event='MovaRateChange',payload=dict(value=v)) for v in (.5,1,1.5,2,.25)]
                 (out/('unit-rerun-batch15-'+mode+'.json')).write_text(json.dumps(dict(status='done',records=records)))
             ev=Evidence(out,'unit-')
             self.assertEqual(ev.rate_sequence()[0],'PASS')
+            ev.records = [(r,p) for r,p in ev.records if r.get('payload',{}).get('value') != 1.5]
+            self.assertEqual(ev.rate_sequence()[0], 'FAIL')
             (out/'unit-hls.json').write_text(json.dumps(dict(status='done',records=[dict(kind='HLS_RESULT',cutover=False,paused=False,**{'pass':True})])))
             self.assertEqual(Evidence(out,'unit-').hls(variants=[dict(cutover=True,paused=False)])[0],'BLOCKED')
 
@@ -482,9 +512,11 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(reduce_evidence(m,out,'unit-',rules)['A6']['status'],'BLOCKED')
             (out/'unit-invalid.json').write_text(json.dumps(dict(records=[None])))
             rules={'A6':dict(requires=[dict(kind='check',ident='A6.pause')])}
-            result=reduce_evidence(m,out,'unit-',rules)['A6']
+            verdicts=reduce_evidence(m,out,'unit-',rules)
+            result=verdicts['A6']
             self.assertEqual(result['status'],'BLOCKED')
-            self.assertIn('证据解析错误',result['evidence'])
+            self.assertIn('缺 CHECK',result['evidence'])
+            self.assertIn('records 含非对象记录',verdicts.evidence_errors[0])
 
     def test_cp0_events_cannot_poison_legacy_event_verdicts(self):
         from matrix_evidence import Evidence

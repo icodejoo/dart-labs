@@ -23,8 +23,21 @@ def compare(baseline, current):
     missing = sorted(old.keys() - new.keys())
     new_fail = sorted(k for k, r in new.items() if r['status'] == 'FAIL' and old.get(k, {}).get('status') != 'FAIL')
     new_blocked = sorted(set(missing) | {k for k, r in new.items() if r['status'] == 'BLOCKED' and old.get(k, {}).get('status') != 'BLOCKED'})
-    # Missing rows are always a coverage error, including old BLOCKED rows.
-    return dict(passed=not (new_fail or new_blocked or missing), newFail=new_fail,
+    # newFail 是状态变化，不等于产品回归；旧 BLOCKED 首次失败单独列出。
+    first_observed = sorted(k for k in new_fail if old.get(k, {}).get('status') == 'BLOCKED')
+    categories = {'产品缺陷': [], '夹具缺陷': [], '旧基线无证据': []}
+    for k in new_fail:
+        category = new[k].get('triageCategory')
+        if category in categories:
+            categories[category].append(k)
+        elif k in first_observed:
+            categories['旧基线无证据'].append(k)
+    integrity = current.get('evidenceErrors', []) if isinstance(current, dict) else []
+    # 所有 FAIL、缺行及完整性错误继续阻止验收通过。
+    return dict(passed=not (new_fail or new_blocked or missing or integrity), newFail=new_fail,
+                firstObservedFail=first_observed,
+                regressions=sorted(k for k in new_fail if old.get(k, {}).get('status') == 'PASS'),
+                failCategories=categories, evidenceErrors=integrity,
                 newBlocked=new_blocked, missing=missing,
                 retainedBlocked=sorted(k for k, r in new.items() if r['status'] == 'BLOCKED' and old.get(k, {}).get('status') == 'BLOCKED'))
 

@@ -863,13 +863,13 @@ def main(argv=None):
         rows=make_rows(manifest,results,explicit)
         comparison=compare_ledgers(rows,baseline)
         target=ROOT/'doc/plans'/f'{datetime.now():%Y-%m-%d}-matrix-replay-{args.run_id}'
-        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=results,evidence=str(args.replay))
+        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=results,evidence=str(args.replay),evidenceErrors=list(explicit.evidence_errors))
         Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,results,args.baseline),encoding='utf-8')
         print(json.dumps(data['counts']))
         for row in rows:
             if row['status']=='BLOCKED':print(row['id']+': '+row['evidence'][:400])
-        return 0
+        return 1 if explicit.evidence_errors else 0
     if args.only and 'cp3-full' in args.only.split(',') and args.baseline == BASELINE:
         parser.error('cp3-full requires explicit --baseline CP0 ledger; historical default is not CP0')
     baseline=json.loads(args.baseline.read_text(encoding='utf-8'))
@@ -935,13 +935,15 @@ def main(argv=None):
             driver.note('VERDICT',row['status'],row['id'])
         comparison=compare_ledgers(rows,baseline)
         target=ROOT/'doc/plans'/f'{datetime.now():%Y-%m-%d}-matrix-run-{args.run_id}'
-        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=driver.results,baseline=str(args.baseline),evidence=str(driver.out))
+        data=dict(run_id=args.run_id,rows=rows,counts=dict(Counter(r['status'] for r in rows)),comparison=comparison,batches=driver.results,baseline=str(args.baseline),evidence=str(driver.out),evidenceErrors=list(explicit.evidence_errors))
         if args.only and 'cp3-full' in args.only.split(','):
             from cp3_compare import compare
-            data['cp3Gate']=compare(baseline,dict(rows=rows))
+            data['cp3Gate']=compare(baseline,dict(rows=rows,evidenceErrors=data['evidenceErrors']))
         Path(str(target)+'.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         Path(str(target)+'.md').write_text(render_summary(args.run_id,rows,comparison,driver.results,args.baseline),encoding='utf-8')
         print(Path(str(target)+'.md'))
+    if data['evidenceErrors']:
+        return 1
     if args.only and 'cp3-full' in args.only.split(','):
         return 0 if data['cp3Gate']['passed'] and all(r['kind']=='OK' for r in driver.results.values()) else 1
     if all(b.get('cp0_driver') or b.get('cp1_driver') or b.get('cp2_driver') or b.get('cp3_driver') for b in selected):
