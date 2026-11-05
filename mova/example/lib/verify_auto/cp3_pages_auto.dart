@@ -134,12 +134,23 @@ Future<void> runHeaders(Cp3Harness h) async {
         headers: auth ? const {'Referer': 'https://cp3.example/authorized'} : const {},
       );
       if (path == 'extract') {
+        final clock = Stopwatch()..start();
         final thumb = MovaPullerThumbSource(extractor: MovaFrameExtractor());
         try {
           final frame = await thumb.thumbAt(source, const Duration(seconds: 1))
               .timeout(const Duration(seconds: 20));
+          // 不自动重试覆盖第一次失败；保存空帧、耗时和鉴权归属。
+          observations[auth ? 'authorized' : 'denied'] = {
+            'targetMs': 1000, 'elapsedMs': clock.elapsedMilliseconds,
+            'outcome': frame == null ? 'null' : frame.bytes.isEmpty ? 'empty' : 'frame',
+            'bytes': frame?.bytes.length,
+          };
           return frame != null && frame.bytes.isNotEmpty;
-        } on Object {
+        } on Object catch (error) {
+          observations[auth ? 'authorized' : 'denied'] = {
+            'targetMs': 1000, 'elapsedMs': clock.elapsedMilliseconds,
+            'error': '$error', 'errorType': error.runtimeType.toString(),
+          };
           return false;
         } finally {
           await thumb.dispose();

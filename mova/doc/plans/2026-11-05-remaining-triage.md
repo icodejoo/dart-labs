@@ -45,3 +45,12 @@
 - 下一次新 APK 采样要求：同一进程/启动代际，在上述时点保留 RSS、线程、fd、CPU 与时间间隔。主机侧若用 adb，应配对采 `dumpsys meminfo <pid>` 的 TOTAL PSS/Native Heap/Graphics、`dumpsys media.codec` 与 `dumpsys SurfaceFlinger` 的该 PID 归属实例/层；必须保存设备支持的原文及命令返回码，字段不可读就标未知。也可用原生插件提供按实例的 decoder/surface create/dispose 计数，不能用 Dart created/engineCount 冒充。
 - 资源/性能结论还需 CP0 与当前同源、同翻页数、同冷暖状态的多轮趋势和批准硬线；现有 sample CHECK 只检查计数完整性/合理性，不宣称无泄漏或耗电改善。电量字段均不可读时不能以 RSS/CPU 替代耗电。此类可脚本采集；阈值和异常 OEM 输出归属需要人工确认。
 - 离线检查：example analyze 无新增，matrix --check 通过，Python 80 PASS。没有本轮设备资源数字，7 条原 BLOCKED 保留。
+
+## 5. 偶发抽帧：仍待定，不能据重试通过关闭
+
+- `cp3-headers-r2-20261105-084854` records[141] 的 extract-3：authorized HTTP 200，但 positive=false；其余 4/5 成功。`cp3-headers-r2-20261105-085001` records[38,73,108,144,180] 的抽帧对照 5/5 成功。失败不是“首次调用”必现（失败在第 4 次正对照），更不能归因鉴权 403。两次批次及其首次失败均保留。
+- `MovaFrameExtractor._extractNow` 有 duration 就绪轮询（5 秒）、seek 落点轮询（seeking=no、time-pos 距目标 <300ms，5 秒）、默认 settleDelay=60ms，之后 screenshot 一次。异常/未就绪/截图 null 都返回 null。`MovaPullerThumbSource` 只透传结果，不做自动重试；成功缓存也不能解释本次新 source token 的失败。未找到能把这条样本解释为已知确定根因的证据。
+- 原夹具把 null/空字节/20 秒外层超时/异常都压成 false，隐藏播放器没有按本次 token 记录 duration、seeking、time-pos、screenshot 返回码与原生日志阶段，所以无法定位是加载未就绪、seek 未落地还是截图失败；HTTP 200 不证明响应体完整或解码成功。共享播放器的 KERNEL_LOG 不能冒充隐藏抽帧器日志。
+- 仅修观测：每次正负对照记录 targetMs、elapsedMs、outcome(null/empty/frame)、bytes，外层异常另记 error/type，不增加重试，不改 lib。
+- 下一次需新 APK 保留这些首试诊断；若仍 null，还需按隐藏播放器实例/请求 token 关联 open、duration、seeking/time-pos、screenshot/原生错误的时间线和媒体响应体校验，再决定是否修产品。已返回 null 时 API 不暴露内部阶段，不能承诺本次夹具改动单独就足以定因。B07 原生准确落点仍未验收。
+- 离线检查：example analyze 无新增，编译/回执定向测试 3 PASS，matrix --check 与 Python 80 PASS。
