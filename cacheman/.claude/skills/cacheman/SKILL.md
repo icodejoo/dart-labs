@@ -80,21 +80,28 @@ flowchart TD
 - **Sync owned-key indexes self-heal.** hubIdentity shares a Hub and one listenRaw listener.
   Synchronous notifications increment its version; _ownSet rebuilds stale snapshots.
   A fresh index tracks local writes/deletes in O(1), including retries; reentrant changes
-  invalidate it. setNamespace invalidates it and migrates this instance's watchers.
+  invalidate it. Increment only when the captured index identity and scope generation
+  are unchanged, the index was fresh and exactly one synchronous notification arrived.
+  setNamespace increments the scope generation, invalidates the index and migrates watchers.
+  增量维护须索引身份和作用域代数不变、原索引新鲜且恰好一次同步通知；切域递增代数并失效索引。
   Null listenRaw or false syncNotificationsRaw means rescan on every _ownSet query.
   The default constructor (including plain forwarding subclasses) uses GetStorage identity;
   `Cacheman.custom` subclasses use this + no notifications unless explicitly opting in, so
   custom backends never implicitly open GetStorage. Never decide this by runtimeType.
 - **Watch excludes own writes by default.** Mutation depth includes renewal/lazy deletion;
-  clear notifies every watcher. Snapshot dispatch tolerates subscribe/cancel in callbacks.
+  clear notifies every watcher. Snapshot dispatch tolerates subscribe/cancel in callbacks;
+  keyed events skip watchers whose storageKey migrated, while clear reaches all active records.
+  键事件分发前须核对 watcher 当前 storageKey，跳过已迁移记录；clear 仍通知全部活跃记录。
   Read/type/callback errors use onError; onError itself still propagates. Unsupported watch
   throws UnsupportedError; asynchronous notifications may include own writes (document it).
 - **Delayed flush is opt-in and sync-only.** flushDelay null preserves the default; writes
   with a delay update memory immediately and keep the earliest shared Timer deadline.
   Deletes still immediately queue a save. flush() is void; it cancels the Timer and saves.
   Register lifecycle observer only while pending, remove after flush; inactive/paused/hidden/
-  detached flush. Errors go to latest delayed writer or explicit flush caller. Custom
-  subclass deferred hooks fall back to setRaw/no-op. purgeOnInit false preserves behavior;
+  detached flush. Errors go to latest delayed writer or explicit flush caller. Schedule
+  flush before setDeferredRaw notifications so nested writers register last and own errors.
+  延迟写先登记 scheduleFlush 再调用 setDeferredRaw，使重入写入者成为最新错误归属。
+  Custom subclass deferred hooks fall back to setRaw/no-op. purgeOnInit false preserves behavior;
   true schedules Timer.run after init, skipping raw. AsyncCacheman ignores both options.
 - **Namespace escaping is stable.** Escape `%` then `:`; namespace getter is the escaped
   prefix plus colon, not the original option. setNamespace clears both key maps together.
@@ -128,6 +135,13 @@ flowchart TD
   WatchError, never FlushError; mismatched watch values emit the default null plus TypeMismatchError.
   Breaking migration: `error is FormatException` →
   `error is CorruptEntryError && error.cause is FormatException`.
+  Identify propagating onError failures by `identical` against the static
+  `_propagatingHandlerError`, reset at each _emitError entry and set when onError throws;
+  never use a global failure counter. Observe all sync mutation Futures through the shared
+  helper: get_storage's async write captures synchronous notification handler exceptions,
+  which must retain their identity/stack and propagate by Zone rules instead of FlushError.
+  onError 传播按异常对象身份识别，每次 _emitError 开始清空标记，处理器抛错时记录；不用全局计数。
+  同步变更 Future 统一观察；get_storage 的 async write 捕获的通知处理器异常保留身份/堆栈并按 Zone 传播。
 - **Initialization assertions remain outside retry catches** in debug builds; release
   behavior is unchanged. A failed initRaw must not mark initialized.
 - **Decode reporting preserves phase 0.** Read deletes then reports CorruptEntryError once;
@@ -169,7 +183,8 @@ parallel-cache page with its own simple AsyncCacheman Map subclass.
 
 After verification inspect git status and git diff --stat; revert only unrelated pub-get
 changes with `git checkout -- <file>`. Do not revert user changes. Both READMEs must remain
-aligned, including Hive CE LazyBox, pure dart:io filename-safe storageKey mapping and
+aligned, including Hive CE LazyBox, pure dart:io lowercase UTF-8 hex storageKey filenames
+(never base64 on case-insensitive filesystems / 大小写不敏感文件系统勿用 base64) and
 SharedPreferencesWithCache illustrations (app dependencies only). Before a separate
 release task, use dart pub publish --dry-run; it is not required for this stage.
 

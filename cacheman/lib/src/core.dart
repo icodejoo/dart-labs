@@ -297,23 +297,20 @@ class _CacheCore {
   void _reportFlushError(String key, Object error, [StackTrace? trace]) =>
       _reportError(FlushError(key, error, trace));
 
-  /// Shared failure generation includes handlers on peer watchers.
-  /// 共享失败代数也包含其他实例 watcher 的处理器。
-  static int _handlerFailures = 0;
-
-  /// Detects propagating handler failures across retry/watch boundaries.
-  /// 跨重试/watch 边界识别向上传播的处理器失败。
-  int get handlerFailures => _handlerFailures;
+  /// Tracks the exact handler exception across peer retry/watch/Future boundaries.
+  /// 跨实例重试、watch 和 Future 边界追踪处理器异常的对象身份。
+  static Object? _propagatingHandlerError;
 
   /// Dispatches the original error or prints the fallback message.
   /// 分发原始异常或打印默认消息。
   void _emitError(String key, CachemanError error, String message) {
+    _propagatingHandlerError = null;
     final cb = _opts.onError;
     if (cb != null) {
       try {
         cb(key, error);
-      } catch (_) {
-        _handlerFailures++;
+      } catch (error) {
+        _propagatingHandlerError = error;
         rethrow;
       }
     } else {

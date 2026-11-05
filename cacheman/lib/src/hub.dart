@@ -58,15 +58,17 @@ class _ContainerHub with WidgetsBindingObserver {
   /// 生命周期观察器惰性注册，仅在存在待落盘任务时保留，避免绑定长期持有 Hub。
   bool _observing = false;
 
-  /// Dispatch a snapshot so reentrant subscribe/cancel is safe.
-  /// 分发快照，允许回调内订阅或取消。
+  /// Dispatch active snapshot records still matching the key; clear reaches all.
+  /// 分发快照中仍匹配该键的活跃记录，允许重入迁移；clear 仍通知所有活跃记录。
   void _changed(String? key) {
     version++;
     final snapshot = key == null
         ? _watchers.values.expand((set) => set).toList()
         : _watchers[key]?.toList() ?? <_HubWatch>[];
     for (final watcher in snapshot) {
-      if (watcher.active) watcher.notify();
+      if (watcher.active && (key == null || watcher.storageKey == key)) {
+        watcher.notify();
+      }
     }
   }
 

@@ -71,7 +71,7 @@ commit 基线：`ab4e93aff5503e508aa431eb63f7dd6e7f1fedd7`（阶段 1b 终审）
 
 ## 全部公开功能及回归用例
 
-下表包含全部134个真实测试，覆盖原有公开API、评审已落地修复、阶段0/1a/1b/2，以及错误和边界分支。
+下表包含全部139个真实测试，覆盖原有公开API、评审已落地修复、阶段0/1a/1b/2，以及错误和边界分支。
 
 | ID | 需求 / 不变量 | 来源 | 用例（文件 :: 测试名，可多条） | 类型 | 结果 |
 | --- | --- | --- | --- | --- | --- |
@@ -210,6 +210,12 @@ commit 基线：`ab4e93aff5503e508aa431eb63f7dd6e7f1fedd7`（阶段 1b 终审）
 | CASE-131 | fast lazy and batch accessors adapt values and apply default ttl | 阶段 2 | `test/type_safety_test.dart :: fast lazy and batch accessors adapt values and apply default ttl` | 子类内存后端 | 通过 |
 | CASE-132 | collection adapters eagerly validate and copy JSON structures | 阶段 2 | `test/type_safety_test.dart :: collection adapters eagerly validate and copy JSON structures` | 子类内存后端 | 通过 |
 | CASE-133 | sync failed mutation Future is FlushError without retry | 阶段 2 | `test/type_safety_test.dart :: sync failed mutation Future is FlushError without retry` | 子类内存后端 | 通过 |
+| CASE-134 | R1：重入切 namespace 并枚举后，索引不含旧域键，erase 保留旧域数据 | 全量评审 R1–R6 | `test/hub_test.dart :: R1 reentrant namespace enumeration preserves scope isolation` | 子类内存后端 | 通过 |
+| CASE-135 | R2：双语 DirectoryCache 示例用 UTF-8 小写十六进制，避免文件名大小写碰撞 | 全量评审 R1–R6 | scratchpad：从双语 README 提取并核对相同示例；review_directory_hex_test.dart 验证 aaa=1、aaG=2，枚举恰好两个键（文件 616161.cache / 616147.cache） | 手动·Windows 真文件 | 通过（按要求不在仓库保留示例测试文件） |
+| CASE-136 | R3：吞掉无关 onError 异常后业务异常仍报 WatchError，继续分发；新上报清空身份标记 | 全量评审 R1–R6 | `test/hub_test.dart :: R3 caught unrelated handler errors do not poison watch dispatch` | 子类内存后端 | 通过 |
+| CASE-137 | R4：真实 get_storage 的 write/remove/erase Future 保留处理器异常身份，走 Zone，不误报 FlushError | 全量评审 R1–R6 | `test/hub_test.dart :: R4 real get_storage handler errors propagate unchanged through Zone` | 集成·真 get_storage | 通过 |
+| CASE-138 | R5：快照跳过已迁移 watcher，仍接收新域键和 clear 通知 | 全量评审 R1–R6 | `test/hub_test.dart :: R5 migrated snapshot watchers skip old keys and still receive clear` | 子类内存后端 | 通过 |
+| CASE-139 | R6：延迟写先登记 flush，watch 重入写入后落盘失败只报最新嵌套写入者 | 全量评审 R1–R6 | `test/hub_test.dart :: R6 reentrant delayed flush failures belong to the nested writer` | 子类内存后端 | 通过 |
 
 ## 覆盖率豁免
 
@@ -218,7 +224,8 @@ commit 基线：`ab4e93aff5503e508aa431eb63f7dd6e7f1fedd7`（阶段 1b 终审）
 | lib/src/jsonx.dart:154 | 私有且从不被库内使用的 `Jsonx._()` 构造函数；仅有静态方法，从库外无法调用，也无生产调用路径。只标注这一行 `coverage:ignore-line`，其余所有可执行行均有测试。 |
 
 coverage.dart 识别 ignore-line / ignore-start / ignore-end，按 lcov 的可执行行统计；导出入口
-lib/cacheman.dart 无可执行行，显示0/0。当前原始566行中命中565行，上述1行明确豁免；
+lib/cacheman.dart 无可执行行，显示0/0。本次 lcov 采集561行并全部命中（100%）；
+上述1行保留显式豁免，本次无采集记录；
 不以ignore掩盖web分支/错误处理/可测逻辑，当前没有其他豁免。
 
 ## 评审 P1/P2 逐项编号映射
@@ -250,7 +257,7 @@ lib/cacheman.dart 无可执行行，显示0/0。当前原始566行中命中565�
 | 子类的新原语默认值 | 经 `Cacheman.custom` 构造的自带原语子类：hubIdentity默认this、listenRaw默认null，deferred写退化setRaw、flush为no-op；共享身份/通知须显式覆写。默认构造（含只转发参数的子类）共享GetStorage身份（终审修正：原按 runtimeType 判定会误伤转发子类，见 INV-01b）。 |
 | 生命周期注册细节 | 比任务允许的长期观察器更短：仅有待保存Timer时注册，flush后移除，避免绑定长期强引用Hub；仍覆盖全部四种后台状态。 |
 | CacheOp兼容 | 不增加enum成员，保留旧用例对CacheOp.values的断言：订阅使用无键init上下文，flush使用无键write上下文。 |
-| reentrant通知 | 除规定的fresh/version规则外，要求恰好一次通知且索引未被回调切namespace清空，才增量标新；否则失效重建，避免漏掉嵌套peer写入。 |
+| reentrant通知 | 仅在原索引fresh、身份未替换、作用域代数未变且恰好一次同步通知时增量标新，否则失效重建；键通知快照跳过已迁移watcher，clear仍通知全部活跃记录；延迟写先登记flush，再通知以保留嵌套写入者归属。 |
 | read adapter 签名 | Dart 不支持可选位置与命名参数混用；保留 read(key, [default])，新增 readWith(key, {defaultValue, adapter})，两者复用同一读取编排/内核。 |
 | onError本身抛错 | 保留SKILL原契约：向上传播；不吞用户错误处理器异常。 |
 | 异步访问器/debug/key(index)、并发readonly事务、跨box自动路由 | 不在本次范围：阶段1a已明确；AsyncCacheman只保留已提供的awaited API，不参与Hub/watch/flush。 |

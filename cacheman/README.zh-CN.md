@@ -380,11 +380,11 @@ final report = await large.read<List<dynamic>>('report');
 
 ### 异步原语：纯 dart:io，每键一个文件
 
-文件名对 **storageKey**（已加 namespace、按需经过 codec）做 UTF-8 + base64url 编码，
+文件名对 **storageKey**（已加 namespace、按需经过 codec）做 UTF-8 + 小写十六进制编码，
 `report/2026` 这类逻辑键不会引入路径分隔符。
 
 ```dart
-import 'dart:convert' show base64Url, utf8;
+import 'dart:convert' show utf8;
 import 'dart:io';
 import 'package:cacheman/cacheman.dart';
 
@@ -396,10 +396,30 @@ class DirectoryCache extends AsyncCacheman {
   final Directory directory;
   /// Recognized file suffix. / 可识别的文件后缀。
   static const suffix = '.cache';
+  /// Hexadecimal radix. / 十六进制基数。
+  static const _hexRadix = 16;
+  /// Hex digits per UTF-8 byte. / 每个 UTF-8 字节的十六进制位数。
+  static const _byteDigits = 2;
+
+  /// Lowercase hex avoids base64 case collisions on case-insensitive filesystems.
+  /// 小写十六进制避免 base64 在大小写不敏感文件系统上的文件名碰撞。
+  static String _encodeKey(String key) => utf8.encode(key)
+      .map((byte) => byte.toRadixString(_hexRadix).padLeft(_byteDigits, '0')).join();
+
+  /// Decode only complete lowercase hex byte pairs. / 仅解码完整的小写十六进制字节对。
+  static String _decodeKey(String name) {
+    if (!RegExp(r'^(?:[0-9a-f]{2})*$').hasMatch(name)) {
+      throw const FormatException('Invalid hex filename');
+    }
+    return utf8.decode([
+      for (var i = 0; i < name.length; i += _byteDigits)
+        int.parse(name.substring(i, i + _byteDigits), radix: _hexRadix),
+    ]);
+  }
 
   /// Maps storageKey to a safe filename. / 将 storageKey 映射为安全文件名。
   File fileFor(String k) => File(
-    '${directory.path}${Platform.pathSeparator}${base64Url.encode(utf8.encode(k))}$suffix',
+    '${directory.path}${Platform.pathSeparator}${_encodeKey(k)}$suffix',
   );
 
   @override
@@ -428,7 +448,7 @@ class DirectoryCache extends AsyncCacheman {
       final name = entry.uri.pathSegments.last;
       if (!name.endsWith(suffix)) continue;
       try {
-        keys.add(utf8.decode(base64Url.decode(name.substring(0, name.length - suffix.length))));
+        keys.add(_decodeKey(name.substring(0, name.length - suffix.length)));
       } on FormatException { /* ignore foreign filenames / 忽略外部文件名 */ }
     }
     return keys;

@@ -1068,6 +1068,157 @@ void main() {
     }
   });
 
+  test('R1 reentrant namespace enumeration preserves scope isolation',
+      () async {
+    final backend = _Backend();
+    final cache = await _ready(backend);
+    final oldKey = cache.storageKey(_key);
+    expect(cache.keys(), isEmpty);
+    final stop = cache.watch<int>(_key, (_) {
+      cache.setNamespace(_other);
+      expect(cache.keys(), isEmpty);
+    }, includeOwnWrites: true);
+    addTearDown(stop);
+    cache.write(_key, 1);
+    expect(cache.keys(), isEmpty);
+    cache.write(_other, 2);
+    expect(cache.keys(), [_other]);
+    cache.erase();
+    expect(backend.data.keys, [oldKey]);
+    expect(defaultDeserialize(backend.data[oldKey] as String).value, 1);
+  });
+
+  test('R3 caught unrelated handler errors do not poison watch dispatch',
+      () async {
+    final reports = <Object>[];
+    final cache = await _ready(
+        _Backend(), CachemanOptions(onError: (_, e) => reports.add(e)));
+    final handlerFailure = StateError('unrelated handler');
+    final unrelated = await _ready(
+        _Backend(), CachemanOptions(onError: (_, e) => throw handlerFailure));
+    unrelated.write(_key, _value);
+    final failure = StateError('watch business failure');
+    final first = cache.watch<int>(_key, (_) {
+      try {
+        unrelated.read<int>(_key);
+      } catch (_) {
+        // The unrelated handler error is handled here. / 此处已处理无关的处理器异常。
+      }
+      throw failure;
+    }, includeOwnWrites: true);
+    addTearDown(first);
+    var calls = 0;
+    final second =
+        cache.watch<int>(_key, (_) => calls++, includeOwnWrites: true);
+    addTearDown(second);
+    expect(() => cache.write(_key, 1), returnsNormally);
+    expect(reports.single,
+        isA<WatchError>().having((e) => e.cause, _causeLabel, same(failure)));
+    expect(calls, 1);
+    first();
+    final reused = cache.watch<int>(_key, (_) => throw handlerFailure,
+        includeOwnWrites: true);
+    addTearDown(reused);
+    expect(() => unrelated.read<int>(_key), throwsA(same(handlerFailure)));
+    // A new report resets the marker before business code reuses the object.
+    // 新一次上报清空标记，随后业务代码可复用同一异常对象。
+    expect(cache.read<String>(_key), isNull);
+    expect(reports.last, isA<TypeMismatchError>());
+    expect(() => cache.write(_key, 2), returnsNormally);
+    expect(reports.length, 3);
+    expect(
+        reports.last,
+        isA<WatchError>()
+            .having((e) => e.cause, _causeLabel, same(handlerFailure)));
+    expect(calls, 2);
+  });
+
+  test('R4 real get_storage handler errors propagate unchanged through Zone',
+      () async {
+    final id = name();
+    final failure = StateError('watch handler');
+    final watcherErrors = <Object>[];
+    final writerErrors = <Object>[];
+    final zoneErrors = <Object>[];
+    final watcher = await real(id, CachemanOptions(onError: (_, error) {
+      watcherErrors.add(error);
+      throw failure;
+    }));
+    final writer = await real(
+        id, CachemanOptions(onError: (_, error) => writerErrors.add(error)));
+    final callbackFailure = StateError('watch callback');
+    final stop = watcher.watch<int>(_key, (_) => throw callbackFailure);
+    addTearDown(stop);
+    final mutations = [
+      () => writer.write(_key, _value),
+      () => writer.remove(_key),
+      writer.erase,
+    ];
+    for (var i = 0; i < mutations.length; i++) {
+      runZonedGuarded<void>(() {
+        expect(mutations[i], returnsNormally);
+      }, (error, trace) => zoneErrors.add(error));
+      await Future<void>.delayed(Duration.zero);
+      expect(writerErrors, isEmpty);
+      expect(zoneErrors, hasLength(i + 1));
+      expect(zoneErrors.last, same(failure));
+    }
+    expect(watcherErrors, [
+      isA<TypeMismatchError>(),
+      isA<WatchError>()
+          .having((e) => e.cause, _causeLabel, same(callbackFailure)),
+      isA<WatchError>()
+          .having((e) => e.cause, _causeLabel, same(callbackFailure)),
+    ]);
+  });
+
+  test('R5 migrated snapshot watchers skip old keys and still receive clear',
+      () async {
+    final backend = _Backend();
+    final cache = await _ready(backend);
+    backend.data['$_other:$_key'] = defaultSerialize(CacheEntity(value: 99));
+    final first = cache.watch<int>(_key, (_) => cache.setNamespace(_other),
+        includeOwnWrites: true);
+    addTearDown(first);
+    final values = <int?>[];
+    final second = cache.watch<int>(_key, values.add, includeOwnWrites: true);
+    addTearDown(second);
+    cache.write(_key, 1);
+    expect(values, isEmpty);
+    cache.write(_key, 2);
+    expect(values, [2]);
+    backend.data.clear();
+    backend.change(null);
+    expect(values, [2, null]);
+  });
+
+  test('R6 reentrant delayed flush failures belong to the nested writer',
+      () async {
+    final failure = StateError('nested save');
+    final backend = _Backend()..saveError = failure;
+    final firstErrors = <Object>[];
+    final latestErrors = <Object>[];
+    final first = await _ready(
+        backend,
+        CachemanOptions(
+            flushDelay: _delay, onError: (_, error) => firstErrors.add(error)));
+    final latest = await _ready(
+        backend,
+        CachemanOptions(
+            flushDelay: _delay,
+            onError: (_, error) => latestErrors.add(error)));
+    final stop = first.watch<int>(_key, (_) => latest.write(_other, 2),
+        includeOwnWrites: true);
+    addTearDown(stop);
+    first.write(_key, 1);
+    expect(latest.read<int>(_other), 2);
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(backend.saves, 1);
+    expect(firstErrors, isEmpty);
+    expect(latestErrors.single,
+        isA<FlushError>().having((e) => e.cause, _causeLabel, same(failure)));
+  });
+
   test('Jsonx unknown tags shape mismatch and cast errors', () {
     expect(Jsonx.decode<Object>(' {"#t":"unknown","value":1}'),
         {_tagField: 'unknown', _value: 1});

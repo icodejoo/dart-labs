@@ -97,6 +97,10 @@ class Cacheman {
   /// Version represented by the current snapshot. / 当前快照对应的版本。
   int _indexVersion = -1;
 
+  /// Scope generation detects namespace switches during mutations.
+  /// 作用域代数用于识别写入期间发生的命名空间切换。
+  int _scopeGeneration = 0;
+
   /// Reentrant own-mutation depth for feedback-loop suppression. / 本实例嵌套写入深度，用于断环。
   int _selfDepth = 0;
 
@@ -115,6 +119,21 @@ class Cacheman {
   /// Reports hub flush errors on the whole-backend key. / 以整库错误键上报 Hub 落盘异常。
   void _reportHubError(Object error, StackTrace trace) =>
       _core._reportFlushError(_allKeys, error, trace);
+
+  /// Observe background failures without reclassifying onError exceptions.
+  /// 观察后台失败，保留 onError 异常的原始身份与分类边界。
+  void _observeFlush(String key, Future<void> pending) {
+    pending.catchError((Object error, StackTrace trace) {
+      // Default get_storage write is async: synchronous notification handler
+      // exceptions enter its Future and must propagate unchanged to the Zone.
+      // 默认 get_storage write 为 async；同步通知的处理器异常进入其 Future，
+      // 须保留原异常并按 Zone 规则传播。
+      if (identical(error, _CacheCore._propagatingHandlerError)) {
+        Error.throwWithStackTrace(error, trace);
+      }
+      _core._reportFlushError(key, error, trace);
+    });
+  }
 
   /// Raw get_storage container for interop; accessing it creates it even for
   /// custom subclasses. Use `container.listenKey(storageKey('token'), ...)`.
@@ -205,8 +224,7 @@ class Cacheman {
   @protected
   void setDeferredRaw(CacheContext ctx, String storageKey, String value) {
     if (_custom) {
-      setRaw(ctx, storageKey, value).catchError((Object e, StackTrace trace) =>
-          _core._reportFlushError(storageKey, e, trace));
+      _observeFlush(storageKey, setRaw(ctx, storageKey, value));
     } else {
       container.writeInMemory(storageKey, value);
     }
@@ -240,11 +258,10 @@ class Cacheman {
     watcher = _HubWatch(key, storageKey(key), () {
       if (!includeOwnWrites && _selfDepth > 0) return;
       final errorKey = watcher.storageKey;
-      final handlerFailures = _core.handlerFailures;
       try {
         onChange(read<T>(key));
       } catch (error, trace) {
-        if (_core.handlerFailures != handlerFailures) rethrow;
+        if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
         _core._reportError(WatchError(errorKey, error, trace));
       }
     });
@@ -261,6 +278,7 @@ class Cacheman {
   /// 切换作用域但不删旧数据，并清空键缓存，例如 cache.setNamespace('alice')。
   void setNamespace([String? namespace]) {
     _core.setNamespace(namespace);
+    _scopeGeneration++;
     _ownedKeysCache = null;
     for (final watcher in _watches) {
       _hub.remove(watcher);
@@ -283,9 +301,7 @@ class Cacheman {
   /// Removes and updates the owned-key snapshot. / 删除并维护自有键快照。
   void _del(String key) {
     _mutate(key, () {
-      removeRaw(_core.context(CacheOp.remove, key), key).catchError(
-          (Object e, StackTrace trace) =>
-              _core._reportFlushError(key, e, trace));
+      _observeFlush(key, removeRaw(_core.context(CacheOp.remove, key), key));
     }, remove: true);
   }
 
@@ -302,17 +318,20 @@ class Cacheman {
     return _ownedKeysCache!;
   }
 
-  /// Track only a fresh index and one notification; reentrant external mutations
-  /// invalidate it rather than incorrectly blessing a partial snapshot.
-  /// 仅对新鲜索引且恰好一次通知做增量更新；重入外部写入使索引失效，避免错误标新。
+  /// Increment only the same fresh index in the same scope with one notification.
+  /// Reentrant index rebuilds or scope changes invalidate it instead.
+  /// 仅对同一作用域内未替换的新鲜索引且恰好一次通知做增量更新；重建或切域则失效。
   void _mutate(String key, VoidCallback action, {bool remove = false}) {
     final version = _hub.version;
-    final fresh = _ownedKeysCache != null && _indexVersion == version;
+    final before = _ownedKeysCache;
+    final generation = _scopeGeneration;
+    final fresh = before != null && _indexVersion == version;
     _selfDepth++;
     try {
       action();
       if (fresh &&
-          _ownedKeysCache != null &&
+          identical(_ownedKeysCache, before) &&
+          _scopeGeneration == generation &&
           _hub.synchronous &&
           _hub.version == version + 1) {
         if (remove) {
@@ -348,12 +367,11 @@ class Cacheman {
     assert(_initialized, _initializationMessage);
     final encoded = _core.build(key, build);
     if (encoded == null) return false;
-    final handlerFailures = _core.handlerFailures;
     try {
       _writeNow(key, encoded);
       return true;
     } catch (error, trace) {
-      if (_core.handlerFailures != handlerFailures) rethrow;
+      if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
       if (!_core._opts.force) {
         _core._reportError(WriteError(key, error, trace));
         return false;
@@ -363,7 +381,7 @@ class Cacheman {
         _writeNow(key, encoded);
         return true;
       } catch (retryError, retryTrace) {
-        if (_core.handlerFailures != handlerFailures) rethrow;
+        if (identical(retryError, _CacheCore._propagatingHandlerError)) rethrow;
         _core._reportError(WriteError(key, retryError, retryTrace));
         return false;
       }
@@ -376,11 +394,12 @@ class Cacheman {
       final ctx = _core.context(CacheOp.write, key);
       final delay = _core._opts.flushDelay;
       if (delay == null) {
-        setRaw(ctx, key, value).catchError((Object e, StackTrace trace) =>
-            _core._reportFlushError(key, e, trace));
+        _observeFlush(key, setRaw(ctx, key, value));
       } else {
-        setDeferredRaw(ctx, key, value);
+        // Register before notification so a nested writer becomes the latest owner.
+        // 通知前登记，使回调内的嵌套写入者后登记并成为最新错误归属。
         _hub.scheduleFlush(delay, _reportHubError);
+        setDeferredRaw(ctx, key, value);
       }
     });
   }
@@ -496,9 +515,7 @@ class Cacheman {
     if (namespace.isEmpty && !_core._enckey) {
       _selfDepth++;
       try {
-        clearRaw(_core.context(CacheOp.clear)).catchError(
-            (Object e, StackTrace trace) =>
-                _core._reportFlushError(_allKeys, e, trace));
+        _observeFlush(_allKeys, clearRaw(_core.context(CacheOp.clear)));
         _ownedKeysCache = null;
       } finally {
         _selfDepth--;

@@ -53,6 +53,18 @@ Stage 2, planned for 0.7.0.
 
 **Fixes:**
 
+- R1: Guard incremental owned-key updates with index identity and scope generation during
+  reentrant namespace changes. / 重入切域时校验索引身份与作用域代数，防止跨域误删。
+- R2: Use lowercase UTF-8 hex filenames in both directory-backend examples to avoid
+  case-insensitive filesystem collisions. / 双语目录后端示例改用小写 UTF-8 十六进制，避免大小写碰撞。
+- R3: Track onError exceptions by identity instead of a shared failure counter, so caught
+  unrelated errors cannot interrupt watch dispatch. / 按异常身份识别 onError 传播，避免已处理的无关异常打断 watch。
+- R4: Preserve handler exceptions and stacks through mutation Futures and Zone propagation
+  instead of wrapping them as FlushError. / 变更 Future 中的处理器异常保留身份和堆栈，按 Zone 传播。
+- R5: Skip migrated watchers in keyed notification snapshots while retaining clear delivery.
+  / 键通知快照跳过已迁移 watcher，clear 仍通知所有活跃订阅。
+- R6: Register delayed flush before memory notifications so reentrant writers retain latest
+  error ownership. / 延迟落盘在内存通知前登记，保留重入写入者的最新错误归属。
 - Align architecture, bilingual READMEs and contributor skill with the actual synchronous API,
   sliding renewal after at least 10% of TTL elapsed, and get_storage's transitive `get` dependency;
   remove the obsolete architecture SVG and correct example verification paths.
