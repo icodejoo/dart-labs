@@ -154,6 +154,186 @@ void main() {
     });
   }
 
+  for (final mode in [OverlayMode.queue, OverlayMode.overlap]) {
+    for (final preconfirmed in [false, true]) {
+      test('$mode gate drop 不调用后端、不接入 visible：预先确认=$preconfirmed', () async {
+        final events = <OverlayEvent>[];
+        final manager = _manager(events);
+        await manager.ready();
+        final backend = _Backend();
+        if (preconfirmed) backend.visible.complete();
+        const cd = OverlayCooldown(session: 1, total: 1);
+        final ticket = manager.submit<int>(
+          id: 'denied',
+          mode: mode,
+          cooldown: cd,
+          present: backend.present,
+          gate: (_) => const OverlayVerdict.drop(),
+        );
+        expect((await ticket.outcome).reason, OverlayEndReason.gated);
+        await flushAsync();
+        expect(backend.presents, 0);
+        expect(backend.dismisses, 0);
+        expect(manager.records, isEmpty);
+        expect(manager.cooldownStatus('denied', cd).canShow, isTrue);
+        expect(events.map((event) => event.type),
+            [OverlayEventType.queued, OverlayEventType.ended]);
+      });
+    }
+
+    test('$mode gate waitUntil 结束才 present，visible 确认才计数和 shown', () async {
+      final events = <OverlayEvent>[];
+      final clock = FakeOverlayClock();
+      final manager = _manager(events, clock: clock);
+      await manager.ready();
+      const cd = OverlayCooldown(session: 1, total: 1);
+      final backend = _Backend();
+      final deadline = clock.now().add(const Duration(seconds: 1));
+      final ticket = manager.submit<int>(
+        id: 'waiting',
+        mode: mode,
+        cooldown: cd,
+        duration: const Duration(milliseconds: 500),
+        present: backend.present,
+        gate: (_) => OverlayVerdict.waitUntil(deadline),
+      );
+      clock.advance(const Duration(milliseconds: 999));
+      await flushAsync();
+      expect(backend.presents, 0);
+      expect(manager.recordOf('waiting')!.phase, OverlayPhase.pending);
+      expect(manager.cooldownStatus('waiting', cd).canShow, isTrue);
+      expect(events.map((event) => event.type), [OverlayEventType.queued]);
+      clock.advance(const Duration(milliseconds: 1));
+      await flushAsync();
+      expect(backend.presents, 1);
+      expect(manager.recordOf('waiting')!.phase, OverlayPhase.open);
+      expect(manager.cooldownStatus('waiting', cd).canShow, isTrue);
+      expect(events.map((event) => event.type), [OverlayEventType.queued]);
+      clock.advance(const Duration(milliseconds: 100));
+      backend.visible.complete();
+      await flushAsync();
+      expect(manager.cooldownStatus('waiting', cd).permanentlyBlocked, isTrue);
+      expect(events.map((event) => event.type),
+          [OverlayEventType.queued, OverlayEventType.shown]);
+      clock.advance(const Duration(milliseconds: 400));
+      expect((await ticket.outcome).reason, OverlayEndReason.expired);
+      await flushAsync();
+      expect(events.last.type, OverlayEventType.ended);
+      manager.debugCheckInvariants();
+    });
+
+    test('$mode gate waitUntil 期间移除，不进入 visible 等待、不消耗频次', () async {
+      final events = <OverlayEvent>[];
+      final clock = FakeOverlayClock();
+      final manager = _manager(events, clock: clock);
+      await manager.ready();
+      final backend = _Backend();
+      const cd = OverlayCooldown(session: 1);
+      final deadline = clock.now().add(const Duration(seconds: 1));
+      final ticket = manager.submit<int>(
+        id: 'cancelled',
+        mode: mode,
+        cooldown: cd,
+        present: backend.present,
+        gate: (_) => OverlayVerdict.waitUntil(deadline),
+      );
+      ticket.remove();
+      backend.visible.complete();
+      clock.advance(const Duration(seconds: 2));
+      await flushAsync();
+      expect((await ticket.outcome).reason, OverlayEndReason.removed);
+      expect(backend.presents, 0);
+      expect(manager.cooldownStatus('cancelled', cd).canShow, isTrue);
+      expect(events.map((event) => event.type),
+          [OverlayEventType.queued, OverlayEventType.ended]);
+      expect(clock.pendingTimers, 0);
+      manager.debugCheckInvariants();
+    });
+
+    test('$mode gate 提前 pass 后关闭，晚到 visible 不补 shown 或计数', () async {
+      final events = <OverlayEvent>[];
+      final clock = FakeOverlayClock();
+      final manager = _manager(events, clock: clock);
+      await manager.ready();
+      final backend = _Backend();
+      const cd = OverlayCooldown(session: 1);
+      final deadline = clock.now().add(const Duration(seconds: 1));
+      final ticket = manager.submit<int>(
+        id: 'early-pass',
+        mode: mode,
+        cooldown: cd,
+        present: backend.present,
+        gate: (ctx) => ctx['allow'] == true
+            ? const OverlayVerdict.pass()
+            : OverlayVerdict.waitUntil(deadline),
+      );
+      expect(backend.presents, 0);
+      manager.setContext({'allow': true});
+      expect(backend.presents, 1);
+      ticket.close(7);
+      await flushAsync();
+      backend.visible.complete();
+      clock.advance(const Duration(seconds: 2));
+      await flushAsync();
+      expect((await ticket.outcome).reason, OverlayEndReason.closed);
+      expect(manager.cooldownStatus('early-pass', cd).canShow, isTrue);
+      expect(events.map((event) => event.type),
+          [OverlayEventType.queued, OverlayEventType.ended]);
+      manager.debugCheckInvariants();
+    });
+
+    for (final childMode in [OverlayMode.queue, OverlayMode.overlap]) {
+      test('gate 通过的 $mode 等 visible 时仍阻塞 $childMode，退场后才放行', () async {
+        final clock = FakeOverlayClock();
+        final manager = Layerman(clock: clock, slots: const {
+          'child': OverlaySlotOptions(blockedBy: {'parent'}),
+        });
+        addTearDown(manager.dispose);
+        await manager.ready();
+        const cd = OverlayCooldown(session: 1);
+        final parent = _Backend();
+        final deadline = clock.now().add(const Duration(seconds: 1));
+        final ticket = manager.submit<int>(
+          id: 'parent',
+          slot: 'parent',
+          mode: mode,
+          cooldown: cd,
+          exitDuration: const Duration(seconds: 1),
+          present: parent.present,
+          gate: (_) => OverlayVerdict.waitUntil(deadline),
+        );
+        clock.advance(const Duration(seconds: 1));
+        expect(parent.presents, 1);
+        final child = _Backend();
+        manager.submit<int>(
+          id: 'child',
+          slot: 'child',
+          mode: childMode,
+          cooldown: cd,
+          present: child.present,
+          gate: (_) => const OverlayVerdict.pass(),
+        );
+        await flushAsync();
+        expect(child.presents, 0);
+        expect(manager.cooldownStatus('parent', cd).canShow, isTrue);
+        parent.visible.complete();
+        await flushAsync();
+        expect(child.presents, 0);
+        expect(manager.cooldownStatus('parent', cd).canShow, isFalse);
+        ticket.close();
+        await flushAsync();
+        expect(child.presents, 0);
+        clock.advance(const Duration(seconds: 1));
+        expect(child.presents, 1);
+        expect(manager.cooldownStatus('child', cd).canShow, isTrue);
+        child.visible.complete();
+        await flushAsync();
+        expect(manager.cooldownStatus('child', cd).canShow, isFalse);
+        manager.debugCheckInvariants();
+      });
+    }
+  }
+
   test('visible 计数持久化同步重入 remove，仍为 queued、shown、ended', () async {
     final storage = _Storage();
     final manager = Layerman(cooldownStorage: storage);

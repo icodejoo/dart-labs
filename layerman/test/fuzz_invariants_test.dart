@@ -79,10 +79,13 @@ void _cover(String operation) => _extendedCoverage
 /// 每次提交一个后端，计数绑定提交身份而非可复用的 id。
 class _FakeBackend {
   /// 配置正常、延迟、永不结束或展示异常。
-  _FakeBackend(this.mode, {this.visibleMode = 0});
+  _FakeBackend(this.mode, {this.visibleMode = 0, this.visibleDelay = _slow});
 
   /// 可见确认行为：即时、延迟或放弃。
   final int visibleMode;
+
+  /// 可见信号的独立随机延迟；与 gate 截止、duration 和关闭延迟交错。
+  final Duration visibleDelay;
 
   /// 后端是否实际发出过成功确认。
   bool confirmed = false;
@@ -108,7 +111,7 @@ class _FakeBackend {
       confirmed = true;
       visible.complete();
     } else if (visibleMode == 1) {
-      Timer(_slow, () {
+      Timer(visibleDelay, () {
         confirmed = true;
         visible.complete();
       });
@@ -368,7 +371,9 @@ class _Scenario {
     final cooldown = random.nextInt(5);
     final backend = _FakeBackend(
         random.nextInt(12) == 0 ? 3 : random.nextInt(3),
-        visibleMode: random.nextInt(3));
+        visibleMode: random.nextInt(3),
+        visibleDelay: Duration(milliseconds:
+            1 + Random(seed ^ (probes.length * 0x157) ^ 0x910).nextInt(900)));
     final delay = random.nextBool() ? null : _slow;
     final duration = random.nextBool() ? null : _slow;
     final exit = random.nextBool() ? null : _slow;
@@ -393,7 +398,9 @@ class _Scenario {
       slot: slot,
       present: (ctx) {
         if (resolver < 2) activated(slot, probe);
-        return backend.present(ctx);
+        final presented = backend.present(ctx);
+        if (gateKind != 0) _cover('gate + visible${backend.visibleMode}');
+        return presented;
       },
       data: const {'initial': true},
       priority: priority,
@@ -843,7 +850,7 @@ void main() {
     });
   }
   for (var seed = 0; seed < 60; seed++) {
-    testWidgets('三态 gate 与阻塞随机不变量 seed=$seed', (tester) async {
+    testWidgets('三态 gate、随机 visible 延迟与阻塞不变量 seed=$seed', (tester) async {
       final scenario = _Scenario(seed, tester, withGates: true);
       for (var step = 0; step < _steps; step++) {
         await scenario.step();
@@ -868,7 +875,7 @@ void main() {
     });
   }
   for (var seed = 0; seed < 40; seed++) {
-    testWidgets('三态 gate 与慢存储 build 扩展不变量 seed=$seed', (tester) async {
+    testWidgets('三态 gate、随机 visible 延迟与慢存储 build 扩展不变量 seed=$seed', (tester) async {
       final scenario = _ExtendedScenario(seed, tester, withGates: true);
       try {
         for (var step = 0; step < _steps; step++) {
@@ -961,6 +968,12 @@ void main() {
       'visible0',
       'visible1',
       'visible2',
+      'gate + visible0',
+      'gate + visible1',
+      'gate + visible2',
+      '扩展 gate + visible0',
+      '扩展 gate + visible1',
+      '扩展 gate + visible2',
       'blockedBy 单向',
       'blockedBy 链',
       'blockedBy 环',
@@ -1289,8 +1302,9 @@ class _BuildOpen extends StatelessWidget {
 class _ExtendedProbe {
   /// 固定本次提交的后端、模式及关闭守卫。
   _ExtendedProbe(
-      this.id, this.overlap, this.guard, this.cooldown, int visibleMode)
-      : backend = _FakeBackend(0, visibleMode: visibleMode);
+      this.id, this.overlap, this.guard, this.cooldown, int visibleMode,
+      Duration visibleDelay)
+      : backend = _FakeBackend(0, visibleMode: visibleMode, visibleDelay: visibleDelay);
 
   /// 本次提交用于计数断言的上限。
   final OverlayCooldown cooldown;
@@ -1502,7 +1516,9 @@ class _ExtendedScenario {
         'auth=$requireRole role=$role when=$requireWhen tenant=$tenant '
         'priority=$priority cd=$index ready=$ready');
     final probe = _ExtendedProbe(
-        id, mode == OverlayMode.overlap, guard, cd, random.nextInt(3));
+        id, mode == OverlayMode.overlap, guard, cd, random.nextInt(3),
+        Duration(milliseconds:
+            1 + Random(seed ^ (probes.length * 0x157) ^ 0x811).nextInt(900)));
     final gateKind = withGates
         ? Random(seed ^ (probes.length * 0x13f) ^ 0x781).nextInt(4)
         : 0;
@@ -1560,7 +1576,9 @@ class _ExtendedScenario {
       }
       if (paused) violations.add('I5 暂停期间 present $id');
       probe.context = ctx;
-      return probe.backend.present(ctx);
+      final presented = probe.backend.present(ctx);
+      if (gateKind != 0) _cover('扩展 gate + visible${probe.backend.visibleMode}');
+      return presented;
     }
 
     final before = presents;
