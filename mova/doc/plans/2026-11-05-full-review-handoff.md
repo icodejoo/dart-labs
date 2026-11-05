@@ -163,7 +163,8 @@ git commit -m "chore(mova): example Windows 插件列表同步 sherpa_onnx 屏�
 - 已落地：§1 选方案 c；A11（PiP 中拒绝小窗、全屏先收起小窗）、B3（探测推迟武装）、B5（还原失败保留原值并重试）、C6、D3、D12、D15（亚秒毫秒键）、E13。
 - **B1 未做**：尝试过 START_FILE 起始闸门（丢弃新文件 START_FILE 之前的 END_FILE/RESTART），真机 A/B：开启时 HE V9 仅 1/5 通过，关闭 5/5，已整体撤销。要做 B1 需先在真机上证明该 libmpv 向弱客户端投递 START_FILE 的时序，再按  关联。
 - 真机：CP3 headers 15/15（R1/R2/R3，夹具需去掉  片段后比较）、fullscreen 10/10（R5）、feedplayer 15/15（R4）；CP2：adpaths 39/40（hls.pod.3 续播落点偏 823ms）、adpause/adbg/pod2/playlist3/bgowner/audioonly-bg/qoe 全过、rate 10/10（R6，上轮 5 FAIL）、warmmute 15/15、v9 5/5（撤闸门后）、liveedge 5/5、events 5/5、pip 4/5（run0 ，疑首次调用时 pipSupported 异步未就绪，未证实）。
-- 未做：R7 的 QoE「暂停 30 秒不计卡顿」专项（CP2 qoe 10/10 通过但不含该专项）、iOS。
+- 补测（手机归还后）：R7 新增 CP2 `qoepause` 场景（卡顿进行中暂停 30 秒再恢复），5/5 通过，`stallMs` 283–946ms，不含暂停期；pip 复测 5/5，上次 run0 `enterPip=false` 未复现，按首次调用波动记录。
+- 关闭而非完成：B1（END_FILE 归属）按「窗口极窄、START_FILE 方案被真机证伪」暂不修，重开条件见上；iOS 无 Mac，无法验证。
 
 ## 4. 真机复验（未做，优先级最高）
 
