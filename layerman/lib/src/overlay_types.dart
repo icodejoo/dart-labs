@@ -10,7 +10,7 @@ enum OverlayMode {
   /// 抢占所在 slot 的当前条目。
   replace,
 
-  /// 绕过队列叠加在上面，现在或永不。
+  /// 绕过队列叠加；普通条件和冷却现在或永不，业务 waitUntil 可等待。
   overlap,
 }
 
@@ -125,6 +125,9 @@ enum OverlayEndReason {
   /// 被 suppress 抑制。
   suppressed,
 
+  /// 被业务 gate 永久拒绝。
+  gated,
+
   /// 槽位排队已满，被挤出队尾。
   queueFull,
 
@@ -136,6 +139,30 @@ enum OverlayEndReason {
 
   /// 管理器已销毁。
   disposed,
+}
+
+/// 业务激活资格；与 route、auth、when 及 cooldown 按 AND 组合。
+/// 只在激活前求值，不影响已解析或已展示的条目。
+@immutable
+class OverlayVerdict {
+  /// 允许激活，仍须通过其他资格及槽位约束。
+  const OverlayVerdict.pass()
+      : retryAt = null,
+        reason = null;
+
+  /// 等到 [retryAt] 后自动重判；已到期的时刻视为通过。
+  /// 等待期间 setContext 会重判，可提前通过、延后或永久拒绝。
+  const OverlayVerdict.waitUntil(DateTime this.retryAt) : reason = null;
+
+  /// 永久拒绝条目；原因经 outcome 与 ended 事件交付，默认 gated。
+  const OverlayVerdict.drop([OverlayEndReason this.reason = OverlayEndReason.gated])
+      : retryAt = null;
+
+  /// 最早自动重判的时刻；null 表示本结果没有时间等待。
+  final DateTime? retryAt;
+
+  /// 永久拒绝的结束原因；null 表示通过或等待。
+  final OverlayEndReason? reason;
 }
 
 /// 单次提交首次结束时的值与原因。

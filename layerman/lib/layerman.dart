@@ -7,6 +7,7 @@ export 'src/overlay_manager.dart'
     show
         Layerman,
         OverlayPredicate,
+        OverlayGate,
         OverlayCooldown,
         OverlayCooldownStorage,
         MemoryCooldownStorage,
@@ -23,6 +24,7 @@ export 'src/overlay_types.dart'
         RouteMatcher,
         OverlayPhase,
         OverlayEndReason,
+        OverlayVerdict,
         OverlayOutcome,
         OverlayCooldownStatus,
         OverlayEvent,
