@@ -29,6 +29,11 @@ class _GatedKernel extends MovaTestKernel {
   /// 非空时挂起对应内核操作。
   Completer<void>? openGate, seekGate, holdGate;
 
+  /// Failure injected after the seek gate completes.
+  ///
+  /// seek 闸门完成后注入的失败。
+  Object? seekError;
+
   /// Records a load before waiting for its completion.
   ///
   /// 先记录加载，再等待完成。
@@ -44,7 +49,9 @@ class _GatedKernel extends MovaTestKernel {
   @override
   Future<void> seek(Duration position) async {
     await super.seek(position);
+    final error = seekError;
     await seekGate?.future;
+    if (error != null) throw error;
   }
 
   /// Suspends a successful hold before returning to the engine.
@@ -96,11 +103,13 @@ MovaEngine _engine(
   MovaLiveConfig live = const MovaLiveConfig(),
   MovaRecoveryConfig recovery = const MovaRecoveryConfig(),
   MovaOrientationPort? orientation,
+  MovaVolumePort? volume,
   List<MovaHook> interceptors = const [],
 }) => createMovaEngine(
   kernel: kernel,
   ownsKernel: true,
   interceptors: interceptors,
+  volume: volume,
   pip: MovaNoopPipPort(),
   brightness: MovaFallbackBrightnessPort(),
   orientation: orientation ?? MovaNoopOrientationPort(),
@@ -133,10 +142,208 @@ class _RejectingHook extends MovaHook {
   }
 }
 
+/// Gates each seek independently and records pipeline diagnostics.
+///
+/// 分别控制每次 seek 的返回，并记录管线诊断。
+class _SeekHook extends MovaHook {
+  final requests = <Completer<Duration?>>[];
+  final errors = <Object>[];
+
+  /// Waits for the test to approve, rewrite or reject [target].
+  ///
+  /// 等待测试放行、改写或拒绝 [target]。
+  @override
+  Future<Duration?> beforeSeek(Duration target) {
+    final gate = Completer<Duration?>();
+    requests.add(gate);
+    return gate.future;
+  }
+
+  /// Records an isolated pipeline error.
+  ///
+  /// 记录隔离后的管线错误。
+  @override
+  void onError(Object error, StackTrace stack) => errors.add(error);
+}
+
 /// Runs the final-review engine regressions with controlled interleavings.
 ///
 /// 用可控交错执行终审引擎回归测试。
 void main() {
+  for (final latest in [const Duration(seconds: 80), null]) {
+    test('A7 latest hook result $latest supersedes an older seek', () async {
+      final k = MovaTestKernel();
+      final hook = _SeekHook();
+      final e = _engine(k, interceptors: [hook]);
+      addTearDown(e.dispose);
+      await e.open(_vod);
+      k.emitDuration(const Duration(minutes: 5));
+      await Future<void>.delayed(Duration.zero);
+      final old = e.seek(const Duration(seconds: 20));
+      final newer = e.seek(const Duration(seconds: 80));
+      hook.requests[1].complete(latest);
+      await newer;
+      hook.requests[0].complete(const Duration(seconds: 20));
+      await old;
+      expect(k.calls.where((v) => v == 'seek'), hasLength(latest == null ? 0 : 1));
+      expect(k.lastSeek, latest);
+    });
+  }
+
+  test('A8 DVR live edge replaces pending seek and accepts edge progress', () {
+    fakeAsync((clock) {
+      final k = MovaTestKernel();
+      final e = _engine(k, live: const MovaLiveConfig(
+        seekMode: MovaLiveSeekMode.dvr,
+        dvrWindow: Duration(minutes: 10),
+        backToLive: MovaBackToLive.seekEnd,
+      ));
+      e.open(_live);
+      clock.flushMicrotasks();
+      e.seek(const Duration(seconds: 20));
+      clock.flushMicrotasks();
+      expect(k.lastSeek, const Duration(seconds: 20));
+      e.backToLiveEdge();
+      clock.flushMicrotasks();
+      expect(k.lastSeek, const Duration(minutes: 10));
+      expect(e.progressValue.position, const Duration(minutes: 10));
+      k.emitPosition(const Duration(seconds: 600));
+      clock.flushMicrotasks();
+      k.emitPosition(const Duration(seconds: 601));
+      clock.flushMicrotasks();
+      expect(e.progressValue.position, const Duration(seconds: 601));
+      e.dispose();
+      clock.flushMicrotasks();
+    });
+  });
+
+  test('A8 live edge supersedes an older pending seek hook', () async {
+    final k = MovaTestKernel();
+    final hook = _SeekHook();
+    final e = _engine(k, interceptors: [hook], live: const MovaLiveConfig(
+      seekMode: MovaLiveSeekMode.dvr,
+      dvrWindow: Duration(minutes: 10),
+      backToLive: MovaBackToLive.seekEnd,
+    ));
+    addTearDown(e.dispose);
+    await e.open(_live);
+    final old = e.seek(const Duration(seconds: 20));
+    await e.backToLiveEdge();
+    hook.requests.single.complete(const Duration(seconds: 20));
+    await old;
+    expect(k.calls.where((v) => v == 'seek'), hasLength(1));
+    expect(k.lastSeek, const Duration(minutes: 10));
+    expect(e.progressValue.position, const Duration(minutes: 10));
+  });
+
+  for (final parked in [true, false]) {
+    test('A10 ${parked ? "parked" : "retry"} seek failure clears filtering and reports error', () {
+      fakeAsync((clock) {
+        final k = _GatedKernel();
+        final hook = _SeekHook();
+        final e = _engine(k, interceptors: [hook]);
+        final errors = <MovaErrorEvent>[];
+        e.events.listen((event) {
+          if (event is MovaErrorEvent) errors.add(event);
+        });
+        e.open(_vod);
+        clock.flushMicrotasks();
+        if (!parked) {
+          k.emitDuration(const Duration(minutes: 5));
+          clock.flushMicrotasks();
+        }
+        e.seek(const Duration(seconds: 80));
+        hook.requests.single.complete(const Duration(seconds: 80));
+        clock.flushMicrotasks();
+        final failure = StateError('seek failed');
+        k.seekError = failure;
+        if (parked) {
+          k.emitDuration(const Duration(minutes: 5));
+          clock.flushMicrotasks();
+        } else {
+          clock.elapse(e.debugResumeVerifyDelay);
+        }
+        expect(hook.errors, [same(failure)]);
+        expect(errors.single.error, same(failure));
+        expect(errors.single.fatal, isFalse);
+        expect(e.state.error, isNull);
+        k.emitPosition(const Duration(seconds: 12));
+        clock.flushMicrotasks();
+        expect(e.progressValue.position, const Duration(seconds: 12));
+        final seeks = k.calls.where((v) => v == 'seek').length;
+        clock.elapse(const Duration(seconds: 6));
+        expect(k.calls.where((v) => v == 'seek'), hasLength(seeks));
+        e.dispose();
+        clock.flushMicrotasks();
+      });
+    });
+  }
+
+  for (final supersede in ['seek', 'open', 'dispose']) {
+    test('A10 stale internal seek failure after $supersede is ignored', () {
+      fakeAsync((clock) {
+        final k = _GatedKernel();
+        final hook = _SeekHook();
+        final e = _engine(k, interceptors: [hook]);
+        final errors = <MovaErrorEvent>[];
+        e.events.listen((event) {
+          if (event is MovaErrorEvent) errors.add(event);
+        });
+        e.open(_vod);
+        clock.flushMicrotasks();
+        e.seek(const Duration(seconds: 20));
+        hook.requests.single.complete(const Duration(seconds: 20));
+        clock.flushMicrotasks();
+        final oldGate = Completer<void>();
+        k.seekGate = oldGate;
+        k.seekError = StateError('old seek failed');
+        k.emitDuration(const Duration(minutes: 5));
+        clock.flushMicrotasks();
+        k.seekGate = null;
+        k.seekError = null;
+        if (supersede == 'seek') {
+          e.seek(const Duration(seconds: 80));
+          hook.requests.last.complete(const Duration(seconds: 80));
+        } else if (supersede == 'open') {
+          e.open(const MovaSource('https://h/next.mp4'));
+        } else {
+          e.dispose();
+        }
+        clock.flushMicrotasks();
+        oldGate.complete();
+        clock.flushMicrotasks();
+        expect(hook.errors, isEmpty);
+        expect(errors, isEmpty);
+        if (supersede == 'seek') {
+          k.emitPosition(const Duration(seconds: 20));
+          clock.flushMicrotasks();
+          expect(e.progressValue.position, const Duration(seconds: 80));
+          k.emitPosition(const Duration(seconds: 80));
+          clock.flushMicrotasks();
+        }
+        e.dispose();
+        clock.flushMicrotasks();
+      });
+    });
+  }
+
+  for (final touched in [false, true]) {
+    test('A13 initial volume read ${touched ? "cannot overwrite a write" : "seeds untouched state"}', () async {
+      final initial = Completer<double>();
+      double? written;
+      final e = _engine(MovaTestKernel(), volume: MovaCallbackVolumePort(
+        (value) => written = value,
+        onGet: () => initial.future,
+      ));
+      addTearDown(e.dispose);
+      if (touched) await e.setVolume(20);
+      initial.complete(60);
+      await Future<void>.delayed(Duration.zero);
+      expect(e.state.volume, touched ? 20 : 60);
+      expect(written, touched ? 20 : isNull);
+    });
+  }
+
   test('A14 downshift stops at the lowest video variant before audio', () async {
     final k = MovaTestKernel();
     final e = _engine(k);

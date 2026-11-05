@@ -225,6 +225,11 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// 用户是否已请求修改亮度，用于阻止迟到初值覆盖手势结果。
   bool _brightnessTouched = false;
 
+  /// Whether a volume write superseded the initial read.
+  ///
+  /// 音量写入是否已取代初始读取。
+  bool _volumeTouched = false;
+
   /// 初值读取的完成通知，亮度写入在它之后执行。
   late final Future<void> _brightnessReady;
 
@@ -846,6 +851,11 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// 能察觉自己已被取代，不再重新布防校验链。
   int _seekChain = 0;
 
+  /// Orders public seek requests before their asynchronous hooks run.
+  ///
+  /// 在异步钩子执行前记录公开 seek 请求的先后顺序。
+  int _seekRequest = 0;
+
   /// Whether ABR is muted while a variant switch's resume chain is in flight.
   /// The buffering that the reload and its resume seeks cause is the switch's
   /// own cost, not a network stall, so it must not count toward a downshift.
@@ -1199,7 +1209,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
         volumePort
             .get()
             .then((v) {
-              if (_events.isClosed) return;
+              if (_disposed || _events.isClosed || _volumeTouched) return;
               _state.emit(state.copyWith(volume: v.clamp(0, 100)));
             })
             .catchError((Object _) {}),
@@ -2728,11 +2738,17 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (!gate) return;
     if (_disposed) return;
     final gen = _sessionGen;
+    final request = ++_seekRequest;
     final hooked = await _chain.beforeSeek(to);
-    // A source change while an async hook was pending makes the jump stale.
+    // A source change or newer seek while the hook waits makes this stale.
     //
-    // 异步钩子挂起期间换了源，这次跳转就过期了。
-    if (hooked == null || _disposed || gen != _sessionGen) return;
+    // 钩子等待期间换源或收到更新的 seek，本次跳转就过期了。
+    if (hooked == null ||
+        _disposed ||
+        gen != _sessionGen ||
+        request != _seekRequest) {
+      return;
+    }
     // Floor at zero up front: with the duration still unknown the upper clamp
     // below is skipped, and a negative target would otherwise be parked as is.
     //
@@ -2896,7 +2912,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _pendingSeekTarget = clamped;
     _lastPosition = clamped;
     _progressRaw.add(MovaProg(position: clamped, buffer: _lastBuffer));
-    await _kernel.seek(clamped);
+    if (!await _seekInternally(clamped, chain)) return;
     // Same disposal race as [open]: dispose() may have run while the await
     // above was in flight.
     //
@@ -2909,6 +2925,27 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // await 期间若来了更新的 seek，校验链归它所有。
     if (chain == _seekChain) _armResumeVerify(clamped, 1);
+  }
+
+  /// Catches failures of a parked or automatic seek for [chain] to [target].
+  /// Returns false on failure; only the current chain may clear filtering or
+  /// report the error through the existing playback classification.
+  ///
+  /// 捕获 [chain] 向 [target] 补发或自动重发 seek 的失败；失败返回 false，
+  /// 仅当前链可清理位置过滤，并经现有播放错误分级出口报告。
+  Future<bool> _seekInternally(Duration target, int chain) async {
+    try {
+      await _kernel.seek(target);
+      return true;
+    } catch (error) {
+      if (_disposed || _events.isClosed || chain != _seekChain) return false;
+      _pendingSeekTarget = null;
+      _resumeVerifyTimer?.cancel();
+      _resumeVerifyTimer = null;
+      _releaseAbrHold();
+      _onKernelError(error);
+      return false;
+    }
   }
 
   /// Re-sends a replayed resume seek when, [debugResumeVerifyDelay] later, the
@@ -2969,7 +3006,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       if (state.buffering) return _armResumeVerify(target, attempt + 1);
       _pendingSeekTarget = target;
       unawaited(() async {
-        await _kernel.seek(target);
+        if (!await _seekInternally(target, chain)) return;
         if (_disposed || _events.isClosed || chain != _seekChain) return;
         _armResumeVerify(target, attempt + 1);
       }());
@@ -3085,6 +3122,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     // Clamp to 0–100 first so state, event and the port all see the same value.
     // 先钳到 0–100，让 state、事件与端口看到同一个值。
     v = v.clamp(0.0, 100.0).toDouble();
+    _volumeTouched = true;
     // Route to the volume port when wired (system media volume / host callback),
     // otherwise to the player's own volume via the kernel. Either way the
     // percentage is mirrored into state.volume for the HUD.
@@ -3487,6 +3525,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     // 已销毁：静默空操作。
     if (_disposed) return;
     if (state.type != MovaStreamType.live) return;
+    _seekRequest++;
     final pending = _backToLiveEdge();
     final attempt = _attemptId;
     await pending;
@@ -3505,7 +3544,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       case MovaBackToLive.seekEnd:
         final window = state.seekableWindow;
         if (state.liveSeekable && window > Duration.zero) {
-          await _kernel.seek(window);
+          await _seekOrPark(window);
         } else {
           await _reopenLiveSource();
           reopened = true;
