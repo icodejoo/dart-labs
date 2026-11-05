@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/smil_animation.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
+import 'package:svgx/src/animation/timeline_events.dart';
 import 'package:svgx/svgx.dart' show SvgxAnimationInfo;
 
 /// Shared infinite-repeat attribute.
@@ -153,6 +154,23 @@ void main() {
     expect(doc.info.settleTime, Duration.zero);
     expect(doc.info.loopPeriod, _seconds(2));
     expect(doc.info.loops, doc.hasIndefiniteLoop);
+  });
+
+  test('CSS alternate loopPeriod spans two repeat boundaries after settling', () {
+    final doc = parseAnimatedSvgDocument(
+      '<svg>$_cssFrames<rect style="animation:x 2s 1s infinite alternate"/></svg>',
+    );
+    expect(doc.info.settleTime, _seconds(1));
+    expect(doc.info.loopPeriod, _seconds(4));
+    final from = doc.info.settleTime;
+    final to = from + doc.info.loopPeriod!;
+    final events = timelineEventsBetween(doc, from, to);
+    expect(events.map((e) => e.kind), [
+      SvgxTimelineEventKind.repeat,
+      SvgxTimelineEventKind.repeat,
+    ]);
+    expect(events.map((e) => e.time), [_seconds(3), to]);
+    expect(events.map((e) => e.iteration), [1, 2]);
   });
 
   test('pending list instances preserve the existing false-infinite flag', () {

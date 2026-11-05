@@ -122,6 +122,11 @@ frame skipping (`maxFps` is ignored). Prefer controller/implicit playback for
 many concurrent SVGs. Disposing the supplied Flutter AnimationController
 retains the last frame; svgx removes its listener on replacement or unmount.
 
+CSS `@keyframes` also emits begin/end/repeat events with `id` set to the
+animation name, once per element and animation declaration across all property
+channels; the event has no target-element id, so matching names on multiple
+elements each emit a separate event with the same `id`.
+
 ### Animation quality
 
 For the animated path, `SvgxAnimationQuality` trades fidelity for throughput

@@ -93,7 +93,8 @@ final class SvgxAnimationElementBegin extends SvgxAnimationEvent {
   /// Carries the animation's identifier. / 携带动画标识。
   const SvgxAnimationElementBegin(this.id);
 
-  /// Animation identifier. / 动画标识。
+  /// SMIL animation element id or CSS animation name.
+  /// SMIL 动画元素 id 或 CSS 动画名。
   final String id;
 
   /// Animation identifier alias. / 动画标识别名。
@@ -105,7 +106,8 @@ final class SvgxAnimationElementEnd extends SvgxAnimationEvent {
   /// Carries the animation's identifier. / 携带动画标识。
   const SvgxAnimationElementEnd(this.id);
 
-  /// Animation identifier. / 动画标识。
+  /// SMIL animation element id or CSS animation name.
+  /// SMIL 动画元素 id 或 CSS 动画名。
   final String id;
 
   /// Animation identifier alias. / 动画标识别名。
@@ -117,7 +119,8 @@ final class SvgxAnimationElementRepeat extends SvgxAnimationEvent {
   /// Carries the identifier and SMIL repeat detail. / 携带标识和 SMIL 重复序号。
   const SvgxAnimationElementRepeat(this.id, this.iteration);
 
-  /// Animation identifier. / 动画标识。
+  /// SMIL animation element id or CSS animation name.
+  /// SMIL 动画元素 id 或 CSS 动画名。
   final String id;
 
   /// SMIL repeat detail, starting at one. / 从一开始的 SMIL 重复序号。

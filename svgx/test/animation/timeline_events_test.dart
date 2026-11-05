@@ -256,15 +256,15 @@ void main() {
     expect(timelineEventsBetween(doc, _beforeZero, _seconds(10)), isEmpty);
   });
 
-  test(
-    'compiled CSS timeline has no animation element id and emits nothing',
-    () {
-      final doc = parseAnimatedSvgDocument('''<svg><style>
+  test('compiled CSS keeps syncbase id empty and emits its animation name', () {
+    final doc = parseAnimatedSvgDocument('''<svg><style>
 @keyframes x {from{opacity:0}to{opacity:1}}
 </style><rect id="shape" style="animation:x 2s infinite"/></svg>''');
-      expect(doc.timelines, hasLength(1));
-      expect(doc.timelines.single.elementId, isNull);
-      expect(timelineEventsBetween(doc, _beforeZero, _seconds(10)), isEmpty);
-    },
-  );
+    expect(doc.timelines, hasLength(1));
+    expect(doc.timelines.single.elementId, isNull);
+    expect(_events(doc, _beforeZero, _seconds(2)), [
+      ('x', _begin, Duration.zero, 0),
+      ('x', _repeat, _seconds(2), 1),
+    ]);
+  });
 }

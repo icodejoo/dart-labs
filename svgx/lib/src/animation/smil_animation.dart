@@ -378,6 +378,23 @@ abstract interface class SmilTimed {
   SmilRepeatCount get repeatCount;
 }
 
+/// A single event identity shared by channels of one CSS animation declaration.
+/// 同一元素的一项 CSS 动画声明各通道共享的事件标识。
+final class SmilEventGroup {
+  /// Creates a distinct group with an animation name as its event [id].
+  /// 创建独立事件组，以动画名作为事件 [id]。
+  SmilEventGroup(this.id);
+
+  /// CSS animation name; unrelated to SMIL syncbase identifiers.
+  /// CSS 动画名，与 SMIL 同步基准标识无关。
+  final String id;
+
+  /// First successfully constructed channel, the group's only event source.
+  /// 首个成功构建的通道，是组内唯一的事件源。
+  SmilTimeline? _source;
+}
+
+/// Shared timing and sampling for six animation channel types.
 /// 六类 SMIL 动画共用的时序字段与采样入口，保留同步基准解析所需的可写开始时刻。
 ///
 /// 例如：`SmilTimeline timeline = SmilAnimation(attributeName: 'opacity',
@@ -385,6 +402,7 @@ abstract interface class SmilTimed {
 /// fillFreeze: true);`，之后可用 `timeline.begin = Duration.zero` 回写开始时刻。
 abstract class SmilTimeline implements SmilTimed {
   /// 创建共享时间线；子类通过 super 参数转发时序配置。
+  /// Creates a timeline with optional shared event identity.
   ///
   /// 例如：`MyTimeline({required super.duration, required super.begin,
   /// required super.fillFreeze});`。
@@ -395,8 +413,25 @@ abstract class SmilTimeline implements SmilTimed {
     this.repeatCount = SmilRepeatCount.once,
     this.direction = SmilDirection.normal,
     this.elementId,
+    this.eventGroup,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-  });
+  }) {
+    eventGroup?._source ??= this;
+  }
+
+  /// Shared event identity for one CSS declaration; null for SMIL animations.
+  /// Grouped timelines must have identical timing.
+  /// 一项 CSS 声明的共享事件标识；SMIL 动画为 null。
+  /// 同组时间线必须使用相同的时序。
+  final SmilEventGroup? eventGroup;
+
+  /// Event identifier, or null when another channel represents this group.
+  /// 事件标识；由组内另一通道代表发事件时为 null。
+  String? get eventId {
+    final group = eventGroup;
+    if (group == null) return elementId;
+    return identical(group._source, this) ? group.id : null;
+  }
 
   /// 动画元素自身的 `id`（同步基准所引用的对象），可能为 null。
   @override
@@ -1356,6 +1391,7 @@ class SmilAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -1498,6 +1534,7 @@ class SmilTransformAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -1634,6 +1671,7 @@ class SmilMotionAnimation extends SmilTimeline {
     required super.fillFreeze,
     super.repeatCount = SmilRepeatCount.once,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.keyPoints,
     this.keyTimes,
@@ -1793,6 +1831,7 @@ class SmilColorAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.attributeName = 'stop-color',
     super.direction = SmilDirection.normal,
@@ -1890,6 +1929,7 @@ class SmilColorAnimation extends SmilTimeline {
 /// ```
 class SmilListAnimation extends SmilTimeline {
   /// 创建列表时间线；[values] 至少两帧且各帧等长。
+  /// Creates a list timeline with at least two equal-length frames.
   SmilListAnimation({
     required this.attributeName,
     required this.values,
@@ -1902,6 +1942,7 @@ class SmilListAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -2005,6 +2046,7 @@ class PathMorphData {
 /// `calcMode="paced"` 对路径没有定义，按 `linear` 处理。
 class SmilPathAnimation extends SmilTimeline {
   /// 创建路径时间线；[frames] 至少一项（`<set>` 只有一个）。
+  /// Creates a path timeline with at least one frame.
   SmilPathAnimation({
     required this.frames,
     required super.duration,
@@ -2016,6 +2058,7 @@ class SmilPathAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     super.direction = SmilDirection.normal,
   }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),

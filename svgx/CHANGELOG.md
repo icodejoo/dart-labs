@@ -38,6 +38,11 @@
   Cover all five entries, pending-load cleanup and the real page's interactions
   with widget tests.
 
+* Emit CSS `@keyframes` begin/end/repeat events using the animation name as
+  `id`, once per element and animation declaration across all property channels.
+  Same-named animations on different elements each emit their own events;
+  CSS names remain separate from SMIL syncbase ids. Sampling is unchanged.
+
 * Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
   play/pause/stop/seek, finite signed playback rates, reversible completion,
   once/loop/ping-pong ranges, duration fitting, cues and playback/element events.

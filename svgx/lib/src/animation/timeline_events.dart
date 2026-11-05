@@ -35,9 +35,9 @@ final class SvgxTimelineEvent {
     required this.iteration,
   });
 
-  /// The animation element's own nonempty id.
+  /// Nonempty SMIL animation element id or CSS animation name.
   ///
-  /// 动画元素自身的非空 id。
+  /// SMIL 动画元素的非空 id 或 CSS 动画名。
   final String elementId;
 
   /// The event kind.
@@ -62,9 +62,11 @@ final class SvgxTimelineEvent {
 /// Returns identified animation events in `(from, to]`, ordered by time and
 /// then document order. Returns an empty list when [from] >= [to]. For reverse
 /// playback, callers swap endpoints and reverse the returned list.
+/// CSS declarations emit once per element, regardless of channel count.
 ///
 /// 返回 `(from, to]` 内有 id 动画的事件，按时刻及文档顺序稳定排列；
 /// [from] >= [to] 时返回空列表。倒放由调用方交换端点并逆序返回结果。
+/// CSS 声明在每个元素上各发一次事件，不受通道数量影响。
 List<SvgxTimelineEvent> timelineEventsBetween(
   SvgDocument document,
   Duration from,
@@ -79,15 +81,15 @@ List<SvgxTimelineEvent> timelineEventsBetween(
   for (final timeline in document.timelines) {
     timeline.extendIntervalsThrough(to);
   }
-  final events = <(SvgxTimelineEvent, int)>[];
+  List<(SvgxTimelineEvent, int)>? events;
   for (final timeline in document.timelines) {
-    final id = timeline.elementId;
+    final id = timeline.eventId;
     if (id == null || id.isEmpty || timeline.begin == kSmilNeverBegins) {
       continue;
     }
     final intervals = timeline.intervals;
     if (intervals == null) {
-      _appendIntervalEvents(
+      events = _appendIntervalEvents(
         events,
         timeline,
         id,
@@ -119,7 +121,7 @@ List<SvgxTimelineEvent> timelineEventsBetween(
     for (var i = low; i < intervals.length; i++) {
       final interval = intervals[i];
       if (interval.begin > to) break;
-      _appendIntervalEvents(
+      events = _appendIntervalEvents(
         events,
         timeline,
         id,
@@ -130,7 +132,7 @@ List<SvgxTimelineEvent> timelineEventsBetween(
       );
     }
   }
-  if (events.isEmpty) return const [];
+  if (events == null) return const [];
   events.sort((a, b) {
     final order = a.$1.time.compareTo(b.$1.time);
     return order != 0 ? order : a.$2.compareTo(b.$2);
@@ -141,8 +143,8 @@ List<SvgxTimelineEvent> timelineEventsBetween(
 /// Appends only events inside the query; repeat bounds use integer arithmetic.
 ///
 /// 只追加查询区间内的事件；重复序号边界通过整数运算直接求出。
-void _appendIntervalEvents(
-  List<(SvgxTimelineEvent, int)> events,
+List<(SvgxTimelineEvent, int)>? _appendIntervalEvents(
+  List<(SvgxTimelineEvent, int)>? events,
   SmilTimeline timeline,
   String id,
   int begin,
@@ -150,9 +152,9 @@ void _appendIntervalEvents(
   int from,
   int to,
 ) {
-  if (begin > to || (end != null && end <= from)) return;
+  if (begin > to || (end != null && end <= from)) return events;
   if (begin > from) {
-    _appendEvent(events, id, SvgxTimelineEventKind.begin, begin, 0);
+    events = _appendEvent(events, id, SvgxTimelineEventKind.begin, begin, 0);
   }
   final duration = timeline.duration.inMicroseconds;
   if (duration > 0) {
@@ -176,7 +178,7 @@ void _appendIntervalEvents(
     }
     final last = (upper - begin) ~/ duration;
     for (var k = first; k <= last; k++) {
-      _appendEvent(
+      events = _appendEvent(
         events,
         id,
         SvgxTimelineEventKind.repeat,
@@ -186,27 +188,30 @@ void _appendIntervalEvents(
     }
   }
   if (end != null && end > from && end <= to) {
-    _appendEvent(events, id, SvgxTimelineEventKind.end, end, 0);
+    events = _appendEvent(events, id, SvgxTimelineEventKind.end, end, 0);
   }
+  return events;
 }
 
 /// Allocates an event and its stable sequence only after finding a match.
 ///
 /// 仅在找到匹配事件后分配事件及稳定序号。
-void _appendEvent(
-  List<(SvgxTimelineEvent, int)> events,
+List<(SvgxTimelineEvent, int)> _appendEvent(
+  List<(SvgxTimelineEvent, int)>? events,
   String id,
   SvgxTimelineEventKind kind,
   int time,
   int iteration,
 ) {
-  events.add((
+  final result = events ?? <(SvgxTimelineEvent, int)>[];
+  result.add((
     SvgxTimelineEvent(
       elementId: id,
       kind: kind,
       time: Duration(microseconds: time),
       iteration: iteration,
     ),
-    events.length,
+    result.length,
   ));
+  return result;
 }
