@@ -2,6 +2,8 @@ import 'dart:collection';
 import '../playback_commands.dart';
 import '../kernel/restart_observer.dart';
 import 'dart:async';
+import 'dart:typed_data';
+import '../render/frame_capture.dart';
 
 import '../api.dart';
 import '../bus/bus.dart';
@@ -142,6 +144,7 @@ class _WarmSlot {
 /// 意图恒为假时，影子换指后保持暂停。
 class MovaCutoverEngine
     implements
+        MovaFrameCapture,
         MovaRestartObserver,
         MovaApi,
         MovaProgressSource,
@@ -505,6 +508,25 @@ class MovaCutoverEngine
 
   @override
   Object? get renderHandle => _active.renderHandle;
+
+  /// 截取生效引擎的当前画面；切换、销毁或不支持时返回 null。
+  ///
+  /// 示例：`final image = await engine.screenshot();`，暂停等待上限为 1 秒。
+  @override
+  Future<Uint8List?> screenshot() async {
+    if (_disposed) return null;
+    final active = _active;
+    final epoch = _epoch;
+    if (active is! MovaFrameCapture) return null;
+    try {
+      final image = await (active as MovaFrameCapture).screenshot()
+          .timeout(const Duration(seconds: 1));
+      return !_disposed && identical(active, _active) && epoch == _epoch &&
+          image != null && image.isNotEmpty ? image : null;
+    } on Object {
+      return null;
+    }
+  }
 
   @override
   bool get pipSupported => _active.pipSupported;

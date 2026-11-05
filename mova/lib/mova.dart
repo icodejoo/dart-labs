@@ -6,6 +6,7 @@
 library;
 
 export 'src/core/api.dart';
+export 'src/core/render/frame_capture.dart';
 export 'src/core/engine.dart';
 export 'src/core/events/events.dart';
 export 'src/core/model/danmaku.dart';

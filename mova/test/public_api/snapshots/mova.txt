@@ -63,6 +63,7 @@ src/core/preview/vtt.dart;
 src/core/preview/vtt_source.dart;
 src/core/recovery/fail.dart;
 src/core/render/first_frame.dart;
+src/core/render/frame_capture.dart;
 src/core/report/error_policy.dart;
 src/core/report/report.dart;
 src/core/report/session.dart;

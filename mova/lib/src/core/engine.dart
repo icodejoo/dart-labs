@@ -45,6 +45,7 @@ import 'preview/vtt_source.dart';
 import 'recovery/fail.dart';
 import 'recovery/watchdog.dart';
 import 'render/first_frame.dart';
+import 'render/frame_capture.dart';
 import 'report/collector.dart';
 import 'report/report.dart';
 import 'report/stats_probe.dart';
@@ -174,7 +175,7 @@ class _AbrLease {
 /// 应用请通过 `createMovaEngine()` 创建并接入真实平台端口。
 /// 裸构造默认使用空亮度/PiP/方向端口，供测试或自行注入端口的宿主使用；
 /// debug 下首次缺省这些端口时提示一次。例如：`final api = createMovaEngine();`。
-class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable, MovaUiBridge, MovaUiHandoffReceiver {
+class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, MovaProgressSource, MovaKeepAlive, MovaPlayerMute, MovaHandoffRetirable, MovaUiBridge, MovaUiHandoffReceiver {
   /// 测试用的一次性提示开关；设为 false 可重新观察裸构造提示。
   /// 示例：`MovaEngine.debugBareConstructorWarningShown = false;`。
   @visibleForTesting
@@ -1185,6 +1186,42 @@ class MovaEngine implements MovaRestartObserver, MovaApi, MovaProgressSource, Mo
     final kernel = _kernel;
     if (!_disposed && kernel is MovaRestartObserver) {
       (kernel as MovaRestartObserver).observeRestarts();
+    }
+  }
+
+  /// 获取可读的当前帧，暂停首帧窗口最多等待 1 秒；失败返回 null。
+  ///
+  /// 示例：`final image = await engine.screenshot();`。不改变播放意图。
+  @override
+  Future<Uint8List?> screenshot() async {
+    if (_audioOnly) return null;
+    final gen = _openGen;
+    final attempt = _attemptId;
+    var expired = false;
+    bool current() => !expired && !_disposed && gen == _openGen &&
+        attempt == _attemptId && _source != null && _kernelOpening == 0;
+    // 超时覆盖整个循环（含原生截图），不是每次重试各等 1 秒。
+    Future<Uint8List?> capture() async {
+      while (current()) {
+        if (state.rendered) {
+          final image = await _kernel.screenshot();
+          if (!current()) return null;
+          if (image != null && image.isNotEmpty) return image;
+        }
+        if (state.playing || !current()) return null;
+        // 暂停态可能不再发事件，以真实取帧结果轮询，不等待下一事件。
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+      return null;
+    }
+    try {
+      return await capture().timeout(const Duration(seconds: 1));
+    } on Object {
+      // 原生失败与超时都明确返回 null，不把异常当就绪。
+      return null;
+    } finally {
+      // 已下发的原生命令不能撤销，迟到结果丢弃且不再重试。
+      expired = true;
     }
   }
 

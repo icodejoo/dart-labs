@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 新增可选 `MovaFrameCapture.screenshot()`，普通与 cutover 引擎均支持；暂停预热在总计 1 秒内等到非空截图才完成，超时/失败返回 null，切源、销毁或切换后的旧结果丢弃。不播放、不 seek，MovaApi 不增加成员，池 bind/ready 与原首帧事件保持原语义。
+
 - 预览抽帧首次 seek 落地等待超时后自动重发一次 seek 并重新确认落点；再次超时仍返回 null，不截取未确认帧。duration 就绪超时和截图失败保持返回 null。
 
 - 池预热探针增加暂停画面的非空截图证据及首帧信号来源，避免把 size/grace 兜底当成实际解码成功。
