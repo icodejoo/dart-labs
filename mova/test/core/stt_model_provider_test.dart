@@ -50,6 +50,37 @@ void main() {
     );
   }
 
+  test('D13 wrong download size is rejected without replacing the cache', () async {
+    final modelDir = Directory('${tempDir.path}/zipformer-zh-en-2023-11-22');
+    await modelDir.create();
+    final target = File('${modelDir.path}/encoder.onnx');
+    await target.writeAsBytes([9]);
+    final fetcher = _FakeFetcher({
+      'https://example.com/encoder.onnx': Uint8List.fromList([1, 2]),
+      'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
+    });
+    final loader = MovaSttModelLoader(
+      dir: MovaFixedSttModelDirProvider(tempDir.path), fetcher: fetcher);
+    await expectLater(loader.ensure(buildSpec()), throwsA(isA<MovaSttModelLoadError>()));
+    expect(await target.readAsBytes(), [9]);
+    expect(modelDir.listSync().whereType<Directory>(), isEmpty);
+    fetcher.responses['https://example.com/encoder.onnx'] = Uint8List.fromList([1, 2, 3]);
+    final files = await loader.ensure(buildSpec());
+    expect(await File(files['encoder.onnx']!).readAsBytes(), [1, 2, 3]);
+  });
+
+  test('D13 wrong first download never becomes a cache hit', () async {
+    final fetcher = _FakeFetcher({
+      'https://example.com/encoder.onnx': Uint8List.fromList([1]),
+    });
+    final loader = MovaSttModelLoader(
+      dir: MovaFixedSttModelDirProvider(tempDir.path), fetcher: fetcher);
+    await expectLater(loader.ensure(buildSpec()), throwsA(isA<MovaSttModelLoadError>()));
+    expect(tempDir.listSync(recursive: true).whereType<File>(), isEmpty);
+    await expectLater(loader.ensure(buildSpec()), throwsA(isA<MovaSttModelLoadError>()));
+    expect(fetcher.requested, hasLength(2));
+  });
+
   test('downloads every missing file and resolves their local paths', () async {
     final fetcher = _FakeFetcher({
       'https://example.com/encoder.onnx': Uint8List.fromList([1, 2, 3]),

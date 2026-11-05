@@ -110,6 +110,13 @@ class MovaQoeCollector {
   bool _lastStalled = false;
   bool _playing = false;
 
+  /// Whether the user paused this session; stalls are not counted until play.
+  /// Unlike [_playing], it does not depend on a fresh [MovaPlay] after open.
+  ///
+  /// 本会话是否被用户暂停；恢复播放前不计卡顿。
+  /// 与 [_playing] 不同，它不依赖 open 后再收到一次 [MovaPlay]。
+  bool _userPaused = false;
+
   /// Playback has landed, independently of whether TTFF is measured.
   ///
   /// 播放已落地，与是否测量 TTFF 相互独立。
@@ -185,6 +192,7 @@ class MovaQoeCollector {
     _stallIndex = 0;
     _lastStalled = false;
     _playing = false;
+    _userPaused = false;
     _landed = false;
     _lastEndFileReason = null;
     _validMaxPositionMs = 0;
@@ -196,7 +204,7 @@ class MovaQoeCollector {
     // 上一会话的 `sessionEnd` 已由 onTeardown 发出（引擎先调它再调 onOpen），
     // 换新实例不会丢数据；同时清掉 `_lastTick`，避免会话间隔被算成观看时间。
     _tally = MovaSessionTally();
-    _stallPolicy = _config.newStallPolicy();
+    _stallPolicy = _config.newStallPolicy()..reset();
     _ttff.reset();
     _ttff.arm(at, autoPlay: autoPlay);
     _heartbeatTimer?.cancel();
@@ -553,10 +561,23 @@ class MovaQoeCollector {
         //
         // 播放态可能早于首帧上升；手动起播只由首帧或原生 RESTART 信号落地记账。
         _playing = true;
+        _userPaused = false;
         _syncPlaying();
+        if (_lastStalled) {
+          _lastStalled = false;
+          _onStallObservation(true, at, signal: _probe == null ? 'buffering' : 'cache');
+        }
       case MovaFirstFrame():
         _landManualPlayback(at);
       case MovaPause():
+        // A user pause ends the active stall; resume starts a new interval
+        // only if the latest cache observation still says stalled.
+        //
+        // 用户暂停结算当前卡顿；续播时仅在最新缓存观测仍卡住时开始新区间。
+        final stalled = _lastStalled;
+        _onStallObservation(false, at, signal: _probe == null ? 'buffering' : 'cache');
+        _lastStalled = stalled;
+        _userPaused = true;
         _tally.tick(at);
         _tally.setPlaying(false);
         _playing = false;
@@ -575,7 +596,7 @@ class MovaQoeCollector {
         // 手动/ABR 换档会重载内核，随之而来的短暂缓冲是重载自身的代价，不是
         // 真实卡顿的证据，故在此重启卡顿计数/index（与 MovaEngine 自己在同一
         // 转变点上的 `_abrPolicy.reset()` 同构）。
-        _stallPolicy = _config.newStallPolicy();
+        _stallPolicy = _config.newStallPolicy()..reset();
         _stallIndex = 0;
       case MovaBufferChange(:final buffering):
         // buffering 的下降沿同时是 TTFF 的退化落地信号（当原生
@@ -707,7 +728,7 @@ class MovaQoeCollector {
     //
     // 首帧之前的卡顿属于起播耗时，不是卡顿——由 TTFF 计费，绝不重复计费
     // （见 §D2）。
-    if (!_landed) return;
+    if (!_landed || _userPaused) return;
     _tally.tick(at);
     _tally.setStalled(stalled);
     final policy = _stallPolicy;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'atomic_file.dart';
 import 'model_dir_provider.dart';
 import 'model_spec.dart';
 import '../preview/fetcher.dart';
@@ -171,8 +172,11 @@ class MovaSttModelLoader implements MovaSttModelProvider {
           (file.sizeBytes == null || await local.length() == file.sizeBytes);
       if (!cached) {
         final bytes = await fetcher.get(file.url);
-        if (bytes == null) throw MovaSttModelLoadError(spec.id, file.name);
-        await local.writeAsBytes(bytes, flush: true);
+        if (bytes == null ||
+            (file.sizeBytes != null && bytes.length != file.sizeBytes)) {
+          throw MovaSttModelLoadError(spec.id, file.name);
+        }
+        await writeSttCacheFile(local, bytes);
       }
       paths[file.name] = path;
       completed++;

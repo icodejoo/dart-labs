@@ -14,11 +14,11 @@ class _Rig {
   /// Creates a session with optional native probe signals.
   ///
   /// 创建会话，可选注入原生探针信号。
-  _Rig({bool autoPlay = true, this.probe}) {
+  _Rig({bool autoPlay = true, this.probe, MovaStallPolicy? stallPolicy}) {
     collector = MovaQoeCollector(
       events: events.stream,
       reporter: MovaCallbackReporter(reports.add),
-      config: const MovaReportConfig(qoe: true),
+      config: MovaReportConfig(qoe: true, stallPolicy: stallPolicy),
       probe: probe,
       now: () => clock,
     );
@@ -59,6 +59,105 @@ class _Rig {
 ///
 /// 覆盖终审确认的 QoE 错误与手动起播回归。
 void main() {
+  for (final native in [false, true]) {
+    for (final healsWhilePaused in [false, true]) {
+      test('D10 pause excludes idle time, native=$native heal=$healsWhilePaused', () async {
+        final probe = native ? FakeStatsProbe() : null;
+        final r = _Rig(autoPlay: false, probe: probe);
+        r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+            signal: MovaFirstFrameSignal.restart));
+        r.events.add(const MovaPlay());
+        // Feeds either the native probe or the degraded buffering signal.
+        //
+        // 喂入原生探针或退化缓冲信号。
+        Future<void> observe(bool stalled) async {
+          if (probe == null) {
+            r.events.add(MovaBufferChange(stalled));
+          } else {
+            probe.pushStalling(stalled);
+            await Future<void>.delayed(Duration.zero);
+          }
+        }
+        r.advance(2);
+        await observe(true);
+        r.advance(1);
+        r.events.add(const MovaPause());
+        r.advance(60);
+        if (healsWhilePaused) await observe(false);
+        r.events.add(const MovaPlay());
+        r.advance(2);
+        await observe(false);
+        r.collector.onTeardown();
+        expect(r.end.params['stallMs'], healsWhilePaused ? 1000 : 3000);
+        expect(r.end.params['stallCount'], healsWhilePaused ? 1 : 2);
+        expect(r.end.params['watchedMs'], healsWhilePaused ? 4000 : 2000);
+        final durations = r.reports.where((e) => e.name == MovaReportName.rebuffer)
+            .map((e) => e.params['durationMs']).toList();
+        expect(durations, healsWhilePaused ? [1000] : [1000, 2000]);
+        await r.close();
+      });
+    }
+  }
+
+  test('D10 teardown while paused excludes the paused stall tail', () async {
+    final r = _Rig(autoPlay: false);
+    r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+        signal: MovaFirstFrameSignal.restart));
+    r.events.add(const MovaPlay());
+    r.events.add(const MovaBufferChange(true));
+    r.advance(1);
+    r.events.add(const MovaPause());
+    r.advance(60);
+    r.collector.onTeardown();
+    expect(r.end.params['stallMs'], 1000);
+    expect(r.end.params['stallCount'], 1);
+    await r.close();
+  });
+
+  test('D11 injected edge policy resets on quality changes', () async {
+    final r = _Rig(autoPlay: false, stallPolicy: MovaEdgeStall());
+    r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+        signal: MovaFirstFrameSignal.restart));
+    r.events.add(const MovaPlay());
+    r.events.add(const MovaBufferChange(true));
+    r.advance(1);
+    r.events.add(MovaQualityChange(MovaQuality.auto()));
+    r.events.add(const MovaBufferChange(false));
+    r.advance(60);
+    r.events.add(const MovaBufferChange(true));
+    r.advance(2);
+    r.events.add(const MovaBufferChange(false));
+    final stalls = r.reports.where((e) => e.name == MovaReportName.rebuffer).toList();
+    expect(stalls, hasLength(1));
+    expect(stalls.single.params['durationMs'], 2000);
+    expect(stalls.single.params['index'], 1);
+    await r.close();
+  });
+
+  test('D11 injected edge policy resets at the next session boundary', () async {
+    final r = _Rig(autoPlay: false, stallPolicy: MovaEdgeStall());
+    r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+        signal: MovaFirstFrameSignal.restart));
+    r.events.add(const MovaPlay());
+    r.events.add(const MovaBufferChange(true));
+    r.advance(1);
+    r.collector.onTeardown();
+    r.advance(60);
+    r.collector.onOpen(const MovaSource('https://host/next'), autoPlay: false);
+    r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+        signal: MovaFirstFrameSignal.restart));
+    r.events.add(const MovaPlay());
+    r.events.add(const MovaBufferChange(true));
+    r.advance(2);
+    r.events.add(const MovaBufferChange(false));
+    r.collector.onTeardown();
+    expect(r.end.params['stallMs'], 2000);
+    expect(r.end.params['stallCount'], 1);
+    expect(r.reports.singleWhere((e) => e.name == MovaReportName.rebuffer)
+        .params['durationMs'], 2000);
+    await r.close();
+  });
+
   test(
     'D8 fatal without code keeps severity and fills code from log',
     () async {
