@@ -533,6 +533,15 @@ class _Slot {
 
   /// 是否正在等待关闭后的间隔。
   bool gapPending = false;
+
+  /// 是否已无条目、计时器或待完成的间隔，可从运行时索引回收。
+  bool get isIdle =>
+      active == null &&
+      queue.isEmpty &&
+      gapTimer == null &&
+      delayTimer == null &&
+      cooldownTimer == null &&
+      !gapPending;
 }
 
 /// 抑制到期时间的持久化键。
@@ -867,10 +876,10 @@ class _CooldownStore {
     final dayB = _dayBucketOf(now);
     rec.dayCount = rec.dayBucket == dayB ? rec.dayCount + 1 : 1;
     rec.dayBucket = dayB;
-    final hourB = _hourBucketOf(now);
+    final hourB = '${dayB}T${_two(now.hour)}';
     rec.hourCount = rec.hourBucket == hourB ? rec.hourCount + 1 : 1;
     rec.hourBucket = hourB;
-    final minB = _minuteBucketOf(now);
+    final minB = '$hourB:${_two(now.minute)}';
     rec.minuteCount = rec.minuteBucket == minB ? rec.minuteCount + 1 : 1;
     rec.minuteBucket = minB;
     rec.lastShownMs = now.millisecondsSinceEpoch;
@@ -1052,13 +1061,7 @@ class Layerman extends ChangeNotifier {
       }
       _batchDepth--;
       if (_batchDepth == 0) {
-        _slots.removeWhere((_, s) =>
-            s.active == null &&
-            s.queue.isEmpty &&
-            s.gapTimer == null &&
-            s.delayTimer == null &&
-            s.cooldownTimer == null &&
-            !s.gapPending);
+        _slots.removeWhere((_, s) => s.isIdle);
         assert(() {
           debugCheckInvariants();
           return true;
@@ -1184,12 +1187,7 @@ class Layerman extends ChangeNotifier {
               '不变量 d：slot[$name] 队列无序 ${s.queue[i - 1].id}, ${s.queue[i].id}');
         }
       }
-      if (s.active == null &&
-          s.queue.isEmpty &&
-          !s.gapPending &&
-          s.gapTimer == null &&
-          s.delayTimer == null &&
-          s.cooldownTimer == null) {
+      if (s.isIdle) {
         throw StateError('不变量 f：slot[$name] 空闲但未回收');
       }
     }
@@ -1543,6 +1541,15 @@ class Layerman extends ChangeNotifier {
         if (!_isCurrent(e) || !_pendingOverlaps.remove(e)) continue;
         _admitOverlap(e);
       }
+      // 已通过但因暂停、阻塞或 build 而挂起的 overlap，同样要即时响应永久拒绝。
+      for (final e in _pendingOverlaps.toList()) {
+        if (e.gate == null || !_isCurrent(e)) continue;
+        if (_overlapGateWaits.containsKey(e)) continue;
+        final result = _evaluateGate(e, overlap: true);
+        if (result.state == _GateState.drop) {
+          _remove(e, advance: false, reason: result.reason!);
+        }
+      }
       final gateResults = <_Entry, _GateResult>{};
       for (final s in _slots.values.toList()) {
         for (final e in s.queue.toList()) {
@@ -1565,7 +1572,7 @@ class Layerman extends ChangeNotifier {
   void _updateRouteZone() {
     if (_pauseOnRoutes.isEmpty) return;
     final current = _context['route'];
-    final matches = _pauseOnRoutes.any((p) => _routeMatches(p, current));
+    final matches = _pauseOnRoutes.any((p) => p.matches(current));
     if (matches == _routeZonePaused) return;
     final before = _paused;
     _routeZonePaused = matches;
@@ -1896,7 +1903,6 @@ class Layerman extends ChangeNotifier {
       _byId[resolvedId] = entry;
       _emit(entry, OverlayEventType.queued);
 
-      // 新条目转到其他槽位时，旧槽位仍需重调度。
       /// 转槽或转并发后恢复旧串行槽位。
       void rescheduleFreed() {
         if (freedSlot != null && (overlap || freedSlot != slot)) {
@@ -2107,8 +2113,12 @@ class Layerman extends ChangeNotifier {
     return a.seq - b.seq;
   }
 
-  /// 缓存本次上下文的不可修改快照，供所有 when 共用。
+  /// 缓存本次上下文的不可修改快照，供条件与 gate 共用。
   Map<String, Object?>? _contextView;
+
+  /// 按需创建当前上下文的只读快照，setContext 后重新创建。
+  Map<String, Object?> get _readContext =>
+      _contextView ??= Map<String, Object?>.unmodifiable(_context);
 
   /// 统一求值资格；overlap 保留普通条件与时间冷却不通过即丢弃的契约。
   /// callbacks 为 false 时只读冷却状态，供清理和不变量检查使用。
@@ -2133,8 +2143,7 @@ class Layerman extends ChangeNotifier {
     var businessWait = Duration.zero;
     if (callbacks && e.gate != null) {
       try {
-        final context =
-            _contextView ??= Map<String, Object?>.unmodifiable(_context);
+        final context = _readContext;
         final verdict = _judge(() => e.gate!(context));
         if (verdict.reason != null) return _GateResult.drop(verdict.reason!);
         final retryAt = verdict.retryAt;
@@ -2155,8 +2164,9 @@ class Layerman extends ChangeNotifier {
     if (wait == null) return const _GateResult.wait();
     if (wait > Duration.zero) {
       if (overlap) {
-        return _GateResult.drop(
-            suppressed ? OverlayEndReason.suppressed : OverlayEndReason.dropped);
+        return _GateResult.drop(suppressed
+            ? OverlayEndReason.suppressed
+            : OverlayEndReason.dropped);
       }
       // 保留时间型冷却的边界余量；业务截止时刻无需余量。
       wait += const Duration(milliseconds: 16);
@@ -2175,12 +2185,11 @@ class Layerman extends ChangeNotifier {
 
   /// 只读求值路由、认证与业务条件，异常每条目上报一次并视为不通过。
   bool _conditionsPass(_Entry e) {
-    if (e.route != null && !_routeMatches(e.route!, _context['route'])) {
+    if (e.route != null && !e.route!.matches(_context['route'])) {
       return false;
     }
     try {
-      final context =
-          _contextView ??= Map<String, Object?>.unmodifiable(_context);
+      final context = _readContext;
       return _judge(() =>
           (e.auth?.call(context) ?? true) && (e.when?.call(context) ?? true));
     } catch (error, stack) {
@@ -2218,10 +2227,6 @@ class Layerman extends ChangeNotifier {
       _releaseOverlap(e);
     }
   }
-
-  /// 使用类型化匹配器判断当前路由，非字符串路由不匹配。
-  static bool _routeMatches(RouteMatcher pattern, Object? current) =>
-      pattern.matches(current);
 
   /// 取消并清空指定槽位的冷却唤醒计时器。
   void _cancelCooldownTimer(_Slot s) {
@@ -2292,8 +2297,7 @@ class Layerman extends ChangeNotifier {
             _canActivate(slot, evaluate(takeover))
         ? takeover
         : null;
-    for (var i = 0; i < s.queue.length;) {
-      if (front != null) break;
+    for (var i = 0; front == null && i < s.queue.length;) {
       final e = s.queue[i];
       final result = evaluate(e);
       if (result.state == _GateState.drop) {
@@ -2348,19 +2352,25 @@ class Layerman extends ChangeNotifier {
     if (!_canActivate(slot)) return;
     Duration? soonest;
     final now = clock.now();
-    final waits = <Duration?>[
-      for (final result in results) result.wait,
-      for (final item in _overlapGateWaits.entries)
-        if (item.key.slot == slot && item.value != null)
-          item.value!.difference(now),
-    ];
-    for (final w in waits) {
-      if (w == null || w <= Duration.zero) continue;
-      if (soonest == null || w < soonest) soonest = w;
+
+    /// 忽略无期限或已到期的等待，保留最近的有效唤醒时长。
+    void consider(Duration? wait) {
+      if (wait == null || wait <= Duration.zero) return;
+      if (soonest == null || wait < soonest!) soonest = wait;
     }
-    if (soonest == null) return;
+
+    for (final result in results) {
+      consider(result.wait);
+    }
+    for (final item in _overlapGateWaits.entries) {
+      if (item.key.slot == slot && item.value != null) {
+        consider(item.value!.difference(now));
+      }
+    }
+    final wake = soonest;
+    if (wake == null) return;
     s.cooldownTimer = clock.createTimer(
-        soonest,
+        wake,
         () => _batch(() {
               s.cooldownTimer = null;
               _retryGateOverlaps(slot);
@@ -2593,12 +2603,10 @@ class Layerman extends ChangeNotifier {
     e.phase = OverlayPhase.closing;
     _notify();
     if (!_isCurrent(e)) return; // 监听者可能已移除或替换
-    if (e.externalDismiss == null || e.externalDone) {
-      // 后端已关闭或无法程序关闭，直接分离。
-      _remove(e);
-    } else if (!_callDismiss(e, result)) {
-      // 后端 dismissed 信号及可选退场宽限负责移除；
-      // 若关闭请求同步失败，不继续无限等待。
+    if (e.externalDismiss == null ||
+        e.externalDone ||
+        !_callDismiss(e, result)) {
+      // 后端已关闭、无法程序关闭或关闭请求同步失败时，直接分离。
       _remove(e);
     } else if (_isCurrent(e) && !e.externalDone && dismissTimeout != null) {
       final timeout = dismissTimeout!;
@@ -2757,6 +2765,10 @@ class Layerman extends ChangeNotifier {
       s.cooldownTimer?.cancel();
     }
     _clear(OverlayEndReason.disposed);
+    // present 回调内同步 dispose 时，先交付暂存的 ended，再关闭事件流。
+    for (final e in _presenting.toList()) {
+      _finishPresent(e);
+    }
     _disposed = true;
     _rescheduleSlots.clear();
     _deferredSlots.clear();

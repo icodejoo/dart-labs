@@ -19,6 +19,7 @@ class FakeOverlayClock extends OverlayClock {
   /// 防止嵌套推进将时间倒退。
   bool _advancing = false;
 
+  /// 返回当前模拟时间。
   @override
   DateTime now() => _now;
 
@@ -85,7 +86,7 @@ class _FakeTimer implements Timer {
   /// 已触发次数。
   int _tick = 0;
 
-  /// 是否已激活，包含解析、展示和退场。
+  /// 是否仍等待触发。
   @override
   bool get isActive => _active;
 

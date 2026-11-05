@@ -67,7 +67,6 @@ class LayermanNavigatorObserver extends NavigatorObserver {
           'while extracting the path for LayermanNavigatorObserver',
         ),
       ));
-      path = null; // 提取失败与匿名页面一样按 null 处理。
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

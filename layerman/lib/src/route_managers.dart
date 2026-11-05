@@ -89,9 +89,7 @@ abstract class _RouteManager {
             '请先挂载使用该 navigatorKey 的 Navigator。',
           );
         }
-        late final TransitionRoute<T> route;
-
-        route = createRoute(
+        final route = createRoute(
           navigator,
           (_) => builder(ctx, ctx.close),
           RouteSettings(name: '$_prefix${ctx.id}'),

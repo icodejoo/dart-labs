@@ -486,4 +486,45 @@ void main() {
       expect(errors.length, fails ? 1 : 0);
     });
   }
+
+  test('R1 present 内同步 dispose 仍交付 ended 后再关闭事件流', () async {
+    final manager = Layerman();
+    await manager.ready();
+    final events = <OverlayEvent>[];
+    final closed = Completer<void>();
+    manager.events.listen(events.add, onDone: closed.complete);
+    final ticket = manager.submit<void>(
+      id: 'a',
+      present: (ctx) {
+        manager.dispose();
+        return PresentedOverlay<void>(
+            dismissed: Completer<void>().future, dismiss: ([_]) async {});
+      },
+    );
+    await closed.future;
+    expect((await ticket.outcome).reason, OverlayEndReason.disposed);
+    expect(events.map((e) => e.type),
+        [OverlayEventType.queued, OverlayEventType.ended]);
+    expect(events.last.reason, OverlayEndReason.disposed);
+  });
+
+  test('R2 已通过但被暂停挂起的 overlap 在 setContext 后即时被 gate 拒绝', () async {
+    final manager = Layerman();
+    addTearDown(manager.dispose);
+    await manager.ready();
+    manager.pauseAll();
+    final ticket = manager.submit<void>(
+      id: 'o',
+      mode: OverlayMode.overlap,
+      present: (ctx) => PresentedOverlay<void>(
+          dismissed: Completer<void>().future, dismiss: ([_]) async {}),
+      gate: (ctx) => ctx['drop'] == true
+          ? const OverlayVerdict.drop()
+          : const OverlayVerdict.pass(),
+    );
+    expect(manager.isShowing('o'), isFalse);
+    manager.setContext({'drop': true});
+    expect((await ticket.outcome).reason, OverlayEndReason.gated);
+    manager.debugCheckInvariants();
+  });
 }
