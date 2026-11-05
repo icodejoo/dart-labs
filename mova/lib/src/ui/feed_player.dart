@@ -77,8 +77,17 @@ class MovaFeedPlayerController extends ChangeNotifier {
   /// 暂停当前页；未绑定时为空操作。
   Future<void> pause() async {
     // 即使意图已被守卫置为暂停，也要撤销它记住的恢复欠账。
-    _owner?._guardKey.currentState?.cancelResume();
+    final owner = _owner;
+    final generation = owner?._activationGeneration;
+    owner?._guardKey.currentState?.cancelResume();
     await activeApi?.pause();
+    // 首帧可以早于激活收尾；等待池的 focus/play 后再次落实宿主暂停，
+    // 但不能把旧页的暂停带到后来翻到的新页。
+    await owner?._activationSettled;
+    if (owner != null && identical(_owner, owner) && generation == owner._activationGeneration) {
+      owner._guardKey.currentState?.cancelResume();
+      await activeApi?.pause();
+    }
   }
 
   /// 播放当前页；内置可见性守卫仍可在隐藏时暂停它。
@@ -302,11 +311,15 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 当前缓存的逐页请求和点赞状态总数，供回归检查。
   int get debugPageStateCount => _requested.length + _likeNotifiers.length;
 
+  // 当前翻页的打开、聚焦和互斥暂停全部完成后才落定。
+  Future<void>? _activationSettled;
+
   /// 激活 [index] 并同步收缩页面状态窗口；返回激活结果。
   Future<void> _activate(int index) async {
     final generation = ++_activationGeneration;
     try {
       final result = _controller.activate(index);
+      _activationSettled = result;
       _prunePageState();
       await result;
       if (!mounted || generation != _activationGeneration) return;

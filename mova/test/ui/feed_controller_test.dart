@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
@@ -7,6 +8,46 @@ Future<MovaFeedItem?> _load(int index) async =>
     MovaFeedItem(source: MovaSource('https://h/$index.mp4'));
 
 void main() {
+  for (final cold in [true, false]) {
+    testWidgets('CP3 暂停等待翻页激活收尾 cold=$cold', (t) async {
+      final controller = MovaFeedPlayerController();
+      addTearDown(controller.dispose);
+      final apis = <FakeMovaApi>[];
+      await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+        controller: controller,
+        poolSize: cold ? 1 : 3,
+        prefetchDepth: 0,
+        autoPause: null,
+        loader: _load,
+        engineFactory: () {
+          final api = FakeMovaApi()..pushPlayingOnVerbs = true;
+          apis.add(api);
+          return api;
+        },
+      )));
+      await t.pumpAndSettle();
+      final target = cold ? apis.single : controller.feed!.slotFor(1)!.api as FakeMovaApi;
+      final gate = Completer<void>();
+      if (cold) {
+        target.openGate = gate;
+      } else {
+        target.playGate = gate;
+      }
+      controller.jumpToPage(1);
+      await t.pump();
+      await t.pump();
+      final paused = controller.pause();
+      await t.pump();
+      gate.complete();
+      await t.pumpAndSettle();
+      await paused;
+      expect(controller.activeIndex, 1);
+      expect(target.state.playbackIntent, isFalse);
+      expect(target.state.playing, isFalse);
+      await t.pumpWidget(const SizedBox());
+      await t.pumpAndSettle();
+    });
+  }
   // 非零页的引擎打开失败后，页面状态和显式重试必须一起保留。
   for (final throws in [false, true]) {
     testWidgets('P2 非零页打开失败保留页码并可重试 throws=$throws', (t) async {
