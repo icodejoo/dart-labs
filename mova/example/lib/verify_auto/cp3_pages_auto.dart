@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mova/mova.dart';
 import 'cp3_harness.dart';
+import 'cp3_headers_criteria.dart';
 
 const _delay = Duration(milliseconds: 600);
 Future<void> _sleep([int ms = 600]) =>
@@ -372,6 +373,7 @@ Future<void> runHeaders(Cp3Harness h) async {
             ? const {'Referer': 'https://cp3.example/authorized'}
             : const {},
       );
+      final qualityObservations = <String, Object?>{};
       Future<bool> attempt(bool auth) async {
         final s = source(auth);
         if (variant == 'quality') {
@@ -384,7 +386,45 @@ Future<void> runHeaders(Cp3Harness h) async {
               /* negative control may reject open */
             }
             await a.loadQualities();
-            return a.state.qualities.isNotEmpty;
+            final qualities = a.state.qualities
+                .map(
+                  (q) => <String, Object?>{
+                    'auto': q.isAuto,
+                    'label': q.label,
+                    'uri': q.uri,
+                    'height': q.height,
+                    'bandwidth': q.bandwidth,
+                  },
+                )
+                .toList();
+            final observation = <String, Object?>{
+              'qualities': qualities,
+              'currentQuality': a.state.currentQuality?.label,
+            };
+            qualityObservations[auth ? 'authorized' : 'denied'] = observation;
+            // 拒绝对照保留非空列表即失败的语义，不能用选档失败掩盖泄漏。
+            if (!auth) return qualities.isNotEmpty;
+            final expected = Uri.parse(
+              s.uri,
+            ).replace(path: '/index.m3u8').toString();
+            String? selectedPath;
+            try {
+              final variants = a.state.qualities.where((q) => !q.isAuto);
+              if (variants.isNotEmpty) {
+                await a.switchQuality(variants.first);
+                await h.until(() async {
+                  final read = await h.native();
+                  observation['selectedNative'] = read;
+                  selectedPath = read['path'] as String?;
+                  return selectedPath == expected;
+                }, seconds: 10);
+              }
+            } on Object catch (error) {
+              observation['selectionError'] = '$error';
+            }
+            observation['expectedUri'] = expected;
+            observation['selectedPath'] = selectedPath;
+            return cp3HeadersQualityPass(qualities, expected, selectedPath);
           } finally {
             await h.release();
           }
@@ -486,6 +526,13 @@ Future<void> runHeaders(Cp3Harness h) async {
           'negative': negative,
           'requests': requests,
           'nativePaths': nativePaths,
+          if (variant == 'quality') ...{
+            'qualityObservations': qualityObservations,
+            'captureReady': captureReady,
+            'poolCriterion': captureReady
+                ? 'pool-ready and pool-ready-cutover; pool diagnostic only'
+                : 'legacy pool',
+          },
         },
         pass:
             positive &&
@@ -494,7 +541,11 @@ Future<void> runHeaders(Cp3Harness h) async {
             denied &&
             resources &&
             range &&
-            nativePaths.values.every((r) => r['pass'] == true),
+            (variant != 'quality' ||
+                cp3HeadersNativePathsPass(
+                  nativePaths,
+                  captureReady: captureReady,
+                )),
       );
     }
   }

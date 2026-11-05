@@ -1,5 +1,7 @@
 ## Unreleased
 
+- 修正 CP3 headers 总判据：开启 `CP3_HEADERS_READY` 时以普通/cutover 有界截图验收，旧原生 `pool` 截图保留为诊断；清晰度保存完整档位及选档原生 path，要求 auto 与 360p 变体、地址和拒绝对照均正确。须构建新 APK 复验，旧 FAIL 不回写。
+
 - headers 夹具新增 `CP3_HEADERS_READY`：独立普通/cutover 暂停池实例在 bind 返回后立即使用有界截图能力，统计授权截图 null 与实际图片解码成功次数，保留拒绝鉴权及原始截图对照。须构建新 APK 复验。
 
 - 修正第五轮暂停池截图等待不足：`MovaFrameCapture.screenshot()` 普通与 cutover 的总预算统一为 2 秒（含原生截图及编码），不再以 rendered 门控截图；空结果按 50ms 起、递增至 250ms 的间隔重新调用内核，实际非空图片才算成功。超时/失败仍返回 null；`CP3_HEADERS_READY` 的 null=0/30、解码成功=30/30 判据保持不变，须新 APK 复验。
