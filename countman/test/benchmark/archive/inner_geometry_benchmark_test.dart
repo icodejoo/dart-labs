@@ -1,4 +1,4 @@
-@Tags(['benchmark'])
+@Tags(['benchmark-archive'])
 library;
 
 import 'dart:math' as math;
@@ -9,8 +9,8 @@ import 'package:countman/countman.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'inner_reference.dart';
-import 'paint_probe.dart';
+import '../painter/inner_reference.dart';
+import '../painter/paint_probe.dart';
 
 /// 将真实画布输出转换成像素，覆盖圆头重叠和透明混合的差异。
 Future<Uint8List> _pixels(CustomPainter painter) async {
@@ -54,8 +54,10 @@ Map<Color, List<(double, double)>> _coverage(PaintProbe probe) {
     final merged = <(double, double)>[];
     for (final interval in sorted) {
       if (merged.isNotEmpty && interval.$1 <= merged.last.$2 + 1e-12) {
-        merged[merged.length - 1] =
-            (merged.last.$1, math.max(merged.last.$2, interval.$2));
+        merged[merged.length - 1] = (
+          merged.last.$1,
+          math.max(merged.last.$2, interval.$2),
+        );
       } else {
         merged.add(interval);
       }
@@ -79,7 +81,7 @@ void main() {
         60000,
         60001,
         3599123,
-        3600000
+        3600000,
       ]) {
         for (final remaining in [
           0,
@@ -93,19 +95,21 @@ void main() {
           60001,
           1234567,
           total,
-          total + 1000
+          total + 1000,
         ]) {
           final before = PaintProbe();
           final after = PaintProbe();
           InnerReference(
-                  totalMs: total, remainingMs: remaining, clockwise: clockwise)
-              .paint(before, const Size.square(200));
+            totalMs: total,
+            remainingMs: remaining,
+            clockwise: clockwise,
+          ).paint(before, const Size.square(200));
           InnerReference(
-                  totalMs: total,
-                  remainingMs: remaining,
-                  clockwise: clockwise,
-                  merged: true)
-              .paint(after, const Size.square(200));
+            totalMs: total,
+            remainingMs: remaining,
+            clockwise: clockwise,
+            merged: true,
+          ).paint(after, const Size.square(200));
           final expected = _coverage(before);
           final actual = _coverage(after);
           expect(actual.keys, unorderedEquals(expected.keys));
@@ -113,9 +117,13 @@ void main() {
             expect(actual[color]!.length, expected[color]!.length);
             for (var i = 0; i < expected[color]!.length; i++) {
               expect(
-                  actual[color]![i].$1, closeTo(expected[color]![i].$1, 1e-12));
+                actual[color]![i].$1,
+                closeTo(expected[color]![i].$1, 1e-12),
+              );
               expect(
-                  actual[color]![i].$2, closeTo(expected[color]![i].$2, 1e-12));
+                actual[color]![i].$2,
+                closeTo(expected[color]![i].$2, 1e-12),
+              );
             }
           }
         }
@@ -125,18 +133,23 @@ void main() {
 
   testWidgets('冻结参考逐笔匹配生产内圈', (tester) async {
     late TimeParts parts;
-    await tester.pumpWidget(Directionality(
-      textDirection: TextDirection.ltr,
-      child: DialCountdown(
-        to: const Duration(hours: 1),
-        style: const DialCountdownStyle(
-            showTicks: false, showArcA: false, showArcB: false),
-        builder: (context, value) {
-          parts = value;
-          return const SizedBox.shrink();
-        },
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: DialCountdown(
+          to: const Duration(hours: 1),
+          style: const DialCountdownStyle(
+            showTicks: false,
+            showArcA: false,
+            showArcB: false,
+          ),
+          builder: (context, value) {
+            parts = value;
+            return const SizedBox.shrink();
+          },
+        ),
       ),
-    ));
+    );
     final painter = tester
         .widgetList<CustomPaint>(find.byType(CustomPaint))
         .firstWhere((widget) => widget.painter != null)
@@ -149,14 +162,15 @@ void main() {
       60000,
       60001,
       1234567,
-      3600000
+      3600000,
     ]) {
       parts.set(Duration(milliseconds: remaining), const Duration(hours: 1));
       final actual = PaintProbe();
       final expected = PaintProbe();
       painter.paint(actual, const Size.square(200));
-      InnerReference(remainingMs: remaining)
-          .paint(expected, const Size.square(200));
+      InnerReference(
+        remainingMs: remaining,
+      ).paint(expected, const Size.square(200));
       expect(actual.arcs, expected.arcs);
       expect(actual.paints.length, expected.paints.length);
     }
@@ -170,19 +184,23 @@ void main() {
     testWidgets('圆头分钟段合并会改变像素 glow=$glow', (tester) async {
       for (final colors in [
         const DialColors(),
-        const DialColors(normal: Color(0x80FF6A5A))
+        const DialColors(normal: Color(0x80FF6A5A)),
       ]) {
         await tester.runAsync(() async {
-          final before =
-              await _pixels(InnerReference(glow: glow, colors: colors));
+          final before = await _pixels(
+            InnerReference(glow: glow, colors: colors),
+          );
           final after = await _pixels(
-              InnerReference(glow: glow, colors: colors, merged: true));
+            InnerReference(glow: glow, colors: colors, merged: true),
+          );
           final difference = _differentPixels(before, after);
           // 几何相等不足以保证视觉相等；记录否决直接合并的可复现证据。
           expect(difference, greaterThan(0));
           // ignore: avoid_print
-          print('merge pixel differences: glow=$glow alpha=${colors.normal.a} '
-              'pixels=$difference/40000');
+          print(
+            'merge pixel differences: glow=$glow alpha=${colors.normal.a} '
+            'pixels=$difference/40000',
+          );
         });
       }
     });

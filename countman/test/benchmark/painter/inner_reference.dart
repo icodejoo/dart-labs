@@ -43,10 +43,13 @@ class InnerReference extends CustomPainter {
         ..isAntiAlias = true,
     );
     if (totalMs <= 0) return;
-    final quantized =
-        remainingMs <= 0 ? 0 : ((remainingMs + 999) ~/ 1000) * 1000;
-    final rem =
-        math.max(0.0, math.min(quantized.toDouble(), totalMs.toDouble()));
+    final quantized = remainingMs <= 0
+        ? 0
+        : ((remainingMs + 999) ~/ 1000) * 1000;
+    final rem = math.max(
+      0.0,
+      math.min(quantized.toDouble(), totalMs.toDouble()),
+    );
 
     /// 将剩余时间映射到与生产实现相同的角度。
     double angleAt(double ms) =>
@@ -68,8 +71,13 @@ class InnerReference extends CustomPainter {
       if (glow) {
         paint.maskFilter = const MaskFilter.blur(BlurStyle.outer, 2);
       }
-      canvas.drawArc(Rect.fromCircle(center: centre, radius: radius), a0, sweep,
-          false, paint);
+      canvas.drawArc(
+        Rect.fromCircle(center: centre, radius: radius),
+        a0,
+        sweep,
+        false,
+        paint,
+      );
     }
 
     if (merged) {
@@ -77,8 +85,11 @@ class InnerReference extends CustomPainter {
     } else {
       final n = math.max(1, (totalMs / 60000).ceil());
       for (var j = 1; j < n; j++) {
-        drawSeg(j * 60000.0, math.min((j + 1) * 60000.0, totalMs.toDouble()),
-            colors.normal);
+        drawSeg(
+          j * 60000.0,
+          math.min((j + 1) * 60000.0, totalMs.toDouble()),
+          colors.normal,
+        );
       }
     }
     drawSeg(yellowAt * 1000.0, 60000, colors.green);

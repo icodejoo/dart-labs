@@ -8,3 +8,5 @@ tags:
     skip: '性能基准：使用 --tags benchmark --run-skipped 显式运行'
   golden:
     skip: '像素回归：使用 --tags golden --run-skipped 显式运行（生成加 --update-goldens）'
+  benchmark-archive:
+    skip: '历史验证夹具（被否决候选的几何/像素证据），不属于性能基准；已与当前生产代码脱节'

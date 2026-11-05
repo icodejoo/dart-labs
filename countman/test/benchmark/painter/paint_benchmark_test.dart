@@ -20,9 +20,11 @@ void _report(String name, List<double> samples) {
   final sorted = [...samples]..sort();
   final mean = samples.reduce((a, b) => a + b) / samples.length;
   // ignore: avoid_print
-  print('$name: median=${sorted[sorted.length ~/ 2].toStringAsFixed(3)} '
-      'mean=${mean.toStringAsFixed(3)} us/frame '
-      'samples=${samples.map((v) => v.toStringAsFixed(3)).join(",")}');
+  print(
+    '$name: median=${sorted[sorted.length ~/ 2].toStringAsFixed(3)} '
+    'mean=${mean.toStringAsFixed(3)} us/frame '
+    'samples=${samples.map((v) => v.toStringAsFixed(3)).join(",")}',
+  );
 }
 
 /// 每帧创建并释放真实 Picture，包含录制开销，不含栅格化与 GPU 时间。
@@ -57,26 +59,28 @@ void _measure(Map<String, CustomPainter> painters, Size size) {
     entry.value.paint(probe, size);
     // 身份集合只能观察实际使用的 Paint，不代表完整的 VM 堆分配量。
     // ignore: avoid_print
-    print('${entry.key}: observed Paint=${probe.paints.length}, '
-        'drawArc=${probe.arcs.length}, paragraphs=${probe.paragraphs}');
+    print(
+      '${entry.key}: observed Paint=${probe.paints.length}, '
+      'drawArc=${probe.arcs.length}, paragraphs=${probe.paragraphs}',
+    );
   }
 }
 
 /// 创建带分组与小数点、所有列处于滚动中的多列 Counter。
 CounterPainter _counter(ChangeNotifier repaint, int columns) => CounterPainter(
-      repaint: repaint,
-      digitValues: List.generate(columns, (i) => i % 10 + 0.375),
-      style: const TextStyle(fontSize: 24, color: Colors.white),
-      digitSize: const Size(18, 30),
-      transition: CounterTransition.slide,
-      flipDirection: AxisDirection.up,
-      increasing: true,
-      fractionDigits: 2,
-      groupingPattern: const [3],
-      hideLeadingZeroes: false,
-      numeralSystem: NumeralSystem.latin,
-      thousandSeparator: ',',
-    );
+  repaint: repaint,
+  digitValues: List.generate(columns, (i) => i % 10 + 0.375),
+  style: const TextStyle(fontSize: 24, color: Colors.white),
+  digitSize: const Size(18, 30),
+  transition: CounterTransition.slide,
+  flipDirection: AxisDirection.up,
+  increasing: true,
+  fractionDigits: 2,
+  groupingPattern: const [3],
+  hideLeadingZeroes: false,
+  numeralSystem: NumeralSystem.latin,
+  thousandSeparator: ',',
+);
 
 /// 记录中心实际进入绘制的次数，验证分层确实隔离了重绘。
 class _PaintCounter extends CustomPainter {
@@ -97,21 +101,40 @@ void main() {
 
   testWidgets('Dial 与 Counter 真实画布基准', (tester) async {
     final painters = <String, CustomPainter>{};
-    for (final entry in {
+    final dialStyles = {
       'Dial inner 60': const DialCountdownStyle(
-          showTicks: false, showArcA: false, showArcB: false),
+        showTicks: false,
+        showArcA: false,
+        showArcB: false,
+      ),
       'Dial full 60': const DialCountdownStyle(),
-      'Dial labels 60':
-          const DialCountdownStyle(ticks: DialTicksConfig(showLabels: true)),
-    }.entries) {
-      await tester.pumpWidget(Directionality(
+      'Dial labels 60': const DialCountdownStyle(
+        ticks: DialTicksConfig(showLabels: true),
+      ),
+    };
+    // 三种表盘同时挂载，避免持久画笔被后续配置覆盖或提前释放。
+    await tester.pumpWidget(
+      Directionality(
         textDirection: TextDirection.ltr,
-        child: DialCountdown(to: const Duration(hours: 1), style: entry.value),
-      ));
-      painters[entry.key] = tester
-          .widgetList<CustomPaint>(find.byType(CustomPaint))
-          .firstWhere((w) => w.painter != null)
-          .painter!;
+        child: Row(
+          children: [
+            for (final entry in dialStyles.entries)
+              DialCountdown(
+                key: ValueKey(entry.key),
+                to: const Duration(hours: 1),
+                style: entry.value,
+              ),
+          ],
+        ),
+      ),
+    );
+    final dialPainters = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .where((w) => w.painter != null)
+        .map((w) => w.painter!)
+        .toList();
+    for (var i = 0; i < dialStyles.length; i++) {
+      painters[dialStyles.keys.elementAt(i)] = dialPainters[i];
     }
     _measure(painters, const Size.square(200));
     _measure({
@@ -136,10 +159,12 @@ void main() {
 
   testWidgets('中心文字分层的实际重绘基准', (tester) async {
     for (final dynamicCenter in [false, true]) {
-      await tester.pumpWidget(const Directionality(
-        textDirection: TextDirection.ltr,
-        child: DialCountdown(to: Duration(hours: 1)),
-      ));
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: DialCountdown(to: Duration(hours: 1)),
+        ),
+      );
       final painter = tester
           .widgetList<CustomPaint>(find.byType(CustomPaint))
           .firstWhere((w) => w.painter != null)
@@ -148,39 +173,50 @@ void main() {
       final keys = [UniqueKey(), UniqueKey()];
       final centerKeys = [UniqueKey(), UniqueKey()];
       final counts = [_PaintCounter(), _PaintCounter()];
-      await tester.pumpWidget(Directionality(
-        textDirection: TextDirection.ltr,
-        child: Center(
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-          for (var index = 0; index < 2; index++)
-            RepaintBoundary(
-                child: CustomPaint(
-              key: keys[index],
-              painter: painter,
-              child: SizedBox.square(
-                  dimension: 200,
-                  child: Center(
-                    child: index == 1
-                        ? RepaintBoundary(
-                            child: CustomPaint(
-                                key: centerKeys[index],
-                                painter: counts[index],
-                                child: label))
-                        : CustomPaint(
-                            key: centerKeys[index],
-                            painter: counts[index],
-                            child: label),
-                  )),
-            )),
-        ])),
-      ));
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var index = 0; index < 2; index++)
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      key: keys[index],
+                      painter: painter,
+                      child: SizedBox.square(
+                        dimension: 200,
+                        child: Center(
+                          child: index == 1
+                              ? RepaintBoundary(
+                                  child: CustomPaint(
+                                    key: centerKeys[index],
+                                    painter: counts[index],
+                                    child: label,
+                                  ),
+                                )
+                              : CustomPaint(
+                                  key: centerKeys[index],
+                                  painter: counts[index],
+                                  child: label,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
       final renders = [
         for (final key in keys)
-          tester.renderObject<RenderCustomPaint>(find.byKey(key))
+          tester.renderObject<RenderCustomPaint>(find.byKey(key)),
       ];
       final centers = [
         for (final key in centerKeys)
-          tester.renderObject<RenderCustomPaint>(find.byKey(key))
+          tester.renderObject<RenderCustomPaint>(find.byKey(key)),
       ];
 
       /// 只测脏标记与 flushPaint，避免测试框架 pump 开销掩盖分层差异。
@@ -206,8 +242,10 @@ void main() {
         }
       }
       for (var index = 0; index < 2; index++) {
-        _report('Center dynamic=$dynamicCenter boundary=${index == 1}',
-            samples[index]);
+        _report(
+          'Center dynamic=$dynamicCenter boundary=${index == 1}',
+          samples[index],
+        );
         // ignore: avoid_print
         print('center paint calls=${counts[index].calls}');
       }

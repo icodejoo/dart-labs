@@ -10,8 +10,13 @@ class PaintProbe implements Canvas {
 
   /// 保存弧段数值，避免后续画笔复用覆盖观测值。
   @override
-  void drawArc(Rect rect, double startAngle, double sweepAngle, bool useCenter,
-      Paint paint) {
+  void drawArc(
+    Rect rect,
+    double startAngle,
+    double sweepAngle,
+    bool useCenter,
+    Paint paint,
+  ) {
     paints.add(paint);
     arcs.add((start: startAngle, sweep: sweepAngle, color: paint.color));
   }
