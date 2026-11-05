@@ -653,4 +653,61 @@ void main() {
     expect(active.isActive, isTrue);
     expect(manager.queuedIds, [ticket.id]);
   });
+
+  test('移除最后一个串行业务等待项立即取消唤醒并回收空 slot', () async {
+    final clock = FakeOverlayClock();
+    final manager = Layerman(clock: clock);
+    addTearDown(manager.dispose);
+    await manager.ready();
+    final deadline = clock.now().add(_second);
+    final ticket = manager.submit<void>(
+        present: HeadlessBackend<void>().present,
+        gate: (_) => OverlayVerdict.waitUntil(deadline));
+    expect(clock.pendingTimers, 1);
+    ticket.remove();
+    expect(clock.pendingTimers, 0);
+    expect(manager.debugSlotCount, 0);
+  });
+
+  for (final byContext in [false, true]) {
+    test('批量释放业务 overlap 时 presenter 重入上下文，每项仅展示一次：context=$byContext',
+        () async {
+      final clock = FakeOverlayClock();
+      final manager = Layerman(clock: clock);
+      addTearDown(manager.dispose);
+      await manager.ready();
+      final deadline = clock.now().add(_second);
+      var firstCalls = 0;
+      var secondCalls = 0;
+      manager.submit<void>(
+          mode: OverlayMode.overlap,
+          present: (ctx) {
+            firstCalls++;
+            manager.setContext({'allow': true});
+            return HeadlessBackend<void>().present(ctx);
+          },
+          gate: (ctx) => ctx['allow'] == true
+              ? const OverlayVerdict.pass()
+              : OverlayVerdict.waitUntil(deadline));
+      manager.submit<void>(
+          mode: OverlayMode.overlap,
+          present: (ctx) {
+            secondCalls++;
+            return HeadlessBackend<void>().present(ctx);
+          },
+          gate: (ctx) => ctx['allow'] == true
+              ? const OverlayVerdict.pass()
+              : OverlayVerdict.waitUntil(deadline));
+      if (byContext) {
+        manager.setContext({'allow': true});
+      } else {
+        clock.advance(_second);
+      }
+      expect(firstCalls, 1);
+      expect(secondCalls, 1);
+      expect(manager.activeIds.toSet(), hasLength(2));
+      expect(clock.pendingTimers, 0);
+      manager.debugCheckInvariants();
+    });
+  }
 }

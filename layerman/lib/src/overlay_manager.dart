@@ -1468,8 +1468,7 @@ class Layerman extends ChangeNotifier {
       }
       // 业务等待也接受上下文推动，且不触及已经承诺激活的条目。
       for (final e in _overlapGateWaits.keys.toList()) {
-        if (!_isCurrent(e)) continue;
-        _pendingOverlaps.remove(e);
+        if (!_isCurrent(e) || !_pendingOverlaps.remove(e)) continue;
         _admitOverlap(e);
       }
       final gateResults = <_Entry, _GateResult>{};
@@ -1576,7 +1575,7 @@ class Layerman extends ChangeNotifier {
 
   /// 重新判定持有的 overlap；仍暂停、等待读取或被阻塞时继续持有。
   void _releaseOverlap(_Entry e) {
-    if (!_isCurrent(e)) return;
+    if (!_isCurrent(e) || e.phase != OverlayPhase.pending) return;
     if (!_canActivate(e.slot) ||
         _evaluateGate(e, overlap: true, callbacks: false).state ==
             _GateState.wait) {
@@ -1996,10 +1995,14 @@ class Layerman extends ChangeNotifier {
   /// 获取或创建指定名称的运行时槽位。
   _Slot _slotFor(String slot) => _slots.putIfAbsent(slot, () => _Slot());
 
-  /// 移出队列，取消属于此条目的延迟并登记批次内重调度。
+  /// 移出队列，取消属主延迟或重排业务等待的共享唤醒。
   void _removeFromQueue(_Entry e) {
     final s = _slots[e.slot];
-    s?.queue.remove(e);
+    if ((s?.queue.remove(e) ?? false) &&
+        e.gate != null &&
+        s!.cooldownTimer != null) {
+      _rescheduleSlots.add(e.slot);
+    }
     if (s != null && s.delayOwner == e) {
       _cancelDelayTimer(s);
       _rescheduleSlots.add(e.slot);
@@ -2131,14 +2134,15 @@ class Layerman extends ChangeNotifier {
   /// 到期只重判业务等待中的 overlap，其他持有项仍由各自释放事件推动。
   void _retryGateOverlaps(String slot) {
     final now = clock.now();
-    for (final item in _overlapGateWaits.entries.toList()) {
-      if (item.key.slot != slot ||
-          item.value == null ||
-          item.value!.isAfter(now)) {
+    for (final e in _overlapGateWaits.keys.toList()) {
+      final deadline = _overlapGateWaits[e];
+      if (e.slot != slot ||
+          deadline == null ||
+          deadline.isAfter(now) ||
+          !_pendingOverlaps.remove(e)) {
         continue;
       }
-      _pendingOverlaps.remove(item.key);
-      _releaseOverlap(item.key);
+      _releaseOverlap(e);
     }
   }
 
@@ -2396,6 +2400,7 @@ class Layerman extends ChangeNotifier {
 
   /// 延迟结束后复用 overlap 的一次性资格判定与挂起逻辑。
   void _admitOverlap(_Entry e) {
+    if (!_isCurrent(e) || e.phase != OverlayPhase.pending) return;
     _forgetOverlapGateWait(e);
     final result = _evaluateGate(e, overlap: true);
     if (result.state == _GateState.drop) {
