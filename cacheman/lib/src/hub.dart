@@ -3,7 +3,8 @@ part of 'cacheman.dart';
 /// Shared notifications and earliest-deadline flush scheduling; never stores values.
 /// 共享变更通知和最早截止时间落盘调度，从不缓存读值。
 class _ContainerHub with WidgetsBindingObserver {
-  _ContainerHub(Future<void> Function() flush, void Function(Object) report)
+  _ContainerHub(
+      Future<void> Function() flush, void Function(Object, StackTrace) report)
       : _flush = flush,
         _report = report;
 
@@ -16,7 +17,7 @@ class _ContainerHub with WidgetsBindingObserver {
     required VoidCallback? Function(void Function(String?)) listen,
     required bool synchronous,
     required Future<void> Function() flush,
-    required void Function(Object) report,
+    required void Function(Object, StackTrace) report,
   }) {
     final existing = _hubs[identity];
     if (existing != null) return existing;
@@ -51,7 +52,7 @@ class _ContainerHub with WidgetsBindingObserver {
 
   /// Report to the most recent delayed writer or explicit flush caller.
   /// 向最近一次延迟写入者或主动 flush 调用者上报，避免向所有实例重复报错。
-  void Function(Object) _report;
+  void Function(Object, StackTrace) _report;
 
   /// Lifecycle registration is lazy and exists only while a flush is pending.
   /// 生命周期观察器惰性注册，仅在存在待落盘任务时保留，避免绑定长期持有 Hub。
@@ -82,7 +83,7 @@ class _ContainerHub with WidgetsBindingObserver {
 
   /// Keep an existing earlier deadline; subsequent writes never postpone it.
   /// 保留已有的更早截止时间，后续写入不推迟落盘。
-  void scheduleFlush(Duration delay, void Function(Object) report) {
+  void scheduleFlush(Duration delay, void Function(Object, StackTrace) report) {
     _report = report;
     final deadline = DateTime.now().add(delay);
     if (_deadline != null && !_deadline!.isAfter(deadline)) return;
@@ -97,7 +98,7 @@ class _ContainerHub with WidgetsBindingObserver {
 
   /// Queue a save now, reporting synchronous and Future failures alike.
   /// 立即排一次保存，同步异常和 Future 错误都上报。
-  void flushNow([void Function(Object)? report]) {
+  void flushNow([void Function(Object, StackTrace)? report]) {
     _timer?.cancel();
     _timer = null;
     _deadline = null;
@@ -106,8 +107,8 @@ class _ContainerHub with WidgetsBindingObserver {
       _observing = false;
     }
     final reporter = report ?? _report;
-    Future<void>.sync(_flush).catchError((Object error, StackTrace _) {
-      reporter(error);
+    Future<void>.sync(_flush).catchError((Object error, StackTrace trace) {
+      reporter(error, trace);
     });
   }
 

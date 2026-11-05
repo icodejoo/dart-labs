@@ -10,6 +10,8 @@ import 'package:flutter/widgets.dart'
 import 'package:get_storage/get_storage.dart';
 
 import 'entity.dart';
+import 'errors.dart';
+import 'value_adapter.dart';
 import 'interface.dart';
 import 'options.dart';
 
@@ -111,8 +113,8 @@ class Cacheman {
   );
 
   /// Reports hub flush errors on the whole-backend key. / 以整库错误键上报 Hub 落盘异常。
-  void _reportHubError(Object error) =>
-      _core._reportFlushError(_allKeys, error);
+  void _reportHubError(Object error, StackTrace trace) =>
+      _core._reportFlushError(_allKeys, error, trace);
 
   /// Raw get_storage container for interop; accessing it creates it even for
   /// custom subclasses. Use `container.listenKey(storageKey('token'), ...)`.
@@ -203,8 +205,8 @@ class Cacheman {
   @protected
   void setDeferredRaw(CacheContext ctx, String storageKey, String value) {
     if (_custom) {
-      setRaw(ctx, storageKey, value).catchError(
-          (Object e, StackTrace _) => _core._reportFlushError(storageKey, e));
+      setRaw(ctx, storageKey, value).catchError((Object e, StackTrace trace) =>
+          _core._reportFlushError(storageKey, e, trace));
     } else {
       container.writeInMemory(storageKey, value);
     }
@@ -238,10 +240,12 @@ class Cacheman {
     watcher = _HubWatch(key, storageKey(key), () {
       if (!includeOwnWrites && _selfDepth > 0) return;
       final errorKey = watcher.storageKey;
+      final handlerFailures = _core.handlerFailures;
       try {
         onChange(read<T>(key));
-      } catch (error) {
-        _core._emitError(errorKey, error, 'watch callback failed');
+      } catch (error, trace) {
+        if (_core.handlerFailures != handlerFailures) rethrow;
+        _core._reportError(WatchError(errorKey, error, trace));
       }
     });
     _watches.add(watcher);
@@ -280,7 +284,8 @@ class Cacheman {
   void _del(String key) {
     _mutate(key, () {
       removeRaw(_core.context(CacheOp.remove, key), key).catchError(
-          (Object e, StackTrace _) => _core._reportFlushError(key, e));
+          (Object e, StackTrace trace) =>
+              _core._reportFlushError(key, e, trace));
     }, remove: true);
   }
 
@@ -337,24 +342,29 @@ class Cacheman {
     }
   }
 
-  /// Retries synchronous construction/write errors once; flush Futures are separate.
-  /// 同步构造/写入失败重试一次，后台 flush Future 独立处理。
+  /// Builds once, then retries only backend writes; background failures stay separate.
+  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
   bool _persist(String key, String Function() build) {
     assert(_initialized, _initializationMessage);
+    final encoded = _core.build(key, build);
+    if (encoded == null) return false;
+    final handlerFailures = _core.handlerFailures;
     try {
-      _writeNow(key, build());
+      _writeNow(key, encoded);
       return true;
-    } catch (error) {
+    } catch (error, trace) {
+      if (_core.handlerFailures != handlerFailures) rethrow;
       if (!_core._opts.force) {
-        _core._reportError(key, error);
+        _core._reportError(WriteError(key, error, trace));
         return false;
       }
-      _purgeExpired();
       try {
-        _writeNow(key, build());
+        _purgeExpired();
+        _writeNow(key, encoded);
         return true;
-      } catch (retryError) {
-        _core._reportError(key, retryError);
+      } catch (retryError, retryTrace) {
+        if (_core.handlerFailures != handlerFailures) rethrow;
+        _core._reportError(WriteError(key, retryError, retryTrace));
         return false;
       }
     }
@@ -366,8 +376,8 @@ class Cacheman {
       final ctx = _core.context(CacheOp.write, key);
       final delay = _core._opts.flushDelay;
       if (delay == null) {
-        setRaw(ctx, key, value).catchError(
-            (Object e, StackTrace _) => _core._reportFlushError(key, e));
+        setRaw(ctx, key, value).catchError((Object e, StackTrace trace) =>
+            _core._reportFlushError(key, e, trace));
       } else {
         setDeferredRaw(ctx, key, value);
         _hub.scheduleFlush(delay, _reportHubError);
@@ -377,15 +387,36 @@ class Cacheman {
 
   /// Reads with lazy expiry, decode reporting and guarded sliding renewal.
   /// 读取时懒删除过期项、上报解码失败并按阈值续期。
+  /// Type/adapter mismatches return the default and retain data; no numeric coercion.
+  /// 类型/适配器不符返回默认值并保留数据；不做数字互转，int 可用 num 读取。
+  /// Backend IO and user onError exceptions still propagate. / 后端 IO 及用户 onError 异常仍传播。
   /// Example / 示例：`cache.read<String>('token', 'guest')`.
-  T? read<T>(String key, [T? defaultValue]) {
+  T? read<T>(String key, [T? defaultValue]) => _read(key, defaultValue, null);
+
+  /// Reads with JSON adaptation; mismatches return defaultValue without removal.
+  /// 带 JSON 适配读取；不匹配返回 defaultValue，不删除数据。
+  /// Dart cannot mix optional positional and named parameters; read keeps its
+  /// positional default, while this entry accepts named defaultValue/adapter.
+  /// Dart 无法混合可选位置与命名参数；read 保留位置默认值，本方法提供命名参数。
+  /// Example / 示例：
+  /// ```dart
+  /// cache.readWith<List<String>>('names', adapter: ValueAdapter.listOf<String>());
+  /// ```
+  T? readWith<T>(String key, {T? defaultValue, ValueAdapter<T>? adapter}) =>
+      _read(key, defaultValue, adapter);
+
+  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  T? _read<T>(String key, T? defaultValue, ValueAdapter<T>? adapter) {
     final sk = storageKey(key);
     final raw = _get(sk);
     if (raw == null) return defaultValue;
-    if (_core._opts.raw) return raw as T?;
-    final entity = _core._load(raw, onFailure: (error) {
+    if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
+      return _core.typed(sk, raw, defaultValue, null);
+    }
+    final entity = _core._load(raw, onFailure: (error, trace) {
       _del(sk);
-      _core.reportDecodeError(sk, error);
+      _core.reportDecodeError(sk, error, trace);
     });
     if (entity == null) return defaultValue;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -395,7 +426,7 @@ class Cacheman {
     }
     final renewed = _core.renewal(entity, now);
     if (renewed != null) _persist(sk, () => _core._dump(renewed));
-    return entity.value as T?;
+    return _core.typed(sk, entity.value, defaultValue, adapter);
   }
 
   /// Positional batch read; missing defaults are null. / 按位置批量读取，缺省默认值为 null。
@@ -407,17 +438,24 @@ class Cacheman {
       ];
 
   /// Writes with millisecond TTL or DateTime/integer absolute expiry.
+  /// Optional adapter converts before serialization; raw ignores it.
+  /// 可选 adapter 在序列化前转换；raw 忽略它。
+  /// Example / 示例：`cache.write('names', ['Ada'], adapter: ValueAdapter.listOf<String>())`.
   /// 按毫秒 TTL 或 DateTime/整数绝对过期时间写入。
   /// Example / 示例：`cache.write('token', 'abc', ttl: 60000)`.
-  void write<T>(String key, T value, {int? ttl, Object? expireAt}) {
+  void write<T>(String key, T value,
+      {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {
     final sk = storageKey(key);
     if (_core._opts.readonly && _alive(sk)) return;
     if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
       if (_core.acceptsRaw(key, value)) _persist(sk, () => value as String);
       return;
     }
     final entity = _core._mkEntity(value, ttl, expireAt, key);
-    if (entity != null) _persist(sk, () => _core._dump(entity));
+    if (entity != null) {
+      _persist(sk, () => _core.encode(entity, value, adapter));
+    }
   }
 
   /// Presence probe without deletion, reporting or renewal; null values count.
@@ -459,7 +497,8 @@ class Cacheman {
       _selfDepth++;
       try {
         clearRaw(_core.context(CacheOp.clear)).catchError(
-            (Object e, StackTrace _) => _core._reportFlushError(_allKeys, e));
+            (Object e, StackTrace trace) =>
+                _core._reportFlushError(_allKeys, e, trace));
         _ownedKeysCache = null;
       } finally {
         _selfDepth--;
@@ -469,7 +508,10 @@ class Cacheman {
     _ownKeys().forEach(_del);
   }
 
-  /// Positional logical key, null out of range. / 按下标取逻辑键，越界返回 null。
+  /// Positional logical key, null out of range. O(index); use one keys() snapshot
+  /// instead of O(n²) indexed loops. / 按下标取逻辑键，越界返回 null；O(index)，
+  /// 循环为 O(n²)，请改用一次 keys() 快照。Example / 示例：`for (final k in cache.keys()) ...`.
+  @Deprecated('O(index); loops cost O(n²). Use keys() instead. / 请使用 keys()。')
   String? key(int index) {
     if (namespace.isNotEmpty || _core._enckey) {
       final ks = _ownSet();

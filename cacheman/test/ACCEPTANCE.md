@@ -1,4 +1,4 @@
-# cacheman 阶段 0 / 1a / 1b 验收矩阵
+# cacheman 阶段 0 / 1a / 1b / 2 验收矩阵
 
 在指定 worktree 根目录复现（不切换目录）：
 
@@ -10,22 +10,22 @@ dart run tool/check_acceptance.dart
 flutter analyze example
 ```
 
-最近一次运行：**117/117 测试通过；lib 行覆盖率 498/498（100.00%），1 行豁免**。
+最近一次运行：**134/134 测试通过；lib 行覆盖率 565/565（100.00%），1 行豁免**。
 包及 example analyze 无问题。生成日期：2026-11-05（会话日期，Asia/Shanghai）。
-commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本次为未提交改动。
+commit 基线：`ab4e93aff5503e508aa431eb63f7dd6e7f1fedd7`（阶段 1b 终审）；本次为未提交改动。
 此摘要由最终命令验证；coverage/ 已在原有 .gitignore 中，不纳入版本控制。
 
 名称格式为“test/文件.dart :: group > test”，与源码注册名称完全一致；参数化名称列出实际展开值。
 `tool/check_acceptance.dart` 以轻量词法器排除注释/字符串里的括号，跟踪group深度，展开字面量列表
 参数；既检查引用存在，也检查没有漏掉任何已注册测试。不能识别的动态名称明确报错。
-本次还将提取名单与 flutter test JSON reporter 的运行时注册名称逐个交叉核对。
+本次使用同一提取器生成新增行，随后以自检工具逐项验证所有引用存在且无注册用例遗漏。
 
 ## 需求和不变量
 
 | ID | 需求 / 不变量 | 来源 | 用例（文件 :: 测试名，可多条） | 类型 | 结果 |
 | --- | --- | --- | --- | --- | --- |
 | INV-01 | 原语是唯一后端接触点；extends 薄封装不隐式创建 GetStorage | SKILL 不变量 | `test/cacheman_primitives_test.dart :: all primitives override default backend; CRUD is synchronous` | 子类内存后端 | 通过 |
-| INV-01b | 只转发构造参数的子类（默认构造）保留 get_storage 共享 Hub、watch 与增量索引；自带原语须经 `Cacheman.custom` | 主会话终审 | `test/cacheman_test.dart :: forwarding subclass keeps get_storage hub, watch and incremental index` | 集成·真 get_storage | 通过 |
+| INV-01b | 只转发构造参数的子类（默认构造）保留 get_storage 共享 Hub、watch 与增量索引；自带原语须经 `Cacheman.custom` | 用户需求 | `test/cacheman_test.dart :: forwarding subclass keeps get_storage hub, watch and incremental index` | 集成·真 get_storage | 通过 |
 | INV-02 | 同步构造/同步 CRUD，ensureInitialized 是唯一公开 Future 边界；失败 init 不标记成功 | SKILL 不变量 | `test/hub_test.dart :: failed initialization leaves sync and async writes guarded until retry succeeds` | 子类内存后端 | 通过 |
 | INV-03 | GetStorage late final；带 path 的首次访问初始化，不调用静态 GetStorage.init | SKILL 不变量 | `test/cacheman_primitives_test.dart :: lazy default initialization still loads the explicitly supplied path` | 集成·真 get_storage | 通过 |
 | INV-04 | 不缓存读取的值；多个同步/异步后端并行，调用处自行选择，无自动路由 | 用户需求 | `test/hub_test.dart :: sync and async backends run in parallel and never cache read values` | 子类内存后端 | 通过 |
@@ -41,17 +41,17 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | INV-14 | sliding 在剩余 ttl <=90% 时续期；保留 createdAt/ttl，原实体不变 | SKILL 不变量 | `test/hub_test.dart :: sync sliding includes exactly 90 percent and preserves the original entity` | 子类内存后端 | 通过 |
 | INV-15 | raw 只接受 String；跳过信封/值codec/TTL/purge；仍按namespace/enckey隔离 | SKILL 不变量 | `test/async_cacheman_test.dart :: raw rejects non-String, bypasses codec/serialization/expiry and purge` | 子类内存后端 | 通过 |
 | INV-16 | readonly 在 raw/entity 分支前检查存在性；存 null 算存在；probe 无副作用 | SKILL 不变量 | `test/hub_test.dart :: readonly raw null foreign and expired probes have no renewal side effects` | 子类内存后端 | 通过 |
-| INV-17 | 同步 force 只重试同步异常；成功重试维护索引；Future 失败不重试 | SKILL 不变量 | `test/cacheman_primitives_test.dart :: force retries synchronous throws and maintains owned keys on retry` | 子类内存后端 | 通过 |
-| INV-18 | 异步 force 捕获同步/awaited 失败，清理后重试一次，耗尽上报原异常 | SKILL 不变量 | `test/async_cacheman_test.dart :: two failures report final error with storage key, force false never retries` | 子类内存后端 | 通过 |
+| INV-17 | 同步 force 只重试底层同步写异常；成功重试维护索引；编码/Future 失败不重试 | SKILL 不变量 | `test/cacheman_primitives_test.dart :: force retries synchronous throws and maintains owned keys on retry` | 子类内存后端 | 通过 |
+| INV-18 | 异步 force 只捕获底层同步/awaited 写失败，清理后重试一次，耗尽上报 WriteError(cause) | SKILL 不变量 | `test/async_cacheman_test.dart :: two failures report final error with storage key, force false never retries` | 子类内存后端 | 通过 |
 | INV-19 | 异步续期/force purge 失败仍返回原读取值 | SKILL 不变量 | `test/async_cacheman_test.dart :: renewal force scan failure is reported and read still returns the value` | 子类内存后端 | 通过 |
-| INV-20 | 解码失败：删除后报告原异常一次；codec null 为 FormatException；purge/readonly 静默 | SKILL 不变量 | `test/async_cacheman_test.dart :: decode null/throw/deserialize failures delete then report once; probes stay quiet` | 子类内存后端 | 通过 |
+| INV-20 | 解码失败：删除后报告 CorruptEntryError(dropped:true) 一次；codec null 的 cause 为 FormatException；purge/readonly 静默 | SKILL 不变量 | `test/async_cacheman_test.dart :: decode null/throw/deserialize failures delete then report once; probes stay quiet` | 子类内存后端 | 通过 |
 | INV-21 | erase 有 namespace 或 enckey 时只删自有键，否则全清；Async 默认 clear 枚举快照 | SKILL 不变量 | `test/async_cacheman_test.dart :: unscoped erase default clears every backend key via snapshot enumeration` | 子类内存后端 | 通过 |
 | INV-22 | CacheContext key 惰性且缓存null；storageKey为实际键；保留const构造及捕获的namespace | 阶段 1b | `test/hub_test.dart :: CacheContext is lazy memoized and captures namespace before switching` | 子类内存后端 | 通过 |
 | INV-23 | CacheContext 按实际原语操作传逻辑key/转义namespace，内部续期/懒删传write/remove | SKILL 不变量 | `test/async_cacheman_test.dart :: context carries logical keys, escaped namespace and actual operation` | 子类内存后端 | 通过 |
 | INV-24 | 真实 get_storage write/remove/erase 在返回前同步通知；erase 键为空串 | 阶段 1b | `test/cacheman_test.dart :: get_storage write remove erase notify synchronously before return` | 集成·真 get_storage | 通过 |
 | INV-25 | watch 缺省忽略自身写，includeOwnWrites接收；peer/external/clear/cancel/namespace迁移 | 阶段 1b | `test/hub_test.dart :: real watch suppresses own writes and handles external clear cancel and namespace` | 集成·真 get_storage | 通过 |
 | INV-26 | 读路径滑动写与懒删除也属于自身写，整库erase亦可抑制 | 阶段 1b | `test/hub_test.dart :: own erase lazy deletion and sliding renewal are suppressed` | 集成·真 get_storage | 通过 |
-| INV-27 | watch 类型错误走onError，不阻断其他监听；快照容许回调里增删订阅 | 阶段 1b | `test/hub_test.dart :: watch type errors report and snapshot dispatch supports reentrant changes` | 子类内存后端 | 通过 |
+| INV-27 | watch 类型错误为 TypeMismatchError 且回调收到 null，不阻断其他监听；快照容许回调里增删订阅 | 阶段 1b | `test/hub_test.dart :: watch type errors report and snapshot dispatch supports reentrant changes` | 子类内存后端 | 通过 |
 | INV-28 | Map 型简易 Rx 双向绑定断环，不要求按身份判等 | 阶段 1b | `test/hub_test.dart :: Map Rx two-way binding has bounded callbacks without equality checks` | 集成·真 get_storage | 通过 |
 | INV-29 | 不支持通知时watch抛UnsupportedError；无同步通知每次重扫，异步后端可能收到自己写入 | 阶段 1b | `test/hub_test.dart :: unsupported and asynchronous notifications rescan on every query` | 子类内存后端 | 通过 |
 | INV-30 | flushDelay 默认null；共享Timer保留最早deadline，多次写仅一次save，flush同步取消Timer并排save | 阶段 1b | `test/hub_test.dart :: flushDelay coalesces shared writers and keeps the earliest deadline` | 子类内存后端 | 通过 |
@@ -63,17 +63,21 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | INV-36 | ttl=0/负数忽略；绝对过期接受DateTime/int、拒绝过去/非法值；sliding+ttl可重起 | 用户需求 | `test/hub_test.dart :: ttl zero negative and absolute expiry validation retain intended behavior` | 子类内存后端 | 通过 |
 | INV-37 | 无onError时print保留错误；force:false只尝试一次；onError自身异常在同步/异步读写中均传播 | SKILL 不变量 | `test/hub_test.dart :: force false reports once and fallback print preserves the error` | 子类内存后端 | 通过 |
 | INV-38 | 同步/异步原语覆写遵循内存立即更新/awaited持久化各自契约 | 阶段 1a | `test/async_cacheman_test.dart :: read/write await persistence and read fresh data every time` | 子类内存后端 | 通过 |
-| INV-39 | 完整验收：所有旧用例保留、每个注册用例必须出现在矩阵、lib行覆盖率100% | 用户需求 | `test/hub_test.dart :: legacy options and Jsonx unknown tags shape mismatch and cast errors` | 子类内存后端 | 通过 |
+| INV-39 | 完整验收：保留原有功能回归（阶段2语义断言更新、删除 CacheOptions 测试）、每个注册用例必须出现在矩阵、lib行覆盖率100% | 用户需求 | `test/hub_test.dart :: Jsonx unknown tags shape mismatch and cast errors` | 子类内存后端 | 通过 |
+
+| INV-40 | read/readWith 类型/adapter 失败默认值 + TypeMismatchError，不删；dynamic/Object?不报；int/double不互转 | 阶段 2 | `test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=false)`<br>`test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=true)` | 子类内存后端 | 通过 |
+| INV-41 | listOf/mapOf 立即复制检查，业务类/nullable/数字 adapter 双向转换，fromJson 原因保留 | 阶段 2 | `test/type_safety_test.dart :: typed adapters roundtrip collections and business values (async=false)`<br>`test/type_safety_test.dart :: typed adapters roundtrip collections and business values (async=true)`<br>`test/type_safety_test.dart :: collection adapters eagerly validate and copy JSON structures` | 子类内存后端 | 通过 |
+| INV-42 | fast/lazy/batchFast adapter + 默认 ttl，set 显式 ttl 覆盖；类型不符不抛 | 阶段 2 | `test/type_safety_test.dart :: fast lazy and batch accessors adapt values and apply default ttl` | 子类内存后端 | 通过 |
 
 ## 全部公开功能及回归用例
 
-下表包含全部117个真实测试，覆盖原有公开API、评审已落地修复、阶段0/1a/1b，以及错误和边界分支。
+下表包含全部134个真实测试，覆盖原有公开API、评审已落地修复、阶段0/1a/1b/2，以及错误和边界分支。
 
 | ID | 需求 / 不变量 | 来源 | 用例（文件 :: 测试名，可多条） | 类型 | 结果 |
 | --- | --- | --- | --- | --- | --- |
 | CASE-001 | batch defaults, short values, ttl/expireAt and remove forwarding | 阶段 1a | `test/async_cacheman_test.dart :: batch defaults, short values, ttl/expireAt and remove forwarding` | 子类内存后端 | 通过 |
 | CASE-002 | context carries logical keys, escaped namespace and actual operation | 阶段 1a | `test/async_cacheman_test.dart :: context carries logical keys, escaped namespace and actual operation` | 子类内存后端 | 通过 |
-| CASE-003 | decode null/throw/deserialize failures delete then report once; probes stay quiet | 阶段 1a | `test/async_cacheman_test.dart :: decode null/throw/deserialize failures delete then report once; probes stay quiet` | 子类内存后端 | 通过 |
+| CASE-003 | decode null/throw/deserialize failures delete then report once; probes stay quiet | 阶段 1a | `test/async_cacheman_test.dart :: decode null/throw/deserialize failures delete then report once; probes stay quiet` | 子类内存后端 | 通过（阶段2：CorruptEntryError(dropped:true)，原异常移到 cause） |
 | CASE-004 | enckey and codeable roundtrip separately; fresh enumeration sees external writes | 阶段 1a | `test/async_cacheman_test.dart :: enckey and codeable roundtrip separately; fresh enumeration sees external writes` | 子类内存后端 | 通过 |
 | CASE-005 | expireAt accepts DateTime/int, rejects past/invalid; invalid ttl ignored | 阶段 1a | `test/async_cacheman_test.dart :: expireAt accepts DateTime/int, rejects past/invalid; invalid ttl ignored` | 子类内存后端 | 通过 |
 | CASE-006 | force purges then retries once (synchronous=false) | 阶段 1a | `test/async_cacheman_test.dart :: force purges then retries once (synchronous=false)` | 子类内存后端 | 通过 |
@@ -85,18 +89,18 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | CASE-012 | raw rejects non-String, bypasses codec/serialization/expiry and purge | 阶段 1a | `test/async_cacheman_test.dart :: raw rejects non-String, bypasses codec/serialization/expiry and purge` | 子类内存后端 | 通过 |
 | CASE-013 | read/write await persistence and read fresh data every time | 阶段 1a | `test/async_cacheman_test.dart :: read/write await persistence and read fresh data every time` | 子类内存后端 | 通过 |
 | CASE-014 | readonly counts null, does not renew/report, allows expired replacement | 阶段 1a | `test/async_cacheman_test.dart :: readonly counts null, does not renew/report, allows expired replacement` | 子类内存后端 | 通过 |
-| CASE-015 | renewal failure reports without throwing from read or changing envelope | 阶段 1a | `test/async_cacheman_test.dart :: renewal failure reports without throwing from read or changing envelope` | 子类内存后端 | 通过 |
-| CASE-016 | renewal force scan failure is reported and read still returns the value | 阶段 1a | `test/async_cacheman_test.dart :: renewal force scan failure is reported and read still returns the value` | 子类内存后端 | 通过 |
-| CASE-017 | serialize errors participate in force and preserve the original exception | 阶段 1a | `test/async_cacheman_test.dart :: serialize errors participate in force and preserve the original exception` | 子类内存后端 | 通过 |
+| CASE-015 | renewal failure reports without throwing from read or changing envelope | 阶段 1a | `test/async_cacheman_test.dart :: renewal failure reports without throwing from read or changing envelope` | 子类内存后端 | 通过（阶段2：WriteError，cause 保留原异常；读值不变） |
+| CASE-016 | renewal force scan failure is reported and read still returns the value | 阶段 1a | `test/async_cacheman_test.dart :: renewal force scan failure is reported and read still returns the value` | 子类内存后端 | 通过（阶段2：WriteError.cause 为扫描异常，原读值仍返回） |
+| CASE-017 | serialize errors never retry and preserve the original exception | 阶段 1a | `test/async_cacheman_test.dart :: serialize errors never retry and preserve the original exception` | 子类内存后端 | 通过（阶段2：一次构造，无 purge/重试；SerializeError 保留 cause） |
 | CASE-018 | sliding plus ttl restarts a past absolute expiry | 阶段 1a | `test/async_cacheman_test.dart :: sliding plus ttl restarts a past absolute expiry` | 子类内存后端 | 通过 |
 | CASE-019 | sliding skips above 90 percent and renews at inclusive boundary | 阶段 1a | `test/async_cacheman_test.dart :: sliding skips above 90 percent and renews at inclusive boundary` | 子类内存后端 | 通过 |
 | CASE-020 | ttl expires and lazy read physically deletes the key | 阶段 1a | `test/async_cacheman_test.dart :: ttl expires and lazy read physically deletes the key` | 子类内存后端 | 通过 |
-| CASE-021 | two failures report final error with storage key, force false never retries | 阶段 1a | `test/async_cacheman_test.dart :: two failures report final error with storage key, force false never retries` | 子类内存后端 | 通过 |
+| CASE-021 | two failures report final error with storage key, force false never retries | 阶段 1a | `test/async_cacheman_test.dart :: two failures report final error with storage key, force false never retries` | 子类内存后端 | 通过（阶段2：WriteError，保留实际 key 和最终 cause） |
 | CASE-022 | unscoped erase default clears every backend key via snapshot enumeration | 阶段 1a | `test/async_cacheman_test.dart :: unscoped erase default clears every backend key via snapshot enumeration` | 子类内存后端 | 通过 |
 | CASE-023 | unscoped erase dispatches to overridden clearRaw with null key | 阶段 1a | `test/async_cacheman_test.dart :: unscoped erase dispatches to overridden clearRaw with null key` | 子类内存后端 | 通过 |
 | CASE-024 | all primitives override default backend; CRUD is synchronous | 阶段 1a | `test/cacheman_primitives_test.dart :: all primitives override default backend; CRUD is synchronous` | 子类内存后端 | 通过 |
 | CASE-025 | expiry, sliding, namespace and owned-key cache work over primitives | 阶段 1a | `test/cacheman_primitives_test.dart :: expiry, sliding, namespace and owned-key cache work over primitives` | 子类内存后端 | 通过 |
-| CASE-026 | flush Future errors report once and are never retried | 阶段 1a | `test/cacheman_primitives_test.dart :: flush Future errors report once and are never retried` | 子类内存后端 | 通过 |
+| CASE-026 | flush Future errors report once and are never retried | 阶段 1a | `test/cacheman_primitives_test.dart :: flush Future errors report once and are never retried` | 子类内存后端 | 通过（阶段2：FlushError，cause 保留原异常且不重试） |
 | CASE-027 | force retries synchronous throws and maintains owned keys on retry | 阶段 1a | `test/cacheman_primitives_test.dart :: force retries synchronous throws and maintains owned keys on retry` | 子类内存后端 | 通过 |
 | CASE-028 | lazy default initialization still loads the explicitly supplied path | 阶段 1a | `test/cacheman_primitives_test.dart :: lazy default initialization still loads the explicitly supplied path` | 集成·真 get_storage | 通过 |
 | CASE-029 | does not write anything back — keys()/length stay unaffected | 原有功能 | `test/cacheman_test.dart :: Cacheman() — real get_storage integration > debug() > does not write anything back — keys()/length stay unaffected` | 集成·真 get_storage | 通过 |
@@ -123,9 +127,9 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | CASE-050 | readAll pairs defaults positionally, missing slots fall back to null | 原有功能 | `test/cacheman_test.dart :: batch operations > readAll pairs defaults positionally, missing slots fall back to null` | 集成·真 get_storage | 通过 |
 | CASE-051 | writeAll / readAll / removeAll | 原有功能 | `test/cacheman_test.dart :: batch operations > writeAll / readAll / removeAll` | 集成·真 get_storage | 通过 |
 | CASE-052 | writeAll with fewer values than keys skips the missing entries | 原有功能 | `test/cacheman_test.dart :: batch operations > writeAll with fewer values than keys skips the missing entries` | 集成·真 get_storage | 通过 |
-| CASE-053 | a null codec result is reported once, deleted and returned as the default | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a null codec result is reported once, deleted and returned as the default` | 集成·真 get_storage | 通过 |
-| CASE-054 | a throwing replacement codec reports the original exception once and deletes the entry | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a throwing replacement codec reports the original exception once and deletes the entry` | 集成·真 get_storage | 通过 |
-| CASE-055 | a throwing replacement deserialize reports once after deleting the entry | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a throwing replacement deserialize reports once after deleting the entry` | 集成·真 get_storage | 通过 |
+| CASE-053 | a null codec result is reported once, deleted and returned as the default | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a null codec result is reported once, deleted and returned as the default` | 集成·真 get_storage | 通过（阶段2：CorruptEntryError(dropped:true)，cause 为 FormatException） |
+| CASE-054 | a throwing replacement codec reports the original exception once and deletes the entry | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a throwing replacement codec reports the original exception once and deletes the entry` | 集成·真 get_storage | 通过（阶段2：CorruptEntryError，cause 保留原异常身份） |
+| CASE-055 | a throwing replacement deserialize reports once after deleting the entry | 原有功能 | `test/cacheman_test.dart :: codec / enckey > a throwing replacement deserialize reports once after deleting the entry` | 集成·真 get_storage | 通过（阶段2：CorruptEntryError，保持先删后报和原 cause） |
 | CASE-056 | codeable + codec obfuscates the persisted string but reads decode transparently | 原有功能 | `test/cacheman_test.dart :: codec / enckey > codeable + codec obfuscates the persisted string but reads decode transparently` | 集成·真 get_storage | 通过 |
 | CASE-057 | enckey keys()/key() reuse decoded logical keys across repeated enumeration | 原有功能 | `test/cacheman_test.dart :: codec / enckey > enckey keys()/key() reuse decoded logical keys across repeated enumeration` | 集成·真 get_storage | 通过 |
 | CASE-058 | enckey obfuscates the storage key so foreign readers cannot see it | 原有功能 | `test/cacheman_test.dart :: codec / enckey > enckey obfuscates the storage key so foreign readers cannot see it` | 集成·真 get_storage | 通过 |
@@ -150,8 +154,8 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | CASE-077 | purge() leaves raw values alone even if they look like an expired entity | 阶段 0 | `test/cacheman_test.dart :: review fixes > purge() leaves raw values alone even if they look like an expired entity` | 集成·真 get_storage | 通过 |
 | CASE-078 | readonly treats a stored null as present and does not slide-renew | 阶段 0 | `test/cacheman_test.dart :: review fixes > readonly treats a stored null as present and does not slide-renew` | 集成·真 get_storage | 通过 |
 | CASE-079 | readonly write attempt does not extend the old value lifetime (sliding) | 阶段 0 | `test/cacheman_test.dart :: review fixes > readonly write attempt does not extend the old value lifetime (sliding)` | 集成·真 get_storage | 通过 |
-| CASE-080 | serialize failing once then succeeding is retried by force | 阶段 0 | `test/cacheman_test.dart :: review fixes > serialize failing once then succeeding is retried by force` | 集成·真 get_storage | 通过 |
-| CASE-081 | serialize throwing is caught by write (reported via onError), read keeps working | 阶段 0 | `test/cacheman_test.dart :: review fixes > serialize throwing is caught by write (reported via onError), read keeps working` | 集成·真 get_storage | 通过 |
+| CASE-080 | serialize failing once is not retried by force | 阶段 0 | `test/cacheman_test.dart :: review fixes > serialize failing once is not retried by force` | 集成·真 get_storage | 通过（阶段2：只序列化一次，失败不写入、不重试） |
+| CASE-081 | serialize throwing is caught by write (reported via onError), read keeps working | 阶段 0 | `test/cacheman_test.dart :: review fixes > serialize throwing is caught by write (reported via onError), read keeps working` | 集成·真 get_storage | 通过（阶段2：SerializeError，cause 保留 StateError） |
 | CASE-082 | a read hit past 10% of ttl renews expireAt | 原有功能 | `test/cacheman_test.dart :: sliding expiry > a read hit past 10% of ttl renews expireAt` | 集成·真 get_storage | 通过 |
 | CASE-083 | without sliding, the same read pattern lets the entry expire on schedule | 原有功能 | `test/cacheman_test.dart :: sliding expiry > without sliding, the same read pattern lets the entry expire on schedule` | 集成·真 get_storage | 通过 |
 | CASE-084 | a positive ttl expires the entry after it elapses | 原有功能 | `test/cacheman_test.dart :: ttl / expiry > a positive ttl expires the entry after it elapses` | 集成·真 get_storage | 通过 |
@@ -163,13 +167,13 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | CASE-090 | all background lifecycle states flush pending writes; resumed does not | 阶段 1b | `test/hub_test.dart :: all background lifecycle states flush pending writes; resumed does not` | 子类内存后端 | 通过 |
 | CASE-091 | both key maps clear on 1024 overflow and namespace resets both | 阶段 1b | `test/hub_test.dart :: both key maps clear on 1024 overflow and namespace resets both` | 子类内存后端 | 通过 |
 | CASE-092 | custom delayed fallback delegates to setRaw and needs no default backend | 阶段 1b | `test/hub_test.dart :: custom delayed fallback delegates to setRaw and needs no default backend` | 子类内存后端 | 通过 |
-| CASE-093 | deferred fallback Future failures report without force retry | 阶段 1b | `test/hub_test.dart :: deferred fallback Future failures report without force retry` | 子类内存后端 | 通过 |
-| CASE-094 | delayed flush errors report to latest writer and explicit caller | 阶段 1b | `test/hub_test.dart :: delayed flush errors report to latest writer and explicit caller` | 子类内存后端 | 通过 |
-| CASE-095 | delete and clear Future errors are reported once without retry | 阶段 1b | `test/hub_test.dart :: delete and clear Future errors are reported once without retry` | 子类内存后端 | 通过 |
+| CASE-093 | deferred fallback Future failures report without force retry | 阶段 1b | `test/hub_test.dart :: deferred fallback Future failures report without force retry` | 子类内存后端 | 通过（阶段2：FlushError.cause 保留原异常，不重试） |
+| CASE-094 | delayed flush errors report to latest writer and explicit caller | 阶段 1b | `test/hub_test.dart :: delayed flush errors report to latest writer and explicit caller` | 子类内存后端 | 通过（阶段2：FlushError.cause 保留原异常及上报归属） |
+| CASE-095 | delete and clear Future errors are reported once without retry | 阶段 1b | `test/hub_test.dart :: delete and clear Future errors are reported once without retry` | 子类内存后端 | 通过（阶段2：两个 FlushError，仍各上报一次） |
 | CASE-096 | failed initialization leaves sync and async writes guarded until retry succeeds | 阶段 1b | `test/hub_test.dart :: failed initialization leaves sync and async writes guarded until retry succeeds` | 子类内存后端 | 通过 |
 | CASE-097 | flushDelay coalesces shared writers and keeps the earliest deadline | 阶段 1b | `test/hub_test.dart :: flushDelay coalesces shared writers and keeps the earliest deadline` | 子类内存后端 | 通过 |
 | CASE-098 | force false reports once and fallback print preserves the error | 阶段 1b | `test/hub_test.dart :: force false reports once and fallback print preserves the error` | 子类内存后端 | 通过 |
-| CASE-099 | legacy options and Jsonx unknown tags shape mismatch and cast errors | 阶段 1b | `test/hub_test.dart :: legacy options and Jsonx unknown tags shape mismatch and cast errors` | 单元 | 通过 |
+| CASE-099 | Jsonx unknown tags shape mismatch and cast errors | 阶段 1b | `test/hub_test.dart :: Jsonx unknown tags shape mismatch and cast errors` | 单元 | 通过（阶段2：删除 CacheOptions 构造断言，保留全部 Jsonx 断言） |
 | CASE-100 | null key decoding falls back without memoizing and excludes unowned keys | 阶段 1b | `test/hub_test.dart :: null key decoding falls back without memoizing and excludes unowned keys` | 子类内存后端 | 通过 |
 | CASE-101 | one shared subscription and N local writes need no index rebuild | 阶段 1b | `test/hub_test.dart :: one shared subscription and N local writes need no index rebuild` | 子类内存后端 | 通过 |
 | CASE-102 | own erase lazy deletion and sliding renewal are suppressed | 阶段 1b | `test/hub_test.dart :: own erase lazy deletion and sliding renewal are suppressed` | 集成·真 get_storage | 通过 |
@@ -186,9 +190,26 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | CASE-113 | unsupported and asynchronous notifications rescan on every query | 阶段 1b | `test/hub_test.dart :: unsupported and asynchronous notifications rescan on every query` | 子类内存后端 | 通过 |
 | CASE-114 | watch can change its namespace during an own write safely | 阶段 1b | `test/hub_test.dart :: watch can change its namespace during an own write safely` | 子类内存后端 | 通过 |
 | CASE-115 | watch migration handles encoded keys and cancellation during clear snapshot | 阶段 1b | `test/hub_test.dart :: watch migration handles encoded keys and cancellation during clear snapshot` | 子类内存后端 | 通过 |
-| CASE-116 | watch type errors report and snapshot dispatch supports reentrant changes | 阶段 1b | `test/hub_test.dart :: watch type errors report and snapshot dispatch supports reentrant changes` | 子类内存后端 | 通过 |
+| CASE-116 | watch type errors report and snapshot dispatch supports reentrant changes | 阶段 1b | `test/hub_test.dart :: watch type errors report and snapshot dispatch supports reentrant changes` | 子类内存后端 | 通过（阶段2：TypeMismatchError，回调收到 null，后续 watcher 继续） |
 
-| CASE-117 | watch的codec/回调错误沿注册storageKey上报，后续watcher继续分发 | 阶段 1b | `test/hub_test.dart :: watch codec and callback failures preserve registered error keys and keep dispatching` | 子类内存后端 | 通过 |
+| CASE-117 | watch的codec/回调错误沿注册storageKey上报，后续watcher继续分发 | 阶段 1b | `test/hub_test.dart :: watch codec and callback failures preserve registered error keys and keep dispatching` | 子类内存后端 | 通过（阶段2：WatchError 保留注册 key / cause，后续 watcher 继续） |
+
+| CASE-118 | throwing watch onError propagates once through own and peer writes | 阶段 2 | `test/hub_test.dart :: throwing watch onError propagates once through own and peer writes` | 子类内存后端 | 通过 |
+| CASE-119 | read mismatches retain data defaults and exact numeric types (async=false) | 阶段 2 | `test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=false)` | 子类内存后端 | 通过 |
+| CASE-120 | read mismatches retain data defaults and exact numeric types (async=true) | 阶段 2 | `test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=true)` | 子类内存后端 | 通过 |
+| CASE-121 | corrupt entries report dropped cause and trace (async=false) | 阶段 2 | `test/type_safety_test.dart :: corrupt entries report dropped cause and trace (async=false)` | 子类内存后端 | 通过 |
+| CASE-122 | corrupt entries report dropped cause and trace (async=true) | 阶段 2 | `test/type_safety_test.dart :: corrupt entries report dropped cause and trace (async=true)` | 子类内存后端 | 通过 |
+| CASE-123 | raw ignores write adapters and keeps String storage (async=false) | 阶段 2 | `test/type_safety_test.dart :: raw ignores write adapters and keeps String storage (async=false)` | 子类内存后端 | 通过 |
+| CASE-124 | raw ignores write adapters and keeps String storage (async=true) | 阶段 2 | `test/type_safety_test.dart :: raw ignores write adapters and keeps String storage (async=true)` | 子类内存后端 | 通过 |
+| CASE-125 | typed adapters roundtrip collections and business values (async=false) | 阶段 2 | `test/type_safety_test.dart :: typed adapters roundtrip collections and business values (async=false)` | 子类内存后端 | 通过 |
+| CASE-126 | typed adapters roundtrip collections and business values (async=true) | 阶段 2 | `test/type_safety_test.dart :: typed adapters roundtrip collections and business values (async=true)` | 子类内存后端 | 通过 |
+| CASE-127 | encoding failures never scan remove or retry (async=false) | 阶段 2 | `test/type_safety_test.dart :: encoding failures never scan remove or retry (async=false)` | 子类内存后端 | 通过 |
+| CASE-128 | encoding failures never scan remove or retry (async=true) | 阶段 2 | `test/type_safety_test.dart :: encoding failures never scan remove or retry (async=true)` | 子类内存后端 | 通过 |
+| CASE-129 | backend retries reuse one build and classify final failures (async=false) | 阶段 2 | `test/type_safety_test.dart :: backend retries reuse one build and classify final failures (async=false)` | 子类内存后端 | 通过 |
+| CASE-130 | backend retries reuse one build and classify final failures (async=true) | 阶段 2 | `test/type_safety_test.dart :: backend retries reuse one build and classify final failures (async=true)` | 子类内存后端 | 通过 |
+| CASE-131 | fast lazy and batch accessors adapt values and apply default ttl | 阶段 2 | `test/type_safety_test.dart :: fast lazy and batch accessors adapt values and apply default ttl` | 子类内存后端 | 通过 |
+| CASE-132 | collection adapters eagerly validate and copy JSON structures | 阶段 2 | `test/type_safety_test.dart :: collection adapters eagerly validate and copy JSON structures` | 子类内存后端 | 通过 |
+| CASE-133 | sync failed mutation Future is FlushError without retry | 阶段 2 | `test/type_safety_test.dart :: sync failed mutation Future is FlushError without retry` | 子类内存后端 | 通过 |
 
 ## 覆盖率豁免
 
@@ -197,15 +218,31 @@ commit 基线：`3c7564a24f7d65f2475d06c8fd85bd43da811775`（阶段 1a）；本�
 | lib/src/jsonx.dart:154 | 私有且从不被库内使用的 `Jsonx._()` 构造函数；仅有静态方法，从库外无法调用，也无生产调用路径。只标注这一行 `coverage:ignore-line`，其余所有可执行行均有测试。 |
 
 coverage.dart 识别 ignore-line / ignore-start / ignore-end，按 lcov 的可执行行统计；导出入口
-lib/cacheman.dart 无可执行行，显示0/0。当前原始499行中命中498行，上述1行明确豁免；
+lib/cacheman.dart 无可执行行，显示0/0。当前原始566行中命中565行，上述1行明确豁免；
 不以ignore掩盖web分支/错误处理/可测逻辑，当前没有其他豁免。
 
-## 评审报告映射与已知限制 / 不在范围
+## 评审 P1/P2 逐项编号映射
+
+| 编号 | 问题 | 处理阶段 / 状态 | 用例或“不在范围”原因 |
+| --- | --- | --- | --- |
+| P1-1 | 全量 flush 写放大，读懒删/续期触发写，未读过期数据残留 | 1b：flushDelay / purgeOnInit opt-in；阈值仍为剩余 <=90% | `test/hub_test.dart :: flushDelay coalesces shared writers and keeps the earliest deadline`<br>`test/hub_test.dart :: purgeOnInit is nonblocking clears expired envelopes and ignores raw`<br>`test/hub_test.dart :: own erase lazy deletion and sliding renewal are suppressed`；信封二次 JSON 转义方案 C 不采纳，不改现有格式/体积。 |
+| P1-2 | ownedKeysCache 多实例/外部写漂移 | 1b Hub 版本自愈，INV-06 | `test/hub_test.dart :: real shared container indexes heal after peers and external changes` |
+| P1-3 | GetX 示例死循环、erase 空键 listenKey 丢通知、isolate 不互通 | 阶段0文档守卫 + 1b watch(includeOwnWrites:false) | `test/hub_test.dart :: Map Rx two-way binding has bounded callbacks without equality checks`<br>`test/hub_test.dart :: real watch suppresses own writes and handles external clear cancel and namespace`；跨 isolate 通知不在范围，README 已说明。 |
+| P1-4 | read 泛型强转抛 TypeError | 阶段2：默认值 + TypeMismatchError，不删数据 | `test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=false)`<br>`test/type_safety_test.dart :: read mismatches retain data defaults and exact numeric types (async=true)` |
+| P1-5 | 更换 deserialize/codec 后静默删数据 | 阶段0上报；阶段2 CorruptEntryError(dropped:true) | `test/type_safety_test.dart :: corrupt entries report dropped cause and trace (async=false)`<br>`test/type_safety_test.dart :: corrupt entries report dropped cause and trace (async=true)`；信封版本/迁移钩子不在范围，待首次格式变更。 |
+| P2-1 | force 默认 true 导致失败全扫 | 阶段2：仅底层写失败清理/重试，默认不变 | `test/type_safety_test.dart :: encoding failures never scan remove or retry (async=false)`<br>`test/type_safety_test.dart :: encoding failures never scan remove or retry (async=true)`<br>`test/type_safety_test.dart :: backend retries reuse one build and classify final failures (async=false)`<br>`test/type_safety_test.dart :: backend retries reuse one build and classify final failures (async=true)` |
+| P2-2 | enckey 枚举每次解码 | 阶段0逻辑键缓存，最多1024项 | `test/hub_test.dart :: both key maps clear on 1024 overflow and namespace resets both` |
+| P2-3 | 初始化前写无防护 | 阶段0 debug assert | `test/hub_test.dart :: failed initialization leaves sync and async writes guarded until retry succeeds` |
+| P2-4 | listener 同步异常误报 flush 错误 | 阶段2：分类；watch 回调/键读取为 WatchError，类型为 TypeMismatchError，后台为 FlushError | `test/hub_test.dart :: watch codec and callback failures preserve registered error keys and keep dispatching`<br>`test/hub_test.dart :: throwing watch onError propagates once through own and peer writes`<br>`test/type_safety_test.dart :: sync failed mutation Future is FlushError without retry` |
+| P2-5 | key(index) O(index)、无 scope erase 清整库、默认 read 仍为 T? | 阶段2弃用 key，建议 keys；其余语义保留并文档化 | `test/cacheman_test.dart :: Cacheman() — real get_storage integration > ls.key(index)/length walk get_storage directly without materializing keys()`；erase 覆盖见 INV-21；T? 返回类型不改，破坏面过大，不在范围。 |
+| P2-6 | 文档与代码脱节 | 阶段0已校正文档；阶段1a/1b/2同步维护 | 双语 README / ARCHITECTURE / SKILL / CHANGELOG / example 人工核对；矩阵用 `dart run tool/check_acceptance.dart` 校验真实注册名称。 |
+| P2-7 | 多 isolate / web localStorage 配额 | 不在本次范围 | 跨 isolate/进程通知和配额扩容均非本库保证；README 提示 isolate-local、配额依赖后端；WriteError/FlushError 只分类可观察失败。 |
+| P2-8 | container getter 泄漏 GetStorage | 1a 原语接缝 + Cacheman.custom 缓解；getter 兼容保留 | `test/cacheman_primitives_test.dart :: all primitives override default backend; CRUD is synchronous`<br>`test/cacheman_test.dart :: forwarding subclass keeps get_storage hub, watch and incremental index` |
+
+## 已知限制 / 不在范围
 
 | 项目 | 状态 / 原因 |
 | --- | --- |
-| 评审 P1-x / P2-x 的逐项编号映射 | **待外部材料，未声称完成**。用户未提供评审正文；检索仓库（含隐藏目录，排除git/构建缓存）没有评审报告或 P1/P2 编号。已请求提供报告；不能虚构编号或推断“各项”是否全部落地。下列已落地修复按源码/CHANGELOG归入“阶段0”，收到报告即可补准确编号。 |
-| 可核实的阶段0评审修复 | namespace冒号/百分号隔离、serialize错误进入force及onError、raw purge跳过、readonly null/无续期、keyCodec独立、Jsonx标签冲突/toJson回退，见 CASE 表中的 review fixes 与 Jsonx edge cases。 |
 | 无新增第三方依赖、无包内后端/路由/迁移 | 静态检查 lib/pubspec + INV-01/04；Hive/SharedPreferences/dart:io只保留应用侧适配示例。 |
 | 真磁盘flush错误的可靠捕获/持久化完成确认 | 不在本次范围：get_storage 2.1.1丢弃实际flush Future，flush()按任务返回void。内存子类注入失败覆盖错误上报，但不能证明真实磁盘失败必然走onError。 |
 | 崩溃/跨isolate/其他进程变更通知 | 不在本次范围：Hub只共享当前isolate的底层身份，get_storage不跨isolate刷新；flushDelay崩溃可丢失窗口内写入，生命周期保存为尽力而为。 |
@@ -214,6 +251,7 @@ lib/cacheman.dart 无可执行行，显示0/0。当前原始499行中命中498�
 | 生命周期注册细节 | 比任务允许的长期观察器更短：仅有待保存Timer时注册，flush后移除，避免绑定长期强引用Hub；仍覆盖全部四种后台状态。 |
 | CacheOp兼容 | 不增加enum成员，保留旧用例对CacheOp.values的断言：订阅使用无键init上下文，flush使用无键write上下文。 |
 | reentrant通知 | 除规定的fresh/version规则外，要求恰好一次通知且索引未被回调切namespace清空，才增量标新；否则失效重建，避免漏掉嵌套peer写入。 |
+| read adapter 签名 | Dart 不支持可选位置与命名参数混用；保留 read(key, [default])，新增 readWith(key, {defaultValue, adapter})，两者复用同一读取编排/内核。 |
 | onError本身抛错 | 保留SKILL原契约：向上传播；不吞用户错误处理器异常。 |
 | 异步访问器/debug/key(index)、并发readonly事务、跨box自动路由 | 不在本次范围：阶段1a已明确；AsyncCacheman只保留已提供的awaited API，不参与Hub/watch/flush。 |
 | Windows文件句柄 | get_storage不关闭RandomAccessFile；测试临时目录只尽力清理。其备份也是不等待的后台任务，hub测试isolate持续保留fake path provider。 |

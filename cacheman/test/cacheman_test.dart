@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+/// Error matcher label. / 错误断言标签。
+const _causeLabel = 'cause';
+
 /// `get_storage`'s io backend calls `getApplicationDocumentsDirectory()`
 /// unconditionally before falling back to an explicit `path` (see
 /// `get_storage`'s `StorageImpl._fileDb`), so even passing `path:` to
@@ -482,7 +485,7 @@ void main() {
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, isA<FormatException>());
+      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, isA<FormatException>()).having((e) => e.dropped, 'dropped', isTrue));
       expect(wrongCodec.container.hasData(key), isFalse);
       expect(wrongCodec.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
@@ -504,7 +507,7 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, same(failure));
+      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
@@ -531,7 +534,7 @@ void main() {
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
       expect(errors.single.$1, key);
-      expect(errors.single.$2, same(failure));
+      expect(errors.single.$2, isA<CorruptEntryError>().having((e) => e.cause, _causeLabel, same(failure)));
       expect(reader.container.hasData(key), isFalse);
       expect(reader.read<String>(key, fallback), fallback);
       expect(errors, hasLength(1));
@@ -665,7 +668,7 @@ void main() {
       );
       await cache.ensureInitialized();
       expect(() => cache.write('a', 1), returnsNormally);
-      expect(reported, isA<StateError>());
+      expect(reported, isA<SerializeError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
       expect(cache.read<int>('a'), isNull);
     });
 
@@ -680,7 +683,7 @@ void main() {
       expect(p.keys(), ['k']);
     });
 
-    test('serialize failing once then succeeding is retried by force', () async {
+    test('serialize failing once is not retried by force', () async {
       var calls = 0;
       final cache = Cacheman(
         container: nextContainer(),
@@ -692,7 +695,8 @@ void main() {
       );
       await cache.ensureInitialized();
       cache.write('a', 1);
-      expect(cache.read<int>('a'), 1);
+      expect(calls, 1);
+      expect(cache.read<int>('a'), isNull);
     });
 
     test('purge() leaves raw values alone even if they look like an expired entity', () async {

@@ -39,13 +39,14 @@ flowchart TD
 - `lib/src/core.dart`: private `_CacheCore` composed by both facades; namespace escaping,
   key mapping caches, full/logical key/owns, envelope validation, dump/load, expiry,
   renewal decision returning an optional new entity without IO, raw/batch validation,
-  original-error reporting. No backend branches or IO.
+  structured-error reporting. No backend branches or IO.
 - `lib/src/async_cacheman.dart`: abstract AsyncCacheman with options only, no container/path;
   awaited primitives and orchestration. No built-in backends, read-value cache or owned-key set.
 - core.dart, hub.dart and async_cacheman.dart are parts of cacheman.dart, sharing a private Dart
   library scope. The package entry exports public types, never the core.
 - interface.dart: Codec, CachemanOnError, immutable CacheContext and CacheOp.
-- options.dart: shared CachemanOptions; deprecated CacheOptions is unused.
+- options.dart: shared CachemanOptions; CacheOptions has been removed.
+- errors.dart / value_adapter.dart: sealed CachemanError classifications and typed value conversion.
 - entity.dart: CacheEntity value/expireAt/createdAt/ttl, default JSON serialization.
 - fast.dart: FastAccessor/fast/lazy/batchFast only support synchronous Cacheman.
 - debug.dart: synchronous decrypted snapshot, normal read side effects, never writes
@@ -110,15 +111,26 @@ flowchart TD
   envelope/value codec/ttl, including purge, but still applies namespace/key encoding.
 - **Readonly checks presence before raw/entity branches.** A stored null value counts;
   probe does not renew/delete/report decode errors. Expired keys can be replaced.
-- **Force boundaries differ intentionally.** Sync: catch synchronous serialization/codec/
-  setRaw throws, purge expired, retry once; never retry background mutation Future failures.
-  Async: catch serialization or awaited setRaw failure, await purge, retry once, then onError.
-  Async renewal failures report and return the original read value (purge failure is caught
-  too). get_storage 2.1.1 drops the actual flush Future, so onError for real disk failure is
-  best-effort, never guaranteed. onError callbacks themselves are not swallowed.
+- **Force only retries backend writes.** Build/adapter/serialize/value-codec encoding happens
+  once before the retry region; a failure is SerializeError, without purge/retry. Default force
+  remains true. Sync: only synchronous setRaw/setDeferredRaw throws purge expired entries and
+  retry once. Async: awaited setRaw failures also purge/retry once. Exhaustion/force=false
+  reports WriteError with the final original cause. Background sync Futures are FlushError,
+  never retried. Renewal failures still return the original value; purge retry failures report.
+  get_storage 2.1.1 drops actual disk flush Futures, so reporting stays best-effort.
+- **Read never throws for type/conversion mismatches; never deletes mismatched values.**
+  Return the supplied default and report TypeMismatchError (adapter failures retain their cause).
+  No int/double coercion; suggest num or ValueAdapter. dynamic/Object? accept every value.
+  Backend IO and onError itself still propagate, preserving the earlier primitive contract.
+- **Every onError object is CachemanError.** SerializeError / WriteError / CorruptEntryError
+  (dropped=true after deletion) / TypeMismatchError / FlushError / WatchError. Original exception
+  and optional stack are cause/stackTrace. Watch callback or backend/key lookup failures are
+  WatchError, never FlushError; mismatched watch values emit the default null plus TypeMismatchError.
+  Breaking migration: `error is FormatException` →
+  `error is CorruptEntryError && error.cause is FormatException`.
 - **Initialization assertions remain outside retry catches** in debug builds; release
   behavior is unchanged. A failed initRaw must not mark initialized.
-- **Decode reporting preserves phase 0.** Read deletes then reports original error once;
+- **Decode reporting preserves phase 0.** Read deletes then reports CorruptEntryError once;
   null value-codec decode produces FormatException. Purge/readonly load probes stay quiet;
   raw bypasses load. Other backend IO errors normally propagate.
 - **Erase protects namespace OR enckey scopes.** Only with neither does erase call clearRaw
@@ -147,7 +159,7 @@ dart run tool/check_acceptance.dart
 ```
 
 Wait for final command results; no pnpm typecheck, no git commit. Original
-`test/cacheman_test.dart` assertions stay unchanged. Real get_storage tests need a
+`test/cacheman_test.dart` assertions only change for the stage 2 breaking semantics. Real get_storage tests need a
 FakePathProviderPlatform even with explicit path (IO backend queries documents first).
 Windows file handles remain open; existing temp cleanup is best-effort. New tests:
 `cacheman_primitives_test.dart` uses a fully overridden sync Map with a throwing container
@@ -160,3 +172,12 @@ changes with `git checkout -- <file>`. Do not revert user changes. Both READMEs 
 aligned, including Hive CE LazyBox, pure dart:io filename-safe storageKey mapping and
 SharedPreferencesWithCache illustrations (app dependencies only). Before a separate
 release task, use dart pub publish --dry-run; it is not required for this stage.
+
+## Stage 2 typed access / 阶段 2 类型访问
+
+Dart disallows mixing optional positional and named parameters. Preserve `read(key, [default])`;
+`readWith<T>(key, {defaultValue, adapter})` adds adapter reads on both facades. Both share `_read`.
+`write<T>(..., {adapter, ttl, expireAt})` adapts before encoding. fast/lazy/batchFast accept
+adapter + default ttl; set uses default ttl if omitted. listOf/mapOf eagerly copy/check elements.
+Dart 不允许混合可选位置/命名参数；read 保留原调用，readWith 提供命名默认值/适配器。
+两种薄层复用读取编排和内核转换；适配器只转换业务值，不改变信封，raw 忽略并 debug 警告。

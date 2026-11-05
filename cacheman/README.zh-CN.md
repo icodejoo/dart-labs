@@ -59,7 +59,8 @@ await cache.ensureInitialized();
 | 方法 | 说明 |
 | --- | --- |
 | `read<T>(key, [default])` | 读取；缺失/过期/不可解码 → `default`（或 `null`）。 |
-| `write<T>(key, value, {ttl, expireAt})` | 写入。`ttl` 单位毫秒。 |
+| `readWith<T>(key, {defaultValue, adapter})` | 带类型化 JSON 适配读取。 |
+| `write<T>(key, value, {ttl, expireAt, adapter})` | 写入。`ttl` 单位毫秒。 |
 | `remove(key)` | 删除。 |
 | `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | 批量，按位置对应。 |
 | `keys()` / `key(index)` / `length` | 枚举/统计本实例管辖的键。 |
@@ -76,7 +77,8 @@ await cache.ensureInitialized();
 `serialize`/`deserialize`、`codeable`/`codec`/`keyCodec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`、`flushDelay`、`purgeOnInit`——精确语义见 `lib/src/options.dart` 里每个字段的文档注释。
 
 不可解码的条目在读取时被删除，并通过 `onError(storageKey, error)`（或 print）上报。
-保留原始解码/反序列化异常；codec 返回 null 时使用 `FormatException`。
+错误为 `CorruptEntryError(dropped: true)`，cause 保留原始解码/反序列化异常；
+codec 返回 null 时 cause 使用 `FormatException`。
 purge/readonly 探测不上报此类失败；raw 读取跳过解码。
 
 **本包不内置任何 codec 实现。** `Codec` 只是一个 `encode`/`decode` 字符串接口——混淆、真加密、压缩，怎么实现随你。
@@ -179,6 +181,94 @@ token.value = 'abc123';
 
 兼容 `jsonEncode`/`jsonDecode` 的序列化器，额外支持 `DateTime` / `Duration` / `Set` / `BigInt` / `Uri` / `RegExp` 的可逆往返。把 `Jsonx.encode`/`Jsonx.decode<T>`（包一层去对上 `CacheEntity <-> String` 的签名）传给 `CachemanOptions.serialize`/`deserialize`——`decode<T>` 会把结果转型成 `T`（比如 `Jsonx.decode<Map<String, dynamic>>(s)`）。设计上不可逆的：自定义 `Enum` 和 key 不是 `String` 的 `Map`——见 `lib/src/jsonx.dart` 的文档注释。
 
+## 错误处理
+
+`CachemanOnError` 保持 `(String key, Object error)` 签名，但上报对象现在全部是
+`CachemanError`。key 为实际存储键（整库操作使用 `*`）；cause 保留原始异常，
+stackTrace 保留可获得的堆栈。
+
+| 错误 | 含义 / 处理方式 |
+| --- | --- |
+| `SerializeError` | adapter.toJson、serialize 或值 codec 编码失败；修复转换，不清理、不重试。 |
+| `WriteError` | 底层写重试后仍失败，或 force:false 下首次失败。 |
+| `CorruptEntryError` | 解码失败；dropped:true 表示上报前已删除。更换 codec 前检查 cause。 |
+| `TypeMismatchError` | 请求类型不符或 adapter.fromJson 失败；返回默认值、保留数据。 |
+| `FlushError` | 可观察的后台落盘失败；force 从不重试。 |
+| `WatchError` | watch 回调或其后端/键读取失败；其他 watcher 继续分发。 |
+
+```dart
+final cache = Cacheman(options: CachemanOptions(onError: (key, error) {
+  if (error is CorruptEntryError && error.cause is FormatException) {
+    print('已删除不可读条目：$key');
+  } else if (error is CachemanError) {
+    print('$key: ${error.runtimeType}: ${error.cause}');
+  }
+}));
+```
+
+read 的类型/适配器错误永不抛；后端 IO 异常和 onError 自身抛出的异常仍传播。
+purge/readonly 探测保持静默。get_storage 2.1.1 丢失实际 flush Future，真实磁盘失败无法保证上报。
+
+web localStorage 容量/配额由浏览器及后端决定，cacheman 不扩容；只对可观察到的写入/落盘失败
+进行分类。跨 isolate/进程同步仍由应用负责。
+
+## 类型安全与 ValueAdapter
+
+JSON 解码产生 `List<dynamic>` 和 `Map<String, dynamic>`；直接请求 `List<String>` 或
+`Map<String, int>` 可能不匹配。类型不符返回默认值、上报 TypeMismatchError、保留数据。
+`read<dynamic>` 和 `read<Object?>` 接受所有值。不做 int/double 互转：JSON 的 `1` 是 int，
+`read<double>` 会返回默认值；请用 num 或 ValueAdapter 做数字转换。
+
+`ValueAdapter<T>` 在信封序列化前后转换业务类型与 JSON 兼容结构。listOf<E>() / mapOf<V>()
+立即复制并检查每个元素；自定义类提供 toJson/fromJson。转换失败在写入时为 SerializeError，
+读取时为 TypeMismatchError（cause 保留原异常）。raw 模式忽略 adapter 并输出 debug 警告，
+只存 String。适配器不改变已有信封格式，也不增加读值缓存。
+
+Dart 无法混合可选位置默认值与命名参数，因此保留 `read(key, [default])`，
+适配器使用 `readWith(key, {defaultValue, adapter})`，二者复用同一内核。
+访问器创建时可传 adapter 和默认 ttl；set 未指定 ttl 时使用默认值。
+AsyncCacheman 同样支持 readWith/write 适配器。
+
+```dart
+final names = ValueAdapter.listOf<String>();
+cache.write('names', ['Ada'], adapter: names);
+final list = cache.readWith<List<String>>('names', adapter: names);
+final counts = cache.readWith<Map<String, int>>('counts',
+  defaultValue: const {}, adapter: ValueAdapter.mapOf<int>());
+final bound = fast<List<String>>(cache, 'names', adapter: names, ttl: 60000);
+bound.set(['Ada']); // ttl=60000 unless set(..., ttl: ...) overrides it
+final deferred = lazy<List<String>>(cache, 'names', adapter: names, ttl: 60000);
+final group = batchFast<List<String>>(cache, ['names'], adapter: names, ttl: 60000);
+
+/// Business value. / 业务值。
+class Profile {
+  const Profile(this.name);
+  /// Display name. / 显示名称。
+  final String name;
+}
+final profiles = ValueAdapter<Profile>(
+  toJson: (p) => {'name': p.name},
+  fromJson: (json) => Profile((json as Map<String, dynamic>)['name'] as String),
+);
+cache.write('profile', const Profile('Ada'), adapter: profiles);
+final profile = cache.readWith<Profile>('profile', adapter: profiles);
+// AsyncCacheman: await write / readWith with the same adapters.
+// AsyncCacheman：同样的适配器，write / readWith 须 await。
+```
+
+## 从 0.6 迁移到下一版本（计划 0.7.0）
+
+- 原 `error is FormatException` 改为
+  `error is CorruptEntryError && error.cause is FormatException`；其他异常也检查 cause。
+- 将 read 外的 TypeError 捕获改为 onError 与默认值；类型化集合、自定义类使用 ValueAdapter。
+  类型不符时已有数据会保留。
+- force 继续支持且默认 true，但只重试底层写，复用一次构造的字符串。
+  序列化/值 codec/adapter 失败请修复转换，不再依赖重试。
+- 删除 CacheOptions 的构造/导入；ttl/expireAt 直接传给 write/writeAll。
+- key(index) 循环为 O(n²)，改为一次 keys() 后遍历；弃用方法仍可调用。
+- 无 namespace/enckey 时 erase 仍清整个后端（含外部键）；有作用域则保护归属。
+  read 返回类型仍为可空类型。
+
 ## 分层存储 / 自定义底层
 
 推荐多个实例并行：小型高频数据用同步 `Cacheman`（默认 `get_storage`，整个 container 全量
@@ -191,7 +281,8 @@ raw/readonly、force 和归属语义；子类只提供底层原语。`lib/` 不�
 
 覆写六个 protected 钩子：`initRaw`、`getRaw`、`keysRaw`、`setRaw`、`removeRaw`、`clearRaw`。
 读取/枚举同步完成；写删清空必须在**返回前完成内存态更新**，`Future<void>` 仅承载后台持久化错误。
-Future 失败会上报，但不参与 `force` 重试；同步序列化/原语异常可清过期后重试一次。
+Future 失败会上报，但不参与 `force` 重试；仅底层写入同步抛错时可清过期后重试一次；
+序列化/适配器/值 codec 编码失败上报 SerializeError、不清理、不重试。
 写删覆写方法保持非 `async`，直接转发到底层的即时内存更新操作。
 
 下面是应用内适配器示意（只在应用中添加 `shared_preferences`，不添加到本包）：
@@ -374,7 +465,7 @@ AsyncCacheman 的 `ensureInitialized`、`read<T>`/`readAll`、`write`/`writeAll`
 
 - 有 namespace **或 enckey** 时，`erase()` 只删除自有键；两者都没有时调用 `clearRaw`，清空整个
   后端（包括外部键）。这样也保留了 Cacheman 现有的仅 enckey 情况下的保护。
-- `force` 捕获序列化以及 await `setRaw` 的失败，清过期后重试一次，最终失败走
+- `force` 仅捕获 await `setRaw` 的失败，清过期后重试一次，最终失败走
   `onError(storageKey, error)` 或 print。续期等待持久化，但续期失败仍返回原读取值。
   这与同步类的后台 flush Future 处理方式不同。
 - 解码失败先删除并上报，再返回默认值；purge/readonly 探测静默。其他后端 IO 异常向上传播；
@@ -396,7 +487,7 @@ flutter run example/lib/main.dart
 
 - **同步 Cacheman**，另提供抽象 **AsyncCacheman** 供用户实现后端；不内置磁盘层、内存 `ss` 层或自动路由，多个实例可并行使用。
 - **不内置 codec。** TS 版自带混淆 codec；这个包只暴露 `Codec` 接口。
-- **Cacheman `force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的、从不重试；而 2.1.1 的 write Future 带不出这类错误，所以 `onError` 只保证同步失败会触发（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
+- **Cacheman `force` 的重试只覆盖同步写入失败**（`setRaw` 同步抛错）——`get_storage` 真正的落盘失败是异步的、从不重试；而 2.1.1 的 write Future 带不出这类错误，所以 `onError` 只保证同步失败会触发（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
 - 没有 `crossTab` 的等价物（浏览器标签页概念，Flutter 没有对应场景）。
 
 ## License

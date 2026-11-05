@@ -115,24 +115,26 @@ abstract class AsyncCacheman {
     }
   }
 
-  /// Awaits persistence; serialization and primitive failures share one retry.
-  /// 等待写入完成；序列化与原语失败共用一次重试。
+  /// Builds once, then retries only backend writes; background failures stay separate.
+  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
   Future<bool> _persist(String key, String Function() build) async {
     assert(_initialized, _initializationMessage);
+    final encoded = _core.build(key, build);
+    if (encoded == null) return false;
     try {
-      await setRaw(_core.context(CacheOp.write, key), key, build());
+      await setRaw(_core.context(CacheOp.write, key), key, encoded);
       return true;
-    } catch (error) {
+    } catch (error, trace) {
       if (!_core._opts.force) {
-        _core._reportError(key, error);
+        _core._reportError(WriteError(key, error, trace));
         return false;
       }
       try {
         await _purgeExpired();
-        await setRaw(_core.context(CacheOp.write, key), key, build());
+        await setRaw(_core.context(CacheOp.write, key), key, encoded);
         return true;
-      } catch (retryError) {
-        _core._reportError(key, retryError);
+      } catch (retryError, retryTrace) {
+        _core._reportError(WriteError(key, retryError, retryTrace));
         return false;
       }
     }
@@ -140,17 +142,45 @@ abstract class AsyncCacheman {
 
   /// Reads with lazy expiry, decode-error reporting and awaited sliding renewal.
   /// 读取时懒删除过期项、上报解码失败并等待滑动续期；续期写入失败仍返回原值。
+  /// Type/adapter mismatches return the default and retain data; no numeric coercion.
+  /// 类型/适配器不符返回默认值并保留数据；不做数字互转，int 可用 num 读取。
+  /// Backend IO and user onError exceptions still propagate. / 后端 IO 及用户 onError 异常仍传播。
   /// Example / 示例：`await cache.read<String>('report', 'missing')`.
-  Future<T?> read<T>(String key, [T? defaultValue]) async {
+  Future<T?> read<T>(String key, [T? defaultValue]) =>
+      _read(key, defaultValue, null);
+
+  /// Reads with JSON adaptation; mismatches return defaultValue without removal.
+  /// 带 JSON 适配读取；不匹配返回 defaultValue，不删除数据。
+  /// Dart cannot mix optional positional and named parameters; read keeps its
+  /// positional default, while this entry accepts named defaultValue/adapter.
+  /// Dart 无法混合可选位置与命名参数；read 保留位置默认值，本方法提供命名参数。
+  /// Example / 示例：
+  /// ```dart
+  /// await cache.readWith<List<String>>('names', adapter: ValueAdapter.listOf<String>());
+  /// ```
+  Future<T?> readWith<T>(String key,
+          {T? defaultValue, ValueAdapter<T>? adapter}) =>
+      _read(key, defaultValue, adapter);
+
+  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  Future<T?> _read<T>(
+      String key, T? defaultValue, ValueAdapter<T>? adapter) async {
     final sk = _core._fullKey(key);
     final raw = await _get(sk);
     if (raw == null) return defaultValue;
-    if (_core._opts.raw) return raw as T?;
+    if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
+      return _core.typed(sk, raw, defaultValue, null);
+    }
     Object? failure;
-    final entity = _core._load(raw, onFailure: (error) => failure = error);
+    StackTrace? failureTrace;
+    final entity = _core._load(raw, onFailure: (error, trace) {
+      failure = error;
+      failureTrace = trace;
+    });
     if (entity == null) {
       await _del(sk);
-      if (failure != null) _core.reportDecodeError(sk, failure!);
+      if (failure != null) _core.reportDecodeError(sk, failure!, failureTrace);
       return defaultValue;
     }
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -160,7 +190,7 @@ abstract class AsyncCacheman {
     }
     final renewed = _core.renewal(entity, now);
     if (renewed != null) await _persist(sk, () => _core._dump(renewed));
-    return entity.value as T?;
+    return _core.typed(sk, entity.value, defaultValue, adapter);
   }
 
   /// Sequential positional reads; missing defaults are null.
@@ -175,20 +205,26 @@ abstract class AsyncCacheman {
       ];
 
   /// Writes with millisecond TTL or DateTime/integer absolute expiry.
+  /// Optional adapter converts before serialization; raw ignores it.
+  /// 可选 adapter 在序列化前转换；raw 忽略它。
+  /// Example / 示例：`cache.write('names', ['Ada'], adapter: ValueAdapter.listOf<String>())`.
   /// 按毫秒 TTL 或 DateTime/整数绝对过期时间写入。
   /// Example / 示例：`await cache.write('report', 'text', ttl: 60000)`.
   Future<void> write<T>(String key, T value,
-      {int? ttl, Object? expireAt}) async {
+      {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) async {
     final sk = _core._fullKey(key);
     if (_core._opts.readonly && await _alive(sk)) return;
     if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
       if (_core.acceptsRaw(key, value)) {
         await _persist(sk, () => value as String);
       }
       return;
     }
     final entity = _core._mkEntity(value, ttl, expireAt, key);
-    if (entity != null) await _persist(sk, () => _core._dump(entity));
+    if (entity != null) {
+      await _persist(sk, () => _core.encode(entity, value, adapter));
+    }
   }
 
   /// Presence probe without side effects; stored null counts as present.

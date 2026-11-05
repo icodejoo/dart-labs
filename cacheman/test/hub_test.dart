@@ -11,6 +11,9 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 
 import 'cacheman_test.dart' show FakePathProviderPlatform, FakeCodec;
 
+/// Error matcher label. / 错误断言标签。
+const _causeLabel = 'cause';
+
 /// Common logical key. / 共用逻辑键。
 const _key = 'entry';
 
@@ -449,7 +452,8 @@ void main() {
     final a = await _ready(backend,
         CachemanOptions(namespace: _ns, onError: (_, e) => errors.add(e)));
     final b = await _ready(backend);
-    final bad = a.watch<int>(_key, (_) => fail('wrong type callback'));
+    final mismatches = <int?>[];
+    final bad = a.watch<int>(_key, mismatches.add);
     var calls = 0;
     late VoidCallback second;
     VoidCallback? lateStop;
@@ -460,7 +464,8 @@ void main() {
     });
     second = a.watch<String>(_key, (_) => calls += 100);
     b.write(_key, _value);
-    expect(errors.single, isA<TypeError>());
+    expect(errors.single, isA<TypeMismatchError>());
+    expect(mismatches, [null]);
     expect(calls, 1);
     bad();
     b.write(_key, _value);
@@ -589,10 +594,12 @@ void main() {
       b.write(_other, 2);
       await Future<void>.delayed(const Duration(milliseconds: 80));
       expect(first, isEmpty);
-      expect(latest, [failure]);
+      expect(latest.single,
+          isA<FlushError>().having((e) => e.cause, _causeLabel, same(failure)));
       a.flush();
       await Future<void>.delayed(Duration.zero);
-      expect(first, [failure]);
+      expect(first.single,
+          isA<FlushError>().having((e) => e.cause, _causeLabel, same(failure)));
     }
   });
 
@@ -659,6 +666,7 @@ void main() {
     cache.erase();
     await Future<void>.delayed(Duration.zero);
     expect(errors, hasLength(2));
+    expect(errors, everyElement(isA<FlushError>()));
   });
 
   test('CacheContext is lazy memoized and captures namespace before switching',
@@ -707,7 +715,8 @@ void main() {
     cache.flush();
     await Future<void>.delayed(Duration.zero);
     expect(cache.saves, 1);
-    expect(errors.single, isA<StateError>());
+    expect(errors.single,
+        isA<FlushError>().having((e) => e.cause, _causeLabel, isA<StateError>()));
   });
 
   test('force false reports once and fallback print preserves the error',
@@ -1016,25 +1025,50 @@ void main() {
     final peerStop = b.watch<String>(_key, values.add);
     backend.data[sk] = defaultSerialize(CacheEntity(value: _value));
     backend.change(sk);
-    expect(errors.single, (sk, failure));
+    expect(errors.single.$1, sk);
+    expect(errors.single.$2,
+        isA<WatchError>().having((e) => e.cause, _causeLabel, same(failure)));
     expect(values, [_value]);
     for (var i = 0; i <= 1024; i++) {
       a.storageKey('evict$i');
     }
     codec.encodeError = encodeFailure;
     backend.change(sk);
-    expect(errors.last, (sk, encodeFailure));
+    expect(errors.last.$1, sk);
+    expect(errors.last.$2,
+        isA<WatchError>().having((e) => e.cause, _causeLabel, same(encodeFailure)));
     expect(values, [_value, _value]);
     stop();
     peerStop();
   });
 
-  test('legacy options and Jsonx unknown tags shape mismatch and cast errors',
-      () {
-    // ignore: deprecated_member_use_from_same_package
-    final legacy = CacheOptions(ttl: int.parse(_oneKey), expireAt: 2);
-    expect(legacy.ttl, 1);
-    expect(legacy.expireAt, 2);
+  test('throwing watch onError propagates once through own and peer writes',
+      () async {
+    for (final own in [false, true]) {
+      final backend = _Backend();
+      final failure = StateError('handler');
+      var reports = 0;
+      final a = await _ready(
+          backend,
+          CachemanOptions(
+              namespace: _ns,
+              onError: (_, error) {
+                reports++;
+                expect(error, isA<TypeMismatchError>());
+                throw failure;
+              }));
+      final b = await _ready(backend);
+      final stop = a.watch<int>(
+          _key, (_) => fail('handler failure must propagate'),
+          includeOwnWrites: true);
+      expect(() => (own ? a : b).write(_key, _value), throwsA(same(failure)));
+      expect(reports, 1);
+      expect(backend.scans, 0);
+      stop();
+    }
+  });
+
+  test('Jsonx unknown tags shape mismatch and cast errors', () {
     expect(Jsonx.decode<Object>(' {"#t":"unknown","value":1}'),
         {_tagField: 'unknown', _value: 1});
     expect(Jsonx.decode<Object>('{"#t":"DateTime","value":"x","sibling":1}'),

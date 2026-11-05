@@ -1,4 +1,28 @@
-## Unreleased
+## 0.7.0
+
+**Breaking:**
+
+Stage 2, planned for 0.7.0.
+
+- `onError` always receives a `CachemanError` subclass; inspect `cause` for the original
+  exception. Migrate `error is FormatException` to
+  `error is CorruptEntryError && error.cause is FormatException`.
+- `read<T>` type mismatches now return the default and report `TypeMismatchError`, retaining
+  data. Replace TypeError catches with onError handling; use ValueAdapter for typed collections
+  or custom classes. int/double are not coerced; use num or an adapter.
+- `force` remains supported and defaults to true, but only retries backend write failures.
+  Encoding/serialization/adapter failures report SerializeError without purge/retry; fix the
+  converter instead of relying on repeated serialization. Final backend failures are WriteError;
+  background persistence failures are FlushError; watch callback failures are WatchError.
+- Removed unused deprecated `CacheOptions`; pass ttl/expireAt directly to write/writeAll.
+- Deprecated O(index) `key(index)`; replace repeated indexed calls with one keys() snapshot.
+
+**Added (stage 2):**
+
+- Source-compatible read(key, [default]) plus readWith(key, {defaultValue, adapter}); Dart
+  cannot mix optional positional and named parameters in one signature.
+- Shared typed value checks and ValueAdapter with eager listOf/mapOf conversion; typed
+  fast/lazy/batchFast accessors support adapters and a default millisecond ttl.
 
 **Added (stage 1b):**
 

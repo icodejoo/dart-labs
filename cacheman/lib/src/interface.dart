@@ -23,16 +23,14 @@ abstract class Codec {
   String? decode(String value);
 }
 
-/// Failure callback: exhausted writes (sync or awaited), or an unreadable entry
-/// deleted by a read. Receives the storage key and original exception (a null
-/// codec result uses FormatException). Replaces the default print-based log.
-/// Purge/readonly probes do not report decode failures; with get_storage 2.1.1
-/// real disk-flush errors (disk full, permission) never reach this callback.
-///
-/// 失败回调：同步/await 写入重试耗尽，或读取时删除不可解码的条目。接收实际存储键和
-/// 原始异常（codec 返回 null 时使用 FormatException），取代默认 print 日志。
-/// purge/readonly 探测不上报解码失败；get_storage 2.1.1 下真正的落盘错误
-/// （磁盘满、权限）到不了此回调。
+/// Receives an actual storage key and a CachemanError; cause is the original error.
+/// All reported failures are classified; callback exceptions still propagate.
+/// Breaking: replace `error is FormatException` with
+/// `error is CorruptEntryError && error.cause is FormatException`.
+/// 接收实际存储键与 CachemanError，cause 保留原异常；回调自身异常仍向上传播。
+/// 破坏性：原 `error is FormatException` 判断需改为
+/// `error is CorruptEntryError && error.cause is FormatException`。
+/// Example / 示例：`onError: (key, error) => print(error)`.
 typedef CachemanOnError = void Function(String key, Object error);
 
 /// Backend primitive operation, including internal expiry cleanup/renewal.

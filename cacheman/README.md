@@ -66,7 +66,8 @@ await cache.ensureInitialized();
 | Method | Description |
 | --- | --- |
 | `read<T>(key, [default])` | Read; missing/expired/unreadable → `default` (or `null`). |
-| `write<T>(key, value, {ttl, expireAt})` | Write. `ttl` in ms. |
+| `readWith<T>(key, {defaultValue, adapter})` | Read with typed JSON adaptation. |
+| `write<T>(key, value, {ttl, expireAt, adapter})` | Write. `ttl` in ms. |
 | `remove(key)` | Delete. |
 | `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | Batch, positional. |
 | `keys()` / `key(index)` / `length` | Enumerate/count owned keys. |
@@ -85,8 +86,8 @@ await cache.ensureInitialized();
 `lib/src/options.dart` for exact semantics.
 
 Unreadable entries are deleted on read and reported via `onError(storageKey, error)` (or
-print). The original decode/deserialization exception is preserved; a null codec result
-uses `FormatException`. Purge/readonly probes do not report these failures; raw reads bypass decoding.
+print). Errors are `CorruptEntryError(dropped: true)` with the original decode/deserialization
+exception in `cause`; a null codec result uses a FormatException cause. Purge/readonly probes do not report these failures; raw reads bypass decoding.
 
 **No codec implementation ships with this package.** `Codec` is a plain `encode`/`decode` string
 interface — bring your own (obfuscation, real encryption, compression, whatever fits).
@@ -204,6 +205,98 @@ Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `l
 result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippable, by design: custom
 `Enum`s and `Map`s with non-`String` keys — see `lib/src/jsonx.dart`'s doc comment.
 
+## Error handling
+
+`CachemanOnError` keeps its `(String key, Object error)` signature, but every reported
+object is now a `CachemanError`. `key` is the actual storage key (`*` for whole-backend
+operations); `cause` retains the original exception and `stackTrace` the available trace.
+
+| Error | Meaning / recovery |
+| --- | --- |
+| `SerializeError` | adapter.toJson, serialize or value-codec encoding failed; fix conversion, no purge/retry. |
+| `WriteError` | Backend write failed after retry, or immediately with force:false. |
+| `CorruptEntryError` | Decode failed; dropped:true confirms removal before reporting. Check cause before changing codecs. |
+| `TypeMismatchError` | Requested type or adapter.fromJson failed; default returned and data retained. |
+| `FlushError` | Observable background persistence failure; never force-retried. |
+| `WatchError` | Watch callback or its backend/key lookup failed; other watchers continue. |
+
+```dart
+final cache = Cacheman(options: CachemanOptions(onError: (key, error) {
+  if (error is CorruptEntryError && error.cause is FormatException) {
+    print('Unreadable entry removed: $key');
+  } else if (error is CachemanError) {
+    print('$key: ${error.runtimeType}: ${error.cause}');
+  }
+}));
+```
+
+`read` never throws for type/adapter mismatches. Backend IO failures and exceptions thrown by
+`onError` itself still propagate. Purge/readonly probes stay quiet. Real get_storage 2.1.1 disk
+flush failures are not reliably observable because it drops the actual flush Future.
+
+Web localStorage capacity/quota is controlled by the browser/backend; cacheman does not
+increase it. Only observable write/flush failures can be classified. Multi-isolate/process
+synchronization remains application-owned.
+
+## Type safety and ValueAdapter
+
+JSON decoding produces `List<dynamic>` and `Map<String, dynamic>`; requesting `List<String>`
+or `Map<String, int>` directly can therefore mismatch. A mismatch returns the default,
+reports `TypeMismatchError`, and keeps the stored value. `read<dynamic>` and `read<Object?>`
+accept every value. There is no int/double coercion: JSON `1` is int, so `read<double>`
+returns its default; use `num` or a ValueAdapter for numeric conversion.
+
+`ValueAdapter<T>` converts business values to/from JSON-compatible data before/after envelope
+serialization. `listOf<E>()` and `mapOf<V>()` eagerly copy and cast every element; custom classes
+supply toJson/fromJson. Conversion failures become SerializeError on write and TypeMismatchError
+on read (original exception in cause). Raw mode ignores adapters with a debug warning and only
+stores String. Adapters do not change the stored envelope format or add a read cache.
+
+Dart cannot combine an optional positional default with named parameters. Existing
+`read(key, [default])` stays source-compatible; use `readWith(key, {defaultValue, adapter})`
+for adapters. Both call the same core. Accessors accept adapter/default ttl on creation;
+set uses that ttl when omitted. AsyncCacheman offers the same readWith/write adapters.
+
+```dart
+final names = ValueAdapter.listOf<String>();
+cache.write('names', ['Ada'], adapter: names);
+final list = cache.readWith<List<String>>('names', adapter: names);
+final counts = cache.readWith<Map<String, int>>('counts',
+  defaultValue: const {}, adapter: ValueAdapter.mapOf<int>());
+final bound = fast<List<String>>(cache, 'names', adapter: names, ttl: 60000);
+bound.set(['Ada']); // ttl=60000 unless set(..., ttl: ...) overrides it
+final deferred = lazy<List<String>>(cache, 'names', adapter: names, ttl: 60000);
+final group = batchFast<List<String>>(cache, ['names'], adapter: names, ttl: 60000);
+
+/// Business value. / 业务值。
+class Profile {
+  const Profile(this.name);
+  /// Display name. / 显示名称。
+  final String name;
+}
+final profiles = ValueAdapter<Profile>(
+  toJson: (p) => {'name': p.name},
+  fromJson: (json) => Profile((json as Map<String, dynamic>)['name'] as String),
+);
+cache.write('profile', const Profile('Ada'), adapter: profiles);
+final profile = cache.readWith<Profile>('profile', adapter: profiles);
+// AsyncCacheman: await write / readWith with the same adapters.
+// AsyncCacheman：同样的适配器，write / readWith 须 await。
+```
+
+## Migration from 0.6 to the next release (planned 0.7.0)
+
+- Change raw exception checks such as `error is FormatException` to
+  `error is CorruptEntryError && error.cause is FormatException`; other failures also inspect cause.
+- Replace TypeError catches around reads with onError handling and defaults; use a ValueAdapter
+  for typed collections/custom classes. Existing stored data is kept on mismatch.
+- `force` remains enabled by default and supported. It retries only backend writes, using one
+  prebuilt string. Fix deterministic serialization/codec/adapter failures instead of expecting retry.
+- Delete CacheOptions construction/imports; pass ttl/expireAt directly to write/writeAll.
+- Replace key(index) loops (O(n²)) with one keys() snapshot. The deprecated method remains callable.
+- Unscoped erase still clears the entire backend including foreign keys; namespace or enckey
+  keeps ownership protection. The nullable read return type is unchanged.
+
 ## Layered storage / custom backends
 
 Use multiple instances in parallel: small, frequently accessed data in synchronous `Cacheman`
@@ -219,7 +312,8 @@ No Hive, files, SharedPreferences backend or extra dependency ships in `lib/`.
 Override all six protected hooks: `initRaw`, `getRaw`, `keysRaw`, `setRaw`, `removeRaw`, `clearRaw`.
 Getters/enumeration are synchronous. Mutations must finish the memory update **before returning**;
 their `Future<void>` only reports background persistence errors. Those Future failures are reported,
-never retried by `force`; synchronous serialize/primitive exceptions may purge and retry once.
+never retried by `force`; only synchronous backend write throws may purge and retry once.
+Serialization/adapter/value-codec failures report SerializeError without purging or retrying.
 Keep your mutation overrides non-`async` and forward to the backend's immediate memory update.
 
 Illustrative app-side adapter (add `shared_preferences` to your app, not this package):
@@ -410,7 +504,7 @@ Expired keys remain in enumeration/counts until read/purge, as in Cacheman.
 - With namespace **or enckey**, `erase()` removes only owned keys; with neither, it calls
   `clearRaw` for the entire backend, including foreign keys. This preserves Cacheman's existing
   enckey-only protection too.
-- `force` catches serialization and awaited `setRaw` failures, purges expired entries and retries
+- `force` catches only awaited `setRaw` failures, purges expired entries and retries
   once, then calls `onError(storageKey, error)` or prints. Renewal awaits persistence; failed renewal
   still returns the previously read value. This differs from synchronous background flush Futures.
 - Decode failures are deleted and reported before returning the default; purge/readonly probes stay
@@ -434,7 +528,7 @@ flutter run example/lib/main.dart
   No built-in disk tier, memory `ss` tier or automatic routing; instances can run in parallel.
 - **No built-in codec.** The TS version ships obfuscation codecs; this package only exposes the
   `Codec` interface.
-- **Cacheman `force` retries only synchronous write failures** (e.g. a custom `serialize` throwing) —
+- **Cacheman `force` retries only synchronous backend write failures** (`setRaw` throwing) —
   `get_storage`'s actual disk-flush failures are asynchronous and never retried; with 2.1.1 its write Future
   can't carry them, so `onError` is only guaranteed for synchronous failures (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
 - No `crossTab` equivalent (a browser-tab concept with no Flutter analogue).

@@ -222,7 +222,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(cache.writes, 1);
     expect(cache.read<String>(_key), _value);
-    expect(errors.single, same(cache.failure));
+    expect(errors.single, isA<FlushError>().having((e) => e.cause, 'cause', same(cache.failure)));
     expect(cache.containerAccesses, 0);
   });
 }

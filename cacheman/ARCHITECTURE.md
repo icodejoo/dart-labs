@@ -15,7 +15,7 @@ flowchart TD
     Async --> Core
     Core --> Keys[namespace / enckey / 有界键映射]
     Core --> Envelope[信封 / TTL / serialize / codec / 续期判定]
-    Core --> Errors[原始异常与错误上报]
+    Core --> Errors[结构化错误与 cause 上报]
     Sync --> SyncRaw[可覆写同步原语 + CacheContext]
     Sync --> Hub[hub.dart: 每底层身份共享 Hub]
     Hub --> Notify[单监听 / 版本自愈 / watch 分发]
@@ -33,7 +33,8 @@ flowchart TD
 | `lib/src/core.dart` | 私有 `_CacheCore`，由两类分别组合持有；无 IO，统一键空间、信封、续期判定、错误处理。 |
 | `lib/src/async_cacheman.dart` | 抽象异步 API 编排，必需/可选异步原语；不维护自有键集合缓存。 |
 | `lib/src/interface.dart` | Codec、CachemanOnError、不可变 CacheContext 与 CacheOp。 |
-| `lib/src/options.dart` | 共用 CachemanOptions；已弃用且无方法接受的 CacheOptions。 |
+| `lib/src/options.dart` | 共用 CachemanOptions；CacheOptions 已删除。 |
+| `lib/src/errors.dart` / `value_adapter.dart` | sealed 错误分类 / 业务值与 JSON 结构互转。 |
 | `lib/src/entity.dart` | CacheEntity（value / createdAt / expireAt / ttl）及默认 JSON 序列化。 |
 | `lib/src/fast.dart` | 仅同步 FastAccessor 和 fast / lazy / batchFast。 |
 | `lib/src/debug.dart` | 仅同步解密快照；复用普通读取的懒删/续期副作用，不回写快照。 |
@@ -85,17 +86,29 @@ readonly、续期不是事务，包不提供并发隔离，也不负责用户后
 2. readonly 静默检查存在性，不删除、不上报、不续期；信封中的 null 也算存在。
 3. 普通模式生成 CacheEntity，serialize 后按 codeable 做值 codec 编码；raw 仅接受字符串，
    跳过信封、值 codec 和过期逻辑。
-4. 薄层调用 setRaw。同步层只捕获同步异常；异步层 await 并捕获失败。force 清过期后重试一次，
-   最终失败用 onError(storageKey, error) 或 print 上报。
+4. build（含 adapter.toJson / serialize / 值 codec）仅执行一次；失败上报 SerializeError，不清理、不重试。
+5. 薄层调用 setRaw。同步层仅捕获同步异常；异步层 await 并捕获失败。force 默认 true，
+   仅底层写失败才清过期后重试同一编码字符串一次；最终失败上报 WriteError。
+   后台 Future 失败上报 FlushError、不重试。
 
 读取 `read<T>(key, [defaultValue])`：
 
 1. 每次通过 getRaw 读取后端；缺失或外部非字符串值返回默认值，无额外读值缓存。
 2. raw 直接返回字符串；否则内核 load 负责值解码和信封反序列化。
-3. 解码失败删除后上报原始异常（codec 返回 null 构造 FormatException），返回默认值。
+3. 解码失败删除后上报 CorruptEntryError(dropped:true)，cause 保留原异常（codec 返回 null 构造 FormatException），返回默认值。
    purge/readonly 探测不上报。后端读取/删除等 IO 失败和抛错的 onError 回调向上传播。
 4. 带 createdAt 标记且过期的信封懒删除；内核返回可选的续期副本，由薄层写回。
    续期写入失败走 onError，正常返回原读取值。异步层等待续期，且捕获 force 清理失败。
+5. 内核负责 adapter.fromJson 与类型检查；失败返回默认值并上报 TypeMismatchError，不删数据。
+   read 的类型/转换错误永不抛；后端 IO 和 onError 自身异常仍传播。dynamic/Object? 全接收；
+   int 不自动变 double，请用 num 或 ValueAdapter。raw 只存 String，忽略 adapter 并 debug 警告。
+
+所有 onError 对象均为 CachemanError；key 为实际存储键，cause 为原异常，stackTrace 尽可能保留。
+watch 回调及其后端/键读取异常使用 WatchError，不伪装为 FlushError；类型不符回调收到 null。
+破坏性迁移：`error is FormatException` 改为
+`error is CorruptEntryError && error.cause is FormatException`。
+ValueAdapter.listOf<E>() / mapOf<V>() 立即检查并复制元素，避免惰性 cast 错误逃出 read。
+key(index) 已弃用（O(index)，循环 O(n²)）；请一次 keys() 后遍历。
 
 ## 不变量与边界
 
@@ -114,7 +127,7 @@ readonly、续期不是事务，包不提供并发隔离，也不负责用户后
 - enckey 要求 keyCodec 或 codec；codeable 要求值 codec，缺少时警告并降级。
 - 写入入口在调试模式断言已完成 ensureInitialized，位于重试/错误处理外；release 行为不变。
 - 同步 force 不重试 mutation Future 的后台失败。get_storage 2.1.1 的 Future 带不出真实 flush
-  错误，catchError 仅尽力而为。异步 force 捕获 serialize 和 await setRaw 的失败。
+  错误，catchError 仅尽力而为。异步 force 仅捕获 await setRaw 失败；序列化失败不重试。
 - 两类 erase 保持一致：namespace 或 enckey 存在时逐个删自有键；两者都没有时 clearRaw
   清空整个后端（含外部键）。任务书“无 namespace 整库清空”按保留现有 enckey 保护解释。
 - 不内置后端路由/迁移/加密实现；container/storageKey 的 GetX 互操作边界见 README。
@@ -140,3 +153,12 @@ purgeOnInit 在 init 完成后用 Timer.run 非阻塞清过期，raw 跳过，�
 原有 cacheman_test.dart 使用真实 get_storage；cacheman_primitives_test.dart 覆写全部
 同步原语，container getter 访问即失败；async_cacheman_test.dart 使用测试内 Map 和可注入
 同步/Future 失败、写入闸门。example 新增分层演示页，内存异步子类仅存在于 example 内。
+
+## Stage 2 typed access / 阶段 2 类型访问
+
+Dart disallows mixing optional positional and named parameters. Preserve `read(key, [default])`;
+`readWith<T>(key, {defaultValue, adapter})` adds adapter reads on both facades. Both share `_read`.
+`write<T>(..., {adapter, ttl, expireAt})` adapts before encoding. fast/lazy/batchFast accept
+adapter + default ttl; set uses default ttl if omitted. listOf/mapOf eagerly copy/check elements.
+Dart 不允许混合可选位置/命名参数；read 保留原调用，readWith 提供命名默认值/适配器。
+两种薄层复用读取编排和内核转换；适配器只转换业务值，不改变信封，raw 忽略并 debug 警告。

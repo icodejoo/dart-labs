@@ -149,7 +149,8 @@ class _CacheCore {
   /// 加载信封，可选转交原始解码异常。
   /// Purge/readonly probes omit the callback to avoid repeated scan reports.
   /// purge/readonly 探测不传回调，避免重复扫描刷屏。
-  CacheEntity? _load(String raw, {void Function(Object error)? onFailure}) {
+  CacheEntity? _load(String raw,
+      {void Function(Object error, StackTrace trace)? onFailure}) {
     try {
       final text = _codeable ? _opts.codec!.decode(raw) : raw;
       if (text == null) {
@@ -157,8 +158,8 @@ class _CacheCore {
             'Value codec returned null; entry cannot be decoded');
       }
       return _opts.deserialize(text);
-    } catch (error) {
-      onFailure?.call(error);
+    } catch (error, trace) {
+      onFailure?.call(error, trace);
       return null;
     }
   }
@@ -234,30 +235,87 @@ class _CacheCore {
     return keys.length < values.length ? keys.length : values.length;
   }
 
-  /// Reports the original decode error after removal. / 删除后上报原始解码异常。
-  void reportDecodeError(String key, Object error) =>
-      _emitError(key, error, 'decode failed for "$key", entry removed');
+  /// Encodes an adapted value while preserving envelope metadata.
+  /// 编码适配后的值并保留信封元数据。
+  String encode<T>(CacheEntity entity, T value, ValueAdapter<T>? adapter) =>
+      adapter == null
+          ? _dump(entity)
+          : _dump(CacheEntity(
+              value: adapter.toJson(value),
+              createdAt: entity.createdAt,
+              expireAt: entity.expireAt,
+              ttl: entity.ttl,
+            ));
 
-  /// Reports an exhausted write failure in either facade.
-  /// 上报任一薄层最终失败的写入。
-  void _reportError(String key, Object error) =>
-      _emitError(key, error, 'write failed for "$key", giving up');
+  /// Builds once before any backend retry; encoding failures never purge.
+  /// 在底层重试前仅构造一次；编码失败从不清理。
+  String? build(String key, String Function() encode) {
+    try {
+      return encode();
+    } catch (error, trace) {
+      _reportError(SerializeError(key, error, trace));
+      return null;
+    }
+  }
 
-  /// Reports a background disk-flush failure. Note: with get_storage 2.1.1 the
-  /// Future returned by `write`/`remove`/`erase` never carries flush errors, so
-  /// this is best-effort and may never fire.
-  ///
-  /// 上报后台落盘失败。注意：get_storage 2.1.1 里 `write`/`remove`/`erase`
-  /// 返回的 Future 带不出 flush 错误，这里是尽力而为，可能永远不触发。
-  void _reportFlushError(String key, Object error) =>
-      _emitError(key, error, 'background flush failed for "$key"');
+  /// Ignores raw adapters with a debug-only warning. / raw 忽略适配器并仅在调试时警告。
+  void warnRawAdapter(Object? adapter) {
+    assert(() {
+      if (adapter != null) {
+        // ignore: avoid_print
+        print(
+            '[cacheman] raw mode ignores ValueAdapter / raw 模式忽略 ValueAdapter');
+      }
+      return true;
+    }());
+  }
+
+  /// Converts safely; type/adapter failures report without removing data.
+  /// 安全转换；类型/适配器失败仅上报，不删除数据。
+  T? typed<T>(
+      String key, Object? value, T? fallback, ValueAdapter<T>? adapter) {
+    try {
+      return adapter == null ? value as T? : adapter.fromJson(value);
+    } catch (error, trace) {
+      _reportError(TypeMismatchError(key, error,
+          expected: T, actual: value.runtimeType, stackTrace: trace));
+      return fallback;
+    }
+  }
+
+  /// Reports corruption only after removal succeeds. / 仅在删除成功后上报损坏。
+  void reportDecodeError(String key, Object error, StackTrace? trace) =>
+      _reportError(
+          CorruptEntryError(key, error, dropped: true, stackTrace: trace));
+
+  /// Reports an already classified failure. / 上报已分类的失败。
+  void _reportError(CachemanError error) =>
+      _emitError(error.key, error, 'operation failed');
+
+  /// Reports observable background failures; get_storage may hide disk failures.
+  /// 上报可观察的后台失败；get_storage 可能隐藏磁盘异常。
+  void _reportFlushError(String key, Object error, [StackTrace? trace]) =>
+      _reportError(FlushError(key, error, trace));
+
+  /// Shared failure generation includes handlers on peer watchers.
+  /// 共享失败代数也包含其他实例 watcher 的处理器。
+  static int _handlerFailures = 0;
+
+  /// Detects propagating handler failures across retry/watch boundaries.
+  /// 跨重试/watch 边界识别向上传播的处理器失败。
+  int get handlerFailures => _handlerFailures;
 
   /// Dispatches the original error or prints the fallback message.
   /// 分发原始异常或打印默认消息。
-  void _emitError(String key, Object error, String message) {
+  void _emitError(String key, CachemanError error, String message) {
     final cb = _opts.onError;
     if (cb != null) {
-      cb(key, error);
+      try {
+        cb(key, error);
+      } catch (_) {
+        _handlerFailures++;
+        rethrow;
+      }
     } else {
       // ignore: avoid_print
       print('[cacheman] $message: $error');
