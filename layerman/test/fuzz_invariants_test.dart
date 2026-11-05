@@ -130,6 +130,15 @@ class _TicketProbe {
   /// overlap 最早完成 appear delay 的时刻，用于区分延迟容器与实际阻塞持有。
   DateTime? overlapDue;
 
+  /// 独立保存 gate 最近一次返回值，检查激活没有越过等待或拒绝。
+  OverlayVerdict? lastGateVerdict;
+
+  /// 最近一次 gate 是否故意抛错，异常不得放行。
+  bool gateThrew = false;
+
+  /// 曾返回过未来截止时刻，用于统计等待后激活覆盖。
+  bool gateWaited = false;
+
   /// 类型化票据。
   late final OverlayTicket<int> ticket;
 
@@ -165,7 +174,8 @@ class _TicketProbe {
 /// 单个种子的最小模型、日志与不变量检查器。
 class _Scenario {
   /// 根据种子配置间隔、槽位容量及路由暂停。
-  _Scenario(this.seed, this.tester) : random = Random(seed) {
+  _Scenario(this.seed, this.tester, {this.withGates = false})
+      : random = Random(seed) {
     // 独立随机源保持原有操作序列的抽样次数不变。
     final config = Random(seed ^ 0x6a31).nextInt(4);
     blockers = switch (config) {
@@ -229,6 +239,13 @@ class _Scenario {
 
   /// resolver 或无解析的 present 调用时核对安全性。
   void activated(String slot, _TicketProbe probe) {
+    final verdict = probe.lastGateVerdict;
+    if (probe.gateThrew ||
+        verdict?.reason != null ||
+        (verdict?.retryAt?.isAfter(clock) ?? false)) {
+      violations.add('G1 gate 未通过却激活 ${probe.id}@$slot');
+    }
+    if (probe.gateWaited) _cover('gate 等待后激活');
     if (blocked(slot, probe.id)) violations.add('跨槽位受阻仍激活 ${probe.id}@$slot');
     if (blockedProbes.remove(probe)) {
       _cover('被阻塞后解除并出场');
@@ -246,6 +263,9 @@ class _Scenario {
 
   /// 唯一随机源。
   final Random random;
+
+  /// 新随机族混入 gate，原有 300 个种子的参数和操作序列保持原样。
+  final bool withGates;
 
   /// 注入的日历时钟，从日边界附近开始以覆盖 day rollover。
   DateTime clock = DateTime(2026, 1, 1, 23, 59, 59);
@@ -339,6 +359,11 @@ class _Scenario {
         'condition=$condition cooldown=$cooldown backend=${backend.mode} '
         'delay=$delay duration=$duration exit=$exit expireAfter=$expiry');
     final probe = _TicketProbe(id, overlap, backend);
+    final gateKind = withGates
+        ? Random(seed ^ (probes.length * 0x13f) ^ 0x6245).nextInt(6)
+        : 0;
+    final gateDeadline = clock.add(_slow + _timeout);
+    log.add('gate=$gateKind deadline=$gateDeadline');
     if (overlap) probe.overlapDue = clock.add(delay ?? Duration.zero);
     probes.add(probe);
     latest[id] = probe;
@@ -363,6 +388,28 @@ class _Scenario {
           ? (ctx) => ctx['auth'] == true
           : (condition == 3 ? (ctx) => ctx['auth'] != true : null),
       when: condition == 4 ? (context) => context['auth'] == true : null,
+      gate: gateKind == 0 ? null : (ctx) {
+        probe.gateThrew = gateKind == 5;
+        if (probe.gateThrew) {
+          _cover('gate 异常');
+          throw StateError(_fault);
+        }
+        final verdict = switch (gateKind) {
+          1 => const OverlayVerdict.pass(),
+          2 => OverlayVerdict.waitUntil(gateDeadline),
+          3 => const OverlayVerdict.drop(),
+          _ => ctx['auth'] == true
+              ? const OverlayVerdict.pass()
+              : ctx['route'] == _blocked
+                  ? const OverlayVerdict.drop()
+                  : OverlayVerdict.waitUntil(gateDeadline),
+        };
+        probe.lastGateVerdict = verdict;
+        probe.gateWaited |= verdict.retryAt?.isAfter(clock) ?? false;
+        _cover(verdict.reason != null ? 'gate drop'
+            : verdict.retryAt != null ? 'gate wait' : 'gate pass');
+        return verdict;
+      },
       cooldown: switch (cooldown) {
         1 => const OverlayCooldown(session: 1),
         2 => const OverlayCooldown(minGap: _timeout),
@@ -768,6 +815,15 @@ void main() {
     });
   }
   for (var seed = 0; seed < 60; seed++) {
+    testWidgets('三态 gate 与阻塞随机不变量 seed=$seed', (tester) async {
+      final scenario = _Scenario(seed, tester, withGates: true);
+      for (var step = 0; step < _steps; step++) {
+        await scenario.step();
+      }
+      await scenario.finish();
+    });
+  }
+  for (var seed = 0; seed < 60; seed++) {
     testWidgets('无条件串行排序不变量 seed=$seed', (tester) => _ordering(seed, tester));
   }
   for (var seed = 0; seed < 120; seed++) {
@@ -783,8 +839,29 @@ void main() {
       }
     });
   }
+  for (var seed = 0; seed < 40; seed++) {
+    testWidgets('三态 gate 与慢存储 build 扩展不变量 seed=$seed', (tester) async {
+      final scenario = _ExtendedScenario(seed, tester, withGates: true);
+      try {
+        for (var step = 0; step < _steps; step++) {
+          await scenario.step(step);
+        }
+        await scenario.finish();
+      } catch (error, stack) {
+        fail('${scenario.diagnostic}\n$error\n$stack');
+      }
+    });
+  }
   test('扩展族的新增操作与正反边界实际执行次数均非零', () {
     for (final operation in [
+      'gate pass',
+      'gate wait',
+      'gate drop',
+      'gate 异常',
+      'gate 等待后激活',
+      '扩展 gate pass',
+      '扩展 gate wait',
+      '扩展 gate drop',
       'suppress 永久',
       'suppress 限时',
       '限时抑制到期后激活',
@@ -1152,12 +1229,16 @@ class _ExtendedProbe {
 
   /// 成功的上下文关闭请求值。
   int? selfValue;
+
+  /// 激活前最后一次业务资格快照，不能在未来截止或 drop 时出场。
+  OverlayVerdict? lastGateVerdict;
 }
 
 /// 独立模型覆盖 hydrate、build、标签、冷却重置与条件 AND 组合。
 class _ExtendedScenario {
   /// 每种存储都由 seed 的同一个随机源选择。
-  _ExtendedScenario(this.seed, this.tester) : random = Random(seed) {
+  _ExtendedScenario(this.seed, this.tester, {this.withGates = false})
+      : random = Random(seed) {
     final mode = random.nextInt(4);
     _cover('storage$mode');
     final latency = Duration(milliseconds: random.nextInt(601));
@@ -1192,6 +1273,9 @@ class _ExtendedScenario {
 
   /// 本族唯一随机源。
   final Random random;
+
+  /// 新增 gate 随机族，原有慢存储与 build 种子保持原样。
+  final bool withGates;
 
   /// 被测实例。
   late final Layerman manager;
@@ -1305,6 +1389,31 @@ class _ExtendedScenario {
         'auth=$requireRole role=$role when=$requireWhen tenant=$tenant '
         'priority=$priority cd=$index ready=$ready');
     final probe = _ExtendedProbe(id, mode == OverlayMode.overlap, guard);
+    final gateKind = withGates
+        ? Random(seed ^ (probes.length * 0x13f) ^ 0x781).nextInt(4)
+        : 0;
+    final gateDeadline = now.add(_slow);
+    log.add('gate=$gateKind deadline=$gateDeadline');
+
+    /// 模型和回调各自使用同一业务规则，不询问引擎内部资格。
+    OverlayVerdict businessVerdict(Map<String, Object?> ctx) => switch (gateKind) {
+      1 => const OverlayVerdict.pass(),
+      2 => OverlayVerdict.waitUntil(gateDeadline),
+      _ => ctx[_tenantKey] == 0
+          ? const OverlayVerdict.drop()
+          : ctx[_enabledKey] == true
+              ? const OverlayVerdict.pass()
+              : OverlayVerdict.waitUntil(gateDeadline),
+    };
+
+    /// 保存实际返回值，允许后端独立核对 gate 安全性。
+    OverlayVerdict gate(Map<String, Object?> ctx) {
+      final verdict = businessVerdict(ctx);
+      probe.lastGateVerdict = verdict;
+      _cover(verdict.reason != null ? '扩展 gate drop'
+          : verdict.retryAt != null ? '扩展 gate wait' : '扩展 gate pass');
+      return verdict;
+    }
     probes.add(probe);
     latest[id] = probe;
 
@@ -1325,6 +1434,11 @@ class _ExtendedScenario {
         _cover('限时抑制到期后激活');
       }
       if (!conditions()) violations.add('A1 条件未满足却 present $id');
+      final verdict = probe.lastGateVerdict;
+      if (verdict?.reason != null ||
+          (verdict?.retryAt?.isAfter(now) ?? false)) {
+        violations.add('G1 gate 未通过却 present $id');
+      }
       final presentOrder = ++storage.eventOrder;
       if (storage.readCompletedAt == null ||
           presentOrder <= storage.readCompletedAt!) {
@@ -1360,6 +1474,7 @@ class _ExtendedScenario {
             when: requireWhen
                 ? (ctx) => ctx[_enabledKey] == true && ctx[_tenantKey] == tenant
                 : null,
+            gate: gateKind == 0 ? null : gate,
             beforeClose: () => guard,
           )
           .then(probe.values.add);
@@ -1380,6 +1495,7 @@ class _ExtendedScenario {
         when: requireWhen
             ? (ctx) => ctx[_enabledKey] == true && ctx[_tenantKey] == tenant
             : null,
+        gate: gateKind == 0 ? null : gate,
         beforeClose: () => guard,
       );
       probe.ticket = ticket;
@@ -1396,14 +1512,20 @@ class _ExtendedScenario {
         final suppressed =
             (suppressedUntil[id] ?? 0) > now.millisecondsSinceEpoch;
         final count = counts[id] ?? 0;
+        final capped = (cd.total != null && count >= cd.total!) ||
+            (cd.session != null && count >= cd.session!);
+        final permanentSuppression = suppressedUntil[id] == 8640000000000000;
+        final businessDrop = gateKind != 0 && conditions() &&
+            businessVerdict(context).reason != null;
         probe.expectedSubmitReason =
             mode == OverlayMode.overlap && !conditions()
                 ? OverlayEndReason.dropped
-                : suppressed
+                : suppressed && (permanentSuppression || capped || !businessDrop)
                     ? OverlayEndReason.suppressed
-                    : ((cd.total != null && count >= cd.total!) ||
-                            (cd.session != null && count >= cd.session!))
+                    : capped
                         ? OverlayEndReason.capped
+                        : businessDrop
+                            ? OverlayEndReason.gated
                         : OverlayEndReason.dropped;
       }
     }
