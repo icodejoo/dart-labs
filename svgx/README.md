@@ -206,4 +206,4 @@ criteria, supported-feature matrix, and performance benchmark history.
 ## Contributing
 
 Issues and PRs welcome at the
-[repository](https://github.com/icodejoo/dart-labs/tree/main/svgx).
+[repository](https://github.com/icodejoo/dart-labs/tree/svgx/svgx).
