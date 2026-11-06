@@ -823,6 +823,19 @@ class MovaMpvKernel
       // 到此才武装格式探测：上面等挂载/渲染面期间旧文件仍可能刷新轨道，不能当成新文件的。
       if (_player.platform is NativePlayer) _formatProbePending = true;
       _pump?.discardPending();
+      // Evaluated, won't fix: an old-file END_FILE(error) arriving before
+      // Player.open's stop takes effect can still inherit the new attempt.
+      // START_FILE gating failed HE V9 (1/5); playlist_entry_id reads after open
+      // disturbed recovery timing. Device replacement events were STOP (24/24),
+      // so the rare remaining error window only risks a spurious retry.
+      // Reopening needs device ID correlation without post-open native reads.
+      // See doc/plans/2026-11-06-review-unfixed-design.md section 1.
+      //
+      // 已评估，不修：Player.open 的 stop 生效前到达的旧文件 END_FILE(error)
+      // 仍可能归到新尝试。START_FILE 闸门令 HE V9 仅 1/5 通过；open 后读取
+      // playlist_entry_id 扰动恢复时序。真机换源事件 24/24 为 STOP，剩余罕见
+      // 错误窗口只可能多触发一次误判重试。重开须先真机核对 ID，且不新增 open 后
+      // 原生读取；见 doc/plans/2026-11-06-review-unfixed-design.md 第 1 节。
       _eventAttempt = eventAttempt;
       _eventUri = uri;
       await _player.open(_mediaForOpen(uri, options), play: play);

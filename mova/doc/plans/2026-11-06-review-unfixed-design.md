@@ -30,3 +30,12 @@
 - 不动：`MovaThumbDirProvider` 端口与 `MovaPreviewConfig` 公开面不变；其他自定义 provider 不受影响。
 - 测试：纯 Dart 用临时目录——(a) 无主目录被收养；(b) 在用目录（同进程注册表）不被删；(c) 超期无主目录被清；(d) 无 `.lease` 的遗留目录被处理；(e) 两个 provider 并发 `resolve` 不拿到同一目录。跨进程互斥需在 Windows + Android 各手测一次（起两个进程互相不删对方目录）。
 - 风险：Windows 上目录被删时句柄必须已关闭，删除前先 close 自己的 lease；锁在网络盘/某些 Android 存储上可能不可靠，临时目录一般是本地盘，可接受；加锁失败一律按"在用"处理（失败开放，宁可留垃圾不误删）。
+
+## 3. 落地与验证（2026-11-06）
+
+- 第 1 节按 won't fix 处理：`mpv_kernel.dart` 尝试编号赋值处补英中双语原因，`SPEC.md` 错误分级章节补已知限制。
+- 第 2 节已实现 `.lease`、静态占用注册表、最新无主目录收养、其余及超过 7 天的无主目录清扫、遗留目录处理与非阻塞租约失败保护；删除前关闭租约句柄。根目录额外持有短期 `.scan` 锁，串行化进程间扫描，覆盖关闭租约至删除目录的窗口。
+- 原 `MovaThumbDirProvider` 只有 `resolve()`，没有 dispose 钩子；新增不经 barrel 导出的可选 `MovaThumbDirLease`，由 `MovaDiskThumbCache.dispose()` 等待操作队列后释放默认 provider。预览服务原有销毁链直接接入，`MovaThumbDirProvider` 与 `MovaPreviewConfig` 不变，现有自定义 provider 不受影响。
+- 新增 `test/platform_impl/thumb_dir_impl_test.dart` 共 **16 项**，覆盖 (a)–(e)、7 天边界、真实 mtime、锁失败、句柄关闭、释放后复用、解析途中销毁、未使用/初始化失败与 `clearOnDispose` 两种配置；时钟、mtime 和锁通过 `@visibleForTesting` 注入，无睡眠等待。现有 `b09_test` 补齐租约释放后再删除测试根目录。
+- 实测：`flutter analyze lib test` **0 issues**；`flutter test test/platform_impl test/core/kernel test/core/preview --reporter failures-only` **368 项全部通过**；`git diff --check` 通过。
+- Windows + Android 双进程互不误删的手测尚未执行；本轮未跑全量测试，未修改全量测试基线。

@@ -1,46 +1,289 @@
 import 'dart:io';
 
+import 'package:meta/meta.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../core/preview/dir_lease.dart';
 import '../core/preview/dir_provider.dart';
 
-/// The default [MovaThumbDirProvider]: a named folder under the platform
-/// temporary directory, e.g. `<tmp>/mova_thumbs`.
+/// A temporary thumbnail directory protected by an OS file lease.
+/// First use adopts the newest unowned directory and removes the others;
+/// unowned directories older than seven days are always removed.
 ///
-/// Lives outside `lib/src/core/**` because `path_provider` is a Flutter
-/// plugin and the core layer must stay plugin-free.
-///
-/// 默认的 [MovaThumbDirProvider]：平台临时目录下的一个命名文件夹，
-/// 例如 `<tmp>/mova_thumbs`。
-///
-/// 放在 `lib/src/core/**` 之外，因为 `path_provider` 是 Flutter 插件，
-/// core 层必须与插件解耦。
-class MovaTempThumbDirProvider implements MovaThumbDirProvider {
-  /// Creates a provider rooted at the temporary directory.
+/// 由操作系统文件租约保护的临时缩略图目录。首次使用收养最新无主目录，
+/// 删除其余无主目录；超过七天的无主目录一律删除。
+class MovaTempThumbDirProvider
+    implements MovaThumbDirProvider, MovaThumbDirLease {
+  /// Creates a provider under the platform temporary directory.
+  /// [folderName] names the shared cache root. Example:
+  /// `MovaTempThumbDirProvider(folderName: 'mova_thumbs')`.
   ///
-  /// 创建一个以临时目录为根的 provider。
-  ///
-  /// - [folderName]: sub-folder name under the temp directory /
-  ///   临时目录下的子文件夹名
-  MovaTempThumbDirProvider({this.folderName = 'mova_thumbs'});
+  /// 在平台临时目录下创建 provider；[folderName] 指定共享缓存根目录名。
+  /// 示例：`MovaTempThumbDirProvider(folderName: 'mova_thumbs')`。
+  MovaTempThumbDirProvider({String folderName = 'mova_thumbs'})
+    : this._(
+        folderName,
+        getTemporaryDirectory,
+        DateTime.now,
+        _directoryModified,
+        _lockLease,
+      );
 
-  /// Sub-folder name under the platform temporary directory.
+  /// Creates a provider with deterministic filesystem, time and lock seams.
+  /// [temporaryDirectory] replaces path_provider, [now] supplies the clock,
+  /// [modified] supplies directory mtimes, and [lock] replaces the nonblocking
+  /// exclusive lease operation.
+  /// Returns a test provider, e.g. with `now: () => fixedTime`.
   ///
-  /// 平台临时目录下的子文件夹名。
+  /// 创建可确定性注入文件系统、时间和锁的 provider；[temporaryDirectory] 替代
+  /// path_provider，[now] 提供时钟，[modified] 提供目录 mtime，
+  /// [lock] 替代非阻塞独占租约加锁。
+  /// 返回测试 provider，例如传入 `now: () => fixedTime`。
+  @visibleForTesting
+  MovaTempThumbDirProvider.forTesting({
+    String folderName = 'mova_thumbs',
+    required Future<Directory> Function() temporaryDirectory,
+    DateTime Function()? now,
+    Future<DateTime> Function(Directory)? modified,
+    Future<void> Function(RandomAccessFile)? lock,
+  }) : this._(
+         folderName,
+         temporaryDirectory,
+         now ?? DateTime.now,
+         modified ?? _directoryModified,
+         lock ?? _lockLease,
+       );
+
+  /// Stores the production or test filesystem operations.
+  ///
+  /// 保存生产或测试用的文件系统操作。
+  MovaTempThumbDirProvider._(
+    this.folderName,
+    this._temporaryDirectory,
+    this._now,
+    this._modified,
+    this._lock,
+  );
+
+  /// Subdirectory name under the platform temporary directory.
+  ///
+  /// 平台临时目录下的子目录名。
   final String folderName;
 
-  /// 同一实例始终复用自己的目录，不与其他引擎共享。
+  final Future<Directory> Function() _temporaryDirectory;
+  final DateTime Function() _now;
+  final Future<DateTime> Function(Directory) _modified;
+  final Future<void> Function(RandomAccessFile) _lock;
+
+  // POSIX locks are per process: reserve paths before any asynchronous open.
+  // Never open a registered lease: closing a second fd can drop its lock.
+  //
+  // POSIX 锁按进程计：异步打开前先登记路径。已登记租约不能再次打开，
+  // 因为关闭同文件的第二个描述符也可能释放原锁。
+  static final Set<String> _activePaths = {};
+  static Future<void> _scanQueue = Future<void>.value();
   Future<String>? _path;
+  _ThumbLease? _lease;
+  Future<void>? _closing;
+  bool _disposed = false;
 
+  /// Returns this instance's exclusive cache path, resolving it once.
+  /// Calls after disposal fail as an unavailable filesystem cache.
+  ///
+  /// 返回本实例独占的缓存路径，只解析一次；销毁后按文件系统缓存不可用处理。
   @override
-  Future<String> resolve() => _path ??= _resolve();
+  Future<String> resolve() {
+    if (_disposed) {
+      return Future.error(FileSystemException('Thumbnail lease disposed'));
+    }
+    return _path ??= _serialize(_resolve);
+  }
 
-  /// 在公共根目录下原子创建独占子目录。
+  /// Serializes scans within the isolate, including failed scans.
+  ///
+  /// 在 isolate 内串行化扫描，失败不阻塞后续扫描。
+  static Future<T> _serialize<T>(Future<T> Function() action) {
+    final result = _scanQueue.then((_) => action());
+    _scanQueue = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
+
+  /// Takes a nonblocking OS lease; contention is reported by the filesystem.
+  ///
+  /// 获取非阻塞操作系统租约；争用由文件系统报错。
+  static Future<void> _lockLease(RandomAccessFile handle) async {
+    await handle.lock(FileLock.exclusive);
+  }
+
+  /// Reads the directory's modification time before lease-file creation.
+  ///
+  /// 在创建租约文件前读取目录修改时间。
+  static Future<DateTime> _directoryModified(Directory directory) async =>
+      (await directory.stat()).modified;
+
+  /// Uses canonical paths and case folding for the Windows registry.
+  ///
+  /// 注册表使用规范路径，Windows 下忽略大小写。
+  static String _key(String path) =>
+      Platform.isWindows ? path.toLowerCase() : path;
+
+  /// Reserves and locks [directory]; any acquisition failure means in use.
+  ///
+  /// 预占并锁定 [directory]；任何获取失败都按在用处理。
+  Future<_ThumbLease?> _tryLease(Directory directory) async {
+    final key = _key(directory.path);
+    if (!_activePaths.add(key)) return null;
+    RandomAccessFile? handle;
+    try {
+      handle = await File(
+        '${directory.path}${Platform.pathSeparator}.lease',
+      ).open(mode: FileMode.append);
+      await _lock(handle);
+      return _ThumbLease(directory, handle, key);
+    } on Object {
+      if (handle != null) await handle.close();
+      _activePaths.remove(key);
+      return null;
+    }
+  }
+
+  /// Scans under a root lock, preventing cross-process adoption between closing
+  /// a deletion candidate's lease and deleting its directory on Windows.
+  ///
+  /// 在根目录锁内扫描，防止 Windows 下关闭待删租约到删除目录之间被其他进程收养。
   Future<String> _resolve() async {
-    final tmp = await getTemporaryDirectory();
+    final tmp = await _temporaryDirectory();
     final root = await Directory(
       '${tmp.path}${Platform.pathSeparator}$folderName',
     ).create(recursive: true);
-    return (await root.createTemp('engine_')).path;
+    final canonical = Directory(await root.resolveSymbolicLinks());
+    final scan = await File(
+      '${canonical.path}${Platform.pathSeparator}.scan',
+    ).open(mode: FileMode.append);
+    try {
+      // Serialize cooperating processes too. OS releases this short scan lock
+      // on process exit; engine leases themselves never block.
+      //
+      // 同时串行化协作进程；进程退出时 OS 释放短期扫描锁，目录租约仍非阻塞。
+      await scan.lock(FileLock.blockingExclusive);
+      return await _scan(canonical);
+    } finally {
+      await scan.close();
+    }
+  }
+
+  /// Keeps the newest eligible orphan locked while deleting other orphans.
+  /// Reads mtime before creating missing legacy lease files changes it.
+  ///
+  /// 清理其他无主目录时保持最新可收养目录加锁；创建遗留目录缺失的租约文件前读取 mtime。
+  Future<String> _scan(Directory root) async {
+    _ThumbLease? newest;
+    DateTime? newestModified;
+    final cutoff = _now().subtract(const Duration(days: 7));
+    try {
+      await for (final entry in root.list(followLinks: false)) {
+        if (entry is! Directory ||
+            !entry.uri.pathSegments
+                .where((s) => s.isNotEmpty)
+                .last
+                .startsWith('engine_') ||
+            _activePaths.contains(_key(entry.path))) {
+          continue;
+        }
+        try {
+          final modified = await _modified(entry);
+          final lease = await _tryLease(entry);
+          if (lease == null) continue;
+          if (modified.isBefore(cutoff)) {
+            await _deleteOrphan(lease);
+          } else if (newest == null || modified.isAfter(newestModified!)) {
+            final previous = newest;
+            newest = lease;
+            newestModified = modified;
+            if (previous != null) await _deleteOrphan(previous);
+          } else {
+            await _deleteOrphan(lease);
+          }
+        } on FileSystemException {
+          // External removal or an inaccessible orphan must not break scanning.
+          //
+          // 外部删除或无主目录不可访问不能打断扫描。
+        }
+      }
+      if (newest == null) {
+        final directory = await root.createTemp('engine_');
+        newest = await _tryLease(directory);
+        if (newest == null) {
+          throw FileSystemException(
+            'Cannot lease thumbnail directory',
+            directory.path,
+          );
+        }
+      }
+      _lease = newest;
+      return newest.directory.path;
+    } finally {
+      if (!identical(_lease, newest)) await newest?.release();
+    }
+  }
+
+  /// Closes our lease before deleting an orphan; the root scan lock stays held.
+  ///
+  /// 先关闭自己的租约句柄再删除无主目录；此时仍持有根目录扫描锁。
+  static Future<void> _deleteOrphan(_ThumbLease lease) async {
+    await lease.release();
+    await lease.directory.delete(recursive: true);
+  }
+
+  /// Releases the lease and registry entry after any pending resolution.
+  /// Keeps cached files for reuse. Example: `await provider.dispose()`.
+  ///
+  /// 等待进行中的解析后释放租约与注册项，保留缓存供复用。
+  /// 示例：`await provider.dispose()`。
+  @override
+  Future<void> dispose() {
+    _disposed = true;
+    return _closing ??= _dispose();
+  }
+
+  /// Waits for initialization without starting it, then closes the owned lease.
+  ///
+  /// 等待初始化但不主动启动它，然后关闭持有的租约。
+  Future<void> _dispose() async {
+    try {
+      await _path;
+    } on FileSystemException {
+      // Failed initialization owns no usable cache.
+      //
+      // 初始化失败时没有可用缓存。
+    } finally {
+      await _lease?.release();
+      _lease = null;
+    }
+  }
+}
+
+/// An acquired file handle and its in-process reservation.
+///
+/// 已获取的文件句柄及其进程内预占记录。
+class _ThumbLease {
+  /// Binds [directory], [handle] and [key] until release.
+  ///
+  /// 将 [directory]、[handle] 和 [key] 绑定至释放时。
+  _ThumbLease(this.directory, this.handle, this.key);
+
+  final Directory directory;
+  final RandomAccessFile handle;
+  final String key;
+
+  /// Closes the handle to release its OS lock, then removes the reservation.
+  ///
+  /// 关闭句柄释放 OS 锁，然后移除预占记录。
+  Future<void> release() async {
+    await handle.close();
+    MovaTempThumbDirProvider._activePaths.remove(key);
   }
 }

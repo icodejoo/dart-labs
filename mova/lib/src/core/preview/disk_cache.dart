@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'cache.dart';
+import 'dir_lease.dart';
 import 'dir_provider.dart';
 
 /// File-name suffix used for every cached thumbnail.
@@ -219,5 +220,12 @@ class MovaDiskThumbCache implements MovaThumbCache {
   });
 
   @override
-  Future<void> dispose() => _queue;
+  Future<void> dispose() async {
+    await _queue;
+    // Only leased providers opt into cache-owned teardown; ordinary directory
+    // resolvers retain their contract without a new port requirement.
+    //
+    // 只有租约 provider 选择由缓存负责销毁；普通解析器契约不变，端口不加新要求。
+    if (dir case final MovaThumbDirLease lease) await lease.dispose();
+  }
 }
