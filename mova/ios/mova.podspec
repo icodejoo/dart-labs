@@ -11,7 +11,7 @@ A Flutter video player plugin built on media_kit (libmpv/ffmpeg): custom gesture
 layer, VOD and live control bars, HLS quality switching with buffering-based ABR,
 scrub-preview thumbnails, live timeshift, and Android picture-in-picture.
                        DESC
-  s.homepage         = 'https://github.com/icodejoo/dart-labs/tree/main/mova'
+  s.homepage         = 'https://github.com/icodejoo/dart-labs/tree/mova/mova'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'jelon' => 'jelon@tbu.net' }
   s.source           = { :path => '.' }

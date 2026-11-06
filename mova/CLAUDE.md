@@ -640,3 +640,5 @@ flutter pub publish --dry-run
 
 `dart-labs` 是 monorepo，mova 是子目录。`origin` 同时推 codeup 与 github(icodejoo/dart-labs)。
 提交信息用 `type(scope): message`，scope 用 `mova`。装了 lefthook 钩子（本机若无 lefthook 会跳过）。
+
+**分支口径（2026-11-06 起）**：mova 的开发与文档链接都以 `mova` 分支为准（`pubspec.yaml`/`ios/mova.podspec` 的 homepage/repository 指向 `tree/mova/mova`），不再以 `main` 为准。在包专用 worktree `E:/workspaces/dart-labs-mova` 的 `mova` 分支上提交并推 `origin/mova`（codeup 与 github 两个远端都有），阶段性用 `merge: 合并 mova` 并入 `main`（做法同 svgx）。`main` 上的 CI（如 `build-mova-libmpv.yml`）仍只在 `main` 触发，本文里关于 CI/LFS 的 `origin/main` 描述指的是那条流水线，不是 mova 的开发分支。
