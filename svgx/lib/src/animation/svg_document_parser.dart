@@ -1113,10 +1113,15 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
       flood.getAttribute('flood-opacity')?.trim() ?? '1',
     );
     final rawColor = flood.getAttribute('flood-color')?.trim();
-    final color = rawColor == null
+    // Resolve transparent/hex/rgb in Dart first, so the accepted transparent
+    // Figma prefix does not depend on native color parsing being available.
+    // 优先用 Dart 解析 transparent/hex/rgb，避免已支持的 Figma 透明前缀
+    // 在原生颜色解析不可用时被错误拒绝；其它具名颜色仍回退到 Rust。
+    final argb = rawColor == null
         ? null
-        : parseSvgHexColor(resolveColorToHex(rawColor) ?? rawColor);
-    if (opacity != 0 && color?.a != 0) return null;
+        : parseCssColor(rawColor) ??
+              parseCssColor(resolveColorToHex(rawColor) ?? '');
+    if (opacity != 0 && (argb == null || argb >> 24 != 0)) return null;
     // 显式 in2 必须指向该透明 flood，避免误认其它输入的投影链。
     final in2 = blend.getAttribute('in2')?.trim();
     final floodResult = flood.getAttribute('result')?.trim();
