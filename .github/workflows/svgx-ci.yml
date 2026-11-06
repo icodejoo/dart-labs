@@ -128,10 +128,18 @@ jobs:
         working-directory: svgx
         run: flutter pub get
 
-      # No native build step here on purpose: svgx/test/*.dart wraps
-      # RustLib.init() in try/catch and skips itself with a printed message when
-      # the native library isn't loadable under plain `flutter test`. Pure-Dart
-      # tests (animation/) still run for real either way.
+      # Plain `flutter test` loads the native library from rust/target/release/
+      # (frb_generated.dart ioDirectory); mirror the checked-in Linux prebuilt
+      # there so native tests run without a platform build or PATH changes.
+      # 纯 `flutter test` 从 rust/target/release/ 加载原生库（见
+      # frb_generated.dart 的 ioDirectory）；镜像已入库的 Linux 预编译库，
+      # 无需平台构建或修改 PATH 即可运行原生测试。
+      - name: Prepare native library for flutter test
+        working-directory: svgx
+        run: |
+          mkdir -p rust/target/release
+          cp prebuilt/linux/x64/libsvgx.so rust/target/release/libsvgx.so
+
       - name: flutter test
         working-directory: svgx
         run: flutter test
