@@ -497,7 +497,9 @@ void main() {
       present: (ctx) {
         manager.dispose();
         return PresentedOverlay<void>(
-            dismissed: Completer<void>().future, dismiss: ([_]) async {});
+            visible: Future<void>.value(),
+            dismissed: Completer<void>().future,
+            dismiss: ([_]) async {});
       },
     );
     await closed.future;
@@ -516,7 +518,9 @@ void main() {
       id: 'o',
       mode: OverlayMode.overlap,
       present: (ctx) => PresentedOverlay<void>(
-          dismissed: Completer<void>().future, dismiss: ([_]) async {}),
+          visible: Future<void>.value(),
+          dismissed: Completer<void>().future,
+          dismiss: ([_]) async {}),
       gate: (ctx) => ctx['drop'] == true
           ? const OverlayVerdict.drop()
           : const OverlayVerdict.pass(),

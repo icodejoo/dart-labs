@@ -2802,10 +2802,6 @@ class Layerman extends ChangeNotifier {
       s.cooldownTimer?.cancel();
     }
     _clear(OverlayEndReason.disposed);
-    // present 回调内同步 dispose 时，先交付暂存的 ended，再关闭事件流。
-    for (final e in _presenting.toList()) {
-      _finishPresent(e);
-    }
     _disposed = true;
     _rescheduleSlots.clear();
     _deferredSlots.clear();
