@@ -224,7 +224,7 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 - 正向:7 个已提交产物 → `OK: 7 prebuilt artifact(s) match source hash 1f22b2c2…`
 - 负向:往 `rust/src/api/svg.rs` 追加一行注释 → 立即 `FAIL`,同时报出总 hash 不匹配 + 逐个产物过期,退出码 1;还原后回到 OK。
 
-**`--allow-incomplete`**:把"某 slice 还没构建"从错误降级为警告,同时**保留全部过期检查为致命**。这是迁移窗口期的临时开关(Apple 3 个 + windows-arm64 尚未产出),`svgx-ci.yml` 里带了 `TODO(migration)` 标注。**产物齐全后必须从 CI 里去掉。**
+**`--allow-incomplete`**:把"某 slice 还没构建"从错误降级为警告,同时**保留全部过期检查为致命**。这是迁移窗口期的临时开关(Apple 3 个 + windows-arm64 尚未产出),`svgx-ci.yml` 里带了 `TODO(migration)` 标注。**产物齐全后必须从 CI 里去掉。**(2026-11-06 已去掉:全部 slice 由 run `42137131487` 产出并登记,`check_prebuilt` 严格模式通过。同日修正了源码哈希的换行问题:先把 CRLF 统一为 LF 再哈希。之前 Windows 检出算出的哈希与 CI 不一致,本地 restage 的清单会被 CI 拒绝。)
 
 ---
 

@@ -154,14 +154,10 @@ jobs:
       # Recomputes the SHA-256 of rust/Cargo.lock + rust/Cargo.toml +
       # rust/src/** and compares it against what prebuilt/MANIFEST.json records
       # for each committed binary, plus verifies each binary's own checksum.
-      #
-      # TODO(migration): drop `--allow-incomplete` once the Apple slices
-      # (ios/device, ios/simulator, macos) and windows/arm64 have been produced
-      # and committed. Until then that flag keeps "slice not built yet" a
-      # warning while every staleness check stays fatal.
+      # Strict: every slice must be present now that all platforms are committed.
       - name: Verify prebuilt/MANIFEST.json
         working-directory: svgx
-        run: dart run tool/check_prebuilt.dart --allow-incomplete
+        run: dart run tool/check_prebuilt.dart
 
   # ---------------------------------------------------------------------------
   # 2. Per-triple compile sentinel — cheap, catches platform-specific breakage.
