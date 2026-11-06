@@ -23,7 +23,11 @@ class _NamespacePageState extends State<NamespacePage> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    // _reload notifies the parent shell via setState; defer it past the build
+    // phase. / _reload 会经 onChanged 触发父组件 setState，须推迟到构建阶段之后。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _reload();
+    });
   }
 
   Cacheman get _nsA {

@@ -151,7 +151,7 @@ dynamic _reviver(dynamic key, dynamic value) {
 ///
 /// 不支持循环引用（继承自 `jsonEncode` 自身的行为——会抛错）。
 class Jsonx {
-  const Jsonx._();
+  const Jsonx._(); // coverage:ignore-line
 
   static String encode<T>(T value) => jsonEncode(_escape(value), toEncodable: _toEncodable);
 
