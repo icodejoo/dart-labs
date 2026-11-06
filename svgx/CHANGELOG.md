@@ -3,15 +3,21 @@
 * Rebuild every prebuilt slice for the new `commands` wire field of
   `SvgScene`/`SvgMask`/`SvgPattern` (iOS xcframework, macOS framework,
   Android ×4, Linux x64/arm64, Windows x64/arm64) from the `svgx-prebuilt`
-  workflow, and restage `prebuilt/MANIFEST.json`. Android arm64-v8a/x86_64
-  keep the locally built slices: the arm64 slice CI built on `ubuntu-latest`
-  (26.04) crashed on device (SIGSEGV in `frb_init_frb_dart_api_dl` at
-  startup). The Android leg is now pinned to `ubuntu-24.04`, whose arm64 build
-  was verified on device; `check_prebuilt` now passes
-  in strict mode and CI no longer uses `--allow-incomplete`. The Linux leg is
-  pinned to `ubuntu-24.04` so the shipped `.so` keeps its GLIBC_2.34 floor
-  (`ubuntu-latest` 26.04 would raise it to 2.43). The prebuilt source hash now
-  normalises CRLF to LF, so a Windows checkout computes the same hash as CI.
+  workflow (run 42147870362), and restage `prebuilt/MANIFEST.json`;
+  `check_prebuilt` passes in strict mode and CI no longer uses
+  `--allow-incomplete`. Fixes found on the way:
+  * The workflow's `collect` merge let a leg's checked-out (stale) copies of
+    other platforms overwrite their fresh builds, so an earlier run shipped
+    the pre-`commands` Linux `.so`; each leg now builds from an empty tree.
+  * The Android leg is pinned to `ubuntu-24.04`: its arm64 slice built on
+    `ubuntu-latest` (26.04) crashed on device (SIGSEGV in
+    `frb_init_frb_dart_api_dl`); the 24.04 build was verified on device.
+  * The Linux leg is pinned to `ubuntu-24.04` so the shipped `.so` keeps its
+    GLIBC_2.34 floor (`ubuntu-latest` 26.04 would raise it to 2.43).
+  * The prebuilt source hash normalises CRLF to LF, so a Windows checkout
+    computes the same hash as CI.
+  * CI now runs native tests against the Linux prebuilt, and runs the example
+    integration test on the macOS desktop and the iOS simulator.
 
 * Add byte sniffing to `NetworkSvgx`, `AssetSvgx`, `FileSvgx` and `MemorySvgx`:
   SVG uses svgx; bitmap and unknown bytes use Flutter's native decoder through

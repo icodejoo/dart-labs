@@ -273,6 +273,13 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 - 已提交的 Android 64 位库仍是本机构建版,真机验证过。
 - 规则:两条 leg 换镜像前都必须先上真机验证。
 
+**`collect` 合并会用旧产物覆盖新构建(2026-11-06 已修)。**
+- 问题:每条 leg 都上传整个 `prebuilt/`,里面包括检出得到的、其它平台的旧文件。`merge-multiple` 合并时后写覆盖先写,新构建的 slice 可能被别的 leg 连带上传的旧副本盖掉。
+- 后果:run `42137131487` 发出的 Linux `.so` 就是仓库里旧线格式的那份(524592 字节;该 run 实际新构建的是 555336 字节),`--restage` 又给它盖上了当前源码哈希,`check_prebuilt` 因此没能发现。直到 CI 上原生测试真正加载它、解码越界,问题才暴露。
+- 修法:每条 leg 构建前先清空 `prebuilt/`、`ios/svgx.xcframework` 和 `macos/svgx.framework`。
+- 验证:run `42147870362` 的每个产物大小都与构建日志一致。
+- 教训:`check_prebuilt` 只能证明清单与文件一致,不能证明文件真是由当前源码编出来的。"与仓库文件逐字节相同"应当被视为可疑,而不是当作可复现构建的证据。
+
 ### R2 —— Android `minSdkVersion` 从 19 提到 21,可接受吗?
 
 这是把**既有的事实**写成真实值(cargokit 时代也是链到 21,gradle 里的 19 是虚的),不是新的能力损失。但它对下游是可见的声明变化,如果有消费方的 app 声明了 minSdk 19/20,`pub get` 后会撞到 Gradle 的 minSdk 冲突报错。

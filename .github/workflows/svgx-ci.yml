@@ -536,8 +536,13 @@ jobs:
       # integration test, which loads the framework and decodes a scene.
       # 在模拟器 slice 上做运行时校验（设备 slice 需要真机）：启动第一个可用的
       # iPhone 模拟器并运行集成测试，真正加载 framework 并解码一个场景。
+      # `flutter test` on a simulator occasionally hangs with no output after
+      # "Xcode build done" (flutter/flutter#181771); a normal run takes ~9 min.
+      # 模拟器上的 `flutter test` 偶发在 "Xcode build done" 后无输出挂起
+      # （flutter/flutter#181771）；正常约 9 分钟。
       - name: Integration test on iOS simulator
         if: steps.guard.outputs.present == 'true'
+        timeout-minutes: 20
         working-directory: svgx/example
         run: |
           udid=$(xcrun simctl list devices available -j \
