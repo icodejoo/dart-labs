@@ -1,5 +1,15 @@
 ## 0.7.0
 
+**Fixes (full review):**
+
+- Default listenRaw no longer throws StateError during get_storage initialization;
+  table replacements notify all watchers and empty-string key writes no longer report clear.
+- Sliding renewal requires createdAt, preserving foreign expireAt/ttl-shaped data.
+- Jsonx DateTime stores epoch microseconds and UTC/local mode for timezone-safe round trips;
+  legacy string data remains readable.
+- Jsonx preserves NoSuchMethodError from toJson as JsonUnsupportedObjectError.cause;
+  correct Enum documentation to explain encoding errors and explicit conversion.
+
 **Breaking:**
 
 Stage 2, planned for 0.7.0.

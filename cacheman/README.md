@@ -202,8 +202,10 @@ Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `l
 `jsonEncode`/`jsonDecode`-compatible serializer that additionally round-trips `DateTime` / `Duration` /
 `Set` / `BigInt` / `Uri` / `RegExp`. Pass `Jsonx.encode`/`Jsonx.decode<T>` (wrapped to the
 `CacheEntity <-> String` shape) as `CachemanOptions.serialize`/`deserialize` — `decode<T>` casts the
-result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippable, by design: custom
-`Enum`s and `Map`s with non-`String` keys — see `lib/src/jsonx.dart`'s doc comment.
+result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Enum encoding throws
+`JsonUnsupportedObjectError`; define a custom `toJson` or use `ValueAdapter` to convert it to `name`.
+Maps with non-String keys cannot be encoded. DateTime stores `[microsecondsSinceEpoch, isUtc]`
+to preserve the instant across timezones; legacy ISO 8601 strings remain readable.
 
 ## Error handling
 

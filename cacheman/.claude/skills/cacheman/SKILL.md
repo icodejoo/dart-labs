@@ -142,6 +142,7 @@ flowchart TD
   which must retain their identity/stack and propagate by Zone rules instead of FlushError.
   onError 传播按异常对象身份识别，每次 _emitError 开始清空标记，处理器抛错时记录；不用全局计数。
   同步变更 Future 统一观察；get_storage 的 async write 捕获的通知处理器异常保留身份/堆栈并按 Zone 传播。
+  _propagatingHandlerError 是 static 单槽；默认 get_storage 的异步写吞掉处理器异常后，若同一同步段内又发生 _emitError，槽会被覆盖，该异常会被包成 FlushError 再交给 onError（已知窗口，未处理）。
 - **Initialization assertions remain outside retry catches** in debug builds; release
   behavior is unchanged. A failed initRaw must not mark initialized.
 - **Decode reporting preserves phase 0.** Read deletes then reports CorruptEntryError once;

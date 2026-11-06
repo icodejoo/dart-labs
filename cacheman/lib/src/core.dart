@@ -206,9 +206,10 @@ class _CacheCore {
       e.createdAt != null &&
       now >= e.expireAt!;
 
-  /// Returns a renewal copy at the inclusive 90% boundary; performs no IO.
-  /// 剩余寿命到达 90%（含边界）时返回续期副本，不执行 IO。
+  /// Returns a marked envelope's renewal copy at the inclusive 90% boundary; no IO.
+  /// 带本库标记的信封剩余寿命到达 90%（含边界）时返回续期副本，不执行 IO。
   CacheEntity? renewal(CacheEntity entity, int now) => _opts.sliding &&
+          entity.createdAt != null &&
           entity.ttl != null &&
           entity.expireAt != null &&
           entity.expireAt! - now <= entity.ttl! * 0.9

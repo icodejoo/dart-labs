@@ -153,8 +153,34 @@ class _BrokenCodec implements Codec {
   String decode(String value) => value;
 }
 
+/// Verifies shared typed facade behavior. / 验证两种薄层共用的类型行为。
 void main() {
   for (final asynchronous in [false, true]) {
+    test('sliding preserves unmarked expiry data (async=$asynchronous)',
+        () async {
+      final state = _State();
+      final cache = await _ready(
+          asynchronous, state, const CachemanOptions(sliding: true));
+      const foreign = '{"value":1,"expireAt":1,"ttl":60000}';
+      state.data[_key] = foreign;
+      expect(await cache.read<int>(_key), 1);
+      expect(state.data[_key], foreign);
+      expect(state.writes, 0);
+      expect(state.removes, 0);
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final original = CacheEntity(
+          value: 1, createdAt: 1, expireAt: now + _overrideTtl, ttl: _ttl);
+      state.data[_key] = defaultSerialize(original);
+      expect(await cache.read<int>(_key), 1);
+      final renewed = defaultDeserialize(state.data[_key] as String);
+      expect(state.writes, 1);
+      expect(renewed.createdAt, original.createdAt);
+      expect(renewed.ttl, _ttl);
+      expect(renewed.expireAt, greaterThanOrEqualTo(now + _ttl));
+      expect(original.expireAt, now + _overrideTtl);
+    });
+
     test(
         'read mismatches retain data defaults and exact numeric types (async=$asynchronous)',
         () async {

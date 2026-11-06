@@ -10,8 +10,8 @@ dart run tool/check_acceptance.dart
 flutter analyze example
 ```
 
-最近一次运行：**139/139 测试通过；lib 行覆盖率 561/561（100.00%），1 行豁免**；验收引用 207 条全部有效。
-包及 example analyze 无问题。生成日期：2026-11-05（会话日期，Asia/Shanghai）。
+最近一次运行：**147/147 测试通过；lib 行覆盖率 569/569（100.00%），1 行豁免**；验收引用 215 条全部有效。
+包及 example analyze 无问题。生成日期：2026-11-06（会话日期，Asia/Shanghai）。
 commit 基线：`8ad38313`（全量评审 R1–R6 修复，主会话终审复跑）。
 此摘要由最终命令验证；coverage/ 已在原有 .gitignore 中，不纳入版本控制。
 
@@ -19,6 +19,18 @@ commit 基线：`8ad38313`（全量评审 R1–R6 修复，主会话终审复跑
 `tool/check_acceptance.dart` 以轻量词法器排除注释/字符串里的括号，跟踪group深度，展开字面量列表
 参数；既检查引用存在，也检查没有漏掉任何已注册测试。不能识别的动态名称明确报错。
 本次使用同一提取器生成新增行，随后以自检工具逐项验证所有引用存在且无注册用例遗漏。
+
+## 本轮终审修复
+
+| ID | 修复 | 用例（文件 :: 测试名） | 类型 | 结果 |
+| --- | --- | --- | --- | --- |
+| FINAL-01 | init 前 watch 遇空 changes 不抛错，初始化后继续收写入通知 | `test/hub_test.dart :: real watch before initialization survives empty changes and later writes` | 集成·真 get_storage | 通过 |
+| FINAL-02 | init 整表替换不能误用旧单键 changes | `test/hub_test.dart :: real initialization table replacement ignores stale single-key changes` | 集成·真 get_storage | 通过 |
+| FINAL-03 | 空串键写入不误报 clear；默认 erase 通知全部 watcher | `test/hub_test.dart :: real empty key writes stay keyed and default erase notifies all watchers` | 集成·真 get_storage | 通过 |
+| FINAL-04 | DateTime 新格式保留时间点和 isUtc，兼容旧字符串 | `test/hub_test.dart :: Jsonx DateTime preserves instant and UTC mode with legacy decoding` | 序列化单测 | 通过 |
+| FINAL-05 | toJson 内部 NoSuchMethodError 保留为原始 cause | `test/hub_test.dart :: Jsonx wraps internal NoSuchMethodError with its original cause` | 序列化单测 | 通过 |
+| FINAL-06 | Enum 编码抛 JsonUnsupportedObjectError | `test/hub_test.dart :: Jsonx Enum encoding throws JsonUnsupportedObjectError` | 序列化单测 | 通过 |
+| FINAL-07 | Sync/Async 不续期无 createdAt 外部数据，有标记信封仍续期 | `test/type_safety_test.dart :: sliding preserves unmarked expiry data (async=false)`<br>`test/type_safety_test.dart :: sliding preserves unmarked expiry data (async=true)` | 子类内存后端 | 通过 |
 
 ## 需求和不变量
 
