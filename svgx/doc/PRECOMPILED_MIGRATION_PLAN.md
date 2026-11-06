@@ -267,6 +267,12 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 
 **2026-11-06 已定:维持 (a),linux leg 固定在 `ubuntu-24.04`。** 起因:`ubuntu-latest` 已迁到 26.04,run `42070012153` 产出的两个 Linux `.so` 要求 GLIBC_2.43,只能跑在最新发行版上,这次产物没有采用。固定镜像后下限回到 GLIBC_2.34。
 
+**Android leg 同样固定到 `ubuntu-24.04`(2026-11-06)。**
+- 起因:run `42137131487` 在 26.04 上编出的 arm64-v8a `libsvgx.so`,在华为 STG-AL00(Android 12)上启动即 SIGSEGV,崩在 `frb_init_frb_dart_api_dl`。
+- 对照:同一 NDK 28.0 换 `ubuntu-24.04`(run `42141378840`)编出的版本,真机启动正常,静态千图标 `cached_pictures`=1000。所以原因在宿主镜像,不在 NDK。
+- 已提交的 Android 64 位库仍是本机构建版,真机验证过。
+- 规则:两条 leg 换镜像前都必须先上真机验证。
+
 ### R2 —— Android `minSdkVersion` 从 19 提到 21,可接受吗?
 
 这是把**既有的事实**写成真实值(cargokit 时代也是链到 21,gradle 里的 19 是虚的),不是新的能力损失。但它对下游是可见的声明变化,如果有消费方的 app 声明了 minSdk 19/20,`pub get` 后会撞到 Gradle 的 minSdk 冲突报错。

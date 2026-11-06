@@ -77,8 +77,15 @@ jobs:
           # The linux leg is pinned: the glibc floor of the shipped .so is the
           # build image's glibc, and ubuntu-latest (26.04) raised it to 2.43.
           # ubuntu-24.04 keeps the documented GLIBC_2.34 floor.
+          # The android leg is pinned too: its arm64 slice built on 26.04
+          # (run 42137131487) crashed on device at startup (SIGSEGV in
+          # frb_init_frb_dart_api_dl); the same NDK on 24.04 (run 42141378840)
+          # was verified on device. Do not move either leg without a device test.
           # linux leg 固定版本：产物的 glibc 下限取决于构建镜像，ubuntu-latest
           # （26.04）会把它抬到 2.43；ubuntu-24.04 保持文档约定的 GLIBC_2.34。
+          # android leg 同样固定：26.04 上编的 arm64 库真机启动即 SIGSEGV
+          # （run 42137131487），同一 NDK 换 24.04 后真机验证正常（run 42141378840）。
+          # 两条 leg 换镜像前都必须先上真机验证。
           all=$(jq -nc --arg ag "$APPLE_GROUPS" '[
             {name:"android", os:"ubuntu-24.04",   groups:"--group android"},
             {name:"linux",   os:"ubuntu-24.04",   groups:"--group linux"},
