@@ -204,14 +204,16 @@ void main() {
     await finishPending(t, api);
   });
 
-  testWidgets('the countdown number decrements as content ticks arrive', (t) async {
+  testWidgets('the countdown number decrements as the clock advances', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
+    c.debugClock = () => t.binding.clock.now();
     await c.load(_content);
     await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
     await t.pump();
     await t.pump();
     expect(find.text(movaDefaultAdStartingIn(5)), findsOneWidget);
+    await t.pump(const Duration(seconds: 2));
     api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
     await t.pump();
     await t.pump();

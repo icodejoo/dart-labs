@@ -214,16 +214,21 @@ class RustSvgxPictureCache {
     // `_renderAsync`'s `finally`: an image-free source has no `await` at all,
     // so that `finally` would run *before* the line above and leave the entry
     // (and, through the key, the whole source string) stranded in the map
-    // forever. `whenComplete` always defers to a microtask, which is after
+    // forever. `then` always defers to a microtask, which is after
     // this synchronous block and before any other caller can get in.
     //
     // 摘除动作挂在 future 上，而不是写进 `_renderAsync` 的 `finally`：无图片的
     // 源整条路径上没有任何 `await`，那个 `finally` 会在上面这行**之前**执行，
-    // 于是条目（连同键里那整个源串）会永远卡在表里。`whenComplete` 一定推迟到
+    // 于是条目（连同键里那整个源串）会永远卡在表里。`then` 一定推迟到
     // 一个 microtask，那已经在本同步块之后、且早于任何其它调用方进来。
-    future.whenComplete(() {
+    void cleanup() {
       if (identical(_inFlight[key], future)) _inFlight.remove(key);
-    });
+    }
+
+    future.then(
+      (_) => cleanup(),
+      onError: (Object _, StackTrace _) => cleanup(),
+    );
     return future;
   }
 
@@ -246,25 +251,33 @@ class RustSvgxPictureCache {
     if (scene.images.isEmpty) {
       info = _recordScene(scene, const []);
     } else {
-      final decoded = await Future.wait(scene.images.map(_decodeImage));
-      info = _recordScene(scene, decoded);
-      // Recording draws each image into the picture's own native display
-      // list, which keeps its own (ref-counted) reference to the underlying
-      // texture — so the Dart-side handle can (and, to avoid an
-      // otherwise-permanent leak, must) be disposed right after, the same way
-      // [_decodeImage] disposes its codec right after the single frame is
-      // out. Without this, nothing ever disposes these images — not on LRU
-      // eviction, not on [clear] — leaving native image memory to whenever
-      // the GC gets round to the finalizer.
-      //
-      // 录制会把每张图片画进 picture 自身的原生显示列表，而后者持有对底层
-      // 纹理的独立（引用计数）引用——所以 Dart 侧的句柄可以（且为避免永久
-      // 泄漏、必须）在此之后立即 dispose，与 [_decodeImage] 取到唯一那一帧后
-      // 立即 dispose codec 是同一个道理。不这样做的话，这些 image 永远不会被
-      // dispose——LRU 淘汰不会、[clear] 也不会——原生图片内存只能等 GC 处理
-      // finalizer。
-      for (final image in decoded) {
-        image.dispose();
+      // 每张独立解码，坏图留空；录制异常也必须释放所有成功的句柄。
+      final decoded = await Future.wait(
+        scene.images.map((image) async {
+          try {
+            return await _decodeImage(image);
+          } catch (error, stackTrace) {
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stackTrace,
+                library: 'svgx',
+                context: ErrorDescription(
+                  'while decoding an embedded SVG image '
+                  '(${image.data.length} bytes); skipping this image',
+                ),
+              ),
+            );
+            return null;
+          }
+        }),
+      );
+      try {
+        info = _recordScene(scene, decoded);
+      } finally {
+        for (final image in decoded) {
+          image?.dispose();
+        }
       }
     }
     _reportParseMiss(stopwatch);
@@ -272,9 +285,15 @@ class RustSvgxPictureCache {
     return info;
   }
 
+  /// 仅测试使用：构造单张解码失败与录制异常的资源释放场景。
+  @visibleForTesting
+  Future<ui.Image> Function(SvgImage)? debugDecodeImage;
+
   /// Decodes one [SvgImage]'s raw bytes into a [ui.Image].
   /// 把 [SvgImage] 的原始字节解码为 [ui.Image]。
   Future<ui.Image> _decodeImage(SvgImage image) async {
+    final override = debugDecodeImage;
+    if (override != null) return override(image);
     final codec = await ui.instantiateImageCodec(
       Uint8List.fromList(image.data),
     );
@@ -302,7 +321,7 @@ class RustSvgxPictureCache {
   /// 同步/异步渲染路径共用。
   void _store((String, int?) key, RustSvgPictureInfo info) {
     _entries[key] = info;
-    if (_entries.length > maximumSize) {
+    while (_entries.isNotEmpty && _entries.length > maximumSize) {
       _entries.remove(_entries.keys.first);
     }
   }
@@ -378,14 +397,16 @@ class RustSvgxPictureCache {
   /// 不与文档顺序交错。
   RustSvgPictureInfo _recordScene(
     SvgScene scene,
-    List<ui.Image> decodedImages,
+    List<ui.Image?> decodedImages,
   ) {
     _patternTileCache = <String, ui.Image>{};
     try {
       final recorder = ui.PictureRecorder();
-      final canvas = debugWrapRecordingCanvas?.call(Canvas(recorder)) ?? Canvas(recorder);
+      final canvas =
+          debugWrapRecordingCanvas?.call(Canvas(recorder)) ?? Canvas(recorder);
       for (var i = 0; i < decodedImages.length; i++) {
-        _paintImage(canvas, scene.images[i], decodedImages[i]);
+        final image = decodedImages[i];
+        if (image != null) _paintImage(canvas, scene.images[i], image);
       }
       for (final path in scene.paths) {
         _paintPath(canvas, path);
@@ -1025,6 +1046,9 @@ class SvgxStatic extends StatelessWidget {
           source,
           currentColorArgb: currentColorArgb,
         ),
+        key: (source, currentColorArgb),
+        owner: context,
+        isActive: () => context.mounted,
       ),
     );
   }
@@ -1212,7 +1236,10 @@ Future<ui.Image> rasterizeSvgPicture(
   final w = width.toDouble();
   final h = height.toDouble();
   if (colorFilter != null) {
-    canvas.saveLayer(Rect.fromLTWH(0, 0, w, h), Paint()..colorFilter = colorFilter);
+    canvas.saveLayer(
+      Rect.fromLTWH(0, 0, w, h),
+      Paint()..colorFilter = colorFilter,
+    );
   }
   _RustPicturePainter(
     picture: info.picture,

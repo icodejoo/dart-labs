@@ -15,7 +15,7 @@ void main() {
   runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();
     MovaEngine.ensureInitialized();
-    runApp(MaterialApp(navigatorObservers:[widgets.coverageRouteObserver],builder:(context,child)=>MovaMiniHost(ctl:mini,child:child!),home:const CoverageHome()));
+    runApp(MaterialApp(navigatorObservers:[widgets.coverageRouteObserver],builder:(context,child)=>MovaMiniHost(mini:mini,child:child!),home:const CoverageHome()));
   }, (e, s) => mark('UNCAUGHT', {'error': '$e', 'stack': '$s'}));
 }
 

@@ -1,4 +1,5 @@
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -38,7 +39,7 @@ class DiomanRepath<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   final bool enabled;
 
   /// 稳定名称。
-  static const pluginName = 'dioman:repath';
+  static const pluginName = diomanRepathName;
 
   /// 请求选项键，接受 bool 或 DiomanRepathOptions。
   static final option = DiomanOptionKey<DiomanRepathOptions>(pluginName);

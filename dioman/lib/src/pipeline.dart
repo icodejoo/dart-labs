@@ -67,24 +67,38 @@ DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
     List<DiomanRegistration<R>> layers, DiomanRunner<R> transport) {
   var run = transport;
   for (final layer in layers.reversed) {
-    final inner = run;
-    run = (ctx) async {
-      try {
-        return await layer.instance!.handle(ctx, ([patch]) async {
-          DiomanContext<R> target;
-          try {
-            target = patch == null ? ctx : ctx.derive(patch);
-          } catch (e, s) {
-            return ctx.fail(DiomanFailure(
-                kind: DiomanKind.internal, error: e, errorStack: s));
-          }
-          return inner(target);
-        });
-      } catch (e, s) {
-        return ctx.fail(
-            DiomanFailure(kind: DiomanKind.internal, error: e, errorStack: s));
-      }
-    };
+    run = _PipelineLayer<R>(layer.instance, run).call;
   }
   return run;
+}
+
+/// 编译层只持有执行实例和内层入口，不保留注册配置。
+class _PipelineLayer<R extends DiomanResponse<dynamic>> {
+  /// 保存本层和内层执行器。
+  _PipelineLayer(this.instance, this.inner);
+
+  /// 本层客户端实例。
+  final DiomanPluginInstance<R>? instance;
+
+  /// 已编译的内层入口。
+  final DiomanRunner<R> inner;
+
+  /// 隔离本层异常，补丁构造异常仍在 next 边界落定。
+  Future<DiomanResponse<dynamic>> call(DiomanContext<R> ctx) async {
+    try {
+      return await instance!.handle(ctx, ([patch]) async {
+        DiomanContext<R> target;
+        try {
+          target = patch == null ? ctx : ctx.derive(patch);
+        } catch (e, s) {
+          return ctx.fail(DiomanFailure(
+              kind: DiomanKind.internal, error: e, errorStack: s));
+        }
+        return inner(target);
+      });
+    } catch (e, s) {
+      return ctx.fail(
+          DiomanFailure(kind: DiomanKind.internal, error: e, errorStack: s));
+    }
+  }
 }

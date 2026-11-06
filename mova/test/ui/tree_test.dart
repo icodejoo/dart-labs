@@ -85,9 +85,8 @@ void main() {
     expect(out.last.order, 9);
   });
 
-  test('an unmatched path is a no-op, not a crash', () {
-    final out = applyPatches(tree(), [MovaPatch.remove('nope/nope')]);
-    expect(_names(out), _names(tree()));
+  test('unmatched patch paths assert in debug', () {
+    expect(() => applyPatches(tree(), [MovaPatch.remove('nope/nope')]), throwsAssertionError);
   });
 
   testWidgets('buildSlots groups widgets by slot and sorts by order', (t) async {

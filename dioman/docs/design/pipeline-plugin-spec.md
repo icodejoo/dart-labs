@@ -18,7 +18,7 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 4. **装上即生效**，只有改变数据新鲜度的 **cache、share 要在请求级开启**（optIn）。
 5. **改请求只用 `next(patch)`**，不改 `ctx.request`。
 6. 用户回调抛错：通知类隔离并输出错误日志；判定类按 bug 处理；`onRefresh` 抛错算刷新失败（见核心架构 §7）。
-7. **每个 await 之后用 `ctx.cancelled()` 重查取消**；等待一律用 `ctx.wait`。
+7. **每个 await 之后用 `ctx.cancelled()` 重查取消**；等待一律用 `ctx.wait`。`next()` 返回 internal 时须优先原样返回，取消不得覆盖程序异常及原栈（C2/D6）。
 8. 会重发请求的插件（retry、auth、mock、share 的 retry 策略）在第一次 `next()` 之前调用 `ctx.markReplayable()`。
 
 ## 1. outer
@@ -162,7 +162,7 @@ B4 终审补充：
 | 问题 | 裁决 |
 |---|---|
 | share end/race 取消污染其他调用方 | 用自身取消状态及自身订阅计时撤回，不以结果 kind 推断；end 回退最新有效请求，race 回退最后有效完成结果 |
-| 不透明体或编码失败构键 | Map/String 输出不变；JSON List 内容编码；字节列表最多 64 KiB 按内容哈希并带无损内容校验，避免哈希碰撞；其余返回 null，不参与 cache/share |
+| 不透明体或编码失败构键 | Map/String 输出不变；JSON List（含普通 List<int>，允许负数及大于 255 的整数）内容编码；只有 Uint8List 视为原始字节，最多 64 KiB 按内容哈希并带无损内容校验，避免哈希碰撞，且与同内容 JSON List 的键不同；其余返回 null，不参与 cache/share |
 | auth 刷新挂起、新登录被误判过期 | 插件/请求级 refreshTimeout 默认 30s，DiomanClock 计时；新 token 替换后刷新失败继续当前会话；同客户端刷新须本次关闭 auth |
 | Retry-After 过大 | retryAfterMax 默认 60s，超限直接返回当前结果；显式大 Duration 可放宽，不叠 jitter 或 delayMax |
 | 缓存命中时取消 | 内存和持久化命中返回前均重查取消 |

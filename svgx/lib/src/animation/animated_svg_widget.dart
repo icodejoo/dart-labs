@@ -15,6 +15,7 @@ import 'package:flutter/widgets.dart';
 
 import 'animated_svg_painter.dart';
 import 'svg_document_cache.dart';
+import 'svg_dom.dart';
 import 'svg_document_parser.dart';
 import 'svg_theme.dart';
 import 'svgx_animation_quality.dart';
@@ -118,20 +119,13 @@ class SvgxAnimated extends StatefulWidget {
   /// element's `begin`/`dur`/`repeatCount` scales together, since they are
   /// all sampled against the same scaled clock.
   ///
-  /// Fixed for this instance's lifetime — set once at construction. Changing
-  /// it on an already-mounted instance (e.g. via `setState` in the parent)
-  /// is unsupported and will make the timeline jump, because the running
-  /// instance's clock offset is not rebased; swap in a new [SvgxAnimated]
-  /// (e.g. by changing its [Key]) if you need a different rate at runtime.
+  /// Rate changes preserve the virtual timeline by rebasing the clock.
   ///
   /// 相对挂钟时间加速（>1.0）或减速（<1.0）本实例 SMIL 时间线的推进速度；每个
   /// `&lt;animate&gt;` 元素的 `begin`/`dur`/`repeatCount` 会整体同步缩放，因为它们
   /// 都是对同一条被缩放过的时钟采样的。
   ///
-  /// 在本实例的生命周期内固定——只在构造时设定一次。对一个已挂载的实例中途
-  /// 修改它（比如父级 `setState`）不受支持，会让时间线跳变，因为运行中实例的
-  /// 时钟偏移不会被重新校准；运行时需要换速率的话，换一个新的 [SvgxAnimated]
-  /// 实例（比如改它的 [Key]）。
+  /// 运行中修改速率会重设时钟基线，保持已经播放的虚拟时间连续。
   final double playbackRate;
 
   /// Called once, on the first tick after this instance starts ticking.
@@ -410,6 +404,10 @@ class _ClockSubscription {
   final int Function() fpsDivisor;
 }
 
+// 测试可模拟部分解码后失败，或延迟完成的卸载竞态。
+@visibleForTesting
+Future<void> Function(SvgDocument)? debugResolveAnimatedImages;
+
 class _SvgxAnimatedState extends State<SvgxAnimated> {
   late SvgDocument _document;
 
@@ -421,6 +419,21 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   /// [_SharedAnimationClock.elapsed] 偏移——见 [_SharedAnimationClock] 的文档
   /// 注释。
   Duration _startOffset = Duration.zero;
+  Duration _virtualOffset = Duration.zero;
+  bool _ownsImages = false;
+
+  // 含图片的文档从不入共享缓存，只释放本 State 独占的解码结果。
+  void _disposeImages(SvgDocument document) {
+    void visit(SvgNode node) {
+      node.resolvedImage?.dispose();
+      node.resolvedImage = null;
+      for (final child in node.children) {
+        visit(child);
+      }
+    }
+
+    visit(document.root);
+  }
 
   /// This instance's live registration with the shared clock, or null when it
   /// is not currently ticking.
@@ -497,23 +510,35 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source != widget.source) {
       _stopTicking();
+      if (_ownsImages) _disposeImages(_document);
       _parseAndStart();
+    } else if (oldWidget.playbackRate != widget.playbackRate &&
+        _subscription != null) {
+      final now = _SharedAnimationClock.instance.elapsed;
+      _virtualOffset += Duration(
+        microseconds:
+            ((now - _startOffset).inMicroseconds * oldWidget.playbackRate)
+                .round(),
+      );
+      _startOffset = now;
     }
   }
 
   void _parseAndStart() {
-    // Parsing goes through the shared LRU cache: in a scrolling list the same
+    // Parsing goes through the shared random-eviction cache: in a scrolling list the same
     // icon source is mounted, disposed and re-mounted repeatedly, and the
     // parse is by far the most expensive part of a mount (measured with
     // `--dart-define=LIB=micro`, 399 real SMIL icons: parse 43.8us per icon
     // vs 0.1us for a cache hit).
     //
-    // 解析走共享的 LRU 缓存：滚动列表里同一个图标源会被反复挂载、销毁、再挂载，
+    // 解析走共享的随机淘汰缓存：滚动列表里同一个图标源会被反复挂载、销毁、再挂载，
     // 而解析是一次挂载里最贵的一环（`--dart-define=LIB=micro` 实测，399 个真实
     // SMIL 图标：解析单图标 43.8us，缓存命中 0.1us）。
     final generation = ++_parseGeneration;
     final parsed = SvgxDocumentCache.instance.getOrParse(widget.source);
     _document = parsed.document;
+    _ownsImages = parsed.hasImages;
+    _virtualOffset = Duration.zero;
     _elapsed.value = Duration.zero;
     _started = false;
     _lastLoopIteration = 0;
@@ -526,11 +551,18 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
       //
       // 要等解码完成才开始 tick，避免占位展示期间时间线在背后偷跑——不然
       // 图片就绪的瞬间动画会像是突然跳到了后面的进度。
-      resolveImageNodes(_document).then((_) {
-        if (!mounted || generation != _parseGeneration) return;
+      final document = _document;
+      void ready() {
+        if (!mounted || generation != _parseGeneration) {
+          _disposeImages(document);
+          return;
+        }
         setState(() => _imagesReady = true);
         _startTicking();
-      });
+      }
+
+      (debugResolveAnimatedImages ?? resolveImageNodes)(document)
+          .then((_) => ready(), onError: (Object _, StackTrace _) => ready());
     } else {
       _imagesReady = true;
       _startTicking();
@@ -594,14 +626,11 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
 
   void _onGlobalTick(Duration globalElapsed) {
     final raw = globalElapsed - _startOffset;
-    // playbackRate is fixed at construction (see its doc comment) — no
-    // rebasing is attempted here, so this is the only place it is applied.
-    //
-    // playbackRate 在构造时就固定（见其文档注释）——这里不做任何重新校准，是
-    // 它唯一被应用的地方。
-    final local = widget.playbackRate == 1.0
-        ? raw
-        : Duration(microseconds: (raw.inMicroseconds * widget.playbackRate).round());
+    final local =
+        _virtualOffset +
+        Duration(
+          microseconds: (raw.inMicroseconds * widget.playbackRate).round(),
+        );
     _elapsed.value = local;
     if (!_started) {
       _started = true;
@@ -636,6 +665,7 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   @override
   void dispose() {
     _stopTicking();
+    if (_ownsImages) _disposeImages(_document);
     // Safe to dispose here: the RenderCustomPaint that listens to this
     // notifier is detached (and drops its listener) when the element is
     // deactivated, which happens before unmount calls dispose. This is the
@@ -695,6 +725,7 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
         gradients: _document.gradients,
         clipPaths: _document.clipPaths,
         masks: _document.masks,
+        backgroundColor: _document.backgroundColor,
         // Evaluated per paint, not per build: concurrency changes as cells
         // scroll in and out, and this painter is not rebuilt on every tick
         // (that is the whole point of driving it through `repaint`).

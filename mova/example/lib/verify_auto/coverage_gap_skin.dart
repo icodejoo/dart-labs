@@ -439,6 +439,7 @@ List<String> _defaultTree({required bool bilibili}) => [
       'buffering@center',
       'error@center',
       'lockMask@overlay',
+      'lockToggle@overlay',
       if (bilibili) 'danmakuTrack@overlay',
     ];
 
@@ -554,6 +555,7 @@ Future<void> componentNames() async {
       bad.isEmpty,
       'componentName const == name getter == literal for ${rows.length} components',
       {'checked': rows.length, 'mismatches': bad},
+      checkId: 'U2.componentNames',
     );
     gap.log('STEP', {
       'notCovered': ['nextUp (needs MovaPlaylist)', 'adOverlay (needs MovaAds)'],
@@ -570,6 +572,7 @@ Future<void> treeCase(SkinRun r) async {
     listEquals(actual, _expectedTree(r.name)),
     {'skin': r.name, 'tree': _expectedTree(r.name)},
     {'tree': actual},
+    checkId: 'U2.tree.${r.name}',
   );
   // 挂载探针：GradBar 数、期望图标、(default/bilibili) 标题文本。
   final grad = countKind('MovaGradBar');
@@ -599,6 +602,7 @@ Future<void> treeCase(SkinRun r) async {
       'titleTexts': title,
       'iconCount': icons,
     },
+    checkId: 'U2.mounted.${r.name}',
   );
 }
 
@@ -616,6 +620,7 @@ Future<void> minimalVariants() async {
       listEquals(got, want),
       {'showBuffering': skin.showBuffering, 'showError': skin.showError, 'tree': want},
       {'tree': got},
+      checkId: 'N16.variants.${skin.showBuffering}.${skin.showError}',
     );
   }
 }
@@ -1111,6 +1116,7 @@ Future<void> patchNoop() async {
     thrown == null && listEquals(after, before) && listEquals(base.map(describe).toList(), before),
     {'criterion': 'unmatched remove/replace/insertAfter are silent no-ops and never mutate the input', 'expected': {'tree': before}},
     {'thrown': thrown, 'afterTree': after, 'inputAfter': base.map(describe).toList()},
+    checkId: 'U2.patchNoop',
   );
 }
 
@@ -1146,10 +1152,13 @@ Future<void> patchCase(SkinRun r) async {
       : 'title@top,gapInsert@top,pipButton@top,qualityButton@top,subtitleButton@top,gapReplace@top,orientationButton@top';
   final want = bilibili
       ? [
-          ..._defaultTree(bilibili: true).sublist(0, 2),
-          'topBar@top[$topKids]',
-          ..._defaultTree(bilibili: true).sublist(3, 10),
-          'gapOverlay@overlay',
+          for (final node in _defaultTree(bilibili: true))
+            if (node.startsWith('topBar@'))
+              'topBar@top[$topKids]'
+            else if (node == 'danmakuTrack@overlay')
+              'gapOverlay@overlay'
+            else
+              node,
         ]
       : [
           'gestureLayer@gesture',
@@ -1161,9 +1170,10 @@ Future<void> patchCase(SkinRun r) async {
           'buffering@center',
           'error@center',
           'lockMask@overlay',
+          'lockToggle@overlay',
           'gapAdd@top',
         ];
-  gap.verdict(listEquals(tree, want), {'tree': want}, {'tree': tree});
+  gap.verdict(listEquals(tree, want), {'tree': want}, {'tree': tree}, checkId: 'U2.patchTree.${r.name}');
 
   gap.verdict(
     iconsOf(Icons.fullscreen_rounded).isEmpty &&
@@ -1184,6 +1194,7 @@ Future<void> patchCase(SkinRun r) async {
           '$l=${textsOf('GAP:$l').length}',
       ],
     },
+    checkId: 'U2.patchMounted.${r.name}',
   );
 
   final probes = bilibili
@@ -1197,8 +1208,9 @@ Future<void> patchCase(SkinRun r) async {
     if (c != null) await gap.until(() => a.state.rate == entry.value, seconds: 8).catchError((_) {});
     gap.verdict(
       c != null && a.state.rate == entry.value && evCount<MovaRateChange>(start) >= 1,
-      'patched component ${entry.key} is live: tap sets rate ${entry.value}',
+      {'criterion': 'patched component ${entry.key} is live', 'rate': entry.value},
       {'mounted': c != null, 'rate': a.state.rate, 'events': evNames(start)},
+      checkId: 'U2.patchClick.${r.name}.${entry.key}',
     );
     await gap.call('setRate', {'reset': 1.0}, () => a.setRate(1.0));
   }
@@ -1252,6 +1264,7 @@ Future<void> injectCase(SkinRun r) async {
     bad.isEmpty,
     {'criterion': 'MovaTheme icon/text colours and sizes land on the skin', 'expected': {'iconColor': t.iconColor, 'textColor': t.textColor, 'centerIconSize': t.centerIconSize, 'titleFontSize': t.titleFontSize, 'captionFontSize': t.captionFontSize, 'timeFontSize': t.timeFontSize}},
     {'mismatches': bad},
+    checkId: 'C10.theme.${r.name}',
   );
   final fit = a.state.fit;
   await gap.call('setFit', {'next': fit.next.name}, () => a.setFit(fit.next));
@@ -1263,6 +1276,7 @@ Future<void> injectCase(SkinRun r) async {
     fitCaption.isNotEmpty && textsOf(wantB).isNotEmpty && (speed == -1 || speed >= 1),
     {'criterion': 'MovaStrs fit labels and speed suffix are rendered and follow state', 'expected': {'fitBefore': wantA, 'fitAfter': wantB, 'speedCaption': r.name == 'bilibili' ? '1XX' : null}},
     {'beforeFound': fitCaption.length, 'afterFound': textsOf(wantB).length, 'speedFound': speed},
+    checkId: 'C10.strings.${r.name}',
   );
   await gap.call('setFit', {'restore': fit.name}, () => a.setFit(fit));
 }
@@ -1289,6 +1303,7 @@ Future<void> douyinInjectCase(SkinRun r) async {
     bad.isEmpty,
     {'criterion': 'MovaTheme icon/text colours land on the social rail', 'expected': {'iconColor': t.iconColor, 'textColor': t.textColor, 'captionFontSize': t.captionFontSize}},
     {'mismatches': bad},
+    checkId: 'C10.theme.douyin',
   );
   await tapIcon(Icons.favorite_border_rounded, 'like');
   await gap.until(() => r.fx.like!.value.liked, seconds: 5);
@@ -1296,7 +1311,8 @@ Future<void> douyinInjectCase(SkinRun r) async {
   gap.verdict(
     icon(Icons.favorite_rounded)?.color == Color(t.accentColor),
     {'criterion': 'liked heart uses MovaTheme.accentColor', 'expected': {'accentColor': t.accentColor}},
-    {'color': icon(Icons.favorite_rounded)?.color.toString()},
+    {'color': icon(Icons.favorite_rounded)?.color?.toARGB32()},
+    checkId: 'C10.accent.douyin',
   );
 }
 
@@ -1319,6 +1335,7 @@ Future<void> minimalInjectCase(SkinRun r) async {
       'buffering spinner observed while opening',
       'spinner never mounted',
       blocked: 'buffering state not observed during a 2s-delayed open; theme probe precondition absent',
+      checkId: 'C10.buffering',
     );
     return;
   }
@@ -1328,6 +1345,7 @@ Future<void> minimalInjectCase(SkinRun r) async {
         seen['size'] == t.bufferingSize,
     {'criterion': 'buffering spinner takes bufferingColor/StrokeWidth/Size from MovaTheme', 'expected': {'color': t.bufferingColor, 'strokeWidth': t.bufferingStrokeWidth, 'size': t.bufferingSize}},
     seen,
+    checkId: 'C10.buffering',
   );
 }
 
@@ -1340,7 +1358,8 @@ Future<void> miniInjectCase(SkinRun r) async {
   gap.verdict(
     w != null && w.size == t.centerIconSize && w.color == Color(t.iconColor),
     {'criterion': 'Mini centre play icon takes centerIconSize/iconColor from MovaTheme', 'expected': {'size': t.centerIconSize, 'color': t.iconColor}},
-    {'size': w?.size, 'color': w?.color?.toString()},
+    {'size': w?.size, 'color': w?.color?.toARGB32()},
+    checkId: 'C10.theme.mini',
   );
   final close = iconsOf(Icons.close);
   gap.log('ACTUAL', {

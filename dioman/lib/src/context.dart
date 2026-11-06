@@ -16,6 +16,10 @@ typedef DiomanLogger = void Function(String message);
 final cancellationFailure = StateKey<DiomanFailure>('cancellation outcome');
 
 /// 逻辑请求状态键；使用非 const 实例保证按身份隔离。
+///
+/// const 构造会被 Dart 规范化：两个插件各自创建 `const StateKey<int>('x')`
+/// 会得到同一对象，导致状态互相覆盖。插件作者必须用 final 声明非 const 键，
+/// 保证每个键的身份唯一，勿用 const。
 final class StateKey<T> {
   /// 创建键，例如 `final attempt = StateKey<int>('attempt')`。
   const StateKey(this.description);

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import '../preview/hash.dart';
+import 'atomic_file.dart';
 import 'cue.dart';
 import 'srt.dart';
 import 'subtitle_dir_provider.dart';
@@ -96,8 +98,7 @@ class MovaFileSttChunkSubtitleStore implements MovaSttChunkSubtitleStore {
   @override
   Future<void> saveChunk(String sourceKey, int chunkIndex, List<MovaSttCue> cues) async {
     final file = await _fileFor(sourceKey, chunkIndex);
-    await file.parent.create(recursive: true);
-    await file.writeAsString(formatSrt(cues), flush: true);
+    await writeSttCacheFile(file, utf8.encode(formatSrt(cues)));
   }
 
   @override

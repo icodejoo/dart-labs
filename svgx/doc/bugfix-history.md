@@ -50,7 +50,7 @@
 
 **采样结果(50×100 蓝色矩形,几何右边缘在 x=50,y=50 行采样)**:无模糊时 `x=41..59` 的 alpha 序列硬跳变(255→0 只用 1 个像素);`filter="blur(8px)"` 时 `x=31..69` 呈现明显渐变衰减(横跨约 30 像素),且原始几何边缘之外多个像素仍有非零 alpha,证明确有渗出(bleed)。`filter="url(#id)"` 写法同样验证通过。
 
-**结果**:新增 `test/animation/blur_pixel_test.dart`、`test/animation/text_pixel_test.dart`(后者确认 `<text>` 原实现已正确,不是 bug,只是补齐像素断言力度),`flutter test` 106/106 通过,无回归。详见 `docs/animation-engine-features.md` 的能力清单与像素验证表格。
+**结果**:新增 `test/animation/blur_pixel_test.dart`、`test/animation/text_pixel_test.dart`(后者确认 `<text>` 原实现已正确,不是 bug,只是补齐像素断言力度),`flutter test` 106/106 通过,无回归。详见 `doc/animation-engine-features.md` 的能力清单与像素验证表格。
 
 ## 动画路径 `<clipPath>` 内容上的 `transform` 被静默忽略(2026-08-26,做几何缓存时发现)
 
@@ -73,7 +73,7 @@ union.addPath(geometry, Offset.zero, matrix4: _affineToMatrix4(accum));
 
 **回归测试**:`test/animation/clip_mask_test.dart` 新增 "a transform inside a clipPath is applied to its geometry"。它**手工构造 `SvgNode` 树**并直接给 `transform: const [1, 0, 0, 1, 50, 0]`,绕开上面那个"测试环境里 transform 恒为 null"的陷阱——否则测试会因为错误的原因通过。用例让裁剪矩形覆盖左半边再右移 50 单位,断言存活的是**右**半边(x=75 处 alpha=255、x=25 处 alpha=0);修复前存活的是左半边。**已实测验证:把修复改回原写法,该测试确实失败**(`Expected: <255> Actual: <0>`),不是只在修复后跑通就收工。
 
-**结果**:`flutter test` 119/119 通过,`flutter analyze` 0 issue。性能侧的记录见 `docs/performance-benchmarks.md` 的"Dart 侧性能优化专项(2026-08-26)"。
+**结果**:`flutter test` 119/119 通过,`flutter analyze` 0 issue。性能侧的记录见 `doc/performance-benchmarks.md` 的"Dart 侧性能优化专项(2026-08-26)"。
 
 ## 动画路径缺少 SVG 视口裁剪 → mask/blur 的 `saveLayer` 全屏化，真机 100 个动画图标即永久黑屏(2026-08-27)
 
@@ -115,3 +115,70 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 **顺带清理**：本轮排查期间加的一次性诊断开关全部移除 —— `DASH_NO_AA`(`animated_svg_painter.dart`)、`STRIP_DASHARRAY`/`USE_SPINNER`(`anim_icon_gen.dart`)、`WARM_FIRST`/`SKIP_PROBE`(`anim_fps_bench_screen.dart`)。`benchmark/bench_app/lib/bare_anim_grid.dart`(`LIB=bare`)保留为这个 bug 的最小回归用例。
 
 **被否决的方向,记录在案**：中途试过"渐进挂载/首帧热身"(分 20 帧把已构建条目数爬升到满额)。真机实测**仍然黑屏**,而且方向本身是错的 —— 它只是把并发压力往后摊,没有降低单帧成本。用户明确否决:"如果连 35 个图标都无法并发,那就是不可用状态。"
+
+## 2026-11 全量源码 review 整改
+
+2026-11 对全量源码做了一次 review,本节记录由此发现并修复的问题,按领域分组、每条附提交短哈希。验证数据详见 `doc/performance-benchmarks.md`「2026-11 review 整改验证数据」,整改后的能力边界与阈值详见 `doc/animation-engine-features.md`。
+
+### 安全(静态路径)
+
+- **`a1fd6e0d`**
+  - 症状:usvg 默认的 `<image href>` 解析会 `fs::read` 任意路径(`/dev/zero`、UNC)。
+  - 修复:改为只解析内嵌 `data:` URI。
+
+### Rust 解析加固
+
+- **`5a14737f`**
+  - 根因:`inject_current_color` 用 `find("<svg")` 定位根标签,会被注释/CDATA/前缀误匹配、color 属性重复注入;非有限数会被输出;解析缺少输入与复杂度上限。
+  - 修复:加入输入/嵌套深度/引用链/引用环/实体展开/clip-mask 展开预算/图片总量上限;`inject_current_color` 改用 roxmltree 定位根标签;非有限数不输出。
+- **`232ed554`**
+  - 症状:Rust 剩余栈溢出路径:`<style>` 规则里的引用链/环、`<use>`/marker/feImage 链、重复 id 诱饵、选择器指数回溯、CSS 规则平方级匹配。
+  - 修复:逐条封堵;CSS 扫描按 simplecss 0.2.2 行为对齐。
+
+### SMIL 时间与动画
+
+- **`4fa6f0f0`**
+  - `calcMode=discrete` 切成 n-1 段,最后一个值永远取不到。
+  - `values`/`keyTimes` 末尾分号使整条动画丢弃。
+  - `begin` 的 syncbase id 含 `-` 解析失败;`begin="indefinite"` 被当 0。
+  - 缺 `dur`/`indefinite`/≤0 的 `<animate>` 永久覆盖终值。
+  - `NaN`/`Infinity`/`1e303` 的 `repeatCount` 使整个文档解析抛异常或时间回绕。
+  - `<set dur="-1s" repeatCount="indefinite">` 让 Ticker 停不下来(负 progress 还会 RangeError)。
+- **`ebc959ac`**
+  - `begin` 值列表支持(环形循环不再冻住)。
+  - `#rgba`(4 位 hex)原先渲染成全透明。
+  - `<use>`→`<use>` 链被整段丢弃。
+
+### 解析 / CSS / 渲染语义
+
+- **`2f4b52e6`**
+  - 重复 id 取首个;`xlink:href` 渐变继承链断开。
+  - `fill:currentcolor`/`NONE` 大小写致不可见。
+  - px 单位 dasharray 退化为实线。
+  - `feOffset`+`feGaussianBlur`+`feMerge` 投影滤镜被渲染成本体模糊。
+  - 径向渐变 `r≤0`;关键帧颜色关键字被丢;`transform-origin` 被忽略。
+  - `paused`/不支持的后续 transform 动画误让位。
+  - `calc()`/`var()` 无效声明处理;`<use>` 展开预算可被 `href`/`xlink:href`、`id`/`xml:id` 绕过。
+- **`fafb0cf8`**(组 opacity)
+  - `opacity` 原来继承(覆盖而非相乘),重叠子元素各自半透明叠深。
+  - `opacity=0` 节点仍开 alpha=0 图层。
+
+### Dart 加载与 Widget 层
+
+- **`4d028d46`**
+  - **重建闪烁**:`Svgx.network`/`file` 的 `loadKey` 按身份比较,每次重建闪烁重载;`SvgxTheme` 无 `==`,ImageProvider 缓存每次未命中。
+  - **异步生命周期**:动画 provider 异常未捕获;`renderFrame` 无防重入;销毁后在飞帧仍 `setImage`;静态路径 `whenComplete` 派生 future 的未处理异常。
+  - **图片与缓存**:一张坏图使整个 SVG 失败;源码缓存键冲突(asset/file/net、headers、bundle)、无在途合并、无超时、`clear()` 不失效在途。
+  - **尺寸与时间**:尺寸 clamp 后 scale 与像素不一致;`playbackRate` 运行中改变致时间跳变;冷挂载预算不按帧重置。
+  - **丢图**:静态路径在监听者移除后丢图(无恢复机制)。
+
+### 构建产物
+
+- **`145d1db5`**
+  - 症状:`prebuilt/windows/x64` 入库 DLL 早于 SSE 线上格式变更,图片/Pattern 解码抛 RangeError;三份 Rust 冒烟测试还因 import 写错从未编译过。
+  - 修复:重编 `prebuilt/windows/x64`。
+
+### 验证
+
+- 先写失败回归再修复;Rust `cargo test`(debug/release)与 Dart `flutter test` 全量通过,与 HEAD 的 wire/帧对照、真实语料对照均无新增差异。
+- 具体数量、耗时、语料统计与对照结果见 `doc/performance-benchmarks.md`「2026-11 review 整改验证数据」,不在此重复。

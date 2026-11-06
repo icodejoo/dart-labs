@@ -200,16 +200,16 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     if (_disposed) return;
     _disposed = true;
     cancelAll();
-    final errors = <(Object, StackTrace)>[];
+    (Object, StackTrace)? firstError;
     for (final r in _registrations.reversed) {
       try {
         r.instance?.dispose();
       } catch (e, s) {
-        errors.add((e, s));
+        firstError ??= (e, s);
       }
     }
-    if (errors.isNotEmpty) {
-      Error.throwWithStackTrace(errors.first.$1, errors.first.$2);
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError.$1, firstError.$2);
     }
   }
 

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+
 
 /// Fetches small auxiliary assets (WebVTT tracks, sprite sheets) over HTTP.
 ///
@@ -29,6 +31,35 @@ abstract class MovaHttpFetch {
   Future<void> close();
 }
 
+/// 可选的带头 HTTP 能力；旧 [MovaHttpFetch.get] 签名保持不变。
+abstract class MovaHeaderedHttpFetch implements MovaHttpFetch {
+  /// 使用 [headers] 拉取 [url]；失败返回 null，不保存到下一次请求。
+  Future<Uint8List?> getWithHeaders(Uri url, Map<String, String> headers);
+}
+
+final Expando<bool> _headerWarnings = Expando<bool>();
+
+/// 优先调用带头能力；旧实现仍调用 get，且每个实例仅在 debug 提示一次。
+Future<Uint8List?> movaFetchWithHeaders(
+  MovaHttpFetch fetcher,
+  Uri url,
+  Map<String, String> headers,
+) {
+  if (headers.isEmpty) return fetcher.get(url);
+  if (fetcher is MovaHeaderedHttpFetch) {
+    return fetcher.getWithHeaders(url, headers);
+  }
+  assert(() {
+    if (_headerWarnings[fetcher] != true) {
+      _headerWarnings[fetcher] = true;
+      // ignore: avoid_print — core 保持无 Flutter 依赖，仅 assert 内提示。
+      print('mova: fetcher 未实现 MovaHeaderedHttpFetch，旁路请求将不带请求头。');
+    }
+    return true;
+  }());
+  return fetcher.get(url);
+}
+
 /// The default [MovaHttpFetch], built on `dart:io`'s [HttpClient].
 ///
 /// Chosen over `package:http` so preview support adds no new dependency; every
@@ -39,7 +70,7 @@ abstract class MovaHttpFetch {
 ///
 /// 相比 `package:http` 选它是为了让预览功能不引入任何新依赖；所有失败路径都
 /// 收敛为 null，坏掉的缩略图轨绝不会冒充成播放错误。
-class MovaIoHttpFetcher implements MovaHttpFetch {
+class MovaIoHttpFetcher implements MovaHeaderedHttpFetch {
   /// Creates a fetcher with a per-request [timeout].
   ///
   /// 创建一个每请求超时为 [timeout] 的 fetcher。
@@ -57,29 +88,81 @@ class MovaIoHttpFetcher implements MovaHttpFetch {
   /// 惰性创建的客户端；首次请求前为 null。
   HttpClient? _client;
 
+  /// 正在执行的取消回调；close 同步唤醒所有等待者。
+  final Set<void Function()> _pending = {};
+
+  /// 已关闭后不再创建新的连接。
+  bool _closed = false;
+
+  /// 拉取 [url]，总期限涵盖连接、响应头及响应体；失败返回 null。
+  ///
+  /// 示例：`await fetcher.get(Uri.parse('https://host/thumb.vtt'))`。
   @override
-  Future<Uint8List?> get(Uri url) async {
+  Future<Uint8List?> get(Uri url) => getWithHeaders(url, const {});
+
+  /// 按请求设置头；连接、响应和响应体共用原有超时及取消逻辑。
+  @override
+  Future<Uint8List?> getWithHeaders(
+    Uri url,
+    Map<String, String> headers,
+  ) async {
+    if (_closed) return null;
     final client = _client ??= (HttpClient()..connectionTimeout = timeout);
+    final result = Completer<Uint8List?>();
+    HttpClientRequest? request;
+
+    /// 超时或关闭时中止套接字并唤醒调用方。
+    void cancel() {
+      request?.abort();
+      if (!result.isCompleted) result.complete(null);
+    }
+
+    /// 执行完整请求，迟到的连接立即中止，避免释放后重新挂起。
+    Future<void> run() async {
+      try {
+        final req = await client.getUrl(url);
+        request = req;
+        if (result.isCompleted || _closed) {
+          req.abort();
+          return;
+        }
+        headers.forEach((key, value) => req.headers.set(key, value));
+        final response = await req.close();
+        if (response.statusCode != HttpStatus.ok) {
+          cancel();
+          return;
+        }
+        final chunks = await response.toList();
+        final out = BytesBuilder(copy: false);
+        for (final chunk in chunks) {
+          out.add(chunk);
+        }
+        if (!result.isCompleted) result.complete(out.takeBytes());
+      } on Object {
+        cancel();
+      }
+    }
+
+    _pending.add(cancel);
+    final timer = Timer(timeout, cancel);
+    unawaited(run());
     try {
-      final request = await client.getUrl(url).timeout(timeout);
-      final response = await request.close().timeout(timeout);
-      if (response.statusCode != HttpStatus.ok) {
-        await response.drain<void>();
-        return null;
-      }
-      final chunks = await response.toList().timeout(timeout);
-      final out = <int>[];
-      for (final c in chunks) {
-        out.addAll(c);
-      }
-      return Uint8List.fromList(out);
-    } on Object {
-      return null;
+      return await result.future;
+    } finally {
+      timer.cancel();
+      _pending.remove(cancel);
     }
   }
 
+  /// 中止在途请求并永久关闭；无参数、无返回值。
+  ///
+  /// 示例：`await fetcher.close()`；重复调用安全。
   @override
   Future<void> close() async {
+    _closed = true;
+    for (final cancel in _pending.toList()) {
+      cancel();
+    }
     _client?.close(force: true);
     _client = null;
   }

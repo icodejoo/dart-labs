@@ -1,3 +1,6 @@
+import '../../core/options/strings.dart';
+import '../style/style.dart';
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -10,6 +13,7 @@ import '../../core/options/theme.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+import '../slots/tree.dart';
 import 'common.dart';
 import 'subtitle.dart';
 
@@ -57,16 +61,24 @@ class MovaTopBarComponent extends MovaComponent {
   ];
 
   @override
+  /// Expands only the title role after applying patches.
+  ///
+  /// 应用补丁后仅让标题角色撑开。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    if (children.isEmpty) return const SizedBox.shrink();
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaGradBar(
       top: true,
       theme: theme,
       child: Row(
         children: [
           const SizedBox(width: 8),
-          Expanded(child: children[0]),
-          ...children.sublist(1),
+          for (final child in children)
+            if (child is MovaBuiltChild &&
+                child.layoutName == MovaTitleComponent.componentName)
+              Expanded(child: child)
+            else
+              child,
         ],
       ),
     );
@@ -104,7 +116,7 @@ class MovaTitleComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<String?>(
       selector: (s) => s.sourceTitle,
       builder: (context, sourceTitle) {
@@ -153,13 +165,14 @@ class MovaPipButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.pipSupported,
       builder: (context, supported) {
         if (!supported) return const SizedBox.shrink();
         return MovaIconButton(
-          icon: Icons.picture_in_picture_alt_rounded,
+          label: MovaPlayerStyle.stringsOf(context).pip,
+          icon: MovaPlayerStyle.iconsOf(context).pip,
           theme: theme,
           onPressed: () => api.enterPip(),
         );
@@ -200,7 +213,7 @@ class MovaQualityButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<List<MovaQuality>>(
       selector: (s) => s.qualities,
       builder: (context, qualities) {
@@ -209,9 +222,20 @@ class MovaQualityButtonComponent extends MovaComponent {
           selector: (s) => s.currentQuality,
           builder: (context, current) {
             return MovaIconButton(
-              icon: Icons.high_quality_rounded,
+              label: current == null || current.label.isEmpty
+                  ? MovaPlayerStyle.stringsOf(context).quality
+                  : MovaPlayerStyle.stringsOf(context).labelWithValue(
+                      MovaPlayerStyle.stringsOf(context).quality,
+                      _qualityLabel(
+                        current,
+                        MovaPlayerStyle.stringsOf(context),
+                      ),
+                    ),
+              icon: MovaPlayerStyle.iconsOf(context).quality,
               theme: theme,
-              caption: current?.label,
+              caption: current == null
+                  ? null
+                  : _qualityLabel(current, MovaPlayerStyle.stringsOf(context)),
               onPressed: () =>
                   _showQualityMenu(context, api, qualities, current, theme),
             );
@@ -241,7 +265,7 @@ class MovaQualityButtonComponent extends MovaComponent {
     showMovaOptionSheet(context, theme, [
       for (final q in qualities)
         MovaSheetItem(
-          label: q.label,
+          label: _qualityLabel(q, MovaPlayerStyle.stringsOf(context)),
           checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
           onSelected: () => api.switchQuality(q),
         ),
@@ -273,14 +297,18 @@ class MovaFitButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<MovaFit>(
       selector: (s) => s.fit,
       builder: (context, fit) {
         return MovaIconButton(
-          icon: Icons.aspect_ratio_rounded,
+          label: MovaPlayerStyle.stringsOf(context).labelWithValue(
+            MovaPlayerStyle.stringsOf(context).aspectRatio,
+            MovaPlayerStyle.stringsOf(context).fitLabel(fit),
+          ),
+          icon: MovaPlayerStyle.iconsOf(context).aspectRatio,
           theme: theme,
-          caption: api.options.strings.fitLabel(fit),
+          caption: MovaPlayerStyle.stringsOf(context).fitLabel(fit),
           onPressed: () => api.setFit(fit.next),
         );
       },
@@ -326,12 +354,13 @@ class MovaOrientationButtonComponent extends MovaComponent {
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
     if (!isMobile) return const SizedBox.shrink();
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<MovaOrientation>(
       selector: (s) => s.orientation,
       builder: (context, orientation) {
         return MovaIconButton(
-          icon: Icons.screen_rotation_rounded,
+          label: MovaPlayerStyle.stringsOf(context).rotate,
+          icon: MovaPlayerStyle.iconsOf(context).rotate,
           theme: theme,
           onPressed: () => api.setOrientation(orientation.toggled),
         );
@@ -363,14 +392,17 @@ class MovaFullscreenButtonComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.fullscreen,
       builder: (context, fullscreen) {
         return MovaIconButton(
+          label: fullscreen
+              ? MovaPlayerStyle.stringsOf(context).exitFullscreen
+              : MovaPlayerStyle.stringsOf(context).enterFullscreen,
           icon: fullscreen
-              ? Icons.fullscreen_exit_rounded
-              : Icons.fullscreen_rounded,
+              ? MovaPlayerStyle.iconsOf(context).exitFullscreen
+              : MovaPlayerStyle.iconsOf(context).enterFullscreen,
           theme: theme,
           onPressed: () => api.setFullscreen(!fullscreen),
         );
@@ -378,3 +410,10 @@ class MovaFullscreenButtonComponent extends MovaComponent {
     );
   }
 }
+
+/// 包内：自动与未知档使用视图文案，自定义标签保留。
+String _qualityLabel(MovaQuality quality, MovaStrs strings) => quality.isAuto
+    ? strings.auto
+    : quality.label == kMovaUnknownQualityLabel
+    ? strings.unknownQuality
+    : quality.label;

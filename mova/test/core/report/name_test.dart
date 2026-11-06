@@ -9,8 +9,8 @@ void main() {
       expect(MovaReportName.play.toString(), 'play');
     });
 
-    test('values contains exactly the 19 built-ins, no custom', () {
-      expect(MovaReportName.values.length, 19);
+    test('values contains exactly the 22 built-ins, no custom', () {
+      expect(MovaReportName.values.length, 22);
       expect(MovaReportName.values, isNot(contains(const MovaReportName.custom('x'))));
     });
 

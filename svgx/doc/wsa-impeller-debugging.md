@@ -11,7 +11,8 @@
 
 ## 二、Impeller 在 WSA 上的实际后端
 
-logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到 **OpenGLES**(`android_context_gl_impeller.cc`),走的是 `/vendor/lib64/egl/libEGL_emulation.so`(goldfish 模拟驱动,且 `/dev/goldfish_pipe` 缺失,一直刷 `open_verbose: both vsock and goldfish_pipe paths failed`)。也就是说 WSA 上跑的是 **Impeller + 模拟 GLES 驱动**,不是原生 GPU。
+logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到 **OpenGLES**(`android_context_gl_impeller.cc`),走的是 `/vendor/lib64/egl/libEGL_emulation.so`(goldfish 模拟驱动,且 `/dev/goldfish_pipe` 缺失,一直刷 `open_verbose: both vsock and goldfish_pipe paths failed`)。
+也就是说 WSA 上跑的是 **Impeller + 模拟 GLES 驱动**,不是原生 GPU。
 
 **`--no-enable-impeller` / manifest 里的 `io.flutter.embedding.android.EnableImpeller=false` 在 Flutter 3.47 上命令行开关已经失效**——实测加了这条 meta-data 重新打包,logcat 依然是 "Using the Impeller rendering backend (OpenGLES)",画面也没有任何变化。Android 侧的 Skia 后端已经被移除,这条常见的规避手段现在不成立,别再浪费一次编译去试。(注:manifest 的等价开关另有更新,见第六节。)
 
@@ -32,7 +33,9 @@ logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到
 
 ## 四、结论(明确、不含糊)
 
-**WSA 上看到的"svgx 内容全黑",不是 svgx 的 bug,svgx 的静态路径和动画引擎在 WSA + Impeller(GLES 模拟驱动)下渲染完全正常。**真正的触发点是 Flutter 自己的 Material `AppBar`:只要 `Scaffold` 挂了 `AppBar`,在 WSA 这套模拟 GLES 驱动上,AppBar 以下的整块画面就不会被合成出来(呈现为窗口的透明底色,看上去就是全黑);把 `AppBar` 拿掉,同一个页面、同一批 svgx 组件立刻全部正常显示。这是 **Flutter 引擎 + WSA 模拟 GPU 驱动**这一层的问题,与本库无关。
+**WSA 上看到的"svgx 内容全黑",不是 svgx 的 bug,svgx 的静态路径和动画引擎在 WSA + Impeller(GLES 模拟驱动)下渲染完全正常。
+**真正的触发点是 Flutter 自己的 Material `AppBar`:只要 `Scaffold` 挂了 `AppBar`,在 WSA 这套模拟 GLES 驱动上,AppBar 以下的整块画面就不会被合成出来(呈现为窗口的透明底色,看上去就是全黑);把 `AppBar` 拿掉,同一个页面、同一批 svgx 组件立刻全部正常显示。
+这是 **Flutter 引擎 + WSA 模拟 GPU 驱动**这一层的问题,与本库无关。
 
 ## 五、上游 issue 状态:**没有找到精确匹配**
 
@@ -67,7 +70,9 @@ Widget appBar = ClipRect(
 );
 ```
 
-`RenderClipRect.paint()` 在 `clipBehavior != Clip.none` 时会调用 `context.pushClipRect(...)`,强制 `needsCompositing = true`,往合成层树里挂一个 `ClipRectLayer`。这是链路里唯一"任何 AppBar 都会触发、且和 elevation 无关"的合成层来源,和已经实测的"哪怕 `elevation:0` 依然全黑"完全吻合。同一份 `Material` 组件在 `elevation:0` 时源码明确标注走 fast path、**不会** `Canvas.saveLayer`(`material.dart` 里有对应注释),所以之前"AppBar 默认阴影触发 saveLayer"这个猜测方向已被推翻。
+`RenderClipRect.paint()` 在 `clipBehavior != Clip.none` 时会调用 `context.pushClipRect(...)`,强制 `needsCompositing = true`,往合成层树里挂一个 `ClipRectLayer`。
+这是链路里唯一"任何 AppBar 都会触发、且和 elevation 无关"的合成层来源,和已经实测的"哪怕 `elevation:0` 依然全黑"完全吻合。
+同一份 `Material` 组件在 `elevation:0` 时源码明确标注走 fast path、**不会** `Canvas.saveLayer`(`material.dart` 里有对应注释),所以之前"AppBar 默认阴影触发 saveLayer"这个猜测方向已被推翻。
 
 **实测验证**:`AppBar(clipBehavior: Clip.none)` 在 WSA 上亲自跑通两轮(先纯 `Text`,再 `Svgx.string` 真实内容),body 立刻恢复正常显示,Impeller **全程保持启用,未降级**。这比"整体关闭 Impeller"精准得多。
 
@@ -78,7 +83,9 @@ Widget appBar = ClipRect(
 ### 方案 A(仅记录,未应用):`AppBar(clipBehavior: Clip.none)`
 
 - 零原生代码,Impeller 不降级,只对显式加了这个参数的 AppBar 实例生效。
-- **适用边界(源码级调研结论,`packages/flutter/lib/src/material/app_bar.dart`)**:这个 `ClipRect` 从 Flutter 早期版本起就是专门为 `SliverAppBar`+`flexibleSpace` 的"滚动收缩/展开大标题栏"场景设计的——`_ToolbarContainerLayout` 让工具栏内容永远按完整 `toolbarHeight` 布局,当外层滚动把实际分配高度压缩到小于 `toolbarHeight` 时,`ClipRect` 负责把多出来的部分裁掉(视觉效果是"工具栏内容向上滚出视野"),不裁就会溢出画到 body 上。**固定高度、不带 `flexibleSpace`、不在 `SliverAppBar`/`CustomScrollView` 里用的静态 AppBar(svgx example app 正是这种用法),外层分配高度恒等于 `toolbarHeight`,这个裁剪约束条件根本不会触发,`Clip.none` 理论上没有任何视觉差异**,如果以后要用,可以放心加。`AppBar(bottom: TabBar(...))` 这类 `bottom` 区域本来就在这段 `ClipRect` 包裹范围之外,不受 `clipBehavior` 影响。
+- **适用边界(源码级调研结论,`packages/flutter/lib/src/material/app_bar.dart`)**:这个 `ClipRect` 从 Flutter 早期版本起就是专门为 `SliverAppBar`+`flexibleSpace` 的"滚动收缩/展开大标题栏"场景设计的——`_ToolbarContainerLayout` 让工具栏内容永远按完整 `toolbarHeight` 布局,当外层滚动把实际分配高度压缩到小于 `toolbarHeight` 时,`ClipRect` 负责把多出来的部分裁掉(视觉效果是"工具栏内容向上滚出视野"),不裁就会溢出画到 body 上。
+  **固定高度、不带 `flexibleSpace`、不在 `SliverAppBar`/`CustomScrollView` 里用的静态 AppBar(svgx example app 正是这种用法),外层分配高度恒等于 `toolbarHeight`,这个裁剪约束条件根本不会触发,`Clip.none` 理论上没有任何视觉差异**,如果以后要用,可以放心加。
+  `AppBar(bottom: TabBar(...))` 这类 `bottom` 区域本来就在这段 `ClipRect` 包裹范围之外,不受 `clipBehavior` 影响。
 - **不安全的场景**:`SliverAppBar` + `flexibleSpace`(可折叠大图标题栏那类特效)——`Clip.none` 会让收缩动画过程中溢出的内容真实画到 body 上,是实打实的视觉 bug,不要对这类 AppBar 用这个 workaround。
 
 ### 方案 B(当前默认生效):原生运行时检测 + 动态关闭 Impeller

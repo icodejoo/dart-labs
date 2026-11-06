@@ -75,7 +75,53 @@ class _ScriptedEngine extends MovaNoopSttEngine {
 MovaSttCue _cue(String text, int from, int to) =>
     MovaSttCue(text: text, start: Duration(seconds: from), end: Duration(seconds: to));
 
+/// Holds the first start until a newer run has succeeded.
+///
+/// 挂起第一次启动，直到新一轮启动成功。
+class _DelayedFailureEngine extends _ScriptedEngine {
+  final first = Completer<void>();
+
+  @override
+  Future<void> start(Duration position) {
+    starts.add(position);
+    return starts.length == 1 ? first.future : Future<void>.value();
+  }
+}
+
 void main() {
+  test('D2 stale start failure cannot stop a newer successful run', () async {
+    final engine = _DelayedFailureEngine();
+    final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
+      ..attach(const MovaSource('https://host/a.mp4'));
+    final oldStart = svc.start();
+    await svc.stop();
+    await svc.start();
+    engine.first.completeError(StateError('old start failed'));
+    await oldStart;
+    expect(svc.isRunning, isTrue);
+    await svc.stop();
+    expect(svc.isRunning, isFalse);
+    expect(engine.stops, 2);
+    await svc.dispose();
+    await engine.dispose();
+  });
+
+  test('C02 missing recognizer warns once and remains stopped', () async {
+    final messages = <String>[];
+    final reasons = <MovaSttBlockReason>[];
+    await runZoned(() async {
+      final service = MovaSttService(config: const MovaSttConfig(enabled: true), onBlocked: reasons.add);
+      expect(messages, isEmpty);
+      await service.start();
+      await service.start();
+      expect(service.config.hasEngine, isFalse);
+      expect(service.isRunning, isFalse);
+      expect(reasons, [MovaSttBlockReason.noEngine, MovaSttBlockReason.noEngine]);
+      expect(messages.where((m) => m.contains('stt.engine')), hasLength(1));
+      await service.dispose();
+    }, zoneSpecification: ZoneSpecification(print: (_, _, _, m) => messages.add(m)));
+  });
+
   group('MovaSttCue', () {
     test('covers is inclusive of start and exclusive of end', () {
       const cue = MovaSttCue(text: 'hi', start: Duration(seconds: 1), end: Duration(seconds: 2));
@@ -110,7 +156,8 @@ void main() {
       final engine = _FlakyEngine();
       final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
         ..attach(const MovaSource('https://host/a.mp4'));
-      await expectLater(svc.start(), throwsStateError);
+      // 旧断言要求 rethrow，会让可选识别故障泄漏到播放链；失败现在仅回滚。
+      await svc.start();
       expect(svc.isRunning, isFalse);
       await svc.start();
       expect(engine.starts, 2);
@@ -251,13 +298,15 @@ void main() {
       expect(ready().$1.languages, isEmpty);
     });
 
-    test('dispose closes the cue stream, cancels the engine subscription and disposes the engine', () async {
+    test('dispose closes the cue stream and cancels subscriptions while borrowing the engine', () async {
       final (svc, engine) = ready();
       final done = Completer<void>();
       svc.cues.listen((_) {}, onDone: done.complete);
       await svc.dispose();
       await done.future.timeout(const Duration(seconds: 2));
-      expect(engine.disposed, isTrue);
+      // 旧断言销毁宿主对象，违背借用关系。
+      expect(engine.disposed, isFalse);
+      await engine.dispose();
     });
   });
 

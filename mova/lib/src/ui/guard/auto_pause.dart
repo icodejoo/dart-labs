@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
+import 'guard_scope.dart';
+import '../fullscreen/ownership.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
 import '../../core/keep_alive/keep_alive.dart';
@@ -69,7 +71,7 @@ class MovaAutoPause extends StatefulWidget {
   /// The engine to pause/resume.
   ///
   /// 要暂停/恢复的引擎。
-  final MovaApi api;
+  final MovaApi? api; // 未绑定时保持子树位置，暂停守卫动作。
 
   /// Which kinds of hiding count, and how to resume.
   ///
@@ -98,7 +100,7 @@ class MovaAutoPause extends StatefulWidget {
   final Widget child;
 
   @override
-  State<MovaAutoPause> createState() => _MovaAutoPauseState();
+  MovaAutoPauseState createState() => MovaAutoPauseState();
 }
 
 /// Tracks one ancestor route layer for the route observer.
@@ -147,7 +149,13 @@ class _RouteLayer with RouteAware {
 /// them to a [MovaAutoPauseGate].
 ///
 /// [MovaAutoPause] 的状态：收集四类可见性信号并喂给 [MovaAutoPauseGate]。
-class _MovaAutoPauseState extends State<MovaAutoPause> {
+/// 守卫状态，允许宿主明确撤销自动恢复。
+class MovaAutoPauseState extends State<MovaAutoPause> {
+  /// 显式暂停优先于隐藏前的播放意图，并取消在途恢复。
+  void cancelResume() {
+    _resumeGen++;
+    _gate.cancelResume();
+  }
   late final MovaAutoPauseGate _gate = MovaAutoPauseGate(widget.config);
   AppLifecycleListener? _lifecycle;
   ValueListenable<TickerModeData>? _ticker;
@@ -180,16 +188,16 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   }
 
   @override
-  void didUpdateWidget(MovaAutoPause old) {
-    super.didUpdateWidget(old);
-    if (old.config != widget.config) {
-      final s = widget.api.state;
+  void didUpdateWidget(MovaAutoPause oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.config != widget.config) {
+      final s = widget.api?.state ?? const MovaState();
       _act(
         _gate.reconfigure(
           widget.config,
           playing: s.playbackIntent || s.playing,
           live: s.type == MovaStreamType.live,
-          exempt: s.pip || s.mini,
+          exempt: s.pip || s.mini || s.fullscreen,
           now: DateTime.now(),
           keepAliveCapable: widget.api is MovaKeepAlive,
         ),
@@ -197,20 +205,24 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _bindTicker();
       _bindRoute();
     }
-    if (!identical(old.api, widget.api)) {
+    if (!identical(oldWidget.api, widget.api)) {
       _resumeGen++;
       _bindState();
-      final s = widget.api.state;
+      if (widget.api == null) {
+        _gate.cancelResume();
+        return;
+      }
+      final s = widget.api?.state ?? const MovaState();
       _act(
         _gate.observe(
           playing: s.playbackIntent || s.playing,
-          exempt: s.pip || s.mini,
+          exempt: s.pip || s.mini || s.fullscreen,
           live: s.type == MovaStreamType.live,
           keepAliveCapable: widget.api is MovaKeepAlive,
         ),
       );
     }
-    if (!_sameObservers(old.routeObservers, widget.routeObservers)) {
+    if (!_sameObservers(oldWidget.routeObservers, widget.routeObservers)) {
       _bindRoute();
     }
     _scheduleViewport();
@@ -236,14 +248,15 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   void _set(MovaHideReason reason, bool active) {
     if (_disposed) return;
     final api = widget.api;
-    final s = api.state;
+    // 没有引擎时仍记录可见性，后续绑定即可应用隐藏状态。
+    final s = api?.state ?? const MovaState();
     final before = _gate.reasons;
     final action = _gate.update(
       reason,
       active,
       playing: s.playbackIntent || s.playing,
       live: s.type == MovaStreamType.live,
-      exempt: s.pip || s.mini,
+      exempt: s.pip || s.mini || s.fullscreen,
       now: DateTime.now(),
       keepAliveCapable: api is MovaKeepAlive,
     );
@@ -261,24 +274,26 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   void _bindState() {
     unawaited(_stateSub?.cancel());
     final api = widget.api;
+    if (api == null) return;
     var last = (
       api.state.playbackIntent,
       api.state.playing,
       api.state.pip,
       api.state.mini,
+      api.state.fullscreen,
     );
     _stateSub = api.states.listen((s) {
       if (_disposed || !identical(api, widget.api)) return;
-      final next = (s.playbackIntent, s.playing, s.pip, s.mini);
+      final next = (s.playbackIntent, s.playing, s.pip, s.mini, s.fullscreen);
       if (next == last) return;
       final started = (!last.$1 && next.$1) || (!last.$2 && next.$2);
-      final lostExemption = (last.$3 || last.$4) && !(next.$3 || next.$4);
+      final lostExemption = (last.$3 || last.$4 || last.$5) && !(next.$3 || next.$4 || next.$5);
       last = next;
       if (started || lostExemption) {
         _act(
           _gate.observe(
             playing: s.playbackIntent || s.playing,
-            exempt: s.pip || s.mini,
+            exempt: s.pip || s.mini || s.fullscreen,
             live: s.type == MovaStreamType.live,
             keepAliveCapable: api is MovaKeepAlive,
           ),
@@ -292,6 +307,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   /// 对当前引擎执行守卫决策。
   void _act(MovaGuardAction action) {
     final api = widget.api;
+    if (api == null) return;
     switch (action) {
       case MovaGuardAction.none:
         break;
@@ -381,7 +397,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         if (!_gate.reasons.contains(MovaHideReason.background)) {
           _gate.onInactive(
             playing:
-                widget.api.state.playbackIntent || widget.api.state.playing,
+                (widget.api?.state.playbackIntent ?? false) || (widget.api?.state.playing ?? false),
           );
         } else {
           _set(MovaHideReason.background, false);
@@ -474,8 +490,13 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _set(MovaHideReason.routeCovered, _routeCovered(ModalRoute.of(context)));
 
   bool _routeCovered(ModalRoute<dynamic>? route) {
-    if (route != null && !route.isCurrent) return true;
-    return _layers.any((l) => l.covered);
+    if (route != null &&
+        !route.isCurrent &&
+        !(widget.api != null && movaCoveredByFullscreen(widget.api!, route))) {
+      return true;
+    }
+    return _layers.any((l) =>
+        l.covered && !(widget.api != null && movaCoveredByFullscreen(widget.api!, l.route)));
   }
 
   // ---- viewport --------------------------------------------------------
@@ -566,6 +587,11 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
     return (clipped.width * clipped.height) / fullArea;
   }
 
+  /// 连接最近的祖先守卫，祖先链变化时同步重建作用域。
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => MovaGuardScope(
+    api: widget.api,
+    parent: context.dependOnInheritedWidgetOfExactType<MovaGuardScope>(),
+    child: widget.child,
+  );
 }

@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:mova/mova.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
+import 'verify_auto/he_auto.dart' as he;
 
 final screen = ValueNotifier<MovaApi?>(null);
 final label = ValueNotifier<String>('Windows release verification');
@@ -42,6 +43,10 @@ void main() {
   runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();
     MovaEngine.ensureInitialized();
+    if (Platform.environment['MOVA_WIN_PAGE'] == 'he') {
+      runApp(const MaterialApp(home: he.HeAutoPage()));
+      return;
+    }
     runApp(MaterialApp(home: Scaffold(body: Column(children: [
       ValueListenableBuilder<String>(valueListenable: label,
         builder: (_, text, child) => Text('$build — $text', style: const TextStyle(fontSize: 22))),
@@ -108,7 +113,7 @@ Future<void> disposeProbe() async {
     MovaEngine factory() => createMovaEngine(audioOnly: true,
       options: MovaOpts(cutover: MovaCutoverConfig(enabled: proxy)));
     final MovaApi a = proxy ? MovaCutoverEngine(engineFactory: factory) : factory();
-    final accepted = await a.open(const MovaSource('http://127.0.0.1:18094/vod.mp4'));
+    final accepted = await a.open(MovaSource('http://127.0.0.1:18094/vod.mp4?t=${DateTime.now().microsecondsSinceEpoch}'));
     await until(() => a.state.duration > Duration.zero);
     mark('DISPOSE_OPEN', {'accepted': accepted, 'audioOnly': a.renderHandle == null,
       'duration': a.state.duration.inMilliseconds});
@@ -165,18 +170,40 @@ Future<void> hlsProbe(String selectedMode, int count) async {
   final native = player.platform as NativePlayer;
   Future<int> position() async => ((double.tryParse(await native.getProperty('time-pos')) ?? -1) * 1000).round();
   var restarts = <int>[];
+  var eligibleRestarts = <int>[];
+  String? expectedUri;
+  var qualitySeen = false;
+  var gateMs = -1;
+  Future<bool> variantReady() async {
+    if (qualitySeen && a.state.duration > Duration.zero &&
+        await native.getProperty('path') == expectedUri) {
+      if (gateMs < 0) {
+        gateMs = timer.elapsedMilliseconds;
+        mark('HLS_VARIANT_READY', {'path': expectedUri, 'qualitySeen': true});
+      }
+      return true;
+    }
+    return false;
+  }
   var pending = Future<void>.value();
-  final eventSub = a.events.listen((e) => mark('EVENT', {'type': '${e.runtimeType}',
+  final eventSub = a.events.listen((e) {
+    if (e is MovaQualityChange && e.quality.uri == expectedUri) qualitySeen = true;
+    mark('EVENT', {'type': '${e.runtimeType}',
     'position': player.state.position.inMilliseconds, 'duration': a.state.duration.inMilliseconds,
     'playing': a.state.playing, 'intent': a.state.playbackIntent, 'rendered': a.state.rendered,
-    if (e is MovaErrorEvent) 'error': '${e.error}'}));
+    if (e is MovaErrorEvent) 'error': '${e.error}'});
+  });
   final progressSub = player.stream.position.listen((p) => mark('NATIVE_PROGRESS', {'position': p.inMilliseconds}));
   final sub = kernel.playbackRestarts.listen((_) {
     final run = iteration;
     pending = pending.then((_) async {
       final p = await position();
+      final path = await native.getProperty('path');
+      await variantReady();
+      final eligible = gateMs >= 0 && path == expectedUri;
       restarts.add(p);
-      mark('HLS_RESTART', {'run': run, 'position': p, 'path': await native.getProperty('path'),
+      if (eligible) eligibleRestarts.add(p);
+      mark('HLS_RESTART', {'run': run, 'position': p, 'path': path, 'eligible': eligible,
         'pause': await native.getProperty('pause')});
     });
   });
@@ -204,17 +231,20 @@ Future<void> hlsProbe(String selectedMode, int count) async {
     await until(() async => (player.state.position.inMilliseconds - await position()).abs() <= 100);
     await pending;
     restarts = <int>[];
+    eligibleRestarts = <int>[];
     final target = await position();
     final q = variants[i % 2];
+    expectedUri = q.uri; qualitySeen = false; gateMs = -1;
     mark('HLS_SWITCH', {'target': target, 'quality': q.label, 'uri': q.uri,
       'streamPosition': player.state.position.inMilliseconds, 'pause': await native.getProperty('pause')});
     label.value = 'F3 $mode ${i + 1}/$count target=$target ${q.label}';
     await a.switchQuality(q);
+    try { await until(variantReady, seconds: 6); } on TimeoutException { /* retain missing gate */ }
     var landed = -1;
     try {
       await until(() async {
         await pending;
-        final matches = restarts.where((p) => (p - target).abs() <= 500);
+        final matches = eligibleRestarts.where((p) => (p - target).abs() <= 500);
         if (matches.isNotEmpty) { landed = matches.first; return true; }
         return false;
       }, seconds: 6);
@@ -231,8 +261,10 @@ Future<void> hlsProbe(String selectedMode, int count) async {
     }
     await pending;
     mark('HLS_RESULT', {'target': target, 'landed': landed, 'continued': continued,
+      'gateMs': gateMs, 'harnessInvalid': gateMs < 0, 'eligibleRestarts': List<int>.of(eligibleRestarts),
       'restarts': List<int>.of(restarts), 'resumed': landed >= 0, 'continuedOk': continues,
-      'pass': landed >= 0 && continues, 'pause': await native.getProperty('pause'),
+      'expectedPath': q.uri,
+      'pass': landed >= 0 && continues && await native.getProperty('path') == q.uri, 'pause': await native.getProperty('pause'),
       'path': await native.getProperty('path')});
   }
   iteration = -1;

@@ -115,6 +115,17 @@ enum MovaAdNotReady {
   dropBreak,
 }
 
+/// 一次前跳越过多个中插点时的补播策略；示例：`MovaAdSnapback.last`。
+/// 单个到期插入点（含同点 pod）仍正常播放。
+enum MovaAdSnapback {
+  /// 补播全部到期广告，保留原行为。
+  all,
+  /// 只播最后一个插入点的整个 pod，较早插入点记为已播。
+  last,
+  /// 不补播本次跨过的多个插入点，全部记为已播。
+  none,
+}
+
 /// Configuration for pre/mid/post-roll ads.
 ///
 /// Disabled and empty by default so enabling it is an explicit host decision.
@@ -133,6 +144,9 @@ class MovaAdConfig {
   ///
   /// 总开关；为 `false` 时不播放任何广告。
   final bool enabled;
+
+  /// 返回多点前跳的补播策略，默认 all；示例：`config.midRollSnapback`。
+  final MovaAdSnapback midRollSnapback;
 
   /// The ad breaks to schedule.
   ///
@@ -208,8 +222,11 @@ class MovaAdConfig {
   /// - [loadTimeout]: no-first-frame deadline / 无首帧的判定期限
   /// - [durationFromFirstFrame]: count the slot from the first frame / 广告位时长从首帧起算
   /// - [adWarmPlan]: content→ad warm-up plan / content→ad 方向的预热计划
+  /// [midRollSnapback] 指定多点前跳补播策略，默认保留全部；返回新配置。
+  /// 示例：`MovaAdConfig(midRollSnapback: MovaAdSnapback.last)`。
   const MovaAdConfig({
     this.enabled = false,
+    this.midRollSnapback = MovaAdSnapback.all,
     this.breaks = const <MovaAdBreak>[],
     this.onAdEvent,
     this.waitForAdReady = const MovaAdWaitByKind(),
@@ -272,8 +289,11 @@ class MovaAdConfig {
   /// current value.
   ///
   /// 返回一份替换了指定字段的拷贝；未指定的字段保持当前值。
+  /// [midRollSnapback] 可替换补播策略；返回新配置，未传参数保持原值。
+  /// 示例：`config.copyWith(midRollSnapback: MovaAdSnapback.none)`。
   MovaAdConfig copyWith({
     bool? enabled,
+    MovaAdSnapback? midRollSnapback,
     List<MovaAdBreak>? breaks,
     void Function(MovaAdEvent event)? onAdEvent,
     MovaAdWaitPolicy? waitForAdReady,
@@ -286,6 +306,7 @@ class MovaAdConfig {
   }) {
     return MovaAdConfig(
       enabled: enabled ?? this.enabled,
+      midRollSnapback: midRollSnapback ?? this.midRollSnapback,
       breaks: breaks ?? this.breaks,
       onAdEvent: onAdEvent ?? this.onAdEvent,
       waitForAdReady: waitForAdReady ?? this.waitForAdReady,
@@ -304,6 +325,7 @@ class MovaAdConfig {
       other is MovaAdConfig &&
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
+          midRollSnapback == other.midRollSnapback &&
           identical(breaks, other.breaks) &&
           onAdEvent == other.onAdEvent &&
           waitForAdReady == other.waitForAdReady &&
@@ -317,6 +339,7 @@ class MovaAdConfig {
   @override
   int get hashCode => Object.hash(
         enabled,
+        midRollSnapback,
         breaks,
         onAdEvent,
         waitForAdReady,

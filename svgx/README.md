@@ -29,7 +29,7 @@ Svgx.string(
 )
 ```
 
-`Svgx` inspects the source for SMIL animation markers and dispatches to the
+`Svgx` inspects the source for SMIL and CSS `@keyframes` animation markers and dispatches to the
 static or animated renderer accordingly — most callers never need to think
 about which path they're on.
 
@@ -43,6 +43,20 @@ Svgx.string(
   colorFilter: ColorFilter.mode(Colors.blue, BlendMode.srcIn),
 )
 ```
+
+`colorFilter` applies to both rendering paths. Animated SVGs add a
+`ColorFiltered` layer only when a filter is supplied. Theme instances with the
+same values compare equal, so rebuilding them preserves image cache reuse.
+
+`Svgx.network` compares sorted header values, and `Svgx.file` compares paths.
+Changing the source keeps the previous SVG visible until its replacement loads.
+Source loading isolates assets, bundles, files and header variants, and merges
+concurrent requests for the same key. HTTP connection and response-header waits
+each time out after 30 seconds.
+
+`SvgxAnimated.playbackRate` can change while mounted without jumping the timeline.
+ImageProvider rasters are uniformly reduced to at most 4096 pixels per side,
+with their scale adjusted to preserve logical size.
 
 `currentColor` in the source is controlled separately via `SvgxTheme`, honored
 by both the static and animated rendering paths:
@@ -70,6 +84,19 @@ Svgx.string(
 `SvgxStatic` and `SvgxAnimated` are the two renderers `Svgx` dispatches to,
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
+
+## Notes and limits
+
+* **Static `<image href>`**: only embedded `data:` URIs are decoded. Local
+  paths, UNC paths and `file://` are never read, and `data:image/svg+xml` is
+  skipped. This is a behavior change from the default `usvg` resolver.
+* **SMIL `begin` lists** (`0;a.end+0.2s`) are supported on the animated path.
+  Event-based begins (`click`, ...) are not supported.
+* **`#rgba`** colors (4-digit hex) are supported on the animated path.
+* **Untrusted SVG**: `parse_svg` is a synchronous call and blocks the calling
+  thread, so parse untrusted input on a background isolate. Input beyond the
+  size/complexity limits throws an error instead of crashing; see
+  `doc/animation-engine-features.md` for the limits.
 
 ## Design
 

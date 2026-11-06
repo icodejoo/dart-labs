@@ -51,7 +51,7 @@ enum MovaMiniMount {
 /// await mini.showInPage(context, api);
 ///
 /// // 方式 B：跨路由持久（宿主自己在 MaterialApp.builder 里放 Stack）
-/// // MaterialApp(builder: (c, child) => MovaMiniHost(ctl: mini, child: child!))
+/// // MaterialApp(builder: (c, child) => MovaMiniHost(mini: mini, child: child!))
 /// await mini.show(api, skin: const MovaMiniSkin());
 /// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
 /// ```
@@ -61,6 +61,8 @@ class MovaMini extends ChangeNotifier {
   MovaMiniRect? _rect;
   MovaMiniMount _mount = MovaMiniMount.none;
   OverlayEntry? _entry;
+  int _generation = 0;
+  bool _disposed = false;
 
   /// Watches the borrowed api so an outside `setMini(false)` (e.g. entering
   /// system PiP) also takes the window down.
@@ -119,8 +121,10 @@ class MovaMini extends ChangeNotifier {
   /// 同一个 [api] 重复调用是幂等的。已有小窗时 show 另一个 [api]，会先把前一个
   /// 的 `mini` 置回 false（此处永不 dispose 它）。
   Future<void> show(MovaApi api, {MovaSkin skin = const MovaMiniSkin()}) async {
+    if (_disposed || !api.options.mini.enabled) return;
     if (identical(_api, api) && _mount == MovaMiniMount.persistent) return;
-    await _switchTo(api, skin);
+    final generation = ++_generation;
+    if (!await _switchTo(api, skin, generation)) return;
     _detachEntry();
     _mount = MovaMiniMount.persistent;
     notifyListeners();
@@ -171,10 +175,15 @@ class MovaMini extends ChangeNotifier {
     bool rootOverlay = false,
   }) async {
     final cfg = api.options.mini;
-    if (!cfg.enabled) return; // 关闭态硬约束：不插 entry、不改任何状态
+    if (_disposed || !cfg.enabled) return;
     // 提前解析目标 Overlay：await 之后不再触碰 context，避免跨异步间隙使用它。
     final overlay = Overlay.of(context, rootOverlay: rootOverlay);
-    await _switchTo(api, skin);
+    final generation = ++_generation;
+    if (!await _switchTo(api, skin, generation)) return;
+    if (!overlay.mounted) {
+      await hide();
+      return;
+    }
     _detachEntry();
     _entry = OverlayEntry(
       // 不用 Positioned/maintainState：MovaMiniWindow 自己是全屏 Stack，
@@ -191,7 +200,7 @@ class MovaMini extends ChangeNotifier {
   ///
   /// [show]/[showInPage] 共用的"交接 [api]"逻辑：退出旧 api 的小窗态，置起新
   /// api 的小窗态，重置 [_rect]。
-  Future<void> _switchTo(MovaApi api, MovaSkin skin) async {
+  Future<bool> _switchTo(MovaApi api, MovaSkin skin, int generation) async {
     if (!identical(_api, api)) {
       final prev = _api;
       _api = api;
@@ -199,16 +208,23 @@ class MovaMini extends ChangeNotifier {
       _rect = null;
       _unwatch();
       if (prev != null) await prev.setMini(false);
-      await api.setMini(true);
-      // 等 mini 置起后再订阅，避免把初始的 mini=false 当成外部退出。
-      if (identical(_api, api)) {
-        _watch = api.states.listen((s) {
-          if (!s.mini && identical(_api, api)) _onExternalExit();
-        });
-      }
+      if (_disposed || generation != _generation) return false;
     } else {
       _skin = skin;
     }
+    await api.setMini(true);
+    if (_disposed || generation != _generation) {
+      if (!identical(_api, api)) await api.setMini(false);
+      return false;
+    }
+    _unwatch();
+    // Subscribe after entry so the initial false state cannot cancel it.
+    //
+    // 进入后再订阅，避免初始 false 状态取消显示。
+    _watch = api.states.listen((s) {
+      if (!s.mini && identical(_api, api)) _onExternalExit();
+    });
+    return identical(_api, api);
   }
 
   /// Takes the picture back out of the mini window, leaving playback running.
@@ -223,6 +239,7 @@ class MovaMini extends ChangeNotifier {
   Future<void> hide() async {
     final api = _api;
     if (api == null) return;
+    final generation = ++_generation;
     _unwatch();
     _detachEntry();
     _api = null;
@@ -237,7 +254,7 @@ class MovaMini extends ChangeNotifier {
     // 整页 MovaPlayer）绝不能看到 controller 已经说"不是小窗"、而
     // MovaState.mini 还没跟上的那一帧。
     await api.setMini(false);
-    notifyListeners();
+    if (!_disposed && generation == _generation) notifyListeners();
   }
 
   /// Closes the mini window and pauses playback, then notifies [onClosed].
@@ -250,6 +267,7 @@ class MovaMini extends ChangeNotifier {
   Future<void> close() async {
     final api = _api;
     if (api == null) return;
+    final generation = ++_generation;
     _unwatch();
     _detachEntry();
     _api = null;
@@ -257,8 +275,9 @@ class MovaMini extends ChangeNotifier {
     _mount = MovaMiniMount.none;
     notifyListeners();
     await api.pause();
+    if (generation != _generation && identical(_api, api)) return;
     await api.setMini(false);
-    onClosed?.call(api);
+    if (!_disposed && generation == _generation) onClosed?.call(api);
   }
 
   /// Whether [candidate] is the api the mini window currently renders.
@@ -290,6 +309,7 @@ class MovaMini extends ChangeNotifier {
   ///
   /// api 自己退出了小窗态（如 `enterPip`）：撤掉小窗，不再回写 api。
   void _onExternalExit() {
+    ++_generation;
     _unwatch();
     _detachEntry();
     _api = null;
@@ -298,26 +318,25 @@ class MovaMini extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Removes [_entry] from its [Overlay] if it is still mounted, then clears
-  /// it unconditionally. The single choke point for entry teardown — [hide],
-  /// [close], and re-[show]/[showInPage] all route through here instead of
-  /// calling `remove()` themselves, so a since-destroyed host [Overlay] (the
-  /// page was popped) never causes a double-remove crash.
+  /// Removes and disposes the inserted entry even before its first build.
   ///
-  /// 若 [_entry] 仍挂载则把它从所属 [Overlay] 移除，随后无条件清空。是 entry
-  /// 摘除的唯一关口——[hide]、[close]、重新 [show]/[showInPage] 都走这里而不是
-  /// 自行调用 `remove()`，因此宿主 [Overlay] 已先销毁（页面被 pop）时不会造成
-  /// 重复 remove 崩溃。
+  /// 移除并释放已插入的 entry，即使首次构建尚未发生。
   void _detachEntry() {
     final entry = _entry;
-    if (entry != null && entry.mounted) {
-      entry.remove();
-    }
     _entry = null;
+    if (entry != null) {
+      entry.remove();
+      entry.dispose();
+    }
   }
 
   @override
+  /// Cancels pending entry and releases the borrowed mini state.
+  ///
+  /// 取消在途显示并释放借用的小窗状态。
   void dispose() {
+    _disposed = true;
+    ++_generation;
     // ChangeNotifier.dispose() is sync, so this can't await — but it must
     // still settle MovaState.mini back to false on the still-live api the
     // way [hide]/[close] do, or the page-side player stays hidden forever

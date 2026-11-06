@@ -55,12 +55,12 @@ abstract class MovaThumbCache {
   Future<void> dispose();
 }
 
-/// An in-memory [MovaThumbCache] with count-based LRU eviction.
+/// An in-memory [MovaThumbCache] with byte- and count-based LRU eviction.
 ///
 /// Stores encoded bytes (not decoded `ui.Image`s) so the core layer stays free
 /// of Flutter types and memory usage stays predictable.
 ///
-/// 基于条目数做 LRU 淘汰的内存 [MovaThumbCache]。
+/// 基于字节数和条目数做 LRU 淘汰的内存 [MovaThumbCache]。
 ///
 /// 存的是编码后的字节（而非已解码的 `ui.Image`），从而让 core 层不依赖
 /// Flutter 类型，内存占用也更可预测。
@@ -71,7 +71,17 @@ class MovaMemoryThumbCache implements MovaThumbCache {
   ///
   /// - [maxEntries]: entry ceiling; `0` or negative disables caching entirely /
   ///   条目上限；为 `0` 或负数时完全禁用缓存
-  MovaMemoryThumbCache({this.maxEntries = 40});
+  /// [maxBytes] 为编码字节预算；返回缓存实例。示例：`MovaMemoryThumbCache(maxBytes: 1024)`。
+  MovaMemoryThumbCache({this.maxEntries = 40, this.maxBytes = 8 * 1024 * 1024});
+
+  /// 编码字节预算，非正值禁用缓存。
+  final int maxBytes;
+
+  /// 当前驻留的编码字节总数。
+  int _bytes = 0;
+
+  /// 返回当前字节占用；示例：`cache.totalBytes`。
+  int get totalBytes => _bytes;
 
   /// Maximum number of resident entries; `0` or negative disables caching.
   ///
@@ -81,7 +91,8 @@ class MovaMemoryThumbCache implements MovaThumbCache {
   /// Entries in least-recently-used-first iteration order.
   ///
   /// 按"最久未使用在前"的迭代顺序存放的条目。
-  final LinkedHashMap<String, Uint8List> _entries = LinkedHashMap<String, Uint8List>();
+  final LinkedHashMap<String, Uint8List> _entries =
+      LinkedHashMap<String, Uint8List>();
 
   /// Number of resident entries.
   ///
@@ -112,16 +123,22 @@ class MovaMemoryThumbCache implements MovaThumbCache {
 
   @override
   Future<void> write(String key, Uint8List bytes) async {
-    if (maxEntries <= 0) return;
-    _entries.remove(key);
+    _bytes -= _entries.remove(key)?.lengthInBytes ?? 0;
+    if (maxEntries <= 0 || maxBytes <= 0 || bytes.lengthInBytes > maxBytes) {
+      return;
+    }
     _entries[key] = bytes;
-    while (_entries.length > maxEntries) {
-      _entries.remove(_entries.keys.first);
+    _bytes += bytes.lengthInBytes;
+    while (_entries.length > maxEntries || _bytes > maxBytes) {
+      _bytes -= _entries.remove(_entries.keys.first)!.lengthInBytes;
     }
   }
 
   @override
-  Future<void> clear() async => _entries.clear();
+  Future<void> clear() async {
+    _entries.clear();
+    _bytes = 0;
+  }
 
   @override
   Future<void> dispose() async {}

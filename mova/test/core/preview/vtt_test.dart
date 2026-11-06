@@ -8,6 +8,17 @@ import 'package:mova/src/core/preview/vtt.dart';
 final Uri _base = Uri.parse('https://host/media/video.mp4.vtt');
 
 void main() {
+  for (final crop in ['0,0,0,90', '0,0,160,0', '-1,0,160,90', '0,-1,160,90', '0,0,-1,90', '0,0,160,-1', '0,0,999999999999999999999999,90']) {
+    test('invalid crop $crop falls back to the whole image', () {
+      final index = parseVttThumbs(
+        'WEBVTT\n\n00:00:00.000 --> 00:00:05.000\ns.jpg#xywh=$crop\n',
+        base: _base,
+      );
+      expect(index.cues.single.crop, isNull);
+      expect(index.cues.single.image, Uri.parse('https://host/media/s.jpg'));
+    });
+  }
+
   test('parses cues with #xywh crops and resolves relative sprite paths', () {
     const vtt = 'WEBVTT\n'
         '\n'

@@ -150,6 +150,22 @@ class MovaMpvEventPump {
     }
   }
 
+  /// 同步丢弃新加载之前积压的旧文件事件。
+  void discardPending() {
+    if (!isActive) return;
+    try {
+      MovaRawEvent? event;
+      while ((event = _backend.poll()) != null) {
+        if (event!.id == MovaMpvEventBackend.eventShutdown) {
+          _coreGone = true;
+          break;
+        }
+      }
+    } catch (_) {
+      _state = _PumpState.closed;
+    }
+  }
+
   /// 原生事件唤醒时的回调，负责排空事件。
   void _onWake() {
     if (_state == _PumpState.closed || _state == _PumpState.closing) return;

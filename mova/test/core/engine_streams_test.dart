@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
@@ -61,7 +62,7 @@ void main() {
   group('A1 several subscribers see the same stream', () {
     test('events: two listeners receive the same sequence', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       final a = <Type>[];
       final b = <Type>[];
       e.events.listen((x) => a.add(x.runtimeType));
@@ -81,7 +82,7 @@ void main() {
 
     test('states: two listeners both replay the current value and then follow', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       final a = <bool>[];
       final b = <bool>[];
       e.states.listen((s) => a.add(s.playing));
@@ -95,7 +96,7 @@ void main() {
 
     test('a late states subscriber starts from the current value, not from history', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       k.emitPlaying(true);
       await _flush();
       final late = <bool>[];
@@ -106,7 +107,7 @@ void main() {
     });
 
     test('uiStates: two listeners receive the same visibility changes', () async {
-      final e = MovaEngine(kernel: FakeKernel());
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       final a = <bool>[];
       final b = <bool>[];
       e.uiStates.listen((s) => a.add(s.controlsVisible));
@@ -121,7 +122,7 @@ void main() {
 
     test('progress: two listeners receive the same values and each position arrives in order', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.open(_vod);
       k.emitDuration(const Duration(minutes: 5));
       await _flush();
@@ -135,14 +136,15 @@ void main() {
         // 比 200ms 的限流窗口长，让每一个都送达。
         await Future<void>.delayed(const Duration(milliseconds: 260));
       }
-      expect(a, [const Duration(seconds: 1), const Duration(seconds: 2), const Duration(seconds: 3)]);
+      // 新订阅者先收到当前零位置，再收到后续进度。
+      expect(a, [Duration.zero, const Duration(seconds: 1), const Duration(seconds: 2), const Duration(seconds: 3)]);
       expect(b, a);
       await e.dispose();
     });
 
     test('a subscriber that cancels does not disturb the others', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       final kept = <Type>[];
       final dropped = <Type>[];
       e.events.listen((x) => kept.add(x.runtimeType));
@@ -160,7 +162,7 @@ void main() {
 
   group('A23 dispose closes the streams', () {
     test('events, states, uiStates and progress all finish', () async {
-      final e = MovaEngine(kernel: FakeKernel());
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       final done = <String, Completer<void>>{
         for (final n in ['events', 'states', 'uiStates', 'progress']) n: Completer<void>(),
       };
@@ -180,7 +182,7 @@ void main() {
     });
 
     test('a subscriber that arrives after dispose gets done instead of hanging', () async {
-      final e = MovaEngine(kernel: FakeKernel());
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       await e.dispose();
       await expectLater(e.events, emitsDone);
       await expectLater(e.states, emitsThrough(emitsDone));
@@ -188,7 +190,7 @@ void main() {
     });
 
     test('every verb is callable after dispose without throwing', () async {
-      final e = MovaEngine(kernel: FakeKernel());
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       await e.dispose();
       for (final entry in _verbsAfterDispose(e).entries) {
         await expectLater(
@@ -200,7 +202,7 @@ void main() {
     });
 
     test('no event is produced by a verb called after dispose', () async {
-      final e = MovaEngine(kernel: FakeKernel());
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel());
       final seen = <MovaEvent>[];
       e.events.listen(seen.add);
       await e.dispose();
@@ -214,7 +216,7 @@ void main() {
 
     test('a verb called after dispose never opens a new source on the kernel', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.dispose();
       await e.open(_vod);
       await e.reload();
@@ -227,7 +229,7 @@ void main() {
     // Player 在那里会抛 AssertionError('has been disposed')。
     test('verbs called after dispose do not reach the disposed kernel', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.dispose();
       final before = k.calls.length;
       for (final call in _verbsAfterDispose(e).values) {
@@ -240,11 +242,11 @@ void main() {
     // and one with the keepAlive capability so those verbs are checked as well.
     // 每个动词一条用例，内核销毁后像 media_kit 那样抛异常；另用带待机能力的内核，
     // 使待机相关动词一并被检查。
-    final names = _verbsAfterDispose(MovaEngine(kernel: FakeKernel())).keys.toList();
+    final names = _verbsAfterDispose(MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel())).keys.toList();
     for (final name in names) {
       test('$name() after dispose never touches the kernel (and does not throw)', () async {
         final k = FakeKeepAliveKernel()..throwWhenDisposed = true;
-        final e = MovaEngine(kernel: k);
+        final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
         await e.dispose();
         await _verbsAfterDispose(e)[name]!();
         await _flush();
@@ -254,7 +256,7 @@ void main() {
 
     test('a switchQuality whose kernel load outlives dispose() issues nothing afterwards', () async {
       final k = FakeKernel()..throwWhenDisposed = true;
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.open(_vod);
       k.emitDuration(const Duration(minutes: 5));
       k.emitPosition(const Duration(seconds: 30));
@@ -274,7 +276,7 @@ void main() {
 
     test('a play() that was queued behind a keepAlive request does not outlive dispose()', () async {
       final k = FakeKeepAliveKernel()..throwWhenDisposed = true;
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.open(_vod);
       final request = e.setKeepAlive(true);
       final playing = e.play();
@@ -288,7 +290,7 @@ void main() {
   group('MovaProg value type', () {
     test('progress carries the buffer the kernel last reported', () async {
       final k = FakeKernel();
-      final e = MovaEngine(kernel: k);
+      final e = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       await e.open(_vod);
       k.emitDuration(const Duration(minutes: 5));
       await _flush();

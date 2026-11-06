@@ -122,4 +122,96 @@ void main() {
       });
     });
   });
+  group('CSS 动画检测', () {
+    setUp(AnimationDetector.clearMemo);
+    tearDown(() {
+      AnimationDetector.clearMemo();
+      AnimationDetector.maximumMemoSize = 1024;
+    });
+
+    for (final marker in [
+      '@keyframes',
+      '@-webkit-keyframes',
+      '@-moz-keyframes',
+      '@-o-keyframes',
+      '@-ms-keyframes',
+      '@KEYFRAMES',
+      '@-WEBKIT-KEYFRAMES',
+    ]) {
+      test('$marker 无 animation 引用也视为动画', () {
+        expect(
+          AnimationDetector.hasAnimations(
+            '<svg><style>$marker spin{from{opacity:0}to{opacity:1}}</style></svg>',
+          ),
+          isTrue,
+        );
+      });
+    }
+
+    test('静态样式与没有 @ 的 keyframes 文本不算动画', () {
+      expect(
+        AnimationDetector.hasAnimations(
+          '<svg><style>.a{fill:red}</style></svg>',
+        ),
+        isFalse,
+      );
+      expect(
+        AnimationDetector.hasAnimations('<svg><text>keyframes</text></svg>'),
+        isFalse,
+      );
+    });
+
+    test('四种 SMIL 标签和原有标签边界保持不变', () {
+      for (final tag in [
+        'animate',
+        'animateTransform',
+        'animateMotion',
+        'set',
+      ]) {
+        expect(
+          AnimationDetector.hasAnimations('<svg><$tag dur="1s"/></svg>'),
+          isTrue,
+        );
+        expect(
+          AnimationDetector.hasAnimations('<svg><$tag></$tag></svg>'),
+          isTrue,
+        );
+        expect(
+          AnimationDetector.hasAnimations('<svg><${tag}Widget /></svg>'),
+          isFalse,
+        );
+        expect(AnimationDetector.hasAnimations('<svg><$tag/></svg>'), isTrue);
+        expect(AnimationDetector.hasAnimations('<svg><$tag'), isFalse);
+      }
+    });
+
+    test('CSS 源重复查询、清空与淘汰后结果一致', () {
+      AnimationDetector.maximumMemoSize = 2;
+      const source = '<svg><style>@keyframes spin{}</style></svg>';
+      expect(AnimationDetector.hasAnimations(source), isTrue);
+      expect(AnimationDetector.hasAnimations(source), isTrue);
+      for (var i = 0; i < 3; i++) {
+        expect(AnimationDetector.hasAnimations('<svg id="$i"/>'), isFalse);
+      }
+      expect(AnimationDetector.hasAnimations(source), isTrue);
+      AnimationDetector.clearMemo();
+      expect(AnimationDetector.hasAnimations(source), isTrue);
+    });
+
+    test('几十 KB 文档一万次冷扫描完成且结果正确', () {
+      final padding = '<path d="M0 0L1 1"/>'.padRight(64 * 1024, ' ');
+      final staticSource = '<svg>$padding</svg>';
+      final cssSource = '<svg>$padding<style>@keyframes a{}</style></svg>';
+      var animatedCount = 0;
+      for (var i = 0; i < 10000; i++) {
+        AnimationDetector.clearMemo();
+        if (AnimationDetector.hasAnimations(
+          i.isEven ? cssSource : staticSource,
+        )) {
+          animatedCount++;
+        }
+      }
+      expect(animatedCount, 5000);
+    }, timeout: const Timeout(Duration(seconds: 30)));
+  });
 }

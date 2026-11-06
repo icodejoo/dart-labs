@@ -17,6 +17,29 @@ void main() {
     ctl = MovaMini();
   });
 
+  test('C02 disabled show leaves mini and listeners untouched', () async {
+    final api = FakeMovaApi();
+    var notified = 0;
+    ctl.addListener(() => notified++);
+    await ctl.show(api);
+    expect(ctl.api, isNull);
+    expect(ctl.mount, MovaMiniMount.none);
+    expect(api.calls, isEmpty);
+    expect(notified, 0);
+  });
+
+  test('C02 disabled replacement preserves the current mini', () async {
+    final active = FakeMovaApi(options: _enabledOpts);
+    final disabled = FakeMovaApi();
+    await ctl.show(active);
+    active.calls.clear();
+    await ctl.show(disabled);
+    expect(ctl.api, same(active));
+    expect(active.calls, isEmpty);
+    expect(disabled.calls, isEmpty);
+    await ctl.hide();
+  });
+
   test('show(api) sets mount to persistent, notifies once, calls setMini(true), inserts no entry', () async {
     final api = FakeMovaApi(options: _enabledOpts);
     var notified = 0;

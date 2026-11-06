@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/mini/placement.dart';
-import 'package:mova/src/core/options/mini_config.dart';
+import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/ui/mini/mini.dart';
 import 'package:mova/src/ui/mini/mini_skin.dart';
 import 'package:mova/src/ui/skins/skin.dart';
@@ -43,7 +43,7 @@ void main() {
     test('小窗里放什么 chrome：默认 MovaMiniSkin，MovaMini.show(skin:) 可换成任意 MovaSkin', () async {
       final ctl = MovaMini();
       expect(ctl.skin, isA<MovaMiniSkin>());
-      final api = FakeMovaApi();
+      final api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
       final customSkin = _EmptySkin();
       await ctl.show(api, skin: customSkin);
       expect(ctl.skin, same(customSkin));
@@ -51,7 +51,7 @@ void main() {
 
     test('关闭后引擎怎么办：默认不 dispose，宿主经 onClosed 回调决定', () async {
       final ctl = MovaMini();
-      final api = FakeMovaApi();
+      final api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
       MovaApi? closedWith;
       ctl.onClosed = (a) => closedWith = a;
       await ctl.show(api);

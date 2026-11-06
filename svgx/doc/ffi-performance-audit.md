@@ -7,7 +7,9 @@
 审计了 `parse_svg` 的 Dart↔Rust 数据搬运方式,结论:**当前实现已经是 FRB 2.12 sync/generalized 架构下能做到的最优,没有可落地的优化空间**。关键事实(已核实,非猜测):
 
 - **本项目生成的是 SSE(序列化)编解码,不是 DCO(原生零拷贝)编解码**——`lib/src/rust/frb_generated.dart` 里 `parse_svg`(以及所有其他函数)都接的是 `SseCodec`,不是走 `allo-isolate` 的 `DartNativeExternalTypedData` 零拷贝路径。后者只对 DCO 编解码生效,本项目压根没用那条路径。
-- **`points: Vec<f32>`/`verbs: Vec<u8>` 这类大字段,sync 模式下确实有一次拷贝**——但是**整块 bulk copy,不是逐元素循环**。FRB 自己在 `read_buffer.dart` 里有原话注释:"Must copy when in `sync` mode, because the underlying buffer is a Rust pointer and will be freed later (but in non-sync mode, we can optimize this and do not copy)"——这是 FRB 为了避免访问已释放的 Rust 内存,故意加的安全拷贝,不是实现疏漏。
+- **`points: Vec<f32>`/`verbs: Vec<u8>` 这类大字段,sync 模式下确实有一次拷贝**——但是**整块 bulk copy,不是逐元素循环**。
+  FRB 自己在 `read_buffer.dart` 里有原话注释:"Must copy when in `sync` mode, because the underlying buffer is a Rust pointer and will be freed later (but in non-sync mode,
+  we can optimize this and do not copy)"——这是 FRB 为了避免访问已释放的 Rust 内存,故意加的安全拷贝,不是实现疏漏。
 - **想去掉这次拷贝,唯一办法是把 `parse_svg` 从 sync 改成 async**——但这条路已经在"性能验收条件"里评估过并明确否决(sync 单次解析 avg=0.026-0.106ms,1000 图标场景零掉帧,量级可忽略,不值得为了省这一次 bulk copy 换成跨 isolate 派发的 async)。
 - **`String` 入参换成 `Uint8List` 没有意义**:UTF-8 编码这一步不可避免只会发生一次,搬到调用方代码里做和留在 FRB 生成代码里做,总成本一样,不会减少。查了 `flutter_svg` 自己的 `SvgBytesLoader.provideSvg`,它也是先 `utf8.decode` 成 `String` 再解析,业界通用做法一致,不是我们独有的反模式。
 - **flutter_svg 的缓存 key 也是对完整字符串做 hash**(`Object.hash(_svg, theme, colorMapper)`),和 svgx 的 `(String, int?)` 缓存 key 成本量级相同——没有可以借鉴的更便宜方案。
@@ -16,11 +18,14 @@
 
 ## 补充调研一(2026-08-25,ZeroCopyBuffer/DCO 专项)
 
-确认当前 `parse_svg` 走的是 **SSE(序列化)编解码,非 DCO/ZeroCopyBuffer**——`rust/src/api/svg.rs` 的 `SvgPath`(`points: Vec<f32>`/`verbs: Vec<u8>`)未用 `ZeroCopyBuffer<Vec<u8>>` 包装,`lib/src/rust/frb_generated.dart` 用的是 `SseCodec`。FRB 2.x 里 ZeroCopyBuffer 对应的免拷贝路径是 **DCO codec**(经 `allo-isolate` 的 `Dart_PostCObject` 机制),但这条路径**天然要求 async 调用**(`executeNormal`),和当前 `#[frb(sync)]` 互斥——要用 DCO 就必须先把 `parse_svg` 改成 async,这和"是否值得为省一次 bulk copy 换成 async"是同一个决策,已经在上面否决过。收益上,DCO 省下的是当前 avg 0.026-0.106ms 里最小的一块(序列化 bulk copy),而 async 化引入的跨 isolate 调度/`Completer` 开销大概率超过这点节省。**结论:不做**,维持 sync + SSE 现状。
+确认当前 `parse_svg` 走的是 **SSE(序列化)编解码,非 DCO/ZeroCopyBuffer**——`rust/src/api/svg.rs` 的 `SvgPath`(`points: Vec<f32>`/`verbs: Vec<u8>`)未用 `ZeroCopyBuffer<Vec<u8>>` 包装,`lib/src/rust/frb_generated.dart` 用的是 `SseCodec`。
+FRB 2.x 里 ZeroCopyBuffer 对应的免拷贝路径是 **DCO codec**(经 `allo-isolate` 的 `Dart_PostCObject` 机制),但这条路径**天然要求 async 调用**(`executeNormal`),和当前 `#[frb(sync)]` 互斥——要用 DCO 就必须先把 `parse_svg` 改成 async,这和"是否值得为省一次 bulk copy 换成 async"是同一个决策,已经在上面否决过。
+收益上,DCO 省下的是当前 avg 0.026-0.106ms 里最小的一块(序列化 bulk copy),而 async 化引入的跨 isolate 调度/`Completer` 开销大概率超过这点节省。**结论:不做**,维持 sync + SSE 现状。
 
 ## 补充调研二(2026-08-25,"Uint8List 触发共享内存零拷贝"传闻核实)
 
-有说法称"Dart 传 `Uint8List` 给 Rust 会触发共享内存从而避免拷贝",核实为**误传,方向搞反了**。FRB 的零拷贝机制描述的是 **Rust → Dart** 方向(`ZeroCopyBuffer` 把 Rust 的 `Vec<u8>` 免拷贝映射成 Dart 的 `ExternalTypedData`),而 `parse_svg` 的入参方向是 **Dart → Rust**,本来就不在这个机制覆盖范围内。即便方向对了,FRB 官方文档也明确写"同步传输仍需要拷贝",零拷贝只在 async 模式下生效,与当前 `#[frb(sync)]` 互斥。手动把 SVG 字符串 `utf8.encode` 成 `Uint8List` 再传,只是把编码步骤从 FRB 生成代码搬到调用方代码,总拷贝次数不变,没有意义。
+有说法称"Dart 传 `Uint8List` 给 Rust 会触发共享内存从而避免拷贝",核实为**误传,方向搞反了**。FRB 的零拷贝机制描述的是 **Rust → Dart** 方向(`ZeroCopyBuffer` 把 Rust 的 `Vec<u8>` 免拷贝映射成 Dart 的 `ExternalTypedData`),而 `parse_svg` 的入参方向是 **Dart → Rust**,本来就不在这个机制覆盖范围内。
+即便方向对了,FRB 官方文档也明确写"同步传输仍需要拷贝",零拷贝只在 async 模式下生效,与当前 `#[frb(sync)]` 互斥。手动把 SVG 字符串 `utf8.encode` 成 `Uint8List` 再传,只是把编码步骤从 FRB 生成代码搬到调用方代码,总拷贝次数不变,没有意义。
 
 ## 补充调研三(2026-08-25,手写 dart:ffi 绕开 FRB 能否同步零拷贝)
 
@@ -107,7 +112,8 @@ return ans;
 
 前五次都是推理与源码论证。这次直接测了。**结论没有被推翻,但补上了三个推理时没看到的事实**(尤其第 2、3 条,它们比"占比小"更能决定这个方向的死活)。
 
-**复现方式**:隔离 worktree 分支 `bench/ffi-copy-share`(`.claude/worktrees/ffi-copy-bench`),两个测试文件 `svgx/test/ffi_copy_share_bench_test.dart`、`svgx/test/raster_vs_gpu_bench_test.dart`,数据源为 `benchmark/bench_app/lib/mdi_icons_1000.dart` 那 1000 个真实 Mdi 图标。为给对照方最有利条件,Rust 侧临时改 `opt-level = "z"` → `3` 并临时引入 `resvg`(**都只在该 worktree 内,正式库依旧不依赖 resvg**)。
+**复现方式**:隔离 worktree 分支 `bench/ffi-copy-share`(`.claude/worktrees/ffi-copy-bench`),两个测试文件 `svgx/test/ffi_copy_share_bench_test.dart`、`svgx/test/raster_vs_gpu_bench_test.dart`,数据源为 `benchmark/bench_app/lib/mdi_icons_1000.dart` 那 1000 个真实 Mdi 图标。
+为给对照方最有利条件,Rust 侧临时改 `opt-level = "z"` → `3` 并临时引入 `resvg`(**都只在该 worktree 内,正式库依旧不依赖 resvg**)。
 
 ### 实验一:一次 `parse_svg` 的层次拆解(1000 图标 × 10 轮)
 

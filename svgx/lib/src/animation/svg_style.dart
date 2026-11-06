@@ -26,6 +26,9 @@ class ResolvedStyle {
     required this.strokeDasharray,
     required this.strokeDashoffset,
     required this.opacity,
+    this.fillOpacity = 1,
+    this.strokeOpacity = 1,
+    this.fillRule = PathFillType.nonZero,
     this.fillGradientId,
     this.strokeGradientId,
   });
@@ -77,8 +80,43 @@ class ResolvedStyle {
   /// Dash phase offset. / 虚线相位偏移。
   final double strokeDashoffset;
 
-  /// Element opacity in `[0, 1]`. / 元素不透明度，范围 `[0, 1]`。
+  /// This node's own opacity in `[0, 1]`; never inherited.
+  /// 本节点自身的不透明度，不沿继承链传递；祖先 opacity 在合成时相乘。
   final double opacity;
+
+  /// `fill-opacity`：填充（纯色、渐变、文字）的不透明度，范围 `[0, 1]`。
+  /// 与 [opacity] 不同，它是继承属性；最终 alpha = 颜色 alpha × 它 × [opacity]。
+  final double fillOpacity;
+
+  /// `stroke-opacity`：描边的不透明度，范围 `[0, 1]`，继承；见 [fillOpacity]。
+  final double strokeOpacity;
+
+  /// `fill-rule`：填充的环绕规则，继承；默认 [PathFillType.nonZero]。描边不受影响。
+  final PathFillType fillRule;
+
+  /// 填充的最终 alpha 系数：[fillOpacity] × [opacity]，再乘上颜色自身的 alpha。
+  double get fillAlpha => opacity * fillOpacity;
+
+  /// 描边的最终 alpha 系数：[strokeOpacity] × [opacity]，再乘上颜色自身的 alpha。
+  double get strokeAlpha => opacity * strokeOpacity;
+
+  /// Replaces local opacity when a single-paint wrapper is folded into this leaf.
+  /// 单笔包装组下推时替换本节点 opacity，其余样式保持不变。
+  ResolvedStyle withOpacity(double value) => ResolvedStyle(
+    fill: fill,
+    stroke: stroke,
+    strokeWidth: strokeWidth,
+    strokeLinecap: strokeLinecap,
+    strokeLinejoin: strokeLinejoin,
+    strokeDasharray: strokeDasharray,
+    strokeDashoffset: strokeDashoffset,
+    opacity: value,
+    fillOpacity: fillOpacity,
+    strokeOpacity: strokeOpacity,
+    fillRule: fillRule,
+    fillGradientId: fillGradientId,
+    strokeGradientId: strokeGradientId,
+  );
 
   /// Returns a copy with attributes found in [attributes] overriding the
   /// inherited ones in `this`, resolving `currentColor` against [theme].
@@ -87,9 +125,9 @@ class ResolvedStyle {
   /// [theme] 解析 `currentColor`。
   ResolvedStyle inherit(Map<String, String> attributes, SvgxTheme theme) {
     Color? parseColor(String raw) {
-      final v = raw.trim();
+      final v = raw.trim().toLowerCase();
       if (v == 'none') return null;
-      if (v == 'currentColor') return theme.currentColor;
+      if (v == 'currentcolor') return theme.currentColor;
       return parseSvgHexColor(v);
     }
 
@@ -106,8 +144,7 @@ class ResolvedStyle {
       strokeGradientId: attributes.containsKey('stroke')
           ? parseUrlId(attributes['stroke'])
           : strokeGradientId,
-      strokeWidth:
-          double.tryParse(attributes['stroke-width'] ?? '') ?? strokeWidth,
+      strokeWidth: _parsePixels(attributes['stroke-width']) ?? strokeWidth,
       strokeLinecap: switch (attributes['stroke-linecap']) {
         'round' => StrokeCap.round,
         'square' => StrokeCap.square,
@@ -124,12 +161,45 @@ class ResolvedStyle {
           ? _parseDasharray(attributes['stroke-dasharray']!)
           : strokeDasharray,
       strokeDashoffset:
-          double.tryParse(attributes['stroke-dashoffset'] ?? '') ??
-          strokeDashoffset,
-      opacity: double.tryParse(attributes['opacity'] ?? '') ?? opacity,
+          _parsePixels(attributes['stroke-dashoffset']) ?? strokeDashoffset,
+      opacity: _parseUnitOpacity(attributes['opacity'], 1),
+      fillOpacity: _parseUnitOpacity(attributes['fill-opacity'], fillOpacity),
+      strokeOpacity: _parseUnitOpacity(
+        attributes['stroke-opacity'],
+        strokeOpacity,
+      ),
+      fillRule: parseSvgFillRule(attributes[kFillRuleAttribute], fillRule),
     );
   }
 }
+
+/// `fill-rule` 属性名。
+const String kFillRuleAttribute = 'fill-rule';
+
+/// `clip-rule` 属性名。
+const String kClipRuleAttribute = 'clip-rule';
+
+/// 解析 `fill-rule`/`clip-rule` 取值（`nonzero`/`evenodd`，大小写不敏感、忽略首尾
+/// 空白）；缺失或非法时返回继承来的 [inherited]。
+///
+/// [raw] 属性原始值，可为 null。[inherited] 继承值。返回对应的 [PathFillType]。
+///
+/// ```dart
+/// parseSvgFillRule(' EvenOdd ', PathFillType.nonZero); // PathFillType.evenOdd
+/// ```
+PathFillType parseSvgFillRule(String? raw, PathFillType inherited) {
+  if (raw == null) return inherited;
+  return switch (raw.trim().toLowerCase()) {
+    'evenodd' => PathFillType.evenOdd,
+    'nonzero' => PathFillType.nonZero,
+    _ => inherited,
+  };
+}
+
+/// 解析 `opacity`/`fill-opacity`/`stroke-opacity` 取值并钳制到 `[0, 1]`；缺失或无法解析
+/// 时返回继承来的 [inherited]。
+double _parseUnitOpacity(String? raw, double inherited) =>
+    double.tryParse(raw ?? '')?.clamp(0.0, 1.0) ?? inherited;
 
 /// Memo for [_parseDasharray], keyed by the raw attribute string.
 ///
@@ -202,7 +272,9 @@ List<double> _parseDasharrayUncached(String raw) {
         };
     if (isSeparator) {
       if (start >= 0) {
-        values.add(double.tryParse(v.substring(start, i)) ?? 0);
+        final value = _parsePixels(v.substring(start, i));
+        if (value == null || !value.isFinite || value < 0) return const [];
+        values.add(value);
         start = -1;
       }
     } else if (start < 0) {
@@ -212,14 +284,14 @@ List<double> _parseDasharrayUncached(String raw) {
   return values.isEmpty ? const [] : List<double>.of(values, growable: false);
 }
 
-/// Parses `#RGB`/`#RRGGBB`/`#RRGGBBAA` hex colours, or null for anything else.
+/// Parses `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA` hex colours, or null for anything else.
 ///
 /// Hex is the only literal form this per-frame path handles, on purpose: CSS
 /// named colours (`red`, `cornflowerblue`) are resolved to hex **once**, at
 /// document-parse time, by the Rust `parse_color` (see
 /// `native_svg_values.dart`), so no colour table is needed here.
 ///
-/// 解析 `#RGB`/`#RRGGBB`/`#RRGGBBAA` 十六进制颜色；其它一律返回 null。
+/// 解析 `#RGB`/`#RGBA`/`#RRGGBB`/`#RRGGBBAA` 十六进制颜色；其它一律返回 null。
 ///
 /// 逐帧路径刻意只处理十六进制这一种字面形式：CSS 具名颜色（`red`、
 /// `cornflowerblue`）已由 Rust 的 `parse_color` 在文档解析阶段**一次性**转成
@@ -257,6 +329,13 @@ Color? parseSvgHexColor(String v) {
       return Color(
         0xFF000000 | (r * 0x11) << 16 | (g * 0x11) << 8 | (b * 0x11),
       );
+    case 5: // #RGBA (CSS Color 4)
+      final r = _hexDigit(v, 1);
+      final g = _hexDigit(v, 2);
+      final b = _hexDigit(v, 3);
+      final a = _hexDigit(v, 4);
+      if (r < 0 || g < 0 || b < 0 || a < 0) return null;
+      return Color((a * 17) << 24 | (r * 17) << 16 | (g * 17) << 8 | b * 17);
     case 7: // #RRGGBB
       final rgb = _hexByte(v, 1, 3);
       return rgb < 0 ? null : Color(0xFF000000 | rgb);
@@ -295,4 +374,14 @@ int _hexByte(String v, int start, int byteCount) {
     value = (value << 4) | digit;
   }
   return value;
+}
+
+/// 表现属性长度接受无单位值或 px，列表词元也使用相同规则。
+/// Presentation lengths accept unitless user units or px, including list tokens.
+double? _parsePixels(String? raw) {
+  if (raw == null) return null;
+  final text = raw.trim().toLowerCase();
+  return double.tryParse(
+    text.endsWith('px') ? text.substring(0, text.length - 2) : text,
+  );
 }

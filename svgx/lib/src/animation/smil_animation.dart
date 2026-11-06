@@ -8,6 +8,7 @@
 // svgx CLAUDE.md "参考对象"表（借鉴 svg-rs / F 的思路，非代码）。
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 /// How many times an animation repeats (SMIL `repeatCount`).
 ///
@@ -60,6 +61,80 @@ enum SmilCalcMode {
   spline,
 }
 
+/// 阶跃位置，与 CSS 阶跃位置同构，避免引入 CSS 解析依赖。
+enum SmilStepPosition {
+  /// 在每段开始时跳变。
+  start,
+
+  /// 在每段结束时跳变。
+  end,
+
+  /// 两端都不跳变。
+  jumpNone,
+
+  /// 两端都跳变。
+  jumpBoth,
+}
+
+/// 每段缓动的统一接口。
+///
+/// 例如：`SmilSegmentEasing easing = const CubicBezier(0, 0, 1, 1);`。
+abstract interface class SmilSegmentEasing {
+  /// 把段内进度映射为缓动后的进度。
+  double transform(double t);
+}
+
+/// 按阶跃次数与位置求值的段缓动，输出钳制到 `[0, 1]`。
+///
+/// 例如：`const SmilStepsEasing(3).transform(0.5)` 返回 `1 / 3`。
+class SmilStepsEasing implements SmilSegmentEasing {
+  /// 创建阶跃缓动；调用方保证次数至少为 1，jumpNone 时至少为 2。
+  const SmilStepsEasing(this.count, [this.position = SmilStepPosition.end]);
+
+  /// 阶跃次数。
+  final int count;
+
+  /// 阶跃发生的位置。
+  final SmilStepPosition position;
+
+  /// 吸收分数边界附近的浮点误差。
+  static const double _boundaryTolerance = 1e-9;
+
+  /// 求阶跃进度并钳制输出；NaN 按进度 0 求值。
+  @override
+  double transform(double t) {
+    if (t.isNaN) t = 0;
+    if (t >= 1) return 1;
+    if (t <= -1) return 0;
+    var step = (t * count + _boundaryTolerance).floor();
+    if (position == SmilStepPosition.start ||
+        position == SmilStepPosition.jumpBoth) {
+      step += 1;
+    }
+    final jumps = switch (position) {
+      SmilStepPosition.start || SmilStepPosition.end => count,
+      SmilStepPosition.jumpNone => count - 1,
+      SmilStepPosition.jumpBoth => count + 1,
+    };
+    return step.clamp(0, jumps) / jumps;
+  }
+}
+
+/// 动画的迭代播放方向，例如 `SmilDirection.alternate` 交替正反播放。
+enum SmilDirection {
+  /// 每次正向播放。
+  normal,
+
+  /// 每次反向播放。
+  reverse,
+
+  /// 偶数次迭代反向播放。
+  alternate,
+
+  /// 奇数次迭代反向播放。
+  alternateReverse,
+}
+
 /// A single `keySplines` cubic-bezier control-point quad, easing the
 /// progress *within* one keyframe segment (SMIL, borrowed from CSS
 /// `cubic-bezier()` timing functions).
@@ -80,7 +155,7 @@ enum SmilCalcMode {
 /// animation/smil/smil_animation_curves.dart`。用牛顿法反解三次贝塞尔的
 /// X(t) 从而在给定进度处取得 Y，是广为人知的通用技术；这里是同一个自包含
 /// 算法。
-class CubicBezier {
+class CubicBezier implements SmilSegmentEasing {
   /// Creates a cubic-bezier curve from its two control points.
   ///
   /// 用两个控制点创建三次贝塞尔曲线。
@@ -101,31 +176,95 @@ class CubicBezier {
   /// Eases progress [t] in `[0, 1]` through this curve.
   ///
   /// 用该曲线为 `[0, 1]` 范围内的进度 [t] 做缓动。
+  ///
+  /// 先牛顿迭代反解 x(s)=t；s 越出 `[0, 1]`、导数过小或步数用尽仍未收敛时，改用
+  /// 二分兜底。x1/x2 在 `[0, 1]` 内时与精确解的误差不超过 1e-5。`t <= 0` 返回 0，
+  /// `t >= 1` 返回 1；输出的 y 不做钳制，回弹曲线可以越出 `[0, 1]`。
+  @override
   double transform(double t) {
     if (x1 == 0 && y1 == 0 && x2 == 1 && y2 == 1) return t; // linear curve
+    if (!(t > 0)) return 0; // 含 NaN，一并归零
+    if (t >= 1) return 1;
 
-    var x = t;
-    for (var i = 0; i < 8; i++) {
-      final curveX = _bezierComponent(x1, x2, x);
-      final diff = curveX - t;
-      if (diff.abs() < 1e-6) break;
-      final derivative = _bezierDerivative(x1, x2, x);
-      if (derivative.abs() < 1e-6) break;
-      x -= diff / derivative;
+    // x(s) 按 Horner 形式求值，系数只算一次；求解逻辑写在本方法内而不是拆成
+    // 子方法，是为了避免热路径上返回 double 的装箱开销。
+    final a = _a(x1, x2);
+    final b = _b(x1, x2);
+    final c = _c(x1);
+    final a3 = 3 * a;
+    final b2 = 2 * b;
+    var s = t;
+    var converged = false;
+    for (var i = 0; i < _newtonMaxIterations; i++) {
+      final derivative = (a3 * s + b2) * s + c;
+      final slope = derivative.abs();
+      if (slope < _minDerivative) break;
+      final step = (((a * s + b) * s + c) * s - t) / derivative;
+      s -= step;
+      if (s < 0 || s > 1) break;
+      final tolerance = slope >= _healthyDerivative
+          ? _newtonLooseTolerance
+          : _newtonTightTolerance;
+      if (step.abs() < tolerance) {
+        converged = true;
+        break;
+      }
     }
-    return _bezierComponent(y1, y2, x);
+    if (!converged) {
+      // 牛顿失效：在 [0, 1] 上二分，只看符号，与导数无关。
+      var lo = 0.0;
+      var hi = 1.0;
+      for (var i = 0; i < _bisectIterations; i++) {
+        final mid = (lo + hi) / 2;
+        if (((a * mid + b) * mid + c) * mid < t) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      s = (lo + hi) / 2;
+    }
+    return _bezierComponent(y1, y2, s);
   }
+
+  /// 牛顿迭代的最大步数。
+  static const int _newtonMaxIterations = 8;
+
+  /// 导数健康（≥ [_healthyDerivative]）时的收敛阈值：牛顿二次收敛，迈出一步后
+  /// 的残余误差远小于单步修正量，所以单步修正量小于它就够了。
+  static const double _newtonLooseTolerance = 3e-4;
+
+  /// 导数偏小（近重根，仅线性收敛）时的收敛阈值，要收得更紧。
+  static const double _newtonTightTolerance = 1e-7;
+
+  /// 区分"导数健康"与"导数偏小"的分界。
+  static const double _healthyDerivative = 0.3;
+
+  /// 牛顿迭代允许的最小导数绝对值，更小则放弃牛顿改走二分。
+  static const double _minDerivative = 1e-6;
+
+  /// 二分兜底的步数，区间宽度收敛到约 1e-12。
+  static const int _bisectIterations = 40;
 
   static double _bezierComponent(double p1, double p2, double t) =>
       _a(p1, p2) * t * t * t + _b(p1, p2) * t * t + _c(p1) * t;
-
-  static double _bezierDerivative(double p1, double p2, double t) =>
-      3 * _a(p1, p2) * t * t + 2 * _b(p1, p2) * t + _c(p1);
 
   static double _a(double p1, double p2) => 1.0 - 3.0 * p2 + 3.0 * p1;
   static double _b(double p1, double p2) => 3.0 * p2 - 6.0 * p1;
   static double _c(double p1) => 3.0 * p1;
 }
+
+/// restart 规则 `always`：每次 begin 都重新开始（SMIL 默认值）。
+/// The `always` restart rule: every begin restarts the interval (SMIL default).
+const _kRestartAlways = 'always';
+
+/// restart 规则 `never`：首次开始后忽略之后所有 begin。
+/// The `never` restart rule: ignore every begin after the first.
+const _kRestartNever = 'never';
+
+/// restart 规则 `whenNotActive`：仅在当前区间未活动时接受 begin。
+/// The `whenNotActive` restart rule: accept a begin only while inactive.
+const _kRestartWhenNotActive = 'whenNotActive';
 
 /// A `begin` attribute as written, before syncbase references are resolved
 /// into absolute times.
@@ -148,17 +287,46 @@ class SmilBeginSpec {
     required this.offset,
     this.syncbaseId,
     this.onSyncbaseEnd = false,
+    this.entries,
+    this.restart = _kRestartAlways,
+    this.endSpecs,
+    this.minimum,
+    this.maximum,
   });
 
   /// A plain `begin` offset with no reference. / 无引用的纯 `begin` 偏移。
   const SmilBeginSpec.offset(this.offset)
     : syncbaseId = null,
-      onSyncbaseEnd = false;
+      onSyncbaseEnd = false,
+      entries = null,
+      restart = _kRestartAlways,
+      endSpecs = null,
+      minimum = null,
+      maximum = null;
 
   /// Offset added to the resolved base time (may be negative).
   ///
   /// 加在解析出的基准时间上的偏移（可为负）。
   final Duration offset;
+
+  /// Non-null only for begin-value-list syntax; single values keep the old path.
+  /// 仅分号列表非空；普通单值保留旧路径。
+  final List<SmilBeginSpec>? entries;
+
+  /// Restart rule used by the bounded interval resolver.
+  /// 列表区间求解使用的重启规则。
+  final String restart;
+
+  /// Optional end instance specifications on the document timeline.
+  /// 文档时间线上的可选 end 实例规格。
+  final List<SmilBeginSpec>? endSpecs;
+
+  /// Minimum active duration, including any frozen repeat tail.
+  /// 最短活动期，包含重复结束后的冻结尾段。
+  final Duration? minimum;
+
+  /// Maximum active duration. / 最长活动期。
+  final Duration? maximum;
 
   /// Id of the animation element this one syncs to, or null for a plain offset.
   ///
@@ -210,8 +378,141 @@ abstract interface class SmilTimed {
   SmilRepeatCount get repeatCount;
 }
 
+/// 六类 SMIL 动画共用的时序字段与采样入口，保留同步基准解析所需的可写开始时刻。
+///
+/// 例如：`SmilTimeline timeline = SmilAnimation(attributeName: 'opacity',
+/// values: [0, 1], duration: const Duration(seconds: 1), begin: Duration.zero,
+/// fillFreeze: true);`，之后可用 `timeline.begin = Duration.zero` 回写开始时刻。
+abstract class SmilTimeline implements SmilTimed {
+  /// 创建共享时间线；子类通过 super 参数转发时序配置。
+  ///
+  /// 例如：`MyTimeline({required super.duration, required super.begin,
+  /// required super.fillFreeze});`。
+  SmilTimeline({
+    required this.duration,
+    required this.begin,
+    required this.fillFreeze,
+    this.repeatCount = SmilRepeatCount.once,
+    this.direction = SmilDirection.normal,
+    this.elementId,
+    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+  });
+
+  /// 动画元素自身的 `id`（同步基准所引用的对象），可能为 null。
+  @override
+  final String? elementId;
+
+  /// 尚未解析同步基准引用的原始 `begin` 属性。
+  @override
+  final SmilBeginSpec beginSpec;
+
+  /// 单次迭代总时长（SMIL `dur`）。
+  @override
+  final Duration duration;
+
+  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
+  ///
+  /// 可写是为了让 [resolveSmilBeginTimes] 在解析完成后、任何一帧被采样之前
+  /// 一次性填入同步基准解析结果。
+  @override
+  Duration begin;
+
+  /// 完成后是否定格末值（`fill="freeze"`）。有限 [repeatCount] 时定格在最后
+  /// 一次重复结束时的值；无限重复时不使用此值，因为动画永不结束。
+  final bool fillFreeze;
+
+  /// 动画重复次数（SMIL `repeatCount`）。
+  @override
+  final SmilRepeatCount repeatCount;
+
+  /// 迭代的播放方向，默认正向。
+  final SmilDirection direction;
+
+  /// Resolved list intervals, allocated only for a list dependency component.
+  /// 列表连通分量的已求解区间；普通单值路径不分配。
+  List<SmilInterval>? intervals;
+
+  /// True when interval expansion reached a safety bound.
+  /// 整个连通分量已触及展开安全预算。
+  bool instancesTruncated = false;
+
+  /// Whether this component can keep producing instances. / 分量是否持续产生实例。
+  bool get hasPendingInstances =>
+      _listResolver?.hasCycle == true && _listResolver!._queue.isNotEmpty;
+
+  /// 所属列表连通分量的前向求解器；普通单值路径为 null。
+  /// Forward resolver of this list component; null on the legacy single-value path.
+  _ForwardBeginResolver? _listResolver;
+
+  /// Last interval end, used by document playback duration accounting.
+  /// 最后一个区间的结束时刻，用于文档播放时长统计。
+  Duration? get intervalEnd =>
+      intervals?.isNotEmpty == true ? intervals!.last.end : null;
+
+  /// 解析全局时刻的迭代进度；未开始或已结束且不定格时返回 null。
+  _Timing? _timingAt(Duration t) {
+    _listResolver?.extend(t);
+    final resolved = intervals;
+    if (resolved != null) {
+      // 二分定位区间，长时间采样仍为 O(log n)。 / Binary interval lookup.
+      var lo = 0, hi = resolved.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (resolved[mid].begin <= t) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      if (lo == 0) return null;
+      final interval = resolved[lo - 1];
+      if (t >= interval.end && !fillFreeze) return null;
+      final sampleTime = t < interval.end ? t : interval.end;
+      final local = sampleTime - interval.begin;
+      final natural = smilActiveDuration(duration, repeatCount);
+      if (!repeatCount.indefinite && local >= natural) {
+        return _resolveTiming(
+          t: natural,
+          begin: Duration.zero,
+          duration: duration,
+          repeatCount: repeatCount,
+          fillFreeze: true,
+          direction: direction,
+        );
+      }
+      if (sampleTime == interval.end &&
+          duration > Duration.zero &&
+          local.inMicroseconds > 0 &&
+          local.inMicroseconds % duration.inMicroseconds == 0) {
+        final iteration = local.inMicroseconds ~/ duration.inMicroseconds - 1;
+        return _Timing(_directed(direction, iteration, 1));
+      }
+      return _resolveTiming(
+        t: local,
+        begin: Duration.zero,
+        duration: duration,
+        repeatCount: repeatCount,
+        fillFreeze: true,
+        direction: direction,
+      );
+    }
+    return _resolveTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+      direction: direction,
+    );
+  }
+}
+
 /// Resolves every syncbase `begin` in [animations] into an absolute time, in
 /// place.
+///
+/// List components use bounded instance expansion, extended on demand for
+/// forward dependencies. Components without lists retain the legacy DFS.
+/// 列表所在分量按预算展开实例；正向依赖按需延长，无列表分量保持旧 DFS。
 ///
 /// Walks the reference graph with a three-colour DFS (unvisited / in-progress /
 /// done). An animation on a reference cycle — or one syncing to the `end` of an
@@ -232,6 +533,15 @@ abstract interface class SmilTimed {
 /// resolveSmilBeginTimes(allAnimationsInDocument);
 /// ```
 void resolveSmilBeginTimes(List<SmilTimed> animations) {
+  // No list: preserve legacy DFS behaviour and avoid extra per-animation data.
+  if (animations.any((a) => a.beginSpec.entries != null)) {
+    _resolveBeginLists(animations);
+    return;
+  }
+  _resolveLegacyBeginTimes(animations);
+}
+
+void _resolveLegacyBeginTimes(List<SmilTimed> animations) {
   final byId = <String, SmilTimed>{};
   for (final animation in animations) {
     final id = animation.elementId;
@@ -256,21 +566,26 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
     final spec = animation.beginSpec;
     final targetId = spec.syncbaseId;
     final target = targetId == null ? null : byId[targetId];
-    if (target == null) {
+    if (spec.offset == kSmilNeverBegins) {
+      animation.begin = kSmilNeverBegins;
+    } else if (target == null) {
       animation.begin = spec.offset; // plain offset, or a dangling reference
     } else {
       final base = resolve(target);
       if (base == kSmilNeverBegins) {
         animation.begin = kSmilNeverBegins;
       } else if (!spec.onSyncbaseEnd) {
-        animation.begin = base + spec.offset;
+        animation.begin = addSmilTime(base, spec.offset);
       } else if (target.repeatCount.indefinite) {
         animation.begin = kSmilNeverBegins; // an end that never arrives
       } else {
-        final activeMicros =
-            (target.duration.inMicroseconds * target.repeatCount.count).round();
-        animation.begin =
-            base + Duration(microseconds: activeMicros) + spec.offset;
+        animation.begin = addSmilTime(
+          addSmilTime(
+            base,
+            smilActiveDuration(target.duration, target.repeatCount),
+          ),
+          spec.offset,
+        );
       }
     }
 
@@ -283,26 +598,683 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
   }
 }
 
+/// One accepted active interval in document time, with an exclusive end.
+/// 文档时间中的有效活动区间，结束时刻不包含在内。
+class SmilInterval {
+  /// Creates an accepted interval. / 创建有效区间。
+  const SmilInterval(this.begin, this.end);
+
+  /// Inclusive start. / 包含起点。
+  final Duration begin;
+
+  /// Exclusive end (possibly the never sentinel). / 不包含终点，可为永不结束。
+  final Duration end;
+}
+
+// The CSS compiler and legacy single-value parser need no new timing objects.
+// List items deliberately use a stricter grammar: events/empty items never fire.
+/// 解析分号分隔的 begin 列表，只保留合法的实例规格（事件与空项被丢弃）。
+/// Parses a `;`-separated begin list, keeping only valid instance specs.
+List<SmilBeginSpec> _parseInstanceSpecs(String raw) => [
+  for (final item in raw.split(';'))
+    if (_isInstanceSpec(item.trim())) parseSmilBeginSpec(item.trim()),
+];
+
+/// 纯时钟值的正则：允许符号、小数、指数、单位，以及 `hh:mm:ss` 形式。
+/// Pattern for a plain clock value (sign, fraction, exponent, unit, or h:m:s).
+final _clockInstancePattern = RegExp(
+  r'^[+-]?(?:(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:h|min|ms|s)?|(?:\d+:)?[0-5]\d:[0-5]\d(?:\.\d+)?)$',
+);
+
+/// 同步基准引用的正则：捕获基准 id、`begin`/`end` 与可选的 ±偏移。
+/// Pattern for a syncbase reference: captures id, begin/end, and optional offset.
+final _syncInstancePattern = RegExp(
+  r'^[^\s;]+?\.(begin|end)(?:\s*([+-])\s*(.+))?$',
+);
+
+/// 判断 [value] 是否为纯时钟值。 / Whether [value] is a plain clock value.
+bool _isClockInstance(String value) => _clockInstancePattern.hasMatch(value);
+
+/// 判断 [value] 能否作为列表实例：时钟值，或偏移合法的同步基准引用。
+/// Whether [value] is usable as a list instance: a clock value or a well-formed syncbase reference.
+bool _isInstanceSpec(String value) {
+  if (_isClockInstance(value)) return true;
+  final match = _syncInstancePattern.firstMatch(value);
+  return match != null &&
+      (match.group(3) == null ||
+          _isClockInstance('${match.group(2)}${match.group(3)}'));
+}
+
+/// Attach XML-only restart/end/min/max data without changing CSS constructors.
+/// Default single begin values return the same object with no extra allocation.
+/// 附加 XML 的 restart/end/min/max 配置；默认单值 begin 不额外分配对象。
+SmilBeginSpec configureSmilBegin(
+  SmilBeginSpec spec, {
+  String? restart,
+  String? end,
+  String? min,
+  String? max,
+}) {
+  if (restart == null && end == null && min == null && max == null) return spec;
+  return SmilBeginSpec(
+    offset: spec.offset,
+    syncbaseId: spec.syncbaseId,
+    onSyncbaseEnd: spec.onSyncbaseEnd,
+    entries: spec.entries,
+    restart: restart ?? _kRestartAlways,
+    endSpecs: end == null ? null : _parseInstanceSpecs(end),
+    minimum: min == null ? null : parseSmilDuration(min),
+    maximum: max == null || max.trim() == 'indefinite'
+        ? null
+        : parseSmilDuration(max),
+  );
+}
+
+/// 解析全部 begin/end 依赖：按连通分量分组，逐分量交给前向或有界求解器。
+/// Resolves all begin/end dependencies, component by component.
+void _resolveBeginLists(List<SmilTimed> animations) {
+  final byId = <String, SmilTimed>{};
+  for (final a in animations) {
+    if (a.elementId != null) byId.putIfAbsent(a.elementId!, () => a);
+  }
+  final affected = <SmilTimed>{
+    for (final a in animations)
+      if (a.beginSpec.entries != null) a,
+  };
+  // Include both sources and dependents, so a single a.end inherits every
+  // interval when a is a list. Unconnected single/CSS tracks retain legacy DFS.
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (final a in animations) {
+      for (final spec in [
+        ...?a.beginSpec.entries,
+        if (a.beginSpec.entries == null) a.beginSpec,
+        ...?a.beginSpec.endSpecs,
+      ]) {
+        final target = byId[spec.syncbaseId];
+        if (target != null &&
+            (affected.contains(a) || affected.contains(target))) {
+          if (affected.add(a)) changed = true;
+          if (affected.add(target)) changed = true;
+        }
+      }
+    }
+  }
+  _resolveLegacyBeginTimes(
+    animations.where((a) => !affected.contains(a)).toList(),
+  );
+  final timelines = affected.whereType<SmilTimeline>().toList();
+  for (final a in timelines) {
+    a.intervals = [];
+  }
+
+  final budget = _SmilWorkBudget();
+  final remaining = timelines.toSet();
+  final neighbors = <SmilTimeline, Set<SmilTimeline>>{
+    for (final a in timelines) a: {},
+  };
+  for (final a in timelines) {
+    for (final spec in [
+      ...?a.beginSpec.entries,
+      if (a.beginSpec.entries == null) a.beginSpec,
+      ...?a.beginSpec.endSpecs,
+    ]) {
+      final target = byId[spec.syncbaseId];
+      if (target is SmilTimeline && neighbors.containsKey(target)) {
+        neighbors[a]!.add(target);
+        neighbors[target]!.add(a);
+      }
+    }
+  }
+  while (remaining.isNotEmpty) {
+    final component = <SmilTimeline>[];
+    final pending = [remaining.first];
+    remaining.remove(pending.first);
+    while (pending.isNotEmpty) {
+      final a = pending.removeLast();
+      component.add(a);
+      for (final neighbor in neighbors[a]!) {
+        if (remaining.remove(neighbor)) pending.add(neighbor);
+      }
+    }
+    if (_ForwardBeginResolver.supports(component, byId)) {
+      _ForwardBeginResolver(component, byId, budget).extend(Duration.zero);
+    } else {
+      _resolveBoundedBeginComponent(component, byId, budget);
+    }
+  }
+}
+
+// 文档级累计预算也覆盖后续惰性展开，避免各分量分别耗满预算。
+// The document shares one lifetime budget, including lazy extensions.
+const _maxSmilIntervals = 20000;
+
+/// 单个前向求解器队列中待处理通知的上限，超出即截断（防负偏移/环导致的膨胀）。
+/// Cap on pending notices in one forward resolver queue; excess truncates.
+const _maxSmilQueuedNotices = 100000;
+
+/// 文档级区间总预算，由所有分量与惰性展开共享；耗尽即截断。
+/// Document-wide interval budget shared by all components and lazy extensions.
+const _maxSmilBudgetIntervals = 100000;
+
+/// 前向求解器每次惰性展开预取的时间窗口（64 秒）。
+/// Lookahead window the forward resolver prefetches on each lazy extension.
+const _kSmilPrefetchWindow = Duration(seconds: 64);
+
+/// 文档级工作预算：限制求解的总计算量，耗尽后展开即截断。
+/// Document-wide work budget; expansion truncates once it runs out.
+class _SmilWorkBudget {
+  /// 剩余计算单位。 / Remaining work units.
+  int remaining = 600000;
+
+  /// 已接受的区间总数。 / Total accepted intervals so far.
+  int intervals = 0;
+
+  /// 预算是否已耗尽。 / Whether the budget is exhausted.
+  bool get exhausted => remaining <= 0;
+
+  /// 消耗 [count] 个单位，返回预算是否仍为正。
+  /// Spends [count] units; returns whether budget remains.
+  bool spend([int count = 1]) => (remaining -= count) > 0;
+}
+
+// 按时间排序的实例通知；结束通知携带原区间以撤销被 restart 截短的结束。
+// End notices retain their interval identity so restart cancels stale ends.
+/// 实例通知：[track] 在 [time] 开始（[interval] 为 null），或结束（携带原区间）。
+/// Instance notice: a start at [time], or an end carrying its original interval.
+class _SmilNotice {
+  /// 创建通知。 / Creates a notice.
+  const _SmilNotice(this.time, this.track, [this.interval]);
+
+  /// 通知触发时刻。 / Time the notice fires.
+  final Duration time;
+
+  /// 所属时间线。 / Owning timeline.
+  final SmilTimeline track;
+
+  /// 结束通知携带的原区间；开始通知为 null。
+  /// Original interval for end notices; null for start notices.
+  final SmilInterval? interval;
+}
+
+// 正向同步图使用最小堆推进，仅处理新通知；每块预取 64 秒。
+// A chronological heap expands forward graphs without rescanning old intervals.
+/// 前向同步图求解器：以最小堆按时间推进，惰性展开区间。
+/// Forward syncbase-graph resolver: a time-ordered heap that expands intervals lazily.
+class _ForwardBeginResolver {
+  /// 为 [tracks] 构建求解器：登记依赖边、计算入度，并检测依赖环（[hasCycle]）。
+  /// Builds the resolver for [tracks]: registers dependency edges and detects cycles.
+  _ForwardBeginResolver(this.tracks, this.byId, this.budget) {
+    final predictEnds = tracks.any(
+      (a) => (a.beginSpec.entries ?? [a.beginSpec]).any(
+        (s) => s.syncbaseId != null && s.offset < Duration.zero,
+      ),
+    );
+    final indegree = <SmilTimeline, int>{for (final a in tracks) a: 0};
+    final successors = <SmilTimeline, List<SmilTimeline>>{};
+    for (final a in tracks) {
+      a._listResolver = this;
+      _seen[a] = {};
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        final target = byId[spec.syncbaseId];
+        if (target is SmilTimeline) {
+          final arc = predictEnds && spec.onSyncbaseEnd
+              ? SmilBeginSpec(
+                  offset:
+                      smilActiveDuration(target.duration, target.repeatCount) +
+                      spec.offset,
+                  syncbaseId: spec.syncbaseId,
+                )
+              : spec;
+          _arcs.putIfAbsent(target, () => []).add((a, arc));
+          successors.putIfAbsent(target, () => []).add(a);
+          indegree[a] = indegree[a]! + 1;
+        } else if (spec.syncbaseId == null) {
+          _enqueue(a, spec.offset);
+        }
+      }
+    }
+    final roots = [
+      for (final a in tracks)
+        if (indegree[a] == 0) a,
+    ];
+    var removed = 0;
+    while (roots.isNotEmpty) {
+      final a = roots.removeLast();
+      removed++;
+      for (final b in successors[a] ?? <SmilTimeline>[]) {
+        indegree[b] = indegree[b]! - 1;
+        if (indegree[b] == 0) roots.add(b);
+      }
+    }
+    hasCycle = removed != tracks.length;
+  }
+
+  /// 本分量内参与求解的全部时间线。 / Timelines in this component.
+  final List<SmilTimeline> tracks;
+
+  /// 全文档 id 到时间线的索引，用于解析同步基准。 / Document id index for syncbase lookup.
+  final Map<String, SmilTimed> byId;
+
+  /// 文档级共享的工作预算。 / Document-wide shared work budget.
+  final _SmilWorkBudget budget;
+
+  /// 按时间排序的待处理通知（最小堆）。 / Pending notices, ordered as a min-heap by time.
+  final _queue = <_SmilNotice>[];
+
+  /// 已被 restart 截短、其原定结束通知需忽略的区间。
+  /// Intervals cut short by restart; their scheduled end notices must be ignored.
+  final _cancelled = <SmilInterval>{};
+
+  /// 每条时间线已入队的开始时刻（微秒），用于去重。
+  /// Start times (microseconds) already queued per timeline, for de-duplication.
+  final _seen = <SmilTimeline, Set<int>>{};
+
+  /// 每个基准时间线对应的依赖方及其 begin 规格。
+  /// Dependents of each syncbase timeline, paired with their begin specs.
+  final _arcs = <SmilTimeline, List<(SmilTimeline, SmilBeginSpec)>>{};
+
+  /// 依赖图是否含环（拓扑排序无法消去全部节点）；含环时只能按窗口推进。
+  /// Whether the dependency graph has a cycle; if so, expansion proceeds by window.
+  late final bool hasCycle;
+
+  /// 预算耗尽后是否已停止。 / Whether expansion has stopped after exhausting the budget.
+  bool _stopped = false;
+
+  /// 已展开到的文档时刻上界，用于让重复的 [extend] 调用幂等。
+  /// Document-time horizon already expanded through; makes repeated [extend] calls idempotent.
+  Duration _through = const Duration(seconds: -1);
+
+  /// 判断分量能否交给前向求解器：负偏移重启须能预告结束，否则需有界求解器。
+  /// Whether this component can use the forward resolver; otherwise the bounded one is needed.
+  static bool supports(List<SmilTimeline> tracks, Map<String, SmilTimed> byId) {
+    for (final a in tracks) {
+      if (a.beginSpec.endSpecs?.any((s) => s.syncbaseId != null) == true) {
+        return false;
+      }
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        // 多种子负时间重启可能撤回已派生的未来 begin；交给可回撤的求解器。
+        // Pre-zero restarts require retracting their dependent begin instances.
+        if (spec.syncbaseId == null &&
+            spec.offset < Duration.zero &&
+            !_canPredictEnds(tracks, byId)) {
+          return false;
+        }
+        if (byId[spec.syncbaseId] != null && spec.offset < Duration.zero) {
+          if (!spec.onSyncbaseEnd || !_canPredictEnds(tracks, byId)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  // 单种子、每轨最多一条入边，且环周期不短于任一活动期：不会重叠重启，
+  // 因而 end 可在 begin 时安全预告，支持常见的负 end 偏移图标。
+  // Predict ends only when a single-seed graph provably cannot restart early.
+  /// 判断能否安全预告 end（单种子、无重叠重启），见上方说明。
+  /// Whether ends can be predicted safely (single seed, no overlapping restarts).
+  static bool _canPredictEnds(
+    List<SmilTimeline> tracks,
+    Map<String, SmilTimed> byId,
+  ) {
+    var seeds = 0;
+    var longest = Duration.zero;
+    final parents = <SmilTimeline, (SmilTimeline, Duration)>{};
+    for (final a in tracks) {
+      if (a.repeatCount.indefinite ||
+          a.duration <= Duration.zero ||
+          a.beginSpec.minimum != null ||
+          a.beginSpec.maximum != null ||
+          a.beginSpec.endSpecs != null) {
+        return false;
+      }
+      final active = smilActiveDuration(a.duration, a.repeatCount);
+      if (active > longest) longest = active;
+      for (final spec in a.beginSpec.entries ?? [a.beginSpec]) {
+        final target = byId[spec.syncbaseId];
+        if (target is SmilTimeline) {
+          if (parents.containsKey(a)) return false;
+          final delay =
+              spec.offset +
+              (spec.onSyncbaseEnd
+                  ? smilActiveDuration(target.duration, target.repeatCount)
+                  : Duration.zero);
+          if (delay < Duration.zero) return false;
+          parents[a] = (target, delay);
+        } else if (spec.syncbaseId == null && spec.offset != kSmilNeverBegins) {
+          if (++seeds > 1) return false;
+        }
+      }
+    }
+    final done = <SmilTimeline>{};
+    for (final a in tracks) {
+      final path = <SmilTimeline, Duration>{};
+      var current = a;
+      var distance = Duration.zero;
+      while (!done.contains(current)) {
+        final before = path[current];
+        if (before != null) {
+          if (distance - before < longest) return false;
+          break;
+        }
+        path[current] = distance;
+        final parent = parents[current];
+        if (parent == null) break;
+        distance += parent.$2;
+        current = parent.$1;
+      }
+      done.addAll(path.keys);
+    }
+    return true;
+  }
+
+  /// 预算耗尽或队列超限时停止求解：清空队列，并把分量内所有时间线标记为已截断。
+  /// Stops resolving on budget exhaustion or queue overflow; marks all tracks truncated.
+  void _truncate() {
+    _stopped = true;
+    _queue.clear();
+    for (final a in tracks) {
+      a.instancesTruncated = true;
+    }
+  }
+
+  /// 以最小堆方式插入通知（按时间升序）。 / Inserts [notice] into the min-heap by time.
+  void _push(_SmilNotice notice) {
+    _queue.add(notice);
+    var i = _queue.length - 1;
+    while (i > 0) {
+      final parent = (i - 1) >> 1;
+      if (_queue[parent].time <= notice.time) break;
+      _queue[i] = _queue[parent];
+      i = parent;
+    }
+    _queue[i] = notice;
+  }
+
+  /// 弹出时间最早的通知（堆顶）。 / Removes and returns the earliest notice (heap top).
+  _SmilNotice _pop() {
+    final first = _queue.first;
+    final last = _queue.removeLast();
+    if (_queue.isEmpty) return first;
+    var i = 0;
+    while (i * 2 + 1 < _queue.length) {
+      var child = i * 2 + 1;
+      if (child + 1 < _queue.length &&
+          _queue[child + 1].time < _queue[child].time) {
+        child++;
+      }
+      if (last.time <= _queue[child].time) break;
+      _queue[i] = _queue[child];
+      i = child;
+    }
+    _queue[i] = last;
+    return first;
+  }
+
+  /// 把 [a] 在 [time] 的开始通知入队；超出时长上限、永不开始或重复的会被丢弃，超预算则截断。
+  /// Queues a start of [a] at [time]; drops out-of-range, never-begin, or duplicate starts.
+  void _enqueue(SmilTimeline a, Duration time) {
+    if (_stopped ||
+        time == kSmilNeverBegins ||
+        time.inMicroseconds.abs() > _maxSmilMicros) {
+      return;
+    }
+    if (!budget.spend() || _queue.length >= _maxSmilQueuedNotices) {
+      _truncate();
+      return;
+    }
+    if (_seen[a]!.add(time.inMicroseconds)) _push(_SmilNotice(time, a));
+  }
+
+  /// 在 [time] 通知 [a] 的依赖方：[end] 为 true 时只触发基于 end 的依赖，否则只触发基于 begin 的依赖。
+  /// Notifies dependents of [a] at [time]: [end] selects end-based or begin-based arcs.
+  void _notify(SmilTimeline a, Duration time, {required bool end}) {
+    for (final (dependent, spec)
+        in _arcs[a] ?? <(SmilTimeline, SmilBeginSpec)>[]) {
+      if (_stopped) break;
+      if (!budget.spend()) {
+        _truncate();
+        break;
+      }
+      if (spec.onSyncbaseEnd == end) {
+        _enqueue(dependent, time + spec.offset);
+      }
+    }
+  }
+
+  // 摊销每个实例只出入堆一次；历史查询仅做二分，不重放事件。
+  // Each notice is processed once; historical samples only binary-search.
+  /// 惰性推进到文档时刻 [time]：逐条出堆并展开区间，上界为 [time] 加预取窗口。
+  /// Lazily expands intervals up to [time] plus the prefetch window.
+  void extend(Duration time) {
+    if (_stopped || time <= _through) return;
+    var horizon = time + _kSmilPrefetchWindow;
+    if (_through < Duration.zero &&
+        _queue.isNotEmpty &&
+        _queue.first.time > horizon) {
+      horizon = _queue.first.time + _kSmilPrefetchWindow;
+    }
+    while (_queue.isNotEmpty && (!hasCycle || _queue.first.time <= horizon)) {
+      if (!budget.spend()) {
+        _truncate();
+        break;
+      }
+      final notice = _pop();
+      final a = notice.track;
+      final intervals = a.intervals!;
+      final previous = intervals.isEmpty ? null : intervals.last;
+      if (notice.interval != null) {
+        if (!_cancelled.remove(notice.interval)) {
+          _notify(a, notice.time, end: true);
+        }
+        continue;
+      }
+      final start = notice.time;
+      var active = a.repeatCount.indefinite || a.duration == Duration.zero
+          ? kSmilNeverBegins
+          : smilActiveDuration(a.duration, a.repeatCount);
+      final minimum = a.beginSpec.minimum;
+      final maximum = a.beginSpec.maximum;
+      if (minimum != null && active < minimum) active = minimum;
+      if (maximum != null && active > maximum) active = maximum;
+      var end = active == kSmilNeverBegins ? kSmilNeverBegins : start + active;
+      final ends = a.beginSpec.endSpecs;
+      if (ends != null && ends.isNotEmpty) {
+        Duration? explicit;
+        for (final spec in ends) {
+          if (!budget.spend()) {
+            _truncate();
+            break;
+          }
+          if (spec.offset >= start &&
+              (explicit == null || spec.offset < explicit)) {
+            explicit = spec.offset;
+          }
+        }
+        if (explicit == null) continue;
+        var length = explicit - start;
+        if (minimum != null && length < minimum) length = minimum;
+        if (maximum != null && length > maximum) length = maximum;
+        if (start + length < end) end = start + length;
+      }
+      if (end <= Duration.zero) continue;
+      if (previous != null) {
+        if (a.beginSpec.restart == _kRestartNever) continue;
+        if (start < previous.end) {
+          if (a.beginSpec.restart == _kRestartWhenNotActive) continue;
+          _cancelled.add(previous);
+          intervals[intervals.length - 1] = SmilInterval(previous.begin, start);
+          _notify(a, start, end: true);
+        }
+      }
+      if (_stopped) break;
+      if (intervals.length >= _maxSmilIntervals ||
+          budget.intervals >= _maxSmilBudgetIntervals) {
+        _truncate();
+        break;
+      }
+      final interval = SmilInterval(start, end);
+      intervals.add(interval);
+      budget.intervals++;
+      a.begin = intervals.first.begin;
+      _notify(a, start, end: false);
+      if (end != kSmilNeverBegins && !_stopped) {
+        _push(_SmilNotice(end, a, interval));
+      }
+    }
+    _through = horizon;
+    for (final a in tracks) {
+      a.begin = a.intervals!.isEmpty
+          ? kSmilNeverBegins
+          : a.intervals!.first.begin;
+    }
+  }
+}
+
+/// 有界求解器：反复扫描分量直至收敛；受文档预算与扫描上限约束，超限即截断。用于负偏移与不收敛依赖。
+/// Bounded resolver: sweeps the component until it converges or hits the budget and sweep caps.
+void _resolveBoundedBeginComponent(
+  List<SmilTimeline> timelines,
+  Map<String, SmilTimed> byId,
+  _SmilWorkBudget budget,
+) {
+  List<Duration> instances(List<SmilBeginSpec> specs) {
+    final values = <int>{};
+    for (final spec in specs) {
+      if (!budget.spend()) break;
+      final target = byId[spec.syncbaseId];
+      if (spec.syncbaseId == null) {
+        if (spec.offset != kSmilNeverBegins) {
+          values.add(spec.offset.inMicroseconds);
+        }
+      } else if (target is SmilTimeline) {
+        for (final interval in target.intervals ?? const <SmilInterval>[]) {
+          if (!budget.spend()) break;
+          final base = spec.onSyncbaseEnd ? interval.end : interval.begin;
+          if (base == kSmilNeverBegins || spec.offset == kSmilNeverBegins) {
+            continue;
+          }
+          // Do not saturate: a time beyond the horizon must never create a
+          // fabricated begin at exactly the horizon (especially in cycles).
+          final value = base.inMicroseconds + spec.offset.inMicroseconds;
+          if (value.abs() <= _maxSmilMicros) values.add(value);
+        }
+      }
+    }
+    // 为排序比较预留保守的 n log n 预算；不足时由外层保留上次完整结果。
+    // Reserve sorting work before allocating another candidate list.
+    if (!budget.spend(values.length * (values.length.bitLength + 1))) return [];
+    return (values.toList()..sort())
+        .map((v) => Duration(microseconds: v))
+        .toList();
+  }
+
+  // Rebuild from current accepted intervals, not an append-only candidate set:
+  // restart can shorten an end and must retract dependent stale end instances.
+  // 文档级比较/实例预算约束负偏移及不收敛依赖；不提交预算耗尽时的半成品。
+  // Global work limits bound negative/oscillating dependencies.
+  final maxSweeps = 20000;
+  sweeps:
+  for (var sweep = 0; sweep < maxSweeps; sweep++) {
+    if (budget.exhausted) break;
+    var anyChange = false;
+    for (final a in timelines) {
+      final starts = instances(a.beginSpec.entries ?? [a.beginSpec]);
+      final ends = instances(a.beginSpec.endSpecs ?? const []);
+      final next = <SmilInterval>[];
+      for (final start in starts) {
+        if (!budget.spend()) break;
+        if (start.inMicroseconds.abs() > _maxSmilMicros) continue;
+        // Only <set> reaches this parser with a zero duration; its legacy
+        // no-dur semantics hold until an explicit end or another instance.
+        var active = a.repeatCount.indefinite || a.duration == Duration.zero
+            ? kSmilNeverBegins
+            : smilActiveDuration(a.duration, a.repeatCount);
+        final minimum = a.beginSpec.minimum;
+        final maximum = a.beginSpec.maximum;
+        if (minimum != null && active < minimum) active = minimum;
+        if (maximum != null && active > maximum) active = maximum;
+        var end = active == kSmilNeverBegins
+            ? kSmilNeverBegins
+            : start + active;
+        if (ends.isNotEmpty && ends.last < start) continue;
+        for (final candidate in ends) {
+          if (!budget.spend()) break;
+          if (candidate >= start) {
+            // Explicit end is constrained by min/max just like repeat duration.
+            var length = candidate - start;
+            if (minimum != null && length < minimum) length = minimum;
+            if (maximum != null && length > maximum) length = maximum;
+            if (start + length < end) end = start + length;
+            break;
+          }
+        }
+        if (end <= Duration.zero) continue;
+        if (next.isNotEmpty) {
+          if (a.beginSpec.restart == _kRestartNever) break;
+          final previous = next.last;
+          if (start < previous.end) {
+            if (a.beginSpec.restart == _kRestartWhenNotActive) continue;
+            next[next.length - 1] = SmilInterval(previous.begin, start);
+          }
+        }
+        if (next.length == _maxSmilIntervals) {
+          a.instancesTruncated = true;
+          break;
+        }
+        next.add(SmilInterval(start, end));
+      }
+      next.removeWhere((interval) => interval.end <= Duration.zero);
+      final old = a.intervals!;
+      if (!budget.spend(old.length + next.length) ||
+          budget.intervals + next.length - old.length >
+              _maxSmilBudgetIntervals) {
+        break sweeps;
+      }
+      budget.intervals += next.length - old.length;
+      if (old.length != next.length ||
+          List.generate(
+            next.length,
+            (i) => old[i].begin != next[i].begin || old[i].end != next[i].end,
+          ).any((v) => v)) {
+        a.intervals = next;
+        anyChange = true;
+      }
+      a.begin = next.isEmpty ? kSmilNeverBegins : next.first.begin;
+    }
+    if (!anyChange &&
+        !budget.exhausted &&
+        !timelines.any((a) => a.instancesTruncated)) {
+      return;
+    }
+    if (timelines.any((a) => a.instancesTruncated)) break;
+  }
+  for (final a in timelines) {
+    a.instancesTruncated = true;
+  }
+}
+
 /// Parses a SMIL `begin` attribute into a [SmilBeginSpec].
 ///
 /// Supported: a plain clock value (`"0.6s"`, `"600ms"`, `"2"`), and syncbase
 /// references `"id.begin"` / `"id.end"` with an optional `+`/`-` clock offset
 /// (`"ring.end+0.2s"`).
 ///
-/// **Not supported** (documented, not silently mis-parsed): event values
-/// (`"click"`, `"id.click"`), `wallclock()`, `accessKey()`, and
-/// semicolon-separated begin lists — all parse to a zero offset, i.e. the
-/// animation starts immediately, which is this engine's existing behaviour for
-/// anything it can't read.
+/// **Not supported**: event values. Single event values (`"click"`, `"id.click"`), `wallclock()` and
+/// `accessKey()` retain the legacy zero fallback. In a semicolon list they
+/// never fire; offsets and syncbases form a bounded instance-time set.
 ///
-/// 把 SMIL `begin` 属性解析为 [SmilBeginSpec]。
+/// 把 SMIL `begin` 属性解析为 [SmilBeginSpec]；`indefinite` 表示永不开始。
 ///
 /// 支持：纯时钟值（`"0.6s"`、`"600ms"`、`"2"`），以及带可选 `+`/`-` 时钟偏移的
 /// 同步基准引用 `"id.begin"`/`"id.end"`（如 `"ring.end+0.2s"`）。
 ///
 /// **不支持**（明确记录，而非静默错解）：事件值（`"click"`、`"id.click"`）、
-/// `wallclock()`、`accessKey()`，以及分号分隔的 begin 列表——一律解析为零偏移，
-/// 即动画立即开始，与本引擎对读不懂的取值的一贯行为一致。
+/// `wallclock()`、`accessKey()` 的单值保留旧零偏移回退；在分号列表中这些项
+/// 永不触发。列表中的偏移和同步基准由有界区间求解器处理。
 ///
 /// Example:
 /// ```dart
@@ -311,13 +1283,27 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
 SmilBeginSpec parseSmilBeginSpec(String? raw) {
   final value = raw?.trim() ?? '';
   if (value.isEmpty) return const SmilBeginSpec.offset(Duration.zero);
+  if (value == 'indefinite') {
+    return const SmilBeginSpec.offset(kSmilNeverBegins);
+  }
+  if (value.contains(';')) {
+    return SmilBeginSpec(
+      offset: kSmilNeverBegins,
+      entries: _parseInstanceSpecs(value),
+    );
+  }
 
-  final match = RegExp(r'^([^\s.+-]+)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
+  final match = RegExp(r'^([^\s;]+?)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
       .firstMatch(value);
-  if (match == null) return SmilBeginSpec.offset(parseSmilDuration(value));
+  if (match == null) {
+    return SmilBeginSpec.offset(parseSmilDuration(value, forBegin: true));
+  }
 
-  final magnitude = parseSmilDuration(match.group(4));
-  final offset = match.group(3) == '-' ? -magnitude : magnitude;
+  final rawOffset = match.group(4);
+  final offset = parseSmilDuration(
+    rawOffset == null ? null : '${match.group(3) ?? ''}$rawOffset',
+    forBegin: true,
+  );
   return SmilBeginSpec(
     offset: offset,
     syncbaseId: match.group(1),
@@ -346,32 +1332,27 @@ SmilBeginSpec parseSmilBeginSpec(String? raw) {
 ///
 /// **不支持**（明确声明而非静默忽略）：事件型 `begin`（如 `begin="click"`）
 /// ——按零偏移解析。
-class SmilAnimation implements SmilTimed {
+class SmilAnimation extends SmilTimeline {
   /// Creates a fully-parsed animation timeline.
   ///
   /// 创建一个已完整解析的动画时间线。
   SmilAnimation({
     required this.attributeName,
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
          'an <animate> needs at least two keyframe values',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// The presentation attribute being animated, e.g. `stroke-dashoffset`.
   ///
@@ -383,38 +1364,6 @@ class SmilAnimation implements SmilTimed {
   /// 关键帧数值，按 [calcMode]/[keyTimes] 分布在 [duration] 内。
   final List<double> values;
 
-  /// Total duration of one iteration (SMIL `dur`). / 单次迭代总时长（SMIL `dur`）。
-  @override
-  final Duration duration;
-
-  /// Delay before the animation starts on the global timeline (SMIL `begin`).
-  ///
-  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
-  ///
-  /// Mutable only so `resolveSmilBeginTimes` can fill in a syncbase reference
-  /// once, right after parsing, before any frame is sampled.
-  ///
-  /// 可写仅仅是为了让 `resolveSmilBeginTimes` 在解析完成后、任何一帧被采样之前
-  /// 一次性填入同步基准解析结果。
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion (`fill="freeze"`). With a
-  /// finite [repeatCount] this freezes at the value reached after the last
-  /// repeat; with [SmilRepeatCount.indefinite] this is never consulted since
-  /// the animation never ends.
-  ///
-  /// 完成后是否定格末值（`fill="freeze"`）。有限 [repeatCount] 时定格在最后
-  /// 一次重复结束时的值；[SmilRepeatCount.indefinite] 时永不参考此值，因为
-  /// 动画永不结束。
-  final bool fillFreeze;
-
-  /// Number of times the animation repeats (SMIL `repeatCount`).
-  ///
-  /// 动画重复次数（SMIL `repeatCount`）。
-  @override
-  final SmilRepeatCount repeatCount;
-
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
 
@@ -425,15 +1374,9 @@ class SmilAnimation implements SmilTimed {
   /// `keyTimes`）；为 null 表示关键帧均匀分布。
   final List<double>? keyTimes;
 
-  /// Per-segment cubic-bezier easing curves (SMIL `keySplines`), one per
-  /// segment (`values.length - 1`); only consulted when [calcMode] is
-  /// [SmilCalcMode.spline]. Null/mismatched-length falls back to linear
-  /// easing within the segment.
-  ///
-  /// 每段的三次贝塞尔缓动曲线（SMIL `keySplines`），共 `values.length - 1`
-  /// 段；仅在 [calcMode] 为 [SmilCalcMode.spline] 时生效。为 null 或长度不
-  /// 匹配时该段回退为线性缓动。
-  final List<CubicBezier>? keySplines;
+  /// 每段的缓动，共 `values.length - 1` 段；仅在 [calcMode] 为
+  /// [SmilCalcMode.spline] 时生效。支持贝塞尔与阶跃，缺失的段线性回退。
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Cached [_pacedKeyTimes] result for [SmilCalcMode.paced], computed once on
   /// first [sample] rather than every frame — it is a pure function of
@@ -454,15 +1397,12 @@ class SmilAnimation implements SmilTimed {
   /// 若动画尚未开始，或已结束且未设置 `fill="freeze"`，返回 null——两种
   /// 情况下调用方都应使用元素自身的静态属性值，而非覆盖值。
   double? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
@@ -475,7 +1415,6 @@ class SmilAnimation implements SmilTimed {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -534,32 +1473,28 @@ enum SmilTransformType {
 ///
 /// 时序语义（`begin`/`duration`/`fillFreeze`/`repeatCount`/`calcMode`/
 /// `keyTimes`）与 [SmilAnimation] 完全一致。
-class SmilTransformAnimation implements SmilTimed {
+class SmilTransformAnimation extends SmilTimeline {
   /// Creates a fully-parsed transform animation timeline.
   ///
   /// 创建一个已完整解析的变换动画时间线。
   SmilTransformAnimation({
     required this.type,
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
+    this.replacesStaticTransform = false,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
          'an <animateTransform> needs at least two keyframe values',
        );
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
 
   /// Which transform this drives. / 驱动的变换种类。
   final SmilTransformType type;
@@ -569,33 +1504,6 @@ class SmilTransformAnimation implements SmilTimed {
   /// 关键帧数值，每个是归一化后的 3 分量列表（见类注释）。
   final List<List<double>> values;
 
-  /// Total duration of one iteration (SMIL `dur`). / 单次迭代总时长（SMIL `dur`）。
-  @override
-  final Duration duration;
-
-  /// Delay before the animation starts on the global timeline (SMIL `begin`).
-  ///
-  /// 动画在全局时间线上开始前的延迟（SMIL `begin`）。
-  ///
-  /// Mutable for the same reason as [SmilAnimation.begin] — filled in once by
-  /// `resolveSmilBeginTimes` right after parsing.
-  ///
-  /// 可写的原因同 [SmilAnimation.begin]——由 `resolveSmilBeginTimes` 在解析后
-  /// 一次性填入。
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion (`fill="freeze"`).
-  ///
-  /// 完成后是否定格末值（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  /// Number of times the animation repeats (SMIL `repeatCount`).
-  ///
-  /// 动画重复次数（SMIL `repeatCount`）。
-  @override
-  final SmilRepeatCount repeatCount;
-
   /// Keyframe interpolation mode (SMIL `calcMode`). / 关键帧插值模式（SMIL `calcMode`）。
   final SmilCalcMode calcMode;
 
@@ -604,12 +1512,16 @@ class SmilTransformAnimation implements SmilTimed {
   /// 每个关键帧的自定义时间比例，与 [values] 一一对应。
   final List<double>? keyTimes;
 
-  /// Per-segment cubic-bezier easing curves (SMIL `keySplines`); see
-  /// [SmilAnimation.keySplines].
+  /// 每段的缓动，支持贝塞尔与阶跃；见 [SmilAnimation.keySplines]。
+  final List<SmilSegmentEasing>? keySplines;
+
+  /// 生效期间是否替换元素的静态 transform，供绘制层判定。
+  final bool replacesStaticTransform;
+
+  /// 此刻是否产出变换值；只解析时序，不分配采样列表或执行插值。
   ///
-  /// 每段的三次贝塞尔缓动曲线（SMIL `keySplines`）；见
-  /// [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  /// 例如：`animation.isActiveAt(const Duration(seconds: 1))`。
+  bool isActiveAt(Duration t) => _timingAt(t) != null;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -626,15 +1538,12 @@ class SmilTransformAnimation implements SmilTimed {
   /// 返回 null 的条件与 [SmilAnimation.sample] 相同——此时调用方应将该变换
   /// 视为单位变换（即跳过）。
   List<double>? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<List<double>>(
@@ -647,7 +1556,6 @@ class SmilTransformAnimation implements SmilTimed {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
@@ -707,22 +1615,24 @@ class SmilMotionSample {
 /// **不支持**（明确记录）：`<animateMotion>` 上的
 /// `keyPoints`/`keyTimes`/`calcMode`（运动始终按弧长匀速），以及指向 `<path>`
 /// 的 `d` 之外任何东西的 `<mpath>`。
-class SmilMotionAnimation implements SmilTimed {
+class SmilMotionAnimation extends SmilTimeline {
   /// Creates a motion timeline from a precomputed sample table.
   ///
   /// 用预计算好的采样表创建一条运动时间线。
   SmilMotionAnimation({
     required this.samples,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.keyPoints,
     this.keyTimes,
     this.keySplines,
     this.calcMode = SmilCalcMode.linear,
+    super.direction = SmilDirection.normal,
+    this.interpolateAngle = false,
   }) : assert(samples.length >= 2, 'a motion path needs at least two samples'),
        assert(
          keyPoints == null || keyPoints.length >= 2,
@@ -754,7 +1664,7 @@ class SmilMotionAnimation implements SmilTimed {
   /// Per-segment easing curves for [keyPoints]; see [SmilAnimation.keySplines].
   ///
   /// [keyPoints] 各段的缓动曲线；见 [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Interpolation mode for [keyPoints]; only consulted when [keyPoints] is
   /// set.
@@ -762,25 +1672,8 @@ class SmilMotionAnimation implements SmilTimed {
   /// [keyPoints] 的插值模式；仅在设置了 [keyPoints] 时生效。
   final SmilCalcMode calcMode;
 
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// Whether the final position is held after completion (`fill="freeze"`).
-  ///
-  /// 完成后是否定格在末位置（`fill="freeze"`）。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
-
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
+  /// 是否在相邻采样点之间线性插值角度（含 ±180° 绕回）；默认取段起点角度。
+  final bool interpolateAngle;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -793,13 +1686,7 @@ class SmilMotionAnimation implements SmilTimed {
   /// 在全局时间线时刻 [t] 采样元素位置（以及 `rotate="auto"` 的角度）；动画未
   /// 激活时返回 null——约定与 [SmilAnimation.sample] 相同。
   SmilMotionSample? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
     // With no keyPoints, arc-length fraction == time fraction — the exact
@@ -812,7 +1699,10 @@ class SmilMotionAnimation implements SmilTimed {
     // 缓动机制，只是产出的是弧长比例而非数值。
     var arcFraction = timing.progress;
     final points = keyPoints;
-    if (points != null) {
+    if (points != null && calcMode == SmilCalcMode.discrete) {
+      arcFraction =
+          points[_discreteIndex(timing.progress, points.length, keyTimes)];
+    } else if (points != null) {
       final segments = points.length - 1;
       final effectiveKeyTimes = calcMode == SmilCalcMode.paced
           ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
@@ -825,14 +1715,10 @@ class SmilMotionAnimation implements SmilTimed {
         segments,
         effectiveKeyTimes,
       );
-      if (calcMode == SmilCalcMode.discrete) {
-        arcFraction = points[segment.index];
-      } else {
-        final a = points[segment.index];
-        final b = points[segment.index + 1];
-        final segT = _easedSegmentT(calcMode, keySplines, segment);
-        arcFraction = a + (b - a) * segT;
-      }
+      final a = points[segment.index];
+      final b = points[segment.index + 1];
+      final segT = _easedSegmentT(calcMode, keySplines, segment);
+      arcFraction = a + (b - a) * segT;
     }
 
     final scaled = (arcFraction * (samples.length - 1)).clamp(
@@ -846,16 +1732,26 @@ class SmilMotionAnimation implements SmilTimed {
     return SmilMotionSample(
       a.x + (b.x - a.x) * localT,
       a.y + (b.y - a.y) * localT,
-      // The table is dense, so the segment's own angle is used rather than
-      // interpolated — interpolating would need ±180° wrap handling for no
-      // visible gain.
+      // By default the table is dense, so the segment's own angle is used
+      // rather than interpolated; [interpolateAngle] opts into wrap-aware
+      // interpolation for sparse tables.
       //
-      // 采样表足够密，直接取该段自身的角度而不插值——插值需要处理 ±180° 绕回，
-      // 视觉上却没有收益。
-      a.angleDegrees,
+      // 默认采样表足够密，直接取该段自身的角度而不插值；稀疏表可通过
+      // [interpolateAngle] 开启带绕回处理的插值。
+      interpolateAngle
+          ? a.angleDegrees + _wrap180(b.angleDegrees - a.angleDegrees) * localT
+          : a.angleDegrees,
     );
   }
 }
+
+/// 颜色值表示 `none` 的哨兵，位于 `0xAARRGGBB` 值域之外。
+///
+/// 例如：`SmilColorAnimation(values: [0xFFFF0000, kSmilColorNone], ...)`。
+const int kSmilColorNone = -1;
+
+/// 颜色与 `none` 之间离散翻转的缓动后进度阈值。
+const double _colorNoneFlipAt = 0.5;
 
 /// A parsed, self-contained colour `<animate>` timeline (e.g.
 /// `attributeName="stop-color"` on a gradient `<stop>` — see
@@ -877,44 +1773,33 @@ class SmilMotionAnimation implements SmilTimed {
 /// 头注释）无需引入颜色类型。时序语义（`begin`/`duration`/`fillFreeze`/
 /// `repeatCount`/`calcMode`/`keyTimes`/`keySplines`）与 [SmilAnimation] 完全
 /// 一致，复用同一套区间定位/缓动辅助函数。
-class SmilColorAnimation implements SmilTimed {
+class SmilColorAnimation extends SmilTimeline {
   /// Creates a fully-parsed colour timeline. / 创建一个已完整解析的颜色时间线。
   SmilColorAnimation({
     required this.values,
-    required this.duration,
-    required this.begin,
-    required this.fillFreeze,
-    this.repeatCount = SmilRepeatCount.once,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
     this.calcMode = SmilCalcMode.linear,
     this.keyTimes,
     this.keySplines,
-    this.elementId,
-    this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    this.attributeName = 'stop-color',
+    super.direction = SmilDirection.normal,
   }) : assert(
          values.length >= 2,
          'a colour <animate> needs at least two keyframe values',
        );
 
-  @override
-  final String? elementId;
-
-  @override
-  final SmilBeginSpec beginSpec;
-
-  /// Keyframe colours packed as `0xAARRGGBB`. / 关键帧颜色，打包为 `0xAARRGGBB`。
+  /// Keyframe colours packed as `0xAARRGGBB`; may hold [kSmilColorNone].
+  ///
+  /// 关键帧颜色，打包为 `0xAARRGGBB`；可含 [kSmilColorNone]。
   final List<int> values;
 
-  @override
-  final Duration duration;
-
-  @override
-  Duration begin;
-
-  /// Whether the end value is held after completion. / 完成后是否定格末值。
-  final bool fillFreeze;
-
-  @override
-  final SmilRepeatCount repeatCount;
+  /// 被驱动的颜色属性名，例如 `stop-color` 或 `fill`。
+  final String attributeName;
 
   /// Keyframe interpolation mode. / 关键帧插值模式。
   final SmilCalcMode calcMode;
@@ -927,7 +1812,7 @@ class SmilColorAnimation implements SmilTimed {
   /// Per-segment easing curves; see [SmilAnimation.keySplines].
   ///
   /// 每段的缓动曲线；见 [SmilAnimation.keySplines]。
-  final List<CubicBezier>? keySplines;
+  final List<SmilSegmentEasing>? keySplines;
 
   /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
   /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
@@ -939,15 +1824,12 @@ class SmilColorAnimation implements SmilTimed {
   /// 在全局时间线时刻 [t] 采样动画颜色（`0xAARRGGBB`）；空值约定同
   /// [SmilAnimation.sample]。
   int? sample(Duration t) {
-    final timing = _resolveTiming(
-      t: t,
-      begin: begin,
-      duration: duration,
-      repeatCount: repeatCount,
-      fillFreeze: fillFreeze,
-    );
+    final timing = _timingAt(t);
     if (timing == null) return null;
 
+    if (calcMode == SmilCalcMode.discrete) {
+      return values[_discreteIndex(timing.progress, values.length, keyTimes)];
+    }
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
         ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<int>(values, _argbDistance))
@@ -957,11 +1839,15 @@ class SmilColorAnimation implements SmilTimed {
       segments,
       effectiveKeyTimes,
     );
-    if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
     final b = values[segment.index + 1];
     final segT = _easedSegmentT(calcMode, keySplines, segment);
+    if (a == kSmilColorNone || b == kSmilColorNone) {
+      if (a == b) return a;
+      // CSS 中颜色与 none 不可插值，缓动后进度 >= 0.5 处离散翻转。
+      return segT >= _colorNoneFlipAt ? b : a;
+    }
     int lerpChannel(int shift) {
       final ca = (a >> shift) & 0xFF;
       final cb = (b >> shift) & 0xFF;
@@ -974,6 +1860,219 @@ class SmilColorAnimation implements SmilTimed {
         lerpChannel(0);
   }
 }
+
+/// `stroke-dasharray` 这类数值列表属性的时间线：每个关键帧一个等长列表，
+/// 逐项插值。
+///
+/// 调用方保证所有关键帧长度相同（短列表需事先按公共长度补齐）。时序、
+/// `keyTimes`、`keySplines`、`direction` 与 [SmilAnimation] 语义一致；
+/// `calcMode` 支持 `linear`/`spline`/`discrete`，`paced` 对列表没有定义，
+/// 按 `linear` 处理。
+///
+/// 例如：
+/// ```dart
+/// final a = SmilListAnimation(
+///   attributeName: 'stroke-dasharray',
+///   values: [[10, 20], [20, 40]],
+///   duration: const Duration(seconds: 1),
+///   begin: Duration.zero,
+///   fillFreeze: true,
+/// );
+/// a.sample(const Duration(milliseconds: 500)); // [15, 30]
+/// ```
+class SmilListAnimation extends SmilTimeline {
+  /// 创建列表时间线；[values] 至少两帧且各帧等长。
+  SmilListAnimation({
+    required this.attributeName,
+    required this.values,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    super.repeatCount = SmilRepeatCount.once,
+    super.direction = SmilDirection.normal,
+    this.calcMode = SmilCalcMode.linear,
+    this.keyTimes,
+    this.keySplines,
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+  }) : assert(
+         values.length >= 2,
+         'a list <animate> needs at least two keyframe values',
+       ),
+       assert(
+         values.every((v) => v.length == values.first.length),
+         'all keyframe lists must have the same length',
+       );
+
+  /// 被驱动的属性名，例如 `stroke-dasharray`。
+  final String attributeName;
+
+  /// 各关键帧的列表值，长度相同。
+  final List<List<double>> values;
+
+  /// 插值模式；`paced` 按 `linear` 处理。
+  final SmilCalcMode calcMode;
+
+  /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
+  final List<double>? keyTimes;
+
+  /// 每段的缓动，支持贝塞尔与阶跃；见 [SmilAnimation.keySplines]。
+  final List<SmilSegmentEasing>? keySplines;
+
+  /// 每个关键帧列表的长度。
+  int get width => values.first.length;
+
+  /// 在全局时刻 [t] 采样；未开始或已结束且不定格时返回 null。
+  ///
+  /// 返回的列表每次都是新实例，调用方可自由持有。
+  List<double>? sample(Duration t) {
+    final timing = _timingAt(t);
+    if (timing == null) return null;
+
+    if (calcMode == SmilCalcMode.discrete) {
+      return List<double>.of(
+        values[_discreteIndex(timing.progress, values.length, keyTimes)],
+      );
+    }
+    final segment = _locateSegment(
+      timing.progress,
+      values.length - 1,
+      keyTimes,
+    );
+
+    final a = values[segment.index];
+    final b = values[segment.index + 1];
+    final segT = _easedSegmentT(calcMode, keySplines, segment);
+    return [for (var i = 0; i < a.length; i++) a[i] + (b[i] - a[i]) * segT];
+  }
+}
+
+/// 路径变形的指令码：绝对 `M`。
+const int kMorphMove = 0;
+
+/// 路径变形的指令码：绝对 `L`（`H`/`V` 也规范化为它）。
+const int kMorphLine = 1;
+
+/// 路径变形的指令码：绝对 `C`（`S` 也规范化为它）。
+const int kMorphCubic = 2;
+
+/// 路径变形的指令码：绝对 `Q`（`T` 也规范化为它）。
+const int kMorphQuad = 3;
+
+/// 路径变形的指令码：绝对 `A`，参数为 `rx ry rot large sweep x y`。
+const int kMorphArc = 4;
+
+/// 路径变形的指令码：`Z`。
+const int kMorphClose = 5;
+
+/// 各指令码对应的参数个数，下标即指令码。
+const List<int> kMorphArity = <int>[2, 2, 6, 4, 7, 0];
+
+/// 路径变形的数值数据：所有关键帧规范化为绝对坐标后，指令序列与参数个数
+/// 完全一致，才能逐参数插值。解析期一次构建，逐帧只读。
+///
+/// 由 `svg_path_morph.dart` 的 `buildPathMorphData` 构建。
+class PathMorphData {
+  /// 创建变形数据。
+  const PathMorphData({required this.ops, required this.frames});
+
+  /// 各关键帧共享的指令码序列（`kMorph*`）。
+  final List<int> ops;
+
+  /// 每个关键帧的扁平参数表，按 [ops] 顺序排布，长度彼此相等。逐帧热路径只读，
+  /// 用 [Float64List] 避免装箱；构建后不得修改。
+  final List<Float64List> frames;
+}
+
+/// 单个 `<animate attributeName="d">` 或作用于 `d` 的 `<set>` 的时间线。
+///
+/// 路径字符串在解析期保留为 [frames]；各帧规范化后形状兼容时另附数值数据
+/// [morph]，此时线性/spline 可插值，否则退化为离散（按 SMIL 规范，不可插值的
+/// 值在 `values` 个区间内等分切换）。时序复用 [_resolveTiming] 等既有设施。
+///
+/// [sample] 返回单个 double「位置」：整数部分是起始关键帧下标，小数部分是段内
+/// 进度（已按 `keySplines` 缓动并钳制到 `[0, 1]`）。离散时恒为整数。这样既能
+/// 用一个数字做变化检测，也不必每帧分配采样对象。
+///
+/// `calcMode="paced"` 对路径没有定义，按 `linear` 处理。
+class SmilPathAnimation extends SmilTimeline {
+  /// 创建路径时间线；[frames] 至少一项（`<set>` 只有一个）。
+  SmilPathAnimation({
+    required this.frames,
+    required super.duration,
+    required super.begin,
+    required super.fillFreeze,
+    this.morph,
+    super.repeatCount = SmilRepeatCount.once,
+    this.calcMode = SmilCalcMode.linear,
+    this.keyTimes,
+    this.keySplines,
+    super.elementId,
+    super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
+    super.direction = SmilDirection.normal,
+  }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),
+       assert(
+         morph == null || morph.frames.length == frames.length,
+         'morph frames must match path frames',
+       );
+
+  /// 各关键帧的原始 `d` 字符串；离散显示时直接用它（同一实例，几何缓存可命中）。
+  final List<String> frames;
+
+  /// 形状兼容时的数值数据；为 null 表示只能离散切换。
+  final PathMorphData? morph;
+
+  /// 插值模式；`paced` 按 `linear` 处理。
+  final SmilCalcMode calcMode;
+
+  /// 每个关键帧的时间比例；见 [SmilAnimation.keyTimes]。
+  final List<double>? keyTimes;
+
+  /// 每段缓动曲线；见 [SmilAnimation.keySplines]。
+  final List<SmilSegmentEasing>? keySplines;
+
+  /// 当前是否会插值（有数值数据且不是 discrete）。
+  bool get interpolates => morph != null && calcMode != SmilCalcMode.discrete;
+
+  /// 在全局时刻 [t] 采样「位置」；未开始或已结束且不定格时返回 null，
+  /// 此时调用方应显示元素自身静态的 `d`。
+  double? sample(Duration t) {
+    final timing = _timingAt(t);
+    if (timing == null) return null;
+
+    final count = frames.length;
+    if (count == 1) return 0;
+    if (!interpolates) {
+      return _discreteIndex(timing.progress, count, keyTimes).toDouble();
+    }
+    final segment = _locateSegment(timing.progress, count - 1, keyTimes);
+    final eased = _easedSegmentT(calcMode, keySplines, segment);
+    return segment.index + eased.clamp(0.0, 1.0);
+  }
+}
+
+/// 离散模式下 [progress] 对应的关键帧下标：有合法 [keyTimes]（长度等于 [count]）
+/// 时按其切换，否则把时长等分为 [count] 个区间（SMIL 规范）。
+///
+/// 所有离散通道（含运动 keyPoints）共用此规则；插值通道仍按 `count - 1` 段定位。
+int _discreteIndex(double progress, int count, List<double>? keyTimes) {
+  if (keyTimes != null && keyTimes.length == count) {
+    var index = 0;
+    for (var i = 1; i < count; i++) {
+      if (progress >= keyTimes[i]) {
+        index = i;
+      } else {
+        break;
+      }
+    }
+    return index;
+  }
+  final index = (progress * count).floor();
+  return index.clamp(0, count - 1);
+}
+
+/// 把角度差折回 `[-180, 180)`，使插值走短弧；例如 `_wrap180(358)` 得 `-2`。
+double _wrap180(double d) => (d + 180) % 360 - 180;
 
 double _argbDistance(int a, int b) {
   var sumSquares = 0.0;
@@ -1016,7 +2115,38 @@ class _Timing {
 /// 根据动画的 `begin`/`duration`/`repeatCount`/`fill`，为全局时刻 [t] 计算
 /// [_Timing]——两个动画类共用，确保循环与定格语义在数值动画与变换动画间保持
 /// 一致。
+@pragma('vm:prefer-inline')
 _Timing? _resolveTiming({
+  required Duration t,
+  required Duration begin,
+  required Duration duration,
+  required SmilRepeatCount repeatCount,
+  required bool fillFreeze,
+  SmilDirection direction = SmilDirection.normal,
+}) {
+  if (direction == SmilDirection.normal) {
+    return _resolveNormalTiming(
+      t: t,
+      begin: begin,
+      duration: duration,
+      repeatCount: repeatCount,
+      fillFreeze: fillFreeze,
+    );
+  }
+  final local = t - begin;
+  if (local.isNegative) return null;
+  return _resolveDirectedTiming(
+    local: local,
+    duration: duration,
+    repeatCount: repeatCount,
+    fillFreeze: fillFreeze,
+    direction: direction,
+  );
+}
+
+/// 正向播放沿用原始时序运算，避免方向逻辑扩大默认采样路径。
+@pragma('vm:prefer-inline')
+_Timing? _resolveNormalTiming({
   required Duration t,
   required Duration begin,
   required Duration duration,
@@ -1034,15 +2164,56 @@ _Timing? _resolveTiming({
     return _Timing((localMicros % durationMicros) / durationMicros);
   }
 
-  final totalMicros = (durationMicros * repeatCount.count).round();
+  final totalMicros = smilActiveDuration(duration, repeatCount).inMicroseconds;
   if (localMicros >= totalMicros) {
     if (!fillFreeze) return null;
-    final wholeIterations = repeatCount.count.floor();
-    final fractional = repeatCount.count - wholeIterations;
+    final fractional = repeatCount.count % 1;
     return _Timing(fractional == 0 ? 1 : fractional);
   }
   return _Timing((localMicros % durationMicros) / durationMicros);
 }
+
+/// 非默认方向的时序求值，独立保留以缩小正向采样的热路径。
+@pragma('vm:never-inline')
+_Timing? _resolveDirectedTiming({
+  required Duration local,
+  required Duration duration,
+  required SmilRepeatCount repeatCount,
+  required bool fillFreeze,
+  required SmilDirection direction,
+}) {
+  final durationMicros = duration.inMicroseconds;
+  if (durationMicros == 0) return _Timing(_directed(direction, 0, 1));
+  final localMicros = local.inMicroseconds;
+  if (!repeatCount.indefinite &&
+      localMicros >= smilActiveDuration(duration, repeatCount).inMicroseconds) {
+    if (!fillFreeze) return null;
+    final wholeIterations = repeatCount.count.floor();
+    final fractional = repeatCount.count % 1;
+    return _Timing(
+      fractional == 0
+          ? _directed(direction, wholeIterations - 1, 1)
+          : _directed(direction, wholeIterations, fractional),
+    );
+  }
+  return _Timing(
+    _directed(
+      direction,
+      localMicros ~/ durationMicros,
+      (localMicros % durationMicros) / durationMicros,
+    ),
+  );
+}
+
+/// 按零基迭代序号反转整体进度，段缓动保持原样。
+double _directed(SmilDirection direction, int iteration, double progress) =>
+    switch (direction) {
+      SmilDirection.normal => progress,
+      SmilDirection.reverse => 1 - progress,
+      SmilDirection.alternate => iteration.isOdd ? 1 - progress : progress,
+      SmilDirection.alternateReverse =>
+        iteration.isEven ? 1 - progress : progress,
+    };
 
 /// A located keyframe segment: interpolate between `values[index]` and
 /// `values[index + 1]` at local fraction `t`.
@@ -1090,7 +2261,7 @@ _Segment _locateSegment(double progress, int segments, List<double>? keyTimes) {
 /// 对其局部比例应用 `keySplines` 缓动；否则原样返回（区间内线性）。
 double _easedSegmentT(
   SmilCalcMode calcMode,
-  List<CubicBezier>? keySplines,
+  List<SmilSegmentEasing>? keySplines,
   _Segment segment,
 ) {
   if (calcMode != SmilCalcMode.spline ||
@@ -1127,29 +2298,72 @@ List<double> _pacedKeyTimes<T>(
   return [for (final c in cumulative) c / total];
 }
 
+// 统一限制到约 115 天；先钳制浮点乘积再 round，时间线相加也使用同一边界。
+const _maxSmilMicros = 10000000 * Duration.microsecondsPerSecond;
+
+/// 有限重复的活动时长；超大乘积饱和到约 115 天，避免 Infinity.round()。
+Duration smilActiveDuration(Duration duration, SmilRepeatCount repeatCount) =>
+    Duration(
+      microseconds: (duration.inMicroseconds * repeatCount.count)
+          .clamp(0, _maxSmilMicros)
+          .round(),
+    );
+
+/// 时间线饱和加法。先限制两个操作数，确保相加本身也不会发生整数回绕。
+Duration addSmilTime(Duration a, Duration b) => Duration(
+  microseconds:
+      (a.inMicroseconds.clamp(-_maxSmilMicros, _maxSmilMicros) +
+              b.inMicroseconds.clamp(-_maxSmilMicros, _maxSmilMicros))
+          .clamp(-_maxSmilMicros, _maxSmilMicros),
+);
+
 /// Parses a SMIL `dur`/`begin` time string (e.g. `"0.5s"`, `"600ms"`, `"2"`)
 /// into a [Duration]. Unitless numbers are treated as seconds, matching the
 /// SMIL default. Unparsable input maps to [Duration.zero].
 ///
 /// 解析 SMIL `dur`/`begin` 时间字符串（如 `"0.5s"`、`"600ms"`、`"2"`）为
 /// [Duration]。无单位数字按秒处理（SMIL 默认单位）。无法解析时返回
-/// [Duration.zero]。
-Duration parseSmilDuration(String? raw) {
+/// [Duration.zero]；非有限字面值仍回退为零；有限超长时长饱和到 1e7 秒。
+/// [forBegin] 用于开始偏移，正向超限返回 [kSmilNeverBegins]。
+/// 支持完整/部分时钟、h/min/s/ms 与默认秒单位。
+Duration parseSmilDuration(String? raw, {bool forBegin = false}) {
   if (raw == null) return Duration.zero;
   final value = raw.trim();
   if (value.isEmpty || value == 'indefinite') return Duration.zero;
   double? seconds;
-  if (value.endsWith('ms')) {
-    final n = double.tryParse(value.substring(0, value.length - 2));
-    if (n != null) seconds = n / 1000;
-  } else if (value.endsWith('s')) {
-    seconds = double.tryParse(value.substring(0, value.length - 1));
+  if (value.contains(':')) {
+    final match = RegExp(r'^([+-])?(?:(\d+):)?(\d{2}):(\d{2}(?:\.\d+)?)$')
+        .firstMatch(value);
+    if (match == null) return Duration.zero;
+    final hours = double.tryParse(match.group(2) ?? '0');
+    final minutes = double.parse(match.group(3)!);
+    final tail = double.parse(match.group(4)!);
+    if (hours == null || minutes >= 60 || tail >= 60) return Duration.zero;
+    seconds =
+        (hours * 3600 + minutes * 60 + tail) * (match.group(1) == '-' ? -1 : 1);
   } else {
-    seconds = double.tryParse(value);
+    final match = RegExp(
+      r'^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)(h|min|ms|s)?$',
+    ).firstMatch(value);
+    if (match == null) return Duration.zero;
+    final number = double.tryParse(match.group(1)!);
+    if (number == null || !number.isFinite) return Duration.zero;
+    seconds =
+        number *
+        switch (match.group(2)) {
+          'h' => 3600.0,
+          'min' => 60.0,
+          'ms' => 0.001,
+          _ => 1.0,
+        };
   }
-  seconds ??= 0;
+  if (seconds.isNaN) return Duration.zero;
+  final maximum = _maxSmilMicros / Duration.microsecondsPerSecond;
+  if (forBegin && seconds > maximum) return kSmilNeverBegins;
   return Duration(
-    microseconds: (seconds * Duration.microsecondsPerSecond).round(),
+    microseconds:
+        (seconds.clamp(-maximum, maximum) * Duration.microsecondsPerSecond)
+            .round(),
   );
 }
 
@@ -1157,13 +2371,13 @@ Duration parseSmilDuration(String? raw) {
 /// or absent/unparsable (defaults to [SmilRepeatCount.once]).
 ///
 /// 解析 SMIL `repeatCount` 属性：`"indefinite"`、正数，或缺失/无法解析（默认
-/// [SmilRepeatCount.once]）。
+/// [SmilRepeatCount.once]）；非有限数也回退为一次。
 SmilRepeatCount parseSmilRepeatCount(String? raw) {
   if (raw == null) return SmilRepeatCount.once;
   final value = raw.trim();
   if (value == 'indefinite') return const SmilRepeatCount.indefinite();
   final n = double.tryParse(value);
-  if (n == null || n <= 0) return SmilRepeatCount.once;
+  if (n == null || !n.isFinite || n <= 0) return SmilRepeatCount.once;
   return SmilRepeatCount.finite(n);
 }
 
@@ -1199,7 +2413,9 @@ List<CubicBezier>? parseSmilKeySplines(String? raw) {
         .split(RegExp(r'[\s,]+'))
         .map(double.tryParse)
         .toList();
-    if (parts.length != 4 || parts.any((v) => v == null)) return null;
+    if (parts.length != 4 || parts.any((v) => v == null || !v.isFinite)) {
+      return null;
+    }
     splines.add(CubicBezier(parts[0]!, parts[1]!, parts[2]!, parts[3]!));
   }
   return splines.isEmpty ? null : splines;
@@ -1212,8 +2428,13 @@ List<CubicBezier>? parseSmilKeySplines(String? raw) {
 /// （调用方回退到均匀分布）。
 List<double>? parseSmilKeyTimes(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
-  final parts = raw.split(';').map((s) => double.tryParse(s.trim())).toList();
-  if (parts.any((v) => v == null)) return null;
+  final parts = raw
+      .split(';')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .map(double.tryParse)
+      .toList();
+  if (parts.isEmpty || parts.any((v) => v == null || !v.isFinite)) return null;
   return parts.cast<double>();
 }
 
@@ -1233,17 +2454,33 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
   if (values != null && values.trim().isNotEmpty) {
     final parts = values
         .split(';')
-        .map((s) => double.tryParse(s.trim()))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map(double.tryParse)
         .toList();
-    if (parts.any((v) => v == null) || parts.length < 2) return null;
+    if (parts.any((v) => v == null || !v.isFinite) || parts.length < 2) {
+      return null;
+    }
     return parts.cast<double>();
   }
   if (from != null && to != null) {
     final f = double.tryParse(from.trim());
     final t = double.tryParse(to.trim());
-    if (f == null || t == null) return null;
+    if (f == null || t == null || !f.isFinite || !t.isFinite) return null;
     return [f, t];
   }
+  return null;
+}
+
+/// 解析作用于 `d` 的 `values="path1;path2;..."`（或 `from`/`to` 简写）为路径
+/// 字符串列表；空项（如末尾多余的分号）丢弃。不足两项时返回 null。
+List<String>? parseSmilPathValues({String? values, String? from, String? to}) {
+  if (values != null && values.trim().isNotEmpty) {
+    final frames = [for (final part in values.split(';')) part.trim()]
+      ..removeWhere((part) => part.isEmpty);
+    return frames.length < 2 ? null : frames;
+  }
+  if (from != null && to != null) return [from.trim(), to.trim()];
   return null;
 }
 
@@ -1268,6 +2505,7 @@ List<List<double>>? parseSmilTransformKeyframes({
   String? from,
   String? to,
 }) {
+  // 变换分量只接受有限数，避免采样运算传播 NaN/Infinity。
   List<double>? parseComponents(String raw) {
     final parts = raw
         .trim()
@@ -1275,12 +2513,19 @@ List<List<double>>? parseSmilTransformKeyframes({
         .where((s) => s.isNotEmpty)
         .map(double.tryParse)
         .toList();
-    if (parts.isEmpty || parts.any((v) => v == null)) return null;
+    if (parts.isEmpty || parts.any((v) => v == null || !v.isFinite)) {
+      return null;
+    }
     return parts.cast<double>();
   }
 
   if (values != null && values.trim().isNotEmpty) {
-    final frames = values.split(';').map((s) => parseComponents(s)).toList();
+    final frames = values
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .map(parseComponents)
+        .toList();
     if (frames.any((f) => f == null) || frames.length < 2) return null;
     return frames.cast<List<double>>();
   }

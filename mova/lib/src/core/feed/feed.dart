@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../model/feed_item.dart';
 import 'engine_pool.dart';
@@ -97,7 +98,8 @@ class MovaFeed {
   ///
   /// 进行中的 [loader] 调用；同一索引的并发 [ensure] 调用共享一次加载，
   /// 而非互相竞争。
-  final Map<int, Future<MovaFeedItem?>> _pending = <int, Future<MovaFeedItem?>>{};
+  final Map<int, Future<MovaFeedItem?>> _pending =
+      <int, Future<MovaFeedItem?>>{};
 
   /// Set once [dispose] has run; guards [_runActivateLoop] and [ensure]'s
   /// loader continuation against touching [pool] or repopulating the caches
@@ -145,26 +147,60 @@ class MovaFeed {
   ///
   /// - [index]: the feed index to resolve / 要解析的 feed 索引
   Future<MovaFeedItem?> ensure(int index) {
+    if (_disposed || !retains(index)) return Future.value(null);
     final cached = _cache[index];
     if (cached != null) return Future.value(cached);
-    return _pending.putIfAbsent(index, () async {
-      // `finally` (not a line after `await`): a throwing `loader` must not
-      // leave `index` permanently stuck in `_pending` — `putIfAbsent` would
-      // then keep handing back the same already-failed future forever,
-      // silently blocking every future retry for that index.
-      //
-      // 用 `finally`（而非 `await` 之后的一行）：`loader` 抛异常时不能把
-      // `index` 永远留在 `_pending` 里——否则 `putIfAbsent` 会一直把同一个
-      // 已失败的 future 发回去，悄悄挡住这个索引此后的所有重试。
-      try {
-        final item = await loader(index);
-        if (item != null && !_disposed) _cache[index] = item;
-        return item;
-      } finally {
-        _pending.remove(index);
-      }
-    });
+    final existing = _pending[index];
+    if (existing != null) return existing;
+    late final Future<MovaFeedItem?> request;
+    request = Future<MovaFeedItem?>.sync(() => loader(index))
+        .then((item) {
+          if (item != null &&
+              !_disposed &&
+              retains(index) &&
+              identical(_pending[index], request)) {
+            _cache[index] = item;
+          }
+          return item;
+        })
+        .whenComplete(() {
+          // 被回收的旧请求不能删除同索引后来的新请求。
+          if (identical(_pending[index], request)) _pending.remove(index);
+        });
+    _pending[index] = request;
+    return request;
   }
+
+  /// 最近请求的浏览窗口中心，先于异步加载同步迁移。
+  int? _retentionCenter;
+
+  /// 激活代际；跨 await 的预热仅能在本代际生效。
+  int _generation = 0;
+
+  /// 窗口半径覆盖解码器池、网络预取及 PageView 邻页。
+  int get _cacheRadius => math.max(pool.size, math.max(1, prefetchDepth));
+
+  /// 返回 [index] 是否属于当前缓存窗口；首次激活前允许按需加载。
+  /// 示例：`if (feed.retains(index)) renderPage(index)`。
+  bool retains(int index) =>
+      index >= 0 &&
+      (_retentionCenter == null ||
+          (index - _retentionCenter!).abs() <= _cacheRadius);
+
+  /// 当前缓存条目数量，供诊断；示例：`feed.cachedItemCount`。
+  int get cachedItemCount => _cache.length;
+
+  /// 当前持有的在途请求数，供诊断；示例：`feed.pendingItemCount`。
+  int get pendingItemCount => _pending.length;
+
+  /// 丢弃窗口外状态；旧在途请求仍可结束，但不能重新写入缓存。
+  void _prune() {
+    _cache.removeWhere((index, _) => !retains(index));
+    _pending.removeWhere((index, _) => !retains(index));
+  }
+
+  /// 判断 [generation] 是否仍为有效的预热代际。
+  bool _isCurrent(int generation) => !_disposed && generation == _generation;
 
   /// Makes [index] the playing page: narrows the pool's warm window around
   /// it, binds and plays its engine, and warms its neighbours in the
@@ -195,6 +231,10 @@ class MovaFeed {
   ///
   /// - [index]: the feed index the viewer settled on / 观众定格停留的 feed 索引
   Future<void> activate(int index) {
+    if (_disposed) return Future.value();
+    _generation++;
+    _retentionCenter = index;
+    _prune();
     _pendingIndex = index;
     return _activateLoop ??= _runActivateLoop();
   }
@@ -243,40 +283,48 @@ class MovaFeed {
         // 快速划动途中拆除 feed）——否则本轮剩余的每个池调用都会落在宿主正
         // 并发释放的池上。
         if (_disposed) return;
+        final generation = _generation;
         final index = _pendingIndex!;
         _pendingIndex = null;
-        final item = await ensure(index);
-        if (_disposed) return;
-        // A newer index already arrived while `ensure` was resolving —
-        // `index` is stale before it ever reaches the pool; skip straight
-        // to the newer one instead of opening a page nobody will see.
-        //
-        // 在 `ensure` 解析期间已经来了更新的索引——`index` 还没碰到池就已经
-        // 过期；直接跳去处理更新的那个，而非打开一个没人会看到的页面。
-        if (_pendingIndex != null) continue;
-        if (item == null) continue;
+        try {
+          final item = await ensure(index);
+          if (_disposed) return;
+          // A newer index already arrived while `ensure` was resolving —
+          // `index` is stale before it ever reaches the pool; skip straight
+          // to the newer one instead of opening a page nobody will see.
+          //
+          // 在 `ensure` 解析期间已经来了更新的索引——`index` 还没碰到池就已经
+          // 过期；直接跳去处理更新的那个，而非打开一个没人会看到的页面。
+          if (_pendingIndex != null) continue;
+          if (item == null) continue;
 
-        final window = movaFeedWindow(index, pool.size);
-        // Retain *before* binding: the active page must be able to take an
-        // engine even when the pool is already full, and the pages worth
-        // keeping are exactly the ones still in the new window.
-        //
-        // 先 retain 再绑定：池已满时活跃页也必须能取到引擎，而值得留下的
-        // 恰好就是仍在新窗口内的那些页。
-        pool.retain(window);
-        _activeIndex = index;
-        await pool.bind(index, item.source, autoPlay: true);
-        if (_disposed) return;
-        // Everything else in the pool must go quiet — a neighbour left
-        // playing from a previous activation would keep its audio going
-        // under the page the viewer is actually watching.
-        //
-        // 池中其余引擎必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
-        // 观众真正在看的这一页底下继续出声。
-        await pool.focus(index);
+          final window = movaFeedWindow(index, pool.size);
+          // Retain *before* binding: the active page must be able to take an
+          // engine even when the pool is already full, and the pages worth
+          // keeping are exactly the ones still in the new window.
+          //
+          // 先 retain 再绑定：池已满时活跃页也必须能取到引擎，而值得留下的
+          // 恰好就是仍在新窗口内的那些页。
+          pool.retain(window);
+          _activeIndex = index;
+          await pool.bind(index, item.source, autoPlay: true);
+          if (_disposed) return;
+          if (!_isCurrent(generation)) continue;
+          // Everything else in the pool must go quiet — a neighbour left
+          // playing from a previous activation would keep its audio going
+          // under the page the viewer is actually watching.
+          //
+          // 池中其余引擎必须安静下来——上一次激活遗留的、仍在播放的邻居，会在
+          // 观众真正在看的这一页底下继续出声。
+          await pool.focus(index);
 
-        unawaited(_warmNeighbours(index, window));
-        unawaited(_primeNetwork(index, window));
+          if (!_isCurrent(generation)) continue;
+          unawaited(_warmNeighbours(index, window, generation));
+          unawaited(_primeNetwork(index, window, generation));
+        } on Object {
+          if (_disposed) return;
+          if (_isCurrent(generation)) rethrow;
+        }
       }
     } finally {
       _activateLoop = null;
@@ -297,20 +345,22 @@ class MovaFeed {
   ///
   /// - [index]: the active feed index, skipped here / 当前活跃索引，此处跳过
   /// - [window]: the indices worth keeping warm / 值得保持热态的索引集合
-  Future<void> _warmNeighbours(int index, List<int> window) async {
+  Future<void> _warmNeighbours(
+    int index,
+    List<int> window,
+    int generation,
+  ) async {
     for (final neighbour in window) {
       if (neighbour == index) continue;
-      // Abandon warm-up the moment a new activation arrives: its own
-      // `retain` is about to redraw the window anyway, and binding a
-      // now-stale neighbour would evict an engine the new active page needs.
-      //
-      // 一旦有新的激活到来就放弃预热：它自己的 `retain` 马上就会重画窗口，
-      // 而此时再绑定一个已过期的邻居，只会淘汰掉新活跃页需要的引擎。
-      if (_pendingIndex != null || _activeIndex != index) return;
-      final item = await ensure(neighbour);
-      if (item == null) continue;
-      if (_pendingIndex != null || _activeIndex != index) return;
-      await pool.bind(neighbour, item.source, autoPlay: false);
+      if (!_isCurrent(generation)) return;
+      try {
+        final item = await ensure(neighbour);
+        if (!_isCurrent(generation)) return;
+        if (item == null) continue;
+        await pool.bind(neighbour, item.source, autoPlay: false);
+      } on Object {
+        // 单个邻居失败只影响自己，其余邻居继续预热。
+      }
     }
   }
 
@@ -323,13 +373,31 @@ class MovaFeed {
   /// - [index]: the active feed index / 当前活跃的 feed 索引
   /// - [window]: indices the pool already covers, skipped here / 池已覆盖、
   ///   此处跳过的索引
-  Future<void> _primeNetwork(int index, List<int> window) async {
+  Future<void> _primeNetwork(
+    int index,
+    List<int> window,
+    int generation,
+  ) async {
     for (var depth = 1; depth <= prefetchDepth; depth++) {
+      if (!_isCurrent(generation)) return;
       final ahead = index + depth;
       if (window.contains(ahead)) continue;
-      final item = await ensure(ahead);
-      if (item == null) continue;
-      await prefetcher.prime(item.source);
+      try {
+        final item = await ensure(ahead);
+        if (!_isCurrent(generation)) return;
+        if (item == null) continue;
+        final strategy = prefetcher;
+        if (strategy is MovaGuardedFeedPrefetcher) {
+          await (strategy as MovaGuardedFeedPrefetcher).primeWhileCurrent(
+            item.source,
+            () => _isCurrent(generation),
+          );
+        } else {
+          await strategy.prime(item.source);
+        }
+      } on Object {
+        // 宿主预取器也可能抛错；隔离后继续处理其他条目。
+      }
     }
   }
 
@@ -341,15 +409,18 @@ class MovaFeed {
   /// - [index]: the feed index to read / 要读取的 feed 索引
   ({bool liked, int count}) likeStateOf(int index) {
     final item = _cache[index];
-    return (liked: item?.initialLiked ?? false, count: item?.initialLikeCount ?? 0);
+    return (
+      liked: item?.initialLiked ?? false,
+      count: item?.initialLikeCount ?? 0,
+    );
   }
 
   /// Flips the local like state for [index], persists it into the item
-  /// cache (so scrolling away and back keeps the toggle), and fires
+  /// cache (so revisiting within the window keeps the toggle), and fires
   /// [MovaFeedItem.onLikeChanged]. A no-op returning `(liked: false, count: 0)`
   /// if the item hasn't resolved yet.
   ///
-  /// 翻转 [index] 的本地点赞状态，落回条目缓存（使滑走再滑回时切换结果仍在），
+  /// 翻转 [index] 的本地点赞状态，落回条目缓存（使窗口内滑走再滑回时切换结果仍在；窗口外由宿主回调持久化），
   /// 并触发 [MovaFeedItem.onLikeChanged]。若条目尚未解析则为空操作，返回
   /// `(liked: false, count: 0)`。
   ///
@@ -370,6 +441,8 @@ class MovaFeed {
   /// 清空已缓存条目并丢弃所有进行中的加载；不会释放 [pool]——它由调用方持有。
   void dispose() {
     _disposed = true;
+    _generation++;
+    _pendingIndex = null;
     _cache.clear();
     _pending.clear();
   }

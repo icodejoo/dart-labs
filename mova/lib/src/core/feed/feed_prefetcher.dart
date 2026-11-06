@@ -23,6 +23,13 @@ abstract class MovaFeedPrefetcher {
   Future<void> prime(MovaSource source);
 }
 
+/// 可选的预取取消能力；不扩充原有 MovaFeedPrefetcher 抽象成员。
+abstract interface class MovaGuardedFeedPrefetcher {
+  /// 预热 [source]，在每次异步返回后以 [isCurrent] 判断请求是否有效。
+  /// 无返回值；示例：`await prefetcher.primeWhileCurrent(source, () => epoch == current)`。
+  Future<void> primeWhileCurrent(MovaSource source, bool Function() isCurrent);
+}
+
 /// The default [MovaFeedPrefetcher]: opens a ranged HTTP GET for the first
 /// [rangeBytes] of [MovaSource.uri] and discards the response.
 ///
@@ -39,7 +46,8 @@ abstract class MovaFeedPrefetcher {
 /// *解码*链路是 `MovaFeedEnginePool` 的职责——它会提前在各自的引擎上打开即将
 /// 播放的条目——因此本 prefetcher 只覆盖池够不到的更远条目（见
 /// `MovaFeed.prefetchDepth`）。
-class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefetcher {
+class MovaNetworkWarmFeedPrefetcher
+    implements MovaFeedPrefetcher, MovaGuardedFeedPrefetcher {
   /// Creates a network-warming prefetcher.
   ///
   /// 创建一个网络预热 prefetcher。
@@ -63,16 +71,42 @@ class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefetcher {
   final Duration timeout;
 
   @override
-  Future<void> prime(MovaSource source) async {
+  Future<void> prime(MovaSource source) =>
+      primeWhileCurrent(source, () => true);
+
+  /// Checks ownership across awaits and cancels once the byte budget is read.
+  ///
+  /// 每次异步返回检查归属，读取达到字节预算后取消响应。
+  @override
+  Future<void> primeWhileCurrent(
+    MovaSource source,
+    bool Function() isCurrent,
+  ) async {
+    if (!isCurrent()) return;
     final uri = Uri.tryParse(source.uri);
     if (uri == null || !uri.hasScheme) return;
     HttpClient? client;
     try {
       client = HttpClient()..connectionTimeout = timeout;
       final request = await client.getUrl(uri).timeout(timeout);
+      if (!isCurrent()) {
+        request.abort();
+        return;
+      }
+      source.requestHeaders.forEach(
+        (key, value) => request.headers.set(key, value),
+      );
       request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-$rangeBytes');
       final response = await request.close().timeout(timeout);
-      await response.drain<void>().timeout(timeout);
+      if (!isCurrent()) return;
+      var received = 0;
+      await response
+          .takeWhile((chunk) {
+            received += chunk.length;
+            return isCurrent() && received < rangeBytes;
+          })
+          .drain<void>()
+          .timeout(timeout);
     } on Object {
       // Best-effort: any transport failure just means no warm-up happened,
       // never a playback error.

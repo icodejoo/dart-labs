@@ -21,6 +21,20 @@ void main() {
     expect(await store.loadChunk('https://host/a.mp4', 0), isNull);
   });
 
+  test('D14 interrupted staging files never replace complete chunks', () async {
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final cues = [const MovaSttCue(text: 'complete', start: Duration.zero,
+        end: Duration(seconds: 1))];
+    await store.saveChunk('source', 0, cues);
+    final target = tempDir.listSync().whereType<File>().single;
+    final staging = await Directory('${target.path}.pending-interrupted').create();
+    await File('${staging.path}/data').writeAsString('partial');
+    expect(await store.loadChunk('source', 0), cues);
+    await store.saveChunk('source', 0, cues);
+    expect(await store.loadChunk('source', 0), cues);
+    expect(tempDir.listSync().whereType<Directory>().map((d) => d.path), [staging.path]);
+  });
+
   test('saveChunk then loadChunk round-trips the cue list for that chunk', () async {
     final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final cues = [

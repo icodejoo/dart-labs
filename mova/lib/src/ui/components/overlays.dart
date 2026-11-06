@@ -1,3 +1,6 @@
+import '../style/style.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -36,7 +39,7 @@ class MovaBufferingComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return MovaSelect<bool>(
       selector: (s) => s.buffering,
       builder: (context, buffering) {
@@ -47,7 +50,9 @@ class MovaBufferingComponent extends MovaComponent {
         );
         final size = theme.bufferingSize;
         return Center(
-          child: size == null ? indicator : SizedBox.square(dimension: size, child: indicator),
+          child: size == null
+              ? indicator
+              : SizedBox.square(dimension: size, child: indicator),
         );
       },
     );
@@ -61,7 +66,7 @@ class MovaBufferingComponent extends MovaComponent {
 /// and copy are a reasonable, simple default, not a 0.1.0 port.
 ///
 /// 播放错误叠加层；[MovaState.error] 非空时显示，含错误文案与调用
-/// [MovaApi.reload] 的重试按钮。
+/// [MovaApi.reload] 的重试按钮。用户文案读取 MovaStrs，原始错误只在 debug 显示。
 ///
 /// 本次重构计划中新增——0.1.0 完全没有错误态 UI。布局与文案为合理的简单
 /// 默认实现，并非移植自 0.1.0。
@@ -84,7 +89,8 @@ class MovaErrorComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final theme = api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
+    final strings = MovaPlayerStyle.stringsOf(context);
     return MovaSelect<Object?>(
       selector: (s) => s.error,
       builder: (context, error) {
@@ -94,13 +100,29 @@ class MovaErrorComponent extends MovaComponent {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                error.toString(),
+                strings.playbackError,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(theme.textColor), fontSize: theme.timeFontSize),
+                style: TextStyle(
+                  color: Color(theme.textColor),
+                  fontSize: theme.timeFontSize,
+                ),
               ),
+              if (kDebugMode)
+                Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(theme.textColor),
+                    fontSize: theme.timeFontSize,
+                  ),
+                ),
               const SizedBox(height: 8),
               IconButton(
-                icon: Icon(Icons.refresh_rounded, color: Color(theme.iconColor)),
+                tooltip: strings.retry,
+                icon: Icon(
+                  MovaPlayerStyle.iconsOf(context).retry,
+                  color: Color(theme.iconColor),
+                ),
                 onPressed: () => api.reload(),
               ),
             ],
