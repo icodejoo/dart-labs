@@ -172,6 +172,8 @@ class OverlayVerdict {
 }
 
 /// 单次提交首次结束时的值与原因。
+/// 可见前被关闭、超时或后端关闭，reason 仍为 closed、expired 或 dismissedByBackend，
+/// 但没有 shown；可用管理器 events 判断本次提交是否出现过 shown。
 @immutable
 class OverlayOutcome<T> {
   /// 保存可空的 [value] 与结束 [reason]。
@@ -189,7 +191,7 @@ enum OverlayEventType {
   /// 提交进入管理器。
   queued,
 
-  /// 后端成功展示。
+  /// 后端已确认可见；可见前结束的条目不会产生此事件。
   shown,
 
   /// 首次结束。

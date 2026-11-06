@@ -47,7 +47,9 @@ void main() {
     addTearDown(manager.dispose);
     await manager.ready();
     PresentedOverlay<Object?> present(PresentContext<Object?> ctx) =>
-        PresentedOverlay(dismissed: Completer<Object?>().future);
+        PresentedOverlay(
+            visible: Future<void>.value(),
+            dismissed: Completer<Object?>().future);
     manager.open(
         id: 'waiting', present: present, when: (_) => false, priority: 10);
     await tester.pumpWidget(Builder(builder: (_) {

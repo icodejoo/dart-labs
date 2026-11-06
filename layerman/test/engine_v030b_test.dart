@@ -17,6 +17,7 @@ class _FakeBackend<T> {
   PresentedOverlay<T> present(PresentContext context) {
     shown++;
     return PresentedOverlay<T>(
+      visible: Future<void>.value(),
       dismissed: done.future,
       dismiss: ([T? value]) async => finish(value),
     );
@@ -271,6 +272,7 @@ void main() {
       final ticket = manager.submit(
           present: _FakeBackend().present,
           mode: overlap ? OverlayMode.overlap : OverlayMode.queue);
+      await tester.pump(); // 本用例验证实际可见后的完整事件序列。
       ticket.close();
       await tester.pump();
       expect(events.map((e) => e.type), [

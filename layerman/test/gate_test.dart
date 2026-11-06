@@ -398,12 +398,12 @@ void main() {
       addTearDown(manager.dispose);
       await manager.ready();
       const cooldown = OverlayCooldown(minGap: Duration(seconds: 2));
-      manager
-          .submit<void>(
-              id: 'same',
-              cooldown: cooldown,
-              present: HeadlessBackend<void>().present)
-          .remove();
+      final first = manager.submit<void>(
+          id: 'same',
+          cooldown: cooldown,
+          present: HeadlessBackend<void>().present);
+      await flushAsync(); // visible confirmed before establishing the cooldown.
+      first.remove();
       final backend = HeadlessBackend<void>();
       final deadline = clock.now().add(Duration(seconds: businessSeconds));
       manager.submit<void>(
@@ -448,6 +448,35 @@ void main() {
       });
     }
   }
+
+  test('同 id 替换 delay 属主，批次末不再重复求值新 gate', () async {
+    final clock = FakeOverlayClock();
+    final manager = Layerman(clock: clock);
+    addTearDown(manager.dispose);
+    await manager.ready();
+    manager.submit<void>(
+      id: 'same',
+      delay: _second,
+      present: HeadlessBackend<void>().present,
+    );
+    var calls = 0;
+    final deadline = clock.now().add(_second);
+    final backend = HeadlessBackend<void>();
+    manager.submit<void>(
+      id: 'same',
+      present: backend.present,
+      gate: (_) {
+        calls++;
+        return OverlayVerdict.waitUntil(deadline);
+      },
+    );
+    expect(calls, 1);
+    expect(backend.shown, isFalse);
+    clock.advance(_second);
+    expect(calls, 2);
+    expect(backend.shown, isTrue);
+    manager.debugCheckInvariants();
+  });
 
   test('共享计时器兼顾串行等待与多个 overlap，其他提交不推迟截止', () async {
     final clock = FakeOverlayClock();

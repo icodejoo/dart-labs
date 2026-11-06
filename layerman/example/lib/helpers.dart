@@ -80,6 +80,7 @@ PresentedOverlay<T> presentCard<T>(
   Color barrierColor = const Color(0x00000000),
   bool barrierDismissible = false,
 }) {
+  final visible = Completer<void>();
   final name = 'om://${ctx.id}';
   // Captured once the dialog actually builds, so `dismiss` can remove THIS
   // route directly — see the comment on [_removeRouteDismiss] for why that
@@ -93,13 +94,17 @@ PresentedOverlay<T> presentCard<T>(
     routeSettings: RouteSettings(name: name),
     builder: (dialogCtx) {
       captured.capture(dialogCtx);
-      return contentBuilder(dialogCtx, ([Object? r]) {
-        // 通过条目身份关闭，遵守 beforeClose 并避免误关后来者。
-        ctx.close(r as T?);
-      });
+      return OverlayVisibility(
+        visible: visible,
+        child: contentBuilder(dialogCtx, ([Object? r]) {
+          // 通过条目身份关闭，遵守 beforeClose 并避免误关后来者。
+          ctx.close(r as T?);
+        }),
+      );
     },
   );
   return PresentedOverlay<T>(
+    visible: visible.future,
     dismissed: future,
     dismiss: ([T? r]) async => captured.dismiss(),
   );
@@ -228,6 +233,7 @@ Future<T?> openCard<T>(
 PresentedOverlay<T> presentEntry<T>(
   Widget Function(void Function([Object? result]) close) contentBuilder,
 ) {
+  final visible = Completer<void>();
   final completer = Completer<T?>();
   late final OverlayEntry entry;
   void close([Object? result]) {
@@ -236,7 +242,24 @@ PresentedOverlay<T> presentEntry<T>(
     entry.remove();
   }
 
-  entry = OverlayEntry(builder: (_) => contentBuilder(close));
+  entry = OverlayEntry(
+    builder: (_) {
+      final content = contentBuilder(close);
+      // Positioned 必须直接作用于 Stack，确认器放在定位组件的内容内。
+      if (content is Positioned) {
+        return Positioned(
+          left: content.left,
+          top: content.top,
+          right: content.right,
+          bottom: content.bottom,
+          width: content.width,
+          height: content.height,
+          child: OverlayVisibility(visible: visible, child: content.child),
+        );
+      }
+      return OverlayVisibility(visible: visible, child: content);
+    },
+  );
   // Get.overlayContext turns out to BE the app's OverlayState's own context
   // (GetX's internal `_Theater`) -- walking UP from it via Overlay.of (with
   // or without rootOverlay) finds nothing, since it IS the overlay, not a
@@ -244,6 +267,7 @@ PresentedOverlay<T> presentEntry<T>(
   // ancestor search involved.
   Get.key.currentState!.overlay!.insert(entry);
   return PresentedOverlay<T>(
+    visible: visible.future,
     dismissed: completer.future,
     dismiss: ([T? r]) async => close(r),
   );
@@ -364,6 +388,7 @@ PresentedOverlay<T> presentRouteDialog<T>(
   Widget dialog, {
   bool useGetx = false,
 }) {
+  final visible = Completer<void>();
   final name = 'om://${ctx.id}';
   final captured = RouteCapture<T>();
   // A Builder around the caller's static `dialog` widget is enough to grab
@@ -372,7 +397,7 @@ PresentedOverlay<T> presentRouteDialog<T>(
   final wrapped = Builder(
     builder: (dialogCtx) {
       captured.capture(dialogCtx);
-      return dialog;
+      return OverlayVisibility(visible: visible, child: dialog);
     },
   );
   final Future<T?> future = useGetx
@@ -384,6 +409,7 @@ PresentedOverlay<T> presentRouteDialog<T>(
           builder: (_) => wrapped,
         );
   return PresentedOverlay<T>(
+    visible: visible.future,
     dismissed: future,
     dismiss: ([T? r]) async => captured.dismiss(),
   );
@@ -398,13 +424,16 @@ PresentedOverlay<void> presentGetxSnackbar(
   String message, {
   Duration duration = const Duration(seconds: 2),
 }) {
+  final visible = Completer<void>();
   final c = Get.snackbar(
     title,
     message,
+    messageText: OverlayVisibility(visible: visible, child: Text(message)),
     duration: duration,
     animationDuration: const Duration(milliseconds: 300),
   );
   return PresentedOverlay<void>(
+    visible: visible.future,
     dismissed: c.future,
     dismiss: ([_]) => c.close(),
   );
@@ -416,9 +445,15 @@ PresentedOverlay<void> presentBotToastText(
   String text, {
   Duration duration = const Duration(seconds: 2),
 }) {
+  final visible = Completer<void>();
   final done = Completer<void>();
-  final cancel = BotToast.showText(
-    text: text,
+  final cancel = BotToast.showCustomText(
+    toastBuilder: (_) => OverlayVisibility(
+      visible: visible,
+      child: Card(
+        child: Padding(padding: const EdgeInsets.all(12), child: Text(text)),
+      ),
+    ),
     duration: duration,
     onlyOne: false,
     onClose: () {
@@ -426,6 +461,7 @@ PresentedOverlay<void> presentBotToastText(
     },
   );
   return PresentedOverlay<void>(
+    visible: visible.future,
     dismissed: done.future,
     dismiss: ([_]) async => cancel(),
   );
@@ -436,6 +472,7 @@ PresentedOverlay<void> presentBotToastText(
 /// Wraps [showShadDialog] in a [PresentedOverlay].
 /// 保存 Route 对象供 dismiss 精确移除；路由名称仅用于标识。
 PresentedOverlay<T> presentShadDialog<T>(PresentContext<T> ctx, Widget dialog) {
+  final visible = Completer<void>();
   final name = 'om://${ctx.id}';
   final captured = RouteCapture<T>();
   final future = showShadDialog<T>(
@@ -448,11 +485,12 @@ PresentedOverlay<T> presentShadDialog<T>(PresentContext<T> ctx, Widget dialog) {
       captured.capture(dialogCtx);
       return ShadTheme(
         data: ShadThemeData(colorScheme: const ShadSlateColorScheme.light()),
-        child: dialog,
+        child: OverlayVisibility(visible: visible, child: dialog),
       );
     },
   );
   return PresentedOverlay<T>(
+    visible: visible.future,
     dismissed: future,
     dismiss: ([T? r]) async => captured.dismiss(),
   );
@@ -471,6 +509,7 @@ PresentedOverlay<void> presentShadToast(
   ShadToastVariant variant = ShadToastVariant.primary,
   Duration duration = const Duration(seconds: 3),
 }) {
+  final visible = Completer<void>();
   final sonner = shadSonnerKey.currentState!;
   final completer = Completer<void>();
   Timer? lifetime;
@@ -484,7 +523,7 @@ PresentedOverlay<void> presentShadToast(
     ShadToast.raw(
       variant: variant,
       title: title,
-      description: description,
+      description: OverlayVisibility(visible: visible, child: description),
       duration: const Duration(days: 1), // effectively "until we hide it"
     ),
   );
@@ -498,6 +537,7 @@ PresentedOverlay<void> presentShadToast(
   lifetime = Timer(duration, finish);
 
   return PresentedOverlay<void>(
+    visible: visible.future,
     dismissed: completer.future,
     dismiss: ([_]) => finish(),
   );
