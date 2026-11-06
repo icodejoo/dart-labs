@@ -116,7 +116,17 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
           }
         },
         onError: (Object e, StackTrace s) => out!.addError(e, s),
-        onDone: () => out!.close(),
+        onDone: () {
+          // Finish the trailing value before closing, even for paused listeners.
+          //
+          // 关闭前交付末值，即使输出订阅已暂停也要先结束定时器。
+          timer?.cancel();
+          timer = null;
+          if (hasPending) out!.add(pending as T);
+          hasPending = false;
+          pending = null;
+          unawaited(out!.close());
+        },
       );
     },
     onCancel: () async {

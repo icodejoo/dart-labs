@@ -413,14 +413,19 @@ class MovaQoeCollector {
   void onPosition(Duration position) {
     if (!_sessionOpen || !_config.qoe) return;
     if (_seekBuffering && !_lastStalled) _seekBuffering = false;
-    _tally.recordPosition(position);
-    if (_landed && position.inMilliseconds > _validMaxPositionMs) {
-      _validMaxPositionMs = position.inMilliseconds;
+    if (!_nativeRestartLive) {
+      final at = _now();
+      final elapsed = _ttff.onProgress(position, at);
+      if (elapsed != null) _emitFirstFrame(elapsed, at, signal: 'progress');
     }
-    if (_nativeRestartLive) return;
-    final at = _now();
-    final elapsed = _ttff.onProgress(position, at);
-    if (elapsed != null) _emitFirstFrame(elapsed, at, signal: 'progress');
+    // Only landed samples belong to this media's completion tally.
+    // 只有首帧落地后的样本才计入当前素材的完成率。
+    if (_landed) {
+      _tally.recordPosition(position);
+      if (position.inMilliseconds > _validMaxPositionMs) {
+        _validMaxPositionMs = position.inMilliseconds;
+      }
+    }
   }
 
   void _onEvent(MovaEvent event) {
@@ -569,6 +574,12 @@ class MovaQoeCollector {
         }
       case MovaFirstFrame():
         _landManualPlayback(at);
+        // The engine may land via grace even when native RESTART never arrives.
+        // 即使原生 RESTART 未到，引擎也可能已通过宽限兜底确认首帧。
+        final elapsed = _ttff.onNativeRestart(at);
+        if (elapsed != null) {
+          _emitFirstFrame(elapsed, at, signal: event.signal.name);
+        }
       case MovaPause():
         // A user pause ends the active stall; resume starts a new interval
         // only if the latest cache observation still says stalled.
@@ -646,9 +657,9 @@ class MovaQoeCollector {
     _emitFirstFrame(elapsed, at, signal: 'restart');
   }
 
-  /// Uses native RESTART exclusively for TTFF when its subscription is live.
+  /// Disables coarse TTFF heuristics while the native RESTART subscription is live.
   ///
-  /// 原生 RESTART 订阅在工作时，TTFF 只认它（buffering/位置兜底更早但更粗）。
+  /// 原生 RESTART 订阅工作时禁用粗略兜底；引擎确认的首帧仍可落地。
   bool get _nativeRestartLive => _probe?.nativeRestartAvailable ?? false;
 
   /// Enables manual-play accounting without emitting an autoplay TTFF.

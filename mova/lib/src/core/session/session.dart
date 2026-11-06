@@ -16,6 +16,7 @@ import '../model/source.dart';
 import '../options/ad_config.dart';
 import '../state/progress.dart';
 import '../cutover/ctl.dart';
+import '../cutover/cutover_engine.dart';
 import '../cutover/acceptance.dart';
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
@@ -286,8 +287,11 @@ class MovaSession {
   int _supersededEpoch = -1;
   final Set<MovaWarmTicket> _warmTickets = {};
 
-  /// 换会话只取消本会话持有的凭据，包括已经离开预热槽的提交事务。
+  /// Cancels this session's tickets, including claimed commits and late prepares.
+  ///
+  /// 只取消本会话的凭据，包括已认领提交与迟到的预热。
   Future<void> _cancelWarmTickets() {
+    _warmGeneration++;
     final tickets = _warmTickets.toList();
     _warmTickets.clear();
     final owner = _cutover;
@@ -295,7 +299,33 @@ class MovaSession {
     return Future.wait(tickets.map((ticket) => (owner as MovaWarmOwner).cancelOwned(ticket)));
   }
 
+  /// Invalidates preparations that have not returned a ticket yet.
+  ///
+  /// 使尚未返回凭据的预热失效。
+  int _warmGeneration = 0;
 
+  /// Cancels session tickets and abandons any remaining legacy, unowned warm-up.
+  ///
+  /// 取消会话凭据，并清理残留的旧式无主预热。
+  Future<void> _abandonSessionWarm() {
+    final cutover = _cutover;
+    if (cutover is! MovaWarmOwner) {
+      return cutover?.abandon() ?? Future<void>.value();
+    }
+    final cancelling = _cancelWarmTickets();
+    // Decide synchronously after detaching our slots, before a later prepare
+    // can create a new host-owned shadow while native disposal is pending.
+    //
+    // 取走自己的槽后同步判定，避免等待原生释放时误清宿主后来新建的影子。
+    if (cutover is MovaCutoverEngine && !cutover.hasOwnedWarm) {
+      return Future.wait([cancelling, cutover.abandon()]);
+    }
+    return cancelling;
+  }
+
+  /// Prepares a source and retains only tickets belonging to this session.
+  ///
+  /// 预热媒体源，只保留仍归本会话所有的凭据。
   Future<_SessionWarm?> _warm(
     MovaSource source, {
     Duration at = Duration.zero,
@@ -304,6 +334,7 @@ class MovaSession {
     bool? play,
   }) async {
     final gen = _gen;
+    final warmGeneration = _warmGeneration;
     final itemsGeneration = _itemsGeneration;
     final cutover = _cutover!;
     if (cutover is MovaWarmOwner) {
@@ -315,7 +346,10 @@ class MovaSession {
         play: play,
       );
       if (ticket != null) {
-        if (_disposed || gen != _gen || itemsGeneration != _itemsGeneration) {
+        if (_disposed ||
+            gen != _gen ||
+            itemsGeneration != _itemsGeneration ||
+            warmGeneration != _warmGeneration) {
           await (cutover as MovaWarmOwner).cancelOwned(ticket);
         } else {
           _warmTickets.add(ticket);
@@ -823,6 +857,7 @@ class MovaSession {
     _played.add(node.id);
     _cancelDelayTimer();
     _fire(MovaAdEventType.pending, node);
+    if (gen != _gen || _disposed || !identical(_pending, node)) return;
     _changes.add(null);
     // Only a host-configured delay produces a countdown timer. With no delay
     // the pending phase is entered and left in one go, and the readiness wait
@@ -910,14 +945,14 @@ class MovaSession {
         return;
       }
       final result = await _commit(warm);
-      if (gen != _gen || _disposed) return;
+      if (gen != _gen || _disposed || !identical(_adAttempt, attempt)) return;
       if (result == MovaWarmCommit.superseded) {
         _superseded();
         return;
       }
       committed = result == MovaWarmCommit.committed;
     } catch (e) {
-      if (gen != _gen || _disposed) return;
+      if (gen != _gen || _disposed || !identical(_adAttempt, attempt)) return;
       _landing = false;
       _pending = null;
       await _onAdFailure(node, MovaAdFailKind.openThrew, e, attempt);
@@ -1441,7 +1476,9 @@ class MovaSession {
     }
   }
 
-  /// 正片未能接管时回到空闲；仅异常上报 contentError，不发 contentEnded。
+  /// Ends failed content and invalidates any pending ad attempt without contentEnded.
+  ///
+  /// 正片失败时回到空闲并使待播广告尝试失效；不发 contentEnded。
   void _contentUnavailable([Object? error]) {
     _landing = false;
     if (error != null) {
@@ -1454,7 +1491,11 @@ class MovaSession {
       _endNode(MovaNodeEndReason.failed);
     }
     _cancelAllTimers();
-    unawaited(_cutover?.abandon());
+    _adAttempt = null;
+    _adWarm = null;
+    _pending = null;
+    _current = null;
+    unawaited(_abandonSessionWarm());
     _onScreen = null;
     _phase = MovaSessionPhase.idle;
     _changes.add(null);
@@ -1482,22 +1523,37 @@ class MovaSession {
     //
     // 中插仍在正片身后预热：此时正片自己的结束/终结失败是真实的，不能被吞；
     // 放弃预热等待，按正常路径处理。
-    if (_landing && _phase == MovaSessionPhase.pending && _api.state.renderEpoch == _pendingContentEpoch) {
+    if (_landing &&
+        _phase == MovaSessionPhase.pending &&
+        _api.state.renderEpoch == _pendingContentEpoch) {
       // Only a *natural* end counts: the content position must have reached the
       // tail. The swap itself can emit a stray MovaDone from the retiring engine,
       // which must keep being swallowed.
       // 只认「自然结束」：正片位置必须已到片尾；换指本身会让退役引擎发出一个多余的
       // MovaDone，那个仍然要吞掉。
       final duration = _api.state.duration;
-      final atTail = duration > Duration.zero &&
+      final atTail =
+          duration > Duration.zero &&
           _lastContentPosition >= duration - const Duration(milliseconds: 1500);
-      if (e is MovaDone && atTail) {
+      final content = _ownedSource;
+      final contentFailed =
+          content != null && switch (e) {
+            MovaErrorEvent() =>
+              e.fatal &&
+                  !_api.options.recovery.enabled &&
+                  identical(e.source, content),
+            MovaPlayFailure() =>
+              e.action == MovaRecoveryAction.giveUp &&
+                  content.uris.contains(e.fail.uri),
+            _ => false,
+          };
+      if ((e is MovaDone && atTail) || contentFailed) {
         _landing = false;
         _landingSource = null;
         _landingFailures.clear();
         _adAttempt = null;
         _adWarm = null;
-        unawaited(_cutover?.abandon());
+        unawaited(_abandonSessionWarm());
       }
     }
     if (_landing &&
@@ -1577,7 +1633,7 @@ class MovaSession {
       if (_phase == MovaSessionPhase.pending) {
         _cancelDelayTimer();
         _pending = null;
-        unawaited(_cutover?.abandon());
+        unawaited(_abandonSessionWarm());
       }
       final post = _enabled ? _firstOfKind(MovaAdBreakKind.post) : null;
       if (post != null) {
@@ -1594,7 +1650,7 @@ class MovaSession {
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
     _cancelAllTimers();
-    unawaited(_cutover?.abandon());
+    unawaited(_abandonSessionWarm());
     _onScreen = null;
     _phase = MovaSessionPhase.idle;
     _current = null;
@@ -1916,11 +1972,13 @@ class MovaSession {
     }
   }
 
-  /// 释放会话订阅与广告计时，返回清理完成的 Future；借用的播放器仍可用。
+  /// Releases subscriptions, timers and owned warm tickets; the borrowed player stays usable.
+  ///
+  /// 释放会话订阅、广告计时与自身预热凭据；借用的播放器仍可用。
   /// 示例：`await session.dispose();`。
   Future<void> dispose() async {
     _disposed = true;
-    final cancelling = _cancelWarmTickets();
+    final cancelling = _abandonSessionWarm();
     _gen++;
     _resolving = null;
     _cancelAllTimers();
@@ -1929,7 +1987,6 @@ class MovaSession {
     await _progressSub?.cancel();
     await _stateSub?.cancel();
     await cancelling;
-    await _cutover?.abandon();
     await _changes.close();
     await _endedEpochs.close();
     await _contentEnded.close();

@@ -102,7 +102,7 @@ class MovaTtffTracker {
     if (!isArmed) return null;
     final prev = _lastProgress;
     _lastProgress = position;
-    if (prev == null || position <= Duration.zero || position <= prev) return null;
+    if (prev == null || prev <= Duration.zero || position <= prev) return null;
     return _land(at);
   }
 
