@@ -268,8 +268,10 @@ class MovaFeedPlayer extends StatefulWidget {
   final MovaFeedErrorBuilder? errorBuilder;
 
   /// Resolves feed items by index.
+  /// Replacing the loader restarts at page zero with a fresh cache and pool.
   ///
   /// 按索引解析 feed 条目。
+  /// 更换加载器会重建缓存与引擎池，并从第零页重新开始。
   final MovaFeedLoader loader;
 
   /// How many engines may exist at once.
@@ -323,17 +325,17 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// Holds the live engines, at most [MovaFeedPlayer.poolSize] of them.
   ///
   /// 持有存活的引擎，最多 [MovaFeedPlayer.poolSize] 个。
-  late final MovaFeedEnginePool _pool;
+  late MovaFeedEnginePool _pool;
 
   /// Drives the pool through the feed.
   ///
   /// 驱动引擎池在 feed 中前进的控制器。
-  late final MovaFeed _controller;
+  late MovaFeed _controller;
 
   /// Backs the vertical swipe-for-next-video paging.
   ///
   /// 支撑纵向"上滑下一个视频"翻页的控制器。
-  final PageController _pageController = PageController();
+  PageController _pageController = PageController();
 
   // 守卫在引擎解绑期间保持挂载，宿主暂停可同步撤销恢复。
   final _guardKey = GlobalKey<MovaAutoPauseState>();
@@ -363,17 +365,25 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   final Map<int, Object> _errors = {};
   int _activationGeneration = 0;
   int? _endIndex;
+  int _loaderGeneration = 0;
 
   /// Records the first unavailable page and returns the loader result.
   ///
   /// 记录首个不可用页面并返回加载结果。
   Future<MovaFeedItem?> _load(int index) async {
     if (_endIndex != null && index >= _endIndex!) return null;
+    final generation = _loaderGeneration;
     final item = await widget.loader(index);
+    if (!mounted || generation != _loaderGeneration) return null;
     if (mounted && item == null && (_endIndex == null || index < _endIndex!)) {
       setState(() => _endIndex = index);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_pageController.hasClients || index == 0) return;
+        if (!mounted ||
+            generation != _loaderGeneration ||
+            !_pageController.hasClients ||
+            index == 0) {
+          return;
+        }
         if ((_pageController.page ?? 0) >= index) {
           _pageController.jumpToPage(index - 1);
         }
@@ -505,6 +515,15 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// 将加载器接入分页终点追踪。
   void initState() {
     super.initState();
+    _createFeed();
+    widget.controller?._attach(this);
+    unawaited(_activate(0));
+  }
+
+  /// Creates a fresh cache and engine pool for the current loader.
+  ///
+  /// 为当前加载器创建新的缓存和引擎池。
+  void _createFeed() {
     _pool = MovaFeedEnginePool(
       engineFactory: widget.engineFactory,
       size: widget.poolSize,
@@ -517,13 +536,34 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
       prefetchDepth: widget.prefetchDepth,
       prefetcher: widget.prefetcher,
     );
-    widget.controller?._attach(this);
-    unawaited(_activate(0));
   }
 
   @override
   void didUpdateWidget(MovaFeedPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.loader != widget.loader) {
+      _loaderGeneration++;
+      _activationGeneration++;
+      _guardKey.currentState?.cancelResume();
+      _controller.dispose();
+      unawaited(_pool.dispose());
+      final oldPages = _pageController;
+      final oldLikes = _likeNotifiers.values.toList();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldPages.dispose();
+        for (final notifier in oldLikes) {
+          notifier.dispose();
+        }
+      });
+      _pageController = PageController();
+      _likeNotifiers.clear();
+      _requested.clear();
+      _errors.clear();
+      _endIndex = null;
+      _activationSettled = null;
+      _createFeed();
+      unawaited(_activate(0));
+    }
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller?._detach(this);
       widget.controller?._attach(this);

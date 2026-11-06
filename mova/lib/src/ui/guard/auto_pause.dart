@@ -190,6 +190,13 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
   @override
   void didUpdateWidget(MovaAutoPause oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Resume intent belongs to one engine, including during reconfiguration.
+    //
+    // 恢复意图只属于原引擎，重新配置时也不能传给新引擎。
+    if (!identical(oldWidget.api, widget.api)) {
+      _resumeGen++;
+      _gate.cancelResume();
+    }
     if (oldWidget.config != widget.config) {
       final s = widget.api?.state ?? const MovaState();
       _act(
@@ -206,10 +213,8 @@ class MovaAutoPauseState extends State<MovaAutoPause> {
       _bindRoute();
     }
     if (!identical(oldWidget.api, widget.api)) {
-      _resumeGen++;
       _bindState();
       if (widget.api == null) {
-        _gate.cancelResume();
         return;
       }
       final s = widget.api?.state ?? const MovaState();

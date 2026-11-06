@@ -222,8 +222,7 @@ class MovaMini extends ChangeNotifier {
     // 引擎拒绝了小窗（如系统 PiP 中）：撤销交接，不挂空窗口。
     if (!api.state.mini) {
       if (identical(_api, api)) {
-        _api = null;
-        _rect = null;
+        _onExternalExit();
       }
       return false;
     }

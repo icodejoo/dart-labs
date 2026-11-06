@@ -1,5 +1,6 @@
 import '../../core/options/strings.dart';
 import '../style/style.dart';
+import '../../core/events/events.dart';
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
@@ -255,21 +256,39 @@ class MovaQualityButtonComponent extends MovaComponent {
   /// - [qualities]: the selectable quality list / 可选清晰度列表
   /// - [current]: the currently active quality, if any / 当前生效的清晰度（若有）
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
-  void _showQualityMenu(
+  Future<void> _showQualityMenu(
     BuildContext context,
     MovaApi api,
     List<MovaQuality> qualities,
     MovaQuality? current,
     MovaTheme theme,
-  ) {
-    showMovaOptionSheet(context, theme, [
-      for (final q in qualities)
-        MovaSheetItem(
-          label: _qualityLabel(q, MovaPlayerStyle.stringsOf(context)),
-          checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
-          onSelected: () => api.switchQuality(q),
-        ),
-    ]);
+  ) async {
+    var sourceChanged = false;
+    final subscription = api.events.listen((event) {
+      if (event is MovaSourceChange) sourceChanged = true;
+    });
+    try {
+      await showMovaOptionSheet(context, theme, [
+        for (final q in qualities)
+          MovaSheetItem(
+            label: _qualityLabel(q, MovaPlayerStyle.stringsOf(context)),
+            checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
+            onSelected: () {
+              // A sheet can outlive its source or its player.
+              //
+              // 弹层可能在换源或播放器卸载之后仍然存在。
+              if (!context.mounted ||
+                  sourceChanged ||
+                  !identical(api.state.qualities, qualities)) {
+                return;
+              }
+              api.switchQuality(q);
+            },
+          ),
+      ]);
+    } finally {
+      await subscription.cancel();
+    }
   }
 }
 

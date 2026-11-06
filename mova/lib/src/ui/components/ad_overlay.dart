@@ -61,7 +61,10 @@ class MovaAdOverlayComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     if (!api.options.ads.enabled) return const SizedBox.shrink();
-    return _AdOverlayView(api: api, ads: ads);
+    // Controller identity owns the subscriptions and their lifecycle.
+    //
+    // 订阅及其生命周期归属于控制器身份。
+    return _AdOverlayView(key: ObjectKey(ads), api: api, ads: ads);
   }
 }
 
@@ -74,7 +77,7 @@ class _AdOverlayView extends StatefulWidget {
   /// Creates the internal ad overlay view.
   ///
   /// 创建内部广告叠层视图。
-  const _AdOverlayView({required this.api, required this.ads});
+  const _AdOverlayView({super.key, required this.api, required this.ads});
 
   /// The capability surface followed for the ad's position.
   ///
@@ -90,6 +93,8 @@ class _AdOverlayView extends StatefulWidget {
   State<_AdOverlayView> createState() => _AdOverlayViewState();
 }
 
+/// Rebuilds on phase, node and progress changes; the session owns skip rules.
+///
 /// 阶段、节点与进度变化触发重建；跳过判据由会话控制器统一维护。
 class _AdOverlayViewState extends State<_AdOverlayView>
     with MovaPlugin<_AdOverlayView> {
@@ -103,6 +108,8 @@ class _AdOverlayViewState extends State<_AdOverlayView>
     });
   }
 
+  /// Progress only rebuilds; the session filters stale landing positions.
+  ///
   /// 进度只触发重建，落地窗口内旧媒体的位置由会话过滤。
   void _onProgress(MovaProg p) {
     if (widget.ads.isShowingAd || widget.ads.isAdPending) {

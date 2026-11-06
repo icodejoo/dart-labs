@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
@@ -11,6 +12,25 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
+  testWidgets('seek drag is cancelled when the source changes', (t) async {
+    final api = FakeMovaApi();
+    await pumpComponent(t, api, MovaGestureLayerComponent());
+    api.pushProgress(const MovaProg(position: Duration(seconds: 40)));
+    await t.pump();
+    final gesture = await t.startGesture(const Offset(400, 300));
+    await gesture.moveBy(const Offset(30, 0));
+    await gesture.moveBy(const Offset(100, 0));
+    await t.pump();
+    expect(api.lastPreviewAt, isNotNull);
+    api.pushEvent(const MovaSourceChange(MovaSource('https://host/b.mp4')));
+    await t.pump();
+    await gesture.moveBy(const Offset(100, 0));
+    await gesture.up();
+    await t.pumpAndSettle();
+    expect(api.lastSeek, isNull);
+    expect(api.uiState.dragging, isFalse);
+    await api.dispose();
+  });
   testWidgets('stationary seek gesture commits the last displayed target', (tester) async {
     final api = FakeMovaApi();
     await pumpComponent(tester, api, MovaGestureLayerComponent());

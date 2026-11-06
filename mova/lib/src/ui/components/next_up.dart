@@ -55,7 +55,14 @@ class MovaNextUpComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     if (!api.options.playlist.enabled) return const SizedBox.shrink();
-    return _NextUpView(api: api, controller: controller);
+    // A replacement playlist owns fresh subscriptions and dismissal state.
+    //
+    // 替换后的播放列表使用新的订阅与关闭状态。
+    return _NextUpView(
+      key: ObjectKey(controller),
+      api: api,
+      controller: controller,
+    );
   }
 }
 
@@ -68,7 +75,7 @@ class _NextUpView extends StatefulWidget {
   /// Creates the internal next-up view.
   ///
   /// 创建内部的下一集视图。
-  const _NextUpView({required this.api, required this.controller});
+  const _NextUpView({super.key, required this.api, required this.controller});
 
   /// The capability surface followed for position/duration.
   ///
