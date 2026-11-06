@@ -143,12 +143,12 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   Future<Uint8List?> _extractNow(
     String uri,
     Duration at, {
+    required int generation,
     required int width,
     required bool hwdec,
     Map<String, String> headers = const {},
   }) async {
-    if (_disposed) return null;
-    final generation = _generation;
+    if (_disposed || generation != _generation) return null;
 
     /// Checks that release or disposal has not superseded this operation.
     ///
@@ -203,6 +203,8 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     }
   }
 
+  /// Serializes extraction with optional per-request [headers], empty by default.
+  ///
   /// 串行抽帧；可选 [headers] 仅作用于本次媒体请求，旧调用默认无头。
   @override
   Future<Uint8List?> extract(
@@ -214,6 +216,8 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }) =>
       extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: headers);
 
+  /// Serializes extraction with source headers, reopening when credentials change.
+  ///
   /// 使用当前源请求头串行抽帧，同地址换鉴权时重新打开媒体。
   @override
   Future<Uint8List?> extractWithHeaders(
@@ -224,12 +228,17 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     required Map<String, String> headers,
   }) {
     headers = Map.of(headers);
+    // Capture ownership when enqueuing so release also cancels waiting work.
+    //
+    // 入队时记录所有权，确保 release 同样取消尚在排队的请求。
+    final generation = _generation;
     final completer = Completer<Uint8List?>();
     _queue = _queue.then((_) async {
       completer.complete(
         await _extractNow(
           uri,
           at,
+          generation: generation,
           width: width,
           hwdec: hwdec,
           headers: headers,
@@ -270,6 +279,9 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }
 }
 
+/// Polls [done] at [pollInterval] until [timeout]; returns false on failure.
+/// Example: `await movaWaitForPreviewFrame(check)`.
+///
 /// 轮询 [done] 确认落地；[timeout] 为总期限，[pollInterval] 为轮询间隔。
 /// 返回是否及时确认；异常按未就绪处理。示例：`await movaWaitForPreviewFrame(check)`。
 Future<bool> movaWaitForPreviewFrame(
@@ -293,6 +305,9 @@ Future<bool> movaWaitForPreviewFrame(
   return false;
 }
 
+/// Calls [capture] after [landed] and [settleDelay], optionally retrying a seek
+/// once with [retrySeek]; returns null on failure. See the example below.
+///
 /// 仅在 [landed] 确认落地后等待 [settleDelay] 并调用 [capture] 截图。
 /// 首次未落地时可通过 [retrySeek] 重发一次 seek；再次未落地或异常返回 null。
 /// 不重试截图失败，防止错误帧入缓存。

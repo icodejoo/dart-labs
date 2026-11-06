@@ -41,6 +41,9 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   MovaTestKernel({this.renderHandle, this.nativeRestartAvailable = false, List<MovaTestStep>? script})
       : _script = List.unmodifiable(script ?? const []);
 
+  /// Creates a ready scripted kernel using [script] and [renderHandle].
+  /// Defaults to one ready step; see the example below.
+  ///
   /// 创建自动就绪的脚本内核；[script] 默认只有就绪一步，[renderHandle] 为渲染句柄。
   /// 返回无需手工拼首帧信号的测试内核；仅通过本构造或显式 script 启用。
   /// 示例：`MovaTesting.useTestKernels(() => MovaTestKernel.scripted())`。
@@ -234,6 +237,9 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
     return null;
   }
 
+  /// Cancels scripts and closes every stream without waiting for paused listeners.
+  ///
+  /// 取消脚本并关闭全部流，不等待已暂停的订阅者交付事件。
   @override
   Future<void> dispose() async {
     if (_disposed) return;
@@ -254,7 +260,7 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
       _restarts,
       _endFiles,
     ]) {
-      await c.close();
+      unawaited(c.close());
     }
   }
 

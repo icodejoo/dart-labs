@@ -117,6 +117,39 @@ void main() {
       expect(log.uiModes.single, contains('edgeToEdge'));
     });
 
+    test('forced orientation restores manual overlays when leaving fullscreen / 强制方向退出全屏还原 manual 系统栏', () async {
+      const configured = MovaSystemChromeOrientationPort(
+        config: MovaOrientationConfig(
+          allowedOrientations: [DeviceOrientation.portraitUp],
+          systemUiMode: SystemUiMode.manual,
+          systemUiOverlays: [SystemUiOverlay.top],
+        ),
+      );
+      for (final orientation in [MovaOrientation.portrait, MovaOrientation.landscape]) {
+        await configured.apply(
+          fullscreen: true,
+          immersive: true,
+          width: 1920,
+          height: 1080,
+          orientation: orientation,
+        );
+        log.calls.clear();
+        await configured.apply(
+          fullscreen: false,
+          immersive: false,
+          width: 1920,
+          height: 1080,
+          orientation: orientation,
+        );
+        expect(log.preferred.single,
+            resolveOrientations(orientation, fullscreen: false, width: 1920, height: 1080)
+                .map((o) => o.toString()).toList());
+        expect(log.calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
+        expect(log.calls.last.arguments, ['SystemUiOverlay.top']);
+        log.calls.clear();
+      }
+    });
+
     test('windowed auto lets every orientation through and keeps the system bars', () async {
       await port.apply(
         fullscreen: false,
