@@ -1483,17 +1483,15 @@ class MovaSession {
     // 中插仍在正片身后预热：此时正片自己的结束/终结失败是真实的，不能被吞；
     // 放弃预热等待，按正常路径处理。
     if (_landing && _phase == MovaSessionPhase.pending && _api.state.renderEpoch == _pendingContentEpoch) {
-      final adSource = _landingSource;
-      final isAds = switch (e) {
-        MovaPlayFailure() => adSource != null && adSource.uris.contains(e.fail.uri),
-        MovaErrorEvent() => adSource != null && identical(e.source, adSource),
-        _ => false,
-      };
-      final contentEnds = !isAds &&
-          (e is MovaDone ||
-              (e is MovaErrorEvent && e.fatal) ||
-              (e is MovaPlayFailure && e.action == MovaRecoveryAction.giveUp));
-      if (contentEnds) {
+      // Only a *natural* end counts: the content position must have reached the
+      // tail. The swap itself can emit a stray MovaDone from the retiring engine,
+      // which must keep being swallowed.
+      // 只认「自然结束」：正片位置必须已到片尾；换指本身会让退役引擎发出一个多余的
+      // MovaDone，那个仍然要吞掉。
+      final duration = _api.state.duration;
+      final atTail = duration > Duration.zero &&
+          _lastContentPosition >= duration - const Duration(milliseconds: 1500);
+      if (e is MovaDone && atTail) {
         _landing = false;
         _landingSource = null;
         _landingFailures.clear();
