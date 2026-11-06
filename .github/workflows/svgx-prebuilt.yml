@@ -172,6 +172,21 @@ jobs:
             rustup target add --toolchain ${{ steps.tc.outputs.toolchain }} "$t" || true
           done
 
+      # Every leg uploads the whole `prebuilt/` tree, and `collect` merges the
+      # uploads with last-writer-wins. Without this step a leg also uploads the
+      # *checked-out* (possibly stale) slices of other platforms, which can
+      # overwrite the fresh build of that platform — run 42137131487 shipped
+      # the committed pre-`commands` Linux .so this way. Start each leg empty
+      # so it uploads only what it built.
+      # 每条 leg 上传整个 `prebuilt/`，`collect` 合并时后写覆盖先写。不清空的话，
+      # leg 会连带上传检出的（可能已过期的）其它平台产物，覆盖该平台的新构建——
+      # run 42137131487 就这样把仓库里旧线格式的 Linux .so 发了出来。每条 leg
+      # 从空目录开始，只上传自己构建的产物。
+      - name: Drop checked-out prebuilt slices
+        shell: bash
+        working-directory: svgx
+        run: rm -rf prebuilt ios/svgx.xcframework macos/svgx.framework
+
       - name: Build artifacts
         working-directory: svgx
         run: dart run tool/build_prebuilt.dart ${{ matrix.groups }}
