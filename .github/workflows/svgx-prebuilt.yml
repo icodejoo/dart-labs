@@ -74,9 +74,14 @@ jobs:
           LEGS: ${{ inputs.legs || env.FULL_LEGS }}
           APPLE_GROUPS: ${{ inputs.apple_groups || env.FULL_APPLE_GROUPS }}
         run: |
+          # The linux leg is pinned: the glibc floor of the shipped .so is the
+          # build image's glibc, and ubuntu-latest (26.04) raised it to 2.43.
+          # ubuntu-24.04 keeps the documented GLIBC_2.34 floor.
+          # linux leg 固定版本：产物的 glibc 下限取决于构建镜像，ubuntu-latest
+          # （26.04）会把它抬到 2.43；ubuntu-24.04 保持文档约定的 GLIBC_2.34。
           all=$(jq -nc --arg ag "$APPLE_GROUPS" '[
             {name:"android", os:"ubuntu-latest",  groups:"--group android"},
-            {name:"linux",   os:"ubuntu-latest",  groups:"--group linux"},
+            {name:"linux",   os:"ubuntu-24.04",   groups:"--group linux"},
             {name:"windows", os:"windows-latest", groups:"--group windows"},
             {name:"apple",   os:"macos-latest",   groups:$ag}
           ]')

@@ -265,6 +265,8 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 
 改动量都很小(只动 workflow 的 `runs-on`),但需要你按 svgx 的 Linux 桌面用户画像判断。
 
+**2026-11-06 已定:维持 (a),linux leg 固定在 `ubuntu-24.04`。** 起因:`ubuntu-latest` 已迁到 26.04,run `42070012153` 产出的两个 Linux `.so` 要求 GLIBC_2.43,只能跑在最新发行版上,这次产物没有采用。固定镜像后下限回到 GLIBC_2.34。
+
 ### R2 —— Android `minSdkVersion` 从 19 提到 21,可接受吗?
 
 这是把**既有的事实**写成真实值(cargokit 时代也是链到 21,gradle 里的 19 是虚的),不是新的能力损失。但它对下游是可见的声明变化,如果有消费方的 app 声明了 minSdk 19/20,`pub get` 后会撞到 Gradle 的 minSdk 冲突报错。
