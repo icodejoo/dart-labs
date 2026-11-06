@@ -61,6 +61,13 @@ class _FakeNative extends Fake implements NativePlayer {
   static const origBack = '33554432';
   static const origSeek = 'auto';
 
+  /// Current cache values and one-shot barriers for native operations.
+  ///
+  /// 当前缓存属性值及原生操作的一次性阻塞点。
+  final props = <String, String>{kDemuxerMaxBackBytes: origBack, kDemuxerSeekableCache: origSeek};
+  Future<void> Function()? beforeRead;
+  Future<void> Function()? beforeWrite;
+
   /// 当前 `file-format` 属性值。
   String format = '';
 
@@ -78,13 +85,20 @@ class _FakeNative extends Fake implements NativePlayer {
     if (name == kFileFormat) return format;
     if (name == kSeekable) return seekable.next();
     if (name == kDuration) return duration.next();
+    final barrier = beforeRead;
+    beforeRead = null;
+    await barrier?.call();
     if (failRead) throw StateError('read failed');
-    return name == kDemuxerMaxBackBytes ? origBack : origSeek;
+    return props[name] ?? '';
   }
 
   @override
   Future<void> setProperty(String name, String value, {bool waitForInitialization = true}) async {
     await Future<void>.delayed(Duration.zero);
+    final barrier = beforeWrite;
+    beforeWrite = null;
+    await barrier?.call();
+    props[name] = value;
     log.add('set:$name=$value');
   }
 }
@@ -137,6 +151,50 @@ void main() {
   });
 
   group('按真实格式限制后向缓冲', () {
+    for (final blockRead in [true, false]) {
+      test('换源等待在途直播缓存${blockRead ? '读取' : '写入'}后保留新源配置', () async {
+        addTearDown(k.dispose);
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        // Hold A inside cache limiting, then request B with custom cache values.
+        //
+        // 将 A 阻塞在缓存限制内部，再请求带自定义缓存值的 B。
+        if (blockRead) {
+          player.native.beforeRead = () {
+            entered.complete();
+            return release.future;
+          };
+        } else {
+          player.native.beforeWrite = () {
+            entered.complete();
+            return release.future;
+          };
+        }
+        await k.open(_whep);
+        await entered.future.timeout(const Duration(seconds: 1));
+        k.stageSourceOptions({kDemuxerMaxBackBytes: '12345', kDemuxerSeekableCache: 'yes'});
+        final opening = k.open(_mp4);
+        await pumpEventQueue();
+        try {
+          expect(log, ['open'], reason: 'B must wait for A cache writes / B 必须等待 A 的缓存写入');
+        } finally {
+          release.complete();
+          await opening;
+        }
+        await settle();
+        expect(log, [
+          'open', ..._on, ..._off,
+          'set:$kDemuxerMaxBackBytes=12345', 'set:$kDemuxerSeekableCache=yes', 'open',
+        ]);
+        expect(player.native.props[kDemuxerMaxBackBytes], '12345');
+        expect(player.native.props[kDemuxerSeekableCache], 'yes');
+        await k.open(_hls);
+        await settle();
+        expect(player.native.props[kDemuxerMaxBackBytes], _FakeNative.origBack);
+        expect(player.native.props[kDemuxerSeekableCache], _FakeNative.origSeek);
+      });
+    }
+
     test('mp4：始终不碰属性', () async {
       await k.open(_mp4);
       await settle();

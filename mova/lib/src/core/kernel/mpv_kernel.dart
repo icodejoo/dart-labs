@@ -258,9 +258,16 @@ class MovaMpvKernel
     final live = realtimeFormats.contains(format) ||
         (!kPlaylistFileFormats.contains(format) && await _probeUnseekableLive(seq));
     if (!live || seq != _openSeq || _disposed) return;
-    await _limitLiveCache();
-    // 限制落地期间若已换源，立即还原，避免残留。
-    if (seq != _openSeq) await _restoreLiveCache();
+    // Share the option queue so a later source restores this limit before
+    // applying its own settings, even when a native read/write is in flight.
+    //
+    // 共用选项队列，使后续源即使遇到在途原生读写，也先还原限制再下发自己的配置。
+    final limit = _sourceOptionsQueue.then((_) async {
+      if (seq != _openSeq || _disposed) return;
+      await _limitLiveCache();
+    });
+    _sourceOptionsQueue = limit.then<void>((_) {}, onError: (Object _) {});
+    await limit;
   }
 
   /// 兜底判断：间隔 [liveProbeInterval] 采样两次，两次都 `seekable=no`，且时长两次都读不到、
@@ -866,11 +873,15 @@ class MovaMpvKernel
     await _widthSub?.cancel();
     await _heightSub?.cancel();
     await _tracksSub?.cancel();
-    await _sizeController.close();
-    await _stallingController.close();
-    await _restartController.close();
-    await _endFileController.close();
-    await _optionErrors.close();
+    // Closing marks streams closed immediately; paused listeners must not
+    // delay native resource release while waiting to consume their done event.
+    //
+    // close 会立即标记流已关闭；暂停的监听者等待消费结束事件时不能阻塞原生资源释放。
+    unawaited(_sizeController.close());
+    unawaited(_stallingController.close());
+    unawaited(_restartController.close());
+    unawaited(_endFileController.close());
+    unawaited(_optionErrors.close());
     // Bound both setup tasks together; a late handle checks _disposed before
     // creating a client, so it cannot register after player teardown.
     //
@@ -887,7 +898,7 @@ class MovaMpvKernel
       // 准备失败或超时后继续释放资源。
     }
     await _pump?.dispose();
-    await _attemptEnds.close();
+    unawaited(_attemptEnds.close());
     await _player.dispose();
   }
 

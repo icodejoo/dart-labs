@@ -95,12 +95,15 @@ class MovaPlaylist {
   /// `open()` 收尾。
   bool _disposed = false;
 
-  /// Monotonic counter of [jumpTo] calls; a jump that is no longer the latest
-  /// when its `open()` returns is superseded and must not commit its index.
+  /// Monotonic counter of [jumpTo] calls, compared only with accepted jumps.
   ///
-  /// [jumpTo] 的单调调用计数；`open()` 返回时若已不是最新一次，说明被取代，
-  /// 不得提交其下标。
+  /// [jumpTo] 的单调调用计数，仅与已接受的跳转比较。
   int _jumpGen = 0;
+
+  /// Latest accepted jump; a rejected request cannot supersede a playing item.
+  ///
+  /// 最近已接受的跳转；被拒绝的请求不能取代正在播放的项。
+  int _acceptedJumpGen = 0;
 
   /// The items this controller navigates.
   ///
@@ -200,13 +203,11 @@ class MovaPlaylist {
     if (index < 0 || index >= _items.length) return;
     final gen = ++_jumpGen;
     final accepted = await _api.open(_items[index].source);
-    // A later jumpTo superseded this one: its open() is what actually plays.
-    // A rejected open() (beforeOpen hook, superseded, disposed) leaves the
-    // previous item playing, so the index must not move.
+    // Only a later accepted jump supersedes this one. A rejected request leaves
+    // the earlier load playing and must not prevent its index from committing.
     //
-    // 更晚的 jumpTo 已取代本次：真正在播的是它的 open()。open() 被拒绝（beforeOpen
-    // 钩子、被取代、已销毁）时上一项仍在播，下标不能前进。
-    if (!accepted || gen != _jumpGen) return;
+    // 仅被接受的后续跳转才能取代本次；被拒绝的请求仍保留先前加载，不能阻止其提交下标。
+    if (!accepted || gen < _acceptedJumpGen) return;
     // dispose() may have closed `_indexChanges` while the open() above was in
     // flight (e.g. an auto-advance racing the host tearing the controller
     // down) — adding to a closed StreamController throws.
@@ -215,6 +216,7 @@ class MovaPlaylist {
     // （例如自动前进撞上宿主正在拆除本控制器）——向已关闭的 StreamController
     // 添加事件会抛异常。
     if (_disposed) return;
+    _acceptedJumpGen = gen;
     _index = index;
     _indexChanges.add(index);
   }
@@ -224,7 +226,12 @@ class MovaPlaylist {
   /// 在一项播完时，若开启 [autoPlayNext] 则自动前进。
   void _onEvent(MovaEvent e) {
     if (e is MovaDone && _autoPlayNext && hasNext) {
-      unawaited(next());
+      unawaited(next().catchError((Object _) {
+        // The engine reports open failures through state/events. Automatic
+        // navigation has no awaiting caller; observe its Future here as well.
+        //
+        // 引擎通过状态/事件报告打开失败；自动导航没有等待方，须在此消费 Future 的异常。
+      }));
     }
   }
 

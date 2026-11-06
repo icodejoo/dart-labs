@@ -491,6 +491,39 @@ void main() {
       expect(endFilesDone, isTrue);
     });
 
+    for (final streamName in ['size', 'stalling', 'playbackRestarts', 'endFiles', 'attemptEnds']) {
+      test('dispose releases native resources with paused $streamName listener', () async {
+        final calls = <String>[];
+        final kernel = MovaMpvKernel(
+          player: _FakePlayer(calls),
+          audioOnly: true,
+          backendFactory: (_, _) => _SharedLogBackend(calls, () {}, () {}),
+        );
+        await kernel.open('https://h/a.mp4');
+        final Stream<dynamic> stream = switch (streamName) {
+          'size' => kernel.size,
+          'stalling' => kernel.stalling,
+          'playbackRestarts' => kernel.playbackRestarts,
+          'endFiles' => kernel.endFiles,
+          _ => kernel.attemptEnds,
+        };
+        var done = false;
+        final sub = stream.listen((_) {}, onDone: () => done = true)..pause();
+        try {
+          await kernel.dispose().timeout(const Duration(seconds: 1));
+          expect(calls, contains('backend.destroy'));
+          expect(calls, contains('player.dispose'));
+          expect(calls.indexOf('backend.destroy'), lessThan(calls.indexOf('player.dispose')));
+          expect(done, isFalse);
+          sub.resume();
+          await pumpEventQueue();
+          expect(done, isTrue);
+        } finally {
+          await sub.cancel();
+        }
+      });
+    }
+
     test('reason mappings', () async {
       final callLog = <String>[];
       final player = _FakePlayer(callLog);
