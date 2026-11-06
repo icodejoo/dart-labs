@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+  "toolchain": "nightly-2026-06-24",
+  "artifacts": {
+    "../ios/xvg.xcframework/Info.plist": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "f1d83d3c9e1aefafa164b07e3675207dd5669a7109e1184d04b33b691e25e402",
+      "bytes": 1166,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.274262Z"
+    },
+    "../ios/xvg.xcframework/ios-arm64/xvg.framework/Info.plist": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "c136fd08ab31e55776a78b6783decff450131e04fd0c2cabdce693498715d18f",
+      "bytes": 781,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.275788Z"
+    },
+    "../ios/xvg.xcframework/ios-arm64/xvg.framework/xvg": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "32b108b4f753700054ec2842bb6ecd45c55f5e5961599b35c6f977029c811fdf",
+      "bytes": 419492,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.279169Z"
+    },
+    "../ios/xvg.xcframework/ios-arm64_x86_64-simulator/xvg.framework/Info.plist": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "37bf270de87c5cd2b57282040d59aeb8452d6b6cf8cc2ba769cc7b45bc819a58",
+      "bytes": 788,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.279768Z"
+    },
+    "../ios/xvg.xcframework/ios-arm64_x86_64-simulator/xvg.framework/xvg": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "22d4c19c3ebf05075e49bc8152dba0a4c71f3dc366430dc6bdf5570e5517be18",
+      "bytes": 881512,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.298064Z"
+    },
+    "../macos/xvg.framework/Versions/A/Resources/Info.plist": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "5cafa4ba9a8e13cb0981a0406b7405ab496a386ab65644bbdb7274e7ad70c4bd",
+      "bytes": 786,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T00:39:55.298064Z"
+    },
+    "../macos/xvg.framework/Versions/A/xvg": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "899d272936a67436b932820ed95174b20dfa32a116279eb5b02e5d9cc4fa998c",
+      "bytes": 914472,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.333396Z"
+    },
+    "android/jniLibs/arm64-v8a/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "1398914f33d4c88de4ddaeb77a500ce3623e743b2fbe95c5bc94108d9ae8e5c7",
+      "bytes": 517856,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.340798Z"
+    },
+    "android/jniLibs/armeabi-v7a/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "c7a863162d1e2117116f621829376a54dc8d8bfbd08e5a56ba7839851ea48c8f",
+      "bytes": 349236,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.343798Z"
+    },
+    "android/jniLibs/x86/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "785a0df5e6f9ccc2e29cbfa3aad36a6778241facd62ab71c53bfdaffec7539c1",
+      "bytes": 602952,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.349442Z"
+    },
+    "android/jniLibs/x86_64/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "02353333b0497552fc296ff10109706caf1b404a1bf03c5ddcf956f2a886b424",
+      "bytes": 582408,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.356854Z"
+    },
+    "linux/arm64/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "2fe86832dbeba408bd5020494e7364259fa705e8784e38a3e3c3eb1c03c055d0",
+      "bytes": 526840,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.361632Z"
+    },
+    "linux/x64/libxvg.so": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "4658446c35549d8046901d78b1758aad86aaa108088a98e8d42fd9abed3cf67b",
+      "bytes": 555336,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.367200Z"
+    },
+    "windows/arm64/xvg.dll": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "9bf4fd83d946809cf96ba5885e3a1288fa975480a51a93e383723dad647c4ac6",
+      "bytes": 421376,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.371895Z"
+    },
+    "windows/x64/xvg.dll": {
+      "sourceHash": "00bfe5a2abaecc3b991f7695f8078b2f14a49c34d1f9a01e9e5aaf54b2bbd8b3",
+      "sha256": "2fbc2d34ecb6c19c18c5cd7c9b5fe082cc434ebca156178aa0727485bd948512",
+      "bytes": 462336,
+      "builtOnHost": "windows",
+      "toolchain": "nightly-2026-06-24",
+      "builtAt": "2026-11-06T02:13:58.376145Z"
+    }
+  }
+}
