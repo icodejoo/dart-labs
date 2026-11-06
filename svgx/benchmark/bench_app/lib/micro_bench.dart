@@ -392,12 +392,12 @@ List<MicroResult> runMicroBenchmarks() {
     }, trials: 9),
   );
 
-  // SVG `d` parsing in isolation, over every `d` string in the 399 real
+  // SVG `d` parsing in isolation, over every `d` string in the official real
   // animated icons. Once geometry is cached per node this no longer runs every
   // frame, but it is still paid on a document's first paint, so it stays worth
   // measuring on its own rather than hiding inside `anim_paint_frame`.
   //
-  // 单独测 SVG `d` 解析，样本是 399 个真实动画图标里的每一条 `d` 字符串。几何
+  // 单独测 SVG `d` 解析，样本是官方真实动画图标语料里的每一条 `d` 字符串。几何
   // 按节点缓存之后它不再每帧运行，但文档首帧绘制仍要付，所以值得单独测量，
   // 而不是藏在 `anim_paint_frame` 里。
   final pathDataStrings = <String>[];
@@ -555,13 +555,13 @@ List<MicroResult> runMicroBenchmarks() {
   );
 
   // --- Single-icon steady state ------------------------------------------
-  // The three arms below answer a question the 399-document `anim_paint_frame`
+  // The three arms below answer a question the full-corpus `anim_paint_frame`
   // above cannot: what does ONE animated icon cost per frame once it has
   // settled — the navigation-bar / button / loading-spinner case, where nothing
   // is amortized across concurrent icons and the adaptive frame-skipping never
   // engages (its threshold is 24 concurrent icons).
   //
-  // The corpus is deliberately narrowed to the 58 `repeatCount="indefinite"`
+  // The corpus is deliberately narrowed to its `repeatCount="indefinite"`
   // documents. A finite document is not a steady state at all: once every
   // timeline has settled, `SvgxAnimated` unsubscribes from the shared clock and
   // stops repainting entirely, so its steady-state cost is exactly zero. Only a
@@ -570,12 +570,12 @@ List<MicroResult> runMicroBenchmarks() {
   // essentially its whole on-screen life in: one part frozen, another part
   // looping.
   //
-  // 下面三条臂回答的是上面那条 399 文档 `anim_paint_frame` 回答不了的问题：**一个**
+  // 下面三条臂回答的是上面那条全语料 `anim_paint_frame` 回答不了的问题：**一个**
   // 动画图标在进入稳态之后每帧要花多少钱——也就是导航栏/按钮/loading spinner 场景，
   // 那里没有任何成本能靠并发图标摊薄，而自适应跳帧也永远不会生效（它的阈值是 24 个
   // 并发图标）。
   //
-  // 语料刻意收窄到 58 份 `repeatCount="indefinite"` 文档。有限文档根本不存在稳态：
+  // 语料刻意收窄到其中 `repeatCount="indefinite"` 的文档。有限文档根本不存在稳态：
   // 所有时间线定格之后，`SvgxAnimated` 会从共享时钟退订、彻底停止重绘，其稳态成本
   // 恰好为零。只有循环文档会永远逐帧付费，这里在 t > 3s 采样它，越过所有
   // `fill="freeze"` 揭示动画——那正是这类图标在屏幕上几乎全部时间所处的状态：一部分

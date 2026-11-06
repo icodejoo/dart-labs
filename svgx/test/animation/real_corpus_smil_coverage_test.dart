@@ -15,26 +15,31 @@ import 'pixel_test_utils.dart';
 /// 语料里图标总数。
 const int _iconCount = 399;
 
+// Official line-md@1.2.16 + eos-icons@1.2.4 counts pin corpus coverage, while
+// per-icon comparisons below independently check that parsing loses no tracks.
+// 官方 line-md@1.2.16 + eos-icons@1.2.4 统计固定语料覆盖范围；下方逐图标
+// 独立比较源码与解析结果，保证动画轨道没有被丢弃。
 /// 语料统计（对照源码得到）：作用于 `d` 的 `<animate>` 个数。
-const int _animateD = 72;
+const int _animateD = 188;
 
 /// 作用于 `d` 的 `<set>` 个数。
-const int _setD = 64;
+const int _setD = 32;
 
 /// 作用于 `opacity` 的 `<set>` 个数。
-const int _setOpacity = 28;
+const int _setOpacity = 104;
 
-/// 作用于 `fill-opacity` 的 `<set>` 个数。
-const int _setFillOpacity = 14;
+/// No fill-opacity sets in the official corpus; keep checking for their return.
+/// 官方语料没有 fill-opacity set；保留统计以检测后续语料变化。
+const int _setFillOpacity = 0;
 
 /// 作用于 `fill-opacity` 的 `<animate>` 个数。
-const int _animateFillOpacity = 305;
+const int _animateFillOpacity = 180;
 
 /// 含 `d` 动画（animate 或 set）的图标数。
-const int _iconsWithD = 48;
+const int _iconsWithD = 93;
 
 /// 含 `fill-opacity` 动画（animate 或 set）的图标数。
-const int _iconsWithFillOpacity = 163;
+const int _iconsWithFillOpacity = 140;
 
 /// 匹配某标签作用于某属性的整条开标签。
 RegExp _tagOn(String tag, String attribute) =>
@@ -152,12 +157,20 @@ void main() {
     expect(morphable, lessThanOrEqualTo(_animateD));
   });
 
-  test('语料里 <set> 总数 = d + opacity + fill-opacity', () {
+  test('语料里 <set> 的属性分布与官方语料一致', () {
     final all = animIconsReal.join('\n');
-    expect(
-      RegExp(r'<set\b').allMatches(all).length,
-      _setD + _setOpacity + _setFillOpacity,
-    );
+    // The official corpus has only d/opacity sets. Check every set's attribute,
+    // so a new property cannot hide behind an unchanged aggregate count.
+    // 官方语料的 set 仅作用于 d/opacity；逐个检查属性分布，避免总数不变时
+    // 新增属性被漏检。fill-opacity 仍由上方源码统计显式检查为零。
+    final counts = <String?, int>{};
+    for (final tag in RegExp(r'<set\b[^>]*>').allMatches(all)) {
+      final attribute = RegExp(r'attributeName="([^"]+)"')
+          .firstMatch(tag[0]!)
+          ?.group(1);
+      counts.update(attribute, (n) => n + 1, ifAbsent: () => 1);
+    }
+    expect(counts, {'d': _setD, 'opacity': _setOpacity});
   });
 
   test('含 d / set 的图标在多个时刻都能完整执行绘制逻辑（不抛异常）', () {

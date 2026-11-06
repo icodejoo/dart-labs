@@ -14,17 +14,24 @@ import 'package:flutter/rendering.dart'
     show debugProfileLayoutsEnabled, debugProfilePaintsEnabled;
 import 'package:svgx/svgx.dart';
 
+import 'anim_async_bench_screen.dart';
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
+import 'anim_parse_bench_screen.dart';
+import 'anim_transfer_bench_screen.dart';
 import 'bare_anim_grid.dart';
+import 'capture_hook.dart';
 import 'bench_screen.dart';
 import 'cmd_count_bench.dart';
 import 'compare_bench_screen.dart';
 import 'complex_svg_samples.dart';
+import 'illus_fps_bench_screen.dart';
+import 'img_bg_bench_screen.dart';
 import 'imgprovider_bench_screen.dart';
 import 'micro_bench.dart';
 import 'one_anim_bench_screen.dart';
 import 'static20_bench_screen.dart';
+import 'svg_grid_screen.dart';
 
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
@@ -110,6 +117,60 @@ Future<void> main() async {
   }
   if (_libName == 'bare') {
     runApp(MaterialApp(home: BareAnimGrid(itemCount: _items)));
+    return;
+  }
+  if (_libName == 'anim_parse') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimParseBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'anim_async') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimAsyncBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'svg_grid') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SvgGridScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'illus_fps') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: IllusFpsBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'anim_transfer') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AnimTransferBenchScreen(),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'img_bg') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: ImgBgBenchScreen(),
+      ),
+    );
     return;
   }
   if (_libName == 'anim') {
@@ -260,9 +321,13 @@ Future<void> main() async {
     // 单编译顺序模式：在这一个进程内依次跑完 svgx 静态 -> flutter_svg 静态 ->
     // anim -> anim_fps，再打印一份汇总报告。存在原因见
     // compare_bench_screen.dart（同一时段配对复测，一次编译代替最多四次）。
+    // wrapForCapture is the identity unless --dart-define=CAPTURE_DIR is set.
+    // 未设置 CAPTURE_DIR 时 wrapForCapture 原样返回。
     runApp(
-      MaterialApp(
-        home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
+      wrapForCapture(
+        MaterialApp(
+          home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
+        ),
       ),
     );
     return;

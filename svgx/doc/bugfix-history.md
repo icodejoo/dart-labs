@@ -182,3 +182,49 @@ canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
 
 - 先写失败回归再修复;Rust `cargo test`(debug/release)与 Dart `flutter test` 全量通过,与 HEAD 的 wire/帧对照、真实语料对照均无新增差异。
 - 具体数量、耗时、语料统计与对照结果见 `doc/performance-benchmarks.md`「2026-11 review 整改验证数据」,不在此重复。
+
+
+### 2026-11-04:静态路径 mask / 亮度 mask
+
+- **mask 内空 opacity 组绕过展开预算,导致命令放大**(终审发现,已修)
+  - 症状:mask 内含空的 opacity 组时,命令展开不计入预算,可被放大成大量命令(OOM 风险)。
+  - 修复:mask/pattern 的命令展开纳入同一预算。
+- **亮度 mask 忽略内容 alpha**(老问题,已修)
+  - 症状:遮罩内容自身的 alpha(如 opacity=.5 的叶子或组)按 255 处理,浏览器应为 128。
+  - 修复:亮度 mask 现在把内容 alpha 计入。
+
+### 2026-11-05:动画离屏图层的元素裁剪顺序
+
+- 现象:华为 STG-AL00 / Impeller GLES 上,部分 mask 图标(黑色挖空边与视口边界 x=0/x=24 重合、白色区域伸出视口)在视口边界那一列像素出现淡灰竖线。
+- 根因(后续实验确认):图标落在**非整数物理像素**时,两条重合边各自抗锯齿后叠加(conflation)。图标 93.6px、偏移 13.2px 有线,改为 96px、偏移 12px 后消失;flutter_svg 与 svgx 静态路径同样出现;Chrome 因排版取整而没有。本条的裁剪修改**不能**消除该线;硬矩形视口裁剪(`doAntiAlias: false`)试过无效,已撤回。绘制期用 `canvas.getTransform()` 对齐也无效(RepaintBoundary 内只有图层局部坐标,滚动只移动图层不重绘)。解决方案改为合成阶段(`addToScene`)对齐,另行实现。
+- 保留的修改:`AnimatedSvgPainter` 在节点变换之后、opacity/mask/filter 图层之前安装元素裁剪,按相反顺序恢复。原先元素裁剪装在 mask 内容图层内、opacity 图层也先于元素裁剪开启,恢复这些图层时父级合成状态不含元素自身的裁剪。不增加 `saveLayer`;精确 mask 仍为两个离屏通道,可近似 mask 仍为零个。
+- 回归:`offscreen_viewport_clip_test.dart` 使用原创最小 SVG,在 200×200 画布中央绘制 96×96 图标,采样 61 秒冻结状态,检查全部视口外围完整像素。覆盖透明/不透明背景、亚像素偏移、精确/近似 mask、元素裁剪、模糊、opacity、变换与实际 `SvgxStatic` 绘制器。像素测试修改前已通过;真实 Canvas 委托的图层入口裁剪审计修改前失败、修改后通过。
+- 外部只读语料:通过 `SVGX_MASK_EDGE_SAMPLES` 显式启用,144 个官方 line-md SVG 在修改前后均为动画 0/144、静态 0/144 个越界图标,外围非背景像素均为 0。第三方源文件没有入库。
+- 帧基线:先以 `SVGX_CSS_FRAME_RECORD` 录制修改前状态,再用 `SVGX_CSS_FRAME_BASELINE` 对比;55 个 CSS SVG × 8 个时刻共 440 帧 RGBA 全部逐字节相同,无视口内外差异。前后 JSON 的 SHA-256 均为 `218d4c0e7e90bf40fe51bd123487e2a077f5a5bc4cc65be960d3e49e98c2f740`。
+- 最终检查:PATH 带 `prebuilt/windows/x64` 的 `flutter test --concurrency=1` 共 1793 项通过、5 项跳过、0 失败;跳过项为缺少浏览器参考帧的两项、未启用的大文档计时与路径基准各一项,以及原有写死 `skip: true` 的静态控件层级测试。新增 `SvgxStatic` 像素对照实际执行。`dart analyze lib test` 为 0 问题,改动 Dart 文件格式化与 `git diff --check` 通过;本工作区无残留 `flutter_tester`,原有未提交文件哈希保留(CHANGELOG 仅追加本条变更)。
+
+### 2026-11-05:合成阶段像素对齐
+
+- **根因**：带 mask/clipPath 的 SVG 视口落在分数物理像素时，视口裁剪与离屏遮罩的覆盖率叠加可在边缘留下灰线；静态 picture 与动画路径都受影响。
+- **为何绘制期对齐失败**：列表滚动、祖先 Transform 和根 DPR 可在 picture 已录制后只更新合成层，paint 时看到的变换不包含最终屏幕位置，缓存首次偏移也会在下一次滚动失效。
+- **方案**：按解析元数据启用新的 repaint boundary，在每次 Scene 合成时沿精确类型白名单累积物理变换，将实际 painter 视口原点和宽高取最近物理像素；未知/非轴对齐变换回退。复用 picture 和子容器 retained 路径，五种统一入口和两个底层入口均提供 auto/always/never，默认 auto 无风险时仍用原边界。applyTransform、注释逆变换与嵌套均使用本帧实际矩阵。
+- **交互与范围**：仅平移及轴对齐正缩放生效，边缘修正 <1 物理像素，布局、点击、语义不变；滤镜扩散、祖先分数裁剪与独立子树截图另有边界，见能力文档。
+- **真机验证待补**：用户已在华为 STG-AL00（Impeller GLES）验证原型静止场景的动画、静态灰线均消失；正式实现的真机滚动、父变换及 profile/release 性能仍待补。本次只使用 Windows 预编译原生库测试，不连接设备、不构建 APK。
+
+### 2026-11-05:动画路径亮度 mask 忽略内容 alpha
+
+- 现象:动画绘制器把 mask 内容的 `fill-opacity`、`stroke-opacity`、元素/组 `opacity`、颜色 alpha 及其动画当作完全不透明,例如白色 `fill-opacity=".3"` 的液体应为 30% 覆盖度,却显示为纯黑。本条是动画路径的同类问题;上方「亮度 mask 忽略内容 alpha(老问题,已修)」记录的是静态路径。
+- 根因:亮度 `ColorFilter.matrix` 读取非预乘 RGB,原先透明内容层中的 RGB 不含 alpha;`.3` 的解析与 mask 转 clip 的半透明拒绝判定均正确。
+- 修复:`AnimatedSvgPainter._applyMaskLayer` 在现有亮度 mask 内容层开头执行一次 `drawColor(black, BlendMode.src)`,将内容合成到不透明黑底后再取亮度,覆盖度为亮度 × 内容 alpha(也保留抗锯齿覆盖率)。沿用既有亮度系数及色彩空间处理,与静态路径语义一致。`mask-type="alpha"` 不铺黑底;可近似 mask 仍直接走 clip。没有新增 `saveLayer`,精确 mask 仍为两个离屏通道。
+- 复现:`mask_content_opacity_test.dart` 的原有 16 项修复前 5 通过、11 失败,修复后全部通过;另补不透明斜边抗锯齿、fill/stroke 颜色 alpha 动画,共 21 项通过。覆盖继承、组内重叠、组合不透明度、灰度 × alpha、半透明黑色覆盖白色、两种近似开关及 0/1/2/61 秒采样。10 个实际 `SvgxStatic` 像素对照的全部 RGBA 通道差均不超过 2/255,alpha mask 与裁剪近似测试保持通过。
+- 基线:修改前先用 `SVGX_CSS_FRAME_BASELINE` 核实当前代码与已有基线的 440 帧逐字节一致。修改后 55 个外部只读 CSS SVG × 8 个时刻,412 帧逐字节不变、4 个样本的 28 帧变化。基线 SHA-256 为 `218d4c0e7e90bf40fe51bd123487e2a077f5a5bc4cc65be960d3e49e98c2f740`,修改后为 `4e8038e2126a0e0877e820a01364f8b827e95bce72d91c49f625155fa04ef16e`。第三方素材没有入库。
+- 以下四个样本均未显式设置 mask 内容半透明属性,变化来自光栅抗锯齿产生的分数 alpha,同属内容 alpha 丢失的修正。差异像素按 RGBA 任一通道改变计数;时刻顺序为 0/250/500/990/1010/1500/5000/61000ms。
+
+| 样本 | mask 内相关属性片段 | 各帧差异像素数 | 最大通道差(0–255) | 独立控制对照 |
+| --- | --- | --- | --- | --- |
+| `107.svg` | `mask id="logo-circle_svg__e5ojfxdzkgl76"`; `path fill="#FFF" clip-rule="evenodd" fill-rule="evenodd" stroke="none"` | 741/740/740/740/740/738/730/730 | 252 | 纯白 mask 改用 alpha 语义,8 帧与修复后逐字节一致 |
+| `109.svg` | `mask id="log-in-girl-7-masks" mask-type="luminance"`; `path fill="url(#log-in-girl-7-path45-fill)" stroke="none"`; 径向渐变 `stop-color="rgb(255,255,255)"` → `stop-color="rgb(42,103,227)"`,均无 `stop-opacity` | 5/5/5/6/6/4/6/6 | 72 | 仅将 mask 专用渐变亮度折算为白色的 stop alpha,改用 alpha mask;8 帧最大通道差 1/255 |
+| `225.svg` | 三个 `mask-type="luminance"` mask(`eaw1hJZELGz21/25/33`); `path fill="#fff" stroke-width="0"`(前两者)及 `path fill="#fff" stroke-width="15" stroke-miterlimit="10"`(第三者,未设置 stroke) | 34/34/25/32/35/23/34/35 | 200 | 三个纯白 mask 改用 alpha 语义,8 帧逐字节一致 |
+| `227.svg` | `mask id="ehkAlMQgPna40" mask-type="luminance"`; `g id="ehkAlMQgPna41_to"` 内 `ellipse rx="52.769557" ry="52.769557" fill="#fff" stroke-width="0"` | 0/0/0/2/2/0/2/2 | 16 | 纯白 mask 改用 alpha 语义,8 帧逐字节一致 |
+
+- 控制实验临时关闭本次黑底填充,以独立的 alpha mask 生成参考,结束后恢复修复代码;临时诊断测试和帧数据只保留在仓库外。四个样本的差异均已解释,没有未解释的回归。

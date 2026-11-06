@@ -49,9 +49,7 @@ const _quickFlash =
 
 Duration _clockOf(Finder svgXAnimated, WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
-    find
-        .descendant(of: svgXAnimated, matching: find.byType(CustomPaint))
-        .first,
+    find.descendant(of: svgXAnimated, matching: find.byType(CustomPaint)).first,
   );
   return (paint.painter! as AnimatedSvgPainter).clock.value;
 }
@@ -178,9 +176,7 @@ void main() {
       // left and reset.
       //
       // 全部卸载——共享时钟应当没有任何订阅者，并已重置。
-      await tester.pumpWidget(
-        const MaterialApp(home: SizedBox.shrink()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
       await tester.pump(const Duration(milliseconds: 16));
 
       // A brand-new instance must start at (approximately) zero, not resume

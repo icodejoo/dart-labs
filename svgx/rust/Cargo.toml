@@ -7,23 +7,25 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-flutter_rust_bridge = "=2.12.0"
+flutter_rust_bridge = "=2.13.0"
 # Size optimization (re-applied 2026-08-26 after the fsvg→svgx rename lost it
-# to an accidental `git checkout`): usvg 0.44's only optional features are
-# `text`, `system-fonts`, `memmap-fonts` — all three are disabled here to drop
-# the font-shaping/system-font-loading machinery from the release binary.
+# to an accidental `git checkout`): usvg 0.49's optional features are `text`, `system-fonts`,
+# `memmap-fonts`, `svgz`, `writer` (`flate2`/`base64`/`xmlwriter` are optional
+# deps behind them) — all are disabled here to drop the font-shaping,
+# system-font-loading and gzip machinery from the release binary.
 # Static-path `<text>` is sacrificed as a result (silently skipped, see the
 # `usvg::Node::Text` arm in `src/api/svg.rs`); the animation path's `<text>`
 # support (Flutter `TextPainter`-based) is a fully separate implementation and
 # is unaffected.
 #
 # 体积优化（2026-08-26 重新应用，fsvg→svgx 改名事故中被一次误操作的
-# `git checkout` 丢弃后二次执行）：usvg 0.44 仅有的三个可选 feature 就是
-# `text`/`system-fonts`/`memmap-fonts`，这里全部关闭，去掉字体排版/系统字体
-# 加载相关代码以缩小 release 体积。代价是静态路径的 `<text>` 不再展平为路径
+# `git checkout` 丢弃后二次执行）：usvg 0.49 的可选 feature 为 `text`/`system-fonts`/
+# `memmap-fonts`/`svgz`/`writer`（`flate2`/`base64`/`xmlwriter` 是挂在其后的
+# 可选依赖），这里全部关闭，去掉字体排版/系统字体加载/gzip 相关代码以缩小
+# release 体积。代价是静态路径的 `<text>` 不再展平为路径
 # （静默跳过，见 `src/api/svg.rs` 的 `usvg::Node::Text` 分支）；动画路径的
 # `<text>` 支持（基于 Flutter `TextPainter`，完全独立实现）不受影响。
-usvg = { version = "0.44", default-features = false }
+usvg = { version = "0.49", default-features = false }
 # CSS3/SVG named-colour table + `<transform-list>` grammar (MIT/Apache-2.0),
 # the same crate usvg itself parses SVG values with. Backs `parse_color` /
 # `parse_transform` so the Dart animation engine never hand-rolls either table.
@@ -31,7 +33,7 @@ usvg = { version = "0.44", default-features = false }
 # CSS3/SVG 具名颜色表 + `<transform-list>` 语法（MIT/Apache-2.0），与 usvg 自身
 # 解析 SVG 取值用的是同一个 crate。为 `parse_color`/`parse_transform` 提供支撑，
 # 使 Dart 动画引擎不必手写这两张表。
-svgtypes = "0.15"
+svgtypes = "0.16"
 
 [profile.release]
 opt-level = "z"

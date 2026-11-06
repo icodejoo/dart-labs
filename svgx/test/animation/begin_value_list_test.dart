@@ -1,11 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/smil_animation.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
 import 'package:svgx/src/animation/svg_dom.dart';
 
+// The benchmark corpus is not a package dependency.
+// benchmark 语料不是依赖包，只能通过相对路径导入。
+// ignore: avoid_relative_lib_imports
+import '../../benchmark/bench_app/lib/anim_icons_real.dart';
 import 'pixel_test_utils.dart';
 
 Duration sec(num t) => Duration(microseconds: (t * 1000000).round());
@@ -342,13 +344,12 @@ void main() {
     expect(doc.hasIndefiniteLoop, isFalse);
   });
   test('real Iconify seeded cycles still animate beyond first round', () {
-    final source = File('benchmark/bench_app/lib/anim_icons_real.dart')
-        .readAsStringSync();
-    final svgs = RegExp(r"'<svg[^\n]+</svg>'")
-        .allMatches(source)
-        .map((m) => m[0]!.substring(1, m[0]!.length - 1))
-        .where((s) => s.contains('begin="0;'))
-        .toList();
+    // Select zero-seeded syncbase cycles by SVG semantics, independent of Dart
+    // source quoting, corpus indices and generated IDs. The official corpus
+    // retains the rotate and opacity cycles whose later-round phases we check.
+    // 按 SVG 的零时刻种子 + syncbase 循环语义选择，不依赖 Dart 源码引号、
+    // 语料索引或生成的 ID；官方语料仍保留此处验证后续轮次相位的旋转和透明度循环。
+    final svgs = animIconsReal.where((s) => s.contains('begin="0;')).toList();
     expect(svgs.length, greaterThanOrEqualTo(2));
     for (final svg in svgs) {
       final doc = parseAnimatedSvgDocument(svg);

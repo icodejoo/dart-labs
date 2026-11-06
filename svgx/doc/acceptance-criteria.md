@@ -1,6 +1,6 @@
 # 验收条件(测试通过标准)
 
-> 从 `CLAUDE.md` 拆出。这里只放**标准本身**(要达到什么才算过)和**是否已达标的结论性记录**;具体测量数字、每一轮性能复测的详细数据见 `doc/performance-benchmarks.md`,FFI sync/DCO 相关的专项审计见 `docs/ffi-performance-audit.md`。
+> 从 `CLAUDE.md` 拆出。这里只放**标准本身**(要达到什么才算过)和**是否已达标的结论性记录**;具体测量数字、每一轮性能复测的详细数据见 `doc/performance-benchmarks.md`,FFI sync/DCO 相关的专项审计见 `doc/ffi-performance-audit.md`。
 
 ## 功能验收条件
 
@@ -57,4 +57,4 @@ import 'package:iconify_flutter/icons/line_md.dart';
    - **统计指标:真实 FPS,不是模拟/推算的**。也就是不能用"1000 / 平均帧耗时"这种从均值反推的近似值当结果,必须是**按真实墙钟时间窗口,统计实际渲染完成的帧数**——具体做法:用 `SchedulerBinding.addTimingsCallback` 拿到的每一帧真实时间戳,按 1 秒为一个窗口分桶,数每个窗口里真实落地了多少帧,这才是"真实 FPS"。同时报告 FPS 的分布(avg/min/p1 这种低分位,因为 FPS 的"最差时刻"比平均值更能反映卡顿)。
    - **判定**:这个场景下 svgx 的动画引擎必须能撑住合理的 FPS(不掉到明显卡顿的区间),且要跟 flutter_svg 侧的等价动画渲染方式做对比(如果 flutter_svg 没有直接可比的动画能力,如实说明"无等价对照",不要硬凑一个不对等的对比)。
 
-**性能验收状态:PASS(Windows 桌面 profile 模式实测)**。全部测量数据、每一轮功能改动后的复测记录、方法学演进(`LIB=compare` 单进程配对模式等)见 `doc/performance-benchmarks.md`。FFI sync 阻塞风险的专项结论见 `docs/ffi-performance-audit.md`。
+**性能验收状态:PASS(Windows 桌面 profile 模式实测)**。全部测量数据、每一轮功能改动后的复测记录、方法学演进(`LIB=compare` 单进程配对模式等)见 `doc/performance-benchmarks.md`。FFI sync 阻塞风险的专项结论见 `doc/ffi-performance-audit.md`。

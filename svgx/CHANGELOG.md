@@ -1,5 +1,114 @@
 ## Unreleased
 
+* Rebuild every prebuilt slice for the new `commands` wire field of
+  `SvgScene`/`SvgMask`/`SvgPattern` (iOS xcframework, macOS framework,
+  Android ×4, Linux x64/arm64, Windows x64/arm64) from the `svgx-prebuilt`
+  workflow (run 42147870362), and restage `prebuilt/MANIFEST.json`;
+  `check_prebuilt` passes in strict mode and CI no longer uses
+  `--allow-incomplete`. Fixes found on the way:
+  * The workflow's `collect` merge let a leg's checked-out (stale) copies of
+    other platforms overwrite their fresh builds, so an earlier run shipped
+    the pre-`commands` Linux `.so`; each leg now builds from an empty tree.
+  * The Android leg is pinned to `ubuntu-24.04`: its arm64 slice built on
+    `ubuntu-latest` (26.04) crashed on device (SIGSEGV in
+    `frb_init_frb_dart_api_dl`); the 24.04 build was verified on device.
+  * The Linux leg is pinned to `ubuntu-24.04` so the shipped `.so` keeps its
+    GLIBC_2.34 floor (`ubuntu-latest` 26.04 would raise it to 2.43).
+  * The prebuilt source hash normalises CRLF to LF, so a Windows checkout
+    computes the same hash as CI.
+  * CI now runs native tests against the Linux prebuilt, and runs the example
+    integration test on the macOS desktop and the iOS simulator.
+
+* Add byte sniffing to `NetworkSvgx`, `AssetSvgx`, `FileSvgx` and `MemorySvgx`:
+  SVG uses svgx; bitmap and unknown bytes use Flutter's native decoder through
+  the supplied decode callback, preserving `ResizeImage` and animated GIF/WebP.
+  Bitmap signatures override content type. `StringSvgx` remains SVG text;
+  `Svgx.*` widget text loading and its LRU are unchanged. Provider-only SVG
+  parameters do not affect bitmaps; gzip SVG (`svgz`) remains unsupported.
+* Parse SVG path data into internal pure typed verb/coordinate buffers before
+  building `ui.Path`, preserving legacy geometry, tolerant truncation and
+  endpoint arcs via `arcToPoint`. Motion-path metrics and sampling are unchanged.
+* Align ImageProvider SVG animation rendering with app frames using a
+  `timeDilation`-aware timer and scheduler timestamps. Gaps exceeding four
+  animation intervals advance only one interval; losing the last listener
+  pauses progress. Finite documents render their final frame once and stop.
+  `SvgxAnimationController` does not control ImageProviders.
+
+* Add `SvgxAnimated.animation` / `animationSpan` to map Flutter animation values
+  to document time without a shared-clock subscription. Negative times clamp
+  to zero; positive overshoot is preserved. Unknown natural durations require
+  an explicit span and otherwise use the existing loading-error handlers.
+  The driver owns start/completion status; svgx emits neither event in this mode.
+  The first sync after (re)attaching behaves like a seek, so mounting midway
+  does not replay events since zero.
+* Add `SvgxAnimated.onEvent` in all three playback modes for element and loop
+  events, retaining the no-listener path without per-frame timeline queries.
+* Keep `playbackRate` stable through ping-pong reflections using an internal
+  direction. `reverse()` reverses current travel; pause/play preserves reflection,
+  while selecting or clearing a range resets it to the requested rate direction.
+
+* Forward all animation controls, readiness/error callbacks and playback/element
+  events through `Svgx.string/asset/network/file/memory`, with matching constructor
+  assertions. Static sources ignore animation-only options; both renderers honor
+  `errorBuilder` / `onError`. Asset/network/file load failures use supplied handlers
+  and preserve the default ambient `ErrorWidget` behavior when neither is supplied.
+* Add an animation-control example page using original SMIL artwork and the
+  top-level `Svgx.string` API: playback, seek, signed rates, once/loop/ping-pong
+  ranges, duration fitting, recent element events and a curved Flutter driver.
+  Cover all five entries, pending-load cleanup and the real page's interactions
+  with widget tests.
+
+* Emit CSS `@keyframes` begin/end/repeat events using the animation name as
+  `id`, once per element and animation declaration across all property channels.
+  Same-named animations on different elements each emit their own events;
+  CSS names remain separate from SMIL syncbase ids. Sampling is unchanged.
+
+* Add `SvgxDocumentCache.getOrParseAsync` and sequential, failure-tolerant
+  `prewarm`. Image-free sources with at least 128 estimated opening tags use a
+  persistent parser isolate with native color/transform checks and shared in-flight work;
+  pre-check is a single allocation-free scan.
+  Root-isolate-only UI operations retry synchronously and are remembered;
+  unavailable workers fall back to synchronous parsing, with a 60-second
+  cooldown after initialization or spawn failures. Parse errors propagate.
+  `SvgxAnimated` shows a sized placeholder until ready,
+  preserves synchronous small-source frames and rejects stale completions.
+
+* Add `SvgxAnimationController` and implicit controllers for `SvgxAnimated`:
+  play/pause/stop/seek, finite signed playback rates, reversible completion,
+  once/loop/ping-pong ranges, duration fitting, cues and playback/element events.
+  Shared controllers use one shared-clock subscription; all attached widgets
+  must disable `TickerMode` before their timeline pauses.
+  Unbounded reverse playback at zero requires seeking forward or selecting a
+  range; the numeric safety ceiling is never used as a restart endpoint.
+* Add `SvgxAnimated.controller`, `autoplay`, `onLoaded`, `onError` and
+  `errorBuilder`. Parse failures now emit an error and show the error builder
+  or a sized empty box; unhandled failures are reported through `FlutterError`.
+* Fix animation start offsets: the first subscribed tick preserves the current
+  document time exactly. Seek redraws immediately, including while paused.
+* Change `onAnimationLoop` to count `settleTime + k * loopPeriod` crossings
+  instead of `totalDuration` multiples. Pure indefinite animations now report
+  loops when their steady-state period is known (for example, `dur="2s"`).
+  A source change resets an implicit controller; an external controller keeps
+  its time and adopts the first ready attached document's animation information.
+* Upgrade dependencies: usvg 0.49, svgtypes 0.16, flutter_rust_bridge 2.13.
+* Fix the static path's root `background-color` offset (only the main tree uses
+  the parent group transform; sub-roots keep the old behavior).
+* Static path now honors `<g>` and element `opacity`: groups composite as a whole
+  via `saveLayer`, `opacity=0` subtrees are skipped, and `opacity=1` adds no
+  extra command payload.
+* Fix luminance masks ignoring the mask content's own alpha (previously 255).
+* Bound mask/pattern command expansion with a budget to prevent amplification OOM.
+* Pause animations while `TickerMode` is disabled (covered routes, inactive
+  `TabBarView` pages); progress stays continuous on resume. `Offstage` alone
+  does not disable `TickerMode`.
+* Animated path: per-node style cache compares themes by value, so instances
+  sharing one parsed document with equal but distinct `SvgxTheme` objects no
+  longer miss the cache every frame.
+* Add `SvgxAnimationInfo` (`settleTime`, `loops`, `loopPeriod`,
+  `naturalDuration`), computed once at parse time. `loopPeriod` is the LCM of
+  indefinite animations' periods (alternate counts twice), null when unknown or
+  over 60s — groundwork for the upcoming playback controller.
+
 * Fix CSS Color 4 `#rgba` on the Dart animation path across paint attributes,
   styles, CSS keyframes, gradient stops and SMIL color channels.
 * Expand chained `<use>` references while preserving cycle detection, depth
@@ -120,6 +229,21 @@
   an untrusted SVG cannot read files such as `/dev/zero` or probe private
   app directories. Native libraries under `prebuilt/` must be rebuilt for the
   fix to ship.
+
+* Fix SMIL to-only animations using parse-time underlying numeric/path/colour
+  values, including inherited presentation attributes and existing CSS cascade.
+  Approximate to-only transforms with per-type identities; other-animation
+  composition and by-animations remain unsupported.
+
+* Install element clips before opacity/mask/filter layers in the animated
+  renderer, so their composites honor the clip; no offscreen passes added.
+
+* Fix animated luminance masks ignoring content alpha, including opacity and
+  color-alpha animations, by compositing onto black within the existing layer.
+
+* Add composition-time SVG viewport pixel alignment with `SvgxPixelSnap.auto`
+  (default), `always` and `never` on every widget entry; reuse parsed risk
+  metadata and retained pictures under translation and positive scaling.
 
 ## 0.1.1
 

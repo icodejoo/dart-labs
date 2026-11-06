@@ -21,7 +21,12 @@
 - `<svg>`/`<g>`/基础形状/`<use>`/`<switch>`/`<marker>`(usvg 解析期即展开或求值,svgx 零成本继承)。
 - `currentColor`+`PaintOrder`(`parse_svg(data, currentColor)`,`SvgPath.strokeFirst` 控制先描边后填充)。
 - 静态渐变(线性/径向,`objectBoundingBox`/`userSpaceOnUse`)。
+- `<g>` 与元素的 `opacity`（含根 `<svg>`、嵌套）：按 usvg `Group.opacity` 保留成对的入层/出层命令，Dart 用 `saveLayer` 把组整体合成；重叠子元素、同一元素的填充与描边只应用一次 opacity。`fill-opacity`/`stroke-opacity` 保持 paint 级透明度，再与各层 opacity 相乘。
+  - `opacity=0` 的子树直接跳过;`opacity=1` 不产生额外命令载荷。
+  - mask/pattern 子内容也保留 opacity 边界；图片包含在所属组内。
+  - 无 opacity 合成的列表不传逐元素命令，保留原有扁平快路径；FRB 仍为 sync + SSE。
 - `<clipPath>`、`<mask>`、`<pattern>`(基础形态)。
+  - 亮度(luminance)mask 现在正确计入遮罩内容自身的 alpha(此前一律按 255 处理)。
 - `feGaussianBlur`(仅此一种 filter 图元)。
 - `<image>`(内嵌 base64 位图,PNG/JPEG/GIF/WEBP)。
 
@@ -39,7 +44,7 @@
 - **遮罩内容 / 图案贴片内容按"朴素"方式绘制**:不再递归应用它们内部的 clip/mask/blur/pattern。也不支持遮罩内的 `<image>`。
 - **`<pattern>` 贴片分辨率上限 1024px/轴**,按图案→绝对矩阵的缩放量推算;极端放大时会糊。贴片 `ui.Image` 由 shader 持有,不显式 dispose(交给 Dart GC)。
 - **不支持嵌套 SVG**(`<image href="...svg">` 或 `ImageKind::SVG`)——静态路径直接跳过。
-- **图片 z-order 简化**:图片一律先于路径/形状绘制,不支持"图片和路径交替出现在文档顺序中、按顺序层叠"这种排布。
+- **图片 z-order 简化**:无 opacity 合成命令时，图片仍一律先于路径/形状绘制；有 opacity 合成命令时按文档顺序重放，以保持图片与路径的组边界。
 
 ### 图片来源与预算(安全策略)
 
@@ -127,7 +132,9 @@
 - 时钟值支持 `HH:MM:SS(.fff)`、`MM:SS`、`Nh`、`Nmin`、`Ns`、`Nms` 和纯数字(秒);所有使用 `parseSmilDuration` 的时序字段共用此解析。
   - 非法值沿用零回退;有限时长超过 1e7 秒时饱和至 1e7 秒,正向 `begin` 超限则永不开始。
   - `NaN`/`Infinity` 仍按非法值处理。
-- `<animate>`:`values`/`from-to`、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+- `<animate>`:`values`/`from-to`/仅 `to`(to-animation)、`dur`、`begin`(数值偏移、syncbase 与分号列表)、`fill="freeze"` vs 复原、`repeatCount`(有限/`indefinite`)、`calcMode`(`linear`/`discrete`/`paced`/`spline`)、`keyTimes`、`keySplines`;任意单数值展示属性动画(通用,不限于 `stroke-dashoffset`)。
+  - **to-animation 基础值**:解析期取目标自身展示属性、行内 `style` 与已有 `<style>` 级联结果;继承沿用渲染器规则(`stroke-dashoffset`/`stroke-width`/`fill-opacity`/`stroke-opacity` 继承,`opacity` 与几何数值不继承),缺省取现有通道的初始值;`<use>` 取实例祖先链。`fill`/`stroke` 同样支持仅 `to` 的字面颜色插值,fill 缺省 black,stroke 缺省 none 时丢弃;基础涂料为 none/currentColor/渐变引用等无法解析的颜色时也丢弃。
+  - **近似与限制**:基础值固定在解析期,不含其它动画的叠加结果;没有实现规范中同属性其它动画作用后的当前动画值。`by-animation`(仅 `by`、`from+by`)与数值/颜色 `additive` 尚不支持,不会模拟为静态基础值加增量。
 - `fill-opacity`/`stroke-opacity`(静态属性与 `<animate>`/`<set>` 驱动均支持):
   - **继承属性**(与不继承的 `opacity` 不同),取值钳制到 `[0, 1]`;纯色、渐变着色器、`<text>` 填充都生效。
   - 最终 alpha = 颜色自身 alpha × `fill-opacity`(描边为 `stroke-opacity`)× `opacity`。
@@ -191,13 +198,13 @@
 - `<animate attributeName="d">`(路径变形):
   - 各关键帧的 `d` 在**解析期**规范化为绝对 `M`/`L`/`C`/`Q`/`A`/`Z`(相对坐标转绝对、`H`/`V`→`L`、`S`→`C`、`T`→`Q`)。
   - 命令序列与参数个数完全一致时逐参数插值,逐帧直接用数值构建 `ui.Path`(不再解析字符串);不一致则退化为**离散**(按规范,`n` 个值把时长等分为 `n` 段切换)。
-  - 支持 `values`/`from-to`、`keyTimes`、`calcMode`(`linear`/`discrete`/`spline`+`keySplines`;`paced` 对路径无定义,按 `linear` 处理)、`begin`(偏移与 syncbase)、`dur`、`repeatCount`、`fill="freeze"`。
+  - 支持 `values`/`from-to`/仅 `to`(基础值取目标 `<path>` 自身 `d`,缺失时丢弃)、`keyTimes`、`calcMode`(`linear`/`discrete`/`spline`+`keySplines`;`paced` 对路径无定义,按 `linear` 处理)、`begin`(偏移与 syncbase)、`dur`、`repeatCount`、`fill="freeze"`。
   - 计时与数值动画共用同一套设施(`SmilTimed`/`_resolveTiming`/`_locateSegment`)。
 - `<set>`:单值离散动画。
   - `begin` 之前不覆盖(显示静态属性);**无 `dur` = 活动期无限**,从 `begin` 起一直保持;有 `dur` 且无 `fill="freeze"` 时结束后撤销覆盖。
   - 数值属性(`opacity`/`fill-opacity` 等,`to` 必须是纯数字)复用数值通道,`d` 复用路径通道。
   - 无 `dur` 的 `<set>` 忽略 `repeatCount`,其结束时刻按 `begin` 计,不会让 Ticker 一直跑。
-- `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上;`accumulate="sum"` 不支持,不会逐轮累加。
+- `<animateTransform>`:`type="translate"/"scale"/"rotate"/"skewX"/"skewY"`(`rotate` 支持 `angle`/`angle cx cy`),同一元素多个按文档顺序合成,叠加在静态 `<g transform>` 之上;仅 `to` 时 from 近似为各类型恒等值(translate `0 0`、scale `1 1`、rotate/skew `0`),不分解规范中的 underlying transform;`by` 与 `accumulate="sum"` 不支持,不会逐轮累加。
 - `<animateMotion>`:自身 `path="..."` 与 `<mpath href="#id">`。
   - 弧长参数化用 `dart:ui` 的 `Path.computeMetrics()`+`getTangentForOffset()`(129 个等弧长采样点,逐帧线性插值)。
   - `rotate="auto"`/`"auto-reverse"`/固定角度;`keyPoints`/`keyTimes`/`keySplines`/`calcMode`。
@@ -341,6 +348,16 @@
   - 两台真机(vivo V2283A、华为 STG-AL00 消除臂序偏置后)验证 real_fps 均无实质提升,判定为不通用/收益不足。
   - 成本模型分析、合并方案否决推导等底层调研成果依然保留供参考。
 
+## 合成阶段像素对齐(PixelSnap)
+
+- `SvgxPixelSnap.auto` 为所有 SVG widget 入口默认值：动画直接读取文档 masks/clipPaths 注册表，静态在 picture 缓存未命中的共用录制出口读取 paths.effects 的 clips/mask 并保存布尔值；不扫描 SVG 源文本、不新建正则。静态未引用的定义可被解析器消去，不视为风险。
+- `always` 对所有文档启用；`never` 关闭。auto 无风险及 never 直接保留原 RepaintBoundary，不增加渲染对象或图层。ImageProvider 输出整像素图像，不提供此参数。
+- 目标为 painter 实际绘制视口，不是 widget 外框：两条 painter 和 boundary 布局共享固有尺寸、BoxFit、alignment 的计算。preserveAspectRatio 在各渲染路径内部的既有语义不变；SVG 内部的 viewBox 内容留白不当作新的外层视口。
+- 仅在经审计的祖先层链上支持平移、轴对齐正缩放（含根 DPR）。物理原点、宽高取最近整数，半像素原点取下界、尺寸取上界；边缘视觉修正 <1 物理像素，布局、点击和语义仍按原位置。连续移动/缩放可能有像素栅格跳变；小于半物理像素、非有限几何回退。
+- 精确类型白名单：OffsetLayer、OpacityLayer、ImageFilterLayer、TransformLayer、PixelSnapLayer、ContainerLayer、ClipRectLayer、ClipRRectLayer、ClipRSuperellipseLayer、ClipPathLayer、ColorFilterLayer、ShaderMaskLayer、BackdropFilterLayer，以及 AnnotatedRegionLayer 的 SystemUiOverlayStyle、MouseCursor、Object、String、int、double、bool 泛型实例。Dart 没有任意泛型类的精确反射；其他实例类型保守回退，不按类型名猜测。已知类的未知子类同样回退。
+- 旋转、斜切、反射、透视、未知祖先及 Leader/Follower 祖先回退为普通 offset。后代链接可通过 applyTransform 读取本帧实际修正；图层注释查找使用同一矩阵的逆变换，嵌套对齐使用父层本帧矩阵。
+- 每次合成重新计算，不会自行驱动帧或为纯滚动重录 picture；子容器仍可 retained，直接 PictureLayer 复用原 picture。祖先小数裁剪和滤镜扩散不在本修正范围。独立子树截图与屏幕捕获空间不同，应显式 never；完整根 Scene 截图包含修正。
+
 ## 驱动 Widget 与加载层(Dart)
 
 ### Dart 加载与 Widget 生命周期
@@ -353,6 +370,7 @@
 - 静态图片逐张解码,坏图跳过,录制失败也释放已解码图片。Picture 淘汰仅移除缓存引用,不 dispose 仍可能被使用的 Picture。
 - 静态冷加载按帧计时,异常工作也计入预算;排队按源与颜色去重,执行前跳过已卸载的调用方。
 - 动画文档缓存保留随机淘汰策略,运行时缩小上限会持续淘汰至满足限制;含图片的文档不共享。本 State 独占的解码图片在换源、卸载及过期解码完成时释放,解码失败仍展示文档并启动时钟。
+- 动画在 `TickerMode` 关闭时暂停采样,恢复后进度连续。被 Navigator 覆盖的路由、`TabBarView` 的非当前页等祖先关闭 `TickerMode` 的场景都会触发;单独的 `Offstage` 不会关闭 `TickerMode`,因此不会暂停。回归见 `test/animation/ticker_mode_test.dart`。
 - `playbackRate` 运行中切换会累计已播放的虚拟时间并重设基线,时间线保持连续。替换文本布局缓存时释放旧 `TextPainter`。
 
 ## 像素级验证结果(12 项已实现功能的真实像素验证)

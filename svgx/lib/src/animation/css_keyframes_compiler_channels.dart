@@ -100,6 +100,7 @@ class _Channel {
   return (stops: stops, reason: null);
 }
 
+/// Compiles percentage distance and a static path into a motion timeline.
 /// 把百分数距离和静态运动路径编译为现有运动时间线。
 CssCompileResult _compileMotion(_Channel c) {
   final rawPath = c.cssProperties[_offsetPath];
@@ -133,6 +134,7 @@ CssCompileResult _compileMotion(_Channel c) {
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
+        eventGroup: t.eventGroup,
         fillFreeze: t.fillFreeze,
         repeatCount: t.repeatCount,
         direction: t.direction,
@@ -157,6 +159,7 @@ String? _motionRotate(String raw) {
 int? _channelColor(String raw) =>
     raw.trim().toLowerCase() == _none ? kSmilColorNone : parseCssColor(raw);
 
+/// Compiles fill, stroke or stop colors into a color timeline.
 /// 把填充、描边或渐变站点颜色编译为颜色时间线。
 CssCompileResult _compileColor(_Channel c) {
   bool currentColor(String value) =>
@@ -192,6 +195,7 @@ CssCompileResult _compileColor(_Channel c) {
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
+        eventGroup: t.eventGroup,
         fillFreeze: t.fillFreeze,
         repeatCount: t.repeatCount,
         direction: t.direction,
@@ -200,6 +204,7 @@ CssCompileResult _compileColor(_Channel c) {
   );
 }
 
+/// Compiles path frames, reporting discrete fallback for incompatible paths.
 /// 把路径函数编译为变形时间线，不兼容时返回离散近似诊断。
 CssCompileResult _compilePath(_Channel c) {
   final parsed = _channelStops(c, parseCssPathFunction, () {
@@ -225,6 +230,7 @@ CssCompileResult _compilePath(_Channel c) {
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
+        eventGroup: t.eventGroup,
         fillFreeze: t.fillFreeze,
         repeatCount: t.repeatCount,
         direction: t.direction,
@@ -257,6 +263,7 @@ List<double>? _channelList(String raw) {
   return values;
 }
 
+/// Repeats dash lists to a common width and compiles a list timeline.
 /// 把虚线列表按最小公倍数重复补齐，再编译为列表时间线。
 CssCompileResult _compileList(_Channel c) {
   final parsed = _channelStops(c, _channelList, () {
@@ -288,6 +295,7 @@ CssCompileResult _compileList(_Channel c) {
         duration: t.duration,
         begin: t.begin,
         beginSpec: t.beginSpec,
+        eventGroup: t.eventGroup,
         fillFreeze: t.fillFreeze,
         repeatCount: t.repeatCount,
         direction: t.direction,

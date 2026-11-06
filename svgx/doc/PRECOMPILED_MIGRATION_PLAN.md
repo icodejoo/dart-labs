@@ -224,7 +224,7 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 - 正向:7 个已提交产物 → `OK: 7 prebuilt artifact(s) match source hash 1f22b2c2…`
 - 负向:往 `rust/src/api/svg.rs` 追加一行注释 → 立即 `FAIL`,同时报出总 hash 不匹配 + 逐个产物过期,退出码 1;还原后回到 OK。
 
-**`--allow-incomplete`**:把"某 slice 还没构建"从错误降级为警告,同时**保留全部过期检查为致命**。这是迁移窗口期的临时开关(Apple 3 个 + windows-arm64 尚未产出),`svgx-ci.yml` 里带了 `TODO(migration)` 标注。**产物齐全后必须从 CI 里去掉。**
+**`--allow-incomplete`**:把"某 slice 还没构建"从错误降级为警告,同时**保留全部过期检查为致命**。这是迁移窗口期的临时开关(Apple 3 个 + windows-arm64 尚未产出),`svgx-ci.yml` 里带了 `TODO(migration)` 标注。**产物齐全后必须从 CI 里去掉。**(2026-11-06 已去掉:全部 slice 由 run `42137131487` 产出并登记,`check_prebuilt` 严格模式通过。同日修正了源码哈希的换行问题:先把 CRLF 统一为 LF 再哈希。之前 Windows 检出算出的哈希与 CI 不一致,本地 restage 的清单会被 CI 拒绝。)
 
 ---
 
@@ -264,6 +264,21 @@ matrix 四条腿:`android`/`linux`(ubuntu)、`windows`(windows-latest,含 arm64)
 - (c) 用 manylinux 容器(glibc 2.28)构建,覆盖最广,CI 复杂度上一个台阶。
 
 改动量都很小(只动 workflow 的 `runs-on`),但需要你按 svgx 的 Linux 桌面用户画像判断。
+
+**2026-11-06 已定:维持 (a),linux leg 固定在 `ubuntu-24.04`。** 起因:`ubuntu-latest` 已迁到 26.04,run `42070012153` 产出的两个 Linux `.so` 要求 GLIBC_2.43,只能跑在最新发行版上,这次产物没有采用。固定镜像后下限回到 GLIBC_2.34。
+
+**Android leg 同样固定到 `ubuntu-24.04`(2026-11-06)。**
+- 起因:run `42137131487` 在 26.04 上编出的 arm64-v8a `libsvgx.so`,在华为 STG-AL00(Android 12)上启动即 SIGSEGV,崩在 `frb_init_frb_dart_api_dl`。
+- 对照:同一 NDK 28.0 换 `ubuntu-24.04`(run `42141378840`)编出的版本,真机启动正常,静态千图标 `cached_pictures`=1000。所以原因在宿主镜像,不在 NDK。
+- 已提交的 Android 64 位库仍是本机构建版,真机验证过。
+- 规则:两条 leg 换镜像前都必须先上真机验证。
+
+**`collect` 合并会用旧产物覆盖新构建(2026-11-06 已修)。**
+- 问题:每条 leg 都上传整个 `prebuilt/`,里面包括检出得到的、其它平台的旧文件。`merge-multiple` 合并时后写覆盖先写,新构建的 slice 可能被别的 leg 连带上传的旧副本盖掉。
+- 后果:run `42137131487` 发出的 Linux `.so` 就是仓库里旧线格式的那份(524592 字节;该 run 实际新构建的是 555336 字节),`--restage` 又给它盖上了当前源码哈希,`check_prebuilt` 因此没能发现。直到 CI 上原生测试真正加载它、解码越界,问题才暴露。
+- 修法:每条 leg 构建前先清空 `prebuilt/`、`ios/svgx.xcframework` 和 `macos/svgx.framework`。
+- 验证:run `42147870362` 的每个产物大小都与构建日志一致。
+- 教训:`check_prebuilt` 只能证明清单与文件一致,不能证明文件真是由当前源码编出来的。"与仓库文件逐字节相同"应当被视为可疑,而不是当作可复现构建的证据。
 
 ### R2 —— Android `minSdkVersion` 从 19 提到 21,可接受吗?
 

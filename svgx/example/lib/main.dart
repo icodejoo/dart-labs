@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:svgx/svgx.dart';
 
+import 'animation_control_page.dart';
+
 // The line-md `confirm_circle` icon SVG source, verbatim. Its `<g>` element
 // already uses `fill="none"` (the upstream `fill="currentColor"` bug fixed) so
 // the stroke-draw circle + checkmark animation stays visible instead of being
@@ -258,14 +260,31 @@ class _RestartingSvgState extends State<_RestartingSvg> {
   }
 }
 
+/// Demonstrates SVG rendering and opens animation controls. / 展示 SVG 渲染并提供动画控制入口。
 class MyApp extends StatelessWidget {
+  /// Creates the example app. / 创建示例应用。
   const MyApp({super.key});
 
+  /// Builds the gallery and demo navigation. / 构建展示页与演示导航。
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: const Text('svgx acceptance test')),
+        appBar: AppBar(
+          title: const Text('svgx acceptance test'),
+          actions: [
+            Builder(
+              builder: (context) => TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AnimationControlPage(),
+                  ),
+                ),
+                child: const Text(AnimationControlPage.title),
+              ),
+            ),
+          ],
+        ),
         body: Center(
           child: SingleChildScrollView(
             child: Column(

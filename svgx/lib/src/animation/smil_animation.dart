@@ -378,6 +378,23 @@ abstract interface class SmilTimed {
   SmilRepeatCount get repeatCount;
 }
 
+/// A single event identity shared by channels of one CSS animation declaration.
+/// 同一元素的一项 CSS 动画声明各通道共享的事件标识。
+final class SmilEventGroup {
+  /// Creates a distinct group with an animation name as its event [id].
+  /// 创建独立事件组，以动画名作为事件 [id]。
+  SmilEventGroup(this.id);
+
+  /// CSS animation name; unrelated to SMIL syncbase identifiers.
+  /// CSS 动画名，与 SMIL 同步基准标识无关。
+  final String id;
+
+  /// First successfully constructed channel, the group's only event source.
+  /// 首个成功构建的通道，是组内唯一的事件源。
+  SmilTimeline? _source;
+}
+
+/// Shared timing and sampling for six animation channel types.
 /// 六类 SMIL 动画共用的时序字段与采样入口，保留同步基准解析所需的可写开始时刻。
 ///
 /// 例如：`SmilTimeline timeline = SmilAnimation(attributeName: 'opacity',
@@ -385,6 +402,7 @@ abstract interface class SmilTimed {
 /// fillFreeze: true);`，之后可用 `timeline.begin = Duration.zero` 回写开始时刻。
 abstract class SmilTimeline implements SmilTimed {
   /// 创建共享时间线；子类通过 super 参数转发时序配置。
+  /// Creates a timeline with optional shared event identity.
   ///
   /// 例如：`MyTimeline({required super.duration, required super.begin,
   /// required super.fillFreeze});`。
@@ -395,8 +413,25 @@ abstract class SmilTimeline implements SmilTimed {
     this.repeatCount = SmilRepeatCount.once,
     this.direction = SmilDirection.normal,
     this.elementId,
+    this.eventGroup,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-  });
+  }) {
+    eventGroup?._source ??= this;
+  }
+
+  /// Shared event identity for one CSS declaration; null for SMIL animations.
+  /// Grouped timelines must have identical timing.
+  /// 一项 CSS 声明的共享事件标识；SMIL 动画为 null。
+  /// 同组时间线必须使用相同的时序。
+  final SmilEventGroup? eventGroup;
+
+  /// Event identifier, or null when another channel represents this group.
+  /// 事件标识；由组内另一通道代表发事件时为 null。
+  String? get eventId {
+    final group = eventGroup;
+    if (group == null) return elementId;
+    return identical(group._source, this) ? group.id : null;
+  }
 
   /// 动画元素自身的 `id`（同步基准所引用的对象），可能为 null。
   @override
@@ -448,6 +483,14 @@ abstract class SmilTimeline implements SmilTimed {
   /// 最后一个区间的结束时刻，用于文档播放时长统计。
   Duration? get intervalEnd =>
       intervals?.isNotEmpty == true ? intervals!.last.end : null;
+
+  /// Makes resolved list intervals through [time] available in [intervals].
+  /// Earlier queries preserve intervals already available; single begins do
+  /// nothing.
+  ///
+  /// 使 [intervals] 包含截至 [time] 的已解析列表区间；向前查询保留已有区间，
+  /// 单值开始时间线不受影响。
+  void extendIntervalsThrough(Duration time) => _listResolver?.extend(time);
 
   /// 解析全局时刻的迭代进度；未开始或已结束且不定格时返回 null。
   _Timing? _timingAt(Duration t) {
@@ -1348,6 +1391,7 @@ class SmilAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -1490,6 +1534,7 @@ class SmilTransformAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -1626,6 +1671,7 @@ class SmilMotionAnimation extends SmilTimeline {
     required super.fillFreeze,
     super.repeatCount = SmilRepeatCount.once,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.keyPoints,
     this.keyTimes,
@@ -1785,6 +1831,7 @@ class SmilColorAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     this.attributeName = 'stop-color',
     super.direction = SmilDirection.normal,
@@ -1882,6 +1929,7 @@ class SmilColorAnimation extends SmilTimeline {
 /// ```
 class SmilListAnimation extends SmilTimeline {
   /// 创建列表时间线；[values] 至少两帧且各帧等长。
+  /// Creates a list timeline with at least two equal-length frames.
   SmilListAnimation({
     required this.attributeName,
     required this.values,
@@ -1894,6 +1942,7 @@ class SmilListAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
   }) : assert(
          values.length >= 2,
@@ -1997,6 +2046,7 @@ class PathMorphData {
 /// `calcMode="paced"` 对路径没有定义，按 `linear` 处理。
 class SmilPathAnimation extends SmilTimeline {
   /// 创建路径时间线；[frames] 至少一项（`<set>` 只有一个）。
+  /// Creates a path timeline with at least one frame.
   SmilPathAnimation({
     required this.frames,
     required super.duration,
@@ -2008,6 +2058,7 @@ class SmilPathAnimation extends SmilTimeline {
     this.keyTimes,
     this.keySplines,
     super.elementId,
+    super.eventGroup,
     super.beginSpec = const SmilBeginSpec.offset(Duration.zero),
     super.direction = SmilDirection.normal,
   }) : assert(frames.isNotEmpty, 'a path animation needs at least one frame'),
@@ -2304,10 +2355,21 @@ const _maxSmilMicros = 10000000 * Duration.microsecondsPerSecond;
 /// 有限重复的活动时长；超大乘积饱和到约 115 天，避免 Infinity.round()。
 Duration smilActiveDuration(Duration duration, SmilRepeatCount repeatCount) =>
     Duration(
-      microseconds: (duration.inMicroseconds * repeatCount.count)
-          .clamp(0, _maxSmilMicros)
-          .round(),
+      microseconds: smilActiveDurationMicroseconds(duration, repeatCount),
     );
+
+/// Returns [duration] times [repeatCount.count] in integer microseconds,
+/// clamped to the engine's supported time range. The indefinite flag does not
+/// make this numeric duration unbounded.
+///
+/// 返回 [duration] 乘 [repeatCount.count] 的整数微秒数，并按引擎支持范围钳位；
+/// 无限标志不使这个数值时长变为无界。
+int smilActiveDurationMicroseconds(
+  Duration duration,
+  SmilRepeatCount repeatCount,
+) => (duration.inMicroseconds * repeatCount.count)
+    .clamp(0, _maxSmilMicros)
+    .round();
 
 /// 时间线饱和加法。先限制两个操作数，确保相加本身也不会发生整数回绕。
 Duration addSmilTime(Duration a, Duration b) => Duration(
@@ -2450,7 +2512,15 @@ List<double>? parseSmilKeyTimes(String? raw) {
 ///
 /// 若既无 `values` 也无可用的 `from`/`to`，或任一关键帧无法解析为数字，
 /// 返回 null——只对单一数值型表现属性做动画（见 [SmilAnimation] 类注释）。
-List<double>? parseSmilValues({String? values, String? from, String? to}) {
+///
+/// [underlying] supplies the parse-time base for a to-animation only.
+/// [underlying] 仅为 to-animation 提供解析期基础值。
+List<double>? parseSmilValues({
+  String? values,
+  String? from,
+  String? to,
+  String? underlying,
+}) {
   if (values != null && values.trim().isNotEmpty) {
     final parts = values
         .split(';')
@@ -2463,6 +2533,7 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
     }
     return parts.cast<double>();
   }
+  from ??= underlying;
   if (from != null && to != null) {
     final f = double.tryParse(from.trim());
     final t = double.tryParse(to.trim());
@@ -2474,12 +2545,21 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
 
 /// 解析作用于 `d` 的 `values="path1;path2;..."`（或 `from`/`to` 简写）为路径
 /// 字符串列表；空项（如末尾多余的分号）丢弃。不足两项时返回 null。
-List<String>? parseSmilPathValues({String? values, String? from, String? to}) {
+///
+/// [underlying] is the target path's own `d`, never an inherited path.
+/// [underlying] 是目标路径自身的 `d`，不继承祖先路径。
+List<String>? parseSmilPathValues({
+  String? values,
+  String? from,
+  String? to,
+  String? underlying,
+}) {
   if (values != null && values.trim().isNotEmpty) {
     final frames = [for (final part in values.split(';')) part.trim()]
       ..removeWhere((part) => part.isEmpty);
     return frames.length < 2 ? null : frames;
   }
+  from ??= underlying;
   if (from != null && to != null) return [from.trim(), to.trim()];
   return null;
 }

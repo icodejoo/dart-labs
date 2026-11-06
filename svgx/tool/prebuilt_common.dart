@@ -481,10 +481,14 @@ Directory packageRoot(Uri scriptUri) =>
 /// Covers `rust/Cargo.lock`, `rust/Cargo.toml` and every file under
 /// `rust/src/**`, hashed as sorted `relative-path\n<sha256-of-bytes>\n` lines
 /// so the result is independent of filesystem ordering and line endings of the
-/// listing itself.
+/// listing itself. File contents are hashed after CRLF -> LF normalisation, so
+/// a Windows checkout (`core.autocrlf`) yields the same hash as CI's LF
+/// checkout; the repository stores these files as LF.
 ///
 /// 覆盖 `rust/Cargo.lock`、`rust/Cargo.toml` 和 `rust/src/**` 下的每个文件，按
 /// 排序后的 `相对路径\n<内容 sha256>\n` 形式汇总，结果与文件系统枚举顺序无关。
+/// 文件内容先把 CRLF 统一为 LF 再哈希，Windows 检出与 CI 的 LF 检出结果一致
+/// （仓库内这些文件均以 LF 存储）。
 ///
 /// [root] is the svgx package root directory.
 ///
@@ -504,7 +508,7 @@ String computeSourceHash(Directory root) {
     if (!file.existsSync()) {
       throw StateError('Missing ${file.path} — cannot compute source hash.');
     }
-    entries['rust/$name'] = file.readAsBytesSync();
+    entries['rust/$name'] = normalizeCrlf(file.readAsBytesSync());
   }
 
   final srcDir = Directory('${rustDir.path}/src');
@@ -516,7 +520,7 @@ String computeSourceHash(Directory root) {
     final rel = entity.path
         .substring(root.path.length + 1)
         .replaceAll(r'\', '/');
-    entries[rel] = entity.readAsBytesSync();
+    entries[rel] = normalizeCrlf(entity.readAsBytesSync());
   }
 
   final keys = entries.keys.toList()..sort();
@@ -526,6 +530,27 @@ String computeSourceHash(Directory root) {
     listing.writeln(sha256.convert(entries[key]!).toString());
   }
   return sha256.convert(utf8.encode(listing.toString())).toString();
+}
+
+/// Returns [bytes] with every CRLF pair replaced by a single LF; a lone CR is
+/// kept.
+///
+/// 返回把 [bytes] 中每个 CRLF 替换为单个 LF 后的字节；孤立的 CR 保持不变。
+///
+/// Example / 示例:
+/// ```dart
+/// normalizeCrlf([0x61, 0x0d, 0x0a]); // [0x61, 0x0a]
+/// ```
+List<int> normalizeCrlf(List<int> bytes) {
+  const cr = 0x0d;
+  const lf = 0x0a;
+  final out = <int>[];
+  for (var i = 0; i < bytes.length; i++) {
+    final b = bytes[i];
+    if (b == cr && i + 1 < bytes.length && bytes[i + 1] == lf) continue;
+    out.add(b);
+  }
+  return out;
 }
 
 /// SHA-256 of arbitrary bytes, as a lowercase hex string.

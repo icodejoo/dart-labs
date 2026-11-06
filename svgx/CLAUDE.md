@@ -92,7 +92,7 @@
 
 ## 环境
 
-Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28 + 四架构 target 均就绪。resvg/usvg 最新 0.48。
+Rust 1.96 / flutter_rust_bridge 2.13 / Flutter 3.47 / Dart 3.13 / Android NDK 28 + 四架构 target 均就绪。resvg/usvg 当前 0.49(svgtypes 0.16)。
 
 ## 文档索引
 
@@ -110,5 +110,6 @@ Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28
 | `doc/SIZE_OPTIMIZATION.md` | 体积优化**结论速查表**:已落地/候选/已排除三张表 + 验证方法论 | 讨论瘦身方向前先查这份,别重复调研 |
 | `doc/PRECOMPILED_MIGRATION_PLAN.md` | 预编译产物(prebuilt .so/.dll)迁移方案 | 涉及预编译分发、CI 构建产物相关改动时 |
 | `doc/svgator-positioning.md` | SVGator 定位评估、证据与决策:为什么选"SMIL + CSS 导出"、JS 导出为什么不支持、差距清单(动画语义/渲染能力/运行时)、R1/R2 渲染层方案 | 讨论 CSS/SVGator 支持范围、要不要支持 JS 导出、规划插画级渲染能力时 |
+| `doc/animation-controller-design.md` | 动画播放控制设计(A+B:自研 `SvgxAnimationController` + Flutter `Animation` 适配)、回调/事件/时间轴缩放语义、`SvgImageProvider` 时钟评审与分期 | 动手做控制器、回调、seek/倒放/片段,或改 `SvgImageProvider` 动画调度前 |
 | `README.md` | pub.dev 包主页展示内容(根目录强制位置,不要移动) | 面向库使用者 |
 | `CHANGELOG.md` | 版本变更记录(根目录强制位置,不要移动) | 发版时 |

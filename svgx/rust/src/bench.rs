@@ -452,6 +452,7 @@ fn clone_scene(s: &crate::api::svg::SvgScene) -> crate::api::svg::SvgScene {
         width: s.width,
         height: s.height,
         paths: s.paths.clone(),
+        commands: s.commands.clone(),
         images: s
             .images
             .iter()

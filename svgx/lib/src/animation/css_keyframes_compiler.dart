@@ -243,6 +243,7 @@ const _defaults = {
 /// 混合缓动中线性区间使用的共享曲线。
 const _linearEasing = CubicBezier(0, 0, 1, 1);
 
+/// Compiles one element's CSS animations without mutating the inputs.
 /// 编译一个元素的 CSS 动画，不修改输入集合。
 ///
 /// [animations] 为层叠后的动画列表，[keyframes] 为文档关键帧表。
@@ -351,6 +352,7 @@ CssCompileResult compileCssAnimations({
               duration: timeline.duration,
               begin: timeline.begin,
               beginSpec: timeline.beginSpec,
+              eventGroup: timeline.eventGroup,
               fillFreeze: timeline.fillFreeze,
               repeatCount: timeline.repeatCount,
               direction: timeline.direction,
@@ -389,6 +391,7 @@ CssCompileResult compileCssAnimations({
             duration: timeline.duration,
             begin: timeline.begin,
             beginSpec: timeline.beginSpec,
+            eventGroup: timeline.eventGroup,
             fillFreeze: timeline.fillFreeze,
             repeatCount: timeline.repeatCount,
             direction: timeline.direction,
@@ -438,11 +441,14 @@ CssCompileResult compileCssAnimations({
   );
 }
 
+/// Timing and event group shared by the channels of one declaration.
 /// 所有编译通道共用的时序映射，保留阶段三的零时长规则。
 class _Timing {
   /// 从层叠后的动画配置计算时序字段和整条动画的跳过原因。
+  /// Maps timing and creates a distinct event group for this declaration.
   _Timing(CssAnimation a)
-    : duration = a.duration,
+    : eventGroup = SmilEventGroup(a.name),
+      duration = a.duration,
       begin = a.delay,
       beginSpec = SmilBeginSpec.offset(a.delay),
       fillFreeze =
@@ -462,6 +468,10 @@ class _Timing {
         ? CssCompileSkipReason.zeroDurationWithoutForwards
         : null;
   }
+
+  /// One declaration's event group, shared by all successful channels.
+  /// 一项声明的事件组，由所有成功编译的通道共享。
+  final SmilEventGroup eventGroup;
 
   /// 单轮时长。
   final Duration duration;

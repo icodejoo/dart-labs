@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import '../svg_affine.dart';
+import '../pixel_snap_layer.dart';
 import 'smil_animation.dart';
 
 import 'svg_dom.dart';
@@ -170,12 +171,11 @@ class AnimatedSvgPainter extends CustomPainter {
     if (size.isEmpty || intrinsicSize.isEmpty) return;
     final background = _backgroundPaint;
     if (background != null) canvas.drawRect(Offset.zero & size, background);
-    final fitted = applyBoxFit(fit, intrinsicSize, size);
-    final dest = fitted.destination;
-    final sx = dest.width / intrinsicSize.width;
-    final sy = dest.height / intrinsicSize.height;
-    final dx = (size.width - dest.width) * ((alignment.x + 1) / 2);
-    final dy = (size.height - dest.height) * ((alignment.y + 1) / 2);
+    final viewport = svgPaintViewport(intrinsicSize, size, fit, alignment);
+    final sx = viewport.width / intrinsicSize.width;
+    final sy = viewport.height / intrinsicSize.height;
+    final dx = viewport.left;
+    final dy = viewport.top;
 
     canvas.save();
     canvas.translate(dx, dy);
@@ -245,13 +245,13 @@ class AnimatedSvgPainter extends CustomPainter {
   /// animated icon almost every node's style is *constant* — a line-md icon
   /// animates `stroke-dashoffset` or a transform, while `fill`, `stroke`,
   /// `stroke-width` and friends never move. The cache turns that whole
-  /// computation into three [identical] checks for the static majority.
+  /// computation into two identity checks and a cheap theme comparison for
+  /// the static majority.
   ///
-  /// Validity is proven by identity on all three inputs rather than by value
-  /// equality, which is both cheaper and conservative — a false miss only
-  /// costs a recompute, and a false hit is impossible. See
-  /// [SvgNode.cachedStyle] for why each input's identity is stable exactly
-  /// when the style genuinely cannot have changed.
+  /// Inherited styles and attribute maps use identity; themes use identity
+  /// first, then value equality, so equal themes from separate widgets reuse
+  /// the same shared document's cached styles. See [SvgNode.cachedStyle] for
+  /// the validity of these keys.
   ///
   /// 返回把 [inherited] 折叠进去后 [node] 的表现样式；当解析它所依赖的三个输入
   /// 都没变时，直接复用挂在节点上的缓存结果（见 [SvgNode.cachedStyle]）。
@@ -261,11 +261,11 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 全新的 [ResolvedStyle] 分配。然而真实动画图标里几乎每个节点的样式都是
   /// *恒定*的——line-md 风格图标动的是 `stroke-dashoffset` 或某个变换，而
   /// `fill`、`stroke`、`stroke-width` 之类从不变化。这个缓存把静态的大多数节点
-  /// 的整套计算压成三次 [identical] 比较。
+  /// 的整套计算压成两次身份比较和一次廉价的主题比较。
   ///
-  /// 有效性用三个输入的身份比较来证明，而不是值相等：既更便宜，又是保守的
-  /// ——误判未命中只损失一次重算，误判命中不可能发生。每个输入的身份为何恰好在
-  /// "样式确实不可能变化"时保持稳定，见 [SvgNode.cachedStyle]。
+  /// 继承样式和属性表按身份比较；主题先比较身份，再比较值，使不同控件创建的
+  /// 等值主题能复用同一共享文档的样式缓存。这些键的有效性见
+  /// [SvgNode.cachedStyle]。
   ResolvedStyle _resolveStyle(
     SvgNode node,
     ResolvedStyle inherited,
@@ -275,7 +275,7 @@ class AnimatedSvgPainter extends CustomPainter {
     if (cached != null &&
         identical(node.styleInheritedKey, inherited) &&
         identical(node.styleAttributesKey, attributes) &&
-        identical(node.styleThemeKey, theme)) {
+        (identical(node.styleThemeKey, theme) || node.styleThemeKey == theme)) {
       return cached as ResolvedStyle;
     }
     final resolved = inherited.inherit(attributes, theme);
@@ -605,12 +605,6 @@ class AnimatedSvgPainter extends CustomPainter {
                 (style.stroke != null || style.strokeGradientId != null) &&
                 style.strokeOpacity > 0 &&
                 style.strokeWidth > 0));
-    if (opacityLayer) {
-      canvas.saveLayer(
-        null,
-        Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
-      );
-    }
     final needsClipMaskSave =
         clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
@@ -622,11 +616,20 @@ class AnimatedSvgPainter extends CustomPainter {
       canvas.save();
       _applyOwnTransform(canvas, node);
     }
-    // Install clipping outside the filter layer so it clips the filtered
-    // result, in the node's coordinate system. Mask wraps that whole result.
-    if (maskDef != null) canvas.saveLayer(null, Paint());
+    // Install clips before ALL effect layers, in the node's coordinate system.
+    // A layer's final composite uses the clip active when it was opened; a clip
+    // added inside the layer only constrains its draws. No render pass is added.
+    // 在节点坐标系中先装裁剪，再开所有效果图层。图层最终合成使用开层时的父级
+    // 裁剪；层内追加的裁剪只约束层内绘制。不增加渲染通道。
     if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
     if (maskClip != null) canvas.clipPath(maskClip);
+    if (opacityLayer) {
+      canvas.saveLayer(
+        null,
+        Paint()..color = Color.fromRGBO(0, 0, 0, style.opacity),
+      );
+    }
+    if (maskDef != null) canvas.saveLayer(null, Paint());
     if (hasBlur) {
       canvas.saveLayer(
         null,
@@ -648,9 +651,9 @@ class AnimatedSvgPainter extends CustomPainter {
     );
     if (hasBlur) canvas.restore();
     if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+    if (opacityLayer) canvas.restore();
     if (hasOwnTransform) canvas.restore();
     if (needsClipMaskSave) canvas.restore();
-    if (opacityLayer) canvas.restore();
   }
 
   /// 判断组的 opacity 能否下推到单笔叶子而不开 saveLayer。
@@ -798,7 +801,12 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
   /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
   void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
-    canvas.saveLayer(null, _maskCoveragePaint(_isAlphaMask(maskDef)));
+    final alpha = _isAlphaMask(maskDef);
+    canvas.saveLayer(null, _maskCoveragePaint(alpha));
+    // Flatten luminance content over black so unpremultiplied RGB includes
+    // its alpha before the matrix reads it, matching the static renderer.
+    // 亮度内容先合成到黑底，使矩阵读取的非预乘 RGB 包含内容 alpha，与静态路径一致。
+    if (!alpha) canvas.drawColor(const Color(0xff000000), BlendMode.src);
     // 当前画布已位于被遮罩节点自己的坐标系（含其自身 transform）。
     canvas.save();
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);

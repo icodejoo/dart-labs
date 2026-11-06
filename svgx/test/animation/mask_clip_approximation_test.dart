@@ -195,42 +195,39 @@ void main() {
   });
 
   group('pixel behaviour', () {
-    test(
-      'an eligible mask approximated as a clip matches the exact pipeline '
-      'away from the antialiased boundary',
-      () async {
-        final document = _parse(
-          '<mask id="m">'
-          '<circle cx="50" cy="50" r="30" fill="#fff"/>'
-          '</mask>'
-          '<rect width="100" height="100" fill="#f00" mask="url(#m)"/>',
-        );
-        final exact = await _renderPixels(document, approximate: false);
-        final approximated = await _renderPixels(document, approximate: true);
+    test('an eligible mask approximated as a clip matches the exact pipeline '
+        'away from the antialiased boundary', () async {
+      final document = _parse(
+        '<mask id="m">'
+        '<circle cx="50" cy="50" r="30" fill="#fff"/>'
+        '</mask>'
+        '<rect width="100" height="100" fill="#f00" mask="url(#m)"/>',
+      );
+      final exact = await _renderPixels(document, approximate: false);
+      final approximated = await _renderPixels(document, approximate: true);
 
-        // Sampled well inside and well outside the circle: the documented
-        // loss is edge antialiasing only, so everything except a thin band
-        // along the boundary must agree.
-        //
-        // 取样点都远离圆的边界（内部与外部各若干）：已记录的损失仅限边缘抗锯齿，
-        // 因此除了边界附近的一条窄带，其余都必须一致。
-        const inside = [Offset(50, 50), Offset(35, 50), Offset(50, 65)];
-        const outside = [Offset(5, 5), Offset(95, 95), Offset(50, 5)];
-        for (final p in [...inside, ...outside]) {
-          final x = p.dx.toInt(), y = p.dy.toInt();
-          expect(
-            _alphaAt(approximated, x, y),
-            _alphaAt(exact, x, y),
-            reason: 'alpha at ($x, $y) must match the exact mask pipeline',
-          );
-        }
+      // Sampled well inside and well outside the circle: the documented
+      // loss is edge antialiasing only, so everything except a thin band
+      // along the boundary must agree.
+      //
+      // 取样点都远离圆的边界（内部与外部各若干）：已记录的损失仅限边缘抗锯齿，
+      // 因此除了边界附近的一条窄带，其余都必须一致。
+      const inside = [Offset(50, 50), Offset(35, 50), Offset(50, 65)];
+      const outside = [Offset(5, 5), Offset(95, 95), Offset(50, 5)];
+      for (final p in [...inside, ...outside]) {
+        final x = p.dx.toInt(), y = p.dy.toInt();
         expect(
-          _alphaAt(exact, 50, 50),
-          greaterThan(200),
-          reason: 'sanity: the masked-in centre must actually be painted',
+          _alphaAt(approximated, x, y),
+          _alphaAt(exact, x, y),
+          reason: 'alpha at ($x, $y) must match the exact mask pipeline',
         );
-      },
-    );
+      }
+      expect(
+        _alphaAt(exact, 50, 50),
+        greaterThan(200),
+        reason: 'sanity: the masked-in centre must actually be painted',
+      );
+    });
 
     test('black mask content still punches a hole', () async {
       final document = _parse(
@@ -287,8 +284,7 @@ void main() {
       );
     });
 
-    test('a mask shape with no fill at all hides, per SVG initial value',
-        () async {
+    test('a mask shape with no fill at all hides, per SVG initial value', () async {
       // The other half of the same distinction: SVG's initial `fill` is black,
       // so a shape that inherits nothing genuinely does hide. Asserted through
       // the exact pipeline as the reference, then matched by the
@@ -367,67 +363,64 @@ void main() {
       );
     });
 
-    test(
-      'the clip path is reused once the mask animation has frozen, and '
-      'rebuilt while it is still moving',
-      () async {
-        final document = _parse(
-          '<mask id="m">'
-          '<rect width="100" height="100" fill="#fff">'
-          '<animateTransform attributeName="transform" type="translate" '
-          'values="0,-100;0,0" dur="1s" fill="freeze"/>'
-          '</rect></mask>'
-          '<rect width="100" height="100" fill="#f00" mask="url(#m)"/>',
-        );
-        final def = document.masks.values.single;
+    test('the clip path is reused once the mask animation has frozen, and '
+        'rebuilt while it is still moving', () async {
+      final document = _parse(
+        '<mask id="m">'
+        '<rect width="100" height="100" fill="#fff">'
+        '<animateTransform attributeName="transform" type="translate" '
+        'values="0,-100;0,0" dur="1s" fill="freeze"/>'
+        '</rect></mask>'
+        '<rect width="100" height="100" fill="#f00" mask="url(#m)"/>',
+      );
+      final def = document.masks.values.single;
 
-        // Two instants inside the active interval sample to different offsets,
-        // so the path must be a different object each time.
-        //
-        // 活跃区间内的两个时刻会采样出不同偏移，因此路径每次都必须是不同的对象。
-        await _renderPixels(
-          document,
-          approximate: true,
-          time: const Duration(milliseconds: 300),
-        );
-        final whileMoving = def.cachedMaskClip;
-        await _renderPixels(
-          document,
-          approximate: true,
-          time: const Duration(milliseconds: 600),
-        );
-        expect(
-          def.cachedMaskClip,
-          isNot(same(whileMoving)),
-          reason:
-              'a moving mask must rebuild — a stale clip here would freeze '
-              'the animation, which is the failure mode this cache risks',
-        );
+      // Two instants inside the active interval sample to different offsets,
+      // so the path must be a different object each time.
+      //
+      // 活跃区间内的两个时刻会采样出不同偏移，因此路径每次都必须是不同的对象。
+      await _renderPixels(
+        document,
+        approximate: true,
+        time: const Duration(milliseconds: 300),
+      );
+      final whileMoving = def.cachedMaskClip;
+      await _renderPixels(
+        document,
+        approximate: true,
+        time: const Duration(milliseconds: 600),
+      );
+      expect(
+        def.cachedMaskClip,
+        isNot(same(whileMoving)),
+        reason:
+            'a moving mask must rebuild — a stale clip here would freeze '
+            'the animation, which is the failure mode this cache risks',
+      );
 
-        // Past the end with fill="freeze" both instants sample identically, so
-        // the very same path object must come back — this is the cache
-        // actually paying off.
-        //
-        // 越过结束点后（fill="freeze"）两个时刻采样完全相同，因此必须拿回同一个
-        // 路径对象——这才是缓存真正生效。
-        await _renderPixels(
-          document,
-          approximate: true,
-          time: const Duration(seconds: 3),
-        );
-        final frozen = def.cachedMaskClip;
-        await _renderPixels(
-          document,
-          approximate: true,
-          time: const Duration(seconds: 9),
-        );
-        expect(
-          def.cachedMaskClip,
-          same(frozen),
-          reason: 'a frozen mask must reuse its clip path across frames',
-        );
-      },
-    );
+      // Past the end with fill="freeze" both instants sample identically, so
+      // the very same path object must come back — this is the cache
+      // actually paying off.
+      //
+      // 越过结束点后（fill="freeze"）两个时刻采样完全相同，因此必须拿回同一个
+      // 路径对象——这才是缓存真正生效。
+      await _renderPixels(
+        document,
+        approximate: true,
+        time: const Duration(seconds: 3),
+      );
+      final frozen = def.cachedMaskClip;
+      await _renderPixels(
+        document,
+        approximate: true,
+        time: const Duration(seconds: 9),
+      );
+      expect(
+        def.cachedMaskClip,
+        same(frozen),
+        reason: 'a frozen mask must reuse its clip path across frames',
+      );
+    });
 
     test('the approximation is off by default', () async {
       final document = _parse(

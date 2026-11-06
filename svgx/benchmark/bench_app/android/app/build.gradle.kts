@@ -14,6 +14,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Benchmark only: keep libsvgx.so byte-identical to prebuilt/ (AGP would otherwise
+    // strip it), so the APK can be verified against the prebuilt sha256.
+    // 仅基准用：不让 AGP 重新 strip libsvgx.so，保证与 prebuilt/ 逐字节一致，便于校验 sha256。
+    packaging {
+        jniLibs {
+            keepDebugSymbols += "**/libsvgx.so"
+        }
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.bench_app"

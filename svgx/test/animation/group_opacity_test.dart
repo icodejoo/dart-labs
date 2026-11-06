@@ -121,7 +121,7 @@ void main() {
     expect(alphaAt(pixels, 50, 50), _alpha(64));
   });
 
-  test('knownLimitation luminance mask ignores leaf and group alpha', () async {
+  test('luminance mask includes leaf and group alpha', () async {
     for (final content in [
       '<rect width="100" height="100" fill="#fff" opacity=".5"/>',
       '<g opacity=".5"><rect width="100" height="100" fill="#fff"/></g>',
@@ -134,11 +134,7 @@ void main() {
         ),
         Duration.zero,
       );
-      expect(
-        alphaAt(pixels, 50, 50),
-        255,
-        reason: 'knownLimitation: browser should be 128; update this test when fixed',
-      );
+      expect(alphaAt(pixels, 50, 50), _alpha(128));
     }
   });
 

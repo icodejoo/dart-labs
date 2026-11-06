@@ -63,6 +63,7 @@ Widget _grid(int count, {SvgxAnimationQuality? quality}) => MaterialApp(
   ),
 );
 
+/// Verifies quality policy and staggered scheduling. / 验证画质策略和错相调度。
 void main() {
   setUp(SvgxDocumentCache.instance.clear);
   tearDown(() {
@@ -109,26 +110,23 @@ void main() {
       );
     });
 
-    test(
-      'a smaller offscreen divisor never undercuts the ordinary one',
-      () {
-        // Guards the `max` in frameDivisorFor: a caller configuring an
-        // offscreen divisor *below* maxFrameDivisor must not accidentally
-        // make the expensive documents refresh MORE often than cheap ones.
-        //
-        // 守住 frameDivisorFor 里的取大：调用方把离屏除数配得*低于*
-        // maxFrameDivisor 时，不能反而让昂贵的文档比廉价的刷得更勤。
-        const quality = SvgxAnimationQuality(
-          frameSkipThreshold: 0,
-          maxFrameDivisor: 4,
-          offscreenLayerFrameDivisor: 2,
-        );
-        expect(
-          quality.frameDivisorFor(concurrency: 1, usesOffscreenLayers: true),
-          4,
-        );
-      },
-    );
+    test('a smaller offscreen divisor never undercuts the ordinary one', () {
+      // Guards the `max` in frameDivisorFor: a caller configuring an
+      // offscreen divisor *below* maxFrameDivisor must not accidentally
+      // make the expensive documents refresh MORE often than cheap ones.
+      //
+      // 守住 frameDivisorFor 里的取大：调用方把离屏除数配得*低于*
+      // maxFrameDivisor 时，不能反而让昂贵的文档比廉价的刷得更勤。
+      const quality = SvgxAnimationQuality(
+        frameSkipThreshold: 0,
+        maxFrameDivisor: 4,
+        offscreenLayerFrameDivisor: 2,
+      );
+      expect(
+        quality.frameDivisorFor(concurrency: 1, usesOffscreenLayers: true),
+        4,
+      );
+    });
 
     test('exact never degrades, at any concurrency', () {
       expect(
@@ -166,9 +164,8 @@ void main() {
 
     test('a blur filter marks the document', () {
       expect(
-        parse(
-          '<rect width="10" height="10" fill="#000" filter="blur(2px)"/>',
-        ).usesOffscreenLayers,
+        parse('<rect width="10" height="10" fill="#000" filter="blur(2px)"/>')
+            .usesOffscreenLayers,
         isTrue,
       );
     });
@@ -195,6 +192,9 @@ void main() {
         );
         const count = 10;
         await tester.pumpWidget(_grid(count));
+        // First tick anchors every subscriber without advancing time.
+        // 首tick仅为各订阅者锚定，不推进时间。
+        await tester.pump(const Duration(milliseconds: 16));
         await tester.pump(const Duration(milliseconds: 16));
 
         var advanced = 0;
@@ -263,6 +263,9 @@ void main() {
       await tester.pumpWidget(
         _grid(count, quality: SvgxAnimationQuality.exact),
       );
+      // Anchor before checking the first advancing frame.
+      // 先锚定，再检查首个推进帧。
+      await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
 
       for (var i = 0; i < count; i++) {
@@ -281,6 +284,9 @@ void main() {
       );
       const count = 3;
       await tester.pumpWidget(_grid(count));
+      // Anchor before checking the first advancing frame.
+      // 先锚定，再检查首个推进帧。
+      await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
 
       for (var i = 0; i < count; i++) {
