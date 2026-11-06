@@ -1,0 +1,254 @@
+[
+  {
+    "scenario": "S1",
+    "iteration": 1,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      44780,
+      33032
+    ],
+    "directories": [
+      "engine_6e117ccc",
+      "engine_85ed439d"
+    ]
+  },
+  {
+    "scenario": "S2",
+    "iteration": 1,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      44780,
+      33032,
+      19708
+    ],
+    "directories": [
+      "engine_6e117ccc",
+      "engine_85ed439d",
+      "engine_85ed439d"
+    ],
+    "orphanMtimeUs": {
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc": 1793958561582071,
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d": 1793958562076065
+    },
+    "expectedNewest": [
+      "engine_85ed439d"
+    ],
+    "cAcquiredKilledLease": true,
+    "adopted": "engine_85ed439d",
+    "remainingCount": 1,
+    "deleted": [
+      "engine_6e117ccc"
+    ]
+  },
+  {
+    "scenario": "S1",
+    "iteration": 2,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      40076,
+      35012
+    ],
+    "directories": [
+      "engine_f6452d38",
+      "engine_2b5f588e"
+    ]
+  },
+  {
+    "scenario": "S2",
+    "iteration": 2,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      40076,
+      35012,
+      28820
+    ],
+    "directories": [
+      "engine_f6452d38",
+      "engine_2b5f588e",
+      "engine_2b5f588e"
+    ],
+    "orphanMtimeUs": {
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e": 1793958564029302,
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38": 1793958563539766
+    },
+    "expectedNewest": [
+      "engine_2b5f588e"
+    ],
+    "cAcquiredKilledLease": true,
+    "adopted": "engine_2b5f588e",
+    "remainingCount": 1,
+    "deleted": [
+      "engine_f6452d38"
+    ]
+  },
+  {
+    "scenario": "S1",
+    "iteration": 3,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      29664,
+      8128
+    ],
+    "directories": [
+      "engine_db1e41b5",
+      "engine_38929174"
+    ]
+  },
+  {
+    "scenario": "S2",
+    "iteration": 3,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      29664,
+      8128,
+      32808
+    ],
+    "directories": [
+      "engine_db1e41b5",
+      "engine_38929174",
+      "engine_38929174"
+    ],
+    "orphanMtimeUs": {
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174": 1793958565973426,
+      "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5": 1793958565440736
+    },
+    "expectedNewest": [
+      "engine_38929174"
+    ],
+    "cAcquiredKilledLease": true,
+    "adopted": "engine_38929174",
+    "remainingCount": 1,
+    "deleted": [
+      "engine_db1e41b5"
+    ]
+  },
+  {
+    "scenario": "S3",
+    "iteration": 1,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      44132,
+      13704,
+      42348,
+      5780
+    ],
+    "directories": [
+      "engine_ed6a33e6",
+      "engine_d81c6925",
+      "engine_465aca00",
+      "engine_41a5520d"
+    ]
+  },
+  {
+    "scenario": "S3",
+    "iteration": 2,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      40776,
+      22532,
+      32540,
+      34260
+    ],
+    "directories": [
+      "engine_ecf21f31",
+      "engine_13457c56",
+      "engine_4d0c2e7f",
+      "engine_bca7a0e6"
+    ]
+  },
+  {
+    "scenario": "S3",
+    "iteration": 3,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      40796,
+      16776,
+      12780,
+      40560
+    ],
+    "directories": [
+      "engine_520c1271",
+      "engine_54365cc3",
+      "engine_ec5a8070",
+      "engine_a7fcba7f"
+    ]
+  },
+  {
+    "scenario": "S4",
+    "iteration": 1,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      2836,
+      31824,
+      45452
+    ],
+    "directories": [
+      "engine_178bb741",
+      "engine_legacy_orphan",
+      "engine_f2cf92ac"
+    ],
+    "orphan": "engine_legacy_orphan",
+    "orphanOutcome": "adopted-exactly-once",
+    "adopterPids": [
+      31824
+    ],
+    "heldDeleteEvents": [],
+    "remainingCount": 3
+  },
+  {
+    "scenario": "S4",
+    "iteration": 2,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      43152,
+      26364,
+      45528
+    ],
+    "directories": [
+      "engine_79878c09",
+      "engine_legacy_orphan",
+      "engine_2da5b7ab"
+    ],
+    "orphan": "engine_legacy_orphan",
+    "orphanOutcome": "adopted-exactly-once",
+    "adopterPids": [
+      26364
+    ],
+    "heldDeleteEvents": [],
+    "remainingCount": 3
+  },
+  {
+    "scenario": "S4",
+    "iteration": 3,
+    "status": "PASS",
+    "pid": 33324,
+    "pids": [
+      33504,
+      43992,
+      34348
+    ],
+    "directories": [
+      "engine_fb0afced",
+      "engine_2b67d5e1",
+      "engine_legacy_orphan"
+    ],
+    "orphan": "engine_legacy_orphan",
+    "orphanOutcome": "adopted-exactly-once",
+    "adopterPids": [
+      34348
+    ],
+    "heldDeleteEvents": [],
+    "remainingCount": 3
+  }
+]

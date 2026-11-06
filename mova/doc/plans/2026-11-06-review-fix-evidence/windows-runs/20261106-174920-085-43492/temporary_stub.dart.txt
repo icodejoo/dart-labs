@@ -1,0 +1,2 @@
+import 'dart:io';
+Future<Directory> getTemporaryDirectory() => throw UnsupportedError('path_provider excluded; use forTesting');
