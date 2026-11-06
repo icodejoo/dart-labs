@@ -3,7 +3,10 @@
 * Rebuild every prebuilt slice for the new `commands` wire field of
   `SvgScene`/`SvgMask`/`SvgPattern` (iOS xcframework, macOS framework,
   Android ×4, Linux x64/arm64, Windows x64/arm64) from the `svgx-prebuilt`
-  workflow, and restage `prebuilt/MANIFEST.json`; `check_prebuilt` now passes
+  workflow, and restage `prebuilt/MANIFEST.json`. Android arm64-v8a/x86_64
+  keep the locally built slices: the CI-built arm64 slice crashed on device
+  (SIGSEGV in `frb_init_frb_dart_api_dl` at startup) and is under
+  investigation; `check_prebuilt` now passes
   in strict mode and CI no longer uses `--allow-incomplete`. The Linux leg is
   pinned to `ubuntu-24.04` so the shipped `.so` keeps its GLIBC_2.34 floor
   (`ubuntu-latest` 26.04 would raise it to 2.43). The prebuilt source hash now
