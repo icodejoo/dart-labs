@@ -38,6 +38,7 @@ class _Rig {
   ///
   /// 按秒推进统计时钟。
   void advance(int seconds) => clock = clock.add(Duration(seconds: seconds));
+  void advanceMs(int ms) => clock = clock.add(Duration(milliseconds: ms));
 
   /// Returns the completed session summary.
   ///
@@ -98,6 +99,23 @@ void main() {
       });
     }
   }
+
+  test('D12 jitter below minStall counts neither a stall nor stallMs', () async {
+    final r = _Rig(autoPlay: false, stallPolicy: MovaEdgeStall(minStall: const Duration(seconds: 1)));
+    r.events.add(const MovaFirstFrame(sinceOpen: Duration.zero,
+        signal: MovaFirstFrameSignal.restart));
+    r.events.add(const MovaPlay());
+    for (var i = 0; i < 10; i++) {
+      r.events.add(const MovaBufferChange(true));
+      r.advanceMs(100);
+      r.events.add(const MovaBufferChange(false));
+      r.advanceMs(100);
+    }
+    r.collector.onTeardown();
+    expect(r.end.params['stallCount'], 0);
+    expect(r.end.params['stallMs'], 0);
+    await r.close();
+  });
 
   test('D10 teardown while paused excludes the paused stall tail', () async {
     final r = _Rig(autoPlay: false);

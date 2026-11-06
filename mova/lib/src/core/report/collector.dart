@@ -733,7 +733,13 @@ class MovaQoeCollector {
     _tally.setStalled(stalled);
     final policy = _stallPolicy;
     final stall = policy?.onStall(stalled, at);
-    if (stall == null) return;
+    if (stall == null) {
+      // A falling edge the policy refused is jitter, not a stall.
+      // 策略拒绝的下降沿是抖动，不算卡顿。
+      if (!stalled) _tally.rejectStall();
+      return;
+    }
+    _tally.commitStall();
     _stallIndex++;
     _tally.addStall();
     _emit(MovaReportEvent(

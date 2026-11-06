@@ -26,7 +26,7 @@ PKG='com.icodejoo.mova.mova_example.coverage'
 ACTIVITY=PKG+'/com.icodejoo.mova.mova_example.MainActivity'
 sys.path.insert(0,str(TOOL/'verify_sources'))
 from range_server import Handler as RangeHandler
-SCENES=('adpaths','adpause','adbg','pod2','playlist3','bgowner','audioonly-bg','qoe','rate','warmmute','v9','pip','liveedge','events')
+SCENES=('adpaths','adpause','adbg','pod2','playlist3','bgowner','audioonly-bg','qoe','qoepause','rate','warmmute','v9','pip','liveedge','events')
 from cp1_sources import Fixtures
 
 
@@ -34,7 +34,7 @@ VARIANTS={
  'adpaths':[f'{f}.{p}' for f in ('mp4','hls') for p in ('pre','mid','post','pod')],
  'adpause':['pause'],'adbg':['plain','guard'],'pod2':['wait.ad2','nowait.ad2'],
  'playlist3':['series'],'bgowner':['plain','view'],'audioonly-bg':['audio','videoPlain','videoGuard'],
- 'qoe':['resume','manual720']}
+ 'qoe':['resume','manual720'],'qoepause':['pause30']}
 FIELDS={
  'adpaths':['epochs','frames','nativeSamples','entryContent','resumed','resumeErrorMs','ads','contentEnded'],
  'adpause':['before','after','backgroundSamples','foreground','pausedCompleted','nativePauseDriftMs','slotErrorMs','lastAd','ads'],
@@ -44,6 +44,7 @@ FIELDS={
  'audioonly-bg':['before','backgroundSamples','after','foreground','intentBefore','audioEvidence'],
  'qoe':['reports','sessionStarts','sessionIds','afterSwitch','failures','recovered','retryCount','fixture','resumePositionDiffMs']}
 FIELDS['adbg']=FIELDS['adpause']
+FIELDS['qoepause']=['reports','pausedMs','stallMs','endCount']
 
 
 def validate_checks(scene,runs,checks,variant=None):
@@ -184,19 +185,19 @@ def main():
             def log_message(self,*args):pass
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18082),Selector))
         hls=fixtures/'hls';hls.mkdir(exist_ok=True)
-        for height,width,bitrate in ([(1080,1920,'3000k'),(720,1280,'1500k'),(360,640,'400k')] if args.scene=='qoe' else []):
+        for height,width,bitrate in ([(1080,1920,'3000k'),(720,1280,'1500k'),(360,640,'400k')] if args.scene in ('qoe','qoepause') else []):
             tier=hls/str(height);tier.mkdir(exist_ok=True)
             stream=(out/(stem+f'.hls{height}.log')).open('w')
-            child=subprocess.Popen(['ffmpeg','-v','error',*(['-y'] if args.scene=='qoe' else ['-re','-stream_loop','-1']),'-i',str(fixtures/'a.mp4'),
+            child=subprocess.Popen(['ffmpeg','-v','error',*(['-y'] if args.scene in ('qoe','qoepause') else ['-re','-stream_loop','-1']),'-i',str(fixtures/'a.mp4'),
               '-vf',f'scale={width}:{height}','-c:v','libx264','-preset','ultrafast','-b:v',bitrate,
               '-minrate',bitrate,'-maxrate',bitrate,'-bufsize',bitrate,'-threads','1','-g','50','-sc_threshold','0',
-              '-c:a','aac','-f','hls','-hls_time','2','-hls_list_size',('0' if args.scene=='qoe' else '6'),'-hls_flags',('independent_segments' if args.scene=='qoe' else 'delete_segments+omit_endlist'),str(tier/'index.m3u8')],
+              '-c:a','aac','-f','hls','-hls_time','2','-hls_list_size',('0' if args.scene in ('qoe','qoepause') else '6'),'-hls_flags',('independent_segments' if args.scene in ('qoe','qoepause') else 'delete_segments+omit_endlist'),str(tier/'index.m3u8')],
               stdout=stream,stderr=subprocess.STDOUT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             children.append((child,stream))
         fixture=Fixtures(hls, uri_style=os.environ.get('MOVA_CP2_URI_STYLE', 'absolute'))
         serve(http.server.ThreadingHTTPServer(('127.0.0.1',18194),fixture.handler()))
-        end=time.monotonic()+(600 if args.scene=='qoe' else 90)
-        while args.scene=='qoe' and any(child.poll() is None for child,_ in children):
+        end=time.monotonic()+(600 if args.scene in ('qoe','qoepause') else 90)
+        while args.scene in ('qoe','qoepause') and any(child.poll() is None for child,_ in children):
             if time.monotonic()>end:raise RuntimeError('CP2 three tier HLS unavailable')
             time.sleep(.25)
         unlocked();adb('shell','am','force-stop',PKG);adb('logcat','-c');adb('shell','am','start','-W','-n',ACTIVITY)

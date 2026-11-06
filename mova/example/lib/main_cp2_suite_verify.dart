@@ -19,7 +19,7 @@ Future<void> main() async {
     final scene=parts[0].replaceFirst('cp2-','');
     cp2BgownerViewOnly=scene=='bgowner' && parts[1]=='view';
     final scripts=<String,Cp2Script>{
-'adpaths':runAdpaths,'adpause':runAdpause,'adbg':runAdbg,'pod2':runPod2,'playlist3':runPlaylist3,'bgowner':runBgowner,'audioonly-bg':runAudioonlyBg,'qoe':runQoe};
+'adpaths':runAdpaths,'adpause':runAdpause,'adbg':runAdbg,'pod2':runPod2,'playlist3':runPlaylist3,'bgowner':runBgowner,'audioonly-bg':runAudioonlyBg,'qoe':runQoe,'qoepause':runQoePause30};
     cp2Main(scene,scripts[scene]!,automatic:true);
   } finally {client.close(force:true);}
 }

@@ -264,6 +264,12 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     final identity = headers.isEmpty
         ? src.uri
         : jsonEncode([src.uri, for (final h in headers) [h.key, h.value]]);
+    // Whole-second buckets keep the legacy key; sub-second buckets use a distinct
+    // millisecond key so 0ms/500ms do not collide.
+    // 整秒桶沿用旧 key；亚秒桶用毫秒 key，避免 0ms/500ms 撞 key。
+    if (bucket.inMilliseconds % 1000 != 0) {
+      return '${defaultCacheKey(identity, 0, config.frameWidth)}_${bucket.inMilliseconds}ms';
+    }
     return defaultCacheKey(identity, bucket.inSeconds, config.frameWidth);
   }
 

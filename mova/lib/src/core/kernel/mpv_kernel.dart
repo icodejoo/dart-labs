@@ -801,7 +801,6 @@ class MovaMpvKernel
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
-      _formatProbePending = true;
     }
     if (lazyVideo && !audioOnly && _controller == null) await _yieldForMount();
     if (seq != _openSeq || _disposed) return;
@@ -812,6 +811,10 @@ class MovaMpvKernel
       if (seq != _openSeq || _disposed) return;
     }
     try {
+      // Arm the probe only now: during the mount/render waits above the OLD
+      // file may still refresh its track list, which must not be read as the new one.
+      // 到此才武装格式探测：上面等挂载/渲染面期间旧文件仍可能刷新轨道，不能当成新文件的。
+      if (_player.platform is NativePlayer) _formatProbePending = true;
       _pump?.discardPending();
       _eventAttempt = eventAttempt;
       _eventUri = uri;
@@ -1068,6 +1071,11 @@ class MovaMpvKernel
   /// [enterKeepAlive] 保存的原值；不在待机时为 null。
   Map<String, String>? _keepAliveSaved;
 
+  /// True when a restore left some entries unwritten (retry on next enter/exit).
+  ///
+  /// 上一次还原有条目没写回成功（下次进入/退出时重试）。
+  bool _keepAliveRestoreFailed = false;
+
   /// Original mute before warm-up; keepAlive's saved mute follows this ownership.
   ///
   /// 预热前的原始静音；待机保存的静音随此所有权调整。
@@ -1143,8 +1151,12 @@ class MovaMpvKernel
   @override
   Future<bool> enterKeepAlive(MovaKeepAliveMode mode) => _keepAliveSerial(() async {
         if (_disposed) return false;
-        if (_keepAliveSaved != null) return true; // 幂等
         final native = _player.platform;
+        if (_keepAliveRestoreFailed && native is NativePlayer) {
+          await _restoreKeepAlive(native);
+          if (_keepAliveRestoreFailed) return false;
+        }
+        if (_keepAliveSaved != null) return true; // 幂等
         if (native is! NativePlayer) return false;
         try {
           final mute = await native.getProperty('mute').timeout(_keepAliveOpTimeout);
@@ -1181,14 +1193,19 @@ class MovaMpvKernel
   /// 把 [_keepAliveSaved] 里的值写回，先视频后声音；尽力而为。返回 `vid` 是否从 `no` 恢复成了实际值。
   Future<bool> _restoreKeepAlive(NativePlayer native) async {
     final saved = _keepAliveSaved;
-    _keepAliveSaved = null;
     if (saved == null) return false;
+    // Keep an entry until its write-back succeeds, so a later exit retries it.
+    // 写回成功才移除对应条目；失败的留着，下次退出继续重试，不丢原值。
+    final pending = Map<String, String>.of(saved);
     var restarted = false;
     final vid = saved['vid'];
-    if (vid != null && vid != 'no') {
+    if (vid != null) {
       try {
-        await native.setProperty('vid', vid).timeout(_keepAliveOpTimeout);
-        restarted = true;
+        if (vid != 'no') {
+          await native.setProperty('vid', vid).timeout(_keepAliveOpTimeout);
+          restarted = true;
+        }
+        pending.remove('vid');
       } on Object {
         // 尽力而为：写不回去就让后续的 mute 继续还原。
       }
@@ -1197,10 +1214,13 @@ class MovaMpvKernel
     if (mute != null) {
       try {
         await native.setProperty('mute', mute).timeout(_keepAliveOpTimeout);
+        pending.remove('mute');
       } on Object {
         // 尽力而为。
       }
     }
+    _keepAliveSaved = pending.isEmpty ? null : pending;
+    _keepAliveRestoreFailed = pending.isNotEmpty;
     return restarted;
   }
 }

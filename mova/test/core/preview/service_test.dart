@@ -221,6 +221,16 @@ void main() {
 
   tearDown(() => service.dispose());
 
+  test('default keys distinguish sub-second buckets and keep whole-second keys', () {
+    service = build(noDebounce);
+    service.attach(const MovaSource('https://host/a.mp4'));
+    final k0 = service.debugKeyFor(Duration.zero);
+    final k500 = service.debugKeyFor(const Duration(milliseconds: 500));
+    expect(k500, isNot(k0));
+    expect(service.debugKeyFor(const Duration(seconds: 1)), isNot(k0));
+    expect(k0, endsWith('_0_160'));
+  });
+
   test('default keys isolate effective request headers and ignore map order', () async {
     service = build(noDebounce);
     const a = MovaSource('https://host/a.mp4', headers: {'Authorization': 'A', 'X-Test': '1'});

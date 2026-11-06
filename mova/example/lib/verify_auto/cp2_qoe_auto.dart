@@ -131,3 +131,48 @@ Future<void> runQoe(Cp2Harness h) async {
     }
   }
 }
+
+/// R7：卡顿进行中用户暂停 30 秒再恢复，会话结束上报的 stallMs 不应包含暂停期。
+/// Stall in progress, user pauses 30s then resumes: the ended report's stallMs must exclude the pause.
+Future<void> runQoePause30(Cp2Harness h) async {
+  for (var run = 0; run < h.runs; run++) {
+    await h.control('reset');
+    await h.control('throttle', {'bytesPerSecond': 400000});
+    final reports = <Map<String, Object?>>[];
+    final a = cp2Engine(h,
+      reporter: MovaCallbackReporter((r) {
+        final row = <String, Object?>{'name': r.name.value, 'sessionId': r.sessionId, 'params': r.params};
+        reports.add(row);
+        h.mark('REPORT', row);
+      }),
+      options: const MovaOpts(report: MovaReportConfig(qoe: true)),
+    );
+    await h.mount(a);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final tier = 'http://127.0.0.1:18194/720/index.m3u8?t=$stamp';
+    await a.open(MovaSource(tier, mpvOptions: const {'demuxer-readahead-secs': '1', 'demuxer-max-bytes': '524288', 'cache-secs': '1'}));
+    await h.until(() => a.state.rendered);
+    await h.waitPosition(2000);
+    await h.control('arm', {'kind': 'recovery'});
+    await h.until(() async {
+      final fixture = await h.control('stats');
+      return fixture['segmentEntered'] == true && a.state.buffering;
+    }, seconds: 120);
+    final pauseClock = Stopwatch()..start();
+    await a.pause();
+    await Future<void>.delayed(const Duration(seconds: 30));
+    await h.control('release');
+    await a.play();
+    await h.until(() async => !a.state.buffering, seconds: 60);
+    await a.dispose();
+    final ended = reports.where((r) => r['name'] == 'sessionEnd').toList();
+    final stallMs = ended.isEmpty ? -1 : ((ended.last['params'] as Map)['stallMs'] as num?)?.toInt() ?? -1;
+    h.check('pause30.$run', {
+      'reports': reports,
+      'pausedMs': pauseClock.elapsedMilliseconds,
+      'stallMs': stallMs,
+      'endCount': ended.length,
+    }, pass: ended.length == 1 && stallMs >= 0 && stallMs < 15000);
+    await h.release();
+  }
+}

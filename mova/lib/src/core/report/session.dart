@@ -101,6 +101,11 @@ class MovaSessionTally {
   int _watchedMs = 0;
   int _stallCount = 0;
   int _stallMs = 0;
+
+  /// Time of the stall in progress, not yet accepted or rejected by the policy.
+  ///
+  /// 进行中的卡顿时长，尚未被策略接受或拒绝。
+  int _curStallMs = 0;
   int _maxPositionMs = 0;
   int _durationMs = 0;
 
@@ -121,7 +126,7 @@ class MovaSessionTally {
   /// Total stalled time in milliseconds.
   ///
   /// 累计卡顿时长（毫秒）。
-  int get stallMs => _stallMs;
+  int get stallMs => _stallMs + _curStallMs;
 
   /// Furthest playback position reached, in milliseconds.
   ///
@@ -160,7 +165,7 @@ class MovaSessionTally {
     final elapsedMs = at.difference(last).inMilliseconds;
     if (elapsedMs <= 0) return;
     if (_stalled) {
-      _stallMs += elapsedMs;
+      _curStallMs += elapsedMs;
     } else if (_playing) {
       _watchedMs += elapsedMs;
     }
@@ -174,6 +179,24 @@ class MovaSessionTally {
   /// 已在 [setStalled] 开启期间由 [tick] 累计，再加一次 duration 会重复计时
   /// （真机实测 stallMs 曾是真实值的 2 倍）。
   void addStall() => _stallCount++;
+
+  /// Accepts the stall in progress: its time becomes part of [stallMs] for good.
+  ///
+  /// 接受进行中的卡顿：其时长正式计入 [stallMs]。
+  void commitStall() {
+    _stallMs += _curStallMs;
+    _curStallMs = 0;
+  }
+
+  /// Rejects the stall in progress (jitter below the policy threshold): its time
+  /// goes back to watched time when playing, so stallMs and stallCount agree.
+  ///
+  /// 拒绝进行中的卡顿（低于策略阈值的抖动）：时长在播放中时归还给观看时长，
+  /// 使 stallMs 与 stallCount 口径一致。
+  void rejectStall() {
+    if (_playing) _watchedMs += _curStallMs;
+    _curStallMs = 0;
+  }
 
   /// Records the latest known playback position.
   ///
@@ -196,9 +219,9 @@ class MovaSessionTally {
   /// 卡顿率：`stallMs / (watchedMs + stallMs)`，分母为 0 时返回 0——与腾讯云
   /// "平均卡顿率"、Mux Rebuffer Percentage 同式。
   double get rebufferRate {
-    final denom = _watchedMs + _stallMs;
+    final denom = _watchedMs + stallMs;
     if (denom <= 0) return 0;
-    return _stallMs / denom;
+    return stallMs / denom;
   }
 
   /// Completion percentage: `maxPositionMs / durationMs * 100`, or `null`

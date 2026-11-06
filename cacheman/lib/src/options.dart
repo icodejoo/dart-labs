@@ -1,35 +1,9 @@
 import 'entity.dart';
 import 'interface.dart';
 
-/// Per-call `write` options. No method accepts it — pass `ttl`/`expireAt` as
-/// named arguments to `write`/`writeAll` instead.
+/// Shared instance-level options for Cacheman and AsyncCacheman.
 ///
-/// 单次 `write` 的选项载体。没有任何方法接受它——请直接把 `ttl`/`expireAt`
-/// 当命名参数传给 `write`/`writeAll`。
-@Deprecated('No method accepts it; pass ttl/expireAt to write()/writeAll() directly. Removed in the next breaking release.')
-class CacheOptions {
-  const CacheOptions({this.ttl, this.expireAt});
-
-  /// Time-to-live in ms (relative). Sets `expireAt = now + ttl`. An invalid
-  /// value (`<= 0` or non-finite) is warned and ignored — the value still
-  /// persists, just with no expiry.
-  ///
-  /// 存活时间（毫秒，相对）。设置 `expireAt = now + ttl`。非法值（`<=0` 或
-  /// 非有限数）会警告并忽略——值照样写入，只是不带过期。
-  final int? ttl;
-
-  /// Absolute expiry: a `DateTime`, or ms-since-epoch. If in the past (and
-  /// not renewable via `sliding` + `ttl`), the write is skipped with a
-  /// warning.
-  ///
-  /// 绝对过期时间：`DateTime`，或毫秒时间戳。如果已经过去（且无法靠
-  /// `sliding` + `ttl` 从现在续期），整次写入会被跳过并警告。
-  final Object? expireAt;
-}
-
-/// Instance-level options for [Cacheman].
-///
-/// [Cacheman] 的实例级配置。
+/// Cacheman 与 AsyncCacheman 共用的实例级配置。
 class CachemanOptions {
   const CachemanOptions({
     String Function(CacheEntity)? serialize,
@@ -44,8 +18,24 @@ class CachemanOptions {
     this.readonly = false,
     this.enckey = false,
     this.onError,
+    this.flushDelay,
+    this.purgeOnInit = false,
   })  : serialize = serialize ?? defaultSerialize,
         deserialize = deserialize ?? defaultDeserialize;
+
+  /// Sync Cacheman only: coalesce memory writes until the earliest deadline.
+  /// Default null preserves per-event-loop flushing. Deletes still flush immediately.
+  /// A crash may lose writes within this window; recommended opt-in: 200ms.
+  /// 仅同步 Cacheman：合并内存写入到最早截止时间；默认 null 保持原行为。
+  /// 删除仍立即排落盘，崩溃可能丢失窗口内写入，推荐显式设置 200ms。
+  /// Example / 示例：`CachemanOptions(flushDelay: Duration(milliseconds: 200))`.
+  final Duration? flushDelay;
+
+  /// Sync Cacheman only: schedule expiry cleanup after initialization, without
+  /// delaying completion. Raw mode ignores it. Default false.
+  /// 仅同步 Cacheman：初始化后异步调度过期清理，不阻塞完成；raw 忽略，默认 false。
+  /// Example / 示例：`CachemanOptions(purgeOnInit: true)`.
+  final bool purgeOnInit;
 
   /// Custom entity -> string serializer, defaults to `jsonEncode`.
   ///
@@ -102,16 +92,15 @@ class CachemanOptions {
   /// 一个坑）。
   final bool raw;
 
-  /// On a write exception, purge expired entries and retry the write once;
-  /// otherwise log and give up. Only triggers for a *synchronous* failure
-  /// (e.g. a custom [serialize]/codec throwing). Real disk-flush failures are
-  /// asynchronous, never retried, and with get_storage 2.1.1 don't reach
-  /// [onError] at all (its write Future can't carry them).
-  ///
-  /// 写入抛异常时，清理过期条目后重试一次；否则记录日志并放弃。只对**同步**
-  /// 失败（比如自定义 [serialize]/codec 抛错）触发。真正的落盘失败是异步的、
-  /// 从不重试，而且 get_storage 2.1.1 下根本到不了 [onError]（它的 write
-  /// Future 带不出错误）。
+  /// Default true: purge expired entries and retry a backend write once.
+  /// Serialization/adapter/value-codec failures never purge or retry.
+  /// Cacheman retries only synchronous setRaw throws; AsyncCacheman also
+  /// catches awaited setRaw failures. Sync background failures are FlushError,
+  /// never retried; get_storage 2.1.1 may hide real disk failures.
+  /// 默认 true：底层写失败时清过期并重试一次；序列化/适配器/值编码失败不清理、不重试。
+  /// Cacheman 仅重试 setRaw 同步异常；AsyncCacheman 也捕获 await setRaw 失败。
+  /// 同步后台失败为 FlushError、不重试；get_storage 2.1.1 可能隐藏真实磁盘失败。
+  /// Example / 示例：`CachemanOptions(force: false)`.
   final bool force;
 
   /// Write-once: only write when the key is empty (absent/expired);
@@ -128,8 +117,14 @@ class CachemanOptions {
   /// 变换。二者至少要有一个，否则警告并降级为明文键。
   final bool enckey;
 
-  /// Write-failure callback. Guaranteed for synchronous failures only.
-  ///
-  /// 写入失败回调。只保证同步失败会触发。
+  /// Receives the storage key and a CachemanError; original exception is cause.
+  /// Corrupt reads delete before reporting; type mismatches retain data.
+  /// Breaking: `error is FormatException` becomes
+  /// `error is CorruptEntryError && error.cause is FormatException`.
+  /// 接收存储键与 CachemanError；原异常在 cause。解码失败先删再报，类型不符保留数据。
+  /// 破坏性：原 FormatException 判断改为 CorruptEntryError 并检查 cause。
+  /// User callback errors propagate; real disk-flush reporting is best-effort.
+  /// 用户回调异常向上传播；真实磁盘失败上报为尽力而为。
+  /// Example / 示例：`CachemanOptions(onError: (key, e) => print(e))`.
   final CachemanOnError? onError;
 }
