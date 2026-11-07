@@ -6,6 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import '../core/preview/dir_lease.dart';
 import '../core/preview/dir_provider.dart';
 
+/// Cache-root and engine-directory names. / 缓存根目录与引擎目录名称。
+const _defaultFolderName = 'mova_thumbs';
+const _engineDirectoryPrefix = 'engine_';
+
 /// A temporary thumbnail directory protected by an OS file lease.
 /// First use adopts the newest unowned directory and removes the others;
 /// unowned directories older than seven days are always removed.
@@ -20,7 +24,7 @@ class MovaTempThumbDirProvider
   ///
   /// 在平台临时目录下创建 provider；[folderName] 指定共享缓存根目录名。
   /// 示例：`MovaTempThumbDirProvider(folderName: 'mova_thumbs')`。
-  MovaTempThumbDirProvider({String folderName = 'mova_thumbs'})
+  MovaTempThumbDirProvider({String folderName = _defaultFolderName})
     : this._(
         folderName,
         getTemporaryDirectory,
@@ -41,7 +45,7 @@ class MovaTempThumbDirProvider
   /// 返回测试 provider，例如传入 `now: () => fixedTime`。
   @visibleForTesting
   MovaTempThumbDirProvider.forTesting({
-    String folderName = 'mova_thumbs',
+    String folderName = _defaultFolderName,
     required Future<Directory> Function() temporaryDirectory,
     DateTime Function()? now,
     Future<DateTime> Function(Directory)? modified,
@@ -189,7 +193,7 @@ class MovaTempThumbDirProvider
             !entry.uri.pathSegments
                 .where((s) => s.isNotEmpty)
                 .last
-                .startsWith('engine_') ||
+                .startsWith(_engineDirectoryPrefix) ||
             _activePaths.contains(_key(entry.path))) {
           continue;
         }
@@ -214,7 +218,7 @@ class MovaTempThumbDirProvider
         }
       }
       if (newest == null) {
-        final directory = await root.createTemp('engine_');
+        final directory = await root.createTemp(_engineDirectoryPrefix);
         newest = await _tryLease(directory);
         if (newest == null) {
           throw FileSystemException(

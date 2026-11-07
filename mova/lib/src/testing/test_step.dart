@@ -5,13 +5,21 @@ enum _Signal { ready, buffering, position, error, completed }
 /// 测试内核的一步媒体行为；[after] 表示距上一步的等待时间，首步相对 open。
 /// 不需要了解首帧信号组合，就绪步骤会自动发出尺寸、时长、缓冲量和首帧。
 /// 示例：`[MovaTestStep.ready(), MovaTestStep.completed(after: Duration(seconds: 2))]`。
+///
+/// One delayed media signal; ready steps emit the complete first-frame sequence.
 class MovaTestStep {
+  /// Shared ready-step defaults. / 就绪步骤共用的默认值。
+  static const _defaultWidth = 1280;
+  static const _defaultHeight = 720;
+  static const _defaultDuration = Duration(minutes: 1);
+
+  /// Stores one signal and its payload. / 保存单个信号及其载荷。
   const MovaTestStep._(
     this._signal, {
     this.after = Duration.zero,
-    this._width = 1280,
-    this._height = 720,
-    this._duration = const Duration(minutes: 1),
+    this._width = _defaultWidth,
+    this._height = _defaultHeight,
+    this._duration = _defaultDuration,
     this._position = Duration.zero,
     this._buffering = false,
     this._error,
@@ -21,9 +29,9 @@ class MovaTestStep {
   /// 返回就绪步骤；示例：`MovaTestStep.ready(duration: Duration(minutes: 2))`。
   const MovaTestStep.ready({
     Duration after = Duration.zero,
-    int width = 1280,
-    int height = 720,
-    Duration duration = const Duration(minutes: 1),
+    int width = _defaultWidth,
+    int height = _defaultHeight,
+    Duration duration = _defaultDuration,
   }) : this._(
          _Signal.ready,
          after: after,
@@ -62,24 +70,27 @@ class MovaTestStep {
   final bool _buffering;
   final Object? _error;
 
-  void _dispatch({
-    required void Function(int width, int height, Duration duration) ready,
-    required void Function(bool) buffering,
-    required void Function(Duration) position,
-    required void Function(Object) error,
-    required void Function() completed,
-  }) {
+  /// Pushes the signal through the kernel's existing emit methods, in order.
+  ///
+  /// 通过内核现有的 emit 方法按原顺序推送信号。
+  void _dispatch(MovaTestKernel kernel) {
     switch (_signal) {
       case _Signal.ready:
-        ready(_width, _height, _duration);
+        kernel.emitCompleted(false);
+        kernel.emitSize(_width, _height);
+        kernel.emitDuration(_duration);
+        kernel.emitBuffer(_duration);
+        kernel.emitPlaying(kernel._scriptPlayIntent);
+        kernel.emitRestart();
       case _Signal.buffering:
-        buffering(_buffering);
+        kernel.emitBuffering(_buffering);
       case _Signal.position:
-        position(_position);
+        kernel.emitPosition(_position);
       case _Signal.error:
-        error(_error!);
+        kernel.emitError(_error!);
       case _Signal.completed:
-        completed();
+        kernel.emitPlaying(false);
+        kernel.emitCompleted(true);
     }
   }
 }

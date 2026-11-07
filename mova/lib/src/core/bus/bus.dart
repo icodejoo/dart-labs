@@ -68,7 +68,7 @@ class MovaBus<T> {
 ///
 /// 把 [source] 限流为每 [window] 最多一个值：首值立即发，窗口内的末值在窗口结束时发。
 Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
-  StreamController<T>? out;
+  late final StreamController<T> out;
   StreamSubscription<T>? sub;
   Timer? timer;
   T? pending;
@@ -81,7 +81,9 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
     timer = null;
     if (!hasPending) return;
     hasPending = false;
-    out!.add(pending as T);
+    final value = pending as T;
+    pending = null;
+    out.add(value);
     timer = Timer(window, flush);
   }
 
@@ -108,24 +110,24 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
       sub = source.listen(
         (v) {
           if (timer == null) {
-            out!.add(v);
+            out.add(v);
             timer = Timer(window, flush);
           } else {
             pending = v;
             hasPending = true;
           }
         },
-        onError: (Object e, StackTrace s) => out!.addError(e, s),
+        onError: (Object e, StackTrace s) => out.addError(e, s),
         onDone: () {
           // Finish the trailing value before closing, even for paused listeners.
           //
           // 关闭前交付末值，即使输出订阅已暂停也要先结束定时器。
           timer?.cancel();
           timer = null;
-          if (hasPending) out!.add(pending as T);
+          if (hasPending) out.add(pending as T);
           hasPending = false;
           pending = null;
-          unawaited(out!.close());
+          unawaited(out.close());
         },
       );
     },

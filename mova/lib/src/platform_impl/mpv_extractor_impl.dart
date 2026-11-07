@@ -4,7 +4,13 @@ import 'dart:typed_data';
 
 import 'package:media_kit/media_kit.dart';
 
+import '../core/kernel/mpv_defaults.dart' show kDuration;
 import '../core/preview/extractor.dart';
+
+/// Reused mpv option values. / 复用的 mpv 选项值。
+const _mpvOff = 'no';
+const _mpvAuto = 'auto';
+const _mpvNullOutput = 'null';
 
 /// The default [MovaFramePuller]: a second, hidden media_kit `Player` used
 /// only to decode single frames.
@@ -66,9 +72,6 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   /// 隐藏播放器；已释放时为 null。
   Player? _player;
 
-  /// The hidden player's video controller; kept alive alongside [_player].
-  ///
-  /// 隐藏播放器的视频控制器；与 [_player] 同生共死。
   /// The media currently open on the hidden player, or null when none.
   ///
   /// 隐藏播放器当前已打开的媒体；无则为 null。
@@ -90,13 +93,12 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   ///
   /// 按需创建隐藏播放器，并应用为抽帧调优过的 mpv 属性。
   ///
-  /// - [width]: target frame width in pixels / 目标帧宽度（像素）
   /// - [hwdec]: whether hardware decoding may be used / 是否允许硬件解码
   ///
   /// Returns the ready player.
   ///
   /// 返回就绪的播放器。
-  Future<Player> _ensurePlayer(int width, bool hwdec) async {
+  Future<Player> _ensurePlayer(bool hwdec) async {
     final existing = _player;
     if (existing != null) return existing;
     final generation = _generation;
@@ -109,24 +111,24 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         // setProperty 一直等，extract 永不返回。改为手动开视频解码（vid=auto）并把 vo
         // 设为 null——mpv 仍会解码，screenshot() 取得到帧。
         for (final property in <String, String>{
-          'ao': 'null',
-          'vo': 'null',
-          'vid': 'auto',
-          'hwdec': hwdec ? 'auto' : 'no',
+          'ao': _mpvNullOutput,
+          'vo': _mpvNullOutput,
+          'vid': _mpvAuto,
+          'hwdec': hwdec ? _mpvAuto : _mpvOff,
           'hr-seek': 'yes',
-          'cache': 'no',
+          'cache': _mpvOff,
         }.entries) {
           await native.setProperty(property.key, property.value);
           if (_disposed || generation != _generation) {
             throw StateError('Preview initialization cancelled');
           }
         }
-        // `width` is intentionally unused here: neither `vf=scale` nor
+        // The requested `width` is intentionally unused here: neither `vf=scale` nor
         // VideoControllerConfiguration sizing shrinks screenshot() output on
         // Windows (Task 1 spike, plan appendix A), so no mpv-side scaling is
         // attempted.
         //
-        // `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
+        // 请求的 `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
         // Windows 上 `vf=scale` 与 VideoControllerConfiguration 都不能真正
         // 缩小 screenshot() 的输出，因此不在 mpv 层做任何缩放尝试。
       }
@@ -144,7 +146,6 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     String uri,
     Duration at, {
     required int generation,
-    required int width,
     required bool hwdec,
     Map<String, String> headers = const {},
   }) async {
@@ -155,7 +156,7 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     /// 检查操作尚未被释放或销毁取代。
     bool current() => !_disposed && generation == _generation;
     try {
-      final player = await _ensurePlayer(width, hwdec);
+      final player = await _ensurePlayer(hwdec);
       if (!current()) return null;
       final native = player.platform;
       final headerKey = jsonEncode(headers);
@@ -168,8 +169,7 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         if (native is NativePlayer) {
           final ready = await movaWaitForPreviewFrame(
             () async =>
-                (double.tryParse(await native.getProperty('duration')) ?? 0) >
-                0,
+                (double.tryParse(await native.getProperty(kDuration)) ?? 0) > 0,
           );
           if (!ready || !current()) return null;
         }
@@ -185,9 +185,9 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         },
         landed: () async {
           if (native is! NativePlayer) return false;
-          final target = at.inMilliseconds / 1000.0;
+          final target = at.inMilliseconds / Duration.millisecondsPerSecond;
           return movaWaitForPreviewFrame(() async {
-            if (!current() || await native.getProperty('seeking') != 'no') {
+            if (!current() || await native.getProperty('seeking') != _mpvOff) {
               return false;
             }
             final pos = double.tryParse(await native.getProperty('time-pos'));
@@ -239,7 +239,6 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
           uri,
           at,
           generation: generation,
-          width: width,
           hwdec: hwdec,
           headers: headers,
         ),

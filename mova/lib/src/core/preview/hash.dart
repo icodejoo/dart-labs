@@ -8,6 +8,10 @@ const int _kOffsetBasis = 0xcbf29ce484222325;
 /// FNV-1a 64 位算法的质数因子。
 const int _kPrime = 0x100000001b3;
 
+/// Masks for each byte and the 64-bit accumulator. / 单字节和 64 位累积值的掩码。
+const int _kByteMask = 0xFF;
+const int _kHashMask = 0xFFFFFFFFFFFFFFFF;
+
 /// Computes a 64-bit FNV-1a hash of [input], masked to a non-negative Dart int.
 ///
 /// Self-written on purpose: cache keys need no cryptographic strength, and this
@@ -27,11 +31,11 @@ int fnv1a64(String input) {
   var hash = _kOffsetBasis;
   for (var i = 0; i < input.length; i++) {
     final unit = input.codeUnitAt(i);
-    hash ^= unit & 0xFF;
-    hash = (hash * _kPrime) & 0xFFFFFFFFFFFFFFFF;
-    if (unit > 0xFF) {
-      hash ^= (unit >> 8) & 0xFF;
-      hash = (hash * _kPrime) & 0xFFFFFFFFFFFFFFFF;
+    hash ^= unit & _kByteMask;
+    hash = (hash * _kPrime) & _kHashMask;
+    if (unit > _kByteMask) {
+      hash ^= (unit >> 8) & _kByteMask;
+      hash = (hash * _kPrime) & _kHashMask;
     }
   }
   return hash & 0x7FFFFFFFFFFFFFFF;
@@ -70,4 +74,5 @@ String defaultCacheKey(String sourceKey, int bucketSec, int width) =>
 /// Returns the cache key.
 ///
 /// 返回缓存 key。
-typedef MovaCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);
+typedef MovaCacheKeyBuilder =
+    String Function(String sourceKey, int bucketSec, int width);

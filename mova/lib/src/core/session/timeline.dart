@@ -29,18 +29,13 @@ MovaAdBreak? movaDueMidRoll(
 
 /// 返回 [breaks] 中不晚于 [resumeAt] 且不在 [played] 的下一条中插；没有为 null。
 /// 示例：`movaNextPodMid(breaks, {}, Duration(seconds: 31))`。
+/// Uses the same due-break lookup at the saved resume position.
 MovaAdBreak? movaNextPodMid(
   List<MovaAdBreak> breaks,
   Set<MovaAdBreak> played,
   Duration resumeAt,
 ) {
-  return movaFirstWhere(
-    breaks,
-    (b) =>
-        b.kind == MovaAdBreakKind.mid &&
-        !played.contains(b) &&
-        b.offset <= resumeAt,
-  );
+  return movaDueMidRoll(breaks, resumeAt, played);
 }
 
 /// 返回 [breaks] 中不在 [played] 的首个 [kind] 广告位；没有为 null。
@@ -152,39 +147,40 @@ List<MovaTimelineNode> movaBuildNodes(int item, List<MovaAdBreak> breaks) {
 }
 
 /// 返回 [nodes] 中在 [position] 到期且不在 [played] 的首条中插。
+/// Returns the first due, unplayed mid-roll node.
 MovaTimelineNode? movaDueMid(
   List<MovaTimelineNode> nodes,
   Duration position,
   Set<MovaNodeId> played,
-) => movaFirstWhere(
-  nodes,
-  (n) =>
-      n.id.kind == MovaNodeKind.mid &&
-      !played.contains(n.id) &&
-      n.offset <= position,
-);
+) => movaFirstWhere(nodes, (node) => _isDueMid(node, position, played));
+
+/// Shares the due-node rule between lookup and snapback selection.
+///
+/// 查找与补播选择共用到期节点判据。
+bool _isDueMid(
+  MovaTimelineNode node,
+  Duration position,
+  Set<MovaNodeId> played,
+) =>
+    node.id.kind == MovaNodeKind.mid &&
+    !played.contains(node.id) &&
+    node.offset <= position;
 
 /// 选择到期中插；默认 all 原样委托旧查找，单点不触发补播策略。
+/// Selects due mid-rolls with one schedule scan for each snapback mode.
 ({MovaTimelineNode? play, Set<MovaNodeId> skip}) movaSnapback(
   List<MovaTimelineNode> nodes,
   Duration position,
   Set<MovaNodeId> played,
   MovaAdSnapback mode,
 ) {
-  final first = movaDueMid(nodes, position, played);
-  if (first == null || mode == MovaAdSnapback.all) {
-    return (play: first, skip: {});
+  if (mode == MovaAdSnapback.all) {
+    return (play: movaDueMid(nodes, position, played), skip: {});
   }
-  final due = nodes
-      .where(
-        (node) =>
-            node.id.kind == MovaNodeKind.mid &&
-            !played.contains(node.id) &&
-            node.offset <= position,
-      )
-      .toList();
+  final due = nodes.where((node) => _isDueMid(node, position, played)).toList();
+  if (due.isEmpty) return (play: null, skip: {});
   final offsets = due.map((node) => node.offset).toSet();
-  if (offsets.length < 2) return (play: first, skip: {});
+  if (offsets.length < 2) return (play: due.first, skip: {});
   if (mode == MovaAdSnapback.none) {
     return (play: null, skip: due.map((node) => node.id).toSet());
   }

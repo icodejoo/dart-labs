@@ -259,13 +259,7 @@ class _GestureLayerState extends State<_GestureLayer>
   /// Toggles control-bar visibility on a plain (non-double) tap.
   ///
   /// 单击（非双击）时切换控制条显隐。
-  void _onTap() {
-    if (movaUiOf(context).uiState.controlsVisible) {
-      movaUiOf(context).hide();
-    } else {
-      movaUiOf(context).show();
-    }
-  }
+  void _onTap() => movaUiOf(context).toggle();
 
   /// Resets per-drag state and snapshots the starting side/zoom baseline.
   ///
@@ -356,6 +350,13 @@ class _GestureLayerState extends State<_GestureLayer>
   double _axisFrac() =>
       _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
 
+  /// Applies vertical sensitivity to volume/brightness movement.
+  ///
+  /// 为音量/亮度位移应用竖向灵敏度。
+  double _levelDelta() =>
+      _axisFrac() *
+      (_horizontalDrag ? 1 : MovaPlayerStyle.gestureOf(context).vSensitivity);
+
   /// Maps the drag accumulated so far onto a target position, scaled by
   /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
   /// gesture surface along the drag's axis. Shared by [_drive]'s live preview and
@@ -369,8 +370,9 @@ class _GestureLayerState extends State<_GestureLayer>
   Duration _seekTargetFromCum() {
     final seconds =
         _axisFrac() *
-        MovaPlayerStyle.gestureOf(context).hSeekSpanPerScreen.inSeconds
-            .toDouble();
+        MovaPlayerStyle.gestureOf(
+          context,
+        ).hSeekSpanPerScreen.inSeconds.toDouble();
     return _startPosition + Duration(seconds: seconds.round());
   }
 
@@ -385,20 +387,12 @@ class _GestureLayerState extends State<_GestureLayer>
         movaUiOf(context).showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac =
-            _axisFrac() *
-            (_horizontalDrag
-                ? 1
-                : MovaPlayerStyle.gestureOf(context).vSensitivity);
+        final frac = _levelDelta();
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
         movaUiOf(context).showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac =
-            _axisFrac() *
-            (_horizontalDrag
-                ? 1
-                : MovaPlayerStyle.gestureOf(context).vSensitivity);
+        final frac = _levelDelta();
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
         movaUiOf(context).showHud(MovaHud.brightness);
         break;

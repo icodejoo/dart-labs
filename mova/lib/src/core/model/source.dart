@@ -155,8 +155,9 @@ class MovaSource {
       ...?timeouts?.mpvOptionsFor(address),
       ...mpvOptions,
     };
-    if (requestHeaders.isNotEmpty) {
-      out['http-header-fields'] = requestHeaders.entries
+    final effectiveHeaders = requestHeaders;
+    if (effectiveHeaders.isNotEmpty) {
+      out['http-header-fields'] = effectiveHeaders.entries
           .map((e) => _lavfValue('${e.key}: ${e.value}'))
           .join(',');
     }

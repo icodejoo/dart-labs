@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-
 import '../core/kernel/kernel.dart';
 import '../core/kernel/source_options_kernel.dart';
 import '../core/kernel/keep_alive_kernel.dart';
@@ -23,7 +22,12 @@ part 'test_step.dart';
 /// k.emitSize(1280, 720);
 /// k.emitRestart(); // MovaState.rendered → true
 /// ```
-class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaSourceOptionsKernel {
+class MovaTestKernel
+    implements
+        MovaKernel,
+        MovaStatsProbe,
+        MovaKeepAliveKernel,
+        MovaSourceOptionsKernel {
   /// Creates a test kernel.
   ///
   /// 创建一个测试内核。
@@ -38,8 +42,11 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   /// [script] 为可选行为脚本；省略时继续完全被动，由宿主手工 emit。
   /// 每次成功 open 从头执行，换源或 dispose 取消旧脚本；返回测试内核。
   /// 示例：`MovaTestKernel(script: [MovaTestStep.ready()])`。
-  MovaTestKernel({this.renderHandle, this.nativeRestartAvailable = false, List<MovaTestStep>? script})
-      : _script = List.unmodifiable(script ?? const []);
+  MovaTestKernel({
+    this.renderHandle,
+    this.nativeRestartAvailable = false,
+    List<MovaTestStep>? script,
+  }) : _script = List.unmodifiable(script ?? const []);
 
   /// Creates a ready scripted kernel using [script] and [renderHandle].
   /// Defaults to one ready step; see the example below.
@@ -47,8 +54,14 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   /// 创建自动就绪的脚本内核；[script] 默认只有就绪一步，[renderHandle] 为渲染句柄。
   /// 返回无需手工拼首帧信号的测试内核；仅通过本构造或显式 script 启用。
   /// 示例：`MovaTesting.useTestKernels(() => MovaTestKernel.scripted())`。
-  MovaTestKernel.scripted({List<MovaTestStep> script = const [MovaTestStep.ready()], Object? renderHandle})
-      : this(script: script, renderHandle: renderHandle, nativeRestartAvailable: true);
+  MovaTestKernel.scripted({
+    List<MovaTestStep> script = const [MovaTestStep.ready()],
+    Object? renderHandle,
+  }) : this(
+         script: script,
+         renderHandle: renderHandle,
+         nativeRestartAvailable: true,
+       );
 
   final List<MovaTestStep> _script;
   final List<Timer> _scriptTimers = [];
@@ -56,12 +69,20 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   bool _disposed = false;
   bool _scriptPlayIntent = true;
 
+  /// Cancels pending steps and invalidates queued microtasks.
+  ///
+  /// 取消待执行步骤，并使已入队的微任务过期。
   void _cancelScript() {
     _scriptGeneration++;
-    for (final timer in _scriptTimers) { timer.cancel(); }
+    for (final timer in _scriptTimers) {
+      timer.cancel();
+    }
     _scriptTimers.clear();
   }
 
+  /// Schedules steps using their cumulative delays and current play intent.
+  ///
+  /// 按累计延迟调度步骤，并沿用当前播放意图。
   void _startScript(bool play) {
     if (_script.isEmpty) return;
     _scriptPlayIntent = play;
@@ -69,28 +90,21 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
     var elapsed = Duration.zero;
     for (final step in _script) {
       elapsed += step.after;
+
+      /// Dispatches only while this script is current. / 仅分发当前代的脚本步骤。
       void run() {
         if (_disposed || generation != _scriptGeneration) return;
-        step._dispatch(
-          ready: (width, height, duration) {
-            emitCompleted(false);
-            emitSize(width, height);
-            emitDuration(duration);
-            emitBuffer(duration);
-            emitPlaying(_scriptPlayIntent);
-            emitRestart();
-          },
-          buffering: emitBuffering,
-          position: emitPosition,
-          error: emitError,
-          completed: () { emitPlaying(false); emitCompleted(true); },
-        );
+        step._dispatch(this);
       }
+
       if (elapsed == Duration.zero) {
         scheduleMicrotask(run);
       } else {
         late final Timer timer;
-        timer = Timer(elapsed, () { _scriptTimers.remove(timer); run(); });
+        timer = Timer(elapsed, () {
+          _scriptTimers.remove(timer);
+          run();
+        });
         _scriptTimers.add(timer);
       }
     }
@@ -125,7 +139,8 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   final List<Map<String, String>> stagedSourceOptions = <Map<String, String>>[];
 
   @override
-  void stageSourceOptions(Map<String, String> options) => stagedSourceOptions.add(Map.of(options));
+  void stageSourceOptions(Map<String, String> options) =>
+      stagedSourceOptions.add(Map.of(options));
 
   /// When non-null, `open()` throws it (after recording the call).
   ///
@@ -184,15 +199,21 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel,
   final StreamController<bool> _playing = StreamController<bool>.broadcast();
   final StreamController<bool> _buffering = StreamController<bool>.broadcast();
   final StreamController<bool> _completed = StreamController<bool>.broadcast();
-  final StreamController<Duration> _position = StreamController<Duration>.broadcast();
-  final StreamController<Duration> _duration = StreamController<Duration>.broadcast();
-  final StreamController<Duration> _buffer = StreamController<Duration>.broadcast();
-  final StreamController<MovaSize> _size = StreamController<MovaSize>.broadcast();
+  final StreamController<Duration> _position =
+      StreamController<Duration>.broadcast();
+  final StreamController<Duration> _duration =
+      StreamController<Duration>.broadcast();
+  final StreamController<Duration> _buffer =
+      StreamController<Duration>.broadcast();
+  final StreamController<MovaSize> _size =
+      StreamController<MovaSize>.broadcast();
   final StreamController<Object> _error = StreamController<Object>.broadcast();
   final StreamController<bool> _stalling = StreamController<bool>.broadcast();
-  final StreamController<MovaLogLine> _logs = StreamController<MovaLogLine>.broadcast();
+  final StreamController<MovaLogLine> _logs =
+      StreamController<MovaLogLine>.broadcast();
   final StreamController<void> _restarts = StreamController<void>.broadcast();
-  final StreamController<MovaEndFileReason> _endFiles = StreamController<MovaEndFileReason>.broadcast();
+  final StreamController<MovaEndFileReason> _endFiles =
+      StreamController<MovaEndFileReason>.broadcast();
 
   // ---- MovaKernel verbs ----
 

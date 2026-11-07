@@ -174,6 +174,11 @@ class _DouyinGestureLayerState extends State<_DouyinGestureLayer> {
 /// 全新实例替换它（见 [_DouyinGestureLayerState._burstSeq]），本组件无需自行
 /// 从树上移除。
 class _HeartBurst extends StatelessWidget {
+  /// Initial heart scale, also the fade's starting point.
+  ///
+  /// 心形的起始缩放值，同时作为淡出的起点。
+  static const _initialScale = 0.6;
+
   /// Creates a heart-burst animation.
   ///
   /// 创建一次心形动画。
@@ -184,11 +189,14 @@ class _HeartBurst extends StatelessWidget {
   /// 心形的 ARGB 颜色。
   final int color;
 
+  /// Animates scale and opacity from the shared starting scale.
+  ///
+  /// 从共用的起始缩放值推导缩放与透明度动画。
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.6, end: 1.6),
+        tween: Tween(begin: _initialScale, end: 1.6),
         duration: const Duration(milliseconds: 700),
         curve: Curves.easeOut,
         builder: (context, scale, child) {
@@ -196,7 +204,7 @@ class _HeartBurst extends StatelessWidget {
           // visibly pops then dissolves rather than just growing forever.
           //
           // 与放大同步淡出，使动画呈现"弹出后消散"而非一直放大。
-          final progress = ((scale - 0.6) / 1.0).clamp(0.0, 1.0);
+          final progress = (scale - _initialScale).clamp(0.0, 1.0);
           return Opacity(
             opacity: 1 - progress,
             child: Transform.scale(scale: scale, child: child),

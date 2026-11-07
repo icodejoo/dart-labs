@@ -11,6 +11,15 @@ import '../scope/plugin.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 
+/// Shared countdown bounds and presentation for pending and playing ads.
+///
+/// 待播与播放中广告共用的倒计时上限及展示尺寸。
+const _maxCountdownSeconds = 1 << 31;
+const _countdownPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 7);
+const double _countdownRadius = 999;
+const double _countdownBottom = 24;
+const double _countdownRight = 16;
+
 /// Overlay shown while an ad plays: an "ad" badge, a skip control that appears
 /// once the ad passes its skippable threshold, and a full-surface tap that
 /// reports a click-through (the host, not the library, opens any URL). Renders
@@ -58,13 +67,16 @@ class MovaAdOverlayComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.overlay;
 
+  /// Builds enabled ads with subscriptions owned by the controller identity.
+  ///
+  /// 为已启用的广告构建叠层，订阅归控制器身份持有。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     if (!api.options.ads.enabled) return const SizedBox.shrink();
     // Controller identity owns the subscriptions and their lifecycle.
     //
     // 订阅及其生命周期归属于控制器身份。
-    return _AdOverlayView(key: ObjectKey(ads), api: api, ads: ads);
+    return _AdOverlayView(key: ObjectKey(ads), ads: ads);
   }
 }
 
@@ -76,13 +88,11 @@ class MovaAdOverlayComponent extends MovaComponent {
 class _AdOverlayView extends StatefulWidget {
   /// Creates the internal ad overlay view.
   ///
-  /// 创建内部广告叠层视图。
-  const _AdOverlayView({super.key, required this.api, required this.ads});
-
-  /// The capability surface followed for the ad's position.
+  /// The scoped capability surface is followed for the ad's position.
   ///
-  /// 用于跟随广告位置的能力面。
-  final MovaApi api;
+  /// 创建内部广告叠层视图。
+  /// 跟随作用域内能力面提供的广告位置。
+  const _AdOverlayView({super.key, required this.ads});
 
   /// The ad controller providing phase, current break, and skip/click actions.
   ///
@@ -117,6 +127,9 @@ class _AdOverlayViewState extends State<_AdOverlayView>
     }
   }
 
+  /// Renders the pending countdown or the active ad's controls.
+  ///
+  /// 展示待播倒计时或播放中广告的控件。
   @override
   Widget build(BuildContext context) {
     final ads = widget.ads;
@@ -138,17 +151,19 @@ class _AdOverlayViewState extends State<_AdOverlayView>
     // 该是用户无感的，画一个"正在加载广告"的提示只会把本来无感的事变成有感的事。
     final pendingLeft = ads.delayRemaining;
     if (ads.isAdPending && pendingLeft != null) {
-      final left = (pendingLeft.inMilliseconds / 1000).ceil().clamp(0, 1 << 31);
+      final left = (pendingLeft.inMilliseconds / Duration.millisecondsPerSecond)
+          .ceil()
+          .clamp(0, _maxCountdownSeconds);
       return Stack(
         children: [
           Positioned(
-            bottom: 24,
-            right: 16,
+            bottom: _countdownBottom,
+            right: _countdownRight,
             child: _Pill(
               text: strings.adStartingIn(left),
               theme: theme,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              borderRadius: 999,
+              padding: _countdownPadding,
+              borderRadius: _countdownRadius,
             ),
           ),
         ],
@@ -166,7 +181,7 @@ class _AdOverlayViewState extends State<_AdOverlayView>
         ? 0
         : (skipIn.inMicroseconds / Duration.microsecondsPerSecond).ceil().clamp(
             0,
-            1 << 31,
+            _maxCountdownSeconds,
           );
     return Stack(
       children: [
@@ -194,8 +209,8 @@ class _AdOverlayViewState extends State<_AdOverlayView>
         ),
         if (after != null)
           Positioned(
-            bottom: 24,
-            right: 16,
+            bottom: _countdownBottom,
+            right: _countdownRight,
             child: canSkip
                 ? _Pill(
                     text: strings.skipAd,
@@ -204,7 +219,7 @@ class _AdOverlayViewState extends State<_AdOverlayView>
                       horizontal: 14,
                       vertical: 7,
                     ),
-                    borderRadius: 999,
+                    borderRadius: _countdownRadius,
                     bordered: true,
                     onTap: ads.skip,
                     fontWeight: FontWeight.w600,
@@ -212,11 +227,8 @@ class _AdOverlayViewState extends State<_AdOverlayView>
                 : _Pill(
                     text: '$secondsLeft',
                     theme: theme,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    borderRadius: 999,
+                    padding: _countdownPadding,
+                    borderRadius: _countdownRadius,
                   ),
           ),
       ],

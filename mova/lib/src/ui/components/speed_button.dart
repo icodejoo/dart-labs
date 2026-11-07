@@ -42,20 +42,22 @@ class MovaSpeedButtonComponent extends MovaComponent {
   MovaSlot get slot => MovaSlot.top;
 
   @override
+  /// Builds the button with one formatted caption for text and semantics.
+  ///
+  /// 构建按钮，文字与语义复用同一份格式化说明。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     final suffix = MovaPlayerStyle.stringsOf(context).speedSuffix;
     return MovaSelect<double>(
       selector: (s) => s.rate,
       builder: (context, rate) {
+        final caption = '${_formatRate(rate)}$suffix';
+        final strings = MovaPlayerStyle.stringsOf(context);
         return MovaIconButton(
-          label: MovaPlayerStyle.stringsOf(context).labelWithValue(
-            MovaPlayerStyle.stringsOf(context).speed,
-            '${_formatRate(rate)}$suffix',
-          ),
+          label: strings.labelWithValue(strings.speed, caption),
           icon: MovaPlayerStyle.iconsOf(context).speed,
           theme: theme,
-          caption: '${_formatRate(rate)}$suffix',
+          caption: caption,
           onPressed: () => api.setRate(_nextRate(rate)),
         );
       },
@@ -74,7 +76,6 @@ class MovaSpeedButtonComponent extends MovaComponent {
   /// Returns the next rate to apply / 返回下一档要应用的倍速。
   static double _nextRate(double current) {
     final idx = _kSpeedSteps.indexOf(current);
-    if (idx == -1) return _kSpeedSteps.first;
     return _kSpeedSteps[(idx + 1) % _kSpeedSteps.length];
   }
 

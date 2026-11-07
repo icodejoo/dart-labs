@@ -13,8 +13,13 @@ String formatDuration(Duration d) {
   final neg = d.isNegative;
   final a = d.abs();
   final h = a.inHours;
-  final m = a.inMinutes.remainder(60).toString().padLeft(2, '0');
-  final s = a.inSeconds.remainder(60).toString().padLeft(2, '0');
+  final m = _twoDigits(a.inMinutes.remainder(Duration.minutesPerHour));
+  final s = _twoDigits(a.inSeconds.remainder(Duration.secondsPerMinute));
   final body = h > 0 ? '$h:$m:$s' : '$m:$s';
   return neg ? '-$body' : body;
 }
+
+/// Pads a time field to two digits.
+///
+/// 将时间字段补足两位数字。
+String _twoDigits(int value) => value.toString().padLeft(2, '0');

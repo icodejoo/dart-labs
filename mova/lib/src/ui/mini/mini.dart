@@ -251,9 +251,7 @@ class MovaMini extends ChangeNotifier {
     final generation = ++_generation;
     _unwatch();
     _detachEntry();
-    _api = null;
-    _rect = null;
-    _mount = MovaMiniMount.none;
+    _clearWindow();
     // Settle MovaState.mini before notifying — a listener reacting to this
     // controller (e.g. remounting a full-page MovaPlayer) must never observe
     // a frame where the controller already says "not mini" but
@@ -279,9 +277,7 @@ class MovaMini extends ChangeNotifier {
     final generation = ++_generation;
     _unwatch();
     _detachEntry();
-    _api = null;
-    _rect = null;
-    _mount = MovaMiniMount.none;
+    _clearWindow();
     notifyListeners();
     await api.pause();
     if (generation != _generation && identical(_api, api)) return;
@@ -321,10 +317,17 @@ class MovaMini extends ChangeNotifier {
     ++_generation;
     _unwatch();
     _detachEntry();
+    _clearWindow();
+    notifyListeners();
+  }
+
+  /// Clears window state without changing teardown or notification order.
+  ///
+  /// 清空窗口状态，保留各退出路径的清理与通知顺序。
+  void _clearWindow() {
     _api = null;
     _rect = null;
     _mount = MovaMiniMount.none;
-    notifyListeners();
   }
 
   /// Removes and disposes the inserted entry even before its first build.
@@ -361,9 +364,7 @@ class MovaMini extends ChangeNotifier {
     final api = _api;
     _unwatch();
     if (api != null) unawaited(api.setMini(false));
-    _api = null;
-    _rect = null;
-    _mount = MovaMiniMount.none;
+    _clearWindow();
     _detachEntry();
     super.dispose();
   }

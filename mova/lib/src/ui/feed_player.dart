@@ -15,6 +15,12 @@ import '../core/model/fit.dart';
 import 'player.dart';
 import 'skins/douyin_skin.dart';
 
+/// Default feed backdrop and unloaded-page surface.
+///
+/// Feed 默认背景与未加载页面的画面。
+const _feedBackground = Colors.black;
+const _feedPlaceholder = ColoredBox(color: _feedBackground);
+
 /// Builds what a feed page shows while its video is not yet on screen — the
 /// gap between the page mounting and its pooled engine finishing `open()`.
 ///
@@ -375,7 +381,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     final generation = _loaderGeneration;
     final item = await widget.loader(index);
     if (!mounted || generation != _loaderGeneration) return null;
-    if (mounted && item == null && (_endIndex == null || index < _endIndex!)) {
+    if (item == null && (_endIndex == null || index < _endIndex!)) {
       setState(() => _endIndex = index);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted ||
@@ -460,6 +466,9 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     }
   }
 
+  /// Builds host-provided or default failure content with an explicit retry.
+  ///
+  /// 构建宿主提供或默认的失败内容，并提供显式重试。
   Widget _failure(
     BuildContext context,
     int index,
@@ -480,7 +489,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     if (custom != null) return custom(context, index, error, retry);
     final strings = MovaPlayerStyle.stringsOf(context);
     return ColoredBox(
-      color: const Color(0xFF000000),
+      color: _feedBackground,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -631,7 +640,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
               },
             );
       }
-      return const ColoredBox(color: Color(0xFF000000));
+      return _feedPlaceholder;
     }
 
     final skin = MovaDouyinSkin(
@@ -656,8 +665,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
             skin: skin,
             autoLoadQualities: false,
             poster: widget.posterUntilFirstFrame
-                ? (widget.placeholderBuilder?.call(context, item) ??
-                      const ColoredBox(color: Color(0xFF000000)))
+                ? _placeholder(context, item)
                 : null,
           );
         },
@@ -675,9 +683,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
     // feed 条目而非播放状态，因此由哪个引擎撑起 scope 对画面毫无影响——它只需要
     // 非空即可。
     final scopeApi = slot?.api ?? _fallbackScopeApi(index);
-    final placeholder =
-        widget.placeholderBuilder?.call(context, item) ??
-        const ColoredBox(color: Color(0xFF000000));
+    final placeholder = _placeholder(context, item);
     if (scopeApi == null) return placeholder;
 
     // Route through MovaPlayer with the placeholder as its surface rather than
@@ -697,6 +703,12 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
       surface: placeholder,
     );
   }
+
+  /// Builds the host placeholder with the same fallback for every page phase.
+  ///
+  /// 为页面各阶段构建宿主占位，并共用同一默认画面。
+  Widget _placeholder(BuildContext context, MovaFeedItem item) =>
+      widget.placeholderBuilder?.call(context, item) ?? _feedPlaceholder;
 
   /// Returns any live engine to scope a not-yet-bound page's chrome against:
   /// the active page's, or failing that whichever one the pool holds.

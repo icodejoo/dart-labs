@@ -1,15 +1,17 @@
 import '../cutover/plan.dart';
 import '../cutover/trigger.dart';
+import '../model/rate.dart';
 import '../options/ad_config.dart';
 
 /// 广告方向沿用宿主计划，未指定倍速时补 1x。
+/// Preserves the host plan, defaulting to the shared normal playback rate.
 MovaWarmPlan movaAdWarmPlan(MovaAdConfig cfg) {
   final plan = cfg.effectiveWarmPlan;
   return MovaWarmPlan(
     trigger: plan.trigger,
     policy: plan.policy,
     pauseWhenReady: plan.pauseWhenReady,
-    rate: plan.rate ?? 1.0,
+    rate: plan.rate ?? kMovaNormalRate,
   );
 }
 
@@ -27,7 +29,8 @@ MovaWarmCue movaContentWarmCue({
   Duration? remaining = mediaDuration > Duration.zero
       ? mediaDuration - adPosition
       : null;
-  if (slotRemaining != null && (remaining == null || slotRemaining < remaining)) {
+  if (slotRemaining != null &&
+      (remaining == null || slotRemaining < remaining)) {
     remaining = slotRemaining;
   }
   if (remaining != null && remaining < Duration.zero) remaining = Duration.zero;

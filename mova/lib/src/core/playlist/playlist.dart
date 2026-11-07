@@ -171,6 +171,9 @@ class MovaPlaylist {
       ? jumpTo(_index - 1)
       : Future<void>.value();
 
+  /// Navigates the borrowed session only while this controller is enabled.
+  ///
+  /// 仅在控制器启用时导航借用的会话。
   Future<void> _navigateSession({required bool forward}) async {
     if (_disposed || !_enabled) return;
     if (forward) {
@@ -196,7 +199,7 @@ class MovaPlaylist {
     if (_disposed) return;
     final session = _session;
     if (session != null) {
-      if (_disposed || !_enabled || index < 0 || index >= _items.length) return;
+      if (!_enabled || index < 0 || index >= _items.length) return;
       await session.jumpTo(index);
       return;
     }
@@ -226,12 +229,14 @@ class MovaPlaylist {
   /// 在一项播完时，若开启 [autoPlayNext] 则自动前进。
   void _onEvent(MovaEvent e) {
     if (e is MovaDone && _autoPlayNext && hasNext) {
-      unawaited(next().catchError((Object _) {
-        // The engine reports open failures through state/events. Automatic
-        // navigation has no awaiting caller; observe its Future here as well.
-        //
-        // 引擎通过状态/事件报告打开失败；自动导航没有等待方，须在此消费 Future 的异常。
-      }));
+      unawaited(
+        next().catchError((Object _) {
+          // The engine reports open failures through state/events. Automatic
+          // navigation has no awaiting caller; observe its Future here as well.
+          //
+          // 引擎通过状态/事件报告打开失败；自动导航没有等待方，须在此消费 Future 的异常。
+        }),
+      );
     }
   }
 
