@@ -1,0 +1,22 @@
+{
+  "relative_doc_links": 117,
+  "broken": [],
+  "root_analysis_options_matches_section_2_3": true,
+  "bench_analysis_options_restored_after_pub_get": true,
+  "provenance_hashes_verified": 33,
+  "classification_matches_dart": 130,
+  "distribution_svg_valid_xml": true,
+  "windows": 130,
+  "contaminated": 25,
+  "reference_windows": 65,
+  "reference_contaminated": 9,
+  "scenarios": {
+    "FAIL": 6,
+    "INFO": 1,
+    "PASS": 4
+  },
+  "dependencies_sha256": {
+    "pubspec.yaml": "c132223a11ff847c4c172892cec23bfe362a70478218a7a834ffef9aa2872547",
+    "tool/bench/pubspec.yaml": "9be24ea708e5748ad73bc018b9895cb22652394a3f85bbed5cb84e72d1e74eec"
+  }
+}

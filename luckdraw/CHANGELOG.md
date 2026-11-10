@@ -1,0 +1,51 @@
+## 0.1.0
+
+### Added
+
+- Typed, immutable models and widgets for wheels, nine-grids, slots, lever slots,
+  capsule machines, number wheels, drawing lots and super-lotto draws.
+- Controllers with asynchronous prize selection, weighted and guaranteed picking,
+  pause/resume, lifecycle handling, result callbacks and phase notifications.
+- Canvas rendering with Picture and raster caches, asynchronous image resolution,
+  text scaling, custom drawing layers, paylines and optional Widget overlays.
+- Separate entry points for each game, extension interfaces, deterministic testing
+  helpers and lucky-canvas JSON migration with an opt-in strict upstream preset.
+
+### Changed
+
+- Default to bounded bitmap caching while moving and vector replay while idle
+  (`LuckyCacheMode.auto`); document example screenshots and outstanding device performance limits.
+- Use elapsed time and a monotonic stop solver by default for consistent final
+  positions across refresh rates; retain frame-based upstream behavior in strict mode.
+- Keep core APIs and game implementations separate so unused games can be removed
+  by tree shaking, with no third-party runtime dependencies.
+
+### Fixed
+
+- Correct gradient edge cases, whitespace layout, fallback-font baselines and
+  image sizing, ownership and resource refresh.
+- Handle reentrant results and phase callbacks, delayed stop errors, queued
+  structural configuration updates and background controller replacement.
+- Align wheel, grid and slot motion and rendering with pinned upstream fixtures,
+  including early stops, seams and slot text rasterization tolerances.
+
+### Notes
+
+- Requires Dart 3.5 and Flutter 3.24 or later. This is an unofficial Apache-2.0
+  port; see NOTICE for attribution.
+- The 0.1.0 candidate has not been published to pub.dev.
+- Added games use deterministic animation without a physics engine or built-in
+  device shake detection. Widget overlays add rendering cost; 3D is an extension path.
+- Device performance, Android integration and Skia/Impeller device shadows still
+  require validation. Minimum-SDK and APK tree-shaking results are tracked separately
+  in the release checklist; local checks do not imply remote CI success.
+
+## 0.0.1
+
+- Initial development snapshot.
+
+## PERF 补充（2026-11-10，关联未发布的0.1.0）
+
+- 新增默认 `LuckyCacheMode.auto`：支持的运动段使用受限物理像素位图，静止与结算后回放矢量；严格上游 frame 配置保守保留 Picture。
+- 转盘遵守配置采样质量；数字盘、扭蛋球体、大乐透号码球及九宫格阴影背景按需缓存，补齐 DPR、原点和性能选项失效与释放验证。
+- 保存 vivo V2417 的消融、三轮 profile 和 37° 截图证据；GLES 编码长延迟仍可能造成超标，未放宽预算，详见 docs/PERF_REPORT.md。

@@ -1,0 +1,2500 @@
+--- a/lib/src/capsule/layout/capsule_layout.dart
++++ b/lib/src/capsule/layout/capsule_layout.dart
+@@ -5,6 +5,7 @@
+ 
+ import '../../core/game/layout.dart';
+ import '../../core/kinematics/swirl_mixer.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/text/text_line.dart';
+ import '../model/capsule_config.dart';
+ 
+@@ -147,61 +148,66 @@
+ /// 计算确定性几何；零尺寸返回空布局，负胶囊数量按零处理，无效奖品下标忽略。
+ CapsuleLayout computeCapsuleLayout(
+     CapsuleConfig config, LuckyLayoutInput input) {
+-  final size = input.size.isEmpty ? Size.zero : input.size;
+-  final w = size.width, h = size.height;
+-  final radius = math.min(
+-      w * config.options.globeRadiusFactor.clamp(0, _half), h * _maxRadius);
+-  final rc = radius * config.options.capsuleRadiusFactor.clamp(0, 1);
+-  final center = Offset(w * _half, h * _top + radius);
+-  final body = Rect.fromLTRB(
+-      math.max(0, w * _half - _bodyWidth * radius),
+-      center.dy + _bodyTop * radius,
+-      math.min(w, w * _half + _bodyWidth * radius),
+-      h * (1 - _trayHeight));
+-  final tray = Rect.fromLTWH(0, h * (1 - _trayHeight), w, h * _trayHeight);
+-  final exit = center + Offset(0, radius * _exitY);
+-  final card = Rect.fromLTWH(w * (1 - _cardWidth) * _half,
+-      tray.top - h * _cardHeight, w * _cardWidth, h * _cardHeight);
+-  final capsules = config.capsules
+-          ?.where((i) => i >= 0 && i < config.prizes.length)
+-          .toList() ??
+-      [
+-        for (var i = 0; i < config.prizes.length; i++)
+-          for (var j = 0; j < math.max(0, config.capsulesPerPrize); j++) i
+-      ];
+-  return CapsuleLayout(
+-      size: size,
+-      globeCenter: center,
+-      globeRadius: radius,
+-      capsuleRadius: rc,
+-      capsules: capsules,
+-      rest: packCirclesInCircle(
+-          count: capsules.length, containerRadius: radius, bodyRadius: rc),
+-      body: body,
+-      knobCenter: body.center,
+-      knobRadius: radius * _knobRadius,
+-      exit: exit,
+-      dropPath: [
+-        exit,
+-        Offset(body.center.dx + radius * _half, body.center.dy),
+-        Offset(body.right - rc, body.bottom - rc),
+-        tray.center
+-      ],
+-      tray: tray,
+-      card: card,
+-      cardTexts: [
+-        for (final prize in config.prizes)
+-          [
+-            for (final text in prize.texts)
+-              ...layoutLuckyTextLines(
+-                  text: text,
+-                  defaults: config.style.text,
+-                  override: config.style.card.text,
+-                  measurer: input.measurer,
+-                  box: card,
+-                  leftBase: card.width,
+-                  topBase: card.height,
+-                  maxWidthOf: (_, __) => card.width)
+-          ]
+-      ]);
++  luckyTraceStart('luckdraw.capsule.layout');
++  try {
++    final size = input.size.isEmpty ? Size.zero : input.size;
++    final w = size.width, h = size.height;
++    final radius = math.min(
++        w * config.options.globeRadiusFactor.clamp(0, _half), h * _maxRadius);
++    final rc = radius * config.options.capsuleRadiusFactor.clamp(0, 1);
++    final center = Offset(w * _half, h * _top + radius);
++    final body = Rect.fromLTRB(
++        math.max(0, w * _half - _bodyWidth * radius),
++        center.dy + _bodyTop * radius,
++        math.min(w, w * _half + _bodyWidth * radius),
++        h * (1 - _trayHeight));
++    final tray = Rect.fromLTWH(0, h * (1 - _trayHeight), w, h * _trayHeight);
++    final exit = center + Offset(0, radius * _exitY);
++    final card = Rect.fromLTWH(w * (1 - _cardWidth) * _half,
++        tray.top - h * _cardHeight, w * _cardWidth, h * _cardHeight);
++    final capsules = config.capsules
++            ?.where((i) => i >= 0 && i < config.prizes.length)
++            .toList() ??
++        [
++          for (var i = 0; i < config.prizes.length; i++)
++            for (var j = 0; j < math.max(0, config.capsulesPerPrize); j++) i
++        ];
++    return CapsuleLayout(
++        size: size,
++        globeCenter: center,
++        globeRadius: radius,
++        capsuleRadius: rc,
++        capsules: capsules,
++        rest: packCirclesInCircle(
++            count: capsules.length, containerRadius: radius, bodyRadius: rc),
++        body: body,
++        knobCenter: body.center,
++        knobRadius: radius * _knobRadius,
++        exit: exit,
++        dropPath: [
++          exit,
++          Offset(body.center.dx + radius * _half, body.center.dy),
++          Offset(body.right - rc, body.bottom - rc),
++          tray.center
++        ],
++        tray: tray,
++        card: card,
++        cardTexts: [
++          for (final prize in config.prizes)
++            [
++              for (final text in prize.texts)
++                ...layoutLuckyTextLines(
++                    text: text,
++                    defaults: config.style.text,
++                    override: config.style.card.text,
++                    measurer: input.measurer,
++                    box: card,
++                    leftBase: card.width,
++                    topBase: card.height,
++                    maxWidthOf: (_, __) => card.width)
++            ]
++        ]);
++  } finally {
++    luckyTraceEnd();
++  }
+ }
+--- a/lib/src/capsule/render/capsule_painter.dart
++++ b/lib/src/capsule/render/capsule_painter.dart
+@@ -11,6 +11,7 @@
+ import '../../core/render/cached_picture.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/capsule_layout.dart';
+@@ -89,162 +90,168 @@
+   void prepare(
+       LuckySurfaceData<CapsuleConfig, CapsuleLayout, CapsuleFrame> data,
+       {bool imagesOnly = false}) {
+-    if (imagesOnly) {
+-      for (var i = 0; i < data.config.prizes.length; i++) {
+-        if (data.config.prizes[i].images.isNotEmpty) {
+-          cache.invalidate(_cardBase + i);
++    luckyTraceStart('luckdraw.capsule.record');
++    try {
++      if (imagesOnly) {
++        for (var i = 0; i < data.config.prizes.length; i++) {
++          if (data.config.prizes[i].images.isNotEmpty) {
++            cache.invalidate(_cardBase + i);
++          }
+         }
+-      }
+-    } else {
+-      cache.invalidateAll();
+-    }
+-    capsules.clear();
+-    capsulePlayback.clear();
+-    cards.clear();
+-    layers.clear();
+-    final l = data.layout, c = data.config;
+-    back = cache.picture(_back, (canvas) {
+-      paintLuckyFill(
+-          canvas,
+-          Path()
+-            ..addOval(
+-                Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius)),
+-          c.style.globeFill ?? _globeFill,
+-          Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius));
+-      paintLuckyFill(
+-          canvas,
+-          Path()
+-            ..addRRect(
+-                RRect.fromRectAndRadius(l.body, Radius.circular(l.knobRadius))),
+-          c.style.bodyFill ?? _bodyFill,
+-          l.body);
+-      canvas.drawRRect(
+-          RRect.fromRectAndRadius(l.tray.deflate(l.capsuleRadius * _half),
+-              Radius.circular(l.capsuleRadius)),
+-          Paint()..color = _trayColor);
+-      canvas.drawPath(
+-          Path()
+-            ..moveTo(l.dropPath[0].dx, l.dropPath[0].dy)
+-            ..lineTo(l.dropPath[1].dx, l.dropPath[1].dy)
+-            ..lineTo(l.dropPath[2].dx, l.dropPath[2].dy)
+-            ..lineTo(l.dropPath[3].dx, l.dropPath[3].dy),
+-          Paint()
+-            ..color = _trayColor
+-            ..strokeWidth = l.capsuleRadius
+-            ..style = PaintingStyle.stroke);
+-    });
+-    front = cache.picture(_front, (canvas) {
+-      canvas.drawArc(
+-          Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius),
+-          math.pi,
+-          math.pi * _half,
+-          false,
+-          Paint()
+-            ..color = _highlight
+-            ..style = PaintingStyle.stroke
+-            ..strokeWidth = l.capsuleRadius * _half);
+-    });
+-    knob = cache.picture(_knob, (canvas) {
+-      final bounds = Rect.fromCircle(center: Offset.zero, radius: l.knobRadius);
+-      paintLuckyFill(canvas, Path()..addOval(bounds),
+-          c.style.knobFill ?? _knobFill, bounds);
+-      canvas.drawLine(
+-          Offset(-l.knobRadius * _half, 0),
+-          Offset(l.knobRadius * _half, 0),
+-          Paint()
+-            ..color = _trayColor
+-            ..strokeWidth = l.capsuleRadius * _half);
+-    });
+-    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
+-    for (var i = 0; i < c.prizes.length; i++) {
+-      final prize = c.prizes[i],
+-          key = (c.prizes[i].topFill, c.prizes[i].bottomFill);
+-      final picture = colors.putIfAbsent(
+-          key,
+-          () => LuckyCachedPicture(
+-                  cache,
+-                  _capsuleBase + i,
+-                  Rect.fromCircle(
+-                      center: Offset.zero,
+-                      radius: l.capsuleRadius + _seamWidth),
+-                  data.devicePixelRatio, (canvas) {
+-                final bounds = Rect.fromCircle(
+-                    center: Offset.zero, radius: l.capsuleRadius);
+-                final top = Path()
+-                  ..moveTo(-l.capsuleRadius, 0)
+-                  ..arcTo(bounds, math.pi, math.pi, false)
+-                  ..close();
+-                final bottom = Path()
+-                  ..moveTo(l.capsuleRadius, 0)
+-                  ..arcTo(bounds, 0, math.pi, false)
+-                  ..close();
+-                paintLuckyFill(canvas, top, prize.topFill, bounds);
+-                paintLuckyFill(canvas, bottom, prize.bottomFill, bounds);
+-                canvas.drawCircle(
+-                    Offset.zero,
+-                    l.capsuleRadius,
+-                    Paint()
+-                      ..color = c.style.seamColor
+-                      ..style = PaintingStyle.stroke
+-                      ..strokeWidth = _seamWidth);
+-                canvas.drawLine(
+-                    Offset(-l.capsuleRadius, 0),
+-                    Offset(l.capsuleRadius, 0),
+-                    Paint()
+-                      ..color = c.style.seamColor
+-                      ..strokeWidth = _seamWidth);
+-              }, data.performance));
+-      capsules.add(picture.picture);
+-      capsulePlayback.add(picture);
+-      cards.add(cache.picture(_cardBase + i, (canvas) {
+-        final style = c.style.card,
+-            path = Path()
++      } else {
++        cache.invalidateAll();
++      }
++      capsules.clear();
++      capsulePlayback.clear();
++      cards.clear();
++      layers.clear();
++      final l = data.layout, c = data.config;
++      back = cache.picture(_back, (canvas) {
++        paintLuckyFill(
++            canvas,
++            Path()
++              ..addOval(Rect.fromCircle(
++                  center: l.globeCenter, radius: l.globeRadius)),
++            c.style.globeFill ?? _globeFill,
++            Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius));
++        paintLuckyFill(
++            canvas,
++            Path()
+               ..addRRect(RRect.fromRectAndRadius(
+-                  l.card, Radius.circular(c.style.card.borderRadius ?? 0)));
+-        if (style.background != null) {
+-          paintLuckyFill(canvas, path, style.background!, l.card,
+-              shadow: style.shadow, dpr: data.devicePixelRatio);
++                  l.body, Radius.circular(l.knobRadius))),
++            c.style.bodyFill ?? _bodyFill,
++            l.body);
++        canvas.drawRRect(
++            RRect.fromRectAndRadius(l.tray.deflate(l.capsuleRadius * _half),
++                Radius.circular(l.capsuleRadius)),
++            Paint()..color = _trayColor);
++        canvas.drawPath(
++            Path()
++              ..moveTo(l.dropPath[0].dx, l.dropPath[0].dy)
++              ..lineTo(l.dropPath[1].dx, l.dropPath[1].dy)
++              ..lineTo(l.dropPath[2].dx, l.dropPath[2].dy)
++              ..lineTo(l.dropPath[3].dx, l.dropPath[3].dy),
++            Paint()
++              ..color = _trayColor
++              ..strokeWidth = l.capsuleRadius
++              ..style = PaintingStyle.stroke);
++      });
++      front = cache.picture(_front, (canvas) {
++        canvas.drawArc(
++            Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius),
++            math.pi,
++            math.pi * _half,
++            false,
++            Paint()
++              ..color = _highlight
++              ..style = PaintingStyle.stroke
++              ..strokeWidth = l.capsuleRadius * _half);
++      });
++      knob = cache.picture(_knob, (canvas) {
++        final bounds =
++            Rect.fromCircle(center: Offset.zero, radius: l.knobRadius);
++        paintLuckyFill(canvas, Path()..addOval(bounds),
++            c.style.knobFill ?? _knobFill, bounds);
++        canvas.drawLine(
++            Offset(-l.knobRadius * _half, 0),
++            Offset(l.knobRadius * _half, 0),
++            Paint()
++              ..color = _trayColor
++              ..strokeWidth = l.capsuleRadius * _half);
++      });
++      final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
++      for (var i = 0; i < c.prizes.length; i++) {
++        final prize = c.prizes[i],
++            key = (c.prizes[i].topFill, c.prizes[i].bottomFill);
++        final picture = colors.putIfAbsent(
++            key,
++            () => LuckyCachedPicture(
++                    cache,
++                    _capsuleBase + i,
++                    Rect.fromCircle(
++                        center: Offset.zero,
++                        radius: l.capsuleRadius + _seamWidth),
++                    data.devicePixelRatio, (canvas) {
++                  final bounds = Rect.fromCircle(
++                      center: Offset.zero, radius: l.capsuleRadius);
++                  final top = Path()
++                    ..moveTo(-l.capsuleRadius, 0)
++                    ..arcTo(bounds, math.pi, math.pi, false)
++                    ..close();
++                  final bottom = Path()
++                    ..moveTo(l.capsuleRadius, 0)
++                    ..arcTo(bounds, 0, math.pi, false)
++                    ..close();
++                  paintLuckyFill(canvas, top, prize.topFill, bounds);
++                  paintLuckyFill(canvas, bottom, prize.bottomFill, bounds);
++                  canvas.drawCircle(
++                      Offset.zero,
++                      l.capsuleRadius,
++                      Paint()
++                        ..color = c.style.seamColor
++                        ..style = PaintingStyle.stroke
++                        ..strokeWidth = _seamWidth);
++                  canvas.drawLine(
++                      Offset(-l.capsuleRadius, 0),
++                      Offset(l.capsuleRadius, 0),
++                      Paint()
++                        ..color = c.style.seamColor
++                        ..strokeWidth = _seamWidth);
++                }, data.performance));
++        capsules.add(picture.picture);
++        capsulePlayback.add(picture);
++        cards.add(cache.picture(_cardBase + i, (canvas) {
++          final style = c.style.card,
++              path = Path()
++                ..addRRect(RRect.fromRectAndRadius(
++                    l.card, Radius.circular(c.style.card.borderRadius ?? 0)));
++          if (style.background != null) {
++            paintLuckyFill(canvas, path, style.background!, l.card,
++                shadow: style.shadow, dpr: data.devicePixelRatio);
++          }
++          for (var j = 0; j < prize.images.length; j++) {
++            final image = prize.images[j],
++                resolved = data.images[LuckyImageSlot('prizes', i, j)];
++            if (resolved != null) {
++              final rect = LuckyImagePlacement(
++                      slot: LuckyImageSlot('prizes', i, j),
++                      image: image,
++                      box: l.card,
++                      maxWidth: l.card.width,
++                      maxHeight: l.card.height,
++                      leftBase: l.card.width,
++                      topBase: l.card.height)
++                  .place(resolved.naturalSize);
++              drawLuckyImage(canvas, resolved.image, rect,
++                  borderRadius: image.borderRadius, opacity: image.opacity);
++            }
++          }
++          paintLuckyTextLines(canvas, l.cardTexts[i], null,
++              textDirection: data.textDirection, textScale: data.textScale);
++          prize.painter?.call(canvas, l.card);
++          if (style.foreground != null) {
++            paintLuckyFill(canvas, path, style.foreground!, l.card);
++          }
++          if (style.border != null) {
++            strokeLuckyBorder(
++                canvas, l.card, style.borderRadius ?? 0, style.border!);
++          }
++        }));
++      }
++      final context = LuckyLayerContext<CapsuleLayout, CapsuleFrame>()
++        ..size = l.size
++        ..layout = l
++        ..frame = data.frame
++        ..devicePixelRatio = data.devicePixelRatio;
++      for (var i = 0; i < data.layers.length; i++) {
++        final layer = data.layers[i];
++        if (layer.isStatic) {
++          layers[i] = cache.picture(
++              _layerBase + i, (canvas) => layer.paint(canvas, context));
+         }
+-        for (var j = 0; j < prize.images.length; j++) {
+-          final image = prize.images[j],
+-              resolved = data.images[LuckyImageSlot('prizes', i, j)];
+-          if (resolved != null) {
+-            final rect = LuckyImagePlacement(
+-                    slot: LuckyImageSlot('prizes', i, j),
+-                    image: image,
+-                    box: l.card,
+-                    maxWidth: l.card.width,
+-                    maxHeight: l.card.height,
+-                    leftBase: l.card.width,
+-                    topBase: l.card.height)
+-                .place(resolved.naturalSize);
+-            drawLuckyImage(canvas, resolved.image, rect,
+-                borderRadius: image.borderRadius, opacity: image.opacity);
+-          }
+-        }
+-        paintLuckyTextLines(canvas, l.cardTexts[i], null,
+-            textDirection: data.textDirection, textScale: data.textScale);
+-        prize.painter?.call(canvas, l.card);
+-        if (style.foreground != null) {
+-          paintLuckyFill(canvas, path, style.foreground!, l.card);
+-        }
+-        if (style.border != null) {
+-          strokeLuckyBorder(
+-              canvas, l.card, style.borderRadius ?? 0, style.border!);
+-        }
+-      }));
+-    }
+-    final context = LuckyLayerContext<CapsuleLayout, CapsuleFrame>()
+-      ..size = l.size
+-      ..layout = l
+-      ..frame = data.frame
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    for (var i = 0; i < data.layers.length; i++) {
+-      final layer = data.layers[i];
+-      if (layer.isStatic) {
+-        layers[i] = cache.picture(
+-            _layerBase + i, (canvas) => layer.paint(canvas, context));
+-      }
++      }
++    } finally {
++      luckyTraceEnd();
+     }
+   }
+ 
+@@ -297,43 +304,50 @@
+   /// 按约定段顺序回放；掉落胶囊使用目标奖品配色。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    final l = data.layout, f = data.frame;
+-    if (l.isEmpty) return;
+-    _context
+-      ..size = size
+-      ..layout = l
+-      ..frame = f
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    data.hooks.beforeDraw?.call(canvas, size);
+-    _layers(canvas, LuckyLayerPosition.background);
+-    canvas.drawPicture(pictures.back);
+-    _layers(canvas, LuckyLayerPosition.belowItems);
+-    final dropped = f.stage == CapsuleStage.dropping ||
+-        f.stage == CapsuleStage.revealing ||
+-        f.stage == CapsuleStage.done;
+-    for (var i = 0; i < l.capsules.length; i++) {
+-      if (!dropped || i != f.droppedCapsule) _capsule(canvas, i, l.capsules[i]);
++    luckyTraceStart('luckdraw.capsule.paint');
++    try {
++      final l = data.layout, f = data.frame;
++      if (l.isEmpty) return;
++      _context
++        ..size = size
++        ..layout = l
++        ..frame = f
++        ..devicePixelRatio = data.devicePixelRatio;
++      data.hooks.beforeDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.background);
++      canvas.drawPicture(pictures.back);
++      _layers(canvas, LuckyLayerPosition.belowItems);
++      final dropped = f.stage == CapsuleStage.dropping ||
++          f.stage == CapsuleStage.revealing ||
++          f.stage == CapsuleStage.done;
++      for (var i = 0; i < l.capsules.length; i++) {
++        if (!dropped || i != f.droppedCapsule) {
++          _capsule(canvas, i, l.capsules[i]);
++        }
++      }
++      canvas.drawPicture(pictures.front);
++      canvas.save();
++      canvas.translate(l.knobCenter.dx, l.knobCenter.dy);
++      canvas.rotate(luckyDegToRad(f.knobDeg));
++      canvas.drawPicture(pictures.knob);
++      canvas.restore();
++      if (dropped && f.droppedCapsule >= 0) {
++        _capsule(canvas, f.droppedCapsule, f.targetPrize);
++      }
++      if (f.revealProgress > 0 && f.targetPrize >= 0) {
++        canvas.save();
++        canvas.translate(l.cardCenter.dx, l.cardCenter.dy);
++        canvas.scale(f.revealProgress);
++        canvas.translate(-l.cardCenter.dx, -l.cardCenter.dy);
++        canvas.drawPicture(pictures.cards[f.targetPrize]);
++        canvas.restore();
++      }
++      _layers(canvas, LuckyLayerPosition.aboveItems);
++      _layers(canvas, LuckyLayerPosition.foreground);
++      data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
+     }
+-    canvas.drawPicture(pictures.front);
+-    canvas.save();
+-    canvas.translate(l.knobCenter.dx, l.knobCenter.dy);
+-    canvas.rotate(luckyDegToRad(f.knobDeg));
+-    canvas.drawPicture(pictures.knob);
+-    canvas.restore();
+-    if (dropped && f.droppedCapsule >= 0) {
+-      _capsule(canvas, f.droppedCapsule, f.targetPrize);
+-    }
+-    if (f.revealProgress > 0 && f.targetPrize >= 0) {
+-      canvas.save();
+-      canvas.translate(l.cardCenter.dx, l.cardCenter.dy);
+-      canvas.scale(f.revealProgress);
+-      canvas.translate(-l.cardCenter.dx, -l.cardCenter.dy);
+-      canvas.drawPicture(pictures.cards[f.targetPrize]);
+-      canvas.restore();
+-    }
+-    _layers(canvas, LuckyLayerPosition.aboveItems);
+-    _layers(canvas, LuckyLayerPosition.foreground);
+-    data.hooks.afterDraw?.call(canvas, size);
+   }
+ 
+   /// 布局、图片和输入变更由宿主低频重建，帧通过 Listenable 驱动。
+--- a/lib/src/grid/layout/grid_layout.dart
++++ b/lib/src/grid/layout/grid_layout.dart
+@@ -10,6 +10,7 @@
+ import '../../core/foundation/shadow.dart';
+ import '../../core/game/layout.dart';
+ import '../../core/geometry/image_box.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/text/text_line.dart';
+ import '../model/grid_config.dart';
+ import '../model/grid_parts.dart';
+@@ -139,59 +140,69 @@
+ ///
+ /// 例如 `computeGridLayout(config, input)`；测量器由调用方释放。
+ GridLayout computeGridLayout(GridConfig config, LuckyLayoutInput input) {
+-  var area = Offset.zero & input.size;
+-  final blocks = <GridBlockLayout>[];
+-  for (var i = 0; i < config.blocks.length; i++) {
+-    final block = config.blocks[i];
+-    blocks.add(GridBlockLayout(area, block,
+-        _images(block.images, area, kLuckyGridBlocksGroup, i, active: false)));
+-    final padding = block.padding;
+-    area = Rect.fromLTWH(
+-        area.left + padding.left,
+-        area.top + padding.top,
+-        math.max(0, area.width - padding.left - padding.right),
+-        math.max(0, area.height - padding.top - padding.bottom));
++  luckyTraceStart('luckdraw.grid.layout');
++  try {
++    var area = Offset.zero & input.size;
++    final blocks = <GridBlockLayout>[];
++    for (var i = 0; i < config.blocks.length; i++) {
++      final block = config.blocks[i];
++      blocks.add(GridBlockLayout(
++          area,
++          block,
++          _images(block.images, area, kLuckyGridBlocksGroup, i,
++              active: false)));
++      final padding = block.padding;
++      area = Rect.fromLTWH(
++          area.left + padding.left,
++          area.top + padding.top,
++          math.max(0, area.width - padding.left - padding.right),
++          math.max(0, area.height - padding.top - padding.bottom));
++    }
++    final empty = config.rows <= 0 ||
++        config.cols <= 0 ||
++        area.width <= 0 ||
++        area.height <= 0;
++    final gutter = config.options.gutter;
++    final width = empty
++        ? 0.0
++        : math.max(
++            0.0, (area.width - gutter * (config.cols - 1)) / config.cols);
++    final height = empty
++        ? 0.0
++        : math.max(
++            0.0, (area.height - gutter * (config.rows - 1)) / config.rows);
++    final cells = <GridCellGeometry>[];
++    final all = <GridCell>[...config.prizes, ...config.buttons];
++    for (var i = 0; i < all.length; i++) {
++      final cell = all[i];
++      final rect = Rect.fromLTWH(
++          area.left + (width + gutter) * cell.x,
++          area.top + (height + gutter) * cell.y,
++          empty ? 0 : math.max(0, width * cell.col + gutter * (cell.col - 1)),
++          empty ? 0 : math.max(0, height * cell.row + gutter * (cell.row - 1)));
++      final prize = i < config.prizes.length;
++      final group = prize ? kLuckyGridPrizesGroup : kLuckyGridButtonsGroup;
++      final index = prize ? i : i - config.prizes.length;
++      final normal = _visual(config, input, cell, rect, group, index, false);
++      cells.add(GridCellGeometry(
++          normal: normal,
++          active: prize
++              ? _visual(config, input, cell, rect, group, index, true)
++              : normal,
++          hitRect: rect));
++    }
++    return GridLayout(
++        size: input.size,
++        prizeArea: area,
++        cellWidth: width,
++        cellHeight: height,
++        blocks: List.unmodifiable(blocks),
++        cells: List.unmodifiable(cells),
++        prizeCount: config.prizes.length,
++        isEmpty: empty || width <= 0 || height <= 0);
++  } finally {
++    luckyTraceEnd();
+   }
+-  final empty = config.rows <= 0 ||
+-      config.cols <= 0 ||
+-      area.width <= 0 ||
+-      area.height <= 0;
+-  final gutter = config.options.gutter;
+-  final width = empty
+-      ? 0.0
+-      : math.max(0.0, (area.width - gutter * (config.cols - 1)) / config.cols);
+-  final height = empty
+-      ? 0.0
+-      : math.max(0.0, (area.height - gutter * (config.rows - 1)) / config.rows);
+-  final cells = <GridCellGeometry>[];
+-  final all = <GridCell>[...config.prizes, ...config.buttons];
+-  for (var i = 0; i < all.length; i++) {
+-    final cell = all[i];
+-    final rect = Rect.fromLTWH(
+-        area.left + (width + gutter) * cell.x,
+-        area.top + (height + gutter) * cell.y,
+-        empty ? 0 : math.max(0, width * cell.col + gutter * (cell.col - 1)),
+-        empty ? 0 : math.max(0, height * cell.row + gutter * (cell.row - 1)));
+-    final prize = i < config.prizes.length;
+-    final group = prize ? kLuckyGridPrizesGroup : kLuckyGridButtonsGroup;
+-    final index = prize ? i : i - config.prizes.length;
+-    final normal = _visual(config, input, cell, rect, group, index, false);
+-    cells.add(GridCellGeometry(
+-        normal: normal,
+-        active: prize
+-            ? _visual(config, input, cell, rect, group, index, true)
+-            : normal,
+-        hitRect: rect));
+-  }
+-  return GridLayout(
+-      size: input.size,
+-      prizeArea: area,
+-      cellWidth: width,
+-      cellHeight: height,
+-      blocks: List.unmodifiable(blocks),
+-      cells: List.unmodifiable(cells),
+-      prizeCount: config.prizes.length,
+-      isEmpty: empty || width <= 0 || height <= 0);
+ }
+ 
+ /// 解析某格的状态；激活背景等整体替换普通态，文字与圆角非空覆盖。
+--- a/lib/src/grid/render/grid_painter.dart
++++ b/lib/src/grid/render/grid_painter.dart
+@@ -12,6 +12,7 @@
+ import '../../core/render/cached_picture.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/grid_layout.dart';
+@@ -75,69 +76,76 @@
+   /// 应用新布局、图片或扩展层并重录静态内容。
+   void rebuildSegments(
+       LuckySurfaceData<GridConfig, GridLayout, GridFrame> data) {
+-    _data = data;
+-    cache.invalidateAll();
+-    _cells.clear();
+-    _cellPlayback.clear();
+-    _cellContents.clear();
+-    _layers.clear();
+-    _context
+-      ..size = data.layout.size
+-      ..layout = data.layout
+-      ..frame = data.frame
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    _blocks = cache.picture(0, _recordBlocks);
+-    for (var i = 0; i < data.layout.cells.length; i++) {
+-      for (var state = 0; state < _cellPictureStates; state++) {
+-        final active = state != 0 && i < data.layout.prizeCount;
+-        final visual =
+-            active ? data.layout.cells[i].active : data.layout.cells[i].normal;
+-        final shadow = visual.shadow;
+-        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&
+-                data.config.options.motion.timebase == LuckyTimebase.frame
+-            ? data.performance.copyWith(cacheMode: LuckyCacheMode.picture)
+-            : data.performance;
+-        final padding = shadow == null
+-            ? 0.0
+-            : shadow.sigma(data.devicePixelRatio) * _shadowExtent +
+-                shadow.offsetX.abs() +
+-                shadow.offsetY.abs() +
+-                1;
+-        final index = i * _cellPictureStates + state;
+-        if (shadow != null &&
+-            visual.background != null &&
+-            performance.cacheMode != LuckyCacheMode.picture) {
+-          final background = LuckyCachedPicture(
+-              cache,
+-              _backgroundBase + index,
+-              visual.rect.inflate(padding),
+-              data.devicePixelRatio,
+-              (canvas) => _recordBackground(canvas, visual),
+-              performance);
+-          final content = cache.picture(
+-              _contentBase + index,
+-              (canvas) =>
+-                  recordCell(canvas, i, active, includeBackground: false));
+-          _cellPlayback.add(background);
+-          _cellContents.add(content);
+-          _cells.add(cache.picture(_cellPictureBase + index, (canvas) {
+-            canvas.drawPicture(background.picture);
+-            canvas.drawPicture(content);
+-          }));
+-        } else {
+-          _cellPlayback.add(null);
+-          _cellContents.add(null);
+-          _cells.add(cache.picture(_cellPictureBase + index,
+-              (canvas) => recordCell(canvas, i, active)));
++    luckyTraceStart('luckdraw.grid.record');
++    try {
++      _data = data;
++      cache.invalidateAll();
++      _cells.clear();
++      _cellPlayback.clear();
++      _cellContents.clear();
++      _layers.clear();
++      _context
++        ..size = data.layout.size
++        ..layout = data.layout
++        ..frame = data.frame
++        ..devicePixelRatio = data.devicePixelRatio;
++      _blocks = cache.picture(0, _recordBlocks);
++      for (var i = 0; i < data.layout.cells.length; i++) {
++        for (var state = 0; state < _cellPictureStates; state++) {
++          final active = state != 0 && i < data.layout.prizeCount;
++          final visual = active
++              ? data.layout.cells[i].active
++              : data.layout.cells[i].normal;
++          final shadow = visual.shadow;
++          final performance =
++              data.performance.cacheMode == LuckyCacheMode.auto &&
++                      data.config.options.motion.timebase == LuckyTimebase.frame
++                  ? data.performance.copyWith(cacheMode: LuckyCacheMode.picture)
++                  : data.performance;
++          final padding = shadow == null
++              ? 0.0
++              : shadow.sigma(data.devicePixelRatio) * _shadowExtent +
++                  shadow.offsetX.abs() +
++                  shadow.offsetY.abs() +
++                  1;
++          final index = i * _cellPictureStates + state;
++          if (shadow != null &&
++              visual.background != null &&
++              performance.cacheMode != LuckyCacheMode.picture) {
++            final background = LuckyCachedPicture(
++                cache,
++                _backgroundBase + index,
++                visual.rect.inflate(padding),
++                data.devicePixelRatio,
++                (canvas) => _recordBackground(canvas, visual),
++                performance);
++            final content = cache.picture(
++                _contentBase + index,
++                (canvas) =>
++                    recordCell(canvas, i, active, includeBackground: false));
++            _cellPlayback.add(background);
++            _cellContents.add(content);
++            _cells.add(cache.picture(_cellPictureBase + index, (canvas) {
++              canvas.drawPicture(background.picture);
++              canvas.drawPicture(content);
++            }));
++          } else {
++            _cellPlayback.add(null);
++            _cellContents.add(null);
++            _cells.add(cache.picture(_cellPictureBase + index,
++                (canvas) => recordCell(canvas, i, active)));
++          }
+         }
+       }
+-    }
+-    for (var i = 0; i < data.layers.length; i++) {
+-      final layer = data.layers[i];
+-      final picture = layer.isStatic
+-          ? cache.picture(i + 1, (canvas) => layer.paint(canvas, _context))
+-          : null;
+-      (_layers[layer.position] ??= []).add(_GridLayerSegment(layer, picture));
++      for (var i = 0; i < data.layers.length; i++) {
++        final layer = data.layers[i];
++        final picture = layer.isStatic
++            ? cache.picture(i + 1, (canvas) => layer.paint(canvas, _context))
++            : null;
++        (_layers[layer.position] ??= []).add(_GridLayerSegment(layer, picture));
++      }
++    } finally {
++      luckyTraceEnd();
+     }
+   }
+ 
+@@ -252,21 +260,28 @@
+   /// 回放背景及每格一张图片；不创建 Paint、Path 或布局对象。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    _data.hooks.beforeDraw?.call(canvas, size);
+-    _paintLayers(canvas, LuckyLayerPosition.background);
+-    canvas.drawPicture(_blocks);
+-    _paintLayers(canvas, LuckyLayerPosition.belowItems);
+-    for (var i = 0; i < _data.layout.prizeCount; i++) {
+-      final active =
+-          i == _data.frame.activeIndex && i < _data.layout.prizeCount;
+-      _paintCell(canvas, i * _cellPictureStates + (active ? 1 : 0));
+-    }
+-    _paintLayers(canvas, LuckyLayerPosition.aboveItems);
+-    for (var i = _data.layout.prizeCount; i < _data.layout.cells.length; i++) {
+-      _paintCell(canvas, i * _cellPictureStates);
+-    }
+-    _paintLayers(canvas, LuckyLayerPosition.foreground);
+-    _data.hooks.afterDraw?.call(canvas, size);
++    luckyTraceStart('luckdraw.grid.paint');
++    try {
++      _data.hooks.beforeDraw?.call(canvas, size);
++      _paintLayers(canvas, LuckyLayerPosition.background);
++      canvas.drawPicture(_blocks);
++      _paintLayers(canvas, LuckyLayerPosition.belowItems);
++      for (var i = 0; i < _data.layout.prizeCount; i++) {
++        final active =
++            i == _data.frame.activeIndex && i < _data.layout.prizeCount;
++        _paintCell(canvas, i * _cellPictureStates + (active ? 1 : 0));
++      }
++      _paintLayers(canvas, LuckyLayerPosition.aboveItems);
++      for (var i = _data.layout.prizeCount;
++          i < _data.layout.cells.length;
++          i++) {
++        _paintCell(canvas, i * _cellPictureStates);
++      }
++      _paintLayers(canvas, LuckyLayerPosition.foreground);
++      _data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 按运动阶段选择带阴影格子的缓存，避免重复执行模糊。
+--- a/lib/src/lots/layout/lots_layout.dart
++++ b/lib/src/lots/layout/lots_layout.dart
+@@ -6,6 +6,7 @@
+ import '../../core/foundation/angles.dart';
+ import '../../core/foundation/constants.dart';
+ import '../../core/game/layout.dart';
++import '../../core/render/perf_trace.dart';
+ import '../model/lots_config.dart';
+ 
+ /// T5.7 签筒宽度比例。
+@@ -85,37 +86,42 @@
+ 
+ /// 计算签筒与确定性扇形签槽；零尺寸或无候选签返回空布局。
+ LotsLayout computeLotsLayout(LotsConfig config, LuckyLayoutInput input) {
+-  final w = math.max(0.0, input.size.width),
+-      h = math.max(0.0, input.size.height);
+-  final cylinder = Rect.fromLTWH(
+-      w * (1 - _cylinderWidth) / kLuckyHalfDivisor,
+-      h * (1 - _bottomGap - _cylinderHeight),
+-      w * _cylinderWidth,
+-      h * _cylinderHeight);
+-  final count = w > 0 && h > 0 && config.sticks.isNotEmpty
+-      ? math.max(1, config.options.visibleSticks)
+-      : 0;
+-  final sticks = <Rect>[], angles = <double>[];
+-  for (var slot = 0; slot < count; slot++) {
+-    final length = h *
+-        _stickLength *
+-        (_lengthBase + _lengthRange * (_lengthSeed * (slot + 1) % 1));
+-    sticks.add(Rect.fromLTWH(
+-        w / kLuckyHalfDivisor - w * _stickWidth / kLuckyHalfDivisor,
+-        cylinder.top - length,
+-        w * _stickWidth,
+-        length + cylinder.height * _lengthRange));
+-    angles.add(luckyDegToRad(count == 1
+-        ? 0
+-        : -_fanAngle + kLuckyHalfDivisor * _fanAngle * slot / (count - 1)));
++  luckyTraceStart('luckdraw.lots.layout');
++  try {
++    final w = math.max(0.0, input.size.width),
++        h = math.max(0.0, input.size.height);
++    final cylinder = Rect.fromLTWH(
++        w * (1 - _cylinderWidth) / kLuckyHalfDivisor,
++        h * (1 - _bottomGap - _cylinderHeight),
++        w * _cylinderWidth,
++        h * _cylinderHeight);
++    final count = w > 0 && h > 0 && config.sticks.isNotEmpty
++        ? math.max(1, config.options.visibleSticks)
++        : 0;
++    final sticks = <Rect>[], angles = <double>[];
++    for (var slot = 0; slot < count; slot++) {
++      final length = h *
++          _stickLength *
++          (_lengthBase + _lengthRange * (_lengthSeed * (slot + 1) % 1));
++      sticks.add(Rect.fromLTWH(
++          w / kLuckyHalfDivisor - w * _stickWidth / kLuckyHalfDivisor,
++          cylinder.top - length,
++          w * _stickWidth,
++          length + cylinder.height * _lengthRange));
++      angles.add(luckyDegToRad(count == 1
++          ? 0
++          : -_fanAngle + kLuckyHalfDivisor * _fanAngle * slot / (count - 1)));
++    }
++    return LotsLayout(
++        size: input.size,
++        cylinder: cylinder,
++        pivot: cylinder.bottomCenter,
++        sticks: List.unmodifiable(sticks),
++        angles: List.unmodifiable(angles),
++        riseDistance: h * _rise,
++        card: Rect.fromLTWH(w * _cardMargin, h * _cardMargin,
++            w * (1 - kLuckyHalfDivisor * _cardMargin), h * _cardHeight));
++  } finally {
++    luckyTraceEnd();
+   }
+-  return LotsLayout(
+-      size: input.size,
+-      cylinder: cylinder,
+-      pivot: cylinder.bottomCenter,
+-      sticks: List.unmodifiable(sticks),
+-      angles: List.unmodifiable(angles),
+-      riseDistance: h * _rise,
+-      card: Rect.fromLTWH(w * _cardMargin, h * _cardMargin,
+-          w * (1 - kLuckyHalfDivisor * _cardMargin), h * _cardHeight));
+ }
+--- a/lib/src/lots/render/lots_painter.dart
++++ b/lib/src/lots/render/lots_painter.dart
+@@ -9,6 +9,7 @@
+ import '../../core/geometry/image_box.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../../core/text/text_line.dart';
+@@ -54,39 +55,44 @@
+       : super(
+             repaint: Listenable.merge(
+                 [data.frameListenable, data.imagesListenable])) {
+-    _cardCenter = data.layout.card.center;
+-    _background = cache.picture(
+-        _backgroundId,
+-        (canvas) => _fill(canvas, Offset.zero & data.layout.size,
+-            data.config.style.background));
+-    _back = cache.picture(
+-        _backId,
+-        (canvas) =>
+-            _fill(canvas, data.layout.cylinder, data.config.style.backFill));
+-    _bare = cache.picture(_bareId,
+-        (canvas) => _fill(canvas, _unitStick, data.config.style.stickFill));
+-    _front = cache.picture(
+-        _frontId,
+-        (canvas) => _fill(
+-            canvas, data.layout.cylinder, data.config.style.cylinderFill));
+-    for (var i = 0; i < data.config.sticks.length; i++) {
+-      final index = i;
+-      _named.add(cache.picture(
+-          _namedBase + i, (canvas) => _recordNamed(canvas, index)));
+-      _cards.add(
+-          cache.picture(_cardBase - i, (canvas) => _recordCard(canvas, index)));
+-    }
+-    _context = LuckyLayerContext<LotsLayout, LotsFrame>()
+-      ..size = data.layout.size
+-      ..layout = data.layout
+-      ..frame = data.frame
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    for (var i = 0; i < data.layers.length; i++) {
+-      final layer = data.layers[i];
+-      _layerPictures.add(layer.isStatic
+-          ? cache.picture(
+-              _layerBase + i, (canvas) => layer.paint(canvas, _context))
+-          : null);
++    luckyTraceStart('luckdraw.lots.record');
++    try {
++      _cardCenter = data.layout.card.center;
++      _background = cache.picture(
++          _backgroundId,
++          (canvas) => _fill(canvas, Offset.zero & data.layout.size,
++              data.config.style.background));
++      _back = cache.picture(
++          _backId,
++          (canvas) =>
++              _fill(canvas, data.layout.cylinder, data.config.style.backFill));
++      _bare = cache.picture(_bareId,
++          (canvas) => _fill(canvas, _unitStick, data.config.style.stickFill));
++      _front = cache.picture(
++          _frontId,
++          (canvas) => _fill(
++              canvas, data.layout.cylinder, data.config.style.cylinderFill));
++      for (var i = 0; i < data.config.sticks.length; i++) {
++        final index = i;
++        _named.add(cache.picture(
++            _namedBase + i, (canvas) => _recordNamed(canvas, index)));
++        _cards.add(cache.picture(
++            _cardBase - i, (canvas) => _recordCard(canvas, index)));
++      }
++      _context = LuckyLayerContext<LotsLayout, LotsFrame>()
++        ..size = data.layout.size
++        ..layout = data.layout
++        ..frame = data.frame
++        ..devicePixelRatio = data.devicePixelRatio;
++      for (var i = 0; i < data.layers.length; i++) {
++        final layer = data.layers[i];
++        _layerPictures.add(layer.isStatic
++            ? cache.picture(
++                _layerBase + i, (canvas) => layer.paint(canvas, _context))
++            : null);
++      }
++    } finally {
++      luckyTraceEnd();
+     }
+   }
+ 
+@@ -142,7 +148,12 @@
+         textDirection: data.textDirection,
+         textScaler: data.textScale);
+     try {
+-      painter.layout(maxWidth: rect.width);
++      luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++      try {
++        painter.layout(maxWidth: rect.width);
++      } finally {
++        luckyTraceEnd();
++      }
+       painter.paint(
+           canvas, Offset(rect.left, rect.top + rect.height * _labelInset));
+     } finally {
+@@ -223,45 +234,50 @@
+   /// 回放缓存段，不使用 saveLayer，也不在帧内创建 Paint 或 Rect。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    final l = data.layout, f = data.frame;
+-    data.hooks.beforeDraw?.call(canvas, size);
+-    _layers(canvas, LuckyLayerPosition.background);
+-    canvas.drawPicture(_background);
+-    canvas.save();
+-    _shake(canvas);
+-    canvas.drawPicture(_back);
+-    _layers(canvas, LuckyLayerPosition.belowItems);
+-    for (var slot = 0; slot < l.sticks.length; slot++) {
+-      final rect = l.sticks[slot];
+-      final target =
+-          slot == f.targetSlot && f.targetIndex >= 0 && f.riseProgress > 0;
++    luckyTraceStart('luckdraw.lots.paint');
++    try {
++      final l = data.layout, f = data.frame;
++      data.hooks.beforeDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.background);
++      canvas.drawPicture(_background);
+       canvas.save();
+-      canvas.translate(l.pivot.dx, l.cylinder.top);
+-      canvas.rotate(l.angles[slot]);
+-      canvas.translate(-l.pivot.dx, -l.cylinder.top);
+-      if (target) {
+-        canvas.translate(0, -l.riseDistance * f.riseProgress);
+-        canvas.drawPicture(_named[f.targetIndex]);
+-      } else {
+-        canvas.translate(rect.left, rect.top);
+-        canvas.scale(rect.width, rect.height);
+-        canvas.drawPicture(_bare);
+-      }
++      _shake(canvas);
++      canvas.drawPicture(_back);
++      _layers(canvas, LuckyLayerPosition.belowItems);
++      for (var slot = 0; slot < l.sticks.length; slot++) {
++        final rect = l.sticks[slot];
++        final target =
++            slot == f.targetSlot && f.targetIndex >= 0 && f.riseProgress > 0;
++        canvas.save();
++        canvas.translate(l.pivot.dx, l.cylinder.top);
++        canvas.rotate(l.angles[slot]);
++        canvas.translate(-l.pivot.dx, -l.cylinder.top);
++        if (target) {
++          canvas.translate(0, -l.riseDistance * f.riseProgress);
++          canvas.drawPicture(_named[f.targetIndex]);
++        } else {
++          canvas.translate(rect.left, rect.top);
++          canvas.scale(rect.width, rect.height);
++          canvas.drawPicture(_bare);
++        }
++        canvas.restore();
++      }
++      canvas.drawPicture(_front);
+       canvas.restore();
+-    }
+-    canvas.drawPicture(_front);
+-    canvas.restore();
+-    _layers(canvas, LuckyLayerPosition.aboveItems);
+-    if (f.targetIndex >= 0 && f.revealProgress > 0) {
+-      canvas.save();
+-      canvas.translate(_cardCenter.dx, _cardCenter.dy);
+-      canvas.scale(f.revealProgress);
+-      canvas.translate(-_cardCenter.dx, -_cardCenter.dy);
+-      canvas.drawPicture(_cards[f.targetIndex]);
+-      canvas.restore();
+-    }
+-    _layers(canvas, LuckyLayerPosition.foreground);
+-    data.hooks.afterDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.aboveItems);
++      if (f.targetIndex >= 0 && f.revealProgress > 0) {
++        canvas.save();
++        canvas.translate(_cardCenter.dx, _cardCenter.dy);
++        canvas.scale(f.revealProgress);
++        canvas.translate(-_cardCenter.dx, -_cardCenter.dy);
++        canvas.drawPicture(_cards[f.targetIndex]);
++        canvas.restore();
++      }
++      _layers(canvas, LuckyLayerPosition.foreground);
++      data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 低频输入变化时重绘。
+--- a/lib/src/lotto/layout/lotto_layout.dart
++++ b/lib/src/lotto/layout/lotto_layout.dart
+@@ -5,6 +5,7 @@
+ 
+ import '../../core/game/layout.dart';
+ import '../../core/kinematics/swirl_mixer.dart';
++import '../../core/render/perf_trace.dart';
+ import '../model/lotto_config.dart';
+ 
+ /// T5.9 的横向容器留白比例。
+@@ -86,47 +87,52 @@
+ 
+ /// 计算摇奖机布局；例如传入 headless 布局环境，零尺寸返回空布局。
+ LottoLayout computeLottoLayout(LottoConfig config, LuckyLayoutInput input) {
+-  config.validate();
+-  final size = input.size;
+-  if (size.isEmpty || !size.width.isFinite || !size.height.isFinite) {
++  luckyTraceStart('luckdraw.lotto.layout');
++  try {
++    config.validate();
++    final size = input.size;
++    if (size.isEmpty || !size.width.isFinite || !size.height.isFinite) {
++      return LottoLayout(
++          size: size, drums: const [], button: Rect.zero, slotRadius: 0);
++    }
++    final m = config.pools.length;
++    final radius = math.min(
++        size.width / (_diameter * m) * _drumWidth, _drumHeight * size.height);
++    final count = config.pools.fold<int>(0, (n, p) => n + p.count);
++    final cell = size.width / (count + m);
++    final ballRadius = math.min(radius * config.options.ballRadiusFactor,
++        math.min(cell, size.height * (1 - _resultY)) / _diameter);
++    final drums = <LottoDrumLayout>[];
++    var slot = 0;
++    for (var p = 0; p < m; p++) {
++      final pool = config.pools[p];
++      final center = Offset(
++          size.width * (p + 1 / _diameter) / m, size.height * _drumHeight);
++      final slots = List.generate(pool.count,
++          (j) => Offset(cell * (slot + j + 1), size.height * _resultY));
++      slot += pool.count + 1;
++      drums.add(LottoDrumLayout(
++          center: center,
++          radius: radius,
++          ballRadius: ballRadius,
++          rest: List.unmodifiable(packCirclesInCircle(
++              count: pool.max - pool.min + 1,
++              containerRadius: radius,
++              bodyRadius: ballRadius)),
++          exit: center + Offset(0, radius),
++          slots: List.unmodifiable(slots),
++          min: pool.min));
++    }
++    final buttonRadius =
++        math.min(size.width / (m * _diameter), size.height * _buttonRadius);
+     return LottoLayout(
+-        size: size, drums: const [], button: Rect.zero, slotRadius: 0);
++        size: size,
++        drums: List.unmodifiable(drums),
++        button: Rect.fromCircle(
++            center: Offset(size.width / _diameter, size.height * _buttonY),
++            radius: buttonRadius),
++        slotRadius: ballRadius);
++  } finally {
++    luckyTraceEnd();
+   }
+-  final m = config.pools.length;
+-  final radius = math.min(
+-      size.width / (_diameter * m) * _drumWidth, _drumHeight * size.height);
+-  final count = config.pools.fold<int>(0, (n, p) => n + p.count);
+-  final cell = size.width / (count + m);
+-  final ballRadius = math.min(radius * config.options.ballRadiusFactor,
+-      math.min(cell, size.height * (1 - _resultY)) / _diameter);
+-  final drums = <LottoDrumLayout>[];
+-  var slot = 0;
+-  for (var p = 0; p < m; p++) {
+-    final pool = config.pools[p];
+-    final center =
+-        Offset(size.width * (p + 1 / _diameter) / m, size.height * _drumHeight);
+-    final slots = List.generate(pool.count,
+-        (j) => Offset(cell * (slot + j + 1), size.height * _resultY));
+-    slot += pool.count + 1;
+-    drums.add(LottoDrumLayout(
+-        center: center,
+-        radius: radius,
+-        ballRadius: ballRadius,
+-        rest: List.unmodifiable(packCirclesInCircle(
+-            count: pool.max - pool.min + 1,
+-            containerRadius: radius,
+-            bodyRadius: ballRadius)),
+-        exit: center + Offset(0, radius),
+-        slots: List.unmodifiable(slots),
+-        min: pool.min));
+-  }
+-  final buttonRadius =
+-      math.min(size.width / (m * _diameter), size.height * _buttonRadius);
+-  return LottoLayout(
+-      size: size,
+-      drums: List.unmodifiable(drums),
+-      button: Rect.fromCircle(
+-          center: Offset(size.width / _diameter, size.height * _buttonY),
+-          radius: buttonRadius),
+-      slotRadius: ballRadius);
+ }
+--- a/lib/src/lotto/render/lotto_painter.dart
++++ b/lib/src/lotto/render/lotto_painter.dart
+@@ -6,6 +6,7 @@
+ import '../../core/motion/phase.dart';
+ import '../../core/render/cached_picture.dart';
+ import '../../core/render/layer.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/lotto_layout.dart';
+@@ -52,32 +53,37 @@
+       : super(
+             repaint: Listenable.merge(
+                 [data.frameListenable, data.imagesListenable])) {
+-    _context
+-      ..layout = data.layout
+-      ..frame = data.frame
+-      ..size = data.layout.size
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    _back = cache.picture(_backId, _recordBack);
+-    _front = cache.picture(_frontId, _recordFront);
+-    _button = cache.picture(_buttonId, _recordButton);
+-    var id = _ballStart;
+-    _balls = List.generate(
+-        data.layout.drums.length,
+-        (p) => List.generate(
+-            data.layout.drums[p].rest.length,
+-            (b) => LuckyCachedPicture(
+-                cache,
+-                id++,
+-                _ballBounds(p, b),
+-                data.devicePixelRatio,
+-                (canvas) => _recordBall(canvas, p, b),
+-                data.performance)));
+-    _layerPictures = List.generate(
+-        data.layers.length,
+-        (i) => data.layers[i].isStatic
+-            ? cache.picture(
+-                id++, (canvas) => data.layers[i].paint(canvas, _context))
+-            : null);
++    luckyTraceStart('luckdraw.lotto.record');
++    try {
++      _context
++        ..layout = data.layout
++        ..frame = data.frame
++        ..size = data.layout.size
++        ..devicePixelRatio = data.devicePixelRatio;
++      _back = cache.picture(_backId, _recordBack);
++      _front = cache.picture(_frontId, _recordFront);
++      _button = cache.picture(_buttonId, _recordButton);
++      var id = _ballStart;
++      _balls = List.generate(
++          data.layout.drums.length,
++          (p) => List.generate(
++              data.layout.drums[p].rest.length,
++              (b) => LuckyCachedPicture(
++                  cache,
++                  id++,
++                  _ballBounds(p, b),
++                  data.devicePixelRatio,
++                  (canvas) => _recordBall(canvas, p, b),
++                  data.performance)));
++      _layerPictures = List.generate(
++          data.layers.length,
++          (i) => data.layers[i].isStatic
++              ? cache.picture(
++                  id++, (canvas) => data.layers[i].paint(canvas, _context))
++              : null);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 本次布局、配置及复用帧。
+@@ -184,7 +190,12 @@
+         textDirection: data.textDirection,
+         textScaler: data.textScale);
+     try {
+-      painter.layout();
++      luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++      try {
++        painter.layout();
++      } finally {
++        luckyTraceEnd();
++      }
+       return circle
+           .expandToInclude(Rect.fromCenter(
+               center: Offset.zero,
+@@ -205,8 +216,13 @@
+             style: TextStyle(
+                 color: color, fontSize: fontSize, fontFamily: _fontFamily)),
+         textDirection: data.textDirection,
+-        textScaler: data.textScale)
+-      ..layout();
++        textScaler: data.textScale);
++    luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++    try {
++      painter.layout();
++    } finally {
++      luckyTraceEnd();
++    }
+     painter.paint(canvas,
+         center - Offset(painter.width / _diameter, painter.height / _diameter));
+     painter.dispose();
+@@ -242,26 +258,31 @@
+   /// 按背板、球、前景、按钮、用户层顺序绘制，不使用 saveLayer。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    if (data.layout.isEmpty) return;
+-    data.hooks.beforeDraw?.call(canvas, size);
+-    _layers(canvas, LuckyLayerPosition.background);
+-    canvas.drawPicture(_back);
+-    _layers(canvas, LuckyLayerPosition.belowItems);
+-    for (var p = 0; p < _balls.length; p++) {
+-      for (var b = 0; b < _balls[p].length; b++) {
+-        if (data.frame.slotOf[p][b] < 0) _ball(canvas, p, b);
+-      }
+-    }
+-    for (var p = 0; p < _balls.length; p++) {
+-      for (var b = 0; b < _balls[p].length; b++) {
+-        if (data.frame.slotOf[p][b] >= 0) _ball(canvas, p, b);
+-      }
+-    }
+-    canvas.drawPicture(_front);
+-    _layers(canvas, LuckyLayerPosition.aboveItems);
+-    canvas.drawPicture(_button);
+-    _layers(canvas, LuckyLayerPosition.foreground);
+-    data.hooks.afterDraw?.call(canvas, size);
++    luckyTraceStart('luckdraw.lotto.paint');
++    try {
++      if (data.layout.isEmpty) return;
++      data.hooks.beforeDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.background);
++      canvas.drawPicture(_back);
++      _layers(canvas, LuckyLayerPosition.belowItems);
++      for (var p = 0; p < _balls.length; p++) {
++        for (var b = 0; b < _balls[p].length; b++) {
++          if (data.frame.slotOf[p][b] < 0) _ball(canvas, p, b);
++        }
++      }
++      for (var p = 0; p < _balls.length; p++) {
++        for (var b = 0; b < _balls[p].length; b++) {
++          if (data.frame.slotOf[p][b] >= 0) _ball(canvas, p, b);
++        }
++      }
++      canvas.drawPicture(_front);
++      _layers(canvas, LuckyLayerPosition.aboveItems);
++      canvas.drawPicture(_button);
++      _layers(canvas, LuckyLayerPosition.foreground);
++      data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 布局、图片、配置或绘制层发生低频变更时重绘。
+--- a/lib/src/number_wheel/layout/number_wheel_layout.dart
++++ b/lib/src/number_wheel/layout/number_wheel_layout.dart
+@@ -5,6 +5,7 @@
+ 
+ import '../../core/foundation/constants.dart';
+ import '../../core/game/layout.dart';
++import '../../core/render/perf_trace.dart';
+ import '../model/number_wheel_config.dart';
+ 
+ /// 标签最小间距相对字号的比例（T5.5）。
+@@ -61,33 +62,38 @@
+ /// 为 [config] 计算盒子内布局；零尺寸返回空布局。
+ NumberWheelLayout computeNumberWheelLayout(
+     NumberWheelConfig config, LuckyLayoutInput input) {
+-  final r = math.max(
+-      0.0, math.min(input.size.width, input.size.height) / kLuckyHalfDivisor);
+-  final o = config.options;
+-  final labelRadius =
+-      r * (o.labelInnerFactor + o.labelOuterFactor) / kLuckyHalfDivisor;
+-  final maxLabels = math.max(
+-      1,
+-      (kLuckyHalfDivisor *
+-              math.pi *
+-              labelRadius /
+-              math.max(1, config.style.fontSize * _labelSpacing))
+-          .floor());
+-  final alignment = input.alignment.resolve(input.textDirection);
+-  final origin = alignment.alongOffset(Offset(
+-      input.size.width - kLuckyHalfDivisor * r,
+-      input.size.height - kLuckyHalfDivisor * r));
+-  return NumberWheelLayout(
+-      size: input.size,
+-      center: origin + Offset(r, r),
+-      radius: r,
+-      trackRadius:
+-          r * (o.trackInnerFactor + o.trackOuterFactor) / kLuckyHalfDivisor,
+-      pocketRadius:
+-          r * (o.pocketInnerFactor + o.pocketOuterFactor) / kLuckyHalfDivisor,
+-      labelRadius: labelRadius,
+-      hubRadius: r * o.hubFactor,
+-      ballSize: r * o.ballRadiusFactor,
+-      labelEvery: math.max(1, (config.pockets.length / maxLabels).ceil()),
+-      count: config.pockets.length);
++  luckyTraceStart('luckdraw.number_wheel.layout');
++  try {
++    final r = math.max(
++        0.0, math.min(input.size.width, input.size.height) / kLuckyHalfDivisor);
++    final o = config.options;
++    final labelRadius =
++        r * (o.labelInnerFactor + o.labelOuterFactor) / kLuckyHalfDivisor;
++    final maxLabels = math.max(
++        1,
++        (kLuckyHalfDivisor *
++                math.pi *
++                labelRadius /
++                math.max(1, config.style.fontSize * _labelSpacing))
++            .floor());
++    final alignment = input.alignment.resolve(input.textDirection);
++    final origin = alignment.alongOffset(Offset(
++        input.size.width - kLuckyHalfDivisor * r,
++        input.size.height - kLuckyHalfDivisor * r));
++    return NumberWheelLayout(
++        size: input.size,
++        center: origin + Offset(r, r),
++        radius: r,
++        trackRadius:
++            r * (o.trackInnerFactor + o.trackOuterFactor) / kLuckyHalfDivisor,
++        pocketRadius:
++            r * (o.pocketInnerFactor + o.pocketOuterFactor) / kLuckyHalfDivisor,
++        labelRadius: labelRadius,
++        hubRadius: r * o.hubFactor,
++        ballSize: r * o.ballRadiusFactor,
++        labelEvery: math.max(1, (config.pockets.length / maxLabels).ceil()),
++        count: config.pockets.length);
++  } finally {
++    luckyTraceEnd();
++  }
+ }
+--- a/lib/src/number_wheel/render/number_wheel_painter.dart
++++ b/lib/src/number_wheel/render/number_wheel_painter.dart
+@@ -10,6 +10,7 @@
+ import '../../core/render/cached_picture.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/number_wheel_layout.dart';
+@@ -41,21 +42,26 @@
+       : super(
+             repaint: Listenable.merge(
+                 [data.frameListenable, data.imagesListenable])) {
+-    _track = cache.picture(_trackId, _recordTrack);
+-    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,
+-        data.devicePixelRatio, _recordDisc, data.performance);
+-    _ball = cache.picture(_ballId, _recordBall);
+-    _context = LuckyLayerContext<NumberWheelLayout, NumberWheelFrame>()
+-      ..size = data.layout.size
+-      ..layout = data.layout
+-      ..frame = data.frame
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    for (var i = 0; i < data.layers.length; i++) {
+-      final layer = data.layers[i];
+-      _layerPictures.add(layer.isStatic
+-          ? cache.picture(
+-              _layerBase + i, (canvas) => layer.paint(canvas, _context))
+-          : null);
++    luckyTraceStart('luckdraw.number_wheel.record');
++    try {
++      _track = cache.picture(_trackId, _recordTrack);
++      _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,
++          data.devicePixelRatio, _recordDisc, data.performance);
++      _ball = cache.picture(_ballId, _recordBall);
++      _context = LuckyLayerContext<NumberWheelLayout, NumberWheelFrame>()
++        ..size = data.layout.size
++        ..layout = data.layout
++        ..frame = data.frame
++        ..devicePixelRatio = data.devicePixelRatio;
++      for (var i = 0; i < data.layers.length; i++) {
++        final layer = data.layers[i];
++        _layerPictures.add(layer.isStatic
++            ? cache.picture(
++                _layerBase + i, (canvas) => layer.paint(canvas, _context))
++            : null);
++      }
++    } finally {
++      luckyTraceEnd();
+     }
+   }
+ 
+@@ -140,7 +146,12 @@
+             textDirection: data.textDirection,
+             textScaler: data.textScale);
+         try {
+-          text.layout();
++          luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
++          try {
++            text.layout();
++          } finally {
++            luckyTraceEnd();
++          }
+           text.paint(
+               canvas,
+               Offset(l.labelRadius - text.width / kLuckyHalfDivisor,
+@@ -192,24 +203,29 @@
+   /// 每帧平衡变换、回放与钩子；不录制显示列表。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    data.hooks.beforeDraw?.call(canvas, size);
+-    _layers(canvas, LuckyLayerPosition.background);
+-    canvas.drawPicture(_track);
+-    _layers(canvas, LuckyLayerPosition.belowItems);
+-    canvas.save();
+-    _rotate(canvas);
+-    _disc.paint(canvas, isMoving: data.frame.phase.isMoving);
+-    canvas.restore();
+-    final angle = luckyDegToRad(data.frame.ballDeg + kLuckyPointerDeg);
+-    canvas.save();
+-    canvas.translate(
+-        data.layout.center.dx + data.frame.ballRadius * math.cos(angle),
+-        data.layout.center.dy + data.frame.ballRadius * math.sin(angle));
+-    canvas.drawPicture(_ball);
+-    canvas.restore();
+-    _layers(canvas, LuckyLayerPosition.aboveItems);
+-    _layers(canvas, LuckyLayerPosition.foreground);
+-    data.hooks.afterDraw?.call(canvas, size);
++    luckyTraceStart('luckdraw.number_wheel.paint');
++    try {
++      data.hooks.beforeDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.background);
++      canvas.drawPicture(_track);
++      _layers(canvas, LuckyLayerPosition.belowItems);
++      canvas.save();
++      _rotate(canvas);
++      _disc.paint(canvas, isMoving: data.frame.phase.isMoving);
++      canvas.restore();
++      final angle = luckyDegToRad(data.frame.ballDeg + kLuckyPointerDeg);
++      canvas.save();
++      canvas.translate(
++          data.layout.center.dx + data.frame.ballRadius * math.cos(angle),
++          data.layout.center.dy + data.frame.ballRadius * math.sin(angle));
++      canvas.drawPicture(_ball);
++      canvas.restore();
++      _layers(canvas, LuckyLayerPosition.aboveItems);
++      _layers(canvas, LuckyLayerPosition.foreground);
++      data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 输入版本变化时请求重绘。
+--- a/lib/src/slot/layout/slot_layout.dart
++++ b/lib/src/slot/layout/slot_layout.dart
+@@ -9,6 +9,7 @@
+ import '../../core/foundation/image.dart';
+ import '../../core/game/layout.dart';
+ import '../../core/geometry/image_box.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/text/text_line.dart';
+ import '../model/slot_config.dart';
+ import '../model/slot_parts.dart';
+@@ -155,85 +156,94 @@
+ 
+ /// 计算确定性布局；零尺寸、无列或间距挤满窗口时返回空布局。
+ SlotLayout computeSlotLayout(SlotConfig config, LuckyLayoutInput input) {
+-  var area = Offset.zero & input.size;
+-  final blocks = <SlotBlockLayout>[];
+-  for (var b = 0; b < config.blocks.length; b++) {
+-    final block = config.blocks[b];
+-    blocks.add(SlotBlockLayout(
+-        block,
+-        area,
+-        block.background ?? config.style.cell.background,
+-        _images(block.images, slotBlockImageGroup, b, area)));
+-    final pad = block.padding;
+-    area = Rect.fromLTWH(
+-        area.left + pad.left,
+-        area.top + pad.top,
+-        math.max(0, area.width - pad.left - pad.right),
+-        math.max(0, area.height - pad.top - pad.bottom));
++  luckyTraceStart('luckdraw.slot.layout');
++  try {
++    var area = Offset.zero & input.size;
++    final blocks = <SlotBlockLayout>[];
++    for (var b = 0; b < config.blocks.length; b++) {
++      final block = config.blocks[b];
++      blocks.add(SlotBlockLayout(
++          block,
++          area,
++          block.background ?? config.style.cell.background,
++          _images(block.images, slotBlockImageGroup, b, area)));
++      final pad = block.padding;
++      area = Rect.fromLTWH(
++          area.left + pad.left,
++          area.top + pad.top,
++          math.max(0, area.width - pad.left - pad.right),
++          math.max(0, area.height - pad.top - pad.bottom));
++    }
++    final o = config.options;
++    final vertical = o.mode == SlotMode.vertical;
++    final n = config.reels.length;
++    final ratio = o.cellAspectRatio ?? 1;
++    final valid = n > 0 &&
++        area.width > 0 &&
++        area.height > 0 &&
++        ratio.isFinite &&
++        ratio > 0;
++    var cw = valid
++        ? (vertical
++            ? (area.width - o.colSpacing * (n - 1)) / n
++            : (area.height - o.rowSpacing * (n - 1)) / n * ratio)
++        : 0.0;
++    var ch = valid
++        ? (vertical ? cw / ratio : (area.height - o.rowSpacing * (n - 1)) / n)
++        : 0.0;
++    if (cw <= 0 || ch <= 0) {
++      cw = 0;
++      ch = 0;
++    }
++    final ws = cw + o.colSpacing;
++    final hs = ch + o.rowSpacing;
++    final cs = vertical ? hs : ws;
++    final length = vertical ? area.height : area.width;
++    final rect = Rect.fromLTWH(0, 0, cw, ch);
++    final cells = <SlotCellContent>[];
++    for (var i = 0; i < config.prizes.length; i++) {
++      final prize = config.prizes[i];
++      cells.add(SlotCellContent(
++          rect: rect,
++          background: prize.background ?? config.style.cell.background,
++          borderRadius:
++              prize.borderRadius ?? config.style.cell.borderRadius ?? 0,
++          lines: [
++            for (final text in prize.texts)
++              ...layoutLuckyTextLines(
++                  text: text,
++                  defaults: config.style.text,
++                  override: config.style.cell.text,
++                  measurer: input.measurer,
++                  box: rect,
++                  leftBase: cw,
++                  topBase: ch,
++                  maxWidthOf: (_, __) =>
++                      (text.lengthLimit ?? config.style.text.lengthLimit)
++                          .resolve(cw))
++          ],
++          images: _images(prize.images, slotPrizeImageGroup, i, rect)));
++    }
++    return SlotLayout(
++        size: input.size,
++        mode: o.mode,
++        prizeArea: area,
++        cellWidth: cw,
++        cellHeight: ch,
++        widthAndSpacing: ws,
++        heightAndSpacing: hs,
++        cellAndSpacing: cs,
++        windowStart: -(length - cs) / kLuckyHalfDivisor,
++        windowLength: length,
++        reels: [
++          for (var r = 0; r < n; r++)
++            _reel(config, r, area, cw, ch, ws, hs, cs, length, vertical)
++        ],
++        cells: List.unmodifiable(cells),
++        blocks: List.unmodifiable(blocks));
++  } finally {
++    luckyTraceEnd();
+   }
+-  final o = config.options;
+-  final vertical = o.mode == SlotMode.vertical;
+-  final n = config.reels.length;
+-  final ratio = o.cellAspectRatio ?? 1;
+-  final valid =
+-      n > 0 && area.width > 0 && area.height > 0 && ratio.isFinite && ratio > 0;
+-  var cw = valid
+-      ? (vertical
+-          ? (area.width - o.colSpacing * (n - 1)) / n
+-          : (area.height - o.rowSpacing * (n - 1)) / n * ratio)
+-      : 0.0;
+-  var ch = valid
+-      ? (vertical ? cw / ratio : (area.height - o.rowSpacing * (n - 1)) / n)
+-      : 0.0;
+-  if (cw <= 0 || ch <= 0) {
+-    cw = 0;
+-    ch = 0;
+-  }
+-  final ws = cw + o.colSpacing;
+-  final hs = ch + o.rowSpacing;
+-  final cs = vertical ? hs : ws;
+-  final length = vertical ? area.height : area.width;
+-  final rect = Rect.fromLTWH(0, 0, cw, ch);
+-  final cells = <SlotCellContent>[];
+-  for (var i = 0; i < config.prizes.length; i++) {
+-    final prize = config.prizes[i];
+-    cells.add(SlotCellContent(
+-        rect: rect,
+-        background: prize.background ?? config.style.cell.background,
+-        borderRadius: prize.borderRadius ?? config.style.cell.borderRadius ?? 0,
+-        lines: [
+-          for (final text in prize.texts)
+-            ...layoutLuckyTextLines(
+-                text: text,
+-                defaults: config.style.text,
+-                override: config.style.cell.text,
+-                measurer: input.measurer,
+-                box: rect,
+-                leftBase: cw,
+-                topBase: ch,
+-                maxWidthOf: (_, __) =>
+-                    (text.lengthLimit ?? config.style.text.lengthLimit)
+-                        .resolve(cw))
+-        ],
+-        images: _images(prize.images, slotPrizeImageGroup, i, rect)));
+-  }
+-  return SlotLayout(
+-      size: input.size,
+-      mode: o.mode,
+-      prizeArea: area,
+-      cellWidth: cw,
+-      cellHeight: ch,
+-      widthAndSpacing: ws,
+-      heightAndSpacing: hs,
+-      cellAndSpacing: cs,
+-      windowStart: -(length - cs) / kLuckyHalfDivisor,
+-      windowLength: length,
+-      reels: [
+-        for (var r = 0; r < n; r++)
+-          _reel(config, r, area, cw, ch, ws, hs, cs, length, vertical)
+-      ],
+-      cells: List.unmodifiable(cells),
+-      blocks: List.unmodifiable(blocks));
+ }
+ 
+ /// 将图片项解析为局部摆放规则。
+--- a/lib/src/slot/render/slot_atlas.dart
++++ b/lib/src/slot/render/slot_atlas.dart
+@@ -3,6 +3,7 @@
+ import 'dart:ui' as ui;
+ 
+ import '../../core/foundation/constants.dart';
++import '../../core/render/perf_trace.dart';
+ import '../layout/slot_layout.dart';
+ import '../model/slot_parts.dart';
+ import '../motion/slot_motion.dart';
+@@ -58,60 +59,66 @@
+   bool prepare(List<ui.Picture> pictures, SlotLayout layout, double dpr,
+       int limit, ui.FilterQuality filterQuality,
+       {double padding = 0}) {
+-    _paint.filterQuality = filterQuality;
+-    if (identical(_layout, layout) &&
+-        _dpr == dpr &&
+-        _limit == limit &&
+-        _padding == (padding * dpr).ceil() &&
+-        pictures.length == _pictures.length &&
+-        pictures
+-            .asMap()
+-            .entries
+-            .every((e) => identical(e.value, _pictures[e.key]))) {
+-      return _pages.isNotEmpty;
+-    }
+-    dispose();
+-    _pictures = pictures;
+-    _layout = layout;
+-    _dpr = dpr;
+-    _limit = limit;
+-    _padding = (padding * dpr).ceil();
+-    _width = (layout.cellWidth * dpr).ceil() + 2 * _padding;
+-    _height = (layout.cellHeight * dpr).ceil() + 2 * _padding;
+-    if (layout.isEmpty ||
+-        dpr <= 0 ||
+-        _width <= 0 ||
+-        _height <= 0 ||
+-        _width > limit ||
+-        _height > limit) {
+-      return false;
+-    }
+-    _columns = math.min(limit ~/ _width, pictures.length);
+-    _capacity = _columns * (limit ~/ _height);
+-    final visible = layout.reels.fold<int>(0, (n, r) => n + r.maxVisibleCells);
+-    for (var first = 0; first < pictures.length; first += _capacity) {
+-      final count = math.min(_capacity, pictures.length - first);
+-      final rows = (count / _columns).ceil();
+-      final recorder = ui.PictureRecorder();
+-      final canvas = ui.Canvas(recorder);
+-      for (var i = 0; i < count; i++) {
+-        canvas.save();
+-        canvas.translate((i % _columns * _width).toDouble(),
+-            (i ~/ _columns * _height).toDouble());
+-        canvas.translate(_padding.toDouble(), _padding.toDouble());
+-        canvas.scale(dpr);
+-        canvas.drawPicture(pictures[first + i]);
+-        canvas.restore();
+-      }
+-      final picture = recorder.endRecording();
+-      try {
+-        _pages.add(_AtlasPage(
+-            picture.toImageSync(_columns * _width, rows * _height), visible));
+-      } finally {
+-        picture.dispose();
+-      }
+-    }
+-    return true;
++    luckyTraceStart('luckdraw.raster.atlas');
++    try {
++      _paint.filterQuality = filterQuality;
++      if (identical(_layout, layout) &&
++          _dpr == dpr &&
++          _limit == limit &&
++          _padding == (padding * dpr).ceil() &&
++          pictures.length == _pictures.length &&
++          pictures
++              .asMap()
++              .entries
++              .every((e) => identical(e.value, _pictures[e.key]))) {
++        return _pages.isNotEmpty;
++      }
++      dispose();
++      _pictures = pictures;
++      _layout = layout;
++      _dpr = dpr;
++      _limit = limit;
++      _padding = (padding * dpr).ceil();
++      _width = (layout.cellWidth * dpr).ceil() + 2 * _padding;
++      _height = (layout.cellHeight * dpr).ceil() + 2 * _padding;
++      if (layout.isEmpty ||
++          dpr <= 0 ||
++          _width <= 0 ||
++          _height <= 0 ||
++          _width > limit ||
++          _height > limit) {
++        return false;
++      }
++      _columns = math.min(limit ~/ _width, pictures.length);
++      _capacity = _columns * (limit ~/ _height);
++      final visible =
++          layout.reels.fold<int>(0, (n, r) => n + r.maxVisibleCells);
++      for (var first = 0; first < pictures.length; first += _capacity) {
++        final count = math.min(_capacity, pictures.length - first);
++        final rows = (count / _columns).ceil();
++        final recorder = ui.PictureRecorder();
++        final canvas = ui.Canvas(recorder);
++        for (var i = 0; i < count; i++) {
++          canvas.save();
++          canvas.translate((i % _columns * _width).toDouble(),
++              (i ~/ _columns * _height).toDouble());
++          canvas.translate(_padding.toDouble(), _padding.toDouble());
++          canvas.scale(dpr);
++          canvas.drawPicture(pictures[first + i]);
++          canvas.restore();
++        }
++        final picture = recorder.endRecording();
++        try {
++          _pages.add(_AtlasPage(
++              picture.toImageSync(_columns * _width, rows * _height), visible));
++        } finally {
++          picture.dispose();
++        }
++      }
++      return true;
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 用预分配缓冲提交每页一次绘制，边缘裁剪在源矩形中完成。
+--- a/lib/src/slot/render/slot_painter.dart
++++ b/lib/src/slot/render/slot_painter.dart
+@@ -10,6 +10,7 @@
+ import '../../core/geometry/round_rect.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/slot_layout.dart';
+@@ -41,29 +42,35 @@
+         super(
+             repaint: Listenable.merge(
+                 [data.frameListenable, data.imagesListenable])) {
+-    _context
+-      ..size = data.layout.size
+-      ..layout = data.layout
+-      ..frame = data.frame
+-      ..devicePixelRatio = data.devicePixelRatio;
+-    _blocks = cache.picture(_blockPicture, _recordBlocks);
+-    _cells = [
+-      for (var i = 0; i < data.layout.cells.length; i++)
+-        cache.picture(_cellPictureBase + i, (canvas) => _recordCell(canvas, i))
+-    ];
+-    _useAtlas = data.performance.cacheMode == LuckyCacheMode.raster &&
+-        atlas != null &&
+-        atlas!.prepare(_cells, data.layout, data.devicePixelRatio,
+-            data.performance.maxRasterSide, data.performance.filterQuality,
+-            padding: _rasterPadding);
+-    if (!_useAtlas) atlas?.dispose();
+-    _staticLayers = [
+-      for (var i = 0; i < data.layers.length; i++)
+-        data.layers[i].isStatic
+-            ? cache.picture(_layerPictureBase - i,
+-                (canvas) => data.layers[i].paint(canvas, _context))
+-            : null
+-    ];
++    luckyTraceStart('luckdraw.slot.record');
++    try {
++      _context
++        ..size = data.layout.size
++        ..layout = data.layout
++        ..frame = data.frame
++        ..devicePixelRatio = data.devicePixelRatio;
++      _blocks = cache.picture(_blockPicture, _recordBlocks);
++      _cells = [
++        for (var i = 0; i < data.layout.cells.length; i++)
++          cache.picture(
++              _cellPictureBase + i, (canvas) => _recordCell(canvas, i))
++      ];
++      _useAtlas = data.performance.cacheMode == LuckyCacheMode.raster &&
++          atlas != null &&
++          atlas!.prepare(_cells, data.layout, data.devicePixelRatio,
++              data.performance.maxRasterSide, data.performance.filterQuality,
++              padding: _rasterPadding);
++      if (!_useAtlas) atlas?.dispose();
++      _staticLayers = [
++        for (var i = 0; i < data.layers.length; i++)
++          data.layers[i].isStatic
++              ? cache.picture(_layerPictureBase - i,
++                  (canvas) => data.layers[i].paint(canvas, _context))
++              : null
++      ];
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 阴影完整包围盒所需的逻辑边距，模糊按三倍 sigma 预算。
+@@ -184,54 +191,59 @@
+   /// 环形索引枚举窗口内格子；每帧不分配矩形、画笔或显示列表。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    final layout = data.layout;
+-    data.hooks.beforeDraw?.call(canvas, size);
+-    _layers(canvas, LuckyLayerPosition.background);
+-    if (layout.blocks.isNotEmpty) canvas.drawPicture(_blocks);
+-    _layers(canvas, LuckyLayerPosition.belowItems);
+-    if (!layout.isEmpty) {
+-      final vertical = data.config.options.mode == SlotMode.vertical;
+-      final spacing = vertical
+-          ? data.config.options.rowSpacing
+-          : data.config.options.colSpacing;
+-      final extent = vertical ? layout.cellHeight : layout.cellWidth;
+-      if (_useAtlas) {
+-        atlas!.paint(canvas, data.frame, data.config.options.mode, spacing);
+-      } else {
+-        for (var r = 0; r < layout.reels.length; r++) {
+-          final reel = layout.reels[r];
+-          final count = reel.stripPrizes.length;
+-          if (count == 0 || reel.period <= 0) continue;
+-          var s = data.frame.scroll[r] + layout.windowStart;
+-          if (s < 0) s = s.remainder(reel.period) + reel.period;
+-          if (s > reel.period) s = s.remainder(reel.period);
+-          final first =
+-              ((s - spacing / kLuckyHalfDivisor) / layout.cellAndSpacing)
+-                  .floor();
+-          canvas.save();
+-          canvas.clipRect(reel.clipRect, doAntiAlias: false);
+-          for (var j = first; j < first + reel.maxVisibleCells; j++) {
+-            final index = j % count;
+-            final start = reel.stripStart[index] +
+-                ((j - index) ~/ count) * reel.period -
+-                s;
+-            if (start >= layout.windowLength) break;
+-            if (start + extent <= 0) continue;
+-            final prize = reel.stripPrizes[index];
+-            if (prize < 0) continue;
++    luckyTraceStart('luckdraw.slot.paint');
++    try {
++      final layout = data.layout;
++      data.hooks.beforeDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.background);
++      if (layout.blocks.isNotEmpty) canvas.drawPicture(_blocks);
++      _layers(canvas, LuckyLayerPosition.belowItems);
++      if (!layout.isEmpty) {
++        final vertical = data.config.options.mode == SlotMode.vertical;
++        final spacing = vertical
++            ? data.config.options.rowSpacing
++            : data.config.options.colSpacing;
++        final extent = vertical ? layout.cellHeight : layout.cellWidth;
++        if (_useAtlas) {
++          atlas!.paint(canvas, data.frame, data.config.options.mode, spacing);
++        } else {
++          for (var r = 0; r < layout.reels.length; r++) {
++            final reel = layout.reels[r];
++            final count = reel.stripPrizes.length;
++            if (count == 0 || reel.period <= 0) continue;
++            var s = data.frame.scroll[r] + layout.windowStart;
++            if (s < 0) s = s.remainder(reel.period) + reel.period;
++            if (s > reel.period) s = s.remainder(reel.period);
++            final first =
++                ((s - spacing / kLuckyHalfDivisor) / layout.cellAndSpacing)
++                    .floor();
+             canvas.save();
+-            canvas.translate(reel.clipRect.left + (vertical ? 0 : start),
+-                reel.clipRect.top + (vertical ? start : 0));
+-            canvas.drawPicture(_cells[prize]);
++            canvas.clipRect(reel.clipRect, doAntiAlias: false);
++            for (var j = first; j < first + reel.maxVisibleCells; j++) {
++              final index = j % count;
++              final start = reel.stripStart[index] +
++                  ((j - index) ~/ count) * reel.period -
++                  s;
++              if (start >= layout.windowLength) break;
++              if (start + extent <= 0) continue;
++              final prize = reel.stripPrizes[index];
++              if (prize < 0) continue;
++              canvas.save();
++              canvas.translate(reel.clipRect.left + (vertical ? 0 : start),
++                  reel.clipRect.top + (vertical ? start : 0));
++              canvas.drawPicture(_cells[prize]);
++              canvas.restore();
++            }
+             canvas.restore();
+           }
+-          canvas.restore();
+         }
+       }
+-    }
+-    _layers(canvas, LuckyLayerPosition.aboveItems);
+-    _layers(canvas, LuckyLayerPosition.foreground);
+-    data.hooks.afterDraw?.call(canvas, size);
++      _layers(canvas, LuckyLayerPosition.aboveItems);
++      _layers(canvas, LuckyLayerPosition.foreground);
++      data.hooks.afterDraw?.call(canvas, size);
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 布局、图片、配置或层变化时重新绘制。
+--- a/lib/src/wheel/layout/wheel_layout.dart
++++ b/lib/src/wheel/layout/wheel_layout.dart
+@@ -11,6 +11,7 @@
+ import '../../core/game/layout.dart';
+ import '../../core/geometry/fan_path.dart';
+ import '../../core/geometry/image_box.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/text/text_line.dart';
+ import '../model/wheel_config.dart';
+ import 'wheel_angles.dart';
+@@ -181,113 +182,120 @@
+ ///
+ /// 调用方负责释放 input.measurer；不读取时钟，也不修改配置。
+ WheelLayout computeWheelLayout(WheelConfig config, LuckyLayoutInput input) {
+-  final side = math.min(input.size.width, input.size.height);
+-  final radius = side.isFinite ? math.max(0.0, side / kLuckyHalfDivisor) : 0.0;
+-  final alignment = input.alignment.resolve(input.textDirection);
+-  final center = alignment.alongOffset(Offset(
+-          input.size.width - radius * kLuckyHalfDivisor,
+-          input.size.height - radius * kLuckyHalfDivisor)) +
+-      Offset(radius, radius);
+-  var remaining = radius;
+-  final blocks = <WheelBlockLayout>[];
+-  for (var i = 0; i < config.blocks.length; i++) {
+-    final block = config.blocks[i];
+-    final diameter = remaining * kLuckyHalfDivisor;
+-    blocks.add(WheelBlockLayout(
+-        radius: remaining,
+-        background: block.background,
+-        images: _images(block.images, _blocksGroup, i, diameter, diameter,
+-            diameter, diameter,
+-            yOffset: -remaining),
+-        rotate: List.unmodifiable(block.images.map((p) => p.rotate))));
+-    remaining = math.max(0.0, remaining - block.padding);
++  luckyTraceStart('luckdraw.wheel.layout');
++  try {
++    final side = math.min(input.size.width, input.size.height);
++    final radius =
++        side.isFinite ? math.max(0.0, side / kLuckyHalfDivisor) : 0.0;
++    final alignment = input.alignment.resolve(input.textDirection);
++    final center = alignment.alongOffset(Offset(
++            input.size.width - radius * kLuckyHalfDivisor,
++            input.size.height - radius * kLuckyHalfDivisor)) +
++        Offset(radius, radius);
++    var remaining = radius;
++    final blocks = <WheelBlockLayout>[];
++    for (var i = 0; i < config.blocks.length; i++) {
++      final block = config.blocks[i];
++      final diameter = remaining * kLuckyHalfDivisor;
++      blocks.add(WheelBlockLayout(
++          radius: remaining,
++          background: block.background,
++          images: _images(block.images, _blocksGroup, i, diameter, diameter,
++              diameter, diameter,
++              yOffset: -remaining),
++          rotate: List.unmodifiable(block.images.map((p) => p.rotate))));
++      remaining = math.max(0.0, remaining - block.padding);
++    }
++    final prizeRadius = remaining;
++    final radii =
++        config.buttons.map((b) => b.radius.resolve(prizeRadius)).toList();
++    final maxBtnRadius = radii.fold(0.0, math.max);
++    final prizeHeight = prizeRadius - maxBtnRadius;
++    final angles = WheelSectorAngles.fromConfig(config);
++    final sectors = <WheelSector>[];
++    for (var i = 0; i < angles.count; i++) {
++      final prize = config.prizes[i];
++      final sweepRad = luckyDegToRad(angles.sweepDeg(i));
++      // 上游 wheel.ts:311、324：等分时保留乘法位置与求值顺序。
++      final middleRad = angles.uniform
++          ? luckyDegToRad(kLuckyPointerDeg +
++                  angles.prizeDeg / kLuckyHalfDivisor +
++                  config.options.offsetDegree) +
++              i * sweepRad
++          : luckyDegToRad(kLuckyPointerDeg +
++              config.options.offsetDegree +
++              angles.startDeg(i) +
++              angles.sweepDeg(i) / kLuckyHalfDivisor);
++      final shortSide = prizeRadius *
++          math.sin(sweepRad / kLuckyHalfDivisor) *
++          kLuckyHalfDivisor;
++      sectors.add(WheelSector(
++          index: i,
++          middleRad: middleRad,
++          sweepRad: sweepRad,
++          fan: buildFanPath(
++              outerRadius: prizeRadius,
++              start: middleRad - sweepRad / kLuckyHalfDivisor,
++              end: middleRad + sweepRad / kLuckyHalfDivisor,
++              gutter: config.options.gutter),
++          anchor: Offset(math.cos(middleRad) * prizeRadius,
++              math.sin(middleRad) * prizeRadius),
++          localRotation: middleRad + math.pi / kLuckyHalfDivisor,
++          prizeHeight: prizeHeight,
++          shortSide: shortSide,
++          background: prize.background ?? config.style.background,
++          images: _images(prize.images, _prizesGroup, i, sweepRad * prizeRadius,
++              prizeHeight, shortSide, prizeHeight),
++          texts: _texts(
++              prize.texts,
++              config,
++              input,
++              shortSide,
++              prizeHeight,
++              (text, fontY) =>
++                  (text.lengthLimit ?? config.style.text.lengthLimit).resolve(
++                      (prizeRadius - fontY) *
++                              math.tan(sweepRad / kLuckyHalfDivisor) *
++                              kLuckyHalfDivisor -
++                          config.options.gutter),
++              dropEmptyLines: true)));
++    }
++    final buttons = <WheelButtonLayout>[];
++    final chord = sectors.isEmpty ? 0.0 : sectors.last.shortSide;
++    for (var i = 0; i < config.buttons.length; i++) {
++      final button = config.buttons[i];
++      final r = radii[i];
++      final pointerPath = button.pointer && button.background != null
++          ? (Path()
++            ..moveTo(-r, 0)
++            ..lineTo(r, 0)
++            ..lineTo(0, -kLuckyHalfDivisor * r)
++            ..close())
++          : null;
++      buttons.add(WheelButtonLayout(
++          radius: r,
++          background: button.background,
++          pointer: button.pointer,
++          pointerPath: pointerPath,
++          images: _images(button.images, _buttonsGroup, i,
++              r * kLuckyHalfDivisor, r * kLuckyHalfDivisor, r, r),
++          texts: _texts(button.texts, config, input, chord, r, (_, fontY) => 0,
++              wrap: false)));
++    }
++    return WheelLayout(
++        size: input.size,
++        center: center,
++        radius: radius,
++        prizeRadius: prizeRadius,
++        maxBtnRadius: maxBtnRadius,
++        angles: angles,
++        blocks: List.unmodifiable(blocks),
++        sectors: List.unmodifiable(sectors),
++        buttons: List.unmodifiable(buttons),
++        gutter: config.options.gutter);
++  } finally {
++    luckyTraceEnd();
+   }
+-  final prizeRadius = remaining;
+-  final radii =
+-      config.buttons.map((b) => b.radius.resolve(prizeRadius)).toList();
+-  final maxBtnRadius = radii.fold(0.0, math.max);
+-  final prizeHeight = prizeRadius - maxBtnRadius;
+-  final angles = WheelSectorAngles.fromConfig(config);
+-  final sectors = <WheelSector>[];
+-  for (var i = 0; i < angles.count; i++) {
+-    final prize = config.prizes[i];
+-    final sweepRad = luckyDegToRad(angles.sweepDeg(i));
+-    // 上游 wheel.ts:311、324：等分时保留乘法位置与求值顺序。
+-    final middleRad = angles.uniform
+-        ? luckyDegToRad(kLuckyPointerDeg +
+-                angles.prizeDeg / kLuckyHalfDivisor +
+-                config.options.offsetDegree) +
+-            i * sweepRad
+-        : luckyDegToRad(kLuckyPointerDeg +
+-            config.options.offsetDegree +
+-            angles.startDeg(i) +
+-            angles.sweepDeg(i) / kLuckyHalfDivisor);
+-    final shortSide = prizeRadius *
+-        math.sin(sweepRad / kLuckyHalfDivisor) *
+-        kLuckyHalfDivisor;
+-    sectors.add(WheelSector(
+-        index: i,
+-        middleRad: middleRad,
+-        sweepRad: sweepRad,
+-        fan: buildFanPath(
+-            outerRadius: prizeRadius,
+-            start: middleRad - sweepRad / kLuckyHalfDivisor,
+-            end: middleRad + sweepRad / kLuckyHalfDivisor,
+-            gutter: config.options.gutter),
+-        anchor: Offset(math.cos(middleRad) * prizeRadius,
+-            math.sin(middleRad) * prizeRadius),
+-        localRotation: middleRad + math.pi / kLuckyHalfDivisor,
+-        prizeHeight: prizeHeight,
+-        shortSide: shortSide,
+-        background: prize.background ?? config.style.background,
+-        images: _images(prize.images, _prizesGroup, i, sweepRad * prizeRadius,
+-            prizeHeight, shortSide, prizeHeight),
+-        texts: _texts(
+-            prize.texts,
+-            config,
+-            input,
+-            shortSide,
+-            prizeHeight,
+-            (text, fontY) => (text.lengthLimit ?? config.style.text.lengthLimit)
+-                .resolve((prizeRadius - fontY) *
+-                        math.tan(sweepRad / kLuckyHalfDivisor) *
+-                        kLuckyHalfDivisor -
+-                    config.options.gutter),
+-            dropEmptyLines: true)));
+-  }
+-  final buttons = <WheelButtonLayout>[];
+-  final chord = sectors.isEmpty ? 0.0 : sectors.last.shortSide;
+-  for (var i = 0; i < config.buttons.length; i++) {
+-    final button = config.buttons[i];
+-    final r = radii[i];
+-    final pointerPath = button.pointer && button.background != null
+-        ? (Path()
+-          ..moveTo(-r, 0)
+-          ..lineTo(r, 0)
+-          ..lineTo(0, -kLuckyHalfDivisor * r)
+-          ..close())
+-        : null;
+-    buttons.add(WheelButtonLayout(
+-        radius: r,
+-        background: button.background,
+-        pointer: button.pointer,
+-        pointerPath: pointerPath,
+-        images: _images(button.images, _buttonsGroup, i, r * kLuckyHalfDivisor,
+-            r * kLuckyHalfDivisor, r, r),
+-        texts: _texts(button.texts, config, input, chord, r, (_, fontY) => 0,
+-            wrap: false)));
+-  }
+-  return WheelLayout(
+-      size: input.size,
+-      center: center,
+-      radius: radius,
+-      prizeRadius: prizeRadius,
+-      maxBtnRadius: maxBtnRadius,
+-      angles: angles,
+-      blocks: List.unmodifiable(blocks),
+-      sectors: List.unmodifiable(sectors),
+-      buttons: List.unmodifiable(buttons),
+-      gutter: config.options.gutter);
+ }
+ 
+ /// 生成以横向零点居中的图片规则，上游 wheel.ts:271-290、337-346、414-423。
+--- a/lib/src/wheel/render/wheel_painter.dart
++++ b/lib/src/wheel/render/wheel_painter.dart
+@@ -9,6 +9,7 @@
+ import '../../core/motion/timebase.dart';
+ import '../../core/render/layer.dart';
+ import '../../core/render/paint_helpers.dart';
++import '../../core/render/perf_trace.dart';
+ import '../../core/render/picture_cache.dart';
+ import '../../core/render/renderer.dart';
+ import '../layout/wheel_layout.dart';
+@@ -95,53 +96,58 @@
+   /// 布局或绘制策略变化时重新分段并提前准备缓存。
+   void rebuildSegments(
+       LuckySurfaceData<WheelConfig, WheelLayout, WheelFrame> data) {
+-    updateData(data);
+-    cache
+-      ..invalidateAll()
+-      ..mode = data.performance.cacheMode
+-      ..maxRasterSide = data.performance.maxRasterSide;
+-    _segments.clear();
+-    _bounds = Offset.zero & data.layout.size;
+-    _rasterPaint.filterQuality = data.performance.filterQuality;
+-    if (data.performance.cacheMode == LuckyCacheMode.auto &&
+-        data.config.options.motion.timebase == LuckyTimebase.frame) {
+-      cache.mode = LuckyCacheMode.picture;
+-    }
+-    segmentsVersion++;
+-    final layout = data.layout;
+-    if (data.hooks.beforeDraw != null) {
+-      _add((canvas) => _data.hooks.beforeDraw!(canvas, layout.size),
+-          isStatic: false, centered: false);
+-    }
+-    _layers(LuckyLayerPosition.background);
+-    for (final block in layout.blocks) {
+-      _add((canvas) {
+-        final background = block.background;
+-        if (background != null) {
+-          final bounds =
+-              Rect.fromCircle(center: Offset.zero, radius: block.radius);
+-          paintLuckyFill(canvas, Path()..addOval(bounds), background, bounds);
+-        }
+-      });
+-      for (var i = 0; i < block.images.length; i++) {
+-        final placement = block.images[i];
+-        _add((canvas) => _images(canvas, [placement]),
+-            rotates: block.rotate[i], hasImages: true);
+-      }
+-    }
+-    _layers(LuckyLayerPosition.belowItems);
+-    _add(_prizes,
+-        rotates: true,
+-        hasImages: layout.sectors.any((sector) => sector.images.isNotEmpty));
+-    _layers(LuckyLayerPosition.aboveItems);
+-    _add(_buttons,
+-        hasImages: layout.buttons.any((button) => button.images.isNotEmpty));
+-    _layers(LuckyLayerPosition.foreground);
+-    if (data.hooks.afterDraw != null) {
+-      _add((canvas) => _data.hooks.afterDraw!(canvas, layout.size),
+-          isStatic: false, centered: false);
+-    }
+-    _prepare();
++    luckyTraceStart('luckdraw.wheel.record');
++    try {
++      updateData(data);
++      cache
++        ..invalidateAll()
++        ..mode = data.performance.cacheMode
++        ..maxRasterSide = data.performance.maxRasterSide;
++      _segments.clear();
++      _bounds = Offset.zero & data.layout.size;
++      _rasterPaint.filterQuality = data.performance.filterQuality;
++      if (data.performance.cacheMode == LuckyCacheMode.auto &&
++          data.config.options.motion.timebase == LuckyTimebase.frame) {
++        cache.mode = LuckyCacheMode.picture;
++      }
++      segmentsVersion++;
++      final layout = data.layout;
++      if (data.hooks.beforeDraw != null) {
++        _add((canvas) => _data.hooks.beforeDraw!(canvas, layout.size),
++            isStatic: false, centered: false);
++      }
++      _layers(LuckyLayerPosition.background);
++      for (final block in layout.blocks) {
++        _add((canvas) {
++          final background = block.background;
++          if (background != null) {
++            final bounds =
++                Rect.fromCircle(center: Offset.zero, radius: block.radius);
++            paintLuckyFill(canvas, Path()..addOval(bounds), background, bounds);
++          }
++        });
++        for (var i = 0; i < block.images.length; i++) {
++          final placement = block.images[i];
++          _add((canvas) => _images(canvas, [placement]),
++              rotates: block.rotate[i], hasImages: true);
++        }
++      }
++      _layers(LuckyLayerPosition.belowItems);
++      _add(_prizes,
++          rotates: true,
++          hasImages: layout.sectors.any((sector) => sector.images.isNotEmpty));
++      _layers(LuckyLayerPosition.aboveItems);
++      _add(_buttons,
++          hasImages: layout.buttons.any((button) => button.images.isNotEmpty));
++      _layers(LuckyLayerPosition.foreground);
++      if (data.hooks.afterDraw != null) {
++        _add((canvas) => _data.hooks.afterDraw!(canvas, layout.size),
++            isStatic: false, centered: false);
++      }
++      _prepare();
++    } finally {
++      luckyTraceEnd();
++    }
+   }
+ 
+   /// 只失效含图片的段，保留不依赖图片的静态缓存。
+@@ -288,29 +294,35 @@
+   /// 每帧仅做段回放及旋转；不创建 Path、Paint、Rect 或文字布局。
+   @override
+   void paint(Canvas canvas, Size size) {
+-    for (final segment in _segments) {
+-      if (segment.rotates) {
+-        canvas.save();
+-        canvas.translate(_data.layout.center.dx, _data.layout.center.dy);
+-        canvas.rotate(luckyDegToRad(_data.frame.rotateDeg));
+-        canvas.translate(-_data.layout.center.dx, -_data.layout.center.dy);
+-      }
+-      try {
+-        if (!segment.isStatic) {
+-          segment.record(canvas);
+-        } else {
+-          final raster = segment.raster;
+-          if (raster == null ||
+-              (_data.performance.cacheMode == LuckyCacheMode.auto &&
+-                  !_data.frame.phase.isMoving)) {
+-            canvas.drawPicture(segment.picture);
++    luckyTraceStart('luckdraw.wheel.paint');
++    try {
++      for (final segment in _segments) {
++        if (segment.rotates) {
++          canvas.save();
++          canvas.translate(_data.layout.center.dx, _data.layout.center.dy);
++          canvas.rotate(luckyDegToRad(_data.frame.rotateDeg));
++          canvas.translate(-_data.layout.center.dx, -_data.layout.center.dy);
++        }
++        try {
++          if (!segment.isStatic) {
++            segment.record(canvas);
+           } else {
+-            canvas.drawImageRect(raster, segment.source, _bounds, _rasterPaint);
++            final raster = segment.raster;
++            if (raster == null ||
++                (_data.performance.cacheMode == LuckyCacheMode.auto &&
++                    !_data.frame.phase.isMoving)) {
++              canvas.drawPicture(segment.picture);
++            } else {
++              canvas.drawImageRect(
++                  raster, segment.source, _bounds, _rasterPaint);
++            }
+           }
+-        }
+-      } finally {
+-        if (segment.rotates) canvas.restore();
+-      }
++        } finally {
++          if (segment.rotates) canvas.restore();
++        }
++      }
++    } finally {
++      luckyTraceEnd();
+     }
+   }
+ 

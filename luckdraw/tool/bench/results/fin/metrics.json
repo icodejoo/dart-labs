@@ -1,0 +1,924 @@
+{
+  "capsule_mixing": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.7634950166112946,
+        1.654102990033223,
+        1.4590232558139542
+      ],
+      "median": 1.654102990033223,
+      "limit": 2.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        2.472,
+        2.513,
+        2.387
+      ],
+      "median": 2.472,
+      "limit": 3,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        3.9960531561461776,
+        3.8082956810631217,
+        3.6701594684385377
+      ],
+      "median": 3.8082956810631217,
+      "limit": 5,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        4.314,
+        4.522,
+        4.277
+      ],
+      "median": 4.314,
+      "limit": 7.503,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        638976,
+        253952,
+        1204224
+      ],
+      "median": 638976,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        585728,
+        1208320,
+        487424
+      ],
+      "median": 585728,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "grid_steady": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.024325581395349,
+        1.1107209302325578,
+        1.021956810631229
+      ],
+      "median": 1.024325581395349,
+      "limit": 1.2,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        1.694,
+        1.831,
+        1.78
+      ],
+      "median": 1.78,
+      "limit": 1.5,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        5.499757475083054,
+        3.433727574750829,
+        6.0896644518272405
+      ],
+      "median": 5.499757475083054,
+      "limit": 4,
+      "stable": false,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        6.557,
+        3.893,
+        7.583
+      ],
+      "median": 6.557,
+      "limit": 7,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0,
+        0.0033222591362126247
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        1523712,
+        61440,
+        1671168
+      ],
+      "median": 1523712,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        0,
+        933888,
+        925696
+      ],
+      "median": 925696,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "lever_steady": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.3999368770764127,
+        1.3905315614617935,
+        1.4240199335548167
+      ],
+      "median": 1.3999368770764127,
+      "limit": 1,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        2.067,
+        2.096,
+        2.114
+      ],
+      "median": 2.096,
+      "limit": 2,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        3.713657807308969,
+        3.492933554817276,
+        3.78479069767442
+      ],
+      "median": 3.713657807308969,
+      "limit": 4.086,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        4.217,
+        3.921,
+        4.448
+      ],
+      "median": 4.217,
+      "limit": 4.639,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median": 0.0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        2236416,
+        1880064,
+        1327104
+      ],
+      "median": 1880064,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        753664,
+        1523712,
+        0
+      ],
+      "median": 753664,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "lots_shaking": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.4544617940199325,
+        1.3019966777408634,
+        1.3257674418604648
+      ],
+      "median": 1.3257674418604648,
+      "limit": 1,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        2.056,
+        1.992,
+        1.88
+      ],
+      "median": 1.992,
+      "limit": 2,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        4.707026578073092,
+        3.0831129568106337,
+        16.749292358803995
+      ],
+      "median": 4.707026578073092,
+      "limit": 5,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        6.128,
+        3.532,
+        17.59
+      ],
+      "median": 6.128,
+      "limit": 8,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0,
+        0.36212624584717606
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        1994752,
+        1191936,
+        1093632
+      ],
+      "median": 1191936,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        819200,
+        802816,
+        0
+      ],
+      "median": 802816,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "lotto_draw": {
+    "average_frame_build_time_millis": {
+      "values": [
+        2.284747841105355,
+        2.1715968858131482,
+        2.1528221070811733
+      ],
+      "median": 2.1715968858131482,
+      "limit": 2.5,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        3.354,
+        3.227,
+        3.291
+      ],
+      "median": 3.291,
+      "limit": 3,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        5.030516407599308,
+        16.440377162629762,
+        4.6177409326424845
+      ],
+      "median": 5.030516407599308,
+      "limit": 6,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        5.958,
+        17.805,
+        5.018
+      ],
+      "median": 5.958,
+      "limit": 7.083,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.370242214532872,
+        0.0
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        2437120,
+        3043328,
+        5427200
+      ],
+      "median": 3043328,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        1163264,
+        0,
+        1470464
+      ],
+      "median": 1163264,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "memory_cycles": {
+    "rss_delta_bytes": {
+      "values": [
+        5111808,
+        4792320,
+        5120000
+      ],
+      "median": 5111808,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        933888,
+        106496,
+        1224704
+      ],
+      "median": 933888,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "number_wheel_spin": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.1312990033222585,
+        1.1616411960132893,
+        1.1097043189368767
+      ],
+      "median": 1.1312990033222585,
+      "limit": 1.3,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        1.613,
+        1.731,
+        1.639
+      ],
+      "median": 1.639,
+      "limit": 1.959,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        16.768671096345525,
+        3.00199003322259,
+        2.949710963455148
+      ],
+      "median": 3.00199003322259,
+      "limit": 5,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        17.644,
+        3.39,
+        3.303
+      ],
+      "median": 3.39,
+      "limit": 8,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.4053156146179402,
+        0.0,
+        0.0
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        0,
+        442368,
+        0
+      ],
+      "median": 0,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        1110016,
+        0,
+        1409024
+      ],
+      "median": 1110016,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "slot_raster": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.1085415282392022,
+        0.769212624584717,
+        1.0640664451827238
+      ],
+      "median": 1.0640664451827238,
+      "limit": 1,
+      "stable": false,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        1.517,
+        0.942,
+        1.405
+      ],
+      "median": 1.405,
+      "limit": 2,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        2.768136212624582,
+        2.7336511627906988,
+        6.167504983388707
+      ],
+      "median": 2.768136212624582,
+      "limit": 5,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        3.163,
+        3.056,
+        7.073
+      ],
+      "median": 3.163,
+      "limit": 8,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0,
+        0.0033222591362126247
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        1527808,
+        0,
+        495616
+      ],
+      "median": 495616,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        483328,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "slot_steady": {
+    "average_frame_build_time_millis": {
+      "values": [
+        1.3441694352159455,
+        1.3574133333333325,
+        1.3711096345514955
+      ],
+      "median": 1.3574133333333325,
+      "limit": 1,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        1.921,
+        1.908,
+        1.884
+      ],
+      "median": 1.908,
+      "limit": 2,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        3.440528239202658,
+        9.10642666666667,
+        3.455634551495018
+      ],
+      "median": 3.455634551495018,
+      "limit": 5,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        4.084,
+        16.862,
+        3.832
+      ],
+      "median": 4.084,
+      "limit": 8,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.12666666666666668,
+        0.0
+      ],
+      "median": 0.0,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        1470464,
+        2240512,
+        1429504
+      ],
+      "median": 1470464,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        331776,
+        331776,
+        77824
+      ],
+      "median": 331776,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  },
+  "wheel_first_frame": {
+    "first_frame_ui_millis": {
+      "values": [
+        42.014,
+        40.378,
+        40.257
+      ],
+      "median": 40.378,
+      "limit": 4,
+      "stable": true,
+      "within_budget": false,
+      "passed": false
+    }
+  },
+  "wheel_steady": {
+    "average_frame_build_time_millis": {
+      "values": [
+        0.9564019933554819,
+        0.916681063122924,
+        0.9767774086378733
+      ],
+      "median": 0.9564019933554819,
+      "limit": 1.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "90th_percentile_frame_build_time_millis": {
+      "values": [
+        1.34,
+        1.323,
+        1.432
+      ],
+      "median": 1.34,
+      "limit": 1.66,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "average_frame_rasterizer_time_millis": {
+      "values": [
+        4.94736877076412,
+        5.251906976744186,
+        16.74405647840532
+      ],
+      "median": 5.251906976744186,
+      "limit": 5,
+      "stable": false,
+      "within_budget": false,
+      "passed": false
+    },
+    "90th_percentile_frame_rasterizer_time_millis": {
+      "values": [
+        6.789,
+        6.707,
+        17.409
+      ],
+      "median": 6.789,
+      "limit": 8,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "dropped_frame_ratio": {
+      "values": [
+        0.0,
+        0.0033222591362126247,
+        0.3488372093023256
+      ],
+      "median": 0.0033222591362126247,
+      "limit": 0.005,
+      "stable": false,
+      "within_budget": true,
+      "passed": false
+    },
+    "new_gen_gc_over_reference": {
+      "values": [
+        0,
+        0,
+        0
+      ],
+      "median": 0,
+      "limit": 0.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_delta_bytes": {
+      "values": [
+        2650112,
+        1826816,
+        1875968
+      ],
+      "median": 1875968,
+      "limit": 5622989.0,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    },
+    "rss_steady_growth_bytes": {
+      "values": [
+        0,
+        1323008,
+        0
+      ],
+      "median": 0,
+      "limit": 1572864,
+      "stable": true,
+      "within_budget": true,
+      "passed": true
+    }
+  }
+}

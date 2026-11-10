@@ -1,0 +1,182 @@
+[
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 28.8,
+      "recordedAt": "2026-11-10T11:39:02.4143972Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3407909\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3971\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h50m22s517ms\n The last voltage value sent via the battery changed broadcast: 3971\n  temperature: 288\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:39:02.4213782Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "skia_1",
+    "attempt": 1,
+    "unlockedBefore": true,
+    "elapsedMs": 153018,
+    "target": "skia",
+    "rssCycles": 5,
+    "binaryReused": false,
+    "valid": true,
+    "before": {
+      "level": 56,
+      "temperatureC": 29.0,
+      "recordedAt": "2026-11-10T11:36:28.5543487Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3397302\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 56\n  scale: 100\n  voltage: 3973\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h48m22s525ms\n The last voltage value sent via the battery changed broadcast: 3973\n  temperature: 290\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4546636,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:36:29.1473541Z",
+    "deviceLogStart": "11-10 19:38:53.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=skia --no-enable-impeller"
+  },
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:39:38.3268910Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3412455\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3948\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h51m22s529ms\n The last voltage value sent via the battery changed broadcast: 3948\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:39:38.3303181Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "skia_2",
+    "attempt": 2,
+    "unlockedBefore": true,
+    "elapsedMs": 31330,
+    "target": "skia",
+    "rssCycles": 5,
+    "binaryReused": true,
+    "valid": true,
+    "before": {
+      "level": 57,
+      "temperatureC": 28.8,
+      "recordedAt": "2026-11-10T11:39:04.2127424Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3407909\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3971\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h50m22s517ms\n The last voltage value sent via the battery changed broadcast: 3971\n  temperature: 288\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4533220,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:39:06.2877478Z",
+    "deviceLogStart": "11-10 19:41:30.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --use-application-binary=C:\\ldd\\luckdraw\\tool\\bench\\results\\shadow_20261110_193626\\binaries\\skia.apk --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=skia --no-enable-impeller"
+  },
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:40:13.6985877Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3412455\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3948\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h51m22s529ms\n The last voltage value sent via the battery changed broadcast: 3948\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:40:13.6994796Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "skia_3",
+    "attempt": 3,
+    "unlockedBefore": true,
+    "elapsedMs": 31501,
+    "target": "skia",
+    "rssCycles": 5,
+    "binaryReused": true,
+    "valid": true,
+    "before": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:39:40.2738547Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3412455\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3948\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h51m22s529ms\n The last voltage value sent via the battery changed broadcast: 3948\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4194764,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:39:41.9107260Z",
+    "deviceLogStart": "11-10 19:42:06.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --use-application-binary=C:\\ldd\\luckdraw\\tool\\bench\\results\\shadow_20261110_193626\\binaries\\skia.apk --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=skia --no-enable-impeller"
+  },
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:42:28.3257447Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3425588\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3952\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h54m22s523ms\n The last voltage value sent via the battery changed broadcast: 3952\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:42:28.3265955Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "impeller_1",
+    "attempt": 1,
+    "unlockedBefore": true,
+    "elapsedMs": 132123,
+    "target": "impeller",
+    "rssCycles": 5,
+    "binaryReused": false,
+    "valid": true,
+    "before": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:40:15.4829920Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3412455\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3948\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h51m22s529ms\n The last voltage value sent via the battery changed broadcast: 3948\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4885468,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:40:15.8757861Z",
+    "deviceLogStart": "11-10 19:42:40.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=impeller --enable-impeller"
+  },
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:42:52.5928369Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3425588\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3952\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h54m22s523ms\n The last voltage value sent via the battery changed broadcast: 3952\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:42:52.5936380Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "impeller_2",
+    "attempt": 2,
+    "unlockedBefore": true,
+    "elapsedMs": 20537,
+    "target": "impeller",
+    "rssCycles": 5,
+    "binaryReused": true,
+    "valid": true,
+    "before": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:42:30.1546420Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3425588\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3952\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h54m22s523ms\n The last voltage value sent via the battery changed broadcast: 3952\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4623844,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:42:31.8504781Z",
+    "deviceLogStart": "11-10 19:44:56.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --use-application-binary=C:\\ldd\\luckdraw\\tool\\bench\\results\\shadow_20261110_193626\\binaries\\impeller.apk --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=impeller --enable-impeller"
+  },
+  {
+    "after": {
+      "level": 57,
+      "temperatureC": 29.4,
+      "recordedAt": "2026-11-10T11:43:27.1324532Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3427608\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3939\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h55m22s519ms\n The last voltage value sent via the battery changed broadcast: 3939\n  temperature: 294\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "endedAt": "2026-11-10T11:43:27.1337998Z",
+    "exitCode": 0,
+    "timedOut": false,
+    "directory": "impeller_3",
+    "attempt": 3,
+    "unlockedBefore": true,
+    "elapsedMs": 30941,
+    "target": "impeller",
+    "rssCycles": 5,
+    "binaryReused": true,
+    "valid": true,
+    "before": {
+      "level": 57,
+      "temperatureC": 28.9,
+      "recordedAt": "2026-11-10T11:42:54.1075832Z",
+      "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 3425588\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 57\n  scale: 100\n  voltage: 3952\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d5h54m22s523ms\n The last voltage value sent via the battery changed broadcast: 3952\n  temperature: 289\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1"
+    },
+    "freeKB": 4806048,
+    "lockedDuring": false,
+    "startedAt": "2026-11-10T11:42:55.9991256Z",
+    "deviceLogStart": "11-10 19:45:20.000",
+    "command": "flutter drive --profile --no-pub --no-dds -d 10AE9K17UE0011S --use-application-binary=C:\\ldd\\luckdraw\\tool\\bench\\results\\shadow_20261110_193626\\binaries\\impeller.apk --verbose --driver=test_driver/shadow_driver.dart --target=integration_test/shadow_capture_test.dart --dart-define=SHADOW_BACKEND=impeller --enable-impeller"
+  }
+]

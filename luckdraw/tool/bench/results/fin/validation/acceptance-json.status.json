@@ -1,0 +1,12 @@
+{
+  "name": "acceptance-json",
+  "args": [
+    "dart",
+    "run",
+    "tool/check_acceptance.dart",
+    "--from-json",
+    "tool/bench/results/fin/validation/all.tests.jsonl"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.415
+}

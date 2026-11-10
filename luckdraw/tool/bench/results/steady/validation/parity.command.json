@@ -1,0 +1,11 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/parity/generate.dart",
+    "--verify-manifest"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 10.874
+}

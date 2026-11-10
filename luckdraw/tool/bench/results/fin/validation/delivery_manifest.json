@@ -1,0 +1,36 @@
+{
+  "modified_source_files": [
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "test/ACCEPTANCE.md",
+    "test/tool/bench_metrics_test.dart",
+    "test/tool/bench_compare_test.dart",
+    "tool/bench/compare.dart",
+    "tool/bench/metrics.dart",
+    "tool/bench/budgets.json",
+    "tool/bench/budgets.status.json",
+    "tool/bench/README.md",
+    "tool/bench/integration_test/bench_support.dart",
+    "docs/ARCHITECTURE.md",
+    "docs/FIDELITY.md",
+    "docs/IMPLEMENTATION_GUIDE.md",
+    "docs/TEST_STRATEGY.md",
+    "docs/README.md",
+    "docs/RELEASE_CHECKLIST.md"
+  ],
+  "new_evidence_directory": "tool/bench/results/fin",
+  "new_evidence_file_count": 101,
+  "unmodified_declarations": [
+    "pubspec.yaml",
+    "lib/",
+    ".github/"
+  ],
+  "scratchpad": "C:\\Users\\jelon\\AppData\\Local\\Temp\\luckdraw-fin",
+  "ignored_generated_files": [
+    "tool/bench/.dart_tool/",
+    "tool/bench/pubspec.lock",
+    "tool/bench/__pycache__/"
+  ],
+  "notes": "未清理Python字节码缓存：自动审批拒绝清理命令（blocked by policy）；不属于发布包或源码交付。"
+}

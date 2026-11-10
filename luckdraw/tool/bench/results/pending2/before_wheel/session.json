@@ -1,0 +1,67 @@
+{
+  "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+  "android": "16",
+  "source_sha256": [
+    {
+      "hash": "CFD5585AC0648EFD1D480E81DF9E7107BC721625A2D1046675CAF97EBCE48CF1",
+      "name": "bench_support.dart"
+    },
+    {
+      "hash": "B2CEF1C24F70DD0653D3FB92A56E6E72C774B856B84E872A9B762A873FAED3D6",
+      "name": "capsule_bench_test.dart"
+    },
+    {
+      "hash": "A5D9959EFD358396253D631AD4C8E90E43275AEE9941526921A6E25176AF9DAC",
+      "name": "grid_bench_test.dart"
+    },
+    {
+      "hash": "2BFA877F1F2BA22B51A40B9B14478B15735094E9A17D62246FEAE46DA4B7F10D",
+      "name": "lever_bench_test.dart"
+    },
+    {
+      "hash": "C3577F934DD7EA42F3BE63AE057B569B0E2DE8AF0CE711661B1C0FD21CB4E31C",
+      "name": "lots_bench_test.dart"
+    },
+    {
+      "hash": "C6124A86676A9E9271D52DE56E4F1248CF253A418475CF4AA75097AEFF6D9C79",
+      "name": "lotto_bench_test.dart"
+    },
+    {
+      "hash": "747AE1EB6015D03C9D45DA0CCA0D6E7B566D1224B18EBBB9B1AF06F9D0FAAD24",
+      "name": "memory_bench_test.dart"
+    },
+    {
+      "hash": "8EA5459B71623BD06C7EBF23525C00C25E90359BBFC1ABC1509CA567DB3A1403",
+      "name": "number_wheel_bench_test.dart"
+    },
+    {
+      "hash": "5D5EF4D8BDD09DC5F15FD83A5FD43027F43E44173ABF57146F960215C66AF91E",
+      "name": "pending_bench_test.dart"
+    },
+    {
+      "hash": "099D01A2256212DBD6E76031542523F0E82026921066A0CC91D050D3726A4D2F",
+      "name": "perf_bench_test.dart"
+    },
+    {
+      "hash": "5B0FE6E6AC1BE00223864915E3E0F0A6BFBA53306296C036A3A3EA8383D3B7C2",
+      "name": "perf_capture.dart"
+    },
+    {
+      "hash": "8E2BD4B03273EA66A316DD63A06824D50B94635A405C9E4DBFB6A05FFEE33FAB",
+      "name": "shadow_capture_test.dart"
+    },
+    {
+      "hash": "06842FAEE0254D5AC296FA0685B2C72E2C772E0A192BBB0A97EFF56C7B109E0E",
+      "name": "slot_bench_test.dart"
+    },
+    {
+      "hash": "2863F6D0FF9B6682C859784E62323560122AAAD4660A01B1D257C8AF0F101C2D",
+      "name": "wheel_bench_test.dart"
+    }
+  ],
+  "started_at": "2026-11-10T17:29:29.9570399Z",
+  "phone_settings_modified": false,
+  "binary": "C:\\ldq\\luckdraw\\tool\\bench\\build\\app\\outputs\\flutter-apk\\app-profile.apk",
+  "serial": "10AE9K17UE0011S",
+  "model": "V2417"
+}

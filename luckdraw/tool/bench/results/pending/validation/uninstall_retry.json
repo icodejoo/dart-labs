@@ -1,0 +1,6 @@
+{
+  "exit": 1,
+  "measured_at": "2026-11-10T17:05:14.8173532Z",
+  "remaining_package_path": [],
+  "command": "pm uninstall --user 0 com.example.luckdraw_bench"
+}

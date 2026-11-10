@@ -1,0 +1,40 @@
+{
+  "device": "windows",
+  "repeat": 3,
+  "files": [
+    "lifecycle_test.dart"
+  ],
+  "total": 3,
+  "passed": 3,
+  "failed": 0,
+  "passRate": 1.0,
+  "elapsedMs": 101402,
+  "complete": true,
+  "success": true,
+  "runs": [
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 32015,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 32397,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 36990,
+      "timedOut": false,
+      "passed": true
+    }
+  ]
+}

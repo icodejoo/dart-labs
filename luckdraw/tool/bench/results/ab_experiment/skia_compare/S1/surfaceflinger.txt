@@ -1,0 +1,120 @@
+Current time: 2026-11-10 22:07:07
+Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]
+
+Display identification data:
+Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=""
+
+Wide-Color information:
+Device supports wide color: 0
+DisplayColorSetting: Managed
+Display 4630946231300050817 color modes:
+    ColorMode::NATIVE (0)
+    ColorMode::SRGB (7)
+    ColorMode::DISPLAY_P3 (9)
+    Current color mode: ColorMode::NATIVE (0)
+
+HDR events for display 4630946231300050817
+20849265147: numHdrLayers(0), size(0x0), flags(0), desiredRatio(0.00)
+
+Sync configuration: [using: EGL_ANDROID_native_fence_sync EGL_KHR_wait_sync]
+
+Scheduler:
+Features
+    PresentFences=true
+    KernelIdleTimer=false
+    ContentDetection=true
+
+Policy
+    pacesetterDisplayId=4630946231300050817
+    layerHistory={size=135, active=3}
+	GameFrameRateOverrides=
+		(uid, gameModeOverride, gameDefaultOverride)=
+    touchTimer=nullopt
+    displayPowerTimer=nullopt
+
+FrameRateOverrides=none
+
+           app phase:      1000000 ns	         SF phase:      1000000 ns
+           app duration:  16666666 ns	         SF duration:  15666666 ns
+     early app phase:      1000000 ns	   early SF phase:      1000000 ns
+     early app duration:  16666666 ns	   early SF duration:  15666666 ns
+  GL early app phase:      1000000 ns	GL early SF phase:      1000000 ns
+  GL early app duration:  16666666 ns	GL early SF duration:  15666666 ns
+       HWC min duration:         0 ns
+
+ScreenOff: 0d08:32:43.260
+120.00 Hz: 0d00:00:12.197
+60.00 Hz: 0d07:49:02.091
+
+Pacesetter Display 4630946231300050817
+    renderRate=60.00 Hz
+    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+    displayModes=
+        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+    displayManagerPolicy={defaultModeId=1, allowGroupSwitching=false, primaryRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]} idleScreenConfig=IdleScreenRefreshRateConfig{timeoutMillis: -1}}
+    frameRateOverrideConfig=Enabled
+    idleTimer=
+        interval=nullopt
+        controller=Platform
+    Total missed frame count: 16411
+    HWC missed frame count: 16411
+    GPU missed frame count: 4521
+
+
+debugDisplayModeSetByBackdoor=false
+
+         present offset:         0 ns	        VSYNC period:  16666666 ns
+
+app: state=Idle VSyncState={displayId=4630946231300050817, count=786056}
+mWorkDuration=16.67 mReadyDuration=15.67 last vsync time 11.50ms relative to now
+ with vsync committed at -5.17ms  pending events (count=0):
+  connections (count=58):
+    Connection{0xb40000797ed0e6b0, VSyncRequest::None}
+    Connection{0xb40000797ed26b30, VSyncRequest::None}
+    Connection{0xb40000797ed08210, VSyncRequest::None}
+    Connection{0xb40000797ed06c30, VSyncRequest::None}
+    Connection{0xb40000797ed2e690, VSyncRequest::None}
+    Connection{0xb40000797ed24e50, VSyncRequest::None}
+    Connection{0xb40000797ed27f50, VSyncRequest::None}
+    Connection{0xb40000797ed26270, VSyncRequest::None}
+    Connection{0xb40000797ed0c3b0, VSyncRequest::None}
+    Connection{0xb40000797ed2d190, VSyncRequest::None}
+    Connection{0xb40000797ed043f0, VSyncRequest::None}
+    Connection{0xb40000797ed02010, VSyncRequest::None}
+    Connection{0xb40000797ed1e8d0, VSyncRequest::None}
+    Connection{0xb40000797ed09010, VSyncRequest::None}
+    Connection{0xb40000797ed053b0, VSyncRequest::None}
+    Connection{0xb40000797ed1ed30, VSyncRequest::None}
+    Connection{0xb40000797ed2d510, VSyncRequest::None}
+    Connection{0xb40000797ed05650, VSyncRequest::None}
+    Connection{0xb40000797ed1c330, VSyncRequest::None}
+    Connection{0xb40000797ed0bbd0, VSyncRequest::None}
+    Connection{0xb40000797ed250f0, VSyncRequest::None}
+    Connection{0xb40000797ed28c70, VSyncRequest::None}
+    Connection{0xb40000797ed29df0, VSyncRequest::None}
+    Connection{0xb40000797ed1b450, VSyncRequest::None}
+    Connection{0xb40000797ed14610, VSyncRequest::None}
+    Connection{0xb40000797ed20930, VSyncRequest::None}
+    Connection{0xb40000797ed06530, VSyncRequest::None}
+    Connection{0xb40000797ed0cf10, VSyncRequest::None}
+    Connection{0xb40000797ed0c9d0, VSyncRequest::None}
+    Connection{0xb40000797ed1b290, VSyncRequest::None}
+    Connection{0xb40000797ed2c630, VSyncRequest::None}
+    Connection{0xb40000797ed31b10, VSyncRequest::None}
+    Connection{0xb40000797ed04230, VSyncRequest::None}
+    Connection{0xb40000797ed15bf0, VSyncRequest::None}
+    Connection{0xb40000797ed27bd0, VSyncRequest::None}
+    Connection{0xb40000797ed06610, VSyncRequest::None}
+    Connection{0xb40000797ed27070, VSyncRequest::None}
+    Connection{0xb40000797ed1b370, VSyncRequest::None}
+    Connection{0xb40000797ed083d0, VSyncRequest::None}
+    Connection{0xb40000797ed13110, VSyncRequest::None}
+    Connection{0xb40000797ed1ad50, VSyncRequest::None}
+    Connection{0xb40000797ed1c410, VSyncRequest::None}
+    Connection{0xb40000797ed0a350, VSyncRequest::None}
+    Connection{0xb40000797ed147d0, VSyncRequest::None}
+    Connection{0xb40000797ed213b0, VSyncRequest::None}
+    Connection{0xb40000797ed353f0, VSyncRequest::None}
+    Connection{0xb40000797ed2e4d0, VSyncRequest::None}
+    Connection{0xb40000797ed13d50, VSyncRequest::None}

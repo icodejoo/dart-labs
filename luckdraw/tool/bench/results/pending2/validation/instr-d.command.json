@@ -1,0 +1,16 @@
+{
+  "command": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--coverage",
+    "--coverage-path=coverage/instr-d.lcov",
+    "--reporter=json",
+    "test/perf",
+    "test/example_pages_test.dart"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 11.332
+}

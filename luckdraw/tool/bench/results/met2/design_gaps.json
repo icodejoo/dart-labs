@@ -1,0 +1,275 @@
+[
+  {
+    "scenario": "wheel_steady",
+    "metric": "average_frame_rasterizer_time_millis",
+    "values": [
+      4.94736877076412,
+      5.251906976744186
+    ],
+    "median": 5.099637873754153,
+    "spread_ratio": 0.05971761397949553,
+    "spread_absolute": 0.30453820598006587,
+    "design_target": 5.0,
+    "gap_to_design": 0.019927574750830512,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 5,
+    "limit": 5.61,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "grid_steady",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.024325581395349,
+      1.1107209302325578,
+      1.021956810631229
+    ],
+    "median": 1.024325581395349,
+    "spread_ratio": 0.08665615817230038,
+    "spread_absolute": 0.0887641196013289,
+    "design_target": 0.6,
+    "gap_to_design": 0.7072093023255817,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1.2,
+    "limit": 1.2,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "grid_steady",
+    "metric": "90th_percentile_frame_build_time_millis",
+    "values": [
+      1.694,
+      1.831,
+      1.78
+    ],
+    "median": 1.78,
+    "spread_ratio": 0.07696629213483147,
+    "spread_absolute": 0.137,
+    "design_target": 1.5,
+    "gap_to_design": 0.18666666666666676,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1.5,
+    "limit": 1.958,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "grid_steady",
+    "metric": "average_frame_rasterizer_time_millis",
+    "values": [
+      5.499757475083054,
+      3.433727574750829,
+      6.0896644518272405
+    ],
+    "median": 5.499757475083054,
+    "spread_ratio": 0.4829189085353811,
+    "spread_absolute": 2.6559368770764116,
+    "design_target": 4.0,
+    "gap_to_design": 0.3749393687707634,
+    "design_status": "UNCERTAIN",
+    "stable": false,
+    "target": 4,
+    "limit": 4.0,
+    "calibrated": false,
+    "status": "UNCERTAIN"
+  },
+  {
+    "scenario": "slot_steady",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.3441694352159455,
+      1.3711096345514955
+    ],
+    "median": 1.3576395348837205,
+    "spread_ratio": 0.019843411040514087,
+    "spread_absolute": 0.02694019933555003,
+    "design_target": 1.0,
+    "gap_to_design": 0.35763953488372047,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1,
+    "limit": 1.494,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "slot_raster",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.1085415282392022,
+      0.769212624584717,
+      1.0640664451827238
+    ],
+    "median": 1.0640664451827238,
+    "spread_ratio": 0.3188982278228076,
+    "spread_absolute": 0.3393289036544852,
+    "design_target": 1.0,
+    "gap_to_design": 0.06406644518272375,
+    "design_status": "UNCERTAIN",
+    "stable": false,
+    "target": 1,
+    "limit": 1.0,
+    "calibrated": false,
+    "status": "UNCERTAIN"
+  },
+  {
+    "scenario": "lever_steady",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.3999368770764127,
+      1.3905315614617935,
+      1.4240199335548167
+    ],
+    "median": 1.3999368770764127,
+    "spread_ratio": 0.02392134434158159,
+    "spread_absolute": 0.033488372093023244,
+    "design_target": 1.0,
+    "gap_to_design": 0.3999368770764127,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1,
+    "limit": 1.54,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "lever_steady",
+    "metric": "90th_percentile_frame_build_time_millis",
+    "values": [
+      2.067,
+      2.096,
+      2.114
+    ],
+    "median": 2.096,
+    "spread_ratio": 0.022423664122137265,
+    "spread_absolute": 0.04699999999999971,
+    "design_target": 2.0,
+    "gap_to_design": 0.04800000000000004,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 2,
+    "limit": 2.306,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "capsule_mixing",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.7634950166112946,
+      1.654102990033223,
+      1.4590232558139542
+    ],
+    "median": 1.654102990033223,
+    "spread_ratio": 0.18407061871717253,
+    "spread_absolute": 0.3044717607973404,
+    "design_target": 1.5,
+    "gap_to_design": 0.10273532668881535,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 2.0,
+    "limit": 2.0,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "number_wheel_spin",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.1616411960132893,
+      1.1097043189368767
+    ],
+    "median": 1.1356727574750831,
+    "spread_ratio": 0.045732255823308414,
+    "spread_absolute": 0.05193687707641259,
+    "design_target": 1.0,
+    "gap_to_design": 0.13567275747508312,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1.3,
+    "limit": 1.3,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "lots_shaking",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      1.4544617940199325,
+      1.3019966777408634
+    ],
+    "median": 1.378229235880398,
+    "spread_ratio": 0.11062391676931453,
+    "spread_absolute": 0.1524651162790691,
+    "design_target": 1.0,
+    "gap_to_design": 0.37822923588039803,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 1,
+    "limit": 1.517,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "lots_shaking",
+    "metric": "90th_percentile_frame_build_time_millis",
+    "values": [
+      2.056,
+      1.992
+    ],
+    "median": 2.024,
+    "spread_ratio": 0.03162055335968382,
+    "spread_absolute": 0.06400000000000006,
+    "design_target": 2.0,
+    "gap_to_design": 0.01200000000000001,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 2,
+    "limit": 2.227,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "lotto_draw",
+    "metric": "average_frame_build_time_millis",
+    "values": [
+      2.284747841105355,
+      2.1528221070811733
+    ],
+    "median": 2.218784974093264,
+    "spread_ratio": 0.05945854851396536,
+    "spread_absolute": 0.13192573402418173,
+    "design_target": 1.5,
+    "gap_to_design": 0.47918998272884283,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 2.5,
+    "limit": 2.5,
+    "calibrated": false,
+    "status": "PASS"
+  },
+  {
+    "scenario": "lotto_draw",
+    "metric": "90th_percentile_frame_build_time_millis",
+    "values": [
+      3.354,
+      3.291
+    ],
+    "median": 3.3225,
+    "spread_ratio": 0.018961625282167095,
+    "spread_absolute": 0.06300000000000017,
+    "design_target": 3.0,
+    "gap_to_design": 0.10749999999999993,
+    "design_status": "已按实测标定（未达最初设计目标）",
+    "stable": true,
+    "target": 3,
+    "limit": 3.655,
+    "calibrated": false,
+    "status": "PASS"
+  }
+]

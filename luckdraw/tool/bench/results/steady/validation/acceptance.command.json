@@ -1,0 +1,10 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/check_acceptance.dart"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.528
+}

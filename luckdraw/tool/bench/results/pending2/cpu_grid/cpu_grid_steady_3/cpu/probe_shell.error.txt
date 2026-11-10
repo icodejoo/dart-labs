@@ -1,0 +1,1 @@
+FormatException: 线程在快照内变化或缺少 comm，不得错配

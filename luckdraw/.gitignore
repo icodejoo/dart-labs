@@ -1,0 +1,21 @@
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+*.iml
+.idea/
+coverage/
+
+# 真机采集的原始证据（单文件可达 20MB+、合计 >1GB），只留本机；
+# 汇总报告（REPORT.md）、*_summary.json、*.timeline.json.gz 等小文件仍入库
+tool/bench/results/**/*.timeline.json
+tool/bench/results/**/*.original.json
+tool/bench/results/**/response_*.json
+tool/bench/results/**/snapshot_commands.json
+tool/bench/results/**/logcat_after.txt
+tool/bench/results/**/flutter_driver_commands_*.log
+tool/bench/results/**/frames.json
+tool/bench/results/**/*.timeline.json.gz
+tool/bench/results/**/*.json.gz

@@ -1,0 +1,45 @@
+{
+  "relative_links_checked": 150,
+  "broken_links": [],
+  "analysis_options_matches_guide": true,
+  "original_sha256_verified": 33,
+  "formal_identity_matches_MET": true,
+  "all_steady_windows_delivered": 130,
+  "hard_guard_checks": 18,
+  "cpu_estimates_verified": 9,
+  "process_cpu_measured": false,
+  "calibrated_floor_caps_verified": true,
+  "measured_calibration_formula_verified": 28,
+  "unstable_time_budgets_preserved": 8,
+  "initial_design_gaps": 14,
+  "scenes": {
+    "PASS": 6,
+    "INFO": 1,
+    "FAIL": 3,
+    "UNCERTAIN": 1
+  },
+  "changed_authorized_existing_paths": [
+    "README.md",
+    "README.zh-CN.md",
+    "docs/ARCHITECTURE.md",
+    "docs/IMPLEMENTATION_GUIDE.md",
+    "docs/METRIC_FIX_REPORT.md",
+    "docs/README.md",
+    "docs/RELEASE_CHECKLIST.md",
+    "docs/TEST_STRATEGY.md",
+    "test/ACCEPTANCE.md",
+    "tool/bench/budgets.json",
+    "tool/bench/budgets.status.json",
+    "tool/bench/compare.dart",
+    "tool/bench/metrics.dart",
+    "tool/bench/README.md",
+    "test/tool/bench_compare_test.dart"
+  ],
+  "metric_report_original_sha256": "b4add15f26bc15cd43f482b61fc1155a383805f5ea269e562cfedc1afd73b71b",
+  "first_round_report_preserved_verified": true,
+  "metric_report_preserved_history_normalized_sha256": "6719eb12bb7277b0b2ede8ec8ba7aa951d13834689944d564ea31bf7bcaafd46",
+  "pubspec_sha256": {
+    "pubspec.yaml": "c132223a11ff847c4c172892cec23bfe362a70478218a7a834ffef9aa2872547",
+    "tool/bench/pubspec.yaml": "9be24ea708e5748ad73bc018b9895cb22652394a3f85bbed5cb84e72d1e74eec"
+  }
+}

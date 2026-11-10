@@ -1,0 +1,4 @@
+Synthetic alternate header fixture; NOT device measurement.
+PID TID USER PR NI VIRT RES SHR S CPU% MEM% TIME+ NAME
+16782 16802 u0_a312 20 0 14G 340M 84M R 12.5% 3.0 0:03.45 UI
+16782 16803 u0_a312 10 -10 14G 340M 84M S 3.5% 3.0 0:04.67 Raster

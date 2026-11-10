@@ -1,0 +1,200 @@
+Current time: 2026-11-10 21:43:48
+Build configuration: [sf PRESENT_TIME_OFFSET=0 FORCE_HWC_FOR_RBG_TO_YUV=1 MAX_VIRT_DISPLAY_DIM=4096 RUNNING_WITHOUT_SYNC_FRAMEWORK=0 NUM_FRAMEBUFFER_SURFACE_BUFFERS=3]
+
+Display identification data:
+Display 4630946231300050817 (HWC display 0): port=129 pnpId=QCM displayName=""
+
+Wide-Color information:
+Device supports wide color: 0
+DisplayColorSetting: Managed
+Display 4630946231300050817 color modes:
+    ColorMode::NATIVE (0)
+    ColorMode::SRGB (7)
+    ColorMode::DISPLAY_P3 (9)
+    Current color mode: ColorMode::NATIVE (0)
+
+HDR events for display 4630946231300050817
+20849265147: numHdrLayers(0), size(0x0), flags(0), desiredRatio(0.00)
+
+Sync configuration: [using: EGL_ANDROID_native_fence_sync EGL_KHR_wait_sync]
+
+Scheduler:
+Features
+    PresentFences=true
+    KernelIdleTimer=false
+    ContentDetection=true
+
+Policy
+    pacesetterDisplayId=4630946231300050817
+    layerHistory={size=142, active=1}
+	GameFrameRateOverrides=
+		(uid, gameModeOverride, gameDefaultOverride)=
+    touchTimer=nullopt
+    displayPowerTimer=nullopt
+
+FrameRateOverrides=none
+
+           app phase:      1000000 ns	         SF phase:      1000000 ns
+           app duration:  16666666 ns	         SF duration:  15666666 ns
+     early app phase:      1000000 ns	   early SF phase:      1000000 ns
+     early app duration:  16666666 ns	   early SF duration:  15666666 ns
+  GL early app phase:      1000000 ns	GL early SF phase:      1000000 ns
+  GL early app duration:  16666666 ns	GL early SF duration:  15666666 ns
+       HWC min duration:         0 ns
+
+ScreenOff: 0d08:32:42.233
+120.00 Hz: 0d00:00:12.197
+60.00 Hz: 0d07:25:44.537
+
+Pacesetter Display 4630946231300050817
+    renderRate=60.00 Hz
+    activeMode={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+    displayModes=
+        {id=0, hwcId=0, resolution=1080x2400, vsyncRate=120.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+        {id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+    displayManagerPolicy={defaultModeId=1, allowGroupSwitching=false, primaryRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]} idleScreenConfig=IdleScreenRefreshRateConfig{timeoutMillis: -1}}
+    frameRateOverrideConfig=Enabled
+    idleTimer=
+        interval=nullopt
+        controller=Platform
+    Total missed frame count: 16303
+    HWC missed frame count: 16303
+    GPU missed frame count: 4439
+
+
+debugDisplayModeSetByBackdoor=false
+
+         present offset:         0 ns	        VSYNC period:  16666666 ns
+
+app: state=VSync VSyncState={displayId=4630946231300050817, count=763760}
+mWorkDuration=16.67 mReadyDuration=15.67 last vsync time 22.31ms relative to now
+ with vsync committed at 22.31ms  pending events (count=0):
+  connections (count=63):
+    Connection{0xb40000797ed0e6b0, VSyncRequest::None}
+    Connection{0xb40000797ed26b30, VSyncRequest::None}
+    Connection{0xb40000797ed08210, VSyncRequest::None}
+    Connection{0xb40000797ed06c30, VSyncRequest::None}
+    Connection{0xb40000797ed2e690, VSyncRequest::None}
+    Connection{0xb40000797ed24e50, VSyncRequest::None}
+    Connection{0xb40000797ed27f50, VSyncRequest::None}
+    Connection{0xb40000797ed26270, VSyncRequest::None}
+    Connection{0xb40000797ed0c3b0, VSyncRequest::None}
+    Connection{0xb40000797ed2d190, VSyncRequest::None}
+    Connection{0xb40000797ed043f0, VSyncRequest::None}
+    Connection{0xb40000797ed02010, VSyncRequest::None}
+    Connection{0xb40000797ed1e8d0, VSyncRequest::None}
+    Connection{0xb40000797ed09010, VSyncRequest::None}
+    Connection{0xb40000797ed053b0, VSyncRequest::None}
+    Connection{0xb40000797ed1ed30, VSyncRequest::None}
+    Connection{0xb40000797ed2d510, VSyncRequest::None}
+    Connection{0xb40000797ed05650, VSyncRequest::None}
+    Connection{0xb40000797ed1c330, VSyncRequest::None}
+    Connection{0xb40000797ed0bbd0, VSyncRequest::None}
+    Connection{0xb40000797ed250f0, VSyncRequest::None}
+    Connection{0xb40000797ed28c70, VSyncRequest::None}
+    Connection{0xb40000797ed29df0, VSyncRequest::None}
+    Connection{0xb40000797ed1b450, VSyncRequest::None}
+    Connection{0xb40000797ed14610, VSyncRequest::None}
+    Connection{0xb40000797ed20930, VSyncRequest::None}
+    Connection{0xb40000797ed06530, VSyncRequest::None}
+    Connection{0xb40000797ed0cf10, VSyncRequest::None}
+    Connection{0xb40000797ed0c9d0, VSyncRequest::None}
+    Connection{0xb40000797ed1b290, VSyncRequest::None}
+    Connection{0xb40000797ed2c630, VSyncRequest::None}
+    Connection{0xb40000797ed31b10, VSyncRequest::None}
+    Connection{0xb40000797ed04230, VSyncRequest::None}
+    Connection{0xb40000797ed15bf0, VSyncRequest::None}
+    Connection{0xb40000797ed27bd0, VSyncRequest::None}
+    Connection{0xb40000797ed06610, VSyncRequest::None}
+    Connection{0xb40000797ed27070, VSyncRequest::None}
+    Connection{0xb40000797ed1b370, VSyncRequest::None}
+    Connection{0xb40000797ed083d0, VSyncRequest::None}
+    Connection{0xb40000797ed13110, VSyncRequest::None}
+    Connection{0xb40000797ed1ad50, VSyncRequest::None}
+    Connection{0xb40000797ed1c410, VSyncRequest::None}
+    Connection{0xb40000797ed0a350, VSyncRequest::None}
+    Connection{0xb40000797ed147d0, VSyncRequest::None}
+    Connection{0xb40000797ed213b0, VSyncRequest::None}
+    Connection{0xb40000797ed353f0, VSyncRequest::None}
+    Connection{0xb40000797ed2e4d0, VSyncRequest::None}
+    Connection{0xb40000797ed13d50, VSyncRequest::None}
+    Connection{0xb40000797ed37df0, VSyncRequest::None}
+    Connection{0xb40000797ed33fd0, VSyncRequest::None}
+    Connection{0xb40000797ed24210, VSyncRequest::None}
+    Connection{0xb40000797ed35bd0, VSyncRequest::None}
+    Connection{0xb40000797ed378b0, VSyncRequest::None}
+    Connection{0xb40000797ed36030, VSyncRequest::None}
+    Connection{0xb40000797ed32750, VSyncRequest::None}
+    Connection{0xb40000797ed32c90, VSyncRequest::None}
+    Connection{0xb40000797ed330f0, VSyncRequest::None}
+    Connection{0xb40000797ed2ebd0, VSyncRequest::None}
+    Connection{0xb40000797ed194d0, VSyncRequest::None}
+    Connection{0xb40000797ed2f2d0, VSyncRequest::None}
+    Connection{0xb40000797ed163d0, VSyncRequest::Single}
+    Connection{0xb40000797ed0d530, VSyncRequest::None}
+    Connection{0xb40000797ed12310, VSyncRequest::None}
+
+VsyncSchedule for pacesetter 4630946231300050817:
+hwVsyncState=Disabled
+pendingHwVsyncState=Disabled
+
+VsyncController:
+VsyncReactor in use
+Has 1 unfired fences
+mInternalIgnoreFences=0 mExternalIgnoreFences=0
+mMoreSamplesNeeded=0 mPeriodConfirmationInProgress=0
+mModePtrTransitioningTo=nullptr
+No Last HW vsync
+VSyncTracker:
+	mDisplayModePtr={id=1, hwcId=1, resolution=1080x2400, vsyncRate=60.00 Hz, dpi=397.57x393.29, group=0, vrrConfig=N/A, supportedHdrTypes=INVALID}
+	Refresh Rate Map:
+		For ideal period 16.67ms: period = 16.86ms, intercept = -496820
+		For ideal period 8.33ms: period = 8.33ms, intercept = 0
+	mTimelines.size()=1
+VsyncDispatch:
+	Timer:
+		DebugState: Waiting
+	mTimerSlack: 0.50ms mMinVsyncDistance: 2.40ms
+	mIntendedWakeupTime: 6.57ms from now
+	mLastTimerCallback: 10.14ms ago mLastTimerSchedule: 9.61ms ago
+	Callbacks:
+		sf:  
+			workDuration: 15.67ms readyDuration: 0.00ms lastVsync: -467.45ms relative to now committedVsync: -467.45ms relative to now
+			mLastDispatchTime: 384.27ms ago
+		app:  [wake up in 6.56ms deadline in 23.23ms for vsync 38.89ms from now]
+			workDuration: 16.67ms readyDuration: 15.67ms lastVsync: 22.03ms relative to now committedVsync: 22.03ms relative to now
+			mLastDispatchTime: -22.03ms ago
+		appSf:  
+			workDuration: 16.67ms readyDuration: 15.67ms lastVsync: -281482.88ms relative to now committedVsync: -281482.88ms relative to now
+			mLastDispatchTime: 281466.25ms ago
+
+SurfaceFlinger New Frontend Enabled:true
+Active Layers - layers with client handles (count = 142)
+
+Composition list (bottom to top)
+LayerStack=0
+  Layer [5933] Splash Screen com.example.luckdraw_bench 11-10 21:38:56.514#5933
+    visible reason= buffer=14637248547155 frame=1 color{< 0, 0, 0, 1 >}
+    bounds={0,0,2400,1080}
+    input{(NOT_FOCUSABLE | NOT_TOUCHABLE | DISPATCH_BOOST) touchCropId=5930 touchableRegion={0,0,2400,1080}}
+  Layer [82] StatusBar 11-04 13:50:44.316#82
+    visible reason= buffer=14637248544775 frame=13939 color{< 0, 0, 0, 1 >}
+    bounds={0,0,94,1080}
+    input{(NOT_FOCUSABLE | TRUSTED_OVERLAY | IGNORE_DRAG_EVENT) touchableRegion={0,0,94,1080}}
+  Layer [107] Taskbar 11-04 13:50:49.292#107
+    visible reason= buffer=17970143166470 frame=3447 color{< 0, 0, 0, 1 >}
+    bounds={0,2290,2400,1080} toDisplayTransform={ tx=0.0000 ty=2290.0000 }
+    input{(NOT_FOCUSABLE | TRUSTED_OVERLAY | DISPATCH_BOOST) touchableRegion={102,2290,2400,978}}
+  Layer [5061] side_dock_gesture_bar 11-10 19:59:57.063#5061
+    visible reason= buffer=15174119457114 frame=1 color{< 0, 0, 0, 1 >}
+    bounds={1008,204,480,1224} toDisplayTransform={ tx=1008.0000 ty=204.0000 }
+    input{(NOT_FOCUSABLE | TRUSTED_OVERLAY | DISPATCH_BOOST) touchableRegion={1008,204,480,1224}}
+  Layer [114] __@@RoundLayerUp__@@__#114
+    visible reason= buffer=21569325760512 frame=1 color{< 0, 0, 0, 1 >}
+    bounds={0,0,164,1080}
+    input{(NO_INPUT_CHANNEL | TRUSTED_OVERLAY) touchableRegion={0,0,0,0}}
+    nameFlags={RoundPhone | NeverHide | UDSkipEffect | MsAboveImage | MsSkipScale | CheckResolution | ExculdeRippleEffect}
+  Layer [116] __@@RoundLayerDown__@@__#116
+    visible reason= buffer=21569325760513 frame=1 color{< 0, 0, 0, 1 >}
+    bounds={0,2236,2400,1080} toDisplayTransform={ tx=0.0000 ty=2236.0000 }
+    input{(NO_INPUT_CHANNEL | TRUSTED_OVERLAY) touchableRegion={0,2236,2236,0}}

@@ -1,0 +1,42 @@
+[
+  {
+    "started_at": "2026-11-10T17:36:18.7205485Z",
+    "error": "采集结束时非亮屏未锁屏，保留该失败尝试",
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "grid_first_frame_1",
+    "scene": "grid_first_frame",
+    "ended_at": "2026-11-10T17:36:37.5506147Z",
+    "valid": false,
+    "attempt": 1
+  },
+  {
+    "started_at": "2026-11-10T17:37:39.9137417Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "grid_first_frame_2",
+    "scene": "grid_first_frame",
+    "ended_at": "2026-11-10T17:37:59.3225630Z",
+    "valid": true,
+    "attempt": 2
+  },
+  {
+    "started_at": "2026-11-10T17:38:00.1719891Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "grid_first_frame_3",
+    "scene": "grid_first_frame",
+    "ended_at": "2026-11-10T17:38:18.8168980Z",
+    "valid": true,
+    "attempt": 3
+  },
+  {
+    "started_at": "2026-11-10T17:38:19.6162621Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "grid_first_frame_4",
+    "scene": "grid_first_frame",
+    "ended_at": "2026-11-10T17:38:38.0070701Z",
+    "valid": true,
+    "attempt": 4
+  }
+]
