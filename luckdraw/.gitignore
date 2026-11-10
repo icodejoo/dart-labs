@@ -19,3 +19,4 @@ tool/bench/results/**/flutter_driver_commands_*.log
 tool/bench/results/**/frames.json
 tool/bench/results/**/*.timeline.json.gz
 tool/bench/results/**/*.json.gz
+!tool/bench/results/pend_offline/frames.json

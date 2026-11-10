@@ -38,8 +38,10 @@ Map<String, dynamic> _response(
 void main() {
   group('bench INSTR', () {
     test('actual buffered Android16 snapshots accept LF and Windows CRLF', () {
+      // 检出时 autocrlf 可能已把夹具转成 CRLF，先归一化再构造 LF / CRLF 两种输入。
       final source = File('tool/bench/fixtures/proc_buffered_android16.txt')
-          .readAsStringSync();
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
       for (final text in [source, source.replaceAll('\n', '\r\n')]) {
         final parsed = parseProcSnapshot(text);
         expect(parsed['hz'], 100);
