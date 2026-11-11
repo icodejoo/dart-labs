@@ -10,6 +10,9 @@
   text scaling, custom drawing layers, paylines and optional Widget overlays.
 - Separate entry points for each game, extension interfaces, deterministic testing
   helpers and lucky-canvas JSON migration with an opt-in strict upstream preset.
+- Drawing lots can customize rise/reveal easing, shake waveform, layout and the
+  background, cylinder and stick drawing.
+- A slot machine without prizes still paints its block frame, as upstream does.
 
 ### Changed
 

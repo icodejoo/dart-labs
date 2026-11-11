@@ -16,6 +16,7 @@ import '../../core/text/text_line.dart';
 import '../../core/text/text_measurer.dart';
 import '../layout/lots_layout.dart';
 import '../model/lots_config.dart';
+import '../model/lots_parts.dart';
 import '../motion/lots_motion.dart';
 
 /// 背景段编号。
@@ -57,21 +58,35 @@ final class LotsPainter extends CustomPainter {
                 [data.frameListenable, data.imagesListenable])) {
     luckyTraceStart('luckdraw.lots.record');
     try {
+      if (data.layout.isEmpty) return;
       _cardCenter = data.layout.card.center;
       _background = cache.picture(
           _backgroundId,
-          (canvas) => _fill(canvas, Offset.zero & data.layout.size,
-              data.config.style.background));
+          (canvas) => _recordPart(canvas, data.config.style.backgroundPainter,
+              Offset.zero & data.layout.size, data.config.style.background));
       _back = cache.picture(
           _backId,
-          (canvas) =>
-              _fill(canvas, data.layout.cylinder, data.config.style.backFill));
-      _bare = cache.picture(_bareId,
-          (canvas) => _fill(canvas, _unitStick, data.config.style.stickFill));
+          (canvas) => _recordPart(canvas, data.config.style.cylinderBackPainter,
+              data.layout.cylinder, data.config.style.backFill));
+      if (data.config.style.stickPainter == null) {
+        _bare = cache.picture(_bareId,
+            (canvas) => _fill(canvas, _unitStick, data.config.style.stickFill));
+      } else {
+        for (var slot = 0; slot < data.layout.sticks.length; slot++) {
+          final rect = data.layout.sticks[slot];
+          // 紧接所有卡片的负编号，避免与卡片、命名签及用户层冲突。
+          _bareSlots.add(cache.picture(
+              _cardBase - data.config.sticks.length - slot,
+              (canvas) => _recordStick(canvas, rect, null)));
+        }
+      }
       _front = cache.picture(
           _frontId,
-          (canvas) => _fill(
-              canvas, data.layout.cylinder, data.config.style.cylinderFill));
+          (canvas) => _recordPart(
+              canvas,
+              data.config.style.cylinderFrontPainter,
+              data.layout.cylinder,
+              data.config.style.cylinderFill));
       for (var i = 0; i < data.config.sticks.length; i++) {
         final index = i;
         _named.add(cache.picture(
@@ -112,7 +127,10 @@ final class LotsPainter extends CustomPainter {
   late final ui.Picture _back;
 
   /// 共用无字签。
-  late final ui.Picture _bare;
+  ui.Picture? _bare;
+
+  /// 按实际尺寸录制的各槽位自定义无字签。
+  final List<ui.Picture> _bareSlots = [];
 
   /// 签筒前壁。
   late final ui.Picture _front;
@@ -133,10 +151,30 @@ final class LotsPainter extends CustomPainter {
   void _fill(Canvas canvas, Rect rect, LuckyFill fill) =>
       paintLuckyFill(canvas, Path()..addRect(rect), fill, rect);
 
+  /// 录制自定义部件，为空时沿用原矩形填充。
+  void _recordPart(
+      Canvas canvas, LotsPartPainter? painter, Rect rect, LuckyFill fill) {
+    if (painter == null) {
+      _fill(canvas, rect, fill);
+    } else {
+      painter(canvas, data.layout);
+    }
+  }
+
+  /// 在签矩形局部坐标系中录制自定义签身。
+  void _recordStick(Canvas canvas, Rect rect, LotsStick? stick) {
+    canvas.translate(rect.left, rect.top);
+    data.config.style.stickPainter!(canvas, rect.size, stick);
+  }
+
   /// 录制目标签和签名。
   void _recordNamed(Canvas canvas, int index) {
     final rect = data.layout.sticks[index % data.layout.sticks.length];
     final stick = data.config.sticks[index];
+    if (data.config.style.stickPainter != null) {
+      _recordStick(canvas, rect, stick);
+      return;
+    }
     _fill(canvas, rect, stick.fill ?? data.config.style.stickFill);
     final painter = TextPainter(
         text: TextSpan(
@@ -237,6 +275,7 @@ final class LotsPainter extends CustomPainter {
     luckyTraceStart('luckdraw.lots.paint');
     try {
       final l = data.layout, f = data.frame;
+      if (l.isEmpty) return;
       data.hooks.beforeDraw?.call(canvas, size);
       _layers(canvas, LuckyLayerPosition.background);
       canvas.drawPicture(_background);
@@ -255,10 +294,12 @@ final class LotsPainter extends CustomPainter {
         if (target) {
           canvas.translate(0, -l.riseDistance * f.riseProgress);
           canvas.drawPicture(_named[f.targetIndex]);
-        } else {
+        } else if (_bare != null) {
           canvas.translate(rect.left, rect.top);
           canvas.scale(rect.width, rect.height);
-          canvas.drawPicture(_bare);
+          canvas.drawPicture(_bare!);
+        } else {
+          canvas.drawPicture(_bareSlots[slot]);
         }
         canvas.restore();
       }

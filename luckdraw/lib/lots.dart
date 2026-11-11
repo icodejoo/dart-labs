@@ -65,7 +65,15 @@ export 'src/lots/control/lots_controller.dart' show LotsController;
 export 'src/lots/layout/lots_layout.dart' show LotsLayout;
 export 'src/lots/lots_game.dart' show LotsGame;
 export 'src/lots/model/lots_config.dart'
-    show LotsConfig, LotsOptions, LotsStyle;
+    show
+        LotsConfig,
+        LotsOptions,
+        LotsStyle,
+        LotsShakeWaveform,
+        lotsSineWaveform,
+        LotsLayoutAdjuster,
+        LotsPartPainter,
+        LotsStickBodyPainter;
 export 'src/lots/model/lots_parts.dart' show LotsStick, LotsStickPainter;
 export 'src/lots/motion/lots_motion.dart' show LotsFrame, LotsStage;
 export 'src/lots/render/lots_canvas_renderer.dart' show LotsCanvasRenderer;

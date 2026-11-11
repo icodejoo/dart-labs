@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 
-import '../../core/easing/easing.dart';
-import '../../core/foundation/angles.dart';
 import '../../core/foundation/constants.dart';
 import '../../core/game/frame.dart';
 import '../../core/motion/motion.dart';
@@ -231,12 +229,12 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
       if (_elapsed >= damping) {
         frame.stage = LotsStage.rising;
         frame.riseProgress =
-            LuckyEasings.quad.easeOut(_elapsed - damping, 0, 1, rise);
+            _config.options.riseEasing.easeOut(_elapsed - damping, 0, 1, rise);
       }
       if (_elapsed >= damping + rise) {
         frame.stage = LotsStage.revealing;
         if (_config.options.revealOnSettle) {
-          frame.revealProgress = LuckyEasings.cubic
+          frame.revealProgress = _config.options.revealEasing
               .easeOut(_elapsed - damping - rise, 0, 1, reveal);
         }
       }
@@ -249,7 +247,8 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
         events |= LuckyMotionEvents.settled;
       }
     }
-    frame.shakeDeg = amplitude * math.sin(luckyDegToRad(frame.shakePhaseDeg));
+    frame.shakeDeg =
+        amplitude * _config.options.shakeWaveform(frame.shakePhaseDeg);
     if (before != phase) events |= LuckyMotionEvents.phaseChanged;
     return events;
   }

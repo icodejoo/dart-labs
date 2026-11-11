@@ -76,6 +76,27 @@ final class LotsLayout extends LuckyLayout {
   /// 上半区展示卡。
   final Rect card;
 
+  /// 返回只替换非空参数的布局；列表在使用期间不可修改。
+  ///
+  /// sticks.length 必须等于 angles.length，pivot 通常取 cylinder.bottomCenter。
+  /// 例如 `base.copyWith(cylinder: rect, pivot: rect.bottomCenter)`。
+  LotsLayout copyWith(
+          {Size? size,
+          Rect? cylinder,
+          Offset? pivot,
+          List<Rect>? sticks,
+          List<double>? angles,
+          double? riseDistance,
+          Rect? card}) =>
+      LotsLayout(
+          size: size ?? this.size,
+          cylinder: cylinder ?? this.cylinder,
+          pivot: pivot ?? this.pivot,
+          sticks: sticks ?? this.sticks,
+          angles: angles ?? this.angles,
+          riseDistance: riseDistance ?? this.riseDistance,
+          card: card ?? this.card);
+
   /// 零尺寸或无签槽时不可绘制。
   @override
   bool get isEmpty => size.isEmpty || sticks.isEmpty;
@@ -112,7 +133,7 @@ LotsLayout computeLotsLayout(LotsConfig config, LuckyLayoutInput input) {
           ? 0
           : -_fanAngle + kLuckyHalfDivisor * _fanAngle * slot / (count - 1)));
     }
-    return LotsLayout(
+    final base = LotsLayout(
         size: input.size,
         cylinder: cylinder,
         pivot: cylinder.bottomCenter,
@@ -121,6 +142,9 @@ LotsLayout computeLotsLayout(LotsConfig config, LuckyLayoutInput input) {
         riseDistance: h * _rise,
         card: Rect.fromLTWH(w * _cardMargin, h * _cardMargin,
             w * (1 - kLuckyHalfDivisor * _cardMargin), h * _cardHeight));
+    final layout = config.options.layoutAdjuster?.call(base) ?? base;
+    assert(layout.isEmpty || layout.sticks.length == layout.angles.length);
+    return layout;
   } finally {
     luckyTraceEnd();
   }
