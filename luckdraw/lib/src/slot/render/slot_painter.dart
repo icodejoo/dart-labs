@@ -59,6 +59,7 @@ final class SlotPainter extends CustomPainter {
           atlas != null &&
           atlas!.prepare(_cells, data.layout, data.devicePixelRatio,
               data.performance.maxRasterSide, data.performance.filterQuality,
+              maxRasterBytes: data.performance.maxRasterBytes,
               padding: _rasterPadding);
       if (!_useAtlas) atlas?.dispose();
       _staticLayers = [

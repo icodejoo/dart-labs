@@ -1,5 +1,27 @@
 # luckdraw B01–B03 / T0.1–T0.4 验收矩阵
 
+## 需求和不变量
+
+### 九宫格换格频率上限与减少动效（第 0 批）
+
+| ID | 验收项 | 依据 | 测试 / 命令 | 类型 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| GRIDREDUCE-01 | 新字段值语义 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 新选项默认值、副本、相等性和哈希包含限速策略` | 单元 | 已落地 |
+| GRIDREDUCE-02 | 无系统环境保留原引用 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: system 无 MediaQuery 时原样传递配置引用` | widget | 已落地 |
+| GRIDREDUCE-03 | system 关闭 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: system 且 disableAnimations 为 false 时不限速` | widget | 已落地 |
+| GRIDREDUCE-04 | system 开启 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: system 且 disableAnimations 为 true 时封顶` | widget | 已落地 |
+| GRIDREDUCE-05 | always 与系统关闭 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: always 且 disableAnimations 为 false 时封顶` | widget | 已落地 |
+| GRIDREDUCE-06 | always 与系统开启 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: always 且 disableAnimations 为 true 时封顶` | widget | 已落地 |
+| GRIDREDUCE-07 | never 与系统关闭 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: never 且 disableAnimations 为 false 时不限速` | widget | 已落地 |
+| GRIDREDUCE-08 | never 与系统开启 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: never 且 disableAnimations 为 true 时保留原配置引用` | widget | 已落地 |
+| GRIDREDUCE-09 | 显式上限单位换算 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 仅显式上限按参考帧单位封顶巡航与待机速度` | widget | 已落地 |
+| GRIDREDUCE-10 | never 保留显式限速 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: never 仍应用显式上限` | widget | 已落地 |
+| GRIDREDUCE-11 | system 关闭时显式限速 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: system 未减少动效时仍应用显式上限` | widget | 已落地 |
+| GRIDREDUCE-12 | 宽松上限取小 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 减少动效与宽松显式上限并存时取三次` | widget | 已落地 |
+| GRIDREDUCE-13 | 严格上限取小且不提高速度 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 减少动效与严格显式上限并存时取较小值且不提高低速` | widget | 已落地 |
+| GRIDREDUCE-14 | 两秒实际高亮次数 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 减少动效启动两秒内高亮至多七次且默认配置明显更多` | widget | 已落地 |
+| GRIDREDUCE-15 | 封顶后全部落点及待机启动 | 用户第0批；ARCHITECTURE §9.1 | `test/grid/grid_reduce_motion_test.dart :: 封顶配置经一致性检查仍落在每个目标且待机可直接启动` | widget、一致性 | 已落地 |
+
 B05 最近一次完整运行：340/340 通过，150 条其它玩法骨架保持 skip；本批新增 82 条（任务 0：3；T1.1：布局 18 + 模型 3；T1.2：motion 24 + controller 9 + 共享转盘状态机 25）。
 实测门禁：`flutter analyze` 输出 No issues found!；格式检查输出 131 files (0 changed)；行覆盖率 TOTAL: 2085/2085 (100.00%)；check_imports 输出 74 lib files / IMP-R1…R12 通过；check_acceptance 输出 467 references resolve / 340 registered tests all mapped。
 完整原始日志与隔离采集：coverage/B05-test.log、coverage/B05-coverage.log、coverage/B05.lcov；执行原样 `dart run tool/coverage.dart --min=100` 前，将已完成的 B05.lcov 复制到 coverage/lcov.info。无新增覆盖率豁免，沿用 COV-01 的两行编译期开关豁免。B05 新增矩阵引用均标“已落地”（D6）。
@@ -1474,3 +1496,23 @@ adb devices 无连接设备，安卓只交付 Flutter 3.47 生成的平台配置
 | SLOTEMPTY-02 | 老虎机空奖品绘制：LuckySlotMachine > blocks-only config (no prizes) still paints the block frame | 用户：老虎机无奖品不画 blocks | `test/slot/slot_widget_test.dart :: LuckySlotMachine > blocks-only config (no prizes) still paints the block frame` | widget、单元 | 已落地 |
 | SLOTEMPTY-03 | 老虎机空奖品绘制：LuckySlotMachine > empty config without blocks paints nothing | 用户：老虎机无奖品不画 blocks | `test/slot/slot_widget_test.dart :: LuckySlotMachine > empty config without blocks paints nothing` | widget、单元 | 已落地 |
 | INVMON-00 | debug 缓存失效告警：第八次失效告警，同一窗口只报告一次并包含修复建议 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: 第八次失效告警，同一窗口只报告一次并包含修复建议` | 单元 | 已落地 |
+
+### 第 0 批：共享 raster 纹理字节预算
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| RASTERBUDGET-01 | 单例记账、恰好到上限、超限不占用及不减为负 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 共享账本允许恰好到达上限且释放不会减到负数` | 单元 | 已落地 |
+| RASTERBUDGET-02 | debug 回退通知携带请求、占用和上限 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 预占失败仅在debug通知请求量当前占用和本次上限` | 单元 | 已落地 |
+| RASTERBUDGET-03 | 测试清零账本 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 测试reset清零已预占字节` | 单元 | 已落地 |
+| RASTERBUDGET-04 | ceil 物理尺寸计费、边界允许及超限 null | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 位图按向上取整的物理尺寸计费且超限返回null` | 单元 | 已落地 |
+| RASTERBUDGET-05 | 多 cache 共享占用且各自判断上限 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 多个cache共享预算并按各自上限决定能否新增纹理` | 单元 | 已落地 |
+| RASTERBUDGET-06 | 替换、单项失效、全部失效和重复销毁配对释放 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 替换失败保留旧图而成功替换失效和销毁均配对释放` | 单元 | 已落地 |
+| RASTERBUDGET-07 | 零预算禁用 raster，已有资源仍配对释放 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 零字节上限禁用新增及已有位图的回放入口` | 单元 | 已落地 |
+| RASTERBUDGET-08 | 录制异常不泄漏预占 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 录制异常退还预占且保留其它cache的账目` | 单元 | 已落地 |
+| RASTERBUDGET-09 | 原生创建异常不泄漏预占或提前销毁旧图 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 原生纹理创建异常退还预占且保留旧纹理` | 单元 | 已落地 |
+| RASTERBUDGET-10 | CachedPicture 传递选项并回退矢量回放 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: CachedPicture从performance传入预算并回退Picture绘制` | 单元 | 已落地 |
+| RASTERBUDGET-11 | 选项默认值、副本、相等性和哈希 | 用户第0批；ARCHITECTURE §8.1 | `test/core/render/raster_budget_test.dart :: 预算选项默认32MiB且纳入copyWith相等性和哈希` | 单元 | 已落地 |
+| RASTERBUDGET-12 | 图集部分建页后超限，释放页面并整次回退 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 图集第二页超限释放第一页并整次回退Picture` | 单元 | 已落地 |
+| RASTERBUDGET-13 | 图集与 cache 竞争、释放后重试、复用和重复销毁 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 图集与普通cache共享预算且释放后可重试创建和复用` | 单元 | 已落地 |
+| RASTERBUDGET-14 | 图集预算变化使缓存失效，零禁用 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 仅改变图集字节上限为零释放旧页面并禁用raster` | 单元 | 已落地 |
+| RASTERBUDGET-15 | 图集创建异常清理所有页面和预占 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 图集原生创建异常退还本页预占并释放此前页面` | 单元 | 已落地 |

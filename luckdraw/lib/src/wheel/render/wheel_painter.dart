@@ -102,7 +102,8 @@ final class WheelPainter extends CustomPainter {
       cache
         ..invalidateAll()
         ..mode = data.performance.cacheMode
-        ..maxRasterSide = data.performance.maxRasterSide;
+        ..maxRasterSide = data.performance.maxRasterSide
+        ..maxRasterBytes = data.performance.maxRasterBytes;
       _segments.clear();
       _bounds = Offset.zero & data.layout.size;
       _rasterPaint.filterQuality = data.performance.filterQuality;

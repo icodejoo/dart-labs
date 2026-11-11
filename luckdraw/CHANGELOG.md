@@ -2,6 +2,10 @@
 
 ### Added
 
+- Experimental shared raster byte budgeting (32 MiB by default), including slot
+  atlas pages, with Picture fallback and paired reservation/release accounting.
+- Experimental grid step-rate caps and system-aware reduced motion, limited to
+  three steps per second when reduced motion is enabled.
 - Debug-only warnings identify repeated config-driven cache invalidation across
   all Canvas renderers, with an injectable clock and warning hook for tests.
 - Typed, immutable models and widgets for wheels, nine-grids, slots, lever slots,

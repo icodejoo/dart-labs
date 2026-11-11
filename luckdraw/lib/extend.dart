@@ -88,6 +88,7 @@ export 'src/core/render/invalidation_monitor.dart'
 export 'src/core/render/layer.dart'
     show LuckyLayer, LuckyCallbackLayer, LuckyLayerPosition, LuckyLayerContext;
 export 'src/core/render/picture_cache.dart' show LuckyPictureCache;
+export 'src/core/render/raster_budget.dart' show LuckyRasterBudget;
 export 'src/core/render/renderer.dart' show LuckyRenderer, LuckySurfaceData;
 export 'src/core/text/split_text.dart' show splitLuckyText, removeLineBreaks;
 export 'src/core/text/text_line.dart' show LuckyTextLine, layoutLuckyTextLines;

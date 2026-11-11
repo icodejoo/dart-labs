@@ -20,6 +20,12 @@ const int kLuckyMaxSolverIterations = 100000;
 /// 位图缓存单边最大像素的默认值。
 const int kLuckyDefaultMaxRasterSide = 4096;
 
+/// 实验性（可能调整）：共享位图预算默认 32 MiB；E2 中 52 MiB 内平稳、104 MiB 掉帧。
+const int kLuckyDefaultMaxRasterBytes = 32 * 1024 * 1024;
+
+/// 实验性（可能调整）：名义 RGBA 每像素字节数，不包含引擎和驱动附加内存。
+const int kLuckyRgbaBytesPerPixel = 4;
+
 /// 上游 splitText 使用的省略号。
 const String kLuckyEllipsis = '...';
 

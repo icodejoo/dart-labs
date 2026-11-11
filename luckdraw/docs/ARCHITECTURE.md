@@ -499,6 +499,10 @@ sequenceDiagram
 
 位图的 `ceil(logicalSize × DPR)` 任一边为零或超过 `maxRasterSide`（默认4096）就返回 null，由调用方退回 Picture；老虎机单格超限也退回 Picture，图集按上限分页。缓存身份包含段ID、设备像素尺寸、DPR、逻辑原点；即使像素尺寸相同，DPR/原点改变也必须重建，旧图释放。尺寸、配置代际及图片代际变化按原失效契约处理。
 
+实验性（可能调整）：`LuckyRasterBudget.instance` 为所有实例、玩法和层共享名义纹理字节账本，`usedBytes` 可查看当前占用。每张纹理（图集按页，含边距及空槽）按 `ceil(logicalWidth × DPR) × ceil(logicalHeight × DPR) × 4` 预占；仅当 `usedBytes + 新增字节 <= 当前 surface 的 performance.maxRasterBytes` 才创建。替换时旧图在销毁前仍占预算，失效、替换、销毁及创建异常均配对释放；图集任一页超限则释放已建页面并整次退回 Picture，不影响奖品内容。
+
+`maxRasterBytes` 默认 `kLuckyDefaultMaxRasterBytes = 32 * 1024 * 1024`（32 MiB），依据 [E2 真机实测](E1_E2_DEVICE_REPORT.md)：名义纹理 52 MiB 内平稳、104 MiB 时掉帧；`dumpsys meminfo` 无法准确计量 GPU 纹理，故使用名义字节数而非进程内存。阈值与设备相关，可按需传入 `LuckyPerformanceOptions(maxRasterBytes: 64 * 1024 * 1024)` 调大，或设为 `0` 禁用 raster；这不是每个实例独享的额度，各 surface 可使用不同上限。debug 下预占失败会调用可选的 `LuckyRasterBudget.debugOnFallback(requested, used, limit)`，关闭 assert 后无通知。
+
 转盘只缓存旋转段，数字盘只缓存盘面，扭蛋按配色复用球纹理，大乐透按号码缓存；九宫格只缓存有背景且有阴影的格子背景，内容仍独立 Picture；slot/lever/lots 没有因 auto 改为整页位图。滤镜遵守 `performance.filterQuality`（默认 low）。
 
 MET复核保存数据后，转盘两个未污染窗口Raster平均中位数为5.0996ms；高档窗口和几乎不画内容的参照方块均可能出现约16.7ms且彼此不同步，证据支持提交阶段等待vsync释放缓冲区的背压。全部130个稳态窗口fps为59.830–60.177且交付完整；不能再把污染窗口的Raster时间当纯绘制成本或将旧dropped_frame_ratio当真实未呈现帧比例。成本门禁仅使用未污染窗口，至少两次；当前仍有失败，见§8.6及[度量修正报告](METRIC_FIX_REPORT.md)。
@@ -605,6 +609,13 @@ RSS保持五次循环，首次返回预热仅信息，后四次净增长中位�
 ## 9. 状态机（全部玩法共用阶段，语义对齐上游 step / prizeFlag / currIndex）
 
 ### 9.1 阶段与上游 step 的对应
+
+九宫格 `GridOptions.maxStepsPerSecond`（实验性）可限制巡航换格频率，默认 null 不显式限速。
+速度换算为 `speed × 60 / kLuckyGridSpeedDivisor(40) = 1.5 × speed` 格/秒。
+`reduceMotion` 默认 system，跟随 `MediaQuery.maybeDisableAnimationsOf`；无 MediaQuery 视为 false。
+always 或系统减少动效生效时，上限取显式值与 `kLuckyReducedStepsPerSecond = 3` 的较小值，依据 [WCAG 2.3.1](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html) 的每秒三次闪烁阈值。
+`LuckyGrid` 先封顶配置再交给控制器、游戏与停止求解；待机速度及加速起点同步受限，无上限时保留原配置引用。
+设 `reduceMotion: GridReduceMotion.never` 可关闭自动封顶；同时保持 maxStepsPerSecond 为 null 即恢复原有速度，仅九宫格提供此能力。
 
 ```dart
 enum LuckyPhase { idle, idleSpinning, accelerating, cruising, decelerating, settled }

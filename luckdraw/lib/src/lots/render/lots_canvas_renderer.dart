@@ -91,6 +91,7 @@ final class _SurfaceState extends State<_Surface> {
     }
     _cache.mode = data.performance.cacheMode;
     _cache.maxRasterSide = data.performance.maxRasterSide;
+    _cache.maxRasterBytes = data.performance.maxRasterBytes;
     return CustomPaint(
         painter: LotsPainter(data, _cache),
         size: data.layout.size,

@@ -147,6 +147,9 @@ final class GridMotion extends LuckyMotion<GridConfig, GridLayout, GridFrame,
     _base = phase == LuckyPhase.idleSpinning
         ? _options.idleSpinSpeed / kLuckyGridSpeedDivisor
         : kLuckyGridAccelerationBase;
+    if (_config.options.maxStepsPerSecond != null) {
+      _base = math.min(_base, _options.speed / kLuckyGridSpeedDivisor);
+    }
     _target = null;
     _result = null;
     _pendingStart = true;

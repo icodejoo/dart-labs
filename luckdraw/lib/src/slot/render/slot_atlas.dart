@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import '../../core/foundation/constants.dart';
 import '../../core/render/perf_trace.dart';
+import '../../core/render/raster_budget.dart';
 import '../layout/slot_layout.dart';
 import '../model/slot_parts.dart';
 import '../motion/slot_motion.dart';
@@ -31,6 +32,9 @@ final class SlotAtlas {
   /// 最近像素上限。
   int _limit = 0;
 
+  /// 最近共享字节预算上限。
+  int _byteLimit = 0;
+
   /// 每行图集单元数。
   int _columns = 0;
 
@@ -56,15 +60,18 @@ final class SlotAtlas {
       ];
 
   /// 布局或格子变更时录制分页；返回是否能使用图集。
+  ///
+  /// 实验性（可能调整）：[maxRasterBytes] 限制共享占用，任一页预占失败则整次回退。
   bool prepare(List<ui.Picture> pictures, SlotLayout layout, double dpr,
       int limit, ui.FilterQuality filterQuality,
-      {double padding = 0}) {
+      {double padding = 0, int maxRasterBytes = kLuckyDefaultMaxRasterBytes}) {
     luckyTraceStart('luckdraw.raster.atlas');
     try {
       _paint.filterQuality = filterQuality;
       if (identical(_layout, layout) &&
           _dpr == dpr &&
           _limit == limit &&
+          _byteLimit == maxRasterBytes &&
           _padding == (padding * dpr).ceil() &&
           pictures.length == _pictures.length &&
           pictures
@@ -78,6 +85,7 @@ final class SlotAtlas {
       _layout = layout;
       _dpr = dpr;
       _limit = limit;
+      _byteLimit = maxRasterBytes;
       _padding = (padding * dpr).ceil();
       _width = (layout.cellWidth * dpr).ceil() + 2 * _padding;
       _height = (layout.cellHeight * dpr).ceil() + 2 * _padding;
@@ -96,6 +104,12 @@ final class SlotAtlas {
       for (var first = 0; first < pictures.length; first += _capacity) {
         final count = math.min(_capacity, pictures.length - first);
         final rows = (count / _columns).ceil();
+        final bytes =
+            _columns * _width * rows * _height * kLuckyRgbaBytesPerPixel;
+        if (!LuckyRasterBudget.instance.tryReserve(bytes, maxRasterBytes)) {
+          dispose();
+          return false;
+        }
         final recorder = ui.PictureRecorder();
         final canvas = ui.Canvas(recorder);
         for (var i = 0; i < count; i++) {
@@ -108,11 +122,17 @@ final class SlotAtlas {
           canvas.restore();
         }
         final picture = recorder.endRecording();
+        var retained = false;
         try {
           _pages.add(_AtlasPage(
               picture.toImageSync(_columns * _width, rows * _height), visible));
+          retained = true;
         } finally {
           picture.dispose();
+          if (!retained) {
+            LuckyRasterBudget.instance.release(bytes);
+            dispose();
+          }
         }
       }
       return true;
@@ -179,7 +199,10 @@ final class SlotAtlas {
   /// 释放全部页面；可以重复调用，下一次 prepare 会重新录制。
   void dispose() {
     for (final page in _pages) {
+      final bytes =
+          page.image.width * page.image.height * kLuckyRgbaBytesPerPixel;
       page.image.dispose();
+      LuckyRasterBudget.instance.release(bytes);
     }
     _pages.clear();
     _pictures = const [];

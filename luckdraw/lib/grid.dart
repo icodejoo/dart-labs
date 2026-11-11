@@ -7,7 +7,12 @@ export 'src/grid/grid_game.dart' show GridGame;
 export 'src/grid/layout/grid_layout.dart'
     show GridLayout, GridBlockLayout, GridCellGeometry, GridCellVisual;
 export 'src/grid/model/grid_config.dart'
-    show GridConfig, GridOptions, GridStyle;
+    show
+        GridConfig,
+        GridOptions,
+        GridStyle,
+        GridReduceMotion,
+        kLuckyReducedStepsPerSecond;
 export 'src/grid/model/grid_parts.dart'
     show GridCell, GridPrize, GridButton, GridImage, GridCellPainter;
 export 'src/grid/motion/grid_motion.dart' show GridFrame;

@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import '../../core/control/hooks.dart';
+import '../../core/foundation/constants.dart';
 import '../../core/foundation/image.dart';
 import '../../core/foundation/options.dart';
 import '../../core/motion/phase.dart';
@@ -118,7 +121,7 @@ final class LuckyGrid extends StatelessWidget {
   Widget build(BuildContext context) =>
       LuckyGameView<GridConfig, GridLayout, GridFrame, LuckyResult<GridPrize>>(
           game: const GridGame(),
-          config: config,
+          config: _resolveConfig(context),
           controller: controller,
           width: width,
           height: height,
@@ -141,6 +144,30 @@ final class LuckyGrid extends StatelessWidget {
           semanticsValueBuilder: semanticsValueBuilder,
           onItemTap: onCellTap,
           onItemPassed: (_, index) => onActiveChanged?.call(index));
+
+  /// 在交给宿主、控制器及停止求解前统一封顶速度；没有上限时保留原引用。
+  GridConfig _resolveConfig(BuildContext context) {
+    final options = config.options;
+    final reduce = options.reduceMotion == GridReduceMotion.always ||
+        (options.reduceMotion == GridReduceMotion.system &&
+            (MediaQuery.maybeDisableAnimationsOf(context) ?? false));
+    final limit = reduce
+        ? math.min(options.maxStepsPerSecond ?? kLuckyReducedStepsPerSecond,
+            kLuckyReducedStepsPerSecond)
+        : options.maxStepsPerSecond;
+    if (limit == null) return config;
+    final speedLimit = limit *
+        (kLuckyGridSpeedDivisor *
+            kLuckyReferenceFrameMs /
+            Duration.millisecondsPerSecond);
+    return config.copyWith(
+        options: options.copyWith(
+            maxStepsPerSecond: limit,
+            motion: options.motion.copyWith(
+                speed: math.min(options.motion.speed, speedLimit),
+                idleSpinSpeed:
+                    math.min(options.motion.idleSpinSpeed, speedLimit))));
+  }
 }
 
 /// 组合已有后端与可选 Widget 层，复用宿主提供的布局和可变帧。

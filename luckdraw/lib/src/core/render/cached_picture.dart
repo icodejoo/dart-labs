@@ -21,7 +21,8 @@ final class LuckyCachedPicture {
         _paint = (ui.Paint()..filterQuality = performance.filterQuality) {
     cache
       ..mode = mode
-      ..maxRasterSide = performance.maxRasterSide;
+      ..maxRasterSide = performance.maxRasterSide
+      ..maxRasterBytes = performance.maxRasterBytes;
     _image = cache.raster(id, bounds.size, devicePixelRatio, record,
         origin: bounds.topLeft);
     final image = _image;
