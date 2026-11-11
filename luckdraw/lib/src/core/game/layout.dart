@@ -14,6 +14,9 @@ abstract class LuckyLayout {
 
   /// 是否没有可绘制或命中的内容。
   bool get isEmpty;
+
+  /// 布局为空时是否仍要绘制装饰（如 blocks 外框）；默认不绘制。
+  bool get paintsWhenEmpty => false;
 }
 
 /// 布局环境；例如 `LuckyLayoutInput.headless(const Size(300, 300))`。

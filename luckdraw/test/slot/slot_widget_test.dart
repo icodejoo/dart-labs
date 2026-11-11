@@ -20,6 +20,25 @@ Future<void> _finish(WidgetTester tester) async {
 /// 验证完整宿主接线和层级。
 void main() {
   group('LuckySlotMachine', () {
+    testWidgets('blocks-only config (no prizes) still paints the block frame',
+        (tester) async {
+      await tester.pumpWidget(_host(const LuckySlotMachine(
+          config: SlotConfig(blocks: [
+            LuckyBoxBlock(
+                padding: LuckyEdgeInsets.all(10),
+                background: LuckyFill.color(Color(0xFF617DF2))),
+          ]),
+          width: 240,
+          height: 180)));
+      expect(find.byType(CustomPaint), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('empty config without blocks paints nothing', (tester) async {
+      await tester.pumpWidget(_host(const LuckySlotMachine(
+          config: SlotConfig(), width: 240, height: 180)));
+      expect(find.byType(CustomPaint), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('renders reels and settles on the requested indices',
         (tester) async {
       final c = SlotController();

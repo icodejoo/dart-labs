@@ -446,7 +446,7 @@ class _LuckyGameViewState<
             _imageConfiguration!, _dpr);
       }
       final layout = _layout!;
-      Widget surface = layout.isEmpty
+      Widget surface = layout.isEmpty && !layout.paintsWhenEmpty
           ? const SizedBox.shrink()
           : (widget.renderer ?? widget.game.createDefaultRenderer())
               .buildSurface(

@@ -77,6 +77,17 @@ void main() {
           (l.windowLength / l.cellAndSpacing).ceil() + 2);
       expect(l.reels.first.maxVisibleCells, lessThan(50));
     });
+    test('paintsWhenEmpty is true only when blocks exist', () {
+      final bare = slotLayout(const SlotConfig());
+      expect(bare.paintsWhenEmpty, isFalse);
+      final framed = slotLayout(const SlotConfig(blocks: [
+        LuckyBoxBlock(
+            padding: LuckyEdgeInsets.all(10),
+            background: LuckyFill.color(Color(0xFF617DF2)))
+      ]));
+      expect(framed.isEmpty, isTrue);
+      expect(framed.paintsWhenEmpty, isTrue);
+    });
     test('zero size yields an empty layout without throwing', () {
       expect(slotLayout(slotTestConfig, Size.zero).isEmpty, isTrue);
       expect(slotLayout(const SlotConfig()).isEmpty, isTrue);

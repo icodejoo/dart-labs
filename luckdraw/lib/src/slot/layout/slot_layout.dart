@@ -152,6 +152,10 @@ final class SlotLayout extends LuckyLayout {
   @override
   bool get isEmpty =>
       cellWidth <= 0 || cellHeight <= 0 || reels.isEmpty || cells.isEmpty;
+
+  /// 没有奖品格时仍绘制 blocks 外框，与上游一致。
+  @override
+  bool get paintsWhenEmpty => blocks.isNotEmpty;
 }
 
 /// 计算确定性布局；零尺寸、无列或间距挤满窗口时返回空布局。
