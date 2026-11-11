@@ -74,7 +74,7 @@ foreach ($variant in $Variants) {
     }
     $process.WaitForExit()
     $code = if ($locked -or $timeout) { -1 } else { $process.ExitCode }
-    $files = @(Get-ChildItem (Join-Path $PSScriptRoot 'build') -File -Filter '*.timeline*.json' | Where-Object LastWriteTimeUtc -ge $start.ToUniversalTime())
+    $files = @(Get-ChildItem $directory -File -Filter '*.timeline*.json')
     $summaries = @($files | Where-Object Name -like '*.timeline_summary.json')
     $valid = $code -eq 0 -and $summaries.Count -ge 2
     if ($variant -eq 'wheel_capture') {
@@ -89,7 +89,6 @@ foreach ($variant in $Variants) {
       Copy-Item (Join-Path $PSScriptRoot 'build/app/outputs/flutter-apk/app-profile.apk') $binary
       $Rebuild = $false
     }
-    foreach ($file in $files) { Move-Item -LiteralPath $file.FullName -Destination $directory }
     [IO.File]::WriteAllText((Join-Path $directory 'flutter_logcat.log'), ((& adb -s $device logcat -d -v threadtime -T $logStart -s flutter) -join "`n") + "`n", $utf8)
     $records.Add(@{ variant = $variant; attempt = $attempt; startedAt = $start.ToUniversalTime().ToString('o'); endedAt = (Get-Date).ToUniversalTime().ToString('o'); valid = $valid; exitCode = $code; lockedDuring = $locked; timedOut = $timeout; unlockedBefore = $true; freeKB = $free; binaryReused = $reused; elapsedMs = $watch.ElapsedMilliseconds; batteryBefore = $batteryBefore; batteryAfter = ((& adb -s $device shell dumpsys battery) -join "`n"); command = 'flutter ' + ($arguments -join ' '); directory = Split-Path $directory -Leaf })
     [IO.File]::WriteAllText((Join-Path $root 'runs.json'), ($records.ToArray() | ConvertTo-Json -Depth 10) + "`n", $utf8)

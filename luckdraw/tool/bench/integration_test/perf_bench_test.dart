@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:luckdraw/luckdraw.dart';
 
+import '../lib/main.dart' show benchVariant;
 import 'bench_support.dart';
 import 'perf_capture.dart';
 
@@ -17,7 +18,15 @@ void main() {
       return;
     }
     final wheel = variant.startsWith('wheel_');
-    await runSteadyBench(binding, tester, wheel ? 'wheel_steady' : variant,
+    benchVariant = variant;
+    final key = wheel
+        ? 'wheel_steady'
+        : variant.startsWith('grid_')
+            ? 'grid_steady'
+            : variant == 'slot_noimg'
+                ? 'slot_raster'
+                : variant;
+    await runSteadyBench(binding, tester, key,
         wheelCacheMode: variant == 'wheel_raster'
             ? LuckyCacheMode.raster
             : wheel && variant != 'wheel_default'

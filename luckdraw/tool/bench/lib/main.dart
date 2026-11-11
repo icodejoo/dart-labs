@@ -111,6 +111,9 @@ Future<List<MemoryImage>> prepareBenchImages() async {
   return images;
 }
 
+/// GPU 工作量 A/B 变体名（如 grid_noshadow）；空串为原场景，仅 perf_bench_test 设置。
+String benchVariant = '';
+
 /// 按 [key] 创建已有公开入口的真实玩法；未知场景抛 [ArgumentError]。
 ///
 /// [images] 来自 [prepareBenchImages]，至少十二张。所有场景都显式持有控制器。
@@ -184,13 +187,24 @@ BenchScene createBenchScene(String key, List<MemoryImage> images,
                           texts: const [LuckyText('Prize')]),
                   ],
                   buttons: const [GridButton(x: 1, y: 1)],
-                  style: const GridStyle(
+                  style: GridStyle(
                       cell: LuckyCellStyle(
-                          background: LuckyFill.gradient(
-                              LinearGradient(colors: [_light, _accent])),
-                          shadow:
-                              LuckyShadow(blur: 6, color: Color(0x66000000))))),
+                          background: benchVariant == 'grid_flat'
+                              ? _lightFill
+                              : const LuckyFill.gradient(
+                                  LinearGradient(colors: [_light, _accent])),
+                          shadow: benchVariant == 'grid_noshadow' ||
+                                  benchVariant == 'grid_flat'
+                              ? null
+                              : const LuckyShadow(
+                                  blur: 6, color: Color(0x66000000))))),
               controller: controller,
+              performance: LuckyPerformanceOptions(
+                  cacheMode: switch (benchVariant) {
+                'grid_picture' => LuckyCacheMode.picture,
+                'grid_raster' => LuckyCacheMode.raster,
+                _ => const LuckyPerformanceOptions().cacheMode
+              }),
               onReady: onReady),
           controller.play,
           () => controller.stop(0),
@@ -224,7 +238,11 @@ BenchScene createBenchScene(String key, List<MemoryImage> images,
               config: SlotConfig(prizes: [
                 for (var i = 0; i < _slotPrizes; i++)
                   SlotPrize(
-                      images: [imageAt(i)], weight: 1, background: _lightFill),
+                      images: benchVariant == 'slot_noimg'
+                          ? const []
+                          : [imageAt(i)],
+                      weight: 1,
+                      background: _lightFill),
               ], reels: const [
                 SlotReel(),
                 SlotReel(),
