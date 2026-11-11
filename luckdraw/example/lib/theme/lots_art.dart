@@ -48,8 +48,8 @@ LotsLayout adjustLotsLayout(LotsLayout base) {
 }
 
 /// 绘制一段文字并按给定中心水平居中；[top] 为文字顶边。
-void _centerText(Canvas canvas, String text, double centerX, double top,
-    TextStyle style,
+void _centerText(
+    Canvas canvas, String text, double centerX, double top, TextStyle style,
     {double maxWidth = 400}) {
   final painter = TextPainter(
       text: TextSpan(text: text, style: style),
@@ -84,19 +84,18 @@ void paintLotsScene(Canvas canvas, LotsLayout layout) {
       rect,
       Paint()
         ..shader = const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFF4DC), Color(0xFFF8DDB0)])
-            .createShader(rect));
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFF4DC), Color(0xFFF8DDB0)]).createShader(rect));
   final c = layout.cylinder;
   final halo = Rect.fromCircle(
       center: Offset(c.center.dx, c.top), radius: layout.size.width * 0.55);
   canvas.drawRect(
       rect,
       Paint()
-        ..shader = const RadialGradient(
-                colors: [Color(0x99FFFFFF), Color(0x00FFFFFF)])
-            .createShader(halo));
+        ..shader =
+            const RadialGradient(colors: [Color(0x99FFFFFF), Color(0x00FFFFFF)])
+                .createShader(halo));
   canvas.restore();
   final shadow = Rect.fromCenter(
       center: Offset(c.center.dx, c.bottom + 4),
@@ -161,13 +160,13 @@ void paintLotsCylinderFront(Canvas canvas, LotsLayout layout) {
       c,
       Paint()
         ..shader = const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x00000000), Color(0x40000000)])
-            .createShader(c));
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00000000), Color(0x40000000)]).createShader(c));
   canvas.drawRRect(
       RRect.fromRectAndRadius(
-          Rect.fromLTWH(c.left + c.width * 0.2, c.top, c.width * 0.07, c.height),
+          Rect.fromLTWH(
+              c.left + c.width * 0.2, c.top, c.width * 0.07, c.height),
           const Radius.circular(6)),
       Paint()..color = const Color(0x38FFFFFF));
   for (final ratio in _nodeRatios) {
@@ -214,8 +213,13 @@ void paintLotsCylinderFront(Canvas canvas, LotsLayout layout) {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
         ..color = _gold);
-  _centerText(canvas, '求\n签', c.center.dx, tag.top + tag.height * 0.12,
-      _style(c.width * 0.19, Colors.white, weight: FontWeight.w700, height: 1.3));
+  _centerText(
+      canvas,
+      '求\n签',
+      c.center.dx,
+      tag.top + tag.height * 0.12,
+      _style(c.width * 0.19, Colors.white,
+          weight: FontWeight.w700, height: 1.3));
 }
 
 /// 竹签：圆头竹片；被抽中的签带朱红签头并竖排签级。[stick] 为空表示未抽中的空白签。
@@ -226,9 +230,11 @@ void paintLotsStick(Canvas canvas, Size size, LotsStick? stick) {
   canvas.drawRRect(
       body,
       Paint()
-        ..shader = const LinearGradient(
-                colors: [Color(0xFFE2B96E), Color(0xFFF6E1AE), Color(0xFFD8AE66)])
-            .createShader(Offset.zero & size));
+        ..shader = const LinearGradient(colors: [
+          Color(0xFFE2B96E),
+          Color(0xFFF6E1AE),
+          Color(0xFFD8AE66)
+        ]).createShader(Offset.zero & size));
   canvas.drawRRect(
       body.deflate(0.4),
       Paint()
@@ -239,8 +245,8 @@ void paintLotsStick(Canvas canvas, Size size, LotsStick? stick) {
   const bandHeight = 36.0;
   canvas.save();
   canvas.clipRRect(body);
-  canvas.drawRect(Rect.fromLTWH(0, 0, size.width, bandHeight),
-      Paint()..color = _cinnabar);
+  canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, bandHeight), Paint()..color = _cinnabar);
   canvas.restore();
   _centerText(canvas, stick.label.split('').join('\n'), size.width / 2, 4,
       _style(8, Colors.white, weight: FontWeight.w700, height: 1.05),
@@ -252,8 +258,8 @@ void paintLotsStick(Canvas canvas, Size size, LotsStick? stick) {
 LotsStickPainter lotsCardPainter(
         {required String grade, required String poem}) =>
     (canvas, r) {
-      final paper = RRect.fromRectAndRadius(
-          r.deflate(4), const Radius.circular(12));
+      final paper =
+          RRect.fromRectAndRadius(r.deflate(4), const Radius.circular(12));
       canvas.drawRRect(
           paper.shift(const Offset(0, 4)),
           Paint()
