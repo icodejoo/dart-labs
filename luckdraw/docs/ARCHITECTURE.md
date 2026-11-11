@@ -139,7 +139,7 @@ ASCII 速览（箭头 = "依赖于"）：
 | `core/widgets` | 通用宿主 `LuckyGameView`、叠加层 `LuckyItemOverlay`、生命周期桥 | core 全部 | 任何玩法 |
 | `wheel` / `grid` / `slot` / `capsule` / `number_wheel` / `lots` / `lotto` | 各自的 model / layout / motion / controller / render / widget / game（拉霸机在 `slot` 区的 `lever/` 子目录） | core 全部 | 其它玩法、compat |
 | `compat` | 字符串解析 + 三个转换函数 | core、三个玩法 | — |
-| `testing` | `ManualLuckyClock`、`SequenceRandom`、`LuckyFrameRecorder` | core | 玩法、compat |
+| `testing` | `ManualLuckyClock`、`SequenceRandom`、`LuckyFrameRecorder`、`LuckyConformance` | core；仅 conformance.dart 可依赖 wheel/grid/slot/lots | 其它玩法、compat |
 
 `material.dart`/`cupertino.dart` 在整个 `lib/` 禁用（减小依赖面，规则 `IMP-R10`，见 §4.3）。
 
@@ -200,7 +200,7 @@ flowchart LR
 | IMP-R1 | `core` 区只能 import `dart:*`、`package:flutter/*`、同区相对路径 | `src/core/...` import `../wheel/...` |
 | IMP-R2 | 玩法区（`wheel`/`grid`/`slot`/`capsule`/`number_wheel`/`lots`/`lotto`）只能 import `dart:*`、`package:flutter/*`、`core` 区、本区；**不得** import 其它玩法区或 `compat` 区 | `src/grid/...` import `../wheel/...` |
 | IMP-R3 | `compat` 区可 import `core`、三个玩法区、本区 | — |
-| IMP-R4 | `testing` 区只能 import `core` 区与本区 | `src/testing/...` import `../slot/...` |
+| IMP-R4 | `testing` 区只能 import `core` 区与本区；仅 `src/testing/conformance.dart` 可额外 import wheel/grid/slot/lots | 其它 `src/testing/...` import `../slot/...` |
 | IMP-R5 | `entry` 文件只含 `library;`、`export`、文档注释；`luckdraw.dart`/`extend.dart` 只 export `src/core/`；`wheel.dart` 只 export `src/wheel/` 与 `luckdraw.dart`（其它玩法入口同理）；`compat.dart` 只 export `src/compat/`；`testing.dart` 只 export `src/testing/` | `wheel.dart` export `src/grid/...` |
 | IMP-R6 | `lib/` 内禁止 `part`/`part of` | 大 barrel 用 part 拼装 |
 | IMP-R7 | `lib/src/**` 内禁止用 `package:luckdraw/...` 自引用（一律相对路径），禁止 `dart:mirrors` | — |
@@ -526,6 +526,11 @@ MET复核保存数据后，转盘两个未污染窗口Raster平均中位数为5.
 | formatter 产物 | `LuckyImageResolver` | (源 key, formatter 身份) | 源或 formatter 变化 | `image.dispose()`（luckdraw 拥有返回图片的所有权） |
 
 宿主把同一文字缩放交给布局测量器与 `LuckySurfaceData.textScale`（类型 `TextScaler`，默认 `TextScaler.noScaling`）；绘制助手参数名为 `textScale`，保留系统非线性缩放。surface 长期复用 painter 时，缓存失效后须主动 `markNeedsPaint`，仅比较 `shouldRepaint` 无法刷新同一可变实例。
+
+`LuckyInvalidationMonitor`（实验性，`extend.dart` 导出）仅在 assert 中监控 config 变化引起的缓存失效。
+每个 Canvas surface 独立统计：滚动 2 秒内至少 8 次时输出含玩法名的中文 `debugPrint` 告警，两次告警至少相隔 2 秒。
+把 build 内新建的 painter、闭包或缓动对象提升为 `static final` 或稳定引用即可修复；图片更新等独立失效不计数。
+profile/release 关闭 assert 时自动关闭诊断，无运行时开关；测试可注入 `now`，并用 `debugOnWarning` 接收文本，置 null 只关闭钩子。
 
 ### 8.4 图片解码与内存
 
@@ -1198,7 +1203,7 @@ wheelFromLuckyCanvasConfig(json, options: LuckyCanvasCompatOptions.strictUpstrea
 | N7 | parity 基线 PNG 是否随包发布 | 不发布：新增 `.pubignore` 排除 `test/parity/baselines/` |
 | N8 | 最低版本 CI 作业 | Flutter 3.24.5，跑 analyze + 非 golden 测试 |
 | N9 | 结果回调时机 | settled 当帧回调（上游晚一帧，DEV-06） |
-| N10 | `testing.dart` 是否作为公共入口发布 | 发布（用户写测试有用；只依赖 core） |
+| N10 | `testing.dart` 是否作为公共入口发布 | 发布（用户写测试有用；一致性工具可依赖本次支持的四玩法，见 IMP-R4） |
 | N11 | 老虎机 `stopEach` 长度不符 | 抛 `ArgumentError`（上游是打印错误 + 取消） |
 | N12 | example 的 Windows runner 改为"小窗口 + 不抢焦点"启动 | 改（只影响 example，见 TEST_STRATEGY §9） |
 | N13 | 首个发布版本号 | 0.1.0（只做 `pub publish --dry-run`，真实发布由用户执行） |

@@ -1429,3 +1429,48 @@ adb devices 无连接设备，安卓只交付 Flutter 3.47 生成的平台配置
 | STEADY-08 | lots_shaking 稳定性复测 | 用户 STEADY；TEST_STRATEGY §7.9 | `tool/bench/integration_test/pending_bench_test.dart :: pending > selected device check` | 真机基准 | 已落地；3/3，未污染3，本轮通过；历史根因无法判定 |
 | STEADY-09 | wheel /proc 进程及合并UI/Raster三轮 | 用户 STEADY；TEST_STRATEGY §7.9 | `tool/bench/integration_test/pending_bench_test.dart :: pending > selected device check` | 真机基准 | 已落地；3/3，CPU仅标定 |
 | STEADY-12 | lotto候选复用画笔三轮复测与回滚 | 用户 STEADY；TEST_STRATEGY §7.9 | `tool/bench/integration_test/pending_bench_test.dart :: pending > selected device check` | 真机基准 | 已落地；3/3未污染，净收益不稳定且UI P99仍失败，已回滚 |
+
+### 第 0 批：LuckyConformance 安全网
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| CONFORMANCE-01 | 四玩法默认配置及非默认时长缓动一致 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: default fixtures settle at every enabled prize and hit its center`<br>`test/testing/conformance_test.dart :: standard easing passes with a nondefault duration` | 单元 | 已落地 |
+| CONFORMANCE-02 | 过冲警告及真实落点 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: back easing warns for both methods without failing the report`<br>`test/testing/conformance_test.dart :: back easing actually settles consistently for all four fixtures` | 单元 | 已落地 |
+| CONFORMANCE-03 | 错误缓动报告与超时 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: wrong endpoints and nonfinite values are errors with readable details`<br>`test/testing/conformance_test.dart :: a long motion times out with target and phase diagnostics` | 单元 | 已落地 |
+| CONFORMANCE-04 | 禁用跳过、无效目标与拒绝开局 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: disabled prizes are skipped by default and with explicit indices`<br>`test/testing/conformance_test.dart :: invalid indices and rejected play produce errors` | 单元 | 已落地 |
+| CONFORMANCE-05 | 命中遮挡与旋转升签 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: grid button covering a prize reports the wrong center hit`<br>`test/testing/conformance_test.dart :: lots checks the rotated raised stick even with reveal disabled` | 单元 | 已落地 |
+| CONFORMANCE-06 | 各列真实条带停位与结果检查 | 用户第0批；TEST_STRATEGY §2.3 | `test/testing/conformance_test.dart :: slot checks shuffled reverse reels against actual scroll positions`<br>`test/testing/conformance_test.dart :: slot reports custom result mismatch and absent or fractional stops` | 单元 | 已落地 |
+| CONFORMANCE-07 | 仅一致性实现可依赖本次四玩法 | 用户第0批；IMP-R4 | `test/tool/check_imports_test.dart :: check_imports > allows only the four conformance games from its implementation` | 单元/工具 | 已落地 |
+
+### 第 0 批：缓存失效告警、抽签自定义与老虎机空配置
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| INVMON-01 | debug 缓存失效告警：包含两秒边界，窗口过期后重新累计八次才能再次告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: 包含两秒边界，窗口过期后重新累计八次才能再次告警` | widget、单元 | 已落地 |
+| INVMON-02 | debug 缓存失效告警：滚动窗口丢弃过期记录，不按固定时间分桶 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: 滚动窗口丢弃过期记录，不按固定时间分桶` | widget、单元 | 已落地 |
+| INVMON-03 | debug 缓存失效告警：每个实例独立计数，默认时钟与空钩子仍可输出告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: 每个实例独立计数，默认时钟与空钩子仍可输出告警` | widget、单元 | 已落地 |
+| INVMON-04 | debug 缓存失效告警：build 内每次创建 painter 闭包只告警一次，稳定引用不告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: build 内每次创建 painter 闭包只告警一次，稳定引用不告警` | widget、单元 | 已落地 |
+| INVMON-05 | debug 缓存失效告警：wheel：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: wheel：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-06 | debug 缓存失效告警：grid：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: grid：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-07 | debug 缓存失效告警：slot：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: slot：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-08 | debug 缓存失效告警：lots：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: lots：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-09 | debug 缓存失效告警：lotto：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: lotto：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-10 | debug 缓存失效告警：number_wheel：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: number_wheel：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-11 | debug 缓存失效告警：capsule：稳定配置重建不告警，配置连续变化才告警 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: capsule：稳定配置重建不告警，配置连续变化才告警` | widget、单元 | 已落地 |
+| INVMON-12 | debug 缓存失效告警：wheel：替换监听器时只统计同时发生的配置失效 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: wheel：替换监听器时只统计同时发生的配置失效` | widget、单元 | 已落地 |
+| INVMON-13 | debug 缓存失效告警：grid：替换监听器时只统计同时发生的配置失效 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: grid：替换监听器时只统计同时发生的配置失效` | widget、单元 | 已落地 |
+| LOTSCUSTOM-01 | 抽签自定义：默认扩展参数保留原来的缓动、正弦波与布局 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 默认扩展参数保留原来的缓动、正弦波与布局` | widget、单元 | 已落地 |
+| LOTSCUSTOM-02 | 抽签自定义：自定义升签与翻卡缓动收到 easeOut 时间参数并控制帧进度 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 自定义升签与翻卡缓动收到 easeOut 时间参数并控制帧进度` | widget、单元 | 已落地 |
+| LOTSCUSTOM-03 | 抽签自定义：自定义波形收到累计角度且乘以加速、匀速、阻尼和待机振幅 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 自定义波形收到累计角度且乘以加速、匀速、阻尼和待机振幅` | widget、单元 | 已落地 |
+| LOTSCUSTOM-04 | 抽签自定义：布局副本与调整器可覆盖所有几何并改变目标槽位数量 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 布局副本与调整器可覆盖所有几何并改变目标槽位数量` | widget、单元 | 已落地 |
+| LOTSCUSTOM-05 | 抽签自定义：调整器返回空布局时运动、命中和直接绘制均安全 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 调整器返回空布局时运动、命中和直接绘制均安全` | widget、单元 | 已落地 |
+| LOTSCUSTOM-06 | 抽签自定义：空布局调整器经过 LuckyLots 宿主时不抛异常 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 空布局调整器经过 LuckyLots 宿主时不抛异常` | widget、单元 | 已落地 |
+| LOTSCUSTOM-07 | 抽签自定义：非空自定义布局的槽位和角度数量必须一致 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 非空自定义布局的槽位和角度数量必须一致` | widget、单元 | 已落地 |
+| LOTSCUSTOM-08 | 抽签自定义：新选项的副本、相等性和哈希包含全部扩展字段 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 新选项的副本、相等性和哈希包含全部扩展字段` | widget、单元 | 已落地 |
+| LOTSCUSTOM-09 | 抽签自定义：新样式的副本、相等性和哈希按绘制闭包引用比较 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 新样式的副本、相等性和哈希按绘制闭包引用比较` | widget、单元 | 已落地 |
+| LOTSCUSTOM-10 | 抽签自定义：部件和签身在最终布局坐标中分别录制一次且动画只回放缓存 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 部件和签身在最终布局坐标中分别录制一次且动画只回放缓存` | widget、单元 | 已落地 |
+| LOTSCUSTOM-11 | 抽签自定义：每个绘制闭包变化均使宿主图片缓存失效且重复构建复用 | 用户：UI 完全自定义；抽签 API | `test/lots/lots_customization_test.dart :: 每个绘制闭包变化均使宿主图片缓存失效且重复构建复用` | widget、单元 | 已落地 |
+| SLOTEMPTY-01 | 老虎机空奖品绘制：computeSlotLayout > paintsWhenEmpty is true only when blocks exist | 用户：老虎机无奖品不画 blocks | `test/slot/slot_layout_test.dart :: computeSlotLayout > paintsWhenEmpty is true only when blocks exist` | widget、单元 | 已落地 |
+| SLOTEMPTY-02 | 老虎机空奖品绘制：LuckySlotMachine > blocks-only config (no prizes) still paints the block frame | 用户：老虎机无奖品不画 blocks | `test/slot/slot_widget_test.dart :: LuckySlotMachine > blocks-only config (no prizes) still paints the block frame` | widget、单元 | 已落地 |
+| SLOTEMPTY-03 | 老虎机空奖品绘制：LuckySlotMachine > empty config without blocks paints nothing | 用户：老虎机无奖品不画 blocks | `test/slot/slot_widget_test.dart :: LuckySlotMachine > empty config without blocks paints nothing` | widget、单元 | 已落地 |
+| INVMON-00 | debug 缓存失效告警：第八次失效告警，同一窗口只报告一次并包含修复建议 | 用户第0批；ARCHITECTURE 缓存/性能 | `test/core/render/invalidation_monitor_test.dart :: 第八次失效告警，同一窗口只报告一次并包含修复建议` | 单元 | 已落地 |

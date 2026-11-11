@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/motion/result.dart';
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/renderer.dart';
 import '../layout/capsule_layout.dart';
 import '../model/capsule_config.dart';
@@ -36,6 +37,10 @@ final class _CapsuleSurface extends StatefulWidget {
 
 /// 跨帧保留静态显示列表，图片与布局变化时重新录制。
 final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('capsule');
+
   /// 当前显示列表集合。
   final CapsulePictures _pictures = CapsulePictures();
 
@@ -78,6 +83,12 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
         oldWidget.data.textScale != widget.data.textScale ||
         oldWidget.data.devicePixelRatio != widget.data.devicePixelRatio ||
         oldWidget.data.performance != widget.data.performance) {
+      assert(() {
+        if (oldWidget.data.config != widget.data.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _prepare();
     } else {
       _imagesChanged();

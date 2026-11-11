@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../core/motion/result.dart';
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
 import '../layout/wheel_layout.dart';
@@ -38,6 +39,10 @@ final class _WheelSurface extends StatefulWidget {
 
 /// 仅在低频输入变化时重新录制，动画期间保持同一画笔。
 final class _WheelSurfaceState extends State<_WheelSurface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('wheel');
+
   /// 表面独占缓存。
   final LuckyPictureCache _cache = LuckyPictureCache();
 
@@ -78,6 +83,12 @@ final class _WheelSurfaceState extends State<_WheelSurface> {
       data.imagesListenable.addListener(_imagesChanged);
     }
     if (old.frameListenable != data.frameListenable) {
+      assert(() {
+        if (old.config != data.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _painter = WheelPainter(data, _cache);
     } else if (old.layoutGeneration != data.layoutGeneration ||
         old.layout != data.layout ||
@@ -88,6 +99,12 @@ final class _WheelSurfaceState extends State<_WheelSurface> {
         data.layers.asMap().entries.any((entry) =>
             entry.key < old.layers.length &&
             entry.value.shouldRepaint(old.layers[entry.key]))) {
+      assert(() {
+        if (old.config != data.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _painter.rebuildSegments(data);
     } else if (_imageGeneration != data.images.generation) {
       _painter.imagesChanged(data);

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
 import '../layout/lotto_layout.dart';
@@ -35,6 +36,10 @@ final class _LottoSurface extends StatefulWidget {
 
 /// 缓存失效与原生资源生命周期。
 final class _LottoSurfaceState extends State<_LottoSurface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('lotto');
+
   /// 表面独享的缓存。
   final LuckyPictureCache _cache = LuckyPictureCache();
 
@@ -52,6 +57,12 @@ final class _LottoSurfaceState extends State<_LottoSurface> {
         old.performance != data.performance ||
         old.textDirection != data.textDirection ||
         old.images.generation != data.images.generation) {
+      assert(() {
+        if (old.config != data.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _cache.invalidateAll();
     }
   }

@@ -2,6 +2,8 @@
 
 ### Added
 
+- Debug-only warnings identify repeated config-driven cache invalidation across
+  all Canvas renderers, with an injectable clock and warning hook for tests.
 - Typed, immutable models and widgets for wheels, nine-grids, slots, lever slots,
   capsule machines, number wheels, drawing lots and super-lotto draws.
 - Controllers with asynchronous prize selection, weighted and guaranteed picking,
@@ -13,6 +15,8 @@
 - Drawing lots can customize rise/reveal easing, shake waveform, layout and the
   background, cylinder and stick drawing.
 - A slot machine without prizes still paints its block frame, as upstream does.
+- Experimental LuckyConformance reports easing and headless result, landing and
+  hit consistency for wheel, grid, slot and lots configurations.
 
 ### Changed
 

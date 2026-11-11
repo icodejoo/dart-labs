@@ -79,6 +79,21 @@ void main() {
     test('rejects core importing a game', () {
       expect(_check("import '../../wheel/a.dart';").single, contains('IMP-R1'));
     });
+    test('allows only the four conformance games from its implementation', () {
+      const path = 'lib/src/testing/conformance.dart';
+      final allowedGames = ['wheel', 'grid', 'slot', 'lots'];
+      for (final game in allowedGames) {
+        expect(_check("import '../$game/a.dart';", path: path), isEmpty);
+        expect(
+            _check("import '../$game/a.dart';", path: 'lib/src/testing/a.dart'),
+            contains(contains('IMP-R4')));
+      }
+      final forbiddenZones = ['capsule', 'number_wheel', 'lotto', 'compat'];
+      for (final zone in forbiddenZones) {
+        expect(_check("import '../$zone/a.dart';", path: path),
+            contains(contains('IMP-R4')));
+      }
+    });
     test('rejects a game importing another game or compat', () {
       final errors = _check(
           "import '../wheel/a.dart'; import '../compat/a.dart';",

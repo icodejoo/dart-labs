@@ -175,6 +175,48 @@
 
 ---
 
+### 2.3 用户配置一致性检查（实验性，可能调整）
+
+`package:luckdraw/testing.dart` 提供同步 `LuckyConformance`，实现不依赖
+`flutter_test`，由调用方断言返回的 `LuckyConformanceReport`。例如：
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:luckdraw/testing.dart';
+import 'package:luckdraw/wheel.dart';
+
+void main() {
+  test('my wheel stays consistent', () {
+    const config = WheelConfig(prizes: [WheelPrize(), WheelPrize()]);
+    final easing = LuckyConformance.checkEasing(config.options.motion.decelerationEasing);
+    expect(easing.isOk, isTrue, reason: '$easing');
+    final report = LuckyConformance.checkWheel(config, indices: [0, 1]);
+    expect(report.isOk, isTrue, reason: '$report');
+  });
+}
+```
+
+`checkEasing(easing, duration: 1000)` 对 easeIn/easeOut 各采样 101 点，使用非零
+起点和正变化量；端点容差 1e-9，端点错误和 NaN/∞ 为 error，非单调为 warning。
+`problems` 不可修改，每条包含 game、index、expected、actual、reason 和 severity；
+`isOk` 表示没有 error，warning 仍可通过 `problems` 单独断言。采样不证明点间性质。
+
+`checkWheel` / `checkGrid` / `checkSlot` / `checkLots` 接受对应配置及可选 size、
+indices；默认 size 为 `Size(300, 300)`，默认遍历全部未禁用奖品（零权重仍检查），
+显式 indices 同样跳过禁用奖品，越界记 error。每个目标 reset 后 play → stop，
+用 ManualLuckyClock 每步推进 16ms，最多 10000 步；超时和驱动异常记 error。
+检查 result.index 与 pointerIndex / activeIndex / 各列 scroll 反算奖品 / targetIndex
+一致；slot 各列停到同一奖品，自定义 winPredicate 也须返回该奖品下标。
+grid 检查奖品矩形中心命中，lots 检查旋转后的升签中心命中（包括不展示卡片）。
+wheel 只命中按钮，slot 没有奖品命中，两者跳过奖品命中项。
+
+本工具验证帧、布局与命中契约，不执行像素比较，无法验证任意自定义绘制是否遵守帧语义。
+随机停止偏移使用固定种子，每个目标只跑一次。easeOutBack 同时作为加减速缓动时，
+现有四玩法夹具落点均一致，但两种缓动方法都会给出单调性 warning。
+capsule / number_wheel / lotto 后续补充。实现与回归在
+`lib/src/testing/conformance.dart`、`test/testing/conformance_test.dart`；
+import 门禁仅允许该实现依赖 wheel/grid/slot/lots，其他 testing 文件仍仅依赖 core/本区。
+
 ## 3. 覆盖率门禁（`tool/coverage.dart`）
 
 | 项 | 规定 |

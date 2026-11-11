@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/motion/result.dart';
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
 import '../layout/lots_layout.dart';
@@ -37,6 +38,10 @@ final class _Surface extends StatefulWidget {
 
 /// 原生显示列表的所有者。
 final class _SurfaceState extends State<_Surface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('lots');
+
   /// 可复用缓存。
   final LuckyPictureCache _cache = LuckyPictureCache();
 
@@ -65,7 +70,15 @@ final class _SurfaceState extends State<_Surface> {
         }
       }
     }
-    if (changed) _cache.invalidateAll();
+    if (changed) {
+      assert(() {
+        if (old.config != next.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
+      _cache.invalidateAll();
+    }
   }
 
   /// 在低频构建时预录制，动画帧只回放。

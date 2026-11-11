@@ -83,6 +83,8 @@ export 'src/core/picker/prize_picker.dart'
         PrizePickContext,
         WeightedPrizePicker,
         GuaranteedPrizePicker;
+export 'src/core/render/invalidation_monitor.dart'
+    show LuckyInvalidationMonitor;
 export 'src/core/render/layer.dart'
     show LuckyLayer, LuckyCallbackLayer, LuckyLayerPosition, LuckyLayerContext;
 export 'src/core/render/picture_cache.dart' show LuckyPictureCache;

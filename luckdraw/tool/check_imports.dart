@@ -207,8 +207,12 @@ List<String> checkImports(
           }
         } else if (!uri.startsWith(_dartPrefix) &&
             !uri.startsWith(_flutterPrefix)) {
+          final conformanceGame = path == 'lib/src/testing/conformance.dart' &&
+              const {_wheelZone, _gridZone, _slotZone, _lotsZone}
+                  .contains(_zone(target));
           final allowed = !uri.contains(':') &&
-              (kAllowedZoneImports[zone]?.contains(_zone(target)) ?? false);
+              ((kAllowedZoneImports[zone]?.contains(_zone(target)) ?? false) ||
+                  conformanceGame);
           if (!allowed) {
             fail(
                 switch (zone) {

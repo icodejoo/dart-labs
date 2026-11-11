@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
 import '../layout/slot_layout.dart';
@@ -37,6 +38,10 @@ class _SlotSurface extends StatefulWidget {
 
 /// 保持跨重建缓存和图片变更监听。
 class _SlotSurfaceState extends State<_SlotSurface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('slot');
+
   /// 独立拥有并释放分页纹理。
   final SlotAtlas _atlas = SlotAtlas();
 
@@ -77,6 +82,12 @@ class _SlotSurfaceState extends State<_SlotSurface> {
         old.devicePixelRatio != data.devicePixelRatio ||
         old.performance != data.performance ||
         !_sameLayers(old, data)) {
+      assert(() {
+        if (old.config != data.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _cache.invalidateAll();
     }
   }

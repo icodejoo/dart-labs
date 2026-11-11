@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/motion/motion.dart';
 import '../../core/motion/result.dart';
+import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
 import '../layout/grid_layout.dart';
@@ -38,6 +39,10 @@ final class _GridSurface extends StatefulWidget {
 
 /// 持有长期 painter、缓存及图片版本。
 final class _GridSurfaceState extends State<_GridSurface> {
+  /// 仅在 assert 内创建并记录 config 引起的缓存失效。
+  late final LuckyInvalidationMonitor _invalidationMonitor =
+      LuckyInvalidationMonitor('grid');
+
   /// 布局或样式变化时通知绘制，避免重建同一个 painter 被框架略过。
   final LuckyFrameNotifier _updates = LuckyFrameNotifier();
 
@@ -77,6 +82,12 @@ final class _GridSurfaceState extends State<_GridSurface> {
     }
     if (old.frameListenable != next.frameListenable ||
         old.imagesListenable != next.imagesListenable) {
+      assert(() {
+        if (old.config != next.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _painter = GridPainter(data: next, cache: _cache, updates: _updates);
     } else if (old.layoutGeneration != next.layoutGeneration ||
         _imageGeneration != next.images.generation ||
@@ -84,6 +95,12 @@ final class _GridSurfaceState extends State<_GridSurface> {
         old.performance != next.performance ||
         old.textDirection != next.textDirection ||
         old.textScale != next.textScale) {
+      assert(() {
+        if (old.config != next.config) {
+          _invalidationMonitor.recordInvalidation();
+        }
+        return true;
+      }());
       _painter.rebuildSegments(next);
     } else {
       _painter.updateData(next);
