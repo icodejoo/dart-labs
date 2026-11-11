@@ -1,0 +1,65 @@
+[
+ {
+  "stage": "0 | count=0 side=825 dpr=2.75 nominalMiB=0.0 rasterAvg=4.31ms rasterP95=5.67ms spanP95=9.81ms frames=236",
+  "Graphics": 1936,
+  "Native Heap": 16579,
+  "Java Heap": 13040,
+  "TOTAL PSS": 100801,
+  "Private Other": 21224,
+  "Unknown": 19242
+ },
+ {
+  "stage": "1 | count=1 side=825 dpr=2.75 nominalMiB=2.6 rasterAvg=5.20ms rasterP95=7.05ms spanP95=10.80ms frames=238",
+  "Graphics": 2836,
+  "Native Heap": 16684,
+  "Java Heap": 12880,
+  "TOTAL PSS": 109205,
+  "Private Other": 28520,
+  "Unknown": 21334
+ },
+ {
+  "stage": "5 | count=5 side=825 dpr=2.75 nominalMiB=13.0 rasterAvg=5.98ms rasterP95=7.31ms spanP95=10.85ms frames=235",
+  "Graphics": 3772,
+  "Native Heap": 17820,
+  "Java Heap": 12924,
+  "TOTAL PSS": 111790,
+  "Private Other": 28960,
+  "Unknown": 21766
+ },
+ {
+  "stage": "10 | count=10 side=825 dpr=2.75 nominalMiB=26.0 rasterAvg=5.84ms rasterP95=7.33ms spanP95=10.91ms frames=242",
+  "Graphics": 4604,
+  "Native Heap": 19092,
+  "Java Heap": 12924,
+  "TOTAL PSS": 114821,
+  "Private Other": 29888,
+  "Unknown": 22694
+ },
+ {
+  "stage": "20 | count=20 side=825 dpr=2.75 nominalMiB=51.9 rasterAvg=6.01ms rasterP95=7.29ms spanP95=11.09ms frames=240",
+  "Graphics": 5268,
+  "Native Heap": 20828,
+  "Java Heap": 12908,
+  "TOTAL PSS": 117654,
+  "Private Other": 30320,
+  "Unknown": 23134
+ },
+ {
+  "stage": "40 | count=40 side=825 dpr=2.75 nominalMiB=103.9 rasterAvg=16.58ms rasterP95=18.38ms spanP95=28.99ms frames=228",
+  "Graphics": 6688,
+  "Native Heap": 24388,
+  "Java Heap": 4256,
+  "TOTAL PSS": 123148,
+  "Private Other": 30056,
+  "Unknown": 23398
+ },
+ {
+  "stage": "released | count=0 side=825 dpr=2.75 nominalMiB=0.0 rasterAvg=2.64ms rasterP95=3.28ms spanP95=7.75ms frames=245",
+  "Graphics": 6528,
+  "Native Heap": 23872,
+  "Java Heap": 6136,
+  "TOTAL PSS": 123134,
+  "Private Other": 31044,
+  "Unknown": 23874
+ }
+]

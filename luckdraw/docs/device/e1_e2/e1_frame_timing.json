@@ -1,0 +1,1 @@
+{"dpr":2.75,"cruiseFrames":359,"frameIntervalMs":{"median":16.666,"p95":16.673,"p99":16.696,"max":16.757,"droppedOver1_5x":0},"buildMs":{"avg":0.9721787521079254,"p95":1.922},"rasterMs":{"avg":6.116843170320416,"p95":8.338},"totalSpanMs":{"p95":11.492,"max":74.714},"dwellRuns":168,"dwellFramesHistogram":{"2":168},"dwellMs":{"min":33.315,"median":33.333,"max":33.42}}
