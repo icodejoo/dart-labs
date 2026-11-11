@@ -29,6 +29,9 @@ const Key startKey = ValueKey('start');
 /// 奖品结果文本定位键。
 const Key resultKey = ValueKey('result');
 
+/// 物理碰撞开关定位键。
+const Key physicsKey = ValueKey('physics');
+
 /// 所有演示页共用的控制面板。
 class DemoShell extends StatelessWidget {
   /// 以 [title]、[game]、[phase] 和 [result] 展示本局；
@@ -41,7 +44,8 @@ class DemoShell extends StatelessWidget {
       required this.result,
       required this.start,
       required this.serverResult,
-      this.reset});
+      this.reset,
+      this.extra});
 
   /// 页面标题。
   final String title;
@@ -63,6 +67,9 @@ class DemoShell extends StatelessWidget {
 
   /// 恢复初始状态；为空时不显示重置按钮。
   final VoidCallback? reset;
+
+  /// 阶段行下方的附加控件，例如物理碰撞开关；为空时不显示。
+  final Widget? extra;
 
   /// 布局在窄屏和小窗口下允许滚动。
   @override
@@ -152,6 +159,7 @@ class DemoShell extends StatelessWidget {
                               color: scheme.primary, letterSpacing: 1.5)),
                     ]),
                   ),
+                  if (extra != null) extra!,
                   const SizedBox(height: DemoSpace.md),
                   Row(children: [
                     Expanded(

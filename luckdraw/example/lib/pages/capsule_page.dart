@@ -64,6 +64,14 @@ class CapsulePageState extends State<CapsulePage> {
       ),
       options: CapsuleOptions(motion: demoMotion));
 
+  /// 开启物理碰撞模式的配置：胶囊从顶部落下，与球壁、拨杆碰撞。
+  static final CapsuleConfig physicsConfig = config.copyWith(
+      options:
+          const CapsuleOptions(motion: demoMotion, physics: LuckyPhysics()));
+
+  /// 是否使用物理碰撞模式。
+  bool _physics = false;
+
   /// 结果文本。
   String _result = '';
 
@@ -73,6 +81,13 @@ class CapsulePageState extends State<CapsulePage> {
       title: '扭蛋机',
       phase: controller.phase,
       result: _result,
+      extra: Row(children: [
+        const Expanded(child: Text('物理碰撞（实验）')),
+        Switch(
+            key: physicsKey,
+            value: _physics,
+            onChanged: (value) => setState(() => _physics = value)),
+      ]),
       reset: () {
         controller.reset();
         setState(() => _result = '');
@@ -84,7 +99,7 @@ class CapsulePageState extends State<CapsulePage> {
         controller.stop(demoTarget);
       },
       game: LuckyCapsuleMachine(
-          config: config,
+          config: _physics ? physicsConfig : config,
           controller: controller,
           width: demoSide,
           height: demoTall,

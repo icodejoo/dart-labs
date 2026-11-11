@@ -142,6 +142,7 @@ final class LottoConfig {
         options.motion.decelerationTime <= Duration.zero) {
       throw ArgumentError.value(options, 'options', '时长、速度、球半径与搅拌强度无效');
     }
+    options.physics?.validate();
   }
 
   /// 返回替换非空参数的副本，例如 `config.copyWith(style: style)`。

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../../core/kinematics/physics_options.dart';
 import '../../core/motion/motion_options.dart';
 
 /// 开奖后的排序滑动时长，按 T5.9 固定为 300ms。
@@ -23,6 +24,7 @@ final class LottoOptions {
         speed: 12,
         accelerationTime: _motionTime,
         decelerationTime: _motionTime),
+    this.physics,
   });
 
   /// 相邻球开始飞行的间隔。
@@ -43,21 +45,38 @@ final class LottoOptions {
   /// 加速、减速与时间基准参数。
   final LuckyMotionOptions motion;
 
-  /// 返回替换非空参数的副本，例如 `options.copyWith(drawMix: 0.5)`。
+  /// 实验性（可能调整）：物理碰撞模式参数；null 保持参数化轨迹（默认）。
+  ///
+  /// 例如 `LottoOptions(physics: LuckyPhysics())`，号码球从顶部落下并与容器、拨杆碰撞。
+  final LuckyPhysics? physics;
+
+  /// 返回替换非空参数的副本，例如 `options.copyWith(drawMix: 0.5)`；
+  /// 无法用 null 清除 [physics]，需要关闭物理模式时重新构造。
   LottoOptions copyWith(
           {Duration? drawInterval,
           Duration? ballFlightTime,
           bool? sortResults,
           double? drawMix,
           double? ballRadiusFactor,
-          LuckyMotionOptions? motion}) =>
+          LuckyMotionOptions? motion,
+          LuckyPhysics? physics}) =>
       LottoOptions(
           drawInterval: drawInterval ?? this.drawInterval,
           ballFlightTime: ballFlightTime ?? this.ballFlightTime,
           sortResults: sortResults ?? this.sortResults,
           drawMix: drawMix ?? this.drawMix,
           ballRadiusFactor: ballRadiusFactor ?? this.ballRadiusFactor,
-          motion: motion ?? this.motion);
+          motion: motion ?? this.motion,
+          physics: physics ?? this.physics);
+
+  /// 返回去掉物理模式、其余字段不变的副本，例如关闭 `LottoOptions(physics: ...)`。
+  LottoOptions withoutPhysics() => LottoOptions(
+      drawInterval: drawInterval,
+      ballFlightTime: ballFlightTime,
+      sortResults: sortResults,
+      drawMix: drawMix,
+      ballRadiusFactor: ballRadiusFactor,
+      motion: motion);
 
   /// 按所有动画参数比较。
   @override
@@ -68,12 +87,13 @@ final class LottoOptions {
       other.sortResults == sortResults &&
       other.drawMix == drawMix &&
       other.ballRadiusFactor == ballRadiusFactor &&
-      other.motion == motion;
+      other.motion == motion &&
+      other.physics == physics;
 
   /// 与相等性一致的哈希。
   @override
   int get hashCode => Object.hash(drawInterval, ballFlightTime, sortResults,
-      drawMix, ballRadiusFactor, motion);
+      drawMix, ballRadiusFactor, motion, physics);
 }
 
 /// 摇奖机配色；例如 `const LottoStyle(buttonText: '开奖')`。

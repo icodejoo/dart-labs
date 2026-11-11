@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../../core/easing/easing.dart';
 import '../../core/foundation/constants.dart';
+import '../../core/kinematics/body_driver.dart';
 import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
@@ -19,6 +20,12 @@ const double _half = 0.5;
 
 /// 飞行路径的双倍时间换算。
 const double _twice = 2;
+
+/// 物理模式：飞行前半程内，从该进度起把物理位置平滑收敛到出口。
+const double _blendStart = 0.35;
+
+/// 物理世界允许的球半径与容器半径之比上限。
+const double _maxBodyRatio = 0.5;
 
 /// 独立于 Widget 的摇奖状态机；例如 configure 后 start、stopWith、tick。
 final class LottoMotion
@@ -47,8 +54,14 @@ final class LottoMotion
   /// 最新布局是否允许开始新局；临时隐藏时仍可完成已有开奖。
   bool _available = false;
 
-  /// 每池搅拌器。
-  List<LuckySwirlMixer> _mixers = const [];
+  /// 每池位置驱动：参数化搅拌或物理模拟。
+  List<LuckyBodyDriver> _drivers = const [];
+
+  /// 每池物理驱动；该池为参数化轨迹时为空，与驱动同一实例。
+  List<LuckyPhysicsDriver?> _physics = const [];
+
+  /// 本次 tick 是否已经步进过驱动，避免同一帧重复步进物理世界。
+  bool _stepped = false;
 
   /// 每池排除的号码球。
   List<List<bool>> _excluded = const [];
@@ -112,6 +125,10 @@ final class LottoMotion
   @override
   LuckyPhase get phase => frame.phase;
 
+  /// 任一池的物理模拟未休眠时为真，宿主据此在静止阶段保持时钟。
+  @override
+  bool get isSimulating => _drivers.any((d) => d.isAwake);
+
   /// 最近落槽的池号。
   @override
   int passedReel = 0;
@@ -143,19 +160,11 @@ final class LottoMotion
     if (identical(layout, _layout) && !changed) return;
     _layout = layout;
     final geometry = layout!;
-    _mixers = List.generate(geometry.drums.length, (p) {
-      final drum = geometry.drums[p];
-      return LuckySwirlMixer(
-          rest: drum.rest,
-          containerRadius: drum.radius,
-          bodyRadius: drum.ballRadius);
-    });
-    frame.x = _mixers.map((m) => m.x).toList(growable: false);
-    frame.y = _mixers.map((m) => m.y).toList(growable: false);
-    frame.angle = _mixers.map((m) => m.angle).toList(growable: false);
+    _installDrivers(config, geometry);
     if (!changed && previousLayout != null && !previousLayout.isEmpty) {
-      for (var p = 0; p < _mixers.length; p++) {
+      for (var p = 0; p < _drivers.length; p++) {
         final scale = geometry.drums[p].radius / previousLayout.drums[p].radius;
+        if (identical(oldX[p], frame.x[p])) continue;
         for (var b = 0; b < frame.x[p].length; b++) {
           frame.x[p][b] = oldX[p][b] * scale;
           frame.y[p][b] = oldY[p][b] * scale;
@@ -177,10 +186,10 @@ final class LottoMotion
       }
       return;
     }
-    frame.slotOf = _mixers
+    frame.slotOf = _drivers
         .map((m) => Int32List(m.x.length)..fillRange(0, m.x.length, -1))
         .toList(growable: false);
-    _excluded = _mixers
+    _excluded = _drivers
         .map((m) => List.filled(m.x.length, false))
         .toList(growable: false);
     final n = config.pools.fold<int>(0, (sum, pool) => sum + pool.count);
@@ -204,6 +213,58 @@ final class LottoMotion
     }
   }
 
+  /// 按配置为每个容器选择驱动：物理参数有效且球数、半径比在范围内用物理，否则参数化搅拌。
+  ///
+  /// 球数、半径比与物理参数都未变的物理驱动被沿用，只改换算比例，缩放窗口不会让球重新落入。
+  void _installDrivers(LottoConfig config, LottoLayout geometry) {
+    final physics = config.options.physics;
+    final previous = _physics;
+    final drivers = <LuckyBodyDriver>[];
+    final physical = <LuckyPhysicsDriver?>[];
+    for (var p = 0; p < geometry.drums.length; p++) {
+      final drum = geometry.drums[p];
+      final count = drum.rest.length;
+      final ratio = drum.radius > 0 ? drum.ballRadius / drum.radius : 0.0;
+      LuckyPhysicsDriver? driver;
+      if (physics != null &&
+          count <= physics.maxBodies &&
+          ratio > 0 &&
+          ratio <= _maxBodyRatio) {
+        final old = p < previous.length ? previous[p] : null;
+        if (old != null &&
+            old.isCompatible(
+                count: count,
+                bodyRadius: drum.ballRadius,
+                containerRadius: drum.radius,
+                physics: physics)) {
+          old.rescale(drum.radius);
+          driver = old;
+        } else {
+          driver = LuckyPhysicsDriver(
+              physics: physics,
+              count: count,
+              containerRadius: drum.radius,
+              bodyRadius: drum.ballRadius);
+        }
+      }
+      physical.add(driver);
+      drivers.add(driver ??
+          LuckySwirlDriver(LuckySwirlMixer(
+              rest: drum.rest,
+              containerRadius: drum.radius,
+              bodyRadius: drum.ballRadius)));
+    }
+    _drivers = drivers;
+    _physics = physical;
+    frame.x = drivers.map((d) => d.x).toList(growable: false);
+    frame.y = drivers.map((d) => d.y).toList(growable: false);
+    frame.angle = drivers.map((d) => d.angle).toList(growable: false);
+    frame.stirDeg = Float64List(drivers.length);
+    frame.physical = Uint8List.fromList([
+      for (final driver in physical) driver == null ? 0 : 1,
+    ]);
+  }
+
   /// 判断结构字段，外观变化不改变号码顺序。
   bool _samePools(LottoConfig a, LottoConfig b) {
     if (a.pools.length != b.pools.length) return false;
@@ -225,7 +286,12 @@ final class LottoMotion
     }
     final idle = phase == LuckyPhase.idleSpinning;
     final angle = frame.swirlDeg;
-    reset();
+    if (phase == LuckyPhase.settled) {
+      for (final driver in _drivers) {
+        driver.reset();
+      }
+    }
+    _resetState();
     if (idle) {
       frame.swirlDeg = angle;
       _speedRatio = (_config!.options.motion.idleSpinSpeed /
@@ -285,23 +351,32 @@ final class LottoMotion
   bool cancel() {
     if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
     final idle = phase == LuckyPhase.idleSpinning;
-    reset();
+    _resetState();
     if (!idle) _result = const LottoResult.cancelled();
     return true;
   }
 
-  /// 还原所有球、开奖标记与角度。
+  /// 还原所有球、开奖标记与角度；物理模式下球重新落入。
   @override
   void reset() {
+    for (final driver in _drivers) {
+      driver.reset();
+    }
+    _resetState();
+  }
+
+  /// 清空本局状态但不重置物理世界，作废时球保持当前位置。
+  void _resetState() {
     frame.phase = LuckyPhase.idle;
     frame.swirlDeg = 0;
     frame.mix = 0;
     frame.drawnCount = 0;
     frame.flight.fillRange(0, frame.flight.length, 0);
-    for (var p = 0; p < _mixers.length; p++) {
+    for (var p = 0; p < _drivers.length; p++) {
       _excluded[p].fillRange(0, _excluded[p].length, false);
       frame.slotOf[p].fillRange(0, frame.slotOf[p].length, -1);
-      _mixers[p].update(0, 0);
+      _drivers[p].advance(0, 0, 0, _excluded[p]);
+      frame.stirDeg[p] = _physics[p]?.armDeg ?? 0;
     }
     _started.fillRange(0, _started.length, false);
     _landed.fillRange(0, _landed.length, false);
@@ -317,21 +392,30 @@ final class LottoMotion
     _read = 0;
   }
 
-  /// 更新混合位置，已出球的球保留飞行或结果位置。
-  void _mix() {
-    for (var p = 0; p < _mixers.length; p++) {
-      _mixers[p].update(frame.swirlDeg, frame.mix, excluded: _excluded[p]);
+  /// 推进各池位置，已出球的球保留飞行或结果位置；[dtMs] 仅物理驱动使用。
+  ///
+  /// 同一次 tick 只步进一次：开奖阶段由 [_advanceDrawing] 步进，tick 末尾据 [_stepped] 跳过。
+  void _mix(double dtMs) {
+    _stepped = true;
+    for (var p = 0; p < _drivers.length; p++) {
+      _drivers[p].advance(dtMs, frame.swirlDeg, frame.mix, _excluded[p]);
+      frame.stirDeg[p] = _physics[p]?.armDeg ?? 0;
     }
   }
 
   /// 按有效时间更新；长帧的落球通知按序逐帧排空后结算。
   @override
   int tick(double tMs, double dtMs) {
-    if (!phase.isMoving) return LuckyMotionEvents.none;
+    if (!phase.isMoving && !isSimulating) return LuckyMotionEvents.none;
+    final dt = math.max(0.0, dtMs);
+    if (!phase.isMoving) {
+      _mix(dt);
+      return LuckyMotionEvents.repaint;
+    }
+    _stepped = false;
     final options = _options;
     final motion = _spinOptions ?? options.motion;
     final before = phase;
-    final dt = math.max(0.0, dtMs);
     final step = motion.timebase == LuckyTimebase.frame
         ? 1.0
         : dt / kLuckyReferenceFrameMs;
@@ -360,7 +444,7 @@ final class LottoMotion
       _drawing += dt;
       _advanceDrawing(dt);
     }
-    _mix();
+    if (!_stepped) _mix(dt);
     var events = LuckyMotionEvents.repaint;
     if (phase != before) events |= LuckyMotionEvents.phaseChanged;
     if (_read < _written) {
@@ -373,7 +457,7 @@ final class LottoMotion
         _drawing >= _endMs &&
         _read == _written) {
       frame.mix = 0;
-      _mix();
+      _mix(0);
       frame.phase = LuckyPhase.settled;
       _result = LottoResult(draw: _draw!);
       events |= LuckyMotionEvents.phaseChanged | LuckyMotionEvents.settled;
@@ -419,19 +503,33 @@ final class LottoMotion
       final tail = time - _sortedMs;
       frame.mix = options.drawMix * (1 - ease.easeOut(tail, 0, 1, dec));
     }
-    _mix();
+    _mix(dt);
+    final lead = math.min(_ms(options.physics?.guideLead ?? Duration.zero),
+        _half * _ms(options.drawInterval));
     for (var i = 0; i < frame.flight.length; i++) {
       final elapsed = time - dec - i * _ms(options.drawInterval);
-      if (elapsed < 0) continue;
       final p = _poolOf[i];
       final b = _ballOf[i];
       final drum = _layout!.drums[p];
+      final physics = _physics[p];
+      if (physics != null && !_excluded[p][b] && elapsed + lead >= 0) {
+        // 导引：强度在起飞前 lead 毫秒内由零升到一，被导引的球绘制时置顶。
+        frame.slotOf[p][b] = _slotOfDraw[i];
+        physics.guide(
+            b,
+            drum.exit.dx - drum.center.dx,
+            drum.exit.dy - drum.center.dy,
+            lead <= 0 ? 1.0 : ((elapsed + lead) / lead).clamp(0.0, 1.0));
+      }
+      if (elapsed < 0) continue;
       if (!_started[i]) {
         _started[i] = true;
-        _excluded[p][b] = true;
-        _fromX[i] = frame.x[p][b];
-        _fromY[i] = frame.y[p][b];
-        frame.slotOf[p][b] = _slotOfDraw[i];
+        if (physics == null) {
+          _excluded[p][b] = true;
+          _fromX[i] = frame.x[p][b];
+          _fromY[i] = frame.y[p][b];
+          frame.slotOf[p][b] = _slotOfDraw[i];
+        }
       }
       final progress = (elapsed / _ms(options.ballFlightTime)).clamp(0.0, 1.0);
       frame.flight[i] = progress;
@@ -440,11 +538,20 @@ final class LottoMotion
       final exitY = drum.exit.dy - drum.center.dy;
       final targetX = slot.dx - drum.center.dx;
       final targetY = slot.dy - drum.center.dy;
-      if (progress < _half) {
+      if (progress < _half && physics != null) {
+        // 物理前半程：位置由世界给出，末段平滑收敛到出口，保证进度过半时恰在出口。
+        final w = ((progress - _blendStart) / (_half - _blendStart))
+            .clamp(0.0, 1.0)
+            .toDouble();
+        final s = w * w * (3 - 2 * w);
+        frame.x[p][b] += (exitX - frame.x[p][b]) * s;
+        frame.y[p][b] += (exitY - frame.y[p][b]) * s;
+      } else if (progress < _half) {
         final q = LuckyEasings.cubic.easeIn(progress * _twice, 0, 1, 1);
         frame.x[p][b] = _fromX[i] + (exitX - _fromX[i]) * q;
         frame.y[p][b] = _fromY[i] + (exitY - _fromY[i]) * q;
       } else {
+        if (physics != null) _excluded[p][b] = true;
         final q =
             LuckyEasings.cubic.easeOut((progress - _half) * _twice, 0, 1, 1);
         frame.x[p][b] = exitX + (targetX - exitX) * q;

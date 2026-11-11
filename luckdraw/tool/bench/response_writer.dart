@@ -40,6 +40,7 @@ Future<List<String>> saveBenchResponse(Map<String, dynamic> data,
     final reference = key.endsWith('_reference');
     if (!reference &&
         !kBenchSchema.containsKey(key) &&
+        !kBenchExperimentScenes.contains(key) &&
         !kPendingFirstFrames.contains(key)) {
       throw FormatException('未知 reportKey: $key');
     }

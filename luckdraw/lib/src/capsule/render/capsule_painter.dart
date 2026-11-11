@@ -14,6 +14,7 @@ import '../../core/render/paint_helpers.dart';
 import '../../core/render/perf_trace.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
+import '../../core/render/stir_arms.dart';
 import '../layout/capsule_layout.dart';
 import '../model/capsule_config.dart';
 import '../motion/capsule_motion.dart';
@@ -83,6 +84,9 @@ final class CapsulePictures {
   /// 已录制的旋钮。
   late ui.Picture knob;
 
+  /// 物理模式的拨杆绘制器；未开启物理模式或没有拨杆时为空。
+  LuckyStirArms? stirArms;
+
   /// 各静态层显示列表。
   final Map<int, ui.Picture> layers = {};
 
@@ -106,6 +110,11 @@ final class CapsulePictures {
       cards.clear();
       layers.clear();
       final l = data.layout, c = data.config;
+      final physics = c.options.physics;
+      stirArms = physics != null && physics.stirArms > 0
+          ? LuckyStirArms(
+              containerRadius: l.globeRadius, bodyRadius: l.capsuleRadius)
+          : null;
       back = cache.picture(_back, (canvas) {
         paintLuckyFill(
             canvas,
@@ -320,10 +329,18 @@ final class CapsulePainter extends CustomPainter {
       final dropped = f.stage == CapsuleStage.dropping ||
           f.stage == CapsuleStage.revealing ||
           f.stage == CapsuleStage.done;
+      final arms = pictures.stirArms;
+      if (arms != null && f.physical) {
+        arms.paint(canvas, l.globeCenter, f.stirDeg,
+            data.config.options.physics!.stirArms, f.mix);
+      }
       for (var i = 0; i < l.capsules.length; i++) {
-        if (!dropped || i != f.droppedCapsule) {
+        if ((!dropped || i != f.droppedCapsule) && i != f.guided) {
           _capsule(canvas, i, l.capsules[i]);
         }
+      }
+      if (f.guided >= 0 && !dropped) {
+        _capsule(canvas, f.guided, l.capsules[f.guided]);
       }
       canvas.drawPicture(pictures.front);
       canvas.save();

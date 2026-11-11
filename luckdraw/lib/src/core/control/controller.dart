@@ -203,6 +203,7 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
       _queuedLayout = layout;
     } else {
       motion.configure(config, layout);
+      _syncClock();
     }
   }
 
@@ -332,7 +333,7 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   void _syncClock() {
     final clock = _host?.clock;
     if (clock == null || _disposed) return;
-    if (motion.phase.isMoving && !_timeline.isPaused) {
+    if ((motion.phase.isMoving || motion.isSimulating) && !_timeline.isPaused) {
       if (!clock.isTicking) {
         _timeline.rebase();
         clock.start(_onTick);

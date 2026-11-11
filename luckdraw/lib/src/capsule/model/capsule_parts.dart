@@ -5,6 +5,7 @@ import '../../core/foundation/cell_style.dart';
 import '../../core/foundation/fill.dart';
 import '../../core/foundation/image.dart';
 import '../../core/foundation/text.dart';
+import '../../core/kinematics/physics_options.dart';
 import '../../core/motion/motion_options.dart';
 
 /// 奖品卡自定义绘制；[bounds] 为卡片区域，不得保留画布。
@@ -100,7 +101,8 @@ final class CapsuleOptions {
       this.motion = const LuckyMotionOptions(
           speed: 12,
           accelerationTime: Duration(milliseconds: 800),
-          decelerationTime: Duration(milliseconds: 1500))});
+          decelerationTime: Duration(milliseconds: 1500)),
+      this.physics});
 
   /// 球体半径相对盒子宽度的比例。
   final double globeRadiusFactor;
@@ -120,21 +122,38 @@ final class CapsuleOptions {
   /// 搅拌动画配置。
   final LuckyMotionOptions motion;
 
-  /// 返回替换非空参数的副本，例如 `value.copyWith()` 保留全部字段。
+  /// 实验性（可能调整）：物理碰撞模式参数；null 保持参数化轨迹（默认）。
+  ///
+  /// 例如 `CapsuleOptions(physics: LuckyPhysics())`，胶囊从顶部落下并与球壁、拨杆碰撞。
+  final LuckyPhysics? physics;
+
+  /// 返回替换非空参数的副本，例如 `value.copyWith()` 保留全部字段；
+  /// 无法用 null 清除 [physics]，需要关闭物理模式时重新构造。
   CapsuleOptions copyWith(
           {double? globeRadiusFactor,
           double? capsuleRadiusFactor,
           Duration? dropTime,
           Duration? revealTime,
           bool? revealOnSettle,
-          LuckyMotionOptions? motion}) =>
+          LuckyMotionOptions? motion,
+          LuckyPhysics? physics}) =>
       CapsuleOptions(
           globeRadiusFactor: globeRadiusFactor ?? this.globeRadiusFactor,
           capsuleRadiusFactor: capsuleRadiusFactor ?? this.capsuleRadiusFactor,
           dropTime: dropTime ?? this.dropTime,
           revealTime: revealTime ?? this.revealTime,
           revealOnSettle: revealOnSettle ?? this.revealOnSettle,
-          motion: motion ?? this.motion);
+          motion: motion ?? this.motion,
+          physics: physics ?? this.physics);
+
+  /// 返回去掉物理模式、其余字段不变的副本，例如关闭 `CapsuleOptions(physics: ...)`。
+  CapsuleOptions withoutPhysics() => CapsuleOptions(
+      globeRadiusFactor: globeRadiusFactor,
+      capsuleRadiusFactor: capsuleRadiusFactor,
+      dropTime: dropTime,
+      revealTime: revealTime,
+      revealOnSettle: revealOnSettle,
+      motion: motion);
 
   /// 按字段值比较，列表按内容比较。
   @override
@@ -145,7 +164,8 @@ final class CapsuleOptions {
       other.dropTime == dropTime &&
       other.revealTime == revealTime &&
       other.revealOnSettle == revealOnSettle &&
-      other.motion == motion;
+      other.motion == motion &&
+      other.physics == physics;
 
   /// 与字段值一致的哈希。
   @override
@@ -155,7 +175,8 @@ final class CapsuleOptions {
         dropTime,
         revealTime,
         revealOnSettle,
-        motion
+        motion,
+        physics
       ]);
 }
 

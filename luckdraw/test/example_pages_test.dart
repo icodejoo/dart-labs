@@ -177,4 +177,38 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(tester.binding.transientCallbackCount, 0);
   });
+
+  testWidgets(
+      'example pages > capsule and lotto physics switch toggles the mode',
+      (tester) async {
+    tester.view.devicePixelRatio = 3;
+    tester.view.physicalSize = _phone * 3;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    Future<void> mount(Widget page) async {
+      await tester.pumpWidget(
+          MaterialApp(theme: demoTheme(Brightness.light), home: page));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    await mount(const CapsulePage());
+    final capsule = tester.state<CapsulePageState>(find.byType(CapsulePage));
+    expect(capsule.controller.frame.physical, isFalse);
+    await tester.tap(find.byKey(physicsKey));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(capsule.controller.frame.physical, isTrue);
+    await tester.tap(find.byKey(physicsKey));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(capsule.controller.frame.physical, isFalse);
+    await tester.pumpWidget(const SizedBox());
+
+    await mount(const LottoPage());
+    final lotto = tester.state<LottoPageState>(find.byType(LottoPage));
+    expect(lotto.controller.frame.physical, everyElement(0));
+    await tester.tap(find.byKey(physicsKey));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(lotto.controller.frame.physical, everyElement(1));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }

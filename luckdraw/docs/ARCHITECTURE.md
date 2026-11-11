@@ -36,7 +36,7 @@
 ### 1.2 非目标
 
 - 不移植 vue/react/uni/taro/mini 平台壳、上游 `observer/*` 响应式系统、`polyfill.js`、平台 flag（`WEB`/`MP-WX`…）、`rAF`/`setTimeout` 注入、`handleCssUnit` 以外的 DOM 逻辑。
-- 不实现 3D、音效、粒子特效、GIF 动图播放，以及用户未点名的新玩法（刮刮乐、翻牌、砸金蛋等）——**只给扩展点**（§6）。不引入物理引擎：扭蛋机/大乐透的翻滚是确定性参数化轨迹（§21.2）。
+- 不实现 3D、音效、粒子特效、GIF 动图播放，以及用户未点名的新玩法（刮刮乐、翻牌、砸金蛋等）——**只给扩展点**（§6）。不引入第三方物理引擎：扭蛋机/大乐透默认的翻滚是确定性参数化轨迹（§21.2），可选的内置圆形碰撞模式见 [PHYSICS_DESIGN](PHYSICS_DESIGN.md)（ADR-36）。
 - 不依赖 Flutter GPU、`flutter_scene`、shader 编译产物；不引入任何第三方运行时依赖。
 - 不保证在"上游自身出错"的输入上复刻错误（NaN、死循环、抛异常），见 FIDELITY.md §8。
 - 不提供上游 `imgs[].formatter` 的源码兼容（上游拿 `HTMLCanvasElement`，这里是 `ui.Image`），只提供语义等价的 `LuckyImageFormatter`。
@@ -151,7 +151,7 @@ ASCII 速览（箭头 = "依赖于"）：
 
 | 入口 | 导出内容 | 典型使用者 |
 | --- | --- | --- |
-| `package:luckdraw/luckdraw.dart` | core 的用户 API：foundation 模型、`LuckyEasing`/`LuckyEasings`/7 个缓动类/`CurveEasing`、`LuckyMotionOptions`/`LuckyTimebase`/`LuckyStopSolver` 两个实现、`LuckyPhase`、`LuckyResult`、`PrizePicker` 系列、`LuckyController`（基类，仅类型）、`LuckyHooks`、`LuckyLayer`/`LuckyLayerPosition`/`LuckyLayerContext`/`LuckyCallbackLayer`、`LuckyPerformanceOptions`/`LuckyCacheMode`/`LuckyTextScaling`、`LuckyImageError`、`LuckyItemOverlay`、`LuckyGameRegistry` | 所有用户（通常经由玩法入口间接得到） |
+| `package:luckdraw/luckdraw.dart` | core 的用户 API：foundation 模型、`LuckyEasing`/`LuckyEasings`/7 个缓动类/`CurveEasing`、`LuckyMotionOptions`/`LuckyTimebase`/`LuckyStopSolver` 两个实现、`LuckyPhysics`/`LuckyPhysicsReduceMotion`（物理碰撞模式参数）、`LuckyPhase`、`LuckyResult`、`PrizePicker` 系列、`LuckyController`（基类，仅类型）、`LuckyHooks`、`LuckyLayer`/`LuckyLayerPosition`/`LuckyLayerContext`/`LuckyCallbackLayer`、`LuckyPerformanceOptions`/`LuckyCacheMode`/`LuckyTextScaling`、`LuckyImageError`、`LuckyItemOverlay`、`LuckyGameRegistry` | 所有用户（通常经由玩法入口间接得到） |
 | `package:luckdraw/extend.dart` | §16 的 core 用户 API 与扩展 SPI；逐文件使用 `export 'src/core/...' show ...` 直接导出，不转导出 `luckdraw.dart`（D1）；插件只 import 此入口即可取得所需符号 | 写新玩法/新后端的人（含将来的 `luckdraw_3d`） |
 | `package:luckdraw/wheel.dart` | 转盘全部公共类型；并 `export 'luckdraw.dart'` | 转盘用户 |
 | `package:luckdraw/grid.dart` | 九宫格全部公共类型；并 `export 'luckdraw.dart'` | 九宫格用户 |
@@ -1173,6 +1173,7 @@ wheelFromLuckyCanvasConfig(json, options: LuckyCanvasCompatOptions.strictUpstrea
 | ADR-33 | FIN：RSS口径 | 五次总增长 / 首次预热与后四次净增长 | DEV首次返回约3.72–4.19MiB，后四次0.102–1.168MiB且不单调，RSS不足以判泄漏 | 5次循环不变；预热仅信息，稳态增长预算1572864B；绝对上限/三轮中位数，确定性释放由dispose计数测试保证 |
 | ADR-34 | FIN：预算与验收边界（历史，度量由ADR-35修正） | 初始估算 / 三轮实测重定UI | 指定UI批准值与统一0.1ms取整并非完全相符 | UI平均批准1.0/1.3/2.0/2.5/1.2ms继续有效；历史高档解释、Raster/P90预算及首帧门禁按MET修正，当前性能仍未完全通过 |
 | ADR-35 | MET：交付与成本度量（主会话已拍板） | 线程耗时代理 / 背压分类后独立交付和成本检查 | 130稳态窗口交付完整，P90有8.848–16.490ms间隙，参照也独立高档 | fps≥59、帧数≥期望98%、P90≥15.5判污染；全部窗口查交付，成本至少两轮未污染；稳定指标超目标≤15%首版标定，>15%或不稳定不放宽；首帧信息待基线；RSS沿用FIN，细节见§8.6 |
+| ADR-36 | 可选物理碰撞模式（用户拍板：方案 A、可选模式） | A 自研圆形求解器 / B forge2d / C 独立包 `luckdraw_physics` + forge2d | 场景只有同半径圆与圆形容器，通用刚体引擎能力用不上；A 保住零依赖与同平台可复现，B 破坏零依赖，C 在无第三方依赖时隔离收益小 | 选 A，默认关闭（`physics: null`），参数化轨迹继续是默认与基线；物理只决定球在容器里的位置，相位序列、事件、结果、时长与另一模式逐帧等价；目标球导引强度过半后变幽灵，保证到位。**推翻**：§1“不引入物理引擎”改为“不引入第三方物理引擎”；实测与落地见 [PHYSICS_DESIGN](PHYSICS_DESIGN.md) |
 
 ---
 
@@ -1237,7 +1238,7 @@ wheelFromLuckyCanvasConfig(json, options: LuckyCanvasCompatOptions.strictUpstrea
 | 选奖 | 扭蛋机、数字转盘、抽签用 `PrizePicker`（权重 = 各条目 `weight`）；大乐透用 `LottoSampler`（每池无放回均匀抽样，注入 `Random` 可复现） |
 | "自由停"的速度连续 | 扭蛋机搅拌、抽签摇动、数字转盘圆盘、大乐透球体不需要落在特定角度：减速位移取 `c = speed / decEase.easeOut(frameMs, 0, 1, decMs)`，使减速首帧速度恰等于匀速速度（没有 #205 那种跳变）。需要对准目标的量（数字转盘小球的相对角）仍走 `LuckyStopSolver` |
 | 性能 | 静态外观（机身、球体、刻度盘、签筒、号码球、胶囊、奖品卡）全部录成 Picture，每帧只做变换回放；动态物体位置写入复用的 `Float64List`；不 `saveLayer`；空闲停 Ticker |
-| 物理 | 不引入物理引擎；翻滚/弹跳都是确定性参数化轨迹（同配置、同时间序列必得同画面），便于 golden 与回放 |
+| 物理 | 默认不用物理：翻滚/弹跳是确定性参数化轨迹（同配置、同时间序列必得同画面），便于 golden 与回放。可选 `physics` 参数开启内置圆形碰撞模拟（`LuckyCircleWorld`，零第三方依赖，结果与状态机语义不变），见 [PHYSICS_DESIGN](PHYSICS_DESIGN.md)、ADR-36 |
 | 1:1 | 无上游，不做对照；只做单元、widget、golden、集成、基准 |
 
 ### 21.2 core 搅拌运动学 `LuckySwirlMixer`

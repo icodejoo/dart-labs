@@ -26,6 +26,7 @@ DEVFIN（2026-11-11）本次仅单台 vivo V2417 / Android 16：grid_steady：�
 | [EXAMPLE_STYLE_AUDIT.md](EXAMPLE_STYLE_AUDIT.md) | 45张自渲染截图约1.26MB；风格方向审计，没有上游演示真实截图 | 示例评审 |
 | [OFFICIAL_PARITY_REPORT.md](OFFICIAL_PARITY_REPORT.md) | 官方示例站基础/完整示例 76 项 1:1 复刻与逐项对照（真机截图），发现的 luckdraw 差异（老虎机无奖品不画外框、负基础格宽） | 验收、修差异 |
 | [E1_E2_DEVICE_REPORT.md](E1_E2_DEVICE_REPORT.md) | 真机实验：九宫格高亮帧节奏（60Hz，30 次/秒换格，无丢帧）与纹理成本断崖（52→104 MiB 光栅耗时 ×2.8） | 性能决策 |
+| [PHYSICS_DESIGN.md](PHYSICS_DESIGN.md) | 扭蛋机/大乐透可选物理碰撞模式：设计、落地事实、真机 A/B 实测（UI P99 未达 4ms 门禁）、摇树结果；ADR-36 已写入 ARCHITECTURE | 设计评审、性能评审 |
 | [audit/README.md](audit/README.md) | 自定义能力盘点（核心层 + 各玩法 + 分层/纹理化专项）原文与取舍 | 开放能力、排期 |
 | [FIN重算报告](../tool/bench/results/fin/REPORT.md) | 全场景RSS预热/稳态拆分、UI预算与完整失败对比 | 发布评审 |
 | [METRIC_FIX_REPORT.md](METRIC_FIX_REPORT.md) | 当前性能口径：背压证据、130窗口分布、分类规则、11场景重算、首版标定与首帧待标定；替代历史高档解释 | 性能与发布评审 |
@@ -105,6 +106,7 @@ Skia/Impeller阴影半径差1–2物理像素、扫描线峰值差20.8–23.8/25
 
 | 日期 | 变更 |
 | --- | --- |
+| 2026-11-11 | PHYSICS_DESIGN：capsule/lotto 可选物理碰撞模式（默认关闭、零依赖）P0–P4 完成，ADR-36 写入 ARCHITECTURE；真机 A/B 与摇树实测如实记录，性能未达门禁 |
 | 2026-11-10 | REL：0.1.0 候选元数据、英文发布日志、中英文 README 状态、发布包排除规则及发布预演；新增发布检查清单，最低版本报告保留生成中链接 |
 | 2026-11-10 | B17b 第二轮：F1/F2契约与ADR-26–31，最终parity分层、真实Web摇树及Windows33/33；两份README共12个Dart块临时工程分析0 issue；保留真机/Linux/min-sdk/APK/发布待验边界 |
 | 2026-11-10 | B17a 第一轮落地事实对齐：D1–D8 与 ADR-17–25；正文修正各批冲突和骨架；保留验收编号及历史测试名，区分已落地与待落地验证；脚本只读核验引用 |

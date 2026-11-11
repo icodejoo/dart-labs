@@ -2,6 +2,12 @@
 
 ### Added
 
+- Experimental opt-in physics collision mode for capsule machines and lotto
+  draws (`CapsuleOptions.physics` / `LottoOptions.physics` with `LuckyPhysics`):
+  balls drop in from the top and collide with the globe wall, each other and
+  rotating stirring arms. Built-in circle solver with no third-party dependency;
+  results, phases and events are identical to the default parametric motion,
+  and the mode follows system reduced-motion settings by default.
 - Experimental shared raster byte budgeting (32 MiB by default), including slot
   atlas pages, with Picture fallback and paired reservation/release accounting.
 - Experimental grid step-rate caps and system-aware reduced motion, limited to
@@ -45,7 +51,8 @@
 - Requires Dart 3.5 and Flutter 3.24 or later. This is an unofficial Apache-2.0
   port; see NOTICE for attribution.
 - The 0.1.0 candidate has not been published to pub.dev.
-- Added games use deterministic animation without a physics engine or built-in
+- Added games use deterministic animation by default; physics collision is an
+  opt-in mode with a built-in solver, not a third-party engine. There is no built-in
   device shake detection. Widget overlays add rendering cost; 3D is an extension path.
 - Device performance, Android integration and Skia/Impeller device shadows still
   require validation. Minimum-SDK and APK tree-shaking results are tracked separately

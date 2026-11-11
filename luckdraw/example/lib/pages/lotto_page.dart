@@ -36,6 +36,14 @@ class LottoPageState extends State<LottoPage> {
           buttonTextColor: DemoPalette.ink),
       options: const LottoOptions(sortResults: false, motion: demoMotion));
 
+  /// 开启物理碰撞模式的配置：号码球从顶部落下，与容器、拨杆碰撞。
+  static final LottoConfig physicsConfig = config.copyWith(
+      options: const LottoOptions(
+          sortResults: false, motion: demoMotion, physics: LuckyPhysics()));
+
+  /// 是否使用物理碰撞模式。
+  bool _physics = false;
+
   /// 按实际回调记录的池及号码，测试可验证顺序。
   final List<(int, int)> drawn = [];
 
@@ -48,6 +56,13 @@ class LottoPageState extends State<LottoPage> {
       title: '大乐透',
       phase: controller.phase,
       result: _result,
+      extra: Row(children: [
+        const Expanded(child: Text('物理碰撞（实验）')),
+        Switch(
+            key: physicsKey,
+            value: _physics,
+            onChanged: (value) => setState(() => _physics = value)),
+      ]),
       reset: () {
         controller.reset();
         drawn.clear();
@@ -61,7 +76,7 @@ class LottoPageState extends State<LottoPage> {
         controller.stopWith(serverDraw);
       },
       game: LuckyLotto(
-          config: config,
+          config: _physics ? physicsConfig : config,
           controller: controller,
           width: demoSide,
           height: demoTall,

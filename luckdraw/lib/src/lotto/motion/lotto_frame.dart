@@ -29,5 +29,13 @@ final class LottoFrame extends LuckyFrame {
   Float64List flight = Float64List(0);
 
   /// 每池每颗球当前的结果槽下标，未抽出为 -1。
+  ///
+  /// 物理模式下，被导引的球在起飞前就会被标记，以便绘制时置顶。
   List<Int32List> slotOf = const [];
+
+  /// 物理模式下各池拨杆的当前角度，单位度；参数化轨迹为零。
+  Float64List stirDeg = Float64List(0);
+
+  /// 各池是否正在用物理模拟，一为是；为零（含超过球数上限的回退）的池不绘制拨杆。
+  Uint8List physical = Uint8List(0);
 }

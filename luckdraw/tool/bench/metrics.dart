@@ -470,6 +470,9 @@ const Map<String, Set<String>> kBenchSchema = {
   'memory_cycles': {kBenchRssDelta, kBenchRssGrowth},
 };
 
+/// 只做 A/B 对照、不进入回归预算门禁的实验场景（物理碰撞模式）。
+const Set<String> kBenchExperimentScenes = {'capsule_physics', 'lotto_physics'};
+
 /// 检查 RSS 原值是否来自本轮 [kRssCycles] 次采样，拒绝旧数据或缺样。
 ///
 /// [data] 必须包含循环次数、页面和返回空白页的 RSS 数组；错误抛出

@@ -52,6 +52,9 @@ abstract class LuckyMotion<C extends Object, L extends LuckyLayout,
   /// 当前阶段。
   LuckyPhase get phase;
 
+  /// 阶段不在运动、但物理模拟仍未休眠时为真，宿主据此保持时钟运行；默认没有模拟。
+  bool get isSimulating => false;
+
   /// 最近跨过条目的列，非多列玩法为零。
   int get passedReel;
 

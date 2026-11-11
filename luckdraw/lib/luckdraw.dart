@@ -39,6 +39,8 @@ export 'src/core/foundation/shadow.dart' show LuckyShadow, LuckyShadowBlurSpace;
 export 'src/core/foundation/text.dart'
     show LuckyText, LuckyTextDefaults, LuckyTextOverride;
 export 'src/core/game/registry.dart' show LuckyGameRegistry, LuckyViewBuilder;
+export 'src/core/kinematics/physics_options.dart'
+    show LuckyPhysics, LuckyPhysicsReduceMotion;
 export 'src/core/motion/motion_options.dart' show LuckyMotionOptions;
 export 'src/core/motion/phase.dart' show LuckyPhase, LuckyPhaseX;
 export 'src/core/motion/result.dart' show LuckyResult;

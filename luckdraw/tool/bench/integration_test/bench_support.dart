@@ -181,7 +181,7 @@ Future<void> runSteadyBench(IntegrationTestWidgetsFlutterBinding binding,
     expect(scene.play(), isTrue);
     await _until(tester, () => scene.phase.value == LuckyPhase.cruising);
     await _trace(binding, tester, key, () async {
-      if (key == 'lotto_draw') {
+      if (key == 'lotto_draw' || key == 'lotto_physics') {
         await _wait(tester, const Duration(seconds: 3));
         expect(scene.stop(), isTrue);
         await _until(tester, () => scene.phase.value == LuckyPhase.settled);

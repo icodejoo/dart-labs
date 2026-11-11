@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../../core/easing/easing.dart';
 import '../../core/foundation/constants.dart';
 import '../../core/game/frame.dart';
+import '../../core/kinematics/body_driver.dart';
 import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
@@ -19,6 +20,18 @@ const double _knobRatio = 0.25;
 
 /// 差分速度的毫秒间隔，来自 T5.3。
 const double _differenceMs = 1;
+
+/// 物理模式：减速窗口过半后锁定并导引目标胶囊。
+const double _guideStart = 0.5;
+
+/// 物理模式：导引强度在减速时长的该比例内从零升到一。
+const double _guideRamp = 0.35;
+
+/// 物理模式：掉落前该比例进度内，把物理位置平滑过渡到掉落折线。
+const double _dropBlend = 0.15;
+
+/// 物理世界允许的球半径与容器半径之比上限。
+const double _maxBodyRatio = 0.5;
 
 /// 扭蛋机细分阶段；收尾阶段均属于 LuckyPhase.decelerating。
 enum CapsuleStage {
@@ -70,6 +83,15 @@ final class CapsuleFrame extends LuckyFrame {
   /// 开蛋卡片缩放进度，范围零至一。
   double revealProgress = 0;
 
+  /// 物理模式下拨杆的当前角度，单位度；参数化轨迹为零。
+  double stirDeg = 0;
+
+  /// 是否正在用物理模拟；为假时（含超过球数上限的回退）不绘制拨杆。
+  bool physical = false;
+
+  /// 物理模式下被导引、将要出球的胶囊下标，绘制时置顶；没有为负一。
+  int guided = -1;
+
   /// 胶囊横坐标，相对球心。
   Float64List x = Float64List(0);
 
@@ -103,8 +125,20 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   /// 当前几何。
   CapsuleLayout? _layout;
 
-  /// 实例持有的搅拌器。
-  LuckySwirlMixer? _mixer;
+  /// 位置驱动：参数化搅拌或物理模拟。
+  LuckyBodyDriver? _driver;
+
+  /// 物理驱动；仅在物理模式下非空，与驱动同一实例。
+  LuckyPhysicsDriver? _physics;
+
+  /// 物理模式下被锁定导引的胶囊下标，未锁定为负一。
+  int _candidate = -1;
+
+  /// 物理模式下掉落起点与折线起点的横向偏差，由掉落进度平滑归零。
+  double _dropOffsetX = 0;
+
+  /// 物理模式下掉落起点与折线起点的纵向偏差。
+  double _dropOffsetY = 0;
 
   /// 已移出容器的胶囊标记。
   List<bool> _excluded = [];
@@ -155,6 +189,10 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   @override
   Duration get maxFrameDelta => _config.options.motion.maxFrameDelta;
 
+  /// 物理模拟未休眠时为真，宿主据此在静止阶段保持时钟。
+  @override
+  bool get isSimulating => _driver?.isAwake ?? false;
+
   /// 应用配置；缺少非空几何或胶囊时拒绝开始。
   @override
   void configure(CapsuleConfig config, CapsuleLayout? layout) {
@@ -162,16 +200,11 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     if (identical(layout, _layout)) return;
     _layout = layout;
     if (layout == null) {
-      _mixer = null;
+      _driver = null;
+      _physics = null;
       return;
     }
-    _mixer = LuckySwirlMixer(
-        rest: layout.rest,
-        containerRadius: layout.globeRadius,
-        bodyRadius: layout.capsuleRadius);
-    frame.x = _mixer!.x;
-    frame.y = _mixer!.y;
-    frame.angle = _mixer!.angle;
+    _installDriver(config, layout);
     _excluded = List.filled(layout.rest.length, false);
     if (layout.rest.isEmpty ||
         config.prizes.isEmpty ||
@@ -192,6 +225,48 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
       _excluded[frame.droppedCapsule] = true;
     }
     _update();
+  }
+
+  /// 按配置选择驱动：物理参数有效且球数、半径比在范围内用物理，否则参数化搅拌。
+  ///
+  /// 物理参数、球数与半径比都未变时沿用世界，只改换算比例，缩放窗口不会让球重新落入。
+  void _installDriver(CapsuleConfig config, CapsuleLayout layout) {
+    final physics = config.options.physics?..validate();
+    final count = layout.rest.length;
+    final ratio = layout.globeRadius > 0
+        ? layout.capsuleRadius / layout.globeRadius
+        : 0.0;
+    if (physics != null &&
+        count <= physics.maxBodies &&
+        ratio > 0 &&
+        ratio <= _maxBodyRatio) {
+      final old = _physics;
+      if (old != null &&
+          old.isCompatible(
+              count: count,
+              bodyRadius: layout.capsuleRadius,
+              containerRadius: layout.globeRadius,
+              physics: physics)) {
+        old.rescale(layout.globeRadius);
+        return;
+      }
+      _physics = LuckyPhysicsDriver(
+          physics: physics,
+          count: count,
+          containerRadius: layout.globeRadius,
+          bodyRadius: layout.capsuleRadius);
+      _driver = _physics;
+    } else {
+      _physics = null;
+      _driver = LuckySwirlDriver(LuckySwirlMixer(
+          rest: layout.rest,
+          containerRadius: layout.globeRadius,
+          bodyRadius: layout.capsuleRadius));
+    }
+    frame.x = _driver!.x;
+    frame.y = _driver!.y;
+    frame.angle = _driver!.angle;
+    frame.physical = _physics != null;
   }
 
   /// 有奖品、有胶囊且非零尺寸时才能开始。
@@ -242,14 +317,20 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   bool cancel() {
     if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
     final report = phase != LuckyPhase.idleSpinning;
-    reset();
+    _resetState();
     if (report) _result = const LuckyResult.cancelled();
     return true;
   }
 
-  /// 恢复静止并清除结果与移出标记。
+  /// 恢复静止并清除结果与移出标记；物理模式下胶囊重新落入。
   @override
   void reset() {
+    _driver?.reset();
+    _resetState();
+  }
+
+  /// 清空本局状态与搅拌角但不重置物理世界，作废时胶囊保持当前位置。
+  void _resetState() {
     _clear();
     frame.swirlDeg = 0;
     frame.knobDeg = 0;
@@ -268,6 +349,10 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     frame.dropProgress = 0;
     frame.revealProgress = 0;
     frame.mix = 0;
+    _candidate = -1;
+    frame.guided = -1;
+    _dropOffsetX = 0;
+    _dropOffsetY = 0;
     _excluded.fillRange(0, _excluded.length, false);
     _update();
   }
@@ -277,16 +362,18 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     final l = _layout!;
     frame.targetPrize = _pending! % _config.prizes.length;
     _pending = null;
-    var best = double.infinity;
-    final hasTarget = l.capsules.contains(frame.targetPrize);
-    for (var i = 0; i < l.rest.length; i++) {
-      if (hasTarget && l.capsules[i] != frame.targetPrize) continue;
-      final dx = l.rest[i].dx + l.globeCenter.dx - l.exit.dx;
-      final dy = l.rest[i].dy + l.globeCenter.dy - l.exit.dy;
-      final distance = dx * dx + dy * dy;
-      if (distance < best) {
-        best = distance;
-        frame.droppedCapsule = i;
+    if (_physics == null) {
+      var best = double.infinity;
+      final hasTarget = l.capsules.contains(frame.targetPrize);
+      for (var i = 0; i < l.rest.length; i++) {
+        if (hasTarget && l.capsules[i] != frame.targetPrize) continue;
+        final dx = l.rest[i].dx + l.globeCenter.dx - l.exit.dx;
+        final dy = l.rest[i].dy + l.globeCenter.dy - l.exit.dy;
+        final distance = dx * dx + dy * dy;
+        if (distance < best) {
+          best = distance;
+          frame.droppedCapsule = i;
+        }
       }
     }
     _elapsed = 0;
@@ -303,12 +390,18 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   /// 按有效时间推进；直接调用时亦钳制长间隔，避免后台跳变。
   @override
   int tick(double tMs, double dtMs) {
-    if (!phase.isMoving || !_ready) return LuckyMotionEvents.none;
+    if (!_ready || !phase.isMoving && !isSimulating) {
+      return LuckyMotionEvents.none;
+    }
     final before = phase;
     final dt = dtMs
         .clamp(0,
             maxFrameDelta.inMicroseconds / Duration.microsecondsPerMillisecond)
         .toDouble();
+    if (!phase.isMoving) {
+      _update(dtMs: dt);
+      return LuckyMotionEvents.repaint;
+    }
     if (phase == LuckyPhase.cruising && _pending != null) {
       _beginStop();
     } else {
@@ -352,10 +445,12 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
               m.decelerationEasing.easeOut(end, 0, c, m.decelerationMs);
       frame.mix =
           m.speed == 0 ? 0 : (velocity * _stopFrameMs / m.speed).clamp(0, 1);
+      if (_physics != null) _guideCandidate(m.decelerationMs);
       if (_elapsed >= m.decelerationMs) {
         frame.mix = 0;
         frame.stage = CapsuleStage.dropping;
         _elapsed = 0;
+        if (_physics != null) _lockDropped();
         _excluded[frame.droppedCapsule] = true;
       }
     } else if (frame.stage == CapsuleStage.dropping) {
@@ -383,7 +478,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
       if (_elapsed >= duration) _finish();
     }
     frame.knobDeg = frame.swirlDeg * _knobRatio;
-    _update();
+    _update(dtMs: dt);
     return LuckyMotionEvents.repaint |
         (before != phase ? LuckyMotionEvents.phaseChanged : 0) |
         (phase == LuckyPhase.settled ? LuckyMotionEvents.settled : 0);
@@ -397,19 +492,76 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
         index: frame.targetPrize, prize: _config.prizes[frame.targetPrize]);
   }
 
+  /// 目标奖品色中、按当前位置离出口最近的胶囊；没有该色时在全部胶囊里选。
+  int _nearestTarget() {
+    final l = _layout!;
+    final hasTarget = l.capsules.contains(frame.targetPrize);
+    final ex = l.exit.dx - l.globeCenter.dx, ey = l.exit.dy - l.globeCenter.dy;
+    var best = double.infinity;
+    var index = -1;
+    for (var i = 0; i < l.rest.length; i++) {
+      if (_excluded[i] || hasTarget && l.capsules[i] != frame.targetPrize) {
+        continue;
+      }
+      final dx = frame.x[i] - ex, dy = frame.y[i] - ey;
+      final distance = dx * dx + dy * dy;
+      if (distance < best) {
+        best = distance;
+        index = i;
+      }
+    }
+    return index;
+  }
+
+  /// 物理模式：减速过半后锁定最近的目标胶囊，并按斜坡增强的导引把它推向出口。
+  void _guideCandidate(double decelerationMs) {
+    final start = decelerationMs * _guideStart;
+    if (_elapsed < start) return;
+    if (_candidate < 0) _candidate = _nearestTarget();
+    frame.guided = _candidate;
+    final l = _layout!;
+    final ramp = math.max(decelerationMs * _guideRamp, 1.0);
+    _physics!.guide(
+        _candidate,
+        l.exit.dx - l.globeCenter.dx,
+        l.exit.dy - l.globeCenter.dy,
+        ((_elapsed - start) / ramp).clamp(0.0, 1.0).toDouble());
+  }
+
+  /// 物理模式：确定掉落的胶囊，并记录物理位置与折线起点的偏差，供掉落初期平滑消除。
+  void _lockDropped() {
+    if (_candidate < 0) _candidate = _nearestTarget();
+    final l = _layout!;
+    frame.droppedCapsule = _candidate;
+    _dropOffsetX =
+        frame.x[_candidate] - (l.dropPath.first.dx - l.globeCenter.dx);
+    _dropOffsetY =
+        frame.y[_candidate] - (l.dropPath.first.dy - l.globeCenter.dy);
+  }
+
   /// 写入复用缓冲；掉落按预计算弧长插值，不创建临时坐标对象。
-  void _update() {
-    _mixer?.update(frame.swirlDeg, frame.mix, excluded: _excluded);
+  ///
+  /// [dtMs] 为本帧有效毫秒，仅物理驱动使用；命令类调用传零。
+  void _update({double dtMs = 0}) {
+    _driver?.advance(dtMs, frame.swirlDeg, frame.mix, _excluded);
+    frame.stirDeg = _physics?.armDeg ?? 0;
     final i = frame.droppedCapsule, l = _layout;
     if (l == null || i < 0 || i >= _excluded.length || !_excluded[i]) return;
+    final blend = 1 - (frame.dropProgress / _dropBlend).clamp(0.0, 1.0);
     var remaining = l.dropLength * frame.dropProgress;
     for (var segment = 0; segment < l.lengths.length; segment++) {
       final length = l.lengths[segment];
       if (remaining <= length || segment == l.lengths.length - 1) {
         final ratio = length == 0 ? 0.0 : (remaining / length).clamp(0, 1);
         final a = l.dropPath[segment], b = l.dropPath[segment + 1];
-        frame.x[i] = a.dx + (b.dx - a.dx) * ratio - l.globeCenter.dx;
-        frame.y[i] = a.dy + (b.dy - a.dy) * ratio - l.globeCenter.dy;
+        frame.x[i] = a.dx +
+            (b.dx - a.dx) * ratio -
+            l.globeCenter.dx +
+            _dropOffsetX * blend;
+        frame.y[i] = a.dy +
+            (b.dy - a.dy) * ratio -
+            l.globeCenter.dy +
+            _dropOffsetY * blend;
         break;
       }
       remaining -= length;

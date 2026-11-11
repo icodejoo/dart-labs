@@ -1,10 +1,11 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 import '../core/control/controller.dart';
 import '../core/foundation/image.dart';
 import '../core/game/game.dart';
 import '../core/game/layout.dart';
 import '../core/render/renderer.dart';
+import '../core/widgets/physics_reduce.dart';
 import 'control/lotto_controller.dart';
 import 'layout/lotto_layout.dart';
 import 'model/lotto_config.dart';
@@ -16,6 +17,15 @@ final class LottoGame
     extends LuckyGame<LottoConfig, LottoLayout, LottoFrame, LottoResult> {
   /// 创建无状态玩法策略。
   const LottoGame();
+
+  /// 系统要求减弱动效（或显式 always）时去掉物理参数，回退参数化轨迹。
+  @override
+  LottoConfig resolveConfig(BuildContext context, LottoConfig config) {
+    final physics = config.options.physics;
+    return physics != null && luckyPhysicsReduced(context, physics)
+        ? config.copyWith(options: config.options.withoutPhysics())
+        : config;
+  }
 
   /// 根据配置和环境计算布局。
   @override

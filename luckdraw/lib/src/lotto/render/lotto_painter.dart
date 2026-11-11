@@ -9,6 +9,7 @@ import '../../core/render/layer.dart';
 import '../../core/render/perf_trace.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
+import '../../core/render/stir_arms.dart';
 import '../layout/lotto_layout.dart';
 import '../model/lotto_config.dart';
 import '../motion/lotto_motion.dart';
@@ -75,6 +76,14 @@ final class LottoPainter extends CustomPainter {
                   data.devicePixelRatio,
                   (canvas) => _recordBall(canvas, p, b),
                   data.performance)));
+      final physics = data.config.options.physics;
+      _arms = List.generate(
+          data.layout.drums.length,
+          (p) => physics != null && physics.stirArms > 0
+              ? LuckyStirArms(
+                  containerRadius: data.layout.drums[p].radius,
+                  bodyRadius: data.layout.drums[p].ballRadius)
+              : null);
       _layerPictures = List.generate(
           data.layers.length,
           (i) => data.layers[i].isStatic
@@ -103,6 +112,9 @@ final class LottoPainter extends CustomPainter {
 
   /// 以池和球下标索引的号码球显示列表。
   late final List<List<LuckyCachedPicture>> _balls;
+
+  /// 各池的拨杆绘制器；未开启物理模式或没有拨杆时为空。
+  late final List<LuckyStirArms?> _arms;
 
   /// 用户静态层缓存，动态层对应空值。
   late final List<ui.Picture?> _layerPictures;
@@ -265,6 +277,16 @@ final class LottoPainter extends CustomPainter {
       _layers(canvas, LuckyLayerPosition.background);
       canvas.drawPicture(_back);
       _layers(canvas, LuckyLayerPosition.belowItems);
+      final frame = data.frame;
+      for (var p = 0; p < _arms.length; p++) {
+        final arms = _arms[p];
+        if (arms != null &&
+            p < frame.physical.length &&
+            frame.physical[p] != 0) {
+          arms.paint(canvas, data.layout.drums[p].center, frame.stirDeg[p],
+              data.config.options.physics!.stirArms, frame.mix);
+        }
+      }
       for (var p = 0; p < _balls.length; p++) {
         for (var b = 0; b < _balls[p].length; b++) {
           if (data.frame.slotOf[p][b] < 0) _ball(canvas, p, b);

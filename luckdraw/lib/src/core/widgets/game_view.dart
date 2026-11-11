@@ -406,6 +406,8 @@ class _LuckyGameViewState<
       throw FlutterError('LuckyGameView 需要有界约束或显式 width/height');
     }
     final size = constraints.constrain(Size(width, height));
+    final config = widget.game.resolveConfig(context, widget.config);
+    if (_config != null && _config != config && !_structural) _dirty = true;
     _building = true;
     try {
       final previous = _layout;
@@ -420,7 +422,7 @@ class _LuckyGameViewState<
             TextPainterMeasurer(textScaler: _scaler, textDirection: _direction);
         try {
           _layout = widget.game.computeLayout(
-              widget.config,
+              config,
               LuckyLayoutInput(
                   size: size,
                   devicePixelRatio: _dpr,
@@ -430,11 +432,11 @@ class _LuckyGameViewState<
         } finally {
           measurer.dispose();
         }
-        _config = widget.config;
+        _config = config;
         _generation++;
         _dirty = false;
         _structural = false;
-        _controller.configure(widget.config, _layout);
+        _controller.configure(config, _layout);
         if (resized) {
           widget.hooks.afterResize?.call();
         }

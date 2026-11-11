@@ -283,6 +283,13 @@ const Set<String> _lotsSymbols = {
   'LuckyLots',
 };
 
+/// 物理碰撞模式的类型符号；只应出现在使用它的扭蛋机与大乐透产物里。
+const Set<String> _physicsSymbols = {
+  'LuckyCircleWorld',
+  'LuckyPhysicsDriver',
+  'LuckyStirArms',
+};
+
 /// lotto 玩法受检查的类型符号。
 const Set<String> _lottoSymbols = {
   'LottoCanvasRenderer',
@@ -355,6 +362,7 @@ const Set<String> _checkedSymbols = {
   ..._numberWheelSymbols,
   ..._lotsSymbols,
   ..._lottoSymbols,
+  ..._physicsSymbols,
 };
 
 /// 各探针显式允许的符号；全集减去允许集就是该探针的禁符号集。
@@ -363,10 +371,15 @@ const Map<String, Set<String>> _allowedSymbols = {
   _wheelProbe: {_quadSymbol, ..._wheelSymbols},
   _gridProbe: {_quadSymbol, ..._gridSymbols},
   _slotProbe: {_quadSymbol, ..._slotSymbols},
-  _capsuleProbe: {_quadSymbol, ..._capsuleSymbols},
+  _capsuleProbe: {_quadSymbol, ..._capsuleSymbols, ..._physicsSymbols},
   _numberWheelProbe: {_quadSymbol, ..._numberWheelSymbols},
   _lotsProbe: {_quadSymbol, ..._lotsSymbols},
-  _lottoProbe: {_quadSymbol, _cubicSymbol, ..._lottoSymbols},
+  _lottoProbe: {
+    _quadSymbol,
+    _cubicSymbol,
+    ..._lottoSymbols,
+    ..._physicsSymbols,
+  },
   _compatWheel: {
     ..._canvasEasingSymbols,
     _canvasEasingNames,
@@ -384,6 +397,7 @@ const Map<String, Set<String>> _allowedSymbols = {
     ..._numberWheelSymbols,
     ..._lotsSymbols,
     ..._lottoSymbols,
+    ..._physicsSymbols,
   },
 };
 

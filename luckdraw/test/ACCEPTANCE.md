@@ -1516,3 +1516,105 @@ adb devices 无连接设备，安卓只交付 Flutter 3.47 生成的平台配置
 | RASTERBUDGET-13 | 图集与 cache 竞争、释放后重试、复用和重复销毁 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 图集与普通cache共享预算且释放后可重试创建和复用` | 单元 | 已落地 |
 | RASTERBUDGET-14 | 图集预算变化使缓存失效，零禁用 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 仅改变图集字节上限为零释放旧页面并禁用raster` | 单元 | 已落地 |
 | RASTERBUDGET-15 | 图集创建异常清理所有页面和预占 | 用户第0批；ARCHITECTURE §8.1 | `test/slot/slot_raster_budget_test.dart :: 图集原生创建异常退还本页预占并释放此前页面` | 单元 | 已落地 |
+
+
+### 物理碰撞模式 P0：圆形求解器与参数（PHYSICS_DESIGN）
+
+P0 只含 `LuckyCircleWorld` 与 `LuckyPhysics`，未接入任何玩法；运动学验收（PH-12 模式等价、PH-13 idle 落入、PH-15 widget）随 P1/P2 登记。
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| PHYS-01 | PH-01 构造/复位后坐标有限、在容器内、落入互不重叠 | PHYSICS_DESIGN §10 PH-01 | `test/core/kinematics/circle_world_test.dart :: 构造与复位后坐标有限、全部在容器内且落入初始互不重叠` | 单元 | 已落地 |
+| PHYS-02 | PH-01 球数超容量时收缩间距仍可摆放且不越界 | PHYSICS_DESIGN §5.3、PH-01 | `test/core/kinematics/circle_world_test.dart :: 球数超出容器容量时收缩落入间距仍能摆放且不越界` | 单元 | 已落地 |
+| PHYS-03 | PH-02 重力方向与自由落体解析解一致，最终静止在底部 | PHYSICS_DESIGN PH-02 | `test/core/kinematics/circle_world_test.dart :: 单球自由落体与解析解一致并最终静止在容器底部` | 单元 | 已落地 |
+| PHYS-04 | PH-02 堆叠落定休眠，残余重叠 ≤5% 球半径 | PHYSICS_DESIGN PH-02、§5.5 | `test/core/kinematics/circle_world_test.dart :: 堆叠落定后休眠，残余重叠不超过球半径的百分之五` | 单元 | 已落地 |
+| PHYS-05 | PH-02 dropIn 关闭时直接预演到静止并已休眠 | PHYSICS_DESIGN §4、§6.3 | `test/core/kinematics/circle_world_test.dart :: dropIn 为假时直接预演到静止堆积并已休眠` | 单元 | 已落地 |
+| PHYS-06 | PH-03 对心碰撞交换速度、动能守恒 | PHYSICS_DESIGN PH-03 | `test/core/kinematics/circle_world_test.dart :: 无阻尼对心碰撞交换速度并守恒动能` | 单元 | 已落地 |
+| PHYS-07 | PH-03 有阻尼无拨杆时机械能单调不增，最终归零 | PHYSICS_DESIGN PH-03 | `test/core/kinematics/circle_world_test.dart :: 有阻尼无拨杆时机械能单调不增并最终归零` | 单元 | 已落地 |
+| PHYS-08 | PH-04 摩擦产生与切向一致的自转 | PHYSICS_DESIGN PH-04 | `test/core/kinematics/circle_world_test.dart :: 斜向接触产生与切向一致的自转` | 单元 | 已落地 |
+| PHYS-09 | PH-05 拨杆推动球运动，球心不陷入拨杆 | PHYSICS_DESIGN PH-05 | `test/core/kinematics/circle_world_test.dart :: 拨杆搅拌让球运动且球心不会陷入拨杆内部` | 单元 | 已落地 |
+| PHYS-10 | PH-05 啮合度缩放拨杆半宽，零啮合不碰撞 | PHYSICS_DESIGN §5.3 | `test/core/kinematics/circle_world_test.dart :: 拨杆啮合度按比例缩小半宽，零啮合时拨杆不参与碰撞` | 单元 | 已落地 |
+| PHYS-11 | PH-05 拨杆角速度限制到尖端每子步位移 ≤0.5r | PHYSICS_DESIGN §5.4 | `test/core/kinematics/circle_world_test.dart :: 拨杆指令角突变被限制为尖端每子步位移不超过半个球半径` | 单元 | 已落地 |
+| PHYS-12 | PH-05 无拨杆世界忽略拨杆指令且不被唤醒 | PHYSICS_DESIGN §4 stirArms=0 | `test/core/kinematics/circle_world_test.dart :: 没有拨杆的世界忽略拨杆指令且不会因此唤醒` | 单元 | 已落地 |
+| PHYS-13 | PH-06 休眠不积分；放置/导引/移出/拨杆/复位唤醒 | PHYSICS_DESIGN PH-06、§5.5 | `test/core/kinematics/circle_world_test.dart :: 休眠后不再积分，放置、导引、移出、拨杆与复位都会唤醒` | 单元 | 已落地 |
+| PHYS-14 | PH-06 空世界始终休眠且操作安全 | PHYSICS_DESIGN PH-06 | `test/core/kinematics/circle_world_test.dart :: 球数为零的世界始终休眠且所有操作安全` | 单元 | 已落地 |
+| PHYS-15 | PH-08 非正帧长不推进，超长帧子步封顶后稳定 | PHYSICS_DESIGN PH-08、§5.4 | `test/core/kinematics/circle_world_test.dart :: 帧长非正时不推进，且超长帧由子步封顶后仍稳定` | 单元 | 已落地 |
+| PHYS-16 | PH-07 同种子同帧序列逐位一致，不同种子摆放不同 | PHYSICS_DESIGN PH-07、§5.6 | `test/core/kinematics/circle_world_test.dart :: 相同种子与帧序列逐位一致，不同种子初始摆放不同` | 单元 | 已落地 |
+| PHYS-17 | PH-08 混合帧长+拨杆+导引下稳定且不越界 | PHYSICS_DESIGN PH-08 | `test/core/kinematics/circle_world_test.dart :: 八十三十三一百毫秒混合帧长与拨杆导引下保持稳定` | 单元 | 已落地 |
+| PHYS-18 | PH-09 导引球在搅拌中与静止堆里都到达出口 | PHYSICS_DESIGN PH-09、§7.1 | `test/core/kinematics/circle_world_test.dart :: 导引球在搅拌中与静止堆里都能到达出口，其余球不越界` | 单元 | 已落地 |
+| PHYS-19 | PH-09 导引过半的幽灵球不被阻挡，仍受壁约束 | PHYSICS_DESIGN §7.1 | `test/core/kinematics/circle_world_test.dart :: 幽灵球不被其他球与拨杆阻挡但仍受容器壁约束` | 单元 | 已落地 |
+| PHYS-20 | PH-09 移出的球不碰撞、不积分、不计动能 | PHYSICS_DESIGN §7.1 移出 | `test/core/kinematics/circle_world_test.dart :: 移出的球不参与碰撞也不被积分，且不计入动能` | 单元 | 已落地 |
+| PHYS-21 | PH-01 球心重合/恰在拨杆中线时方向确定、不出 NaN | PHYSICS_DESIGN §5.3 | `test/core/kinematics/circle_world_test.dart :: 球心重合或恰在拨杆中线上时方向确定且不产生非有限数` | 单元 | 已落地 |
+| PHYS-22 | PH-10 复位清除导引、移出标记与拨杆角并重新落入 | PHYSICS_DESIGN §6.3 | `test/core/kinematics/circle_world_test.dart :: 复位清除导引、移出标记与拨杆角并重新落入` | 单元 | 已落地 |
+| PHYS-23 | PH-12 参数默认值与设计一致且通过校验 | PHYSICS_DESIGN §4 | `test/core/kinematics/physics_options_test.dart :: 物理参数默认值与设计一致且默认通过校验` | 单元 | 已落地 |
+| PHYS-24 | PH-12 参数副本逐字段替换 | PHYSICS_DESIGN §4 | `test/core/kinematics/physics_options_test.dart :: 物理参数副本逐字段替换且未指定字段保持原值` | 单元 | 已落地 |
+| PHYS-25 | PH-12 参数相等性与哈希覆盖每个字段 | PHYSICS_DESIGN §4 | `test/core/kinematics/physics_options_test.dart :: 物理参数相等性与哈希覆盖每个字段` | 单元 | 已落地 |
+| PHYS-26 | PH-12 参数越界时校验抛 ArgumentError | PHYSICS_DESIGN §4 | `test/core/kinematics/physics_options_test.dart :: 物理参数越界时校验抛出 ArgumentError` | 单元 | 已落地 |
+
+
+### 物理碰撞模式 P1：驱动抽象与扭蛋机接入（PHYSICS_DESIGN）
+
+P1 含 `LuckyBodyDriver` 两个实现、`LuckyMotion.isSimulating` 与控制器时钟钩子、扭蛋机 `CapsuleOptions.physics` 接入；PH-12/13/14 在此落地。
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| PHYS-27 | 驱动抽象：参数化驱动与混合器共用缓冲、逐帧一致、恒不休眠 | PHYSICS_DESIGN §6.1、PH-14 | `test/core/kinematics/body_driver_test.dart :: 参数化驱动与混合器共用缓冲并逐帧一致，且恒不休眠` | 单元 | 已落地 |
+| PHYS-28 | 驱动抽象：物理驱动输出等于归一化世界乘以容器像素半径 | PHYSICS_DESIGN §5.1、§6.1 | `test/core/kinematics/body_driver_test.dart :: 物理驱动输出等于归一化世界乘以容器像素半径` | 单元 | 已落地 |
+| PHYS-29 | 驱动抽象：缩放只改换算比例不重置，兼容性按球数/半径比/参数判定 | PHYSICS_DESIGN §6.3、PH-10 | `test/core/kinematics/body_driver_test.dart :: 缩放只改换算比例不重置世界，兼容性按球数、半径比与参数判定` | 单元 | 已落地 |
+| PHYS-30 | 驱动抽象：被接管的球保持原值并退出模拟，取消后重新参与 | PHYSICS_DESIGN §7.1 移出 | `test/core/kinematics/body_driver_test.dart :: 被接管的球保持原值并退出模拟，取消接管后重新参与` | 单元 | 已落地 |
+| PHYS-31 | 驱动抽象：搅拌角回退时忘记旧指令，拨杆不倒转 | PHYSICS_DESIGN §6.3 | `test/core/kinematics/body_driver_test.dart :: 搅拌角回退时忘记旧指令，拨杆不会因重置而倒转` | 单元 | 已落地 |
+| PHYS-32 | 驱动抽象：导引目标限制在可达范围内并使球趋向目标 | PHYSICS_DESIGN §7.1、PH-09 | `test/core/kinematics/body_driver_test.dart :: 导引把目标限制在球心可达范围内并使球趋向目标` | 单元 | 已落地 |
+| PHYS-33 | 驱动抽象：重置后重新落入并唤醒，拨杆角换算为度 | PHYSICS_DESIGN §6.3 | `test/core/kinematics/body_driver_test.dart :: 重置后重新落入并唤醒，拨杆角换算为度` | 单元 | 已落地 |
+| PHYS-34 | PH-13 构造即落入，静止阶段持续模拟直至休眠 | PHYSICS_DESIGN §6.2、PH-13 | `test/capsule/capsule_physics_test.dart :: 物理模式构造即落入，静止阶段持续模拟直至休眠后不再需要时钟` | 单元 | 已落地 |
+| PHYS-35 | PH-14 参数化模式不模拟，静止 tick 不产生事件 | PHYSICS_DESIGN PH-14 | `test/capsule/capsule_physics_test.dart :: 参数化模式不模拟，静止 tick 不产生事件` | 单元 | 已落地 |
+| PHYS-36 | 扭蛋机物理：搅拌拨杆角变化，停止后掉出目标奖品色胶囊 | PHYSICS_DESIGN §7.2 | `test/capsule/capsule_physics_test.dart :: 物理模式搅拌时拨杆角变化，停止后胶囊落入托盘并得到目标奖品` | 单元 | 已落地 |
+| PHYS-37 | 扭蛋机物理：进入掉落的第一帧位置连续不跳变 | PHYSICS_DESIGN §7.2 | `test/capsule/capsule_physics_test.dart :: 进入掉落的第一帧胶囊位置与减速末帧连续，不跳变` | 单元 | 已落地 |
+| PHYS-38 | 扭蛋机物理：相同布局重配置沿用世界，缩放只改换算比例 | PHYSICS_DESIGN §6.3、PH-10 | `test/capsule/capsule_physics_test.dart :: 相同布局重新配置时沿用世界，容器缩放只改换算比例` | 单元 | 已落地 |
+| PHYS-39 | 扭蛋机物理：球数或参数变化时重建世界并重新落入 | PHYSICS_DESIGN §6.3 | `test/capsule/capsule_physics_test.dart :: 球数或物理参数变化时重建世界并重新落入` | 单元 | 已落地 |
+| PHYS-40 | 扭蛋机物理：重置重新落入，作废保持当前位置 | PHYSICS_DESIGN §6.3 | `test/capsule/capsule_physics_test.dart :: 重置让胶囊重新落入，作废则保持当前位置` | 单元 | 已落地 |
+| PHYS-41 | 扭蛋机物理：球数超上限或半径比越界回退参数化轨迹 | PHYSICS_DESIGN PH-11 | `test/capsule/capsule_physics_test.dart :: 球数超过上限或半径比越界时回退参数化轨迹` | 单元 | 已落地 |
+| PHYS-42 | 扭蛋机物理：非法物理参数配置时抛 ArgumentError | PHYSICS_DESIGN §4 | `test/capsule/capsule_physics_test.dart :: 非法物理参数在配置时抛出 ArgumentError` | 单元 | 已落地 |
+| PHYS-43 | 扭蛋机选项：物理字段参与副本、相等性与哈希 | PHYSICS_DESIGN §4 | `test/capsule/capsule_physics_test.dart :: 扭蛋机选项的物理字段参与副本、相等性与哈希` | 单元 | 已落地 |
+| PHYS-44 | PH-13 控制器挂接后物理落入自动启动时钟，休眠后停表 | PHYSICS_DESIGN §6.2、PH-13 | `test/capsule/capsule_physics_test.dart :: 控制器挂接后物理落入自动启动时钟，休眠后停表` | 集成 | 已落地 |
+| PHYS-45 | PH-12 两种模式的相位序列、结果与总耗时完全一致 | PHYSICS_DESIGN §7、PH-12 | `test/capsule/capsule_physics_test.dart :: 两种模式的相位序列、结果与总耗时完全一致` | 集成 | 已落地 |
+
+
+### 物理碰撞模式 P2/P3：大乐透接入、拨杆绘制与减弱动效（PHYSICS_DESIGN）
+
+P2 含 `LottoOptions.physics` 接入（导引、幽灵出球、逐池驱动）；P3 含拨杆绘制器、被导引球置顶、`LuckyGame.resolveConfig` 减弱动效回退与示例开关。PH-15 在大乐透侧落地。
+
+| ID | 需求 / 不变量 | 来源 | 用例 | 类型 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| PHYS-46 | PH-13 大乐透构造即落入，静止阶段持续模拟直至休眠 | PHYSICS_DESIGN §6.2、PH-13 | `test/lotto/lotto_physics_test.dart :: 物理模式构造即落入，静止阶段持续模拟直至休眠` | 单元 | 已落地 |
+| PHYS-47 | PH-14 大乐透参数化模式不模拟，静止 tick 不产生事件 | PHYSICS_DESIGN PH-14 | `test/lotto/lotto_physics_test.dart :: 参数化模式不模拟，静止 tick 不产生事件` | 单元 | 已落地 |
+| PHYS-48 | PH-12 大乐透两种模式的相位、落槽事件、已落槽数与结果逐帧一致 | PHYSICS_DESIGN §7、PH-12 | `test/lotto/lotto_physics_test.dart :: 两种模式的相位、落槽事件、已落槽数与结果逐帧一致` | 单元 | 已落地 |
+| PHYS-49 | PH-15 大乐透物理模式整局开奖：球落在（排序后）结果槽且结果一致 | PHYSICS_DESIGN PH-15 | `test/lotto/lotto_physics_test.dart :: 物理模式整局开奖：每颗球最终落在结果槽内且结果与指定一致` | 集成 | 已落地 |
+| PHYS-50 | 大乐透物理：被导引的球起飞前多帧标记置顶，进度过半时恰在出口 | PHYSICS_DESIGN §7.1 | `test/lotto/lotto_physics_test.dart :: 被导引的球在起飞前多帧被标记置顶，进度过半时恰在出口` | 单元 | 已落地 |
+| PHYS-51 | 大乐透物理：搅拌时各池拨杆角变化，结算后球继续下沉直至休眠 | PHYSICS_DESIGN §6.2 | `test/lotto/lotto_physics_test.dart :: 搅拌时各池拨杆角变化，结算后球继续下沉直至休眠` | 单元 | 已落地 |
+| PHYS-52 | 大乐透物理：重置重新落入，作废保持当前位置 | PHYSICS_DESIGN §6.3 | `test/lotto/lotto_physics_test.dart :: 重置让球重新落入，作废则保持当前位置` | 单元 | 已落地 |
+| PHYS-53 | 大乐透物理：结算后再次开始时球重新装填 | PHYSICS_DESIGN §6.3 | `test/lotto/lotto_physics_test.dart :: 结算后再次开始时球重新装填，已抽出的球回到容器` | 单元 | 已落地 |
+| PHYS-54 | 大乐透物理：容器缩放沿用世界与缓冲，仅改换算比例 | PHYSICS_DESIGN §6.3、PH-10 | `test/lotto/lotto_physics_test.dart :: 容器缩放沿用物理世界与缓冲，仅改换算比例` | 单元 | 已落地 |
+| PHYS-55 | 大乐透物理：球数超上限或半径比越界时该池回退参数化轨迹 | PHYSICS_DESIGN PH-11 | `test/lotto/lotto_physics_test.dart :: 球数超过上限或半径比越界时该池回退参数化轨迹` | 单元 | 已落地 |
+| PHYS-56 | 大乐透物理：非法物理参数校验抛 ArgumentError | PHYSICS_DESIGN §4 | `test/lotto/lotto_physics_test.dart :: 非法物理参数在校验时抛出 ArgumentError` | 单元 | 已落地 |
+| PHYS-57 | 大乐透选项：物理字段参与副本、相等性与哈希 | PHYSICS_DESIGN §4 | `test/lotto/lotto_physics_test.dart :: 大乐透选项的物理字段参与副本、相等性与哈希` | 单元 | 已落地 |
+| PHYS-58 | PH-13 大乐透控制器挂接后物理落入自动启动时钟，休眠后停表 | PHYSICS_DESIGN §6.2、PH-13 | `test/lotto/lotto_physics_test.dart :: 控制器挂接后物理落入自动启动时钟，休眠后停表` | 集成 | 已落地 |
+| PHYS-59 | PH-08 大乐透十分钟帧间隔下物理模式仍有限并正常结算 | PHYSICS_DESIGN PH-08 | `test/lotto/lotto_physics_test.dart :: 十分钟的帧间隔也让物理模式保持有限坐标并正常结算` | 单元 | 已落地 |
+| PHYS-60 | 拨杆绘制：数量为零或啮合度不为正时无绘制调用 | PHYSICS_DESIGN §8 | `test/core/render/stir_arms_test.dart :: 拨杆数量为零或啮合度不为正时不产生任何绘制调用` | 单元 | 已落地 |
+| PHYS-61 | 拨杆绘制：一个轮毂加每根拨杆一个圆角矩形，保存恢复平衡不用 saveLayer | PHYSICS_DESIGN §8 | `test/core/render/stir_arms_test.dart :: 绘制一个轮毂与每根拨杆一个圆角矩形，保存恢复平衡且不用 saveLayer` | 单元 | 已落地 |
+| PHYS-62 | 拨杆绘制：半宽按啮合度缩放，超过一按一 | PHYSICS_DESIGN §8 | `test/core/render/stir_arms_test.dart :: 半宽按啮合度缩放且啮合度超过一时按一处理` | 单元 | 已落地 |
+| PHYS-63 | 扭蛋机绘制：物理模式搅拌时画拨杆，不用 saveLayer 且保存恢复平衡 | PHYSICS_DESIGN §8 | `test/capsule/capsule_physics_painter_test.dart :: 物理模式搅拌时画拨杆，全程不用 saveLayer 且保存恢复平衡` | 单元 | 已落地 |
+| PHYS-64 | 扭蛋机绘制：参数化与回退配置都不画拨杆 | PHYSICS_DESIGN §8、PH-14 | `test/capsule/capsule_physics_painter_test.dart :: 参数化模式与回退到参数化的物理配置都不画拨杆` | 单元 | 已落地 |
+| PHYS-65 | 扭蛋机绘制：没有拨杆的物理配置不画拨杆 | PHYSICS_DESIGN §4 | `test/capsule/capsule_physics_painter_test.dart :: 没有拨杆的物理配置不画拨杆` | 单元 | 已落地 |
+| PHYS-66 | 扭蛋机绘制：被导引的胶囊最后绘制，位于其他胶囊之上 | PHYSICS_DESIGN §8 | `test/capsule/capsule_physics_painter_test.dart :: 被导引的胶囊在掉落前最后绘制，位于所有其他胶囊之上` | 单元 | 已落地 |
+| PHYS-67 | 大乐透绘制：物理模式每个容器画两根拨杆，参数化不画 | PHYSICS_DESIGN §8 | `test/lotto/lotto_physics_painter_test.dart :: 物理模式每个容器画两根拨杆，参数化模式不画` | 集成 | 已落地 |
+| PHYS-68 | 大乐透绘制：只有部分池能物理模拟时只给物理池画拨杆 | PHYSICS_DESIGN §8、PH-11 | `test/lotto/lotto_physics_painter_test.dart :: 只有部分池能物理模拟时，只给物理池画拨杆` | 集成 | 已落地 |
+| PHYS-69 | 大乐透绘制：没有拨杆的物理配置不画拨杆 | PHYSICS_DESIGN §4 | `test/lotto/lotto_physics_painter_test.dart :: 没有拨杆的物理配置不画拨杆` | 集成 | 已落地 |
+| PHYS-70 | 扭蛋机减弱动效：system 跟随系统设置 | PHYSICS_DESIGN §4 reduceMotion | `test/capsule/capsule_reduce_motion_test.dart :: system 策略跟随系统：关闭时模拟，开启时回退参数化轨迹` | 集成 | 已落地 |
+| PHYS-71 | 扭蛋机减弱动效：always 恒回退、never 恒模拟 | PHYSICS_DESIGN §4 reduceMotion | `test/capsule/capsule_reduce_motion_test.dart :: always 恒回退、never 恒模拟，与系统设置无关` | 集成 | 已落地 |
+| PHYS-72 | 扭蛋机减弱动效：系统设置运行时变化后宿主重新配置 | PHYSICS_DESIGN §4 reduceMotion | `test/capsule/capsule_reduce_motion_test.dart :: 系统设置在运行时变化后宿主重新配置` | 集成 | 已落地 |
+| PHYS-73 | 扭蛋机选项：去掉物理模式的副本保留其余字段 | PHYSICS_DESIGN §4 | `test/capsule/capsule_reduce_motion_test.dart :: 去掉物理模式的选项副本保留其余字段` | 单元 | 已落地 |
+| PHYS-74 | 大乐透减弱动效：system 跟随系统设置并在运行时重新配置 | PHYSICS_DESIGN §4 reduceMotion | `test/lotto/lotto_reduce_motion_test.dart :: system 策略跟随系统，运行时变化后宿主重新配置` | 集成 | 已落地 |
+| PHYS-75 | 大乐透减弱动效：always 恒回退、never 恒模拟 | PHYSICS_DESIGN §4 reduceMotion | `test/lotto/lotto_reduce_motion_test.dart :: always 恒回退、never 恒模拟，与系统设置无关` | 集成 | 已落地 |
+| PHYS-76 | 大乐透选项：去掉物理模式的副本保留其余字段 | PHYSICS_DESIGN §4 | `test/lotto/lotto_reduce_motion_test.dart :: 去掉物理模式的选项副本保留其余字段` | 单元 | 已落地 |
+| PHYS-77 | 示例页的物理碰撞开关切换扭蛋机与大乐透的物理模式 | PHYSICS_DESIGN §11 P3 | `test/example_pages_test.dart :: example pages > capsule and lotto physics switch toggles the mode` | 集成 | 已落地 |
+| PHYS-78 | 邻近对超过容量上限时丢弃多余的对，坐标仍有限不越界（真机优化新增分支） | PHYSICS_DESIGN §9 | `test/core/kinematics/circle_world_test.dart :: 邻近对超过容量上限时丢弃多余的对，仍保持有限坐标且不越界` | 单元 | 已落地 |

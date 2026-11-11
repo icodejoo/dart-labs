@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 import '../core/foundation/image.dart';
 import '../core/game/game.dart';
 import '../core/game/layout.dart';
 import '../core/motion/phase.dart';
 import '../core/motion/result.dart';
+import '../core/widgets/physics_reduce.dart';
 import 'control/capsule_controller.dart';
 import 'layout/capsule_layout.dart';
 import 'model/capsule_config.dart';
@@ -57,6 +58,15 @@ final class CapsuleGame extends LuckyGame<CapsuleConfig, CapsuleLayout,
                 decodeLogicalHeight: config.prizes[i].images[j].height
                     ?.resolve(layout.card.height))
       ];
+
+  /// 系统要求减弱动效（或显式 always）时去掉物理参数，回退参数化轨迹。
+  @override
+  CapsuleConfig resolveConfig(BuildContext context, CapsuleConfig config) {
+    final physics = config.options.physics;
+    return physics != null && luckyPhysicsReduced(context, physics)
+        ? config.copyWith(options: config.options.withoutPhysics())
+        : config;
+  }
 
   /// 创建宿主拥有的控制器。
   @override

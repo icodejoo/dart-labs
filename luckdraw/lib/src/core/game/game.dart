@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 
 import '../control/controller.dart';
 import '../foundation/image.dart';
@@ -74,6 +73,12 @@ abstract class LuckyGame<C extends Object, L extends LuckyLayout,
 
   /// 返回本布局所需图片及解码尺寸提示。
   List<LuckyImageRequest> collectImages(C config, L layout);
+
+  /// 按运行环境（例如系统减少动效）解析实际使用的配置；默认原样返回。
+  ///
+  /// 宿主每次构建都会调用，返回值与上次应用的配置不相等时重新计算布局并配置控制器；
+  /// 实现必须在环境不变时返回相等的配置，否则每帧都会重配。
+  C resolveConfig(BuildContext context, C config) => config;
 
   /// 创建宿主拥有的默认控制器。
   LuckyController<C, L, F, R> createController();

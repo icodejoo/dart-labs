@@ -260,10 +260,15 @@ BenchScene createBenchScene(String key, List<MemoryImage> images,
           controller.dispose,
           ready.future);
     case 'capsule_mixing':
+    case 'capsule_physics':
       final controller = CapsuleController(random: math.Random(_seed));
       return BenchScene(
           LuckyCapsuleMachine(
               config: CapsuleConfig(
+                  options: CapsuleOptions(
+                      physics: key == 'capsule_physics'
+                          ? const LuckyPhysics()
+                          : null),
                   capsulesPerPrize: _gridSide,
                   prizes: List.generate(
                       _slotPrizes,
@@ -306,10 +311,15 @@ BenchScene createBenchScene(String key, List<MemoryImage> images,
           controller.dispose,
           ready.future);
     case 'lotto_draw':
+    case 'lotto_physics':
       final controller = LottoController(random: math.Random(_seed));
       return BenchScene(
           LuckyLotto(
-              config: LottoConfig.superLotto(),
+              config: LottoConfig.superLotto(
+                  options: LottoOptions(
+                      physics: key == 'lotto_physics'
+                          ? const LuckyPhysics()
+                          : null)),
               controller: controller,
               onReady: onReady),
           controller.play,

@@ -62,7 +62,7 @@ The implementation includes:
 
 The five additions beyond upstream are lever slots, capsule machines, number wheels,
 drawing lots and super-lotto machines. They have no upstream equivalents to compare against.
-They use deterministic animation, without a physics engine; 3D rendering is an extension path.
+They use deterministic animation by default; the capsule machine and lotto can opt in to a built-in physics collision mode (`physics: LuckyPhysics()`), with no third-party engine. 3D rendering is an extension path.
 
 ## Install
 
