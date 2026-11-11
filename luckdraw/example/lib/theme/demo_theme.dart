@@ -173,6 +173,7 @@ class DemoCard extends StatelessWidget {
       '大乐透' => ('七颗彩球，依次揭晓幸运号码', Icons.confirmation_number_rounded),
       'compat 迁移' => ('熟悉的配置，焕然一新的体验', Icons.swap_horiz_rounded),
       'Widget 叠加层' => ('让奖品拥有自己的灵动时刻', Icons.layers_rounded),
+      '官方示例对照' => ('官方基础与完整示例 1:1 复刻，逐项对照', Icons.compare_rounded),
       _ => ('发现更多玩法与使用方式', Icons.code_rounded),
     };
 

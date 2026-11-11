@@ -6,6 +6,9 @@
 所有控制器随页面释放；示例只 import 本包公共入口。
 
 直接依赖为本地 luckdraw、Flutter SDK 和 SDK 自带的测试包，没有新增 pub.dev 依赖。
+「官方示例对照」页把官方站（100px.net）的基础示例（大转盘 19、九宫格 25、老虎机 17）和完整示例（15）
+1:1 复刻，每项左侧是官方截图、右侧是 luckdraw 实时渲染；配置在 lib/official/，
+素材在 assets/（仅供示例对照，勿商用，见包根 NOTICE），详见 docs/OFFICIAL_PARITY_REPORT.md。
 README 片段保存在 lib/snippets/，由 lib/readme_snippets.dart 组合展示；
 与包 README 的六段 Dart 代码一致，只补充中文注释和宿主页面。
 

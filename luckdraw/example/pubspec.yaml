@@ -17,3 +17,24 @@ dev_dependencies:
     sdk: flutter
 flutter:
   uses-material-design: true
+  assets:
+    - assets/imgs/
+    - assets/imgs/bili/
+    - assets/imgs/cjl/
+    - assets/imgs/demo1/
+    - assets/imgs/didi/
+    - assets/imgs/dy/
+    - assets/imgs/hwl/
+    - assets/imgs/jd/
+    - assets/imgs/pdmm/
+    - assets/imgs/round/
+    - assets/imgs/slot/
+    - assets/imgs/xc/
+    - assets/imgs/xdf/
+    - assets/imgs/xq/
+    - assets/imgs/yqs/
+    - assets/imgs/yx/
+    - assets/imgs/yyjk/
+    - assets/imgs/yyx/
+    - assets/imgs/zo/
+    - assets/official_ref/

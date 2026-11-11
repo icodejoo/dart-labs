@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'official/official_gallery_page.dart';
 import 'pages/capsule_page.dart';
 import 'pages/compat_page.dart';
 import 'pages/grid_page.dart';
@@ -40,6 +41,7 @@ class _HomePage extends StatelessWidget {
 
   /// 路由名称与创建函数。
   static final List<(String, Widget Function())> _pages = [
+    ('官方示例对照', () => const OfficialGalleryPage()),
     ('转盘', () => const WheelPage()),
     ('九宫格', () => const GridPage()),
     ('老虎机', () => const SlotPage()),

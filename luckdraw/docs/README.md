@@ -24,6 +24,7 @@ DEVFIN（2026-11-11）本次仅单台 vivo V2417 / Android 16：grid_steady：�
 | [PERF_REPORT.md](PERF_REPORT.md) | 默认auto缓存修复、三轮帧时原值与双峰限制 | 性能评审 |
 | [AB_REPORT.md](AB_REPORT.md) | 亮度/看护与Skia/Impeller对照的历史记录；当前高档解释见METRIC_FIX_REPORT | 性能评审 |
 | [EXAMPLE_STYLE_AUDIT.md](EXAMPLE_STYLE_AUDIT.md) | 45张自渲染截图约1.26MB；风格方向审计，没有上游演示真实截图 | 示例评审 |
+| [OFFICIAL_PARITY_REPORT.md](OFFICIAL_PARITY_REPORT.md) | 官方示例站基础/完整示例 76 项 1:1 复刻与逐项对照（真机截图），发现的 luckdraw 差异（老虎机无奖品不画外框、负基础格宽） | 验收、修差异 |
 | [FIN重算报告](../tool/bench/results/fin/REPORT.md) | 全场景RSS预热/稳态拆分、UI预算与完整失败对比 | 发布评审 |
 | [METRIC_FIX_REPORT.md](METRIC_FIX_REPORT.md) | 当前性能口径：背压证据、130窗口分布、分类规则、11场景重算、首版标定与首帧待标定；替代历史高档解释 | 性能与发布评审 |
 | [PERF_ROOTCAUSE_REPORT.md](PERF_ROOTCAUSE_REPORT.md) | PEND：16个未污染窗口逐帧关联、尖峰完整清单、UI/Raster事件归因与普通帧对照；库内根因无法判定，真机复测待执行 | 性能与发布评审 |

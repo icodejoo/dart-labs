@@ -1,0 +1,3541 @@
+[
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-wheel-zo",
+  "data": {
+   "prizes": [
+    {
+     "fonts": [
+      {
+       "text": "5888元",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/0.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    },
+    {
+     "fonts": [
+      {
+       "text": " 20元",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/4.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    },
+    {
+     "fonts": [
+      {
+       "text": "季卡",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/5.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    },
+    {
+     "fonts": [
+      {
+       "text": "5元",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/1.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    },
+    {
+     "fonts": [
+      {
+       "text": "10000元",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/2.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    },
+    {
+     "fonts": [
+      {
+       "text": " 30天",
+       "top": "36%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/6.png",
+       "width": "50%",
+       "top": "55%"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "25%",
+     "fonts": [
+      {
+       "text": "立即\n抽奖",
+       "fontColor": "#fff",
+       "top": "-50%",
+       "fontSize": "16px"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/btn2.png",
+       "width": "120%",
+       "top": "-125%"
+      }
+     ]
+    }
+   ],
+   "blocks": [
+    {
+     "imgs": [
+      {
+       "src": "assets/imgs/zo/bg3.png",
+       "width": "100%",
+       "rotate": true
+      }
+     ]
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#913229",
+    "fontSize": "15px",
+    "fontWeight": 700
+   },
+   "defaultConfig": {
+    "offsetDegree": -30
+   }
+  },
+  "methods": {
+   "startCallBack": "function(){var A=this;this.$refs.LuckyWheel.play(),setTimeout((function(){A.$refs.LuckyWheel.stop(3)}),3e3)}",
+   "endCallBack": "function(A){console.log(\"恭喜你获得\".concat(A.name))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-wheel-pdmm",
+  "data": {
+   "blocks": [
+    {
+     "padding": "30px",
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/bg.png",
+       "width": "100%",
+       "height": "100%",
+       "top": "6px"
+      }
+     ]
+    },
+    {
+     "padding": "3px",
+     "background": "#a70c1b"
+    }
+   ],
+   "prizes": [
+    {
+     "name": "谢谢参与",
+     "background": "#ffd099",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/01.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "红包",
+     "background": "#fff",
+     "fonts": [
+      {
+       "text": "红包",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/02.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "抽奖次数+3",
+     "background": "#ffd099",
+     "fonts": [
+      {
+       "text": "抽奖次数+3",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/03.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "礼物",
+     "background": "#fff",
+     "fonts": [
+      {
+       "text": "礼物",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/04.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "谢谢参与",
+     "background": "#ffd099",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/01.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "红包",
+     "background": "#fff",
+     "fonts": [
+      {
+       "text": "红包",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/02.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "抽奖次数+3",
+     "background": "#ffd099",
+     "fonts": [
+      {
+       "text": "抽奖次数+3",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/03.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    },
+    {
+     "name": "礼物",
+     "background": "#fff",
+     "fonts": [
+      {
+       "text": "礼物",
+       "top": "8%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/04.png",
+       "width": "30%",
+       "top": "30%"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "45px",
+     "imgs": [
+      {
+       "src": "assets/imgs/pdmm/btn.png",
+       "width": "102%",
+       "top": "-127%"
+      }
+     ]
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#a70c1b",
+    "fontSize": "10px"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var A=[];[{name:\"谢谢参与\",img:t(699)},{name:\"红包\",img:t(700)},{name:\"抽奖次数+3\",img:t(701)},{name:\"礼物\",img:t(702)},{name:\"谢谢参与\",img:t(699)},{name:\"红包\",img:t(700)},{name:\"抽奖次数+3\",img:t(701)},{name:\"礼物\",img:t(702)}].forEach((function(g,t){A.push({name:g.name,background:t%2==0?\"#ffd099\":\"#fff\",fonts:[{text:g.name,top:\"8%\"}],imgs:[{src:g.img,width:\"30%\",top:\"30%\"}]})})),this.prizes=A}",
+   "startCallBack": "function(){var A=this;this.$refs.LuckyWheel.play(),setTimeout((function(){A.$refs.LuckyWheel.stop(0)}),2e3)}",
+   "endCallBack": "function(A){console.log(\"恭喜你获得\".concat(A.name))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   260,
+   260
+  ],
+  "name": "examples-wheel-jd",
+  "data": {
+   "prizes": [
+    {
+     "name": "10个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "10个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "5个京豆",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "5个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "1个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "1个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "谢谢参与",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/0.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "10个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "10个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "5个京豆",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "5个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "1个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "1个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "谢谢参与",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/0.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "40px",
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/button.png",
+       "width": "140%",
+       "top": "-135%"
+      }
+     ]
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#000",
+    "fontSize": "13px",
+    "fontStyle": "SimHei"
+   },
+   "defaultConfig": {
+    "offsetDegree": 22.5
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var t=[];[{name:\"10个京豆\",img:o(607),color:\"#F8DEF8\"},{name:\"5个京豆\",img:o(607),color:\"#FEF3FC\"},{name:\"1个京豆\",img:o(607),color:\"#F8DEF8\"},{name:\"谢谢参与\",img:o(697),color:\"#FEF3FC\"},{name:\"10个京豆\",img:o(607),color:\"#F8DEF8\"},{name:\"5个京豆\",img:o(607),color:\"#FEF3FC\"},{name:\"1个京豆\",img:o(607),color:\"#F8DEF8\"},{name:\"谢谢参与\",img:o(697),color:\"#FEF3FC\"}].forEach((function(s,o){t.push({name:s.name,background:s.color,fonts:[{text:s.name,top:\"12%\"}],imgs:[{src:s.img,width:\"45%\",top:\"35%\"}]})})),this.prizes=t}",
+   "startCallBack": "function(){var t=this;this.$refs.LuckyWheel.play(),setTimeout((function(){t.$refs.LuckyWheel.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得\".concat(t.name))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div class=\"box\"><img src=\"/assets/img/bg.2daf906c.png\" width=\"100%\"> <img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEwAAABmCAMAAABWfodJAAACB1BMVEUAAAAwM284O3osLW4tMW4wMG0pLWwtL2wqLmwqLGwrK24k0HwmyIUw3qkho3QpVHEtQHEez24izXI39sE18rggzXY077Uss54mYXQugYok0Hkq2484+MUx6KYo1oc398Eo1IcpzoghynkkwIUy5q4ouIUir3ollHoutpwp14g7+ccs3pYz7K8kzn0t35obzGkp1I0my4Agy3Yu3Zw08rsw4qIZy2sawmseu3Iu050x4KwqtIwpfn4zhYUPkU8PmE4Pk04PlU8w8LEq8Kg077ky77YPm04s8aou8K0l1oEkz3gk03wq86k67sM47r837rwfzGsx9rUn24wm2Ykp7KEr4Zg//dA57cEu5qIp3ZA97scp8KUs5Z48+skw7q8u7aofyWg06rMs9Kw27LgjzXM0+Loy6K0aqW0c0Gs6+cUu9a8u66cv56Yt4p4g1HUw56kb4nw26rcz7LQ9+8w/7cs467sd64kizHAd2nY3+cE2+b4l6pYq35Mn4ZEm14UhxWcy6q8r6qMp6Jwh3oQm750c1W8q5Zkp4pUh7ZMh0XUWn2Ej75gh23487sU49sAp5JYl34sZpmo3774h6I4h44gb2XIgzm8287otz6ApzZce5IMjuYIi13wfs3kSllQx6qsr7KUe0XAx8bIc6IMa3nUk24UfzW086MEt2aI858Uy2Ko12LA12K8IaFztAAAAPnRSTlMACgYWEw8mGyEsHfesgGc2MfL579/UuUU+JPH68evr4N+8vI+IhnxcPPXz8O/i3t3Ly8nEvruspZqRjXNFMv1iJXAAAAkmSURBVFjD1NI/a8JQFAXwNi/FySlBESwuDlI6dupQqjU8B5cuLqJiRORlEyf7ERwCTkFEC5n8mD33vviaxj+t7dQjhji8n+fe5Oqfxrqy0qHff4KuU9HgbygD3SQxIHmXS3BsRHDoTovEXWSRBKZUfajc9TpI767yUC0JgIa7hBK1QrmTSblQExdw1p7KO3R6NuuZzGYdxMkb7ie1mCozpNR8Pn/j4EYpBsvMcbnzFtWy7WKFJTjj8avJeAyRvUrRtqkcTpy3UKuKA+hEUBAEvu+3fUoAEJ5S+KMqypH2rVXAntCJJL+NvPCHApA8hf0V9pp1ziq5PQxIlA/na+AZzi1p7ZxVc05SMsVhd07NdDvVy1EKE35SMpUEBUfllHO6G1vCVSEspiRBLaTBoTsCQaIdtFC5wmjZ94t3H4ZcS3eCkwk8HpbLhSE/BetQQzFbPBpLGsozMRy8RHsU9pFqbBWjiCyuBYqlZrOJr77AY46XR1oUFQ81PWTOjaI4wLokrL00XG2Wi+12sdyshnsPmsSoQRxFbo",
+  "props": {
+   "width": "260px",
+   "height": "260px",
+   "blocks": [],
+   "prizes": [
+    {
+     "name": "10个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "10个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "5个京豆",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "5个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "1个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "1个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "谢谢参与",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/0.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "10个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "10个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "5个京豆",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "5个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "1个京豆",
+     "background": "#F8DEF8",
+     "fonts": [
+      {
+       "text": "1个京豆",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/1.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    },
+    {
+     "name": "谢谢参与",
+     "background": "#FEF3FC",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "12%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/0.png",
+       "width": "45%",
+       "top": "35%"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "40px",
+     "imgs": [
+      {
+       "src": "assets/imgs/jd/button.png",
+       "width": "140%",
+       "top": "-135%"
+      }
+     ]
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#000",
+    "fontSize": "13px",
+    "fontStyle": "SimHei"
+   },
+   "defaultConfig": {
+    "offsetDegree": 22.5
+   }
+  },
+  "lucky": "LuckyWheel"
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-wheel-xc",
+  "data": {
+   "prizes": [
+    {
+     "name": "免费住酒店"
+    },
+    {
+     "name": "房型升级"
+    },
+    {
+     "name": "免费取消"
+    },
+    {
+     "name": "延迟退房"
+    },
+    {
+     "name": "免费早餐"
+    },
+    {
+     "name": "明天再来"
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "25%",
+     "fonts": [
+      {
+       "text": "开始\n抽奖",
+       "fontColor": "#fff",
+       "top": "-50%",
+       "fontSize": "16px"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xc/btn.png",
+       "width": "120%",
+       "top": "-175%"
+      }
+     ]
+    }
+   ],
+   "blocks": [
+    {
+     "imgs": [
+      {
+       "src": "assets/imgs/xc/bg.png",
+       "width": "100%",
+       "rotate": true
+      }
+     ]
+    }
+   ],
+   "defaultConfig": {
+    "offsetDegree": 0
+   }
+  },
+  "methods": {
+   "startCallBack": "function(){var t=this;this.$refs.LuckyWheel.play(),setTimeout((function(){t.$refs.LuckyWheel.stop(6*Math.random()>>0)}),3e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得\".concat(t.name))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-wheel-bili",
+  "data": {
+   "blocks": [
+    {
+     "padding": "40px",
+     "imgs": [
+      {
+       "src": "assets/imgs/bili/bg.png",
+       "width": "100%"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "src": "assets/imgs/bili/prize.png",
+       "width": "100%",
+       "rotate": true
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "src": "assets/imgs/bili/point.png",
+       "width": "20px",
+       "top": "-25px"
+      }
+     ]
+    }
+   ],
+   "prizes": [
+    {
+     "id": "0"
+    },
+    {
+     "id": "1"
+    },
+    {
+     "id": "2"
+    },
+    {
+     "id": "3"
+    },
+    {
+     "id": "4"
+    },
+    {
+     "id": "5"
+    }
+   ],
+   "buttons": [
+    {
+     "radius": "48%",
+     "imgs": [
+      {
+       "src": "assets/imgs/bili/btn.png",
+       "width": "100%",
+       "top": "-100%"
+      },
+      {
+       "src": "assets/imgs/bili/logo.png",
+       "width": "70%",
+       "top": "-70%"
+      }
+     ]
+    }
+   ],
+   "defaultConfig": {
+    "speed": 10,
+    "offsetDegree": -30
+   }
+  },
+  "methods": {
+   "startCallBack": "function(){var t=this;this.$refs.LuckyWheel.play(),setTimeout((function(){t.$refs.LuckyWheel.stop(5)}),3e3)}",
+   "endCallBack": "function(t){console.log(t)}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-dy",
+  "data": {
+   "blocks": [
+    {
+     "padding": "10px",
+     "background": "#006bff",
+     "borderRadius": "10px"
+    },
+    {
+     "padding": "1px",
+     "background": "#000000",
+     "borderRadius": "10px"
+    },
+    {
+     "padding": "5px",
+     "background": "#1551c1",
+     "borderRadius": "10px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {
+    "borderRadius": "5px"
+   },
+   "activeStyle": {
+    "background": "#27c2b0"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var A=[];[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].forEach((function(E,Q){A.push({x:E[0],y:E[1],imgs:[{width:\"100%\",height:\"100%\",top:1,src:I(821)(\"./\".concat(Q,\".png\"))}]})})),this.prizes=A}",
+   "startCallBack": "function(){var A=this;this.$refs.myLucky.play(),setTimeout((function(){A.$refs.myLucky.stop(0)}),3e3)}",
+   "endCallBack": "function(A){console.log(\"恭喜你获得大奖: \".concat(A.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div class=\"lucky-box\"><div class=\"lucky-canvas\" package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div> <img src=\"/assets/img/btn.9bba0894.gif\" class=\"lucky-btn\"></div>",
+  "props": {
+   "width": "300px",
+   "height": "300px",
+   "cols": 3,
+   "rows": 3,
+   "blocks": [
+    {
+     "padding": "10px",
+     "background": "#006bff",
+     "borderRadius": "10px"
+    },
+    {
+     "padding": "1px",
+     "background": "#000000",
+     "borderRadius": "10px"
+    },
+    {
+     "padding": "5px",
+     "background": "#1551c1",
+     "borderRadius": "10px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "top": 1,
+       "src": "assets/imgs/dy/7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [],
+   "defaultStyle": {
+    "borderRadius": "5px"
+   },
+   "activeStyle": {
+    "background": "#27c2b0"
+   },
+   "defaultConfig": {}
+  },
+  "lucky": "LuckyGrid"
+ },
+ {
+  "canvas": [
+   300,
+   310
+  ],
+  "name": "examples-grid-wyyx",
+  "data": {
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "title": "电热烘干毛巾架",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-0.png",
+       "activeSrc": "assets/imgs/yx/active-0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "title": "10元满减红包",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-1.png",
+       "activeSrc": "assets/imgs/yx/active-1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "title": "2积分",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-2.png",
+       "activeSrc": "assets/imgs/yx/active-2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "title": "胖喵焖烧罐",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-3.png",
+       "activeSrc": "assets/imgs/yx/active-3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "title": "5元满减红包",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-4.png",
+       "activeSrc": "assets/imgs/yx/active-4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "title": "多层置物架",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-5.png",
+       "activeSrc": "assets/imgs/yx/active-5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "title": "3元直减红包",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-6.png",
+       "activeSrc": "assets/imgs/yx/active-6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "title": "全场满99减10",
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yx/default-7.png",
+       "activeSrc": "assets/imgs/yx/active-7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "blocks": [
+    {
+     "padding": "1px",
+     "background": "#e2cea3",
+     "borderRadius": "13px"
+    },
+    {
+     "padding": "5px 0px",
+     "background": "#f3ecdc",
+     "borderRadius": "13px"
+    },
+    {
+     "padding": "1px",
+     "background": "#e2cea3",
+     "borderRadius": "8px"
+    },
+    {
+     "padding": "10px",
+     "background": "#fffcf5",
+     "borderRadius": "8px"
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "imgs": [
+      {
+       "src": "assets/imgs/yx/btn.png",
+       "width": "90%",
+       "top": "5%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {
+    "background": "#ffefd6",
+    "borderRadius": "5px",
+    "fontColor": "#755c28",
+    "fontSize": "10px",
+    "lineHeight": "12px"
+   },
+   "activeStyle": {
+    "background": "#de7247",
+    "fontColor": "#ffefd6"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var t=[],e=[\"电热烘干毛巾架\",\"10元满减红包\",\"2积分\",\"胖喵焖烧罐\",\"5元满减红包\",\"多层置物架\",\"3元直减红包\",\"全场满99减10\"];[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].forEach((function(u,i){t.push({x:u[0],y:u[1],title:e[i],imgs:[{width:\"100%\",height:\"100%\",src:n(856)(\"./default-\".concat(i,\".png\")),activeSrc:n(865)(\"./active-\".concat(i,\".png\"))}]})})),this.prizes=t}",
+   "startCallBack": "function(){var t=this;this.$refs.LuckDraw.play(),setTimeout((function(){t.$refs.LuckDraw.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得大奖: \".concat(t.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 310px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-wyyyx",
+  "data": {
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "title": "steam游戏任选\n(限款)",
+     "fonts": [
+      {
+       "text": "steam游戏任选\n(限款)",
+       "top": "60%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/1.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "title": "百元京东卡",
+     "fonts": [
+      {
+       "text": "百元京东卡",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/2.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "title": "暴雪游戏30点数",
+     "fonts": [
+      {
+       "text": "暴雪游戏30点数",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/3.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "title": "云币2888",
+     "fonts": [
+      {
+       "text": "云币2888",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/4.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "title": "手游月卡",
+     "fonts": [
+      {
+       "text": "手游月卡",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/5.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "title": "连续3日\n手游时长+1h",
+     "fonts": [
+      {
+       "text": "连续3日\n手游时长+1h",
+       "top": "60%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/6.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "title": "手游时长+30min",
+     "fonts": [
+      {
+       "text": "手游时长+30min",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/6.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "title": "端游时长+1h",
+     "fonts": [
+      {
+       "text": "端游时长+1h",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/7.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "blocks": [
+    {
+     "padding": "10px",
+     "background": "rgba(0, 0, 0, 0)",
+     "borderRadius": "10px"
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "fonts": [
+      {
+       "text": "剩余次数:???次",
+       "fontColor": "#ca620d",
+       "top": "75%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/btn.png",
+       "width": "100%",
+       "top": "0"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#AFFFD7",
+    "fontSize": "10px",
+    "lineHeight": "13px",
+    "wordWrap": false
+   },
+   "activeStyle": {
+    "fontColor": "#fff"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var t=[],V=[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]];[{name:\"steam游戏任选\\n(限款)\",img:A(876),top:\"60%\"},{name:\"百元京东卡\",img:A(877),top:\"69%\"},{name:\"暴雪游戏30点数\",img:A(878),top:\"69%\"},{name:\"云币2888\",img:A(879),top:\"69%\"},{name:\"手游月卡\",img:A(880),top:\"69%\"},{name:\"连续3日\\n手游时长+1h\",img:A(672),top:\"60%\"},{name:\"手游时长+30min\",img:A(672),top:\"69%\"},{name:\"端游时长+1h\",img:A(881),top:\"69%\"}].forEach((function(e,a){t.push({x:V[a][0],y:V[a][1],title:e.name,fonts:[{text:e.name,top:e.top}],imgs:[{src:A(882),activeSrc:A(883),width:\"100%\",height:\"100%\"},{src:e.img,width:\"70%\",top:\"3%\"}]})})),this.prizes=t}",
+   "startCallBack": "function(){var t=this;this.$refs.LuckDraw.play(),setTimeout((function(){t.$refs.LuckDraw.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得大奖: \".concat(t.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div class=\"lucky-box\"><img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAnoAAAJwBAMAAADsH9FZAAAAKlBMVEUrencAAAArencudXUxb3IrTkgsenYvdG8re3gse3kseXYyb3Irenc/n5wMMRFCAAAAC3RSTlMzAFPMEJlBa5si5RTReVEAAAmrSURBVHja7N2/axNhGMDxF4tXKx3yYlBrFw3+QLpYFCk4nRV0FCG41g7paqV6SJeIQmulYCatxclF6KJUaOm7OPk31OH+F98+Ie3Z9702l5KQu3y/U6bAffK83JMbEqWblR8UqDB5Sbrj/CbJ92zq3V8xReqn3mvcSLrjxk1aO0vhgd5DU6y6qydtN1p6pQ1DWdtq6U0Yyt6dpt55+7Ieamq/0ooxm6HorRvzTlO2Fo2ZFL17cobHajWVaO3IPqqDglpxUtKxCKHWZVFTewd3XuvP35YTLUXHtfx/t3Pf1PLhovRuaj1tTMPqnTObWj/6PqOo3UaGr+qyMW+s3rr5octT4GXjC/WE+WX1Fs2knq4rytLagr5ktqzeBzOv3yrK1MisvmC2rd6GeVb6oyhbnxols2P1jAkvcnAzd8XCiZ6efq4oWyPze2Mnel8uK8qot7CvN6ooa6/RQ6+90Our0EOvzdDrq9DLl15PlvJTyh966Lmhh54n9NCT0EPPDT30PKGHnoQeem451zur0kIPPQk99NxyqfcePfTQQw89J/TQk9DrS70hlRZ6adXRQw899NBzQg89CT303NBDzxN6x+udUWmhh56EHnpu6KHnCT30JPTQc0MPPU/ooSeh10d6t9BDDz300HNCDz0JPfTc0EPPE3pp3UXvxHpjcdxAr1O9r3H8F71O9VbjeBe9TvViG3rocXLzpsdd40Qby+ouG0vHelprtmX00EMPvf3QQ09CDz23POvxdBQ99NBDLxF6/aJ3ulqtPlbdrmpT3tBD71DotVNwzV7XkxnV3WartuvKV6715l7a63r6SnW1IKraIt9nlGe9oHJD9F5Uunlls5WmXiVl+vL6PXcuikQviro4fUEUNfUiz/ShN6h6tV6c3KCoJ7eodw3bsOpBtV5sLEHvN5aj9diW0bOhN7h6RX1ChR566KGHXiv00JPQQ88NPfQ8oYeehB56buih5wk99CT00HNDDz1P6KEnoYeeG3roeUIPPQk99NzQQ88TeuhJ6KHnhh56ntBDT8q93m/Vg0aVv9zrMXvooYceehJ66HlCDz0JPfTccq7HL8ihhx566LVCD71E/BMiesnQQ88TeuhJ6PWRXh09Zo/Zy7XekEoLPfQk9NBzQw89T+ihJ6GHnht6A6z3j327V4kYiAIwCoIpxIeQgG5jYeVziLB9sNjtt3Cws/W1rPehlCtica/gDxvJeL46kHBIYHKHOfn0Gnr0Inr0cvT+nd4TPXp/pPfwG71h04/eZppdr03d6G3vf6V3+oNnbGfd6",
+  "props": {
+   "width": "300px",
+   "height": "300px",
+   "cols": 3,
+   "rows": 3,
+   "blocks": [
+    {
+     "padding": "10px",
+     "background": "rgba(0, 0, 0, 0)",
+     "borderRadius": "10px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "title": "steam游戏任选\n(限款)",
+     "fonts": [
+      {
+       "text": "steam游戏任选\n(限款)",
+       "top": "60%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/1.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "title": "百元京东卡",
+     "fonts": [
+      {
+       "text": "百元京东卡",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/2.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "title": "暴雪游戏30点数",
+     "fonts": [
+      {
+       "text": "暴雪游戏30点数",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/3.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "title": "云币2888",
+     "fonts": [
+      {
+       "text": "云币2888",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/4.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "title": "手游月卡",
+     "fonts": [
+      {
+       "text": "手游月卡",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/5.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "title": "连续3日\n手游时长+1h",
+     "fonts": [
+      {
+       "text": "连续3日\n手游时长+1h",
+       "top": "60%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/6.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "title": "手游时长+30min",
+     "fonts": [
+      {
+       "text": "手游时长+30min",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/6.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "title": "端游时长+1h",
+     "fonts": [
+      {
+       "text": "端游时长+1h",
+       "top": "69%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/cell.png",
+       "activeSrc": "assets/imgs/yyx/active.png",
+       "width": "100%",
+       "height": "100%"
+      },
+      {
+       "src": "assets/imgs/yyx/7.png",
+       "width": "70%",
+       "top": "3%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "fonts": [
+      {
+       "text": "剩余次数:???次",
+       "fontColor": "#ca620d",
+       "top": "75%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/yyx/btn.png",
+       "width": "100%",
+       "top": "0"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#AFFFD7",
+    "fontSize": "10px",
+    "lineHeight": "13px",
+    "wordWrap": false
+   },
+   "activeStyle": {
+    "fontColor": "#fff"
+   },
+   "defaultConfig": {}
+  },
+  "lucky": "LuckyGrid"
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-xdf",
+  "data": {
+   "blocks": [
+    {
+     "padding": "3px",
+     "background": "#92c53a",
+     "borderRadius": "8px"
+    },
+    {
+     "padding": "2px",
+     "background": "#bdd333",
+     "borderRadius": "8px"
+    },
+    {
+     "padding": "7px",
+     "background": "#0D6630",
+     "borderRadius": "8px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/0.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "fonts": [
+      {
+       "text": "1个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "fonts": [
+      {
+       "text": "5个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "fonts": [
+      {
+       "text": "10个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/0.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "fonts": [
+      {
+       "text": "1个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "fonts": [
+      {
+       "text": "5个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "fonts": [
+      {
+       "text": "10个星球币",
+       "top": "68%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/1.png",
+       "width": "50%",
+       "top": "12%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "shadow": "",
+     "imgs": [
+      {
+       "src": "assets/imgs/xdf/button.png",
+       "width": "100%",
+       "height": "112%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultConfig": {
+    "gutter": 8
+   },
+   "defaultStyle": {
+    "background": "#f4f7cc",
+    "borderRadius": "13px",
+    "fontColor": "#d55a07",
+    "fontSize": "11px",
+    "shadow": "0 9 0.1 #E9E967"
+   },
+   "activeStyle": {
+    "background": "#e9e967",
+    "shadow": "0 9 0.1 #E1E13B"
+   }
+  },
+  "methods": {
+   "startCallBack": "function(){var A=this;this.$refs.luckyGrid.play(),setTimeout((function(){A.$refs.luckyGrid.stop(8*Math.random()>>0)}),3e3)}",
+   "endCallBack": "function(A){console.log(A)}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-xq",
+  "data": {
+   "blocks": [
+    {
+     "padding": "15px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/0.png",
+       "activeSrc": "assets/imgs/xq/a0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/1.png",
+       "activeSrc": "assets/imgs/xq/a1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/2.png",
+       "activeSrc": "assets/imgs/xq/a2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/3.png",
+       "activeSrc": "assets/imgs/xq/a3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/4.png",
+       "activeSrc": "assets/imgs/xq/a4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/5.png",
+       "activeSrc": "assets/imgs/xq/a5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/6.png",
+       "activeSrc": "assets/imgs/xq/a6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/7.png",
+       "activeSrc": "assets/imgs/xq/a7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "imgs": [
+      {
+       "src": "assets/imgs/xq/btn.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultConfig": {
+    "gutter": 10
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var A=[];[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].forEach((function(B,E){A.push({x:B[0],y:B[1],imgs:[{width:\"100%\",height:\"100%\",src:g(886)(\"./\".concat(E,\".png\")),activeSrc:g(895)(\"./a\".concat(E,\".png\"))}]})})),this.prizes=A}",
+   "startCallBack": "function(){var A=this;this.$refs.LuckDraw.play(),setTimeout((function(){A.$refs.LuckDraw.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(A){console.log(A)}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div class=\"lucky-box\"><img src=\"/assets/img/bg.b143876e.png\" class=\"lucky-img\"> <div class=\"lucky-canvas\" package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div></div>",
+  "props": {
+   "width": "300px",
+   "height": "300px",
+   "cols": 3,
+   "rows": 3,
+   "blocks": [
+    {
+     "padding": "15px"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/0.png",
+       "activeSrc": "assets/imgs/xq/a0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/1.png",
+       "activeSrc": "assets/imgs/xq/a1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/2.png",
+       "activeSrc": "assets/imgs/xq/a2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/3.png",
+       "activeSrc": "assets/imgs/xq/a3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/4.png",
+       "activeSrc": "assets/imgs/xq/a4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/5.png",
+       "activeSrc": "assets/imgs/xq/a5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/6.png",
+       "activeSrc": "assets/imgs/xq/a6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/xq/7.png",
+       "activeSrc": "assets/imgs/xq/a7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "imgs": [
+      {
+       "src": "assets/imgs/xq/btn.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {},
+   "activeStyle": {},
+   "defaultConfig": {
+    "gutter": 10
+   }
+  },
+  "lucky": "LuckyGrid"
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-hwl",
+  "data": {
+   "blocks": [
+    {
+     "padding": "10px",
+     "background": "#faeecb"
+    },
+    {
+     "padding": "10px",
+     "background": "#eec578"
+    }
+   ],
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "title": "二次元时钟",
+     "fonts": [
+      {
+       "text": "二次元时钟",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/0.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "title": "航天计时器",
+     "fonts": [
+      {
+       "text": "航天计时器",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/1.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "title": "航天钥匙链",
+     "fonts": [
+      {
+       "text": "航天钥匙链",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/2.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "title": "航天勋章",
+     "fonts": [
+      {
+       "text": "航天勋章",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/3.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "title": "谢谢参与",
+     "fonts": [
+      {
+       "text": "谢谢参与",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/4.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "title": "10金币",
+     "fonts": [
+      {
+       "text": "10金币",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/5.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "title": "小猴毛绒玩具",
+     "fonts": [
+      {
+       "text": "小猴毛绒玩具",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/6.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "title": "神秘大礼",
+     "fonts": [
+      {
+       "text": "神秘大礼",
+       "top": "67%"
+      }
+     ],
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/hwl/cell.png",
+       "activeSrc": "assets/imgs/hwl/active.png"
+      },
+      {
+       "width": "50%",
+       "top": "15%",
+       "src": "assets/imgs/hwl/7.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "imgs": [
+      {
+       "src": "assets/imgs/hwl/btn.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultStyle": {
+    "fontColor": "#ac804f",
+    "fontSize": "10px"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var t=[],A=[\"二次元时钟\",\"航天计时器\",\"航天钥匙链\",\"航天勋章\",\"谢谢参与\",\"10金币\",\"小猴毛绒玩具\",\"神秘大礼\"];[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].forEach((function(n,r){t.push({x:n[0],y:n[1],title:A[r],fonts:[{text:A[r],top:\"67%\"}],imgs:[{width:\"100%\",height:\"100%\",src:s(666),activeSrc:s(667)},{width:\"50%\",top:\"15%\",src:s(832)(\"./\".concat(r,\".png\"))}]})})),this.prizes=t}",
+   "startCallBack": "function(){var t=this;this.$refs.LuckDraw.play(),setTimeout((function(){t.$refs.LuckDraw.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得大奖: \".concat(t.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-round",
+  "data": {
+   "rows": 60,
+   "cols": 60,
+   "blocks": [
+    {
+     "padding": "45px",
+     "imgs": [
+      {
+       "src": "assets/imgs/round/bg.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ]
+    }
+   ],
+   "prizes": [
+    {
+     "x": 24,
+     "y": 0,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/0.png"
+      }
+     ]
+    },
+    {
+     "x": 36,
+     "y": 3,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/1.png"
+      }
+     ]
+    },
+    {
+     "x": 45,
+     "y": 12,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/2.png"
+      }
+     ]
+    },
+    {
+     "x": 48,
+     "y": 24,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/3.png"
+      }
+     ]
+    },
+    {
+     "x": 45,
+     "y": 36,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/4.png"
+      }
+     ]
+    },
+    {
+     "x": 36,
+     "y": 45,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/5.png"
+      }
+     ]
+    },
+    {
+     "x": 24,
+     "y": 48,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "-20%",
+       "src": "assets/imgs/round/6.png"
+      }
+     ]
+    },
+    {
+     "x": 12,
+     "y": 45,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/7.png"
+      }
+     ]
+    },
+    {
+     "x": 3,
+     "y": 36,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/8.png"
+      }
+     ]
+    },
+    {
+     "x": 0,
+     "y": 24,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/9.png"
+      }
+     ]
+    },
+    {
+     "x": 3,
+     "y": 12,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/10.png"
+      }
+     ]
+    },
+    {
+     "x": 12,
+     "y": 3,
+     "col": 12,
+     "row": 12,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/round/cell.png",
+       "activeSrc": "assets/imgs/round/active.png"
+      },
+      {
+       "width": "80%",
+       "top": "10%",
+       "src": "assets/imgs/round/11.png"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "x": 12,
+     "y": 12,
+     "col": 36,
+     "row": 36,
+     "fonts": [
+      {
+       "text": "",
+       "top": "43%"
+      }
+     ],
+     "imgs": [
+      {
+       "src": "assets/imgs/round/btn.png",
+       "width": "100%"
+      }
+     ]
+    }
+   ],
+   "defaultStyle": {
+    "fontSize": "8px",
+    "fontColor": "#fff"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var A=60,n=12;this.rows=this.cols=A;var s=[{x:24,y:0,col:n,row:n},{x:36,y:3,col:n,row:n},{x:45,y:12,col:n,row:n},{x:48,y:24,col:n,row:n},{x:45,y:36,col:n,row:n},{x:36,y:45,col:n,row:n},{x:24,y:48,col:n,row:n},{x:12,y:45,col:n,row:n},{x:3,y:36,col:n,row:n},{x:0,y:24,col:n,row:n},{x:3,y:12,col:n,row:n},{x:12,y:3,col:n,row:n}];this.buttons=[{x:12,y:12,col:36,row:36,fonts:[{text:\"\",top:\"43%\"}],imgs:[{src:t(669),width:\"100%\"}]}];var c=[];s.forEach((function(A,n){c.push(Object(g.a)(Object(g.a)({},A),{},{imgs:[{width:\"100%\",height:\"100%\",src:t(670),activeSrc:t(671)},{width:\"80%\",top:6===n?\"-20%\":\"10%\",src:t(841)(\"./\".concat(n,\".png\"))}]}))})),this.prizes=c}",
+   "startCallBack": "function(){var A=this;this.$refs.myLucky.play(),setTimeout((function(){A.$refs.myLucky.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(A){console.log(\"恭喜你获得大奖: \".concat(A.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   300,
+   300
+  ],
+  "name": "examples-grid-yqs",
+  "data": {
+   "prizes": [
+    {
+     "x": 0,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize0.png",
+       "activeSrc": "assets/imgs/yqs/prize0-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize1.png",
+       "activeSrc": "assets/imgs/yqs/prize1-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 0,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize2.png",
+       "activeSrc": "assets/imgs/yqs/prize2-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize3.png",
+       "activeSrc": "assets/imgs/yqs/prize3-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 2,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize4.png",
+       "activeSrc": "assets/imgs/yqs/prize4-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 1,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize5.png",
+       "activeSrc": "assets/imgs/yqs/prize5-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 2,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize6.png",
+       "activeSrc": "assets/imgs/yqs/prize6-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    },
+    {
+     "x": 0,
+     "y": 1,
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/yqs/prize7.png",
+       "activeSrc": "assets/imgs/yqs/prize7-on.png"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "blocks": [
+    {
+     "padding": "15px",
+     "imgs": [
+      {
+       "src": "assets/imgs/yqs/bg.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ]
+    }
+   ],
+   "buttons": [
+    {
+     "x": 1,
+     "y": 1,
+     "background": "rgba(0, 0, 0, 0)",
+     "imgs": [
+      {
+       "src": "assets/imgs/yqs/start-btn.png",
+       "width": "100%",
+       "height": "100%"
+      }
+     ],
+     "col": 1,
+     "row": 1
+    }
+   ],
+   "defaultConfig": {
+    "gutter": -15
+   },
+   "activeStyle": {
+    "background": "rgba(0, 0, 0, 0)"
+   }
+  },
+  "methods": {
+   "getPrizesList": "function(){var t=[];[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].forEach((function(n,p){t.push({x:n[0],y:n[1],imgs:[{width:\"100%\",height:\"100%\",src:e(899)(\"./prize\".concat(p,\".png\")),activeSrc:e(908)(\"./prize\".concat(p,\"-on.png\"))}]})})),this.prizes=t}",
+   "startCallBack": "function(){var t=this;this.$refs.myLucky.play(),setTimeout((function(){t.$refs.myLucky.stop(8*Math.random()>>0)}),2e3)}",
+   "endCallBack": "function(t){console.log(\"恭喜你获得大奖: \".concat(t.title))}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.getPrizesList()}"
+  ],
+  "html": "<div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 300px; height: 300px;\"><canvas></canvas></div>",
+  "props": null,
+  "lucky": null
+ },
+ {
+  "canvas": [
+   360,
+   260
+  ],
+  "name": "examples-slot-dy",
+  "data": {
+   "isPlay": false,
+   "blocks": [
+    {
+     "padding": "108px 61px 52px",
+     "imgs": [
+      {
+       "width": "100%",
+       "src": "assets/imgs/dy/bgImg.png"
+      }
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "order": [
+      1,
+      2,
+      0,
+      3,
+      4,
+      5
+     ],
+     "speed": 1
+    }
+   ],
+   "prizes": [
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    }
+   ],
+   "defaultConfig": {
+    "mode": "horizontal",
+    "rowSpacing": "0px",
+    "colSpacing": "-41px"
+   }
+  },
+  "methods": {
+   "play": "function(){this.$refs.myLucky.play(),this.isPlay=!0}",
+   "stop": "function(t){-1===t&&(this.isPlay=!1),this.$refs.myLucky.stop(t)}",
+   "endCallback": "function(t){this.isPlay=!1}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler",
+   "function(){this.$refs.myLucky.play()}"
+  ],
+  "html": "<div><div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 360px; height: 260px;\"><canvas></canvas></div></div>",
+  "props": {
+   "width": "360px",
+   "height": "260px",
+   "blocks": [
+    {
+     "padding": "108px 61px 52px",
+     "imgs": [
+      {
+       "width": "100%",
+       "src": "assets/imgs/dy/bgImg.png"
+      }
+     ]
+    }
+   ],
+   "prizes": [
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "height": "100%",
+       "src": "assets/imgs/dy/prize.png",
+       "formatter": "[fn] function(t){var n=t.width,s=t.height,e=document.createElement(\"canvas\"),o=e.getContext(\"2d\");return e.width=n/6,e.height=s,o.drawImage(t,-n/6*i,0,n,s),e}"
+      }
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "order": [
+      1,
+      2,
+      0,
+      3,
+      4,
+      5
+     ],
+     "speed": 1
+    }
+   ],
+   "defaultStyle": {},
+   "defaultConfig": {
+    "mode": "horizontal",
+    "rowSpacing": "0px",
+    "colSpacing": "-41px"
+   }
+  },
+  "lucky": "SlotMachine"
+ },
+ {
+  "canvas": [
+   350,
+   250
+  ],
+  "name": "examples-slot-didi",
+  "data": {
+   "blocks": [
+    {
+     "imgs": [
+      {
+       "width": "71%",
+       "height": "110px",
+       "top": "17%",
+       "src": "assets/imgs/didi/area.png"
+      }
+     ]
+    },
+    {
+     "padding": "45px 55px 100px",
+     "imgs": [
+      {
+       "left": "3px",
+       "width": "100%",
+       "height": "130%",
+       "top": "-35",
+       "src": "assets/imgs/didi/bg.png"
+      }
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "order": [
+      0,
+      1,
+      2
+     ],
+     "speed": 15
+    },
+    {
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "speed": 15,
+     "direction": -1
+    },
+    {
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "speed": 20
+    }
+   ],
+   "prizes": [
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "80%",
+       "top": "20%",
+       "src": "assets/imgs/didi/0.png"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "70%",
+       "top": "12%",
+       "src": "assets/imgs/didi/1.png"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "80%",
+       "top": "20%",
+       "src": "assets/imgs/didi/2.png"
+      }
+     ]
+    }
+   ],
+   "defaultConfig": {
+    "rowSpacing": "1px",
+    "colSpacing": "6.5px"
+   }
+  },
+  "methods": {
+   "playGame": "function(){var p=this;this.$refs.myLucky.play(),setTimeout((function(){p.$refs.myLucky.stop(0)}),2e3)}",
+   "endCallback": "function(p){console.log(p)}"
+  },
+  "mounted": [
+   "function(){ne(this)}",
+   "function(){new Mn({write:\"<h1>该网站禁止使用控制台! 请关掉控制台重新刷新!</h1>\"}).ban(),window.vueConfig={jsLibs:[\"https://unpkg.com/vue@2.6.14/dist/vue.min.js\",\"https://unpkg.com/@vue/composition-api@1.2.4/dist/vue-composition-api.prod.js\",\"https://unpkg.com/vue-demi@0.11.4\",\"https://unpkg.com/@lucky-canvas/vue@0.1.11\"],js:\"Vue.config.productionTip = false\"},window.reactConfig={importMap:{imports:{react:\"https://ga.jspm.io/npm:react@17.0.2/index.js\",\"react-dom\":\"https://ga.jspm.io/npm:react-dom@17.0.2/index.js\",\"@lucky-canvas/react\":\"https://unpkg.com/@lucky-canvas/react@0.1.7/dist/index.esm.js\"},scopes:{\"https://ga.jspm.io/\":{\"object-assign\":\"https://ga.jspm.io/npm:object-assign@4.1.1/index.js\",scheduler:\"https://ga.jspm.io/npm:scheduler@0.20.2/index.js\",\"scheduler/tracing\":\"https://ga.jspm.io/npm:scheduler"
+  ],
+  "html": "<div class=\"lucky-box\"><div package=\"@lucky-canvas/vue@0.1.11\" style=\"overflow: hidden; width: 350px; height: 250px;\"><canvas></canvas></div> <div class=\"lucky-btn\"><img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVQAAABPCAMAAACDKs1rAAADAFBMVEUAAADuDzv/XDTzLjr5U0b3TTjxFzj0OjjwFDnxGTjzGjbuETr/YzTuETrzGjf/izr/ojz/rT3/lDv/mjv/TTH/pDz/jjr/PS/9Kxf/LRT/KxTsDzrrETf7KhrjIiPdIyHTGx3sJSn9bTT/YzPtHDPOFhz7MyLrRSj2ZDH/KxzxLCfqJBnwKCf/Khj+LRj5Kxb/KiXuKyX/LS34QSn/Kin7MSXyLyz8Lib7Mir9LCD/KyHsJxztLCH+Ljv+Ljj/KRzvHiL4KBvxKiz7MybtJBj7KBj4JB3sKx32Hxz2OCn5KB/xISL/KCH+JjHvLBv5NVHxJCbzKCXzHCDyKh/6Jxr6HUD7KDb/LTTzLyfvIx30LBnsIBbzHjH3PCrtIBz0Mif7LiztLh7xHCruJyD0OiL6IjzxJiH1JTH+Jy3/KzH8Kyv7KzH0MyzxHh37NU74NVj2JSH1GBr2KDX9Kzf7Mzb8My71QCL4KjzzFRbtIBn+Olb1ISvyNSH1NSf5NTvcKyD3M2PwGR39OFD2Gzf6NDL2Kxf2NEn8KSDzEhH8KTv1JRnxLBj0KEX4GT3uKRn7MEn3NWj6LkPxJRj8N0n1Hyb8Kib1MB38NkHbIRz7LjDzJiL0Izv3Gh74NV71L17zLSLXHB7zGBznJiX9WTL1KR/xMR/1Kk34PCb/PFn5ITT3NEL+Lib1LVj9NDn8QTX9UDH6JS76SCrcLyD7J0L2Kir6JCbZLBz9STb+lDb/sD39OTXoHyv1MyHOGCDeJhL1LFP9hTj4O3X4Mh3vMyP9Y1bwFzf9jTHqGDHTJAz3PWX0OVH5QyD+ny/tIS78ei31Olv7Yyf/pTz+ezf1PjX9gy7+Oyz8aiv6VCT4Oh32WzH6WlP6Wyb6SyH/zMb/nDr8cir5VmfaJxz8aWL2PUHyTS38jEP5dDX9RjD/8fD5R3HzST/////1Slj7dVfbKyvTHSnnMyb8gU/YIjf+enXfJ0X/uLP+iYT3ZkX/oZzqLFX5dkffTCz/3t3+lpLnaC/0iS+12Nn4AAAAGHRSTlMAu6r+/hWhJ4c9We12b85G5aK3kpR2Xam9Y8MqAAAfgUlEQVR42uzYS0hUURgH8B72tvdrqGhGa9KpRqxmyntpFGohQdKu2RjYqsYJg9Rt00IUd4IM6qJJRto4mRHSZGQIZYughUaLhFzEpEGLhnygpND/+7575+jcRnusAv/nnO+e0ZkWv75zFFcsmTVbs7Ozd61aDrJrV3b2hnU",
+  "props": {
+   "width": "350px",
+   "height": "250px",
+   "blocks": [
+    {
+     "imgs": [
+      {
+       "width": "71%",
+       "height": "110px",
+       "top": "17%",
+       "src": "assets/imgs/didi/area.png"
+      }
+     ]
+    },
+    {
+     "padding": "45px 55px 100px",
+     "imgs": [
+      {
+       "left": "3px",
+       "width": "100%",
+       "height": "130%",
+       "top": "-35",
+       "src": "assets/imgs/didi/bg.png"
+      }
+     ]
+    }
+   ],
+   "prizes": [
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "80%",
+       "top": "20%",
+       "src": "assets/imgs/didi/0.png"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "70%",
+       "top": "12%",
+       "src": "assets/imgs/didi/1.png"
+      }
+     ]
+    },
+    {
+     "imgs": [
+      {
+       "width": "100%",
+       "height": "100%",
+       "src": "assets/imgs/didi/cell.png"
+      },
+      {
+       "width": "80%",
+       "top": "20%",
+       "src": "assets/imgs/didi/2.png"
+      }
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "order": [
+      0,
+      1,
+      2
+     ],
+     "speed": 15
+    },
+    {
+     "order": [
+      2,
+      0,
+      1
+     ],
+     "speed": 15,
+     "direction": -1
+    },
+    {
+     "order": [
+      1,
+      2,
+      0
+     ],
+     "speed": 20
+    }
+   ],
+   "defaultStyle": {},
+   "defaultConfig": {
+    "rowSpacing": "1px",
+    "colSpacing": "6.5px"
+   }
+  },
+  "lucky": "SlotMachine"
+ }
+]
