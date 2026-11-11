@@ -99,11 +99,12 @@ class GridPageState extends State<GridPage> {
               fontSize: 11,
               fontFamily: 'Roboto',
               fontFamilyFallback: demoFontFallback)),
+      // 高亮只加红色边框：背景、圆角、阴影与普通格一致，避免几何和颜色跳变。
       activeStyle: LuckyCellStyle(
-          background: LuckyFill.color(DemoPalette.gold),
+          background: LuckyFill.color(DemoPalette.cream),
           borderRadius: 12,
-          border: LuckyBorder(width: 2, color: Colors.white),
-          shadow: LuckyShadow(offsetY: 1, blur: 6, color: DemoPalette.gold)),
+          border: LuckyBorder(width: 3, color: Color(0xFFE53935)),
+          shadow: LuckyShadow(offsetY: 3, color: Color(0xFF394FAF))),
       options: GridOptions(gutter: 8, motion: demoMotion));
 
   /// 结果文本。

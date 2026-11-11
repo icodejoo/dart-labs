@@ -55,8 +55,8 @@ class SlotPageState extends State<SlotPage> {
       ],
       reels: [
         SlotReel(),
-        SlotReel(),
-        SlotReel(direction: -1)
+        SlotReel(direction: -1),
+        SlotReel()
       ],
       style: SlotStyle(
           cell: LuckyCellStyle(
