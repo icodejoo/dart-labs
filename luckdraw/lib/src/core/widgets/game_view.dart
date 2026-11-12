@@ -344,7 +344,7 @@ class _LuckyGameViewState<
   /// 阶段变化更新语义与动画提示。
   @override
   void handlePhaseChanged(LuckyPhase phase) {
-    if (!phase.isMoving && _structural) {
+    if (!_roundActive(phase) && _structural) {
       _dirty = true;
     }
     widget.onPhaseChanged?.call(phase);
@@ -400,6 +400,10 @@ class _LuckyGameViewState<
     }
   }
 
+  /// 一局是否在进行：加速、匀速、减速算，待机慢转不算；结构变更只在一局内延后。
+  static bool _roundActive(LuckyPhase phase) =>
+      phase.isMoving && phase != LuckyPhase.idleSpinning;
+
   /// 构建低频布局与渲染表面。
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: _buildBox);
@@ -417,8 +421,9 @@ class _LuckyGameViewState<
     _building = true;
     try {
       final previous = _layout;
-      final defer =
-          _structural && _controller.phase.value.isMoving && previous != null;
+      final defer = _structural &&
+          _roundActive(_controller.phase.value) &&
+          previous != null;
       if (!defer && (_dirty || previous?.size != size)) {
         final resized = previous?.size != size;
         if (resized) {
@@ -442,7 +447,13 @@ class _LuckyGameViewState<
         _generation++;
         _dirty = false;
         _structural = false;
+        // 待机轮播没有本局可破坏：结构变更立即生效，motion 若因此回到静止则续上轮播。
+        final wasIdleSpinning =
+            _controller.phase.value == LuckyPhase.idleSpinning;
         _controller.configure(config, _layout);
+        if (wasIdleSpinning && _controller.phase.value == LuckyPhase.idle) {
+          _controller.idleSpin();
+        }
         if (resized) {
           widget.hooks.afterResize?.call();
         }

@@ -39,6 +39,34 @@ void main() {
       expect(result?.prize?.number, 20);
       await tester.pumpWidget(const SizedBox());
     });
+    testWidgets(
+        'changing the pocket count during idleSpinning applies at once, keeps '
+        'spinning and the next result belongs to the new pockets',
+        (tester) async {
+      final controller = NumberWheelController();
+      addTearDown(controller.dispose);
+      LuckyResult<NumberWheelPocket>? result;
+      Widget build(NumberWheelConfig config) => _box(LuckyNumberWheel(
+          config: config, controller: controller, onEnd: (r) => result = r));
+      await tester.pumpWidget(build(numberWheelFixture));
+      controller.idleSpin();
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(controller.phase.value, LuckyPhase.idleSpinning);
+      final fewer = numberWheelFixture.copyWith(
+          pockets: numberWheelFixture.pockets.sublist(0, 2));
+      await tester.pumpWidget(build(fewer));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(controller.phase.value, LuckyPhase.idleSpinning);
+      // 新配置已生效：被删掉的号码 30 不再存在。
+      expect(() => controller.stopNumber(30), throwsArgumentError);
+      expect(controller.play(), isTrue);
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(controller.stopNumber(20), isTrue);
+      await _settle(tester);
+      expect(result?.prize?.number, 20);
+      expect(result?.index, 1);
+      await tester.pumpWidget(const SizedBox());
+    });
     testWidgets('tapping the center calls onStart only in idle-like phases',
         (tester) async {
       final controller = NumberWheelController();

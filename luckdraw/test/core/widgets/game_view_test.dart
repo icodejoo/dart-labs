@@ -73,11 +73,15 @@ class _CounterMotion
   /// 控制器回调重入测试入口。
   VoidCallback? duringTick;
 
+  /// 为真时配置变更会让运动回到静止，模拟条目数变化的玩法。
+  bool resetOnConfigure = false;
+
   /// 应用插件配置。
   @override
   void configure(int config, _CounterLayout? layout) {
     configured = config;
     configurations++;
+    if (resetOnConfigure && phase.isMoving) frame.phase = LuckyPhase.idle;
   }
 
   /// 开始抽奖。
@@ -1267,12 +1271,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);
     });
-    for (final movingPhase in [
-      'accelerating',
-      'cruising',
-      'decelerating',
-      'idleSpinning'
-    ]) {
+    for (final movingPhase in ['accelerating', 'cruising', 'decelerating']) {
       testWidgets('F2 structural updates queue during $movingPhase',
           (tester) async {
         final game = _CounterGame(probe);
@@ -1282,11 +1281,7 @@ void main() {
             controller: controller,
             width: 100,
             height: 100)));
-        if (movingPhase == 'idleSpinning') {
-          controller.idleSpin();
-        } else {
-          controller.play();
-        }
+        controller.play();
         controller.setPhase(LuckyPhase.values.byName(movingPhase));
         final value = controller.frame.value;
         await tester.pumpWidget(_root(LuckyGameView(
@@ -1304,6 +1299,49 @@ void main() {
         await tester.pumpWidget(const SizedBox());
       });
     }
+    testWidgets('F2 structural updates apply immediately during idleSpinning',
+        (tester) async {
+      final game = _CounterGame(probe);
+      await tester.pumpWidget(_root(LuckyGameView(
+          game: game,
+          config: 1,
+          controller: controller,
+          width: 100,
+          height: 100)));
+      controller.idleSpin();
+      expect(controller.phase.value, LuckyPhase.idleSpinning);
+      await tester.pumpWidget(_root(LuckyGameView(
+          game: game,
+          config: 2,
+          controller: controller,
+          width: 100,
+          height: 100)));
+      expect(probe.data!.config, 2);
+      expect(controller.phase.value, LuckyPhase.idleSpinning);
+      await tester.pumpWidget(const SizedBox());
+    });
+    testWidgets(
+        'idleSpinning resumes when a structural update stops the motion',
+        (tester) async {
+      final game = _CounterGame(probe);
+      await tester.pumpWidget(_root(LuckyGameView(
+          game: game,
+          config: 1,
+          controller: controller,
+          width: 100,
+          height: 100)));
+      controller.engine.resetOnConfigure = true;
+      controller.idleSpin();
+      await tester.pumpWidget(_root(LuckyGameView(
+          game: game,
+          config: 2,
+          controller: controller,
+          width: 100,
+          height: 100)));
+      expect(probe.data!.config, 2);
+      expect(controller.phase.value, LuckyPhase.idleSpinning);
+      await tester.pumpWidget(const SizedBox());
+    });
     testWidgets(
         'structural updates keep old surface until deceleration settles',
         (tester) async {

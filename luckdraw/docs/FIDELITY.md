@@ -791,7 +791,7 @@ IMP-05 是无开关修复，在 `frame + UpstreamStopSolver` 下也无条件生�
 | IMP-04 | 图片：`onImageError`、`fallback`、`onReady`；失败不影响其它类别重绘；`afterInit` 在全部图片有结论后触发 | #417、#264；上游 `Promise.all` 一张失败整类不重绘（wheel.ts:218-221） | 无 fallback 且全部加载成功时与上游最终画面一致；`afterInit` 触发时机不同（U-22） | 无需开关 | ISS-417、ISS-264 |
 | IMP-05 | 老虎机减速首帧（`endInterval == 0`）取 `stopScroll`，不归零 | U-06（一帧跳到起点，#205 同类） | 该帧不同（上游 scroll=0） | 无开关；1:1 对比**排除**每列减速首帧并改断言"等于 stopScroll" | FID-S11 |
 | IMP-06 | `splitLuckyText` 逐码点 | emoji 代理对被切开 | BMP 文本逐位相同；对照用例只用 ASCII | 无 | FID-U16 |
-| IMP-07 | 受控更新：外观立即且不重置动画；结构变更在 accelerating/cruising/decelerating/idleSpinning 全部排队到本局结算后；尺寸只重算布局；老虎机滚动量随 `cellAndSpacing` 缩放 | #382 #287 #550 #246 #146 | 对照用例不含运行中改配置，无影响；motion configure 另做钳制/重映射 | 无 | ISS-382、ISS-287、ISS-146 |
+| IMP-07 | 受控更新：外观立即且不重置动画；结构变更在 accelerating/cruising/decelerating 排队到本局结算后，idleSpinning 立即应用并续上待机；尺寸只重算布局；老虎机滚动量随 `cellAndSpacing` 缩放 | #382 #287 #550 #246 #146 | 对照用例不含运行中改配置，无影响；motion configure 另做钳制/重映射 | 无 | ISS-382、ISS-287、ISS-146 |
 | IMP-08 | 非有限值/零奖品/零时长保护：零奖品 `play()` 返回 false；求解迭代上限 100000；时长 ≤0 按 1ms | U-05、U-13（死循环）、0/0 | 上游在这些输入下卡死或 NaN，无可比性 | 无 | R2-11、R3-21、R3-25 |
 | IMP-09 | 三玩法背景都支持渐变（`LuckyFill`）；compat 色标解析修正（两种写法 + >2 色均分 + 括号感知切分） | #402、U-10 | 转盘/老虎机上游写渐变串为无效输入（Canvas 忽略赋值、沿用上一个 fillStyle）；九宫格 ≤2 个无位置色标时一致 | 无（复刻"沿用上一个 fillStyle"无意义） | ISS-402 |
 | IMP-10 | 几何钳制：半径/宽高 `max(0, …)`，负值段跳过 | #336 #416（根因未确认） | 上游在这些输入下抛异常 | 无 | ISS-336 |
