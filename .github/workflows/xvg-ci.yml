@@ -571,19 +571,11 @@ jobs:
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
 
-      # xvg 的 macOS 插件只走 CocoaPods（vendored framework）。Flutter 3.47 默认开 Swift
-      # Package Manager 集成，会让 Runner 链接阶段找不到 xvg.framework，这里先关掉。
-      - name: Disable Swift Package Manager integration
-        run: flutter config --no-enable-swift-package-manager
-
-      # TODO(migration): remove this guard once the macOS framework is
-      # committed. The three symlinks are checked too (`-L`): a Windows
-      # checkout with core.symlinks=false materialises them as plain text
-      # files, which would break codesign in a way nothing else here catches.
+      # Check both symlink type and resolution: `-L` alone accepts dangling
+      # links (the old executable link still pointed to Versions/Current/svgx).
       #
-      # TODO(migration)：macOS framework 提交后删除此守卫。三个符号链接也一并检查
-      # （`-L`）：Windows 上 core.symlinks=false 的检出会把它们落成普通文本文件，
-      # 那会在别处都发现不了的地方搞垮 codesign。
+      # 同时检查链接类型与解析结果：仅检查 `-L` 会放过悬空链接，旧的可执行文件链接
+      # 仍指向 Versions/Current/svgx，导致 framework 存在却无法链接。
       - name: Check prebuilt macOS framework exists
         id: guard
         run: |
@@ -592,11 +584,14 @@ jobs:
              && [ -f "$fw/Versions/A/Resources/Info.plist" ] \
              && [ -L "$fw/Versions/Current" ] \
              && [ -L "$fw/xvg" ] \
-             && [ -L "$fw/Resources" ]; then
+             && [ -L "$fw/Resources" ] \
+             && [ "$fw/xvg" -ef "$fw/Versions/A/xvg" ] \
+             && [ "$fw/Resources/Info.plist" -ef "$fw/Versions/A/Resources/Info.plist" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::xvg/macos/xvg.framework not committed (or its symlinks are missing) — run the xvg-prebuilt workflow to produce it."
+            echo "::error::xvg.framework is missing or has broken versioned-bundle symlinks"
+            ls -l "$fw" "$fw/Versions" || true
+            exit 1
           fi
 
       - name: Cache CocoaPods
@@ -618,7 +613,20 @@ jobs:
       - name: flutter build macos
         if: steps.guard.outputs.present == 'true'
         working-directory: xvg/example
-        run: flutter build macos
+        run: flutter build macos --verbose
+
+      - name: Diagnose macOS framework linkage
+        if: failure() && steps.guard.outputs.present == 'true'
+        working-directory: xvg/example/macos
+        run: |
+          # 保留 CocoaPods 实际生成的搜索路径、链接参数和嵌入路径供排查。
+          for config in Pods/Target\ Support\ Files/Pods-Runner/*.xcconfig; do
+            test -f "$config" || continue
+            echo "$config"
+            grep -E '^(FRAMEWORK_SEARCH_PATHS|OTHER_LDFLAGS|PODS_ROOT) =' "$config" || true
+          done
+          grep -n 'xvg.framework' 'Pods/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh' || true
+          ls -l Flutter/ephemeral/.symlinks/plugins/xvg/macos/xvg.framework || true
 
       # xvg links the Rust core dynamically on macOS, out of a *vendored*
       # framework (it used to be a pod-built one wrapping a -force_load'd static
@@ -643,7 +651,10 @@ jobs:
           test -f "$fw" \
             || { echo "::error::xvg.framework was not embedded in the app bundle"; exit 1; }
           test -L "$bundle/Versions/Current" && test -L "$bundle/xvg" \
-            || { echo "::error::the embedded xvg.framework lost its versioned-bundle symlinks"; exit 1; }
+            && test -L "$bundle/Resources" \
+            && [ "$bundle/xvg" -ef "$fw" ] \
+            && [ "$bundle/Resources/Info.plist" -ef "$bundle/Versions/A/Resources/Info.plist" ] \
+            || { echo "::error::the embedded xvg.framework has broken versioned-bundle symlinks"; exit 1; }
           otool -L "$bin" | grep -q '@rpath/xvg.framework/Versions/A/xvg' \
             || { echo "::error::the app does not link @rpath/xvg.framework"; exit 1; }
           otool -D "$fw" | grep -q '@rpath/xvg.framework/Versions/A/xvg' \
