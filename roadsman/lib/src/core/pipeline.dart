@@ -26,6 +26,7 @@ class CommandTransformContext {
   /// Current theme.
   final Theme theme;
 
+  /// Creates a [CommandTransformContext].
   const CommandTransformContext({required this.roadId, required this.layout, required this.theme});
 }
 
@@ -74,6 +75,7 @@ class WatermarkOptions {
   /// Text color, default white.
   final int fill;
 
+  /// Creates a [WatermarkOptions].
   const WatermarkOptions({this.alpha = 0.15, this.fontSize = 14, this.fill = 0xFFFFFFFF});
 }
 

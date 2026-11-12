@@ -120,6 +120,7 @@ class RoadPanel extends StatefulWidget {
   /// [RoadPainter.onAfterPaintCommand].
   final CommandPaintCallback? onAfterPaintCommand;
 
+  /// Creates a [RoadPanel].
   const RoadPanel({
     super.key,
     required this.cells,
