@@ -23,6 +23,21 @@ void main() {
                 executable: Platform.resolvedExecutable),
             throwsA(isA<FileSystemException>()
                 .having((e) => e.message, 'message', contains('Roboto'))));
+        final legacyFont = File('${directory.path}/$kLuckyLegacyRobotoPath');
+        await legacyFont.parent.create(recursive: true);
+        await legacyFont.writeAsBytes([2]);
+        expect(
+            findLuckyTestFont(
+                    flutterRoot: directory.path,
+                    executable: Platform.resolvedExecutable)
+                .readAsBytesSync(),
+            [2]);
+        expect(
+            findLuckyTestFont(
+                    executable: '${directory.path}/bin/cache/dart-sdk/bin/dart')
+                .readAsBytesSync(),
+            [2]);
+        await legacyFont.delete();
         final font = File('${directory.path}/$kLuckyRobotoPath');
         await font.parent.create(recursive: true);
         await font.writeAsBytes([1]);

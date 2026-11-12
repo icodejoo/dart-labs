@@ -1,3 +1,18 @@
+## 0.2.0
+
+- Upgrade to `flutter_query ^0.11.1` and adapt the GetX bridge to its sealed
+  query, infinite-query, and mutation snapshots. Existing getx_query result
+  getters, actions, and plain-value `placeholder`, `seed`, and `seedUpdatedAt`
+  parameters remain unchanged on standalone queries, scopes, and view models.
+- **Breaking:** Re-exported `QueryOptions`, `InfiniteQueryOptions`, and raw
+  `QueryClient` methods follow flutter_query 0.11: wrap option values with
+  `Placeholder.value(...)`, `Seed.value(...)`, and `SeedUpdatedAt.value(...)`.
+  Lazy forms are supported in `useQueries` options. Prefix imports or hide
+  Flutter's `Placeholder` widget when using the option type of the same name.
+- **Breaking:** Seeds now initialize only queries without cached data; they
+  never replace existing cached data, even with a newer seed timestamp.
+- Add migration regression coverage and update the bilingual README and example.
+
 ## 0.1.2
 
 - Docs only: rewrote README wording in plain language.

@@ -23,7 +23,7 @@ class InfiniteQueryResult<TData, TPageParam> {
       : _placeholder = placeholder;
 
   final fq.InfiniteData<TData, TPageParam>? _placeholder;
-  final _rx = Rx<fq.InfiniteQueryResult<TData, dynamic, TPageParam>?>(null);
+  final _rx = Rx<fq.InfiniteQuerySnapshot<TData, dynamic, TPageParam>?>(null);
   bool _disposed = false;
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ class InfiniteQueryResult<TData, TPageParam> {
   /// All fetched pages and their page params, or `null` before the first
   /// snapshot (falls back to the ctor-supplied `placeholder`).
   fq.InfiniteData<TData, TPageParam>? get data =>
-      _rx.value?.data ?? _placeholder;
+      _rx.value?.dataOrNull ?? _placeholder;
 
   /// Shorthand for `data.pages`, `const []` before the first snapshot.
   List<TData> get pages => data?.pages ?? const [];
@@ -41,26 +41,30 @@ class InfiniteQueryResult<TData, TPageParam> {
 
   // ── Status ────────────────────────────────────────────────────────────────
 
-  bool get isIdle              => _rx.value == null;
-  bool get isLoading           => _rx.value == null || _rx.value!.isPending;
-  bool get isFetching          => _rx.value?.isFetching          ?? false;
-  bool get isSuccess           => _rx.value?.isSuccess           ?? false;
-  bool get isError             => _rx.value?.isError             ?? false;
-  bool get isStale             => _rx.value?.isStale             ?? true;
+  bool get isIdle => _rx.value == null;
+  bool get isLoading => _rx.value == null || _rx.value!.isPending;
+  bool get isFetching => _rx.value?.isFetching ?? false;
+  bool get isSuccess => _rx.value?.isSuccess ?? false;
+  bool get isError => _rx.value?.isError ?? false;
+  bool get isStale => _rx.value?.isStale ?? true;
   bool get isFetchedAfterMount => _rx.value?.isFetchedAfterMount ?? false;
 
   // ── Pagination ────────────────────────────────────────────────────────────
 
-  bool get hasNextPage              => _rx.value?.hasNextPage              ?? false;
-  bool get hasPreviousPage          => _rx.value?.hasPreviousPage          ?? false;
-  bool get isFetchingNextPage       => _rx.value?.isFetchingNextPage       ?? false;
-  bool get isFetchingPreviousPage   => _rx.value?.isFetchingPreviousPage   ?? false;
-  bool get isFetchNextPageError     => _rx.value?.isFetchNextPageError     ?? false;
-  bool get isFetchPreviousPageError => _rx.value?.isFetchPreviousPageError ?? false;
+  bool get hasNextPage => _rx.value?.hasNextPage ?? false;
+  bool get hasPreviousPage => _rx.value?.hasPreviousPage ?? false;
+  bool get isFetchingNextPage => _rx.value?.isFetchingNextPage ?? false;
+  bool get isFetchingPreviousPage => _rx.value?.isFetchingPreviousPage ?? false;
+  bool get isFetchNextPageError => _rx.value?.isFetchNextPageError ?? false;
+  bool get isFetchPreviousPageError =>
+      _rx.value?.isFetchPreviousPageError ?? false;
 
   // ── Error / meta ──────────────────────────────────────────────────────────
 
-  Object?   get error     => _rx.value?.error;
+  Object? get error => switch (_rx.value) {
+        fq.InfiniteQueryError(:final error) => error,
+        _ => null,
+      };
   DateTime? get updatedAt => _rx.value?.dataUpdatedAt;
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -99,7 +103,7 @@ class InfiniteQueryResult<TData, TPageParam> {
 
   /// Called by useInfiniteQuery to push a new flutter_query snapshot.
   @internal
-  void update(fq.InfiniteQueryResult<TData, dynamic, TPageParam> result) =>
+  void update(fq.InfiniteQuerySnapshot<TData, dynamic, TPageParam> result) =>
       _rx.value = result;
 
   /// Set by useInfiniteQuery to wire up observer cleanup.
