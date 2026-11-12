@@ -1,17 +1,18 @@
 # layerman_example
 
-A new Flutter project.
+Interactive demo for [layerman](../README.md) 1.0.0 (depends on the package by `path: ../`).
+Live build: https://icodejoo.github.io/dart-labs/layerman/
 
-## Getting Started
+Pages (left rail): v0.3 Features (blockedBy, suppress, tags, cooldown status), Queue Basics,
+Replace & Affix, Overlap (`mode: OverlayMode.overlap`, `delay`), Timing, Conditions
+(`RouteMatcher`, `auth:` predicate, `when`, `gate:` / `OverlayVerdict`), Cooldown, Lifecycle
+(`ctx.close`, `beforeClose`), Pause & Resume (`pauseOnRoutes`), External Presenters
+(native dialog, GetX, bot_toast), Mixed UI Libraries, Setup & Restart.
+Every backend confirms first-frame visibility with `OverlayVisibility` or `presentRoute`.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter run -d windows        # or an Android device / chrome
+flutter test                  # widget + README recipe tests
+flutter test integration_test # needs a device
+```
