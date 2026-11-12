@@ -9,17 +9,24 @@ bool luckyTestFontsLoaded = false;
 const String kLuckyRobotoPath =
     'bin/cache/artifacts/material_fonts/roboto-regular.ttf';
 
+/// 最低 Flutter SDK 的字体文件名；Linux 文件系统区分大小写。
+const String kLuckyLegacyRobotoPath =
+    'bin/cache/artifacts/material_fonts/Roboto-Regular.ttf';
+
+/// 新旧 SDK 字体路径，优先保持现有查找顺序。
+const List<String> _robotoPaths = [kLuckyRobotoPath, kLuckyLegacyRobotoPath];
+
 /// 查找 SDK 的 Roboto；显式 [flutterRoot] 优先，否则从 [executable] 上溯。
 ///
 /// 字体不存在时抛出带候选路径的 [FileSystemException]。
 File findLuckyTestFont({String? flutterRoot, required String executable}) {
   final candidates = <String>[];
   if (flutterRoot != null && flutterRoot.isNotEmpty) {
-    candidates.add('$flutterRoot/$kLuckyRobotoPath');
+    candidates.addAll(_robotoPaths.map((path) => '$flutterRoot/$path'));
   } else {
     var directory = File(executable).absolute.parent;
     while (true) {
-      candidates.add('${directory.path}/$kLuckyRobotoPath');
+      candidates.addAll(_robotoPaths.map((path) => '${directory.path}/$path'));
       final parent = directory.parent;
       if (parent.path == directory.path) break;
       directory = parent;

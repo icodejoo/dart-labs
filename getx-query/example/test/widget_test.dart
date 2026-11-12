@@ -164,7 +164,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Replay'));
       await tester.pump();
-      expect(find.text('Ready: 0 / 2 · Fetching: 2'), findsOneWidget);
+      expect(find.text('Ready: 1 / 2 · Fetching: 2'), findsOneWidget);
+      expect(find.text('Users: 0'), findsOneWidget);
       await tester.pump(_requestWait);
       expect(find.text('Ready: 1 / 2 · Fetching: 1'), findsOneWidget);
       await tester.pumpAndSettle();

@@ -322,7 +322,7 @@ const Set<String> _leverSymbols = {
 /// 默认二次缓动符号。
 const String _quadSymbol = 'QuadEasing';
 
-/// 大乐透飞行动画依赖的三次缓动符号。
+/// 抽签默认翻卡与大乐透飞行动画依赖的三次缓动符号。
 const String _cubicSymbol = 'CubicEasing';
 
 /// 三个互不调用的迁移转换函数。
@@ -373,7 +373,7 @@ const Map<String, Set<String>> _allowedSymbols = {
   _slotProbe: {_quadSymbol, ..._slotSymbols},
   _capsuleProbe: {_quadSymbol, ..._capsuleSymbols, ..._physicsSymbols},
   _numberWheelProbe: {_quadSymbol, ..._numberWheelSymbols},
-  _lotsProbe: {_quadSymbol, ..._lotsSymbols},
+  _lotsProbe: {_quadSymbol, _cubicSymbol, ..._lotsSymbols},
   _lottoProbe: {
     _quadSymbol,
     _cubicSymbol,
