@@ -1,17 +1,21 @@
-# example
+# countman example
 
-A new Flutter project.
+Demo app for [countman](https://pub.dev/packages/countman) 0.3.0. Live version:
+https://icodejoo.github.io/dart-labs/countman/
 
-## Getting Started
+Pages: Counter, Countdown, Elapsed, Advanced (custom plugin, clocks, batch startup),
+Provider, plus performance and benchmark pages.
+`lib/pomodoro_plugin.dart` is a complete custom `TaskQueuePlugin` that sleeps
+between updates (the 0.3.0 `tick` / `nextWake` API).
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run -d windows        # or any device / chrome
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+Benchmark (profile mode, see the main README):
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard
+```
