@@ -94,6 +94,7 @@ void main() {
   });
 
   testWidgets('static icon builds no redundant sizing layer', (tester) async {
+    await tester.runAsync(Xvg.ensureInitialized);
     await tester.pumpWidget(
       const Center(child: XvgStatic(_staticSource, width: 32, height: 32)),
     );
@@ -102,7 +103,7 @@ void main() {
       _renderChain(tester, find.byType(XvgStatic)),
       isNot(contains('RenderConstrainedBox')),
     );
-  }, skip: true); // needs the Rust FFI library / 需要 Rust FFI 动态库
+  });
 
   // The layer being removed is a sizing layer, so the thing that must be
   // proven unchanged is the resulting size, under every constraint regime a

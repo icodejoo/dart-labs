@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:luckdraw/luckdraw.dart';
 
+import 'demo_kit/demo_kit.dart' as kit;
+import 'online/game_panel.dart';
 import 'theme/demo_theme.dart';
 import 'theme/prize_art.dart';
 
@@ -74,6 +76,15 @@ class DemoShell extends StatelessWidget {
   /// 布局在窄屏和小窗口下允许滚动。
   @override
   Widget build(BuildContext context) {
+    if (kit.DemoLocaleScope.maybeOf(context) != null) {
+      return GamePanel(
+          game: game,
+          phase: phase,
+          result: result,
+          start: start,
+          stop: serverResult,
+          tall: title == '扭蛋机' || title == '抽签' || title == '大乐透');
+    }
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final (description, icon) = demoDescription(title);

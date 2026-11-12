@@ -172,12 +172,15 @@ class PixelSnapLayer extends OffsetLayer {
   /// Whether the last composition snapped. / 最近一次合成是否对齐。
   @visibleForTesting
   bool debugDidSnap = false;
+
   /// Why the last composition skipped snapping. / 最近一次合成跳过对齐的原因。
   @visibleForTesting
   String? debugSkipReason;
+
   /// Last applied correction matrix. / 最近一次应用的修正矩阵。
   @visibleForTesting
   Matrix4 debugCorrection = Matrix4.identity();
+
   /// Number of scenes composed. / 已合成的场景数。
   @visibleForTesting
   int debugSceneCount = 0;

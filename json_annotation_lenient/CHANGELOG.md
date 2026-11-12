@@ -1,3 +1,7 @@
+## 1.3.1
+
+- Docs only: rewrote README wording in plain language; Chinese README renamed to README.zh-CN.md.
+
 # Changelog
 
 ## 1.3.0

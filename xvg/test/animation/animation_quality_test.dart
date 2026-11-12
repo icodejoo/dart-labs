@@ -260,9 +260,7 @@ void main() {
       //
       // 逐控件覆盖，同时全局默认是降级的——证明这个 opt-out 在控件级别也生效，
       // 不是只能全局关。
-      await tester.pumpWidget(
-        _grid(count, quality: XvgAnimationQuality.exact),
-      );
+      await tester.pumpWidget(_grid(count, quality: XvgAnimationQuality.exact));
       // Anchor before checking the first advancing frame.
       // 先锚定，再检查首个推进帧。
       await tester.pump(const Duration(milliseconds: 16));

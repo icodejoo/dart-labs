@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/capsule.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 
 /// 旋钮、掉落和开蛋示例；例如 `const CapsulePage()`。
 class CapsulePage extends StatefulWidget {
   /// 创建扭蛋机页。
-  const CapsulePage({super.key});
+  const CapsulePage({super.key, this.initialPhysics = false});
+
+  /// 初始是否开启实验性物理碰撞。
+  final bool initialPhysics;
 
   /// 创建页面状态。
   @override
@@ -70,7 +74,7 @@ class CapsulePageState extends State<CapsulePage> {
           const CapsuleOptions(motion: demoMotion, physics: LuckyPhysics()));
 
   /// 是否使用物理碰撞模式。
-  bool _physics = false;
+  late bool _physics = widget.initialPhysics;
 
   /// 结果文本。
   String _result = '';
@@ -99,7 +103,7 @@ class CapsulePageState extends State<CapsulePage> {
         controller.stop(demoTarget);
       },
       game: LuckyCapsuleMachine(
-          config: _physics ? physicsConfig : config,
+          config: demoConfig(context, _physics ? physicsConfig : config),
           controller: controller,
           width: demoSide,
           height: demoTall,
