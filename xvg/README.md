@@ -118,7 +118,7 @@ const Xvg.string(
   Duration? animationSpan,
   bool autoplay = true,
   double playbackRate = 1.0,
-  double? maxFps,
+  double? fps,
   ValueChanged<XvgAnimationInfo>? onLoaded,
   void Function(Object error, StackTrace stackTrace)? onError,
   ImageErrorWidgetBuilder? errorBuilder,
@@ -282,14 +282,14 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `animationSpan` | `null` | Span mapped to `animation`'s 0..1; `null` uses the document's natural duration. |
 | `autoplay` | `true` | Start implicit playback (no `controller`/`animation`). Must stay `true` with `animation`. |
 | `playbackRate` | `1.0` | Finite signed speed for implicit playback; negative reverses, `0` pauses. Must stay `1.0` with `controller` or `animation`. |
-| `maxFps` | `null` | Positive sampling/repaint cap; ignored with `animation`. |
+| `fps` | `null` | null follows `Xvg.fps`; positive caps sampling/repaints; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global. Ignored with `animation` and static sources. |
 | `onLoaded` | `null` | Animated source (and its embedded images) ready, with `XvgAnimationInfo`. Never called for static sources. |
 | `onError` | `null` | Receives load/parse/span failures. Static failures are reported after the frame, once per source/theme change. |
 | `errorBuilder` | `null` | Replacement content on failure (`ImageErrorWidgetBuilder`, like `Image.errorBuilder`). |
 | `onEvent` | `null` | Playback and element begin/end/repeat events (`XvgAnimationEvent`). |
 | `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop` | `null` | First tick / natural finite completion / known loop crossings (iteration starts at one). Not called with `animation`. |
 
-Invalid combinations are `assert`s in debug builds: non-positive `maxFps`,
+Invalid combinations are `assert`s in debug builds: negative or NaN `fps`,
 non-finite `playbackRate`, `controller` together with `animation`, a
 non-default `playbackRate` with `controller`, and a non-default `autoplay` or
 `playbackRate` with `animation`.
@@ -381,7 +381,7 @@ What to know:
 * Use `controller` (shared, seekable) or `animation` (driven by your own Flutter
   `AnimationController`) instead of implicit playback; see
   [Animation playback](#animation-playback).
-* `onLoaded`, `onEvent`, `quality`, `maxFps`, `autoplay` and the controller /
+* `onLoaded`, `onEvent`, `quality`, `fps`, `autoplay` and the controller /
   animation / callback parameters only matter for animated sources; a static
   source ignores them and attaches no listeners or controllers.
 * `colorFilter` and `theme` work the same on both paths.
@@ -501,7 +501,7 @@ Practical rules:
   and `prewarm` move large image-free sources to a persistent worker isolate.
 * **Many concurrent animated icons:** keep the default
   `XvgAnimationQuality` (adaptive frame skipping above 24 concurrent icons) or
-  cap `maxFps`; use `XvgAnimationQuality.exact` for a hero icon that must never
+  cap `fps`; use `XvgAnimationQuality.exact` for a hero icon that must never
   skip a frame.
 * **ImageProvider rasters** use Flutter's `ImageCache`, not these caches.
 
@@ -574,7 +574,7 @@ retain their original positions).
 ## Animation playback
 
 All five `Xvg.string/asset/network/file/memory` entries accept `controller`,
-`animation`, `animationSpan`, `autoplay`, `playbackRate`, `maxFps`, `onLoaded`,
+`animation`, `animationSpan`, `autoplay`, `playbackRate`, `fps`, `onLoaded`,
 `onError`, `errorBuilder`, `onEvent`, `onAnimationStart`, `onAnimationComplete`
 and `onAnimationLoop`, alongside `theme`, `quality` and `colorFilter`.
 
@@ -661,7 +661,7 @@ driver's `AnimationStatus` for start/completion: xvg emits neither event and
 does not call `onAnimationStart` / `onAnimationComplete` in this mode.
 `onEvent` works in implicit, controller and animation modes. The driver owns
 vsync and TickerMode; these instances bypass shared-clock concurrency and
-frame skipping (`maxFps` is ignored). Prefer controller/implicit playback for
+frame skipping (`fps` is ignored). Prefer controller/implicit playback for
 many concurrent SVGs. Disposing the supplied Flutter AnimationController
 retains the last frame; xvg removes its listener on replacement or unmount.
 
@@ -704,6 +704,38 @@ void observe(XvgAnimationController controller) {
   controller.addCue(const Duration(seconds: 1), () => debugPrint('t = 1 s'));
 }
 ```
+
+### Global frame rate: Xvg.fps
+
+`fps` is a `double?`: null follows the live global `Xvg.fps.value`, a positive
+value caps sampling/repaints, 0 freezes at the first frame, and
+`double.infinity` is unlimited and ignores the global setting. Negative values
+and NaN assert in debug. With both instance and global null, playback is unchanged.
+Global null or infinity means unlimited. Changes take effect by the next pump/frame.
+
+```dart
+// Business code can listen for low-end-device or low-memory signals and set:
+Xvg.fps.value = 10;
+
+// Freeze every animation that follows global, then restore playback.
+Xvg.fps.value = 0;
+Xvg.fps.value = null;
+
+// Keep one instance unlimited, even while global freezes or caps animations.
+Xvg.string(svg, fps: double.infinity);
+```
+
+`XvgAnimated.string` uses the same parameter and global setting. Unfreezing
+preserves playback intent: `autoplay: false` stays paused. Shared controllers
+continue while an attached widget remains eligible; a frozen widget follows
+shared time. Only when **all attached widgets have effective fps 0** does the
+controller seek to the first frame and pause. Positive caps use the most
+permissive mounted cap, combined with `quality` using the larger divisor.
+A selected range does not prevent freezing at document time zero; unfreezing
+restores its bounds before playback. TickerMode alone pauses at the current frame.
+External `animation` drivers
+ignore instance and global fps; their caller owns the drive policy. Static
+sources ignore fps. The library does not read system reduced-motion settings.
 
 ## Animation quality
 
@@ -751,7 +783,7 @@ Widget staticOnly(String svg) => XvgStatic(
 );
 
 Widget animatedOnly(String svg) =>
-    XvgAnimated.string(svg, width: 24, height: 24, maxFps: 30);
+    XvgAnimated.string(svg, width: 24, height: 24, fps: 30);
 ```
 
 `XvgStatic` takes no animation or controller parameters and its `alignment` is
