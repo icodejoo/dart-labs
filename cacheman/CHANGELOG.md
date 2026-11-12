@@ -1,3 +1,7 @@
+## 0.7.3
+
+- Shorten the pubspec description to meet the pub.dev length limit.
+
 ## 0.7.2
 
 - Docs only: rewrote README wording in plain language.

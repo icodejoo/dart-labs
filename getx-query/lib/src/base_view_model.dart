@@ -2,10 +2,7 @@
 
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_query/flutter_query.dart'
-    hide QueryResult,
-        MutationResult,
-        InfiniteQueryResult,
-        useQuery,
+    hide useQuery,
         useQueryClient,
         QueryClientProvider,
         useMutation,
@@ -51,9 +48,9 @@ VoidCallback _makeObserverUpdater<T>(
         resolveReactiveKey(key),
         fn,
         enabled:            plainValue(enabled) as bool?,
-        placeholder:        placeholder,
-        seed:               seed,
-        seedUpdatedAt:      seedUpdatedAt,
+        placeholder:        placeholder == null ? null : Placeholder.value(placeholder),
+        seed:               seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:      seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         staleDuration:      staleDuration,
         gcDuration:         gcDuration,
         retry:              retry,
@@ -116,9 +113,9 @@ class _Core {
       _client,
       QueryOptions<T, dynamic>(
         resolveReactiveKey(queryKey), queryFn,
-        placeholder:        placeholder,
-        seed:               seed,
-        seedUpdatedAt:      seedUpdatedAt,
+        placeholder:        placeholder == null ? null : Placeholder.value(placeholder),
+        seed:               seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:      seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         staleDuration:      staleDuration,
         gcDuration:         gcDuration,
         retry:              retry,
@@ -207,15 +204,15 @@ class _Core {
           networkMode:          networkMode,
           staleDuration:        staleDuration,
           gcDuration:           gcDuration,
-          placeholder:          placeholder,
+          placeholder:          placeholder == null ? null : Placeholder.value(placeholder),
           refetchOnMount:       refetchOnMount,
           refetchOnResume:      refetchOnResume,
           refetchOnReconnect:   refetchOnReconnect,
           refetchInterval:      refetchInterval,
           retry:                retry,
           retryOnMount:         retryOnMount,
-          seed:                 seed,
-          seedUpdatedAt:        seedUpdatedAt,
+          seed:                 seed == null ? null : Seed.value(seed),
+          seedUpdatedAt:        seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
           meta:                 meta,
         );
 
@@ -310,8 +307,8 @@ class _Core {
         staleDuration:  staleDuration,
         retry:          retry,
         gcDuration:     gcDuration,
-        seed:           seed,
-        seedUpdatedAt:  seedUpdatedAt,
+        seed:           seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:  seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         meta:           meta,
       );
 
@@ -330,8 +327,8 @@ class _Core {
         staleDuration:  staleDuration,
         retry:          retry,
         gcDuration:     gcDuration,
-        seed:           seed,
-        seedUpdatedAt:  seedUpdatedAt,
+        seed:           seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:  seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         meta:           meta,
       );
 
@@ -351,8 +348,8 @@ class _Core {
         staleDuration:      staleDuration,
         retry:              retry,
         gcDuration:         gcDuration,
-        seed:               seed,
-        seedUpdatedAt:      seedUpdatedAt,
+        seed:               seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:      seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         meta:               meta,
         revalidateIfStale:  revalidateIfStale,
       );

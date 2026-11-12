@@ -1,6 +1,6 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 
-import 'package:flutter_query/flutter_query.dart' hide QueryResult, useQuery, useQueryClient;
+import 'package:flutter_query/flutter_query.dart' hide useQuery, useQueryClient;
 
 import 'query_result.dart';
 import 'use_query.dart';
