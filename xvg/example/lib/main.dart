@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:xvg/xvg.dart';
 
 import 'animation_control_page.dart';
+import 'startup_native.dart' if (dart.library.js_interop) 'web_bootstrap.dart';
 
 // The line-md `confirm_circle` icon SVG source, verbatim. Its `<g>` element
 // already uses `fill="none"` (the upstream `fill="currentColor"` bug fixed) so
@@ -203,7 +207,8 @@ const String kAnimatedGradientSvg =
     '</svg>';
 
 Future<void> main() async {
-  await Xvg.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDemo();
   runApp(const MyApp());
 }
 
@@ -290,17 +295,14 @@ class MyApp extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // TEMP WSA DIAGNOSTIC PROBE — reverted before finishing.
-                Container(
-                  width: 300,
-                  height: 80,
-                  color: const Color(0xFFFFFF00),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'plain text test',
-                    style: TextStyle(fontSize: 28, color: Color(0xFFFF0000)),
+                if (kIsWeb)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Experimental wasm demo · Rust + Flutter Web\n'
+                      'File paths unavailable · network follows browser CORS',
+                    ),
                   ),
-                ),
                 const SizedBox(height: 24),
                 const Text('Animated (original SMIL engine)'),
                 const SizedBox(height: 8),
@@ -419,6 +421,21 @@ class MyApp extends StatelessWidget {
                 const SizedBox(height: 8),
                 Xvg.string(kAnimatedGradientSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
+                const Text('Xvg.memory (static SVG bytes)'),
+                const SizedBox(height: 8),
+                Xvg.memory(
+                  Uint8List.fromList(utf8.encode(kStaticCurrentColorSvg)),
+                  width: 96,
+                  height: 96,
+                  theme: const XvgTheme(currentColor: Color(0xFF0D9488)),
+                ),
+                const SizedBox(height: 48),
+                if (kIsWeb) ...[
+                  const Text('Xvg.network (same-origin fetch)'),
+                  const SizedBox(height: 8),
+                  Xvg.network('assets/assets/icon.svg', width: 96, height: 96),
+                  const SizedBox(height: 48),
+                ],
                 const Text('Xvg.asset'),
                 const SizedBox(height: 8),
                 Xvg.asset('assets/icon.svg', width: 96, height: 96),
