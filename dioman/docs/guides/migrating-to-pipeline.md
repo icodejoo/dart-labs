@@ -597,7 +597,7 @@ Future<void> main() async {
 
 ### Cache
 
-自动 key 包含 responseType，Map 键带类型标签；JSON 数组按内容编码，64 KiB 内字节列表保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+自动 key 包含 responseType，Map 键带类型标签；JSON 数组（含普通 `List<int>`，允许负数与大于 255 的整数）按内容编码，仅 `Uint8List` 视为原始字节，64 KiB 内保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
 
 旧写法：
 

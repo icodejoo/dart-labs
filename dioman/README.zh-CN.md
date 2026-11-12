@@ -22,7 +22,7 @@ Dioman<R> 的 R 不是 DiomanResponse<dynamic> 时，必须提供 response: Diom
 dart pub add dioman
 ```
 
-需要 Dart ^3.5.0，运行时只依赖 Dio。
+需要 Dart ^3.5.0 与 Dio ^5.4.0（唯一的运行时依赖）。
 
 > **0.8.0 为破坏性版本**（洋葱管线重写）。从 0.7.x 升级请先读[迁移指南](docs/guides/migrating-to-pipeline.md)与 [CHANGELOG](CHANGELOG.md)。
 
@@ -426,7 +426,7 @@ Future<void> main() async {
 
 ### Cache
 
-深模式和快速模式的自动 key 都包含 responseType，Map 键带类型标签以区分数字 1 与字符串 '1'；JSON 数组按内容编码，64 KiB 内字节列表保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+深模式和快速模式的自动 key 都包含 responseType，Map 键带类型标签以区分数字 1 与字符串 '1'；JSON 数组（含普通 `List<int>`，允许负数与大于 255 的整数）按内容编码，仅 `Uint8List` 视为原始字节，64 KiB 内保留内容哈希与完整 base64；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
 
 internal 和 cancel 结果永不缓存，即使 shouldStore 返回 true。
 
