@@ -78,6 +78,10 @@ jobs:
         run: |
           flutter pub get
           flutter analyze --no-pub
+      - name: Example web build (deploy smoke)
+        if: hashFiles('luckdraw/example/web/index.html') != ''
+        working-directory: luckdraw/example
+        run: flutter build web --release --base-href /dart-labs/luckdraw/
       - name: Bench app
         if: hashFiles('luckdraw/tool/bench/pubspec.yaml') != ''
         working-directory: luckdraw/tool/bench

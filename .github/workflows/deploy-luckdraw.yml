@@ -1,0 +1,54 @@
+name: Deploy luckdraw demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'luckdraw/lib/**'
+      - 'luckdraw/example/lib/**'
+      - 'luckdraw/example/web/**'
+      - 'luckdraw/example/assets/**'
+      - 'luckdraw/example/pubspec.yaml'
+      - 'luckdraw/pubspec.yaml'
+      - '.github/workflows/deploy-luckdraw.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy luckdraw
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Example dependencies
+        working-directory: luckdraw/example
+        run: flutter pub get
+      - name: Analyze example
+        working-directory: luckdraw/example
+        run: flutter analyze --no-pub
+      - name: Build web
+        working-directory: luckdraw/example
+        run: flutter build web --release --base-href /dart-labs/luckdraw/
+      - name: Deploy luckdraw/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: luckdraw/example/build/web
+          destination_dir: luckdraw
+          keep_files: true
+
+  update-index:
+    name: Update root index
+    needs: deploy
+    uses: ./.github/workflows/update-root-index.yml
+    secrets: inherit
