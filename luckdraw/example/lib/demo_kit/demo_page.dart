@@ -354,6 +354,7 @@ class _DemoCardState extends State<DemoCard> {
   /// 构建具有边框的紧凑卡片。
   @override
   Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
         elevation: 0,
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(

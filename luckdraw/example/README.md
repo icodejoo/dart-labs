@@ -22,8 +22,8 @@ flutter run -d windows
 
 pub get 后立即核对 analysis_options.yaml；此工程显式配置 lint 规则，
 不依赖主包的 flutter_lints。资源、平台配置都留在 example/。
-Android 使用 Flutter 3.47 模板生成的 Gradle 配置；本批没有安卓设备，
-没有执行 APK/Gradle 构建。最低 SDK 的设备构建仍需 CI/有设备时验证。
+Android 使用 Flutter 3.47 模板生成的 Gradle 配置；目前没有安卓设备，
+所以没有执行 APK/Gradle 构建。最低 SDK 版本的设备构建，等有 CI 或设备时再验证。
 
 在包根运行集成测试：
 
@@ -43,8 +43,8 @@ SW_SHOWNOACTIVATE、WS_EX_NOACTIVATE，测试模式不转移输入焦点。
 仅测试模式启用 luckdraw/test_window 通道，resize 测试调整真实 HWND，
 并断言窗口没有成为前台窗口。正常运行不会暴露该通道。
 
-本机长副本路径会触发 MSBuild MSB6003/tlog 路径错误。通过指向同一副本的
-临时短路径入口运行可解决，无需改 SDK。若 MSVC 环境缺失，先在当前
+本机上，过长的工作副本路径会触发 MSBuild 的 MSB6003/tlog 路径错误。用一个指向同一副本的
+临时短路径运行就能解决，不用改 SDK。若 MSVC 环境缺失，先在当前
 PowerShell dot-source C:\Users\jelon\.claude\msvc-env.ps1 再调用脚本。
 
 生命周期测试使用 resumed → inactive → hidden，真实等待十秒且不 pump，

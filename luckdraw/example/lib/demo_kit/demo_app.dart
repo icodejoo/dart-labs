@@ -213,12 +213,6 @@ class _DemoAppState extends State<DemoApp> {
           bodySmall: TextStyle(fontSize: DemoTokens.captionSize),
           bodyMedium: TextStyle(fontSize: 14),
         ),
-        cardTheme: CardThemeData(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(DemoTokens.radius),
-          ),
-        ),
       );
 
   /// 释放内部创建的语言状态。

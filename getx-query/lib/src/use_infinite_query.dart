@@ -1,7 +1,7 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 
 import 'package:flutter_query/flutter_query.dart'
-    hide InfiniteQueryResult, useInfiniteQuery, useQueryClient;
+    hide useInfiniteQuery, useQueryClient;
 import 'package:flutter_query/src/core/query_observer.dart';
 
 import 'infinite_query_result.dart';
@@ -75,15 +75,15 @@ InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
         networkMode:          networkMode,
         staleDuration:        staleDuration,
         gcDuration:           gcDuration,
-        placeholder:          placeholder,
+        placeholder:          placeholder == null ? null : Placeholder.value(placeholder),
         refetchOnMount:       refetchOnMount,
         refetchOnResume:      refetchOnResume,
         refetchOnReconnect:   refetchOnReconnect,
         refetchInterval:      refetchInterval,
         retry:                retry,
         retryOnMount:         retryOnMount,
-        seed:                 seed,
-        seedUpdatedAt:        seedUpdatedAt,
+        seed:                 seed == null ? null : Seed.value(seed),
+        seedUpdatedAt:        seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
         meta:                 meta,
       );
 

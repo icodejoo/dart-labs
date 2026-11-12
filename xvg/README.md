@@ -2,7 +2,7 @@
 
 # xvg
 
-High-performance static & animated SVG rendering for Flutter.
+Render static and animated SVG in Flutter.
 
 ## Contents
 
@@ -37,12 +37,12 @@ No COOP/COEP headers are required. Network access follows browser CORS rules;
 file paths are unsupported. Large animated documents parse on the main thread.
 
 * **Static SVG** parses through Rust (`usvg`) into a cached `ui.Picture`, then
-  renders with Flutter's own GPU pipeline — no CPU rasterizer.
-* **Animated SVG** (SMIL — `<animate>`, `<animateTransform>`,
-  `<animateMotion>`, `<set>` — plus CSS `@keyframes`) runs through an original
-  Dart-side engine: parse once, sample and paint every frame in pure Dart, so
-  no per-frame data crosses the Rust FFI boundary.
-* One widget, `Xvg`, auto-detects which path a source needs.
+  renders with Flutter's own GPU pipeline, with no CPU rasterizer.
+* **Animated SVG** (SMIL: `<animate>`, `<animateTransform>`,
+  `<animateMotion>`, `<set>`; plus CSS `@keyframes`) runs through xvg's own
+  Dart-side engine: parse once, then sample and paint every frame in pure Dart,
+  so no per-frame data crosses the Rust FFI boundary.
+* One widget, `Xvg`, picks the path for each source.
 
 ## Install
 
@@ -51,7 +51,7 @@ dependencies:
   xvg: ^0.1.1
 ```
 
-Bring up the native (Rust) backend once, before the first `Xvg` widget is
+Start the native (Rust) backend once, before the first `Xvg` widget is
 built:
 
 ```dart
@@ -81,9 +81,9 @@ const svgSource = '''
 Widget quickStart() => const Xvg.string(svgSource, width: 48, height: 48);
 ```
 
-`Xvg` inspects the source for SMIL and CSS `@keyframes` animation markers and
-dispatches to the static or animated renderer accordingly — most callers never
-need to think about which path they are on.
+`Xvg` checks the source for SMIL and CSS `@keyframes` animation markers and
+picks the static or animated renderer. Most callers never need to know which
+one they got.
 
 Five entries share the same rendering parameters:
 
@@ -97,7 +97,7 @@ Five entries share the same rendering parameters:
 
 ## `Xvg.string` in depth
 
-`Xvg.string` is the primitive: every other entry loads or decodes text and then
+`Xvg.string` is the base entry: every other entry loads or decodes text and then
 renders through it. It is the only entry that is a `const`-constructible widget
 class (the others are static factory methods returning a `Widget`).
 
@@ -118,7 +118,7 @@ const Xvg.string(
   Duration? animationSpan,
   bool autoplay = true,
   double playbackRate = 1.0,
-  double? maxFps,
+  double? fps,
   ValueChanged<XvgAnimationInfo>? onLoaded,
   void Function(Object error, StackTrace stackTrace)? onError,
   ImageErrorWidgetBuilder? errorBuilder,
@@ -282,14 +282,14 @@ class _RemoteStringIconState extends State<RemoteStringIcon> {
 | `animationSpan` | `null` | Span mapped to `animation`'s 0..1; `null` uses the document's natural duration. |
 | `autoplay` | `true` | Start implicit playback (no `controller`/`animation`). Must stay `true` with `animation`. |
 | `playbackRate` | `1.0` | Finite signed speed for implicit playback; negative reverses, `0` pauses. Must stay `1.0` with `controller` or `animation`. |
-| `maxFps` | `null` | Positive sampling/repaint cap; ignored with `animation`. |
+| `fps` | `null` | null follows `Xvg.fps`; positive caps sampling/repaints; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global. Ignored with `animation` and static sources. |
 | `onLoaded` | `null` | Animated source (and its embedded images) ready, with `XvgAnimationInfo`. Never called for static sources. |
 | `onError` | `null` | Receives load/parse/span failures. Static failures are reported after the frame, once per source/theme change. |
 | `errorBuilder` | `null` | Replacement content on failure (`ImageErrorWidgetBuilder`, like `Image.errorBuilder`). |
 | `onEvent` | `null` | Playback and element begin/end/repeat events (`XvgAnimationEvent`). |
 | `onAnimationStart` / `onAnimationComplete` / `onAnimationLoop` | `null` | First tick / natural finite completion / known loop crossings (iteration starts at one). Not called with `animation`. |
 
-Invalid combinations are `assert`s in debug builds: non-positive `maxFps`,
+Invalid combinations are `assert`s in debug builds: negative or NaN `fps`,
 non-finite `playbackRate`, `controller` together with `animation`, a
 non-default `playbackRate` with `controller`, and a non-default `autoplay` or
 `playbackRate` with `animation`.
@@ -368,9 +368,9 @@ Widget spinner() => const Xvg.string(
 );
 ```
 
-Behavior to know:
+What to know:
 
-* Detection is a cheap syntactic sniff, not a semantic check. A static SVG that
+* Detection is a plain text match, not a semantic check. A static SVG that
   merely contains a `<set>` tag or an unused `@keyframes` rule is still routed to
   the animated engine (it renders correctly, just not on the Rust path).
   Use `XvgStatic` / `XvgAnimated` to pick a path explicitly.
@@ -381,7 +381,7 @@ Behavior to know:
 * Use `controller` (shared, seekable) or `animation` (driven by your own Flutter
   `AnimationController`) instead of implicit playback; see
   [Animation playback](#animation-playback).
-* `onLoaded`, `onEvent`, `quality`, `maxFps`, `autoplay` and the controller /
+* `onLoaded`, `onEvent`, `quality`, `fps`, `autoplay` and the controller /
   animation / callback parameters only matter for animated sources; a static
   source ignores them and attaches no listeners or controllers.
 * `colorFilter` and `theme` work the same on both paths.
@@ -501,7 +501,7 @@ Practical rules:
   and `prewarm` move large image-free sources to a persistent worker isolate.
 * **Many concurrent animated icons:** keep the default
   `XvgAnimationQuality` (adaptive frame skipping above 24 concurrent icons) or
-  cap `maxFps`; use `XvgAnimationQuality.exact` for a hero icon that must never
+  cap `fps`; use `XvgAnimationQuality.exact` for a hero icon that must never
   skip a frame.
 * **ImageProvider rasters** use Flutter's `ImageCache`, not these caches.
 
@@ -574,7 +574,7 @@ retain their original positions).
 ## Animation playback
 
 All five `Xvg.string/asset/network/file/memory` entries accept `controller`,
-`animation`, `animationSpan`, `autoplay`, `playbackRate`, `maxFps`, `onLoaded`,
+`animation`, `animationSpan`, `autoplay`, `playbackRate`, `fps`, `onLoaded`,
 `onError`, `errorBuilder`, `onEvent`, `onAnimationStart`, `onAnimationComplete`
 and `onAnimationLoop`, alongside `theme`, `quality` and `colorFilter`.
 
@@ -661,7 +661,7 @@ driver's `AnimationStatus` for start/completion: xvg emits neither event and
 does not call `onAnimationStart` / `onAnimationComplete` in this mode.
 `onEvent` works in implicit, controller and animation modes. The driver owns
 vsync and TickerMode; these instances bypass shared-clock concurrency and
-frame skipping (`maxFps` is ignored). Prefer controller/implicit playback for
+frame skipping (`fps` is ignored). Prefer controller/implicit playback for
 many concurrent SVGs. Disposing the supplied Flutter AnimationController
 retains the last frame; xvg removes its listener on replacement or unmount.
 
@@ -705,12 +705,44 @@ void observe(XvgAnimationController controller) {
 }
 ```
 
+### Global frame rate: Xvg.fps
+
+`fps` is a `double?`: null follows the live global `Xvg.fps.value`, a positive
+value caps sampling/repaints, 0 freezes at the first frame, and
+`double.infinity` is unlimited and ignores the global setting. Negative values
+and NaN assert in debug. With both instance and global null, playback is unchanged.
+Global null or infinity means unlimited. Changes take effect by the next pump/frame.
+
+```dart
+// Business code can listen for low-end-device or low-memory signals and set:
+Xvg.fps.value = 10;
+
+// Freeze every animation that follows global, then restore playback.
+Xvg.fps.value = 0;
+Xvg.fps.value = null;
+
+// Keep one instance unlimited, even while global freezes or caps animations.
+Xvg.string(svg, fps: double.infinity);
+```
+
+`XvgAnimated.string` uses the same parameter and global setting. Unfreezing
+preserves playback intent: `autoplay: false` stays paused. Shared controllers
+continue while an attached widget remains eligible; a frozen widget follows
+shared time. Only when **all attached widgets have effective fps 0** does the
+controller seek to the first frame and pause. Positive caps use the most
+permissive mounted cap, combined with `quality` using the larger divisor.
+A selected range does not prevent freezing at document time zero; unfreezing
+restores its bounds before playback. TickerMode alone pauses at the current frame.
+External `animation` drivers
+ignore instance and global fps; their caller owns the drive policy. Static
+sources ignore fps. The library does not read system reduced-motion settings.
+
 ## Animation quality
 
-For the animated path, `XvgAnimationQuality` trades fidelity for throughput
-under high concurrency (e.g. a scrolling grid of many animated icons) —
-adaptive frame-skipping is the default; see its class doc for the full set of
-opt-in/opt-out trade-offs and exactly what each one costs.
+For the animated path, `XvgAnimationQuality` trades some fidelity
+for speed when many animations run at once (for example, a scrolling grid of
+animated icons). Adaptive frame skipping is the default. See the class doc for
+each option and what it costs.
 
 ```dart
 import 'package:flutter/widgets.dart';
@@ -751,7 +783,7 @@ Widget staticOnly(String svg) => XvgStatic(
 );
 
 Widget animatedOnly(String svg) =>
-    XvgAnimated.string(svg, width: 24, height: 24, maxFps: 30);
+    XvgAnimated.string(svg, width: 24, height: 24, fps: 30);
 ```
 
 `XvgStatic` takes no animation or controller parameters and its `alignment` is
@@ -811,7 +843,7 @@ Everything exported by `package:xvg/xvg.dart`:
 
 | Symbol | Kind | Purpose |
 | --- | --- | --- |
-| `Xvg` | widget | Dispatching widget. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
+| `Xvg` | widget | Entry widget that picks the renderer. `Xvg.string` constructor; `Xvg.asset`, `Xvg.network`, `Xvg.file`, `Xvg.memory` static factories; `Xvg.ensureInitialized()`. |
 | `XvgStatic` | widget | Rust (`usvg`) static renderer. Parameters: `source`, `pixelSnap`, `width`, `height`, `fit`, `alignment`, `colorFilter`, `theme`, `errorBuilder`. |
 | `RustXvgPictureCache` | class | Process-wide LRU of recorded static pictures. `instance`, `maximumSize` (200), `onParseMiss`, `getOrRender`, `getOrRenderAsync`, `peek`, `clear`, `length`, `approximateBytesUsed`. |
 | `XvgAnimated` | widget | Dart-side SMIL / CSS `@keyframes` renderer. `XvgAnimated.string` with the animation, quality and callback parameters of `Xvg.string`. |
@@ -844,9 +876,9 @@ Everything exported by `package:xvg/xvg.dart`:
 ## Design
 
 Static parsing is delegated to `usvg` (the same crate `resvg` builds on), so
-static feature coverage tracks a mature, actively-maintained parser rather
-than a hand-rolled one. Rendering — static and animated alike — stays on
-Flutter's own GPU pipeline; nothing is rasterized on the CPU.
+static feature coverage follows a mature, maintained parser instead of a
+hand-written one. Static and animated rendering both stay on Flutter's own GPU
+pipeline; nothing is rasterized on the CPU.
 
 ## Status
 
