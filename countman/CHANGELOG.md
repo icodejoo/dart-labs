@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Docs only: new MIGRATION section for hidden-widget sleeping and `Countman.muteWhenHidden`; README performance tips document `DialCountdown.clearTickImageCache()` and `FlipCardPainter.clearFaceImageCache()`; 0.3.0 changelog entries translated to English and re-grouped (fps, `muteWhenHidden` and the cache-clearing APIs under Added); real example README.
+
 # Changelog
 
 ## 0.3.0
@@ -85,6 +89,18 @@ Migration guide: [MIGRATION.md](MIGRATION.md).
   `RingPainter` / `BarPainter` take an optional `progressListenable`.
 - `CardCountdown.semanticsLabel` (default `'Countdown'`).
 - `RingStyle` and `BarStyle` are exported themselves, not only their aliases.
+- `Countman.fps` (global display cap) with overrides on plugins, options and
+  widgets (instance > plugin > global; `null` follows vsync, the default).
+  Completion and thresholds are not affected. `CardCountdown` is driven by a
+  private shared Counter progress task, so fps really lowers its frame rate.
+  Muting wins over fps.
+- Widgets sleep while `TickerMode` is disabled: no `onUpdate` / `onTick`
+  delivery, completion and thresholds still fire on real time, and the current
+  value shows immediately on resume. `Countman.muteWhenHidden = false` restores
+  the previous behaviour; `CardCountdown` settles its flip when hidden or shown.
+- `DialCountdown.clearTickImageCache()` and
+  `FlipCardPainter.clearFaceImageCache()` release the shared bitmaps; they are
+  rebuilt on demand and neither repaints nor clears glyph caches.
 
 ### Changed
 - The scheduler sleeps between updates: when no plugin needs a frame within
@@ -112,19 +128,14 @@ Migration guide: [MIGRATION.md](MIGRATION.md).
   listeners may call `setState` safely.
 - `animateOnce` without a stable id or without a provider no longer asserts: it
   logs one debug warning and plays the animation every time.
-- Dial 刻度环与翻牌卡面复用全局 LRU 位图，按 RGBA 字节估算分别限制在
-  32 MiB / 8 MiB；生成失败或单张超预算时回退矢量，淡化及自定义翻牌画笔
-  保持矢量路径。新增 `DialCountdown.clearTickImageCache()` 与
-  `FlipCardPainter.clearFaceImageCache()`：释放共享位图，下次绘制按需重建，
-  不清理文字缓存，也不主动触发重绘。
-- 新增 `Countman.fps` 全局显示上限与插件 / Options / 组件实例覆盖，默认 null
-  保持原行为；完成与阈值不受限帧影响。Counter 限帧读单调钟，CardCountdown
-  改由私有共享 Counter 进度任务驱动，fps 真正降低出帧；静音优先。
-- `FlipCardPainter.controller` 放宽为 `Animation<double>`，继续接受 AnimationController；
-  卡片无独立 Flutter Ticker，保持 calendar 往返、单程过渡、减弱动画与像素输出。
-- 组件默认随 TickerMode 不可见休眠：不投递 onUpdate/onTick，完成与阈值仍按真实
-  时间触发；恢复直接显示当前值，Counter 采用真实时间推进的方案 A。新增
-  `Countman.muteWhenHidden` 开关；CardCountdown 隐藏/恢复时落定翻牌。
+- `FlipCardPainter.controller` is relaxed to `Animation<double>` (an
+  `AnimationController` is still accepted). The cards own no Flutter Ticker and
+  keep the calendar round trip, one-way transitions, reduced-motion behaviour
+  and pixel output.
+- `DialCountdown` tick rings and `CardCountdown` card faces reuse global LRU
+  bitmap caches (about 32 MiB / 8 MiB by RGBA bytes). On a failed or over-budget
+  bitmap they fall back to vector drawing; fade and custom flip painters stay on
+  the vector path.
 - `CardCountdown` shares glyph caches across equal styles and reuses painter
   glyph references and rotation matrices, reducing memory and paint overhead
   without API or visual changes. Clarified calendar's two-segment duration.
@@ -133,11 +144,14 @@ Migration guide: [MIGRATION.md](MIGRATION.md).
 - `slideScale` on the painter path no longer scales the slide offset with the
   canvas, matching the widget-tree path.
 - `CountmanTheme` card styles apply when there is no `CardCountdownProvider`.
-- 翻牌淡化保留背景与数字分别合成的透明度；刻度发光及整卡旋转的
-  大字、文字阴影通过位图边距保留，calendar 半卡仍裁到原卡面。
-- 修复 fps 的 vsync 对齐漂移（60Hz 下 precise Countdown 30fps 降为 20fps）
-  及 Counter 空轮询帧：固定网格推进，按屏幕刷新率以半个 vsync 容差对齐唤醒，
-  达到屏幕刷新率时不再节流；显示桶、完成与阈值不提前。
+- Flip fade keeps the separately composited background and digit opacity; tick
+  glow and the large glyphs / text shadows of a rotated card survive through the
+  bitmap margin, and calendar half-cards are still clipped to the card face.
+- fps vsync alignment drift (a precise Countdown at 30 fps dropping to 20 fps on
+  60 Hz) and empty Counter polling frames: the display grid is fixed and wake-ups
+  align to the screen refresh rate with a half-vsync tolerance; there is no
+  throttling at the refresh rate, and display buckets, completion and thresholds
+  never fire early.
 
 ### Deprecated
 - The 38 flat `AnimatedCounter` / `AnimatedCounterBuilder` parameters that

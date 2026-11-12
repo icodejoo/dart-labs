@@ -15,6 +15,7 @@ class PlacedCell {
   /// Physical row (0-based).
   final int physRow;
 
+  /// Creates a [PlacedCell].
   const PlacedCell({required this.physCol, required this.physRow});
 }
 
@@ -65,6 +66,7 @@ PlacedCell placeSequential(int index, int rows) =>
 class PixelPoint {
   final double x;
   final double y;
+  /// Creates a [PixelPoint].
   const PixelPoint(this.x, this.y);
 }
 
@@ -92,6 +94,7 @@ List<DrawCommand> gridCommands(int colCount, int rows, double cellSize, {int str
 class ContentSize {
   final double width;
   final double height;
+  /// Creates a [ContentSize].
   const ContentSize(this.width, this.height);
 }
 

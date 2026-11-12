@@ -36,6 +36,7 @@ class ChangeEvent {
   /// The newly appended round when kind is append; null for other kinds.
   final RawResult? appended;
 
+  /// Creates a [ChangeEvent].
   const ChangeEvent({required this.kind, required this.results, this.appended});
 }
 
@@ -51,6 +52,7 @@ class RoadmapStore {
   bool _pendingFlush = false;
   RawResult? _pendingLastAppended;
 
+  /// Creates a [RoadmapStore].
   RoadmapStore({OutOfSyncCallback? onOutOfSync}) : _onOutOfSync = onOutOfSync;
 
   /// Fully replaces the results (polling / reconnect reconciliation). No animation, refreshes directly.
