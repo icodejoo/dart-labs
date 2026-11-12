@@ -52,13 +52,13 @@ final name = feeds.usePinned('forest', (feed) => feed.name);
 
 每次成功的 `pin` 都要对应一次 `unpin`。pin 只挡住淘汰：用不同的值 `set` 覆盖、
 `remove`、`clear` 照样会移除被 pin 的项（并触发 `onRemove`）。剩下的项全被 pin 时，
-缓存条目数可以超过 `maxSize`，直到之后的 `set`、`unpin` 或 `resize` 再收敛。
+缓存条目数可以超过 `maxSize`，直到之后的 `set`、`unpin` 或 `resize` 把它降回去。
 
 ## API
 
 ### `XlruCache<K, V>`
 
-`final class`。只在单个 isolate 内使用，每个 isolate 各持有一个实例。
+`final class`。只能在单个 isolate 里用，每个 isolate 要各建一个实例。
 
 #### 构造器
 
@@ -113,7 +113,7 @@ for (final key in cache.keys.toList()) {
 }
 ```
 
-它们也不支持快速随机访问：`keys.length`、`keys.contains` 要遍历全部条目，
+它们查起来也慢：`keys.length`、`keys.contains` 要遍历全部条目，
 请改用 `length` 和 `containsKey`。
 
 #### 方法
@@ -125,7 +125,7 @@ for (final key in cache.keys.toList()) {
 | `containsKey(K key)` | `bool` | key 是否存在，不改变顺序。 |
 | `set(K key, V value)` | `void` | 插入或覆盖，并标记为最近使用，可能淘汰其他项。已存在的项保留原 key 对象和 pin。 |
 | `putIfAbsent(K key, V Function() ifAbsent)` | `V` | 已存在则返回现有值（并标记为最近使用）；否则插入 `ifAbsent` 创建的值并返回。`ifAbsent` 抛异常则不插入。 |
-| `remove(K key)` | `V?` | 无视 pin 移除并返回其值；不存在返回 `null`。 |
+| `remove(K key)` | `V?` | 不管有没有 pin 都移除，并返回其值；不存在返回 `null`。 |
 | `clear()` | `void` | 清空所有项，包括被 pin 的。 |
 | `resize(int maxSize)` | `void` | 修改容量，需要时立即淘汰。小于 1 抛 `ArgumentError`，缓存保持不变。 |
 | `pin(K key)` | `bool` | pin 计数 +1；key 不存在返回 `false`；不改变顺序。 |
@@ -164,7 +164,7 @@ typedef XlruRemovalListener<K, V> = void Function(
 | `replaced` | `set` 给已有 key 存了不同（非 `identical`）的值；`value` 是旧值，key 仍在缓存里。存同一个对象不通知。 |
 | `removed` | `remove` 删除了已有的项。 |
 | `cleared` | `clear` 删除了该项（从最旧开始）。 |
-| `lost` | 后端里已经没有该项的值。只有带 `store` 的缓存会产生它，但穷尽 `switch` 里要处理。带后端的 `XlruCache` 只有在 `V` 可空时才能把它交给回调（传入的 value 是 `null`），否则没有值可传，这条通知会被跳过。 |
+| `lost` | 后端里已经没有该项的值。只有带 `store` 的缓存会产生它，写 `switch` 时别漏掉这个分支。带后端的 `XlruCache` 只有在 `V` 可空时才能通知回调（传入的 value 是 `null`），否则没有值可传，这条通知会被跳过。 |
 
 ## 存储后端
 
@@ -214,8 +214,7 @@ final user = await async.putIfAbsent('42', () => api.fetchUser(42));
 
 ### `XlruStoreAsAsync.asAsync()`
 
-`store.asAsync()` 把任意 `XlruStore` 包成 `XlruAsyncStore`，同一个同步后端因此能
-用在两种缓存上。异常会变成 `Future` 的错误。
+`store.asAsync()` 把任意 `XlruStore` 包成 `XlruAsyncStore`，所以同一个同步后端两种缓存都能用。异常会变成 `Future` 的错误。
 
 ```dart
 final async = XlruAsyncCache<String, int>(
@@ -277,7 +276,7 @@ XlruAsyncCache({
 | `peek(key)` | `V?` | 返回值，不改变顺序。 |
 | `set(key, value)` | `void` | 先写后端，再更新顺序并淘汰。该 key 上正在进行的 `putIfAbsent` 加载结果不再入缓存。 |
 | `putIfAbsent(key, loader)` | `V` | 返回已缓存的值，否则调用 `loader` 并缓存其结果。同一个 key 的并发调用共享一次 `loader`；`loader` 失败则不缓存，所有等待者都失败；加载期间该 key 被 `set`、`remove` 或缓存被 `clear`，结果照常返回但不入缓存。 |
-| `remove(key)` | `V?` | 无视 pin 移除，返回其值。 |
+| `remove(key)` | `V?` | 不管有没有 pin 都移除，返回其值。 |
 | `clear()` | `void` | 等待进行中的操作完成，按最旧到最新通知 `cleared`，再清空后端；期间新发起的操作排在它后面。 |
 | `resize(maxSize)` | `void` | 修改容量并立即淘汰；小于 1 抛 `ArgumentError`。 |
 | `unpin(key)` | `bool` | pin 计数 -1；可能触发淘汰，等移除回调和删除完成后才完成。 |
@@ -321,7 +320,7 @@ typedef XlruStoreErrorListener<K> = void Function(Object error,
 
 ## 不包含
 
-不提供过期、按大小加权和统计，需要的话基于 `onRemove` 自行包一层。
+没有过期、按大小加权和统计。需要的话，用 `onRemove` 在缓存外面自己加。
 
 ## 许可证
 

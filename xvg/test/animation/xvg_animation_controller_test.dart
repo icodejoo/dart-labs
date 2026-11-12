@@ -627,7 +627,7 @@ void main() {
               _loop,
               controller: controller,
               quality: degraded,
-              maxFps: 15,
+              fps: 15,
             ),
             XvgAnimated.string(
               _loop,

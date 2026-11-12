@@ -45,7 +45,7 @@
 
 ```yaml
 dependencies:
-  getx_query: ^0.1.0
+  getx_query: ^0.2.0
 ```
 
 ```dart
@@ -71,14 +71,14 @@ GetMaterialApp(
 class TodoViewModel extends GetBaseViewModel {
   final filter = 'all'.obs;
 
-  late final todos = useQuery(
+  late final todos = this.useQuery<List<Todo>>(
     queryKey: ['todos', filter],          // key 里放 Rx，值变了就自动重新请求
     queryFn: (_) => api.getTodos(filter.value),
     staleDuration: StaleDuration(minutes: 5),
     placeholder: const [],
   );
 
-  late final addTodo = useMutation<Todo, TodoInput>(
+  late final addTodo = this.useMutation<Todo, TodoInput>(
     (input, _) => api.addTodo(input),
     onSuccess: (_, __, ___, ____) => invalidateQueries(queryKey: ['todos']),
   );
@@ -92,7 +92,7 @@ Obx(() => vm.todos.isLoading
     : TodoList(items: vm.todos.data ?? []));
 ```
 
-完整可运行示例见 [`example/getx_query_example.dart`](./example/getx_query_example.dart)。
+完整可运行示例见 [`example/lib/main.dart`](./example/lib/main.dart)。
 
 ## API
 
@@ -139,6 +139,30 @@ QueryResult<T> useQuery<T>({
 | `refetchOnReconnect` | 同上，针对网络重连（需要 client 配了 `connectivityChanges`）。 |
 | `networkMode` | `online`（离线暂停）/ `always` / `offlineFirst`。 |
 | `meta` | 任意元数据，`queryFn` 的 context 里能读到。 |
+
+getx_query 包装接口仍接受普通值 `placeholder`、`seed` 和 `DateTime? seedUpdatedAt`。
+seed 只初始化没有缓存数据的查询；即使时间戳更新，也不会覆盖已有缓存。
+
+直接使用 `QueryOptions` / `InfiniteQueryOptions`（包括 `useQueries`）或原始
+`QueryClient` 方法时，遵循 flutter_query 0.11 的新写法：
+
+```dart
+import 'package:getx_query/getx_query.dart' as gq;
+
+final options = gq.QueryOptions<String, dynamic>(
+  ['greeting'],
+  (_) async => 'hello',
+  placeholder: const gq.Placeholder.value('loading...'),
+  seed: const gq.Seed.value('cached greeting'),
+  seedUpdatedAt: gq.SeedUpdatedAt.value(DateTime.utc(2026)),
+);
+```
+
+惰性选项使用 `Seed.lazy(() => ...)`、`SeedUpdatedAt.lazy(() => ...)` 和
+`Placeholder.lazy((previous) => ...)`；`Placeholder.keepPrevious` 在切换查询键时保留
+上一份数据。使用上面的导入前缀，或隐藏 Flutter 的 `Placeholder` 控件，避免同名冲突。
+`QueryResult`、`InfiniteQueryResult`、`MutationResult` 的可空 `data` / `error`
+属性和 GetX 状态标志保持不变。
 
 `useQueries(List<QueryOptions>, {combine})` 可以一次订阅多个，见 [useQueries](#usequeries)。
 
@@ -273,7 +297,7 @@ InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
 | `retryOnMount` | 新 observer 挂载时是否重试失败的查询。 |
 
 ```dart
-final feed = useInfiniteQuery(
+final feed = useInfiniteQuery<List<String>, int>(
   queryKey: ['feed'],
   queryFn: (ctx) => api.getFeed(page: ctx.pageParam),
   initialPageParam: 0,
@@ -490,17 +514,9 @@ Get.put<QueryService>(
 > **重要。** getx_query 用到了 flutter_query 的**私有内部实现**：它 import 了 `package:flutter_query/src/core/query_observer.dart` 和 `.../mutation_observer.dart`，还用了 `@internal` 成员。正因为这样，它才能在 `HookWidget` 之外驱动查询。
 >
 > 这意味着：
-> - 它依赖 `flutter_query` `^0.10.0`；如果某个小版本调整了这些 `src/` 文件的位置，它可能就不能用了。
-> - `dart pub publish` 会给出 `implementation_imports` 警告。在 flutter_query 公开 `QueryObserver`/`MutationObserver` 之前，**私有发布**（git 依赖或私有 pub 服务器）更省事。
->
-> 如果 pub.dev 的警告挡了你的路，用 git 或 path 依赖就行：
-> ```yaml
-> dependencies:
->   getx_query:
->     git:
->       url: https://github.com/icodejoo/dart-labs.git
->       path: getx-query
-> ```
+> - 它依赖 `flutter_query` `^0.11.1`；如果某个小版本调整了这些 `src/` 文件的位置，它可能就不能用了。
+> - 桥接层在内部引用处抑制了相关 lint；发布前运行
+>   `dart pub publish --dry-run` 检查包验证结果。
 
 ## License
 

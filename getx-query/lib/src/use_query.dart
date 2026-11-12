@@ -1,7 +1,7 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_query/flutter_query.dart' hide QueryResult, useQuery, useQueryClient;
+import 'package:flutter_query/flutter_query.dart' hide useQuery, useQueryClient;
 import 'package:flutter_query/src/core/query_observer.dart';
 import 'package:get/get.dart';
 
@@ -9,49 +9,34 @@ import 'query_result.dart';
 import 'query_service.dart';
 import 'reactive.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rx helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Build a callback that re-resolves all reactive params and updates
-/// [observer.options], mirroring what HookWidget does each build frame.
-VoidCallback _makeUpdater<T>(
-  QueryObserver<T, dynamic> observer,
-  List<Object?> queryKey,
-  QueryFn<T> queryFn, {
+/// 将查询选项绑定到 Rx 结果，并在响应式参数变化时重建订阅选项。
+QueryResult<T> _observeQuery<T>({
+  required QueryClient client,
+  required List<Object?> queryKey,
+  required QueryOptions<T, dynamic> Function() buildOptions,
   Object? enabled,
-  StaleDuration? staleDuration,
-  GcDuration? gcDuration,
-  RetryResolver? retry,
-  Duration? refetchInterval,
-  RefetchOnMount? refetchOnMount,
-  RefetchOnResume? refetchOnResume,
-  RefetchOnReconnect? refetchOnReconnect,
-  NetworkMode? networkMode,
-  Map<String, dynamic>? meta,
   T? placeholder,
-  T? seed,
-  DateTime? seedUpdatedAt,
-}) =>
-    () {
-      observer.options = QueryOptions<T, dynamic>(
-        resolveReactiveKey(queryKey),
-        queryFn,
-        enabled:            plainValue(enabled) as bool?,
-        staleDuration:      staleDuration,
-        gcDuration:         gcDuration,
-        retry:              retry,
-        refetchInterval:    refetchInterval,
-        refetchOnMount:     refetchOnMount,
-        refetchOnResume:    refetchOnResume,
-        refetchOnReconnect: refetchOnReconnect,
-        networkMode:        networkMode,
-        meta:               meta,
-        placeholder:        placeholder,
-        seed:               seed,
-        seedUpdatedAt:      seedUpdatedAt,
-      );
-    };
+}) {
+  final result = QueryResult<T>(placeholder: placeholder);
+  final observer = QueryObserver<T, dynamic>(client, buildOptions());
+  observer.onMount();
+  result.update(observer.result);
+  final unsubscribe = observer.subscribe(result.update);
+  final rxSubs = bindReactive(
+    [...queryKey, enabled],
+    () => observer.options = buildOptions(),
+  );
+  final disposeResume = bindResume(observer.onResume);
+  result.disposeCallback = () {
+    unsubscribe();
+    observer.onUnmount();
+    disposeResume();
+    for (final subscription in rxSubs) {
+      subscription.cancel();
+    }
+  };
+  return result;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useQueryClient
@@ -88,6 +73,7 @@ QueryResult<T> useQuery<T>({
   required List<Object?> queryKey,
   required QueryFn<T> queryFn,
   QueryClient? client,
+
   /// Accepts [bool?], [RxBool], or [Rx<bool>].
   Object? enabled,
   T? placeholder,
@@ -103,66 +89,30 @@ QueryResult<T> useQuery<T>({
   NetworkMode? networkMode,
   Map<String, dynamic>? meta,
 }) {
-  final resolvedClient = client ?? useQueryClient();
-  final result         = QueryResult<T>(placeholder: placeholder);
-
-  final observer = QueryObserver<T, dynamic>(
-    resolvedClient,
-    QueryOptions<T, dynamic>(
+  return _observeQuery<T>(
+    client: client ?? useQueryClient(),
+    queryKey: queryKey,
+    enabled: enabled,
+    placeholder: placeholder,
+    buildOptions: () => QueryOptions<T, dynamic>(
       resolveReactiveKey(queryKey),
       queryFn,
-      enabled:            plainValue(enabled) as bool?,
-      placeholder:        placeholder,
-      seed:               seed,
-      seedUpdatedAt:      seedUpdatedAt,
-      staleDuration:      staleDuration,
-      gcDuration:         gcDuration,
-      retry:              retry,
-      refetchInterval:    refetchInterval,
-      refetchOnMount:     refetchOnMount,
-      refetchOnResume:    refetchOnResume,
+      enabled: plainValue(enabled) as bool?,
+      placeholder: placeholder == null ? null : Placeholder.value(placeholder),
+      seed: seed == null ? null : Seed.value(seed),
+      seedUpdatedAt:
+          seedUpdatedAt == null ? null : SeedUpdatedAt.value(seedUpdatedAt),
+      staleDuration: staleDuration,
+      gcDuration: gcDuration,
+      retry: retry,
+      refetchInterval: refetchInterval,
+      refetchOnMount: refetchOnMount,
+      refetchOnResume: refetchOnResume,
       refetchOnReconnect: refetchOnReconnect,
-      networkMode:        networkMode,
-      meta:               meta,
+      networkMode: networkMode,
+      meta: meta,
     ),
   );
-
-  observer.onMount();
-  result.update(observer.result);
-  final unsubscribe = observer.subscribe(result.update);
-
-  // Wire every reactive value in [queryKey] and [enabled] to re-run the
-  // options setter — equivalent to flutter_query calling observer.options =
-  // opts on every HookWidget build.
-  final update = _makeUpdater(
-    observer, queryKey, queryFn,
-    enabled:            enabled,
-    staleDuration:      staleDuration,
-    gcDuration:         gcDuration,
-    retry:              retry,
-    refetchInterval:    refetchInterval,
-    refetchOnMount:     refetchOnMount,
-    refetchOnResume:    refetchOnResume,
-    refetchOnReconnect: refetchOnReconnect,
-    networkMode:        networkMode,
-    meta:               meta,
-    placeholder:        placeholder,
-    seed:               seed,
-    seedUpdatedAt:      seedUpdatedAt,
-  );
-  final rxSubs = bindReactive([...queryKey, enabled], update);
-  final disposeResume = bindResume(observer.onResume);
-
-  result.disposeCallback = () {
-    unsubscribe();
-    observer.onUnmount();
-    disposeResume();
-    for (final s in rxSubs) {
-      s.cancel();
-    }
-  };
-
-  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,7 +135,7 @@ QueryResult<T> useQuery<T>({
   List<Object?>? queryKey,
   bool exact = false,
 }) {
-  final c  = client ?? useQueryClient();
+  final c = client ?? useQueryClient();
   final rx = RxInt(c.isFetching(queryKey: queryKey, exact: exact));
   final unsubscribe = c.cache.subscribe((_) {
     rx.value = c.isFetching(queryKey: queryKey, exact: exact);
@@ -201,7 +151,7 @@ QueryResult<T> useQuery<T>({
   List<Object?>? mutationKey,
   bool exact = false,
 }) {
-  final c  = client ?? useQueryClient();
+  final c = client ?? useQueryClient();
   final rx = RxInt(c.isMutating(mutationKey: mutationKey, exact: exact));
   final unsubscribe = c.mutationCache.subscribe((_) {
     rx.value = c.isMutating(mutationKey: mutationKey, exact: exact);
@@ -240,23 +190,28 @@ QueryResult<T> useQuery<T>({
   TCombined Function(List<QueryResult> results)? combine,
 }) {
   final results = options.map((opt) {
-    return useQuery(
-      queryKey:           opt.queryKey,
-      queryFn:            opt.queryFn,
-      client:             client,
-      enabled:            opt.enabled,
-      placeholder:        opt.placeholder,
-      seed:               opt.seed,
-      seedUpdatedAt:      opt.seedUpdatedAt,
-      staleDuration:      opt.staleDuration,
-      gcDuration:         opt.gcDuration,
-      retry:              opt.retry,
-      refetchInterval:    opt.refetchInterval,
-      refetchOnMount:     opt.refetchOnMount,
-      refetchOnResume:    opt.refetchOnResume,
-      refetchOnReconnect: opt.refetchOnReconnect,
-      networkMode:        opt.networkMode,
-      meta:               opt.meta,
+    return _observeQuery(
+      client: client ?? useQueryClient(),
+      queryKey: opt.queryKey,
+      enabled: opt.enabled,
+      buildOptions: () => QueryOptions(
+        resolveReactiveKey(opt.queryKey),
+        opt.queryFn,
+        enabled: opt.enabled,
+        placeholder: opt.placeholder,
+        seed: opt.seed,
+        seedUpdatedAt: opt.seedUpdatedAt,
+        staleDuration: opt.staleDuration,
+        gcDuration: opt.gcDuration,
+        retry: opt.retry,
+        retryOnMount: opt.retryOnMount,
+        refetchInterval: opt.refetchInterval,
+        refetchOnMount: opt.refetchOnMount,
+        refetchOnResume: opt.refetchOnResume,
+        refetchOnReconnect: opt.refetchOnReconnect,
+        networkMode: opt.networkMode,
+        meta: opt.meta,
+      ),
     );
   }).toList();
 
@@ -268,9 +223,13 @@ QueryResult<T> useQuery<T>({
     return combine(results);
   }
 
-  return (results, combined, () {
-    for (final r in results) {
-      r.dispose();
+  return (
+    results,
+    combined,
+    () {
+      for (final r in results) {
+        r.dispose();
+      }
     }
-  });
+  );
 }

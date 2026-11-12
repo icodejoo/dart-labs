@@ -95,7 +95,7 @@ const String _forbiddenFile = '禁止的源文件';
 /// 符号违规诊断片段。
 const String _forbiddenSymbol = '禁止的符号';
 
-/// 大乐透合法使用、其它单玩法不应保留的三次缓动符号。
+/// 抽签与大乐透合法使用、其它单玩法不应保留的三次缓动符号。
 const String _cubic = 'CubicEasing';
 
 /// 不带拉杆的老虎机探针名。
@@ -505,13 +505,20 @@ void main() {
     });
 
     test('lotto_only allows CubicEasing in sourcemap names', () {
-      final artifact = parseWebSourcemap(jsonEncode({
-        _versionKey: 3,
-        _sourcesKey: [_coreSource, '/luckdraw/lib/src/lotto/motion.dart'],
-        _namesKey: [_cubic, '$_cubic.easeOut', _quad, 'LottoMotion'],
-        _mappingsKey: '',
-      }));
-      expect(checkProbe('lotto_only', artifact), isEmpty);
+      // 保留验收矩阵登记的测试名，同时覆盖同样默认使用 cubic 的抽签。
+      for (final game in [_lotsZone, _lottoZone]) {
+        final sources = [_coreSource, '/luckdraw/lib/src/$game/motion.dart'];
+        final artifact = parseWebSourcemap(_sourcemap(
+          sources: sources,
+          names: [_cubic, '$_cubic.easeOut', _quad],
+        ));
+        final probe = '${game}_only';
+        expect(checkProbe(probe, artifact), isEmpty);
+        for (final symbol in ['QuartEasing', 'CurveEasing', _easingNames]) {
+          expect(checkProbe(probe, _artifact(sources, [symbol])),
+              ['$probe $_forbiddenSymbol: $symbol']);
+        }
+      }
     });
 
     test('wheel_only rejects CubicEasing in sourcemap names', () {

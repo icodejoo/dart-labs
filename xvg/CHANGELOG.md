@@ -1,5 +1,11 @@
 ## Unreleased
 
+- **Breaking**: `maxFps` renamed to `fps`: null follows global; 0 freezes at the first frame; `double.infinity` is unlimited and ignores global.
+- Add `Xvg.fps` for live global animation frame-rate control; external `animation` drivers and static sources are unaffected.
+
+## 0.1.3
+
+- Docs: README wording rewritten in plain language.
 - Add an experimental Flutter Web demo using Rust wasm, synchronous web initialization, browser source loading, and main-thread SMIL parsing. Native bridge and supported pub platforms remain unchanged.
 - Build and deploy the demo under `xvg/demo/`; wasm artifacts are generated in CI and excluded from the pub package.
 

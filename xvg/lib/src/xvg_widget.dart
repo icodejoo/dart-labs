@@ -16,6 +16,7 @@ import 'animation/svg_theme.dart';
 import 'animation/xvg_animation_controller.dart';
 import 'animation/xvg_animation_info.dart';
 import 'animation/xvg_animation_quality.dart';
+import 'animation/xvg_fps.dart';
 import 'pixel_snap_layer.dart';
 import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
@@ -25,9 +26,6 @@ import 'svg_source_loader.dart';
 
 /// Default implicit playback speed. / 默认隐式播放速率。
 const _normalPlaybackRate = 1.0;
-
-/// Constructor validation messages. / 构造参数校验消息。
-const _positiveMaxFps = 'maxFps must be positive';
 
 /// Invalid implicit rate message. / 非法隐式速率消息。
 const _finitePlaybackRate = 'playbackRate must be finite';
@@ -58,6 +56,15 @@ const _animationDefaults =
 /// Xvg.string(svgSource, controller: controller, width: 48, height: 48)
 /// ```
 class Xvg extends StatefulWidget {
+  /// Live global animation cap: null/infinity is unlimited, zero freezes at the
+  /// first frame, and positive values cap sampling. Non-null instance fps wins.
+  /// Negative values and NaN assert in debug when resolved. External animation
+  /// drivers and static sources ignore this setting.
+  /// 实时全局动画帧率：null/infinity 不限速，0 冻结首帧，正数限制采样频率。
+  /// 实例 fps 非 null 时优先；负数和 NaN 在解析时触发调试断言。
+  /// 外部 animation 驱动和静态源忽略此设置。
+  static final ValueNotifier<double?> fps = xvgFpsNotifier;
+
   /// Initializes the native (Rust) rendering backend. Call once, before
   /// rendering any Xvg widget — typically in `main()` before `runApp`.
   /// Calling it again after the first successful call is a no-op.
@@ -79,8 +86,13 @@ class Xvg extends StatefulWidget {
   }
 
   /// Creates the dispatch widget from a raw SVG string.
+  /// The fps parameter follows [Xvg.fps] when null, caps sampling when positive,
+  /// freezes at the first frame when zero, or ignores global when infinity.
+  /// Negative values and NaN assert; static sources and [animation] ignore fps.
   ///
   /// 用原始 SVG 字符串创建分发组件。
+  /// fps 参数为 null 时跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；静态源与外部 animation 驱动忽略 fps。
   const Xvg.string(
     this.source, {
     super.key,
@@ -97,7 +109,7 @@ class Xvg extends StatefulWidget {
     this.animationSpan,
     this.autoplay = true,
     this.playbackRate = _normalPlaybackRate,
-    this.maxFps,
+    double? fps,
     this.onLoaded,
     this.onError,
     this.errorBuilder,
@@ -105,7 +117,8 @@ class Xvg extends StatefulWidget {
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
-  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+  }) : _fps = fps,
+       assert(fps == null || fps >= 0, fpsValidationMessage),
        assert(
          playbackRate > double.negativeInfinity &&
              playbackRate < double.infinity,
@@ -148,7 +161,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -174,7 +187,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -208,7 +221,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -233,7 +246,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -262,7 +275,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -287,7 +300,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -321,7 +334,7 @@ class Xvg extends StatefulWidget {
     Duration? animationSpan,
     bool autoplay = true,
     double playbackRate = _normalPlaybackRate,
-    double? maxFps,
+    double? fps,
     ValueChanged<XvgAnimationInfo>? onLoaded,
     void Function(Object error, StackTrace stackTrace)? onError,
     ImageErrorWidgetBuilder? errorBuilder,
@@ -345,7 +358,7 @@ class Xvg extends StatefulWidget {
     animationSpan: animationSpan,
     autoplay: autoplay,
     playbackRate: playbackRate,
-    maxFps: maxFps,
+    fps: fps,
     onLoaded: onLoaded,
     onError: onError,
     errorBuilder: errorBuilder,
@@ -418,10 +431,13 @@ class Xvg extends StatefulWidget {
   /// 有限有符号隐式速率；显式驱动时保留默认值。
   final double playbackRate;
 
-  /// Positive sampling cap; ignored with [animation]. Shared controllers use
-  /// the most permissive attached cap, as in [XvgAnimated.maxFps].
-  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
-  final double? maxFps;
+  /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
+  /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
+  /// Negative values and NaN assert. Ignored for static sources and [animation].
+  /// Shared controllers follow [XvgAnimated.fps] coordination rules.
+  /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 XvgAnimated。
+  final double? _fps;
 
   /// Called when an animated source and its embedded images are ready.
   /// 动画源及内嵌图片就绪时调用；静态源不调用。
@@ -525,7 +541,7 @@ class _XvgState extends State<Xvg> {
         animationSpan: widget.animationSpan,
         autoplay: widget.autoplay,
         playbackRate: widget.playbackRate,
-        maxFps: widget.maxFps,
+        fps: widget._fps,
         onLoaded: widget.onLoaded,
         onError: widget.onError,
         errorBuilder: widget.errorBuilder,
@@ -598,7 +614,7 @@ class _AsyncXvg extends StatefulWidget {
     this.animationSpan,
     this.autoplay = true,
     this.playbackRate = _normalPlaybackRate,
-    this.maxFps,
+    this.fps,
     this.onLoaded,
     this.onError,
     this.errorBuilder,
@@ -606,7 +622,7 @@ class _AsyncXvg extends StatefulWidget {
     this.onAnimationStart,
     this.onAnimationComplete,
     this.onAnimationLoop,
-  }) : assert(maxFps == null || maxFps > 0, _positiveMaxFps),
+  }) : assert(fps == null || fps >= 0, fpsValidationMessage),
        assert(
          playbackRate > double.negativeInfinity &&
              playbackRate < double.infinity,
@@ -671,10 +687,13 @@ class _AsyncXvg extends StatefulWidget {
   /// 有限有符号隐式速率；显式驱动时保留默认值。
   final double playbackRate;
 
-  /// Positive sampling cap; ignored with [animation]. Shared controllers use
-  /// the most permissive attached cap, as in [XvgAnimated.maxFps].
-  /// 正采样帧率上限；[animation] 模式忽略；共享控制器取挂载控件中最宽松的上限。
-  final double? maxFps;
+  /// Instance fps: null follows [Xvg.fps], positive values cap sampling,
+  /// zero freezes at the first frame, and infinity is unlimited, ignoring global.
+  /// Negative values and NaN assert. Ignored for static sources and [animation].
+  /// Shared controllers follow [XvgAnimated.fps] coordination rules.
+  /// 实例帧率：null 跟随全局，正数限速，0 冻结首帧，infinity 不限速且忽略全局。
+  /// 负数和 NaN 触发断言；静态源与外部 animation 忽略；共享规则见 XvgAnimated。
+  final double? fps;
 
   /// Called when an animated source and its embedded images are ready.
   /// 动画源及内嵌图片就绪时调用；静态源不调用。
@@ -797,7 +816,7 @@ class _AsyncXvgState extends State<_AsyncXvg> {
       animationSpan: widget.animationSpan,
       autoplay: widget.autoplay,
       playbackRate: widget.playbackRate,
-      maxFps: widget.maxFps,
+      fps: widget.fps,
       onLoaded: widget.onLoaded,
       onError: widget.onError,
       errorBuilder: widget.errorBuilder,

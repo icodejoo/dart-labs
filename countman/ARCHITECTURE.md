@@ -347,7 +347,7 @@ example/                        演示应用（也是在线 Demo 的来源）
 
 ## 10. 相关文档
 
-- [README.md](README.md) / [README.zh.md](README.zh.md)：使用说明与 API 示例。
+- [README.md](README.md) / [README.zh-CN.md](README.zh-CN.md)：使用说明与 API 示例。
 - [MIGRATION.md](MIGRATION.md)：0.2.x → 0.3.0 迁移指南。
 - [CHANGELOG.md](CHANGELOG.md)：变更记录。
 - `.claude/skills/countman/DECISIONS.md`：设计决策记录（含 0.3.0 推翻的旧决策）。

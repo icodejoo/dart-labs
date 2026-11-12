@@ -9,7 +9,7 @@ import 'scenarios.dart';
 const demoProject = 'layerman';
 
 /// 与包 pubspec.yaml 同步的版本，由 widget 测试校验。
-const demoVersion = '1.0.1';
+const demoVersion = '1.0.3';
 
 /// 当前包的代码目录，与 pubspec.yaml 的主页一致。
 const demoRepository =
