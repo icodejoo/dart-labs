@@ -8,7 +8,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器 · 倒计时 · 计时，涵盖全部组件、全部 API。
+**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器、倒计时、正计时与 0.3.x 调度能力交互示例，支持中英切换和亮暗主题。
 
 > **从 0.2.x 升级？** 请先看
 > [迁移指南](https://github.com/icodejoo/dart-labs/blob/main/countman/MIGRATION.md)（英文）——

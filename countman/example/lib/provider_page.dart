@@ -1,147 +1,87 @@
 import 'package:flutter/material.dart';
-import 'package:countman/countman.dart';
+import 'demo_kit/demo_kit.dart';
+import 'demo_samples.dart';
+import 'sample_code.dart';
 
-/// Demonstrates the provider layer: the aggregate [CountmanProvider] that
-/// configures all three families at once, and the standalone
-/// [CardCountdownProvider] that also shares a glyph cache across cards.
-///
-/// 演示 provider 层：一次配置三家族的聚合 [CountmanProvider]，以及独立的、还共享
-/// 字形缓存的 [CardCountdownProvider]。
-class ProviderPage extends StatelessWidget {
+/// 展示聚合 Provider 与当前推荐的主题扩展。
+class ProviderPage extends StatefulWidget {
+  /// 创建作用域与主题页面。
   const ProviderPage({super.key});
 
+  /// 创建重播状态。
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Providers')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _Section(
-            title: 'CountmanProvider (aggregate)',
-            description:
-                'One provider sets shared defaults (textStyle / color / trackColor / '
-                'duration / curve / formatter) for the counter, countdown AND '
-                'elapsed families below — no per-widget style needed.',
-            child: _AggregateDemo(),
-          ),
-          SizedBox(height: 16),
-          _Section(
-            title: 'CardCountdownProvider',
-            description:
-                'Cascades card visuals (cardColor / textStyle / transitionType) and '
-                'shares one glyph cache across every CardCountdown in scope.',
-            child: _CardProviderDemo(),
-          ),
-        ],
-      ),
-    );
-  }
+  State<ProviderPage> createState() => _ProviderPageState();
 }
 
-/// All three families under a single [CountmanProvider]; each descendant is
-/// declared with NO local style and inherits the shared defaults.
-///
-/// 三家族置于同一 [CountmanProvider] 下；每个后代都不带本地样式，继承共享默认值。
-class _AggregateDemo extends StatelessWidget {
-  const _AggregateDemo();
+/// 维护作用域示例的重播代次。
+class _ProviderPageState extends State<ProviderPage> {
+  /// 重播代次。
+  int _generation = 0;
 
+  /// 重新挂载分组示例。
+  void _restart() => setState(() => _generation++);
+
+  /// 构建主题与作用域网格。
   @override
-  Widget build(BuildContext context) {
-    return CountmanProvider(
-      textStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-      color: const Color(0xFF7E57C2),
-      trackColor: const Color(0x337E57C2),
-      duration: const Duration(milliseconds: 1200),
-      curve: Curves.easeOutCubic,
-      formatter: CountdownFormat.hms,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('TextCounter (inherits textStyle + duration + curve):'),
-          const SizedBox(height: 6),
-          const TextCounter(to: 2048),
-          const SizedBox(height: 16),
-          const Text('RingCounter (inherits color + trackColor):'),
-          const SizedBox(height: 6),
-          const RingCounter(to: 100, center: TextCounter(to: 100, suffix: '%')),
-          const SizedBox(height: 16),
-          const Text('TextCountdown (inherits textStyle + formatter=hms):'),
-          const SizedBox(height: 6),
-          TextCountdown(to: const Duration(minutes: 90)),
-          const SizedBox(height: 16),
-          const Text('TextElapsed (inherits textStyle + formatter=hms):'),
-          const SizedBox(height: 6),
-          const TextElapsed(),
-        ],
-      ),
-    );
-  }
-}
-
-/// Two cards sharing one [CardCountdownProvider] — same look, one glyph cache.
-///
-/// 两张卡共用一个 [CardCountdownProvider]——外观一致，共享字形缓存。
-class _CardProviderDemo extends StatelessWidget {
-  const _CardProviderDemo();
-
-  @override
-  Widget build(BuildContext context) {
-    return CardCountdownProvider(
-      cardColor: const Color(0xFF00695C),
-      textStyle: const TextStyle(
-          fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
-      transitionType: CountdownType.flip,
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          CardCountdown(to: const Duration(minutes: 5)),
-          CardCountdown(to: const Duration(hours: 1, minutes: 30)),
-        ],
-      ),
-    );
-  }
-}
-
-/// A titled card wrapping one demo block.
-///
-/// 带标题、包裹单个 demo 块的卡片。
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.description, required this.child});
-
-  final String title;
-  final String description;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, 'Providers & theme', '作用域与主题'),
+    description: tr(
+      context,
+      'Share plugin groups with providers and visual defaults with CountmanTheme. Widget styles take priority.',
+      '用 Provider 共享插件分组，用 CountmanTheme 统一默认外观；组件自身的样式优先。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Scope and style', '分组与外观'),
+        code: combineSampleCode(['providers', 'theme']),
+        child: DemoGrid(
           children: [
-            Text(title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text(description,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurface.withValues(alpha: 0.6))),
-            const SizedBox(height: 16),
-            child,
+            DemoGridItem(
+              child: DemoCard(
+                replayable: false,
+                title: 'CountmanProvider',
+                description: tr(
+                  context,
+                  'One scope for counter, countdown and elapsed families.',
+                  '一个作用域聚合计数器、倒计时和正计时。',
+                ),
+                child: Column(
+                  children: [
+                    KeyedSubtree(
+                      key: ValueKey(_generation),
+                      child: providerSample(),
+                    ),
+                    TextButton(
+                      onPressed: _restart,
+                      child: Text(tr(context, 'Replay group', '重播分组')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            DemoGridItem(
+              child: DemoCard(
+                replayable: false,
+                title: 'CountmanTheme',
+                description: tr(
+                  context,
+                  'Use ThemeData.extensions for visual defaults.',
+                  '通过 ThemeData.extensions 设置默认样式。',
+                ),
+                child: Center(child: themeSample(context)),
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
+      InfoNote(
+        kind: InfoNoteKind.deprecated,
+        text: tr(
+          context,
+          'Provider-level *Style arguments are deprecated. Move visual defaults into CountmanTheme; keep providers for grouping and behavior.',
+          'Provider 上的 *Style 参数已弃用。将默认外观迁入 CountmanTheme，Provider 继续负责分组和行为。',
+        ),
+      ),
+    ],
+  );
 }

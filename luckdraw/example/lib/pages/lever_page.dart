@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/slot.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import 'slot_page.dart';
 
 /// 拖动拉杆的错峰停轮示例；例如 `const LeverPage()`。
@@ -45,7 +46,7 @@ class LeverPageState extends State<LeverPage> {
         controller.stopEach(SlotPageState.slotTargets);
       },
       game: LuckyLeverSlotMachine(
-          config: SlotPageState.config,
+          config: demoConfig(context, SlotPageState.config),
           controller: controller,
           width: demoSide,
           height: 180,

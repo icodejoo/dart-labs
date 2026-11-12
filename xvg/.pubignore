@@ -42,3 +42,10 @@ tool/
 # 而不去查它的 git 忽略规则。`.pubignore` 不受这个退化行为影响。
 build/
 site/
+
+example/web/pkg/
+example/build/
+example/.dart_tool/
+
+# Local verification logs.
+*.log

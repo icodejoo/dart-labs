@@ -1,3 +1,7 @@
+## 0.4.3
+
+- Docs only: rewrote README wording in plain language; the HarmonyOS spike project under tool/ is no longer shipped in the package.
+
 The full original Chinese changelog is kept in [CHANGES.zh-CN.md](https://github.com/icodejoo/dart-labs/blob/main/mova/CHANGES.zh-CN.md).
 
 ## 0.4.2
