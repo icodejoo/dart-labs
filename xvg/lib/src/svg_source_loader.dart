@@ -12,25 +12,17 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart' show NetworkImageLoadException;
 import 'package:flutter/services.dart';
 
-/// Original network image bytes and the optional HTTP content type.
-/// 网络图片的原始字节及可选 HTTP 内容类型。
-class SvgSourceBytes {
-  /// Wraps [bytes] and optional [contentType] without decoding them.
-  /// 包装 [bytes] 与可选 [contentType]，不进行解码。
-  const SvgSourceBytes(this.bytes, {this.contentType});
+import 'platform_file.dart'
+    if (dart.library.js_interop) 'platform_file_web.dart';
+import 'source_network_native.dart'
+    if (dart.library.js_interop) 'source_network_web.dart';
+import 'svg_source_bytes.dart';
 
-  /// Original image payload. / 原始图片载荷。
-  final Uint8List bytes;
-
-  /// HTTP content type, or null when absent. / HTTP 内容类型，缺失时为 null。
-  final String? contentType;
-}
+export 'svg_source_bytes.dart';
 
 /// Loads and caches SVG source text fetched from an asset bundle or a URL.
 ///
@@ -54,24 +46,6 @@ class SvgSourceLoader {
   /// 每个网络阶段的超时；测试可覆盖默认的 30 秒。
   @visibleForTesting
   static Duration networkTimeout = const Duration(seconds: 30);
-
-  /// Shared byte client outside override scopes; consolidate handles HTTP gzip.
-  /// 覆盖作用域外共享的字节客户端；HTTP gzip 由 consolidate 处理。
-  static final HttpClient _defaultByteClient = HttpClient()
-    ..autoUncompress = false;
-
-  /// Clients shared within each HttpOverrides scope, without retaining scopes.
-  /// 每个 HttpOverrides 作用域内共享客户端，不强引用作用域。
-  static final Expando<HttpClient> _overrideByteClients = Expando<HttpClient>();
-
-  /// Returns the byte client belonging to the current override scope.
-  /// 返回当前覆盖作用域所属的字节客户端。
-  static HttpClient get _byteClient {
-    final overrides = HttpOverrides.current;
-    if (overrides == null) return _defaultByteClient;
-    return _overrideByteClients[overrides] ??= HttpClient()
-      ..autoUncompress = false;
-  }
 
   /// Loads raw asset [name], optionally from [bundle] and [package].
   /// Returns original bytes; this does not populate the text cache.
@@ -103,47 +77,7 @@ class SvgSourceLoader {
     void Function(int cumulativeBytesLoaded, int? expectedTotalBytes)?
     onBytesReceived,
   }) async {
-    final requestHeaders = headers == null
-        ? null
-        : Map<String, String>.of(headers);
-    final uri = Uri.base.resolve(url);
-    final timeout = networkTimeout;
-    var connectionTimedOut = false;
-    final request = await _byteClient
-        .getUrl(uri)
-        .then((request) {
-          if (connectionTimedOut) request.abort();
-          return request;
-        })
-        .timeout(
-          timeout,
-          onTimeout: () {
-            connectionTimedOut = true;
-            throw TimeoutException('Xvg image connection timed out', timeout);
-          },
-        );
-    try {
-      requestHeaders?.forEach(request.headers.add);
-      final response = await request.close().timeout(timeout);
-      if (response.statusCode != HttpStatus.ok) {
-        await response.drain<void>().timeout(timeout);
-        throw NetworkImageLoadException(
-          statusCode: response.statusCode,
-          uri: uri,
-        );
-      }
-      final bytes = await consolidateHttpClientResponseBytes(
-        response,
-        onBytesReceived: onBytesReceived,
-      ).timeout(timeout);
-      return SvgSourceBytes(
-        bytes,
-        contentType: response.headers.value(HttpHeaders.contentTypeHeader),
-      );
-    } catch (error, stack) {
-      request.abort(error, stack);
-      rethrow;
-    }
+    return loadNetworkBytes(url, headers, onBytesReceived, networkTimeout);
   }
 
   final Map<String, Future<String>> _inFlight = {};
@@ -215,26 +149,7 @@ class SvgSourceLoader {
     return _cached(
       'net:${jsonEncode([url, headersKey(requestHeaders)])}',
       () async {
-        final timeout = networkTimeout;
-        final client = HttpClient();
-        try {
-          final request = await client.getUrl(Uri.parse(url)).timeout(timeout);
-          requestHeaders?.forEach(request.headers.add);
-          final response = await request.close().timeout(timeout);
-          if (response.statusCode != HttpStatus.ok) {
-            throw HttpException(
-              'Xvg.network: $url returned HTTP ${response.statusCode}',
-              uri: Uri.parse(url),
-            );
-          }
-          // 先收集字节再解码，让非法 UTF-8 的异常落在当前 Future 上。
-          final bytes = await response
-              .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk))
-              .timeout(timeout);
-          return utf8.decode(bytes);
-        } finally {
-          client.close(force: true);
-        }
+        return loadNetworkText(url, requestHeaders, networkTimeout);
       },
     );
   }

@@ -8,7 +8,7 @@
 
 设计意图看 DESIGN，签名与落点看本 SPEC 和代码。下文旧章节中的阶段号不是发版号；
 本节及各节新增的现行规则覆盖历史描述。A/B/C 块已落地，CP1 仍有阻塞，CP2/CP3 待真机。
-版本以 pubspec 的 0.4.0 为准，后续变更列在 CHANGELOG Unreleased，不代表已发布。
+版本以 pubspec 的 0.4.1 为准（已发布）；CHANGELOG 若出现 Unreleased 节，则为其后的仓库变更，不代表已发布。
 
 ## 编排会话（MovaSession）
 
