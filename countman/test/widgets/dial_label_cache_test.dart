@@ -48,6 +48,8 @@ Widget _host({
 
 _LabelCanvas _paint(CustomPainter painter, [Size size = _size]) {
   final canvas = _LabelCanvas();
+  // 假画布无法观察位图，改走矢量路径验证段落缓存。
+  (painter as dynamic).debugUseTickImages = false;
   painter.paint(canvas, size);
   return canvas;
 }
@@ -58,6 +60,7 @@ int _count(CustomPainter painter) =>
 
 void main() {
   tearDown(Countman.destroy);
+  tearDown(DialCountdown.clearTickImageCache);
 
   testWidgets('Dial 多次 paint 和逐帧 builder 更新复用同一画笔及段落', (tester) async {
     final clock = installManualClock();

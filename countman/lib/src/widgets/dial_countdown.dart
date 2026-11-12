@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_builder.dart';
 import 'countman_theme.dart';
 import 'providers.dart';
 import 'style_support.dart';
+import 'painter/image_byte_cache.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public colour vocabulary
@@ -51,24 +53,23 @@ class DialColors with StyleProps {
     Color? yellow,
     Color? red,
     Color? off,
-  }) =>
-      DialColors(
-        normal: normal ?? this.normal,
-        green: green ?? this.green,
-        yellow: yellow ?? this.yellow,
-        red: red ?? this.red,
-        off: off ?? this.off,
-      );
+  }) => DialColors(
+    normal: normal ?? this.normal,
+    green: green ?? this.green,
+    yellow: yellow ?? this.yellow,
+    red: red ?? this.red,
+    off: off ?? this.off,
+  );
 
   /// 在 [a] 与 [b] 之间按 [t]（0–1）逐色插值。
   /// 例如 `DialColors.lerp(const DialColors(), const DialColors(red: Colors.black), 0.5)`。
   static DialColors lerp(DialColors a, DialColors b, double t) => DialColors(
-        normal: Color.lerp(a.normal, b.normal, t)!,
-        green: Color.lerp(a.green, b.green, t)!,
-        yellow: Color.lerp(a.yellow, b.yellow, t)!,
-        red: Color.lerp(a.red, b.red, t)!,
-        off: Color.lerp(a.off, b.off, t)!,
-      );
+    normal: Color.lerp(a.normal, b.normal, t)!,
+    green: Color.lerp(a.green, b.green, t)!,
+    yellow: Color.lerp(a.yellow, b.yellow, t)!,
+    red: Color.lerp(a.red, b.red, t)!,
+    off: Color.lerp(a.off, b.off, t)!,
+  );
 
   @override
   List<Object?> get props => [normal, green, yellow, red, off];
@@ -129,16 +130,16 @@ class DialTicksConfig with StyleProps {
 
   @override
   List<Object?> get props => [
-        count,
-        radius,
-        width,
-        length,
-        majorEvery,
-        majorLengthFactor,
-        majorWidthFactor,
-        showLabels,
-        labelStyle,
-      ];
+    count,
+    radius,
+    width,
+    length,
+    majorEvery,
+    majorLengthFactor,
+    majorWidthFactor,
+    showLabels,
+    labelStyle,
+  ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,26 +347,25 @@ class DialCountdownStyle with BoxStyleFields, StyleProps {
     AlignmentGeometry? centerAlignment,
     EdgeInsetsGeometry? padding,
     Decoration? decoration,
-  }) =>
-      DialCountdownStyle(
-        size: size ?? this.size,
-        clockwise: clockwise ?? this.clockwise,
-        redAt: redAt ?? this.redAt,
-        yellowAt: yellowAt ?? this.yellowAt,
-        colors: colors ?? this.colors,
-        ticks: ticks ?? this.ticks,
-        arcA: arcA ?? this.arcA,
-        arcB: arcB ?? this.arcB,
-        inner: inner ?? this.inner,
-        glow: glow ?? this.glow,
-        showTicks: showTicks ?? this.showTicks,
-        showArcA: showArcA ?? this.showArcA,
-        showArcB: showArcB ?? this.showArcB,
-        showInner: showInner ?? this.showInner,
-        centerAlignment: centerAlignment ?? this.centerAlignment,
-        padding: padding ?? this.padding,
-        decoration: decoration ?? this.decoration,
-      );
+  }) => DialCountdownStyle(
+    size: size ?? this.size,
+    clockwise: clockwise ?? this.clockwise,
+    redAt: redAt ?? this.redAt,
+    yellowAt: yellowAt ?? this.yellowAt,
+    colors: colors ?? this.colors,
+    ticks: ticks ?? this.ticks,
+    arcA: arcA ?? this.arcA,
+    arcB: arcB ?? this.arcB,
+    inner: inner ?? this.inner,
+    glow: glow ?? this.glow,
+    showTicks: showTicks ?? this.showTicks,
+    showArcA: showArcA ?? this.showArcA,
+    showArcB: showArcB ?? this.showArcB,
+    showInner: showInner ?? this.showInner,
+    centerAlignment: centerAlignment ?? this.centerAlignment,
+    padding: padding ?? this.padding,
+    decoration: decoration ?? this.decoration,
+  );
 
   /// Merges with lower-priority [other]: this object's non-null fields win.
   ///
@@ -398,7 +398,10 @@ class DialCountdownStyle with BoxStyleFields, StyleProps {
   /// 插值字段在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
   /// 例如 `DialCountdownStyle.lerp(a, b, 0.5)`。
   static DialCountdownStyle? lerp(
-      DialCountdownStyle? a, DialCountdownStyle? b, double t) {
+    DialCountdownStyle? a,
+    DialCountdownStyle? b,
+    double t,
+  ) {
     if (identical(a, b)) return a;
     if (a == null || b == null) return t < 0.5 ? a : b;
     return DialCountdownStyle(
@@ -416,8 +419,11 @@ class DialCountdownStyle with BoxStyleFields, StyleProps {
       showArcA: pickField(a.showArcA, b.showArcA, t),
       showArcB: pickField(a.showArcB, b.showArcB, t),
       showInner: pickField(a.showInner, b.showInner, t),
-      centerAlignment:
-          AlignmentGeometry.lerp(a.centerAlignment, b.centerAlignment, t),
+      centerAlignment: AlignmentGeometry.lerp(
+        a.centerAlignment,
+        b.centerAlignment,
+        t,
+      ),
       padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
       decoration: Decoration.lerp(a.decoration, b.decoration, t),
     );
@@ -425,27 +431,35 @@ class DialCountdownStyle with BoxStyleFields, StyleProps {
 
   @override
   List<Object?> get props => [
-        size,
-        clockwise,
-        redAt,
-        yellowAt,
-        colors,
-        ticks,
-        arcA,
-        arcB,
-        inner,
-        glow,
-        showTicks,
-        showArcA,
-        showArcB,
-        showInner,
-        centerAlignment,
-        padding,
-        decoration,
-      ];
+    size,
+    clockwise,
+    redAt,
+    yellowAt,
+    colors,
+    ticks,
+    arcA,
+    arcB,
+    inner,
+    glow,
+    showTicks,
+    showArcA,
+    showArcB,
+    showInner,
+    centerAlignment,
+    padding,
+    decoration,
+  ];
 }
 
 class DialCountdown extends StatelessWidget {
+  /// 释放所有实例共享的刻度环位图；可重复调用，下次绘制时按需重建。
+  /// 不清理组件持有的文字段落，也不主动触发重绘。
+  /// 例如在内存紧张或测试清理时调用：
+  /// ```dart
+  /// DialCountdown.clearTickImageCache();
+  /// ```
+  static void clearTickImageCache() => _TickImageCache.clear();
+
   const DialCountdown({
     super.key,
     required this.to,
@@ -467,10 +481,7 @@ class DialCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  }) : assert(
-         fps == null || (fps > 0 && fps < double.infinity),
-         'fps 必须为有限正数',
-       );
+  }) : assert(fps == null || (fps > 0 && fps < double.infinity), 'fps 必须为有限正数');
 
   /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
   ///
@@ -489,7 +500,8 @@ class DialCountdown extends StatelessWidget {
   ///
   /// 依据当前 [TimeParts] 提供完全自定义的画笔，替换内建表盘画笔。此时所有 [style]
   /// 视觉项被忽略。
-  final CustomPainter Function(BuildContext context, TimeParts parts)? painterBuilder;
+  final CustomPainter Function(BuildContext context, TimeParts parts)?
+  painterBuilder;
 
   /// Optional widget rendered in the centre of the dial.
   /// Receives [TimeParts] each tick.  When null, the centre is empty.
@@ -576,7 +588,11 @@ class DialCountdown extends StatelessWidget {
                 : null,
           ),
         );
-        final decorated = applyBoxStyle(dial, padding: s.padding, decoration: s.decoration);
+        final decorated = applyBoxStyle(
+          dial,
+          padding: s.padding,
+          decoration: s.decoration,
+        );
         return effRepaint ? RepaintBoundary(child: decorated) : decorated;
       },
     );
@@ -642,6 +658,120 @@ class _DialPaintState extends State<_DialPaint> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 刻度环位图缓存
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 刻度环位图的缓存键：外观相同、亮灯数相同的表盘跨实例共享一张位图。
+@immutable
+class _TickKey {
+  const _TickKey({
+    required this.cfg,
+    required this.lit,
+    required this.finalMin,
+    required this.colors,
+    required this.redAt,
+    required this.yellowAt,
+    required this.glow,
+    required this.clockwise,
+    required this.size,
+    required this.ratio,
+    required this.padding,
+  });
+  final DialTicksConfig cfg;
+  final int lit;
+  final bool finalMin;
+  final DialColors colors;
+  final int redAt;
+  final int yellowAt;
+  final bool glow;
+  final bool clockwise;
+  final Size size;
+  final double ratio;
+  final double padding;
+
+  /// 把配置展开为可比较的记录，避免要求公开配置类实现 ==。
+  (
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+    Object?,
+  )
+  get _ticks => (
+    cfg.count,
+    cfg.radius,
+    cfg.width,
+    cfg.length,
+    cfg.majorEvery,
+    cfg.majorLengthFactor,
+    cfg.majorWidthFactor,
+    cfg.showLabels,
+    cfg.labelStyle,
+  );
+
+  /// 颜色表展开。
+  (Color, Color, Color, Color, Color) get _colors =>
+      (colors.normal, colors.green, colors.yellow, colors.red, colors.off);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TickKey &&
+      other.lit == lit &&
+      other.finalMin == finalMin &&
+      other.redAt == redAt &&
+      other.yellowAt == yellowAt &&
+      other.glow == glow &&
+      other.clockwise == clockwise &&
+      other.size == size &&
+      other.ratio == ratio &&
+      other.padding == padding &&
+      other._ticks == _ticks &&
+      other._colors == _colors;
+
+  @override
+  int get hashCode => Object.hash(
+    lit,
+    finalMin,
+    redAt,
+    yellowAt,
+    glow,
+    clockwise,
+    size,
+    ratio,
+    padding,
+    _ticks,
+    _colors,
+  );
+}
+
+/// 刻度环位图缓存（全局共享、LRU 淘汰）。
+///
+/// 一圈 60 条圆头抗锯齿刻度每帧重画是 Dial raster 耗时的主要来源；亮灯数只有 0..60
+/// 种取值，预渲染后多个表盘与逐秒刷新都只需一次纹理绘制。
+class _TickImageCache {
+  /// 包含边距的像素预算。
+  static const int byteBudget = 32 * 1024 * 1024;
+  static final _cache = ImageByteCache<_TickKey>(byteBudget);
+
+  /// 取得刻度环位图；失败或单张超预算时返回 null。
+  static ui.Image? obtain(_TickKey key, void Function(Canvas canvas) draw) {
+    return _cache.obtain(
+      key,
+      size: key.size,
+      ratio: key.ratio,
+      padding: key.padding,
+      draw: draw,
+    );
+  }
+
+  static void clear() => _cache.clear();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // _DialPainter — the CustomPainter that draws all four concentric rings
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -664,6 +794,7 @@ class _DialPainter extends CustomPainter {
   late bool glow;
 
   final _labels = <TextPainter>[];
+
   /// 仅用于验证缓存生命周期，不暴露组件 API。
   @visibleForTesting
   int get debugLabelCount => _labels.length;
@@ -696,8 +827,12 @@ class _DialPainter extends CustomPainter {
         : null;
     arcB = (style.showArcB ?? true)
         ? (style.arcB ??
-            const DialArcConfig(
-                radius: 31.5, strokeWidth: 1.3, segments: 3, spanDegrees: 60))
+              const DialArcConfig(
+                radius: 31.5,
+                strokeWidth: 1.3,
+                segments: 3,
+                spanDegrees: 60,
+              ))
         : null;
     inner = (style.showInner ?? true)
         ? (style.inner ?? const DialInnerConfig())
@@ -726,7 +861,8 @@ class _DialPainter extends CustomPainter {
             (_labelScale == sc && _labelColor == colors.off))) {
       return;
     }
-    final style = cfg.labelStyle ??
+    final style =
+        cfg.labelStyle ??
         TextStyle(
           color: colors.off,
           fontSize: 7.0 * sc,
@@ -752,10 +888,12 @@ class _DialPainter extends CustomPainter {
 
   /// 内环轨道画笔，避免每次重绘重新创建。
   final Paint _innerTrackPaint = Paint()..style = PaintingStyle.stroke;
+
   /// 内环所有进度弧共用画笔，绘制时只更新颜色。
   final Paint _innerArcPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round;
+
   /// 一分钟的毫秒数，供合并段及末分钟分区共用。
   static const double _minuteMs = 60000;
 
@@ -792,7 +930,9 @@ class _DialPainter extends CustomPainter {
   ///   - final minute: red / yellow / green based on _sec().
   ///   - otherwise: normal.
   Color _themeColor() {
-    if (_finalMin()) return colors.zoneColor(_sec(), redAt: redAt, yellowAt: yellowAt);
+    if (_finalMin()) {
+      return colors.zoneColor(_sec(), redAt: redAt, yellowAt: yellowAt);
+    }
     return colors.normal;
   }
 
@@ -803,21 +943,11 @@ class _DialPainter extends CustomPainter {
     final sc = _scale(size);
     final c = _centre(size);
 
-    // Layer order (back → front), matching ring.ts build() insertion order:
-    //   1. innermost progress ring  (inserted first in SVG, so it's behind arcs)
-    //   2. arc A + arc B            (drawn on top of inner ring)
-    //   3. outermost tick ring      (topmost ring layer)
-    //   4. centre content           (handled by the child widget, not the painter)
-    //
-    // Note: ring.ts inserts ticks first, then inner, then arcs in the SVG.
-    // SVG paints in source order (later = on top), so the visual stack is:
-    //   ticks → inner → arcs, with arcs on top.
-    // We replicate that exact order here.
-
-    _paintTicks(canvas, c, sc);
+    // 从底到顶：刻度 → 内圈 → 弧线 → 中心内容。
+    _paintTicks(canvas, size, c, sc);
     _paintInner(canvas, c, sc);
     _paintArc(canvas, c, sc, arcA, -_dirSign()); // arc A: counter-clockwise
-    _paintArc(canvas, c, sc, arcB, _dirSign());  // arc B: clockwise
+    _paintArc(canvas, c, sc, arcB, _dirSign()); // arc B: clockwise
   }
 
   /// +1 if clockwise, -1 if counter-clockwise (the "cw" scalar from ring.ts).
@@ -844,7 +974,7 @@ class _DialPainter extends CustomPainter {
   ///   rx = width * 0.42  (rounded end caps)
   ///
   /// Flutter equivalent: rotate the canvas, draw a rounded RRect, restore.
-  void _paintTicks(Canvas canvas, Offset centre, double sc) {
+  void _paintTicks(Canvas canvas, Size size, Offset centre, double sc) {
     final cfg = ticks;
     if (cfg == null) return;
 
@@ -854,11 +984,70 @@ class _DialPainter extends CustomPainter {
     // (e.g. 60 s or 120 s remaining).  At those boundaries all ticks should be
     // lit, so treat sec == 0 with remaining time as a full count.
     final rawSec = _sec();
-    final sec = (rawSec == 0 && parts.value.inMilliseconds > 0) ? count : rawSec;
+    final sec = (rawSec == 0 && parts.value.inMilliseconds > 0)
+        ? count
+        : rawSec;
     final lit = parts.value.inMilliseconds <= 0 ? 0 : math.min(count, sec);
     final finalMin = _finalMin();
-    final step = (2 * math.pi) / count; // radians per tick
 
+    final ratio = _ratio();
+    // 六个逻辑像素覆盖模糊尾部，大表盘再按比例扩展。
+    final padding = glow ? math.max(6.0, (4 * sc).ceilToDouble()) : 0.0;
+    final key = _TickKey(
+      cfg: cfg,
+      lit: lit,
+      finalMin: finalMin,
+      colors: colors,
+      redAt: redAt,
+      yellowAt: yellowAt,
+      glow: glow,
+      clockwise: clockwise,
+      size: size,
+      ratio: ratio,
+      padding: padding,
+    );
+    final image = !debugUseTickImages
+        ? null
+        : _TickImageCache.obtain(key, (c) {
+            _drawTickRing(c, centre, sc, cfg, lit, finalMin);
+          });
+    if (image != null) {
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        (Offset.zero & size).inflate(padding),
+        _tickImagePaint,
+      );
+      return;
+    }
+    _drawTickRing(canvas, centre, sc, cfg, lit, finalMin);
+  }
+
+  /// 是否启用刻度环位图缓存；仅测试用来改走可观察的矢量路径。
+  @visibleForTesting
+  bool debugUseTickImages = true;
+
+  /// 刻度环位图的绘制画笔，使用中等过滤质量。
+  final Paint _tickImagePaint = Paint()..filterQuality = FilterQuality.medium;
+
+  /// 当前主视图的设备像素比，取不到时按 1。
+  double _ratio() {
+    final views = ui.PlatformDispatcher.instance.views;
+    final ratio = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    return ratio < 1.0 ? 1.0 : ratio;
+  }
+
+  /// 直接绘制整圈刻度（及标签）；位图缓存未命中或生成失败时使用。
+  void _drawTickRing(
+    Canvas canvas,
+    Offset centre,
+    double sc,
+    DialTicksConfig cfg,
+    int lit,
+    bool finalMin,
+  ) {
+    final count = cfg.count;
+    final step = (2 * math.pi) / count; // radians per tick
     // 每次绘制复用一支刻度画笔，避免逐刻度分配。
     final tickPaint = Paint()
       ..style = PaintingStyle.stroke
@@ -1050,22 +1239,67 @@ class _DialPainter extends CustomPainter {
     _innerArcPaint
       ..strokeWidth = strokeWidth
       ..maskFilter = glow ? const MaskFilter.blur(BlurStyle.outer, 2.0) : null;
-    _drawInnerSegment(canvas, rect, totalMs, rem, _minuteMs, totalMs.toDouble(), colors.normal);
-    _drawInnerSegment(canvas, rect, totalMs, rem, yellowAt * 1000.0, _minuteMs, colors.green);
-    _drawInnerSegment(canvas, rect, totalMs, rem, redAt * 1000.0, yellowAt * 1000.0, colors.yellow);
-    _drawInnerSegment(canvas, rect, totalMs, rem, 0, redAt * 1000.0, colors.red);
+    _drawInnerSegment(
+      canvas,
+      rect,
+      totalMs,
+      rem,
+      _minuteMs,
+      totalMs.toDouble(),
+      colors.normal,
+    );
+    _drawInnerSegment(
+      canvas,
+      rect,
+      totalMs,
+      rem,
+      yellowAt * 1000.0,
+      _minuteMs,
+      colors.green,
+    );
+    _drawInnerSegment(
+      canvas,
+      rect,
+      totalMs,
+      rem,
+      redAt * 1000.0,
+      yellowAt * 1000.0,
+      colors.yellow,
+    );
+    _drawInnerSegment(
+      canvas,
+      rect,
+      totalMs,
+      rem,
+      0,
+      redAt * 1000.0,
+      colors.red,
+    );
   }
 
   /// 绘制时间区间与剩余时间的交集；共用画笔，不创建逐段闭包或画笔。
-  void _drawInnerSegment(Canvas canvas, Rect rect, int totalMs, double remaining,
-      double from, double to, Color color) {
+  void _drawInnerSegment(
+    Canvas canvas,
+    Rect rect,
+    int totalMs,
+    double remaining,
+    double from,
+    double to,
+    Color color,
+  ) {
     final hi = math.min(to, remaining);
     if (hi <= from) return;
     final factor = -_dirSign() * 2 * math.pi / totalMs;
     final sweep = (hi - from) * factor;
     if (sweep.abs() < 1e-6) return;
     _innerArcPaint.color = color;
-    canvas.drawArc(rect, -math.pi / 2 + from * factor, sweep, false, _innerArcPaint);
+    canvas.drawArc(
+      rect,
+      -math.pi / 2 + from * factor,
+      sweep,
+      false,
+      _innerArcPaint,
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────────

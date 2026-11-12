@@ -110,7 +110,7 @@ class _DigitTestPageState extends State<DigitTestPage> {
             to: _value,
             duration: const Duration(seconds: 3),
             onUpdate: _onUpdate,
-            builder: (_, v, __) => Text(
+            builder: (_, v, _) => Text(
               v.toInt().toString(),
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),

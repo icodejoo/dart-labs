@@ -150,6 +150,13 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
+  // 强制出帧基准在后台显示，启动时也不抢焦点。
+  char force_frames[8] = {};
+  if (GetEnvironmentVariableA("BENCH_FORCE_FRAMES", force_frames,
+                              sizeof(force_frames)) == 4 &&
+      std::string(force_frames) == "true") {
+    return ShowWindow(window_handle_, SW_SHOWNOACTIVATE);
+  }
   return ShowWindow(window_handle_, SW_SHOWNORMAL);
 }
 

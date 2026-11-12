@@ -1,8 +1,76 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import '../card_countdown_types.dart';
 import '../card_countdown_provider.dart';
 import 'perspective.dart';
+import 'image_byte_cache.dart';
+
+/// 整张卡面位图的缓存键：同值、同尺寸、同样式的卡面可跨卡片共享。
+@immutable
+class _FaceKey {
+  const _FaceKey(
+    this.value,
+    this.width,
+    this.height,
+    this.radius,
+    this.color,
+    this.style,
+    this.ratio,
+    this.padding,
+  );
+  final int value;
+  final double width;
+  final double height;
+  final BorderRadius radius;
+  final Color color;
+  final TextStyle style;
+  final double ratio;
+  final double padding;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _FaceKey &&
+      other.value == value &&
+      other.width == width &&
+      other.height == height &&
+      other.radius == radius &&
+      other.color == color &&
+      other.style == style &&
+      other.ratio == ratio &&
+      other.padding == padding;
+
+  @override
+  int get hashCode =>
+      Object.hash(value, width, height, radius, color, style, ratio, padding);
+}
+
+/// 透视旋转用的卡面位图缓存（全局共享、LRU 淘汰）。
+///
+/// 透视矩阵下文字会退化为路径光栅化，是翻牌 raster 耗时的主要来源；
+/// 把“背景 + 数字”预渲染成位图后，旋转只剩一次带纹理的四边形绘制。
+class _FaceImageCache {
+  /// 包含边距的像素预算。
+  static const int byteBudget = 8 * 1024 * 1024;
+  static final _cache = ImageByteCache<_FaceKey>(byteBudget);
+
+  /// 取得卡面位图；失败或单张超预算时返回 null。
+  static ui.Image? obtain(
+    _FaceKey key,
+    void Function(Canvas canvas, Rect rect) drawFace,
+  ) {
+    return _cache.obtain(
+      key,
+      size: Size(key.width, key.height),
+      ratio: key.ratio,
+      padding: key.padding,
+      draw: (canvas) =>
+          drawFace(canvas, Rect.fromLTWH(0, 0, key.width, key.height)),
+    );
+  }
+
+  static void clear() => _cache.clear();
+}
 
 /// Layout of one digit cell within a [CardCountdown], resolved by its
 /// `_measure()` and consumed by [FlipCardPainter].
@@ -359,16 +427,126 @@ class FlipCardPainter extends CustomPainter {
   /// rotated by [angle] around the shared hinge line at the cell's vertical
   /// center (a perspective rotateX transform — see class doc for why this
   /// needs a small [calendarZeroAngle] instead of a literal 0).
-  void rotatedCalendarHalf(Canvas canvas, Rect rect, int value, BorderRadius radius, double angle,
-      {required bool upper}) {
-    final center = Offset(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  void rotatedCalendarHalf(
+    Canvas canvas,
+    Rect rect,
+    int value,
+    BorderRadius radius,
+    double angle, {
+    required bool upper,
+  }) {
+    final center = Offset(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
     canvas.save();
     transformRotateX(canvas, center, angle, perspective);
-    canvas.clipRect(upper
+    final half = upper
         ? Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height / 2)
-        : Rect.fromLTWH(rect.left, rect.top + rect.height / 2, rect.width, rect.height / 2));
-    drawFaceNoDivider(canvas, rect, value, radius);
+        : Rect.fromLTWH(
+            rect.left,
+            rect.top + rect.height / 2,
+            rect.width,
+            rect.height / 2,
+          );
+    if (!_drawFaceImage(canvas, rect, value, radius, 1.0, half: half)) {
+      canvas.clipRect(half);
+      drawFaceNoDivider(canvas, rect, value, radius);
+    }
     canvas.restore();
+  }
+
+  /// 以缓存位图绘制不透明的 [rect] 卡面（或其 [half] 半边）。
+  /// 子类可能重写 [drawFaceNoDivider] 等外观钩子，因此仅原始类走位图；失败返回 false，
+  /// 由调用方回退矢量绘制。
+  bool _drawFaceImage(
+    Canvas canvas,
+    Rect rect,
+    int value,
+    BorderRadius radius,
+    double alpha, {
+    Rect? half,
+  }) {
+    // 淡化时背景与数字分别合成，不能对整张位图乘透明度。
+    if (runtimeType != FlipCardPainter || alpha < 1.0) return false;
+    final ratio = _devicePixelRatio();
+    final glyph = _lookupGlyph(_digitText(value), textStyle, digitCache);
+    // 字号覆盖字形边缘，额外保留超宽文字及阴影尾部。
+    final margin = math.max(
+      textStyle.fontSize ?? 14.0,
+      math.max(
+        (glyph.width - rect.width) / 2,
+        (glyph.height - rect.height) / 2,
+      ),
+    );
+    var shadowMargin = 0.0;
+    for (final shadow in textStyle.shadows ?? const <Shadow>[]) {
+      shadowMargin = math.max(
+        shadowMargin,
+        shadow.offset.dx.abs() + shadow.offset.dy.abs() + 3 * shadow.blurRadius,
+      );
+    }
+    final padding = math.max(0.0, margin + shadowMargin).ceilToDouble();
+    final image = _FaceImageCache.obtain(
+      _FaceKey(
+        value,
+        rect.width,
+        rect.height,
+        radius,
+        cardColor,
+        textStyle,
+        ratio,
+        padding,
+      ),
+      (c, r) {
+        c.drawRRect(radius.toRRect(r), Paint()..color = cardColor);
+        _paintGlyphDirect(c, value, r);
+      },
+    );
+    if (image == null) return false;
+    final padded = rect.inflate(padding);
+    final sx = image.width / padded.width;
+    final sy = image.height / padded.height;
+    final dst = half ?? padded;
+    final src = half == null
+        ? Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble())
+        : Rect.fromLTWH(
+            (half.left - padded.left) * sx,
+            (half.top - padded.top) * sy,
+            half.width * sx,
+            half.height * sy,
+          );
+    canvas.drawImageRect(image, src, dst, _imagePaint);
+    return true;
+  }
+
+  /// 位图常驻画笔：中等过滤质量，避免透视缩放时锯齿。
+  final Paint _imagePaint = Paint()
+    ..filterQuality = FilterQuality.medium
+    ..isAntiAlias = true;
+
+  /// 释放所有实例共享的翻牌卡面位图；可重复调用，下次绘制时按需重建。
+  /// 不清理字形缓存，也不主动触发重绘。
+  /// 例如在内存紧张或测试清理时调用：
+  /// ```dart
+  /// FlipCardPainter.clearFaceImageCache();
+  /// ```
+  static void clearFaceImageCache() => _FaceImageCache.clear();
+
+  /// 当前主视图的设备像素比，取不到时按 1。
+  double _devicePixelRatio() {
+    final views = ui.PlatformDispatcher.instance.views;
+    final ratio = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    return ratio < 1.0 ? 1.0 : ratio;
+  }
+
+  /// 不经缓存、直接把数字居中画到 [rect]，供位图生成使用。
+  void _paintGlyphDirect(Canvas canvas, int value, Rect rect) {
+    final tp = _lookupGlyph(_digitText(value), textStyle, digitCache);
+    tp.paint(
+      canvas,
+      Offset(rect.center.dx - tp.width / 2, rect.center.dy - tp.height / 2),
+    );
   }
 
   /// Same as [drawFace] but without the divider — the calendar halves draw
@@ -429,18 +607,29 @@ class FlipCardPainter extends CustomPainter {
   /// Draws [value]'s whole face (background + digit) rotated by [angle]
   /// around the cell's own center, at [alpha] opacity and [scale] size.
   void drawRotatedFace(
-      Canvas canvas, Rect rect, int value, BorderRadius radius, double angle, double alpha, double scale) {
+    Canvas canvas,
+    Rect rect,
+    int value,
+    BorderRadius radius,
+    double angle,
+    double alpha,
+    double scale,
+  ) {
     final center = rect.center;
     canvas.save();
     transformRotateX(canvas, center, angle, perspective);
     if (scale == 1.0) {
-      drawFaceWithAlpha(canvas, rect, value, radius, alpha);
+      if (!_drawFaceImage(canvas, rect, value, radius, alpha)) {
+        drawFaceWithAlpha(canvas, rect, value, radius, alpha);
+      }
     } else {
       canvas.save();
       canvas.translate(center.dx, center.dy);
       canvas.scale(scale);
       canvas.translate(-center.dx, -center.dy);
-      drawFaceWithAlpha(canvas, rect, value, radius, alpha);
+      if (!_drawFaceImage(canvas, rect, value, radius, alpha)) {
+        drawFaceWithAlpha(canvas, rect, value, radius, alpha);
+      }
       canvas.restore();
     }
     canvas.restore();

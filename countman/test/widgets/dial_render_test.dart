@@ -30,6 +30,7 @@ class _TickCanvas implements Canvas {
 // 分组边界从整数个位向左累计，小数位不参与分组。
 void main() {
   tearDown(Countman.destroy);
+  tearDown(DialCountdown.clearTickImageCache);
 
   testWidgets('Dial 刻度标签缓存到组件卸载时释放', (tester) async {
     await tester.pumpWidget(const Directionality(
@@ -42,6 +43,8 @@ void main() {
     final paint = tester.widgetList<CustomPaint>(find.byType(CustomPaint))
         .firstWhere((widget) => widget.painter != null);
     final canvas = _TickCanvas();
+    // 假画布无法观察位图，改走矢量路径。
+    (paint.painter as dynamic).debugUseTickImages = false;
     paint.painter!.paint(canvas, const Size.square(200));
     expect(canvas.paragraphs, hasLength(12));
     expect(canvas.paragraphs.map((p) => p.debugDisposed), everyElement(isFalse));
@@ -60,6 +63,8 @@ void main() {
     final paint = tester.widgetList<CustomPaint>(find.byType(CustomPaint))
         .firstWhere((widget) => widget.painter != null);
     final canvas = _TickCanvas();
+    // 假画布无法观察位图，改走矢量路径。
+    (paint.painter as dynamic).debugUseTickImages = false;
     paint.painter!.paint(canvas, const Size.square(200));
     expect(canvas.filters, hasLength(60));
     expect(canvas.filters.take(3), everyElement(isNotNull));

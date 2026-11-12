@@ -135,7 +135,9 @@ class _PerfPageState extends State<PerfPage> {
   static bool _allNinesAtLeast5(int n) {
     if (n < 99999) return false;
     var m = n + 1;
-    while (m % 10 == 0) m ~/= 10;
+    while (m % 10 == 0) {
+      m ~/= 10;
+    }
     return m == 1;
   }
 

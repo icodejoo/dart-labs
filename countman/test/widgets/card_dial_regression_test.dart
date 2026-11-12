@@ -66,6 +66,8 @@ void main() {
     clock = installManualClock(wallTime: DateTime(2026));
   });
   tearDown(Countman.destroy);
+  tearDown(DialCountdown.clearTickImageCache);
+  tearDown(FlipCardPainter.clearFaceImageCache);
   testWidgets('123 小时拆成三个小时数字', (t) async {
     await t.pumpWidget(_host(const CardCountdown(to: Duration(hours: 123))));
     expect(painter(t).model.committed.take(3), [1, 2, 3]);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show FramePhase, PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,12 +9,18 @@ import 'package:countman/countman.dart';
 import 'package:slide_countdown/slide_countdown.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 
+import 'benchmark_frame_driver.dart';
+import 'benchmark_present_stats.dart';
+
 /// Which countdown library/mode is currently mounted / being measured.
 ///
 /// 当前挂载/正在测量的倒计时库/模式。
 enum BenchLib {
   /// Nothing mounted — idle screen. / 空闲，未挂载任何库。
   idle,
+
+  /// 强制出帧的空载天花板。
+  emptyBaseline,
 
   /// countman [CardCountdown] in [CountdownType.slide] mode. / countman 卡片滑动模式。
   countmanCard,
@@ -44,32 +51,49 @@ enum BenchLib {
 
   /// 默认 calendar 过渡与默认时长；splitDigits 默认已为 false。
   countmanCardDefault,
+
   /// 默认 calendar 过渡，显示刷新上限 30fps。
   countmanCardDefault30,
+
   /// 50 个 TextCounter 持续滚动，不限帧；用于验证 fps 对共享 ticker 组件的真实出帧影响。
   counterFree,
+
   /// 50 个不限帧 TextCounter 被不透明路由覆盖，验证静音休眠。
   coveredCounter,
+
   /// 50 张默认 calendar 卡被不透明路由覆盖，验证静音休眠。
   coveredCard,
-  /// 50 个 RingCountdown 持续刷新，作为 Ring 的真窗口基线。
+
+  /// 50 个 RingCountdown，沿用默认整秒更新。
   ringCountdown,
+
   /// 50 个 DialCountdown 持续刷新，作为 Dial 的真窗口基线。
   dialCountdown,
-  /// 50 个 BarCountdown 持续刷新，作为 Bar 的真窗口基线。
+
+  /// 50 个 BarCountdown，沿用默认整秒更新。
   barCountdown,
+
+  /// 50 个 AnimatedCounter，每秒变更一次数值，作为滚轮动画的真窗口基线。
+  animatedCounter,
+
   /// 同 counterFree，fps: 30。
   counter30,
+
   /// 同 counter30，改由全局限帧。
   counterGlobal30,
+
   /// 同 counter30，改由页面插件限帧。
   counterPlugin30,
+
   /// 50 个 precise 倒计时（毫秒显示逐帧更新），不限帧。
   preciseFree,
+
   /// 同 preciseFree，fps: 30。
   precise30,
+
   /// 同 precise30，改由全局限帧。
   preciseGlobal30,
+
   /// 同 precise30，改由页面插件限帧。
   precisePlugin30,
 
@@ -139,6 +163,9 @@ class BenchResult {
   /// 测量窗口内采集的 RSS 内存样本（MB）。
   final List<double> rssMb = [];
 
+  /// 仅强制模式附加呈现统计和原始时间戳。
+  final Map<String, Object> present = {};
+
   /// Wall-clock elapsed of the measurement window, in seconds. / 测量窗口真实耗时（秒）。
   double elapsedS = 0;
 
@@ -172,31 +199,33 @@ class BenchResult {
 
   /// Flatten to a JSON-friendly map for console logging. / 转成可打印的 JSON map。
   Map<String, Object> toJson() => {
-        'lib': lib.name,
-        'frames': frames,
-        'elapsedS': double.parse(elapsedS.toStringAsFixed(2)),
-        'fps': double.parse(fps.toStringAsFixed(1)),
-        'uiMs_avg': double.parse(_avg(uiMs).toStringAsFixed(2)),
-        'uiMs_p50': double.parse(_p(uiMs, .50).toStringAsFixed(2)),
-        'uiMs_p90': double.parse(_p(uiMs, .90).toStringAsFixed(2)),
-        'uiMs_p99': double.parse(_p(uiMs, .99).toStringAsFixed(2)),
-        'rasterMs_avg': double.parse(_avg(rasterMs).toStringAsFixed(2)),
-        'rasterMs_p90': double.parse(_p(rasterMs, .90).toStringAsFixed(2)),
-        'rasterMs_p99': double.parse(_p(rasterMs, .99).toStringAsFixed(2)),
-        // 保留字段名；口径由 ui+raster 改为 max(ui, raster) > 16.67ms。
-        'jankFrames': jankFrames,
-        'jankPct': frames == 0
-            ? 0
-            : double.parse((100 * jankFrames / frames).toStringAsFixed(1)),
-        'rss_start_mb': rssMb.isEmpty
-            ? 0
-            : double.parse(rssMb.first.toStringAsFixed(1)),
-        'rss_avg_mb': double.parse(_avg(rssMb).toStringAsFixed(1)),
-        'rss_peak_mb': rssMb.isEmpty
-            ? 0
-            : double.parse(
-                rssMb.reduce((a, b) => a > b ? a : b).toStringAsFixed(1)),
-      };
+    ...present,
+    'lib': lib.name,
+    'frames': frames,
+    'elapsedS': double.parse(elapsedS.toStringAsFixed(2)),
+    'fps': double.parse(fps.toStringAsFixed(1)),
+    'uiMs_avg': double.parse(_avg(uiMs).toStringAsFixed(2)),
+    'uiMs_p50': double.parse(_p(uiMs, .50).toStringAsFixed(2)),
+    'uiMs_p90': double.parse(_p(uiMs, .90).toStringAsFixed(2)),
+    'uiMs_p99': double.parse(_p(uiMs, .99).toStringAsFixed(2)),
+    'rasterMs_avg': double.parse(_avg(rasterMs).toStringAsFixed(2)),
+    'rasterMs_p90': double.parse(_p(rasterMs, .90).toStringAsFixed(2)),
+    'rasterMs_p99': double.parse(_p(rasterMs, .99).toStringAsFixed(2)),
+    // 保留字段名；口径由 ui+raster 改为 max(ui, raster) > 16.67ms。
+    'jankFrames': jankFrames,
+    'jankPct': frames == 0
+        ? 0
+        : double.parse((100 * jankFrames / frames).toStringAsFixed(1)),
+    'rss_start_mb': rssMb.isEmpty
+        ? 0
+        : double.parse(rssMb.first.toStringAsFixed(1)),
+    'rss_avg_mb': double.parse(_avg(rssMb).toStringAsFixed(1)),
+    'rss_peak_mb': rssMb.isEmpty
+        ? 0
+        : double.parse(
+            rssMb.reduce((a, b) => a > b ? a : b).toStringAsFixed(1),
+          ),
+  };
 }
 
 /// A/B benchmark page: renders 50 concurrent slide countdowns from each
@@ -240,6 +269,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
   bool _usesGlobalFps = false;
   Counter? _counterPlugin30;
   Countdown? _countdownPlugin30;
+  Countdown? _dialPlugin;
 
   void _releaseFpsVariant() {
     if (_usesGlobalFps) {
@@ -252,14 +282,21 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     final countdown = _countdownPlugin30;
     _countdownPlugin30 = null;
     if (countdown != null) Countman.unuse(countdown);
+    final dial = _dialPlugin;
+    _dialPlugin = null;
+    if (dial != null) Countman.unuse(dial);
   }
 
   /// 单库模式优先取编译参数，为空时取进程环境变量；空值仍跑原 A/B 流程。
   /// 单库测量完成后退出，便于外部 CPU 采样；切换环境变量无需重编译。
   static final String _singleLib =
       const String.fromEnvironment('BENCH_LIB').isNotEmpty
-          ? const String.fromEnvironment('BENCH_LIB')
-          : Platform.environment['BENCH_LIB'] ?? '';
+      ? const String.fromEnvironment('BENCH_LIB')
+      : Platform.environment['BENCH_LIB'] ?? '';
+
+  static final bool _forceFrames =
+      const bool.fromEnvironment('BENCH_FORCE_FRAMES') ||
+      Platform.environment['BENCH_FORCE_FRAMES'] == 'true';
 
   @override
   void initState() {
@@ -272,6 +309,8 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       Future<void>.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         switch (_singleLib) {
+          case 'emptyBaseline':
+            _runSingle(BenchLib.emptyBaseline);
           case 'countmanCard':
             _runSingle(BenchLib.countmanCard);
           case 'countmanCardFair':
@@ -302,6 +341,8 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
             _runSingle(BenchLib.ringCountdown);
           case 'dialCountdown':
             _runSingle(BenchLib.dialCountdown);
+          case 'animatedCounter':
+            _runSingle(BenchLib.animatedCounter);
           case 'barCountdown':
             _runSingle(BenchLib.barCountdown);
           case 'counter30':
@@ -412,6 +453,11 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
   Future<void> _runOne(BenchLib lib) async {
     // 切换时先清理上一变体，再在组件挂载前配置限帧来源。
     _releaseFpsVariant();
+    if (lib == BenchLib.dialCountdown) {
+      // 逐帧刷新，避免默认整秒插件掩盖绘制成本。
+      _dialPlugin = Countdown(name: 'bench-dial', interval: 0);
+      Countman.use(_dialPlugin!);
+    }
     switch (lib) {
       case BenchLib.counterGlobal30:
       case BenchLib.preciseGlobal30:
@@ -422,7 +468,10 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
         Countman.use(_counterPlugin30!);
       case BenchLib.precisePlugin30:
         _countdownPlugin30 = Countdown(
-            name: 'bench-countdown-plugin30', interval: 0, fps: 30);
+          name: 'bench-countdown-plugin30',
+          interval: 0,
+          fps: 30,
+        );
         Countman.use(_countdownPlugin30!);
       default:
         break;
@@ -451,36 +500,42 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     }
 
     final result = BenchResult(lib);
-    _collecting = result;
-    final stopwatch = Stopwatch()..start();
+    if (_forceFrames) {
+      await _measureForced(result);
+    } else {
+      _collecting = result;
+      final stopwatch = Stopwatch()..start();
 
-    // Frame timings callback: one call may batch several frames. / 帧耗时回调。
-    _timingsCb = (List<FrameTiming> timings) {
-      final r = _collecting;
-      if (r == null) return;
-      for (final t in timings) {
-        r.uiMs.add(t.buildDuration.inMicroseconds / 1000.0);
-        r.rasterMs.add(t.rasterDuration.inMicroseconds / 1000.0);
-      }
-    };
-    SchedulerBinding.instance.addTimingsCallback(_timingsCb!);
+      // Frame timings callback: one call may batch several frames. / 帧耗时回调。
+      _timingsCb = (List<FrameTiming> timings) {
+        final r = _collecting;
+        if (r == null) return;
+        for (final t in timings) {
+          r.uiMs.add(t.buildDuration.inMicroseconds / 1000.0);
+          r.rasterMs.add(t.rasterDuration.inMicroseconds / 1000.0);
+        }
+      };
+      SchedulerBinding.instance.addTimingsCallback(_timingsCb!);
 
-    // RSS sampler every 200 ms. / 每 200ms 采样一次 RSS。
-    _sampleRss(result);
-    _rssTimer = Timer.periodic(
-        const Duration(milliseconds: 200), (_) => _sampleRss(result));
+      // RSS sampler every 200 ms. / 每 200ms 采样一次 RSS。
+      _sampleRss(result);
+      _rssTimer = Timer.periodic(
+        const Duration(milliseconds: 200),
+        (_) => _sampleRss(result),
+      );
 
-    setState(() => _phase = '${lib.name}: measuring');
-    await Future<void>.delayed(kMeasure);
+      setState(() => _phase = '${lib.name}: measuring');
+      await Future<void>.delayed(kMeasure);
 
-    // Stop collection. / 停止采集。
-    stopwatch.stop();
-    result.elapsedS = stopwatch.elapsedMilliseconds / 1000.0;
-    _rssTimer?.cancel();
-    _rssTimer = null;
-    SchedulerBinding.instance.removeTimingsCallback(_timingsCb!);
-    _timingsCb = null;
-    _collecting = null;
+      // Stop collection. / 停止采集。
+      stopwatch.stop();
+      result.elapsedS = stopwatch.elapsedMilliseconds / 1000.0;
+      _rssTimer?.cancel();
+      _rssTimer = null;
+      SchedulerBinding.instance.removeTimingsCallback(_timingsCb!);
+      _timingsCb = null;
+      _collecting = null;
+    }
 
     _results[lib] = result;
     // Print immediately so it's captured even if the run is interrupted. / 立即打印。
@@ -491,6 +546,91 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       Navigator.of(context).removeRoute(cover);
     }
     setState(() {});
+  }
+
+  /// 按光栅完成时间计数；等待批量回调送完尾帧。
+  Future<void> _measureForced(BenchResult result) async {
+    final binding = SchedulerBinding.instance;
+    final clock = Completer<int>();
+    binding.scheduleFrameCallback((_) {
+      clock.complete(binding.currentSystemFrameTimeStamp.inMicroseconds);
+    });
+    final startUs = await clock.future.timeout(const Duration(seconds: 3));
+    final endUs = startUs + kMeasure.inMicroseconds;
+    final display = PlatformDispatcher.instance.views.first.display;
+    final finishes = <int>[];
+    final vsyncs = <int>[];
+    var receivedPastEnd = false;
+    final drained = Completer<void>();
+    _timingsCb = (timings) {
+      for (final t in timings) {
+        final finish = t.timestampInMicroseconds(FramePhase.rasterFinish);
+        if (finish >= endUs) receivedPastEnd = true;
+        if (finish < startUs || finish >= endUs) continue;
+        finishes.add(finish);
+        vsyncs.add(t.timestampInMicroseconds(FramePhase.vsyncStart));
+        result.uiMs.add(t.buildDuration.inMicroseconds / 1000.0);
+        result.rasterMs.add(t.rasterDuration.inMicroseconds / 1000.0);
+      }
+      if (receivedPastEnd && !drained.isCompleted) drained.complete();
+    };
+    binding.addTimingsCallback(_timingsCb!);
+    _sampleRss(result);
+    _rssTimer = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (_) => _sampleRss(result),
+    );
+    setState(() => _phase = '${result.lib.name}: measuring forced frames');
+    try {
+      await Future<void>.delayed(kMeasure);
+      _rssTimer?.cancel();
+      _rssTimer = null;
+      await drained.future.timeout(const Duration(seconds: 3));
+    } finally {
+      _rssTimer?.cancel();
+      _rssTimer = null;
+      binding.removeTimingsCallback(_timingsCb!);
+      _timingsCb = null;
+    }
+    final endDisplay = PlatformDispatcher.instance.views.first.display;
+    if (display.id != endDisplay.id ||
+        display.refreshRate != endDisplay.refreshRate) {
+      throw StateError('测量期间显示器或刷新率变化，请保持窗口位置后重跑');
+    }
+    result.elapsedS = kMeasure.inMicroseconds / 1000000;
+    result.present.addAll({
+      'forceFrames': true,
+      'updateCadence': switch (result.lib) {
+        BenchLib.emptyBaseline => '仅独立 2×2px 驱动，每 vsync 平移 1px',
+        BenchLib.ringCountdown ||
+        BenchLib.barCountdown => '默认 Countdown interval:1000ms，整秒更新，无补间',
+        BenchLib.dialCountdown => '显式 Countdown interval:0，每 vsync 更新',
+        BenchLib.counterFree => '不限帧，5min 线性计数，每 vsync 更新',
+        BenchLib.animatedCounter => '每 1000ms 改值，默认滚轮动画',
+        BenchLib.countmanCardDefault => '默认整秒更新，calendar 默认动画',
+        BenchLib.cardFlipDefault => '默认整秒更新，flip 默认动画',
+        _ => '沿用变体配置，详见 benchmark_page.dart',
+      },
+      'displayId': display.id,
+      'displaySizePx': '${display.size.width}×${display.size.height}',
+      'displayDevicePixelRatio': display.devicePixelRatio,
+      'windowStartUs': startUs,
+      'windowEndUs': endUs,
+      'rasterFinishUs': finishes,
+      'vsyncStartUs': vsyncs,
+      ...calculatePresentStats(
+        rasterFinishUs: finishes,
+        windowStartUs: startUs,
+        windowEndUs: endUs,
+        refreshRateHz: display.refreshRate,
+        baselineIntervalUs:
+            double.tryParse(
+              Platform.environment['BENCH_BASELINE_INTERVAL_US'] ?? '',
+            ) ??
+            0,
+        isBaseline: result.lib == BenchLib.emptyBaseline,
+      ),
+    });
   }
 
   /// Append one RSS sample (resident set size) in MB. / 采集一个 RSS 样本（MB）。
@@ -506,24 +646,22 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     final cc = _results[BenchLib.countmanCard];
     final sl = _results[BenchLib.slide];
     if (cc != null && sl != null) {
-      debugPrint('BENCH_COMPARE_CARD ${jsonEncode({
-            'countman_card': cc.toJson(),
-            'slide_countdown': sl.toJson(),
-          })}');
+      debugPrint(
+        'BENCH_COMPARE_CARD ${jsonEncode({'countman_card': cc.toJson(), 'slide_countdown': sl.toJson()})}',
+      );
     }
     final ct = _results[BenchLib.countmanText];
     final sw = _results[BenchLib.stopWatch];
     if (ct != null && sw != null) {
-      debugPrint('BENCH_COMPARE_TEXT ${jsonEncode({
-            'countman_text': ct.toJson(),
-            'stop_watch_timer': sw.toJson(),
-          })}');
+      debugPrint(
+        'BENCH_COMPARE_TEXT ${jsonEncode({'countman_text': ct.toJson(), 'stop_watch_timer': sw.toJson()})}',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: const Color(0xFF101014),
       appBar: AppBar(
         backgroundColor: const Color(0xFF101014),
@@ -550,6 +688,17 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           Expanded(child: _isMixed ? _mixedPage() : _grid()),
         ],
       ),
+    );
+    if (!_forceFrames) return page;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_mounted == BenchLib.emptyBaseline)
+          const ColoredBox(color: Color(0xFF101014))
+        else
+          RepaintBoundary(child: page),
+        const Positioned(right: 4, bottom: 4, child: BenchmarkFrameDriver()),
+      ],
     );
   }
 
@@ -654,11 +803,14 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
 
   /// The 50-widget grid for whichever library is mounted. / 挂载库的 50 组件网格。
   Widget _grid() {
+    if (_mounted == BenchLib.emptyBaseline) return const SizedBox.shrink();
     if (_mounted == BenchLib.idle) {
       return const Center(
-        child: Text('Press "Run A/B" to benchmark\n(profile mode recommended)',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white38)),
+        child: Text(
+          'Press "Run A/B" to benchmark\n(profile mode recommended)',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white38),
+        ),
       );
     }
     return GridView.count(
@@ -668,16 +820,15 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       mainAxisSpacing: 6,
       crossAxisSpacing: 6,
       childAspectRatio: 1.4,
-      children: [
-        for (var i = 0; i < kCount; i++) Center(child: _cell(i)),
-      ],
+      children: [for (var i = 0; i < kCount; i++) Center(child: _cell(i))],
     );
   }
 
   /// 第 [i] 个倒计时；原组仅整秒错开，Staggered 组额外错开亚秒相位。
   Widget _cell(int i) {
     // 4–8 min range, staggered by index. / 4–8 分钟区间，按下标错开。
-    final staggered = _mounted == BenchLib.countmanCardStaggered ||
+    final staggered =
+        _mounted == BenchLib.countmanCardStaggered ||
         _mounted == BenchLib.slideStaggered;
     final dur = Duration(
       minutes: 4 + (i % 5),
@@ -685,7 +836,10 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       milliseconds: staggered ? i * 20 : 0,
     );
     const ts = TextStyle(
-        fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white);
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+    );
     switch (_mounted) {
       case BenchLib.countmanCard:
         return CardCountdown(
@@ -781,7 +935,8 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           duration: dur,
           slideDirection: SlideDirection.down,
           slideAnimationDuration: Duration(
-              milliseconds: _mounted == BenchLib.slide450 ? 450 : 250),
+            milliseconds: _mounted == BenchLib.slide450 ? 450 : 250,
+          ),
           // days/hours are zero for a 4–8 min duration and auto-hidden by
           // showZeroValue:false → renders MM:SS, matching countman above.
           //
@@ -792,7 +947,9 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
         // 第三方按挂载时刻启动整秒定时器，需额外错开首次挂载才会错相。
         return _mounted == BenchLib.slideStaggered
             ? _StaggeredMount(
-                delay: Duration(milliseconds: i * 20), child: slide)
+                delay: Duration(milliseconds: i * 20),
+                child: slide,
+              )
             : slide;
       case BenchLib.coveredCounter:
       case BenchLib.counterFree:
@@ -807,7 +964,13 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       case BenchLib.ringCountdown:
         return SizedBox(width: 56, height: 56, child: RingCountdown(to: dur));
       case BenchLib.dialCountdown:
-        return SizedBox(width: 56, height: 56, child: DialCountdown(to: dur));
+        return SizedBox(
+          width: 56,
+          height: 56,
+          child: DialCountdown(to: dur, plugin: _dialPlugin),
+        );
+      case BenchLib.animatedCounter:
+        return _AnimatedCounterCell(seed: i, style: ts);
       case BenchLib.barCountdown:
         return SizedBox(width: 90, height: 12, child: BarCountdown(to: dur));
       case BenchLib.counterGlobal30:
@@ -850,10 +1013,15 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           style: TextCountdownStyle(textStyle: ts),
         );
       case BenchLib.countmanText:
-        return TextCountdown(to: dur, formatter: CountdownFormat.ms, style: TextCountdownStyle(textStyle: ts));
+        return TextCountdown(
+          to: dur,
+          formatter: CountdownFormat.ms,
+          style: TextCountdownStyle(textStyle: ts),
+        );
       case BenchLib.stopWatch:
         return _StopWatchCell(duration: dur, style: ts);
       case BenchLib.idle:
+      case BenchLib.emptyBaseline:
         return const SizedBox.shrink();
     }
   }
@@ -865,17 +1033,21 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     TextStyle st(Color c) =>
         TextStyle(color: c, fontSize: 12, fontFamily: 'monospace');
     Widget row(String label, String? av, String? bv) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-          child: Row(children: [
-            SizedBox(width: 130, child: Text(label, style: st(Colors.white54))),
-            SizedBox(
-                width: 110,
-                child: Text(av ?? '—', style: st(Colors.cyanAccent))),
-            SizedBox(
-                width: 110,
-                child: Text(bv ?? '—', style: st(Colors.orangeAccent))),
-          ]),
-        );
+      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+      child: Row(
+        children: [
+          SizedBox(width: 130, child: Text(label, style: st(Colors.white54))),
+          SizedBox(
+            width: 110,
+            child: Text(av ?? '—', style: st(Colors.cyanAccent)),
+          ),
+          SizedBox(
+            width: 110,
+            child: Text(bv ?? '—', style: st(Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
     String? f(BenchResult? r, String k) =>
         r == null ? null : '${r.toJson()[k]}';
     return Container(
@@ -901,6 +1073,45 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       ),
     );
   }
+}
+
+/// 每秒改变一次数值的 AnimatedCounter 单元，用于驱动滚轮动画。
+class _AnimatedCounterCell extends StatefulWidget {
+  const _AnimatedCounterCell({required this.seed, required this.style});
+
+  /// 错开各单元的数值，避免全部同相位。
+  final int seed;
+
+  /// 文本样式。
+  final TextStyle style;
+
+  @override
+  State<_AnimatedCounterCell> createState() => _AnimatedCounterCellState();
+}
+
+class _AnimatedCounterCellState extends State<_AnimatedCounterCell> {
+  late int _value = widget.seed * 137;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _value += 1 + widget.seed % 7);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedCounter(
+    value: _value.toDouble(),
+    style: AnimatedCounterStyle(textStyle: widget.style),
+  );
 }
 
 /// 错开子组件的首次挂载；等待最长 980ms，完全落在预热窗口内。
