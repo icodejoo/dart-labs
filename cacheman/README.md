@@ -10,15 +10,18 @@ serialization, an optional codec hook, and a key-bound shortcut helper. The Dart
 `@codejoo/storage` (TypeScript).
 
 `Cacheman` stays fully synchronous after a single `await cache.ensureInitialized()` call — see `Cacheman`'s class
-doc for why.
+doc for why. For large values or other storage engines, run it side by side with your own
+`AsyncCacheman` subclass ([Layered storage](#layered-storage--custom-backends)).
 
 ## Install
 
 ```yaml
 dependencies:
-  cacheman:
-    path: ../cacheman # or a git/pub dependency once published
+  cacheman: ^0.7.1
 ```
+
+Or from a local checkout: `cacheman: {path: ../cacheman}`. 0.7.0 contains breaking changes —
+see [Migration from 0.6 to 0.7.0](#migration-from-06-to-070) if you are upgrading.
 
 ## Quick start
 
@@ -42,6 +45,12 @@ cache.setNamespace('alice');        // per-account isolation, in place
 
 Constructs a `Cacheman` (persistent, `get_storage`-backed) exposing all CRUD methods directly — no
 `.ls` indirection. Synchronous — call and `await` `ensureInitialized()` once before any read/write.
+
+### `Cacheman.custom({options})` / `AsyncCacheman({options})`
+
+`Cacheman.custom` is for synchronous subclasses that bring their own storage primitives (no
+`get_storage`); `AsyncCacheman` is an abstract class for asynchronous backends (all CRUD returns
+`Future`). Both are covered in [Layered storage](#layered-storage--custom-backends).
 
 ### `cache.ensureInitialized()`
 
@@ -296,6 +305,9 @@ final profile = cache.readWith<Profile>('profile', adapter: profiles);
   prebuilt string. Fix deterministic serialization/codec/adapter failures instead of expecting retry.
 - Delete CacheOptions construction/imports; pass ttl/expireAt directly to write/writeAll.
 - Replace key(index) loops (O(n²)) with one keys() snapshot. The deprecated method remains callable.
+- Subclasses that only forward constructor params keep working unchanged. Subclasses that bring
+  their own storage primitives should use `super.custom(...)`; asynchronous backends extend the
+  new `AsyncCacheman` (see Layered storage).
 - Unscoped erase still clears the entire backend including foreign keys; namespace or enckey
   keeps ownership protection. The nullable read return type is unchanged.
 
@@ -519,7 +531,7 @@ if you route across boxes, `keysRaw` must enumerate their union and `clearRaw` m
 Await `ensureInitialized`, `read<T>`/`readAll`, `write`/`writeAll`, `remove`/`removeAll`, `erase`,
 `keys()`, `length()`, `purge()` and `setNamespace()` on AsyncCacheman.
 `namespace` and `storageKey()` stay synchronous (no backend IO). TTL/expireAt and default values match Cacheman.
-There is no async `key(index)`, `fast`/`lazy`/`batchFast` or `debug()` in this stage.
+There is no async `key(index)`, `fast`/`lazy`/`batchFast` or `debug()` in 0.7.0.
 Every async enumeration calls `keysRaw` and filters ownership; no owned-key set is cached.
 Expired keys remain in enumeration/counts until read/purge, as in Cacheman.
 
@@ -536,12 +548,16 @@ Expired keys remain in enumeration/counts until read/purge, as in Cacheman.
 
 ## Example
 
-A complete, runnable app exercising every feature above (persistent tier, ttl, sliding, namespace,
-batch ops, `fast`/`lazy`/`batchFast`, `debug()`, `codeable`/`enckey`, `Jsonx`, `raw`/`readonly`, parallel sync/async caches)
-is in [`example/`](./example/):
+A runnable Flutter app is in [`example/`](./example/). Its pages cover basic CRUD, ttl/expiry,
+batch ops with `fast`/`lazy`/`batchFast`, namespaces, `debug()` and `Jsonx`, layered storage
+(sync `Cacheman` + an `AsyncCacheman` subclass + a `Cacheman.custom` subclass), the shared Hub
+(`watch`, `flushDelay`, `flush`, `purgeOnInit`) and `ValueAdapter` with `CachemanError` reporting.
+`sliding`, `codeable`/`enckey` and `raw`/`readonly` are documented in `CachemanOptions` but not
+demonstrated there.
 
 ```bash
-flutter run example/lib/main.dart
+cd example
+flutter run -d chrome   # or any other Flutter device
 ```
 
 ## Differences from `@codejoo/storage` (the TS sibling)
