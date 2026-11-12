@@ -1,9 +1,34 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:mova/src/core/bus/bus.dart';
 
 void main() {
+  test('coreA13 source done cancels trailing timer with paused output', () {
+    fakeAsync((clock) {
+      final source = StreamController<int>();
+      final seen = <int>[];
+      var done = false;
+      final sub = throttleStream(source.stream, const Duration(seconds: 1))
+          .listen(seen.add, onDone: () => done = true);
+      source.add(1);
+      clock.flushMicrotasks();
+      source.add(2);
+      clock.flushMicrotasks();
+      sub.pause();
+      source.close();
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 2));
+      expect(clock.pendingTimers, isEmpty);
+      expect(done, isFalse);
+      sub.resume();
+      clock.flushMicrotasks();
+      expect(seen, [1, 2]);
+      expect(done, isTrue);
+    });
+  });
+
   test('MovaBus emits current value to new listeners', () async {
     final bus = MovaBus<int>(1);
     final seen = <int>[];

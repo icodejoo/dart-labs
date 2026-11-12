@@ -55,7 +55,14 @@ class MovaNextUpComponent extends MovaComponent {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     if (!api.options.playlist.enabled) return const SizedBox.shrink();
-    return _NextUpView(api: api, controller: controller);
+    // A replacement playlist owns fresh subscriptions and dismissal state.
+    //
+    // 替换后的播放列表使用新的订阅与关闭状态。
+    return _NextUpView(
+      key: ObjectKey(controller),
+      api: api,
+      controller: controller,
+    );
   }
 }
 
@@ -68,7 +75,7 @@ class _NextUpView extends StatefulWidget {
   /// Creates the internal next-up view.
   ///
   /// 创建内部的下一集视图。
-  const _NextUpView({required this.api, required this.controller});
+  const _NextUpView({super.key, required this.api, required this.controller});
 
   /// The capability surface followed for position/duration.
   ///
@@ -88,6 +95,12 @@ class _NextUpView extends StatefulWidget {
 ///
 /// [_NextUpView] 的状态；持有可见标志与"本项已被关闭"的标记。
 class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
+  /// Poster size shared by the image and its error placeholder.
+  ///
+  /// 图片与加载失败占位共用的封面尺寸。
+  static const double _posterWidth = 72;
+  static const double _posterHeight = 40;
+
   /// Whether the card is currently shown.
   ///
   /// 卡片当前是否显示。
@@ -157,6 +170,9 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
     if (show != _visible) setState(() => _visible = show);
   }
 
+  /// Builds the next-up card with matching poster and placeholder sizes.
+  ///
+  /// 构建下一集卡片，使封面与失败占位尺寸一致。
   @override
   Widget build(BuildContext context) {
     final next = widget.controller.nextItem;
@@ -194,11 +210,13 @@ class _NextUpViewState extends State<_NextUpView> with MovaPlugin<_NextUpView> {
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(
                         next.poster!,
-                        width: 72,
-                        height: 40,
+                        width: _posterWidth,
+                        height: _posterHeight,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            const SizedBox(width: 72, height: 40),
+                        errorBuilder: (_, _, _) => const SizedBox(
+                          width: _posterWidth,
+                          height: _posterHeight,
+                        ),
                       ),
                     ),
                   if (next.poster != null) const SizedBox(width: 8),

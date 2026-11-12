@@ -66,6 +66,9 @@ class MovaVolumeHudComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.hud;
 
+  /// Builds the volume badge while its HUD is active.
+  ///
+  /// 音量 HUD 激活时构建音量徽标。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     return _hudWhen(
@@ -73,7 +76,6 @@ class MovaVolumeHudComponent extends MovaComponent {
       (context) => MovaSelect<double>(
         selector: (s) => s.volume,
         builder: (context, volume) => _HudBadge(
-          api: api,
           icon: volume <= 0
               ? MovaPlayerStyle.iconsOf(context).volumeOff
               : MovaPlayerStyle.iconsOf(context).volumeUp,
@@ -104,6 +106,9 @@ class MovaBrightnessHudComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.hud;
 
+  /// Builds the brightness badge while its HUD is active.
+  ///
+  /// 亮度 HUD 激活时构建亮度徽标。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     return _hudWhen(
@@ -111,7 +116,6 @@ class MovaBrightnessHudComponent extends MovaComponent {
       (context) => MovaSelect<double>(
         selector: (s) => s.brightness,
         builder: (context, brightness) => _HudBadge(
-          api: api,
           icon: MovaPlayerStyle.iconsOf(context).brightness,
           text: '${(brightness * 100).round()}%',
         ),
@@ -152,6 +156,9 @@ class MovaSeekHudComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.hud;
 
+  /// Builds the seek badge from explicit text or the drag position.
+  ///
+  /// 用显式文字或拖动位置构建进度徽标。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     return _hudWhen(
@@ -163,7 +170,7 @@ class MovaSeekHudComponent extends MovaComponent {
               v.hudText ??
               (v.previewAt != null ? formatDuration(v.previewAt!) : null);
           if (text == null) return const SizedBox.shrink();
-          return _HudBadge(api: api, text: text);
+          return _HudBadge(text: text);
         },
       ),
     );
@@ -190,6 +197,9 @@ class MovaZoomHudComponent extends MovaComponent {
   @override
   MovaSlot get slot => MovaSlot.hud;
 
+  /// Builds the zoom badge while its HUD is active.
+  ///
+  /// 缩放 HUD 激活时构建缩放徽标。
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     return _hudWhen(
@@ -197,7 +207,6 @@ class MovaZoomHudComponent extends MovaComponent {
       (context) => MovaSelect<double>(
         selector: (s) => s.zoom,
         builder: (context, zoom) => _HudBadge(
-          api: api,
           text:
               '${zoom.toStringAsFixed(1)}${MovaPlayerStyle.stringsOf(context).zoomSuffix}',
         ),
@@ -220,31 +229,26 @@ Widget _hudWhen(MovaHud kind, Widget Function(BuildContext) builder) {
   );
 }
 
-/// Small centered pill used to render every HUD, themed from [MovaApi.options].
+/// Small centered pill used to render every HUD, themed from [MovaPlayerStyle].
 ///
 /// Shows an optional leading [icon] followed by [text] — volume/brightness
 /// pass an icon plus a `NN%` string so the gesture has legible feedback;
 /// seek/zoom pass text only.
 ///
-/// 用于渲染各 HUD 的居中小胶囊，配色取自 [MovaApi.options]。
+/// 用于渲染各 HUD 的居中小胶囊，配色取自 [MovaPlayerStyle]。
 ///
 /// 可选的前置 [icon] 加 [text]——音量/亮度传入图标加 `NN%` 文本，让手势有清晰
 /// 反馈；进度/缩放只传文本。
 class _HudBadge extends StatelessWidget {
   /// Creates a themed HUD badge.
   ///
-  /// [api] supplies the theme. [text] is the content shown; [icon] is an
+  /// The view supplies the theme. [text] is the content shown; [icon] is an
   /// optional leading glyph.
   ///
   /// 创建带主题的 HUD 徽标。
   ///
-  /// [api] 提供主题。[text] 为展示内容；[icon] 为可选前置图标。
-  const _HudBadge({required this.api, required this.text, this.icon});
-
-  /// Capability surface supplying [MovaApi.options].
-  ///
-  /// 提供 [MovaApi.options] 的能力面。
-  final MovaApi api;
+  /// 当前视图提供主题。[text] 为展示内容；[icon] 为可选前置图标。
+  const _HudBadge({required this.text, this.icon});
 
   /// The text content to display inside the badge.
   ///

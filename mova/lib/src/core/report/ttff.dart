@@ -14,7 +14,6 @@
 /// false"）。纯逻辑——无 `Timer`、内部不调用 `DateTime.now()`；一切时间戳均由
 /// 调用方传入，使测试可确定性复现。
 class MovaTtffTracker {
-  bool _armed = false;
   bool _landed = false;
   bool _sawBuffering = false;
   Duration? _lastProgress;
@@ -28,7 +27,7 @@ class MovaTtffTracker {
   /// Whether this tracker is currently armed and waiting for the first frame.
   ///
   /// 该 tracker 是否正处于已武装、等待首帧的状态。
-  bool get isArmed => _armed && !_landed;
+  bool get isArmed => _armedAt != null && !_landed;
 
   /// Whether the current session was ever armed (i.e. opened with
   /// `autoPlay: true`) — used to decide whether a teardown before landing is
@@ -37,7 +36,7 @@ class MovaTtffTracker {
   ///
   /// 当前会话是否曾经被武装过（即以 `autoPlay: true` 打开）——用于判断落地前的
   /// 一次 teardown 究竟是真实的 `startupFail`，还是本就无意测量 TTFF 的会话。
-  bool get wasArmed => _armed;
+  bool get wasArmed => _armedAt != null;
 
   /// The timestamp [arm] was called with, or `null` when never armed.
   ///
@@ -53,7 +52,6 @@ class MovaTtffTracker {
   void arm(DateTime at, {required bool autoPlay}) {
     reset();
     if (!autoPlay) return;
-    _armed = true;
     _armedAt = at;
   }
 
@@ -102,7 +100,7 @@ class MovaTtffTracker {
     if (!isArmed) return null;
     final prev = _lastProgress;
     _lastProgress = position;
-    if (prev == null || position <= Duration.zero || position <= prev) return null;
+    if (prev == null || prev <= Duration.zero || position <= prev) return null;
     return _land(at);
   }
 
@@ -119,7 +117,6 @@ class MovaTtffTracker {
   ///
   /// 重置为未武装状态，使新的 [arm] 可以重新开始。
   void reset() {
-    _armed = false;
     _landed = false;
     _sawBuffering = false;
     _lastProgress = null;

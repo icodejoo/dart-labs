@@ -12,7 +12,65 @@ import '../../support/fake_api.dart';
 
 const _enabledOpts = MovaOpts(mini: MovaMiniConfig(enabled: true));
 
+/// Refuses mini mode while system PiP owns the picture.
+///
+/// 系统画中画持有画面时拒绝进入小窗。
+class _PipMiniApi extends FakeMovaApi {
+  /// Creates an API with mini mode enabled.
+  ///
+  /// 创建允许小窗模式的 API。
+  _PipMiniApi() : super(options: _enabledOpts);
+
+  @override
+  Future<void> setMini(bool value) async {
+    if (value && state.pip) return;
+    await super.setMini(value);
+  }
+}
+
 void main() {
+  for (final page in [true, false]) {
+    testWidgets('refused handover removes the old mini window: page=$page', (t) async {
+      final mini = MovaMini();
+      final first = FakeMovaApi(options: _enabledOpts);
+      final second = _PipMiniApi()..push(const MovaState(pip: true));
+      late BuildContext pageContext;
+      var notifications = 0;
+      mini.addListener(() => notifications++);
+      await t.pumpWidget(MaterialApp(
+        builder: (context, child) => MovaMiniHost(mini: mini, child: child!),
+        home: Builder(builder: (context) {
+          pageContext = context;
+          return const SizedBox();
+        }),
+      ));
+      if (page) {
+        await mini.showInPage(pageContext, first);
+      } else {
+        await mini.show(first);
+      }
+      await t.pump();
+      expect(find.byType(MovaMiniWindow), findsOneWidget);
+      final before = notifications;
+      if (page) {
+        await mini.showInPage(pageContext, second);
+      } else {
+        await mini.show(second);
+      }
+      await t.pump();
+      expect(mini.api, isNull);
+      expect(mini.mount, MovaMiniMount.none);
+      expect(first.state.mini, isFalse);
+      expect(notifications, before + 1);
+      expect(find.byType(MovaMiniWindow), findsNothing);
+      await mini.hide();
+      await mini.close();
+      await t.pumpWidget(const SizedBox());
+      mini.dispose();
+      await first.dispose();
+      await second.dispose();
+    });
+  }
   group('Mount B — MovaMiniHost (persistent)', () {
     testWidgets('ctl.api == null renders nothing extra; child renders normally', (tester) async {
       final ctl = MovaMini();

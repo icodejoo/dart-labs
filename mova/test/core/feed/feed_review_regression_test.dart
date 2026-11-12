@@ -11,6 +11,42 @@ import '../cutover/cutover_operation_test.dart' show settleOperations;
 ///
 /// 验证激活失败恢复与网络预取字节预算。
 void main() {
+  test('coreA10 failed adjacent activation silences the retained old page', () async {
+    final engines = <FakeMovaApi>[];
+    final pool = MovaFeedEnginePool(size: 3, engineFactory: () {
+      final api = FakeMovaApi()..pushPlayingOnVerbs = true;
+      engines.add(api);
+      return api;
+    });
+    final feed = MovaFeed(
+      pool: pool,
+      prefetchDepth: 1,
+      loader: (index) async => MovaFeedItem(source: MovaSource('$index')),
+    );
+    addTearDown(() async {
+      feed.dispose();
+      await pool.dispose();
+    });
+    await feed.activate(0);
+    await settleOperations();
+    final old = pool.slotFor(0)!.api as FakeMovaApi;
+    expect(old.state.playing, isTrue);
+    final next = pool.slotFor(1)!.api as FakeMovaApi;
+    next.openThrows = StateError('next page failed');
+    // Force a fresh binding so the adjacent page fails at open, not at play.
+    //
+    // 强制重新绑定，使相邻页在 open 处失败，而非在 play 处失败。
+    pool.retain({0, 2});
+    for (final engine in engines.where((engine) => !identical(engine, old))) {
+      engine.openThrows = StateError('next page failed');
+    }
+    await expectLater(feed.activate(1), throwsStateError);
+    expect(feed.activeIndex, 1);
+    expect(pool.slotFor(0)?.api, same(old));
+    expect(old.state.playbackIntent, isFalse);
+    expect(old.state.playing, isFalse);
+  });
+
   for (final failAt in ['loader', 'bind']) {
     test('C12 stale $failAt failure still activates the latest page', () async {
       final gate = Completer<void>();

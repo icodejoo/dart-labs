@@ -415,10 +415,12 @@ class MovaFeedEnginePool {
   ///
   /// - [index]: the feed index the caller is about to bind / 调用方即将绑定的
   ///   feed 索引
+  /// Reuses [engineCount] and computes each eviction distance once.
+  /// 复用 [engineCount]，每个淘汰候选的距离只计算一次。
   MovaApi _acquire(int index) {
     if (_idle.isNotEmpty) return _idle.removeLast();
 
-    if (_idle.length + _bound.length < size) {
+    if (engineCount < size) {
       final engine = _factory();
       final f = fit;
       if (f != null) unawaited(engine.setFit(f));
@@ -431,12 +433,16 @@ class MovaFeedEnginePool {
     // 先淘汰最远的；距离相同时优先淘汰后方那页，因为 feed 的下一次上滑绝大
     // 多数是往前而非往回。
     var victim = _bound.keys.first;
+    var victimDistance = (victim - index).abs();
     for (final candidate in _bound.keys) {
+      final distance = (candidate - index).abs();
       final better =
-          (candidate - index).abs() > (victim - index).abs() ||
-          ((candidate - index).abs() == (victim - index).abs() &&
-              candidate < victim);
-      if (better) victim = candidate;
+          distance > victimDistance ||
+          (distance == victimDistance && candidate < victim);
+      if (better) {
+        victim = candidate;
+        victimDistance = distance;
+      }
     }
     _release(victim);
     return _idle.removeLast();

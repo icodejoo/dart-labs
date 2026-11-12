@@ -1,0 +1,216 @@
+{
+  "controllerPid": 32912,
+  "temporary": "C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_3146ec90",
+  "workers": [
+    {
+      "id": "r1_A",
+      "launcherPid": 20692,
+      "vmPid": 38228,
+      "exit": 1,
+      "forceKilled": true
+    },
+    {
+      "id": "r1_B",
+      "launcherPid": 9556,
+      "vmPid": 41316,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "r1_C",
+      "launcherPid": 29924,
+      "vmPid": 30468,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "r2_A",
+      "launcherPid": 46992,
+      "vmPid": 4808,
+      "exit": 1,
+      "forceKilled": true
+    },
+    {
+      "id": "r2_B",
+      "launcherPid": 31488,
+      "vmPid": 16744,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "r2_C",
+      "launcherPid": 14460,
+      "vmPid": 15704,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "r3_A",
+      "launcherPid": 6244,
+      "vmPid": 11472,
+      "exit": 1,
+      "forceKilled": true
+    },
+    {
+      "id": "r3_B",
+      "launcherPid": 46416,
+      "vmPid": 5884,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "r3_C",
+      "launcherPid": 2536,
+      "vmPid": 25816,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_1_0",
+      "launcherPid": 33644,
+      "vmPid": 23612,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_1_1",
+      "launcherPid": 32236,
+      "vmPid": 13652,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_1_2",
+      "launcherPid": 30364,
+      "vmPid": 39348,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_1_3",
+      "launcherPid": 40156,
+      "vmPid": 36664,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_2_0",
+      "launcherPid": 40740,
+      "vmPid": 17448,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_2_1",
+      "launcherPid": 2828,
+      "vmPid": 33568,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_2_3",
+      "launcherPid": 20100,
+      "vmPid": 23496,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_2_2",
+      "launcherPid": 31260,
+      "vmPid": 37468,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_3_1",
+      "launcherPid": 45032,
+      "vmPid": 42080,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_3_2",
+      "launcherPid": 36648,
+      "vmPid": 36740,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_3_0",
+      "launcherPid": 29344,
+      "vmPid": 41468,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s3_3_3",
+      "launcherPid": 37124,
+      "vmPid": 19708,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_1_A",
+      "launcherPid": 28664,
+      "vmPid": 46452,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_1_scan0",
+      "launcherPid": 25028,
+      "vmPid": 39392,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_1_scan1",
+      "launcherPid": 43240,
+      "vmPid": 29964,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_2_A",
+      "launcherPid": 34024,
+      "vmPid": 17660,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_2_scan1",
+      "launcherPid": 27912,
+      "vmPid": 43744,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_2_scan0",
+      "launcherPid": 31760,
+      "vmPid": 45028,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_3_A",
+      "launcherPid": 3860,
+      "vmPid": 39128,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_3_scan0",
+      "launcherPid": 42340,
+      "vmPid": 44764,
+      "exit": 0,
+      "forceKilled": false
+    },
+    {
+      "id": "s4_3_scan1",
+      "launcherPid": 23000,
+      "vmPid": 38100,
+      "exit": 0,
+      "forceKilled": false
+    }
+  ]
+}

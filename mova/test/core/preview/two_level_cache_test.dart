@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,11 @@ class _RecordingCache implements MovaThumbCache {
   /// 在该替身上被调用的方法名有序列表。
   final List<String> calls = <String>[];
 
+  /// Holds a disk read so clear can overtake its result.
+  ///
+  /// 挂起磁盘读取，使清理可先于读取结果完成。
+  Completer<Uint8List?>? readGate;
+
   @override
   Uint8List? peek(String key) {
     calls.add('peek:$key');
@@ -32,7 +38,7 @@ class _RecordingCache implements MovaThumbCache {
   @override
   Future<Uint8List?> read(String key) async {
     calls.add('read:$key');
-    return store[key];
+    return readGate == null ? store[key] : await readGate!.future;
   }
 
   @override
@@ -108,5 +114,20 @@ void main() {
     expect(disk.store, isEmpty);
     await cache.dispose();
     expect(disk.calls, contains('dispose'));
+  });
+
+  test('B2 clear prevents late disk read refill / 清理阻止迟到读取回填', () async {
+    final gate = disk.readGate = Completer<Uint8List?>();
+    final reading = cache.read('k');
+    expect(disk.calls, contains('read:k'));
+    await cache.clear();
+    gate.complete(_bytes(4));
+    expect(await reading, _bytes(4));
+    expect(cache.peek('k'), isNull);
+    expect(memory.length, 0);
+    disk.readGate = null;
+    expect(await cache.read('k'), isNull);
+    await cache.write('new', _bytes(8));
+    expect(cache.peek('new'), _bytes(8));
   });
 }

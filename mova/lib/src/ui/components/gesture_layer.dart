@@ -1,6 +1,7 @@
 import '../style/style.dart';
 import '../chrome/chrome.dart';
 import '../../core/state/progress.dart';
+import '../../core/events/events.dart';
 
 import 'package:flutter/widgets.dart';
 
@@ -168,6 +169,11 @@ class _GestureLayerState extends State<_GestureLayer>
   /// 拖动开始时捕获的播放位置。
   Duration _startPosition = Duration.zero;
 
+  /// Whether this drag still belongs to the current media.
+  ///
+  /// 本次拖动是否仍属于当前媒体。
+  bool _dragCurrent = false;
+
   /// Shorthand for the capability surface this state drives.
   ///
   /// 该状态驱动的能力面的简写访问器。
@@ -186,6 +192,14 @@ class _GestureLayerState extends State<_GestureLayer>
       _lastPosition = (api as MovaProgressSource).progressValue.position;
     }
     bind(_api.progress, (p) => _lastPosition = p.position);
+    bind(_api.events, (event) {
+      if (event is MovaSourceChange) {
+        _dragCurrent = false;
+        _lastPosition = Duration.zero;
+        if (_mode == _DragMode.seek) _ui.setDragging(false);
+        _mode = _DragMode.undecided;
+      }
+    });
   }
 
   @override
@@ -245,18 +259,13 @@ class _GestureLayerState extends State<_GestureLayer>
   /// Toggles control-bar visibility on a plain (non-double) tap.
   ///
   /// 单击（非双击）时切换控制条显隐。
-  void _onTap() {
-    if (movaUiOf(context).uiState.controlsVisible) {
-      movaUiOf(context).hide();
-    } else {
-      movaUiOf(context).show();
-    }
-  }
+  void _onTap() => movaUiOf(context).toggle();
 
   /// Resets per-drag state and snapshots the starting side/zoom baseline.
   ///
   /// 重置本次拖动状态并记录起始侧别/缩放基准。
   void _onScaleStart(ScaleStartDetails d) {
+    _dragCurrent = true;
     _mode = _DragMode.undecided;
     _cum = Offset.zero;
     _startedLeft = d.localFocalPoint.dx < _size.width / 2;
@@ -268,6 +277,7 @@ class _GestureLayerState extends State<_GestureLayer>
   ///
   /// 解释拖动/捏合位移并驱动对应意图。
   void _onScaleUpdate(ScaleUpdateDetails d) {
+    if (!_dragCurrent) return;
     if (_mode == _DragMode.zoom) {
       _applyZoom(d.scale);
       return;
@@ -340,6 +350,13 @@ class _GestureLayerState extends State<_GestureLayer>
   double _axisFrac() =>
       _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
 
+  /// Applies vertical sensitivity to volume/brightness movement.
+  ///
+  /// 为音量/亮度位移应用竖向灵敏度。
+  double _levelDelta() =>
+      _axisFrac() *
+      (_horizontalDrag ? 1 : MovaPlayerStyle.gestureOf(context).vSensitivity);
+
   /// Maps the drag accumulated so far onto a target position, scaled by
   /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
   /// gesture surface along the drag's axis. Shared by [_drive]'s live preview and
@@ -353,8 +370,9 @@ class _GestureLayerState extends State<_GestureLayer>
   Duration _seekTargetFromCum() {
     final seconds =
         _axisFrac() *
-        MovaPlayerStyle.gestureOf(context).hSeekSpanPerScreen.inSeconds
-            .toDouble();
+        MovaPlayerStyle.gestureOf(
+          context,
+        ).hSeekSpanPerScreen.inSeconds.toDouble();
     return _startPosition + Duration(seconds: seconds.round());
   }
 
@@ -369,20 +387,12 @@ class _GestureLayerState extends State<_GestureLayer>
         movaUiOf(context).showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac =
-            _axisFrac() *
-            (_horizontalDrag
-                ? 1
-                : MovaPlayerStyle.gestureOf(context).vSensitivity);
+        final frac = _levelDelta();
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
         movaUiOf(context).showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac =
-            _axisFrac() *
-            (_horizontalDrag
-                ? 1
-                : MovaPlayerStyle.gestureOf(context).vSensitivity);
+        final frac = _levelDelta();
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
         movaUiOf(context).showHud(MovaHud.brightness);
         break;
@@ -398,11 +408,12 @@ class _GestureLayerState extends State<_GestureLayer>
   /// 横滑结束时提交进度；缩放手势结束无需额外提交，最后一次
   /// [MovaApi.setZoom] 调用即已生效。
   void _onScaleEnd(ScaleEndDetails d) {
-    if (_mode == _DragMode.seek) {
+    if (_dragCurrent && _mode == _DragMode.seek) {
       _api.seek(_seekTargetFromCum());
       movaUiOf(context).setDragging(false);
     }
     _mode = _DragMode.undecided;
+    _dragCurrent = false;
   }
 
   @override
