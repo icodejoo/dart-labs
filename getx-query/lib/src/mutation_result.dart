@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_query/flutter_query.dart' as fq;
 import 'package:get/get.dart';
 
-/// Rx-backed wrapper around flutter_query's [fq.MutationResult].
+/// Rx-backed wrapper around flutter_query's [fq.MutationSnapshot].
 ///
 /// Type params simplified to 2 (error and onMutate context are [dynamic]):
 /// - [TData]      — type returned by the mutation on success.
@@ -22,24 +22,26 @@ import 'package:get/get.dart';
 class MutationResult<TData, TVariables> {
   MutationResult();
 
-  final _rx =
-      Rx<fq.MutationResult<TData, dynamic, TVariables, dynamic>?>(null);
+  final _rx = Rx<fq.MutationSnapshot<TData, dynamic, TVariables>?>(null);
   bool _disposed = false;
 
   // ── Status ────────────────────────────────────────────────────────────────
 
-  bool get isIdle    => _rx.value == null || _rx.value!.isIdle;
+  bool get isIdle => _rx.value == null || _rx.value!.isIdle;
   bool get isPending => _rx.value?.isPending ?? false;
   bool get isSuccess => _rx.value?.isSuccess ?? false;
-  bool get isError   => _rx.value?.isError   ?? false;
-  bool get isPaused  => _rx.value?.isPaused  ?? false;
+  bool get isError => _rx.value?.isError ?? false;
+  bool get isPaused => _rx.value?.isPaused ?? false;
 
   // ── Data / Error ──────────────────────────────────────────────────────────
 
-  TData?      get data         => _rx.value?.data;
-  Object?     get error        => _rx.value?.error;
-  TVariables? get variables    => _rx.value?.variables;
-  int         get failureCount => _rx.value?.failureCount ?? 0;
+  TData? get data => _rx.value?.dataOrNull;
+  Object? get error => switch (_rx.value) {
+        fq.MutationError(:final error) => error,
+        _ => null,
+      };
+  TVariables? get variables => _rx.value?.variablesOrNull;
+  int get failureCount => _rx.value?.failureCount ?? 0;
 
   // ── Actions — wired to MutationObserver on mount ────────────────────────
   // Set by useMutation / _Core. Kept internal so [dispose] can guard calls
@@ -65,8 +67,7 @@ class MutationResult<TData, TVariables> {
   /// disposed (e.g. the owning ViewModel closed while a caller still awaits).
   Future<TData> mutateAsync(TVariables variables) {
     if (_disposed) {
-      return Future.error(
-          StateError('mutateAsync() called after dispose()'));
+      return Future.error(StateError('mutateAsync() called after dispose()'));
     }
     return mutateAsyncImpl(variables);
   }
@@ -93,6 +94,6 @@ class MutationResult<TData, TVariables> {
   // ── Internal ──────────────────────────────────────────────────────────────
 
   @internal
-  void update(fq.MutationResult<TData, dynamic, TVariables, dynamic> r) =>
+  void update(fq.MutationSnapshot<TData, dynamic, TVariables> r) =>
       _rx.value = r;
 }

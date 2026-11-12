@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 ///
 /// Use [Obx] anywhere — no controller or BuildContext required:
 /// ```dart
-/// final posts = useQuery(['posts'], (_) => api.getPosts());
+/// final posts = useQuery(queryKey: ['posts'], queryFn: (_) => api.getPosts());
 /// Obx(() => PostList(items: posts.data ?? []));
 /// posts.dispose();
 /// ```
@@ -14,26 +14,29 @@ class QueryResult<T> {
   QueryResult({T? placeholder}) : _placeholder = placeholder;
 
   final T? _placeholder;
-  final _rx = Rx<fq.QueryResult<T, dynamic>?>(null);
+  final _rx = Rx<fq.QuerySnapshot<T, dynamic>?>(null);
   bool _disposed = false;
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
-  T? get data => _rx.value?.data ?? _placeholder;
+  T? get data => _rx.value?.dataOrNull ?? _placeholder;
 
   // ── Status ────────────────────────────────────────────────────────────────
 
-  bool get isIdle              => _rx.value == null;
-  bool get isLoading           => _rx.value == null || _rx.value!.isPending;
-  bool get isFetching          => _rx.value?.isFetching          ?? false;
-  bool get isSuccess           => _rx.value?.isSuccess           ?? false;
-  bool get isError             => _rx.value?.isError             ?? false;
-  bool get isStale             => _rx.value?.isStale             ?? true;
+  bool get isIdle => _rx.value == null;
+  bool get isLoading => _rx.value == null || _rx.value!.isPending;
+  bool get isFetching => _rx.value?.isFetching ?? false;
+  bool get isSuccess => _rx.value?.isSuccess ?? false;
+  bool get isError => _rx.value?.isError ?? false;
+  bool get isStale => _rx.value?.isStale ?? true;
   bool get isFetchedAfterMount => _rx.value?.isFetchedAfterMount ?? false;
 
   // ── Error / meta ──────────────────────────────────────────────────────────
 
-  Object?   get error     => _rx.value?.error;
+  Object? get error => switch (_rx.value) {
+        fq.QueryError(:final error) => error,
+        _ => null,
+      };
   DateTime? get updatedAt => _rx.value?.dataUpdatedAt;
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -58,7 +61,7 @@ class QueryResult<T> {
 
   /// Called by useQuery / _Core to push a new flutter_query snapshot.
   @internal
-  void update(fq.QueryResult<T, dynamic> result) => _rx.value = result;
+  void update(fq.QuerySnapshot<T, dynamic> result) => _rx.value = result;
 
   /// Set by useQuery / _Core to wire up observer cleanup.
   @internal

@@ -45,7 +45,7 @@
 
 ```yaml
 dependencies:
-  getx_query: ^0.1.0
+  getx_query: ^0.2.0
 ```
 
 ```dart
@@ -71,14 +71,14 @@ GetMaterialApp(
 class TodoViewModel extends GetBaseViewModel {
   final filter = 'all'.obs;
 
-  late final todos = useQuery(
+  late final todos = this.useQuery<List<Todo>>(
     queryKey: ['todos', filter],          // Rx in key → auto-refetch on change
     queryFn: (_) => api.getTodos(filter.value),
     staleDuration: StaleDuration(minutes: 5),
     placeholder: const [],
   );
 
-  late final addTodo = useMutation<Todo, TodoInput>(
+  late final addTodo = this.useMutation<Todo, TodoInput>(
     (input, _) => api.addTodo(input),
     onSuccess: (_, __, ___, ____) => invalidateQueries(queryKey: ['todos']),
   );
@@ -92,7 +92,7 @@ Obx(() => vm.todos.isLoading
     : TodoList(items: vm.todos.data ?? []));
 ```
 
-A complete runnable app is in [`example/getx_query_example.dart`](./example/getx_query_example.dart).
+A complete runnable app is in [`example/lib/main.dart`](./example/lib/main.dart).
 
 ## API
 
@@ -139,6 +139,32 @@ QueryResult<T> useQuery<T>({
 | `refetchOnReconnect` | Same, for network reconnect (needs `connectivityChanges` on the client). |
 | `networkMode` | `online` (pause offline) / `always` / `offlineFirst`. |
 | `meta` | Arbitrary metadata, readable from `queryFn`'s context. |
+
+The getx_query wrappers keep plain-value `placeholder`, `seed`, and
+`DateTime? seedUpdatedAt` parameters. A seed only initializes a query with no
+cached data; it never replaces existing cache entries, even with a newer timestamp.
+
+Direct `QueryOptions` / `InfiniteQueryOptions` usage (including `useQueries`)
+and raw `QueryClient` methods follow flutter_query 0.11 instead:
+
+```dart
+import 'package:getx_query/getx_query.dart' as gq;
+
+final options = gq.QueryOptions<String, dynamic>(
+  ['greeting'],
+  (_) async => 'hello',
+  placeholder: const gq.Placeholder.value('loading...'),
+  seed: const gq.Seed.value('cached greeting'),
+  seedUpdatedAt: gq.SeedUpdatedAt.value(DateTime.utc(2026)),
+);
+```
+
+Use `Seed.lazy(() => ...)`, `SeedUpdatedAt.lazy(() => ...)`, and
+`Placeholder.lazy((previous) => ...)` for lazy options; `Placeholder.keepPrevious`
+keeps the previous key's data while the next query loads. Prefix the getx_query
+import as above, or hide Flutter's `Placeholder` widget to avoid a name collision.
+`QueryResult`, `InfiniteQueryResult`, and `MutationResult` still expose the same
+nullable `data` / `error` getters and GetX status flags.
 
 `useQueries(List<QueryOptions>, {combine})` subscribes to many at once. See [useQueries](#usequeries).
 
@@ -273,7 +299,7 @@ InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
 | `retryOnMount` | Whether to retry a failed query when a new observer mounts. |
 
 ```dart
-final feed = useInfiniteQuery(
+final feed = useInfiniteQuery<List<String>, int>(
   queryKey: ['feed'],
   queryFn: (ctx) => api.getFeed(page: ctx.pageParam),
   initialPageParam: 0,
@@ -490,17 +516,9 @@ Get.put<QueryService>(
 > **Important.** getx_query uses flutter_query's **private internals**. It imports `package:flutter_query/src/core/query_observer.dart` and `.../mutation_observer.dart` and uses `@internal` members. That is how it can drive queries outside a `HookWidget`.
 >
 > Consequences:
-> - It depends on `flutter_query` `^0.10.0`; a minor release that moves those `src/` files can break it.
-> - `dart pub publish` gives an `implementation_imports` warning. Unless flutter_query makes `QueryObserver`/`MutationObserver` public, it is easier to publish privately (a git dependency or a private pub server).
->
-> If the pub.dev warning blocks you, use it as a git or path dependency:
-> ```yaml
-> dependencies:
->   getx_query:
->     git:
->       url: https://github.com/icodejoo/dart-labs.git
->       path: getx-query
-> ```
+> - It depends on `flutter_query` `^0.11.1`; a minor release that moves those `src/` files can break it.
+> - The bridge suppresses internal-API lints at its import sites. Run
+>   `dart pub publish --dry-run` before publishing to verify package validation.
 
 ## License
 
