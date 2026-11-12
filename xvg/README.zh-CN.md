@@ -21,9 +21,18 @@
 ## 在线展示
 
 [icodejoo.github.io/dart-labs/xvg](https://icodejoo.github.io/dart-labs/xvg/) ——
-静态展示页（功能导览、SVG 预览与实测性能数据）。它不是可在浏览器里运行的
-Flutter 在线 Demo：xvg 的静态路径通过原生 FFI 调用 Rust（`usvg`）渲染，
-本仓库没有提供 web/wasm 构建。
+静态展示页（功能导览、SVG 预览与实测性能数据）。另有
+[实验性 Flutter Web demo](https://icodejoo.github.io/dart-labs/xvg/demo/)，
+使用 Rust 编译的 wasm 运行真实 xvg 渲染，并播放 Dart SMIL 动画。
+pub 包仍仅支持 native 平台；未附带 web 预编译产物或自动加载配置。
+
+本地构建：在 `xvg/` 执行 `dart run tool/build_web.dart`，再在 `example/` 执行
+`flutter build web --release --base-href /dart-labs/xvg/demo/`，按此子路径托管产物。
+需要 nightly-2026-06-24、wasm32-unknown-unknown target，以及与 Cargo.lock
+一致的 wasm-bindgen-cli（0.2.130）；wasm-opt 可选。不需要 COOP/COEP。
+重新生成 web 桥接用 `dart run tool/generate_web_bridge.dart`（FRB 2.13.0），
+脚本会恢复 native 桥接文件，仅产出 web 同步变体。
+网络受浏览器 CORS 限制，不支持本地 file 路径；大型动画文档在主线程解析。
 
 * **静态 SVG** 经 Rust（`usvg`）解析为缓存的 `ui.Picture`，再交给 Flutter
   自带的 GPU 管线绘制，不走 CPU 光栅化。
@@ -52,7 +61,7 @@ Future<void> main() async {
 }
 ```
 
-不支持 Web（依赖原生 FFI 与 `dart:io`）。
+pub 包未声明 Web 支持；源码中的 wasm demo 为实验性构建。
 
 ## 快速上手
 
@@ -469,7 +478,7 @@ Future<void> tuneCaches(List<String> bigIllustrations) async {
 ### 常见坑
 
 * 第一个组件构建前忘记 `await Xvg.ensureInitialized()`。
-* 期待 Web 构建。静态路径是原生 FFI，不支持 Web。
+* 期待 Web 构建。pub 包使用原生 FFI；源码 demo 提供实验性 wasm 构建。
 * `colorFilter: ColorFilter.mode(color, BlendMode.srcIn)` 会把多色 SVG 压成单色。
   只想改 `currentColor` 时用 `theme`。
 * 没有 `theme` 时 `stroke="currentColor"` 是黑色。设 `theme: XvgTheme(currentColor: …)`

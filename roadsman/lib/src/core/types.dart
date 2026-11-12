@@ -50,6 +50,7 @@ class RawResult {
   /// Player total points (0-9).
   final int? playerTotal;
 
+  /// Creates a [RawResult].
   const RawResult({
     required this.no,
     required this.winner,
@@ -97,6 +98,7 @@ class Shoe {
   /// List of round results.
   final List<RawResult> results;
 
+  /// Creates a [Shoe].
   const Shoe({
     required this.shoeId,
     required this.tableId,
@@ -141,6 +143,7 @@ class BigRoadCell {
   /// Corresponding [RawResult.no].
   final int resultNo;
 
+  /// Creates a [BigRoadCell].
   const BigRoadCell({
     required this.col,
     required this.row,
@@ -164,6 +167,7 @@ class BigRoadData {
   /// Leading tie count before the game starts.
   final int leadingTies;
 
+  /// Creates a [BigRoadData].
   const BigRoadData({required this.cells, required this.columns, required this.leadingTies});
 }
 
@@ -178,6 +182,7 @@ class DerivedRoadData {
   /// entries[i] corresponds to big road cells[sourceCellIndex[i]], used for merge mark.
   final List<int> sourceCellIndex;
 
+  /// Creates a [DerivedRoadData].
   const DerivedRoadData({required this.entries, required this.sourceCellIndex});
 }
 
@@ -192,6 +197,7 @@ class LayoutConfig {
   /// Complete theme, containing all style parameters including colors, sizes, and text.
   final Theme theme;
 
+  /// Creates a [LayoutConfig].
   const LayoutConfig({required this.cellSize, required this.rows, required this.theme});
 }
 
@@ -203,6 +209,7 @@ sealed class DrawCommand {
   /// Opacity (0-1), used by animation layer for interpolation, defaults to 1.
   final double? alpha;
 
+  /// Creates a [DrawCommand].
   const DrawCommand({this.alpha});
 }
 
@@ -226,6 +233,7 @@ final class CircleCommand extends DrawCommand {
   /// Stroke width.
   final double? lineWidth;
 
+  /// Creates a [CircleCommand].
   const CircleCommand({
     required this.x,
     required this.y,
@@ -248,6 +256,7 @@ final class LineCommand extends DrawCommand {
   /// Line width.
   final double? lineWidth;
 
+  /// Creates a [LineCommand].
   const LineCommand({required this.points, required this.stroke, this.lineWidth, super.alpha});
 }
 
@@ -268,6 +277,7 @@ final class SlashCommand extends DrawCommand {
   /// Line width.
   final double? lineWidth;
 
+  /// Creates a [SlashCommand].
   const SlashCommand({
     required this.x,
     required this.y,
@@ -292,6 +302,7 @@ final class DotCommand extends DrawCommand {
   /// Fill color.
   final int fill;
 
+  /// Creates a [DotCommand].
   const DotCommand({required this.x, required this.y, required this.r, required this.fill, super.alpha});
 }
 
@@ -312,6 +323,7 @@ final class BadgeCommand extends DrawCommand {
   /// Font size (logical pixels).
   final double? fontSize;
 
+  /// Creates a [BadgeCommand].
   const BadgeCommand({
     required this.x,
     required this.y,
@@ -345,6 +357,7 @@ final class RectCommand extends DrawCommand {
   /// Corner radius (logical pixels), defaults to no rounded corners (uses original right-angle rectangle path).
   final double? radius;
 
+  /// Creates a [RectCommand].
   const RectCommand({
     required this.x,
     required this.y,
@@ -385,6 +398,7 @@ class LayoutCell {
   /// List of draw commands for this cell.
   final List<DrawCommand> commands;
 
+  /// Creates a [LayoutCell].
   const LayoutCell({
     required this.key,
     required this.x,
@@ -416,6 +430,7 @@ class RoadLayout {
   /// This road's exclusive background grid spec, defaults to using the panel's default grid when omitted.
   final GridSpec? grid;
 
+  /// Creates a [RoadLayout].
   const RoadLayout({
     required this.cells,
     this.decorations,
@@ -457,6 +472,7 @@ class GridSpec {
   /// Tile gap ratio when style=tile (relative to grouped cell edge length), defaults to 0.06.
   final double tileInsetRatio;
 
+  /// Creates a [GridSpec].
   const GridSpec({
     required this.cellSize,
     this.stroke,
@@ -556,6 +572,7 @@ class PredictionForRoad {
   /// This road's color assuming the next round is player.
   final DerivedColor? ifPlayer;
 
+  /// Creates a [PredictionForRoad].
   const PredictionForRoad({this.ifBanker, this.ifPlayer});
 }
 
@@ -567,6 +584,7 @@ class CurrentStreak {
   /// Streak length.
   final int length;
 
+  /// Creates a [CurrentStreak].
   const CurrentStreak({required this.winner, required this.length});
 }
 
@@ -611,6 +629,7 @@ class StatsData {
   /// Current banker/player streak status.
   final CurrentStreak? currentStreak;
 
+  /// Creates a [StatsData].
   const StatsData({
     required this.total,
     required this.banker,
@@ -654,6 +673,7 @@ class ViewportState {
   /// Target X for autoScroll phase (internal use).
   final double? autoScrollTargetX;
 
+  /// Creates a [ViewportState].
   const ViewportState({
     required this.offsetX,
     required this.offsetY,
@@ -699,6 +719,7 @@ class ViewportBounds {
   /// Maximum offsetY.
   final double maxY;
 
+  /// Creates a [ViewportBounds].
   const ViewportBounds({required this.minX, required this.maxX, required this.minY, required this.maxY});
 }
 
@@ -719,6 +740,7 @@ class ViewportConfig {
   /// Edge snap threshold (px).
   final double snapEpsilon;
 
+  /// Creates a [ViewportConfig].
   const ViewportConfig({
     required this.rubberBandFactor,
     required this.friction,
@@ -739,6 +761,7 @@ class ConfigFieldOption {
   /// Option display name.
   final String label;
 
+  /// Creates a [ConfigFieldOption].
   const ConfigFieldOption({required this.value, required this.label});
 }
 
@@ -765,6 +788,7 @@ class ConfigField {
   /// Select type: list of options.
   final List<ConfigFieldOption>? options;
 
+  /// Creates a [ConfigField].
   const ConfigField({
     required this.type,
     required this.label,

@@ -45,11 +45,17 @@ import 'package:json_annotation/json_annotation.dart';
 /// }
 /// ```
 class LenientConverter {
+  /// Whether `int` fields are routed through [LenientIntConverter].
   final bool intEnabled;
+  /// Whether `double` fields are routed through [LenientDoubleConverter].
   final bool doubleEnabled;
+  /// Whether `num` fields are routed through [LenientNumConverter].
   final bool numEnabled;
+  /// Whether `bool` fields are routed through [LenientBoolConverter].
   final bool boolEnabled;
+  /// Whether `String` fields are routed through [LenientStringConverter].
   final bool stringEnabled;
+  /// Whether `DateTime` fields are routed through [LenientDateTimeConverter].
   final bool dateTimeEnabled;
 
   /// Whether [LenientDateTimeConverter] should treat a timezone-less value
@@ -61,6 +67,7 @@ class LenientConverter {
   /// 和官方 `DateTime.parse` 的行为保持一致。
   final bool dateTimeUtc;
 
+  /// Creates a class/field marker; each flag defaults to `true`, [dateTimeUtc] to `false`.
   const LenientConverter({
     bool int = true,
     bool double = true,
@@ -86,6 +93,7 @@ class LenientConverter {
 /// 该字段的行为跟纯官方 `json_serializable` 完全一致——严格 cast、不自动兜底，
 /// 缺失/null 时直接抛异常。
 class DisableLenient {
+  /// Creates the field-level opt-out marker.
   const DisableLenient();
 }
 
@@ -107,8 +115,10 @@ class DisableLenient {
 /// }
 /// ```
 class LenientIntConverter implements JsonConverter<int, dynamic> {
+  /// Creates a const [LenientIntConverter].
   const LenientIntConverter();
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   int fromJson(dynamic json, [int defaultValue = 0]) => switch (json) {
     null => defaultValue,
@@ -133,6 +143,7 @@ class LenientIntConverter implements JsonConverter<int, dynamic> {
     'Cannot convert to int: unsupported value (${json.runtimeType}: $json)',
   );
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(int object) => object;
 }
@@ -158,8 +169,10 @@ class LenientIntConverter implements JsonConverter<int, dynamic> {
 /// }
 /// ```
 class LenientNumConverter implements JsonConverter<num, dynamic> {
+  /// Creates a const [LenientNumConverter].
   const LenientNumConverter();
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   num fromJson(dynamic json, [num defaultValue = 0]) => switch (json) {
     null => defaultValue,
@@ -174,6 +187,7 @@ class LenientNumConverter implements JsonConverter<num, dynamic> {
     ),
   };
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(num object) => object;
 }
@@ -196,8 +210,10 @@ class LenientNumConverter implements JsonConverter<num, dynamic> {
 /// }
 /// ```
 class LenientDoubleConverter implements JsonConverter<double, dynamic> {
+  /// Creates a const [LenientDoubleConverter].
   const LenientDoubleConverter();
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   double fromJson(dynamic json, [double defaultValue = 0.0]) => switch (json) {
     null => defaultValue,
@@ -213,6 +229,7 @@ class LenientDoubleConverter implements JsonConverter<double, dynamic> {
     ),
   };
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(double object) => object;
 }
@@ -235,8 +252,10 @@ class LenientDoubleConverter implements JsonConverter<double, dynamic> {
 /// }
 /// ```
 class LenientBoolConverter implements JsonConverter<bool, dynamic> {
+  /// Creates a const [LenientBoolConverter].
   const LenientBoolConverter();
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   bool fromJson(dynamic json, [bool defaultValue = false]) => switch (json) {
     null => defaultValue,
@@ -254,6 +273,7 @@ class LenientBoolConverter implements JsonConverter<bool, dynamic> {
     ),
   };
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(bool object) => object;
 }
@@ -276,8 +296,10 @@ class LenientBoolConverter implements JsonConverter<bool, dynamic> {
 /// }
 /// ```
 class LenientStringConverter implements JsonConverter<String, dynamic> {
+  /// Creates a const [LenientStringConverter].
   const LenientStringConverter();
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   String fromJson(dynamic json, [String defaultValue = '']) => switch (json) {
     null => defaultValue,
@@ -289,6 +311,7 @@ class LenientStringConverter implements JsonConverter<String, dynamic> {
     ),
   };
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(String object) => object;
 }
@@ -350,8 +373,10 @@ class LenientStringConverter implements JsonConverter<String, dynamic> {
 /// }
 /// ```
 class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
+  /// Creates a const [LenientDateTimeConverter].
   const LenientDateTimeConverter({this.dateTimeUtc = false});
 
+  /// Whether timezone-less values are interpreted as UTC (default `false`).
   final bool dateTimeUtc;
 
   /// Combined shape check for [_fromString]: in one scan, tells whether the
@@ -369,6 +394,7 @@ class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
     r'^(?<numeric>[+-]?\d+(\.\d+)?)$|(?<tz>Z|[+-]\d{2}:?\d{2})$',
   );
 
+  /// Converts the loose JSON [json] value; null falls back to [defaultValue]. Throws [FormatException] on unsupported input.
   @override
   DateTime fromJson(dynamic json, [DateTime? defaultValue]) => switch (json) {
     null => defaultValue ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
@@ -442,6 +468,7 @@ class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
     return DateTime.parse(normalized);
   }
 
+  /// Serializes [object] back to its JSON form.
   @override
   dynamic toJson(DateTime object) => object.toIso8601String();
 }

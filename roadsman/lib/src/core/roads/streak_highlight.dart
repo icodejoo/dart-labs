@@ -31,6 +31,7 @@ class StreakInterval {
   /// Ending logical column.
   final int colEnd;
 
+  /// Creates a [StreakInterval].
   const StreakInterval({required this.type, required this.colStart, required this.colEnd});
 }
 

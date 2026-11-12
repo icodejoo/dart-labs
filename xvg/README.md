@@ -21,9 +21,20 @@ High-performance static & animated SVG rendering for Flutter.
 ## Demo
 
 [icodejoo.github.io/dart-labs/xvg](https://icodejoo.github.io/dart-labs/xvg/) —
-a static showcase page (feature tour, SVG previews, and measured performance
-numbers). It is not a live in-browser Flutter demo: xvg's static path renders
-through Rust (`usvg`) via native FFI, which has no web/wasm build here.
+a static showcase page (feature tour, SVG previews, and measured performance).
+The [experimental Flutter Web demo](https://icodejoo.github.io/dart-labs/xvg/demo/)
+runs real xvg rendering with Rust compiled to wasm and Dart SMIL animation.
+The pub package still supports native platforms only: consumers must build and
+host wasm separately; no web prebuilt or automatic web setup ships in the package.
+
+To build locally: `dart run tool/build_web.dart` from `xvg/`, then
+`flutter build web --release --base-href /dart-labs/xvg/demo/` from `example/`.
+Requires nightly-2026-06-24 with wasm32-unknown-unknown and wasm-bindgen-cli matching
+Cargo.lock (0.2.130). wasm-opt is optional. Serve the output at that subpath.
+Web bridge regeneration: `dart run tool/generate_web_bridge.dart` (FRB 2.13.0).
+The script restores native bindings and produces the web sync variant only.
+No COOP/COEP headers are required. Network access follows browser CORS rules;
+file paths are unsupported. Large animated documents parse on the main thread.
 
 * **Static SVG** parses through Rust (`usvg`) into a cached `ui.Picture`, then
   renders with Flutter's own GPU pipeline — no CPU rasterizer.
@@ -54,7 +65,7 @@ Future<void> main() async {
 }
 ```
 
-Web is unsupported (native FFI / `dart:io`).
+Web is experimental in the source demo; the pub package does not declare web support.
 
 ## Quick start
 
@@ -497,7 +508,7 @@ Practical rules:
 ### Common pitfalls
 
 * Forgetting `await Xvg.ensureInitialized()` before the first widget builds.
-* Expecting a web build. The static path is native FFI; web is unsupported.
+* Expecting a web build. The pub package supports native FFI; the source demo has an experimental wasm build.
 * A `colorFilter: ColorFilter.mode(color, BlendMode.srcIn)` flattens a
   multi-colored SVG to one color. Use `theme` when only `currentColor` should
   change.
