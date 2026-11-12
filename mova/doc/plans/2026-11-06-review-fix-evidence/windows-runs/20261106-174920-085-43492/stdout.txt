@@ -1,0 +1,383 @@
+
+WINDOWS CROSS-PROCESS LEASE VERIFICATION 2026-11-06T17:49:20.883377
+REPRO powershell -NoProfile -ExecutionPolicy Bypass -File example/tool/win_lease_verify/verify.ps1
+ENV {"pid":33324,"os":"\"Windows 10 专业版\" 10.0 (Build 19045)","dart":"3.13.0 (stable) (Wed Aug 5 00:28:05 2026 -0700) on \"windows_x64\"","executable":"E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe","repository":"E:\\workspaces\\dart-labs-mova\\mova","temporary":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999","evidence":"E:\\workspaces\\dart-labs-mova\\mova\\doc\\plans\\2026-11-06-review-fix-evidence\\windows-runs\\20261106-174920-085-43492"}
+Windows lease verification measurement contract (written before execution)
+=======================================================================
+Scope: pure Dart console processes only. No Flutter app, playback, media_kit,
+libmpv, audio device, system volume, visible window, or real mova_thumbs access.
+All roots and generated sources are under a fresh systemTemp/mova_wrfv_* tree.
+Only this tree may be recursively removed. No lib/ edits or git mutations.
+
+Source fidelity: dir_lease.dart is only an interface. The implementation is in
+thumb_dir_impl.dart, whose path_provider dependency imports Flutter. Generate a
+temporary mirror replacing ONLY its four imports: two pure annotation/plugin
+stubs and absolute imports of the real core interfaces. Assert that everything
+after the imports is identical. Use forTesting(temporaryDirectory: ...) only;
+do not inject lock, modified, or now. Real RandomAccessFile locks, real OS
+processes, real directory stat mtimes, and the original scan/delete body run.
+The plugin stub throws if called. path_provider and Flutter integration are NOT
+covered. Record source SHA256 before/after and the exact transformation.
+Launch the controller from an isolated systemTemp bootstrap, outside the
+repository package context, so dart run cannot invoke repository build hooks.
+Canonicalize fixture roots and orphan paths before comparing paths returned
+by production; serialize commands/flushes sent to the same stdin pipe.
+
+Signals: worker ARMED -> parent GO -> RESOLVE_BEGIN -> READY, emitted only after
+resolve and a unique token write/flush. Workers keep stdin open and retain their
+provider until RELEASE/STOP, or taskkill /F. Every event has PID and worker id.
+Parent waits for events or OS exit, never sleeps to infer readiness. Timeouts
+are failure guards only. ERROR/nonzero unexpected exits are failures.
+
+S1 x3: A READY, independent-process raw exclusive lock probe must fail, then B
+resolves the same root. A/B must remain alive with distinct directories; inspect
+both tokens and ask both workers to read their own token before recording PASS.
+
+S2 x3, continuing S1: gracefully STOP B (confirmed RELEASED + exit=0), taskkill
+/F A without dispose (confirmed OS exit and no RELEASED event). Snapshot actual
+DA/DB directory mtimes; ties allow either maximum. C directly probes DA's lease
+and must acquire/close it, proving OS release in a new process, then resolves.
+C must adopt a maximum-mtime orphan, keep its original token, and leave exactly
+one engine directory. The other orphan must actually be deleted (also checks
+Windows close-before-delete). C remains leased until all assertions finish.
+
+S3 x3: start four independent workers, await all ARMED, hold root .scan gate,
+send GO to all. Each must observe a failed nonblocking .scan probe and emit
+RESOLVE_BEGIN. Release gate only after all begin events. Await four READY;
+assert four distinct worker PIDs/directories and four intact tokens while all
+leases remain held; re-read tokens through worker commands. Require exit=0.
+
+S4 x3: A READY + exactly one eligible legacy orphan (no .lease, unique token).
+Use the same .scan gate and ARMED/GO/begin barrier for two concurrent scanners.
+Check A/token after each scanner READY and after both; raw A lease probe must
+still fail. The orphan must be gone or adopted by exactly one scanner; if
+adopted its original token must survive. Check all live workers' tokens, final
+directory count, and clean exit. S2 supplies the actual deletion branch with
+two orphan lease handles; S4 supplies concurrent cleanup/adoption contention.
+No instruction-level pause is injected into production close/delete code.
+
+Evidence: keep raw per-worker stdout/stderr and parent observations, taskkill
+stdout/stderr/exit, all result lines, PIDs, mtimes, root/dir names, and failures
+in permanent evidence files. Continue independent repetitions after failure.
+Always stop/kill only owned workers, await their exits, then remove dedicated
+temp tree; verify no owned PID/command line remains. Pre-existing unrelated
+Dart processes are recorded separately and never terminated.
+
+COVERAGE LIMIT: unchanged production class body via four-import adapter; actual core interfaces imported; path_provider/Flutter integration excluded. No media imports or playback.
+SOURCE_FIDELITY class_body_identical=true reverse_import_transform_identical=true lock_modified_now_injections=false
+START {"id":"r1_A","launcherPid":38292,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"ARMED","pid":44780,"id":"r1_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":44780,"id":"r1_A"}
+EVENT {"event":"READY","pid":44780,"id":"r1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","marker":"token_r1_A.txt","token":"r1_A:44780:1793958561550896"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+START {"id":"r1_B","launcherPid":35412,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"ARMED","pid":33032,"id":"r1_B","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":33032,"id":"r1_B"}
+EVENT {"event":"READY","pid":33032,"id":"r1_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","marker":"token_r1_B.txt","token":"r1_B:33032:1793958562045636"}
+TOKEN_OK {"pid":44780,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","token":"r1_A:44780:1793958561550896"}
+TOKEN_OK {"pid":33032,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","token":"r1_B:33032:1793958562045636"}
+EVENT {"event":"CHECKED","pid":33032,"id":"r1_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","token":"r1_B:33032:1793958562045636","request":"S1-final"}
+EVENT {"event":"CHECKED","pid":44780,"id":"r1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","token":"r1_A:44780:1793958561550896","request":"S1-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+WRFV {"scenario":"S1","iteration":1,"status":"PASS","pid":33324,"pids":[44780,33032],"directories":["engine_6e117ccc","engine_85ed439d"]}
+EVENT {"event":"RELEASED","pid":33032,"id":"r1_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d"}
+EXIT {"id":"r1_B","launcherPid":35412,"vmPid":33032,"code":0}
+EVENT {"event":"CHECKED","pid":44780,"id":"r1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc","token":"r1_A:44780:1793958561550896","request":"S2-before-force-kill"}
+TASKKILL {"id":"r1_A","launcherPid":38292,"vmPid":44780,"exit":0,"stdout":"SUCCESS: The process with PID 44564 (child process of PID 38292) has been terminated.\r\nSUCCESS: The process with PID 44780 (child process of PID 38292) has been terminated.\r\nSUCCESS: The process with PID 38292 (child process of PID 33324) has been terminated.\r\n","stderr":""}
+EXIT {"id":"r1_A","launcherPid":38292,"vmPid":44780,"code":1}
+ORPHANS {"iteration":1,"mtimes":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc":1793958561582071,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d":1793958562076065},"expected":["C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d"]}
+START {"id":"r1_C","launcherPid":46012,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"ARMED","pid":19708,"id":"r1_C","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache"}
+EVENT {"event":"DEAD_OWNER_PROBE","pid":19708,"id":"r1_C","acquired":true}
+EVENT {"event":"RESOLVE_BEGIN","pid":19708,"id":"r1_C"}
+EVENT {"event":"READY","pid":19708,"id":"r1_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","marker":"token_r1_C.txt","token":"r1_C:19708:1793958562996313"}
+TOKEN_OK {"pid":19708,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","token":"r1_C:19708:1793958562996313"}
+EVENT {"event":"CHECKED","pid":19708,"id":"r1_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","token":"r1_C:19708:1793958562996313","request":"S2-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":19708,"id":"r1_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d"}
+EXIT {"id":"r1_C","launcherPid":46012,"vmPid":19708,"code":0}
+WRFV {"scenario":"S2","iteration":1,"status":"PASS","pid":33324,"pids":[44780,33032,19708],"directories":["engine_6e117ccc","engine_85ed439d","engine_85ed439d"],"orphanMtimeUs":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_6e117ccc":1793958561582071,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_1\\cache\\engine_85ed439d":1793958562076065},"expectedNewest":["engine_85ed439d"],"cAcquiredKilledLease":true,"adopted":"engine_85ed439d","remainingCount":1,"deleted":["engine_6e117ccc"]}
+START {"id":"r2_A","launcherPid":7600,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"ARMED","pid":40076,"id":"r2_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":40076,"id":"r2_A"}
+EVENT {"event":"READY","pid":40076,"id":"r2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","marker":"token_r2_A.txt","token":"r2_A:40076:1793958563511763"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+START {"id":"r2_B","launcherPid":23036,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"ARMED","pid":35012,"id":"r2_B","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":35012,"id":"r2_B"}
+EVENT {"event":"READY","pid":35012,"id":"r2_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","marker":"token_r2_B.txt","token":"r2_B:35012:1793958563995884"}
+TOKEN_OK {"pid":40076,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","token":"r2_A:40076:1793958563511763"}
+TOKEN_OK {"pid":35012,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","token":"r2_B:35012:1793958563995884"}
+EVENT {"event":"CHECKED","pid":35012,"id":"r2_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","token":"r2_B:35012:1793958563995884","request":"S1-final"}
+EVENT {"event":"CHECKED","pid":40076,"id":"r2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","token":"r2_A:40076:1793958563511763","request":"S1-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+WRFV {"scenario":"S1","iteration":2,"status":"PASS","pid":33324,"pids":[40076,35012],"directories":["engine_f6452d38","engine_2b5f588e"]}
+EVENT {"event":"RELEASED","pid":35012,"id":"r2_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e"}
+EXIT {"id":"r2_B","launcherPid":23036,"vmPid":35012,"code":0}
+EVENT {"event":"CHECKED","pid":40076,"id":"r2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38","token":"r2_A:40076:1793958563511763","request":"S2-before-force-kill"}
+TASKKILL {"id":"r2_A","launcherPid":7600,"vmPid":40076,"exit":0,"stdout":"SUCCESS: The process with PID 40628 (child process of PID 7600) has been terminated.\r\nSUCCESS: The process with PID 40076 (child process of PID 7600) has been terminated.\r\nSUCCESS: The process with PID 7600 (child process of PID 33324) has been terminated.\r\n","stderr":""}
+EXIT {"id":"r2_A","launcherPid":7600,"vmPid":40076,"code":1}
+ORPHANS {"iteration":2,"mtimes":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e":1793958564029302,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38":1793958563539766},"expected":["C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e"]}
+START {"id":"r2_C","launcherPid":38268,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"ARMED","pid":28820,"id":"r2_C","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache"}
+EVENT {"event":"DEAD_OWNER_PROBE","pid":28820,"id":"r2_C","acquired":true}
+EVENT {"event":"RESOLVE_BEGIN","pid":28820,"id":"r2_C"}
+EVENT {"event":"READY","pid":28820,"id":"r2_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","marker":"token_r2_C.txt","token":"r2_C:28820:1793958564896022"}
+TOKEN_OK {"pid":28820,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","token":"r2_C:28820:1793958564896022"}
+EVENT {"event":"CHECKED","pid":28820,"id":"r2_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","token":"r2_C:28820:1793958564896022","request":"S2-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":28820,"id":"r2_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e"}
+EXIT {"id":"r2_C","launcherPid":38268,"vmPid":28820,"code":0}
+WRFV {"scenario":"S2","iteration":2,"status":"PASS","pid":33324,"pids":[40076,35012,28820],"directories":["engine_f6452d38","engine_2b5f588e","engine_2b5f588e"],"orphanMtimeUs":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_2b5f588e":1793958564029302,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_2\\cache\\engine_f6452d38":1793958563539766},"expectedNewest":["engine_2b5f588e"],"cAcquiredKilledLease":true,"adopted":"engine_2b5f588e","remainingCount":1,"deleted":["engine_f6452d38"]}
+START {"id":"r3_A","launcherPid":37644,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"ARMED","pid":29664,"id":"r3_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":29664,"id":"r3_A"}
+EVENT {"event":"READY","pid":29664,"id":"r3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","marker":"token_r3_A.txt","token":"r3_A:29664:1793958565408642"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+START {"id":"r3_B","launcherPid":20708,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"ARMED","pid":8128,"id":"r3_B","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":8128,"id":"r3_B"}
+EVENT {"event":"READY","pid":8128,"id":"r3_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","marker":"token_r3_B.txt","token":"r3_B:8128:1793958565943032"}
+TOKEN_OK {"pid":29664,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","token":"r3_A:29664:1793958565408642"}
+TOKEN_OK {"pid":8128,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","token":"r3_B:8128:1793958565943032"}
+EVENT {"event":"CHECKED","pid":29664,"id":"r3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","token":"r3_A:29664:1793958565408642","request":"S1-final"}
+EVENT {"event":"CHECKED","pid":8128,"id":"r3_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","token":"r3_B:8128:1793958565943032","request":"S1-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+WRFV {"scenario":"S1","iteration":3,"status":"PASS","pid":33324,"pids":[29664,8128],"directories":["engine_db1e41b5","engine_38929174"]}
+EVENT {"event":"RELEASED","pid":8128,"id":"r3_B","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174"}
+EXIT {"id":"r3_B","launcherPid":20708,"vmPid":8128,"code":0}
+EVENT {"event":"CHECKED","pid":29664,"id":"r3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5","token":"r3_A:29664:1793958565408642","request":"S2-before-force-kill"}
+TASKKILL {"id":"r3_A","launcherPid":37644,"vmPid":29664,"exit":0,"stdout":"SUCCESS: The process with PID 16636 (child process of PID 37644) has been terminated.\r\nSUCCESS: The process with PID 29664 (child process of PID 37644) has been terminated.\r\nSUCCESS: The process with PID 37644 (child process of PID 33324) has been terminated.\r\n","stderr":""}
+EXIT {"id":"r3_A","launcherPid":37644,"vmPid":29664,"code":1}
+ORPHANS {"iteration":3,"mtimes":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174":1793958565973426,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5":1793958565440736},"expected":["C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174"]}
+START {"id":"r3_C","launcherPid":23696,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"ARMED","pid":32808,"id":"r3_C","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache"}
+EVENT {"event":"DEAD_OWNER_PROBE","pid":32808,"id":"r3_C","acquired":true}
+EVENT {"event":"RESOLVE_BEGIN","pid":32808,"id":"r3_C"}
+EVENT {"event":"READY","pid":32808,"id":"r3_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","marker":"token_r3_C.txt","token":"r3_C:32808:1793958566855048"}
+TOKEN_OK {"pid":32808,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","token":"r3_C:32808:1793958566855048"}
+EVENT {"event":"CHECKED","pid":32808,"id":"r3_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","token":"r3_C:32808:1793958566855048","request":"S2-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":32808,"id":"r3_C","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174"}
+EXIT {"id":"r3_C","launcherPid":23696,"vmPid":32808,"code":0}
+WRFV {"scenario":"S2","iteration":3,"status":"PASS","pid":33324,"pids":[29664,8128,32808],"directories":["engine_db1e41b5","engine_38929174","engine_38929174"],"orphanMtimeUs":{"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_38929174":1793958565973426,"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S1_S2_3\\cache\\engine_db1e41b5":1793958565440736},"expectedNewest":["engine_38929174"],"cAcquiredKilledLease":true,"adopted":"engine_38929174","remainingCount":1,"deleted":["engine_db1e41b5"]}
+START {"id":"s3_1_1","launcherPid":31868,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+START {"id":"s3_1_0","launcherPid":46892,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+START {"id":"s3_1_2","launcherPid":34024,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+START {"id":"s3_1_3","launcherPid":28448,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+EVENT {"event":"ARMED","pid":13704,"id":"s3_1_1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+EVENT {"event":"ARMED","pid":44132,"id":"s3_1_0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+EVENT {"event":"ARMED","pid":5780,"id":"s3_1_3","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+EVENT {"event":"ARMED","pid":42348,"id":"s3_1_2","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache"}
+EVENT {"event":"GATE_PROBE","pid":13704,"id":"s3_1_1","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":13704,"id":"s3_1_1"}
+EVENT {"event":"GATE_PROBE","pid":5780,"id":"s3_1_3","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":5780,"id":"s3_1_3"}
+EVENT {"event":"GATE_PROBE","pid":44132,"id":"s3_1_0","acquired":false}
+EVENT {"event":"GATE_PROBE","pid":42348,"id":"s3_1_2","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":44132,"id":"s3_1_0"}
+EVENT {"event":"RESOLVE_BEGIN","pid":42348,"id":"s3_1_2"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache","contenders":[44132,13704,42348,5780]}
+EVENT {"event":"READY","pid":13704,"id":"s3_1_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_d81c6925","marker":"token_s3_1_1.txt","token":"s3_1_1:13704:1793958567641834"}
+EVENT {"event":"READY","pid":5780,"id":"s3_1_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_41a5520d","marker":"token_s3_1_3.txt","token":"s3_1_3:5780:1793958567858093"}
+EVENT {"event":"READY","pid":44132,"id":"s3_1_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_ed6a33e6","marker":"token_s3_1_0.txt","token":"s3_1_0:44132:1793958567843987"}
+EVENT {"event":"READY","pid":42348,"id":"s3_1_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_465aca00","marker":"token_s3_1_2.txt","token":"s3_1_2:42348:1793958567867353"}
+TOKEN_OK {"pid":44132,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_ed6a33e6","token":"s3_1_0:44132:1793958567843987"}
+TOKEN_OK {"pid":13704,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_d81c6925","token":"s3_1_1:13704:1793958567641834"}
+TOKEN_OK {"pid":42348,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_465aca00","token":"s3_1_2:42348:1793958567867353"}
+TOKEN_OK {"pid":5780,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_41a5520d","token":"s3_1_3:5780:1793958567858093"}
+EVENT {"event":"CHECKED","pid":13704,"id":"s3_1_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_d81c6925","token":"s3_1_1:13704:1793958567641834","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":5780,"id":"s3_1_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_41a5520d","token":"s3_1_3:5780:1793958567858093","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":44132,"id":"s3_1_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_ed6a33e6","token":"s3_1_0:44132:1793958567843987","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":42348,"id":"s3_1_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_465aca00","token":"s3_1_2:42348:1793958567867353","request":"S3-all-live"}
+EVENT {"event":"RELEASED","pid":44132,"id":"s3_1_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_ed6a33e6"}
+EVENT {"event":"RELEASED","pid":42348,"id":"s3_1_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_465aca00"}
+EVENT {"event":"RELEASED","pid":5780,"id":"s3_1_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_41a5520d"}
+EVENT {"event":"RELEASED","pid":13704,"id":"s3_1_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_1\\cache\\engine_d81c6925"}
+EXIT {"id":"s3_1_3","launcherPid":28448,"vmPid":5780,"code":0}
+EXIT {"id":"s3_1_0","launcherPid":46892,"vmPid":44132,"code":0}
+EXIT {"id":"s3_1_1","launcherPid":31868,"vmPid":13704,"code":0}
+EXIT {"id":"s3_1_2","launcherPid":34024,"vmPid":42348,"code":0}
+WRFV {"scenario":"S3","iteration":1,"status":"PASS","pid":33324,"pids":[44132,13704,42348,5780],"directories":["engine_ed6a33e6","engine_d81c6925","engine_465aca00","engine_41a5520d"]}
+START {"id":"s3_2_0","launcherPid":31420,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+START {"id":"s3_2_1","launcherPid":26720,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+START {"id":"s3_2_3","launcherPid":29036,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+START {"id":"s3_2_2","launcherPid":43612,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+EVENT {"event":"ARMED","pid":40776,"id":"s3_2_0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+EVENT {"event":"ARMED","pid":22532,"id":"s3_2_1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+EVENT {"event":"ARMED","pid":34260,"id":"s3_2_3","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+EVENT {"event":"ARMED","pid":32540,"id":"s3_2_2","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache"}
+EVENT {"event":"GATE_PROBE","pid":40776,"id":"s3_2_0","acquired":false}
+EVENT {"event":"GATE_PROBE","pid":34260,"id":"s3_2_3","acquired":false}
+EVENT {"event":"GATE_PROBE","pid":22532,"id":"s3_2_1","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":40776,"id":"s3_2_0"}
+EVENT {"event":"RESOLVE_BEGIN","pid":34260,"id":"s3_2_3"}
+EVENT {"event":"GATE_PROBE","pid":32540,"id":"s3_2_2","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":22532,"id":"s3_2_1"}
+EVENT {"event":"RESOLVE_BEGIN","pid":32540,"id":"s3_2_2"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache","contenders":[40776,22532,32540,34260]}
+EVENT {"event":"READY","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6","marker":"token_s3_2_3.txt","token":"s3_2_3:34260:1793958569399871"}
+EVENT {"event":"READY","pid":22532,"id":"s3_2_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_13457c56","marker":"token_s3_2_1.txt","token":"s3_2_1:22532:1793958569363993"}
+EVENT {"event":"READY","pid":40776,"id":"s3_2_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_ecf21f31","marker":"token_s3_2_0.txt","token":"s3_2_0:40776:1793958569262532"}
+EVENT {"event":"READY","pid":32540,"id":"s3_2_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_4d0c2e7f","marker":"token_s3_2_2.txt","token":"s3_2_2:32540:1793958569415629"}
+TOKEN_OK {"pid":40776,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_ecf21f31","token":"s3_2_0:40776:1793958569262532"}
+TOKEN_OK {"pid":22532,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_13457c56","token":"s3_2_1:22532:1793958569363993"}
+TOKEN_OK {"pid":32540,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_4d0c2e7f","token":"s3_2_2:32540:1793958569415629"}
+TOKEN_OK {"pid":34260,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6","token":"s3_2_3:34260:1793958569399871"}
+EVENT {"event":"CHECKED","pid":22532,"id":"s3_2_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_13457c56","token":"s3_2_1:22532:1793958569363993","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":32540,"id":"s3_2_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_4d0c2e7f","token":"s3_2_2:32540:1793958569415629","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6","token":"s3_2_3:34260:1793958569399871","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":40776,"id":"s3_2_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_ecf21f31","token":"s3_2_0:40776:1793958569262532","request":"S3-all-live"}
+EVENT {"event":"RELEASED","pid":40776,"id":"s3_2_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_ecf21f31"}
+EVENT {"event":"RELEASED","pid":32540,"id":"s3_2_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_4d0c2e7f"}
+EVENT {"event":"RELEASED","pid":22532,"id":"s3_2_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_13457c56"}
+EVENT {"event":"RELEASED","pid":34260,"id":"s3_2_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_2\\cache\\engine_bca7a0e6"}
+EXIT {"id":"s3_2_3","launcherPid":29036,"vmPid":34260,"code":0}
+EXIT {"id":"s3_2_1","launcherPid":26720,"vmPid":22532,"code":0}
+EXIT {"id":"s3_2_0","launcherPid":31420,"vmPid":40776,"code":0}
+EXIT {"id":"s3_2_2","launcherPid":43612,"vmPid":32540,"code":0}
+WRFV {"scenario":"S3","iteration":2,"status":"PASS","pid":33324,"pids":[40776,22532,32540,34260],"directories":["engine_ecf21f31","engine_13457c56","engine_4d0c2e7f","engine_bca7a0e6"]}
+START {"id":"s3_3_0","launcherPid":2644,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+START {"id":"s3_3_3","launcherPid":34464,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+START {"id":"s3_3_1","launcherPid":36256,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+START {"id":"s3_3_2","launcherPid":44368,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+EVENT {"event":"ARMED","pid":40796,"id":"s3_3_0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+EVENT {"event":"ARMED","pid":40560,"id":"s3_3_3","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+EVENT {"event":"ARMED","pid":12780,"id":"s3_3_2","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+EVENT {"event":"ARMED","pid":16776,"id":"s3_3_1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache"}
+EVENT {"event":"GATE_PROBE","pid":12780,"id":"s3_3_2","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":12780,"id":"s3_3_2"}
+EVENT {"event":"GATE_PROBE","pid":40796,"id":"s3_3_0","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":40796,"id":"s3_3_0"}
+EVENT {"event":"GATE_PROBE","pid":40560,"id":"s3_3_3","acquired":false}
+EVENT {"event":"GATE_PROBE","pid":16776,"id":"s3_3_1","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":40560,"id":"s3_3_3"}
+EVENT {"event":"RESOLVE_BEGIN","pid":16776,"id":"s3_3_1"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache","contenders":[40796,16776,12780,40560]}
+EVENT {"event":"READY","pid":12780,"id":"s3_3_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_ec5a8070","marker":"token_s3_3_2.txt","token":"s3_3_2:12780:1793958570804395"}
+EVENT {"event":"READY","pid":40796,"id":"s3_3_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_520c1271","marker":"token_s3_3_0.txt","token":"s3_3_0:40796:1793958570715095"}
+EVENT {"event":"READY","pid":40560,"id":"s3_3_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_a7fcba7f","marker":"token_s3_3_3.txt","token":"s3_3_3:40560:1793958570766796"}
+EVENT {"event":"READY","pid":16776,"id":"s3_3_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_54365cc3","marker":"token_s3_3_1.txt","token":"s3_3_1:16776:1793958570822684"}
+TOKEN_OK {"pid":40796,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_520c1271","token":"s3_3_0:40796:1793958570715095"}
+TOKEN_OK {"pid":40560,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_a7fcba7f","token":"s3_3_3:40560:1793958570766796"}
+TOKEN_OK {"pid":16776,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_54365cc3","token":"s3_3_1:16776:1793958570822684"}
+TOKEN_OK {"pid":12780,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_ec5a8070","token":"s3_3_2:12780:1793958570804395"}
+EVENT {"event":"CHECKED","pid":12780,"id":"s3_3_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_ec5a8070","token":"s3_3_2:12780:1793958570804395","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":16776,"id":"s3_3_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_54365cc3","token":"s3_3_1:16776:1793958570822684","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":40560,"id":"s3_3_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_a7fcba7f","token":"s3_3_3:40560:1793958570766796","request":"S3-all-live"}
+EVENT {"event":"CHECKED","pid":40796,"id":"s3_3_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_520c1271","token":"s3_3_0:40796:1793958570715095","request":"S3-all-live"}
+EVENT {"event":"RELEASED","pid":40560,"id":"s3_3_3","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_a7fcba7f"}
+EVENT {"event":"RELEASED","pid":40796,"id":"s3_3_0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_520c1271"}
+EVENT {"event":"RELEASED","pid":16776,"id":"s3_3_1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_54365cc3"}
+EVENT {"event":"RELEASED","pid":12780,"id":"s3_3_2","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S3_3\\cache\\engine_ec5a8070"}
+EXIT {"id":"s3_3_2","launcherPid":44368,"vmPid":12780,"code":0}
+EXIT {"id":"s3_3_1","launcherPid":36256,"vmPid":16776,"code":0}
+EXIT {"id":"s3_3_3","launcherPid":34464,"vmPid":40560,"code":0}
+EXIT {"id":"s3_3_0","launcherPid":2644,"vmPid":40796,"code":0}
+WRFV {"scenario":"S3","iteration":3,"status":"PASS","pid":33324,"pids":[40796,16776,12780,40560],"directories":["engine_520c1271","engine_54365cc3","engine_ec5a8070","engine_a7fcba7f"]}
+START {"id":"s4_1_A","launcherPid":43820,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+EVENT {"event":"ARMED","pid":2836,"id":"s4_1_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":2836,"id":"s4_1_A"}
+EVENT {"event":"READY","pid":2836,"id":"s4_1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","marker":"token_s4_1_A.txt","token":"s4_1_A:2836:1793958571561845"}
+START {"id":"s4_1_scan0","launcherPid":12220,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+START {"id":"s4_1_scan1","launcherPid":16668,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+EVENT {"event":"ARMED","pid":31824,"id":"s4_1_scan0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+EVENT {"event":"ARMED","pid":45452,"id":"s4_1_scan1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache"}
+EVENT {"event":"GATE_PROBE","pid":31824,"id":"s4_1_scan0","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":31824,"id":"s4_1_scan0"}
+EVENT {"event":"GATE_PROBE","pid":45452,"id":"s4_1_scan1","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":45452,"id":"s4_1_scan1"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache","contenders":[31824,45452]}
+EVENT {"event":"READY","pid":31824,"id":"s4_1_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_legacy_orphan","marker":"token_s4_1_scan0.txt","token":"s4_1_scan0:31824:1793958572519204"}
+TOKEN_OK {"pid":2836,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845"}
+EVENT {"event":"CHECKED","pid":2836,"id":"s4_1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845","request":"S4-after-s4_1_scan0"}
+EVENT {"event":"READY","pid":45452,"id":"s4_1_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_f2cf92ac","marker":"token_s4_1_scan1.txt","token":"s4_1_scan1:45452:1793958572551188"}
+TOKEN_OK {"pid":2836,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845"}
+EVENT {"event":"CHECKED","pid":2836,"id":"s4_1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845","request":"S4-after-s4_1_scan1"}
+TOKEN_OK {"pid":2836,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845"}
+TOKEN_OK {"pid":31824,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_legacy_orphan","token":"s4_1_scan0:31824:1793958572519204"}
+TOKEN_OK {"pid":45452,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_f2cf92ac","token":"s4_1_scan1:45452:1793958572551188"}
+EVENT {"event":"CHECKED","pid":2836,"id":"s4_1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","token":"s4_1_A:2836:1793958571561845","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":31824,"id":"s4_1_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_legacy_orphan","token":"s4_1_scan0:31824:1793958572519204","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":45452,"id":"s4_1_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_f2cf92ac","token":"s4_1_scan1:45452:1793958572551188","request":"S4-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":31824,"id":"s4_1_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_legacy_orphan"}
+EVENT {"event":"RELEASED","pid":45452,"id":"s4_1_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_f2cf92ac"}
+EVENT {"event":"RELEASED","pid":2836,"id":"s4_1_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_1\\cache\\engine_178bb741"}
+EXIT {"id":"s4_1_A","launcherPid":43820,"vmPid":2836,"code":0}
+EXIT {"id":"s4_1_scan1","launcherPid":16668,"vmPid":45452,"code":0}
+EXIT {"id":"s4_1_scan0","launcherPid":12220,"vmPid":31824,"code":0}
+WRFV {"scenario":"S4","iteration":1,"status":"PASS","pid":33324,"pids":[2836,31824,45452],"directories":["engine_178bb741","engine_legacy_orphan","engine_f2cf92ac"],"orphan":"engine_legacy_orphan","orphanOutcome":"adopted-exactly-once","adopterPids":[31824],"heldDeleteEvents":[],"remainingCount":3}
+START {"id":"s4_2_A","launcherPid":13724,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+EVENT {"event":"ARMED","pid":43152,"id":"s4_2_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":43152,"id":"s4_2_A"}
+EVENT {"event":"READY","pid":43152,"id":"s4_2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","marker":"token_s4_2_A.txt","token":"s4_2_A:43152:1793958573374180"}
+START {"id":"s4_2_scan0","launcherPid":30296,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+START {"id":"s4_2_scan1","launcherPid":46772,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+EVENT {"event":"ARMED","pid":26364,"id":"s4_2_scan0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+EVENT {"event":"ARMED","pid":45528,"id":"s4_2_scan1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache"}
+EVENT {"event":"GATE_PROBE","pid":26364,"id":"s4_2_scan0","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":26364,"id":"s4_2_scan0"}
+EVENT {"event":"GATE_PROBE","pid":45528,"id":"s4_2_scan1","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":45528,"id":"s4_2_scan1"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache","contenders":[26364,45528]}
+EVENT {"event":"READY","pid":26364,"id":"s4_2_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_legacy_orphan","marker":"token_s4_2_scan0.txt","token":"s4_2_scan0:26364:1793958574359014"}
+TOKEN_OK {"pid":43152,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180"}
+EVENT {"event":"READY","pid":45528,"id":"s4_2_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_2da5b7ab","marker":"token_s4_2_scan1.txt","token":"s4_2_scan1:45528:1793958574372379"}
+EVENT {"event":"CHECKED","pid":43152,"id":"s4_2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180","request":"S4-after-s4_2_scan0"}
+TOKEN_OK {"pid":43152,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180"}
+EVENT {"event":"CHECKED","pid":43152,"id":"s4_2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180","request":"S4-after-s4_2_scan1"}
+TOKEN_OK {"pid":43152,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180"}
+TOKEN_OK {"pid":45528,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_2da5b7ab","token":"s4_2_scan1:45528:1793958574372379"}
+TOKEN_OK {"pid":26364,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_legacy_orphan","token":"s4_2_scan0:26364:1793958574359014"}
+EVENT {"event":"CHECKED","pid":43152,"id":"s4_2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","token":"s4_2_A:43152:1793958573374180","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":45528,"id":"s4_2_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_2da5b7ab","token":"s4_2_scan1:45528:1793958574372379","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":26364,"id":"s4_2_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_legacy_orphan","token":"s4_2_scan0:26364:1793958574359014","request":"S4-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":26364,"id":"s4_2_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_legacy_orphan"}
+EVENT {"event":"RELEASED","pid":45528,"id":"s4_2_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_2da5b7ab"}
+EVENT {"event":"RELEASED","pid":43152,"id":"s4_2_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_2\\cache\\engine_79878c09"}
+EXIT {"id":"s4_2_scan1","launcherPid":46772,"vmPid":45528,"code":0}
+EXIT {"id":"s4_2_scan0","launcherPid":30296,"vmPid":26364,"code":0}
+EXIT {"id":"s4_2_A","launcherPid":13724,"vmPid":43152,"code":0}
+WRFV {"scenario":"S4","iteration":2,"status":"PASS","pid":33324,"pids":[43152,26364,45528],"directories":["engine_79878c09","engine_legacy_orphan","engine_2da5b7ab"],"orphan":"engine_legacy_orphan","orphanOutcome":"adopted-exactly-once","adopterPids":[26364],"heldDeleteEvents":[],"remainingCount":3}
+START {"id":"s4_3_A","launcherPid":40540,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+EVENT {"event":"ARMED","pid":33504,"id":"s4_3_A","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+EVENT {"event":"RESOLVE_BEGIN","pid":33504,"id":"s4_3_A"}
+EVENT {"event":"READY","pid":33504,"id":"s4_3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","marker":"token_s4_3_A.txt","token":"s4_3_A:33504:1793958575065871"}
+START {"id":"s4_3_scan1","launcherPid":12040,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+START {"id":"s4_3_scan0","launcherPid":19868,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+EVENT {"event":"ARMED","pid":43992,"id":"s4_3_scan0","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+EVENT {"event":"ARMED","pid":34348,"id":"s4_3_scan1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+EVENT {"event":"GATE_PROBE","pid":34348,"id":"s4_3_scan1","acquired":false}
+EVENT {"event":"GATE_PROBE","pid":43992,"id":"s4_3_scan0","acquired":false}
+EVENT {"event":"RESOLVE_BEGIN","pid":34348,"id":"s4_3_scan1"}
+EVENT {"event":"RESOLVE_BEGIN","pid":43992,"id":"s4_3_scan0"}
+GATE_RELEASE {"pid":33324,"root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache","contenders":[43992,34348]}
+EVENT {"event":"READY","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan","marker":"token_s4_3_scan1.txt","token":"s4_3_scan1:34348:1793958575806056"}
+TOKEN_OK {"pid":33504,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871"}
+EVENT {"event":"READY","pid":43992,"id":"s4_3_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_2b67d5e1","marker":"token_s4_3_scan0.txt","token":"s4_3_scan0:43992:1793958575806574"}
+EVENT {"event":"CHECKED","pid":33504,"id":"s4_3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871","request":"S4-after-s4_3_scan1"}
+TOKEN_OK {"pid":33504,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871"}
+EVENT {"event":"CHECKED","pid":33504,"id":"s4_3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871","request":"S4-after-s4_3_scan0"}
+TOKEN_OK {"pid":33504,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871"}
+TOKEN_OK {"pid":43992,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_2b67d5e1","token":"s4_3_scan0:43992:1793958575806574"}
+TOKEN_OK {"pid":34348,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan","token":"s4_3_scan1:34348:1793958575806056"}
+EVENT {"event":"CHECKED","pid":33504,"id":"s4_3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","token":"s4_3_A:33504:1793958575065871","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":43992,"id":"s4_3_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_2b67d5e1","token":"s4_3_scan0:43992:1793958575806574","request":"S4-final"}
+EVENT {"event":"CHECKED","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan","token":"s4_3_scan1:34348:1793958575806056","request":"S4-final"}
+LOCK_DENIED {"pid":33324,"directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced","error":"PathAccessException: lock failed, path = 'C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced/.lease' (OS Error: 另一个程序已锁定文件的一部分，进程无法访问。, errno = 33)"}
+EVENT {"event":"RELEASED","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan"}
+EVENT {"event":"RELEASED","pid":43992,"id":"s4_3_scan0","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_2b67d5e1"}
+EVENT {"event":"RELEASED","pid":33504,"id":"s4_3_A","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_fb0afced"}
+EXIT {"id":"s4_3_scan1","launcherPid":12040,"vmPid":34348,"code":0}
+EXIT {"id":"s4_3_A","launcherPid":40540,"vmPid":33504,"code":0}
+EXIT {"id":"s4_3_scan0","launcherPid":19868,"vmPid":43992,"code":0}
+WRFV {"scenario":"S4","iteration":3,"status":"PASS","pid":33324,"pids":[33504,43992,34348],"directories":["engine_fb0afced","engine_2b67d5e1","engine_legacy_orphan"],"orphan":"engine_legacy_orphan","orphanOutcome":"adopted-exactly-once","adopterPids":[34348],"heldDeleteEvents":[],"remainingCount":3}
+CLEANUP_TARGET_VERIFIED C:\Users\jelon\AppData\Local\Temp\mova_wrfv_5a8ac999
+CLEANUP all_owned_worker_exits_observed=true temporary_deleted=true
+SUMMARY S1 PASS=3 FAIL=0 total=3
+SUMMARY S2 PASS=3 FAIL=0 total=3
+SUMMARY S3 PASS=3 FAIL=0 total=3
+SUMMARY S4 PASS=3 FAIL=0 total=3
+FINAL_RESULT PASS=12 FAIL=0 total=12 fatal=false

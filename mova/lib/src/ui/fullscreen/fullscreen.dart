@@ -54,13 +54,16 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
     _schedule();
   }
 
+  /// Rebinds changed APIs and releases the previous owned route.
+  ///
+  /// API 变化时重绑监听并释放原先持有的路由。
   @override
   void didUpdateWidget(MovaFullscreenHost oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.api, widget.api)) {
       unawaited(_subscription?.cancel());
       final owned = _route != null;
-      _close(oldWidget.api, notify: false, deferred: true);
+      _close(notify: false, deferred: true);
       if (owned && oldWidget.api.state.fullscreen) {
         unawaited(oldWidget.api.setFullscreen(false));
       }
@@ -69,6 +72,9 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
     _schedule();
   }
 
+  /// Reconciles the route with playback state after the current frame.
+  ///
+  /// 当前帧结束后使路由与播放状态保持一致。
   void _schedule() {
     if (_scheduled) return;
     _scheduled = true;
@@ -79,7 +85,7 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
       _unlock = MovaPlayerStyle.stringsOf(context).unlock;
       final state = widget.api.state;
       if (!state.fullscreen || state.pip || state.mini) {
-        _close(widget.api);
+        _close();
       } else if (_route == null &&
           movaFullscreenRoutes[widget.api] == null &&
           (ModalRoute.isCurrentOf(context) ?? true)) {
@@ -165,7 +171,7 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   /// Starts exit while retaining ownership through route completion.
   ///
   /// 启动退出，并保留所有权直至路由完全移除。
-  void _close(MovaApi api, {bool notify = true, bool deferred = false}) {
+  void _close({bool notify = true, bool deferred = false}) {
     final route = _route;
     if (route == null || _closing) return;
     _closing = true;
@@ -195,7 +201,7 @@ class _MovaFullscreenHostState extends State<MovaFullscreenHost> {
   void dispose() {
     unawaited(_subscription?.cancel());
     final owned = _route != null;
-    _close(widget.api, notify: false, deferred: true);
+    _close(notify: false, deferred: true);
     if (owned && widget.api.state.fullscreen) {
       unawaited(widget.api.setFullscreen(false));
     }

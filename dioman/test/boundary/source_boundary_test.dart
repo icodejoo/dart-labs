@@ -1,9 +1,10 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -33,7 +34,7 @@ void main() {
         h.track(2, api.send<Object?>(b4Get, b4Path, call: b4Call(share: true)));
     await b4Turn();
     token.cancel();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
     expect(h.contexts.first.cancellationSubscriptions, 0,
         reason: '首发离开即摘掉监听，不等共享传输完成');
     expect(net.sends.single.options.cancelToken!.isCancelled, isFalse);
@@ -45,7 +46,7 @@ void main() {
     final c = api.send<Object?>(b4Get, b4Path, call: b4Call(share: true));
     await b4Turn();
     api.cancelAll();
-    expect((await c).kind, DiomanKind.cancel);
+    expect(outcomeOf((await c)), diomanTestCancel);
     expect(net.sends.last.options.cancelToken!.isCancelled, isTrue);
     gate2.complete();
     await b4Turn();
@@ -76,7 +77,7 @@ void main() {
     expect([sent.connectTimeout, sent.sendTimeout, sent.receiveTimeout],
         everyElement(Duration.zero));
     clock.elapse(const Duration(seconds: 4));
-    expect((await a).kind, DiomanKind.timeout);
+    expect(outcomeOf((await a)), diomanTestTimeout);
     expect(sent.cancelToken!.isCancelled, isFalse);
     expect(clock.pendingTimers, 1);
     gate.complete();
@@ -117,7 +118,7 @@ void main() {
           client.send<Object?>(b4Get, b4Path, call: b4Call(share: policy));
       await b4Turn();
       token.cancel();
-      expect((await a).kind, DiomanKind.cancel);
+      expect(outcomeOf((await a)), diomanTestCancel);
       expect(n.sends.last.options.cancelToken!.isCancelled, isFalse);
       last.complete();
       expect((await b).ok, isTrue);
@@ -145,11 +146,10 @@ void main() {
         const DiomanShare<Result>()
       ]);
       expect(
-          (await api.send<Object?>(b4Get, b4Path,
-                  call: DiomanCall(
-                      cancelToken: token, options: {DiomanShare.option: true})))
-              .kind,
-          DiomanKind.cancel);
+          outcomeOf((await api.send<Object?>(b4Get, b4Path,
+              call: DiomanCall(
+                  cancelToken: token, options: {DiomanShare.option: true})))),
+          diomanTestCancel);
       expect(net.sends, isEmpty);
       expect(api.cancellationSubscriptions, 0);
     }
@@ -252,17 +252,17 @@ void main() {
       }
       final r = await pending;
       expect(
-          r.kind,
+          outcomeOf(r),
           exit == b4LiteralFlush
-              ? DiomanKind.ok
+              ? diomanTestOk
               : exit == b4LiteralCancel
-                  ? DiomanKind.cancel
-                  : DiomanKind.offline);
+                  ? diomanTestCancel
+                  : diomanTestOffline);
       if (exit == b4LiteralTimeout) {
-        expect(r.reason, b4LiteralTimeout);
+        expect(failureOf(r)?.reason, b4LiteralTimeout);
       }
       if (exit == b4LiteralDispose || exit == b4LiteralEject) {
-        expect(r.reason, b4LiteralDisposed);
+        expect(failureOf(r)?.reason, b4LiteralDisposed);
       }
       expect(clock.pendingTimers, 0);
       expect(api.cancellationSubscriptions, 0);
@@ -286,7 +286,7 @@ void main() {
     await b4Turn();
     final b = api.send<Object?>(b4Get, b4Path);
     await b4Turn();
-    expect((await a).reason, b4LiteralQueueFull);
+    expect(failureOf((await a))?.reason, b4LiteralQueueFull);
     final c = api.send<Object?>(b4Get, b4Path,
         call: b4Call(offline: const DiomanOfflineOptions(maxQueueSize: 0)));
     await b4Turn();
@@ -294,8 +294,8 @@ void main() {
     final d = api.send<Object?>(b4Get, b4Path,
         call: b4Call(offline: const DiomanOfflineOptions(maxQueueSize: 1)));
     await b4Turn();
-    expect((await b).reason, b4LiteralQueueFull);
-    expect((await c).reason, b4LiteralQueueFull);
+    expect(failureOf((await b))?.reason, b4LiteralQueueFull);
+    expect(failureOf((await c))?.reason, b4LiteralQueueFull);
     api.plugin<DiomanOfflineApi>()!.flush();
     expect((await d).ok, isTrue);
     api.dispose();
@@ -306,11 +306,15 @@ void main() {
           maxQueueSize: 2)
     ]);
     final oldest = fifo.send<Object?>(b4Get, b4Path);
+    var oldestSettled = false;
+    oldest.then((_) => oldestSettled = true);
     final middle = fifo.send<Object?>(b4Get, b4Path);
     await b4Turn();
     final newest = fifo.send<Object?>(b4Get, b4Path);
     await b4Turn();
-    expect((await oldest).reason, b4LiteralQueueFull);
+    expect(oldestSettled, isTrue,
+        reason: '队满必须先落定最早请求，不能依靠测试总超时取证');
+    expect(failureOf((await oldest))?.reason, b4LiteralQueueFull);
     fifo.plugin<DiomanOfflineApi>()!.flush();
     expect((await middle).ok, isTrue);
     expect((await newest).ok, isTrue);

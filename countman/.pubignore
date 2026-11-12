@@ -1,0 +1,23 @@
+# pub 发布时的忽略清单。注意：本文件存在时，同目录的 .gitignore 不再参与发布过滤，
+# 所以下面先完整复制 .gitignore 的条目，再追加只对发布生效的条目。
+
+# ── 与 .gitignore 相同 ──
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+*.iml
+.idea/
+coverage/
+
+# ── 仅发布时排除 ──
+# 智能体技能文档与内部设计记录
+.claude/
+ARCHITECTURE.md
+# 崩溃日志等本地产物
+*.log
+# 本机 Windows 专用的性能脚本与基准夹具，对包使用者无价值
+tool/
+test/benchmark/

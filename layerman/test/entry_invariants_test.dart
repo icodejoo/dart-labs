@@ -20,6 +20,7 @@ class _SlowBackend {
 
   /// 仅返回句柄，不在 dismiss 时自动确认退场。
   PresentedOverlay<int> present(PresentContext<int> ctx) => PresentedOverlay(
+        visible: Future<void>.value(),
         dismissed: done.future,
         dismiss: ([_]) async {},
       );
@@ -38,6 +39,7 @@ void main() {
       addTearDown(manager.dispose);
       await manager.ready();
       manager.submit<int>(id: 'broken', present: _SlowBackend().present);
+      await flushAsync();
       manager.debugCheckInvariants();
       final failure = throwsA(isA<StateError>()
           .having((error) => error.message, '编号', contains('不变量 ${entry.key}'))
@@ -54,6 +56,7 @@ void main() {
     await manager.ready();
     final ticket =
         manager.submit<int>(id: 'unsettled', present: _SlowBackend().present);
+    await flushAsync();
     final failure = throwsA(isA<StateError>()
         .having((error) => error.message, '编号', contains('不变量 q'))
         .having((error) => error.message, '条目', contains('unsettled'))

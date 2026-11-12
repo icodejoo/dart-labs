@@ -1,13 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
+import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/playlist.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/playlist/playlist.dart';
 
 import '../support/fake_api.dart';
+import '../support/fake_kernel.dart';
 
 /// A three-item playlist used across the controller tests.
 ///
@@ -189,14 +192,140 @@ void main() {
     final j2 = c.jumpTo(2);
     await Future<void>.delayed(Duration.zero);
     // 后发的 jumpTo(2) 先完成，先发的 jumpTo(1) 后完成。
-    api.gates[1].complete();
+    api.gates[1].complete(true);
     await j2;
-    api.gates[0].complete();
+    api.gates[0].complete(true);
     await j1;
     await Future<void>.delayed(Duration.zero);
     expect(c.currentIndex, 2);
     expect(seen, [2]);
   });
+
+  for (final rejectFirst in [true, false]) {
+    test('later rejected jump preserves earlier accepted index rejectFirst=$rejectFirst', () async {
+      final api = _GatedApi(
+        options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+      );
+      final playlist = MovaPlaylist(api);
+      addTearDown(api.dispose);
+      addTearDown(playlist.dispose);
+      final seen = <int>[];
+      playlist.indexChanges.listen(seen.add);
+      final first = playlist.jumpTo(1);
+      final later = playlist.jumpTo(2);
+      if (rejectFirst) {
+        api.gates[1].complete(false);
+        await later;
+      }
+      api.gates[0].complete(true);
+      await first;
+      if (!rejectFirst) {
+        api.gates[1].complete(false);
+        await later;
+      }
+      await pumpEventQueue();
+      expect(playlist.currentIndex, 1);
+      expect(api.source, _items[1].source);
+      expect(seen, [1]);
+      final next = playlist.next();
+      api.gates[2].complete(true);
+      await next;
+      expect(playlist.currentIndex, 2);
+    });
+  }
+
+  test('automatic next observes open failure and keeps index', () async {
+    final api = _GatedApi(
+      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+    );
+    final playlist = MovaPlaylist(api);
+    addTearDown(api.dispose);
+    addTearDown(playlist.dispose);
+    final seen = <int>[];
+    playlist.indexChanges.listen(seen.add);
+    api.pushEvent(const MovaDone());
+    await pumpEventQueue();
+    expect(api.gates, hasLength(1));
+    api.gates.single.completeError(StateError('open failed'));
+    await pumpEventQueue();
+    expect(playlist.currentIndex, 0);
+    expect(seen, isEmpty);
+    expect(api.gates, hasLength(1));
+
+    // Explicit navigation still returns its failure to the awaiting caller.
+    //
+    // 显式导航仍将失败交给等待调用方。
+    final explicit = playlist.next();
+    final assertion = expectLater(explicit, throwsStateError);
+    api.gates.last.completeError(StateError('explicit open failed'));
+    await assertion;
+    expect(playlist.currentIndex, 0);
+  });
+
+  test('beforeOpen rejection preserves the index of an in-flight engine load', () async {
+    final kernel = FakeKernel();
+    final engine = MovaEngine(
+      kernel: kernel,
+      ownsKernel: true,
+      interceptors: [_RejectLastItem()],
+      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+    );
+    final playlist = MovaPlaylist(engine);
+    addTearDown(engine.dispose);
+    addTearDown(playlist.dispose);
+    final sources = <MovaSource>[];
+    engine.events.where((e) => e is MovaSourceChange).cast<MovaSourceChange>().listen((e) => sources.add(e.source));
+    await engine.open(_items.first.source);
+    final gate = Completer<void>();
+    kernel.openGate = gate;
+    final first = playlist.jumpTo(1);
+    await pumpEventQueue();
+    expect(kernel.lastUri, _items[1].source.uri);
+    try {
+      await playlist.jumpTo(2);
+      expect(kernel.openedUris, [_items[0].source.uri, _items[1].source.uri]);
+    } finally {
+      gate.complete();
+      await first;
+    }
+    expect(sources.last, _items[1].source);
+    expect(playlist.currentIndex, 1);
+  });
+
+  test('automatic next retains engine failure diagnostics without uncaught error', () async {
+    final kernel = FakeKernel();
+    final engine = MovaEngine(
+      kernel: kernel,
+      ownsKernel: true,
+      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+    );
+    final playlist = MovaPlaylist(engine);
+    addTearDown(engine.dispose);
+    addTearDown(playlist.dispose);
+    final errors = <MovaErrorEvent>[];
+    engine.events.where((e) => e is MovaErrorEvent).cast<MovaErrorEvent>().listen(errors.add);
+    await engine.open(_items.first.source);
+    final failure = StateError('next item failed');
+    kernel.openError = failure;
+    kernel.emitCompleted(true);
+    await pumpEventQueue();
+    expect(kernel.openedUris, [_items[0].source.uri, _items[1].source.uri]);
+    expect(playlist.currentIndex, 0);
+    expect(engine.state.error, same(failure));
+    expect(errors.single.error, same(failure));
+    expect(errors.single.fatal, isTrue);
+  });
+}
+
+/// Rejects only the last item, leaving earlier engine loads undisturbed.
+///
+/// 仅拒绝最后一集，不干扰引擎先前的加载。
+class _RejectLastItem extends MovaHook {
+  /// Accepts every source except the last playlist entry.
+  ///
+  /// 接受列表最后一项之外的源。
+  @override
+  Future<bool> beforeOpen(MovaSource source) async => source != _items.last.source;
 }
 
 /// A fake whose `open` stays pending until the matching gate completes.
@@ -208,13 +337,16 @@ class _GatedApi extends FakeMovaApi {
   /// One gate per `open` call, in call order.
   ///
   /// 每次 `open` 调用对应一个 gate，按调用顺序排列。
-  final List<Completer<void>> gates = <Completer<void>>[];
+  final List<Completer<bool>> gates = <Completer<bool>>[];
 
+  /// Resolves each load with its gated acceptance result or error.
+  ///
+  /// 根据阻塞点给出的接受结果或异常完成每次加载。
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
-    final gate = Completer<void>();
+    final gate = Completer<bool>();
     gates.add(gate);
-    await gate.future;
+    if (!await gate.future) return false;
     return super.open(source, autoPlay: autoPlay);
   }
 }

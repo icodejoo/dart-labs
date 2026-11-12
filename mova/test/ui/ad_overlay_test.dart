@@ -13,6 +13,31 @@ import '../support/pump.dart';
 const _content = MovaSource('https://host/content.m3u8');
 
 void main() {
+  testWidgets('replacement ads controller removes its finished overlay', (t) async {
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+      skippableAfter: Duration.zero,
+    );
+    final api = FakeMovaApi(options: const MovaOpts(
+      ads: MovaAdConfig(enabled: true, breaks: [pre]),
+    ));
+    final first = MovaAds(api);
+    await first.load(_content);
+    await pumpComponent(t, api, MovaAdOverlayComponent(first));
+    first.dispose();
+    final second = MovaAds(api);
+    await second.load(_content);
+    await pumpComponent(t, api, MovaAdOverlayComponent(second));
+    expect(find.text('广告'), findsOneWidget);
+    second.skip();
+    await t.pump();
+    await t.pump();
+    expect(find.text('广告'), findsNothing);
+    await t.pumpWidget(const SizedBox());
+    second.dispose();
+    await api.dispose();
+  });
   /// Builds a fake API + ad controller with a single [break_], collecting ad
   /// events into the returned list.
   ///

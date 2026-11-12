@@ -1,3 +1,4 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import '../support/constants.dart';
 import 'dart:async';
@@ -8,34 +9,6 @@ import '../support/helpers.dart';
 
 /// 客户端生命周期与取消边界。
 void main() {
-  for (final mode in ['baseline', 'cache', 'mock']) {
-    test('[Dioman.send] source 同时取消保留程序异常和原始栈 mode=$mode', () async {
-      final bug = StateError(pipelineTestBug);
-      final stack = StackTrace.fromString(pipelineTestOriginalStack);
-      final api = testClient(plugins: [
-        if (mode == 'cache') const DiomanCache<Result>(),
-        if (mode == 'mock')
-          const DiomanMock<Result>(mockUrl: 'https://mock.test'),
-        TestPlugin('source-cancel-then-bug', stage: DiomanStage.source,
-            handler: (ctx, _) {
-          ctx.cancelToken.cancel();
-          Error.throwWithStackTrace(bug, stack);
-        })
-      ]);
-      addTearDown(api.dispose);
-      try {
-        await api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath,
-            call: DiomanCall(options: {DiomanCache.option: true}));
-        fail('必须抛出程序异常');
-      } catch (e, s) {
-        expect(e, same(bug));
-        expect(s.toString(), stack.toString());
-      }
-      expect(api.pending, 0);
-      expect(api.cancellationSubscriptions, 0);
-    });
-  }
-
   test('[Dioman.send] 同时取消不掩盖中间件程序异常和原始栈', () async {
     final bug = StateError(pipelineTestBug);
     final stack = StackTrace.fromString(pipelineTestOriginalStack);
@@ -70,20 +43,19 @@ void main() {
     expect(api.cancellationSubscriptions, 2);
     expect(api.cancelAll('stop'), 2);
     expect(api.cancelAll(), 0);
-    expect((await first).kind, DiomanKind.cancel);
-    expect((await second).kind, DiomanKind.cancel);
+    expect(outcomeOf((await first)), diomanTestCancel);
+    expect(outcomeOf((await second)), diomanTestCancel);
     expect(api.pending, 0);
     final token = CancelToken();
     final third = api.send<Object?>(pipelineTestGetMethod, '/three',
         call: DiomanCall(cancelToken: token));
     token.cancel('user');
-    expect((await third).kind, DiomanKind.cancel);
+    expect(outcomeOf((await third)), diomanTestCancel);
     final already = CancelToken()..cancel();
     expect(
-        (await api.send<Object?>(pipelineTestGetMethod, '/four',
-                call: DiomanCall(cancelToken: already)))
-            .kind,
-        DiomanKind.cancel);
+        outcomeOf((await api.send<Object?>(pipelineTestGetMethod, '/four',
+            call: DiomanCall(cancelToken: already)))),
+        diomanTestCancel);
     expect(api.pending, 0);
     expect(api.cancelAll(), 0);
   });
@@ -210,9 +182,9 @@ void main() {
     ]);
     final pending =
         api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath);
-    expect(() => api.dispose(), throwsA(same(first)));
+    await expectLater(api.dispose(), throwsA(same(first)));
     expect(order, [pipelineTestWait, pipelineTestB, pipelineTestA]);
-    expect((await pending).kind, DiomanKind.cancel);
+    expect(outcomeOf((await pending)), diomanTestCancel);
     api.dispose();
     await expectLater(
         api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath),

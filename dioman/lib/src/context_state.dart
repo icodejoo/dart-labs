@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'request.dart';
+import 'context.dart' show DiomanNative;
+import 'response.dart';
 
 /// 可解除目标的 Dio 取消桥；Dio Future 自身没有退订接口。
 class DiomanCancelLink {
@@ -7,9 +9,9 @@ class DiomanCancelLink {
   DiomanCancelLink(CancelToken source, void Function(Object?) target)
       : _target = target {
     if (source.isCancelled) {
-      target(source.cancelError);
+      target(source.cancelError?.error);
     } else {
-      source.whenCancel.then(_deliver);
+      source.whenCancel.then((error) => _deliver(error.error));
     }
   }
 
@@ -37,6 +39,16 @@ class DiomanContextState {
   /// 内核逻辑取消令牌。
   final CancelToken token;
 
+  /// 是否由自身整体预算首先触发取消，不影响独立共享传输令牌。
+  bool deadlineExpired = false;
+
+  /// 整体预算到期；已有取消保留首次原因。
+  void expireDeadline() {
+    if (token.isCancelled) return;
+    deadlineExpired = true;
+    cancel();
+  }
+
   /// Dio 到内核订阅表的桥。
   late final DiomanCancelLink _link;
 
@@ -57,6 +69,22 @@ class DiomanContextState {
 
   /// 最近实际交给传输的请求视图，重放方不能只检查入口请求体。
   DiomanRequest? sentRequest;
+
+  /// 当前单槽，不随派生上下文复制。
+  DiomanNative? nativeSlot;
+
+  /// 当前管线返回的结果，用于身份匹配。
+  DiomanResponse<dynamic>? nativeResult;
+
+  /// 原生槽是否已永久封闭。
+  bool nativeClosed = false;
+
+  /// 落定即清空并封闭，不等待共享传输释放。
+  void closeNative() {
+    nativeClosed = true;
+    nativeSlot = null;
+    nativeResult = null;
+  }
 
   /// 脱离首发调用方但仍在执行的共享传输数。
   int _retained = 0;

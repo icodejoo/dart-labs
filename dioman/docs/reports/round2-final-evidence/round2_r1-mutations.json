@@ -1,0 +1,30 @@
+[
+  {
+    "mutation": "session-not-shared",
+    "failures": 1,
+    "test": "test/combo/auth_session_combo_test.dart",
+    "before_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c",
+    "restored_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c"
+  },
+  {
+    "mutation": "late-failure-clears",
+    "failures": 1,
+    "test": "test/boundary/auth_lifecycle_boundary_test.dart",
+    "before_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c",
+    "restored_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c"
+  },
+  {
+    "mutation": "callback-identity",
+    "failures": 1,
+    "test": "test/boundary/loading_resources_boundary_test.dart",
+    "before_sha256": "45465fb0bfded357124899b885bd8509fbe7cac630916627618eea79b939300e",
+    "restored_sha256": "45465fb0bfded357124899b885bd8509fbe7cac630916627618eea79b939300e"
+  },
+  {
+    "mutation": "window-owner-not-transferred",
+    "failures": 1,
+    "test": "test/boundary/loading_resources_boundary_test.dart",
+    "before_sha256": "45465fb0bfded357124899b885bd8509fbe7cac630916627618eea79b939300e",
+    "restored_sha256": "45465fb0bfded357124899b885bd8509fbe7cac630916627618eea79b939300e"
+  }
+]

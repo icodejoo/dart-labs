@@ -1,0 +1,32 @@
+{
+  "summary_archive": "matrix-summary.json.gz",
+  "installed_evidence": "test/accept/evidence/2026-11-03-round2-final-summary.json.gz",
+  "expanded_path": "coverage\\round2-final\\matrix-summary.json",
+  "expanded_sha256": "58c917eb94e7c4db0a29d7eb02d2a2c57952b55e3f7782ab4570ab06e8a18d58",
+  "archive_sha256": "f5c15dcaf36e6d7682dafb928fdb1381d803dc14a670ef6c545e3bea067d5718",
+  "expanded_bytes": 244311,
+  "archive_bytes": 6835,
+  "scenarios": 459,
+  "apiHits": 64,
+  "fresh_api_hits": 64,
+  "inherited_api_hits": 0,
+  "discarded_historical_api_hits": [
+    "DiomanResponse.errorStack",
+    "DiomanResponse.httpStatus",
+    "DiomanResponse.kind",
+    "DiomanResponse.reason"
+  ],
+  "comparison_api_hits_source": "test\\accept\\evidence\\2026-11-03-r6b-summary.json",
+  "api_evidence_source": "coverage\\accept\\api-evidence.json",
+  "api_evidence_sha256": "f34372d4fcbb981c41f9c1a141f4f94cdeae2f718cbf68289029615ac0404f98",
+  "sources": [
+    "coverage\\round2-final\\acceptance-final.json",
+    "coverage\\round2-final\\plugin-matrix-final.json"
+  ],
+  "source_note": "默认 results/gates 直接读取 installed_evidence 的完整 gzip JSON；归档副本与安装文件字节相同。",
+  "result_rows": 112,
+  "statuses": {
+    "PASS": 111,
+    "BLOCKED": 1
+  }
+}

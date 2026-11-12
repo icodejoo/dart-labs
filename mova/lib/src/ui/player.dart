@@ -349,35 +349,37 @@ class _MovaPlayerState extends State<MovaPlayer> {
       legacy: MovaStyleScope.maybeOf(context)?.legacy ?? widget.api.options,
       child: MovaScope(
         api: widget.api,
-        child: Builder(builder: (context) {
-          final style = MovaPlayerStyle(
-            theme: MovaPlayerStyle.themeOf(context),
-            strings: MovaPlayerStyle.stringsOf(context),
-            gesture: MovaPlayerStyle.gestureOf(context),
-            controls: MovaPlayerStyle.controlsOf(context),
-            danmaku: MovaPlayerStyle.danmakuOf(context),
-            icons: MovaPlayerStyle.iconsOf(context),
-          );
-          return MovaFullscreenHost(
-            api: widget.api,
-            onExit: () {
-              if (mounted) _ui.show();
-            },
-            fullscreen: MovaStyleScope(
-              legacy: MovaStyleScope.maybeOf(context)?.legacy,
-              child: MovaPlayer(
-                api: widget.api,
-                skin: widget.skin,
-                style: style,
-                autoLoadQualities: false,
-                surface: widget.surface,
-                poster: widget.poster,
-                posterFade: widget.posterFade,
+        child: Builder(
+          builder: (context) {
+            final style = MovaPlayerStyle(
+              theme: MovaPlayerStyle.themeOf(context),
+              strings: MovaPlayerStyle.stringsOf(context),
+              gesture: MovaPlayerStyle.gestureOf(context),
+              controls: MovaPlayerStyle.controlsOf(context),
+              danmaku: MovaPlayerStyle.danmakuOf(context),
+              icons: MovaPlayerStyle.iconsOf(context),
+            );
+            return MovaFullscreenHost(
+              api: widget.api,
+              onExit: () {
+                if (mounted) _ui.show();
+              },
+              fullscreen: MovaStyleScope(
+                legacy: MovaStyleScope.maybeOf(context)?.legacy,
+                child: MovaPlayer(
+                  api: widget.api,
+                  skin: widget.skin,
+                  style: style,
+                  autoLoadQualities: false,
+                  surface: widget.surface,
+                  poster: widget.poster,
+                  posterFade: widget.posterFade,
+                ),
               ),
-            ),
-            child: _buildInline(context),
-          );
-        }),
+              child: _buildInline(context),
+            );
+          },
+        ),
       ),
     );
   }
@@ -640,17 +642,23 @@ class _RenderHandleKey extends ValueKey<Object?> {
   const _RenderHandleKey(super.handle);
 }
 
+/// Renders the current video handle over the default black backdrop.
+///
+/// 在默认黑色背景上渲染当前视频句柄。
 class _RenderSurface extends StatelessWidget {
   /// Creates the render surface.
   ///
   /// 创建渲染画面。
   const _RenderSurface();
 
+  /// Builds the video or placeholder using the same backdrop color.
+  ///
+  /// 用同一背景色构建视频或占位画面。
   @override
   Widget build(BuildContext context) {
     final api = MovaScope.of(context);
     return ColoredBox(
-      color: const Color(0xFF000000),
+      color: Colors.black,
       child: MovaSelect<({MovaFit fit, double zoom, int epoch})>(
         selector: (s) => (fit: s.fit, zoom: s.zoom, epoch: s.renderEpoch),
         builder: (context, value) {
@@ -671,10 +679,7 @@ class _RenderSurface extends StatelessWidget {
                   resumeUponEnteringForegroundMode: false,
                   fit: movaBoxFit(value.fit),
                 )
-              : ColoredBox(
-                  key: _RenderHandleKey(handle),
-                  color: const Color(0xFF000000),
-                );
+              : ColoredBox(key: _RenderHandleKey(handle), color: Colors.black);
           return ClipRect(
             // Windows: keep the texture out of page-transition snapshots, see MovaSnapshotGuard.
             // Windows：别让纹理进页面转场快照，见 MovaSnapshotGuard。

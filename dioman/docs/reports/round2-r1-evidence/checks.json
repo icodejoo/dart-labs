@@ -1,0 +1,39 @@
+{
+  "baseline": {
+    "analyze": "No issues found!",
+    "tests": 5588,
+    "failures": 0
+  },
+  "final": {
+    "analyze_exit": 0,
+    "test_exit": 0,
+    "coverage_test_exit": 0,
+    "tests": 5600,
+    "coverage_audit_exit": 0,
+    "line_hits": 1533,
+    "lines": 1533,
+    "branch_hits": 739,
+    "branches": 739,
+    "example_analyze": "No issues found!",
+    "gates_exit": 0,
+    "gates": {
+      "G0": 0,
+      "G1": 0,
+      "G2": 0,
+      "G3": 0,
+      "G4": 1,
+      "G5": 0
+    },
+    "G4_baseline": 1
+  },
+  "review": {
+    "command": "codex review --uncommitted",
+    "exit_code": 0,
+    "conclusion": "No actionable regressions were found; all 12 focused tests passed."
+  },
+  "scope": {
+    "branch": "jelon/dioman-round2",
+    "dependencies_added": false,
+    "sdk": "^3.5.0"
+  }
+}

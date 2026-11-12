@@ -1,0 +1,62 @@
+{
+  "analyze": {
+    "command": [
+      "analyze"
+    ],
+    "exit": 0,
+    "log": "coverage\\r5-analyze.log"
+  },
+  "analyze-example": {
+    "command": [
+      "analyze",
+      "example"
+    ],
+    "exit": 0,
+    "log": "coverage\\r5-analyze-example.log"
+  },
+  "gates": {
+    "command": [
+      "run",
+      "test/accept/bin/matrix.dart",
+      "gates",
+      "--lcov=coverage/r5-final.info"
+    ],
+    "exit": 0,
+    "log": "coverage\\r5-gates.log"
+  },
+  "mutations": {
+    "command": [
+      "coverage/r5-mutations.py"
+    ],
+    "exit": 0,
+    "log": "coverage\\r5-mutations.log"
+  },
+  "accept": {
+    "command": [
+      "coverage/r5-accept.py"
+    ],
+    "exit": 0,
+    "log": "coverage\\r5-accept-driver.log"
+  },
+  "full-tests": {
+    "exit": 0
+  },
+  "coverage-audit": {
+    "exit": 0
+  },
+  "diff-check": {
+    "exit": 0
+  },
+  "lib-sha256": {
+    "all_restored": true,
+    "files": 37
+  },
+  "documentation": {
+    "compiled": 65,
+    "skipped_old": 25,
+    "errors": 0
+  },
+  "evidence-size": {
+    "all_files_below_50KiB": true
+  }
+}

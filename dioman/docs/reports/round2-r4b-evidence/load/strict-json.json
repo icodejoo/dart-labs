@@ -1,0 +1,104 @@
+[
+  {
+    "name": "strict-json",
+    "round": 1,
+    "attempt": 1,
+    "accepted": false,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 11.301571446543234,
+        "reasons": [],
+        "stem": "strict-json-1-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": false,
+        "meanExternalPercent": 24.374074660076772,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%"
+        ],
+        "stem": "strict-json-1-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json",
+    "round": 1,
+    "attempt": 2,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 8.967724632537744,
+        "reasons": [],
+        "stem": "strict-json-1-try-2-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 7.706592096450725,
+        "reasons": [],
+        "stem": "strict-json-1-try-2-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json",
+    "round": 2,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 17.659508703938098,
+        "reasons": [],
+        "stem": "strict-json-2-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 12.504650798939643,
+        "reasons": [],
+        "stem": "strict-json-2-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "strict-json",
+    "round": 3,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 13.051488036425773,
+        "reasons": [],
+        "stem": "strict-json-3-try-1-A",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 17.956940982936192,
+        "reasons": [],
+        "stem": "strict-json-3-try-1-B",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  }
+]

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xvg - Flutter SVG</title>
+<meta name="description" content="xvg: high-performance static and animated SVG rendering for Flutter. Rust (usvg) parsing, Flutter GPU pipeline, SMIL animation. 静态展示页。">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --bg:#0d1117;--card:#161b22;--border:#30363d;--fg:#e6edf3;--muted:#8b949e;
+  --accent:#58a6ff;--accent-bg:#1f6feb33;--accent-bd:#1f6feb;--code:#010409;--warn:#d29922;--ok:#3fb950;
+  --pv:#0d1117;
+}
+@media (prefers-color-scheme:light){
+  :root{--bg:#ffffff;--card:#f6f8fa;--border:#d0d7de;--fg:#1f2328;--muted:#59636e;
+  --accent:#0969da;--accent-bg:#0969da1a;--accent-bd:#0969da;--code:#f0f3f6;--warn:#9a6700;--ok:#1a7f37;--pv:#ffffff;}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--fg);line-height:1.6}
+/* 双语：按 html[data-lang] 显示对应 span */
+html[data-lang="zh"] [data-l="en"],html[data-lang="en"] [data-l="zh"]{display:none}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace}
+code{background:var(--code);border:1px solid var(--border);border-radius:5px;padding:1px 5px;font-size:.85em}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+header.top .wrap{display:flex;align-items:center;gap:12px;height:52px}
+.brand{font-weight:700;font-size:1.1rem;color:var(--fg)}
+nav{display:flex;gap:14px;margin-left:auto;font-size:.875rem;overflow-x:auto;white-space:nowrap}
+nav a{color:var(--muted)}nav a:hover{color:var(--fg);text-decoration:none}
+button.lang{background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:20px;
+  padding:3px 12px;font-size:.8rem;cursor:pointer;flex:none}
+button.lang:hover{border-color:var(--accent)}
+.hero{padding:56px 16px 32px;text-align:center}
+.hero h1{font-size:2.6rem;letter-spacing:-.02em}
+.hero p.lead{color:var(--muted);max-width:640px;margin:12px auto 20px;font-size:1.05rem}
+.btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.btn{display:inline-block;padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-weight:600;font-size:.9rem}
+.btn:hover{border-color:var(--accent);text-decoration:none}
+.btn.primary{background:var(--accent-bd);border-color:var(--accent-bd);color:#fff}
+.hero-pv{display:flex;gap:18px;justify-content:center;margin-top:28px;flex-wrap:wrap}
+.hero-pv img{width:64px;height:64px}
+.notice{margin:24px auto 0;max-width:720px;padding:12px 16px;border:1px solid var(--warn);border-radius:10px;
+  background:color-mix(in srgb,var(--warn) 10%,transparent);font-size:.9rem;text-align:left}
+section{padding:36px 0;border-top:1px solid var(--border)}
+section h2{font-size:1.5rem;margin-bottom:6px}
+section p.sub{color:var(--muted);margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px}
+.card h3{font-size:1.02rem;margin-bottom:4px}
+.card p{font-size:.875rem;color:var(--muted)}
+.badge{display:inline-block;margin-top:8px;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600;
+  background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd)}
+h3.grp{margin:22px 0 10px;font-size:1.05rem}
+.pvgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+figure.pv{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center}
+figure.pv img{width:72px;height:72px;background:var(--pv);border-radius:8px;padding:4px;display:block;margin:0 auto 8px}
+figure.pv figcaption{font-size:.78rem;line-height:1.35}
+figure.pv code{display:block;margin-top:4px;font-size:.68rem;color:var(--muted);border:0;background:none;padding:0;word-break:break-all}
+.cc{display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.cc svg{width:72px;height:72px}
+.sw{display:flex;gap:8px}
+.sw button{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);cursor:pointer}
+.sw button[aria-pressed="true"]{border-color:var(--fg)}
+.note{font-size:.82rem;color:var(--muted);margin-top:12px}
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:520px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:var(--card);font-weight:600}tr:last-child td{border-bottom:0}
+td.win{color:var(--ok);font-weight:600}td.lose{color:var(--warn);font-weight:600}
+pre code{border:0;background:none;padding:0;font-size:inherit}
+.src{font-size:.82rem;color:var(--muted);margin-bottom:6px}
+pre{background:var(--code);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:.82rem;line-height:1.55;margin:8px 0 14px}
+.shots img{max-width:100%;width:360px;height:auto;border:1px solid var(--border);border-radius:10px}
+footer{border-top:1px solid var(--border);padding:28px 0 48px;color:var(--muted);font-size:.85rem;text-align:center}
+@media (max-width:560px){.hero h1{font-size:2rem}.hero{padding-top:36px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#top">xvg</a>
+  <nav>
+    <a href="#features"><span data-l="zh">功能</span><span data-l="en">Features</span></a>
+    <a href="#preview"><span data-l="zh">预览</span><span data-l="en">Preview</span></a>
+    <a href="#perf"><span data-l="zh">性能</span><span data-l="en">Perf</span></a>
+    <a href="#usage"><span data-l="zh">用法</span><span data-l="en">Usage</span></a>
+  </nav>
+  <button class="lang" id="langBtn" type="button" aria-label="Switch language">EN / 中文</button>
+</div></header>
+
+<main id="top">
+<div class="wrap hero">
+  <h1>xvg</h1>
+  <p class="lead">
+    <span data-l="zh">面向 Flutter 的高性能静态与动画 SVG 渲染。Rust（<code>usvg</code>）负责解析，Flutter 自己的 GPU 管线负责绘制，没有 CPU 光栅化；SMIL 动画由 Dart 侧原创引擎驱动。</span>
+    <span data-l="en">High-performance static &amp; animated SVG rendering for Flutter. Rust (<code>usvg</code>) parses, Flutter's own GPU pipeline renders &mdash; no CPU rasterizer. SMIL animation runs on an original Dart-side engine.</span>
+  </p>
+  <div class="btns">
+    <a class="btn primary" href="https://pub.dev/packages/xvg">pub.dev/packages/xvg</a>
+    <a class="btn" href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub</a>
+    <a class="btn" href="#usage"><span data-l="zh">快速上手</span><span data-l="en">Get started</span></a>
+  </div>
+  <div class="hero-pv" aria-hidden="true">
+    <img src="assets/spinner.svg" alt=""><img src="assets/confirm-circle.svg" alt=""><img src="assets/animated-gradient.svg" alt="">
+    <img src="assets/animate-motion.svg" alt=""><img src="assets/animated-mask.svg" alt=""><img src="assets/linear-gradient.svg" alt="">
+  </div>
+  <div class="notice">
+    <span data-l="zh"><strong>Native FFI，不支持 Web。</strong>xvg 的静态路径通过 Rust FFI 与 <code>dart:io</code> 实现，这里没有 web/wasm 构建。此页是<strong>静态展示</strong>：下方预览由浏览器原生 <code>&lt;img&gt;</code> 渲染，不是 xvg 本身的输出。</span>
+    <span data-l="en"><strong>Native FFI &mdash; Web is not supported.</strong> xvg's static path uses Rust FFI and <code>dart:io</code>; there is no web/wasm build. This page is a <strong>static showcase</strong>: the previews below are rendered by the browser's native <code>&lt;img&gt;</code>, not by xvg itself.</span>
+  </div>
+</div>
+
+<section id="features"><div class="wrap">
+  <h2><span data-l="zh">功能导览</span><span data-l="en">Feature tour</span></h2>
+  <p class="sub"><span data-l="zh">以包内 README 与 doc/ 为准。</span><span data-l="en">Based on the package README and doc/.</span></p>
+  <div class="grid">
+    <div class="card"><h3><span data-l="zh">静态 SVG（Rust usvg）</span><span data-l="en">Static SVG (Rust usvg)</span></h3>
+      <p><span data-l="zh">usvg 解析为缓存的 <code>ui.Picture</code>，再交给 Flutter GPU 管线绘制。支持基础形状、<code>&lt;use&gt;</code>、<code>&lt;switch&gt;</code>、<code>&lt;marker&gt;</code>、组 opacity、内嵌 data: 位图。</span>
+      <span data-l="en">usvg parses into a cached <code>ui.Picture</code>, drawn by Flutter's GPU pipeline. Shapes, <code>&lt;use&gt;</code>, <code>&lt;switch&gt;</code>, <code>&lt;marker&gt;</code>, group opacity and embedded data: images.</span></p></div>
+    <div class="card"><h3><span data-l="zh">渐变 / clip / mask / filter</span><span data-l="en">Gradients / clip / mask / filter</span></h3>
+      <p><span data-l="zh">线性与径向渐变、<code>clipPath</code>、<code>mask</code>、<code>pattern</code>；filter 目前只有 <code>feGaussianBlur</code>。</span>
+      <span data-l="en">Linear &amp; radial gradients, <code>clipPath</code>, <code>mask</code>, <code>pattern</code>; the only filter primitive is <code>feGaussianBlur</code>.</span></p></div>
+    <div class="card"><h3>currentColor</h3>
+      <p><span data-l="zh">源里的 <code>currentColor</code> 通过 <code>XvgTheme(currentColor: ...)</code> 控制，静态与动画路径都生效；<code>colorFilter</code> 可整体重着色。</span>
+      <span data-l="en"><code>currentColor</code> in the source is controlled via <code>XvgTheme(currentColor: ...)</code> on both paths; <code>colorFilter</code> recolors the whole image.</span></p></div>
+    <div class="card"><h3><span data-l="zh">SMIL 动画（原创引擎）</span><span data-l="en">SMIL animation (original engine)</span></h3>
+      <p><span data-l="zh"><code>&lt;animate&gt;</code>、<code>&lt;animateTransform&gt;</code>、<code>&lt;animateMotion&gt;</code>、<code>&lt;set&gt;</code>；一次解析，Dart 侧逐帧采样绘制，每帧无数据跨 FFI。另支持 SVGator 导出的 CSS <code>@keyframes</code> 子集。</span>
+      <span data-l="en"><code>&lt;animate&gt;</code>, <code>&lt;animateTransform&gt;</code>, <code>&lt;animateMotion&gt;</code>, <code>&lt;set&gt;</code>; parse once, sample and paint every frame in Dart &mdash; no per-frame FFI traffic. A subset of SVGator-exported CSS <code>@keyframes</code> is also supported.</span></p></div>
+    <div class="card"><h3><span data-l="zh">播放控制</span><span data-l="en">Playback control</span></h3>
+      <p><span data-l="zh"><code>XvgAnimationController</code>：play / pause / stop / reverse / seek、倍速、区间（once / loop / pingPong）、<code>fitDuration</code>；也可由 Flutter <code>Animation&lt;double&gt;</code> 驱动；<code>XvgAnimationQuality</code> 在高并发下自适应跳帧。</span>
+      <span data-l="en"><code>XvgAnimationController</code>: play / pause / stop / reverse / seek, rates, ranges (once / loop / pingPong), <code>fitDuration</code>; or drive with a Flutter <code>Animation&lt;double&gt;</code>; <code>XvgAnimationQuality</code> adaptively skips frames under high concurrency.</span></p></div>
+    <div class="card"><h3><span data-l="zh">一个 Widget，五种来源</span><span data-l="en">One widget, five sources</span></h3>
+      <p><span data-l="zh"><code>Xvg.string / asset / network / file / memory</code>，自动判断走静态还是动画路径；另有 <code>XvgStatic</code> / <code>XvgAnimated</code>，以及可替换 <code>Image.network</code> 的 <code>NetworkXvg</code> 等 ImageProvider。</span>
+      <span data-l="en"><code>Xvg.string / asset / network / file / memory</code> auto-select the static or animated path; plus <code>XvgStatic</code> / <code>XvgAnimated</code> and ImageProviders such as <code>NetworkXvg</code> as an <code>Image.network</code> replacement.</span></p></div>
+    <div class="card"><h3><span data-l="zh">预编译原生库</span><span data-l="en">Prebuilt native libraries</span></h3>
+      <p><span data-l="zh">包内带预编译库（见 <code>prebuilt/</code>），使用方无需 Rust 工具链；pubspec 声明了 Android、iOS、Linux、macOS、Windows 五个 FFI 平台。Android/iOS 等的行为尚未全面实测，见限制。</span>
+      <span data-l="en">Prebuilt libraries ship in the package (see <code>prebuilt/</code>) &mdash; no Rust toolchain needed for consumers; the pubspec declares five FFI platforms. Android/iOS etc. are not exhaustively tested; see limits.</span></p>
+      <span class="badge">Android · iOS · Linux · macOS · Windows</span></div>
+    <div class="card"><h3><span data-l="zh">安全边界</span><span data-l="en">Safety limits</span></h3>
+      <p><span data-l="zh">静态路径有输入大小（32 MiB）、嵌套（128 层）、引用链、展开预算等限制，超限返回错误；<code>&lt;image href&gt;</code> 只解析内嵌 <code>data:</code> URI。</span>
+      <span data-l="en">The static path enforces input size (32 MiB), nesting (128), reference-chain and expansion budgets, returning an error when exceeded; <code>&lt;image href&gt;</code> only decodes embedded <code>data:</code> URIs.</span></p></div>
+  </div>
+  <h3 class="grp"><span data-l="zh">已知限制（如实）</span><span data-l="en">Known limits (honest)</span></h3>
+  <ul style="margin-left:1.2em;font-size:.9rem;color:var(--muted)">
+    <li><span data-l="zh">静态路径不渲染 <code>&lt;text&gt;</code>（为缩小体积的刻意取舍）；动画路径的 <code>&lt;text&gt;</code> 不受影响。</span><span data-l="en">The static path does not render <code>&lt;text&gt;</code> (a deliberate size trade-off); animated-path <code>&lt;text&gt;</code> is unaffected.</span></li>
+    <li><span data-l="zh">filter 仅 <code>feGaussianBlur</code>；mask/blur 不嵌套叠加。</span><span data-l="en">Only <code>feGaussianBlur</code> is implemented; mask/blur do not nest.</span></li>
+    <li><span data-l="zh">事件类 SMIL <code>begin</code>（如 click）不支持；不支持 gzip SVG（svgz）。</span><span data-l="en">Event-based SMIL <code>begin</code> (e.g. click) and gzip SVG (svgz) are unsupported.</span></li>
+    <li><span data-l="zh"><code>parse_svg</code> 同步阻塞调用线程，不可信输入请放后台 isolate。</span><span data-l="en"><code>parse_svg</code> is synchronous; parse untrusted input on a background isolate.</span></li>
+  </ul>
+</div></section>
+
+<section id="preview"><div class="wrap">
+  <h2><span data-l="zh">实时 SVG 预览</span><span data-l="en">Live SVG preview</span></h2>
+  <p class="sub"><span data-l="zh">这些 SVG 取自 / 改写自 example 应用的演示用例，由<strong>浏览器</strong>原生渲染（含 SMIL 动画），用于展示 xvg 面向的内容类型。xvg 中的实际效果以 example 应用为准；为适配深浅色背景，个别描边色做了调整。</span>
+  <span data-l="en">These SVGs come from (or are adapted from) the example app's demo cases and are rendered natively by the <strong>browser</strong> (including SMIL). They show the kind of content xvg targets; actual xvg output is what the example app shows. A few stroke colors were adjusted for light/dark backgrounds.</span></p>
+  <h3 class="grp"><span data-l="zh">静态</span><span data-l="en">Static</span></h3>
+  <div class="pvgrid">
+    <figure class="pv"><img src="assets/static-check.svg" alt="Static · usvg" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">静态 · usvg</span><span data-l="en">Static · usvg</span><code>static-check.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/linear-gradient.svg" alt="Linear gradient" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">线性渐变</span><span data-l="en">Linear gradient</span><code>linear-gradient.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/radial-gradient.svg" alt="Radial gradient" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">径向渐变</span><span data-l="en">Radial gradient</span><code>radial-gradient.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/clip-path.svg" alt="clipPath" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">clipPath 裁剪</span><span data-l="en">clipPath</span><code>clip-path.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/mask-static.svg" alt="mask" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">mask 遮罩</span><span data-l="en">mask</span><code>mask-static.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/blur-filter.svg" alt="feGaussianBlur" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">feGaussianBlur</span><span data-l="en">feGaussianBlur</span><code>blur-filter.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/pattern.svg" alt="pattern" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">pattern 图案</span><span data-l="en">pattern</span><code>pattern.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/named-colors.svg" alt="Named colors" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">命名颜色</span><span data-l="en">Named colors</span><code>named-colors.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/group-transform.svg" alt="Group transform" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">组 transform</span><span data-l="en">Group transform</span><code>group-transform.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/paint-order.svg" alt="paint-order" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">paint-order</span><span data-l="en">paint-order</span><code>paint-order.svg</code></figcaption></figure>
+  </div>
+  <h3 class="grp"><span data-l="zh">SMIL 动画</span><span data-l="en">SMIL animation</span></h3>
+  <div class="pvgrid">
+    <figure class="pv"><img src="assets/confirm-circle.svg" alt="animate stroke draw" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animate 描边</span><span data-l="en">animate stroke draw</span><code>confirm-circle.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/spinner.svg" alt="animateTransform spin" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateTransform 旋转</span><span data-l="en">animateTransform spin</span><code>spinner.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/rotation-marker.svg" alt="Rotation marker" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">旋转标记</span><span data-l="en">Rotation marker</span><code>rotation-marker.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/skewx.svg" alt="skewX" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">skewX 剪切</span><span data-l="en">skewX</span><code>skewx.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/use-animated.svg" alt="use + animate" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">use + 动画</span><span data-l="en">use + animate</span><code>use-animated.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/syncbase-relay.svg" alt="Syncbase relay" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">begin 接力</span><span data-l="en">Syncbase relay</span><code>syncbase-relay.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/animate-motion.svg" alt="animateMotion" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">animateMotion</span><span data-l="en">animateMotion</span><code>animate-motion.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/motion-keypoints.svg" alt="keyPoints/keyTimes" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">keyPoints/keyTimes</span><span data-l="en">keyPoints/keyTimes</span><code>motion-keypoints.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/animated-mask.svg" alt="Animated mask" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画 mask</span><span data-l="en">Animated mask</span><code>animated-mask.svg</code></figcaption></figure>
+    <figure class="pv"><img src="assets/animated-gradient.svg" alt="Animated gradient" loading="lazy" width="72" height="72"><figcaption><span data-l="zh">动画渐变</span><span data-l="en">Animated gradient</span><code>animated-gradient.svg</code></figcaption></figure>
+  </div>
+  <h3 class="grp">currentColor</h3>
+  <div class="cc">
+    <svg id="ccSvg" viewBox="0 0 24 24" style="color:#58a6ff" role="img" aria-label="currentColor demo"><path fill="currentColor" d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m-1.94 14.5L5.7 12.11l1.41-1.42l2.95 2.96l6.24-6.25l1.41 1.42z"/></svg>
+    <div>
+      <div class="sw" id="sw"></div>
+      <p class="note" style="margin-top:8px"><span data-l="zh">同一份 SVG 源，改变外层颜色即换色；xvg 里对应 <code>XvgTheme(currentColor: Colors.purple)</code>。</span><span data-l="en">One SVG source, recolored by changing the surrounding color; in xvg this maps to <code>XvgTheme(currentColor: Colors.purple)</code>.</span></p>
+    </div>
+  </div>
+</div></section>
+
+<section id="perf"><div class="wrap">
+  <h2><span data-l="zh">性能数据</span><span data-l="en">Performance</span></h2>
+  <p class="sub"><span data-l="zh">以下数字全部摘自仓库 <code>xvg/doc/performance-benchmarks.md</code> 的实测记录，未做改动；设备与口径随表注明。</span>
+  <span data-l="en">All numbers are quoted unchanged from the measured records in <code>xvg/doc/performance-benchmarks.md</code>; device and methodology are noted per table.</span></p>
+
+  <h3 class="grp"><span data-l="zh">静态：1000 个真实 Mdi 图标，xvg vs flutter_svg</span><span data-l="en">Static: 1000 real Mdi icons, xvg vs flutter_svg</span></h3>
+  <p class="src"><span data-l="zh">来源：「单编译顺序对比模式 <code>LIB=compare</code>」首次实测。设备：Windows 桌面，profile 模式；同一进程、同一时段配对；8 列 GridView 来回滚动 6 轮。</span>
+  <span data-l="en">Source: first <code>LIB=compare</code> run. Device: Windows desktop, profile mode; same process, paired; 8-column GridView scrolled back and forth 6 rounds.</span></p>
+  <div class="tbl"><table>
+    <tr><th><span data-l="zh">指标</span><span data-l="en">Metric</span></th><th>xvg</th><th>flutter_svg</th></tr>
+    <tr><td>build avg / p50 / p90 / p99 / max (ms)</td><td class="win">0.776 / 0.668 / 1.274 / 2.577 / 3.267</td><td>1.823 / 1.731 / 3.185 / 5.994 / 8.406</td></tr>
+    <tr><td>raster avg / p50 / p90 / p99 (ms)</td><td class="win">1.769 / 1.660 / 2.354 / 3.398</td><td>2.134 / 2.029 / 2.934 / 3.769</td></tr>
+    <tr><td>raster max (ms)</td><td class="lose">4.484</td><td class="win">4.160</td></tr>
+    <tr><td><span data-l="zh">掉帧 &gt;8.3ms / &gt;16.6ms</span><span data-l="en">Frames &gt;8.3ms / &gt;16.6ms</span></td><td class="win">0 / 0 (646 <span data-l="zh">帧</span><span data-l="en">frames</span>)</td><td>1 / 0 (542 <span data-l="zh">帧</span><span data-l="en">frames</span>)</td></tr>
+    <tr><td><span data-l="zh">内存峰值 / 稳态 / 空闲后 (MB)</span><span data-l="en">Memory peak / steady / idle (MB)</span></td><td class="win">236.76 / 235.57 / 236.21</td><td>292.25 / 264.31 / 265.55</td></tr>
+    <tr><td><span data-l="zh">xvg 解析耗时</span><span data-l="en">xvg parse time</span></td><td>avg 0.039 / p99 0.189 ms</td><td><span data-l="zh">无公开钩子，未测</span><span data-l="en">no public hook, not measured</span></td></tr>
+  </table></div>
+  <p class="note"><span data-l="zh">raster max 一项 xvg 落后（4.484 vs 4.160 ms），是单样本极值，文档如实记录。该设备测量噪声大，文档指出 ±20~30% 的绝对值波动不足以单独作为回归证据；相对比值比绝对值更可靠。</span>
+  <span data-l="en">xvg trails on raster max (4.484 vs 4.160 ms) &mdash; a single-sample extreme, recorded honestly in the doc. The source notes &plusmn;20&ndash;30% absolute noise on this dev machine; ratios are more reliable than absolute values.</span></p>
+
+  <h3 class="grp"><span data-l="zh">动画：SMIL 与 CSS</span><span data-l="en">Animation: SMIL &amp; CSS</span></h3>
+  <div class="tbl"><table>
+    <tr><th><span data-l="zh">场景</span><span data-l="en">Scenario</span></th><th><span data-l="zh">设备</span><span data-l="en">Device</span></th><th><span data-l="zh">结果</span><span data-l="en">Result</span></th></tr>
+    <tr><td><span data-l="zh">12 个并发 SMIL 图标，观测 6 秒</span><span data-l="en">12 concurrent SMIL icons, 6 s</span></td><td>Windows <span data-l="zh">桌面 profile</span><span data-l="en">desktop, profile</span></td><td>361 <span data-l="zh">帧</span><span data-l="en">frames</span>, build avg 0.408 ms, raster avg 1.831 ms, &gt;16.6ms: 0</td></tr>
+    <tr><td><span data-l="zh">1000 格动画图标滚动（399 个互异图标平铺；旧数据源）</span><span data-l="en">1000-cell animated grid scroll (399 distinct icons tiled; older data source)</span></td><td>Windows <span data-l="zh">桌面 profile</span><span data-l="en">desktop, profile</span></td><td>real_fps 59.95, &gt;16.6ms: 0</td></tr>
+    <tr><td><span data-l="zh">同上，Iconify 官方数据，4 次中位数</span><span data-l="en">Same, official Iconify data, median of 4 runs</span></td><td>Huawei STG-AL00 (Adreno 610), profile</td><td>real_fps 49.3, build avg 10.46 ms, raster avg 17.36 ms</td></tr>
+    <tr><td><span data-l="zh">少量图标稳态（1/4/16 个循环图标）</span><span data-l="en">Few-icon steady state (1/4/16 looping icons)</span></td><td>Huawei STG-AL00</td><td><span data-l="zh">稳定在 59.8&ndash;59.95 fps；16 个带 mask 图标 raster 约 10.9 ms</span><span data-l="en">stable at 59.8&ndash;59.95 fps; 16 masked icons raster ~10.9 ms</span></td></tr>
+    <tr><td><span data-l="zh">SVGator CSS 插画全屏（55 个样本，3 次）</span><span data-l="en">SVGator CSS illustrations fullscreen (55 samples, 3 runs)</span></td><td>Huawei STG-AL00</td><td>real_fps <span data-l="zh">中位数</span><span data-l="en">median</span> 59.85, p10 &ge; 59.73</td></tr>
+  </table></div>
+  <p class="src"><span data-l="zh">来源：同一文档「性能复测」「2026-11-05：动画基准换用 Iconify 官方数据后的真机新基线」等节。两个数据源的数字不能直接比较。</span>
+  <span data-l="en">Source: the &ldquo;re-measurement&rdquo; and &ldquo;2026-11-05 real-device baseline&rdquo; sections of the same doc. Numbers from the two data sources are not directly comparable.</span></p>
+
+  <h3 class="grp"><span data-l="zh">静态：手机上 1000 图标滚动</span><span data-l="en">Static: 1000-icon scroll on a phone</span></h3>
+  <p class="src"><span data-l="zh">设备：Huawei STG-AL00（Adreno 610，Impeller GLES），profile，3 次。该节未与 flutter_svg 对照，文档注明新版 flutter_svg 在安卓上的对比尚待重测。</span>
+  <span data-l="en">Device: Huawei STG-AL00 (Adreno 610, Impeller GLES), profile, 3 runs. No flutter_svg comparison in that section; the doc notes the comparison against current flutter_svg on Android is still to be re-measured.</span></p>
+  <div class="tbl"><table>
+    <tr><th><span data-l="zh">指标</span><span data-l="en">Metric</span></th><th>xvg</th></tr>
+    <tr><td>build avg</td><td>5.05 ms (4.80&ndash;5.11)</td></tr>
+    <tr><td>raster avg</td><td>10.20 ms (10.14&ndash;10.22)</td></tr>
+    <tr><td><span data-l="zh">超过 16.6ms 的帧</span><span data-l="en">Frames over 16.6 ms</span></td><td>1&ndash;2</td></tr>
+    <tr><td>parse avg (n=1000)</td><td>0.19 ms</td></tr>
+  </table></div>
+</div></section>
+
+<section id="screens"><div class="wrap">
+  <h2><span data-l="zh">example 应用截图</span><span data-l="en">Example app screenshot</span></h2>
+  <p class="sub"><span data-l="zh">Windows 桌面上的 example 验收页：SMIL 动画、旋转加载环、静态 usvg 路径、<code>currentColor</code> 主题覆盖（紫色）、<code>paint-order</code> 对比。窗口标题里的 <em>fsvg</em> 是项目改名前的旧名。</span>
+  <span data-l="en">The example acceptance page on Windows desktop: SMIL animation, spinner, static usvg path, <code>currentColor</code> theme override (purple), <code>paint-order</code> comparison. The <em>fsvg</em> in the window title is the project's old name, before the rename.</span></p>
+  <div class="shots"><img src="assets/example-screenshot.png" alt="xvg example app screenshot" width="1000" height="1000"></div>
+  <p class="note"><span data-l="zh">example 还包含「动画控制」页：播放、seek、倍速、区间、时长适配、事件日志与曲线驱动。</span><span data-l="en">The example also has an &ldquo;Animation control&rdquo; page: playback, seek, rates, ranges, duration fitting, an event log and a curved driver.</span></p>
+</div></section>
+
+<section id="usage"><div class="wrap">
+  <h2><span data-l="zh">安装与用法</span><span data-l="en">Install &amp; usage</span></h2>
+  <pre><code>flutter pub add xvg</code></pre>
+  <pre><code>import 'package:flutter/widgets.dart';
+import 'package:xvg/xvg.dart';
+
+Future&lt;void&gt; main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Xvg.ensureInitialized();
+  runApp(const MyApp());
+}
+
+// 字符串 / String
+Xvg.string(svgSource, width: 48, height: 48)
+
+// 资源 / Asset
+Xvg.asset('assets/icon.svg', width: 96, height: 96)
+
+// 重着色 / Recolor
+Xvg.string(svgSource, colorFilter: ColorFilter.mode(Colors.blue, BlendMode.srcIn))
+
+// currentColor
+Xvg.string(svgSource, theme: XvgTheme(currentColor: Colors.blue))</code></pre>
+  <pre><code>// 动画控制 / Animation control
+final controller = XvgAnimationController(autoplay: false);
+Xvg.string(svgSource, controller: controller, onLoaded: (info) {
+  controller.play();
+});
+
+// 由 Flutter Animation 驱动 / Drive with a Flutter Animation&lt;double&gt;
+Xvg.string(svgSource, animation: myAnimationController,
+    animationSpan: const Duration(seconds: 2))
+
+// 替换 Image.network / Replace Image.network
+Image(image: NetworkXvg(url))</code></pre>
+  <p class="note"><span data-l="zh">完整 API 与限制见 <a href="https://pub.dev/packages/xvg">pub.dev</a> 与 <a href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub README</a>。</span><span data-l="en">See <a href="https://pub.dev/packages/xvg">pub.dev</a> and the <a href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub README</a> for the full API and limits.</span></p>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <a href="https://pub.dev/packages/xvg">pub.dev</a> &middot; <a href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub</a> &middot; <a href="../">dart-labs</a>
+  <p style="margin-top:8px"><span data-l="zh">Native FFI，不支持 Web。此页为静态展示。</span><span data-l="en">Native FFI, no Web support. This page is a static showcase.</span></p>
+</div></footer>
+
+<script>
+(function(){
+  var root=document.documentElement,KEY='xvg-site-lang';
+  function get(){try{return localStorage.getItem(KEY)}catch(e){return null}}
+  function set(v){try{localStorage.setItem(KEY,v)}catch(e){}}
+  function apply(l){
+    root.setAttribute('data-lang',l);root.lang=l==='zh'?'zh-CN':'en';
+    document.title=l==='zh'?'xvg - Flutter 高性能 SVG 渲染':'xvg - High-performance SVG for Flutter';
+  }
+  var l=get()||((navigator.language||'').toLowerCase().indexOf('zh')===0?'zh':'en');
+  apply(l);
+  document.getElementById('langBtn').addEventListener('click',function(){
+    l=root.getAttribute('data-lang')==='zh'?'en':'zh';apply(l);set(l);
+  });
+  var cols=['#58a6ff','#a371f7','#3fb950','#f85149','#d29922'],sw=document.getElementById('sw'),svg=document.getElementById('ccSvg');
+  cols.forEach(function(c,i){
+    var b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label',c);
+    b.setAttribute('aria-pressed',i===0?'true':'false');
+    b.addEventListener('click',function(){
+      svg.style.color=c;[].forEach.call(sw.children,function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+    });sw.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>

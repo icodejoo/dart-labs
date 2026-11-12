@@ -1,10 +1,11 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
-import '../support/b4_helpers.dart';
+import '../support/auth_test_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -20,7 +21,7 @@ void main() {
       ..routes['GET:https://mock.test$b4Path'] = [
         FakeReply(status: 404, gate: gate.future)
       ];
-    final api = testClient(network: net, plugins: [
+    final api = testClient(statusOf: businessStatus, network: net, plugins: [
       const DiomanMock<Result>(mockUrl: b4LiteralHttpsMockTest),
       const DiomanShare<Result>(),
       const DiomanCache<Result>()
@@ -48,7 +49,7 @@ void main() {
       () async {
     var hits = 0;
     final net = FakeNetwork();
-    final api = testClient(network: net, plugins: [
+    final api = testClient(statusOf: businessStatus, network: net, plugins: [
       DiomanMock<Result>(routes: {b4Route: (_) => ++hits}),
       const DiomanShare<Result>()
     ]);
@@ -64,7 +65,7 @@ void main() {
       '[DiomanShare.option × DiomanCache.option] 并发一次发送缓存一次，下一轮零触网', () async {
     final gate = Completer<void>();
     final net = FakeNetwork()..routes[b4Route] = [FakeReply(gate: gate.future)];
-    final api = testClient(network: net, plugins: [
+    final api = testClient(statusOf: businessStatus, network: net, plugins: [
       const DiomanShare<Result>(),
       const DiomanCache<Result>(clone: DiomanClonePolicy.none)
     ]);
@@ -85,7 +86,7 @@ void main() {
     final stream = StreamController<bool>.broadcast(sync: true);
     addTearDown(stream.close);
     final net = FakeNetwork();
-    final api = testClient(network: net, plugins: [
+    final api = testClient(statusOf: businessStatus, network: net, plugins: [
       const DiomanCache<Result>(),
       DiomanOffline<Result>(
           isOnline: () => online, onConnectivityChanged: stream.stream)
@@ -114,14 +115,18 @@ void main() {
     final clock = FakeClock();
     final token = CancelToken();
     final h = InvariantHarness(net, clock);
-    final api = testClient(network: net, clock: clock, plugins: [
-      ...h.probes(),
-      const DiomanShare<Result>(),
-      DiomanOffline<Result>(
-          isOnline: () => false,
-          onConnectivityChanged: stream.stream,
-          maxWait: b4Tick)
-    ]);
+    final api = testClient(
+        statusOf: businessStatus,
+        network: net,
+        clock: clock,
+        plugins: [
+          ...h.probes(),
+          const DiomanShare<Result>(),
+          DiomanOffline<Result>(
+              isOnline: () => false,
+              onConnectivityChanged: stream.stream,
+              maxWait: b4Tick)
+        ]);
     final a = h.track(
         1,
         api.send<Object?>(b4Get, b4Path,
@@ -133,7 +138,7 @@ void main() {
         h.track(2, api.send<Object?>(b4Get, b4Path, call: b4Call(share: true)));
     await b4Turn();
     token.cancel();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
     expect(api.plugin<DiomanOfflineApi>()!.pending, 1);
     expect(clock.pendingTimers, 1);
     stream.add(true);
@@ -142,7 +147,7 @@ void main() {
     final c = api.send<Object?>(b4Get, b4Path, call: b4Call(share: true));
     await b4Turn();
     api.cancelAll();
-    expect((await c).kind, DiomanKind.cancel);
+    expect(outcomeOf((await c)), diomanTestCancel);
     await b4Turn();
     expect(api.plugin<DiomanOfflineApi>()!.pending, 0);
     expect(clock.pendingTimers, 0);
@@ -160,11 +165,15 @@ void main() {
           const FakeReply()
         ];
       final clock = FakeClock();
-      final api = testClient(network: net, clock: clock, plugins: [
-        DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
-        const DiomanShare<Result>(retries: 0),
-        const DiomanCache<Result>()
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            DiomanRetry<Result>(max: 1, delay: (_, __, ___) => Duration.zero),
+            const DiomanShare<Result>(retries: 0),
+            const DiomanCache<Result>()
+          ]);
       final a = api.send<Object?>(b4Get, b4Path,
           call: b4Call(share: policy, cache: true));
       final b = api.send<Object?>(b4Get, b4Path,
@@ -201,7 +210,7 @@ void main() {
                 gate: gate.future),
           const FakeReply()
         ];
-      final api = testClient(network: net, plugins: [
+      final api = testClient(statusOf: businessStatus, network: net, plugins: [
         b3Auth(tokens, refresh: (tm, r) {
           refreshed++;
           tm.setTokens(accessToken: b3Fresh);
@@ -235,15 +244,19 @@ void main() {
         ];
       final clock = FakeClock();
       final h = InvariantHarness(net, clock);
-      final api = testClient(network: net, clock: clock, plugins: [
-        ...h.probes(),
-        if (retry)
-          DiomanRetry<Result>(
-              max: 1,
-              methods: [b4LiteralPOST],
-              delay: (_, __, ___) => Duration.zero),
-        const DiomanMock<Result>(mockUrl: b4LiteralHttpsMockTest)
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          clock: clock,
+          plugins: [
+            ...h.probes(),
+            if (retry)
+              DiomanRetry<Result>(
+                  max: 1,
+                  methods: [b4LiteralPOST],
+                  delay: (_, __, ___) => Duration.zero),
+            const DiomanMock<Result>(mockUrl: b4LiteralHttpsMockTest)
+          ]);
       api.dio.transformer = B3Transformer();
       final data = {
         b4LiteralItems: [

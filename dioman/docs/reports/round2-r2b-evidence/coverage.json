@@ -1,0 +1,218 @@
+{
+  "clock.dart": [
+    5,
+    5,
+    3,
+    3
+  ],
+  "context_state.dart": [
+    26,
+    26,
+    18,
+    18
+  ],
+  "plugin.dart": [
+    5,
+    5,
+    5,
+    5
+  ],
+  "response_internal.dart": [
+    8,
+    8,
+    5,
+    5
+  ],
+  "response.dart": [
+    101,
+    101,
+    35,
+    35
+  ],
+  "client.dart": [
+    139,
+    139,
+    69,
+    69
+  ],
+  "client_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "context.dart": [
+    67,
+    67,
+    33,
+    33
+  ],
+  "context_internal.dart": [
+    6,
+    6,
+    5,
+    5
+  ],
+  "key.dart": [
+    71,
+    71,
+    39,
+    39
+  ],
+  "options.dart": [
+    10,
+    10,
+    8,
+    8
+  ],
+  "request.dart": [
+    50,
+    50,
+    25,
+    25
+  ],
+  "plugins/loading.dart": [
+    78,
+    78,
+    42,
+    42
+  ],
+  "plugins/notify.dart": [
+    24,
+    24,
+    12,
+    12
+  ],
+  "plugins/repath.dart": [
+    50,
+    50,
+    23,
+    23
+  ],
+  "plugins/filter.dart": [
+    39,
+    39,
+    19,
+    19
+  ],
+  "plugins/timeout.dart": [
+    22,
+    22,
+    13,
+    13
+  ],
+  "plugins/envs.dart": [
+    11,
+    11,
+    8,
+    8
+  ],
+  "plugins/retry.dart": [
+    98,
+    98,
+    41,
+    41
+  ],
+  "plugins/breaker.dart": [
+    112,
+    112,
+    48,
+    48
+  ],
+  "plugins/auth.dart": [
+    163,
+    163,
+    77,
+    77
+  ],
+  "plugins/mock.dart": [
+    45,
+    45,
+    19,
+    19
+  ],
+  "plugins/share.dart": [
+    118,
+    118,
+    59,
+    59
+  ],
+  "plugins/share_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "plugins/cache.dart": [
+    148,
+    148,
+    64,
+    64
+  ],
+  "plugins/cache_internal.dart": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "plugins/offline.dart": [
+    63,
+    63,
+    28,
+    28
+  ],
+  "config.dart": [
+    36,
+    36,
+    22,
+    22
+  ],
+  "pipeline.dart": [
+    32,
+    32,
+    23,
+    23
+  ],
+  "transport.dart": [
+    37,
+    37,
+    17,
+    17
+  ],
+  "network_error_io.dart": [
+    2,
+    2,
+    1,
+    1
+  ],
+  "network_error_stub.dart": [
+    1,
+    1,
+    1,
+    1
+  ],
+  "token_manager.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "cache_store.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "stages.dart": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "diagnostics.dart": [
+    0,
+    0,
+    0,
+    0
+  ]
+}

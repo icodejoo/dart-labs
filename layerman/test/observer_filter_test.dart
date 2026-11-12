@@ -61,6 +61,7 @@ class _Backend {
   PresentedOverlay<void> present(PresentContext context) {
     presented = true;
     return PresentedOverlay<void>(
+      visible: Future<void>.value(),
       dismissed: _dismissed.future,
       dismiss: ([_]) async {
         if (!_dismissed.isCompleted) _dismissed.complete();
@@ -82,6 +83,7 @@ PresentedOverlay<void> _presentDialog(BuildContext context) {
     },
   );
   return PresentedOverlay<void>(
+    visible: Future<void>.value(),
     dismissed: dismissed,
     dismiss: ([_]) async {
       final route = dialogRoute;

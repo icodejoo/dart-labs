@@ -1,8 +1,9 @@
+import '../support/response_contract.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
+import '../support/auth_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/helpers.dart';
 
@@ -12,7 +13,7 @@ void main() {
       () async {
     final clock = FakeClock();
     const cooldown = Duration(seconds: 7);
-    var outcome = DiomanKind.network;
+    var outcome = diomanTestNetwork;
     final transitions = <DiomanBreakerState>[];
     final api = testClient(clock: clock, plugins: [
       DiomanBreaker(
@@ -21,7 +22,7 @@ void main() {
           onStateChange: (_, from, to) => transitions.add(to)),
       TestPlugin(b3ValueResult,
           stage: DiomanStage.source,
-          handler: (ctx, next) async => ctx.fail(DiomanFailure(kind: outcome)))
+          handler: (ctx, next) async => scriptedResult(ctx, outcome))
     ]);
     final m = api.plugin<DiomanBreakerApi>()!;
     final call = DiomanCall(options: {
@@ -39,19 +40,19 @@ void main() {
     expect(m.retryableAt(key), deadline);
     expect(m.stateOf(key), DiomanBreakerState.open);
     expect(transitions, [DiomanBreakerState.open]);
-    outcome = DiomanKind.cancel;
+    outcome = diomanTestCancel;
     await api.send<Object?>(b3ValueGet, b3Path, call: call);
     expect(m.stateOf(key), DiomanBreakerState.halfOpen);
     expect(m.retryableAt(key), isNull);
-    outcome = DiomanKind.network;
+    outcome = diomanTestNetwork;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.retryableAt(key), clock.now().add(b3Tick));
     clock.elapse(b3Tick);
-    outcome = DiomanKind.ok;
+    outcome = diomanTestOk;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.stateOf(key), DiomanBreakerState.closed);
     expect(m.retryableAt(key), isNull);
-    outcome = DiomanKind.network;
+    outcome = diomanTestNetwork;
     await api.send<Object?>(b3ValueGet, b3Path);
     m.reset();
     expect(m.retryableAt(key), isNull);
@@ -62,7 +63,7 @@ void main() {
       '[DiomanBreaker.resetDuration][DiomanBreakerState.halfOpen]'
       '[DiomanBreaker.shouldTrip] cancel 只归还名额，不清连续失败也不计失败，半开可继续探测', () async {
     final clock = FakeClock();
-    var outcome = DiomanKind.network;
+    var outcome = diomanTestNetwork;
     var trips = 0;
     final api = testClient(clock: clock, plugins: [
       DiomanBreaker(
@@ -75,22 +76,22 @@ void main() {
           }),
       TestPlugin(b3ValueResult,
           stage: DiomanStage.source,
-          handler: (ctx, next) async => ctx.fail(DiomanFailure(kind: outcome)))
+          handler: (ctx, next) async => scriptedResult(ctx, outcome))
     ]);
     final m = api.plugin<DiomanBreakerApi>()!;
     await api.send<Object?>(b3ValueGet, b3Path);
-    outcome = DiomanKind.cancel;
+    outcome = diomanTestCancel;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.stateOf(b3Route), DiomanBreakerState.closed);
     expect(trips, 1);
-    outcome = DiomanKind.network;
+    outcome = diomanTestNetwork;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.stateOf(b3Route), DiomanBreakerState.open);
     clock.elapse(b3Tick);
-    outcome = DiomanKind.cancel;
+    outcome = diomanTestCancel;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.stateOf(b3Route), DiomanBreakerState.halfOpen);
-    outcome = DiomanKind.ok;
+    outcome = diomanTestOk;
     await api.send<Object?>(b3ValueGet, b3Path);
     expect(m.stateOf(b3Route), DiomanBreakerState.closed);
     api.dispose();
@@ -110,11 +111,11 @@ void main() {
           gates.add(gate);
           await ctx.wait(gate.future);
           return ctx.cancelled() ??
-              ctx.fail(DiomanFailure(
-                  kind: index == 2 ? DiomanKind.network : DiomanKind.http,
-                  status: 200));
+              scriptedResult(
+                  ctx, index == 2 ? diomanTestNetwork : diomanTestHttp,
+                  status: 200);
         }
-        return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+        return scriptedResult(ctx, diomanTestNetwork);
       })
     ]);
     final m = api.plugin<DiomanBreakerApi>()!;
@@ -127,10 +128,10 @@ void main() {
     final b = api.send<Object?>(b3ValueGet, b3Path);
     await b3Turn();
     expect(m.isOpen(request), isTrue);
-    expect(
-        (await api.send<Object?>(b3ValueGet, b3Path)).kind, DiomanKind.breaker);
+    expect(outcomeOf((await api.send<Object?>(b3ValueGet, b3Path))),
+        diomanTestBreaker);
     token.cancel();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
     expect(m.isOpen(request), isFalse);
     final c = api.send<Object?>(b3ValueGet, b3Path);
     await b3Turn();
@@ -155,7 +156,7 @@ void main() {
           handler: (ctx, next) async {
         if (old) {
           await gate.future;
-          return ctx.fail(const DiomanFailure(kind: DiomanKind.network));
+          return scriptedResult(ctx, diomanTestNetwork);
         }
         throw bug;
       })
@@ -186,9 +187,9 @@ void main() {
             failureThreshold: 2),
         TestPlugin(b3ValueResult,
             stage: DiomanStage.source,
-            handler: (ctx, next) async => ctx.fail(DiomanFailure(
-                kind: failed ? DiomanKind.network : DiomanKind.http,
-                status: 200)))
+            handler: (ctx, next) async => scriptedResult(
+                ctx, failed ? diomanTestNetwork : diomanTestHttp,
+                status: 200))
       ]);
       final m = api.plugin<DiomanBreakerApi>()!;
       await api.send<Object?>(b3ValueGet, '/safe1');

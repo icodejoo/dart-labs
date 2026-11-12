@@ -1,0 +1,26 @@
+[
+  {
+    "mutation": "entry-alias",
+    "test": "test/unit/request_snapshot_test.dart",
+    "failures": 2,
+    "before_sha256": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "restored_sha256": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "seconds": 9.095
+  },
+  {
+    "mutation": "patch-ignored",
+    "test": "test/unit/request_snapshot_test.dart",
+    "failures": 1,
+    "before_sha256": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "restored_sha256": "0129cbde151298238c61083ba4b66babfa2a9039eeceab2e8ac76f36f07e4d99",
+    "seconds": 13.749
+  },
+  {
+    "mutation": "strict-reads-wire",
+    "test": "test/unit/request_snapshot_test.dart",
+    "failures": 1,
+    "before_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "restored_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "seconds": 15.587
+  }
+]

@@ -54,8 +54,25 @@ void main() {
       expect(tracker.onProgress(Duration.zero, t0.add(const Duration(milliseconds: 20))), isNull);
       expect(tracker.onProgress(Duration.zero, t0.add(const Duration(milliseconds: 40))), isNull);
       expect(tracker.onProgress(const Duration(milliseconds: 30), t0.add(const Duration(milliseconds: 60))),
-          const Duration(milliseconds: 60));
+          isNull);
+      expect(tracker.onProgress(const Duration(milliseconds: 60), t0.add(const Duration(milliseconds: 90))),
+          const Duration(milliseconds: 90));
       expect(tracker.onProgress(const Duration(seconds: 1), t0.add(const Duration(seconds: 2))), isNull);
+    });
+
+    test('B2 zero or negative previous position cannot land / 前值非正不落地', () {
+      for (final previous in [Duration.zero, const Duration(seconds: -1)]) {
+        final tracker = MovaTtffTracker()..arm(t0, autoPlay: true);
+        expect(tracker.onProgress(previous, t0), isNull);
+        expect(tracker.onProgress(const Duration(seconds: 8),
+            t0.add(const Duration(milliseconds: 10))), isNull);
+        expect(tracker.landed, isFalse);
+        expect(tracker.onProgress(const Duration(milliseconds: 100),
+            t0.add(const Duration(milliseconds: 20))), isNull);
+        expect(tracker.onProgress(const Duration(milliseconds: 200),
+            t0.add(const Duration(milliseconds: 30))),
+            const Duration(milliseconds: 30));
+      }
     });
 
     test('onProgress ignores a lone stale position left over from the previous media', () {

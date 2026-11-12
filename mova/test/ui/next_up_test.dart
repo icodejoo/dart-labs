@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/playlist.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -18,6 +19,37 @@ const _items = [
 ];
 
 void main() {
+  testWidgets('replacement playlist re-arms a dismissed next-up card', (t) async {
+    final api = FakeMovaApi(options: const MovaOpts(
+      playlist: MovaPlaylistConfig(enabled: true, items: _items),
+    ));
+    final first = MovaPlaylist(api);
+    await pumpComponent(t, api, MovaNextUpComponent(first));
+    api.push(api.state.copyWith(duration: const Duration(seconds: 60)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 55)));
+    await t.pump();
+    await t.pump();
+    await t.tap(find.text('取消'));
+    await t.pump();
+    first.dispose();
+    final second = MovaPlaylist(api);
+    await pumpComponent(t, api, MovaNextUpComponent(second));
+    api.push(api.state.copyWith(duration: const Duration(seconds: 60)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 55)));
+    await t.pump();
+    await t.pump();
+    expect(find.text('即将播放'), findsOneWidget);
+    await t.tap(find.text('取消'));
+    await second.jumpTo(0);
+    await t.pump();
+    api.pushProgress(const MovaProg(position: Duration(seconds: 55)));
+    await t.pump();
+    await t.pump();
+    expect(find.text('即将播放'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    second.dispose();
+    await api.dispose();
+  });
   /// Builds a fake API with the playlist enabled (or not) plus a controller.
   ///
   /// 构造一个启用（或不启用）播放列表的假 API 及其控制器。

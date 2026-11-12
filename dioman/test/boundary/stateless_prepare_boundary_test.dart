@@ -1,4 +1,5 @@
-import '../support/b2_constants.dart';
+import '../support/response_contract.dart';
+import '../support/request_constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -10,7 +11,7 @@ import '../rule/stateless_prepare_rule_test.dart' show preparePlain;
 /// 验证准备阶段的边界、输入不变与错误身份。
 void main() {
   test(
-      '[DiomanKind.timeout]'
+      '[DiomanFailureKind.timeout]'
       '[DiomanTimeouts.connect] 档位补丁送达 adapter，连接超时按 timeout 归类', () async {
     final net = FakeNetwork();
     net.failOn[1] = DioException(
@@ -22,7 +23,7 @@ void main() {
     final result = await api.send<Object?>(b2Get, preparePlain);
     expect(
         net.sends.single.options.connectTimeout, const Duration(seconds: 30));
-    expect(result.kind, DiomanKind.timeout);
+    expect(outcomeOf(result), diomanTestTimeout);
   });
   test(
       '[DiomanRepathOptions.pattern]'

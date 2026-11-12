@@ -216,7 +216,7 @@ class _TraceInstance extends DiomanPluginInstance {
       DiomanContext ctx, DiomanNext next) async {
     emit('${ctx.request.method} ${ctx.request.path}', _Kind.request);
     final result = await next();
-    emit('${result.kind.name} ${result.status}',
+    emit('${failureOf(result)?.kind.name} ${result.status}',
         result.ok ? _Kind.response : _Kind.error);
     return result;
   }
@@ -281,8 +281,8 @@ Future<void> _runEnvs(_Emit emit) async {
   emit(
       '                    X-Env   = "${prodDio.options.headers[_literalXEnv]}"',
       _Kind.response);
-  dev.dispose();
-  prod.dispose();
+  await dev.dispose();
+  await prod.dispose();
 }
 
 // 2. repath ────────────────────────────────────────────────────────────────────
@@ -431,7 +431,7 @@ Future<void> _runNormalize(_Emit emit) async {
     try {
       await api.request<dynamic>(_literalGET, call: _sourceCall, '/users/2');
     } on DiomanResponse catch (e) {
-      emit('${e.kind.name} ${e.status}: ${e.message}', _Kind.error);
+      emit('${failureOf(e)?.kind.name} ${e.status}: ${e.message}', _Kind.error);
     }
   }
 }
@@ -572,7 +572,7 @@ Future<void> _runCancel(_Emit emit) async {
     try {
       await api.request<dynamic>(_literalGET, call: _sourceCall, path);
     } on DiomanResponse catch (e) {
-      if (e.kind == DiomanKind.cancel) {
+      if (isDiomanCancel(e)) {
         aborted++;
         emit('  request $n cancelled ✗', _Kind.error);
       }
@@ -726,7 +726,7 @@ Future<void> _runLog(_Emit emit) async {
     final result = await api.send<dynamic>(_literalGET, '/config');
     _emitJson(emit, result.data);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -752,7 +752,7 @@ Future<void> _runTimeout(_Emit emit) async {
           }),
         }));
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -771,13 +771,14 @@ Future<void> _runBreaker(_Emit emit) async {
   try {
     for (var i = 0; i < 2; i++) {
       final result = await api.send<dynamic>('GET', '/policy');
-      emit('${result.kind.name}, reason=${result.reason}, sends=$sends',
+      emit(
+          '${failureOf(result)?.kind.name}, reason=${failureOf(result)?.reason}, sends=$sends',
           _Kind.response);
     }
     emit(
         'buckets=${api.plugin<DiomanBreakerApi>()?.bucketCount}', _Kind.system);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -807,11 +808,11 @@ Future<void> _runOffline(_Emit emit) async {
               const DiomanOfflineOptions(maxWait: Duration(seconds: 2)),
         }));
     emit(
-        '${result.kind.name}, pending=${api.plugin<DiomanOfflineApi>()?.pending}',
+        '${failureOf(result)?.kind.name}, pending=${api.plugin<DiomanOfflineApi>()?.pending}',
         _Kind.response);
   } finally {
     timer.cancel();
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
     await connectivity.close();
   }
@@ -826,7 +827,7 @@ Future<void> _runNotify(_Emit emit) async {
   final api = Dioman(dio: dio, plugins: [
     DiomanNotify(notify: (message, result) {
       notices++;
-      emit('notice: $message (${result.kind.name})', _Kind.error);
+      emit('notice: $message (${failureOf(result)?.kind.name})', _Kind.error);
     }),
   ]);
   try {
@@ -836,7 +837,7 @@ Future<void> _runNotify(_Emit emit) async {
     emit(
         '2 failed calls, $notices notice; second call is silent', _Kind.system);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }

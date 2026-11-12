@@ -34,6 +34,11 @@ class MovaTwoLevelCache implements MovaThumbCache {
   /// 慢速持久层。
   final MovaThumbCache disk;
 
+  /// Invalidates disk reads started before a clear.
+  ///
+  /// 使清理之前启动的磁盘读取失效。
+  int _generation = 0;
+
   @override
   Uint8List? peek(String key) => memory.peek(key);
 
@@ -41,8 +46,11 @@ class MovaTwoLevelCache implements MovaThumbCache {
   Future<Uint8List?> read(String key) async {
     final hit = memory.peek(key);
     if (hit != null) return hit;
+    final generation = _generation;
     final fromDisk = await disk.read(key);
-    if (fromDisk != null) await memory.write(key, fromDisk);
+    if (fromDisk != null && generation == _generation) {
+      await memory.write(key, fromDisk);
+    }
     return fromDisk;
   }
 
@@ -54,6 +62,7 @@ class MovaTwoLevelCache implements MovaThumbCache {
 
   @override
   Future<void> clear() async {
+    _generation++;
     await memory.clear();
     await disk.clear();
   }

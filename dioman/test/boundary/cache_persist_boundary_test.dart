@@ -1,8 +1,9 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
 
@@ -166,12 +167,12 @@ void main() {
           api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true));
       await b4Turn();
       api.cancelAll();
-      expect((await pending).kind, DiomanKind.cancel);
+      expect(outcomeOf((await pending)), diomanTestCancel);
       store.readGate?.complete();
       store.removeGate?.complete();
       store.writeGate?.complete();
       if (first != null) {
-        expect((await first).kind, DiomanKind.cancel);
+        expect(outcomeOf((await first)), diomanTestCancel);
       }
       await b4Turn();
       expect(cache.pendingWrites, 0);
@@ -179,7 +180,7 @@ void main() {
     }
   });
   test(
-      '[DiomanClonePolicy.deep][DiomanFailure.data]'
+      '[DiomanClonePolicy.deep][DiomanResponse.data]'
       '[DiomanCache.clone] 写入快照隔离来源和返回值，扩展工厂保留标记', () async {
     final body = <int, dynamic>{
       1: <int>[2]
@@ -187,7 +188,7 @@ void main() {
     final source = TestPlugin(b4LiteralSource,
         stage: DiomanStage.source,
         handler: (ctx, next) async =>
-            ctx.fail(DiomanFailure(kind: DiomanKind.ok, data: body)));
+            scriptedResult(ctx, diomanTestOk, data: body));
     final api = testClient(plugins: [
       const DiomanCache<Result>(clone: DiomanClonePolicy.deep),
       source

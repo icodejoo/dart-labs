@@ -24,6 +24,13 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
     Countman.use(_fastGroup);
   }
 
+  @override
+  void dispose() {
+    // 按实例注销并销毁，下次进入页面重新创建同名实例时不会冲突。
+    Countman.unuse(_fastGroup);
+    super.dispose();
+  }
+
   void _restart() => setState(() => _seed++);
 
   @override
@@ -34,11 +41,11 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
       _Section('CountdownBuilder — basic', [
         _Tile('builder: auto format', CountdownBuilder(
           duration: _kMed,
-          builder: (_, r, __) => Text(CountdownFormat.auto(r), style: _ts),
+          builder: (_, r, _) => Text(CountdownFormat.auto(r), style: _ts),
         )),
         _Tile('builder: progress bar', CountdownBuilder(
           duration: _kMed,
-          builder: (_, r, __) => Column(mainAxisSize: MainAxisSize.min, children: [
+          builder: (_, r, _) => Column(mainAxisSize: MainAxisSize.min, children: [
             Text(CountdownFormat.ms(r), style: _ts),
             const SizedBox(height: 4),
             SizedBox(
@@ -56,12 +63,12 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
         _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) => CountdownBuilder(
           duration: _kShort,
           onComplete: onComplete,
-          builder: (_, r, __) => Text(CountdownFormat.msTenths(r), style: _ts),
+          builder: (_, r, _) => Text(CountdownFormat.msTenths(r), style: _ts),
         ))),
         _Tile('plugin: Countdown(interval:100)', CountdownBuilder(
           duration: _kShort,
           plugin: _fastGroup,
-          builder: (_, r, __) => Text(CountdownFormat.msTenths(r), style: _ts),
+          builder: (_, r, _) => Text(CountdownFormat.msTenths(r), style: _ts),
         )),
       ]),
       _Section('CountdownBuilder — controller', [
@@ -69,7 +76,7 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
           builder: (ctrl) => CountdownBuilder(
             duration: _kMed,
             controller: ctrl,
-            builder: (_, r, __) => Text(CountdownFormat.ms(r), style: _ts),
+            builder: (_, r, _) => Text(CountdownFormat.ms(r), style: _ts),
           ),
         ), size: const Size(150, 110)),
       ]),
@@ -373,7 +380,7 @@ class _AutoRemoveDemoState extends State<_AutoRemoveDemo> {
                     duration: const Duration(seconds: 5),
                     onTick: (_) { if (mounted) setState(() {}); }, // refresh count
                     onComplete: () { if (mounted) setState(() => _done = true); },
-                    builder: (_, r, __) =>
+                    builder: (_, r, _) =>
                         Text(CountdownFormat.ms(r), style: _ts),
                   ),
           ),

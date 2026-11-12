@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/model/orientation.dart';
 import 'package:mova/src/core/model/quality.dart';
@@ -13,6 +14,20 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
+  testWidgets('quality menu ignores selections after a source change', (t) async {
+    final api = FakeMovaApi();
+    final qualities = [const MovaQuality(uri: 'https://host/a.mp4', label: 'A')];
+    api.push(MovaState(qualities: qualities));
+    await pumpComponent(t, api, MovaQualityButtonComponent());
+    await t.tap(find.byIcon(Icons.high_quality_rounded));
+    await t.pumpAndSettle();
+    api.pushEvent(const MovaSourceChange(MovaSource('https://host/b.mp4')));
+    await t.pump();
+    await t.tap(find.text('A'));
+    await t.pumpAndSettle();
+    expect(api.calls, isNot(contains('switchQuality')));
+    await api.dispose();
+  });
   testWidgets('fit button cycles the fill mode and shows the configured label', (t) async {
     final api = FakeMovaApi();
     await pumpComponent(t, api, MovaTopBarComponent());

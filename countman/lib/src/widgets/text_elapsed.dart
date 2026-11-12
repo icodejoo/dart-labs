@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/types.dart'
     show DurationFormatter, CountdownFormat, TimeParts;
 import 'package:countman/src/elapsed/plugin.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'text_style.dart';
 import 'elapsed_builder.dart';
@@ -45,7 +46,12 @@ class TextElapsed extends StatelessWidget {
     this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.fps,
     this.precise = false,
+    this.since,
+    this.initial,
+    this.limit,
+    this.onComplete,
     this.controller,
     this.onTick,
     this.threshold,
@@ -55,7 +61,14 @@ class TextElapsed extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
+         since == null || initial == null,
+         'TextElapsed: provide at most one of since or initial.',
+       );
 
   /// Converts elapsed time ([TimeParts]) to a display string. `null` (default)
   /// inherits the enclosing [ElapsedProvider]'s formatter, then
@@ -89,6 +102,10 @@ class TextElapsed extends StatelessWidget {
   /// Optional [Elapsed] group. Defaults to [defaultElapsed].
   final Elapsed? plugin;
 
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
   /// Drive on the shared precise group ([defaultElapsedMs], `interval: 0`) so
   /// sub-second formatters update every frame. Ignored when [plugin] or a
   /// provider group is set.
@@ -96,6 +113,21 @@ class TextElapsed extends StatelessWidget {
   /// 用共享精确组（[defaultElapsedMs]，`interval: 0`）驱动，使亚秒格式化器每帧
   /// 更新。设置了 [plugin] 或 provider 分组时忽略。
   final bool precise;
+
+  /// 墙钟锚定的起点：已经过 = 当前墙钟 − [since]，例如“下单已 3 分钟”。
+  /// 与 [initial] 互斥；详见 [ElapsedOptions.since]。改变后会重建任务。
+  final DateTime? since;
+
+  /// 单调钟锚定的起始偏移，例如恢复上次的秒表。与 [since] 互斥；详见
+  /// [ElapsedOptions.initial]。改变后会重建任务。
+  final Duration? initial;
+
+  /// 上限：到达时发出值为 [limit] 的最后一次更新、触发 [onComplete] 并结束任务。
+  /// 结束后 `controller.reset()` 会从零重新开始。修改它不会重建任务，已累计时间保留。
+  final Duration? limit;
+
+  /// 累计时间到达 [limit] 时调用一次。
+  final void Function()? onComplete;
 
   /// Optional controller for pause / resume / reset.
   final ElapsedController? controller;
@@ -126,13 +158,21 @@ class TextElapsed extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认之上。
     final scope = CountmanScope.maybeOf<Elapsed>(context);
-    final s = (style ?? const TextElapsedStyle()).merge(scope?.textElapsedStyle);
+    final theme = CountmanTheme.maybeOf(context);
+    final s = (style ?? const TextElapsedStyle())
+        .merge(scope?.textElapsedStyle)
+        .merge(theme?.textElapsedStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 
     final number = ElapsedBuilder(
       plugin: plugin,
+      fps: fps,
       precise: precise,
+      since: since,
+      initial: initial,
+      limit: limit,
+      onComplete: onComplete,
       controller: controller,
       onTick: onTick,
       threshold: threshold,

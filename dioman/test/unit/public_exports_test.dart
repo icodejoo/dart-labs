@@ -122,19 +122,19 @@ void probe(api.Dioman client, api.DiomanContext context, api.DiomanCacheApi cach
     final Type declaration = RequestPatch;
     expect(declaration.toString(), isNotEmpty);
   });
-  test('[DiomanKind] 导出声明可解析', () {
-    final Type declaration = DiomanKind;
+  test('[DiomanFailureKind] 导出声明可解析', () {
+    final Type declaration = DiomanFailureKind;
     expect(declaration.toString(), isNotEmpty);
   });
-  test('[Envelope][Envelope.new] 导出声明可解析', () {
-    final Type declaration = Envelope;
+  test('[DiomanParsed][DiomanParsed.new] 导出声明可解析', () {
+    final Type declaration = DiomanParsed;
     expect(declaration.toString(), isNotEmpty);
   });
   test('[DiomanResponse][DiomanResponse.new] 导出声明可解析', () {
     final Type declaration = DiomanResponse;
     expect(declaration.toString(), isNotEmpty);
   });
-  test('[DiomanFailure][DiomanFailure.new] 导出声明可解析', () {
+  test('[DiomanFailure][failureOf] 导出声明可解析', () {
     final Type declaration = DiomanFailure;
     expect(declaration.toString(), isNotEmpty);
   });

@@ -1,7 +1,12 @@
-﻿export 'src/core/types.dart';
+export 'src/core/clock.dart';
+export 'src/core/run_state.dart';
+export 'src/core/types.dart';
 export 'src/core/plugin_base.dart';
 export 'src/core/ticker.dart';
 export 'src/core/start_scheduler.dart';
+export 'src/controllers/counter_value_controller.dart';
+export 'src/controllers/countdown_controller.dart';
+export 'src/controllers/elapsed_controller.dart';
 export 'src/counter/types.dart';
 export 'src/counter/plugin.dart';
 export 'src/count_down/types.dart';
@@ -23,6 +28,8 @@ export 'src/widgets/bar_countdown.dart';
 export 'src/widgets/bar_counter.dart';
 export 'src/widgets/animated_counter/animated_counter.dart';
 export 'src/widgets/dial_countdown.dart';
+export 'src/widgets/countman_theme.dart';
 export 'src/widgets/providers.dart';
-export 'src/widgets/painter/painter.dart';
-
+export 'src/widgets/painter/painter.dart' hide transformRotateX;
+export 'src/widgets/ring_style.dart' show RingStyle;
+export 'src/widgets/bar_style.dart' show BarStyle;

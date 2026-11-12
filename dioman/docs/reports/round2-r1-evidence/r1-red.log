@@ -1,0 +1,16 @@
+00:00 +0: loading test/combo/auth_session_combo_test.dart
+00:00 +0: [DiomanAuth.onRefresh × Dioman.extend] 轮换刷新凭证只刷新一次且不登出
+00:00 +0 -1: [DiomanAuth.onRefresh × Dioman.extend] 轮换刷新凭证只刷新一次且不登出 [E]
+  Expected: <1>
+    Actual: <2>
+  
+  package:matcher                               expect
+  test\combo\auth_session_combo_test.dart 41:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/auth_session_combo_test.dart: [DiomanAuth.onRefresh × Dioman.extend] 轮换刷新凭证只刷新一次且不登出
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

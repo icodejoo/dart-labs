@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24"><defs><circle id="d" cx="0" cy="0" r="3" fill="#2A6DF4"><animate attributeName="r" values="3;6;3" dur="1s" repeatCount="indefinite"/></circle></defs><use xlink:href="#d" x="8" y="12"/><use xlink:href="#d" x="16" y="12"/></svg>

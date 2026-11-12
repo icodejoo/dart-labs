@@ -1,0 +1,6 @@
+{
+  "import 'package:meta/meta.dart';": "import 'annotation_stub.dart';",
+  "import 'package:path_provider/path_provider.dart';": "import 'temporary_stub.dart';",
+  "import '../core/preview/dir_lease.dart';": "import 'file:///E:/workspaces/dart-labs-mova/mova/lib/src/core/preview/dir_lease.dart';",
+  "import '../core/preview/dir_provider.dart';": "import 'file:///E:/workspaces/dart-labs-mova/mova/lib/src/core/preview/dir_provider.dart';"
+}

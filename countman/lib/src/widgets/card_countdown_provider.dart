@@ -1,3 +1,5 @@
+import 'dart:collection';
+import 'package:flutter/foundation.dart' show internal;
 import 'package:flutter/widgets.dart';
 import 'card_countdown_types.dart';
 
@@ -9,9 +11,10 @@ import 'card_countdown_types.dart';
 /// actually inherits (left unset on the card itself), cards in scope also
 /// share a glyph-level [TextPainter] cache keyed by `(text, style)` — the
 /// same digit/separator/label rendered by many cards is laid out once and
-/// reused, not re-shaped on every card every frame. A card that overrides
-/// one of these styles uses its own local cache for that style instead, so
-/// per-card customizations never pollute the shared pool.
+/// reused, not re-shaped on every card every frame. Overridden styles with
+/// equal values share a separate reference-counted cache across cards;
+/// the last user releases its paragraphs.
+/// 显式的相同样式跨卡共享，最后一个使用者释放，不占用 Provider 的缓存。
 ///
 /// Uses the standard subscribing [InheritedWidget] lookup: changing a
 /// [CardCountdownProvider]'s config rebuilds every [CardCountdown] in its
@@ -74,16 +77,26 @@ class CardCountdownProvider extends StatefulWidget {
   State<CardCountdownProvider> createState() => _CardCountdownProviderState();
 }
 
+/// 管理有界共享缓存，样式更换或卸载时释放原生段落。
 class _CardCountdownProviderState extends State<CardCountdownProvider> {
   // One cache per provider instance, stable across rebuilds (only recreated
   // if the provider widget itself is torn down and remounted).
-  final _cache = <(String, TextStyle), TextPainter>{};
+  final _cache = CardGlyphCache();
 
+  /// Provider 样式变化后释放旧段落，避免反复换主题积累缓存。
+  @override
+  void didUpdateWidget(CardCountdownProvider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.textStyle != widget.textStyle ||
+        oldWidget.labelStyle != widget.labelStyle ||
+        oldWidget.separatorStyle != widget.separatorStyle) {
+      _cache.clear();
+    }
+  }
+
+  /// 卸载时释放共享缓存持有的全部字形段落。
   @override
   void dispose() {
-    for (final tp in _cache.values) {
-      tp.dispose(); // release cached native paragraphs
-    }
     _cache.clear();
     super.dispose();
   }
@@ -151,7 +164,7 @@ class CardCountdownProviderData {
   final double? perspective;
 
   /// Shared glyph cache — see the class-level doc on [CardCountdownProvider]
-  /// for which cards actually use it vs their own local cache.
+  /// for which cards use it or the separate cache shared by equal styles.
   final Map<(String, TextStyle), TextPainter> cache;
 }
 
@@ -177,4 +190,52 @@ class _CardCountdownScope extends InheritedWidget {
       data.scaleFactor != oldWidget.data.scaleFactor ||
       data.opacityEffect != oldWidget.data.opacityEffect ||
       data.perspective != oldWidget.data.perspective;
+}
+
+/// 有界字形缓存，最多保留 512 个段落；删除、替换和清空均负责 dispose。
+/// 使用与 Map 相同的接口，例如 `cache.putIfAbsent((text, style), create)`。
+class CardGlyphCache extends MapBase<(String, TextStyle), TextPainter> {
+  /// 缓存上限覆盖数字的 16 档透明度及标签和分隔符。
+  static const int capacity = 512;
+  /// 段落删除、替换或清空后的版本，供 painter 丢弃已失效引用。
+  @internal
+  int get generation => _generation;
+  /// 缓存版本只在可能释放段落时递增。
+  int _generation = 0;
+  /// 插入顺序也是最早可淘汰的顺序。
+  final _entries = <(String, TextStyle), TextPainter>{};
+  /// 返回已缓存段落，未命中时为 null。
+  @override
+  TextPainter? operator [] (Object? key) => _entries[key];
+  /// 插入段落；替换和超出容量时释放旧段落。
+  @override
+  void operator []=((String, TextStyle) key, TextPainter value) {
+    final old = _entries.remove(key);
+    if (old != null && !identical(old, value)) {
+      _generation++;
+      old.dispose();
+    }
+    if (_entries.length >= capacity) remove(_entries.keys.first);
+    _entries[key] = value;
+  }
+  /// 当前缓存键，按插入顺序迭代。
+  @override
+  Iterable<(String, TextStyle)> get keys => _entries.keys;
+  /// 清空并释放所有段落。
+  @override
+  void clear() {
+    _generation++;
+    for (final painter in _entries.values) { painter.dispose(); }
+    _entries.clear();
+  }
+  /// 移除时同步释放；返回已释放对象，仅供 Map 接口兼容，不应再次使用。
+  @override
+  TextPainter? remove(Object? key) {
+    final painter = _entries.remove(key);
+    if (painter != null) {
+      _generation++;
+      painter.dispose();
+    }
+    return painter;
+  }
 }

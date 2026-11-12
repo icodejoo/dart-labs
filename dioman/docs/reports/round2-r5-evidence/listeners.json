@@ -1,0 +1,12 @@
+[
+  {
+    "LocalAddress": "127.0.0.1",
+    "LocalPort": 47290,
+    "OwningProcess": 39144
+  },
+  {
+    "LocalAddress": "0.0.0.0",
+    "LocalPort": 47280,
+    "OwningProcess": 1032
+  }
+]

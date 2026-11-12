@@ -346,3 +346,13 @@ flush 提到 `test/support/headless_backend.dart`；用例数不变。没采纳�
 （Flutter 3.47.0 / Dart 3.13.0）；手机真机 **41 条全绿**（原有 38 + 新增 3，华为 STG-AL00 /
 Android 12，序列号 7NQBB23606003715）。最低 Flutter 3.27.4 本轮未运行（本地环境已删），新代码只用了
 3.27 已有的 API（willHandlePopInternally、DateTime.toLocal），开 PR 时 CI 的 3.27.4 任务会覆盖。
+
+
+## 合并 layerman-visible（2026-11-06）
+
+“可见确认后才计数”已合入 layerman：冷却计数与 `shown` 事件改在后端 visible 确认后才发生，
+可见前结束的条目只有 queued、ended，不计数。这取代上文“后端真正可见回报计数未提供”的历史结论。
+同时去掉了 `_presenting` / `_finishPresent`（visible 之前才需要暂存 ended），`dispose` 内不再交付暂存事件。
+`PresentedOverlay` 的 `visible` 为必传参数，测试里手写后端要补 `visible: Future<void>.value()`。
+验收：`flutter test` 1146 条全绿、`flutter analyze` 干净（本机 Flutter 3.47.0）；
+最低 Flutter 3.27.4 与手机真机本轮未重跑。

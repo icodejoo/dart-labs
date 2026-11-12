@@ -1,0 +1,132 @@
+[
+  {
+    "name": "baseline-3",
+    "round": 1,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 11.510970257585432,
+        "reasons": [],
+        "stem": "baseline-3-1-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 15.74133740935396,
+        "reasons": [],
+        "stem": "baseline-3-1-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-3",
+    "round": 2,
+    "attempt": 1,
+    "accepted": false,
+    "members": [
+      {
+        "clean": false,
+        "meanExternalPercent": 24.975235510755525,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%"
+        ],
+        "stem": "baseline-3-2-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 15.107864937245509,
+        "reasons": [],
+        "stem": "baseline-3-2-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-3",
+    "round": 2,
+    "attempt": 2,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 11.45763849354935,
+        "reasons": [],
+        "stem": "baseline-3-2-try-2-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 19.734311878271164,
+        "reasons": [],
+        "stem": "baseline-3-2-try-2-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-3",
+    "round": 3,
+    "attempt": 1,
+    "accepted": false,
+    "members": [
+      {
+        "clean": false,
+        "meanExternalPercent": 27.010726640960243,
+        "reasons": [
+          "\u5916\u90e8\u5747\u503c\u8d85\u8fc720%",
+          "\u8fde\u7eed\u4e09\u79d2\u5916\u90e8\u5360\u7528\u8d85\u8fc735%"
+        ],
+        "stem": "baseline-3-3-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 13.421783056802735,
+        "reasons": [],
+        "stem": "baseline-3-3-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-3",
+    "round": 3,
+    "attempt": 2,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 5.294763453328083,
+        "reasons": [],
+        "stem": "baseline-3-3-try-2-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 6.282507860939236,
+        "reasons": [],
+        "stem": "baseline-3-3-try-2-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  }
+]

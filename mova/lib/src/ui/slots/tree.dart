@@ -5,6 +5,11 @@ import 'component.dart';
 import 'patch.dart';
 import 'slot.dart';
 
+/// Separator between component path segments.
+///
+/// 组件路径分段之间的分隔符。
+const _pathSeparator = '/';
+
 /// Applies [patches] to [tree] and returns a new tree; never mutates the
 /// input. An unmatched path asserts in debug and is a no-op in release.
 ///
@@ -63,7 +68,7 @@ List<MovaComponent> _applyOne(List<MovaComponent> tree, MovaPatch patch) {
 
 /// 检查当前树中是否存在完整的 [path]，供 debug 诊断使用。
 bool _containsPath(List<MovaComponent> nodes, String path) {
-  final slash = path.indexOf('/');
+  final slash = path.indexOf(_pathSeparator);
   final head = slash < 0 ? path : path.substring(0, slash);
   for (final node in nodes) {
     if (node.name != head) continue;
@@ -71,6 +76,16 @@ bool _containsPath(List<MovaComponent> nodes, String path) {
     if (_containsPath(node.children, path.substring(slash + 1))) return true;
   }
   return false;
+}
+
+/// Splits off the first segment without allocating and rejoining a list.
+///
+/// 分离首个路径片段，避免分配列表后再拼接剩余路径。
+(String, String) _splitPath(String path) {
+  final slash = path.indexOf(_pathSeparator);
+  return slash < 0
+      ? (path, '')
+      : (path.substring(0, slash), path.substring(slash + 1));
 }
 
 /// Recursively replaces the node at [path] within [nodes] with
@@ -86,9 +101,7 @@ List<MovaComponent> _replaceAt(
   String path,
   MovaComponent replacement,
 ) {
-  final segments = path.split('/');
-  final head = segments.first;
-  final rest = segments.skip(1).join('/');
+  final (head, rest) = _splitPath(path);
   return nodes.map((node) {
     if (node.name != head) return node;
     if (rest.isEmpty) {
@@ -112,9 +125,7 @@ List<MovaComponent> _replaceAt(
 /// 无剩余分段）会丢弃整个条目；更深层的匹配只会从其父节点的 children 中
 /// 丢弃该子节点。
 List<MovaComponent> _removeAt(List<MovaComponent> nodes, String path) {
-  final segments = path.split('/');
-  final head = segments.first;
-  final rest = segments.skip(1).join('/');
+  final (head, rest) = _splitPath(path);
   if (rest.isEmpty) {
     return nodes.where((n) => n.name != head).toList();
   }
@@ -136,9 +147,7 @@ List<MovaComponent> _insertAfterAt(
   String path,
   MovaComponent addition,
 ) {
-  final segments = path.split('/');
-  final head = segments.first;
-  final rest = segments.skip(1).join('/');
+  final (head, rest) = _splitPath(path);
   if (rest.isEmpty) {
     final idx = nodes.indexWhere((n) => n.name == head);
     if (idx == -1) return nodes;

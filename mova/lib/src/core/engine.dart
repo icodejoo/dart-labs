@@ -556,7 +556,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   String get _activeUri {
     final src = _source;
     if (src == null) return '';
-    return _sourceIndex < src.uris.length ? src.uris[_sourceIndex] : src.uri;
+    final uris = src.uris;
+    return _sourceIndex < uris.length ? uris[_sourceIndex] : src.uri;
   }
 
   /// 优先保留用户 seek 或尚未落地的续播目标，避免重载清进度后读到零。
@@ -1431,11 +1432,15 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       }
       if (!resumed()) return false;
     }
-    if (_kernelOpening == 0 && state.keepAlivePhase != MovaKeepAlivePhase.holding) {
-      _watchdog?.armStart(
+    final watchdog = _watchdog;
+    if (_kernelOpening == 0 &&
+        state.keepAlivePhase != MovaKeepAlivePhase.holding &&
+        watchdog != null) {
+      final networkOverride = _sourceNetworkTimeout();
+      watchdog.armStart(
         playing: _playIntent,
-        startTimeout: options.recovery.startTimeoutFor(uri, networkOverride: _sourceNetworkTimeout()),
-        stallTimeout: options.recovery.stallTimeoutFor(uri, networkOverride: _sourceNetworkTimeout()),
+        startTimeout: options.recovery.startTimeoutFor(uri, networkOverride: networkOverride),
+        stallTimeout: options.recovery.stallTimeoutFor(uri, networkOverride: networkOverride),
         overrideStall: true,
       );
     }
@@ -1466,8 +1471,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
       _setKeepAlivePhase(MovaKeepAlivePhase.off, MovaKeepAliveReason.reloaded);
       if (!_isCurrentOpen(eventGeneration)) return;
     }
-    _recoverTimer?.cancel();
-    _recoverTimer = null;
+    _cancelRecovery();
     _releaseAbrHold();
     _attemptId++;
     _deferredTerminal = null;
@@ -1872,8 +1876,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // 挂起在 beforeOpen 期间 dispose() 可能已执行：不得再挂接服务或加载已销毁的内核。
     if (!allowed || gen != _openGen || _disposed) return false;
-    _recoverTimer?.cancel();
-    _recoverTimer = null;
+    _cancelRecovery();
     final session = ++_sessionGen;
     _qualityRevision = 0;
     _recoveryPosition = null;
@@ -2036,9 +2039,13 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // 一次尝试只失败一次：超时之后同一次尝试可能还会收到原生错误。
     if (_failedAttemptId == _attemptId || _terminalAttemptId == _attemptId) return;
-    // 首帧前仍继承素材起播点；出画后保持已有续播点规则。
+    // A user seek takes precedence over the source start, even before a frame.
+    //
+    // 用户 seek 优先于素材起播点，即使尚未出过首帧。
     _recoveryPosition ??= state.type == MovaStreamType.vod
-        ? (state.rendered ? _resumeTarget : src.start ?? Duration.zero)
+        ? (state.rendered || _hasSeekTarget
+              ? _resumeTarget
+              : src.start ?? Duration.zero)
         : Duration.zero;
     _failedAttemptId = _attemptId;
     wd.disarm();
@@ -2062,9 +2069,9 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _emitEvent(MovaPlayFailure(fail, d.action));
     switch (d.action) {
       case MovaRecoveryAction.retry:
-        _scheduleRecover(idx, d.delay, fail);
+        _scheduleRecover(idx, d.delay);
       case MovaRecoveryAction.failover:
-        _scheduleRecover(idx + 1, d.delay, fail);
+        _scheduleRecover(idx + 1, d.delay);
       case MovaRecoveryAction.giveUp:
         _giveUp(fail);
     }
@@ -2085,14 +2092,14 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// Schedules [_recover] after [delay], replacing any pending one.
   ///
   /// 延迟 [delay] 后执行 [_recover]，替换已有的待执行项。
-  void _scheduleRecover(int index, Duration delay, MovaPlayFail cause) {
+  void _scheduleRecover(int index, Duration delay) {
     final gen = _sessionGen;
     final attempt = _attemptId;
     _recoverTimer?.cancel();
     _recoverTimer = Timer(delay, () {
       _recoverTimer = null;
       if (attempt == _attemptId && _terminalAttemptId != attempt) {
-        unawaited(_recover(index, cause, gen));
+        unawaited(_recover(index, gen));
       }
     });
   }
@@ -2105,9 +2112,8 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   /// 会话；失败前出过画面的点播源等新尝试首帧落地后续播到失败位置。
   ///
   /// - [index]: address index to load / 要加载的地址下标
-  /// - [cause]: the failure being recovered from / 正在恢复的那次失败
   /// - [gen]: the accepted session this recovery belongs to / 本次恢复所属的已接受会话世代
-  Future<void> _recover(int index, MovaPlayFail cause, int gen) async {
+  Future<void> _recover(int index, int gen) async {
     final eventGeneration = _openGen;
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     final previous = _currentLoad;
@@ -2257,8 +2263,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   void _terminalError(Object err, {String? subsystem, bool defer = true}) {
     final eventGeneration = _openGen;
     if (_disposed) return;
-    _recoverTimer?.cancel();
-    _recoverTimer = null;
+    _cancelRecovery();
     if (defer && _kernelOpening > 0) {
       _deferredTerminal ??= (error: err, subsystem: subsystem);
       return;
@@ -2628,9 +2633,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
   void _finishResume(MovaFirstFrameSignal? signal) {
     final eventGeneration = _openGen;
     if (state.keepAlivePhase != MovaKeepAlivePhase.resuming) return;
-    _resumeTimer?.cancel();
-    _resumeTimer = null;
-    _resumeGate.reset();
+    _cancelResume();
     final at = _resumeAt;
     if (!_events.isClosed) {
       _emitEvent(
@@ -2853,9 +2856,17 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _lastPosition = to;
     _progressRaw.add(MovaProg(position: to, buffer: _lastBuffer));
     if (notify) _emitEvent(MovaSeek(to));
-    if (!_isCurrentOpen(eventGeneration)) return;
+    if (!_isCurrentOpen(eventGeneration)) {
+      _cancelSeekTarget(chain);
+      return;
+    }
     if (park) return;
-    await _kernel.seek(to);
+    try {
+      await _kernel.seek(to);
+    } catch (_) {
+      _cancelSeekTarget(chain);
+      rethrow;
+    }
     if (_disposed || session != _sessionGen) return;
     eventGeneration = _openGen;
     if (notify) _emitEvent(MovaSeeked(to));
@@ -2869,6 +2880,19 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (!_disposed && chain == _seekChain && state.type == MovaStreamType.vod) {
       _armResumeVerify(to, 1);
     }
+  }
+
+  /// Clears filtering only when an interrupted seek still owns the chain.
+  ///
+  /// 仅当中断的 seek 仍持有当前链时清理过滤状态。
+  void _cancelSeekTarget(int chain) {
+    if (_disposed || chain != _seekChain) return;
+    _pendingSeekTarget = null;
+    _parkedSeek = null;
+    _parkedNotify = false;
+    _resumeVerifyTimer?.cancel();
+    _resumeVerifyTimer = null;
+    _releaseAbrHold();
   }
 
   /// Forgets everything the *previous* media reported, so the park-or-seek
@@ -3329,14 +3353,15 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     bool untouched() => revision == 0 && revision == _qualityRevision;
     if (!base.toLowerCase().contains('.m3u8')) return;
     try {
-      final bytes = await movaFetchWithHeaders(_fetcher, Uri.parse(base), _source?.requestHeaders ?? const {});
+      final baseUri = Uri.parse(base);
+      final bytes = await movaFetchWithHeaders(_fetcher, baseUri, _source?.requestHeaders ?? const {});
       if (!current()) return;
       if (bytes == null) {
         _state.emit(state.copyWith(qualities: const [], clearQuality: untouched()));
         return;
       }
       final content = const Utf8Decoder().convert(bytes);
-      final qs = parseHlsMasterPlaylist(content, base: Uri.parse(base));
+      final qs = parseHlsMasterPlaylist(content, base: baseUri);
       final cur = untouched() && qs.isNotEmpty ? qs.first : null;
       final eventGeneration = _openGen;
       _state.emit(
@@ -3551,12 +3576,11 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _emitEvent(const MovaLiveEdgeReach());
   }
 
-  /// Moves to the live edge by the configured strategy. Returns whether it
-  /// went through [_reopenLiveSource] (a full kernel reload) rather than a seek.
+  /// Moves to the live edge by seeking or fully reloading [_reopenLiveSource],
+  /// according to the configured strategy.
   ///
-  /// 按配置的策略回到直播边缘。返回是否走了 [_reopenLiveSource]（完整的内核重载）而不是 seek。
-  Future<bool> _backToLiveEdge() async {
-    var reopened = false;
+  /// 按配置的策略回到直播边缘，执行 seek 或经 [_reopenLiveSource] 完整重载。
+  Future<void> _backToLiveEdge() async {
     switch (options.live.effectiveBackToLive) {
       case MovaBackToLive.seekEnd:
         final window = state.seekableWindow;
@@ -3564,13 +3588,10 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
           await _seekOrPark(window);
         } else {
           await _reopenLiveSource();
-          reopened = true;
         }
       case MovaBackToLive.reopen:
         await _reopenLiveSource();
-        reopened = true;
     }
-    return reopened;
   }
 
   /// Reopens the current quality at the live edge, bypassing [open].
@@ -3638,7 +3659,12 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     if (_autoBackToLiveInFlight) return;
     _autoBackToLiveInFlight = true;
     unawaited(
-      backToLiveEdge().whenComplete(() => _autoBackToLiveInFlight = false),
+      backToLiveEdge()
+          // Loading already reports the failure through the engine's events.
+          //
+          // 加载失败已经通过引擎事件上报。
+          .catchError((Object _) {})
+          .whenComplete(() => _autoBackToLiveInFlight = false),
     );
   }
 
@@ -3829,8 +3855,11 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     //
     // 小窗仍在渲染本引擎时 dispose，会让宿主继续绘制一个已死的纹理——几乎总是
     // 某个页面把刚交接出去的引擎顺手销毁了。仅 debug 生效，release 零成本。
+    // A retired engine has already handed its mini rendering to the successor.
+    //
+    // 退役引擎的小窗渲染归属已交给继任者。
     assert(
-      !state.mini,
+      !state.mini || _retired,
       'dispose() while MovaState.mini is true — see MovaMini docs',
     );
     // Idempotent: a second dispose() is a no-op instead of re-disposing the
@@ -3875,8 +3904,7 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
     _parkHoldTimer = null;
     _graceTimer?.cancel();
     _graceTimer = null;
-    _recoverTimer?.cancel();
-    _recoverTimer = null;
+    _cancelRecovery();
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
     _resumeTimer?.cancel();
@@ -3998,6 +4026,10 @@ class MovaEngine implements MovaFrameCapture, MovaRestartObserver, MovaApi, Mova
               _emitEvent(MovaAbrDownShift(from, to));
             }
           })
+          // Automatic callers have no awaiting host; loading reports errors.
+          //
+          // 自动调用没有等待的宿主；加载层负责报告错误。
+          .catchError((Object _) {})
           .whenComplete(() => _abrDownshiftInFlight = false),
     );
   }

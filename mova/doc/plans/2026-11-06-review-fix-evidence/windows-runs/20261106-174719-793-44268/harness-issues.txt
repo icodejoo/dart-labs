@@ -1,0 +1,29 @@
+PILOT RUN: 20261106-174719-793-44268 (not the final acceptance batch)
+
+Raw results: S1 3 PASS, S2 3 FAIL, S3 3 PASS, S4 3 FAIL.
+Keep all raw result lines and failure stacks; do not relabel them as PASS.
+
+Harness issue 1: paths created by the controller used mixed slash/backslash
+separators; production resolve returns a canonical Windows path. Literal string
+membership checks falsely rejected the same adopted path. S2/1 raw ORPHANS
+expected engine_4c6ff248; C READY actually returned engine_4c6ff248. The same
+oracle error rejected S4's engine_legacy_orphan adopter in repetitions 2/3.
+Fix: canonicalize created roots and the legacy orphan using the actual
+resolveSymbolicLinks() result before any comparison. No lib/ changes.
+
+Harness issue 2: S4/1 two simultaneous completion handlers both wrote CHECK to
+A's stdin while flush was active: StreamSink is bound to a stream (controller
+Worker.send stack). Fix: serialize stdin writes/flushes per worker; preserve
+parallel resolve processes. No worker/provider crash appeared in this stack.
+
+Launch isolation: the initial controller's dart run used the repository package
+context and printed Running build hooks. The controller imports only SDK
+libraries; the worker sources contain no Flutter/media import. Subsequent
+launches copy the SDK-only controller into a separate systemTemp bootstrap
+directory and run there, avoiding package discovery/hooks entirely.
+
+Both tested lib files have identical before/after SHA256 in windows-report.txt.
+All owned workers exited; initial systemTemp tree was verified removed;
+launcher CIM audit found zero owned Dart processes remaining.
+
+Final acceptance must run all four scenarios afresh, three times each.

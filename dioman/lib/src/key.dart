@@ -2,13 +2,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
+/// 构键参数错误的统一名称。
+const _diomanKeyArgument = 'key';
+
 /// 客户端和请求级的构键配置；空字段继承客户端值。
 class DiomanKeyOptions {
   /// 创建配置，例如 `DiomanKeyOptions(fastMode: true)`。
   const DiomanKeyOptions(
       {this.fastMode, this.ignores, this.builder, this.namespace, this.key});
 
-  /// 快速模式只编码方法和路径。
+  /// 快速模式编码方法、来源、路径与响应格式。
   final bool? fastMode;
 
   /// 与客户端取并集的忽略字段。
@@ -41,7 +44,7 @@ class DiomanKeyService {
     if (override != null &&
         override is! String &&
         override is! DiomanKeyOptions) {
-      throw ArgumentError.value(override, 'key');
+      throw ArgumentError.value(override, _diomanKeyArgument);
     }
     final o = override is DiomanKeyOptions ? override : null;
     final scope = options.namespace?.call();
@@ -55,7 +58,8 @@ class DiomanKeyService {
     }
     final ignores = _merge(options.ignores ?? const [], o?.ignores);
     return (o?.fastMode ?? options.fastMode ?? false)
-        ? _scopedKey(_fastKey(request, request.uri), scope)
+        ? _scopedKey(
+            jsonEncode([_fastKey(request), request.responseType.name]), scope)
         : _deepKey(request, ignores, scope);
   }
 
@@ -63,16 +67,13 @@ class DiomanKeyService {
   static String _scopedKey(String key, String? scope) =>
       scope == null || scope.isEmpty ? key : jsonEncode([key, scope]);
 
-  /// Merges [override] into [base] (union), or returns [base] unchanged when
-  /// [override] is `null`.
-  ///
   /// 把[override]与[base]取并集合并；[override]为`null`时原样返回[base]。
   static List<String> _merge(List<String> base, List<String>? override) =>
       override == null ? base : {...base, ...override}.toList();
 
   /// 使用方法、来源和路径生成快速键。
-  String _fastKey(RequestOptions o, Uri uri) =>
-      '${o.method.toUpperCase()}:${uri.hasAuthority ? uri.origin : ''}${uri.path}';
+  String _fastKey(RequestOptions o) =>
+      '${o.method.toUpperCase()}:${o.uri.hasAuthority ? o.uri.origin : ''}${o.uri.path}';
 
   /// 分字段编码查询和安全请求体，不透明载荷不生成自动键。
   String? _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
@@ -85,9 +86,9 @@ class DiomanKeyService {
     final data = o.data;
     Object? body;
     if (data is Map) {
-      final filtered = <String, dynamic>{
+      final filtered = <Object?, dynamic>{
         for (final e in data.entries)
-          if (!ignoreKeys.contains('${e.key}')) '${e.key}': e.value,
+          if (!ignoreKeys.contains('${e.key}')) e.key: e.value,
       };
       if (filtered.isNotEmpty) {
         final encoded = _encode(filtered);
@@ -114,9 +115,10 @@ class DiomanKeyService {
     }
     final query = _encode(params);
     return jsonEncode([
-      _fastKey(o, uri),
+      _fastKey(o),
       query,
       body,
+      o.responseType.name,
       if (scope != null && scope.isNotEmpty) scope,
     ]);
   }
@@ -130,14 +132,23 @@ class DiomanKeyService {
     }
   }
 
-  /// 返回递归规范化的副本：Map键按字符串比较排序，List保序，其他值原样保留。
+  /// 只接受可稳定编码的标量键，以类型标签隔离同形文字。
+  static String _mapKey(Object? key) {
+    if (key == null) return 'null:';
+    if (key is String) return 'string:$key';
+    if (key is num) return 'number:${jsonEncode(key)}';
+    if (key is bool) return 'bool:$key';
+    throw ArgumentError.value(key, _diomanKeyArgument, '不支持不透明 Map 键');
+  }
+
+  /// Map 键按带类型标签的编码排序，List 保序，其他值原样保留。
   static Object? _normalize(Object? v) {
     if (v is Map) {
-      final entries = v.entries.toList()
-        ..sort((a, b) => '${a.key}'.compareTo('${b.key}'));
-      return Map.fromEntries(
-        entries.map((e) => MapEntry(e.key, _normalize(e.value))),
-      );
+      final entries = v.entries
+          .map((e) => MapEntry(_mapKey(e.key), _normalize(e.value)))
+          .toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      return Map.fromEntries(entries);
     }
     if (v is List) return v.map(_normalize).toList();
     return v;

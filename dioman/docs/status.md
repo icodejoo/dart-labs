@@ -2,19 +2,27 @@
 title: dioman 当前状态
 status: active
 updated: 2026-11-03
-summary: 洋葱管线重构 B0–B8 已完成并提交，gates 全部为 0，无遗留闸门缺口
+summary: B0–B8 已合入 main；第二轮（对照 axp 新版）在 jelon/dioman-round2 推进，R0–R6 与终验完成；性能复测按用户决定暂缓
 ---
 
 # 当前状态
 
-洋葱管线重构（B0–B8）已全部提交：B0 基线、B1–B5b 管线与切换、B6 文档与性能、B7 新实例全量真实验收、B8 对照 axp 终审补修，另有一次 lib 精简。lib/ 只有洋葱管线实现；入口使用 show 白名单，744 项公开声明见 API 台账。
+洋葱管线 B0–B8 已合入 main（`5e883c8`），尚未发布：pub.dev 上仍是旧拦截器版 0.7.2。
 
-2026-11-03 复核：`dart analyze`（含 example）无问题，`dart test` 5595 项全过，带 lcov 的 gates 为 G0–G5 全部为 0。线上 Render 全量验收见 [线上验收矩阵](reports/2026-11-03-online-accept-matrix.md)：29 项失败本地对照全部通过，归因线上拓扑，非库缺陷。
+第二轮在分支 `jelon/dioman-round2` 上推进，工作区是 `E:\workspaces\dart-labs-dioman`（sparse worktree，只含 dioman）。依据：[第二轮方案](design/pipeline-round2-plan.md)、[决策 0002](decisions/0002-response-contract.md)。
 
-## 说明
-
-- connect 超时已有真实证明：`timeout_effective_integration_test.dart` 用只监听不 accept 且队列占满的本地端点让 SYN 被丢弃，真实触发 `connectionTimeout`（不依赖 netem 与外网；平台不丢 SYN 时该用例按跳过处理）。
-- 缺能力跳过属设计：dioman 始终归一化业务信封，不具备 `raw-business-code`；整体超时 `timeout-total` 同理，按 `skipped: missing <cap>` 记录，不计为通过。
+| 批 | 内容 | 状态 |
+|---|---|---|
+| R0 | 契约定稿：0002、设计文档改成目标状态 | 完成 |
+| R1 | 生命周期与作用域（auth 会话、loading 共享、extend(dio:)） | 完成，见 [R1 报告](reports/2026-11-03-round2-r1.md) |
+| R2a | 契约对齐 axp 0002 | 完成，见 [R2a 报告](reports/2026-11-03-round2-r2a.md) |
+| R2b | 收口与发版前必修（去掉 dart:io 直接依赖等） | 完成，见 [R2b 报告](reports/2026-11-03-round2-r2b.md) |
+| R3 | 原生数据瘦身 | 完成，见 [R3 报告](reports/2026-11-03-round2-r3.md) |
+| R4 | 性能（先补 B6 欠下的复测） | 真实验收完成；性能暂缓：三组干净基线已留档，五项门槛未判定（极差<10% 口径在干净数据下也达不到），见 [R4 报告](reports/2026-11-03-round2-r4.md)、[R4b 报告](reports/2026-11-03-round2-r4b.md) |
+| R5 | Dart 化 API（decode、异步 dispose） | 完成，见 [R5 报告](reports/2026-11-03-round2-r5.md) |
+| R6a | 测试按主题改名（lib 不动，用例 5682 不变） | 完成，见 [R6a 报告](reports/2026-11-03-round2-r6a.md) |
+| R6b | 逻辑请求截止时间与对应真实验收 | 完成，见 [R6b 报告](reports/2026-11-03-round2-r6b.md)；timeout-total 26 格真实通过，142 格因 testkit 未声明网络而不适用 |
+| 终验 | 全量检查、112 项变异、6426 格真实验收与方法矩阵 | 完成，见 [终验报告](reports/2026-11-03-round2-final.md)；性能暂缓；pana 160/160（dio 下限 ^5.4.0） |
 
 ## 验证入口
 
@@ -25,11 +33,10 @@ dart test
 dart run test/accept/bin/matrix.dart gates
 ```
 
-gates 现状见上方复核结论；重跑外部验收按 [执行器手册](guides/accept-runner.md) 指定服务。
+闸门 G0/G1/G2/G3/G5 必须保持通过；G4 唯一缺口仍是 connect 握手超时（外部环境限制）。真实验收按[执行器手册](guides/accept-runner.md)起独立实例，不动 47080/47090。
 
 ## 当前约束
 
-- 设计与终审补充以 pipeline-architecture、pipeline-plugin-spec §8.1 与 C1–C13 为准。
-- cache/share 按请求开启；auth 在 source 外层；12 个插件与 setup-only envs。
-- 性能不达标或不稳定如实保留；优化由终审决定，B6 不修改 lib。
-- 历史设计在 archive；不再将历史报告中的安装顺序作为当前契约。
+- 设计文档（架构、插件规格、测试方案）已写成第二轮目标状态，并标注了批次；尚未落地的批次以现有代码为准。
+- 改 `lib/src/` 前必读 `.claude/skills/dioman/SKILL.md`。
+- 代码由 Codex 落地，主会话逐批终审后提交；不新增依赖，SDK 保持 `^3.5.0`。

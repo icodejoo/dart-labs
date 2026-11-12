@@ -12,8 +12,156 @@ export '../core/time_parts.dart' show TimeParts;
 /// [Duration], so a formatter reads components directly with no `%` math.
 typedef DurationFormatter = String Function(TimeParts parts);
 
+/// [CountdownFormat.template] 支持的记号。
+enum _TemplateToken {
+  days,
+  hours,
+  hoursPadded,
+  totalHours,
+  minutes,
+  minutesPadded,
+  totalMinutes,
+  seconds,
+  secondsPadded,
+  tenths,
+  millis,
+}
+
+/// 记号文本（花括号内的内容）到记号的映射；区分大小写。
+const Map<String, _TemplateToken> _templateTokens = {
+  'd': _TemplateToken.days,
+  'H': _TemplateToken.hours,
+  'HH': _TemplateToken.hoursPadded,
+  'TH': _TemplateToken.totalHours,
+  'm': _TemplateToken.minutes,
+  'mm': _TemplateToken.minutesPadded,
+  'TM': _TemplateToken.totalMinutes,
+  's': _TemplateToken.seconds,
+  'ss': _TemplateToken.secondsPadded,
+  'S': _TemplateToken.tenths,
+  'SSS': _TemplateToken.millis,
+};
+
+/// 解析后的模板片段：要么是字面文字 [text]，要么是记号 [token]（二选一）。
+class _TemplateSegment {
+  /// 字面文字片段。
+  const _TemplateSegment.text(String this.text) : token = null;
+
+  /// 记号片段。
+  const _TemplateSegment.token(_TemplateToken this.token) : text = null;
+
+  /// 字面文字；记号片段为 null。
+  final String? text;
+
+  /// 记号；文字片段为 null。
+  final _TemplateToken? token;
+}
+
+/// 把 [pattern] 解析成片段列表：已知记号成片段，未知记号、未闭合的 `{`、孤立的 `}`
+/// 与普通文字一律作为字面量原样保留；相邻字面量合并。
+List<_TemplateSegment> _parseTemplate(String pattern) {
+  final segments = <_TemplateSegment>[];
+  final literal = StringBuffer();
+  void flush() {
+    if (literal.isEmpty) return;
+    segments.add(_TemplateSegment.text(literal.toString()));
+    literal.clear();
+  }
+
+  var i = 0;
+  while (i < pattern.length) {
+    if (pattern[i] == '{') {
+      final close = pattern.indexOf('}', i + 1);
+      if (close != -1) {
+        final inner = pattern.substring(i + 1, close);
+        // 内部还有 `{` 时，当前这个 `{` 只是字面量，从下一个 `{` 重新匹配。
+        if (!inner.contains('{')) {
+          final token = _templateTokens[inner];
+          if (token != null) {
+            flush();
+            segments.add(_TemplateSegment.token(token));
+          } else {
+            literal.write(pattern.substring(i, close + 1)); // 未知记号原样保留
+          }
+          i = close + 1;
+          continue;
+        }
+      }
+    }
+    literal.write(pattern[i]);
+    i++;
+  }
+  flush();
+  return segments;
+}
+
+/// 取出 [token] 在 [t] 上对应的文本。
+String _templateText(_TemplateToken token, TimeParts t) {
+  switch (token) {
+    case _TemplateToken.days:
+      return t.days.toString();
+    case _TemplateToken.hours:
+      return t.hours.toString();
+    case _TemplateToken.hoursPadded:
+      return t.hours.toString().padLeft(2, '0');
+    case _TemplateToken.totalHours:
+      return t.totalHours.toString();
+    case _TemplateToken.minutes:
+      return t.minutes.toString();
+    case _TemplateToken.minutesPadded:
+      return t.minutes.toString().padLeft(2, '0');
+    case _TemplateToken.totalMinutes:
+      return t.totalMinutes.toString();
+    case _TemplateToken.seconds:
+      return t.seconds.toString();
+    case _TemplateToken.secondsPadded:
+      return t.seconds.toString().padLeft(2, '0');
+    case _TemplateToken.tenths:
+      return (t.millis ~/ 100).toString();
+    case _TemplateToken.millis:
+      return t.millis.toString().padLeft(3, '0');
+  }
+}
+
 /// Built-in duration formatters.
 abstract final class CountdownFormat {
+  /// 测试用：[template] 已解析模板的累计次数，用来断言“只在创建时解析一次”。
+  @visibleForTesting
+  static int debugTemplateParseCount = 0;
+
+  /// 按模板生成格式化函数，便于国际化与自定义布局。模板只在本方法里解析一次，
+  /// 返回的函数逐 tick 只做拼接。
+  ///
+  /// 记号（区分大小写，花括号包裹）：
+  /// - `{d}` 天；`{H}` / `{HH}` 小时（0–23，不补零 / 补零）；`{TH}` 总小时
+  /// - `{m}` / `{mm}` 分钟（0–59，不补零 / 补零）；`{TM}` 总分钟
+  /// - `{s}` / `{ss}` 秒（0–59，不补零 / 补零）
+  /// - `{S}` 十分之一秒（0–9）；`{SSS}` 毫秒（补零到三位）
+  ///
+  /// 其他文字原样输出；未知记号（如 `{x}`）、未闭合的 `{` 与孤立的 `}` 原样保留。
+  /// 例如：
+  /// ```dart
+  /// final f = CountdownFormat.template('{d}天 {HH}:{mm}:{ss}');
+  /// TextCountdown(to: deadline, formatter: f); // 1天 02:03:04
+  /// ```
+  static DurationFormatter template(String pattern) {
+    debugTemplateParseCount++;
+    final segments = _parseTemplate(pattern);
+    if (segments.isEmpty) return (_) => '';
+    if (segments.length == 1 && segments.first.token == null) {
+      final text = segments.first.text!;
+      return (_) => text;
+    }
+    return (TimeParts t) {
+      final buffer = StringBuffer();
+      for (final segment in segments) {
+        final token = segment.token;
+        buffer.write(token == null ? segment.text : _templateText(token, t));
+      }
+      return buffer.toString();
+    };
+  }
+
   /// HH:mm:ss — always shows hours (e.g. 01:23:45).
   static String hms(TimeParts t) {
     final h = t.totalHours.toString().padLeft(2, '0');
@@ -85,14 +233,18 @@ abstract final class CountdownFormat {
 ///
 /// Supported input types:
 /// - [DateTime] — used as-is.
-/// - [Duration] — resolved relative to [countdownClock] at call time.
+/// - [Duration] — resolved relative to the wall clock of [clock]
+///   (defaults to [CountmanClock.system]) at call time.
 /// - [int] — treated as milliseconds since Unix epoch.
 /// - [String] — parsed via [DateTime.parse] first, falling back to a more
 ///   lenient pattern for non-ISO strings (e.g. `2025/12/31` with slashes, or
 ///   a missing day/time). See [_parseDateString].
-DateTime resolveDeadline(Object to) {
+DateTime resolveDeadline(Object to, {CountmanClock? clock}) {
   if (to is DateTime) return to;
-  if (to is Duration) return countdownClock().add(to);
+  if (to is Duration) {
+    final wall = (clock ?? CountmanClock.system).wallMicros();
+    return DateTime.fromMicrosecondsSinceEpoch(wall + to.inMicroseconds);
+  }
   if (to is int) return DateTime.fromMillisecondsSinceEpoch(to);
   if (to is String) return _parseDateString(to);
   throw ArgumentError(
@@ -168,17 +320,76 @@ DateTime _parseDateString(String s) {
 }
 
 /// Returns the remaining [Duration] until the deadline described by [to],
-/// clamped to [Duration.zero] if already past.
-Duration remainingUntil(Object to) {
-  final d = resolveDeadline(to).difference(countdownClock());
-  return d.isNegative ? Duration.zero : d;
+/// clamped to [Duration.zero] if already past. A [Duration] is returned as-is
+/// (relative lengths do not drift between two clock reads); other types are
+/// resolved against the wall clock of [clock] (defaults to
+/// [CountmanClock.system]).
+Duration remainingUntil(Object to, {CountmanClock? clock}) {
+  if (to is Duration) return to.isNegative ? Duration.zero : to;
+  final source = clock ?? CountmanClock.system;
+  final deadline = resolveDeadline(to, clock: source);
+  final micros = deadline.microsecondsSinceEpoch - source.wallMicros();
+  return micros <= 0 ? Duration.zero : Duration(microseconds: micros);
+}
+
+/// 把组件的 `to` 解析成 [CountdownOptions] 的锚点：[Duration] 走相对时长
+/// （`duration`，单调钟锚定），其余类型解析为绝对截止（`deadline`，墙钟锚定）。
+/// 返回的记录里 `duration` 与 `deadline` 恰有一个非空。
+/// 例如 `countdownAnchorOf(Duration(minutes: 5))` 得到 `(duration: 5min, deadline: null)`。
+({Duration? duration, DateTime? deadline}) countdownAnchorOf(
+  Object to, {
+  CountmanClock? clock,
+}) => to is Duration
+    ? (duration: to, deadline: null)
+    : (duration: null, deadline: resolveDeadline(to, clock: clock));
+
+/// 倒计时的显示取整方式，由 [CountdownOptions.rounding] 选用。
+///
+/// 只影响“显示值”（[TimeParts] 的内容与显示桶边界）；完成、阈值始终按真实剩余
+/// 判定，所以 [CountdownOptions.onComplete] 仍恰在剩余到 0 时触发。
+/// 例如 `TextCountdown(to: Duration(seconds: 10), rounding: CountdownRounding.ceil)`。
+enum CountdownRounding {
+  /// 向下取整（默认）：剩余 9.3 秒显示 9，与 0.2.x 行为一致。
+  floor,
+
+  /// 向上取整：剩余 9.3 秒显示 10，最后一整秒显示 1，到 0 才完成——
+  /// 多数倒计时 UI 的习惯。取整粒度为 interval，interval 为 0 时按 1 秒。
+  /// 注意 [TimeParts.progress] 同样基于取整后的显示值。
+  ceil;
+
+  /// 每帧更新（间隔为 0）时 [ceil] 采用的取整粒度，单位微秒。
+  static const int _perFrameGranularityMicros = Duration.microsecondsPerSecond;
+
+  /// 把剩余 [micros] 微秒换算成显示微秒；[intervalMs] 为插件显示间隔毫秒。
+  /// [floor] 原样返回；[ceil] 按间隔（0 或负数按 1 秒）向上取整，非正数得 0。
+  /// 例如 `CountdownRounding.ceil.apply(9300000, 1000) == 10000000`。
+  /// 不分配对象，可用于热路径。
+  int apply(int micros, int intervalMs) {
+    if (this == floor) return micros;
+    if (micros <= 0) return 0;
+    final granularity = intervalMs > 0
+        ? intervalMs * Duration.microsecondsPerMillisecond
+        : _perFrameGranularityMicros;
+    return ((micros + granularity - 1) ~/ granularity) * granularity;
+  }
 }
 
 /// Options for a countdown task added via [Countdown.add] or [countdown].
 class CountdownOptions {
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 仅限制显示，终值与事件不延迟。示例：`CountdownOptions(duration: Duration(seconds: 1), fps: 30)`。
+  final double? fps;
+
+  /// 必须且只能给出 [duration]（相对时长）或 [deadline]（绝对截止）之一。
+  /// 例如 `CountdownOptions(duration: Duration(minutes: 5))` 或
+  /// `CountdownOptions(deadline: DateTime(2026, 12, 31))`。
   const CountdownOptions({
-    required this.duration,
+    this.duration,
+    this.deadline,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.onUpdate,
+    this.fps,
     this.onComplete,
     this.threshold,
     this.onThreshold,
@@ -187,10 +398,33 @@ class CountdownOptions {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       ),
+       assert(
+         (duration == null) != (deadline == null),
+         'CountdownOptions: provide exactly one of duration or deadline.',
+       );
 
-  /// Total countdown duration (counts down to [Duration.zero]).
-  final Duration duration;
+  /// 相对时长（倒数到 [Duration.zero]），按单调钟锚定：用户改系统时间不影响它，
+  /// 设备深睡期间的时长由时钟的前台恢复校准补上。与 [deadline] 二选一。
+  final Duration? duration;
+
+  /// 绝对截止时刻，按墙钟锚定：用户改系统时间会随之变化，适合“到点开售”这类
+  /// 与真实时刻绑定的倒计时。与 [duration] 二选一。暂停、恢复后改为按单调钟计时。
+  final DateTime? deadline;
+
+  /// 进度分母（[TimeParts.total] / [TimeParts.progress] 的分母）。为空时沿用创建任务
+  /// 那一刻的剩余时间；给出后以它为准，例如拍卖从开始到结束的整个时段：
+  /// `CountdownOptions(deadline: end, total: end.difference(start))`，
+  /// 进度条就反映整段而不是挂载那一刻。[CountdownHandle.reset] 仍恢复创建时的剩余
+  /// 时间，不受它影响。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；设为 [CountdownRounding.ceil]
+  /// 时剩余 9.3 秒显示 10。只影响显示，不影响完成与阈值的判定时刻。
+  final CountdownRounding rounding;
 
   /// Called on each interval tick with the shared per-task [TimeParts]
   /// (pre-decomposed remaining). Update rate is controlled by [Countdown.interval].
@@ -216,11 +450,18 @@ class CountdownOptions {
   final VoidCallback? onResume;
 }
 
-/// Internal task state.
+/// 倒计时内部任务状态；锚点是整数微秒，热路径不构造对象。
 class CountdownTask extends ClockTask {
+  /// [total] 为进度分母，[endMicros] 为截止点微秒，[absolute] 为 true 时
+  /// [endMicros] 在墙钟时间轴上，否则在单调钟时间轴上。
   CountdownTask({
     required int id,
     required this.total,
+    required this.endMicros,
+    required this.absolute,
+    Duration? restore,
+    this.totalFixed = false,
+    this.rounding = CountdownRounding.floor,
     void Function(TimeParts)? onUpdate,
     this.onComplete,
     Duration? threshold,
@@ -230,14 +471,31 @@ class CountdownTask extends ClockTask {
     super.onReady,
     super.onStart,
     super.onCancel,
-  })  : endTime = countdownClock().add(total),
-        super(id, onUpdate: onUpdate, threshold: threshold, onThreshold: onThreshold);
+  }) : restore = restore ?? total,
+       super(
+         id,
+         onUpdate: onUpdate,
+         threshold: threshold,
+         onThreshold: onThreshold,
+       );
 
-  /// Original duration; restored on [CountdownHandle.reset].
+  /// 进度分母；[totalFixed] 为 false 时等于 [restore]。
   Duration total;
 
-  /// Wall-clock deadline. Remaining = endTime − countdownClock().
-  DateTime endTime;
+  /// [CountdownHandle.reset] 恢复到的剩余时间（创建时的剩余，或 reset 指定的时长）。
+  Duration restore;
+
+  /// true 表示分母由 [CountdownOptions.total] 显式给定，reset 改时长也不改它。
+  final bool totalFixed;
+
+  /// 显示取整方式。
+  final CountdownRounding rounding;
+
+  /// 截止点的微秒；时间轴由 [absolute] 决定。
+  int endMicros;
+
+  /// true 表示按墙钟锚定（绝对截止）；暂停恢复或重置后一律变为 false（单调钟）。
+  bool absolute;
 
   /// Snapshot of remaining when paused; null means running.
   Duration? pausedRemaining;
@@ -246,10 +504,4 @@ class CountdownTask extends ClockTask {
 
   @override
   bool get isPaused => pausedRemaining != null;
-
-  Duration get remaining {
-    if (isPaused) return pausedRemaining!;
-    final r = endTime.difference(countdownClock());
-    return r.isNegative ? Duration.zero : r;
-  }
 }

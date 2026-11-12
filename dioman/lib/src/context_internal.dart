@@ -6,6 +6,27 @@ extension DiomanContextInternal<R extends DiomanResponse<dynamic>>
   /// 当前逻辑请求共享状态，仅内核与内置插件可依赖。
   DiomanContextState get state => _state;
 
+  /// 记录当前返回结果，供公开只读视图按身份匹配。
+  DiomanResponse<dynamic> observeNative(DiomanResponse<dynamic> result) {
+    if (!_state.nativeClosed) {
+      final slot = _state.nativeSlot;
+      if (slot != null &&
+          DiomanResponseInternal.sameNative(slot.response, result)) {
+        _state.nativeSlot = DiomanNative._(result, slot.raw, slot.error);
+      }
+      _state.nativeResult = result;
+    }
+    return result;
+  }
+
+  /// 每次传输更新单槽；落定之后拒绝迟到写入。
+  void writeNative(
+      DiomanResponse<dynamic> result, Response<dynamic>? raw, Object? error) {
+    if (_state.nativeClosed) return;
+    _state.nativeSlot = DiomanNative._(result, raw, error);
+    _state.nativeResult = result;
+  }
+
   /// 残留的取消等待订阅数，供 I3 白盒断言。
   int get cancellationSubscriptions => _state.listeners.length;
 

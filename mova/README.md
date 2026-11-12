@@ -7,8 +7,8 @@ playback.
 基于 [media_kit](https://pub.dev/packages/media_kit)（libmpv/ffmpeg 内核）的
 Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
-> **Repository version / 仓库版本：0.4.0**（以 pubspec.yaml 为准）。
-> CHANGELOG 的 `Unreleased` 是 0.4.0 之后的仓库能力，使用 path/git 依赖才能拿到；
+> **Repository version / 仓库版本：0.4.1**（以 pubspec.yaml 为准）。
+> CHANGELOG 的 `Unreleased`（若有）是当前发布版本之后的仓库能力，使用 path/git 依赖才能拿到；
 > 安装某个 pub.dev 版本前请核对对应 CHANGELOG，不能把仓库功能视为已发布功能。
 > Android/Windows 有部分真机验证；iOS 未验证，CP2/CP3 仍待真机，
 > CP1 为 13 PASS / 3 BLOCKED，尚未整体通过。目标设备验收范围见
@@ -65,7 +65,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ```yaml
 dependencies:
-  mova: ^0.4.0
+  mova: ^0.4.1
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：

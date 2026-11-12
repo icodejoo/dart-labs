@@ -1,0 +1,53 @@
+00:00 +0: loading test/rule/cache_snapshot_rule_test.dart
+00:00 +0: test/rule/cache_snapshot_rule_test.dart: [DiomanCache][DiomanResponse.request][DiomanResponseFactory.create] 内存命中经工厂绑定当前请求且不保留旧凭证或原生数据
+00:00 +1: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=false
+00:00 +1 -1: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=false [E]
+  Expected: throws same instance as StateError:<Bad state: snapshot-factory>
+    Actual: <Instance of 'Future<DiomanResponse<Object?>>'>
+     Which: emitted DiomanResponse<dynamic>:<DiomanResponse(true, 200, )>
+  
+  test\rule\cache_snapshot_rule_test.dart 74:7  main.<fn>
+  
+00:00 +1 -1: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=true
+00:00 +1 -2: test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=true [E]
+  Expected: throws same instance as StateError:<Bad state: snapshot-factory>
+    Actual: <Instance of 'Future<DiomanResponse<Object?>>'>
+     Which: threw StateError:<Bad state: internal result without error>
+            stack package:dioman/src/client.dart 348:57         Dioman._dispatch
+                  ===== asynchronous gap ===========================
+                  package:dioman/src/client.dart 244:9          Dioman.send
+                  ===== asynchronous gap ===========================
+                  test\rule\cache_snapshot_rule_test.dart 74:7  main.<fn>
+  
+  test\rule\cache_snapshot_rule_test.dart 74:7  main.<fn>
+  
+00:00 +1 -2: test/rule/cache_snapshot_rule_test.dart: [DiomanRetry.retryAfterMax][DiomanCache.shouldStore] 内存快照保留服务器超限退避且不读 raw
+00:00 +1 -3: test/rule/cache_snapshot_rule_test.dart: [DiomanRetry.retryAfterMax][DiomanCache.shouldStore] 内存快照保留服务器超限退避且不读 raw [E]
+  Expected: <0>
+    Actual: <1>
+  
+  package:matcher                                expect
+  test\rule\cache_snapshot_rule_test.dart 105:5  main.<fn>
+  
+00:00 +1 -3: loading test/combo/native_share_retry_combo_test.dart
+00:00 +1 -3: test/combo/native_share_retry_combo_test.dart: [DiomanRetry.respectRetryAfter][DiomanShare][DiomanCall.raw] 跟随者遵守头等待且不借用首发原生数据
+00:00 +2 -3: test/combo/native_share_retry_combo_test.dart: [DiomanContext.native][DiomanSharePolicy.start] 首发落定后共享传输完成不能重写槽
+00:00 +3 -3: test/combo/native_share_retry_combo_test.dart: [DiomanMock.mockUrl][DiomanContext.native] mock 探测走真实传输时仍有自身槽
+00:00 +4 -3: test/combo/native_share_retry_combo_test.dart: [DiomanMock.routes][DiomanRetry.respectRetryAfter] 内联 mock 响应保留服务器等待事实且没有原生槽
+00:00 +4 -4: test/combo/native_share_retry_combo_test.dart: [DiomanMock.routes][DiomanRetry.respectRetryAfter] 内联 mock 响应保留服务器等待事实且没有原生槽 [E]
+  Expected: <1>
+    Actual: <2>
+  
+  package:matcher                                      expect
+  test\combo\native_share_retry_combo_test.dart 137:5  main.<fn>
+  
+00:00 +4 -4: Some tests failed.
+
+Failing tests:
+  test/combo/native_share_retry_combo_test.dart: [DiomanMock.routes][DiomanRetry.respectRetryAfter] 内联 mock 响应保留服务器等待事实且没有原生槽
+  test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=false
+  test/rule/cache_snapshot_rule_test.dart: [DiomanCache.shouldStore][DiomanResponseFactory.create] 快照生成前工厂 internal 不入缓存并保留原异常 disk=true
+  test/rule/cache_snapshot_rule_test.dart: [DiomanRetry.retryAfterMax][DiomanCache.shouldStore] 内存快照保留服务器超限退避且不读 raw
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

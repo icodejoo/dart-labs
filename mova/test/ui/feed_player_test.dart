@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/feed_item.dart';
@@ -67,6 +69,50 @@ class _Fleet {
 }
 
 void main() {
+  for (final initial in ['empty', 'cached', 'pending']) {
+    testWidgets('replacing feed loader clears $initial results', (t) async {
+      final fleet = _Fleet();
+      final controller = MovaFeedPlayerController();
+      final gate = Completer<MovaFeedItem?>();
+      /// Resolves the previous dataset, optionally behind a gate.
+      ///
+      /// 解析旧数据集，可选地等待门闩。
+      Future<MovaFeedItem?> oldLoader(int index) async {
+        if (initial == 'pending') return gate.future;
+        if (initial == 'empty' || index > 0) return null;
+        return const MovaFeedItem(source: MovaSource('https://host/old.mp4'));
+      }
+      /// Resolves the replacement dataset independently of old requests.
+      ///
+      /// 独立于旧请求解析替换后的数据集。
+      Future<MovaFeedItem?> newLoader(int index) async => index == 0
+          ? const MovaFeedItem(source: MovaSource('https://host/new.mp4'))
+          : null;
+      await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+        controller: controller, engineFactory: fleet.make, loader: oldLoader,
+      )));
+      await t.pumpAndSettle();
+      final oldFeed = controller.feed;
+      await t.pumpWidget(MaterialApp(home: MovaFeedPlayer(
+        controller: controller, engineFactory: fleet.make, loader: newLoader,
+      )));
+      await t.pumpAndSettle();
+      if (initial == 'pending') {
+        gate.complete(null);
+        await t.pumpAndSettle();
+      }
+      expect(controller.feed, isNot(same(oldFeed)));
+      expect(controller.feed?.peek(0)?.source.uri, 'https://host/new.mp4');
+      expect(controller.activeApi, isNotNull);
+      expect(fleet.created.last.openedUris, contains('https://host/new.mp4'));
+      expect(
+        t.widget<PageView>(find.byType(PageView)).childrenDelegate.estimatedChildCount,
+        1,
+      );
+      await t.pumpWidget(const SizedBox());
+      controller.dispose();
+    });
+  }
   testWidgets('defaults to cover fit so switching items never letterbox-jumps', (t) async {
     final fleet = _Fleet();
     await t.pumpWidget(MaterialApp(

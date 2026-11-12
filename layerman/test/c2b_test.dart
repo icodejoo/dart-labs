@@ -46,6 +46,7 @@ class _Backend {
   PresentedOverlay<int> present(PresentContext<int> context) {
     presents++;
     return PresentedOverlay<int>(
+      visible: Future<void>.value(),
       dismissed: done.future,
       dismiss: ([result]) async {
         if (!done.isCompleted) done.complete(result);
@@ -64,6 +65,7 @@ void main() {
         if (exhausted) {
           manager.submit<int>(
               id: _id, cooldown: _sessionOnce, present: _Backend().present);
+          await tester.pump(); // 此分支以已可见且耗尽 session 为前提。
           manager.remove(_id);
         }
         manager.submit<int>(id: _resident, present: _Backend().present);
@@ -89,7 +91,7 @@ void main() {
           expect((await ticket.outcome).reason, OverlayEndReason.capped);
           expect(events.where((e) => e.id == _id).map((e) => e.type),
               [OverlayEventType.queued, OverlayEventType.ended]);
-          expect(events.last.reason, OverlayEndReason.capped);
+          expect(events.where((e) => e.id == _id).last.reason, OverlayEndReason.capped);
           await tester.pump(_later);
           expect(events.where((e) => e.id == _id).length, 2);
         } else {

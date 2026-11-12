@@ -61,6 +61,7 @@ Widget pixelSnapBoundary({
 
 /// A repaint boundary with a composition-time viewport. / 持有合成期视口的重绘边界。
 class PixelSnapBoundary extends SingleChildRenderObjectWidget {
+  /// Creates the boundary for a picture of [intrinsicSize]. / 为固有尺寸为 [intrinsicSize] 的 picture 创建边界。
   const PixelSnapBoundary({
     super.key,
     required this.intrinsicSize,
@@ -69,14 +70,21 @@ class PixelSnapBoundary extends SingleChildRenderObjectWidget {
     required super.child,
   });
 
+  /// Intrinsic picture size. / picture 的固有尺寸。
   final Size intrinsicSize;
+
+  /// How the picture is inscribed into the box. / picture 如何适配到盒子。
   final BoxFit fit;
+
+  /// Alignment within the box. / 在盒子内的对齐方式。
   final Alignment alignment;
 
+  /// Creates the render object. / 创建渲染对象。
   @override
   RenderPixelSnapBoundary createRenderObject(BuildContext context) =>
       RenderPixelSnapBoundary()..configure(intrinsicSize, fit, alignment);
 
+  /// Applies new geometry inputs. / 应用新的几何输入。
   @override
   void updateRenderObject(
     BuildContext context,
@@ -91,6 +99,7 @@ class RenderPixelSnapBoundary extends RenderProxyBox {
   Alignment _alignment = Alignment.center;
   Rect _viewport = Rect.zero;
 
+  /// Updates the viewport inputs and relayouts when they change. / 更新视口输入，变化时重新布局。
   void configure(Size intrinsicSize, BoxFit fit, Alignment alignment) {
     if (_intrinsicSize == intrinsicSize &&
         _fit == fit &&
@@ -103,9 +112,11 @@ class RenderPixelSnapBoundary extends RenderProxyBox {
     markNeedsLayout();
   }
 
+  /// Always a repaint boundary. / 始终是重绘边界。
   @override
   bool get isRepaintBoundary => true;
 
+  /// Lays out the child and refreshes the viewport. / 布局子节点并刷新视口。
   @override
   void performLayout() {
     super.performLayout();
@@ -115,6 +126,7 @@ class RenderPixelSnapBoundary extends RenderProxyBox {
     markNeedsCompositedLayerUpdate();
   }
 
+  /// Reuses or creates the snapping layer. / 复用或创建对齐图层。
   @override
   OffsetLayer updateCompositedLayer({required OffsetLayer? oldLayer}) =>
       ((oldLayer as PixelSnapLayer?) ?? PixelSnapLayer())..viewport = _viewport;
@@ -138,26 +150,35 @@ final _annotationTypes = <Type>{
 
 /// Audited layer coordinates; unknown classes fall back. / 经审计的图层坐标；未知类回退。
 class PixelSnapLayer extends OffsetLayer {
+  /// Painted viewport in local coordinates. / 局部坐标下的绘制视口。
   Rect viewport = Rect.zero;
   Offset _sceneOffset = Offset.zero;
   Matrix4 _effectiveLocal = Matrix4.identity();
 
   // The default setter marks dirty, forbidden with alwaysNeedsAddToScene.
   // 默认 setter 会标脏，与 alwaysNeedsAddToScene 的断言冲突；本层每帧都合成。
+  /// Scene offset after correction. / 修正后的场景偏移。
   @override
   Offset get offset => _sceneOffset;
+
+  /// Stores the offset without marking dirty. / 保存偏移但不标脏。
   @override
   set offset(Offset value) => _sceneOffset = value;
 
+  /// Recomposited every frame. / 每帧重新合成。
   @override
   bool get alwaysNeedsAddToScene => true;
 
+  /// Whether the last composition snapped. / 最近一次合成是否对齐。
   @visibleForTesting
   bool debugDidSnap = false;
+  /// Why the last composition skipped snapping. / 最近一次合成跳过对齐的原因。
   @visibleForTesting
   String? debugSkipReason;
+  /// Last applied correction matrix. / 最近一次应用的修正矩阵。
   @visibleForTesting
   Matrix4 debugCorrection = Matrix4.identity();
+  /// Number of scenes composed. / 已合成的场景数。
   @visibleForTesting
   int debugSceneCount = 0;
 
