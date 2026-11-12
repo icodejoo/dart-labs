@@ -1631,3 +1631,5 @@ P2 含 `LottoOptions.physics` 接入（导引、幽灵出球、逐池驱动）�
 | REVIEW-LOTTO-01 | 大乐透：无布局且号码池不变时仍接收选项更新 | ARCHITECTURE §11.4；评审回归 | `test/review_regressions_test.dart :: 大乐透：无布局时号码池不变的选项变化被吸收` | 单元 | 已落地 |
 | PHYS-79 | 扭蛋机物理：结算后重新开局重置世界，已掉落胶囊重新参与模拟 | 评审修复回归：扭蛋机结算后重新开局 | `test/review_regressions_test.dart :: 扭蛋机物理模式：结算后再开局重置世界，落下的胶囊不会留成幽灵球` | 单元 | 已落地 |
 | PHYS-80 | 大乐透物理：出球飞行中切换到参数化驱动，球的位置保持连续 | PHYSICS_DESIGN §6.3、§7.1；评审回归 | `test/review_regressions_test.dart :: 大乐透：开奖飞行中途换驱动，球不会跳到圆心再飞出` | 单元 | 已落地 |
+| CI-PAINT-01 | 共享画笔保留身份并复位颜色、样式、线宽、采样、着色器与遮罩 | IMP-R8 修复回归 | `test/core/render/paint_helpers_test.dart :: paint helpers > shared paint preserves identity and resets all six properties` | 单元 | 已落地 |
+| CI-PAINT-02 | 连续椭圆绘制与独立路径像素一致，不残留上一轮几何 | IMP-R8 修复回归 | `test/core/render/paint_helpers_test.dart :: paint helpers > successive ovals match independent paths without retained geometry` | 单元 | 已落地 |
