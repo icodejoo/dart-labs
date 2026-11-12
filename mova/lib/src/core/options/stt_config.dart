@@ -27,24 +27,22 @@ enum MovaSttBlockReason {
 /// - [reason]: why the request was refused / 被拒绝的原因
 typedef MovaSttBlockCb = void Function(MovaSttBlockReason reason);
 
-/// Configuration for the speech-to-text subtitle feature.
+/// Configuration for speech-to-text subtitles, disabled by default.
+/// [engine] is the host-owned recognizer injection point; null means no
+/// recognition (see [MovaNoopSttEngine]). This package bundles no recognizer.
+/// Configure it through `options.stt`, not a factory-level `stt` parameter:
+/// ```dart
+/// final api = createMovaEngine(
+///   options: MovaOpts(
+///     stt: MovaSttConfig(enabled: true, engine: recognizer),
+///   ),
+/// );
+/// ```
 ///
-/// Off by default (STT is expensive: model download + on-device inference).
-/// [engine] is the injection point for "which recognizer runs" — leave it
-/// `null` to get [MovaNoopSttEngine] (no recognition happens) until a real engine
-/// (e.g. a sherpa-onnx Zipformer binding from `platform_impl/`) is wired via
-/// `createMovaEngine(stt: ...)`. Only one engine is supported per player
-/// instance in this version — see
-/// `doc/notes/2026-08-04-stt-engine-decision.md` for the multi-language
-/// routing design reserved for later.
-///
-/// 语音转字幕功能的配置。
-///
-/// 默认关闭（STT 代价不小：模型下载 + 端上推理）。[engine] 是"用哪个识别器"
-/// 的注入点——留空得到 [MovaNoopSttEngine]（不做任何识别），直到通过
-/// `createMovaEngine(stt: ...)` 接入真实引擎（如 `platform_impl/` 下的
-/// sherpa-onnx Zipformer 绑定）。本版本每个播放器实例只支持一个引擎——多语言
-/// 路由的预留设计见 `doc/notes/2026-08-04-stt-engine-decision.md`。
+/// 语音转字幕默认关闭。[engine] 为宿主持有的识别器；留空不做识别，本包不内置引擎。
+/// 通过上例的 options.stt 注入，工厂没有 stt 参数。本版本每播放器只支持一个识别器；
+/// 多语言路由预留设计与 sherpa-onnx Zipformer 选型见
+/// `doc/notes/2026-08-04-stt-engine-decision.md`。
 class MovaSttConfig {
   /// Creates an STT configuration; disabled with no engine by default.
   ///
@@ -60,7 +58,12 @@ class MovaSttConfig {
   /// happens (see [MovaNoopSttEngine]).
   ///
   /// 接收解码音频的识别器；为空表示不做任何识别（见 [MovaNoopSttEngine]）。
+  /// 识别器由宿主持有并销毁，播放引擎只取消自身订阅。
   final MovaSttEngine? engine;
+
+  /// 返回是否已注入识别器；与 [enabled] 一起判断功能是否可启动。
+  /// 示例：`if (!api.options.stt.hasEngine) showSetup();`。
+  bool get hasEngine => engine != null;
 
   /// Called whenever a [start] request is refused; null means stay silent.
   ///

@@ -1,0 +1,24 @@
+# 仅用 SDK 依赖，不能解析主包 dev_dependency flutter_lints，显式复用严格规则。
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - build/**
+    - android/**
+linter:
+  rules:
+    public_member_api_docs: true
+    always_declare_return_types: true
+    avoid_dynamic_calls: true
+    avoid_print: true
+    directives_ordering: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+    sort_constructors_first: true
+    unawaited_futures: true
+    use_super_parameters: true
+

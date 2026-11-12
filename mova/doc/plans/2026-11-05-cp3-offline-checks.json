@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-05",
+  "deviceExecuted": false,
+  "rootLibTestModified": false,
+  "matrixCheck": {
+    "status": "PASS",
+    "batches": 87,
+    "ids": 135,
+    "manual": 6,
+    "baselineBatches": 78,
+    "cp2AddedBatches": 14,
+    "cp3AddedBatches": 9,
+    "sharedBatches": 64,
+    "unionVerified": true
+  },
+  "cp3FullUniqueBatches": 67,
+  "pythonTests": {
+    "matrix": 63,
+    "winPolicy": 11,
+    "winJob": 3,
+    "cp3Compare": 4,
+    "cp3Contracts": 6,
+    "status": "PASS",
+    "cp2Volume": 8
+  },
+  "flutterAnalyze": {
+    "baseline": 41,
+    "final": 41,
+    "newIssues": 0,
+    "removedIssues": 0,
+    "diagnosticSetsEqual": true
+  },
+  "flutterSingleFile": {
+    "file": "example/test/cp3_pages_test.dart",
+    "passed": 2,
+    "status": "PASS"
+  },
+  "deviations": [
+    "Resolved: CP2 page/harness/alias files present after transplant onto 4c657f90; both CP2 and CP3 paths preserved",
+    "CP0 staged measurement JSON is not full v1 ledger; explicit compatible ledger required",
+    "Windows unregistered: quiet-mode blocked; no device result claimed"
+  ],
+  "manual": [
+    "Windows quiet mode + CP0 baseline",
+    "OEM brightness evidence",
+    "danmaku baseline/approved threshold",
+    "relative URI protocol attribution",
+    "extractor native landing readback",
+    "DVR bottom-bar behavior",
+    "screen unlock/GSM/audioFocus/manifest manual rows"
+  ],
+  "baselineCommit": "4c657f90",
+  "previews": {
+    "cp2-rate": 0,
+    "cp3-full": 0
+  },
+  "compareCliFixtures": {
+    "sameRowsExit": 0,
+    "newFailExit": 1,
+    "deviceEvidence": false
+  }
+}

@@ -156,6 +156,8 @@ abstract class MovaKeepAlive {
   /// Returns the phase once this call has settled (see `MovaState.keepAlivePhase`).
   ///
   /// 返回本次调用落定后的阶段（见 `MovaState.keepAlivePhase`）。
+  /// reloadEdge/reopen 返回的是相位迁移结果（可能为 resuming），不代表重开完成或
+  /// 首帧就绪；请等待 MovaKeepAliveResume 或 states 中的状态变化。
   ///
   /// Example / 示例:
   /// ```dart

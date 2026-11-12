@@ -1,0 +1,32 @@
+{
+  "actual_device_calls": 0,
+  "cpu": {
+    "max_starts": 5,
+    "retests": [],
+    "first_frames": [],
+    "cpu": [
+      "cpu_wheel_steady",
+      "cpu_grid_steady",
+      "cpu_slot_steady",
+      "cpu_capsule_mixing",
+      "cpu_lotto_draw"
+    ],
+    "rounds": 3,
+    "settings_modified": false,
+    "binary_required": true,
+    "initial_starts": 15
+  },
+  "cold": {
+    "max_starts": 5,
+    "retests": [],
+    "first_frames": [
+      "wheel_first_frame",
+      "grid_first_frame"
+    ],
+    "cpu": [],
+    "rounds": 3,
+    "settings_modified": false,
+    "binary_required": true,
+    "initial_starts": 6
+  }
+}

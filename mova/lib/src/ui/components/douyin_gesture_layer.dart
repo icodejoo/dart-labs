@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -63,7 +65,12 @@ class MovaDouyinGestureLayerComponent extends MovaComponent {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return _DouyinGestureLayer(api: api, controller: controller, index: index, likeNotifier: likeNotifier);
+    return _DouyinGestureLayer(
+      api: api,
+      controller: controller,
+      index: index,
+      likeNotifier: likeNotifier,
+    );
   }
 }
 
@@ -137,7 +144,7 @@ class _DouyinGestureLayerState extends State<_DouyinGestureLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _onTap,
@@ -147,7 +154,10 @@ class _DouyinGestureLayerState extends State<_DouyinGestureLayer> {
           const SizedBox.expand(),
           if (_burstSeq > 0)
             Center(
-              child: _HeartBurst(key: ValueKey(_burstSeq), color: theme.accentColor),
+              child: _HeartBurst(
+                key: ValueKey(_burstSeq),
+                color: theme.accentColor,
+              ),
             ),
         ],
       ),

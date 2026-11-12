@@ -1,0 +1,7 @@
+{
+  "settings_written_by_this_session": false,
+  "uninstall_output": "Failure [DELETE_FAILED_INTERNAL_ERROR]",
+  "uninstall_exit": 1,
+  "after": "  mWakefulness=Awake\n  mWakefulnessChanging=false\n    isKeyguardShowing=false\n0\n0\n1",
+  "checked_at": "2026-11-10T18:06:16.6327516Z"
+}

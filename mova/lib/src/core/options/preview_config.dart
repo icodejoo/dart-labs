@@ -51,6 +51,7 @@ typedef MovaPreviewBlockCb = void Function(MovaPreviewBlockReason reason);
 /// mova 替宿主做的每一个决策，在这里都以"默认值 + 配置项"的形式出现；
 /// 若该决策本质是策略而非取值，还额外提供注入点（[probe]、[cache]、
 /// [extractor]、[sources]、[vttUrlResolver]、[cacheKeyBuilder]）。见 DESIGN §6.1。
+/// 注入的缓存、探针、来源和抽帧器由宿主持有；引擎销毁不会销毁它们。
 class MovaPreviewConfig {
   /// Whether the preview feature runs at all.
   ///
@@ -63,10 +64,10 @@ class MovaPreviewConfig {
   final MovaPreviewNet network;
 
   /// Injected connectivity probe; null uses [MovaAlwaysAllowNetProbe] in core and
-  /// the connectivity_plus probe when the host wires one in.
+  /// a lazy connectivity_plus probe when created through createMovaEngine.
   ///
   /// 注入的连通性探针；为 null 时 core 内部使用 [MovaAlwaysAllowNetProbe]，宿主
-  /// 接入时可换成基于 connectivity_plus 的探针。
+  /// 通过 createMovaEngine 创建时默认按需接入 connectivity_plus 探针。
   final MovaNetProbe? probe;
 
   /// Called when a request is refused; null means stay silent.
@@ -79,6 +80,8 @@ class MovaPreviewConfig {
   ///
   /// 有序的缩略图来源链；为 null 时按 [vttEnabled]/[extractFallback] 构建默认
   /// 的 `[vtt, extract]` 链。
+  /// 自定义来源不暴露实际资源 URL，默认不创建或查询连通性探针。
+  /// 若来源会联网且需要 wifiOnly 门控，请显式注入 [probe]；never/always 策略照常生效。
   final List<MovaThumbSource>? sources;
 
   /// Whether the WebVTT source participates in the default chain.
@@ -121,6 +124,11 @@ class MovaPreviewConfig {
   /// reuses one image.
   ///
   /// 位置对齐所用的桶大小，使同一桶内的拖动复用同一张图。
+  ///
+  /// Note: a custom [cacheKeyBuilder] only receives whole seconds, so keep
+  /// the bucket a whole number of seconds when using one.
+  ///
+  /// 注意：自定义 [cacheKeyBuilder] 只收到整秒，使用时请让桶为整秒。
   final Duration bucket;
 
   /// Whether extraction may use hardware decoding.

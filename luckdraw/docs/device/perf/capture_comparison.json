@@ -1,0 +1,9 @@
+{
+  "width": 880,
+  "height": 880,
+  "channel_threshold": 32,
+  "different_pixels": 19464,
+  "different_pixel_ratio": 0.025134297520661156,
+  "mean_absolute_rgba_error": 1.2959342716942148,
+  "purpose": "运动位图采样差异诊断，不替代严格矢量 parity 门禁"
+}

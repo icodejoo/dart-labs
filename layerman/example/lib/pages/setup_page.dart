@@ -13,12 +13,15 @@ class SetupPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pageHeader(context, 'Setup & Restart',
-              'The manager is headless — it never touches the widget tree, so '
-              'there is no scope/overlay layer to mount. Wiring up '
-              'LayermanNavigatorObserver, a UI backend for present(), and custom '
-              'cooldown storage is all app.main() needs. Also covers manager '
-              'properties and the in-app restart pattern.'),
+          pageHeader(
+            context,
+            'Setup & Restart',
+            'The manager is headless — it never touches the widget tree, so '
+                'there is no scope/overlay layer to mount. Wiring up '
+                'LayermanNavigatorObserver, a UI backend for present(), and custom '
+                'cooldown storage is all app.main() needs. Also covers manager '
+                'properties and the in-app restart pattern.',
+          ),
           pageSection(
             context,
             'No scope to mount — the manager renders nothing',
@@ -41,7 +44,9 @@ class SetupPage extends StatelessWidget {
             [
               demoButton('btn-current-route', 'om.currentRoute', () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('om.currentRoute = ${om.currentRoute}')),
+                  SnackBar(
+                    content: Text('om.currentRoute = ${om.currentRoute}'),
+                  ),
                 );
               }),
             ],
@@ -53,33 +58,33 @@ class SetupPage extends StatelessWidget {
                 'Setup:\n'
                 '  navigatorObservers: [LayermanNavigatorObserver(om)]',
           ),
-          pageSection(
-            context,
-            'Manager properties',
-            [
-              demoButton('btn-props', 'print all properties', () {
-                final msg =
-                    'isPaused: ${om.isPaused}\n'
-                    'isDisposed: ${om.isDisposed}\n'
-                    'currentRoute: ${om.currentRoute}\n'
-                    'activeIds: ${om.activeIds}\n'
-                    'queuedIds: ${om.queuedIds}';
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
-                );
-              }),
-            ],
-          ),
+          pageSection(context, 'Manager properties', [
+            demoButton('btn-props', 'print all properties', () {
+              final msg = 'isPaused: ${om.isPaused}\n'
+                  'isDisposed: ${om.isDisposed}\n'
+                  'currentRoute: ${om.currentRoute}\n'
+                  'activeIds: ${om.activeIds}\n'
+                  'queuedIds: ${om.queuedIds}';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(msg),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }),
+          ]),
           pageSection(
             context,
             'MemoryCooldownStorage — default in-memory storage',
             [
               demoButton('btn-mem-storage', 'open with default storage', () {
-                openCard('mem-cd',
-                    text: 'MEM STORAGE',
-                    cooldown: const OverlayCooldown(session: 2),
-                    hint: 'Uses MemoryCooldownStorage (default). '
-                        'Counts reset on restart.');
+                openCard(
+                  'mem-cd',
+                  text: 'MEM STORAGE',
+                  cooldown: const OverlayCooldown(session: 2),
+                  hint: 'Uses MemoryCooldownStorage (default). '
+                      'Counts reset on restart.',
+                );
               }),
             ],
             subtitle:
@@ -96,16 +101,16 @@ class SetupPage extends StatelessWidget {
             [],
             subtitle:
                 'Layerman(storageKey: "my_app:cooldown") namespaces the storage. '
-                'Useful when multiple OverlayManagers share one storage backend.',
+                'Useful when multiple Layerman instances share one storage backend.',
           ),
           pageSection(
             context,
             'pauseOnRoutes — constructor param',
             [],
             subtitle:
-                'Layerman(pauseOnRoutes: ["/zone", RegExp(r"^/auth")]) '
+                'Layerman(pauseOnRoutes: [RouteMatcher.exact("/zone"), RouteMatcher.regex(RegExp(r"^/auth"))]) '
                 'specifies patterns where the queue auto-freezes. '
-                'Accepts String, List<String>, or RegExp — same as the route condition.',
+                'Accepts List<RouteMatcher>; exact / anyOf / regex also apply to route conditions.',
           ),
           pageSection(
             context,
@@ -115,8 +120,7 @@ class SetupPage extends StatelessWidget {
                 restartApp();
               }),
             ],
-            subtitle:
-                'restartApp() calls setState on AppRoot:\n'
+            subtitle: 'restartApp() calls setState on AppRoot:\n'
                 '  om.dispose()  // clears all overlays\n'
                 '  om = createFreshManager()\n'
                 '  _gen++  // ValueKey remounts HomePage\n\n'
@@ -127,15 +131,19 @@ class SetupPage extends StatelessWidget {
             context,
             'dispose() — clean up the manager',
             [
-              demoButton('btn-isdisposed', 'om.isDisposed (before dispose)', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('om.isDisposed = ${om.isDisposed}')),
-                );
-              }),
+              demoButton(
+                'btn-isdisposed',
+                'om.isDisposed (before dispose)',
+                () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('om.isDisposed = ${om.isDisposed}')),
+                  );
+                },
+              ),
             ],
             subtitle:
                 'Call om.dispose() when the manager\'s lifetime ends (e.g. restart). '
-                'After dispose, isDisposed = true; further open() calls are no-ops. '
+                'After dispose, isDisposed = true; open() asserts in debug and returns null in release. '
                 'LayermanNavigatorObserver checks isDisposed before setContext() '
                 'to avoid ChangeNotifier-after-dispose crashes.',
           ),

@@ -1,0 +1,32 @@
+[
+  {
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T17:30:45.8183987Z",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "directory": "grid_first_frame_1",
+    "attempt": 1,
+    "error": null,
+    "valid": true,
+    "ended_at": "2026-11-10T17:31:04.5681310Z"
+  },
+  {
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T17:31:05.8949770Z",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "directory": "grid_first_frame_2",
+    "attempt": 2,
+    "error": null,
+    "valid": true,
+    "ended_at": "2026-11-10T17:31:23.8604549Z"
+  },
+  {
+    "scene": "grid_first_frame",
+    "started_at": "2026-11-10T17:31:24.6990751Z",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "directory": "grid_first_frame_3",
+    "attempt": 3,
+    "error": null,
+    "valid": true,
+    "ended_at": "2026-11-10T17:31:42.6074765Z"
+  }
+]

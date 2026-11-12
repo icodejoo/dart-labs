@@ -1,0 +1,36 @@
+{
+  "devfin-a": {
+    "passed": 552,
+    "skipped": 0,
+    "failed": 0,
+    "files": 62,
+    "sha256": "4d0ac3cd42bd5c846e309b703824c6ba1022e85b461167f6f00ba4808cf3b2e0"
+  },
+  "devfin-b": {
+    "passed": 130,
+    "skipped": 0,
+    "failed": 0,
+    "files": 31,
+    "sha256": "50f9204e9429a0a9082b0cc3258d70e01981876084002814ab7d4a68b9b6db37"
+  },
+  "devfin-c": {
+    "passed": 384,
+    "skipped": 0,
+    "failed": 0,
+    "files": 45,
+    "sha256": "fd8639382caaaa4b59da4babc554823378f8f5b7a8e05226984d5889d8c26a17"
+  },
+  "devfin-d": {
+    "passed": 23,
+    "skipped": 0,
+    "failed": 0,
+    "files": 4,
+    "sha256": "f740ea4d6fb8853ba2adfcd5a1daa84ebd8529f98e6d56b821e1e4c87297ed60"
+  },
+  "total": {
+    "passed": 1089,
+    "files": 142,
+    "skipped": 0,
+    "failed": 0
+  }
+}

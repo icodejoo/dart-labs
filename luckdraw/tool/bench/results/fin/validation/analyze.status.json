@@ -1,0 +1,10 @@
+{
+  "name": "analyze",
+  "args": [
+    "flutter",
+    "analyze",
+    "--no-pub"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 5.16
+}

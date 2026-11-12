@@ -1,0 +1,402 @@
+Load: 2.86 / 3.48 / 3.33
+CPU usage from 275448ms to 110419ms ago (2026-11-11 01:48:15.397 to 2026-11-11 01:51:00.426):
+  55% 2335/system_server: 39% user + 15% kernel / faults: 316964 minor 963 major
+    7% 6847/pool-118-thread: 6% user + 0.9% kernel
+    7% 6722/pool-118-thread: 6% user + 0.9% kernel
+    2.1% 2335/system_server: 1.8% user + 0.3% kernel
+    2.1% 3482/binder:2335_E: 1.5% user + 0.6% kernel
+    2.1% 4416/binder:2335_1F: 1.4% user + 0.6% kernel
+    1.9% 3912/binder:2335_1D: 1.1% user + 0.7% kernel
+    1.7% 2420/HeapTaskDaemon: 1.5% user + 0.2% kernel
+    1.7% 3485/binder:2335_10: 1.2% user + 0.5% kernel
+    1.2% 3428/binder:2335_9: 0.8% user + 0.3% kernel
+    1.1% 3431/binder:2335_B: 0.8% user + 0.3% kernel
+    1.1% 4414/binder:2335_1E: 0.7% user + 0.4% kernel
+    1% 3637/binder:2335_15: 0.7% user + 0.2% kernel
+    1% 3583/binder:2335_12: 0.7% user + 0.2% kernel
+    0.9% 2684/ActivityManager: 0.5% user + 0.4% kernel
+    0.9% 3427/binder:2335_8: 0.6% user + 0.2% kernel
+    0.9% 3736/binder:2335_18: 0.6% user + 0.2% kernel
+    0.8% 3483/binder:2335_F: 0.6% user + 0.2% kernel
+    0.7% 3430/binder:2335_A: 0.5% user + 0.2% kernel
+    0.7% 3741/binder:2335_1A: 0.5% user + 0.1% kernel
+    0.7% 3740/binder:2335_19: 0.4% user + 0.2% kernel
+    0.7% 3432/binder:2335_C: 0.4% user + 0.2% kernel
+    0.7% 3345/binder:2335_5: 0.5% user + 0.1% kernel
+    0.6% 3426/binder:2335_7: 0.4% user + 0.1% kernel
+    0.6% 2641/PerfQoSCoreThre: 0.3% user + 0.3% kernel
+    0.6% 3635/binder:2335_13: 0.3% user + 0.2% kernel
+    0.6% 4556/binder:2335_20: 0.4% user + 0.1% kernel
+    0.6% 3734/binder:2335_16: 0.3% user + 0.2% kernel
+    0.6% 2425/binder:2335_1: 0.4% user + 0.1% kernel
+    0.5% 3087/WifiExHandlerTh: 0.1% user + 0.3% kernel
+    0.5% 2668/android.bg: 0.4% user + 0% kernel
+    0.4% 2421/ReferenceQueueD: 0.1% user + 0.3% kernel
+    0.4% 2724/rms_notifier: 0.2% user + 0.2% kernel
+    0.4% 3580/binder:2335_11: 0.2% user + 0.1% kernel
+    0.4% 2845/PackageManagerB: 0.2% user + 0.1% kernel
+    0.4% 2659/socket_writer_q: 0% user + 0.3% kernel
+    0.4% 2739/batterystats-ha: 0.2% user + 0.1% kernel
+    0.4% 2852/PackageManager: 0.2% user + 0.1% kernel
+    0.3% 3309/WlanMonitorStat: 0.1% user + 0.2% kernel
+    0.3% 2722/rms: 0.1% user + 0.2% kernel
+    0.3% 4582/PerfQoSOomAdj: 0% user + 0.2% kernel
+    0.3% 2645/android.ui: 0.1% user + 0.1% kernel
+    0.3% 2647/android.display: 0.2% user + 0% kernel
+    0.3% 2706/quick_frozen: 0.1% user + 0.1% kernel
+    0.3% 3208/VivoPermission: 0.1% user + 0.1% kernel
+    0.3% 3129/audioserver_lif: 0.2% user + 0% kernel
+    0.2% 2646/android.io: 0.1% user + 0.1% kernel
+    0.2% 3320/TaskSnapshotPer: 0.1% user + 0% kernel
+    0.2% 2936/PackageInstalle: 0.1% user + 0% kernel
+    0.2% 3036/NetworkStats: 0.1% user + 0% kernel
+    0.2% 3057/WifiHandlerThre: 0.1% user + 0.1% kernel
+    0.2% 2956/eduling.default: 0.1% user + 0% kernel
+    0.2% 3009/VNE: 0.1% user + 0.1% kernel
+    0.2% 3107/ConnectivitySer: 0.1% user + 0% kernel
+    0.1% 6725/pool-119-thread: 0.1% user + 0% kernel
+    0.1% 3302/VivoWifiExWlanM: 0.1% user + 0% kernel
+    0.1% 7671/RoleControllerS: 0.1% user + 0% kernel
+    0.1% 2648/android.anim: 0% user + 0% kernel
+    0.1% 2422/FinalizerDaemon: 0% user + 0% kernel
+    0.1% 3093/WifiExVcdNetSta: 0.1% user + 0% kernel
+    0.1% 2779/PowerManagerSer: 0% user + 0% kernel
+    0.1% 3017/android.imms2: 0% user + 0% kernel
+    0.1% 2745/VivoBatteryStat: 0% user + 0% kernel
+    0.1% 2955/roid.usagestats: 0% user + 0% kernel
+    0.1% 2761/bgres-controlle: 0% user + 0% kernel
+    0.1% 3062/VivoWifiFeature: 0% user + 0% kernel
+    0% 2644/android.fg: 0% user + 0% kernel
+    0% 3172/SensorInfoManag: 0% user + 0% kernel
+    0% 2947/binder:2335_3: 0% user + 0% kernel
+    0% 6721/pool-116-thread: 0% user + 0% kernel
+    0% 3423/binder:2335_6: 0% user + 0% kernel
+    0% 2678/FreezerManager_: 0% user + 0% kernel
+    0% 3963/SceneFreezer: 0% user + 0% kernel
+    0% 2728/FreezeResourceM: 0% user + 0% kernel
+    0% 3020/AccessibilityMa: 0% user + 0% kernel
+    0% 3171/VivoEventServic: 0% user + 0% kernel
+    0% 3254/BackgroundInsta: 0% user + 0% kernel
+    0% 2643/atchdog.monitor: 0% user + 0% kernel
+    0% 2967/SettingsProvide: 0% user + 0% kernel
+    0% 2953/SensorService: 0% user + 0% kernel
+    0% 2975/CachedAppOptimi: 0% user + 0% kernel
+    0% 2983/AlarmManager: 0% user + 0% kernel
+    0% 3041/tworkPolicy.uid: 0% user + 0% kernel
+    0% 3084/WifiVosVcdNetSt: 0% user + 0% kernel
+    0% 3329/ColorSampleTrac: 0% user + 0% kernel
+    0% 3251/shortcut: 0% user + 0% kernel
+    0% 2781/VivoThermalLoop: 0% user + 0% kernel
+    0% 2849/PmsUtilsHandler: 0% user + 0% kernel
+    0% 3286/PhotonicModulat: 0% user + 0% kernel
+    0% 3640/RenderThread: 0% user + 0% kernel
+    0% 3861/MobileDataStats: 0% user + 0% kernel
+    0% 2937/ArtService-BgTh: 0% user + 0% kernel
+    0% 2966/AccountManagerS: 0% user + 0% kernel
+    0% 3000/InputDispatcher: 0% user + 0% kernel
+    0% 3040/NetworkPolicy: 0% user + 0% kernel
+    0% 3090/vcd thread: 0% user + 0% kernel
+    0% 3180/BrightnessInfo: 0% user + 0% kernel
+    0% 2676/FreezerManager: 0% user + 0% kernel
+    0% 2681/rms_main: 0% user + 0% kernel
+    0% 2746/VivoPivotImpl: 0% user + 0% kernel
+    0% 2843/VivoSurfaceCont: 0% user + 0% kernel
+    0% 2871/PermissionServi: 0% user + 0% kernel
+    0% 2958/RollbackManager: 0% user + 0% kernel
+    0% 2978/oregroundThread: 0% user + 0% kernel
+    0% 3001/InputReader: 0% user + 0% kernel
+    0% 3039/vivonpmsThread: 0% user + 0% kernel
+    0% 3073/AccStateMachine: 0% user + 0% kernel
+    0% 3075/WifiHistoryInfo: 0% user + 0% kernel
+    0% 3173/SDCImpl: 0% user + 0% kernel
+    0% 3953/VivoPivotGMC: 0% user + 0% kernel
+    0% 6845/LazyTaskWriterT: 0% user + 0% kernel
+    0% 19590/pool-122-thread: 0% user + 0% kernel
+    0% 2650/watchdog: 0% user + 0% kernel
+    0% 2710/WorkingStateMan: 0% user + 0% kernel
+    0% 2719/rms_ams: 0% user + 0% kernel
+    0% 2744/vivo_stats: 0% user + 0% kernel
+    0% 2844/RefreshRateAdju: 0% user + 0% kernel
+    0% 2850/VivoArtManager: 0% user + 0% kernel
+    0% 3008/NetworkWatchlis: 0% user + 0% kernel
+    0% 3016/android.imms: 0% user + 0% kernel
+    0% 3108/ackgroundThread: 0% user + 0% kernel
+    0% 3134/AudioService: 0% user + 0% kernel
+    0% 3135/FeatureService: 0% user + 0% kernel
+    0% 3154/FeatureSystemTh: 0% user + 0% kernel
+    0% 3159/UEventObserver: 0% user + 0% kernel
+    0% 3168/ackgroundThread: 0% user + 0% kernel
+    0% 3243/MediaRouterServ: 0% user + 0% kernel
+    0% 3271/VivoAudioKtvMod: 0% user + 0% kernel
+    0% 3323/VivoDisplayOver: 0% user + 0% kernel
+    0% 3333/GameManagerServ: 0% user + 0% kernel
+    0% 3735/binder:2335_17: 0% user + 0% kernel
+    0% 3848/system_auto_rec: 0% user + 0% kernel
+    0% 4521/pool-46-thread-: 0% user + 0% kernel
+    0% 4587/PerfQoSOomAdjNa: 0% user + 0% kernel
+    0% 5858/pool-46-thread-: 0% user + 0% kernel
+    0% 6177/pool-46-thread-: 0% user + 0% kernel
+    0% 6184/pool-46-thread-: 0% user + 0% kernel
+    0% 6768/pool-45-thread-: 0% user + 0% kernel
+    0% 6851/hc-int-bg-0: 0% user + 0% kernel
+    0% 8218/VivoPivotZHP: 0% user + 0% kernel
+    0% 2419/Jit thread pool: 0% user + 0% kernel
+    0% 2639/FileObserver: 0% user + 0% kernel
+    0% 2671/o.unifiedconfig: 0% user + 0% kernel
+    0% 2685/ActivityManager: 0% user + 0% kernel
+    0% 2715/FrozenImApp: 0% user + 0% kernel
+    0% 2718/vivo_firewall_t: 0% user + 0% kernel
+    0% 2729/FreezeResAsync: 0% user + 0% kernel
+    0% 2730/VBoostThread: 0% user + 0% kernel
+    0% 2748/processGroupCre: 0% user + 0% kernel
+    0% 2939/OverlayManager: 0% user + 0% kernel
+    0% 2940/VivoOverlay: 0% user + 0% kernel
+    0% 2987/CaptureHandler: 0% user + 0% kernel
+    0% 2990/SnapshotWindow: 0% user + 0% kernel
+    0% 3006/HwBinder:2335_3: 0% user + 0% kernel
+    0% 3010/EventHandlerThr: 0% user + 0% kernel
+    0% 3014/fpui_manager: 0% user + 0% kernel
+    0% 3019/FlashNotifContr: 0% user + 0% kernel
+    0% 3025/LocaleManagerSe: 0% user + 0% kernel
+    0% 3066/VivoWifiGameSer: 0% user + 0% kernel
+    0% 3068/Wifi-DailyRouti: 0% user + 0% kernel
+    0% 3079/WifiVcdVideoStu: 0% user + 0% kernel
+    0% 3091/WifiHistoryInfo: 0% user + 0% kernel
+    0% 3095/WifiExVcdVideoS: 0% user + 0% kernel
+    0% 3099/VivoWifiGameSer: 0% user + 0% kernel
+    0% 3100/sensor_native_h: 0% user + 0% kernel
+    0% 3112/VcnManagementSe: 0% user + 0% kernel
+    0% 3120/AieAbilityHandl: 0% user + 0% kernel
+    0% 3136/FeatureServiceS: 0% user + 0% kernel
+    0% 3177/NativeNotificat: 0% user + 0% kernel
+    0% 3187/DisplayHandlerT: 0% user + 0% kernel
+    0% 3200/VivoAudioPolicy: 0% user + 0% kernel
+    0% 3201/VivoAudioPolicy: 0% user + 0% kernel
+    0% 3204/VideoProcessMon: 0% user + 0% kernel
+    0% 3217/TouchCntlThread: 0% user + 0% kernel
+    0% 3222/Timer-2: 0% user + 0% kernel
+    0% 3252/LauncherAppsCal: 0% user + 0% kernel
+    0% 3259/SdkSandboxManag: 0% user + 0% kernel
+    0% 3266/VivoAudioBlueto: 0% user + 0% kernel
+    0% 3278/notifierThread: 0% user + 0% kernel
+    0% 3324/android.perm: 0% user + 0% kernel
+    0% 3348/ackgroundThread: 0% user + 0% kernel
+    0% 3359/VivoAppChangeMa: 0% user + 0% kernel
+    0% 3360/ANRManagerServi: 0% user + 0% kernel
+    0% 3413/Thread-24: 0% user + 0% kernel
+    0% 3825/ivo.castservice: 0% user + 0% kernel
+    0% 4649/pool-96-thread-: 0% user + 0% kernel
+    0% 9668/pool-157-thread: 0% user + 0% kernel
+   +0% 12967/pool-162-thread: 0% user + 0% kernel
+   +0% 12973/pool-11-thread-: 0% user + 0% kernel
+   +0% 13619/AsyncTask #28: 0% user + 0% kernel
+  28% 9616/com.google.android.googlequicksearchbox:search: 16% user + 12% kernel / faults: 151913 minor 145 major
+  15% 27155/com.google.android.gms: 10% user + 4.9% kernel / faults: 105143 minor 839 major
+  11% 701/logd: 7.8% user + 3.4% kernel / faults: 176454 minor 100 major
+  7.7% 1622/surfaceflinger: 4.4% user + 3.2% kernel / faults: 320 minor
+  6.4% 13533/adbd: 0.9% user + 5.5% kernel / faults: 62587 minor 8 major
+  3.9% 30220/com.android.vending: 2.7% user + 1.1% kernel / faults: 39873 minor 533 major
+  3.2% 4161/com.vivo.sps:rms: 1.1% user + 2.1% kernel / faults: 14047 minor 409 major
+  2.3% 3408/com.android.systemui: 1.5% user + 0.7% kernel / faults: 19488 minor 235 major
+  2% 29133/kworker/4:0: 0% user + 2% kernel
+  1.8% 10051/kworker/u16:5-events_unbound: 0% user + 1.8% kernel / faults: 81 minor
+  0.8% 16832/com.google.android.apps.wellbeing: 0.5% user + 0.2% kernel / faults: 18487 minor 2784 major
+  1.7% 1507/vendor.qti.hardware.display.composer-service: 0.9% user + 0.8% kernel / faults: 175 minor 78 major
+  1.6% 13640/irq/266-dwc3: 0% user + 1.6% kernel
+  1.5% 7642/kworker/u16:1-memlat_wq: 0% user + 1.5% kernel / faults: 120 minor
+  1.5% 14/rcuog/0: 0% user + 1.5% kernel
+  1.5% 30089/kworker/u16:3-memlat_wq: 0% user + 1.5% kernel / faults: 69 minor
+  1.2% 1276/statsd: 0.8% user + 0.4% kernel / faults: 663 minor 473 major
+  0.9% 1946/installd: 0.2% user + 0.7% kernel / faults: 646 minor 181 major
+  1.2% 3224/kworker/u16:2-memlat_wq: 0% user + 1.2% kernel / faults: 81 minor
+  1.1% 8535/kworker/2:0-events: 0% user + 1.1% kernel
+  1% 24737/com.google.android.googlequicksearchbox:interactor: 0.6% user + 0.3% kernel / faults: 8519 minor 3152 major
+  0.9% 13/rcu_preempt: 0% user + 0.9% kernel
+  0.9% 565/irq/142-1909100: 0% user + 0.9% kernel
+  0.9% 2711/kworker/3:4: 0% user + 0.9% kernel
+  0.8% 16926/com.google.android.googlequicksearchbox:googleapp: 0.4% user + 0.3% kernel / faults: 9243 minor 7206 major
+  0.7% 3962/com.vivo.pie: 0.3% user + 0.3% kernel / faults: 3132 minor 79 major
+  0.7% 4184/com.android.launcher3: 0.4% user + 0.3% kernel / faults: 10464 minor 120 major
+  0.7% 1760/sensors.logger: 0.1% user + 0.5% kernel / faults: 1 minor 2 major
+  0.6% 32065/kworker/1:1-mm_percpu_wq: 0% user + 0.6% kernel
+  0.3% 12292/com.android.settings: 0.2% user + 0.1% kernel / faults: 4272 minor 3061 major
+  0.4% 3503/com.vivo.abe: 0.3% user + 0.1% kernel / faults: 7182 minor 2870 major
+  0.5% 896/crtc_commit:86: 0% user + 0.5% kernel
+  0.5% 11317/kworker/0:2-rcu_gp: 0% user + 0.5% kernel
+  0.4% 7336/kworker/5:2-events: 0% user + 0.4% kernel
+  0.4% 4118/com.android.phone: 0.2% user + 0.2% kernel / faults: 1190 minor 387 major
+  0.4% 713/lmkd: 0% user + 0.3% kernel
+  0.4% 4049/com.vivo.daemonService: 0.1% user + 0.2% kernel / faults: 2545 minor 53 major
+  0.3% 24208/com.google.android.apps.work.clouddpc: 0.1% user + 0.1% kernel / faults: 2970 minor 1948 major
+  0.3% 47/rcuog/4: 0% user + 0.3% kernel
+  0.1% 3869/com.vivo.gamecube:daemon: 0.1% user + 0% kernel / faults: 427 minor 180 major
+  0.3% 1453/android.hardware.wifi@1.0-service: 0.1% user + 0.1% kernel / faults: 696 minor 204 major
+  0.3% 30156/com.android.vending:background: 0.1% user + 0.1% kernel / faults: 4278 minor 3363 major
+  0.1% 10999/kworker/u17:6-kgsl-events: 0% user + 0.1% kernel
+  0.3% 1271/netd: 0.1% user + 0.1% kernel / faults: 256 minor 29 major
+  0.2% 27524/com.android.chrome: 0.1% user + 0.1% kernel / faults: 1367 minor 1191 major
+  0.2% 7311/com.vivo.globalsearch: 0.1% user + 0.1% kernel / faults: 6046 minor 387 major
+  0.2% 650/kworker/u17:4-kverityd: 0% user + 0.2% kernel
+  0.1% 24220/kworker/5:0-pm: 0% user + 0.1% kernel
+  0.2% 1564/vendor.vivo.hardware.vperf@1.0-service: 0% user + 0.1% kernel / faults: 538 minor 254 major
+  0.2% 1/init: 0.1% user + 0.1% kernel / faults: 645 minor
+  0.1% 153/kswapd0: 0% user + 0.1% kernel
+  0.2% 508/kgsl_dispatcher: 0% user + 0.2% kernel
+  0.1% 6437/com.vivo.nightpearl: 0% user + 0% kernel / faults: 3364 minor 1732 major
+  0.1% 21688/com.google.android.verifier: 0% user + 0% kernel / faults: 1890 minor 3244 major
+  0.2% 651/kworker/u17:5-kgsl-events: 0% user + 0.2% kernel
+  0.2% 15/rcuop/0: 0% user + 0.2% kernel
+  0.2% 26/rcuop/1: 0% user + 0.2% kernel
+  0.2% 40/rcuop/3: 0% user + 0.2% kernel
+  0.2% 283/ueventd: 0.1% user + 0% kernel
+  0.1% 83/kcompactd0: 0% user + 0.1% kernel
+  0.1% 3930/com.vivo.pem: 0.1% user + 0% kernel / faults: 834 minor 92 major
+  0.1% 33/rcuop/2: 0% user + 0.1% kernel
+  0% 6687/com.google.android.as: 0% user + 0% kernel / faults: 1512 minor 354 major
+  0.1% 3361/com.vivo.sps: 0.1% user + 0% kernel / faults: 3001 minor 133 major
+  0.1% 1012/f2fs_ckpt-254:5: 0% user + 0.1% kernel
+  0.1% 974/android.system.suspend-service: 0% user + 0.1% kernel / faults: 9 minor 20 major
+  0.1% 2230/cds_ol_rx_threa: 0% user + 0.1% kernel
+  0.1% 4563/com.vivo.magazine: 0% user + 0% kernel / faults: 1251 minor 1131 major
+  0.1% 2004/cnd: 0% user + 0% kernel
+  0.1% 3317/wpa_supplicant: 0% user + 0% kernel / faults: 2 major
+  0.1% 5122/msm_irqbalance: 0% user + 0% kernel
+  0.1% 205/core_ctl: 0% user + 0.1% kernel
+  0% 1815/qcrilNrd: 0% user + 0% kernel
+  0% 4014/com.vivo.pushservice: 0% user + 0% kernel / faults: 322 minor 437 major
+  0% 3533/com.vivo.upslide: 0% user + 0% kernel / faults: 471 minor 68 major
+  0% 897/crtc_event:86: 0% user + 0% kernel
+  0% 6690/com.google.android.providers.media.module: 0% user + 0% kernel / faults: 477 minor 1098 major
+  0% 4113/com.vivo.gamewatch: 0% user + 0% kernel / faults: 351 minor 40 major
+  0% 31358/kworker/u17:1-ufs_clk_gating_0: 0% user + 0% kernel
+  0% 1587/audioserver: 0% user + 0% kernel / faults: 20 minor 84 major
+  0% 3437/com.vivo.biometrics: 0% user + 0% kernel / faults: 327 minor 517 major
+  0% 7032/com.google.android.inputmethod.latin: 0% user + 0% kernel / faults: 388 minor 1087 major
+  0% 48/rcuop/4: 0% user + 0% kernel
+  0% 55/rcuop/5: 0% user + 0% kernel
+  0% 69/rcuop/7: 0% user + 0% kernel
+  0% 1444/android.hardware.sensors@2.1-service.multihal: 0% user + 0% kernel / faults: 58 minor 122 major
+  0% 3581/com.vivo.smartmultiwindow: 0% user + 0% kernel / faults: 279 minor 307 major
+  0% 3800/com.android.networkstack.process: 0% user + 0% kernel / faults: 207 minor 36 major
+  0% 16022/com.vivo.cota: 0% user + 0% kernel / faults: 299 minor 614 major
+  0% 720/servicemanager: 0% user + 0% kernel / faults: 6 minor 6 major
+  0% 1436/android.hardware.health@2.1-service: 0% user + 0% kernel / faults: 9 major
+  0% 1441/android.hardware.power-service: 0% user + 0% kernel
+  0% 1537/media.hwcodec: 0% user + 0% kernel
+  0% 2666/android.hardware.thermal@2.0-service.qti-v2: 0% user + 0% kernel / faults: 2 major
+  0% 23094/kworker/2:1H: 0% user + 0% kernel
+  0% 32617/kworker/1:3-events_freezable_power_: 0% user + 0% kernel
+  0% 62/rcuop/6: 0% user + 0% kernel
+  0% 726/hwservicemanager: 0% user + 0% kernel / faults: 26 minor 125 major
+  0% 830/psimon: 0% user + 0% kernel
+  0% 2227/scheduler_threa: 0% user + 0% kernel
+  0% 10072/com.google.android.permissioncontroller: 0% user + 0% kernel / faults: 123 minor 250 major
+  0% 164/dmabuf-deferred: 0% user + 0% kernel
+  0% 865/wlan_logging_th: 0% user + 0% kernel
+  0% 5037/com.android.bluetooth: 0% user + 0% kernel / faults: 102 minor 180 major
+  0% 6478/android.process.acore: 0% user + 0% kernel / faults: 142 minor 210 major
+  0% 6752/com.vivo.aiengine: 0% user + 0% kernel / faults: 919 minor 911 major
+  0% 9110/android.process.media: 0% user + 0% kernel / faults: 29 minor 121 major
+  0% 12433/com.android.settings:SettingsExProvider: 0% user + 0% kernel / faults: 114 minor 139 major
+  0% 16924/com.google.android.documentsui: 0% user + 0% kernel / faults: 173 minor 369 major
+  0% 16994/com.vivo.gamecube: 0% user + 0% kernel / faults: 56 minor 174 major
+  0% 17571/com.vivo.networkimprove: 0% user + 0% kernel / faults: 239 minor 560 major
+  0% 24247/kworker/0:0H-kblockd: 0% user + 0% kernel
+  0% 201/qrtr_ns: 0% user + 0% kernel
+  0% 1347/diag-router: 0% user + 0% kernel
+  0% 1948/media.metrics: 0% user + 0% kernel / faults: 9 minor 21 major
+  0% 1985/wificond: 0% user + 0% kernel / faults: 1 minor
+  0% 2855/lowi-server: 0% user + 0% kernel
+  0% 5176/thermal-engine-v2: 0% user + 0% kernel / faults: 2 minor 13 major
+  0% 6772/com.vivo.connbase: 0% user + 0% kernel / faults: 171 minor 236 major
+  0% 8239/kworker/6:3-mm_percpu_wq: 0% user + 0% kernel
+  0% 15469/com.android.chrome:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:1: 0% user + 0% kernel / faults: 16 minor 95 major
+  0% 19563/com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:1: 0% user + 0% kernel / faults: 27 minor 92 major
+  0% 31140/kworker/3:0H-kblockd: 0% user + 0% kernel
+  0% 30/ksoftirqd/2: 0% user + 0% kernel
+  0% 79/kauditd: 0% user + 0% kernel
+  0% 977/keystore2: 0% user + 0% kernel / faults: 54 minor 197 major
+  0% 1277/zygote64: 0% user + 0% kernel / faults: 120 minor 77 major
+  0% 1285/iptables-restore: 0% user + 0% kernel / faults: 1 minor
+  0% 1286/ip6tables-restore: 0% user + 0% kernel
+  0% 1434/android.hardware.gnss-aidl-service-qti: 0% user + 0% kernel / faults: 1 minor 18 major
+  0% 1812/qcrilNrd: 0% user + 0% kernel / faults: 2 minor 44 major
+  0% 1835/shsusrd: 0% user + 0% kernel / faults: 155 minor
+  0% 1903/cameraserver: 0% user + 0% kernel / faults: 1 minor
+  0% 2236/cnss-daemon: 0% user + 0% kernel
+  0% 3354/com.android.chrome:privileged_process0: 0% user + 0% kernel / faults: 64 minor 62 major
+  0% 4009/com.qti.phone: 0% user + 0% kernel / faults: 66 minor 121 major
+  0% 8072/kworker/7:1-mm_percpu_wq: 0% user + 0% kernel
+  0% 10792/com.vivo.vivo3rdalgoservice: 0% user + 0% kernel / faults: 58 minor 74 major
+  0% 11712/kworker/1:2H-fsverity_read_queue: 0% user + 0% kernel
+  0% 15557/abb: 0% user + 0% kernel / faults: 30 minor 63 major
+  0% 12/ksoftirqd/0: 0% user + 0% kernel
+  0% 18/migration/0: 0% user + 0% kernel
+  0% 42/migration/4: 0% user + 0% kernel
+  0% 973/ipacm: 0% user + 0% kernel / faults: 10 minor 40 major
+  0% 1415/android.hardware.audio.service_64: 0% user + 0% kernel / faults: 29 minor 189 major
+  0% 1418/android.hardware.bluetooth@1.0-service-qti: 0% user + 0% kernel
+  0% 1552/vendor.vivo.hardware.sensorfactory@1.0-service: 0% user + 0% kernel / faults: 45 minor 82 major
+  0% 1919/dr: 0% user + 0% kernel
+  0% 3669/com.qualcomm.location: 0% user + 0% kernel / faults: 17 minor 91 major
+  0% 3972/.dataservices: 0% user + 0% kernel / faults: 62 minor 165 major
+  0% 4058/com.bbk.iqoo.logsystem: 0% user + 0% kernel / faults: 116 minor 194 major
+  0% 4100/com.vivo.ai.aie: 0% user + 0% kernel / faults: 70 minor 144 major
+  0% 4480/com.google.android.ext.services: 0% user + 0% kernel / faults: 422 minor 65 major
+  0% 12681/com.vivo.pcsuite: 0% user + 0% kernel / faults: 58 minor 148 major
+  0% 13071/com.vivo.xspace: 0% user + 0% kernel / faults: 141 minor 305 major
+  0% 16692/com.iqoo.powersaving: 0% user + 0% kernel / faults: 30 minor 51 major
+  0% 19298/kworker/5:2H-kblockd: 0% user + 0% kernel
+  0% 24145/com.vivo.musicwidgetmix: 0% user + 0% kernel / faults: 43 minor 88 major
+  0% 27434/kworker/4:2H-kblockd: 0% user + 0% kernel
+  0% 30355/com.android.vending:quick_launch: 0% user + 0% kernel / faults: 31 minor 118 major
+  0% 16/rcub/0: 0% user + 0% kernel
+  0% 21/migration/1: 0% user + 0% kernel
+  0% 23/ksoftirqd/1: 0% user + 0% kernel
+  0% 28/migration/2: 0% user + 0% kernel
+  0% 50/migration/5: 0% user + 0% kernel
+  0% 175/pie_cmd_thread: 0% user + 0% kernel
+  0% 275/rsc_ktop_noti: 0% user + 0% kernel
+  0% 741/vndservicemanager: 0% user + 0% kernel
+  0% 754/vendor.vivo.hardware.configstore@1.0-service: 0% user + 0% kernel / faults: 33 minor 162 major
+  0% 910/vold: 0% user + 0% kernel / faults: 1 minor 9 major
+  0% 1014/f2fs_discard-25: 0% user + 0% kernel
+  0% 1452/android.hardware.usb@1.2-service-qti: 0% user + 0% kernel / faults: 21 minor 89 major
+  0% 1471/vendor.factory.hardware.vivoem@1.0-service: 0% user + 0% kernel
+  0% 1493/vendor.qti.hardware.display.allocator-service: 0% user + 0% kernel / faults: 38 minor
+  0% 1516/vendor.qti.hardware.iop@2.0-service: 0% user + 0% kernel / faults: 46 minor 127 major
+  0% 1547/vendor.vivo.hardware.bbkts@1.0-service: 0% user + 0% kernel / faults: 2 major
+  0% 1573/pd-mapper: 0% user + 0% kernel / faults: 5 minor 25 major
+  0% 1790/traced: 0% user + 0% kernel / faults: 4 minor 24 major
+  0% 1851/vendor.dpmd: 0% user + 0% kernel / faults: 117 minor 84 major
+  0% 1880/vivo_daemon: 0% user + 0% kernel / faults: 138 minor 3 major
+  0% 1959/storaged: 0% user + 0% kernel / faults: 8 major
+  0% 1972/vivoperfservice: 0% user + 0% kernel / faults: 12 minor 42 major
+  0% 2363/vendor.vivo.hardware.biometrics.fingerprint@3.1-service: 0% user + 0% kernel / faults: 13 minor 60 major
+  0% 3982/.qtidataservices: 0% user + 0% kernel / faults: 29 minor 83 major
+  0% 4024/org.codeaurora.ims: 0% user + 0% kernel / faults: 16 minor 77 major
+  0% 4653/com.vivo.connbase.deviceaccessory: 0% user + 0% kernel / faults: 34 minor 130 major
+  0% 6795/com.vivo.stepcount: 0% user + 0% kernel / faults: 48 minor 161 major
+  0% 6799/com.vivo.assistant: 0% user + 0% kernel / faults: 47 minor 148 major
+  0% 6870/com.vivo.safecenter: 0% user + 0% kernel / faults: 54 minor 142 major
+  0% 8952/com.bbk.SuperPowerSave: 0% user + 0% kernel / faults: 12 minor 37 major
+  0% 10465/com.google.android.adservices.api: 0% user + 0% kernel / faults: 22 minor 78 major
+  0% 10737/com.android.camera: 0% user + 0% kernel / faults: 4 minor 38 major
+  0% 12673/com.android.printspooler: 0% user + 0% kernel / faults: 46 minor 123 major
+  0% 12855/com.vivo.nps: 0% user + 0% kernel / faults: 26 minor 116 major
+  0% 14660/android:clip: 0% user + 0% kernel / faults: 39 minor 142 major
+  0% 15739/kworker/4:1-mm_percpu_wq: 0% user + 0% kernel
+  0% 16142/kworker/6:7H-kblockd: 0% user + 0% kernel
+  0% 18014/com.google.android.as.oss: 0% user + 0% kernel / faults: 54 minor 2 major
+  0% 21311/com.google.android.apps.nbu.files: 0% user + 0% kernel / faults: 23 minor 68 major
+  0% 27710/com.google.android.packageinstaller: 0% user + 0% kernel / faults: 35 minor 110 major
+ +0% 12746/kworker/0:0-events: 0% user + 0% kernel
+ +0% 12970/artd: 0% user + 0% kernel
+ +0% 12987/com.qualcomm.qti.workloadclassifier: 0% user + 0% kernel
+ +0% 13200/kworker/u17:0-kverityd: 0% user + 0% kernel
+ +0% 13550/kworker/6:1: 0% user + 0% kernel
+ +0% 13807/com.example.luckdraw_bench: 0% user + 0% kernel
+ +0% 13862/logcat: 0% user + 0% kernel
+ +0% 13892/kworker/u16:0-events_unbound: 0% user + 0% kernel
+ +0% 13898/kworker/3:0-mm_percpu_wq: 0% user + 0% kernel
+25% TOTAL: 13% user + 10% kernel + 0% iowait + 1% irq + 0.2% softirq

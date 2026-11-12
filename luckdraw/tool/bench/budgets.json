@@ -1,0 +1,83 @@
+{
+  "wheel_steady": {
+    "average_frame_build_time_millis": 1.031,
+    "90th_percentile_frame_build_time_millis": 1.66,
+    "average_frame_rasterizer_time_millis": 5.61,
+    "90th_percentile_frame_rasterizer_time_millis": 7.423,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "wheel_first_frame": {
+    "first_frame_ui_millis": 4,
+    "informational": true,
+    "reason": "DEVFIN旧绝对值兼容字段，不作绝对首帧门禁；有效首帧已改为同外壳玩法减空白的增量预算，wheel/grid/slot冻结值见budgets.status.json.devfin.first_frame_increment_budgets_ms；不得将该增量阈值与旧绝对40.378ms直接比较。 INSTR 有效增量与原4ms差距另见 budgets.status.json.instr；不是绝对首帧达标。"
+  },
+  "grid_steady": {
+    "average_frame_build_time_millis": 1.2,
+    "90th_percentile_frame_build_time_millis": 1.958,
+    "average_frame_rasterizer_time_millis": 4,
+    "90th_percentile_frame_rasterizer_time_millis": 7,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "slot_steady": {
+    "average_frame_build_time_millis": 1.494,
+    "90th_percentile_frame_build_time_millis": 2.093,
+    "average_frame_rasterizer_time_millis": 3.793,
+    "90th_percentile_frame_rasterizer_time_millis": 4.354,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "slot_raster": {
+    "average_frame_build_time_millis": 1,
+    "90th_percentile_frame_build_time_millis": 2,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "capsule_mixing": {
+    "average_frame_build_time_millis": 2.0,
+    "90th_percentile_frame_build_time_millis": 3.0,
+    "average_frame_rasterizer_time_millis": 4.19,
+    "90th_percentile_frame_rasterizer_time_millis": 7.503,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "number_wheel_spin": {
+    "average_frame_build_time_millis": 1.3,
+    "90th_percentile_frame_build_time_millis": 1.959,
+    "average_frame_rasterizer_time_millis": 3.274,
+    "90th_percentile_frame_rasterizer_time_millis": 3.682,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "lots_shaking": {
+    "average_frame_build_time_millis": 1.517,
+    "90th_percentile_frame_build_time_millis": 2.227,
+    "average_frame_rasterizer_time_millis": 5,
+    "90th_percentile_frame_rasterizer_time_millis": 8,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "lotto_draw": {
+    "average_frame_build_time_millis": 2.5,
+    "90th_percentile_frame_build_time_millis": 3.655,
+    "average_frame_rasterizer_time_millis": 5.307,
+    "90th_percentile_frame_rasterizer_time_millis": 7.083,
+    "dropped_frame_ratio": 0.005,
+    "new_gen_gc_over_reference": 0.0
+  },
+  "memory_cycles": {
+    "rss_delta_bytes": 5622989.0,
+    "rss_steady_growth_bytes": 1572864
+  },
+  "lever_steady": {
+    "average_frame_build_time_millis": 1.54,
+    "90th_percentile_frame_build_time_millis": 2.306,
+    "average_frame_rasterizer_time_millis": 4.086,
+    "90th_percentile_frame_rasterizer_time_millis": 4.639,
+    "dropped_frame_ratio": 0.0,
+    "new_gen_gc_over_reference": 0.0
+  }
+}

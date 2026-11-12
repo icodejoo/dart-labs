@@ -522,7 +522,7 @@ Future<void> main() async {
 
 ### Cache
 
-自动 key 保持 Map/String 输出不变，JSON 数组按内容编码，64 KiB 内字节列表按内容哈希；超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消。
+自动 key 保持 Map/String 输出不变，JSON 数组（含普通 List<int>，允许负数及大于 255 的整数）按内容编码，只有 Uint8List 作为原始字节在 64 KiB 内按内容哈希；同内容的 JSON 数组与 Uint8List 使用不同 key。超大字节体、FormData、Stream、其他对象或编码失败返回 null，不再参与 cache/share。命中返回前重查调用方取消；cache/mock 从内层收到 internal 时优先原样返回，取消不覆盖程序异常及原栈。
 
 旧写法：
 

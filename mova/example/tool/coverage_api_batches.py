@@ -18,6 +18,10 @@ def new(name,case,**args):
 
 
 jobs += [('batch15-basic','basic',{}),('batch15-basic-cutover','basic',{'cutover':'true'}),('batch15-testing','testing',{})]
+new('batch15-s00c', 's00c')
+new('batch15-s00d', 's00d')
+new('batch15-s00d-native', 's00dNative')
+new('batch15-s00d-resources', 's00dResources')
 new('batch15-options','options')
 new('batch15-hooks','hooks')
 new('batch15-hooks-cutover','hooks',cutover='true')
@@ -34,7 +38,7 @@ for run in range(3):
 for case in ['lazy','lifecycle','feed','cutover','ads','adResume']:
     new('batch15-'+case,case)
 jobs.append(('batch15-dispose120','dispose',{}))
-for mode in ['vtt','extract','fallback','blocked']:
+for mode in ['vtt','extract','fallback','offline','blocked']:
     new('batch15-preview-'+mode,'preview',mode=mode)
 for mode in ['ended','stopped','failed','abandoned','stall','truncated']:
     new('batch15-qoe-'+mode,'qoe',mode=mode)

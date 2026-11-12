@@ -1,0 +1,14 @@
+{
+  "picture": {
+    "rotate_deg": 37.0,
+    "phase": "accelerating",
+    "dpr": 2.75,
+    "raster_rgba_bytes": 0
+  },
+  "auto": {
+    "rotate_deg": 37.0,
+    "phase": "accelerating",
+    "dpr": 2.75,
+    "raster_rgba_bytes": 3097600
+  }
+}

@@ -1,0 +1,6 @@
+src/core/mini/placement.dart;
+src/core/options/mini_config.dart;
+src/ui/mini/mini.dart;
+src/ui/mini/mini_host.dart;
+src/ui/mini/mini_skin.dart;
+src/ui/mini/mini_window.dart;

@@ -1,4 +1,5 @@
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -141,7 +142,7 @@ class DiomanBreaker<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
       onStateChange;
 
   /// 稳定插件名称。
-  static const pluginName = 'dioman:breaker';
+  static const pluginName = diomanBreakerName;
 
   /// 请求级选项键。
   static final option = DiomanOptionKey<DiomanBreakerOptions>(pluginName);

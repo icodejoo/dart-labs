@@ -1,0 +1,658 @@
+{
+  "device": "vivo V2417 / Android16 / 10AE9K17UE0011S",
+  "blank_baseline_ms": 2.883,
+  "blank_source": "results/pending/REPORT.md（DEVFIN 历史空白，INSTR 未新增空白启动）",
+  "trace_enabled": true,
+  "cold": {
+    "wheel": {
+      "before_ms": [
+        38.412,
+        46.689,
+        25.178
+      ],
+      "after_ms": [
+        28.309,
+        10.715,
+        27.075
+      ],
+      "before_median_ms": 38.412,
+      "after_median_ms": 27.075,
+      "improvement_fraction": 0.2951421430802874,
+      "increment_ms": 24.192,
+      "increment_budget_ms": 26.612,
+      "gap_to_original_4ms": 20.192,
+      "range_after_ms": 17.594,
+      "after_relative_range": 0.6498245614035089,
+      "status": "已标定；三轮波动大，未达到原4ms目标"
+    },
+    "grid": {
+      "before_ms": [
+        20.66,
+        28.587,
+        24.214
+      ],
+      "after_ms": [
+        8.585,
+        21.166,
+        12.993
+      ],
+      "before_median_ms": 24.214,
+      "after_median_ms": 12.993,
+      "improvement_fraction": 0.46340959775336577,
+      "increment_ms": 10.11,
+      "increment_budget_ms": 11.121,
+      "gap_to_original_4ms": 6.109999999999999,
+      "range_after_ms": 12.581,
+      "after_relative_range": 0.9682906180250904,
+      "status": "已标定；三轮波动大，未达到原4ms目标"
+    }
+  },
+  "cpu": {
+    "wheel_steady": {
+      "attempts": 5,
+      "valid_rounds": 2,
+      "rounds": [
+        {
+          "attempt": 3,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_wheel/cpu_wheel_steady_3/cpu/cpu.json",
+          "process_percent": 41.44774404789469,
+          "ui_platform_percent": 14.175938518009584,
+          "raster_percent": 19.981322863480177,
+          "seconds": 7.406917,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.015302876480541,
+            "90th_percentile_frame_build_time_millis": 1.482,
+            "average_frame_rasterizer_time_millis": 4.848483925549914,
+            "90th_percentile_frame_rasterizer_time_millis": 6.507,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 591.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.887,
+            "99th_percentile_frame_build_time_millis": 1.985,
+            "50th_percentile_frame_rasterizer_time_millis": 4.586,
+            "99th_percentile_frame_rasterizer_time_millis": 9.398,
+            "50th_percentile_build_plus_raster_millis": 5.475,
+            "90th_percentile_build_plus_raster_millis": 7.933,
+            "99th_percentile_build_plus_raster_millis": 10.147,
+            "fps": 60.052492584888924,
+            "elapsed_micros": 9841390
+          },
+          "driver_valid": true,
+          "before_read_micros": null,
+          "after_read_micros": null,
+          "new_threads": [],
+          "exited_threads": [
+            11117
+          ]
+        },
+        {
+          "attempt": 4,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_wheel/cpu_wheel_steady_4/cpu/cpu.json",
+          "process_percent": 40.484223812495486,
+          "ui_platform_percent": 14.081469152172343,
+          "raster_percent": 19.09122260054135,
+          "seconds": 7.385593,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.0241345826235095,
+            "90th_percentile_frame_build_time_millis": 1.531,
+            "average_frame_rasterizer_time_millis": 4.885071550255537,
+            "90th_percentile_frame_rasterizer_time_millis": 6.459,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 587.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.878,
+            "99th_percentile_frame_build_time_millis": 2.22,
+            "50th_percentile_frame_rasterizer_time_millis": 4.698,
+            "99th_percentile_frame_rasterizer_time_millis": 9.137,
+            "50th_percentile_build_plus_raster_millis": 5.578,
+            "90th_percentile_build_plus_raster_millis": 8.014,
+            "99th_percentile_build_plus_raster_millis": 10.046,
+            "fps": 59.991766717671595,
+            "elapsed_micros": 9784676
+          },
+          "driver_valid": true,
+          "before_read_micros": null,
+          "after_read_micros": null,
+          "new_threads": [],
+          "exited_threads": [
+            11700,
+            11702
+          ]
+        }
+      ],
+      "medians": null,
+      "other_attempts": [
+        {
+          "attempt": 1,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_wheel/cpu_wheel_steady_1/cpu/cpu.json",
+          "process_percent": 38.98591079962052,
+          "ui_platform_percent": 13.33728527355439,
+          "raster_percent": 16.825498345099383,
+          "seconds": 9.747111,
+          "frame_timing": {
+            "average_frame_build_time_millis": 0.9664149184149172,
+            "90th_percentile_frame_build_time_millis": 1.398,
+            "average_frame_rasterizer_time_millis": 2.53188927738928,
+            "90th_percentile_frame_rasterizer_time_millis": 3.044,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 858.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.86,
+            "99th_percentile_frame_build_time_millis": 2.113,
+            "50th_percentile_frame_rasterizer_time_millis": 2.665,
+            "99th_percentile_frame_rasterizer_time_millis": 3.461,
+            "50th_percentile_build_plus_raster_millis": 3.517,
+            "90th_percentile_build_plus_raster_millis": 4.394,
+            "99th_percentile_build_plus_raster_millis": 5.336,
+            "fps": 59.968560538576384,
+            "elapsed_micros": 14307497
+          },
+          "driver_valid": false,
+          "before_read_micros": null,
+          "after_read_micros": null,
+          "new_threads": [],
+          "exited_threads": [
+            9051
+          ]
+        },
+        {
+          "attempt": 2,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_wheel/cpu_wheel_steady_2/cpu/cpu.json",
+          "process_percent": 32.831724083072196,
+          "ui_platform_percent": 10.576662791862184,
+          "raster_percent": 16.636209183033227,
+          "seconds": 9.076587,
+          "frame_timing": {
+            "average_frame_build_time_millis": 0.7905293367346938,
+            "90th_percentile_frame_build_time_millis": 0.96,
+            "average_frame_rasterizer_time_millis": 4.224105867346936,
+            "90th_percentile_frame_rasterizer_time_millis": 4.894,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 784.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.76,
+            "99th_percentile_frame_build_time_millis": 1.197,
+            "50th_percentile_frame_rasterizer_time_millis": 4.219,
+            "99th_percentile_frame_rasterizer_time_millis": 7.811,
+            "50th_percentile_build_plus_raster_millis": 5.012,
+            "90th_percentile_build_plus_raster_millis": 5.708,
+            "99th_percentile_build_plus_raster_millis": 8.571,
+            "fps": 59.99087128706053,
+            "elapsed_micros": 13068655
+          },
+          "driver_valid": false,
+          "before_read_micros": null,
+          "after_read_micros": null,
+          "new_threads": [],
+          "exited_threads": [
+            10052
+          ]
+        }
+      ],
+      "status": "未通过：有效轮不足3，不超过5次启动"
+    },
+    "grid_steady": {
+      "attempts": 4,
+      "valid_rounds": 3,
+      "rounds": [
+        {
+          "attempt": 1,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_grid/cpu_grid_steady_1/cpu/cpu.json",
+          "process_percent": 43.80156761242223,
+          "ui_platform_percent": 13.570424321640015,
+          "raster_percent": 23.244390174690324,
+          "seconds": 7.442656,
+          "frame_timing": {
+            "average_frame_build_time_millis": 0.9820547263681588,
+            "90th_percentile_frame_build_time_millis": 1.661,
+            "average_frame_rasterizer_time_millis": 3.261603648424545,
+            "90th_percentile_frame_rasterizer_time_millis": 3.859,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 603.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.931,
+            "99th_percentile_frame_build_time_millis": 2.454,
+            "50th_percentile_frame_rasterizer_time_millis": 3.414,
+            "99th_percentile_frame_rasterizer_time_millis": 4.367,
+            "50th_percentile_build_plus_raster_millis": 4.248,
+            "90th_percentile_build_plus_raster_millis": 5.376,
+            "99th_percentile_build_plus_raster_millis": 6.481,
+            "fps": 60.026662589233666,
+            "elapsed_micros": 10045536
+          },
+          "driver_valid": true,
+          "before_read_micros": 2415725,
+          "after_read_micros": 2578447,
+          "new_threads": [],
+          "exited_threads": [
+            13324
+          ]
+        },
+        {
+          "attempt": 2,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_grid/cpu_grid_steady_2/cpu/cpu.json",
+          "process_percent": 43.242299481797296,
+          "ui_platform_percent": 13.826691370355249,
+          "raster_percent": 21.146704448778614,
+          "seconds": 7.377036,
+          "frame_timing": {
+            "average_frame_build_time_millis": 0.9778198970840486,
+            "90th_percentile_frame_build_time_millis": 1.808,
+            "average_frame_rasterizer_time_millis": 5.37969982847341,
+            "90th_percentile_frame_rasterizer_time_millis": 7.109,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 583.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.891,
+            "99th_percentile_frame_build_time_millis": 2.251,
+            "50th_percentile_frame_rasterizer_time_millis": 5.178,
+            "99th_percentile_frame_rasterizer_time_millis": 8.809,
+            "50th_percentile_build_plus_raster_millis": 5.994,
+            "90th_percentile_build_plus_raster_millis": 8.519,
+            "99th_percentile_build_plus_raster_millis": 10.018,
+            "fps": 60.01824431090356,
+            "elapsed_micros": 9713713
+          },
+          "driver_valid": true,
+          "before_read_micros": 2363680,
+          "after_read_micros": 2315844,
+          "new_threads": [],
+          "exited_threads": [
+            14286
+          ]
+        },
+        {
+          "attempt": 4,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_grid/cpu_grid_steady_4/cpu/cpu.json",
+          "process_percent": 46.29115997777407,
+          "ui_platform_percent": 14.504563459702544,
+          "raster_percent": 23.145579988887036,
+          "seconds": 6.480719,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.045244769874477,
+            "90th_percentile_frame_build_time_millis": 1.87,
+            "average_frame_rasterizer_time_millis": 4.922864016736404,
+            "90th_percentile_frame_rasterizer_time_millis": 7.142,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 478.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 0.945,
+            "99th_percentile_frame_build_time_millis": 2.32,
+            "50th_percentile_frame_rasterizer_time_millis": 4.917,
+            "99th_percentile_frame_rasterizer_time_millis": 8.427,
+            "50th_percentile_build_plus_raster_millis": 5.732,
+            "90th_percentile_build_plus_raster_millis": 8.656,
+            "99th_percentile_build_plus_raster_millis": 9.841,
+            "fps": 60.021733392501204,
+            "elapsed_micros": 7963782
+          },
+          "driver_valid": true,
+          "before_read_micros": 1465692,
+          "after_read_micros": 1460848,
+          "new_threads": [],
+          "exited_threads": [
+            15684
+          ]
+        }
+      ],
+      "medians": {
+        "process_percent": 43.80156761242223,
+        "ui_platform_percent": 13.826691370355249,
+        "raster_percent": 23.145579988887036
+      },
+      "other_attempts": [
+        {
+          "attempt": 3,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_grid/cpu_grid_steady_3/cpu/cpu.json",
+          "status": "无可信 CPU 增量，历史降级原文保留"
+        }
+      ],
+      "status": "已落地"
+    },
+    "slot_steady": {
+      "attempts": 3,
+      "valid_rounds": 3,
+      "rounds": [
+        {
+          "attempt": 1,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_slot/cpu_slot_steady_1/cpu/cpu.json",
+          "process_percent": 47.271409027413235,
+          "ui_platform_percent": 16.893716668813255,
+          "raster_percent": 22.783269268949983,
+          "seconds": 6.452103,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.338213389121339,
+            "90th_percentile_frame_build_time_millis": 1.994,
+            "average_frame_rasterizer_time_millis": 3.3398138075313786,
+            "90th_percentile_frame_rasterizer_time_millis": 3.973,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 478.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.116,
+            "99th_percentile_frame_build_time_millis": 2.971,
+            "50th_percentile_frame_rasterizer_time_millis": 3.424,
+            "99th_percentile_frame_rasterizer_time_millis": 4.505,
+            "50th_percentile_build_plus_raster_millis": 4.515,
+            "90th_percentile_build_plus_raster_millis": 6.018,
+            "99th_percentile_build_plus_raster_millis": 7.175,
+            "fps": 59.94674521780484,
+            "elapsed_micros": 7973744
+          },
+          "driver_valid": true,
+          "before_read_micros": 1434261,
+          "after_read_micros": 1504833,
+          "new_threads": [],
+          "exited_threads": [
+            16335
+          ]
+        },
+        {
+          "attempt": 2,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_slot/cpu_slot_steady_2/cpu/cpu.json",
+          "process_percent": 46.0665851105926,
+          "ui_platform_percent": 16.084265309800127,
+          "raster_percent": 22.955213597481734,
+          "seconds": 6.403774,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.277739406779663,
+            "90th_percentile_frame_build_time_millis": 1.939,
+            "average_frame_rasterizer_time_millis": 16.765898305084757,
+            "90th_percentile_frame_rasterizer_time_millis": 17.652,
+            "dropped_frame_ratio": 0.3707627118644068,
+            "frame_count": 472.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.086,
+            "99th_percentile_frame_build_time_millis": 2.254,
+            "50th_percentile_frame_rasterizer_time_millis": 16.489,
+            "99th_percentile_frame_rasterizer_time_millis": 20.618,
+            "50th_percentile_build_plus_raster_millis": 17.65,
+            "90th_percentile_build_plus_raster_millis": 18.954,
+            "99th_percentile_build_plus_raster_millis": 21.952,
+            "fps": 59.89439552152347,
+            "elapsed_micros": 7880537
+          },
+          "driver_valid": true,
+          "before_read_micros": 1375753,
+          "after_read_micros": 1458097,
+          "new_threads": [],
+          "exited_threads": [
+            16803
+          ]
+        },
+        {
+          "attempt": 3,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_slot/cpu_slot_steady_3/cpu/cpu.json",
+          "process_percent": 49.31538460106955,
+          "ui_platform_percent": 15.973222056321267,
+          "raster_percent": 24.192452823166196,
+          "seconds": 6.448292,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.283549682875264,
+            "90th_percentile_frame_build_time_millis": 1.967,
+            "average_frame_rasterizer_time_millis": 3.4371987315010553,
+            "90th_percentile_frame_rasterizer_time_millis": 4.252,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 473.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.07,
+            "99th_percentile_frame_build_time_millis": 2.491,
+            "50th_percentile_frame_rasterizer_time_millis": 3.486,
+            "99th_percentile_frame_rasterizer_time_millis": 4.731,
+            "50th_percentile_build_plus_raster_millis": 4.53,
+            "90th_percentile_build_plus_raster_millis": 6.211,
+            "99th_percentile_build_plus_raster_millis": 6.792,
+            "fps": 59.9827153401673,
+            "elapsed_micros": 7885605
+          },
+          "driver_valid": true,
+          "before_read_micros": 1433175,
+          "after_read_micros": 1412217,
+          "new_threads": [],
+          "exited_threads": [
+            17399
+          ]
+        }
+      ],
+      "medians": {
+        "process_percent": 47.271409027413235,
+        "ui_platform_percent": 16.084265309800127,
+        "raster_percent": 22.955213597481734
+      },
+      "other_attempts": [],
+      "status": "已落地"
+    },
+    "capsule_mixing": {
+      "attempts": 4,
+      "valid_rounds": 3,
+      "rounds": [
+        {
+          "attempt": 1,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_capsule/cpu_capsule_mixing_1/cpu/cpu.json",
+          "process_percent": 54.38085147672756,
+          "ui_platform_percent": 19.887854254346077,
+          "raster_percent": 26.568930292915464,
+          "seconds": 6.436089,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.6795051759834376,
+            "90th_percentile_frame_build_time_millis": 2.568,
+            "average_frame_rasterizer_time_millis": 3.722360248447206,
+            "90th_percentile_frame_rasterizer_time_millis": 4.52,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 483.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.429,
+            "99th_percentile_frame_build_time_millis": 3.188,
+            "50th_percentile_frame_rasterizer_time_millis": 3.838,
+            "99th_percentile_frame_rasterizer_time_millis": 4.973,
+            "50th_percentile_build_plus_raster_millis": 5.193,
+            "90th_percentile_build_plus_raster_millis": 7.036,
+            "99th_percentile_build_plus_raster_millis": 7.551,
+            "fps": 60.06018702219976,
+            "elapsed_micros": 8041933
+          },
+          "driver_valid": true,
+          "before_read_micros": 1425031,
+          "after_read_micros": 1577936,
+          "new_threads": [],
+          "exited_threads": [
+            18005
+          ]
+        },
+        {
+          "attempt": 3,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_capsule/cpu_capsule_mixing_3/cpu/cpu.json",
+          "process_percent": 52.59128067502456,
+          "ui_platform_percent": 18.406948236258593,
+          "raster_percent": 24.74883796471744,
+          "seconds": 6.46495,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.5796528925619833,
+            "90th_percentile_frame_build_time_millis": 2.455,
+            "average_frame_rasterizer_time_millis": 3.641320247933885,
+            "90th_percentile_frame_rasterizer_time_millis": 4.425,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 484.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.337,
+            "99th_percentile_frame_build_time_millis": 3.087,
+            "50th_percentile_frame_rasterizer_time_millis": 3.771,
+            "99th_percentile_frame_rasterizer_time_millis": 4.955,
+            "50th_percentile_build_plus_raster_millis": 5.038,
+            "90th_percentile_build_plus_raster_millis": 6.859,
+            "99th_percentile_build_plus_raster_millis": 7.514,
+            "fps": 59.98980173370527,
+            "elapsed_micros": 8068038
+          },
+          "driver_valid": true,
+          "before_read_micros": 1450526,
+          "after_read_micros": 1584025,
+          "new_threads": [],
+          "exited_threads": [
+            19435
+          ]
+        },
+        {
+          "attempt": 4,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_capsule/cpu_capsule_mixing_4/cpu/cpu.json",
+          "process_percent": 49.70539873407627,
+          "ui_platform_percent": 17.652384597148583,
+          "raster_percent": 24.6204311486546,
+          "seconds": 6.458051,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.5519276859504127,
+            "90th_percentile_frame_build_time_millis": 2.499,
+            "average_frame_rasterizer_time_millis": 4.493745867768594,
+            "90th_percentile_frame_rasterizer_time_millis": 6.357,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 484.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.235,
+            "99th_percentile_frame_build_time_millis": 3.184,
+            "50th_percentile_frame_rasterizer_time_millis": 4.372,
+            "99th_percentile_frame_rasterizer_time_millis": 7.041,
+            "50th_percentile_build_plus_raster_millis": 5.873,
+            "90th_percentile_build_plus_raster_millis": 8.929,
+            "99th_percentile_build_plus_raster_millis": 9.465,
+            "fps": 60.027225571399654,
+            "elapsed_micros": 8063008
+          },
+          "driver_valid": true,
+          "before_read_micros": 1440806,
+          "after_read_micros": 1583039,
+          "new_threads": [],
+          "exited_threads": [
+            20189
+          ]
+        }
+      ],
+      "medians": {
+        "process_percent": 52.59128067502456,
+        "ui_platform_percent": 18.406948236258593,
+        "raster_percent": 24.74883796471744
+      },
+      "other_attempts": [],
+      "status": "已落地"
+    },
+    "lotto_draw": {
+      "attempts": 3,
+      "valid_rounds": 3,
+      "rounds": [
+        {
+          "attempt": 1,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_lotto/cpu_lotto_draw_1/cpu/cpu.json",
+          "process_percent": 55.19883052904668,
+          "ui_platform_percent": 20.001823422042197,
+          "raster_percent": 28.68478552773493,
+          "seconds": 6.449412,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.9253284823284817,
+            "90th_percentile_frame_build_time_millis": 3.171,
+            "average_frame_rasterizer_time_millis": 10.28596673596674,
+            "90th_percentile_frame_rasterizer_time_millis": 17.106,
+            "dropped_frame_ratio": 0.1787941787941788,
+            "frame_count": 481.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.571,
+            "99th_percentile_frame_build_time_millis": 3.784,
+            "50th_percentile_frame_rasterizer_time_millis": 5.224,
+            "99th_percentile_frame_rasterizer_time_millis": 19.824,
+            "50th_percentile_build_plus_raster_millis": 8.492,
+            "90th_percentile_build_plus_raster_millis": 19.58,
+            "99th_percentile_build_plus_raster_millis": 21.641,
+            "fps": 60.01463308974795,
+            "elapsed_micros": 8014712
+          },
+          "driver_valid": true,
+          "before_read_micros": 1419493,
+          "after_read_micros": 1543118,
+          "new_threads": [],
+          "exited_threads": [
+            20741
+          ]
+        },
+        {
+          "attempt": 2,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_lotto/cpu_lotto_draw_2/cpu/cpu.json",
+          "process_percent": 56.59071125662317,
+          "ui_platform_percent": 19.12268539715563,
+          "raster_percent": 31.715673341623972,
+          "seconds": 6.432151,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.798847107438018,
+            "90th_percentile_frame_build_time_millis": 3.056,
+            "average_frame_rasterizer_time_millis": 4.337371900826447,
+            "90th_percentile_frame_rasterizer_time_millis": 5.057,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 484.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.462,
+            "99th_percentile_frame_build_time_millis": 4.072,
+            "50th_percentile_frame_rasterizer_time_millis": 4.573,
+            "99th_percentile_frame_rasterizer_time_millis": 6.062,
+            "50th_percentile_build_plus_raster_millis": 6.061,
+            "90th_percentile_build_plus_raster_millis": 8.093,
+            "99th_percentile_build_plus_raster_millis": 9.453,
+            "fps": 59.985147479186146,
+            "elapsed_micros": 8068664
+          },
+          "driver_valid": true,
+          "before_read_micros": 1403528,
+          "after_read_micros": 1606437,
+          "new_threads": [
+            21379
+          ],
+          "exited_threads": [
+            21286
+          ]
+        },
+        {
+          "attempt": 3,
+          "source": "C:/ldq/luckdraw/tool/bench/results/pending2/cpu_lotto/cpu_lotto_draw_3/cpu/cpu.json",
+          "process_percent": 60.515121428775956,
+          "ui_platform_percent": 21.513048282864084,
+          "raster_percent": 30.799256174747857,
+          "seconds": 6.461195,
+          "frame_timing": {
+            "average_frame_build_time_millis": 1.988889344262294,
+            "90th_percentile_frame_build_time_millis": 3.165,
+            "average_frame_rasterizer_time_millis": 4.402122950819677,
+            "90th_percentile_frame_rasterizer_time_millis": 5.081,
+            "dropped_frame_ratio": 0.0,
+            "frame_count": 488.0,
+            "refresh_rate_hz": 60.000003814697266,
+            "50th_percentile_frame_build_time_millis": 1.662,
+            "99th_percentile_frame_build_time_millis": 3.801,
+            "50th_percentile_frame_rasterizer_time_millis": 4.627,
+            "99th_percentile_frame_rasterizer_time_millis": 5.498,
+            "50th_percentile_build_plus_raster_millis": 6.213,
+            "90th_percentile_build_plus_raster_millis": 8.291,
+            "99th_percentile_build_plus_raster_millis": 8.882,
+            "fps": 60.03662233962717,
+            "elapsed_micros": 8128372
+          },
+          "driver_valid": true,
+          "before_read_micros": 1437307,
+          "after_read_micros": 1637702,
+          "new_threads": [],
+          "exited_threads": [
+            21875
+          ]
+        }
+      ],
+      "medians": {
+        "process_percent": 56.59071125662317,
+        "ui_platform_percent": 20.001823422042197,
+        "raster_percent": 30.799256174747857
+      },
+      "other_attempts": [],
+      "status": "已落地"
+    }
+  },
+  "first_frame_increment_budgets_ms": {
+    "wheel_first_frame": 26.612,
+    "grid_first_frame": 11.121
+  },
+  "cpu_method": "/proc stat delta / host read-start timestamp delta / CLK_TCK=100; single-core percent",
+  "ui_note": "Flutter3.47 Android 默认 UI/platform 合并，主线程 tid=pid；1.raster 单列，非纯 Dart UI CPU。https://docs.flutter.dev/resources/architectural-overview",
+  "phone_settings_note": "接手 stay_on=2；中途外部变化实测0，本批无 settings put/svc power 写入。最终实测另见 validation/device_final.json。"
+}

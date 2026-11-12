@@ -1,0 +1,335 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":35544,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"E:/workspaces/dart-labs/luckdraw/test/perf/perf_memory_sizes_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading E:/workspaces/dart-labs/luckdraw/test/perf/perf_memory_sizes_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":5,"time":4,"type":"allSuites"}
+lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+test/perf/perf_memory_sizes_test.dart:67:26: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      sizes[key] = cache.debugRasterBytes;
+                         ^^^^^^^^^^^^^^^^
+test/perf/perf_memory_sizes_test.dart:74:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(cache.debugRasterBytes, 0);
+                   ^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.
+    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
+                                            ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.
+ - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          () => LuckyCachedPicture(
+                ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.
+        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                                         ^^^^
+lib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.
+ - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          final background = LuckyCachedPicture(
+                             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.
+        (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                       ^^^^
+lib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.
+ - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+            (b) => LuckyCachedPicture(
+                   ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.
+ - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,
+            ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+lib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.
+    if (data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                     ^^^^
+lib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.
+              (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                             ^^^^
+{"testID":1,"error":"Failed to load \"E:/workspaces/dart-labs/luckdraw/test/perf/perf_memory_sizes_test.dart\":\nCompilation failed for testPath=E:/workspaces/dart-labs/luckdraw/test/perf/perf_memory_sizes_test.dart: lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\ntest/perf/perf_memory_sizes_test.dart:67:26: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      sizes[key] = cache.debugRasterBytes;\n                         ^^^^^^^^^^^^^^^^\ntest/perf/perf_memory_sizes_test.dart:74:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(cache.debugRasterBytes, 0);\n                   ^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.\n    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};\n                                            ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.\n - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          () => LuckyCachedPicture(\n                ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.\n        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                                         ^^^^\nlib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.\n - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          final background = LuckyCachedPicture(\n                             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.\n        (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                       ^^^^\nlib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.\n - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n            (b) => LuckyCachedPicture(\n                   ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.\n - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,\n            ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\nlib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.\n    if (data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                     ^^^^\nlib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.\n              (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                             ^^^^\n.","stackTrace":"","isFailure":false,"type":"error","time":2643}
+{"testID":1,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":2646}
+{"suite":{"id":2,"platform":"vm","path":"E:/workspaces/dart-labs/luckdraw/test/perf/perf_renderers_test.dart"},"type":"suite","time":2647}
+{"test":{"id":3,"name":"loading E:/workspaces/dart-labs/luckdraw/test/perf/perf_renderers_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2647}
+{"testID":1,"error":"Error: The Dart compiler exited unexpectedly.","stackTrace":"package:flutter_tools/src/base/common.dart 34:3  throwToolExit\npackage:flutter_tools/src/compile.dart 1021:11   DefaultResidentCompiler._compile.<fn>\ndart:async/zone_root.dart 48:47                  _rootRunUnary\ndart:async/zone.dart 816:35                      _CustomZone.runUnary\ndart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback\ndart:async/future_impl.dart 977:13               Future._propagateToListeners\ndart:async/future_impl.dart 862:9                Future._propagateToListeners\ndart:async/future_impl.dart 720:5                Future._completeWithValue\ndart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>\ndart:async/zone_root.dart 35:13                  _rootRun\ndart:async/zone.dart 810:35                      _CustomZone.run\ndart:async/zone.dart 702:7                       _CustomZone.runGuarded\ndart:async/zone.dart 743:23                      _CustomZone.bindCallbackGuarded.<fn>\ndart:async/schedule_microtask.dart 40:35         _microtaskLoop\ndart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop\ndart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback\ndart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":2678}
+lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+test/perf/perf_renderers_test.dart:142:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(painter.cache.debugRasterBytes, greaterThan(0));
+                           ^^^^^^^^^^^^^^^^
+test/perf/perf_renderers_test.dart:175:37: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(painter.pictures.cache.debugRasterBytes, 0);
+                                    ^^^^^^^^^^^^^^^^
+test/perf/perf_renderers_test.dart:202:51: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(_painter<LottoPainter>(tester).cache.debugRasterBytes, 0);
+                                                  ^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.
+    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
+                                            ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.
+ - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          () => LuckyCachedPicture(
+                ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.
+        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                                         ^^^^
+lib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.
+ - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          final background = LuckyCachedPicture(
+                             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.
+        (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                       ^^^^
+lib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.
+ - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+            (b) => LuckyCachedPicture(
+                   ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.
+ - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,
+            ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+{"testID":3,"error":"Failed to load \"E:/workspaces/dart-labs/luckdraw/test/perf/perf_renderers_test.dart\":\nCompilation failed for testPath=E:/workspaces/dart-labs/luckdraw/test/perf/perf_renderers_test.dart: lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\ntest/perf/perf_renderers_test.dart:142:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(painter.cache.debugRasterBytes, greaterThan(0));\n                           ^^^^^^^^^^^^^^^^\ntest/perf/perf_renderers_test.dart:175:37: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(painter.pictures.cache.debugRasterBytes, 0);\n                                    ^^^^^^^^^^^^^^^^\ntest/perf/perf_renderers_test.dart:202:51: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(_painter<LottoPainter>(tester).cache.debugRasterBytes, 0);\n                                                  ^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.\n    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};\n                                            ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.\n - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          () => LuckyCachedPicture(\n                ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.\n        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                                         ^^^^\nlib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.\n - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          final background = LuckyCachedPicture(\n                             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.\n        (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                       ^^^^\nlib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.\n - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n            (b) => LuckyCachedPicture(\n                   ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.\n - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,\n            ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\n.","stackTrace":"","isFailure":false,"type":"error","time":4147}
+{"testID":3,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":4148}
+{"suite":{"id":4,"platform":"vm","path":"E:/workspaces/dart-labs/luckdraw/test/perf/perf_resources_test.dart"},"type":"suite","time":4148}
+{"test":{"id":5,"name":"loading E:/workspaces/dart-labs/luckdraw/test/perf/perf_resources_test.dart","suiteID":4,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":4148}
+{"testID":1,"error":"Error: The Dart compiler exited unexpectedly.","stackTrace":"package:flutter_tools/src/base/common.dart 34:3  throwToolExit\npackage:flutter_tools/src/compile.dart 1021:11   DefaultResidentCompiler._compile.<fn>\ndart:async/zone_root.dart 48:47                  _rootRunUnary\ndart:async/zone.dart 816:35                      _CustomZone.runUnary\ndart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback\ndart:async/future_impl.dart 977:13               Future._propagateToListeners\ndart:async/future_impl.dart 862:9                Future._propagateToListeners\ndart:async/future_impl.dart 720:5                Future._completeWithValue\ndart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>\ndart:async/zone_root.dart 35:13                  _rootRun\ndart:async/zone.dart 810:35                      _CustomZone.run\ndart:async/zone.dart 702:7                       _CustomZone.runGuarded\ndart:async/zone.dart 743:23                      _CustomZone.bindCallbackGuarded.<fn>\ndart:async/schedule_microtask.dart 40:35         _microtaskLoop\ndart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop\ndart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback\ndart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":4183}
+lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import '../../core/render/cached_picture.dart';
+       ^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture> capsulePlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.
+    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
+                                            ^^^^^^^^^^^^^^^^^^
+lib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.
+ - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          () => LuckyCachedPicture(
+                ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.
+  final List<LuckyCachedPicture?> _cellPlayback = [];
+             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.
+        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                                         ^^^^
+lib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.
+ - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+          final background = LuckyCachedPicture(
+                             ^^^^^^^^^^^^^^^^^^
+lib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.
+        (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                       ^^^^
+lib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.
+ - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+            (b) => LuckyCachedPicture(
+                   ^^^^^^^^^^^^^^^^^^
+lib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.
+  late final List<List<LuckyCachedPicture>> _balls;
+                       ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.
+ - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').
+Try correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.
+    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,
+            ^^^^^^^^^^^^^^^^^^
+lib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.
+  late final LuckyCachedPicture _disc;
+             ^^^^^^^^^^^^^^^^^^
+lib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.
+    if (data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                     ^^^^
+lib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.
+              (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                             ^^^^
+{"testID":5,"error":"Failed to load \"E:/workspaces/dart-labs/luckdraw/test/perf/perf_resources_test.dart\":\nCompilation failed for testPath=E:/workspaces/dart-labs/luckdraw/test/perf/perf_resources_test.dart: lib/src/capsule/render/capsule_painter.dart:11:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/grid/render/grid_painter.dart:12:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/lotto/render/lotto_painter.dart:7:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/number_wheel/render/number_wheel_painter.dart:10:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport '../../core/render/cached_picture.dart';\n       ^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: Type 'LuckyCachedPicture' not found.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: Type 'LuckyCachedPicture' not found.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: Type 'LuckyCachedPicture' not found.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:71:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture> capsulePlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:158:45: Error: 'LuckyCachedPicture' isn't a type.\n    final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};\n                                            ^^^^^^^^^^^^^^^^^^\nlib/src/capsule/render/capsule_painter.dart:164:17: Error: The method 'LuckyCachedPicture' isn't defined for the type 'CapsulePictures'.\n - 'CapsulePictures' is from 'package:luckdraw/src/capsule/render/capsule_painter.dart' ('lib/src/capsule/render/capsule_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          () => LuckyCachedPicture(\n                ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:64:14: Error: 'LuckyCachedPicture' isn't a type.\n  final List<LuckyCachedPicture?> _cellPlayback = [];\n             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:96:74: Error: Member not found: 'auto'.\n        final performance = data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                                         ^^^^\nlib/src/grid/render/grid_painter.dart:110:30: Error: The method 'LuckyCachedPicture' isn't defined for the type 'GridPainter'.\n - 'GridPainter' is from 'package:luckdraw/src/grid/render/grid_painter.dart' ('lib/src/grid/render/grid_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n          final background = LuckyCachedPicture(\n                             ^^^^^^^^^^^^^^^^^^\nlib/src/grid/render/grid_painter.dart:276:56: Error: Member not found: 'auto'.\n        (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                       ^^^^\nlib/src/lotto/render/lotto_painter.dart:68:20: Error: The method 'LuckyCachedPicture' isn't defined for the type 'LottoPainter'.\n - 'LottoPainter' is from 'package:luckdraw/src/lotto/render/lotto_painter.dart' ('lib/src/lotto/render/lotto_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n            (b) => LuckyCachedPicture(\n                   ^^^^^^^^^^^^^^^^^^\nlib/src/lotto/render/lotto_painter.dart:99:24: Error: 'LuckyCachedPicture' isn't a type.\n  late final List<List<LuckyCachedPicture>> _balls;\n                       ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:45:13: Error: The method 'LuckyCachedPicture' isn't defined for the type 'NumberWheelPainter'.\n - 'NumberWheelPainter' is from 'package:luckdraw/src/number_wheel/render/number_wheel_painter.dart' ('lib/src/number_wheel/render/number_wheel_painter.dart').\nTry correcting the name to the name of an existing method, or defining a method named 'LuckyCachedPicture'.\n    _disc = LuckyCachedPicture(cache, _discId, Offset.zero & data.layout.size,\n            ^^^^^^^^^^^^^^^^^^\nlib/src/number_wheel/render/number_wheel_painter.dart:73:14: Error: 'LuckyCachedPicture' isn't a type.\n  late final LuckyCachedPicture _disc;\n             ^^^^^^^^^^^^^^^^^^\nlib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.\n    if (data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                     ^^^^\nlib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.\n              (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                             ^^^^\n.","stackTrace":"","isFailure":false,"type":"error","time":5697}
+{"testID":5,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":5697}
+{"suite":{"id":6,"platform":"vm","path":"E:/workspaces/dart-labs/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"suite","time":5698}
+{"test":{"id":7,"name":"loading E:/workspaces/dart-labs/luckdraw/test/wheel/perf_wheel_test.dart","suiteID":6,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":5698}
+{"testID":1,"error":"Error: The Dart compiler exited unexpectedly.","stackTrace":"package:flutter_tools/src/base/common.dart 34:3  throwToolExit\npackage:flutter_tools/src/compile.dart 1021:11   DefaultResidentCompiler._compile.<fn>\ndart:async/zone_root.dart 48:47                  _rootRunUnary\ndart:async/zone.dart 816:35                      _CustomZone.runUnary\ndart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback\ndart:async/future_impl.dart 977:13               Future._propagateToListeners\ndart:async/future_impl.dart 862:9                Future._propagateToListeners\ndart:async/future_impl.dart 720:5                Future._completeWithValue\ndart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>\ndart:async/zone_root.dart 35:13                  _rootRun\ndart:async/zone.dart 810:35                      _CustomZone.run\ndart:async/zone.dart 702:7                       _CustomZone.runGuarded\ndart:async/zone.dart 743:23                      _CustomZone.bindCallbackGuarded.<fn>\ndart:async/schedule_microtask.dart 40:35         _microtaskLoop\ndart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop\ndart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback\ndart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":5737}
+test/wheel/perf_wheel_test.dart:20:35: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      final bytes = harness.cache.debugRasterBytes;
+                                  ^^^^^^^^^^^^^^^^
+test/wheel/perf_wheel_test.dart:35:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(harness.cache.debugRasterBytes, bytes);
+                           ^^^^^^^^^^^^^^^^
+test/wheel/perf_wheel_test.dart:52:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(harness.cache.debugRasterBytes, 0);
+                           ^^^^^^^^^^^^^^^^
+lib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.
+    if (data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                     ^^^^
+lib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.
+              (_data.performance.cacheMode == LuckyCacheMode.auto &&
+                                                             ^^^^
+{"testID":7,"error":"Failed to load \"E:/workspaces/dart-labs/luckdraw/test/wheel/perf_wheel_test.dart\":\nCompilation failed for testPath=E:/workspaces/dart-labs/luckdraw/test/wheel/perf_wheel_test.dart: test/wheel/perf_wheel_test.dart:20:35: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      final bytes = harness.cache.debugRasterBytes;\n                                  ^^^^^^^^^^^^^^^^\ntest/wheel/perf_wheel_test.dart:35:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(harness.cache.debugRasterBytes, bytes);\n                           ^^^^^^^^^^^^^^^^\ntest/wheel/perf_wheel_test.dart:52:28: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(harness.cache.debugRasterBytes, 0);\n                           ^^^^^^^^^^^^^^^^\nlib/src/wheel/render/wheel_painter.dart:106:54: Error: Member not found: 'auto'.\n    if (data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                     ^^^^\nlib/src/wheel/render/wheel_painter.dart:304:62: Error: Member not found: 'auto'.\n              (_data.performance.cacheMode == LuckyCacheMode.auto &&\n                                                             ^^^^\n.","stackTrace":"","isFailure":false,"type":"error","time":7304}
+{"testID":7,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":7305}
+{"suite":{"id":8,"platform":"vm","path":"E:/workspaces/dart-labs/luckdraw/test/core/render/perf_cache_test.dart"},"type":"suite","time":7305}
+{"test":{"id":9,"name":"loading E:/workspaces/dart-labs/luckdraw/test/core/render/perf_cache_test.dart","suiteID":8,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":7305}
+{"testID":1,"error":"Error: The Dart compiler exited unexpectedly.","stackTrace":"package:flutter_tools/src/base/common.dart 34:3  throwToolExit\npackage:flutter_tools/src/compile.dart 1021:11   DefaultResidentCompiler._compile.<fn>\ndart:async/zone_root.dart 48:47                  _rootRunUnary\ndart:async/zone.dart 816:35                      _CustomZone.runUnary\ndart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback\ndart:async/future_impl.dart 977:13               Future._propagateToListeners\ndart:async/future_impl.dart 862:9                Future._propagateToListeners\ndart:async/future_impl.dart 720:5                Future._completeWithValue\ndart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>\ndart:async/zone_root.dart 35:13                  _rootRun\ndart:async/zone.dart 810:35                      _CustomZone.run\ndart:async/zone.dart 702:7                       _CustomZone.runGuarded\ndart:async/zone.dart 743:23                      _CustomZone.bindCallbackGuarded.<fn>\ndart:async/schedule_microtask.dart 40:35         _microtaskLoop\ndart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop\ndart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback\ndart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":7352}
+test/core/render/perf_cache_test.dart:6:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。
+import 'package:luckdraw/src/core/render/cached_picture.dart';
+       ^
+test/core/render/perf_cache_test.dart:17:24: Error: Method not found: 'LuckyCachedPicture'.
+      final playback = LuckyCachedPicture(
+                       ^^^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:24:44: Error: Member not found: 'auto'.
+      expect(playback.mode, LuckyCacheMode.auto);
+                                           ^^^^
+test/core/render/perf_cache_test.dart:48:26: Error: Method not found: 'LuckyCachedPicture'.
+        final playback = LuckyCachedPicture(
+                         ^^^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:65:25: Error: Method not found: 'LuckyCachedPicture'.
+      final oversized = LuckyCachedPicture(
+                        ^^^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:80:60: Error: Member not found: 'auto'.
+      final cache = LuckyPictureCache(mode: LuckyCacheMode.auto);
+                                                           ^^^^
+test/core/render/perf_cache_test.dart:103:60: Error: Member not found: 'auto'.
+      final cache = LuckyPictureCache(mode: LuckyCacheMode.auto);
+                                                           ^^^^
+test/core/render/perf_cache_test.dart:27:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(cache.debugRasterBytes, 16 * 12 * 4);
+                   ^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:61:22: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+        expect(cache.debugRasterBytes, 0);
+                     ^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:75:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(cache.debugRasterBytes, 0);
+                   ^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:88:11: Error: No named parameter with the name 'origin'.
+          origin: const ui.Offset(-1, -1))!;
+          ^^^^^^
+test/core/render/perf_cache_test.dart:92:15: Error: No named parameter with the name 'origin'.
+              origin: const ui.Offset(-1, -1)),
+              ^^^^^^
+test/core/render/perf_cache_test.dart:94:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(cache.debugRasterBytes, 3 * 3 * 4);
+                   ^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:97:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.
+ - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').
+Try correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.
+      expect(cache.debugRasterBytes, 0);
+                   ^^^^^^^^^^^^^^^^
+test/core/render/perf_cache_test.dart:108:10: Error: No named parameter with the name 'origin'.
+      }, origin: const ui.Offset(-2, -2))!;
+         ^^^^^^
+{"testID":9,"error":"Failed to load \"E:/workspaces/dart-labs/luckdraw/test/core/render/perf_cache_test.dart\":\nCompilation failed for testPath=E:/workspaces/dart-labs/luckdraw/test/core/render/perf_cache_test.dart: test/core/render/perf_cache_test.dart:6:8: Error: Error when reading 'lib/src/core/render/cached_picture.dart': 系统找不到指定的文件。\nimport 'package:luckdraw/src/core/render/cached_picture.dart';\n       ^\ntest/core/render/perf_cache_test.dart:17:24: Error: Method not found: 'LuckyCachedPicture'.\n      final playback = LuckyCachedPicture(\n                       ^^^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:24:44: Error: Member not found: 'auto'.\n      expect(playback.mode, LuckyCacheMode.auto);\n                                           ^^^^\ntest/core/render/perf_cache_test.dart:48:26: Error: Method not found: 'LuckyCachedPicture'.\n        final playback = LuckyCachedPicture(\n                         ^^^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:65:25: Error: Method not found: 'LuckyCachedPicture'.\n      final oversized = LuckyCachedPicture(\n                        ^^^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:80:60: Error: Member not found: 'auto'.\n      final cache = LuckyPictureCache(mode: LuckyCacheMode.auto);\n                                                           ^^^^\ntest/core/render/perf_cache_test.dart:103:60: Error: Member not found: 'auto'.\n      final cache = LuckyPictureCache(mode: LuckyCacheMode.auto);\n                                                           ^^^^\ntest/core/render/perf_cache_test.dart:27:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(cache.debugRasterBytes, 16 * 12 * 4);\n                   ^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:61:22: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n        expect(cache.debugRasterBytes, 0);\n                     ^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:75:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(cache.debugRasterBytes, 0);\n                   ^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:88:11: Error: No named parameter with the name 'origin'.\n          origin: const ui.Offset(-1, -1))!;\n          ^^^^^^\ntest/core/render/perf_cache_test.dart:92:15: Error: No named parameter with the name 'origin'.\n              origin: const ui.Offset(-1, -1)),\n              ^^^^^^\ntest/core/render/perf_cache_test.dart:94:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(cache.debugRasterBytes, 3 * 3 * 4);\n                   ^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:97:20: Error: The getter 'debugRasterBytes' isn't defined for the type 'LuckyPictureCache'.\n - 'LuckyPictureCache' is from 'package:luckdraw/src/core/render/picture_cache.dart' ('lib/src/core/render/picture_cache.dart').\nTry correcting the name to the name of an existing getter, or defining a getter or field named 'debugRasterBytes'.\n      expect(cache.debugRasterBytes, 0);\n                   ^^^^^^^^^^^^^^^^\ntest/core/render/perf_cache_test.dart:108:10: Error: No named parameter with the name 'origin'.\n      }, origin: const ui.Offset(-2, -2))!;\n         ^^^^^^\n.","stackTrace":"","isFailure":false,"type":"error","time":8839}
+{"testID":9,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":8840}
+{"success":false,"type":"done","time":8841}

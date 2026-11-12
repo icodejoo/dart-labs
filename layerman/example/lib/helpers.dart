@@ -33,16 +33,19 @@ Widget buildCard(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(text,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  text,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
                 if (hint != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(hint,
-                        textAlign: TextAlign.center,
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey)),
+                    child: Text(
+                      hint,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
                   ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -67,11 +70,11 @@ Widget buildCard(
 /// Presents a demo card via a real Navigator route (`showDialog`) — the UI
 /// backend every simple demo page uses now that the manager renders nothing
 /// itself. [contentBuilder] gets the dialog's own [BuildContext] plus a
-/// `close([result])` callback wired to pop precisely this overlay's route
+/// `close([result])` callback wired to ctx.close for this entry
 /// (never "whatever's on top"), so the manager can preempt it (replace) or
 /// close it (close/remove/clear) without touching sibling routes.
 PresentedOverlay<T> presentCard<T>(
-  PresentContext ctx,
+  PresentContext<T> ctx,
   Widget Function(BuildContext context, void Function([Object? result]) close)
       contentBuilder, {
   Color barrierColor = const Color(0x00000000),
@@ -81,7 +84,7 @@ PresentedOverlay<T> presentCard<T>(
   // Captured once the dialog actually builds, so `dismiss` can remove THIS
   // route directly — see the comment on [_removeRouteDismiss] for why that
   // beats popping by name.
-  final captured = _RouteCapture<T>();
+  final captured = RouteCapture<T>();
   final future = showDialog<T>(
     context: Get.overlayContext!,
     useRootNavigator: true,
@@ -90,13 +93,10 @@ PresentedOverlay<T> presentCard<T>(
     routeSettings: RouteSettings(name: name),
     builder: (dialogCtx) {
       captured.capture(dialogCtx);
-      return contentBuilder(
-        dialogCtx,
-        ([Object? r]) {
-          final nav = Navigator.of(dialogCtx, rootNavigator: true);
-          if (nav.canPop()) nav.pop(r as T?);
-        },
-      );
+      return contentBuilder(dialogCtx, ([Object? r]) {
+        // 通过条目身份关闭，遵守 beforeClose 并避免误关后来者。
+        ctx.close(r as T?);
+      });
     },
   );
   return PresentedOverlay<T>(
@@ -111,26 +111,34 @@ PresentedOverlay<T> presentCard<T>(
 ///
 /// That shortcut only pops from the TOP of the stack, so it silently does
 /// nothing for an overlay that isn't topmost (e.g. `clearWhere` removing one
-/// of several stacked `overlap: true` cards while a sibling is still shown).
+/// of several stacked `mode: OverlayMode.overlap` cards while a sibling is still shown).
 /// It also reaches into GetX's global navigator, which throws
 /// ("contextless navigation without a GetMaterialApp") if called while no
 /// app is mounted (e.g. `om.clear()` racing a widget-tree teardown between
-/// tests). Removing the captured [Route] straight from its own
-/// [Route.navigator] works regardless of stack position and simply no-ops
-/// once the route (or its navigator) is already gone.
-void _removeRouteDismiss(Route<Object?>? Function() route) {
-  final rt = route();
+/// tests). Dismissing the captured [Route] through its own [Route.navigator]
+/// works regardless of stack position and simply no-ops once the route (or
+/// its navigator) is already gone.
+///
+/// 与官方 DialogManager 一致：位于栈顶且没有内部历史时 pop，保留退场动画；
+/// 被覆盖或带内部历史时只移除这一条。卡片的关闭按钮走 ctx.close，最终也经过这里。
+void _removeRouteDismiss(Route<Object?>? rt) {
   final nav = rt?.navigator;
-  if (rt != null && nav != null) nav.removeRoute(rt);
+  if (rt == null || nav == null || !rt.isActive) return;
+  if (rt.isCurrent && !rt.willHandlePopInternally) {
+    nav.pop();
+  } else {
+    nav.removeRoute(rt);
+  }
 }
 
 /// Captures the [ModalRoute] of a dialog once its builder runs, and removes
 /// exactly that route on [dismiss].
+/// 首帧前的关闭请求会保留，供对话框和 sheet 共用。
 ///
 /// A dismiss that arrives before the first build (e.g. `replace` preempting a
 /// card in the same frame it opened) is remembered and applied right after the
 /// route is captured, instead of silently doing nothing and leaving a ghost.
-class _RouteCapture<T> {
+class RouteCapture<T> {
   Route<T>? route;
   bool _dismissEarly = false;
 
@@ -139,8 +147,9 @@ class _RouteCapture<T> {
     route ??= ModalRoute.of(context) as Route<T>?;
     if (_dismissEarly) {
       _dismissEarly = false;
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _removeRouteDismiss(() => route));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _removeRouteDismiss(route),
+      );
     }
   }
 
@@ -149,7 +158,7 @@ class _RouteCapture<T> {
     if (route == null) {
       _dismissEarly = true;
     } else {
-      _removeRouteDismiss(() => route);
+      _removeRouteDismiss(route);
     }
   }
 }
@@ -169,12 +178,11 @@ Future<T?> openCard<T>(
   int priority = 0,
   Duration? delay,
   Duration? duration,
-  bool replace = false,
+  OverlayMode mode = OverlayMode.queue,
   bool affix = false,
-  bool overlap = false,
   OverlayPredicate? when,
-  Object? route,
-  bool? requiresAuth,
+  RouteMatcher? route,
+  OverlayPredicate? auth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
   FutureOr<bool> Function()? beforeClose,
@@ -188,12 +196,11 @@ Future<T?> openCard<T>(
       priority: priority,
       delay: delay,
       duration: duration,
-      replace: replace,
+      mode: mode,
       affix: affix,
-      overlap: overlap,
       when: when,
       route: route,
-      requiresAuth: requiresAuth,
+      auth: auth,
       dismissWhenUnmet: dismissWhenUnmet,
       cooldown: cooldown,
       beforeClose: beforeClose,
@@ -215,7 +222,7 @@ Future<T?> openCard<T>(
 /// Presents a demo card as a bare, non-modal [OverlayEntry] — no route, no
 /// barrier. Unlike [presentCard] (a real `showDialog` route, which always
 /// blocks input to whatever is behind it), this never steals touches outside
-/// its own bounds — the right backend for the Overlap page's `overlap: true`
+/// its own bounds — the right backend for the Overlap page's `mode: OverlayMode.overlap`
 /// demos, where several cards AND the page underneath (e.g. its
 /// `clearWhere` buttons) must all stay reachable at the same time.
 PresentedOverlay<T> presentEntry<T>(
@@ -248,14 +255,9 @@ PresentedOverlay<T> presentEntry<T>(
 /// [openCard]'s queueing/condition params (everything but the barrier ones,
 /// which don't apply to a bare, non-modal [OverlayEntry]).
 ///
-/// Route-conditioned cards in particular MUST use this instead of [openCard]:
-/// a route-backed presentCard/showDialog pushes its own synthetic
-/// `om://<id>` route onto the SAME navigator `LayermanNavigatorObserver`
-/// watches, which briefly becomes the "current route" the moment it's
-/// shown — instantly failing the card's own `route:` condition and
-/// self-dismissing via `dismissWhenUnmet` (a documented interaction, not a
-/// bug — see the layerman README). A non-modal `presentEntry` pushes no
-/// route at all, so it never perturbs the tracked route.
+/// 路由条件演示使用非模态 entry，便于继续操作页面导航。
+/// LayermanNavigatorObserver 默认只跟踪 PageRoute，忽略 DialogRoute；
+/// 自定义 routeFilter 若接受所有路由，需自行过滤合成的 om:// 路由。
 Future<T?> openEntry<T>(
   String id, {
   required String text,
@@ -266,12 +268,11 @@ Future<T?> openEntry<T>(
   int priority = 0,
   Duration? delay,
   Duration? duration,
-  bool replace = false,
+  OverlayMode mode = OverlayMode.queue,
   bool affix = false,
-  bool overlap = false,
   OverlayPredicate? when,
-  Object? route,
-  bool? requiresAuth,
+  RouteMatcher? route,
+  OverlayPredicate? auth,
   bool dismissWhenUnmet = true,
   OverlayCooldown? cooldown,
   FutureOr<bool> Function()? beforeClose,
@@ -284,12 +285,11 @@ Future<T?> openEntry<T>(
       priority: priority,
       delay: delay,
       duration: duration,
-      replace: replace,
+      mode: mode,
       affix: affix,
-      overlap: overlap,
       when: when,
       route: route,
-      requiresAuth: requiresAuth,
+      auth: auth,
       dismissWhenUnmet: dismissWhenUnmet,
       cooldown: cooldown,
       beforeClose: beforeClose,
@@ -309,22 +309,19 @@ Future<T?> openEntry<T>(
 // ── Shared UI helpers ────────────────────────────────────────────────────────
 
 Widget demoButton(String key, String label, VoidCallback onTap) =>
-    FilledButton.tonal(
-      key: Key(key),
-      onPressed: onTap,
-      child: Text(label),
-    );
+    FilledButton.tonal(key: Key(key), onPressed: onTap, child: Text(label));
 
 Widget pageHeader(BuildContext context, String title, String desc) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 4),
-        Text(desc,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: Colors.grey[700])),
+        Text(
+          desc,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+        ),
         const SizedBox(height: 20),
       ],
     );
@@ -340,13 +337,17 @@ Widget pageSection(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              child: Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
             ),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: buttons),
@@ -359,19 +360,21 @@ Widget pageSection(
 // ── GetX / native route-dialog presenter ───────────────────────────────────
 
 PresentedOverlay<T> presentRouteDialog<T>(
-  PresentContext ctx,
+  PresentContext<T> ctx,
   Widget dialog, {
   bool useGetx = false,
 }) {
   final name = 'om://${ctx.id}';
-  final captured = _RouteCapture<T>();
+  final captured = RouteCapture<T>();
   // A Builder around the caller's static `dialog` widget is enough to grab
   // its ModalRoute once built, for both the showDialog and Get.dialog paths
   // — see [_removeRouteDismiss] for why a captured Route beats popping by name.
-  final wrapped = Builder(builder: (dialogCtx) {
-    captured.capture(dialogCtx);
-    return dialog;
-  });
+  final wrapped = Builder(
+    builder: (dialogCtx) {
+      captured.capture(dialogCtx);
+      return dialog;
+    },
+  );
   final Future<T?> future = useGetx
       ? Get.dialog<T>(wrapped, routeSettings: RouteSettings(name: name))
       : showDialog<T>(
@@ -431,14 +434,10 @@ PresentedOverlay<void> presentBotToastText(
 // ── shadcn/ui presenters ────────────────────────────────────────────────────
 
 /// Wraps [showShadDialog] in a [PresentedOverlay].
-/// Uses a unique route name so [dismiss] can pop it precisely
-/// without touching sibling routes.
-PresentedOverlay<T> presentShadDialog<T>(
-  PresentContext ctx,
-  Widget dialog,
-) {
+/// 保存 Route 对象供 dismiss 精确移除；路由名称仅用于标识。
+PresentedOverlay<T> presentShadDialog<T>(PresentContext<T> ctx, Widget dialog) {
   final name = 'om://${ctx.id}';
-  final captured = _RouteCapture<T>();
+  final captured = RouteCapture<T>();
   final future = showShadDialog<T>(
     context: Get.overlayContext!,
     routeSettings: RouteSettings(name: name),
@@ -464,9 +463,9 @@ PresentedOverlay<T> presentShadDialog<T>(
 ///
 /// [duration] must match the [ShadToast.duration] so the [PresentedOverlay]
 /// knows when the toast has auto-dismissed.  The completer is also completed
-/// immediately when [dismiss] is called (programmatic close from layerman).
+/// after hide() finishes its exit animation on programmatic dismissal.
 PresentedOverlay<void> presentShadToast(
-  PresentContext ctx, {
+  PresentContext<void> ctx, {
   Widget? title,
   required Widget description,
   ShadToastVariant variant = ShadToastVariant.primary,

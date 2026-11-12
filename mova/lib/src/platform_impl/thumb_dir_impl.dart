@@ -22,16 +22,25 @@ class MovaTempThumbDirProvider implements MovaThumbDirProvider {
   ///
   /// - [folderName]: sub-folder name under the temp directory /
   ///   临时目录下的子文件夹名
-  const MovaTempThumbDirProvider({this.folderName = 'mova_thumbs'});
+  MovaTempThumbDirProvider({this.folderName = 'mova_thumbs'});
 
   /// Sub-folder name under the platform temporary directory.
   ///
   /// 平台临时目录下的子文件夹名。
   final String folderName;
 
+  /// 同一实例始终复用自己的目录，不与其他引擎共享。
+  Future<String>? _path;
+
   @override
-  Future<String> resolve() async {
+  Future<String> resolve() => _path ??= _resolve();
+
+  /// 在公共根目录下原子创建独占子目录。
+  Future<String> _resolve() async {
     final tmp = await getTemporaryDirectory();
-    return '${tmp.path}${Platform.pathSeparator}$folderName';
+    final root = await Directory(
+      '${tmp.path}${Platform.pathSeparator}$folderName',
+    ).create(recursive: true);
+    return (await root.createTemp('engine_')).path;
   }
 }

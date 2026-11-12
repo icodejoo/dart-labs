@@ -1,23 +1,36 @@
-/// A **headless** overlay **queue** orchestrator.
-///
-/// Manages when/which overlay is shown — serial one-at-a-time queueing with
-/// named slots, priority, replace, overlap, conditions and cooldown — while
-/// staying UI-agnostic: rendering is delegated to a [Present] backend
-/// (showDialog / GetX / bot_toast / a self-managed `OverlayEntry` / ...) that
-/// the manager invokes when the queue grants a slot. Overlays expose imperative
-/// `Future<T?>` results and a two-phase close so a backend can play its exit
-/// animation before the queue advances.
+/// 不负责渲染的弹层队列编排库。
+/// 支持独立槽位、优先级、抢占、叠加、条件和冷却，通过 [Present] 委托展示。
+/// 返回可空 Future 结果，并等待后端退场后推进队列。
 library;
 
 export 'src/overlay_manager.dart'
     show
         Layerman,
         OverlayPredicate,
+        OverlayGate,
         OverlayCooldown,
         OverlayCooldownStorage,
         MemoryCooldownStorage,
         OverlayRecord,
+        OverlayTicket,
+        OverlayHold,
         PresentContext,
         PresentedOverlay,
         Present;
+export 'src/overlay_types.dart'
+    show
+        OverlayClock,
+        OverlayMode,
+        RouteMatcher,
+        OverlayPhase,
+        OverlayEndReason,
+        OverlayVerdict,
+        OverlayOutcome,
+        OverlayCooldownStatus,
+        OverlayEvent,
+        OverlayEventType,
+        OverlaySlotOptions;
 export 'src/overlay_navigator_observer.dart' show LayermanNavigatorObserver;
+export 'src/route_managers.dart'
+    show DialogManager, BottomSheetManager, presentRoute;
+export 'src/lifecycle_binding.dart' show LayermanLifecycle;

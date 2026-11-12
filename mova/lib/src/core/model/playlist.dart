@@ -1,4 +1,5 @@
 import 'source.dart';
+import 'ad.dart';
 
 /// One entry in a sequential playlist — a single episode or track — wrapping a
 /// playable [source] with optional display metadata for the "next up" card.
@@ -10,6 +11,10 @@ class MovaPlaylistItem {
   ///
   /// 该项对应的可播放源。
   final MovaSource source;
+
+  /// 返回本集广告排期；null 使用会话配置，空列表禁用本集排期。
+  /// 示例：`MovaPlaylistItem(source: source, adBreaks: const [])`。
+  final List<MovaAdBreak>? adBreaks;
 
   /// Card title; falls back to [MovaSource.title] when omitted.
   ///
@@ -33,6 +38,7 @@ class MovaPlaylistItem {
   /// - [source]: the playable source / 可播放源
   /// - [title]: card title, overrides the source title / 卡片标题，覆盖源标题
   /// - [subtitle]: secondary line / 副标题
+  /// - [adBreaks]: 本集广告，null 回落到配置排期，返回项由会话读取。
   /// - [poster]: poster/thumbnail URL / 封面地址
   ///
   /// Example / 示例:
@@ -47,6 +53,7 @@ class MovaPlaylistItem {
     this.title,
     this.subtitle,
     this.poster,
+    this.adBreaks,
   });
 
   /// The best display title: explicit [title] or the source's own title.

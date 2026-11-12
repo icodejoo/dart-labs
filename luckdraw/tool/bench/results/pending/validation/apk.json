@@ -1,0 +1,11 @@
+{
+  "apk": "C:\\ldq\\luckdraw\\tool\\bench\\build\\app\\outputs\\flutter-apk\\app-profile.apk",
+  "sha256": "e92cfeb2366540f4fcfee28beb67f7899976a254bde3048fb83c04408d17f14c",
+  "bytes": 65544057,
+  "arm64_markers": {
+    "pending > selected device check": true,
+    "blank_first_frame": true,
+    "cpu_": true,
+    "lots_shaking": true
+  }
+}

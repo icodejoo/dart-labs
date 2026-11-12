@@ -109,11 +109,11 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   #
-  # NOTE: subtitle-format regression probe fixtures (2026-09-28, temporary,
-  # not meant to be committed) — mov_text/ASS/WebVTT real-device test assets.
+  # 四格式字幕复验使用包内固定素材，避免依赖外部 HTTP 服务。
   assets:
     - assets/test_video.mp4
     - assets/test_video_movtext.mp4
+    - assets/test_subtitle.srt
     - assets/test_subtitle.ass
     - assets/test_subtitle.vtt
 

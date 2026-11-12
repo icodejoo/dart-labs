@@ -31,6 +31,19 @@ Future<void> settle() async {
 }
 
 void main() {
+  test('C02 disabled cutover warns only on first warm request', () async {
+    final messages = <String>[];
+    await runZoned(() async {
+      final api = MovaCutoverEngine(engineFactory: FakeMovaApi.new);
+      expect(api.cutoverEnabled, isFalse);
+      expect(messages, isEmpty);
+      await api.prepare(const MovaSource('https://a/1'));
+      await api.prepare(const MovaSource('https://a/2'));
+      expect(messages.where((m) => m.contains('cutover.enabled')), hasLength(1));
+      await api.dispose();
+    }, zoneSpecification: ZoneSpecification(print: (_, _, _, m) => messages.add(m)));
+  });
+
   group('MovaCutoverEngine — disabled by default (pure pass-through)', () {
     late List<FakeMovaApi> made;
     late MovaCutoverEngine api;
@@ -362,6 +375,7 @@ void main() {
       );
       await settle();
       final oldEngine = made[0];
+      oldEngine.push(oldEngine.state.copyWith(playbackIntent: true));
       final shadow = made[1];
       await warmToReady(shadow, at: const Duration(seconds: 5));
 

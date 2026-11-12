@@ -1,0 +1,223 @@
+{
+  "pid": 1198,
+  "started_at": "2026-11-10T18:57:37.173007Z",
+  "end_read_started_at": "2026-11-10T18:57:43.563219Z",
+  "window_adb_calls": 2,
+  "requested_steady_seconds": 5,
+  "snapshot_strategy": "three buffered cat processes; no per-thread subprocess",
+  "before_read_micros": 1375282,
+  "after_read_micros": 1530990,
+  "access": "shell",
+  "access_failures": {},
+  "method": "/proc stat delta; single-core percent",
+  "valid_cpu": true,
+  "seconds": 6.390212,
+  "clk_tck": 100,
+  "process_cpu_percent": 35.52307810758078,
+  "threads": [
+    {
+      "tid": 1198,
+      "name": ".luckdraw_bench",
+      "cpu_percent": 12.675635800502395
+    },
+    {
+      "tid": 1200,
+      "name": "Signal Catcher",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1201,
+      "name": "perfetto_hprof_",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1202,
+      "name": "ADB-JDWP Connec",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1203,
+      "name": "Jit thread pool",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1204,
+      "name": "HeapTaskDaemon",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1205,
+      "name": "ReferenceQueueD",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1206,
+      "name": "FinalizerDaemon",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1207,
+      "name": "FinalizerWatchd",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1208,
+      "name": "binder:1198_1",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1209,
+      "name": "binder:1198_2",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1211,
+      "name": "AppEventListene",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1212,
+      "name": "Profile Saver",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1213,
+      "name": "vivo.PerfThread",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1214,
+      "name": "POSIX timer 0",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1215,
+      "name": "Cleaner-0",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1216,
+      "name": "RenderThread",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1220,
+      "name": "flutter-worker-",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1221,
+      "name": "flutter-worker-",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1222,
+      "name": "1.raster",
+      "cpu_percent": 18.15276238096639
+    },
+    {
+      "tid": 1223,
+      "name": "1.io",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1224,
+      "name": "io.worker.1",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1225,
+      "name": "io.worker.2",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1226,
+      "name": "io.worker.3",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1227,
+      "name": "dart:io EventHa",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1228,
+      "name": "Dart Profiler T",
+      "cpu_percent": 1.7213826395743992
+    },
+    {
+      "tid": 1229,
+      "name": "DartWorker",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1230,
+      "name": "DartWorker",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1238,
+      "name": "event-thread",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1239,
+      "name": "support-thread",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1243,
+      "name": "TouchMotionHand",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1244,
+      "name": "TracingMuxer",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1245,
+      "name": "hwuiTask0",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1247,
+      "name": "hwuiTask1",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1258,
+      "name": "binder:1198_3",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1270,
+      "name": "HWC release",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1272,
+      "name": "GPU completion",
+      "cpu_percent": 1.0954253160927994
+    },
+    {
+      "tid": 1274,
+      "name": "SurfaceSyncGrou",
+      "cpu_percent": 0.0
+    },
+    {
+      "tid": 1283,
+      "name": "binder:1198_1",
+      "cpu_percent": 0.4694679926111997
+    },
+    {
+      "tid": 1289,
+      "name": "binder:1198_4",
+      "cpu_percent": 3.7557439408895976
+    }
+  ],
+  "new_threads": [],
+  "exited_threads": [
+    1413
+  ]
+}

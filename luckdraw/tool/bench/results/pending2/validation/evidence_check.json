@@ -1,0 +1,14 @@
+{
+  "integrity": "PASS",
+  "completion": "PARTIAL",
+  "total_starts": 32,
+  "native_cpu_raw_pairs_checked": 16,
+  "cold_valid_rounds": 12,
+  "open_items": [
+    "wheel完整链路2/5",
+    "wheel/grid未达4ms",
+    "完整开奖CPU未测",
+    "真实lib待补丁合并",
+    "stay_on最终实际值另见device_final.json，未擅自恢复"
+  ]
+}

@@ -620,9 +620,10 @@ void main() {
       api.pushEvent(const MovaDone()); // mid -> mid2, chained through _playAd's oneShot path
       await settle();
       final abandonIdx = cutover.calls.indexOf('abandon');
-      final cutoverToIdx = cutover.calls.indexOf('cutoverTo');
+      final cutoverToIdx = cutover.calls.indexOf('prepare');
       expect(abandonIdx, greaterThanOrEqualTo(0), reason: 'abandon() must run at all');
-      expect(cutoverToIdx, greaterThanOrEqualTo(0), reason: 'cutoverTo() must run at all');
+      expect(cutoverToIdx, greaterThanOrEqualTo(0), reason: 'prepare() must run at all');
+      expect(cutover.preparedSources.last, same(mid2.source));
       expect(abandonIdx, lessThan(cutoverToIdx),
           reason: 'abandon() must drop any leftover shadow before cutoverTo() warms/commits the next ad');
     });
@@ -648,15 +649,16 @@ void main() {
       api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
       await settle();
       cutover.calls.clear();
-      cutover.cutoverToGate = Completer<void>();
+      cutover.commitGate = Completer<void>();
       api.pushEvent(const MovaDone()); // mid -> mid2 via cutoverTo, held open
       await settle();
-      expect(cutover.calls, contains('cutoverTo'));
+      expect(cutover.calls, contains('commit'));
       // The old engine ticks while cutoverTo waits.
       api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
       await settle();
-      expect(cutover.calls, isNot(contains('prepare')));
-      cutover.cutoverToGate!.complete();
+      expect(cutover.preparedSources.last, same(mid2.source));
+      expect(cutover.calls.where((call) => call == 'prepare'), hasLength(1));
+      cutover.commitGate!.complete();
       await settle();
     });
   });
@@ -669,8 +671,9 @@ void main() {
       final c = MovaAds(api, cutover: cutover);
       await c.load(_content);
       await settle();
-      expect(cutover.calls, contains('cutoverTo'));
-      expect(cutover.lastCutoverToRate, 1.0);
+      expect(cutover.calls, contains('commit'));
+      expect(cutover.lastPlan?.rate, 1.0);
+      expect(cutover.lastPlan?.pauseWhenReady, isTrue);
     });
   });
 
@@ -1137,16 +1140,17 @@ void main() {
       });
     });
 
-    test('delayRemaining counts down with the content ticks and stays positive until expiry', () {
+    test('delayRemaining counts down with the clock and stays positive until expiry', () {
       fakeAsync((async) {
         final (api, c, _) = pendBuild([mid5]);
+        c.debugClock = () => DateTime.utc(2026).add(async.elapsed);
         c.load(_content);
-        flush(async);
+        async.flushMicrotasks();
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
-        flush(async);
+        async.flushMicrotasks();
         expect(c.delayRemaining, const Duration(seconds: 5));
-        api.pushProgress(const MovaProg(position: Duration(seconds: 33)));
-        flush(async);
+        async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
         expect(c.delayRemaining, const Duration(seconds: 3));
         expect(c.delayRemaining, greaterThan(Duration.zero));
       });
@@ -1513,7 +1517,7 @@ void main() {
         final (api, c, _) = waitBuild([pre], cutover: cutover, wait: const MovaAdWaitByKind(pre: true));
         c.load(_content);
         flush(async);
-        expect(cutover.calls, contains('cutoverTo'));
+        expect(cutover.calls, containsAllInOrder(['prepare', 'commit']));
         expect(api.calls, isNot(contains('open')));
         expect(c.isShowingAd, isTrue);
       });
@@ -1549,7 +1553,7 @@ void main() {
         final (api, c, _) = waitBuild([forced], cutover: cutover);
         c.load(_content);
         flush(async);
-        expect(cutover.calls, contains('cutoverTo'));
+        expect(cutover.calls, containsAllInOrder(['prepare', 'commit']));
       });
     });
 
@@ -1600,12 +1604,14 @@ void main() {
           delay: Duration(seconds: 5),
         );
         final (api, c, _) = waitBuild([delayed], cutover: cutover);
+        c.debugClock = () => DateTime.utc(2026).add(async.elapsed);
         c.load(_content);
-        flush(async);
+        async.flushMicrotasks();
         api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
-        flush(async);
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 2));
         api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
-        flush(async);
+        async.flushMicrotasks();
         expect(cutover.lastCue!.total, const Duration(seconds: 5));
         expect(cutover.lastCue!.remaining, const Duration(seconds: 3));
 
@@ -1882,13 +1888,17 @@ void main() {
       });
     });
 
-    test('a player error during an ad goes through the failure policy', () {
+    test('only a terminal player error during an ad goes through the failure policy', () {
       fakeAsync((async) {
         final policy = RecordingFailPolicy();
         final (api, c, _) = failBuild([pre], policy: policy);
         c.load(_content);
         flush(async);
-        api.pushEvent(MovaErrorEvent('decode failed'));
+        api.pushEvent(const MovaErrorEvent.classified('decode failed', fatal: false));
+        flush(async);
+        expect(policy.seen, isEmpty, reason: '非终结日志不结算广告');
+        expect(c.isShowingAd, isTrue);
+        api.pushEvent(const MovaErrorEvent.classified('decode failed', fatal: true));
         flush(async);
         expect(policy.seen, hasLength(1));
         expect(policy.seen.first.kind, MovaAdFailKind.playerError);

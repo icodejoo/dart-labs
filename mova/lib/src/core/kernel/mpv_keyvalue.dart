@@ -3,6 +3,20 @@ import 'dart:convert';
 /// mpv 键值列表（key-value list）选项名：本源选项按"增删自己的键"处理，不整体覆盖。
 const Set<String> kMpvKeyValueListOptions = {'demuxer-lavf-o', 'stream-lavf-o'};
 
+/// 解析 mpv 字符串列表，保留带长度前缀或引号的项内逗号。
+List<String>? parseMpvStringList(String source) {
+  final out = <String>[];
+  var i = 0;
+  while (i < source.length) {
+    final value = _readValue(source, i);
+    if (value == null) return null;
+    out.add(value.text);
+    i = value.end;
+    if (i < source.length && (source[i] != ',' || ++i >= source.length)) return null;
+  }
+  return out;
+}
+
 /// 解析 mpv 键值列表语法（`k1=v1,k2=%3%a,b,k3="x y"`）里的键值对，按出现顺序返回。
 ///
 /// 值支持四种写法：普通（到逗号为止）、`%字节数%值`、`"…"`/`'…'` 引号、`[…]`/`{…}` 嵌套。

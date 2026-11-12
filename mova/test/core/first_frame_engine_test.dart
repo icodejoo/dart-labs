@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mova/src/testing/hooks.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
@@ -14,7 +15,7 @@ import '../support/fake_kernel.dart';
 ///
 /// 小型夹具：基于 [kernel] 的引擎，加一个首帧事件记录器。
 class _Rig {
-  _Rig(this.kernel) : engine = MovaEngine(kernel: kernel) {
+  _Rig(this.kernel) : engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: kernel) {
     engine.events.listen((e) {
       if (e is MovaFirstFrame) frames.add(e);
     });
@@ -34,7 +35,7 @@ void main() {
   test('E1: one VOD session reports Play, SourceChange, Ready, DurationChange, SizeChange, FirstFrame, Done in that order', () {
     fakeAsync((async) {
       final k = FakeStatsKernel()..nativeRestartAvailable = true;
-      final engine = MovaEngine(kernel: k);
+      final engine = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k);
       final seen = <Type>[];
       const wanted = {
         MovaPlay,

@@ -1,3 +1,196 @@
+## 1.0.0
+
+**Breaking**
+
+| 0.x | 1.0.0 |
+| --- | --- |
+| `replace: true` | `mode: OverlayMode.replace` |
+| `overlap: true` | `mode: OverlayMode.overlap` |
+| Both omitted / false | Omit `mode` or use `mode: OverlayMode.queue` |
+| `replace: true, overlap: true` | No equivalent: select exactly one mode. |
+| `route: '/home'` | `route: const RouteMatcher.exact('/home')` |
+| `route: ['/home', '/promo']` | `route: const RouteMatcher.anyOf(['/home', '/promo'])` |
+| `route: RegExp(r'^/promo')` | `route: RouteMatcher.regex(RegExp(r'^/promo'))` |
+| `pauseOnRoutes: ['/checkout', RegExp(r'^/pay')]` | `pauseOnRoutes: [const RouteMatcher.exact('/checkout'), RouteMatcher.regex(RegExp(r'^/pay'))]` |
+| A list pattern inside `pauseOnRoutes` | Wrap that pattern with `RouteMatcher.anyOf(...)`. |
+| `record.phase == 'open'` | `record.phase == OverlayPhase.open` |
+| `requiresAuth: true` | `auth: (ctx) => ctx['auth'] == true` |
+| `requiresAuth: false` (guests only) | `auth: (ctx) => ctx['auth'] != true` |
+| Fixed login boolean | Custom policy, e.g. `auth: (ctx) => ctx['role'] == 'admin'`; read any `setContext` keys. |
+| `when` overrides route/auth | `route`, `auth`, `when` combine with AND; remove unwanted conditions explicitly. |
+| `Layerman(now: callback)` | `Layerman(clock: clock)` with an `OverlayClock` providing both `now()` and `createTimer(...)`; default `OverlayClock.system`. |
+| `PresentContext` | `PresentContext<T>`, with `close([T? result])` through `beforeClose`, bound to this submission. |
+| `DialogManager(key, manager: manager)` / `BottomSheetManager(key, manager: manager)` | Remove `manager:`; builder close always uses `ctx.close` and its guard. |
+
+* `open` and `submit` replace the `replace` / `overlap` booleans with `mode`
+  (default `OverlayMode.queue`). `affix` remains independent.
+* `route` is now `RouteMatcher?`; `pauseOnRoutes` is `List<RouteMatcher>`.
+  Choose `exact`, `anyOf` or `regex`; weakly typed patterns are no longer accepted.
+* `OverlayRecord.phase` is now `OverlayPhase`, with `pending`, `resolving`,
+  `open` and `closing` values, instead of strings.
+
+**Fixed**
+
+* Reject mutations during when/auth/clearWhere tests before state changes; preserve holds on rejected release.
+* Settle reentrant submissions during dispose as disposed without entering containers.
+* Bind serial delay to its queued owner and reschedule when it leaves; enforce maxQueued after activation, including build deferral.
+* Revalidate resolve data after synchronous listeners; preserve string-keyed Map types on update.
+* Use local calendar buckets with UTC clocks; isolate and preserve malformed cooldown records
+  (a valid record written later for the same id replaces the malformed one).
+* Keep queued → shown → ended ordering when present synchronously ends; failed presentation has no shown.
+* Remove routes with internal history instead of consuming a LocalHistoryEntry; retain Flutter 3.27 compatibility.
+* Clarify delay, targeted dismiss and open-only close/dismiss contracts; document all lib declarations in Chinese.
+* Example: fix the Pause page, ShadSheet, toast inspector and update demos; card close buttons
+  go through `ctx.close` and keep their exit animation; refresh stale guidance.
+* Complete the 0.3.0 exhausted-cap behavior: serial entries already blocked by
+  session/total settle as `capped` at submission and after hydration, even with
+  an occupied slot or while paused; they no longer wait for a scheduling scan.
+
+* Overlap now honors `delay`, judging now-or-never eligibility after waiting;
+  remove, clear, same-id reopen and dispose cancel the wait.
+* Cancel duration when backend dismissal enters exit grace. Clean up a handle
+  returned after synchronous `ctx.close()` during present, without starting duration.
+
+* Request backend `dismiss` at most once per entry. Randomized sequence tests
+  found that `close` followed by `remove`, `clear` or a dismiss timeout could
+  request dismissal again. Non-idempotent backends such as `popUntil` or
+  `Get.back()` could then close another overlay. The `dismissRequested` guard
+  prevents retries, including after a failing dismiss; targeted handles remain required.
+* `open` during `build()` defers presentation and manager notifications until
+  after the frame instead of presenting and notifying synchronously.
+* Batch manager notifications per public operation so listeners see completed
+  synchronous changes rather than multiple intermediate notifications.
+* Reclaim empty runtime slots once they have no occupant, queued entries,
+  pending gap or gap/delay/cooldown timers.
+
+**Changed (behavior)**
+
+* Every submission with `cooldown` now waits for storage hydration, including
+  session-only and empty `const OverlayCooldown()` configurations, because suppress
+  is persisted. Submissions without cooldown are unaffected. Migration: code relying
+  on session-only entries appearing before `ready()` now waits for one storage read.
+
+**Added**
+
+* `Layerman.suppress(String id, {Duration? duration})` for result-based timed or
+  permanent suppression of cooldown submissions; repeated calls only extend it.
+  `resetCooldown` / `clearCooldowns` clear suppression together with counters.
+* `OverlayEndReason.suppressed` and `OverlayCooldownStatus.suppressed` expose
+  suppression outcomes and current state.
+* `OverlaySlotOptions.blockedBy` (empty `Set<String>` by default) holds new
+  activations while listed slots have serial active entries or active overlaps;
+  already activated entries continue. Unblocking runs at the outermost batch end.
+* Debug invariants (i), (j), (k): no permanently blocked serial queue entries after
+  hydration is applied, no missed unblock scheduling, and no releasable held overlaps.
+
+* `OverlayClock` unifies current time and timers. `package:layerman/testing.dart`
+  exports `FakeOverlayClock` for ordinary Dart `test()` without Flutter bindings.
+* Automatic debug invariant validation after every outermost batch via
+  `debugCheckInvariants()`; explicit calls also work in release.
+* Randomized coverage for slow/failing hydration, build-time open, cooldown
+  inspection/reset, tags, overlap delay, auth predicates and `ctx.close`.
+
+* `cooldownStatus` returning `OverlayCooldownStatus`, `resetCooldown` and
+  `clearCooldowns` for inspecting and resetting session and persisted counters.
+* Copied, read-only `tags` on records and `clearTag` for grouped removal.
+* `OverlayMode`, `RouteMatcher` and `OverlayPhase` typed public contracts.
+* Randomized sequence invariant tests (`test/fuzz_invariants_test.dart`),
+  regression coverage for batched notifications, build deferral and slot reclamation.
+* Example demonstrations for the new modes, route matchers, cooldown inspection
+  and reset, tags and build-time submission.
+
+## 0.3.0
+
+**Fixed**
+
+* Reopening an active serial id takes over its slot when eligible and unpaused,
+  instead of losing it to a higher-priority queued entry. Old results settle as
+  `null` (`superseded`); old tickets cannot affect the new submission.
+* `PresentContext.dataListenable` makes `update()` data available to backends;
+  `data` remains a presentation-time snapshot.
+* Queue insertion now preserves replace / priority / FIFO ordering;
+  `queuedIds` reflects that order within each slot. Predicate context views are cached.
+
+**Changed (behavior)**
+
+* **`LayermanNavigatorObserver` now tracks only `PageRoute` by default.**
+  Dialogs and bottom sheets no longer overwrite page context, dismiss their own
+  route-gated overlays, or release no-overlay zones. To restore 0.2.x tracking of
+  every route, pass `routeFilter: (r) => true`. Use `contextKey` for nested navigators;
+  `route:` and `pauseOnRoutes` still read only the default `route` key.
+* **Exhausted `session` / `total` caps discard serial entries** when checked by
+  scheduling, completing with `null` (`capped`) instead of waiting forever.
+  Use time-based caps for retryable waits, or a new id for a new campaign.
+* **Waiting is bounded by default:** `dismissTimeout` is 10 seconds and
+  `resolveTimeout` is 30 seconds. Constructor `null` disables either limit;
+  per-entry `resolveTimeout: null` inherits, and `Duration.zero` disables that
+  entry's resolve limit. Timeouts report errors and free the slot; a dismiss
+  timeout preserves the already-delivered outcome. Backend work is not cancelled.
+* Route recipes now recommend **`DialogManager`**, created once with a navigator
+  key, instead of a hand-written shared dialog helper. Bind `manager:` to route
+  builder close calls through `beforeClose`; custom routes/pages use `presentRoute`.
+
+**Added**
+
+* `DialogManager`, `BottomSheetManager` and `presentRoute`: targeted Route
+  presenters waiting for exit completion; per-call configuration overrides.
+* `submit<T>()` returning `OverlayTicket<T>` with typed close, update, removal,
+  live data, result and outcome; `OverlayOutcome`, `OverlayEndReason`, and async
+  broadcast `events` (`OverlayEvent`, `OverlayEventType`).
+* `resolvingIds`, `records`, `recordOf` for complete entry inspection.
+* Independent pause tokens via `hold()` / `OverlayHold`, `holdCount`, and
+  `LayermanLifecycle` for automatic background pause.
+* Serial queue expiration via `expireAfter` and per-slot `OverlaySlotOptions`
+  (`gap`, `maxQueued`), with `queueExpired` / `queueFull` outcomes.
+* `.pubignore` excludes `CLAUDE.md` and `.claude/` from the published package.
+* Example Android platform and a “v0.3 Features” demo page. The 26 example
+  integration tests pass on a real phone (Huawei STG-AL00, Android 12); the 199
+  unit tests pass on Flutter 3.47 and on the minimum supported Flutter 3.27.4.
+
+## 0.2.2
+
+**Fixed**
+
+* `close(id, result)` with a `result` that isn't a `T?` of its `open<T>()` used
+  to throw a `TypeError` halfway through the close and leave the `open()` future
+  pending forever. It now throws an `ArgumentError` before touching any state,
+  so the overlay can still be closed normally afterwards.
+* Cooldown hydration race: an entry gated on a persisted cap (`total` / `day` /
+  `hour` / `minute` / `minGap`) opened before `ready()` was checked against empty
+  counters, and its write-back overwrote every other id's counters in storage
+  (hydration then overwrote the new count). Such entries now wait until the
+  store has hydrated (an `overlap` one is held, not dropped); hydration merges
+  instead of overwriting; writes are serialized (one in flight, then the latest
+  snapshot); read/write failures are reported via `FlutterError.reportError`
+  instead of being swallowed. `ready()` now completes after the queue has been
+  re-scheduled, and awaiting it before `open()` is no longer required. A
+  persisted-cap `replace` that arrives before hydration therefore queues at the
+  front instead of preempting.
+* An async `beforeClose` guard no longer runs twice when `close()` / `dismiss()`
+  is called again while it is pending; the repeated calls are ignored.
+* A throwing `when` predicate no longer escapes `open()` / `setContext()` /
+  timer callbacks: it is reported once per overlay and treated as unmet.
+* `open()` after `dispose()` no longer presents the overlay: it asserts in debug
+  and returns `null` in release. Every other mutator is a no-op after
+  `dispose()`.
+
+**Changed**
+
+* `cooldown` without an explicit `id` now asserts in debug — counters are keyed
+  by id, and an auto-generated id changes on every open, so the cap never
+  applied.
+* README route recipes now push a `Route` object, use `route.completed`
+  (completes after the exit animation, carrying the pop result) as `dismissed`,
+  and close it with `pop` when on top or `removeRoute` when buried. The previous
+  name-based `popUntil` / `Get.until` recipes silently did nothing when the
+  dialog wasn't the topmost route (e.g. under an `overlap` dialog), leaving the
+  entry stuck in `closing`. Also corrected the docs on `update()`, `activeIds` /
+  `isShowing`, and `replace` preempting a resolving entry.
+* Minimum SDK is now Dart 3.6 / Flutter 3.27 — the first release with
+  `NavigatorObserver.didChangeTop`. The previous `flutter: ">=1.17.0"` bound was
+  wrong, and `sdk: ^3.12.2` was needlessly high.
+* `ARCHITECTURE.md` / `ARCHITECTURE.svg` rewritten from the actual code.
+
 ## 0.2.1
 
 **Fixed**

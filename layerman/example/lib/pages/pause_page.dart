@@ -12,19 +12,23 @@ class PausePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pageHeader(context, 'Pause & Resume',
-              'pauseAll() freezes the entire queue — no new overlays activate, '
-              'pending overlaps are held, duration countdowns freeze. '
-              'resumeAll() releases everything. '
-              'pause(id)/resume(id) freeze a single overlay\'s duration timer. '
-              'pauseOnRoutes auto-freezes when the tracked route matches a pattern.'),
+          pageHeader(
+            context,
+            'Pause & Resume',
+            'pauseAll() freezes the entire queue — no new overlays activate, '
+                'pending overlaps are held, duration countdowns freeze. '
+                'resumeAll() releases everything. '
+                'pause(id)/resume(id) freeze a single overlay\'s duration timer. '
+                'pauseOnRoutes auto-freezes when the tracked route matches a pattern.',
+          ),
           pageSection(
             context,
             'pauseAll() / resumeAll()',
             [
               demoButton('btn-queue-3-for-pause', 'queue 3 cards first', () {
                 for (var i = 1; i <= 3; i++) {
-                  openCard('p$i', text: 'P$i');
+                  // 非模态卡片让页面上的暂停按钮保持可点击。
+                  openEntry('p$i', text: 'P$i', offset: const Offset(0, 180));
                 }
               }),
               demoButton('btn-pause-all', 'pauseAll()', () {
@@ -35,21 +39,27 @@ class PausePage extends StatelessWidget {
               }),
             ],
             subtitle:
-                'Queue 3 cards, then pauseAll — no more activations. '
-                'resumeAll releases and the queue advances.',
+                'Queue 3 non-modal cards, then tap pauseAll while P1 is visible. '
+                'Close P1: P2 stays queued until you tap resumeAll.',
           ),
           pageSection(
             context,
             'pause(id) / resume(id) — freeze one overlay\'s duration',
             [
-              demoButton('btn-dur-for-pause', 'open id:"timer" with duration: 10s', () {
-                // openEntry (non-modal): the pause/resume buttons below are on
-                // this SAME page and a modal card would block them.
-                openEntry('timer',
+              demoButton(
+                'btn-dur-for-pause',
+                'open id:"timer" with duration: 10s',
+                () {
+                  // openEntry (non-modal): the pause/resume buttons below are on
+                  // this SAME page and a modal card would block them.
+                  openEntry(
+                    'timer',
                     text: 'TIMER 10s',
                     duration: const Duration(seconds: 10),
-                    hint: 'Countdown can be paused/resumed');
-              }),
+                    hint: 'Countdown can be paused/resumed',
+                  );
+                },
+              ),
               demoButton('btn-pause-id', 'pause("timer")', () {
                 om.pause('timer');
               }),
@@ -66,21 +76,28 @@ class PausePage extends StatelessWidget {
             context,
             'pauseOnRoutes — auto-freeze zone',
             [
-              demoButton('btn-queue-in-zone', 'queue a card (stays queued in /zone)', () {
-                openCard('zone-card',
+              demoButton(
+                'btn-queue-in-zone',
+                'queue a card (stays queued in /zone)',
+                () {
+                  openCard(
+                    'zone-card',
                     text: 'ZONE CARD',
-                    hint: 'Queued now; will activate when you leave /zone');
-              }),
+                    hint: 'Queued now; will activate when you leave /zone',
+                  );
+                },
+              ),
               demoButton('btn-goto-zone', '→ navigate to /zone', () {
-                Navigator.of(context).push(MaterialPageRoute<void>(
-                  settings: const RouteSettings(name: '/zone'),
-                  builder: (_) => const _ZonePage(),
-                ));
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    settings: const RouteSettings(name: '/zone'),
+                    builder: (_) => const _ZonePage(),
+                  ),
+                );
               }),
             ],
-            subtitle:
-                '1. Queue a card above\n'
-                '2. Navigate to /zone — queue auto-freezes (LayermanNavigatorObserver + pauseOnRoutes: ["/zone"])\n'
+            subtitle: '1. Queue a card above\n'
+                '2. Navigate to /zone — queue auto-freezes (LayermanNavigatorObserver + pauseOnRoutes: [RouteMatcher.exact("/zone")])\n'
                 '3. Navigate back — queue auto-resumes, card activates\n\n'
                 'Manual pauseAll and route-zone pausing compose via OR — neither overrides the other.',
           ),
@@ -88,29 +105,30 @@ class PausePage extends StatelessWidget {
             context,
             'Manual pause + route zone compose independently',
             [
-              demoButton('btn-manual-then-zone', 'pauseAll then navigate to /zone', () {
-                om.pauseAll();
-                Navigator.of(context).push(MaterialPageRoute<void>(
-                  settings: const RouteSettings(name: '/zone'),
-                  builder: (_) => const _ZonePage(),
-                ));
-              }),
+              demoButton(
+                'btn-manual-then-zone',
+                'pauseAll then navigate to /zone',
+                () {
+                  om.pauseAll();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      settings: const RouteSettings(name: '/zone'),
+                      builder: (_) => const _ZonePage(),
+                    ),
+                  );
+                },
+              ),
             ],
-            subtitle:
-                'Leaving /zone only clears the route-zone pause. '
+            subtitle: 'Leaving /zone only clears the route-zone pause. '
                 'Manual pauseAll stays active — resumeAll() is still needed.',
           ),
-          pageSection(
-            context,
-            'isPaused getter',
-            [
-              demoButton('btn-check-paused', 'check om.isPaused', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('om.isPaused = ${om.isPaused}')),
-                );
-              }),
-            ],
-          ),
+          pageSection(context, 'isPaused getter', [
+            demoButton('btn-check-paused', 'check om.isPaused', () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('om.isPaused = ${om.isPaused}')),
+              );
+            }),
+          ]),
         ],
       ),
     );
@@ -125,7 +143,7 @@ class _ZonePage extends StatelessWidget {
         appBar: AppBar(title: const Text('/zone — no-overlay zone')),
         body: const Center(
           child: Text(
-            'pauseOnRoutes: ["/zone"] auto-froze the queue.\n\nPop back to resume.',
+            'pauseOnRoutes: [RouteMatcher.exact("/zone")] auto-froze the queue.\n\nPop back to resume.',
             textAlign: TextAlign.center,
           ),
         ),

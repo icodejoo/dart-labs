@@ -1,0 +1,56 @@
+[
+  {
+    "scenario": "wheel_steady",
+    "ui_busy_ratio": 0.057431602753026986,
+    "raster_busy_ratio": 0.3061800079536593,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "grid_steady",
+    "ui_busy_ratio": 0.06143796423900074,
+    "raster_busy_ratio": 0.3298696324825222,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "slot_steady",
+    "ui_busy_ratio": 0.08125626920419238,
+    "raster_busy_ratio": 0.2071376719434191,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "slot_raster",
+    "ui_busy_ratio": 0.06398816629283428,
+    "raster_busy_ratio": 0.16612498517113244,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "lever_steady",
+    "ui_busy_ratio": 0.08400528296244616,
+    "raster_busy_ratio": 0.22284352961698517,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "capsule_mixing",
+    "ui_busy_ratio": 0.09923046736187886,
+    "raster_busy_ratio": 0.22846156651740784,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "number_wheel_spin",
+    "ui_busy_ratio": 0.06803677555542455,
+    "raster_busy_ratio": 0.17855936822850108,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "lots_shaking",
+    "ui_busy_ratio": 0.07953131340187611,
+    "raster_busy_ratio": 0.23386439533609518,
+    "process_cpu_measured": false
+  },
+  {
+    "scenario": "lotto_draw",
+    "ui_busy_ratio": 0.13017849484780927,
+    "raster_busy_ratio": 0.28967836088353416,
+    "process_cpu_measured": false
+  }
+]

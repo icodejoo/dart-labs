@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import '../client.dart';
+import '../constants.dart';
 import '../context.dart';
 import '../options.dart';
 import '../plugin.dart';
@@ -83,7 +84,7 @@ class DiomanOffline<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
   static const defaultMaxQueueSize = 50;
 
   /// 稳定名称。
-  static const pluginName = 'dioman:offline';
+  static const pluginName = diomanOfflineName;
 
   /// 请求级 bool 或配置键。
   static final option = DiomanOptionKey<DiomanOfflineOptions>(pluginName);

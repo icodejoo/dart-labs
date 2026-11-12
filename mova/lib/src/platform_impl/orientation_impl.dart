@@ -72,6 +72,14 @@ List<DeviceOrientation> resolveOrientations(
 /// 基于 [SystemChrome] 实现的 [MovaOrientationPort]，驱动首选设备方向与沉浸式
 /// 系统 UI 模式。
 class MovaSystemChromeOrientationPort implements MovaOrientationPort {
+  /// 创建方向端口；[config] 声明宿主离开全屏后使用的方向与系统栏。
+  ///
+  /// 示例：`MovaSystemChromeOrientationPort(config: MovaOrientationConfig())`。
+  const MovaSystemChromeOrientationPort({this.config = const MovaOrientationConfig()});
+
+  /// 宿主的还原配置；示例：`port.config.allowedOrientations`。
+  final MovaOrientationConfig config;
+
   @override
   Future<void> apply({
     required bool fullscreen,
@@ -80,6 +88,9 @@ class MovaSystemChromeOrientationPort implements MovaOrientationPort {
     required int height,
     required MovaOrientation orientation,
   }) async {
+    if (!fullscreen && !immersive && orientation == MovaOrientation.auto) {
+      return reset();
+    }
     await SystemChrome.setPreferredOrientations(
       resolveOrientations(orientation, fullscreen: fullscreen, width: width, height: height),
     );
@@ -90,7 +101,33 @@ class MovaSystemChromeOrientationPort implements MovaOrientationPort {
 
   @override
   Future<void> reset() async {
-    await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    await SystemChrome.setPreferredOrientations(config.allowedOrientations);
+    await SystemChrome.setEnabledSystemUIMode(config.systemUiMode, overlays: config.systemUiOverlays);
   }
+}
+
+/// 宿主声明的全屏离场配置；未声明时允许全部方向并使用 edge-to-edge。
+///
+/// 示例：`createMovaEngine(orientationConfig: MovaOrientationConfig(
+///   allowedOrientations: [DeviceOrientation.portraitUp]))`。
+class MovaOrientationConfig {
+  /// 创建配置；[allowedOrientations] 为宿主允许方向，[systemUiMode] 为系统栏模式，
+  /// [systemUiOverlays] 在 manual 模式下指定可见系统栏，返回不可变配置引用。
+  ///
+  /// 示例：`MovaOrientationConfig(systemUiMode: SystemUiMode.manual,
+  ///   systemUiOverlays: [SystemUiOverlay.top])`。
+  const MovaOrientationConfig({
+    this.allowedOrientations = DeviceOrientation.values,
+    this.systemUiMode = SystemUiMode.edgeToEdge,
+    this.systemUiOverlays = SystemUiOverlay.values,
+  });
+
+  /// 离场后允许的方向；示例：`[DeviceOrientation.portraitUp]`。
+  final List<DeviceOrientation> allowedOrientations;
+
+  /// 离场后的系统栏模式；示例：`SystemUiMode.manual`。
+  final SystemUiMode systemUiMode;
+
+  /// manual 模式下可见的系统栏；示例：`[SystemUiOverlay.top]`。
+  final List<SystemUiOverlay> systemUiOverlays;
 }

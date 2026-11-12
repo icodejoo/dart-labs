@@ -1,0 +1,26 @@
+{
+  "passed": 1045,
+  "skipped": 0,
+  "groups": {
+    "core": {
+      "passed": 418,
+      "skipped": 0,
+      "json_id_offset": 0
+    },
+    "games": {
+      "passed": 377,
+      "skipped": 0,
+      "json_id_offset": 1000000
+    },
+    "parity": {
+      "passed": 36,
+      "skipped": 0,
+      "json_id_offset": 2000000
+    },
+    "tools": {
+      "passed": 214,
+      "skipped": 0,
+      "json_id_offset": 3000000
+    }
+  }
+}

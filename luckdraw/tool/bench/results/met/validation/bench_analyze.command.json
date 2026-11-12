@@ -1,0 +1,10 @@
+{
+  "command": [
+    "flutter",
+    "analyze",
+    "--no-pub"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw\\tool\\bench",
+  "exit_code": 0,
+  "seconds": 5.244
+}

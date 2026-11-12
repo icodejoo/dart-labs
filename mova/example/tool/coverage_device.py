@@ -9,15 +9,20 @@ import subprocess
 import time
 import urllib.request
 import urllib.parse
+import os
+import sys
 from shot_guard import PACKAGE, guarded_screencap
 
 SERIAL = "7NQBB23606003715"
 HERE = Path(__file__).resolve().parent
+_campaign_api_checked = False
 
 
 def adb(*args, binary=False):
     """Run only against the explicitly authorized device / 仅操作指定真机。"""
-    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary)
+    from cp0_device_guard import wait_online
+    wait_online(SERIAL)
+    return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary, timeout=120)
 
 
 def shot(path, package=PACKAGE):
@@ -39,6 +44,25 @@ def unlocked():
 
 
 def request(path):
+    global _campaign_api_checked
+    if os.environ.get('MOVA_CP3_CAMPAIGN') == '1' and not _campaign_api_checked and path.startswith('/run?'):
+        # Short-first ordering can leave a HE/gap page foreground. Establish
+        # the API control prerequisite before sending the first test command;
+        # never retry or replace a command that has already been sent.
+        ready = False
+        try:
+            with urllib.request.urlopen('http://127.0.0.1:18083/', timeout=2) as response:
+                current = json.load(response)
+                ready = 'status' in current and isinstance(current.get('records'), list)
+        except (OSError, ValueError):
+            pass
+        if not ready:
+            print('CP3 API prerequisite: select api page before first command', flush=True)
+            subprocess.run([sys.executable, HERE / 'coverage_suite_device.py', 'api',
+                            '--name', 'cp3-api-prerequisite', '--timeout', '60'],
+                           check=True, timeout=90,
+                           creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        _campaign_api_checked = True
     with urllib.request.urlopen("http://127.0.0.1:18083" + path, timeout=10) as response:
         return json.load(response)
 
@@ -54,7 +78,9 @@ def capture(name):
             args.append("com.icodejoo.mova.mova_example.coverage")
         (out / f"{name}.{category}.txt").write_text(adb(*args), encoding="utf-8")
     (out / f"{name}.json").write_text(json.dumps(request("/"), ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / f"{name}.logcat.txt").write_text(adb("logcat", "-d", "-v", "threadtime"), encoding="utf-8")
+    # OEM log buffers may contain invalid UTF-8. Preserve original bytes so
+    # successful commands do not fail during the final evidence capture.
+    (out / f"{name}.logcat.txt").write_bytes(adb("logcat", "-d", "-v", "threadtime", binary=True))
     print(out / name, flush=True)
 
 
@@ -85,6 +111,29 @@ def main():
             # 只消费本条命令的标记，避免把历史字幕/内存采样错拍到本次文件名下。
             command_start = max((i for i, r in enumerate(response['records']) if r.get('kind') == 'BEGIN'), default=0)
             for row in response['records'][command_start:]:
+                if row.get('kind') == 'RESOURCE_SAMPLE' and ('resource', row['ms']) not in sampled:
+                    sampled.add(('resource', row['ms']))
+                    # Host snapshots follow the marker; retain timestamps rather
+                    # than claiming simultaneous native-instance measurements.
+                    base = HERE/'coverage_evidence'/f"{a.name or a.group}.{row['phase']}"
+                    captures = []
+                    for category, tail in [('meminfo', [str(row['pid'])]),
+                                           ('media.codec', []), ('SurfaceFlinger', [])]:
+                        started = time.time()
+                        argv = ['adb', '-s', SERIAL, 'shell', 'dumpsys', category, *tail]
+                        try:
+                            from cp0_device_guard import wait_online
+                            wait_online(SERIAL)
+                            result = subprocess.run(argv, capture_output=True, timeout=30)
+                            Path(str(base)+'.'+category+'.txt').write_bytes(result.stdout)
+                            Path(str(base)+'.'+category+'.stderr.txt').write_bytes(result.stderr)
+                            captures.append(dict(argv=argv, exit=result.returncode,
+                                                 started=started, ended=time.time()))
+                        except Exception as error:
+                            captures.append(dict(argv=argv, started=started,
+                                                 ended=time.time(), error=repr(error)))
+                    Path(str(base)+'.native.json').write_text(json.dumps(
+                        dict(marker=row, captures=captures), ensure_ascii=False, indent=2), encoding='utf-8')
                 if row.get('kind')=='MEM_SAMPLE' and row['round'] not in sampled:
                     sampled.add(row['round'])
                     (HERE/'coverage_evidence'/f"{a.name or a.group}.round{row['round']}.meminfo.txt").write_text(adb('shell','dumpsys','meminfo','com.icodejoo.mova.mova_example.coverage'),encoding='utf-8')

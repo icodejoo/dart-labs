@@ -9,7 +9,7 @@ import 'manager.dart';
 // Re-export manager/helper symbols so integration tests can use `app.om` and
 // `app.openCard(...)` via
 // `import 'package:layerman_example/main.dart' as app; app.om.resumeAll()`.
-export 'manager.dart' show om, restartApp, createFreshManager;
+export 'manager.dart' show om, restartApp, createFreshManager, appLifecycle;
 export 'helpers.dart' show openCard;
 
 final GlobalKey<_AppRootState> _appRootKey = GlobalKey<_AppRootState>();
@@ -29,9 +29,13 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> {
   int _gen = 0;
 
+  /// 绑定当前 manager 的前后台监听器，重启时重新创建。
+  late LayermanLifecycle _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = appLifecycle = LayermanLifecycle(om)..attach();
     registerRestartCallback(_doRestart);
   }
 
@@ -45,13 +49,22 @@ class _AppRootState extends State<AppRoot> {
     // being disposed". Running it as a plain statement BEFORE `setState`
     // lets that microtask settle against the still-fully-mounted old tree,
     // and only then does `setState` remount with the fresh generation.
+    _lifecycle.detach();
     om.dispose();
     final fresh = createFreshManager();
     fresh.setContext({'route': '/home'});
+    _lifecycle = appLifecycle = LayermanLifecycle(fresh)..attach();
     setState(() {
       om = fresh;
       _gen++;
     });
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.detach();
+    if (identical(appLifecycle, _lifecycle)) appLifecycle = null;
+    super.dispose();
   }
 
   @override

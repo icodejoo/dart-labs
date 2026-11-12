@@ -77,6 +77,28 @@ def read_foreground(adb, package):
     return shot_allowed(activities, window, package)
 
 
+def guarded_frame_pair(adb, package, paths, gap_seconds=.15):
+    """Capture adjacent frames under one before/after foreground guard."""
+    import time
+    allowed, reason = read_foreground(adb, package)
+    if not allowed:
+        return dict(captured=False, reason=reason)
+    frames, times = [], []
+    for i, path in enumerate(paths):
+        if i:
+            time.sleep(gap_seconds)
+        started = time.time_ns()
+        payload = adb('exec-out', 'screencap', '-p', binary=True)
+        times.append(dict(startNs=started, endNs=time.time_ns(), path=str(path)))
+        frames.append(payload)
+    allowed, reason = read_foreground(adb, package)
+    if not allowed:
+        return dict(captured=False, reason=reason, frames=times)
+    for path, payload in zip(paths, frames):
+        path.write_bytes(payload)
+    return dict(captured=True, frames=times)
+
+
 def guarded_screencap(adb, package, path, log=None):
     """The one place that issues `screencap`: check foreground before and after.
 

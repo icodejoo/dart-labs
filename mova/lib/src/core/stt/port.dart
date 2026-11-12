@@ -78,6 +78,15 @@ abstract class MovaSttEngine {
   Future<void> dispose();
 }
 
+/// 可选的会话感知能力；旧的 `implements MovaSttEngine` 无需新增成员。
+/// 实现者须在发起异步识别时捕获代际，并写入产出的 cue，不能在完成时读取最新值。
+/// 示例：`final epoch = currentEpoch; recognize().then((text) => emit(cueWith(epoch)))`。
+abstract interface class MovaSttSessionEngine {
+  /// 通知已切换到 [epoch]，不停止识别；无返回值。
+  /// 示例：`engine.bindSession(2)`，随后新任务的 cue 使用 `sessionEpoch: 2`。
+  void bindSession(int epoch);
+}
+
 /// A zero-dependency [MovaSttEngine] no-op: recognizes nothing, emits no cues.
 ///
 /// The default until a real engine is wired (mirrors [MovaNoopPipPort] for an

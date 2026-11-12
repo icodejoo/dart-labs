@@ -1,0 +1,168 @@
+{
+  "verifiedAt": "2026-11-10T13:55:07.455763+00:00",
+  "sourceFilesChecked": 148,
+  "changedSourceFiles": [],
+  "launches": 10,
+  "validRuns": 9,
+  "integrationPassLogs": 9,
+  "unitTestsNotRun": true,
+  "analyzeNotRun": true,
+  "freshCoverageNotCollected": true,
+  "staticGatesPassed": true,
+  "gates": {
+    "format": {
+      "command": [
+        "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+        "format",
+        "--output=none",
+        "--set-exit-if-changed",
+        "lib",
+        "test",
+        "tool"
+      ],
+      "exitCode": 0,
+      "output": "Formatted 344 files (0 changed) in 1.08 seconds.\n"
+    },
+    "imports": {
+      "command": [
+        "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+        "tool/check_imports.dart"
+      ],
+      "exitCode": 0,
+      "output": "PASS: 145 lib files; IMP-R1…R12 / 依赖图与静态规则通过\n"
+    },
+    "acceptance": {
+      "command": [
+        "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+        "tool/check_acceptance.dart"
+      ],
+      "exitCode": 0,
+      "output": "PASS: 1468 references resolve; 1069 registered tests all mapped. / 全部测试引用有效且无遗漏\n"
+    },
+    "coverageHistorical": {
+      "command": [
+        "E:\\sdk\\flutter\\bin\\cache\\dart-sdk\\bin\\dart.exe",
+        "tool/coverage.dart",
+        "--min=100",
+        "--lcov=coverage/PERF.lcov"
+      ],
+      "exitCode": 0,
+      "output": "lib/capsule.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/compat.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/extend.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/grid.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/lots.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/lotto.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/luckdraw.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/number_wheel.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/slot.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/src/capsule/capsule_game.dart: 31/31 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/control/capsule_controller.dart: 16/16 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/layout/capsule_layout.dart: 66/66 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/model/capsule_config.dart: 22/22 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/model/capsule_parts.dart: 72/72 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/motion/capsule_motion.dart: 199/199 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/render/capsule_canvas_renderer.dart: 39/39 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/render/capsule_painter.dart: 190/190 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/capsule/widgets/lucky_capsule_machine.dart: 2/2 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/compat_options.dart: 52/52 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/css_color.dart: 43/43 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/css_fill.dart: 62/62 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/css_length.dart: 26/26 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/css_misc.dart: 55/55 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/css_shadow.dart: 23/23 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/easing_names.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/src/compat/grid_compat.dart: 81/81 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/json_reader.dart: 173/173 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/slot_compat.dart: 54/54 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/compat/wheel_compat.dart: 64/64 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/control/controller.dart: 186/186 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/control/hooks.dart: 1/1 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/easing/easing.dart: 70/70 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/angles.dart: 1/1 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/border.dart: 7/7 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/box_block.dart: 18/18 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/cell_style.dart: 19/19 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/color_utils.dart: 4/4 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/constants.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/edge_insets.dart: 25/25 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/fill.dart: 98/98 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/image.dart: 75/75 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/length.dart: 17/17 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/options.dart: 15/15 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/shadow.dart: 25/25 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/foundation/text.dart: 101/101 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/game/frame.dart: 1/1 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/game/game.dart: 8/8 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/game/layout.dart: 5/5 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/game/registry.dart: 5/5 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/geometry/canvas_arc.dart: 5/5 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/geometry/fan_path.dart: 14/14 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/geometry/image_box.dart: 21/21 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/geometry/round_rect.dart: 6/6 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/image/image_resolver.dart: 135/135 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/image/image_set.dart: 1/1 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/kinematics/swirl_mixer.dart: 64/64 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/clock.dart: 14/14 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/motion.dart: 4/4 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/motion_options.dart: 38/38 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/phase.dart: 10/10 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/result.dart: 3/3 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/stop_solver.dart: 22/22 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/motion/timebase.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/src/core/motion/timeline.dart: 25/25 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/picker/prize_picker.dart: 22/22 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/cached_picture.dart: 17/17 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/layer.dart: 6/6 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/paint_helpers.dart: 37/37 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/perf_trace.dart: 2/2 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/picture_cache.dart: 49/49 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/render/renderer.dart: 2/2 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/text/split_text.dart: 18/18 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/text/text_line.dart: 33/33 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/text/text_measurer.dart: 23/23 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/widgets/game_view.dart: 208/208 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/widgets/item_overlay.dart: 42/42 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/core/widgets/lifecycle.dart: 3/3 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/control/grid_controller.dart: 28/28 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/grid_game.dart: 69/69 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/layout/grid_layout.dart: 83/83 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/model/grid_config.dart: 45/45 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/model/grid_parts.dart: 86/86 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/motion/grid_motion.dart: 160/160 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/render/grid_canvas_renderer.dart: 44/44 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/render/grid_painter.dart: 137/137 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/grid/widgets/lucky_grid.dart: 31/31 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/control/lots_controller.dart: 14/14 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/layout/lots_layout.dart: 34/34 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/lots_game.dart: 39/39 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/model/lots_config.dart: 69/69 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/model/lots_parts.dart: 28/28 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/motion/lots_motion.dart: 105/105 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/render/lots_canvas_renderer.dart: 36/36 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/render/lots_painter.dart: 130/130 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lots/widgets/lucky_lots.dart: 22/22 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/control/lotto_controller.dart: 16/16 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/layout/lotto_layout.dart: 34/34 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/lotto_game.dart: 16/16 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/model/lotto_config.dart: 82/82 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/model/lotto_options.dart: 40/40 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/model/lotto_sampler.dart: 11/11 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/motion/lotto_frame.dart: 1/1 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/motion/lotto_motion.dart: 260/260 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/render/lotto_canvas_renderer.dart: 27/27 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/render/lotto_painter.dart: 135/135 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/lotto/widgets/lucky_lotto.dart: 3/3 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/control/number_wheel_controller.dart: 21/21 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/layout/number_wheel_layout.dart: 27/27 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/model/number_wheel_config.dart: 115/115 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/motion/number_wheel_motion.dart: 157/157 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/number_wheel_game.dart: 13/13 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/render/number_wheel_canvas_renderer.dart: 37/37 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/render/number_wheel_painter.dart: 114/114 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/number_wheel/widgets/lucky_number_wheel.dart: 23/23 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/control/slot_controller.dart: 44/44 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/layout/slot_layout.dart: 82/82 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/lever/lever_options.dart: 26/26 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/lever/lever_painter.dart: 16/16 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/lever/lucky_lever_slot_machine.dart: 106/106 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/model/payline.dart: 15/15 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/model/slot_config.dart: 38/38 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/model/slot_parts.dart: 65/65 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/model/slot_result.dart: 3/3 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/motion/slot_motion.dart: 194/194 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/render/payline_layer.dart: 27/27 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/render/slot_atlas.dart: 103/103 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/render/slot_canvas_renderer.dart: 46/46 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/render/slot_painter.dart: 127/127 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/slot_game.dart: 65/65 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/slot/widgets/lucky_slot_machine.dart: 12/12 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/testing/frame_recorder.dart: 5/5 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/testing/manual_clock.dart: 17/17 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/testing/sequence_random.dart: 11/11 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/control/wheel_controller.dart: 13/13 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/layout/wheel_angles.dart: 29/29 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/layout/wheel_layout.dart: 96/96 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/model/wheel_config.dart: 44/44 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/model/wheel_parts.dart: 80/80 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/motion/wheel_motion.dart: 185/185 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/render/wheel_canvas_renderer.dart: 51/51 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/render/wheel_painter.dart: 145/145 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/wheel_game.dart: 50/50 (100.00%)\n  Uncovered / 未覆盖: none\nlib/src/wheel/widgets/lucky_wheel.dart: 30/30 (100.00%)\n  Uncovered / 未覆盖: none\nlib/testing.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nlib/wheel.dart: 0/0 (100.00%)\n  NO EXECUTABLE LINES / 无可执行行\n  Uncovered / 未覆盖: none\nTOTAL: 6792/6792 (100.00%)\nPASS: coverage >= 100.0%\n"
+    },
+    "gitLog": {
+      "command": [
+        "git",
+        "-C",
+        "E:\\workspaces\\dart-labs",
+        "log",
+        "--oneline",
+        "-2"
+      ],
+      "exitCode": 0,
+      "output": "443589a3 merge: 合并 mova（链接与分支口径指向 mova 分支）\nf0b64ae1 docs(mova): 链接与分支口径从 main 改为 mova 分支\n"
+    },
+    "ownDartProcesses": {
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-Command",
+        "Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'dart|flutter_tester' -and $_.CommandLine -match 'ab_driver.dart|ab_experiment' } | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json"
+      ],
+      "exitCode": 0,
+      "output": ""
+    }
+  },
+  "controlLimitations": [
+    "B3 stayon before=2 after=0; timing of change unknown",
+    "C3 automatic brightness observed 20 before rest and 50 after run; initial aborted setup observed 23"
+  ],
+  "finalSettingsConfirmation": {
+    "verifiedAt": "2026-11-10T13:57:11.858340+00:00",
+    "settings": {
+      "mode": "0",
+      "brightness": "1",
+      "stayon": "2"
+    },
+    "commands": [
+      {
+        "command": [
+          "shell",
+          "settings",
+          "put",
+          "system",
+          "screen_brightness_mode",
+          "0"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "shell",
+          "settings",
+          "put",
+          "system",
+          "screen_brightness",
+          "1"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "shell",
+          "svc",
+          "power",
+          "stayon",
+          "usb"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "shell",
+          "settings",
+          "get",
+          "system",
+          "screen_brightness_mode"
+        ],
+        "exitCode": 0,
+        "stdout": "0",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "shell",
+          "settings",
+          "get",
+          "system",
+          "screen_brightness"
+        ],
+        "exitCode": 0,
+        "stdout": "1",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "shell",
+          "settings",
+          "get",
+          "global",
+          "stay_on_while_plugged_in"
+        ],
+        "exitCode": 0,
+        "stdout": "2",
+        "stderr": ""
+      }
+    ]
+  },
+  "protocolChecks": {
+    "allLaunchesRestedAtLeast60Seconds": true,
+    "allValidSnapshotCommandsExitedZero": true,
+    "sameApkForAllLaunches": true
+  }
+}

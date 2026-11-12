@@ -52,7 +52,7 @@ void main() {
       expect(e.state.rate, 0.25);
       await e.setRate(-3);
       expect(e.state.rate, 0.25);
-      expect(await rateEvents(), [0.25, 0.25]);
+      expect(await rateEvents(), [0.25]); // 钳制后的镜像值未变，不重复发事件。
     });
 
     test('treats NaN as 1.0', () async {

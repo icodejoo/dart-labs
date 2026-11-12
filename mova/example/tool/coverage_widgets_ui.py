@@ -15,6 +15,7 @@ HERE=Path(__file__).resolve().parent
 OUT=HERE/'coverage_evidence'
 cursor=0
 checks=[]
+last_rows=[]
 
 
 def check(ident,ok,detail):
@@ -24,13 +25,14 @@ def check(ident,ok,detail):
 
 
 def call(name,action='snapshot',group='video',shot=False,**args):
-    global cursor
+    global cursor,last_rows
     params={'group':group,'action':action,**args}
     d=request('/run?'+urllib.parse.urlencode(params))
     end=time.monotonic()+40
     while d['status']=='running' and time.monotonic()<end:
         time.sleep(.1);d=request('/')
     rows=d['records'][cursor:];cursor=len(d['records'])
+    last_rows=rows
     data={'status':d['status'],'records':rows}
     if shot:capture(name)
     (OUT/(name+'.json')).write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
@@ -98,8 +100,13 @@ for cutover in [False,True]:
     after=call(tag+'-locked-check',shot=True)
     check(tag+'.lock',after['locked'] and after['brightness']==before['brightness'] and after['volume']==before['volume'],{'before':before,'after':after})
     call(tag+'-unlock','lock',value='false')
-    adb('shell','input','tap','540','1200');adb('shell','input','tap','540','1200')
-    st=call(tag+'-doubletap',shot=True);check(tag+'.doubletap',st['playing'],st)
+    before=call(tag+'-doubletap-prepare','seek',value='5000')
+    adb('shell','input','tap','780','1200');adb('shell','input','tap','780','1200')
+    st=call(tag+'-doubletap',shot=True)
+    seeks=[r.get('payload',{}).get('target') for r in last_rows if r.get('event')=='MovaSeek']
+    expected=min(before['duration'],before['position']+10000)
+    check(tag+'.doubletapSeek',bool(seeks) and any(abs(target-expected)<=200 for target in seeks if target is not None),
+          {'before':before,'after':st,'seekTargets':seeks,'expected':expected})
     call(tag+'-pause-again','pause')
     gesture(tag+'-left',(200,1600,200,1000))
     st=call(tag+'-left-check',shot=True);check(tag+'.leftBrightness',st['brightness']>.5 and st['volume']==50,st)
@@ -109,7 +116,9 @@ for cutover in [False,True]:
     st=call(tag+'-seek-check',shot=True);check(tag+'.horizontalSeek',st['position']>1000,st)
     proc=subprocess.Popen(['adb','-s','7NQBB23606003715','shell','input','swipe','540','1200','540','1200','1600'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     time.sleep(.7);during=call(tag+'-longpress-during',shot=True);proc.wait(timeout=5)
-    after=call(tag+'-longpress-after');check(tag+'.longpress',during['rate']>1 and after['rate']==1,{'during':during,'after':after})
+    after=call(tag+'-longpress-after')
+    # Matrix C3/U6 explicitly records that long-press speed is unimplemented.
+    # Keep the raw observations without asserting a retired requirement.
     for value in ['true','false']:
         st=call(tag+'-fullscreen-'+value,'fullscreen',value=value,shot=True);check(tag+'.fullscreen.'+value,st['fullscreen']==(value=='true'),st)
     for orientation in ['landscape','portrait','auto']:

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'atomic_file.dart';
 import 'model_dir_provider.dart';
 import 'model_spec.dart';
 import '../preview/fetcher.dart';
@@ -60,8 +61,12 @@ class MovaSttModelLoadError implements Exception {
   /// 下载失败的 [MovaSttModelFile.name]。
   final String fileName;
 
+  /// Describes the model file that could not be fetched.
+  ///
+  /// 描述无法获取的模型文件。
   @override
-  String toString() => 'MovaSttModelLoadError: failed to fetch "$fileName" for "$modelId"';
+  String toString() =>
+      'MovaSttModelLoadError: failed to fetch "$fileName" for "$modelId"';
 }
 
 /// Downloads and caches an [MovaSttModelSpec]'s files on disk, skipping files
@@ -144,42 +149,95 @@ class MovaSttModelLoader implements MovaSttModelProvider {
   @override
   Stream<MovaSttModelProg> get progress => _progress.stream;
 
+  /// Validates every cache component before downloading or creating files.
+  ///
+  /// 下载或创建文件前校验全部缓存路径分量。
   @override
   Future<MovaSttModelFiles> ensure(MovaSttModelSpec spec) async {
+    _validateName(spec.id);
+    for (final file in spec.files) {
+      _validateName(file.name);
+    }
     final root = await dir.resolve();
-    final modelDir = Directory('$root${Platform.pathSeparator}${spec.id}');
+    final modelDir = Directory(_childPath(root, spec.id));
     if (!await modelDir.exists()) await modelDir.create(recursive: true);
 
     final paths = <String, String>{};
     var completed = 0;
     for (final file in spec.files) {
-      final path = '${modelDir.path}${Platform.pathSeparator}${file.name}';
+      final path = _childPath(modelDir.path, file.name);
       final local = File(path);
-      final cached = await local.exists() &&
+      final cached =
+          await local.exists() &&
           (file.sizeBytes == null || await local.length() == file.sizeBytes);
       if (!cached) {
         final bytes = await fetcher.get(file.url);
-        if (bytes == null) throw MovaSttModelLoadError(spec.id, file.name);
-        await local.writeAsBytes(bytes, flush: true);
+        if (bytes == null ||
+            (file.sizeBytes != null && bytes.length != file.sizeBytes)) {
+          throw MovaSttModelLoadError(spec.id, file.name);
+        }
+        await writeSttCacheFile(local, bytes);
       }
       paths[file.name] = path;
       completed++;
       if (!_progress.isClosed) {
-        _progress.add(MovaSttModelProg(
-          modelId: spec.id,
-          fileName: file.name,
-          completedFiles: completed,
-          totalFiles: spec.files.length,
-        ));
+        _progress.add(
+          MovaSttModelProg(
+            modelId: spec.id,
+            fileName: file.name,
+            completedFiles: completed,
+            totalFiles: spec.files.length,
+          ),
+        );
       }
     }
     return MovaSttModelFiles(paths);
   }
 
+  /// Removes only a validated model subdirectory, never the cache root.
+  ///
+  /// 仅删除已校验的模型子目录，绝不删除缓存根目录。
   @override
   Future<void> remove(String modelId) async {
+    _validateName(modelId);
     final root = await dir.resolve();
-    final modelDir = Directory('$root${Platform.pathSeparator}$modelId');
+    final modelDir = Directory(_childPath(root, modelId));
     if (await modelDir.exists()) await modelDir.delete(recursive: true);
+  }
+
+  /// Rejects traversal, absolute paths and Windows path aliases.
+  ///
+  /// 拒绝路径穿越、绝对路径和 Windows 路径别名。
+  void _validateName(String name) {
+    if (name.isEmpty ||
+        name.trim() != name ||
+        name.endsWith('.') ||
+        name.contains('/') ||
+        name.contains('\\') ||
+        name.contains(':') ||
+        name.contains('\u0000')) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'Expected one cache path component',
+      );
+    }
+  }
+
+  /// Returns a normalized path strictly below the supplied directory.
+  ///
+  /// 返回严格位于指定目录之下的规范化路径。
+  String _childPath(String root, String name) {
+    _validateName(name);
+    final parent = Directory(root).absolute.uri.normalizePath();
+    final child = parent.resolveUri(Uri(pathSegments: [name])).normalizePath();
+    if (child == parent || !child.path.startsWith(parent.path)) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'Cache path escapes its directory',
+      );
+    }
+    return File.fromUri(child).path;
   }
 }

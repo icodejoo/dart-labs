@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'seek_landing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart' show NativePlayer, Player;
@@ -143,7 +144,11 @@ class GapRunner {
     }
   }
 
-  void verdict(bool ok, Object expected, Object actual, {String? blocked}) {
+  void verdict(bool ok, Object expected, Object actual, {String? blocked, String? checkId}) {
+    if (checkId != null) {
+      log('CHECK', {'id': checkId, 'pass': blocked == null ? ok : null,
+        'expected': expected, 'actual': actual, 'blocked': blocked});
+    }
     log('EXPECT', expected);
     log('ACTUAL', actual);
     final token = !ok && blocked == null ? 'failure-${rows.length}' : null;
@@ -437,6 +442,7 @@ class GapRunner {
     final qs = a.state.qualities.where((q) => !q.isAuto).toList();
     final samples = <Map<String, Object?>>[];
     for (var i = 0; i < count; i++) {
+      try {
       await seek(a, 12000);
       await until(() async => (await pos() - 12000).abs() < 500);
       if (mode == 'paused') await call('pause', {}, a.pause);
@@ -446,13 +452,26 @@ class GapRunner {
         'targetMs': target,
         'iteration': i,
       }, () => a.switchQuality(q));
-      await until(
-        () async =>
-            await native('path') == q.uri &&
-            (await pos() - target).abs() <= 500,
-      );
-      final landed = await pos();
-      if (mode != 'paused') await until(() async => await pos() > landed + 300);
+      final landing = SeekLanding(target, playing: mode != 'paused');
+      final clock = Stopwatch()..start();
+      var landed = 0;
+      await until(() async {
+        final path = await native('path');
+        final seeking = await native('seeking');
+        final position = await pos();
+        final accepted = landing.sample(elapsedMs: clock.elapsedMilliseconds,
+          positionMs: position, seeking: seeking != 'no',
+          buffering: a.state.buffering, pathMatches: path == q.uri);
+        log('ACTUAL', {'landingSample': true, 'elapsedMs': clock.elapsedMilliseconds,
+          'nativeMs': position, 'seeking': seeking, 'path': path,
+          'buffering': a.state.buffering, 'accepted': accepted});
+        if (accepted) landed = landing.landedMs!;
+        return accepted;
+      });
+      if (mode != 'paused') await until(() async {
+        final p = await pos();
+        return p > landed + 300 && p >= target - 500;
+      });
       final actual = {
         'iteration': i,
         'targetMs': target,
@@ -468,28 +487,30 @@ class GapRunner {
         {'toleranceMs': 500, 'paused': mode == 'paused'},
         actual,
       );
+      } catch (e, s) {
+        verdict(false, {'toleranceMs': 500, 'iteration': i},
+          {'iteration': i, 'error': '$e', 'stack': '$s',
+           'path': await optionalNative('path'), 'timePosMs': await pos()});
+      }
     }
     log('ACTUAL', {'allSamples': samples, 'count': samples.length});
   }
 
   Future<void> parked(bool shadow) async {
+    final target = shadow ? 12000 : 15000;
     final a = await engine(cutover: shadow);
     if (shadow) {
       await open(a, 'long.mp4');
       final p = a as MovaCutoverEngine;
       final s = source('delayed/master.m3u8');
-      await call(
-        'prepare',
+      final committed = await call(
+        'cutoverTo',
         {'uri': s.uri, 'atMs': 12000},
-        () => p.prepare(
+        () => p.cutoverTo(
           s,
           at: const Duration(seconds: 12),
-          plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
         ),
       );
-      final committed = await call('commit', {
-        'waitForReady': true,
-      }, () => p.commit(waitForReady: true));
       verdict(committed, 'HLS shadow becomes ready and commits', {
         'committed': committed,
       });
@@ -501,16 +522,17 @@ class GapRunner {
         'seek before readiness',
         state(),
       );
-      await seek(a, 12000);
+      await seek(a, target);
       await pending;
     }
-    await until(() async => (await pos() - 12000).abs() <= 500);
+    await until(() async => (await pos() - target).abs() <= 500);
     final landed = await pos();
     await until(() async => await pos() > landed + 400);
     verdict(
       true,
-      {'targetMs': 12000, 'toleranceMs': 500, 'progress': 'continues'},
-      {'landedMs': landed, 'deltaMs': landed - 12000, 'afterMs': await pos()},
+      {'targetMs': target, 'toleranceMs': 500, 'progress': 'continues'},
+      {'landedMs': landed, 'deltaMs': landed - target, 'afterMs': await pos(),
+       'path': await native('path'), 'renderEpoch': a.state.renderEpoch},
     );
   }
 
@@ -1061,7 +1083,20 @@ class GapRunner {
     marks.clear();
     phase = 'running';
     try {
-      if (group == 'assumptions') {
+      if (group == 'cp0-h28') {
+        for (final mode in ['playing', 'paused', 'cutover']) {
+          await caseOf('H28.default.$mode', ['H28', 'F3', 'A17'],
+            () => switches(false, mode));
+        }
+      } else if (group == 'cp0-parked') {
+        for (final shadow in [false, true]) {
+          for (var i = 0; i < count; i++) {
+            await caseOf('${shadow ? 'H50' : 'H20'}.hlsSeek.$i',
+              ['H20', 'H50'], () => parked(shadow));
+          }
+        }
+      } else if (group == 'assumptions' || group == 'cp0-assumptions') {
+        if (group == 'assumptions') {
         for (final precise in [false, true]) {
           for (final mode in ['playing', 'paused', 'cutover']) {
             await caseOf('H28.${precise ? 'precise' : 'default'}.$mode', [
@@ -1078,6 +1113,7 @@ class GapRunner {
             'A7',
             'F4',
           ], () => parked(shadow));
+        }
         }
         await caseOf('H7.lateError', ['H7', 'A5'], stale);
         await caseOf('H14.manualSeek', ['H14', 'H26', 'A7', 'A17', 'F3'], abr);

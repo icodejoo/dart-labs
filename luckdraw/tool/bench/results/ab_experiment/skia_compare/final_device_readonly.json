@@ -1,0 +1,50 @@
+{
+  "verifiedAt": "2026-11-10T14:17:11.277537+00:00",
+  "commands": {
+    "mode": {
+      "command": [
+        "E:\\sdk\\android\\platform-tools\\adb.exe",
+        "-s",
+        "10AE9K17UE0011S",
+        "shell",
+        "settings",
+        "get",
+        "system",
+        "screen_brightness_mode"
+      ],
+      "exitCode": 0,
+      "stdout": "0"
+    },
+    "brightness": {
+      "command": [
+        "E:\\sdk\\android\\platform-tools\\adb.exe",
+        "-s",
+        "10AE9K17UE0011S",
+        "shell",
+        "settings",
+        "get",
+        "system",
+        "screen_brightness"
+      ],
+      "exitCode": 0,
+      "stdout": "1"
+    },
+    "stay_on": {
+      "command": [
+        "E:\\sdk\\android\\platform-tools\\adb.exe",
+        "-s",
+        "10AE9K17UE0011S",
+        "shell",
+        "settings",
+        "get",
+        "global",
+        "stay_on_while_plugged_in"
+      ],
+      "exitCode": 0,
+      "stdout": "2"
+    }
+  },
+  "mode": "0",
+  "brightness": "1",
+  "stay_on": "2"
+}

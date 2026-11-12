@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
 
@@ -13,7 +14,7 @@ class OverlapPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           pageHeader(context, 'Overlap',
-              'overlap: true bypasses the serial queue and stacks the overlay '
+              'mode: OverlayMode.overlap bypasses the serial queue and stacks the overlay '
               'immediately on top. Ineligible overlap entries are dropped (null result). '
               'Named slots each have their own independent serial queue.\n\n'
               'These demos present via a bare OverlayEntry (presentEntry), not a '
@@ -34,7 +35,7 @@ class OverlapPage extends StatelessWidget {
                       onPressed: () => openEntry(
                         'ovb',
                         text: 'OVB (overlap)',
-                        overlap: true,
+                        mode: OverlayMode.overlap,
                         offset: const Offset(0, 60),
                         hint: 'Both OVA and OVB are visible simultaneously',
                       ),
@@ -45,7 +46,7 @@ class OverlapPage extends StatelessWidget {
               }),
             ],
             subtitle:
-                'overlap: true → activates immediately regardless of what else is shown.',
+                'mode: OverlayMode.overlap → activates immediately regardless of what else is shown.',
           ),
           pageSection(
             context,
@@ -54,22 +55,22 @@ class OverlapPage extends StatelessWidget {
               demoButton('btn-groups', 'open 4 overlapping cards', () {
                 openEntry('a1',
                     text: 'A1',
-                    overlap: true,
+                    mode: OverlayMode.overlap,
                     data: const {'group': 'a'},
                     offset: const Offset(-130, -70));
                 openEntry('a2',
                     text: 'A2',
-                    overlap: true,
+                    mode: OverlayMode.overlap,
                     data: const {'group': 'a'},
                     offset: const Offset(-130, 70));
                 openEntry('b1',
                     text: 'B1',
-                    overlap: true,
+                    mode: OverlayMode.overlap,
                     data: const {'group': 'b'},
                     offset: const Offset(130, -70));
                 openEntry('b2',
                     text: 'B2',
-                    overlap: true,
+                    mode: OverlayMode.overlap,
                     data: const {'group': 'b'},
                     offset: const Offset(130, 70));
               }),

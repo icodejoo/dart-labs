@@ -1,0 +1,2039 @@
+{
+  "run_id": "cp2-warmmute-resume-20261104-183712",
+  "group": "warmmute",
+  "completed": true,
+  "evidenceRecovery": true,
+  "recoveryReason": "adb server restarted; original logcat stream ended without forwarding final markers; collector PID40432 stopped only after real device AUTORUN DONE was recovered",
+  "source": "example\\tool\\coverage_evidence\\cp2-warmmute-adb-recovered-1842.log",
+  "sourceSha256": "0dde555ca272c0e153e9b2ace4f898212ef2df5ac86c3d48b6cdc7395f66d232",
+  "volumeSamples": [
+    {
+      "marker": "before",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    },
+    {
+      "marker": "after recovered device AUTORUN DONE",
+      "at": "2026-11-04T18:45:25.909012+08:00",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+    }
+  ],
+  "volumeCount": 12,
+  "expectedMinimumVolumeSamples": 16,
+  "sourceResults": [
+    {
+      "variant": "Q13A",
+      "status": "PASS",
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms"
+    },
+    {
+      "variant": "Q13A",
+      "status": "PASS",
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms"
+    },
+    {
+      "variant": "Q13A",
+      "status": "PASS",
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms"
+    },
+    {
+      "variant": "Q13A",
+      "status": "PASS",
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms"
+    },
+    {
+      "variant": "Q13A",
+      "status": "PASS",
+      "detail": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms"
+    },
+    {
+      "variant": "Q13B",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13B",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13B",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13B",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13B",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13C",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13C",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13C",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13C",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    },
+    {
+      "variant": "Q13C",
+      "status": "FAIL",
+      "detail": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms"
+    }
+  ],
+  "harness": [
+    "logcat transport lost; original host result retained",
+    "CP2 system volume proof incomplete: 12/16 samples; no retrospective samples invented"
+  ],
+  "missing": [
+    "CP2.warmmute.Q13A.0",
+    "CP2.warmmute.Q13A.1",
+    "CP2.warmmute.Q13A.2",
+    "CP2.warmmute.Q13A.3",
+    "CP2.warmmute.Q13A.4",
+    "CP2.warmmute.Q13B.0",
+    "CP2.warmmute.Q13B.1",
+    "CP2.warmmute.Q13B.2",
+    "CP2.warmmute.Q13B.3",
+    "CP2.warmmute.Q13B.4",
+    "CP2.warmmute.Q13C.0",
+    "CP2.warmmute.Q13C.1",
+    "CP2.warmmute.Q13C.2",
+    "CP2.warmmute.Q13C.3",
+    "CP2.warmmute.Q13C.4"
+  ],
+  "records": [
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13A.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13A.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13A.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13A.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13A.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13B.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13B.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13B.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13B.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13B.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13C.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13C.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13C.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13C.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "CHECK",
+      "id": "CP2.warmmute.Q13C.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    }
+  ],
+  "verdicts": [
+    {
+      "case": "CP2.warmmute.Q13A.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3143ms firstPos=2815ms ready=3749ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13A.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3023ms firstPos=3562ms ready=3864ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13A.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2849ms ready=3780ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13A.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=2943ms firstPos=3576ms ready=3576ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13A.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "warming: active(k0).mute=no shadow(k2).mute=yes swapped=true committed(live k2).mute=no | DIAGSUM contentDelay=3000ms target=3063ms firstPos=2860ms ready=3850ms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13B.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13B.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13B.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13B.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13B.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13C.0",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13C.1",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13C.2",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13C.3",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "CP2.warmmute.Q13C.4",
+      "status": "BLOCKED",
+      "numbers": {
+        "sourceVerdict": "could not reach the warming state | DIAGSUM contentDelay=3000ms target=2463ms firstPos=nullms ready=nullms gone=nullms",
+        "source": [
+          "mute",
+          "Q13A,Q13B,Q13C"
+        ],
+        "systemVolume": [
+          {
+            "marker": "before",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:32.169 14351 14351 I flutter : [Q13] 18:37:32.169   10082ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:34.726 14351 14351 I flutter : [Q13] 18:37:34.726   12640ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:45.228 14351 14351 I flutter : [Q13] 18:37:45.228   23141ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:47.782 14351 14351 I flutter : [Q13] 18:37:47.781   25695ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:37:58.402 14351 14351 I flutter : [Q13] 18:37:58.402   36315ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:00.959 14351 14351 I flutter : [Q13] 18:38:00.959   38873ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:11.470 14351 14351 I flutter : [Q13] 18:38:11.470   49383ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:14.029 14351 14351 I flutter : [Q13] 18:38:14.029   51942ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:24.730 14351 14351 I flutter : [Q13] 18:38:24.730   62643ms MARK A-ad-playing-shadow-warming",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "11-04 18:38:27.293 14351 14351 I flutter : [Q13] 18:38:27.293   65206ms MARK A-committed",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          },
+          {
+            "marker": "after recovered device AUTORUN DONE",
+            "at": "2026-11-04T18:45:25.909012+08:00",
+            "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 0 in range [0..20]\n"
+          }
+        ]
+      }
+    }
+  ]
+}

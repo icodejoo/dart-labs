@@ -25,8 +25,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
+  // 默认安静：测试与脚本不得抢占用户桌面焦点；用户手工调试时设
+  // MOVA_WIN_INTERACTIVE=1 恢复普通窗口。
+  wchar_t interactive_flag[8] = {0};
+  const bool interactive =
+      ::GetEnvironmentVariableW(L"MOVA_WIN_INTERACTIVE", interactive_flag,
+                                8) > 0 &&
+      interactive_flag[0] == L'1';
+  window.SetQuiet(!interactive);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
+  Win32Window::Size size(interactive ? 1280 : 640, interactive ? 720 : 360);
   if (!window.Create(L"mova_example", origin, size)) {
     return EXIT_FAILURE;
   }

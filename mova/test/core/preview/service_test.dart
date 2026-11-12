@@ -79,7 +79,15 @@ class _FakeSource implements MovaThumbSource {
   }
 
   @override
-  Future<void> reset() async => calls.add('reset');
+  Future<void> reset() async {
+    calls.add('reset');
+    await onReset?.call();
+  }
+
+  /// Optional reset gate for lifecycle regressions.
+  ///
+  /// 生命周期回归使用的可选重置门闩。
+  Future<void> Function()? onReset;
 
   @override
   Future<void> dispose() async => calls.add('dispose');
@@ -160,6 +168,27 @@ class _ThrowingProbe implements MovaNetProbe {
   Future<void> dispose() async => throw StateError('probe dispose boom');
 }
 
+/// A probe whose first answer stays pending until the test releases it.
+///
+/// 首次判定保持挂起、由测试释放的探针。
+class _PendingProbe extends _SwitchProbe {
+  /// Creates the controlled probe.
+  ///
+  /// 创建受控探针。
+  _PendingProbe() : super(true);
+  final entered = Completer<void>();
+  final answer = Completer<bool>();
+
+  @override
+  Future<bool> allowHeavy() {
+    if (!entered.isCompleted) {
+      entered.complete();
+      return answer.future;
+    }
+    return super.allowHeavy();
+  }
+}
+
 void main() {
   const src = MovaSource('https://host/a.mp4');
   const srcB = MovaSource('https://host/b.mp4');
@@ -191,6 +220,110 @@ void main() {
   });
 
   tearDown(() => service.dispose());
+
+  test('default keys distinguish sub-second buckets and keep whole-second keys', () {
+    service = build(noDebounce);
+    service.attach(const MovaSource('https://host/a.mp4'));
+    final k0 = service.debugKeyFor(Duration.zero);
+    final k500 = service.debugKeyFor(const Duration(milliseconds: 500));
+    expect(k500, isNot(k0));
+    expect(service.debugKeyFor(const Duration(seconds: 1)), isNot(k0));
+    expect(k0, endsWith('_0_160'));
+  });
+
+  test('default keys isolate effective request headers and ignore map order', () async {
+    service = build(noDebounce);
+    const a = MovaSource('https://host/a.mp4', headers: {'Authorization': 'A', 'X-Test': '1'});
+    const reordered = MovaSource('https://host/a.mp4', headers: {'X-Test': '1', 'Authorization': 'A'});
+    const b = MovaSource('https://host/a.mp4', headers: {'Authorization': 'B', 'X-Test': '1'});
+    service.attach(a);
+    service.requestAt(Duration.zero);
+    await service.drain();
+    final keyA = service.debugKeyFor(Duration.zero);
+    service.attach(reordered);
+    expect(service.debugKeyFor(Duration.zero), keyA);
+    service.attach(b);
+    expect(service.debugKeyFor(Duration.zero), isNot(keyA));
+    expect(service.peekAt(Duration.zero), isNull);
+    service.requestAt(Duration.zero);
+    await service.drain();
+    expect(source.askedSources, [a, b]);
+  });
+
+  for (final audio in [false, true]) {
+    test('warm cache obeys disabled and audio-only gates: audio=$audio', () async {
+      final blocked = <MovaPreviewBlockReason>[];
+      service = MovaPreviewService(
+        config: noDebounce.copyWith(enabled: audio),
+        cache: cache, probe: MovaAlwaysAllowNetProbe(), sources: [source],
+        audioOnly: audio, onBlocked: blocked.add,
+      )..attach(src);
+      await cache.write(service.debugKeyFor(Duration.zero)!, Uint8List.fromList([1]));
+      expect(service.peekAt(Duration.zero), isNull);
+      service.requestAt(Duration.zero);
+      await service.drain();
+      expect(service.current, isNull);
+      expect(source.asked, isEmpty);
+      expect(blocked, [audio ? MovaPreviewBlockReason.platform : MovaPreviewBlockReason.disabled]);
+    });
+  }
+
+  for (final action in ['cancel', 'attach', 'dispose']) {
+    test('pending custom-source probe releases queue on $action', () async {
+      final probe = _PendingProbe();
+      service = build(noDebounce.copyWith(network: MovaPreviewNet.wifiOnly), probe: probe);
+      service.requestAt(Duration.zero);
+      await probe.entered.future;
+      if (action == 'dispose') {
+        await service.dispose().timeout(const Duration(seconds: 1));
+      } else {
+        if (action == 'attach') {
+          service.attach(srcB);
+        } else {
+          service.cancel();
+        }
+        service.requestAt(const Duration(seconds: 20));
+        await service.drain().timeout(const Duration(seconds: 1));
+        expect(source.asked, [const Duration(seconds: 20)]);
+        expect(source.askedSources.single, action == 'attach' ? srcB : src);
+      }
+      probe.answer.complete(true);
+      await service.drain();
+    });
+  }
+
+  test('attach serializes asynchronous resets before owner and session requests', () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    source.onReset = () async {
+      if (!entered.isCompleted) entered.complete();
+      await release.future;
+    };
+    service = build(noDebounce);
+    await entered.future;
+    final session = service.openSession();
+    service.requestAt(Duration.zero);
+    session.requestAt(const Duration(seconds: 20));
+    await Future<void>.delayed(Duration.zero);
+    expect(source.asked, isEmpty);
+    release.complete();
+    await service.drain();
+    await (session as MovaPreviewService).drain();
+    expect(source.asked.length, 2);
+    await session.dispose();
+  });
+
+  test('failed asynchronous reset is isolated from later requests', () async {
+    source.onReset = () async => throw StateError('reset failed');
+    service = build(noDebounce);
+    service.requestAt(Duration.zero);
+    await service.drain();
+    expect(service.current, isNotNull);
+    service.attach(srcB);
+    service.requestAt(const Duration(seconds: 20));
+    await service.drain();
+    expect(source.askedSources, [src, srcB]);
+  });
 
   test('one failing resolve neither blocks later requests nor breaks dispose', () async {
     final probe = _ThrowingProbe();

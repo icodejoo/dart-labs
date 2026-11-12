@@ -1,0 +1,3377 @@
+{
+  "generated_at": "2026-11-10T17:03:48.732315+00:00",
+  "session": {
+    "model": "V2417",
+    "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+    "android": "16",
+    "source_sha256": [
+      {
+        "name": "bench_support.dart",
+        "hash": "3F25CB783D5080B1C9B5F1522CB446457A8AEBE82E8DCB01118F6895708715EA"
+      },
+      {
+        "name": "capsule_bench_test.dart",
+        "hash": "B2CEF1C24F70DD0653D3FB92A56E6E72C774B856B84E872A9B762A873FAED3D6"
+      },
+      {
+        "name": "grid_bench_test.dart",
+        "hash": "A5D9959EFD358396253D631AD4C8E90E43275AEE9941526921A6E25176AF9DAC"
+      },
+      {
+        "name": "lever_bench_test.dart",
+        "hash": "2BFA877F1F2BA22B51A40B9B14478B15735094E9A17D62246FEAE46DA4B7F10D"
+      },
+      {
+        "name": "lots_bench_test.dart",
+        "hash": "C3577F934DD7EA42F3BE63AE057B569B0E2DE8AF0CE711661B1C0FD21CB4E31C"
+      },
+      {
+        "name": "lotto_bench_test.dart",
+        "hash": "C6124A86676A9E9271D52DE56E4F1248CF253A418475CF4AA75097AEFF6D9C79"
+      },
+      {
+        "name": "memory_bench_test.dart",
+        "hash": "747AE1EB6015D03C9D45DA0CCA0D6E7B566D1224B18EBBB9B1AF06F9D0FAAD24"
+      },
+      {
+        "name": "number_wheel_bench_test.dart",
+        "hash": "8EA5459B71623BD06C7EBF23525C00C25E90359BBFC1ABC1509CA567DB3A1403"
+      },
+      {
+        "name": "pending_bench_test.dart",
+        "hash": "5D5EF4D8BDD09DC5F15FD83A5FD43027F43E44173ABF57146F960215C66AF91E"
+      },
+      {
+        "name": "perf_bench_test.dart",
+        "hash": "099D01A2256212DBD6E76031542523F0E82026921066A0CC91D050D3726A4D2F"
+      },
+      {
+        "name": "perf_capture.dart",
+        "hash": "5B0FE6E6AC1BE00223864915E3E0F0A6BFBA53306296C036A3A3EA8383D3B7C2"
+      },
+      {
+        "name": "shadow_capture_test.dart",
+        "hash": "8E2BD4B03273EA66A316DD63A06824D50B94635A405C9E4DBFB6A05FFEE33FAB"
+      },
+      {
+        "name": "slot_bench_test.dart",
+        "hash": "06842FAEE0254D5AC296FA0685B2C72E2C772E0A192BBB0A97EFF56C7B109E0E"
+      },
+      {
+        "name": "wheel_bench_test.dart",
+        "hash": "2863F6D0FF9B6682C859784E62323560122AAAD4660A01B1D257C8AF0F101C2D"
+      }
+    ],
+    "binary": "C:\\ldq\\luckdraw\\tool\\bench\\build\\app\\outputs\\flutter-apk\\app-profile.apk",
+    "phone_settings_modified": false,
+    "serial": "10AE9K17UE0011S",
+    "started_at": "2026-11-10T16:36:10.2116789Z"
+  },
+  "scenes": {
+    "blank_first_frame": [
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "blank_first_frame_1",
+        "valid": true,
+        "error": null,
+        "scene": "blank_first_frame",
+        "attempt": 1,
+        "ended_at": "2026-11-10T16:36:30.1364337Z",
+        "started_at": "2026-11-10T16:36:11.1473627Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.564,
+          "90th_percentile_frame_build_time_millis": 2.883,
+          "average_frame_rasterizer_time_millis": 1.161,
+          "90th_percentile_frame_rasterizer_time_millis": 1.295,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.245,
+          "99th_percentile_frame_build_time_millis": 2.883,
+          "50th_percentile_frame_rasterizer_time_millis": 1.027,
+          "99th_percentile_frame_rasterizer_time_millis": 1.295,
+          "50th_percentile_build_plus_raster_millis": 1.54,
+          "90th_percentile_build_plus_raster_millis": 3.91,
+          "99th_percentile_build_plus_raster_millis": 3.91,
+          "fps": 90.36688957166095,
+          "elapsed_micros": 22132,
+          "first_frame_ui_millis": 2.883,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:36:28.308140+00:00",
+        "device_response_file": "blank_first_frame_1/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "blank_first_frame_2",
+        "valid": true,
+        "error": null,
+        "scene": "blank_first_frame",
+        "attempt": 2,
+        "ended_at": "2026-11-10T16:36:48.075883Z",
+        "started_at": "2026-11-10T16:36:30.9648947Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.702,
+          "90th_percentile_frame_build_time_millis": 2.835,
+          "average_frame_rasterizer_time_millis": 2.3354999999999997,
+          "90th_percentile_frame_rasterizer_time_millis": 2.461,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.569,
+          "99th_percentile_frame_build_time_millis": 2.835,
+          "50th_percentile_frame_rasterizer_time_millis": 2.21,
+          "99th_percentile_frame_rasterizer_time_millis": 2.461,
+          "50th_percentile_build_plus_raster_millis": 2.779,
+          "90th_percentile_build_plus_raster_millis": 5.296,
+          "99th_percentile_build_plus_raster_millis": 5.296,
+          "fps": 78.5299198994817,
+          "elapsed_micros": 25468,
+          "first_frame_ui_millis": 2.835,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:36:46.478855+00:00",
+        "device_response_file": "blank_first_frame_2/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "blank_first_frame_3",
+        "valid": true,
+        "error": null,
+        "scene": "blank_first_frame",
+        "attempt": 3,
+        "ended_at": "2026-11-10T16:37:06.0874813Z",
+        "started_at": "2026-11-10T16:36:48.9193228Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.9445,
+          "90th_percentile_frame_build_time_millis": 3.469,
+          "average_frame_rasterizer_time_millis": 2.25,
+          "90th_percentile_frame_rasterizer_time_millis": 2.354,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.42,
+          "99th_percentile_frame_build_time_millis": 3.469,
+          "50th_percentile_frame_rasterizer_time_millis": 2.146,
+          "99th_percentile_frame_rasterizer_time_millis": 2.354,
+          "50th_percentile_build_plus_raster_millis": 2.566,
+          "90th_percentile_build_plus_raster_millis": 5.823,
+          "99th_percentile_build_plus_raster_millis": 5.823,
+          "fps": 72.04091924212953,
+          "elapsed_micros": 27762,
+          "first_frame_ui_millis": 3.469,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:37:04.555098+00:00",
+        "device_response_file": "blank_first_frame_3/device_response.original.json"
+      }
+    ],
+    "wheel_first_frame": [
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "wheel_first_frame_1",
+        "valid": true,
+        "error": null,
+        "scene": "wheel_first_frame",
+        "attempt": 1,
+        "ended_at": "2026-11-10T16:37:24.2838232Z",
+        "started_at": "2026-11-10T16:37:06.8818297Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 23.829,
+          "90th_percentile_frame_build_time_millis": 47.238,
+          "average_frame_rasterizer_time_millis": 3.002,
+          "90th_percentile_frame_rasterizer_time_millis": 3.006,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.42,
+          "99th_percentile_frame_build_time_millis": 47.238,
+          "50th_percentile_frame_rasterizer_time_millis": 2.998,
+          "99th_percentile_frame_rasterizer_time_millis": 3.006,
+          "50th_percentile_build_plus_raster_millis": 3.418,
+          "90th_percentile_build_plus_raster_millis": 50.244,
+          "99th_percentile_build_plus_raster_millis": 50.244,
+          "fps": 27.367643235402785,
+          "elapsed_micros": 73079,
+          "first_frame_ui_millis": 47.238,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:37:22.652368+00:00",
+        "device_response_file": "wheel_first_frame_1/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "wheel_first_frame_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "scene": "wheel_first_frame",
+        "attempt": 2,
+        "ended_at": "2026-11-10T16:37:41.9078171Z",
+        "started_at": "2026-11-10T16:37:25.0944681Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 20.633,
+          "90th_percentile_frame_build_time_millis": 40.97,
+          "average_frame_rasterizer_time_millis": 9.8955,
+          "90th_percentile_frame_rasterizer_time_millis": 12.751,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.296,
+          "99th_percentile_frame_build_time_millis": 40.97,
+          "50th_percentile_frame_rasterizer_time_millis": 7.04,
+          "99th_percentile_frame_rasterizer_time_millis": 12.751,
+          "50th_percentile_build_plus_raster_millis": 7.336,
+          "90th_percentile_build_plus_raster_millis": 53.721,
+          "99th_percentile_build_plus_raster_millis": 53.721,
+          "fps": 28.831737977165265,
+          "elapsed_micros": 69368,
+          "first_frame_ui_millis": 40.97,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:37:40.582427+00:00",
+        "device_response_file": "wheel_first_frame_2/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "wheel_first_frame_3",
+        "valid": true,
+        "error": null,
+        "scene": "wheel_first_frame",
+        "attempt": 3,
+        "ended_at": "2026-11-10T16:37:59.3484434Z",
+        "started_at": "2026-11-10T16:37:42.7554451Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 18.6945,
+          "90th_percentile_frame_build_time_millis": 37.118,
+          "average_frame_rasterizer_time_millis": 7.7255,
+          "90th_percentile_frame_rasterizer_time_millis": 11.881,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.271,
+          "99th_percentile_frame_build_time_millis": 37.118,
+          "50th_percentile_frame_rasterizer_time_millis": 3.57,
+          "99th_percentile_frame_rasterizer_time_millis": 11.881,
+          "50th_percentile_build_plus_raster_millis": 12.152,
+          "90th_percentile_build_plus_raster_millis": 40.688,
+          "99th_percentile_build_plus_raster_millis": 40.688,
+          "fps": 35.85000358500036,
+          "elapsed_micros": 55788,
+          "first_frame_ui_millis": 37.118,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:37:57.674475+00:00",
+        "device_response_file": "wheel_first_frame_3/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "wheel_first_frame_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "scene": "wheel_first_frame",
+        "attempt": 4,
+        "ended_at": "2026-11-10T16:38:16.5778935Z",
+        "started_at": "2026-11-10T16:38:00.1832109Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 22.0175,
+          "90th_percentile_frame_build_time_millis": 43.736,
+          "average_frame_rasterizer_time_millis": 13.276499999999999,
+          "90th_percentile_frame_rasterizer_time_millis": 13.667,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.299,
+          "99th_percentile_frame_build_time_millis": 43.736,
+          "50th_percentile_frame_rasterizer_time_millis": 12.886,
+          "99th_percentile_frame_rasterizer_time_millis": 13.667,
+          "50th_percentile_build_plus_raster_millis": 13.185,
+          "90th_percentile_build_plus_raster_millis": 57.403,
+          "99th_percentile_build_plus_raster_millis": 57.403,
+          "fps": 30.38082362412845,
+          "elapsed_micros": 65831,
+          "first_frame_ui_millis": 43.736,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:38:15.257115+00:00",
+        "device_response_file": "wheel_first_frame_4/device_response.original.json"
+      },
+      {
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "directory": "wheel_first_frame_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "scene": "wheel_first_frame",
+        "attempt": 5,
+        "ended_at": "2026-11-10T16:38:33.529174Z",
+        "started_at": "2026-11-10T16:38:17.4633073Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 20.981,
+          "90th_percentile_frame_build_time_millis": 41.703,
+          "average_frame_rasterizer_time_millis": 9.122,
+          "90th_percentile_frame_rasterizer_time_millis": 14.079,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.259,
+          "99th_percentile_frame_build_time_millis": 41.703,
+          "50th_percentile_frame_rasterizer_time_millis": 4.165,
+          "99th_percentile_frame_rasterizer_time_millis": 14.079,
+          "50th_percentile_build_plus_raster_millis": 4.424,
+          "90th_percentile_build_plus_raster_millis": 55.782,
+          "99th_percentile_build_plus_raster_millis": 55.782,
+          "fps": 30.144088744197262,
+          "elapsed_micros": 66348,
+          "first_frame_ui_millis": 41.703,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:38:32.441510+00:00",
+        "device_response_file": "wheel_first_frame_5/device_response.original.json"
+      }
+    ],
+    "grid_first_frame": [
+      {
+        "directory": "grid_first_frame_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:39:33.2951643Z",
+        "scene": "grid_first_frame",
+        "started_at": "2026-11-10T16:39:16.6530826Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 5.119,
+          "90th_percentile_frame_build_time_millis": 10.024,
+          "average_frame_rasterizer_time_millis": 13.572499999999998,
+          "90th_percentile_frame_rasterizer_time_millis": 18.775,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.214,
+          "99th_percentile_frame_build_time_millis": 10.024,
+          "50th_percentile_frame_rasterizer_time_millis": 8.37,
+          "99th_percentile_frame_rasterizer_time_millis": 18.775,
+          "50th_percentile_build_plus_raster_millis": 18.394,
+          "90th_percentile_build_plus_raster_millis": 18.989,
+          "99th_percentile_build_plus_raster_millis": 18.989,
+          "fps": 97.70873027505007,
+          "elapsed_micros": 20469,
+          "first_frame_ui_millis": 10.024,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:39:32.066161+00:00",
+        "device_response_file": "grid_first_frame_1/device_response.original.json"
+      },
+      {
+        "directory": "grid_first_frame_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:39:50.7873309Z",
+        "scene": "grid_first_frame",
+        "started_at": "2026-11-10T16:39:34.1328711Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 6.8265,
+          "90th_percentile_frame_build_time_millis": 13.403,
+          "average_frame_rasterizer_time_millis": 11.812999999999999,
+          "90th_percentile_frame_rasterizer_time_millis": 19.139,
+          "dropped_frame_ratio": 0.5,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.25,
+          "99th_percentile_frame_build_time_millis": 13.403,
+          "50th_percentile_frame_rasterizer_time_millis": 4.487,
+          "99th_percentile_frame_rasterizer_time_millis": 19.139,
+          "50th_percentile_build_plus_raster_millis": 17.89,
+          "90th_percentile_build_plus_raster_millis": 19.389,
+          "99th_percentile_build_plus_raster_millis": 19.389,
+          "fps": 108.31889081455806,
+          "elapsed_micros": 18464,
+          "first_frame_ui_millis": 13.403,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:39:49.258676+00:00",
+        "device_response_file": "grid_first_frame_2/device_response.original.json"
+      },
+      {
+        "directory": "grid_first_frame_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:40:08.7005092Z",
+        "scene": "grid_first_frame",
+        "started_at": "2026-11-10T16:39:51.5935562Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 16.0385,
+          "90th_percentile_frame_build_time_millis": 31.592,
+          "average_frame_rasterizer_time_millis": 14.2995,
+          "90th_percentile_frame_rasterizer_time_millis": 19.34,
+          "dropped_frame_ratio": 1.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.485,
+          "99th_percentile_frame_build_time_millis": 31.592,
+          "50th_percentile_frame_rasterizer_time_millis": 9.259,
+          "99th_percentile_frame_rasterizer_time_millis": 19.34,
+          "50th_percentile_build_plus_raster_millis": 19.825,
+          "90th_percentile_build_plus_raster_millis": 40.851,
+          "99th_percentile_build_plus_raster_millis": 40.851,
+          "fps": 32.95707341188103,
+          "elapsed_micros": 60685,
+          "first_frame_ui_millis": 31.592,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:40:07.416981+00:00",
+        "device_response_file": "grid_first_frame_3/device_response.original.json"
+      },
+      {
+        "directory": "grid_first_frame_4",
+        "valid": true,
+        "error": null,
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:40:27.5637610Z",
+        "scene": "grid_first_frame",
+        "started_at": "2026-11-10T16:40:09.5815761Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 18.3965,
+          "90th_percentile_frame_build_time_millis": 36.518,
+          "average_frame_rasterizer_time_millis": 12.611500000000001,
+          "90th_percentile_frame_rasterizer_time_millis": 20.597,
+          "dropped_frame_ratio": 1.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.275,
+          "99th_percentile_frame_build_time_millis": 36.518,
+          "50th_percentile_frame_rasterizer_time_millis": 4.626,
+          "99th_percentile_frame_rasterizer_time_millis": 20.597,
+          "50th_percentile_build_plus_raster_millis": 20.872,
+          "90th_percentile_build_plus_raster_millis": 41.144,
+          "99th_percentile_build_plus_raster_millis": 41.144,
+          "fps": 33.103265637155104,
+          "elapsed_micros": 60417,
+          "first_frame_ui_millis": 36.518,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:40:25.924277+00:00",
+        "device_response_file": "grid_first_frame_4/device_response.original.json"
+      },
+      {
+        "directory": "grid_first_frame_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:40:45.7064020Z",
+        "scene": "grid_first_frame",
+        "started_at": "2026-11-10T16:40:28.3645274Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 11.8325,
+          "90th_percentile_frame_build_time_millis": 23.392,
+          "average_frame_rasterizer_time_millis": 13.6175,
+          "90th_percentile_frame_rasterizer_time_millis": 18.657,
+          "dropped_frame_ratio": 1.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.273,
+          "99th_percentile_frame_build_time_millis": 23.392,
+          "50th_percentile_frame_rasterizer_time_millis": 8.578,
+          "99th_percentile_frame_rasterizer_time_millis": 18.657,
+          "50th_percentile_build_plus_raster_millis": 18.93,
+          "90th_percentile_build_plus_raster_millis": 31.97,
+          "99th_percentile_build_plus_raster_millis": 31.97,
+          "fps": 46.1222701381362,
+          "elapsed_micros": 43363,
+          "first_frame_ui_millis": 23.392,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:40:44.498478+00:00",
+        "device_response_file": "grid_first_frame_5/device_response.original.json"
+      }
+    ],
+    "slot_first_frame": [
+      {
+        "directory": "slot_first_frame_1",
+        "valid": true,
+        "error": null,
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:41:03.9229486Z",
+        "scene": "slot_first_frame",
+        "started_at": "2026-11-10T16:40:46.5768002Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 2.1145,
+          "90th_percentile_frame_build_time_millis": 3.128,
+          "average_frame_rasterizer_time_millis": 2.1885000000000003,
+          "90th_percentile_frame_rasterizer_time_millis": 2.192,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.101,
+          "99th_percentile_frame_build_time_millis": 3.128,
+          "50th_percentile_frame_rasterizer_time_millis": 2.185,
+          "99th_percentile_frame_rasterizer_time_millis": 2.192,
+          "50th_percentile_build_plus_raster_millis": 3.286,
+          "90th_percentile_build_plus_raster_millis": 5.32,
+          "99th_percentile_build_plus_raster_millis": 5.32,
+          "fps": 97.52291788570314,
+          "elapsed_micros": 20508,
+          "first_frame_ui_millis": 3.128,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:41:02.291720+00:00",
+        "device_response_file": "slot_first_frame_1/device_response.original.json"
+      },
+      {
+        "directory": "slot_first_frame_2",
+        "valid": true,
+        "error": null,
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:41:22.1001844Z",
+        "scene": "slot_first_frame",
+        "started_at": "2026-11-10T16:41:04.8169256Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.7995,
+          "90th_percentile_frame_build_time_millis": 2.577,
+          "average_frame_rasterizer_time_millis": 3.1035,
+          "90th_percentile_frame_rasterizer_time_millis": 4.638,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.022,
+          "99th_percentile_frame_build_time_millis": 2.577,
+          "50th_percentile_frame_rasterizer_time_millis": 1.569,
+          "99th_percentile_frame_rasterizer_time_millis": 4.638,
+          "50th_percentile_build_plus_raster_millis": 4.146,
+          "90th_percentile_build_plus_raster_millis": 5.66,
+          "99th_percentile_build_plus_raster_millis": 5.66,
+          "fps": 75.36362951239732,
+          "elapsed_micros": 26538,
+          "first_frame_ui_millis": 2.577,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:41:20.544457+00:00",
+        "device_response_file": "slot_first_frame_2/device_response.original.json"
+      },
+      {
+        "directory": "slot_first_frame_3",
+        "valid": true,
+        "error": null,
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:41:40.1572342Z",
+        "scene": "slot_first_frame",
+        "started_at": "2026-11-10T16:41:22.8826673Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 3.852,
+          "90th_percentile_frame_build_time_millis": 7.338,
+          "average_frame_rasterizer_time_millis": 2.8285,
+          "90th_percentile_frame_rasterizer_time_millis": 3.356,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 2.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.366,
+          "99th_percentile_frame_build_time_millis": 7.338,
+          "50th_percentile_frame_rasterizer_time_millis": 2.301,
+          "99th_percentile_frame_rasterizer_time_millis": 3.356,
+          "50th_percentile_build_plus_raster_millis": 2.667,
+          "90th_percentile_build_plus_raster_millis": 10.694,
+          "99th_percentile_build_plus_raster_millis": 10.694,
+          "fps": 66.3239927043608,
+          "elapsed_micros": 30155,
+          "first_frame_ui_millis": 7.338,
+          "first_frame_source": "FrameTiming.buildDuration"
+        },
+        "device_response_at": "2026-11-10T16:41:38.577803+00:00",
+        "device_response_file": "slot_first_frame_3/device_response.original.json"
+      }
+    ],
+    "cpu_wheel_steady": [
+      {
+        "directory": "cpu_wheel_steady_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:42:00.6435065Z",
+        "scene": "cpu_wheel_steady",
+        "started_at": "2026-11-10T16:41:40.9517067Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_wheel_steady_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:42:19.8191613Z",
+        "scene": "cpu_wheel_steady",
+        "started_at": "2026-11-10T16:42:01.4202369Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_wheel_steady_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:42:40.1903279Z",
+        "scene": "cpu_wheel_steady",
+        "started_at": "2026-11-10T16:42:20.7057466Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_wheel_steady_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:43:00.1182520Z",
+        "scene": "cpu_wheel_steady",
+        "started_at": "2026-11-10T16:42:40.9486238Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_wheel_steady_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:43:19.8681555Z",
+        "scene": "cpu_wheel_steady",
+        "started_at": "2026-11-10T16:43:01.0306777Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      }
+    ],
+    "cpu_grid_steady": [
+      {
+        "directory": "cpu_grid_steady_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:43:39.9126851Z",
+        "scene": "cpu_grid_steady",
+        "started_at": "2026-11-10T16:43:20.6955577Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_grid_steady_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:44:01.1330154Z",
+        "scene": "cpu_grid_steady",
+        "started_at": "2026-11-10T16:43:40.8692086Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_grid_steady_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:44:22.3844201Z",
+        "scene": "cpu_grid_steady",
+        "started_at": "2026-11-10T16:44:02.5151337Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_grid_steady_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:44:44.1539494Z",
+        "scene": "cpu_grid_steady",
+        "started_at": "2026-11-10T16:44:23.8767135Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_grid_steady_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:45:06.1417855Z",
+        "scene": "cpu_grid_steady",
+        "started_at": "2026-11-10T16:44:45.6666693Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      }
+    ],
+    "cpu_slot_steady": [
+      {
+        "directory": "cpu_slot_steady_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:45:27.2318424Z",
+        "scene": "cpu_slot_steady",
+        "started_at": "2026-11-10T16:45:07.3852690Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_slot_steady_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:45:50.7147226Z",
+        "scene": "cpu_slot_steady",
+        "started_at": "2026-11-10T16:45:29.0589686Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_slot_steady_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:46:11.8010777Z",
+        "scene": "cpu_slot_steady",
+        "started_at": "2026-11-10T16:45:51.5740153Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_slot_steady_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:46:32.4510646Z",
+        "scene": "cpu_slot_steady",
+        "started_at": "2026-11-10T16:46:12.9263138Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_slot_steady_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:46:54.2456373Z",
+        "scene": "cpu_slot_steady",
+        "started_at": "2026-11-10T16:46:33.9401585Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      }
+    ],
+    "cpu_capsule_mixing": [
+      {
+        "directory": "cpu_capsule_mixing_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:47:13.4873741Z",
+        "scene": "cpu_capsule_mixing",
+        "started_at": "2026-11-10T16:46:55.7482661Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_capsule_mixing_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:47:32.2306117Z",
+        "scene": "cpu_capsule_mixing",
+        "started_at": "2026-11-10T16:47:14.7317288Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_capsule_mixing_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:47:51.8807911Z",
+        "scene": "cpu_capsule_mixing",
+        "started_at": "2026-11-10T16:47:33.5436156Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_capsule_mixing_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:48:10.4455735Z",
+        "scene": "cpu_capsule_mixing",
+        "started_at": "2026-11-10T16:47:52.7436728Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      },
+      {
+        "directory": "cpu_capsule_mixing_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:48:30.3960870Z",
+        "scene": "cpu_capsule_mixing",
+        "started_at": "2026-11-10T16:48:12.0758331Z",
+        "cpu_error": "FormatException: top 缺少线程列头\n"
+      }
+    ],
+    "cpu_lotto_draw": [
+      {
+        "directory": "cpu_lotto_draw_1",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:48:49.6127600Z",
+        "scene": "cpu_lotto_draw",
+        "started_at": "2026-11-10T16:48:31.9826750Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_lotto_draw_2",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:49:12.5241568Z",
+        "scene": "cpu_lotto_draw",
+        "started_at": "2026-11-10T16:48:51.0630889Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_lotto_draw_3",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:49:30.3573007Z",
+        "scene": "cpu_lotto_draw",
+        "started_at": "2026-11-10T16:49:13.7052055Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_lotto_draw_4",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 4,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:49:49.2813044Z",
+        "scene": "cpu_lotto_draw",
+        "started_at": "2026-11-10T16:49:31.5032931Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      },
+      {
+        "directory": "cpu_lotto_draw_5",
+        "valid": false,
+        "error": "flutter drive失败: 1",
+        "attempt": 5,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:50:09.6734082Z",
+        "scene": "cpu_lotto_draw",
+        "started_at": "2026-11-10T16:49:50.6628078Z",
+        "cpu_error": "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      }
+    ],
+    "slot_raster": [
+      {
+        "directory": "slot_raster_1",
+        "valid": true,
+        "error": null,
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:51:14.4340301Z",
+        "scene": "slot_raster",
+        "started_at": "2026-11-10T16:50:10.7341326Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.088538205980067,
+          "90th_percentile_frame_build_time_millis": 1.512,
+          "average_frame_rasterizer_time_millis": 2.827495016611296,
+          "90th_percentile_frame_rasterizer_time_millis": 3.095,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.017,
+          "99th_percentile_frame_build_time_millis": 2.093,
+          "50th_percentile_frame_rasterizer_time_millis": 2.849,
+          "99th_percentile_frame_rasterizer_time_millis": 3.393,
+          "50th_percentile_build_plus_raster_millis": 3.972,
+          "90th_percentile_build_plus_raster_millis": 4.472,
+          "99th_percentile_build_plus_raster_millis": 5.352,
+          "fps": 60.093526290119165,
+          "elapsed_micros": 5008859,
+          "rss_steady_baseline": 273240064,
+          "rss_steady_after": 322220032,
+          "rss_steady_delta_bytes": 48979968,
+          "rss_delta_bytes": 1392640,
+          "rss_warmup_bytes": 974848,
+          "rss_steady_growth_bytes": 0,
+          "rss_cycles": 5,
+          "rss_baseline": 307777536,
+          "rss_pages": [
+            309170176,
+            308953088,
+            301649920,
+            302280704,
+            302288896
+          ],
+          "rss_blank": [
+            308752384,
+            308453376,
+            302088192,
+            302284800,
+            302292992
+          ]
+        },
+        "device_response_at": "2026-11-10T16:51:12.346552+00:00",
+        "device_response_file": "slot_raster_1/device_response.original.json"
+      },
+      {
+        "directory": "slot_raster_2",
+        "valid": true,
+        "error": null,
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:52:18.0684152Z",
+        "scene": "slot_raster",
+        "started_at": "2026-11-10T16:51:15.4151335Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.0906279069767444,
+          "90th_percentile_frame_build_time_millis": 1.498,
+          "average_frame_rasterizer_time_millis": 2.896249169435216,
+          "90th_percentile_frame_rasterizer_time_millis": 3.295,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.062,
+          "99th_percentile_frame_build_time_millis": 1.985,
+          "50th_percentile_frame_rasterizer_time_millis": 2.931,
+          "99th_percentile_frame_rasterizer_time_millis": 3.517,
+          "50th_percentile_build_plus_raster_millis": 4.021,
+          "90th_percentile_build_plus_raster_millis": 4.755,
+          "99th_percentile_build_plus_raster_millis": 5.114,
+          "fps": 59.99583417629806,
+          "elapsed_micros": 5017015,
+          "rss_steady_baseline": 274116608,
+          "rss_steady_after": 321265664,
+          "rss_steady_delta_bytes": 47149056,
+          "rss_delta_bytes": 1765376,
+          "rss_warmup_bytes": 1761280,
+          "rss_steady_growth_bytes": 0,
+          "rss_cycles": 5,
+          "rss_baseline": 308613120,
+          "rss_pages": [
+            310378496,
+            310366208,
+            309112832,
+            309395456,
+            309403648
+          ],
+          "rss_blank": [
+            310374400,
+            310530048,
+            309112832,
+            309395456,
+            309407744
+          ]
+        },
+        "device_response_at": "2026-11-10T16:52:15.942177+00:00",
+        "device_response_file": "slot_raster_2/device_response.original.json"
+      },
+      {
+        "directory": "slot_raster_3",
+        "valid": true,
+        "error": null,
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:53:22.3808026Z",
+        "scene": "slot_raster",
+        "started_at": "2026-11-10T16:52:18.8566917Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.1268604651162786,
+          "90th_percentile_frame_build_time_millis": 1.487,
+          "average_frame_rasterizer_time_millis": 2.9138637873754165,
+          "90th_percentile_frame_rasterizer_time_millis": 3.308,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.177,
+          "99th_percentile_frame_build_time_millis": 2.068,
+          "50th_percentile_frame_rasterizer_time_millis": 2.976,
+          "99th_percentile_frame_rasterizer_time_millis": 3.749,
+          "50th_percentile_build_plus_raster_millis": 4.12,
+          "90th_percentile_build_plus_raster_millis": 4.732,
+          "99th_percentile_build_plus_raster_millis": 5.397,
+          "fps": 60.00298619512692,
+          "elapsed_micros": 5016417,
+          "rss_steady_baseline": 273678336,
+          "rss_steady_after": 322428928,
+          "rss_steady_delta_bytes": 48750592,
+          "rss_delta_bytes": 700416,
+          "rss_warmup_bytes": 561152,
+          "rss_steady_growth_bytes": 143360,
+          "rss_cycles": 5,
+          "rss_baseline": 307503104,
+          "rss_pages": [
+            307851264,
+            307732480,
+            307834880,
+            307945472,
+            308203520
+          ],
+          "rss_blank": [
+            308064256,
+            307830784,
+            307814400,
+            308195328,
+            308207616
+          ]
+        },
+        "device_response_at": "2026-11-10T16:53:20.454335+00:00",
+        "device_response_file": "slot_raster_3/device_response.original.json"
+      }
+    ],
+    "grid_steady": [
+      {
+        "directory": "grid_steady_1",
+        "valid": true,
+        "error": null,
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:54:27.0657227Z",
+        "scene": "grid_steady",
+        "started_at": "2026-11-10T16:53:23.2283869Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.0687607973421924,
+          "90th_percentile_frame_build_time_millis": 1.871,
+          "average_frame_rasterizer_time_millis": 5.970196013289036,
+          "90th_percentile_frame_rasterizer_time_millis": 7.082,
+          "dropped_frame_ratio": 0.0033222591362126247,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.949,
+          "99th_percentile_frame_build_time_millis": 2.222,
+          "50th_percentile_frame_rasterizer_time_millis": 5.514,
+          "99th_percentile_frame_rasterizer_time_millis": 12.804,
+          "50th_percentile_build_plus_raster_millis": 6.485,
+          "90th_percentile_build_plus_raster_millis": 8.495,
+          "99th_percentile_build_plus_raster_millis": 14.039,
+          "fps": 60.004361778856214,
+          "elapsed_micros": 5016302,
+          "rss_steady_baseline": 274149376,
+          "rss_steady_after": 320135168,
+          "rss_steady_delta_bytes": 45985792,
+          "rss_delta_bytes": 1400832,
+          "rss_warmup_bytes": 679936,
+          "rss_steady_growth_bytes": 929792,
+          "rss_cycles": 5,
+          "rss_baseline": 308899840,
+          "rss_pages": [
+            309366784,
+            309653504,
+            309940224,
+            310267904,
+            310300672
+          ],
+          "rss_blank": [
+            309579776,
+            309850112,
+            309899264,
+            310194176,
+            310509568
+          ]
+        },
+        "device_response_at": "2026-11-10T16:54:25.049459+00:00",
+        "device_response_file": "grid_steady_1/device_response.original.json"
+      },
+      {
+        "directory": "grid_steady_2",
+        "valid": true,
+        "error": null,
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:55:31.1011667Z",
+        "scene": "grid_steady",
+        "started_at": "2026-11-10T16:54:27.8991776Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.055727574750831,
+          "90th_percentile_frame_build_time_millis": 1.854,
+          "average_frame_rasterizer_time_millis": 5.534604651162794,
+          "90th_percentile_frame_rasterizer_time_millis": 7.584,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.964,
+          "99th_percentile_frame_build_time_millis": 2.119,
+          "50th_percentile_frame_rasterizer_time_millis": 5.176,
+          "99th_percentile_frame_rasterizer_time_millis": 8.076,
+          "50th_percentile_build_plus_raster_millis": 5.982,
+          "90th_percentile_build_plus_raster_millis": 8.804,
+          "99th_percentile_build_plus_raster_millis": 9.348,
+          "fps": 60.050725905544,
+          "elapsed_micros": 5012429,
+          "rss_steady_baseline": 273895424,
+          "rss_steady_after": 323850240,
+          "rss_steady_delta_bytes": 49954816,
+          "rss_delta_bytes": 1093632,
+          "rss_warmup_bytes": 622592,
+          "rss_steady_growth_bytes": 364544,
+          "rss_cycles": 5,
+          "rss_baseline": 310272000,
+          "rss_pages": [
+            310706176,
+            310812672,
+            310849536,
+            311091200,
+            311365632
+          ],
+          "rss_blank": [
+            310894592,
+            310747136,
+            311025664,
+            311042048,
+            311259136
+          ]
+        },
+        "device_response_at": "2026-11-10T16:55:28.917651+00:00",
+        "device_response_file": "grid_steady_2/device_response.original.json"
+      },
+      {
+        "directory": "grid_steady_3",
+        "valid": true,
+        "error": null,
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:56:35.0184751Z",
+        "scene": "grid_steady",
+        "started_at": "2026-11-10T16:55:31.8460737Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.0843986710963456,
+          "90th_percentile_frame_build_time_millis": 1.891,
+          "average_frame_rasterizer_time_millis": 13.802036544850495,
+          "90th_percentile_frame_rasterizer_time_millis": 17.141,
+          "dropped_frame_ratio": 0.24916943521594684,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 0.954,
+          "99th_percentile_frame_build_time_millis": 2.193,
+          "50th_percentile_frame_rasterizer_time_millis": 16.246,
+          "99th_percentile_frame_rasterizer_time_millis": 19.661,
+          "50th_percentile_build_plus_raster_millis": 17.225,
+          "90th_percentile_build_plus_raster_millis": 18.465,
+          "99th_percentile_build_plus_raster_millis": 20.42,
+          "fps": 59.96256025390658,
+          "elapsed_micros": 5019799,
+          "rss_steady_baseline": 274513920,
+          "rss_steady_after": 319447040,
+          "rss_steady_delta_bytes": 44933120,
+          "rss_delta_bytes": 1667072,
+          "rss_warmup_bytes": 757760,
+          "rss_steady_growth_bytes": 843776,
+          "rss_cycles": 5,
+          "rss_baseline": 307871744,
+          "rss_pages": [
+            308699136,
+            309002240,
+            309268480,
+            309268480,
+            309538816
+          ],
+          "rss_blank": [
+            308629504,
+            308932608,
+            309198848,
+            309207040,
+            309473280
+          ]
+        },
+        "device_response_at": "2026-11-10T16:56:32.923605+00:00",
+        "device_response_file": "grid_steady_3/device_response.original.json"
+      }
+    ],
+    "lotto_draw": [
+      {
+        "directory": "lotto_draw_1",
+        "valid": true,
+        "error": null,
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:57:42.0274093Z",
+        "scene": "lotto_draw",
+        "started_at": "2026-11-10T16:56:35.7979217Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 2.219782383419688,
+          "90th_percentile_frame_build_time_millis": 3.309,
+          "average_frame_rasterizer_time_millis": 4.747668393782387,
+          "90th_percentile_frame_rasterizer_time_millis": 4.927,
+          "dropped_frame_ratio": 0.0017271157167530224,
+          "frame_count": 579.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.86,
+          "99th_percentile_frame_build_time_millis": 4.57,
+          "50th_percentile_frame_rasterizer_time_millis": 4.638,
+          "99th_percentile_frame_rasterizer_time_millis": 5.351,
+          "50th_percentile_build_plus_raster_millis": 6.506,
+          "90th_percentile_build_plus_raster_millis": 8.174,
+          "99th_percentile_build_plus_raster_millis": 9.593,
+          "fps": 60.06138086404987,
+          "elapsed_micros": 9640138,
+          "rss_steady_baseline": 274903040,
+          "rss_steady_after": 332328960,
+          "rss_steady_delta_bytes": 57425920,
+          "rss_delta_bytes": 3993600,
+          "rss_warmup_bytes": 3031040,
+          "rss_steady_growth_bytes": 0,
+          "rss_cycles": 5,
+          "rss_baseline": 311574528,
+          "rss_pages": [
+            314748928,
+            315236352,
+            315568128,
+            304197632,
+            304418816
+          ],
+          "rss_blank": [
+            314605568,
+            315076608,
+            303157248,
+            303968256,
+            304168960
+          ]
+        },
+        "device_response_at": "2026-11-10T16:57:40.165548+00:00",
+        "device_response_file": "lotto_draw_1/device_response.original.json"
+      },
+      {
+        "directory": "lotto_draw_2",
+        "valid": true,
+        "error": null,
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:58:48.8877425Z",
+        "scene": "lotto_draw",
+        "started_at": "2026-11-10T16:57:42.8222821Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 2.2089827288428334,
+          "90th_percentile_frame_build_time_millis": 3.253,
+          "average_frame_rasterizer_time_millis": 5.5023609671847975,
+          "90th_percentile_frame_rasterizer_time_millis": 6.564,
+          "dropped_frame_ratio": 0.0017271157167530224,
+          "frame_count": 579.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.909,
+          "99th_percentile_frame_build_time_millis": 3.814,
+          "50th_percentile_frame_rasterizer_time_millis": 5.087,
+          "99th_percentile_frame_rasterizer_time_millis": 9.662,
+          "50th_percentile_build_plus_raster_millis": 7.226,
+          "90th_percentile_build_plus_raster_millis": 9.662,
+          "99th_percentile_build_plus_raster_millis": 11.224,
+          "fps": 59.991905755306384,
+          "elapsed_micros": 9651302,
+          "rss_steady_baseline": 274984960,
+          "rss_steady_after": 333123584,
+          "rss_steady_delta_bytes": 58138624,
+          "rss_delta_bytes": 3534848,
+          "rss_warmup_bytes": 2953216,
+          "rss_steady_growth_bytes": 475136,
+          "rss_cycles": 5,
+          "rss_baseline": 312909824,
+          "rss_pages": [
+            315965440,
+            315793408,
+            315682816,
+            316260352,
+            316444672
+          ],
+          "rss_blank": [
+            315863040,
+            315736064,
+            315523072,
+            315940864,
+            316338176
+          ]
+        },
+        "device_response_at": "2026-11-10T16:58:46.878817+00:00",
+        "device_response_file": "lotto_draw_2/device_response.original.json"
+      },
+      {
+        "directory": "lotto_draw_3",
+        "valid": true,
+        "error": null,
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T16:59:56.3294110Z",
+        "scene": "lotto_draw",
+        "started_at": "2026-11-10T16:58:49.7170586Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 2.126903281519861,
+          "90th_percentile_frame_build_time_millis": 3.318,
+          "average_frame_rasterizer_time_millis": 5.225882556131265,
+          "90th_percentile_frame_rasterizer_time_millis": 5.945,
+          "dropped_frame_ratio": 0.0017271157167530224,
+          "frame_count": 579.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.749,
+          "99th_percentile_frame_build_time_millis": 4.445,
+          "50th_percentile_frame_rasterizer_time_millis": 4.907,
+          "99th_percentile_frame_rasterizer_time_millis": 8.005,
+          "50th_percentile_build_plus_raster_millis": 6.716,
+          "90th_percentile_build_plus_raster_millis": 9.16,
+          "99th_percentile_build_plus_raster_millis": 12.331,
+          "fps": 60.036009162801484,
+          "elapsed_micros": 9644212,
+          "rss_steady_baseline": 273281024,
+          "rss_steady_after": 331350016,
+          "rss_steady_delta_bytes": 58068992,
+          "rss_delta_bytes": 4177920,
+          "rss_warmup_bytes": 2228224,
+          "rss_steady_growth_bytes": 1802240,
+          "rss_cycles": 5,
+          "rss_baseline": 305672192,
+          "rss_pages": [
+            309108736,
+            309284864,
+            309178368,
+            309694464,
+            309850112
+          ],
+          "rss_blank": [
+            307900416,
+            308277248,
+            308932608,
+            309452800,
+            309702656
+          ]
+        },
+        "device_response_at": "2026-11-10T16:59:54.069061+00:00",
+        "device_response_file": "lotto_draw_3/device_response.original.json"
+      }
+    ],
+    "lots_shaking": [
+      {
+        "directory": "lots_shaking_1",
+        "valid": true,
+        "error": null,
+        "attempt": 1,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T17:00:58.5604116Z",
+        "scene": "lots_shaking",
+        "started_at": "2026-11-10T16:59:57.1582463Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.2556112956810623,
+          "90th_percentile_frame_build_time_millis": 2.007,
+          "average_frame_rasterizer_time_millis": 3.0590099667774124,
+          "90th_percentile_frame_rasterizer_time_millis": 3.445,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.081,
+          "99th_percentile_frame_build_time_millis": 2.611,
+          "50th_percentile_frame_rasterizer_time_millis": 3.096,
+          "99th_percentile_frame_rasterizer_time_millis": 3.903,
+          "50th_percentile_build_plus_raster_millis": 4.118,
+          "90th_percentile_build_plus_raster_millis": 5.349,
+          "99th_percentile_build_plus_raster_millis": 6.321,
+          "fps": 60.024919315341016,
+          "elapsed_micros": 5014584,
+          "rss_steady_baseline": 274780160,
+          "rss_steady_after": 330686464,
+          "rss_steady_delta_bytes": 55906304,
+          "rss_delta_bytes": 1040384,
+          "rss_warmup_bytes": 204800,
+          "rss_steady_growth_bytes": 835584,
+          "rss_cycles": 5,
+          "rss_baseline": 315142144,
+          "rss_pages": [
+            315338752,
+            315592704,
+            315650048,
+            315924480,
+            316182528
+          ],
+          "rss_blank": [
+            315346944,
+            315592704,
+            315920384,
+            315924480,
+            316182528
+          ]
+        },
+        "device_response_at": "2026-11-10T17:00:56.434747+00:00",
+        "device_response_file": "lots_shaking_1/device_response.original.json"
+      },
+      {
+        "directory": "lots_shaking_2",
+        "valid": true,
+        "error": null,
+        "attempt": 2,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T17:02:00.5167050Z",
+        "scene": "lots_shaking",
+        "started_at": "2026-11-10T17:00:59.3769017Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.1947774086378729,
+          "90th_percentile_frame_build_time_millis": 1.878,
+          "average_frame_rasterizer_time_millis": 4.770857142857144,
+          "90th_percentile_frame_rasterizer_time_millis": 5.672,
+          "dropped_frame_ratio": 0.0033222591362126247,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.032,
+          "99th_percentile_frame_build_time_millis": 2.152,
+          "50th_percentile_frame_rasterizer_time_millis": 4.321,
+          "99th_percentile_frame_rasterizer_time_millis": 10.114,
+          "50th_percentile_build_plus_raster_millis": 5.376,
+          "90th_percentile_build_plus_raster_millis": 7.272,
+          "99th_percentile_build_plus_raster_millis": 10.919,
+          "fps": 60.01039116806538,
+          "elapsed_micros": 5015798,
+          "rss_steady_baseline": 274452480,
+          "rss_steady_after": 322424832,
+          "rss_steady_delta_bytes": 47972352,
+          "rss_delta_bytes": 0,
+          "rss_warmup_bytes": 0,
+          "rss_steady_growth_bytes": 262144,
+          "rss_cycles": 5,
+          "rss_baseline": 309022720,
+          "rss_pages": [
+            308727808,
+            308928512,
+            308744192,
+            308727808,
+            308998144
+          ],
+          "rss_blank": [
+            308736000,
+            308482048,
+            308719616,
+            308727808,
+            308998144
+          ]
+        },
+        "device_response_at": "2026-11-10T17:01:58.296395+00:00",
+        "device_response_file": "lots_shaking_2/device_response.original.json"
+      },
+      {
+        "directory": "lots_shaking_3",
+        "valid": true,
+        "error": null,
+        "attempt": 3,
+        "binary_sha256": "E92CFEB2366540F4FCFEE28BEB67F7899976A254BDE3048FB83C04408D17F14C",
+        "ended_at": "2026-11-10T17:03:03.1833361Z",
+        "scene": "lots_shaking",
+        "started_at": "2026-11-10T17:02:01.2547750Z",
+        "device_metrics": {
+          "average_frame_build_time_millis": 1.23243853820598,
+          "90th_percentile_frame_build_time_millis": 1.986,
+          "average_frame_rasterizer_time_millis": 2.9950963455149537,
+          "90th_percentile_frame_rasterizer_time_millis": 3.478,
+          "dropped_frame_ratio": 0.0,
+          "frame_count": 301.0,
+          "refresh_rate_hz": 60.000003814697266,
+          "50th_percentile_frame_build_time_millis": 1.028,
+          "99th_percentile_frame_build_time_millis": 2.682,
+          "50th_percentile_frame_rasterizer_time_millis": 3.034,
+          "99th_percentile_frame_rasterizer_time_millis": 3.895,
+          "50th_percentile_build_plus_raster_millis": 4.037,
+          "90th_percentile_build_plus_raster_millis": 5.428,
+          "99th_percentile_build_plus_raster_millis": 6.271,
+          "fps": 60.03301217333864,
+          "elapsed_micros": 5013908,
+          "rss_steady_baseline": 274530304,
+          "rss_steady_after": 322027520,
+          "rss_steady_delta_bytes": 47497216,
+          "rss_delta_bytes": 933888,
+          "rss_warmup_bytes": 376832,
+          "rss_steady_growth_bytes": 557056,
+          "rss_cycles": 5,
+          "rss_baseline": 309108736,
+          "rss_pages": [
+            309215232,
+            309485568,
+            309747712,
+            309764096,
+            310042624
+          ],
+          "rss_blank": [
+            309485568,
+            309485568,
+            309764096,
+            310042624,
+            310042624
+          ]
+        },
+        "device_response_at": "2026-11-10T17:03:01.119864+00:00",
+        "device_response_file": "lots_shaking_3/device_response.original.json"
+      }
+    ]
+  },
+  "cold_frames": {
+    "blank_first_frame": {
+      "all_samples_ms": [
+        2.883,
+        2.835,
+        3.469
+      ],
+      "primary_samples_ms": [
+        2.883,
+        2.835,
+        3.469
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 3,
+      "raw_frame_timing_rounds": 3,
+      "median_ms": 2.883,
+      "range_ms": 0.6339999999999999
+    },
+    "wheel_first_frame": {
+      "all_samples_ms": [
+        47.238,
+        40.97,
+        37.118,
+        43.736,
+        41.703
+      ],
+      "primary_samples_ms": [
+        47.238,
+        40.97,
+        37.118
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 2,
+      "raw_frame_timing_rounds": 5,
+      "median_ms": 40.97,
+      "range_ms": 10.119999999999997,
+      "increment_ms": 38.086999999999996,
+      "increment_budget_ms": 41.896,
+      "original_design_target_ms": 4,
+      "gap_to_design": 8.521749999999999,
+      "status": "已标定未达设计目标"
+    },
+    "grid_first_frame": {
+      "all_samples_ms": [
+        10.024,
+        13.403,
+        31.592,
+        36.518,
+        23.392
+      ],
+      "primary_samples_ms": [
+        10.024,
+        13.403,
+        31.592
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 1,
+      "raw_frame_timing_rounds": 5,
+      "median_ms": 13.403,
+      "range_ms": 21.567999999999998,
+      "increment_ms": 10.52,
+      "increment_budget_ms": 11.572,
+      "original_design_target_ms": 4,
+      "gap_to_design": 1.63,
+      "status": "已标定未达设计目标"
+    },
+    "slot_first_frame": {
+      "all_samples_ms": [
+        3.128,
+        2.577,
+        7.338
+      ],
+      "primary_samples_ms": [
+        3.128,
+        2.577,
+        7.338
+      ],
+      "primary_policy": "按启动顺序固定前3份完整设备FrameTiming，不按耗时挑轮；driver失败原样保留",
+      "driver_valid_rounds": 3,
+      "raw_frame_timing_rounds": 3,
+      "median_ms": 3.128,
+      "range_ms": 4.761,
+      "increment_ms": 0.2450000000000001,
+      "increment_budget_ms": 0.27,
+      "original_design_target_ms": 4,
+      "gap_to_design": -0.93875,
+      "status": "已标定"
+    }
+  },
+  "cpu": {
+    "cpu_wheel_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_grid_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_slot_steady": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_capsule_mixing": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n",
+        "FormatException: top 缺少线程列头\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    },
+    "cpu_lotto_draw": {
+      "valid_rounds": 0,
+      "attempts": 5,
+      "round_medians": [],
+      "medians": null,
+      "errors": [
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n",
+        "FormatException: cpuinfo 主进程必须唯一: com.example.luckdraw_bench\n"
+      ],
+      "status": "不确定：有效轮不足3"
+    }
+  },
+  "provenance": [
+    {
+      "path": "blank_first_frame_1/blank_first_frame_1794328588324236.timeline.json",
+      "bytes": 68308,
+      "sha256": "c1eba0ec7bf7daae63dd378e4efa753f6701f74e41b126d49ed227198137995a"
+    },
+    {
+      "path": "blank_first_frame_1/blank_first_frame_1794328588324236.timeline_summary.json",
+      "bytes": 3153,
+      "sha256": "8c568fe5e997d69d8446ce6a5bd5e5247a94b40463cdfcba988f2ed62a3a6fa2"
+    },
+    {
+      "path": "blank_first_frame_1/device_response.original.json",
+      "bytes": 119266,
+      "sha256": "9d112db905ee9e0a5144bba8a6c2f0dd76c3909ddbebd256cce18dc05de5635d"
+    },
+    {
+      "path": "blank_first_frame_1/stderr.log",
+      "bytes": 391,
+      "sha256": "d758969f49a9c6ce311104607b1647089c5bda9d8b34146ecfc2e51c98e895bd"
+    },
+    {
+      "path": "blank_first_frame_1/stdout.log",
+      "bytes": 7876,
+      "sha256": "d0c2128430d61c06bb042214f60e3c6be7b9aa3856f50d3b5ae2989c9759a7e3"
+    },
+    {
+      "path": "blank_first_frame_2/blank_first_frame_1794328606486840.timeline.json",
+      "bytes": 68535,
+      "sha256": "cb91bb3726255afeb1cae10a5829bef4bb4f74bdc5eb9140ef3eda500df56536"
+    },
+    {
+      "path": "blank_first_frame_2/blank_first_frame_1794328606486840.timeline_summary.json",
+      "bytes": 3181,
+      "sha256": "71011a337f566824ab0d5649bb0f0c7f9bbae357eec2c482da217214203a3e9d"
+    },
+    {
+      "path": "blank_first_frame_2/device_response.original.json",
+      "bytes": 119813,
+      "sha256": "66aa692cd579b5f4fcd988e62604af20bf884473005dae6abf1034d4fd1c8a5d"
+    },
+    {
+      "path": "blank_first_frame_2/stderr.log",
+      "bytes": 390,
+      "sha256": "202865b1235d8fc54a7e350d7761561f21c300ad13c3fd205095287aebbcbc33"
+    },
+    {
+      "path": "blank_first_frame_2/stdout.log",
+      "bytes": 7876,
+      "sha256": "fdc65bf4ed4203b27774ab061f1e3c4bb978218b1c1c797afd0b2bd4525eee41"
+    },
+    {
+      "path": "blank_first_frame_3/blank_first_frame_1794328624563138.timeline.json",
+      "bytes": 66270,
+      "sha256": "b199e6a672fca48f6bf584c40c342834eae487ded308d80575bf480f48fdbd69"
+    },
+    {
+      "path": "blank_first_frame_3/blank_first_frame_1794328624563138.timeline_summary.json",
+      "bytes": 3167,
+      "sha256": "f05fe1fe94ea805c1b5429904821031f417560be65c14dea06668e906108d073"
+    },
+    {
+      "path": "blank_first_frame_3/device_response.original.json",
+      "bytes": 115750,
+      "sha256": "297293add5fe7188f3f9e1dc9eebce32bdd804512aa7999f4dc3825200db8594"
+    },
+    {
+      "path": "blank_first_frame_3/stderr.log",
+      "bytes": 390,
+      "sha256": "2df6ce262a12da8db6d9623dc2964583fa65307ea2d033b4861989b1e668d552"
+    },
+    {
+      "path": "blank_first_frame_3/stdout.log",
+      "bytes": 7876,
+      "sha256": "6cee677c2a492dfb85c10a27cf2d0480e4f2c91201b22c9824f7af5f468f432a"
+    },
+    {
+      "path": "wheel_first_frame_1/device_response.original.json",
+      "bytes": 1915913,
+      "sha256": "a09bff916912e2bcb738194ea45a19062095d07c74681edfcab466bb217503ee"
+    },
+    {
+      "path": "wheel_first_frame_1/stderr.log",
+      "bytes": 390,
+      "sha256": "312fa6fb09c4cedfd9e95843d2430925fad7e36808ce4dffd07b52b0830c6c28"
+    },
+    {
+      "path": "wheel_first_frame_1/stdout.log",
+      "bytes": 9024,
+      "sha256": "c5641ea5cbd4e7ba8abc3bd519312ead66faa203dd6ac7d3448b57431b1e48e3"
+    },
+    {
+      "path": "wheel_first_frame_1/wheel_first_frame_1794328642670269.timeline.json",
+      "bytes": 1126076,
+      "sha256": "5bb0bdb979729d1ff22ff4f51312527d1b57f1698f5efda9c4fb0dc67a0ddb4b"
+    },
+    {
+      "path": "wheel_first_frame_1/wheel_first_frame_1794328642670269.timeline_summary.json",
+      "bytes": 3181,
+      "sha256": "6e4928f14149d612d3aa16a3fc07761d9ee8731d643bcc0b82f4d2e952c1ee5e"
+    },
+    {
+      "path": "wheel_first_frame_2/device_response.original.json",
+      "bytes": 1384529,
+      "sha256": "923757a2403f5c2975004f7a91012f5f3ddbc652fb0660fec53b9745cd63b3a1"
+    },
+    {
+      "path": "wheel_first_frame_2/stderr.log",
+      "bytes": 1763,
+      "sha256": "00b1f6265ab5d9290bd06635b806429c0084e734dc2c8164a32a1b35ee1fd2ed"
+    },
+    {
+      "path": "wheel_first_frame_2/stdout.log",
+      "bytes": 8737,
+      "sha256": "c907756a1cec454982b382576859bb0308f51d2504709d0faf52e07cb763e21d"
+    },
+    {
+      "path": "wheel_first_frame_3/device_response.original.json",
+      "bytes": 1423051,
+      "sha256": "35a7bf683f87a7fc23193b01f6cb01eb83e13cb33297e20a27ccf59a1bf66bca"
+    },
+    {
+      "path": "wheel_first_frame_3/stderr.log",
+      "bytes": 390,
+      "sha256": "74375cf6f479713053b29f76d2b12908286be91ac208112b57c73328ff9e2930"
+    },
+    {
+      "path": "wheel_first_frame_3/stdout.log",
+      "bytes": 9310,
+      "sha256": "14e6382cf9b00e6370f28a5528a63d7d3bcd15b1734bfbe1c8f02ddce03e5b19"
+    },
+    {
+      "path": "wheel_first_frame_3/wheel_first_frame_1794328677693962.timeline.json",
+      "bytes": 836131,
+      "sha256": "446c79f852e413553255716ebbbe8b17a6bce7f724c875203e7e7e5f1d0c1575"
+    },
+    {
+      "path": "wheel_first_frame_3/wheel_first_frame_1794328677693962.timeline_summary.json",
+      "bytes": 3145,
+      "sha256": "0a8ab96a47bbd58cb313fd267ed2ffb125ccfd98be058045d9a948d317847650"
+    },
+    {
+      "path": "wheel_first_frame_4/device_response.original.json",
+      "bytes": 1381784,
+      "sha256": "422c01e2d3df244d0996d76a80aa4be5b475d798232a9a11748611b40edd9f1a"
+    },
+    {
+      "path": "wheel_first_frame_4/stderr.log",
+      "bytes": 1763,
+      "sha256": "1ebf2ff03faf25525860d9626b35b70da18fcc63ce74d08efe32e325cb81f6a8"
+    },
+    {
+      "path": "wheel_first_frame_4/stdout.log",
+      "bytes": 9311,
+      "sha256": "057ba85d597d49f79ea6feb8c34d05c60cef9b1a45c9e2eb0c372de49e727f72"
+    },
+    {
+      "path": "wheel_first_frame_5/device_response.original.json",
+      "bytes": 1387352,
+      "sha256": "41ce4999c85c7d5f9d7b2bbab082fd573ca796b393a611456e5048bab62a3782"
+    },
+    {
+      "path": "wheel_first_frame_5/stderr.log",
+      "bytes": 1763,
+      "sha256": "5ca99214dd9fff25f2e18492f384ec2a2bbbe19f8869932f613e85b5be029a18"
+    },
+    {
+      "path": "wheel_first_frame_5/stdout.log",
+      "bytes": 9532,
+      "sha256": "171737b970cfd1495032111da885a0f1e5d61207bf53acb85d24ed5fd2db8bb4"
+    },
+    {
+      "path": "grid_first_frame_1/device_response.original.json",
+      "bytes": 669462,
+      "sha256": "a5c9ee3b7d60a8f2b471be02a02f60dc01876382867d77b1c3a6db6d11c9a0af"
+    },
+    {
+      "path": "grid_first_frame_1/stderr.log",
+      "bytes": 1763,
+      "sha256": "20e3f9d1ff820cf88c726c6c711bd124a65be600115ed8fbce5ea0bd9dd25bf5"
+    },
+    {
+      "path": "grid_first_frame_1/stdout.log",
+      "bytes": 9022,
+      "sha256": "a7d738429c1ef3e653afb15ae7d0623d991090e7da3e8e3aa19548afb0a0cb23"
+    },
+    {
+      "path": "grid_first_frame_2/device_response.original.json",
+      "bytes": 659833,
+      "sha256": "4f4de4b0d460b264fafeb843202702b6e4532fae1585f248a5e48e6d75d31eba"
+    },
+    {
+      "path": "grid_first_frame_2/stderr.log",
+      "bytes": 1763,
+      "sha256": "46996b1b382aa3f4d236aac0e8f5f0d26dc2de982d64a5664bfaabc2e7e3d4b4"
+    },
+    {
+      "path": "grid_first_frame_2/stdout.log",
+      "bytes": 9309,
+      "sha256": "652fd6d798054e759943d41b5799ad480248489070531203af5bdfeb2ef8f1a7"
+    },
+    {
+      "path": "grid_first_frame_3/device_response.original.json",
+      "bytes": 674028,
+      "sha256": "be8bf44d07a152cb4a351beedffae674204ac17db4a3e79d86964c085e46dbef"
+    },
+    {
+      "path": "grid_first_frame_3/stderr.log",
+      "bytes": 1763,
+      "sha256": "5efad29bd866e30dacc093cfea0f7a5cd78d21170034c1caee12167dc2c89995"
+    },
+    {
+      "path": "grid_first_frame_3/stdout.log",
+      "bytes": 9208,
+      "sha256": "2715487a6502c74993f95e37a868976bd6fe64310c3f2e3be9472090decc9835"
+    },
+    {
+      "path": "grid_first_frame_4/device_response.original.json",
+      "bytes": 690656,
+      "sha256": "92b7291bc7946a997287e725f81a095f2385e36ae60343d35b0a21d48b2d3150"
+    },
+    {
+      "path": "grid_first_frame_4/grid_first_frame_1794328825944214.timeline.json",
+      "bytes": 403118,
+      "sha256": "fe14a3d0f137c8feffd4c61a58d0328b8b0dd4f2b4eda205cf0773c1e997eb88"
+    },
+    {
+      "path": "grid_first_frame_4/grid_first_frame_1794328825944214.timeline_summary.json",
+      "bytes": 3157,
+      "sha256": "09b06b7d68ef9f35de1b7f44018f6dc8e905b471d10b2e71308745816818721d"
+    },
+    {
+      "path": "grid_first_frame_4/stderr.log",
+      "bytes": 390,
+      "sha256": "415b95ec9ef02837406a999e4ff7d2c39961ed7db934478013b40f09bb568619"
+    },
+    {
+      "path": "grid_first_frame_4/stdout.log",
+      "bytes": 9309,
+      "sha256": "88e054b7c617e286e68c09eb4a3df28ca0242249c91195c76233658bcac47a89"
+    },
+    {
+      "path": "grid_first_frame_5/device_response.original.json",
+      "bytes": 673175,
+      "sha256": "846e3da3085832c506510d73e2c2a547aa6d085c60e6a5d7b47b7fec80fb52ff"
+    },
+    {
+      "path": "grid_first_frame_5/stderr.log",
+      "bytes": 1763,
+      "sha256": "22041708a2e56239a8700058eafafbfaca34e368afea25cfbfdceadb3a8682cf"
+    },
+    {
+      "path": "grid_first_frame_5/stdout.log",
+      "bytes": 7873,
+      "sha256": "52cf170efc31c107737f1ac32f725e9a354232fe456a178fa5ef0e59f8dc0bbe"
+    },
+    {
+      "path": "slot_first_frame_1/device_response.original.json",
+      "bytes": 216481,
+      "sha256": "ed2c5ff68942075cbd5e6c3547fc474fce96c93004d8f9548f31e862a8eba138"
+    },
+    {
+      "path": "slot_first_frame_1/slot_first_frame_1794328862304205.timeline.json",
+      "bytes": 124236,
+      "sha256": "e365349665636bef2f60608458d9ddf7c6b88359eb96b46798898051ec4e3318"
+    },
+    {
+      "path": "slot_first_frame_1/slot_first_frame_1794328862304205.timeline_summary.json",
+      "bytes": 3182,
+      "sha256": "60f5b69deedf5511c68577559fbab2fe1e0a051250672942cecf4b92f11608d8"
+    },
+    {
+      "path": "slot_first_frame_1/stderr.log",
+      "bytes": 390,
+      "sha256": "96eb4daecfd137e2274aec770404d434df4802bdd0190f035a0a3a12eb05cea6"
+    },
+    {
+      "path": "slot_first_frame_1/stdout.log",
+      "bytes": 8161,
+      "sha256": "39517f7de60c7293783eb808a40a478dd9faf005881d34afc1eae2dfd0b7637b"
+    },
+    {
+      "path": "slot_first_frame_2/device_response.original.json",
+      "bytes": 232060,
+      "sha256": "680ca0d629e66edb6ecac6535b75e204d810c9502d19a12b9b5ccb3d82aff852"
+    },
+    {
+      "path": "slot_first_frame_2/slot_first_frame_1794328880557596.timeline.json",
+      "bytes": 133155,
+      "sha256": "5c55e7c96896bb17bf33dd709ebad49c32ecd72a00d4be5576cb70a0430cae4a"
+    },
+    {
+      "path": "slot_first_frame_2/slot_first_frame_1794328880557596.timeline_summary.json",
+      "bytes": 3133,
+      "sha256": "e6c9eadcc0049475fdfe5dcee6516cc1cf23fd73bb9c8bd1c5d385433f3285f0"
+    },
+    {
+      "path": "slot_first_frame_2/stderr.log",
+      "bytes": 390,
+      "sha256": "5c50d78673a4f321532e457c9c55f9c763ba1d453e734bcf9a592e73d8c66837"
+    },
+    {
+      "path": "slot_first_frame_2/stdout.log",
+      "bytes": 7587,
+      "sha256": "f25fa1412d881020a2a860ad9f745ebeacb00fb67f5f04a2e1fd1867c0526e57"
+    },
+    {
+      "path": "slot_first_frame_3/device_response.original.json",
+      "bytes": 191188,
+      "sha256": "aa70c7ff4ef8ec4ce89895938412d13629e8ac838cc2c30db0eded2524488069"
+    },
+    {
+      "path": "slot_first_frame_3/slot_first_frame_1794328898588780.timeline.json",
+      "bytes": 109973,
+      "sha256": "12a47e3e2bd0470b892eac84d03400dab49336e0b2fe47ce4084d14f3495724f"
+    },
+    {
+      "path": "slot_first_frame_3/slot_first_frame_1794328898588780.timeline_summary.json",
+      "bytes": 3171,
+      "sha256": "0266049a573902260abfb251e353f92c00a74da91f833029a69a2eb1b58a9701"
+    },
+    {
+      "path": "slot_first_frame_3/stderr.log",
+      "bytes": 390,
+      "sha256": "657765ca7569007ea1f3b5178f60f69d779beaaab455e67ae879c9722c98b4cf"
+    },
+    {
+      "path": "slot_first_frame_3/stdout.log",
+      "bytes": 7587,
+      "sha256": "101be9a1e997c45afb8de7526c34c411117b4803d30a046ace94efda285043f8"
+    },
+    {
+      "path": "cpu_wheel_steady_1/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_1/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_wheel_steady_1/stderr.log",
+      "bytes": 390,
+      "sha256": "bbd7fd48fa42e330f6a307726d1319114e5a1c948312913db691fc1f60183c44"
+    },
+    {
+      "path": "cpu_wheel_steady_1/stdout.log",
+      "bytes": 10742,
+      "sha256": "77b79886606cf35e49eb579b76cdfd4fb334467c1baa4bc6b28675ea3cdf89f2"
+    },
+    {
+      "path": "cpu_wheel_steady_1/cpu/before.cpuinfo.txt",
+      "bytes": 25902,
+      "sha256": "1234b1cebf24caf4c74c3355ecd3247908d60d703b858703dad97472af4054fa"
+    },
+    {
+      "path": "cpu_wheel_steady_1/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_1/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_wheel_steady_2/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_2/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_wheel_steady_2/stderr.log",
+      "bytes": 390,
+      "sha256": "a5ac09a2b44173ca2dec41855ba1a64381235b54a932ac2b08ebb517ffd8ba0a"
+    },
+    {
+      "path": "cpu_wheel_steady_2/stdout.log",
+      "bytes": 9881,
+      "sha256": "a4c968f0bb1e01c6f70d26c5ab76ca811895e026079127faed951d024c284f1b"
+    },
+    {
+      "path": "cpu_wheel_steady_2/cpu/before.cpuinfo.txt",
+      "bytes": 25902,
+      "sha256": "6b525e202d68d4d25d2b3f126f72cd94302687d2571186dc73456ff466a69eab"
+    },
+    {
+      "path": "cpu_wheel_steady_2/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_2/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_wheel_steady_3/stderr.log",
+      "bytes": 390,
+      "sha256": "3e051ea41ee4c218ff51e6a742ea0c33388f15aea8f07428dfbe160a4e34eddd"
+    },
+    {
+      "path": "cpu_wheel_steady_3/stdout.log",
+      "bytes": 11603,
+      "sha256": "30a393e50bb92a684165568275e1d5b7063081ff2de8feed33f63aeb4c577184"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu/before.cpuinfo.txt",
+      "bytes": 27784,
+      "sha256": "a0b81b1f22c9bac0597b94cbba648eb523d7fd3e67969b1180f9535f263108a8"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu/before.top.txt",
+      "bytes": 4707,
+      "sha256": "57178a6170c35ad0df1cecad010da792d0a76bb4c08b35039ef856b2434aaefc"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_wheel_steady_3/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_wheel_steady_4/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_4/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_wheel_steady_4/stderr.log",
+      "bytes": 390,
+      "sha256": "08d48153d52c5b0cfd7f3b4c0995a734c7c720898f04812fb848dce8641dda12"
+    },
+    {
+      "path": "cpu_wheel_steady_4/stdout.log",
+      "bytes": 10742,
+      "sha256": "8a7f0edfcb50eec9ffe0ff8534a24c776f4fd57b76714a71cdffe0e10ae78cc6"
+    },
+    {
+      "path": "cpu_wheel_steady_4/cpu/before.cpuinfo.txt",
+      "bytes": 12537,
+      "sha256": "0728f0a060308713a38a258fe0e94768c7581bcda7eb9928f036dd52869c6748"
+    },
+    {
+      "path": "cpu_wheel_steady_4/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_4/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_wheel_steady_5/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_5/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_wheel_steady_5/stderr.log",
+      "bytes": 390,
+      "sha256": "308a4c2ed88eb5a1e8c59d23f356ea483cde1d505743a4daf4ee1660eeaaa414"
+    },
+    {
+      "path": "cpu_wheel_steady_5/stdout.log",
+      "bytes": 9881,
+      "sha256": "9902ffabb3be6a0451d03e368c86b7465f2139b81bffd122867dc258e4ee5b86"
+    },
+    {
+      "path": "cpu_wheel_steady_5/cpu/before.cpuinfo.txt",
+      "bytes": 14363,
+      "sha256": "f552eb6240014f4e31ce267d105d99063e18154eb3257bb6574d12b2077c972b"
+    },
+    {
+      "path": "cpu_wheel_steady_5/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_wheel_steady_5/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_grid_steady_1/stderr.log",
+      "bytes": 390,
+      "sha256": "bee9f5afd3b332b8b55c185ab01eb9cf2b606579d2c799eb5a12463b603a6c59"
+    },
+    {
+      "path": "cpu_grid_steady_1/stdout.log",
+      "bytes": 11029,
+      "sha256": "026363bb48f1863ae186e88dc1889bfefc0ef4b9fad2db1ee353cb527be0aa40"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu/before.cpuinfo.txt",
+      "bytes": 8317,
+      "sha256": "fcdb5c54117c500cb3c70eaca993afde5f4cb87e0413b96a5de0511b6a55a10b"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu/before.top.txt",
+      "bytes": 4707,
+      "sha256": "cc8fa4099fea4af5155ea3c8651a776353bb0eba1a90bb208215c79d22f88bfd"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_1/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_grid_steady_2/stderr.log",
+      "bytes": 390,
+      "sha256": "1a3486c272400a2149ac1d832c8bf189b560428c540b83ff76703cfd36ef6c27"
+    },
+    {
+      "path": "cpu_grid_steady_2/stdout.log",
+      "bytes": 10455,
+      "sha256": "b02a652ae3e4c9b346e8afc25c256de61469359e59c3d566f2f28f37da1aab5d"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu/before.cpuinfo.txt",
+      "bytes": 8319,
+      "sha256": "2f9337f31614b24cb91507014e60b2e1cf9d05d31d14bd454648ecf3b41eade0"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu/before.top.txt",
+      "bytes": 390,
+      "sha256": "9f55c4210b7960c32334a631d9b21b9efff59a01aa80eddaf3fc198ee8ce527e"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_2/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_grid_steady_3/stderr.log",
+      "bytes": 390,
+      "sha256": "31a73c1fa84720dc2b40fb06de58c346ed6fc3d39def3ec2c877bbe9add4a218"
+    },
+    {
+      "path": "cpu_grid_steady_3/stdout.log",
+      "bytes": 11316,
+      "sha256": "a50d9947420e7635bab2983c5c4171ebe4a501e12f39c1c999fc5d81004fd2f5"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu/before.cpuinfo.txt",
+      "bytes": 8319,
+      "sha256": "28cfcda100994bb646ba70d391d55ca483854af77e3ac2199836ce5b48663d46"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu/before.top.txt",
+      "bytes": 391,
+      "sha256": "8cdfa1fde9b0024be31e40d992d8a3ce56649b3e828255b819758cfe68e7888a"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_3/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_grid_steady_4/stderr.log",
+      "bytes": 390,
+      "sha256": "bcbe4bcf2f9d246778f374b8f34822d773f6e7c8e7d87241435a46f8e43c8aaa"
+    },
+    {
+      "path": "cpu_grid_steady_4/stdout.log",
+      "bytes": 10168,
+      "sha256": "851ff6d5fa4e775430a6e855ebe1fdf329168643bc37026a5aeb3e98c5aad6e0"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu/before.cpuinfo.txt",
+      "bytes": 8319,
+      "sha256": "138c36b26894bbf9bfa6c95a7632697c6584d623628f966d2dbd86aa43666e32"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu/before.top.txt",
+      "bytes": 390,
+      "sha256": "5a7e1828c4c0044ed2478df25b39b95c162ec826dac3035ce8cfcdfd2542c263"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_4/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_grid_steady_5/stderr.log",
+      "bytes": 390,
+      "sha256": "dfbaba252243f4404394d89d840d619b6c34df47341d1c84bac8f8eef15b8f71"
+    },
+    {
+      "path": "cpu_grid_steady_5/stdout.log",
+      "bytes": 9306,
+      "sha256": "ef7f6912fdb19b5e7c3c83137b667211ac739be17699ad38c762b183cb4ac009"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu/before.cpuinfo.txt",
+      "bytes": 8319,
+      "sha256": "db6cd3db795b8a144b2d0fb63797bdcdfdbc0bded541df3e6dc75a7debc6f6c8"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu/before.top.txt",
+      "bytes": 391,
+      "sha256": "683d57fa79ff0a7d113c7f73e3f9c80d88735aa8a3fca990bde1eea8decab527"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_grid_steady_5/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_slot_steady_1/stderr.log",
+      "bytes": 390,
+      "sha256": "15203c3aa0da392488bf93beec78d7379781658f466f6f00ee15c91661f36b91"
+    },
+    {
+      "path": "cpu_slot_steady_1/stdout.log",
+      "bytes": 10674,
+      "sha256": "2117201f5e8eca7e9a972d2f339e745528f4fbe59b546ebe8862846cb0234678"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "abc2105779413ff94595db0ef0f6be2a08596dc09557bfcbe3344b4f08642fb7"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu/before.top.txt",
+      "bytes": 391,
+      "sha256": "8c1261801a23b961b42d07243aa4a1e8a9736f3f5e70f1e940114fcbaf4bb841"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_1/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_slot_steady_2/stderr.log",
+      "bytes": 390,
+      "sha256": "aa0b7b06d92d7f8caf79cd47e6e644d6ea25114d4e3383c647718b9e3b532992"
+    },
+    {
+      "path": "cpu_slot_steady_2/stdout.log",
+      "bytes": 11890,
+      "sha256": "d035ff6979a5d19a754efc64424a4e5de83de3c5e12bbd7d3e98c6a5eeeeba00"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "eb25208d39b0803dccd2138d2e125f18a5706c9a05107731298bcb708faa54d8"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu/before.top.txt",
+      "bytes": 391,
+      "sha256": "2ca24d18c3110022d284248b82765161af47fb8f6f8119979c0c1d4109ea9f35"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_2/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_slot_steady_3/stderr.log",
+      "bytes": 390,
+      "sha256": "c5ffbe98472e02e44f4b90950da776c335b170c8e2fce89dda8e492cbe984b4e"
+    },
+    {
+      "path": "cpu_slot_steady_3/stdout.log",
+      "bytes": 10742,
+      "sha256": "4fa29405f415268dd37ec6259ffed4cc8daae45510c8f754b12bfa6ab86caf62"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "54bbb987fe56a8e1ab8470ef2e823e1a6fb34f43352909aca726bcc6fdca176b"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu/before.top.txt",
+      "bytes": 390,
+      "sha256": "fce98ef359df0b349692d5e2ddaff1cfba12d7ef180ddd771e66bae31e90bb99"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_3/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_slot_steady_4/stderr.log",
+      "bytes": 388,
+      "sha256": "31f843dd9d341cf8e8bcba615eb4c3c9a1b8b834ee9d24cf3c55fc0ffde68740"
+    },
+    {
+      "path": "cpu_slot_steady_4/stdout.log",
+      "bytes": 11316,
+      "sha256": "548680c2611bbd12b4b4c9229759e09741feb2f69088157b9a909fea49cdabce"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "c38fe431513e5be4df72440c80bbab3a2f6e0f693bc78f5fe2af0e1ece61187d"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu/before.top.txt",
+      "bytes": 391,
+      "sha256": "06d8b64d31e4f887b57f376e80b543eab756e864703521be08241d93ce6c223e"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_4/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_slot_steady_5/stderr.log",
+      "bytes": 390,
+      "sha256": "c5116d832f4f5f41ca5600fc37ebb32b6be535ca466da654b0b6c986d79dc2f9"
+    },
+    {
+      "path": "cpu_slot_steady_5/stdout.log",
+      "bytes": 11603,
+      "sha256": "41b538331d0320dbd6e1a81b66e5ff57a34f9f923994d64a7eb1754e97e49e05"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "c778976a05062e733b5764af96ea2bf910fcf464b8615638658e6484efb7ab19"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu/before.top.txt",
+      "bytes": 389,
+      "sha256": "875dffd5630a728e7a0eab42f5f9ea862448682d78598b5cb5ab3927d4e40bc2"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_slot_steady_5/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/stderr.log",
+      "bytes": 388,
+      "sha256": "25a02dfb706b8ddf9fdbec6df30c445435b15efc16090d36655eecec258143be"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/stdout.log",
+      "bytes": 6437,
+      "sha256": "2c1143ea74689d352c0bd87fa47cddcfffb2e3497407d1d2a0dd5e4b7030fd7d"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "078d7c45f776645a95908e5e456b3a51159cdf770567dac2916739cadd324257"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu/before.top.txt",
+      "bytes": 389,
+      "sha256": "43e11f78b3ac119a5421fc1caa48a391ec1d696b4870fc136e58fec6bd8e83e2"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_1/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/stderr.log",
+      "bytes": 390,
+      "sha256": "083f27f558b234d70d3ca29b1093c724c460a9f57e4a066f9e96e74c52c90f8d"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/stdout.log",
+      "bytes": 6437,
+      "sha256": "5b4f8cc52946d81de50a23fcc37c41f9b12385faf8ecf8d883217ec17836096d"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "41da3cd1bb03f150f5f4f9ddf581844d1033600398cf0e8d1a57d4594b4f2ede"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu/before.top.txt",
+      "bytes": 390,
+      "sha256": "a9d28fd7bc8cc9f0c1cc2a8db3e606da2274114031b17444d309826daee90f10"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_2/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/stderr.log",
+      "bytes": 390,
+      "sha256": "9fac656f8ef14075ca7e58d9fdbc287d6e7f4789f6f856183f6c81fa0143eb92"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/stdout.log",
+      "bytes": 8667,
+      "sha256": "9ebf44bfef48e2141fee4656477dac70986cc09ff70f5e96f49add305f4beae8"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "4dec37e80aea0122619ef518ca83014ceeeba6c7303e82aa07bca306e7d7f7c8"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu/before.top.txt",
+      "bytes": 389,
+      "sha256": "d1f5e856c19221b832fb5a6255c09e1d534942107c26078fd733743480979a12"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_3/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/stderr.log",
+      "bytes": 388,
+      "sha256": "00e9982ae75d2c6d137cb747f938db5039b6d0ab6174e3a549c7bc88c3d30d18"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/stdout.log",
+      "bytes": 7585,
+      "sha256": "d34e05597b343e814c965b08a736d36cde0600d9b9e176de80533a0479d5c9cc"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "be705aefea03bba1d25b57e3af761ecc01d44c359f0ac953b9f224ac38dbbcd5"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu/before.top.txt",
+      "bytes": 389,
+      "sha256": "cb536321d652edbea403990d1cb359af5bb4da30e8d73a9ae999ff6bf92dd954"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_4/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu.stderr.log",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/stderr.log",
+      "bytes": 390,
+      "sha256": "3216c7ab8f996083bce07bf71dc0c5016e9f83a0e1ed56259b32d8549431f574"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/stdout.log",
+      "bytes": 7298,
+      "sha256": "8c34eeb47f3b544704e255d0632a133778f9a249455ed7152d7657ddc2e1ffca"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu/before.cpuinfo.txt",
+      "bytes": 8321,
+      "sha256": "45f5a9ef5e0edc1816c3e1dc8801ceaee20018402eebe89635967acbd6aa10d7"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu/before.top.txt",
+      "bytes": 389,
+      "sha256": "6dfd8157264430f9ad70c50f7355d6948b7cd3fa606772c38ab25b24fb6c1685"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu/error.txt",
+      "bytes": 40,
+      "sha256": "bdd3eb0bcf65864760401058c2cf2bb691f1eae3bec232b1a8e15a26637a2370"
+    },
+    {
+      "path": "cpu_capsule_mixing_5/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_lotto_draw_1/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_1/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_lotto_draw_1/stderr.log",
+      "bytes": 390,
+      "sha256": "12403de4138a425938fd5cf7690542c0c71e19b1b2ff3a963799e7c1f102f3bb"
+    },
+    {
+      "path": "cpu_lotto_draw_1/stdout.log",
+      "bytes": 7298,
+      "sha256": "67984b87e1ff342f4a7a7fffe16c6b52448951381cd0015319ea457f9fa33a43"
+    },
+    {
+      "path": "cpu_lotto_draw_1/cpu/before.cpuinfo.txt",
+      "bytes": 28391,
+      "sha256": "a2c2f0b558edb04b577ee7b6088947796a4e2715e3ccc04efed29ceb0aef9690"
+    },
+    {
+      "path": "cpu_lotto_draw_1/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_1/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_lotto_draw_2/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_2/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_lotto_draw_2/stderr.log",
+      "bytes": 390,
+      "sha256": "20f85e22de3c1e74b378e4e8c5783ace99a40f36a64fc65809288a05c3a32952"
+    },
+    {
+      "path": "cpu_lotto_draw_2/stdout.log",
+      "bytes": 7298,
+      "sha256": "7001685f239bed1467b070bbd316017eb60991bca4ea85dbc0cdf025b9beff22"
+    },
+    {
+      "path": "cpu_lotto_draw_2/cpu/before.cpuinfo.txt",
+      "bytes": 28391,
+      "sha256": "c0511cbae9cbf3b69b61d02440c0e69c714e2e893a11e1d0a9290664af354fb1"
+    },
+    {
+      "path": "cpu_lotto_draw_2/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_2/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_lotto_draw_3/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_3/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_lotto_draw_3/stderr.log",
+      "bytes": 390,
+      "sha256": "430f7a8570f5cae52c36ab203960683e88f4396ff1071983e3e6b27e8922e465"
+    },
+    {
+      "path": "cpu_lotto_draw_3/stdout.log",
+      "bytes": 7298,
+      "sha256": "2f2eb16d9cd1e586ca5cadb680cd5750c211454491e14260ba774ba417f263f7"
+    },
+    {
+      "path": "cpu_lotto_draw_3/cpu/before.cpuinfo.txt",
+      "bytes": 28391,
+      "sha256": "019565b38582dd0725f3de1133735c5fb1196b745e49ffd3d88c3b7ff579d1f7"
+    },
+    {
+      "path": "cpu_lotto_draw_3/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_3/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_lotto_draw_4/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_4/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_lotto_draw_4/stderr.log",
+      "bytes": 390,
+      "sha256": "89b0d1ab3442685aeadac7837ed5c39337f49de2979d016cc2dc762fe009ed28"
+    },
+    {
+      "path": "cpu_lotto_draw_4/stdout.log",
+      "bytes": 7585,
+      "sha256": "a889caa8c697ef31e76c591a103537ece3f1ccd65f0b980d40f83603c656bce4"
+    },
+    {
+      "path": "cpu_lotto_draw_4/cpu/before.cpuinfo.txt",
+      "bytes": 28391,
+      "sha256": "59f4927738026da1501b3e80690a506c675c23815217becc5559ad6662e5b18a"
+    },
+    {
+      "path": "cpu_lotto_draw_4/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_4/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "cpu_lotto_draw_5/cpu.stderr.log",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_5/cpu.stdout.log",
+      "bytes": 1,
+      "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+    },
+    {
+      "path": "cpu_lotto_draw_5/stderr.log",
+      "bytes": 390,
+      "sha256": "e8d490da37084ed178f3c015fe225ddbfb4729b7cb92edfbb197b1c0d09978ad"
+    },
+    {
+      "path": "cpu_lotto_draw_5/stdout.log",
+      "bytes": 7100,
+      "sha256": "f88e34fb926232479e09afbc30c4a26d3794972b515aec35b8340dba509c6f22"
+    },
+    {
+      "path": "cpu_lotto_draw_5/cpu/before.cpuinfo.txt",
+      "bytes": 28391,
+      "sha256": "cfcc857872516c20b19461f6f4cfef809f2e0468b0b329a25e81760c73116e9f"
+    },
+    {
+      "path": "cpu_lotto_draw_5/cpu/error.txt",
+      "bytes": 75,
+      "sha256": "3dde3c12a773ec7e182a6fd3e2f96b9cb83c9de26ac7cc8e96cfaa92f89f9a0f"
+    },
+    {
+      "path": "cpu_lotto_draw_5/cpu/server.ready",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "slot_raster_1/device_response.original.json",
+      "bytes": 21037644,
+      "sha256": "8a78b80be07fc8a7f0f24ef6a5c8596081c79158d1a19552bc9694c43af0f99c"
+    },
+    {
+      "path": "slot_raster_1/slot_raster_1794329472493568.timeline.json",
+      "bytes": 5987925,
+      "sha256": "7587c6316959305dd31d5a7272d64ecc1731e21cc5c6e8630dbfcaa067c5de60"
+    },
+    {
+      "path": "slot_raster_1/slot_raster_1794329472493568.timeline_summary.json",
+      "bytes": 17112,
+      "sha256": "f58dfaf53648ce6cfb1f70b087dc30e9cb3e1a50d22b81b9a908ab22de4b8a2f"
+    },
+    {
+      "path": "slot_raster_1/slot_raster_reference_1794329472493568.timeline.json",
+      "bytes": 6045434,
+      "sha256": "020a10f1aed30efb3340700e230bad0d4545e0fed36f1b28b3b71e102973fad6"
+    },
+    {
+      "path": "slot_raster_1/slot_raster_reference_1794329472493568.timeline_summary.json",
+      "bytes": 16459,
+      "sha256": "2bc77510d5b291b7824b4c6421be0739fa8d8eebe1f9c62b313932910339d850"
+    },
+    {
+      "path": "slot_raster_1/stderr.log",
+      "bytes": 390,
+      "sha256": "f120da78c45de0e4b664434e24719792a102a46b6d31508b1a926e2b1f22dfcc"
+    },
+    {
+      "path": "slot_raster_1/stdout.log",
+      "bytes": 74310,
+      "sha256": "d6e52e7e70e119c488d7c1c56072b8535f6968ed1dcc9769266ff50319e537e6"
+    },
+    {
+      "path": "slot_raster_2/device_response.original.json",
+      "bytes": 21106146,
+      "sha256": "7a2d9b2e0420c70fe585434189d332dd2ba9fcb9d0104e60ab490f1a32632e30"
+    },
+    {
+      "path": "slot_raster_2/slot_raster_1794329536093547.timeline.json",
+      "bytes": 6021948,
+      "sha256": "e2f024350fbcf6e43a02138b691ca8204bf9da43cf0a60955753fb5f79f527cf"
+    },
+    {
+      "path": "slot_raster_2/slot_raster_1794329536093547.timeline_summary.json",
+      "bytes": 17156,
+      "sha256": "5aac7af5828c0f16ea98c55412b6f92465b84297aae7ece9f6535dfacda3fafe"
+    },
+    {
+      "path": "slot_raster_2/slot_raster_reference_1794329536093547.timeline.json",
+      "bytes": 6065060,
+      "sha256": "210ff12b6191a1c2023ea06273e91c4070cfff5f2fc406bb7756169ab58d21c0"
+    },
+    {
+      "path": "slot_raster_2/slot_raster_reference_1794329536093547.timeline_summary.json",
+      "bytes": 16495,
+      "sha256": "a00a9fde33c0b700b631c17d68c51874d6e1e48f2fdb78eef320cdf2be59add5"
+    },
+    {
+      "path": "slot_raster_2/stderr.log",
+      "bytes": 390,
+      "sha256": "b857b0a60626b2e52fdfc060b23afb647f885bc0a024b813df3d44c659267209"
+    },
+    {
+      "path": "slot_raster_2/stdout.log",
+      "bytes": 74153,
+      "sha256": "a42309e93863d815a698a75437b248311995d5b686b77e375c61f9bc085abe40"
+    },
+    {
+      "path": "slot_raster_3/device_response.original.json",
+      "bytes": 21166825,
+      "sha256": "e03c9ff486049853a48d5a634ecfce592b6d2805d989b5dc0c05728345bdaddb"
+    },
+    {
+      "path": "slot_raster_3/slot_raster_1794329600601145.timeline.json",
+      "bytes": 6022968,
+      "sha256": "94b1829f78d86754a0d5cbe009e5493a86d5160714ca539a0819e30720932e4e"
+    },
+    {
+      "path": "slot_raster_3/slot_raster_1794329600601145.timeline_summary.json",
+      "bytes": 17181,
+      "sha256": "ecc4c3dddc19a65ef736b9251bfde767737f21c775117b3f5e6c482b6e1a1123"
+    },
+    {
+      "path": "slot_raster_3/slot_raster_reference_1794329600601145.timeline.json",
+      "bytes": 6102175,
+      "sha256": "120d1ded5c6dd5280a53fb28b3d4ac37b130ac330e42332e11eeb8b7b8e4449e"
+    },
+    {
+      "path": "slot_raster_3/slot_raster_reference_1794329600601145.timeline_summary.json",
+      "bytes": 16509,
+      "sha256": "4b33173ca7e1125cc08a574584f10f60713bf8f18928d07618eaad69666183e2"
+    },
+    {
+      "path": "slot_raster_3/stderr.log",
+      "bytes": 391,
+      "sha256": "9947f8f61793b8dba181b58874a9f6d5cc226275bd65d665db9dba96cd3d2727"
+    },
+    {
+      "path": "slot_raster_3/stdout.log",
+      "bytes": 74597,
+      "sha256": "aa50116760489c7dc1856f8fc15d5d2c235bcde169621135014d721d4771f089"
+    },
+    {
+      "path": "grid_steady_1/device_response.original.json",
+      "bytes": 21095116,
+      "sha256": "ff8b42c6e53a76b1e804fe9b20dd5ee908755c42c3bf9ec09d50672e4c31b9a2"
+    },
+    {
+      "path": "grid_steady_1/grid_steady_1794329665198380.timeline.json",
+      "bytes": 6024557,
+      "sha256": "1fa8800f111e2b1adf088c74e3ce719da4c5f132c728a83df74cabf5d93e5136"
+    },
+    {
+      "path": "grid_steady_1/grid_steady_1794329665198380.timeline_summary.json",
+      "bytes": 16963,
+      "sha256": "b03446fd03a37c4ce428abb1ec67c1fd3929f2d19d6f8ca877fd493d161a2e7b"
+    },
+    {
+      "path": "grid_steady_1/grid_steady_reference_1794329665198380.timeline.json",
+      "bytes": 6059434,
+      "sha256": "9b348d1b3ce52c9bb602d861af7f366c9746513b9b9f99f477e414c79b5615fc"
+    },
+    {
+      "path": "grid_steady_1/grid_steady_reference_1794329665198380.timeline_summary.json",
+      "bytes": 16378,
+      "sha256": "050dca566ed3fd0a4fd854b3fc6877daca291a6ef714fb3140200d57acc8439f"
+    },
+    {
+      "path": "grid_steady_1/stderr.log",
+      "bytes": 391,
+      "sha256": "98ffb19d1ab7fcf8f5bcb675645d90f98440ea36ce48c53f078028ddbf3f2e75"
+    },
+    {
+      "path": "grid_steady_1/stdout.log",
+      "bytes": 70865,
+      "sha256": "22b865be3abcf2d16fadce3c7b96d47ca36bbc3f63373f484356486f2aa9257d"
+    },
+    {
+      "path": "grid_steady_2/device_response.original.json",
+      "bytes": 21123806,
+      "sha256": "2a12a2184c65845f7fdd296fcd603c818f54d58bbb569d4804dcd50be0cfa7d4"
+    },
+    {
+      "path": "grid_steady_2/grid_steady_1794329729062446.timeline.json",
+      "bytes": 6027343,
+      "sha256": "9aa04a47fbc514a651a9474352c91591450d675a2e515131cadfc444c6e554b0"
+    },
+    {
+      "path": "grid_steady_2/grid_steady_1794329729062446.timeline_summary.json",
+      "bytes": 16949,
+      "sha256": "f94e4bd088a0284c3f9b141eb2bb64beb0e6bc1ae562fd12786e5442ac818d87"
+    },
+    {
+      "path": "grid_steady_2/grid_steady_reference_1794329729062446.timeline.json",
+      "bytes": 6073195,
+      "sha256": "b4c4cb65981e30d7c188e1a51fd2b5060f755c44d9ca895d72d920774109cda6"
+    },
+    {
+      "path": "grid_steady_2/grid_steady_reference_1794329729062446.timeline_summary.json",
+      "bytes": 16492,
+      "sha256": "c8273be335ae5d37c9bed3ca1943a8e11f470f51a84e16b9ce77ac3921bc97f3"
+    },
+    {
+      "path": "grid_steady_2/stderr.log",
+      "bytes": 391,
+      "sha256": "51a5ae4ba6b20ff7260c3d624054045678d23c129692df6bc4f3d105d81413a1"
+    },
+    {
+      "path": "grid_steady_2/stdout.log",
+      "bytes": 73736,
+      "sha256": "511e98453d2cc4af7b5e5b99696f9ee6eb57a693690a1d6009abf8d234e539b3"
+    },
+    {
+      "path": "grid_steady_3/device_response.original.json",
+      "bytes": 21177729,
+      "sha256": "8a2c70344520f4baedec1f35fd167f6644d3ff3d6e25f2272af80c4dab197039"
+    },
+    {
+      "path": "grid_steady_3/grid_steady_1794329793070451.timeline.json",
+      "bytes": 6065226,
+      "sha256": "03aa5fae97829854764a927156e604747c3885bed77cdaf7dd94ec804161e0f3"
+    },
+    {
+      "path": "grid_steady_3/grid_steady_1794329793070451.timeline_summary.json",
+      "bytes": 17005,
+      "sha256": "96157feec5ae431732cee2021e8b88a83c559a0ef81a96527cf2b4169ec7b328"
+    },
+    {
+      "path": "grid_steady_3/grid_steady_reference_1794329793070451.timeline.json",
+      "bytes": 6069445,
+      "sha256": "ddc99bdd46263ca81ee129e07cd53fca105a6117d2efb3cac3ebe98b62129c2c"
+    },
+    {
+      "path": "grid_steady_3/grid_steady_reference_1794329793070451.timeline_summary.json",
+      "bytes": 16469,
+      "sha256": "37cfee50466ddc4cadb979ab41810f458e729fc6132331f35564ed7b76207ebe"
+    },
+    {
+      "path": "grid_steady_3/stderr.log",
+      "bytes": 391,
+      "sha256": "149c334334355e392d3dc955488ce4ab030f20aacfbc83358ca16607c56b3f40"
+    },
+    {
+      "path": "grid_steady_3/stdout.log",
+      "bytes": 72012,
+      "sha256": "cae94a48aacf24937419880df36280df919bd0604b9855760880776a0e53d532"
+    },
+    {
+      "path": "lotto_draw_1/device_response.original.json",
+      "bytes": 21208016,
+      "sha256": "fe60f819924c67670a0884b3778635f9bed2627f7cbef886378b85e00b024ee5"
+    },
+    {
+      "path": "lotto_draw_1/lotto_draw_1794329860308168.timeline.json",
+      "bytes": 6090387,
+      "sha256": "b6b220a1df67bd46900f39e28295cb6592fe0fd85ced03d7e2a8f6e19246b15a"
+    },
+    {
+      "path": "lotto_draw_1/lotto_draw_1794329860308168.timeline_summary.json",
+      "bytes": 16051,
+      "sha256": "65177acdc02f2f538be62f7d0344963477b6f33af1cecef951d7bba8ecb8a023"
+    },
+    {
+      "path": "lotto_draw_1/lotto_draw_reference_1794329860308168.timeline.json",
+      "bytes": 6071198,
+      "sha256": "fa589a7df562734a2e1625b307bcb16bbe46bb73dbc2ecdf983663e8a9b3c260"
+    },
+    {
+      "path": "lotto_draw_1/lotto_draw_reference_1794329860308168.timeline_summary.json",
+      "bytes": 16471,
+      "sha256": "5721de8dbb6fc593e31ae8d1f81e6f505ce7e623ee40afd7584b73b6be7f2db6"
+    },
+    {
+      "path": "lotto_draw_1/stderr.log",
+      "bytes": 391,
+      "sha256": "4e1106bf7da9dac597d3e6ade4b67eb5c4e4f0522362b75532c20202a9392f66"
+    },
+    {
+      "path": "lotto_draw_1/stdout.log",
+      "bytes": 76597,
+      "sha256": "401dcdb3ef61431b809c80638b813a216b78c6162029648d56290e82d587bf0d"
+    },
+    {
+      "path": "lotto_draw_2/device_response.original.json",
+      "bytes": 21202009,
+      "sha256": "71e27d3369c6422aa3f61c05735fd31a223d1fe364ca29923fcfede9ead40aa1"
+    },
+    {
+      "path": "lotto_draw_2/lotto_draw_1794329927044718.timeline.json",
+      "bytes": 6082793,
+      "sha256": "fa2df71ad9ce713c90e12e59ecd9a17aabb80d321ef7ded83750047acdb01bcc"
+    },
+    {
+      "path": "lotto_draw_2/lotto_draw_1794329927044718.timeline_summary.json",
+      "bytes": 16061,
+      "sha256": "713b09a0de8f0716098fcfb91f286bc6e94c354159e0c4ca4f591b992715313f"
+    },
+    {
+      "path": "lotto_draw_2/lotto_draw_reference_1794329927044718.timeline.json",
+      "bytes": 6066344,
+      "sha256": "6766a36d66e434ac034531bbf406a223cb582625e1b7c9b9d41580ea8331c04f"
+    },
+    {
+      "path": "lotto_draw_2/lotto_draw_reference_1794329927044718.timeline_summary.json",
+      "bytes": 16491,
+      "sha256": "391991eb6eebe20b5148c3d0aaa1a4540ed0068befe20f1059c7957e61b038ca"
+    },
+    {
+      "path": "lotto_draw_2/stderr.log",
+      "bytes": 391,
+      "sha256": "e932a627c403acd56211deedd37794abea004a1086700255d42aab9fe99e010d"
+    },
+    {
+      "path": "lotto_draw_2/stdout.log",
+      "bytes": 74301,
+      "sha256": "981b16d57f2365bc876b55bd7ed2ae61e88e6f79d1b08032eff15bbd02c4a199"
+    },
+    {
+      "path": "lotto_draw_3/device_response.original.json",
+      "bytes": 21207290,
+      "sha256": "47cc17df4556d1dd3e2ce92b9f05d4c7a2ae0507800bd53e5708804f42467067"
+    },
+    {
+      "path": "lotto_draw_3/lotto_draw_1794329994232063.timeline.json",
+      "bytes": 6091066,
+      "sha256": "33de7e19549146d6018624b55f3d8cd8920890a47c9db1dc5d552aa7cf58a27c"
+    },
+    {
+      "path": "lotto_draw_3/lotto_draw_1794329994232063.timeline_summary.json",
+      "bytes": 16066,
+      "sha256": "c65255270a228ac9fcd753423fa9ff2030e3510300975607c50a726264cf2782"
+    },
+    {
+      "path": "lotto_draw_3/lotto_draw_reference_1794329994232063.timeline.json",
+      "bytes": 6070098,
+      "sha256": "963a80daff46cd3d86c74cde776fcee6b906fce91fc27486b98ea3655e789c98"
+    },
+    {
+      "path": "lotto_draw_3/lotto_draw_reference_1794329994232063.timeline_summary.json",
+      "bytes": 16458,
+      "sha256": "e1ddb851245fea54995e00a8d0039dde775e2f562d795ea7f9411f4b23ab04c6"
+    },
+    {
+      "path": "lotto_draw_3/stderr.log",
+      "bytes": 391,
+      "sha256": "02130ebff6ec990454e73d25c0aeac211905dd1c7fa08a87cae3cebd9b6cb412"
+    },
+    {
+      "path": "lotto_draw_3/stdout.log",
+      "bytes": 73727,
+      "sha256": "3f1b9c29eec67f3daabfed12451f6585d60303fd168ddb2601a0891225edbcf6"
+    },
+    {
+      "path": "lots_shaking_1/device_response.original.json",
+      "bytes": 21080785,
+      "sha256": "16823394b58e9205abf7641288bfd2bfb82490d3d4818b93a21c8d7d97962ef5"
+    },
+    {
+      "path": "lots_shaking_1/lots_shaking_1794330056579720.timeline.json",
+      "bytes": 6019319,
+      "sha256": "29062c78a388409bd3a39e597c3050b23965be7bc3c33767e49d15c40d8383e7"
+    },
+    {
+      "path": "lots_shaking_1/lots_shaking_1794330056579720.timeline_summary.json",
+      "bytes": 17177,
+      "sha256": "47903666129cb972479c54c1c9b7d4bf6e3e8db41ba92115eeaaebfb91bcf5cc"
+    },
+    {
+      "path": "lots_shaking_1/lots_shaking_reference_1794330056579720.timeline.json",
+      "bytes": 6052957,
+      "sha256": "1dc09bef8987ae13448fbc9a1ada493ba7383b0856313eadfb9ee533295cbf4b"
+    },
+    {
+      "path": "lots_shaking_1/lots_shaking_reference_1794330056579720.timeline_summary.json",
+      "bytes": 16450,
+      "sha256": "9fe313fc81f104e14c1eaa3a299aa6038b10ac50f2c3e96de0819b2868aeb3ac"
+    },
+    {
+      "path": "lots_shaking_1/stderr.log",
+      "bytes": 391,
+      "sha256": "2a5f5d9b73d03ecbca91d11ea313d9b278521aa13aa4e7d375f8351092538ee0"
+    },
+    {
+      "path": "lots_shaking_1/stdout.log",
+      "bytes": 69153,
+      "sha256": "80b6ee49bb70dab2eca21aa2b0f10795bf2a034abe673c0fdb6ca003df74a781"
+    },
+    {
+      "path": "lots_shaking_2/device_response.original.json",
+      "bytes": 21090271,
+      "sha256": "419f4b7a33bd5dcf19a645ff89cc51d0486980443f4c0eceab631e602a152e93"
+    },
+    {
+      "path": "lots_shaking_2/lots_shaking_1794330118442721.timeline.json",
+      "bytes": 6025696,
+      "sha256": "3cf99d8b1477b8961349402fb406e30efbb3387b5acae8d88eb689e2c7d419d4"
+    },
+    {
+      "path": "lots_shaking_2/lots_shaking_1794330118442721.timeline_summary.json",
+      "bytes": 17161,
+      "sha256": "a711d9cd0b125cf44b7f0449015b1c19d9b3d35aaa11621a1731a6ed7363f142"
+    },
+    {
+      "path": "lots_shaking_2/lots_shaking_reference_1794330118442721.timeline.json",
+      "bytes": 6060340,
+      "sha256": "5dc31ede8143a249a020e3b25ecc6262c48b3a6e48e620ac68466316bcc2c6bf"
+    },
+    {
+      "path": "lots_shaking_2/lots_shaking_reference_1794330118442721.timeline_summary.json",
+      "bytes": 16425,
+      "sha256": "8e78bf4dff066cd4e7563d34d0766f05c7bd6151f2eb353a41c933947b4f87fa"
+    },
+    {
+      "path": "lots_shaking_2/stderr.log",
+      "bytes": 391,
+      "sha256": "e9f191372b3ceee8facec46d1c51aed952f879f3f4dd1bbc22edd57a45a336c1"
+    },
+    {
+      "path": "lots_shaking_2/stdout.log",
+      "bytes": 68292,
+      "sha256": "b0c0ab74c646d3e8579cbf4bc86e6f99910d58dadad439050efad9eb8d3b5c67"
+    },
+    {
+      "path": "lots_shaking_3/device_response.original.json",
+      "bytes": 21067570,
+      "sha256": "c0ee28b505d79d2dc83f17520000d0aa6bd7bb30ae2272e8a4c93266001308da"
+    },
+    {
+      "path": "lots_shaking_3/lots_shaking_1794330181265081.timeline.json",
+      "bytes": 6001053,
+      "sha256": "4f74905b48b2bf72bbf310418b9a68566dc28440316636bc24d2876cf522b898"
+    },
+    {
+      "path": "lots_shaking_3/lots_shaking_1794330181265081.timeline_summary.json",
+      "bytes": 17157,
+      "sha256": "854e906f1925dbbf542a20363085621a246c772efc420d3645ae30a9ef32c943"
+    },
+    {
+      "path": "lots_shaking_3/lots_shaking_reference_1794330181265081.timeline.json",
+      "bytes": 6049104,
+      "sha256": "eb39f6d37b9b14b6ff4f12713d85825de06dfd10ca28629afd89889be45ce28d"
+    },
+    {
+      "path": "lots_shaking_3/lots_shaking_reference_1794330181265081.timeline_summary.json",
+      "bytes": 16513,
+      "sha256": "c5f993ae499b0d008e2f17af8a560306715733690b432a97e2a143f8857c0e81"
+    },
+    {
+      "path": "lots_shaking_3/stderr.log",
+      "bytes": 391,
+      "sha256": "88b6ab6a36d05c2dc850cafc9d3e9580019cb2583d0b38fd689e4ce2a2864e2e"
+    },
+    {
+      "path": "lots_shaking_3/stdout.log",
+      "bytes": 69153,
+      "sha256": "700ab32955f7dc438557d9e7bedd9384183ea7a3e1aefae350094eef0aee9a18"
+    }
+  ]
+}

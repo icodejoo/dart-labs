@@ -1,0 +1,22 @@
+{
+  "createdAt": "2026-11-10T14:02:32.499156+00:00",
+  "device": "10AE9K17UE0011S",
+  "apk": "C:\\ldp\\luckdraw\\tool\\bench\\results\\perf_after\\perf.apk",
+  "apkBytes": 29738554,
+  "apkSha256": "ce352b375772e2a2d01d78faced91a7232bb014e1aa87f306487895645612fbe",
+  "scenario": "wheel_steady",
+  "route": "/wheel_default",
+  "cacheMode": "auto",
+  "order": [
+    "S1",
+    "I1",
+    "S2",
+    "I2",
+    "S3",
+    "I3"
+  ],
+  "launchLimit": 8,
+  "hostAdbPollingDuringRun": false,
+  "mainSessionWatchdog": "用户告知：每120秒仅查询锁屏，无法停止；本批未控制",
+  "previousABNotReused": "旧AB为perf_ablation APK + wheel_picture，配置及APK均不同"
+}

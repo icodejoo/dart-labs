@@ -8,6 +8,34 @@ import '../support/helpers.dart';
 
 /// 客户端生命周期与取消边界。
 void main() {
+  for (final mode in ['baseline', 'cache', 'mock']) {
+    test('[Dioman.send] source 同时取消保留程序异常和原始栈 mode=$mode', () async {
+      final bug = StateError(pipelineTestBug);
+      final stack = StackTrace.fromString(pipelineTestOriginalStack);
+      final api = testClient(plugins: [
+        if (mode == 'cache') const DiomanCache<Result>(),
+        if (mode == 'mock')
+          const DiomanMock<Result>(mockUrl: 'https://mock.test'),
+        TestPlugin('source-cancel-then-bug', stage: DiomanStage.source,
+            handler: (ctx, _) {
+          ctx.cancelToken.cancel();
+          Error.throwWithStackTrace(bug, stack);
+        })
+      ]);
+      addTearDown(api.dispose);
+      try {
+        await api.send<Object?>(pipelineTestGetMethod, pipelineTestRootPath,
+            call: DiomanCall(options: {DiomanCache.option: true}));
+        fail('必须抛出程序异常');
+      } catch (e, s) {
+        expect(e, same(bug));
+        expect(s.toString(), stack.toString());
+      }
+      expect(api.pending, 0);
+      expect(api.cancellationSubscriptions, 0);
+    });
+  }
+
   test('[Dioman.send] 同时取消不掩盖中间件程序异常和原始栈', () async {
     final bug = StateError(pipelineTestBug);
     final stack = StackTrace.fromString(pipelineTestOriginalStack);

@@ -1,0 +1,32 @@
+[
+  {
+    "attempt": 1,
+    "scene": "wheel_first_frame",
+    "ended_at": "2026-11-10T17:29:51.3616597Z",
+    "started_at": "2026-11-10T17:29:31.0600093Z",
+    "valid": true,
+    "directory": "wheel_first_frame_1",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "error": null
+  },
+  {
+    "attempt": 2,
+    "scene": "wheel_first_frame",
+    "ended_at": "2026-11-10T17:30:12.0159704Z",
+    "started_at": "2026-11-10T17:29:52.4819458Z",
+    "valid": true,
+    "directory": "wheel_first_frame_2",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "error": null
+  },
+  {
+    "attempt": 3,
+    "scene": "wheel_first_frame",
+    "ended_at": "2026-11-10T17:30:31.6564326Z",
+    "started_at": "2026-11-10T17:30:13.5008589Z",
+    "valid": true,
+    "directory": "wheel_first_frame_3",
+    "binary_sha256": "35EEE3DEED78E8A4F777C1FA3262E5BE8C827B10ABF5F0F405539A99D4C797C5",
+    "error": null
+  }
+]
