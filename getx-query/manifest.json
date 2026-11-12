@@ -1,11 +1,11 @@
 {
-    "name": "getx_query_example",
-    "short_name": "getx_query_example",
+    "name": "getx_query",
+    "short_name": "getx_query",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "getx_query interactive demos · 交互演示",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
