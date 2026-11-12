@@ -24,3 +24,6 @@ coverage/
 /example/windows/flutter/generated_plugin_registrant.cc
 /example/windows/flutter/generated_plugin_registrant.h
 /example/windows/flutter/generated_plugins.cmake
+
+# Third-party demo images (see NOTICE) are kept in the source repository only.
+/example/assets/
