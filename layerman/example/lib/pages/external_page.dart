@@ -1,7 +1,4 @@
-import 'dart:async';
-import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
 
@@ -29,27 +26,33 @@ class ExternalPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          pageHeader(context, 'External Presenters',
-              'present: (ctx) => PresentedOverlay(...) lets layerman orchestrate '
-              'any overlay system — showDialog, GetX dialogs/snackbars, bot_toast — '
-              'without owning the rendering. The manager owns sequencing; '
-              'each backend owns its own rendering and animations.'),
+          pageHeader(
+            context,
+            'External Presenters',
+            'present: (ctx) => PresentedOverlay(...) lets layerman orchestrate '
+                'any overlay system — showDialog, GetX dialogs/snackbars, bot_toast — '
+                'without owning the rendering. The manager owns sequencing; '
+                'each backend owns its own rendering and animations.',
+          ),
           pageSection(
             context,
             'present with showDialog',
             [
               demoButton('btn-native-dlg', 'open native showDialog', () {
                 om.open<String>(
-                    id: 'native-dlg',
-                    exitDuration: const Duration(milliseconds: 200),
-                    present: (ctx) =>
-                        presentRouteDialog(ctx, _dialog('Native showDialog', 'OK-native')));
+                  id: 'native-dlg',
+                  exitDuration: const Duration(milliseconds: 200),
+                  present: (ctx) => presentRouteDialog(
+                    ctx,
+                    _dialog('Native showDialog', 'OK-native'),
+                  ),
+                );
               }),
             ],
             subtitle:
                 'presentRouteDialog wraps showDialog in PresentedOverlay. '
                 'dismissed: is the Future<T?> from showDialog; '
-                'dismiss: calls Get.until to pop the dialog route.',
+                'dismiss: removes the retained Route object. Prefer DialogManager / BottomSheetManager for Material routes.',
           ),
           pageSection(
             context,
@@ -57,17 +60,17 @@ class ExternalPage extends StatelessWidget {
             [
               demoButton('btn-getx-dlg', 'open GetX dialog', () {
                 om.open<String>(
-                    id: 'getx-dlg',
-                    exitDuration: const Duration(milliseconds: 200),
-                    present: (ctx) => presentRouteDialog(
-                          ctx,
-                          _dialog('GetX Get.dialog', 'OK-getx'),
-                          useGetx: true,
-                        ));
+                  id: 'getx-dlg',
+                  exitDuration: const Duration(milliseconds: 200),
+                  present: (ctx) => presentRouteDialog(
+                    ctx,
+                    _dialog('GetX Get.dialog', 'OK-getx'),
+                    useGetx: true,
+                  ),
+                );
               }),
             ],
-            subtitle:
-                'Get.dialog routes through the GetX navigator. '
+            subtitle: 'Get.dialog routes through the GetX navigator. '
                 'Same PresentedOverlay wrapper — dismissed/dismiss pattern is identical.',
           ),
           pageSection(
@@ -76,16 +79,26 @@ class ExternalPage extends StatelessWidget {
             [
               demoButton('btn-snack', 'GetX snackbar via slot "snack"', () {
                 om.open<void>(
-                    id: 'snack-${DateTime.now().millisecondsSinceEpoch}',
-                    slot: 'snack',
-                    present: (ctx) => presentGetxSnackbar('Saved', 'Sequenced by layerman — slot: "snack"', duration: const Duration(seconds: 2)));
+                  id: 'snack-${DateTime.now().millisecondsSinceEpoch}',
+                  slot: 'snack',
+                  present: (ctx) => presentGetxSnackbar(
+                    'Saved',
+                    'Sequenced by layerman — slot: "snack"',
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               }),
               demoButton('btn-snack-3', 'queue 3 snackbars', () {
                 for (var i = 1; i <= 3; i++) {
                   om.open<void>(
-                      id: 'snk$i',
-                      slot: 'snack',
-                      present: (ctx) => presentGetxSnackbar('Message $i', 'Snackbar $i of 3', duration: const Duration(seconds: 2)));
+                    id: 'snk$i',
+                    slot: 'snack',
+                    present: (ctx) => presentGetxSnackbar(
+                      'Message $i',
+                      'Snackbar $i of 3',
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
                 }
               }),
             ],
@@ -99,39 +112,53 @@ class ExternalPage extends StatelessWidget {
             [
               demoButton('btn-toast', 'bot_toast text', () {
                 om.open<void>(
-                    id: 'toast-${DateTime.now().millisecondsSinceEpoch}',
-                    present: (ctx) => presentBotToastText('bot_toast — sequenced by layerman', duration: const Duration(seconds: 2)));
+                  id: 'toast-${DateTime.now().millisecondsSinceEpoch}',
+                  present: (ctx) => presentBotToastText(
+                    'bot_toast — sequenced by layerman',
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               }),
             ],
-            subtitle:
-                'onlyOne: false + dedicated groupKey bypass bot_toast\'s internal queue. '
+            subtitle: 'onlyOne: false bypasses bot_toast\'s internal queue. '
                 'onClose completer drives dismissed. CancelFunc drives dismiss.',
           ),
           pageSection(
             context,
             'Three systems strictly serialised — one tap',
             [
-              demoButton('btn-mixed', 'native → GetX → bot_toast (one tap)', () {
-                om.open<String>(
+              demoButton(
+                'btn-mixed',
+                'native → GetX → bot_toast (one tap)',
+                () {
+                  om.open<String>(
                     id: 'nat',
                     exitDuration: const Duration(milliseconds: 200),
-                    present: (ctx) =>
-                        presentRouteDialog(ctx, _dialog('1/3 Native dialog', 'OK1')));
-                om.open<String>(
+                    present: (ctx) => presentRouteDialog(
+                      ctx,
+                      _dialog('1/3 Native dialog', 'OK1'),
+                    ),
+                  );
+                  om.open<String>(
                     id: 'gtx',
                     exitDuration: const Duration(milliseconds: 200),
                     present: (ctx) => presentRouteDialog(
-                          ctx,
-                          _dialog('2/3 GetX dialog', 'OK2'),
-                          useGetx: true,
-                        ));
-                om.open<void>(
+                      ctx,
+                      _dialog('2/3 GetX dialog', 'OK2'),
+                      useGetx: true,
+                    ),
+                  );
+                  om.open<void>(
                     id: 'tst',
-                    present: (ctx) => presentBotToastText('3/3 bot_toast — layerman wins', duration: const Duration(seconds: 2)));
-              }),
+                    present: (ctx) => presentBotToastText(
+                      '3/3 bot_toast — layerman wins',
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
             ],
-            subtitle:
-                'All three systems share the same default serial slot. '
+            subtitle: 'All three systems share the same default serial slot. '
                 'The manager dismisses system N before activating system N+1.',
           ),
           pageSection(
@@ -140,30 +167,22 @@ class ExternalPage extends StatelessWidget {
             [
               demoButton('btn-ctx-inspect', 'inspect PresentContext', () {
                 om.open<void>(
-                    id: 'ctx-insp',
-                    slot: 'inspect-slot',
-                    present: (ctx) {
-                      final done = Completer<void>();
-                      BotToast.showText(
-                        text: 'ctx.id=${ctx.id}  ctx.slot=${ctx.slot}',
-                        duration: const Duration(seconds: 3),
-                        onlyOne: false,
-                        onClose: () {
-                          if (!done.isCompleted) done.complete();
-                        },
-                      );
-                      return PresentedOverlay<void>(
-                          dismissed: done.future, dismiss: ([_]) async {});
-                    });
+                  id: 'ctx-insp',
+                  slot: 'inspect-slot',
+                  present: (ctx) {
+                    return presentBotToastText(
+                      'ctx.id=${ctx.id}  ctx.slot=${ctx.slot}',
+                      duration: const Duration(seconds: 3),
+                    );
+                  },
+                );
               }),
             ],
-            subtitle:
-                'PresentContext carries id and slot — '
-                'use ctx.id for route-backed dismiss (RouteSettings name: "om://\${ctx.id}").',
+            subtitle: 'PresentContext carries id and slot — '
+                'retain the backend handle for dismiss; route backends retain their Route object.',
           ),
         ],
       ),
     );
   }
 }
-

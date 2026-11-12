@@ -1,0 +1,84 @@
+{
+  "verifiedAt": "2026-11-10T13:57:11.858340+00:00",
+  "settings": {
+    "mode": "0",
+    "brightness": "1",
+    "stayon": "2"
+  },
+  "commands": [
+    {
+      "command": [
+        "shell",
+        "settings",
+        "put",
+        "system",
+        "screen_brightness_mode",
+        "0"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "shell",
+        "settings",
+        "put",
+        "system",
+        "screen_brightness",
+        "1"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "shell",
+        "svc",
+        "power",
+        "stayon",
+        "usb"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "shell",
+        "settings",
+        "get",
+        "system",
+        "screen_brightness_mode"
+      ],
+      "exitCode": 0,
+      "stdout": "0",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "shell",
+        "settings",
+        "get",
+        "system",
+        "screen_brightness"
+      ],
+      "exitCode": 0,
+      "stdout": "1",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "shell",
+        "settings",
+        "get",
+        "global",
+        "stay_on_while_plugged_in"
+      ],
+      "exitCode": 0,
+      "stdout": "2",
+      "stderr": ""
+    }
+  ]
+}

@@ -59,6 +59,8 @@ class MovaOpts {
   /// Gesture configuration.
   ///
   /// 手势配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaGestureConfig gesture;
 
   /// Adaptive-bitrate configuration.
@@ -69,11 +71,15 @@ class MovaOpts {
   /// Control-bar behaviour configuration.
   ///
   /// 控制条行为配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaCtrlsConfig controls;
 
   /// Scrolling-danmaku overlay configuration.
   ///
   /// 滚动弹幕叠加层配置。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaDanmakuConfig danmaku;
 
   /// Speech-to-text subtitle configuration.
@@ -94,11 +100,15 @@ class MovaOpts {
   /// Externalised UI copy.
   ///
   /// 外置 UI 文案。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaStrs strings;
 
   /// Externalised visual theme.
   ///
   /// 外置视觉主题。
+  /// 过渡公告：计划下个版本弃用样式入口，改用 `MovaPlayerStyle`。
+  /// 本版本仍是最低优先级回落值；弹幕开关与条目继续保留。
   final MovaTheme theme;
 
   /// Seamless engine-swapping configuration.
@@ -222,6 +232,19 @@ class MovaOpts {
     );
   }
 
+  /// 比较本配置与 other 中引擎实际读取的构造节，返回是否等价。
+  /// ads、playlist、mini 由宿主消费；五个样式节由视图查找，不参与引擎重建。
+  /// 本方法不会更新引擎 options 快照。示例：`old.engineSectionsEqual(next)`。
+  bool engineSectionsEqual(MovaOpts other) =>
+      preview == other.preview &&
+      live == other.live &&
+      abr == other.abr &&
+      stt == other.stt &&
+      cutover == other.cutover &&
+      report == other.report &&
+      recovery == other.recovery &&
+      keepAlive == other.keepAlive;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -245,6 +268,17 @@ class MovaOpts {
           keepAlive == other.keepAlive;
 
   @override
-  int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, cutover, mini, report, recovery, keepAlive));
+  int get hashCode => Object.hash(
+    preview,
+    live,
+    gesture,
+    abr,
+    controls,
+    danmaku,
+    stt,
+    playlist,
+    ads,
+    strings,
+    Object.hash(theme, cutover, mini, report, recovery, keepAlive),
+  );
 }

@@ -1,0 +1,16 @@
+{
+  "name": "fin-d",
+  "args": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--coverage",
+    "--coverage-path=coverage/fin-d.lcov",
+    "--reporter=json",
+    "test/perf",
+    "test/example_pages_test.dart"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 9.724
+}

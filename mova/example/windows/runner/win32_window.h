@@ -52,6 +52,10 @@ class Win32Window {
   // If true, closing this window will quit the application.
   void SetQuitOnClose(bool quit_on_close);
 
+  // 安静模式：窗口带 WS_EX_NOACTIVATE|WS_EX_TOOLWINDOW 创建，显示时不激活、
+  // 压到 z 序最底并放在虚拟屏幕右下角。必须在 Create 之前调用。
+  void SetQuiet(bool quiet);
+
   // Return a RECT representing the bounds of the current client area.
   RECT GetClientArea();
 
@@ -91,6 +95,9 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // 安静模式（见 SetQuiet），默认关闭。
+  bool quiet_ = false;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

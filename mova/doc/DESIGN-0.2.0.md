@@ -1,7 +1,15 @@
 # mova 0.2.0 架构设计（core/ui 分层 + 拖动预览 + 直播时移）
 
-状态：已评审通过（2026-07-30），待实现。
-上游文档：[PRD.md](PRD.md)（需求/决策）、[SPEC.md](SPEC.md)（0.1.0 实现现状）、[ROADMAP.md](ROADMAP.md)。
+状态：2026-07-30 原始设计，core/ui 分层及阶段 A/B/C 已实现；本文保留设计意图与历史签名。
+
+> **现行规则（2026-11-04 C17）**：会话层 MovaSession、错误分级与加载规格、
+> MovaWarmOwner 预热归属、每视图 MovaChrome/MovaUiBridge、MovaPlayerStyle、
+> 能力分入口及导出面已在后续实现中调整。**设计意图看 DESIGN，签名与落点看
+> [SPEC.md](SPEC.md#当前契约与历史设计2026-11-04c17) 和代码**。
+> 本文的 kernel 签名、sourceTitle/renderHandle、ABR 落点、sha1、平台接线目录、
+> 单一主入口及引擎持有 UI 交互态等旧描述不应直接作为实现依据。
+
+上游文档：[PRD.md](PRD.md)、[SPEC.md](SPEC.md)、[ROADMAP.md](ROADMAP.md)。
 
 ---
 

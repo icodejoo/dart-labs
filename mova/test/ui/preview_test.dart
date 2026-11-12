@@ -1,4 +1,14 @@
 import 'dart:typed_data';
+import 'dart:async';
+
+import 'package:mova/mova.dart'
+    show MovaPlayer, MovaChrome, MovaSource, MovaPreviewConfig;
+import 'package:mova/src/core/preview/api.dart';
+import 'package:mova/src/core/preview/service.dart';
+import 'package:mova/src/core/preview/cache.dart';
+import 'package:mova/src/core/preview/net_probe.dart';
+import 'package:mova/src/core/preview/source.dart';
+import '../support/fake_bridge_api.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,11 +59,144 @@ class _CutoverApi extends FakeMovaApi {
   }
 }
 
+class _GatedThumbs implements MovaThumbSource {
+  final gates = <Duration, Completer<MovaThumb?>>{};
+  @override
+  String get name => 'gated';
+  @override
+  Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) =>
+      (gates[bucket] = Completer<MovaThumb?>()).future;
+  @override
+  Future<void> reset() async {}
+  @override
+  Future<void> dispose() async {}
+}
+
+class _SessionPreview extends FakePreviewApi implements MovaPreviewSessions {
+  _SessionPreview(this.service);
+  final MovaPreviewService service;
+  @override
+  MovaPreviewSession openSession() => service.openSession();
+  @override
+  Stream<MovaThumb?> get thumbs => service.thumbs;
+  @override
+  void requestAt(Duration at) => service.requestAt(at);
+  @override
+  void cancel() => service.cancel();
+  @override
+  Future<void> dispose() => service.dispose();
+}
+
+class _SessionApi extends FakeBridgeApi {
+  _SessionApi(MovaPreviewService service) : _preview = _SessionPreview(service);
+  final _SessionPreview _preview;
+  @override
+  _SessionPreview get preview => _preview;
+}
+
 void main() {
+  for (final checkDelivery in [true, false]) {
+  testWidgets(checkDelivery ? '两个视图按会话收图' : 'B 松手不取消 A 的在途请求', (t) async {
+    final source = _GatedThumbs();
+    final service = MovaPreviewService(
+      config: const MovaPreviewConfig(
+        debounce: Duration.zero,
+        bucket: Duration(seconds: 1),
+      ),
+      cache: MovaMemoryThumbCache(),
+      probe: MovaAlwaysAllowNetProbe(),
+      sources: [source],
+    )..attach(const MovaSource('https://host/video.mp4'));
+    final api = _SessionApi(service);
+    final a = MovaChrome(), b = MovaChrome();
+    const aKey = ValueKey('preview-a'), bKey = ValueKey('preview-b');
+    await t.pumpWidget(
+      MaterialApp(
+        home: Column(
+          children: [
+            SizedBox(
+              height: 280,
+              child: MovaPlayer(key: aKey, api: api, chrome: a),
+            ),
+            SizedBox(
+              height: 280,
+              child: MovaPlayer(key: bKey, api: api, chrome: b),
+            ),
+          ],
+        ),
+      ),
+    );
+    a.setDragging(true, previewAt: const Duration(seconds: 10));
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    b.setDragging(true, previewAt: const Duration(seconds: 20));
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    source.gates[const Duration(seconds: 10)]!.complete(
+      MovaThumb(at: const Duration(seconds: 10), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    final inA = find.descendant(
+      of: find.byKey(aKey),
+      matching: find.byType(Image),
+    );
+    final inB = find.descendant(
+      of: find.byKey(bKey),
+      matching: find.byType(Image),
+    );
+    if (checkDelivery) {
+      expect(inA, findsOneWidget);
+      expect(inB, findsNothing, reason: 'A 的图不得投递到 B');
+    }
+    a.setDragging(true, previewAt: const Duration(seconds: 30));
+    await t.pump(const Duration(milliseconds: 1));
+    b.setDragging(false);
+    await t.pump(const Duration(milliseconds: 1));
+    source.gates[const Duration(seconds: 20)]!.complete(
+      MovaThumb(at: const Duration(seconds: 20), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    expect(source.gates, contains(const Duration(seconds: 30)));
+    source.gates[const Duration(seconds: 30)]!.complete(
+      MovaThumb(at: const Duration(seconds: 30), bytes: _png),
+    );
+    await t.pump(const Duration(milliseconds: 1));
+    await t.pump(const Duration(milliseconds: 1));
+    expect(inA, findsOneWidget);
+    expect(inB, findsNothing);
+    expect(a.value.dragging, isTrue);
+    await t.pumpWidget(const SizedBox.shrink());
+    a.dispose();
+    b.dispose();
+    await api.dispose();
+  });
+  }
+
   late FakeMovaApi api;
 
   setUp(() => api = FakeMovaApi());
   tearDown(() => api.dispose());
+
+  testWidgets('整帧解码宽度跟随气泡宽度和设备像素比', (t) async {
+    await pumpComponent(t, api, MovaPreviewComponent());
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+    );
+    await t.pump();
+    api.preview.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));
+    await t.pump();
+    final image = t.widget<Image>(find.byType(Image));
+    final provider = image.image as ResizeImage;
+    final context = t.element(find.byType(Image));
+    expect(
+      provider.width,
+      (image.width! * MediaQuery.devicePixelRatioOf(context)).ceil(),
+    );
+    await t.pumpWidget(const SizedBox.shrink());
+    await t.pumpAndSettle();
+  });
 
   testWidgets('renders nothing while previewAt is null', (t) async {
     await pumpComponent(t, api, MovaPreviewComponent());
@@ -61,9 +204,13 @@ void main() {
     expect(find.textContaining(':'), findsNothing);
   });
 
-  testWidgets('shows the formatted scrub timestamp once previewAt is set', (t) async {
+  testWidgets('shows the formatted scrub timestamp once previewAt is set', (
+    t,
+  ) async {
     await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 65)));
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 65)),
+    );
     await t.pump();
     await t.pump();
     expect(find.text('01:05'), findsOneWidget);
@@ -71,7 +218,9 @@ void main() {
 
   testWidgets('requests the thumbnail for the scrub position', (t) async {
     await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 42)));
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 42)),
+    );
     await t.pump();
     expect(api.preview.calls, contains('requestAt'));
     expect(api.preview.lastRequestedAt, const Duration(seconds: 42));
@@ -79,7 +228,9 @@ void main() {
 
   testWidgets('renders a pushed thumbnail as an image', (t) async {
     await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+    );
     await t.pump();
     expect(find.byType(Image), findsNothing);
     api.preview.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));
@@ -87,24 +238,36 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
-  testWidgets('a synchronous cache hit renders without waiting for the stream', (t) async {
-    api.preview.peekResult = MovaThumb(at: const Duration(seconds: 10), bytes: _png);
-    await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
-    await t.pump();
-    await t.pump();
-    expect(find.byType(Image), findsOneWidget);
-  });
+  testWidgets(
+    'a synchronous cache hit renders without waiting for the stream',
+    (t) async {
+      api.preview.peekResult = MovaThumb(
+        at: const Duration(seconds: 10),
+        bytes: _png,
+      );
+      await pumpComponent(t, api, MovaPreviewComponent());
+      api.pushUi(
+        const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+      );
+      await t.pump();
+      await t.pump();
+      expect(find.byType(Image), findsOneWidget);
+    },
+  );
 
   testWidgets('a cropped sprite is clipped to the crop rectangle', (t) async {
     await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+    );
     await t.pump();
-    api.preview.push(MovaThumb(
-      at: const Duration(seconds: 10),
-      bytes: _png,
-      crop: const MovaThumbCrop(x: 160, y: 0, w: 160, h: 90),
-    ));
+    api.preview.push(
+      MovaThumb(
+        at: const Duration(seconds: 10),
+        bytes: _png,
+        crop: const MovaThumbCrop(x: 160, y: 0, w: 160, h: 90),
+      ),
+    );
     await t.pump();
     final clip = t.widget<ClipRect>(find.byKey(const ValueKey('movaPrevClip')));
     expect(clip, isNotNull);
@@ -114,7 +277,9 @@ void main() {
 
   testWidgets('clearing previewAt hides the bubble again', (t) async {
     await pumpComponent(t, api, MovaPreviewComponent());
-    api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    api.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+    );
     await t.pump();
     api.preview.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));
     await t.pump();
@@ -126,18 +291,25 @@ void main() {
     expect(api.preview.calls, contains('cancel'));
   });
 
-  testWidgets('the component is addressable at path "preview" in slot bottomAbove', (t) async {
-    final c = MovaPreviewComponent();
-    expect(c.name, 'preview');
-    expect(c.slot.name, 'bottomAbove');
-    expect(c.children, isEmpty);
-  });
+  testWidgets(
+    'the component is addressable at path "preview" in slot bottomAbove',
+    (t) async {
+      final c = MovaPreviewComponent();
+      expect(c.name, 'preview');
+      expect(c.slot.name, 'bottomAbove');
+      expect(c.children, isEmpty);
+    },
+  );
 
-  testWidgets('re-subscribes to the new preview after a renderEpoch change', (t) async {
+  testWidgets('re-subscribes to the new preview after a renderEpoch change', (
+    t,
+  ) async {
     final cutoverApi = _CutoverApi();
     addTearDown(cutoverApi.dispose);
     await pumpComponent(t, cutoverApi, MovaPreviewComponent());
-    cutoverApi.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    cutoverApi.pushUi(
+      const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)),
+    );
     await t.pump();
     await t.pump();
     final fresh = await cutoverApi.cutoverPreview();

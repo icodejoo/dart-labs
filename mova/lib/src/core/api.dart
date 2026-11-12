@@ -43,6 +43,9 @@ abstract class MovaApi {
   /// Control-bar visibility, HUD, and preview-position updates.
   ///
   /// 控制条可见性、HUD、预览位置的更新流。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   Stream<MovaUiState> get uiStates;
 
   /// The current playback state snapshot, synchronously available so the
@@ -54,6 +57,9 @@ abstract class MovaApi {
   /// The current UI state snapshot.
   ///
   /// 当前 UI 状态快照。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   MovaUiState get uiState;
 
   /// The configuration this instance was constructed with.
@@ -307,11 +313,17 @@ abstract class MovaApi {
   /// 显示控制条/浮层。
   ///
   /// [sticky] 为 `true` 表示保持常显、不启用自动隐藏计时；默认 `false`。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   void showControls({bool sticky = false});
 
   /// Hides the control bar/overlay.
   ///
   /// 隐藏控制条/浮层。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   void hideControls();
 
   /// Shows a transient HUD overlay.
@@ -329,6 +341,9 @@ abstract class MovaApi {
   /// HUD 变体准备的显式文本——目前只有 [MovaSeekHudComponent] 的双击路径会用它；
   /// 拖动进度路径仍从 [MovaUiState.previewAt] 推导文本，音量/亮度/缩放则直接从
   /// [MovaState] 推导。不传 [text] 会清空之前设置的值。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   void showHud(MovaHud hud, {String? text});
 
   /// Updates the drag-gesture-in-progress flag and optional seek-preview
@@ -342,6 +357,9 @@ abstract class MovaApi {
   ///
   /// [v] 为 `true` 表示拖动手势（进度/音量/亮度）正在进行。[previewAt] 为
   /// 拖动过程中要展示的预览位置，`null` 表示不展示。
+  /// 过渡说明：每个 MovaPlayer 视图各有一份 `MovaChrome`。本成员一个版本内照常可用：
+  /// 有视图时，旧动词广播给所有视图，读者看到最近一次变化的视图镜像；无视图时行为不变。
+  /// 计划下个版本弃用，新代码请用 `MovaChrome.of(context)`。
   void setDragging(bool v, {Duration? previewAt});
 
   /// Reports a user-action event: a pure-UI-semantic action that triggers no
@@ -365,9 +383,10 @@ abstract class MovaApi {
   /// ```
   void report(MovaReportName name, {Map<String, dynamic>? params});
 
-  /// Releases all resources held by this instance; must be called exactly
-  /// once when the player is torn down.
+  /// Releases resources when the player is torn down. MovaEngine and
+  /// MovaCutoverEngine implement idempotent disposal; repeated calls are safe.
   ///
-  /// 释放该实例持有的所有资源；播放器销毁时必须且只能调用一次。
+  /// 播放器销毁时释放资源。MovaEngine 与 MovaCutoverEngine 的实现幂等，
+  /// 重复调用安全；宿主仍应明确资源所有权，及时释放自己持有的实例。
   Future<void> dispose();
 }

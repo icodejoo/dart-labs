@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
@@ -13,7 +14,10 @@ class MixedPage extends StatelessWidget {
   /// ShadDialog rendered as a layerman overlay CONTENT, presented through
   /// [presentCard] (a real `showDialog` route — see helpers.dart). [close] is
   /// bound to that route, mirroring the old `OverlayHandle.close()`.
-  Widget _shadDialogContent(String title, void Function([Object? result]) close) =>
+  Widget _shadDialogContent(
+    String title,
+    void Function([Object? result]) close,
+  ) =>
       Center(
         child: ShadDialog(
           title: Text(title),
@@ -27,9 +31,7 @@ class MixedPage extends StatelessWidget {
               child: const Text('Cancel'),
             ),
             ShadButton(
-              onPressed: () => close('ok'),
-              child: const Text('Confirm'),
-            ),
+                onPressed: () => close('ok'), child: const Text('Confirm')),
           ],
         ),
       );
@@ -74,9 +76,9 @@ class MixedPage extends StatelessWidget {
             context,
             'Mixed UI Libraries',
             'layerman orchestrates GetX, bot_toast and shadcn/ui as equal peers '
-            'through the present hook. Each library owns its own rendering '
-            'and animations; layerman owns serialisation, cooldown, conditions and '
-            'lifecycle.',
+                'through the present hook. Each library owns its own rendering '
+                'and animations; layerman owns serialisation, cooldown, conditions and '
+                'lifecycle.',
           ),
 
           // ── shadcn/ui toasts ──────────────────────────────────────────────
@@ -90,7 +92,9 @@ class MixedPage extends StatelessWidget {
                   present: (ctx) => presentShadToast(
                     ctx,
                     title: const Text('layerman'),
-                    description: const Text('shadcn/ui toast — auto-dismisses in 3 s'),
+                    description: const Text(
+                      'shadcn/ui toast — auto-dismisses in 3 s',
+                    ),
                   ),
                 );
               }),
@@ -101,8 +105,9 @@ class MixedPage extends StatelessWidget {
                     ctx,
                     variant: ShadToastVariant.destructive,
                     title: const Text('Error'),
-                    description:
-                        const Text('Destructive variant — still serialised by layerman'),
+                    description: const Text(
+                      'Destructive variant — still serialised by layerman',
+                    ),
                   ),
                 );
               }),
@@ -112,7 +117,9 @@ class MixedPage extends StatelessWidget {
                     id: 'shad-t$i',
                     present: (ctx) => presentShadToast(
                       ctx,
-                      description: Text('Toast $i/3 — layerman serialises these'),
+                      description: Text(
+                        'Toast $i/3 — layerman serialises these',
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -142,15 +149,16 @@ class MixedPage extends StatelessWidget {
                 );
               }),
               demoButton('btn-shad-dlg-alert', 'ShadDialog.alert', () {
-                om.open(
+                om.open<bool>(
                   id: 'shad-dlg-alert',
                   present: (ctx) => presentCard<bool>(
                     ctx,
                     (c, close) => Center(
                       child: ShadDialog.alert(
                         title: const Text('Confirm action'),
-                        description:
-                            const Text('This action cannot be undone. Continue?'),
+                        description: const Text(
+                          'This action cannot be undone. Continue?',
+                        ),
                         actions: [
                           ShadButton.outline(
                             onPressed: () => close(false),
@@ -189,21 +197,15 @@ class MixedPage extends StatelessWidget {
                       title: const Text('Route-backed ShadDialog'),
                       description: const Text(
                         'showShadDialog pushes a real route.\n'
-                        'layerman tracks it via unique route name om://shad-rdlg.',
+                        'The adapter retains its Route object for targeted dismissal.',
                       ),
                       actions: [
                         ShadButton.outline(
-                          onPressed: () => Navigator.of(
-                                  Get.overlayContext!,
-                                  rootNavigator: true)
-                              .pop('cancel'),
+                          onPressed: () => ctx.close('cancel'),
                           child: const Text('Cancel'),
                         ),
                         ShadButton(
-                          onPressed: () => Navigator.of(
-                                  Get.overlayContext!,
-                                  rootNavigator: true)
-                              .pop('ok'),
+                          onPressed: () => ctx.close('ok'),
                           child: const Text('OK'),
                         ),
                       ],
@@ -214,7 +216,7 @@ class MixedPage extends StatelessWidget {
             ],
             subtitle:
                 'presentShadDialog wraps showShadDialog in PresentedOverlay '
-                'with a unique RouteSettings name for targeted dismiss '
+                'with a retained Route object for targeted dismiss '
                 '(same pattern as presentRouteDialog for GetX/native dialogs).',
           ),
 
@@ -228,82 +230,91 @@ class MixedPage extends StatelessWidget {
                 om.open(
                   id: 'shad-sheet',
                   present: (ctx) {
-                    // Capture the sheet's own route so dismiss removes exactly
-                    // it (a plain `pop()` would close whatever is on top).
-                    Route<void>? sheetRoute;
+                    // 复用路由捕获器，首帧前 remove 也不会留下孤立 sheet。
+                    final visible = Completer<void>();
+                    final captured = RouteCapture<void>();
                     final future = showShadSheet<void>(
                       context: Get.overlayContext!,
                       side: ShadSheetSide.bottom,
                       isDismissible: true,
                       builder: (sheetCtx) {
-                        sheetRoute ??= ModalRoute.of(sheetCtx) as Route<void>?;
-                        return ShadTheme(
-                        data: ShadThemeData(
-                            colorScheme: const ShadSlateColorScheme.light()),
-                        child: ShadSheet(
-                          title: const Text('layerman → showShadSheet'),
-                          description: const Text(
-                            'draggable: 向下拖可关闭\n'
-                            'expandable: 拖动顶部手柄可展开/收起',
-                          ),
-                          draggable: true,   // 向下拖关闭
-                          expandable: true,  // 拖动手柄展开
-                          actions: [
-                            ShadButton.outline(
-                              onPressed: () => Navigator.of(sheetCtx).pop(),
-                              child: const Text('Close'),
+                        captured.capture(sheetCtx);
+                        return OverlayVisibility(
+                          visible: visible,
+                          child: ShadTheme(
+                            data: ShadThemeData(
+                              colorScheme: const ShadSlateColorScheme.light(),
                             ),
-                          ],
-                        ),
-                      );
+                            child: ShadSheet(
+                              title: const Text('layerman → showShadSheet'),
+                              description: const Text(
+                                'draggable: 向下拖可关闭\n'
+                                'expandable: 拖动顶部手柄可展开/收起',
+                              ),
+                              draggable: true, // 向下拖关闭
+                              expandable: true, // 拖动手柄展开
+                              actions: [
+                                ShadButton.outline(
+                                  onPressed: () => ctx.close(),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       },
                     );
                     return PresentedOverlay<void>(
+                      visible: visible.future,
                       dismissed: future,
-                      dismiss: ([_]) async {
-                        final rt = sheetRoute;
-                        final nav = rt?.navigator;
-                        if (rt != null && nav != null) nav.removeRoute(rt);
-                      },
+                      dismiss: ([_]) async => captured.dismiss(),
                     );
                   },
                 );
               }),
               // ShadSheet as overlay content via presentCard
-              demoButton('btn-shad-panel', 'ShadSheet in presentCard (draggable + expandable)', () {
-                om.open(
-                  id: 'shad-panel',
-                  present: (ctx) => presentCard(
-                    ctx,
-                    (c, close) => _bottomPanel(close),
-                    barrierColor: const Color(0x66000000),
-                    barrierDismissible: true,
-                  ),
-                );
-              }),
-              // Two panels overlapping via overlap: true
+              demoButton(
+                'btn-shad-panel',
+                'ShadSheet in presentCard (draggable + expandable)',
+                () {
+                  om.open(
+                    id: 'shad-panel',
+                    present: (ctx) => presentCard(
+                      ctx,
+                      (c, close) => _bottomPanel(close),
+                      barrierColor: const Color(0x66000000),
+                      barrierDismissible: true,
+                    ),
+                  );
+                },
+              ),
+              // Two panels overlapping via mode: OverlayMode.overlap
               demoButton('btn-shad-panel-overlap', 'overlap 2 panels', () {
                 om.open(
                   id: 'shad-p1',
-                  overlap: true,
+                  mode: OverlayMode.overlap,
                   present: (ctx) => presentCard(
                     ctx,
                     (c, close) => Align(
                       alignment: Alignment.bottomCenter,
                       child: Material(
                         elevation: 8,
-                        borderRadius:
-                            const BorderRadius.vertical(top: Radius.circular(12)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Panel A (bottom, overlap)',
-                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                              const Text(
+                                'Panel A (bottom, overlap)',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                               ShadButton(
-                                  onPressed: () => close(),
-                                  child: const Text('Close A')),
+                                onPressed: () => close(),
+                                child: const Text('Close A'),
+                              ),
                             ],
                           ),
                         ),
@@ -314,25 +325,29 @@ class MixedPage extends StatelessWidget {
                 );
                 om.open(
                   id: 'shad-p2',
-                  overlap: true,
+                  mode: OverlayMode.overlap,
                   present: (ctx) => presentCard(
                     ctx,
                     (c, close) => Align(
                       alignment: Alignment.topCenter,
                       child: Material(
                         elevation: 8,
-                        borderRadius:
-                            const BorderRadius.vertical(bottom: Radius.circular(12)),
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(12),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Panel B (top, overlap)',
-                                  style: TextStyle(fontWeight: FontWeight.w600)),
+                              const Text(
+                                'Panel B (top, overlap)',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                               ShadButton(
-                                  onPressed: () => close(),
-                                  child: const Text('Close B')),
+                                onPressed: () => close(),
+                                child: const Text('Close B'),
+                              ),
                             ],
                           ),
                         ),
@@ -342,8 +357,7 @@ class MixedPage extends StatelessWidget {
                 );
               }),
             ],
-            subtitle:
-                '两种方式都用真实 ShadSheet:\n'
+            subtitle: '两种方式都用真实 ShadSheet:\n'
                 '「showShadSheet」→ present 回调，推路由，有路由动画\n'
                 '「presentCard」→ 手动注入 ShadSheetInheritedWidget(side:)，\n'
                 '  onClosing: close 桥接拖拽关闭到 layerman',
@@ -354,83 +368,111 @@ class MixedPage extends StatelessWidget {
             context,
             'shadcn/ui Button variants inside overlay actions',
             [
-              demoButton('btn-shad-buttons', 'showcase all ShadButton variants', () {
-                om.open(
-                  id: 'shad-btns',
-                  present: (ctx) => presentCard(
-                    ctx,
-                    (c, close) => Center(
-                      child: ShadCard(
-                        title: const Text('ShadButton variants'),
-                        description: const Text(
-                            'All shadcn/ui button styles inside a layerman overlay'),
-                        footer: ShadButton.outline(
-                          onPressed: () => close(),
-                          child: const Text('Close'),
-                        ),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ShadButton(onPressed: () {}, child: const Text('Primary')),
-                            ShadButton.secondary(onPressed: () {}, child: const Text('Secondary')),
-                            ShadButton.outline(onPressed: () {}, child: const Text('Outline')),
-                            ShadButton.ghost(onPressed: () {}, child: const Text('Ghost')),
-                            ShadButton.destructive(onPressed: () {}, child: const Text('Destructive')),
-                            ShadButton.link(onPressed: () {}, child: const Text('Link')),
-                          ],
+              demoButton(
+                'btn-shad-buttons',
+                'showcase all ShadButton variants',
+                () {
+                  om.open(
+                    id: 'shad-btns',
+                    present: (ctx) => presentCard(
+                      ctx,
+                      (c, close) => Center(
+                        child: ShadCard(
+                          title: const Text('ShadButton variants'),
+                          description: const Text(
+                            'All shadcn/ui button styles inside a layerman overlay',
+                          ),
+                          footer: ShadButton.outline(
+                            onPressed: () => close(),
+                            child: const Text('Close'),
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ShadButton(
+                                onPressed: () {},
+                                child: const Text('Primary'),
+                              ),
+                              ShadButton.secondary(
+                                onPressed: () {},
+                                child: const Text('Secondary'),
+                              ),
+                              ShadButton.outline(
+                                onPressed: () {},
+                                child: const Text('Outline'),
+                              ),
+                              ShadButton.ghost(
+                                onPressed: () {},
+                                child: const Text('Ghost'),
+                              ),
+                              ShadButton.destructive(
+                                onPressed: () {},
+                                child: const Text('Destructive'),
+                              ),
+                              ShadButton.link(
+                                onPressed: () {},
+                                child: const Text('Link'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      barrierColor: const Color(0x88000000),
                     ),
-                    barrierColor: const Color(0x88000000),
-                  ),
-                );
-              }),
+                  );
+                },
+              ),
             ],
           ),
 
           // ── GetX + bot_toast recap ────────────────────────────────────────
-          pageSection(
-            context,
-            'GetX dialog + snackbar (present)',
-            [
-              demoButton('btn-getx-dlg-mixed', 'GetX dialog', () {
-                om.open<String>(
-                  id: 'getx-dlg-m',
-                  exitDuration: const Duration(milliseconds: 200),
-                  present: (ctx) => presentRouteDialog(
-                    ctx,
-                    AlertDialog(
-                      title: const Text('GetX Dialog'),
-                      content: const Text('Scheduled by layerman via Get.dialog'),
-                      actions: [
-                        Builder(
-                          builder: (c) => TextButton(
-                            onPressed: () => Navigator.of(c).pop('ok'),
-                            child: const Text('OK'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    useGetx: true,
+          pageSection(context, 'GetX dialog + snackbar (present)', [
+            demoButton('btn-getx-dlg-mixed', 'GetX dialog', () {
+              om.open<String>(
+                id: 'getx-dlg-m',
+                exitDuration: const Duration(milliseconds: 200),
+                present: (ctx) => presentRouteDialog(
+                  ctx,
+                  AlertDialog(
+                    title: const Text('GetX Dialog'),
+                    content: const Text('Scheduled by layerman via Get.dialog'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => ctx.close('ok'),
+                        child: const Text('OK'),
+                      ),
+                    ],
                   ),
-                );
-              }),
-              demoButton('btn-getx-snack-mixed', 'GetX snackbar (slot "snack")', () {
+                  useGetx: true,
+                ),
+              );
+            }),
+            demoButton(
+              'btn-getx-snack-mixed',
+              'GetX snackbar (slot "snack")',
+              () {
                 om.open<void>(
                   id: 'snk-${DateTime.now().millisecondsSinceEpoch}',
                   slot: 'snack',
-                  present: (ctx) => presentGetxSnackbar('GetX Snackbar', 'Scheduled by layerman — slot "snack"', duration: const Duration(seconds: 2)),
+                  present: (ctx) => presentGetxSnackbar(
+                    'GetX Snackbar',
+                    'Scheduled by layerman — slot "snack"',
+                    duration: const Duration(seconds: 2),
+                  ),
                 );
-              }),
-              demoButton('btn-botoast-mixed', 'bot_toast text', () {
-                om.open<void>(
-                  id: 'bt-${DateTime.now().millisecondsSinceEpoch}',
-                  present: (ctx) => presentBotToastText('bot_toast — sequenced by layerman', duration: const Duration(seconds: 2)),
-                );
-              }),
-            ],
-          ),
+              },
+            ),
+            demoButton('btn-botoast-mixed', 'bot_toast text', () {
+              om.open<void>(
+                id: 'bt-${DateTime.now().millisecondsSinceEpoch}',
+                present: (ctx) => presentBotToastText(
+                  'bot_toast — sequenced by layerman',
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }),
+          ]),
 
           // ── Grand Finale ──────────────────────────────────────────────────
           pageSection(
@@ -448,18 +490,15 @@ class MixedPage extends StatelessWidget {
                       title: const Text('1/4 — native showDialog'),
                       content: const Text('Tap OK to advance to shadcn dialog'),
                       actions: [
-                        Builder(
-                          builder: (c) => TextButton(
-                            onPressed: () => Navigator.of(c).pop('ok'),
-                            child: const Text('OK'),
-                          ),
+                        TextButton(
+                          onPressed: () => ctx.close('ok'),
+                          child: const Text('OK'),
                         ),
                       ],
                     ),
                   ),
                 );
-                // 2. shadcn/ui ShadDialog (present → presentCard, no route push
-                //    beyond the showDialog route presentCard itself uses)
+                // 2. ShadDialog 内容通过 presentCard 的 showDialog 路由展示。
                 om.open(
                   id: 'gf-shad',
                   present: (ctx) => presentCard(
@@ -468,7 +507,8 @@ class MixedPage extends StatelessWidget {
                       child: ShadDialog(
                         title: const Text('2/4 — shadcn/ui ShadDialog'),
                         description: const Text(
-                            'Tap Confirm to advance to shadcn toast'),
+                          'Tap Confirm to advance to shadcn toast',
+                        ),
                         actions: [
                           ShadButton(
                             onPressed: () => close('ok'),
@@ -486,26 +526,33 @@ class MixedPage extends StatelessWidget {
                   present: (ctx) => presentShadToast(
                     ctx,
                     title: const Text('3/4 — shadcn/ui Toast'),
-                    description:
-                        const Text('Auto-dismisses in 3 s → bot_toast follows'),
+                    description: const Text(
+                      'Auto-dismisses in 3 s → bot_toast follows',
+                    ),
                     duration: const Duration(seconds: 3),
                   ),
                 );
                 // 4. bot_toast (auto-dismiss 2s)
                 om.open<void>(
                   id: 'gf-bot',
-                  present: (ctx) => presentBotToastText('4/4 — bot_toast ✓ all 4 systems done', duration: const Duration(seconds: 2)),
+                  present: (ctx) => presentBotToastText(
+                    '4/4 — bot_toast ✓ all 4 systems done',
+                    duration: const Duration(seconds: 2),
+                  ),
                 );
                 // GetX snackbar on 'snack' slot — runs in PARALLEL
                 om.open<void>(
                   id: 'gf-snack',
                   slot: 'snack',
-                  present: (ctx) => presentGetxSnackbar('GetX Snackbar', 'Runs on "snack" slot — parallel with the main queue', duration: const Duration(seconds: 8)),
+                  present: (ctx) => presentGetxSnackbar(
+                    'GetX Snackbar',
+                    'Runs on "snack" slot — parallel with the main queue',
+                    duration: const Duration(seconds: 8),
+                  ),
                 );
               }),
             ],
-            subtitle:
-                'One button queues:\n'
+            subtitle: 'One button queues:\n'
                 '  [default slot] native dialog → shadcn dialog → shadcn toast → bot_toast\n'
                 '  [snack slot]   GetX snackbar (parallel, independent slot)\n\n'
                 'layerman is the single arbiter of sequencing. '

@@ -1,15 +1,13 @@
 /// Which action a directional drag performs.
 ///
 /// Decoupling side from action lets hosts remap freely — e.g. put brightness
-/// on the right, or disable one side with [none]. The vertical actions
-/// ([volume]/[brightness]) are driven by vertical drag distance; [seek] is
-/// driven by horizontal distance, so it only makes sense on [horizontal].
+/// on the right, or disable one side with [none]. All actions read displacement along the configured drag axis;
+/// rightwards/upwards increases the target value.
 ///
 /// 某个方向的拖动执行哪个动作。
 ///
 /// 将侧别与动作解耦，宿主可自由重映射——例如把亮度放右侧，或用 [none] 禁用
-/// 某一侧。竖向动作（[volume]/[brightness]）由竖向拖动距离驱动；[seek] 由横向
-/// 距离驱动，故只在 [horizontal] 上有意义。
+/// 某一侧。所有动作均沿配置的拖动轴读取位移；向右或向上增大目标值。
 enum MovaGestureAction {
   /// The direction is disabled.
   ///
@@ -62,9 +60,9 @@ class MovaGestureConfig {
   /// 从右半屏开始的竖向拖动的动作。默认 [MovaGestureAction.volume]。
   final MovaGestureAction rightVertical;
 
-  /// Double-tap left/right to seek backward/forward (VOD only).
+  /// Double-tap left/right to seek backward/forward (VOD or seekable live).
   ///
-  /// 双击左/右侧快退/快进（仅点播）。
+  /// 双击左/右侧快退/快进（点播或允许 seek 的直播）。
   final bool doubleTapSeek;
 
   /// Step applied per double-tap seek.
@@ -94,9 +92,11 @@ class MovaGestureConfig {
   /// 竖向拖动距离映射为音量/亮度增量前的放大系数；数值越大手势越灵敏。
   final double vSensitivity;
 
-  /// Whether gestures remain active while playing a live stream.
+  /// Whether seek gestures remain active on seekable live streams.
+  /// Volume, brightness and zoom are unaffected.
   ///
-  /// 直播场景下手势是否仍然生效。
+  /// 是否允许可拖动直播的进度手势；仍要求 liveSeekable。
+  /// 不影响音量、亮度和缩放。示例：`MovaGestureConfig(allowWhenLive: false)`。
   final bool allowWhenLive;
 
   /// Creates a gesture config; sides map to the mainstream defaults.

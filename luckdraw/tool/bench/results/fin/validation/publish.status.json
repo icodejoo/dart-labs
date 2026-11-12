@@ -1,0 +1,11 @@
+{
+  "name": "publish",
+  "args": [
+    "dart",
+    "pub",
+    "publish",
+    "--dry-run"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 4.294
+}

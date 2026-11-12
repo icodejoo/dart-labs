@@ -25,6 +25,7 @@ import '../core/kernel/mpv_kernel.dart';
 import '../core/model/fit.dart';
 import '../testing/hooks.dart';
 import 'brightness_impl.dart';
+import 'net_probe_impl.dart';
 import 'frame_yield.dart';
 import 'mpv_event_backend_ffi.dart';
 import 'orientation_impl.dart';
@@ -82,7 +83,7 @@ MovaVolumePort? _defaultVolumePort() {
 ///   构建仅音频引擎——默认内核跳过 `VideoController`，抽帧兜底也不接线，
 ///   因此不会创建任何形式的视频管线。此时 `renderHandle` 为 `null`，
 ///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
-///   被忽略。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
+///   的资源行为由注入内核决定；本标记仍影响预览、STT 与上报。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
 ///   没有帧可预览
 /// - [tlsVerify]: strict TLS certificate verification (mpv `tls-verify=yes`),
 ///   default `false` = nothing sent, libmpv default (no verification on
@@ -97,6 +98,8 @@ MovaVolumePort? _defaultVolumePort() {
 ///   在 open/seek/play 前咨询的拦截链
 /// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
 ///   覆盖默认的真实 [MovaScreenBrightnessPort]
+/// - [restoreBrightness]: 离场时还原已修改的亮度，默认 true；false 由宿主接管。
+///   示例：`createMovaEngine(restoreBrightness: false)`。
 /// - [volume]: overrides the default volume port. Defaults to the native
 ///   [MovaSystemVolumePort] on Android and `null` (player-volume path) elsewhere;
 ///   pass a [MovaCallbackVolumePort] to drive system volume yourself on any
@@ -107,31 +110,19 @@ MovaVolumePort? _defaultVolumePort() {
 ///   [MovaChannelPipPort]
 /// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
 ///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
+/// - [orientationConfig]: 宿主的方向和系统栏还原声明，仅用于默认方向端口。
+///   示例：`createMovaEngine(orientationConfig: MovaOrientationConfig())`。
 /// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
 ///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
 ///   缓存图缓存目录）
-/// - [extractor]: the scrub-preview frame-extraction fallback source. `null`
-///   by default — unlike the other ports, this one is **not** wired to a
-///   platform default here, because the only default implementation
-///   (`MovaFrameExtractor`, `package:mova/mova.dart`) pulls in
-///   `media_kit_video` as a *statically reachable* dependency the moment this
-///   function references it, defeating tree-shaking for hosts that never use
-///   scrub preview. Pass `MovaFrameExtractor()` explicitly to opt in / 拖动预览
-///   的抽帧兜底来源。默认为 `null`——与其余端口不同，本参数**不会**在这里接一个
-///   平台默认实现，因为唯一的默认实现（`MovaFrameExtractor`，见
-///   `package:mova/mova.dart`）一旦被本函数引用就会把 `media_kit_video`
-///   变成静态可达依赖，让从不使用拖动预览的宿主也摇不掉它。要启用请显式传入
-///   `MovaFrameExtractor()`
-/// - [probe]: the connectivity probe consulted under `wifiOnly` preview
-///   network policy. `null` by default for the same tree-shaking reason as
-///   [extractor] — the default implementation (`MovaConnectivityNetProbe`) pulls
-///   in `connectivity_plus`; [MovaEngine] itself already falls back to a
-///   pure-Dart `MovaAlwaysAllowNetProbe()` when this stays unset, so `wifiOnly`
-///   preview policy is simply not enforced unless you opt in / `wifiOnly`
-///   预览网络策略要咨询的连通性探针。默认为 `null`，原因与 [extractor] 相同——
-///   默认实现（`MovaConnectivityNetProbe`）会引入 `connectivity_plus`；未设置时
-///   [MovaEngine] 自己会兜底为纯 Dart 的 `MovaAlwaysAllowNetProbe()`，即不显式启用
-///   时 `wifiOnly` 策略不会被强制执行
+/// - [extractor]: 拖动预览抽帧兜底，默认 `null`，不会自动构造第二个视频内核。
+///   需要抽帧时显式传入 `MovaFrameExtractor()`；仅音频引擎不执行预览抽帧。
+///   示例：`createMovaEngine(extractor: MovaFrameExtractor())`。
+/// - [probe]: wifiOnly 预览的显式连通性探针；优先于默认探针。
+///   未注入时按需创建 MovaConnectivityNetProbe，只有实际拉取远程预览资源才查询。
+///   自定义来源无法判断具体资源地址，默认保留放行行为；需门控时显式传 [probe]。
+///   此决定推翻旧的“不默认接线”决定：connectivity_plus 已是硬依赖，旧 tree-shaking
+///   注释不再成立。关闭预览、缓存命中、本地资源不创建或查询默认探针。
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and
 ///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
 ///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
@@ -144,12 +135,14 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [preciseFirstFrame]: subscribe to libmpv's native `PLAYBACK_RESTART` even
 ///   without a reporter, so `MovaState.rendered`/`MovaFirstFrame` land on the
 ///   real first frame (~200ms later and exact) instead of the buffering/position
-///   fallback. Costs one weak mpv client per engine (plus a 100ms poll in debug).
+///   fallback. Shares the END_FILE client created lazily at first open.
 ///   Default `false`; ignored when [kernel] is supplied /
 ///   即使没有 reporter 也订阅 libmpv 原生 `PLAYBACK_RESTART`，让
 ///   `MovaState.rendered`/`MovaFirstFrame` 落在真正的首帧上（比 buffering/位置兜底
-///   准，约晚 200ms），代价是每引擎一个 mpv 弱客户端（debug 下另有 100ms 轮询）。
+///   准，约晚 200ms），复用首次 open 才创建的 END_FILE 弱客户端。
 ///   默认 `false`；传入 [kernel] 时忽略
+/// - [ownsKernel]: 默认只销毁工厂自建内核，注入内核由宿主持有；设为 true 显式移交。
+///   示例：`createMovaEngine(kernel: kernel, ownsKernel: true)`。
 /// - [fit]: the initial `MovaState.fit`; defaults to [MovaFit.contain]. This is
 ///   a starting value, not a lock — `setFit()` and the fit button still change
 ///   it at runtime / 初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是
@@ -160,15 +153,18 @@ MovaVolumePort? _defaultVolumePort() {
 /// 返回一个可供 app 代码直接使用的 [MovaEngine]。
 MovaEngine createMovaEngine({
   MovaKernel? kernel,
+  bool? ownsKernel,
   bool audioOnly = false,
   bool tlsVerify = false,
   String? tlsCaFile,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
   MovaBrightPort? brightness,
+  bool restoreBrightness = true,
   MovaVolumePort? volume,
   MovaPipPort? pip,
   MovaOrientationPort? orientation,
+  MovaOrientationConfig orientationConfig = const MovaOrientationConfig(),
   MovaThumbDirProvider? thumbDir,
   MovaFramePuller? extractor,
   MovaNetProbe? probe,
@@ -185,20 +181,40 @@ MovaEngine createMovaEngine({
   // 测试接缝（package:mova/testing.dart）：装了测试内核且没显式传 kernel 时，用可编程
   // 内核构建引擎，所有平台端口保持引擎自带的空实现，不触碰任何平台通道。显式传入的端口
   // 仍然优先。
+  assert(() {
+    if (kernel != null) {
+      final ignored = <String>[
+        if (audioOnly) 'audioOnly（资源行为；逻辑标记仍生效）',
+        if (tlsVerify) 'tlsVerify',
+        if (tlsCaFile != null) 'tlsCaFile',
+        if (preciseFirstFrame) 'preciseFirstFrame',
+      ];
+      if (ignored.isNotEmpty) {
+        debugPrint('createMovaEngine 已传入 kernel，以下默认内核参数被忽略：${ignored.join(', ')}');
+      }
+    }
+    return true;
+  }());
+  assert(kernel != null || !tlsVerify ||
+      defaultTargetPlatform != TargetPlatform.android ||
+      (tlsCaFile != null && tlsCaFile.trim().isNotEmpty),
+      'Android tlsVerify: true 必须同时提供非空 tlsCaFile（PEM CA 证书包）');
   final testKernel = movaTestKernelFactory;
   if (kernel == null && testKernel != null) {
     return MovaEngine(
       kernel: testKernel(),
+      ownsKernel: true,
       audioOnly: audioOnly,
       options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
       interceptors: interceptors,
       brightness: brightness,
+      restoreBrightness: restoreBrightness,
       volume: volume,
       pip: pip,
       orientation: orientation,
       thumbDir: thumbDir,
       extractor: extractor,
-      fetcher: fetcher,
+      fetcher: fetcher ?? const MovaTestHttpFetch(),
       reporter: reporter,
       fit: fit,
     );
@@ -216,20 +232,24 @@ MovaEngine createMovaEngine({
       tlsVerify: tlsVerify,
       tlsCaFile: tlsCaFile,
       observeQoeSignals: flags.qoe,
-      observeNativeEvents: flags.native,
+      // END_FILE 是基本失败检测；弱客户端首次 open 才创建。
+      observeNativeEvents: true,
       observeRestarts: flags.restart,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),
+    ownsKernel: ownsKernel ?? kernel == null,
     audioOnly: audioOnly,
     options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,
     brightness: brightness ?? MovaScreenBrightnessPort(),
+    restoreBrightness: restoreBrightness,
     volume: volume ?? _defaultVolumePort(),
     pip: pip ?? MovaChannelPipPort(),
-    orientation: orientation ?? MovaSystemChromeOrientationPort(),
-    thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
+    orientation: orientation ?? MovaSystemChromeOrientationPort(config: orientationConfig),
+    thumbDir: thumbDir ?? MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,
+    previewProbeFactory: MovaConnectivityNetProbe.new,
     reporter: reporter,
     fit: fit,
   );

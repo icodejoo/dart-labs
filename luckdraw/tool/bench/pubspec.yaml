@@ -1,0 +1,22 @@
+name: luckdraw_bench
+description: luckdraw 安卓真机 profile 性能基准。
+publish_to: none
+version: 0.0.1
+environment:
+  sdk: ^3.5.0
+  flutter: '>=3.24.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  luckdraw:
+    path: ../..
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_driver:
+    sdk: flutter
+flutter:
+  uses-material-design: false
+

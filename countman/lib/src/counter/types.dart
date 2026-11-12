@@ -1,4 +1,5 @@
 import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart' show internal;
 
 import '../core/plugin_base.dart';
 
@@ -11,11 +12,19 @@ class CounterOptions {
     this.curve = Curves.easeOut,
     this.allowNegative = false,
     this.onUpdate,
+    this.fps,
     this.onComplete,
     this.onReady,
     this.onStart,
     this.onCancel,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 仅限制显示，终值与事件不延迟。示例：`CounterOptions(to: 100, fps: 30)`。
+  final double? fps;
 
   /// Start value. Defaults to 0, or the task's current value when retargeting.
   final double? from;
@@ -69,6 +78,18 @@ class CounterTask extends CountmanTask {
   void Function(double)? onComplete;
 
   double value = 0;
+  /// 静音期间的单调钟起点；-1 表示当前不补算（可见或用户暂停）。
+  @internal
+  int muteStartMicros = -1;
+
+  /// 取消静音后首帧只显示补算位置，不再重复累加该帧 dt。
+  @internal
+  bool refreshAfterMute = false;
+
+  /// 限帧推进的单调钟快照；-1 表示仍用原 dt 路径。
+  @internal
+  int frameClockMicros = -1;
+
   double accumMs = 0; // accumulated dt since the task became active
 
   /// When true the task holds its current value and stops advancing until

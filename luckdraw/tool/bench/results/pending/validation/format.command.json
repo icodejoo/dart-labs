@@ -1,0 +1,12 @@
+{
+  "command": [
+    "dart",
+    "format",
+    "lib",
+    "test",
+    "tool"
+  ],
+  "cwd": "C:\\ldq\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.998
+}

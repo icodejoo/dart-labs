@@ -5,13 +5,66 @@ import '../model/fit.dart';
 /// All strings default to Simplified Chinese, matching the product's
 /// current single-locale requirement. Apps that need another locale can
 /// construct a whole replacement instance (`const MovaStrs(live: 'ON AIR')`)
-/// and pass it into [MovaOpts].
+/// and pass it into `MovaPlayerStyle(strings:)`.
 ///
 /// 播放器覆盖层的外置、可替换文案。
 ///
 /// 所有字段默认简体中文，对应产品当前的单语言需求。需要其他语言的应用可以
-/// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 [MovaOpts]。
+/// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 `MovaPlayerStyle(strings:)`。
 class MovaStrs {
+  /// 播放的界面与无障碍文案。
+  final String play;
+
+  /// 暂停的界面与无障碍文案。
+  final String pause;
+
+  /// 画中画的界面与无障碍文案。
+  final String pip;
+
+  /// 画面比例的界面与无障碍文案。
+  final String aspectRatio;
+
+  /// 旋转屏幕的界面与无障碍文案。
+  final String rotate;
+
+  /// 进入全屏的界面与无障碍文案。
+  final String enterFullscreen;
+
+  /// 退出全屏的界面与无障碍文案。
+  final String exitFullscreen;
+
+  /// 锁定控制的界面与无障碍文案。
+  final String lock;
+
+  /// 解锁控制的界面与无障碍文案。
+  final String unlock;
+
+  /// 字幕选择的界面与无障碍文案。
+  final String subtitles;
+
+  /// 播放速度的界面与无障碍文案。
+  final String speed;
+
+  /// 操作的界面与无障碍文案。
+  final String action;
+
+  /// 关闭小窗的界面与无障碍文案。
+  final String closeMini;
+
+  /// 未知的界面与无障碍文案。
+  final String unknownQuality;
+
+  /// 将动作名与当前值组合为提示文案。
+  final String Function(String action, String value) labelWithValue;
+
+  /// 终结错误遮罩的用户文案；默认“播放失败，请重试”。
+  /// 示例：`MovaStrs(playbackError: 'Unable to play')`。
+  final String playbackError;
+
+  /// 错误遮罩重试按钮的提示文案；默认“重试”。
+  /// 示例：`MovaStrs(retry: 'Retry')`。
+  final String retry;
+
   /// Label for [MovaFit.contain].
   ///
   /// [MovaFit.contain] 的标签文案。
@@ -117,7 +170,27 @@ class MovaStrs {
   /// copy.
   ///
   /// 创建文案集合；默认使用产品的简体中文文案。
+  /// [playbackError] 为终结错误提示，[retry] 为重试按钮提示，返回文案配置。
+  /// 示例：`const MovaStrs(playbackError: '无法播放', retry: '再试一次')`。
   const MovaStrs({
+    this.play = '播放',
+    this.pause = '暂停',
+    this.pip = '画中画',
+    this.aspectRatio = '画面比例',
+    this.rotate = '旋转屏幕',
+    this.enterFullscreen = '进入全屏',
+    this.exitFullscreen = '退出全屏',
+    this.lock = '锁定控制',
+    this.unlock = '解锁控制',
+    this.subtitles = '字幕选择',
+    this.speed = '播放速度',
+    this.action = '操作',
+    this.closeMini = '关闭小窗',
+    this.unknownQuality = '未知',
+    this.labelWithValue = movaDefaultLabelWithValue,
+
+    this.playbackError = '播放失败，请重试',
+    this.retry = '重试',
     this.fitContain = '适应',
     this.fitCover = '裁剪',
     this.fitFill = '拉伸',
@@ -145,16 +218,33 @@ class MovaStrs {
   ///
   /// Returns the display label / 返回显示文案。
   String fitLabel(MovaFit fit) => switch (fit) {
-        MovaFit.contain => fitContain,
-        MovaFit.cover => fitCover,
-        MovaFit.fill => fitFill,
-      };
+    MovaFit.contain => fitContain,
+    MovaFit.cover => fitCover,
+    MovaFit.fill => fitFill,
+  };
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MovaStrs &&
           runtimeType == other.runtimeType &&
+          play == other.play &&
+          pause == other.pause &&
+          pip == other.pip &&
+          aspectRatio == other.aspectRatio &&
+          rotate == other.rotate &&
+          enterFullscreen == other.enterFullscreen &&
+          exitFullscreen == other.exitFullscreen &&
+          lock == other.lock &&
+          unlock == other.unlock &&
+          subtitles == other.subtitles &&
+          speed == other.speed &&
+          action == other.action &&
+          closeMini == other.closeMini &&
+          unknownQuality == other.unknownQuality &&
+          labelWithValue == other.labelWithValue &&
+          playbackError == other.playbackError &&
+          retry == other.retry &&
           fitContain == other.fitContain &&
           fitCover == other.fitCover &&
           fitFill == other.fitFill &&
@@ -174,25 +264,42 @@ class MovaStrs {
           adStartingIn == other.adStartingIn;
 
   @override
-  int get hashCode => Object.hash(
-        fitContain,
-        fitCover,
-        fitFill,
-        live,
-        backToLive,
-        timeshift,
-        auto,
-        quality,
-        zoomSuffix,
-        speedSuffix,
-        subtitleOff,
-        nextUp,
-        playNow,
-        cancel,
-        adBadge,
-        skipAd,
-        adStartingIn,
-      );
+  int get hashCode => Object.hashAll([
+    play,
+    pause,
+    pip,
+    aspectRatio,
+    rotate,
+    enterFullscreen,
+    exitFullscreen,
+    lock,
+    unlock,
+    subtitles,
+    speed,
+    action,
+    closeMini,
+    unknownQuality,
+    labelWithValue,
+    playbackError,
+    retry,
+    fitContain,
+    fitCover,
+    fitFill,
+    live,
+    backToLive,
+    timeshift,
+    auto,
+    quality,
+    zoomSuffix,
+    speedSuffix,
+    subtitleOff,
+    nextUp,
+    playNow,
+    cancel,
+    adBadge,
+    skipAd,
+    adStartingIn,
+  ]);
 }
 
 /// Default copy for the "ad starts in N seconds" countdown.
@@ -213,3 +320,8 @@ class MovaStrs {
 /// movaDefaultAdStartingIn(5); // '5 秒后播放广告'
 /// ```
 String movaDefaultAdStartingIn(int seconds) => '$seconds 秒后播放广告';
+
+/// 组合动作名与当前值；默认保留中文全角冒号。
+/// 示例：`movaDefaultLabelWithValue('清晰度', '自动')` 返回“清晰度：自动”。
+String movaDefaultLabelWithValue(String action, String value) =>
+    '$action：$value';

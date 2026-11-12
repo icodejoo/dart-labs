@@ -1,0 +1,12 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/check_acceptance.dart",
+    "--from-json",
+    "tool/bench/results/met/validation/all.tests.jsonl"
+  ],
+  "cwd": "E:\\workspaces\\dart-labs\\luckdraw",
+  "exit_code": 0,
+  "seconds": 1.417
+}

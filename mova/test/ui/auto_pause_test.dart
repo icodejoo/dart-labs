@@ -81,6 +81,33 @@ class _SlowKeepAliveApi extends FakeKeepAliveApi {
 }
 
 void main() {
+  testWidgets('B13 全屏时滚出视口不暂停，退出全屏重新检查隐藏', (t) async {
+    final api = FakeMovaApi()
+      ..push(const MovaState(playing: true, fullscreen: true));
+    final c = ScrollController();
+    addTearDown(c.dispose);
+    await t.pumpWidget(_list(api, c));
+    c.jumpTo(150);
+    await t.pump();
+    expect(_n(api, 'pause'), 0);
+    api.push(const MovaState(playing: true));
+    await t.pump();
+    expect(_n(api, 'pause'), 1);
+  });
+
+  testWidgets('B13 全屏时后台不暂停，前台不凭空恢复', (t) async {
+    final api = FakeMovaApi()
+      ..push(const MovaState(playing: true, fullscreen: true));
+    await t.pumpWidget(MaterialApp(home: _card(api)));
+    _life(t, _toBackground);
+    await t.pump();
+    expect(_n(api, 'pause'), 0);
+    _life(t, _toForeground);
+    await t.pump();
+    expect(_n(api, 'play'), 0);
+  });
+
+
   testWidgets('1. a card scrolled out of the viewport pauses; scrolled back it plays', (t) async {
     final api = FakeMovaApi()..push(const MovaState(playing: true));
     final c = ScrollController();

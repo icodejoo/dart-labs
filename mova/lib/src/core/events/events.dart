@@ -443,6 +443,33 @@ class MovaSttBlock extends MovaEvent {
   const MovaSttBlock(this.reason);
 }
 
+/// 预热结束的原因；示例：`event.reason == MovaCutoverEndReason.committed`。
+enum MovaCutoverEndReason {
+  /// 已完成换指。
+  committed,
+
+  /// 宿主主动放弃。
+  abandoned,
+
+  /// 更新的操作或预热取代了本次。
+  superseded,
+
+  /// 就绪判据选择放弃。
+  notReady,
+
+  /// 超过就绪期限。
+  timeout,
+
+  /// 影子发生终结错误。
+  shadowError,
+
+  /// 无法恢复影子播放器静音。
+  muteRestoreFailed,
+
+  /// 代理已销毁。
+  disposed,
+}
+
 /// A seamless engine cutover transitioned to a new phase.
 ///
 /// 无缝引擎切换迁移到了新的阶段。
@@ -455,7 +482,12 @@ class MovaCutoverChange extends MovaEvent {
   /// Creates the event with [phase].
   ///
   /// 用 [phase] 创建事件。
-  const MovaCutoverChange(this.phase);
+  /// [reason] 仅在回到 idle 时给出；返回新事件，旧调用默认 null。
+  /// 示例：`MovaCutoverChange(MovaCutoverPhase.idle, reason: MovaCutoverEndReason.committed)`。
+  const MovaCutoverChange(this.phase, {this.reason});
+
+  /// 返回结束原因，无结束原因时为 null；示例：`event.reason`。
+  final MovaCutoverEndReason? reason;
 }
 
 /// A playback error occurred.
@@ -475,7 +507,28 @@ class MovaErrorEvent extends MovaEvent {
   /// Creates the event with [error] and optional [stack].
   ///
   /// 用 [error] 及可选的 [stack] 创建事件。
-  const MovaErrorEvent(this.error, [this.stack]);
+  const MovaErrorEvent(this.error, [this.stack]) : fatal = true, code = null, source = null;
+
+  /// 是否终结播放；A13 起内核错误带分级，false 仍发事件并调用错误钩子。
+  /// false 的错误不写入 state.error，也不触发默认错误遮罩。
+  final bool fatal;
+
+  /// 失败所属的媒体；旧构造器未知归属，落地窗口内不认领。
+  final MovaSource? source;
+
+  /// 与 QoE 前缀映射一致的稳定错误码；旧构造器创建的事件为 null。
+  final String? code;
+
+  /// 创建分级事件；[error] 为原错误，[stack] 为可选栈，
+  /// [fatal] 表示是否终结，[code] 为可选稳定码。
+  /// 示例：`MovaErrorEvent.classified('reset', fatal: false, code: 'network')`。
+  const MovaErrorEvent.classified(
+    this.error, {
+    this.stack,
+    required this.fatal,
+    this.source,
+    this.code,
+  });
 }
 
 /// A playback attempt failed and recovery decided what to do. Only fires when
@@ -566,7 +619,11 @@ class MovaKeepAliveChange extends MovaEvent {
   /// Creates the event.
   ///
   /// 创建事件。
-  const MovaKeepAliveChange({required this.phase, required this.reason, this.mode});
+  const MovaKeepAliveChange({
+    required this.phase,
+    required this.reason,
+    this.mode,
+  });
 
   /// The new phase.
   ///

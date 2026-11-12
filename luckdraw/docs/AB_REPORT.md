@@ -1,0 +1,273 @@
+# AB 受控真机实验报告
+
+日期：2026-11-10；vivo V2417 / 10AE9K17UE0011S / Android 16。
+
+**结论：恢复原设置仍复现双峰；本轮无法区分设备设置/测量干扰与真实缺陷。按预定分类，A、B均出现高档，记为“与亮度无关，是设备 GLES 路径的固有双峰”。这一分类仅说明恢复设置后仍能复现，不能证明物理亮度完全无影响或确认设备驱动缺陷。**
+
+共 10 次启动，9 次有效，三条件各3轮；未因快慢追加轮次。
+
+## 固定项与执行方式
+
+- 工作副本 `C:\ldp\luckdraw`，不修改 lib、不构建、不新增依赖。
+- 复用消融原版 `tool/bench/results/perf_ablation/perf.apk`，而非修复后默认 auto APK。
+- APK：24157624 bytes；SHA-256 `925f438be1dd31a0cadb3d641aee32b146d5e54a0dbd83b133e53bf1d4eb5389`。
+- 固定 profile、`--use-application-binary`、`--route=/wheel_picture`、12奖品/图片/两行文字，`wheel_steady` cruising 5秒。
+- 原测试名逐字保留：`perf > selected device scenario`。同一 APK 也执行原参照窗口和5次 RSS 循环，未改应用场景。
+- 顺序 A1,B1,C1,A2,B2,C2,A3,B3,C3；每轮设置后强停并静置完整60秒；每次启动前确认 `isKeyguardShowing=false` 和主机空闲≥2GiB。
+- A/C：写入`screen_brightness_mode=1`、`screen_brightness=12`；B：mode=0、brightness=1；所有条件 `stayon usb`。自动模式允许系统动态改写亮度值，实际读回逐轮保留，不关闭自动模式强行固定。
+- 主机 driver 仅调整 metrics 导入 URI、当前目录和输出目录，使结果与通信日志写入本批授权目录；设备 APK 不变。
+- 所有条件运行中均无本批额外 adb 查询，仅等待驱动；结束后立即依次读 battery/window/display/SurfaceFlinger 前200行/getprop/thermal/logcat。各命令起止时间和退出码保留。
+- 主会话看护脚本仍每15秒查询 power/window等；不能暂停。A与C没有可控制的轮询差异，C只作重复对照，不能评价“停看护”的因果效果。
+
+## 每轮原值
+
+| 轮次 | Raster平均 ms | p90 ms | p99 ms | 掉帧率 % | UI平均 ms | UI+Raster平均 ms | 档位 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A1 | 6.920 | 8.091 | 8.945 | 0.332 | 1.176 | 8.096 | 低 |
+| B1 | 16.850 | 17.372 | 20.207 | 33.223 | 1.038 | 17.888 | 高 |
+| C1 | 6.481 | 8.393 | 12.501 | 0.000 | 1.101 | 7.582 | 低 |
+| A2 | 11.125 | 17.113 | 18.711 | 18.874 | 1.157 | 12.282 | 高 |
+| B2 | 6.325 | 8.225 | 8.815 | 0.000 | 0.987 | 7.313 | 低 |
+| C2 | 16.733 | 17.650 | 20.969 | 34.551 | 1.082 | 17.815 | 高 |
+| A3 | 6.715 | 7.766 | 13.318 | 0.332 | 1.070 | 7.785 | 低 |
+| B3 | 6.712 | 8.115 | 10.463 | 0.332 | 1.093 | 7.805 | 低 |
+| C3 | 13.899 | 17.334 | 19.271 | 27.333 | 1.069 | 14.969 | 高 |
+
+掉帧率：UI或Raster任一超过实际帧周期计一帧，去重；高档定义为Raster平均>10ms。
+UI+Raster平均为同一FrameTiming样本的两个线程耗时均值之和；不等于端到端呈现延迟或FrameTiming.totalSpan，原APK未记录后两者。
+
+## 三条件中位数与极差
+
+| 条件 | 指标 | 三轮原值 | 中位数 | 极差 max−min |
+| --- | --- | --- | --- | --- |
+| A | Raster平均 ms | 6.920 / 11.125 / 6.715 | 6.920 | 4.409 |
+| A | Raster p90 ms | 8.091 / 17.113 / 7.766 | 8.091 | 9.347 |
+| A | Raster p99 ms | 8.945 / 18.711 / 13.318 | 13.318 | 9.766 |
+| A | 掉帧率 % | 0.332 / 18.874 / 0.332 | 0.332 | 18.542 |
+| A | UI平均 ms | 1.176 / 1.157 / 1.070 | 1.157 | 0.106 |
+| A | UI+Raster平均 ms | 8.096 / 12.282 / 7.785 | 8.096 | 4.496 |
+| B | Raster平均 ms | 16.850 / 6.325 / 6.712 | 6.712 | 10.525 |
+| B | Raster p90 ms | 17.372 / 8.225 / 8.115 | 8.225 | 9.257 |
+| B | Raster p99 ms | 20.207 / 8.815 / 10.463 | 10.463 | 11.392 |
+| B | 掉帧率 % | 33.223 / 0.000 / 0.332 | 0.332 | 33.223 |
+| B | UI平均 ms | 1.038 / 0.987 / 1.093 | 1.038 | 0.105 |
+| B | UI+Raster平均 ms | 17.888 / 7.313 / 7.805 | 7.805 | 10.576 |
+| C | Raster平均 ms | 6.481 / 16.733 / 13.899 | 13.899 | 10.252 |
+| C | Raster p90 ms | 8.393 / 17.650 / 17.334 | 17.334 | 9.257 |
+| C | Raster p99 ms | 12.501 / 20.969 / 19.271 | 19.271 | 8.468 |
+| C | 掉帧率 % | 0.000 / 34.551 / 27.333 | 27.333 | 34.551 |
+| C | UI平均 ms | 1.101 / 1.082 / 1.069 | 1.082 | 0.031 |
+| C | UI+Raster平均 ms | 7.582 / 17.815 / 14.969 | 14.969 | 10.233 |
+
+| 条件 | 高档 | 低档 |
+| --- | --- | --- |
+| A | 1 | 2 |
+| B | 1 | 2 |
+| C | 2 | 1 |
+
+## 运行后显示、合成与温度快照
+
+| 轮次 | 电量 前→后 % | 电池温度 前→后 °C | CPU传感器范围 °C | 亮度设置读回 前→后 | USB常亮读回 前→后 | Display Brightness | 设置对应当前亮度 | Display模式 / SF Hz | policy / lowPower |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A1 | 68→68 | 28.1→28.3 | 38.0–40.3 | 12→12 | 2→2 | 7.221259E-5 | 0.047058824 | 2 / 60.00 Hz | DIM / false |
+| B1 | 68→68 | 28.3→28.5 | 38.7–41.6 | 1→1 | 2→2 | 7.221259E-5 | 0.003921569 | 2 / 60.00 Hz | DIM / false |
+| C1 | 68→68 | 28.5→28.6 | 39.3–43.6 | 12→12 | 2→2 | 7.221259E-5 | 0.047058824 | 2 / 60.00 Hz | DIM / false |
+| A2 | 68→69 | 28.7→28.6 | 38.3–39.7 | 12→12 | 2→2 | 7.221259E-5 | 0.047058824 | 2 / 60.00 Hz | DIM / false |
+| B2 | 69→69 | 28.3→28.5 | 38.0–40.0 | 1→1 | 2→2 | 7.221259E-5 | 0.003921569 | 2 / 60.00 Hz | DIM / false |
+| C2 | 69→69 | 28.6→28.4 | 37.7–38.3 | 12→12 | 2→2 | 7.221259E-5 | 0.047058824 | 2 / 60.00 Hz | DIM / false |
+| A3 | 70→70 | 28.5→28.7 | 39.0–44.0 | 12→12 | 2→2 | 7.221259E-5 | 0.047058824 | 2 / 60.00 Hz | DIM / false |
+| B3 | 70→70 | 28.7→28.7 | 38.3–42.0 | 1→1 | 2→0 | 0.00389948 | 0.003921569 | 2 / 60.00 Hz | BRIGHT / false |
+| C3 | 70→70 | 28.6→28.8 | 38.0–40.6 | 20→50 | 2→2 | 0.19504622 | 0.047058824 | 2 / 60.00 Hz | BRIGHT / false |
+
+表中为运行后的瞬时快照，不能当作整个5秒窗口的GPU频率/面板亮度记录。
+USB常亮不保证policy一直为BRIGHT；自动亮度设置值12也不保证实际面板亮度高于手动1。保持指定设置，不自行调整实验变量。
+SurfaceFlinger前200行与getprop完整输出分别保存；逐轮相关字段见 `analysis.json`。驱动退出会卸载应用，快照显示的是退出后的层，不能反推应用窗口的HWC/GPU合成方式。
+thermal原始值、名称、无效哨兵与不可读项均保留；CPU范围排除负哨兵，不把-273000当实测温度。未暴露的DC dimming/GPU频率字段不猜测。
+
+| 轮次 | HWC CLIENT/DEVICE类型 | DC dimming | 温控/性能属性 |
+| --- | --- | --- | --- |
+| A1 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| B1 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| C1 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| A2 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| B2 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| C2 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| A3 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| B3 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+| C3 | 前200行未明确暴露应用合成类型 | 未明确暴露 | thermal HAL/thermal-engine/vperf HAL状态原文见analysis.json |
+
+| 轮次 | GLES编码平均 ms | SurfaceFrame编码平均 ms | PAINT平均 ms |
+| --- | --- | --- | --- |
+| A1 | 3.480 | 4.537 | 0.373 |
+| B1 | 13.495 | 14.508 | 0.335 |
+| C1 | 3.501 | 4.521 | 0.352 |
+| A2 | 7.896 | 8.931 | 0.373 |
+| B2 | 3.558 | 4.513 | 0.315 |
+| C2 | 13.479 | 14.485 | 0.347 |
+| A3 | 3.466 | 4.482 | 0.339 |
+| B3 | 3.355 | 4.387 | 0.360 |
+| C3 | 10.969 | 11.922 | 0.350 |
+
+这些timeline事件包含子事件，只逐项比较，不能相加或用来区分GPU执行、CPU调度和驱动等待。
+
+## 异常启动
+
+- 第5次启动 B2：exit=-1，timeout=True，耗时300.338秒；无有效性能汇总。目录 `B2`。
+B2首次安装后没有Flutter服务日志，按5分钟上限结束自有进程树并恢复B；窗口/事后日志无锁屏证据，未见明确崩溃原因。核对无自有Dart孤儿进程后复用同一APK、重新静置60秒补跑该无效轮，不将其当作高/低档样本；失败及额外冷却时间是实验限制。
+C3第一次配置时，自动模式下写入12后立即读回23，严格核对中止于启动之前并恢复B，不计启动；续跑同样写入12后系统读回20，结束后为50。保留自动模式并如实记录，没有关闭自动亮度或新增应用启动。自动更新意味着C3不是固定数值12的物理亮度对照；见setup_anomalies.json与每轮设置读回。
+B3启动前stay_on_while_plugged_in=2，运行结束后快照之后读回0；只能确认发生过变化，无法确定在测量窗口内还是驱动退出清理阶段，也无证据归因于某个进程。其后重新写入USB常亮；最终独立确认0/1/2。B3与C3的事后policy为BRIGHT，其余七次为DIM。保留九份有效性能数据，不额外追加有效轮；控制条件完整性不足限制因果判定。
+
+## 判定边界与建议
+
+按预定分类，A、B均出现高档，记为“与亮度无关，是设备 GLES 路径的固有双峰”。这一分类仅说明恢复设置后仍能复现，不能证明物理亮度完全无影响或确认设备驱动缺陷。
+每组只有3轮，所有轮共享同一看护进程、USB供电与驱动通道；无法独立排除看护、时间漂移、温控或显示策略，也不能由双峰直接宣布库内缺陷或驱动缺陷。
+
+建议主会话将性能测量规程固定为：测量时手动固定正常亮度（例如96/255，数值需先核验实际面板亮度），关闭自动调节、USB常亮、屏幕超时覆盖整轮，确认未进入DIM；固定环境光，记录运行前后亮度/常亮/刷新率/省电状态。结束后恢复用户要求的B。此为后续建议，本批没有执行这组额外设置或追加启动。
+看护改为启动前解锁检查、测量窗口暂停dumpsys、结束后立即恢复；无法暂停则保留同一看护且将其标为受干扰条件，不能声称无轮询基准。不要在运行中另开状态采集。
+沿用预定三轮及全部原值；锁屏/超时作废才补，双峰不能靠筛选低档轮获得通过。需定位频率/驱动等待时另行设计跟踪，不在本批增加启动或改库。
+
+## 恢复与验证
+
+结束恢复B，实测核验时间 `2026-11-10T13:54:04.399861+00:00`：mode=0、brightness=1、stay_on_while_plugged_in=2。
+lib/pubspec/analysis_options哈希核对、门禁结果与交付清单见 `verification.json`；无提交、无暂存、无push。
+
+本批按明确资源约束不运行pub get/build/flutter test/flutter analyze/覆盖率重采集；不将PERF批次历史输出冒充AB门禁结果。仅运行只读静态脚本与新driver格式检查，真实输出附存。
+
+## 文档冲突、偏离与修正建议
+
+1. TEST_STRATEGY §7.3要求三轮极差>30%整组重跑，与本批每条件恰好3轮/≤15次启动冲突；按本批授权不因波动追加。
+2. 通用实现卡要求pub get/test/analyze与本批禁止重负载、只写三处冲突；采用专批约束，代码门禁未重跑；没有新增库测试或覆盖豁免。
+3. C名义“暂停看护”，但主进程无法停用；依指定近似，A/C均不增加运行中轮询，无法隔离看护效应。建议文档将C写为重复对照，待真正停看护后再称干扰A/B。
+4. 运行中核验锁屏与禁止运行中adb采集冲突；按后者执行，用运行前后明确状态及结束后日志追溯；未检出事件不等于连续状态证明。建议后续用独立看护事件记录提供连续证据。
+5. 预定“A/B均高→固有双峰”结论强于实验可辨识性；保留预定分类及观察值，同时明确只能排除“切回原设置即可消失”，不能证明固有驱动缺陷或物理亮度无关。
+6. 原driver硬编码主机build输出，与只写三处冲突；仅在本批results内派生driver更改输出路径，不改原driver/APK/场景。
+7. 原APK没有totalSpan；按UI+Raster算术和报告平均处理时间，建议未来独立基准显式记录FrameTiming.totalSpan，避免将处理耗时与呈现延迟混称。
+
+8. 自动模式会改写screen_brightness（C3实测23/20），无法同时保证自动调节且始终保持数值12；保留命令输入12、自动模式与实际读回，未改变B。建议后续将“写入设置”与“实际亮度有效范围”分别定义，并固定环境光。
+
+9. B3运行后USB常亮读回0，前后状态无法定位变化时间；保留性能有效样本并标明控制条件受限，不声称所有窗口中USB常亮持续为2。建议将驱动退出清理与测量状态分开记录，并在每轮结束恢复2。
+
+所有原始值、命令、快照和锁屏候选日志位于 `tool/bench/results/ab_experiment/`。
+
+## 本批实际门禁输出
+
+不运行flutter analyze/flutter test/pub get/build；真机同名集成测试9次有效通过。
+
+- `format --output=none --set-exit-if-changed lib test tool`：exit=0；Formatted 344 files (0 changed) in 1.08 seconds.
+- `tool/check_imports.dart`：exit=0；PASS: 145 lib files; IMP-R1…R12 / 依赖图与静态规则通过
+- `tool/check_acceptance.dart`：exit=0；PASS: 1468 references resolve; 1069 registered tests all mapped. / 全部测试引用有效且无遗漏
+- `tool/coverage.dart --min=100 --lcov=coverage/PERF.lcov`：exit=0；TOTAL: 6792/6792 (100.00%) / PASS: coverage >= 100.0%
+
+覆盖率仅复核既有PERF.lcov，不是AB重新采集；源文件148份哈希一致。用Dart直接执行门禁，避免dart run隐式pub副作用。
+
+最终git log前两条：
+
+```text
+443589a3 merge: 合并 mova（链接与分支口径指向 mova 分支）
+f0b64ae1 docs(mova): 链接与分支口径从 main 改为 mova 分支
+```
+
+最终独立恢复/确认：`2026-11-10T13:57:11.858340+00:00`，mode=0、brightness=1、stay_on_while_plugged_in=2；完整命令见`final_settings_confirmation.json`。
+
+## Skia 对照（AB2）
+
+**结论：与后端无关。** Skia 也出现 Raster 平均>10ms的高档轮次，按预定规则判定“与后端无关”；本样本排除了“高档只发生在 Impeller GLES”的解释，但不能证明两后端耗时分布相同。高档的剩余原因无法由本次数据解释，不能归因于 luckdraw 或设备驱动缺陷。
+
+### 固定项与样本
+
+- vivo V2417 / `10AE9K17UE0011S` / Android 16；同一 profile APK，共6次启动，S/I各3次有效，按S1、I1、S2、I2、S3、I3交错；未按快慢补轮。
+- 复用已构建的 `tool/bench/results/perf_after/perf.apk`，29738554 bytes；SHA-256 `ce352b375772e2a2d01d78faced91a7232bb014e1aa87f306487895645612fbe`。
+- `--route=/wheel_default`选择默认auto，报告场景为`wheel_steady`；12奖品、每项128×128图片和两行文字，进入cruising后采样5秒。同一APK的参照窗口和5次RSS循环照常执行，未改设备代码。
+- 旧AB使用`perf_ablation/perf.apk`及`wheel_picture`，APK/缓存配置均不同，故不复用其Impeller三轮，补测I1–I3。
+- 每轮force-stop后静置完整60秒，启动前核对`isKeyguardShowing=false`、空闲内存≥2GiB和设置0/1/2；未修改亮度、USB常亮或其它手机设置。
+- 本批运行中没有额外adb轮询；引擎状态由host driver一次性读取VM service。主会话看护仍在运行，按用户告知为每120秒仅查锁屏的轻量版，无法停止；这属于未独立控制的背景条件。
+- 每轮驱动退出后立即按SurfaceFlinger前120行→battery顺序各读一次；随后读取window/display/logcat。时间戳及退出码见各轮`snapshot_commands.json`。
+
+### 原始值
+
+| 轮次 | Raster平均 ms | p90 ms | p99 ms | 掉帧率 % | UI平均 ms | 高档>10ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | 4.727 | 6.144 | 7.216 | 0.000 | 0.976 | 否 |
+| I1 | 5.247 | 6.598 | 9.651 | 0.000 | 1.151 | 否 |
+| S2 | 4.289 | 5.843 | 7.449 | 0.000 | 1.027 | 否 |
+| I2 | 5.138 | 6.565 | 9.020 | 0.000 | 1.099 | 否 |
+| S3 | 16.628 | 17.535 | 21.879 | 34.000 | 1.016 | 是 |
+| I3 | 5.134 | 6.195 | 10.241 | 0.000 | 0.977 | 否 |
+
+掉帧按设备实际帧周期，UI或Raster任一超时计一帧、去重；上述值来自FrameTiming样本，原始精度见JSON，不用timeline片段重估。
+
+### 三轮中位数与极差
+
+| 后端 | 指标 | 三轮原值 | 中位数 | 极差 max−min |
+| --- | --- | --- | --- | --- |
+| S | Raster平均 ms | 4.727 / 4.289 / 16.628 | 4.727 | 12.339 |
+| S | Raster p90 ms | 6.144 / 5.843 / 17.535 | 6.144 | 11.692 |
+| S | Raster p99 ms | 7.216 / 7.449 / 21.879 | 7.449 | 14.663 |
+| S | 掉帧率 % | 0.000 / 0.000 / 34.000 | 0.000 | 34.000 |
+| S | UI平均 ms | 0.976 / 1.027 / 1.016 | 1.016 | 0.050 |
+| I | Raster平均 ms | 5.247 / 5.138 / 5.134 | 5.138 | 0.112 |
+| I | Raster p90 ms | 6.598 / 6.565 / 6.195 | 6.565 | 0.403 |
+| I | Raster p99 ms | 9.651 / 9.020 / 10.241 | 9.651 | 1.221 |
+| I | 掉帧率 % | 0.000 / 0.000 / 0.000 | 0.000 | 0.000 |
+| I | UI平均 ms | 1.151 / 1.099 / 0.977 | 1.099 | 0.174 |
+
+| 后端 | 高档 Raster平均>10ms | ≤6ms轮次 |
+| --- | --- | --- |
+| S | 1/3 | 2/3 |
+| I | 0/3 | 3/3 |
+
+### 后端及事后设备取证
+
+S显式`--no-enable-impeller`，I显式`--enable-impeller`。每轮`backend.json`保存`ext.ui.window.impellerEnabled`原始响应，driver断言请求后端与实际布尔值一致；逐轮启动命令、verbose与logcat均保留。
+
+| 轮次 | 引擎enabled | 启动/引擎证据 | SF即时刷新率 | 电池温度 前→后 °C | SF开始距驱动退出 s | 空闲主机 GiB | 静置 s |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| S1 | false | 启动enable-impeller=false；GLES事件0个 | 60.00 Hz | 28.3→28.5 | 0.000 | 8.058 | 60.002 |
+| I1 | true | OpenGLES日志；GLES事件603个 | 60.00 Hz | 28.6→28.7 | 0.000 | 9.443 | 60.002 |
+| S2 | false | 启动enable-impeller=false；GLES事件0个 | 60.00 Hz | 28.6→28.5 | 0.000 | 9.618 | 60.002 |
+| I2 | true | OpenGLES日志；GLES事件603个 | 60.00 Hz | 28.6→28.6 | 0.000 | 6.405 | 60.002 |
+| S3 | false | 启动enable-impeller=false；GLES事件0个 | 60.00 Hz | 28.4→28.6 | 0.000 | 6.756 | 60.002 |
+| I3 | true | OpenGLES日志；GLES事件604个 | 60.00 Hz | 28.5→28.7 | 0.000 | 6.625 | 60.002 |
+
+SF是驱动退出后的瞬时快照，应用已由flutter drive清理，不能用事后层列表推断采样窗口内应用的CLIENT/DEVICE合成方式。前120行未暴露的字段保持“未暴露”，不把引擎OpenGLES日志等同于HWC合成类型。未在采样期间查询刷新率或温度。
+
+I启动日志可先出现Vulkan初始化，随后记录OpenGLES；以最后的OpenGLES日志、引擎enabled=true及采样timeline的GLES事件交叉确认。S以启动参数false和引擎enabled=false确认Skia，timeline无GLES事件仅作辅助。主机UTC与设备本地时钟未校准，不直接用两者绝对时间相减；静置和快照延迟均由主机同一时钟计算，logcat起点使用设备date。
+
+### 限制、保守处理与文档建议
+
+1. AB2明确禁止重负载验证，因此未运行flutter analyze、flutter test、pub get或build；不将既有覆盖率当成本批新采集。保留原集成测试名`perf > selected device scenario`，六轮真实通过数按驱动日志核验。
+2. ARCHITECTURE §8.1保留旧picture默认，当前PERF实现/报告已将默认设为auto。遵循本批指定auto，使用已构建perf_after APK；未改设计或lib。建议统一文档默认值，并将路由、APK哈希、缓存模式列为旧数据可复用的前提。
+3. 原AB结论中的“设备GLES路径固有双峰”超出亮度实验可证明范围；按仅追加要求保留历史文字，本节只按实际后端证据和预定判定规则下结论。
+4. 每后端仅三次；不能据此推断高档发生概率或解释底层原因。建议真机后端实验模板强制记录引擎状态，并明确事后SF快照的解释边界。
+
+本次结果不足以推荐切换Skia作为该双峰的已验证规避；没有修改Manifest或包代码。
+
+最终只读实测（`2026-11-10T14:15:39.942601+00:00`）：`mode=0、brightness=1、stay_on=2`；见`final_settings_confirmation.json`。本批没有写入手机设置。
+
+所有原值、后端响应、命令与快照：[skia_compare](../tool/bench/results/ab_experiment/skia_compare/)；汇总见`analysis.json`。
+
+### AB2实际门禁输出
+
+- analyze / flutter test / pub get / build：按AB2禁令未运行；真实profile集成测试为同名用例六轮，6/6有效通过。
+- 使用Dart直接执行门禁，避免`dart run`潜在隐式pub；覆盖率仅复核既有`coverage/PERF.lcov`，并非AB2新采集。
+- `format_apply`：exit=0； / Formatted 345 files (0 changed) in 0.96 seconds.
+- `format_gate`：exit=0； / Formatted 345 files (0 changed) in 0.93 seconds.
+- `imports_gate`：exit=0； / PASS: 145 lib files; IMP-R1…R12 / 依赖图与静态规则通过
+- `acceptance_gate`：exit=0； / PASS: 1468 references resolve; 1069 registered tests all mapped. / 全部测试引用有效且无遗漏
+- `coverage_gate_historical`：exit=0；TOTAL: 6792/6792 (100.00%) / PASS: coverage >= 100.0%
+- 副本源码/配置/APK共150份哈希全部未变；真实仓库lib 145份哈希未变。副本与真实源码文本一致（3份文件仅换行字节不同），不拷回源码。
+
+最终git log（本批未add/commit/push）：
+
+```text
+443589a3 merge: 合并 mova（链接与分支口径指向 mova 分支）
+f0b64ae1 docs(mova): 链接与分支口径从 main 改为 mova 分支
+```
+
+### 回拷后只读复核
+
+- `format`：exit=0；Formatted 345 files (0 changed) in 1.52 seconds.
+- `imports`：exit=0；PASS: 145 lib files; IMP-R1…R12 / 依赖图与静态规则通过
+- `acceptance`：exit=0；PASS: 1468 references resolve; 1069 registered tests all mapped. / 全部测试引用有效且无遗漏
+- 最终再次只读确认（`2026-11-10T14:17:11.277537+00:00`）：mode=0、brightness=1、stay_on=2；见`final_device_readonly.json`。
+- 原报告及矩阵的原始字节前缀均保留；未留下本批Dart/Flutter孤儿进程，未终止其它会话进程。

@@ -1,15 +1,170 @@
 # mova 技术规格（SPEC）
 
 配套阅读：[PRD.md](PRD.md)（需求/决策）、[ROADMAP.md](ROADMAP.md)（里程碑）、
-[DESIGN-0.2.0.md](DESIGN-0.2.0.md)（0.2.0 重构的原始设计，含尚未实现的阶段
-B/C 细节）。本文档描述**当前代码实际落地**的架构；与 DESIGN 文档冲突之处
+[DESIGN-0.2.0.md](DESIGN-0.2.0.md)（0.2.0 重构的原始设计，阶段 A/B/C 已落地）。本文档描述**当前代码实际落地**的架构；与 DESIGN 文档冲突之处
 以本文档为准（阶段 A 落地过程中做过的微调见文末）。
+
+## 当前契约与历史设计（2026-11-04，C17）
+
+设计意图看 DESIGN，签名与落点看本 SPEC 和代码。下文旧章节中的阶段号不是发版号；
+本节及各节新增的现行规则覆盖历史描述。A/B/C 块已落地，CP1 仍有阻塞，CP2/CP3 待真机。
+版本以 pubspec 的 0.4.0 为准，后续变更列在 CHANGELOG Unreleased，不代表已发布。
+
+## 编排会话（MovaSession）
+
+模块：`core/session/`，纯 Dart；依赖 API、cutover 能力、广告/列表模型与失败策略，
+不导入 UI/平台实现。`MovaApi` 是播放能力，`MovaSession` 是编排，UI 消费各自状态。
+`MovaAds`/`MovaPlaylist` 是长期保留的薄适配器；引擎不拥有这些宿主对象。
+
+```dart
+final session = MovaSession(
+  api,
+  ads: const MovaAdConfig(enabled: true),
+  items: episodes, // List<MovaPlaylistItem>
+  initialIndex: 0,
+  autoAdvance: false,
+);
+final outcome = await session.jumpTo(0);
+// await session.load(source, breaks: []);
+// await session.loadDeferred(() async => source, breaks: []);
+```
+
+`load/loadDeferred/jumpTo/next/previous` 返回 `Future<MovaLoadOutcome>`：
+`accepted/rejected/failed/superseded/disposed`。accepted 只保证首段接受，不保证首帧。
+直接构造自动识别 `api is MovaCutover`，仍遵守 cutover 开关；
+`MovaAds(api, cutover: cutover)` 继续只使用显式能力，`MovaAds.session` 可共享。
+`MovaAds.load/loadDeferred` 现返回 `Future<bool>`（首段是否接受），覆写者需同步返回类型。
+
+| 身份层次 | 身份与作用 | 生命周期 |
+|---|---|---|
+| 条目 item | 多集列表；`MovaPlaylistItem.adBreaks` 为 null 时回落全局排期，空列表表示无广告 | 接受后更新下标 |
+| 节点 node | `MovaNodeId` 含条目、kind、ordinal；正片及每一广告位独立身份，同参数 const 广告不合并 | `MovaNodeStart/End/Fail` |
+| 尝试 attempt | 同节点重试也新建，失败只裁决一次 | 与加载 epoch 一起隔离旧观测 |
+
+`cursor` 为 `MovaCursor` 只读快照：`node/epoch/item/phase/contentResumeAt`；
+phase 为 `idle/pending/ad/toContent/content`。节点身份不等于素材地址。
+
+| 隐含语义 | 现行契约 |
+|---|---|
+| 换集/重新 load/setItems/dispose | 作废旧异步结果与自身预热；不取消宿主的新影子 |
+| 自动连播 | `autoAdvance` 默认 false；等待正片及全部后贴片，消费结束通知时检查 epoch |
+| 旧广告/列表组合 | `MovaPlaylist(api, ads: ads)` 共享会话，遵守 playlist.enabled；旧直连构造保留原行为 |
+| 宿主抢源 | 会话让位，已开始节点补一次 `MovaNodeEnd(superseded)`，不报节点失败 |
+| 暂停后跳广告/换指 | 继承最新 `playbackIntent`，不能自动恢复为播放；自定义引擎须维护意图 |
+| 正片失败 | 不自动换集，不发 contentEnded，回 idle，由宿主显式重试 |
+| 销毁 | 只释放会话订阅、时钟与自身凭据，不销毁借用 api |
+
+### 命令三分法与隐含语义
+
+不能把所有动词放入等待网络的全局队列；同一原生 player 的属性操作仍由内核串行器保证。
+
+| 类别 | 会话 | cutover / engine |
+|---|---|---|
+| 短迁移（同步，无 await） | tick 判中插、pod 簿记、游标/阶段、广告时钟、失败裁决 | 影子认领/换指、尝试认领、seek 寄存、首帧与相位更新 |
+| 长操作（令牌 + await 后复查） | resolver、open、prepare/commit、STT start/stop，绑定 epoch/尝试 | 影子 open/seek 绑定槽，提交绑定操作代际；钩子/加载/探测/恢复绑定会话、尝试或修订 |
+| 抢占（同步前缀，不等网络） | load/jumpTo/setItems/dispose 失效旧结果并取消自身计时/凭据；skip 同步判相位 | open/reload/abandon/dispose 失效旧槽；pause 先写最新意图再下发，立即取消相关计时 |
+
+兼容语义：open true 只是接受，恢复接管的失败仍可返回 true；下标只在接受且未过期时更新。
+loadDeferred 到正片需打开/预热才解析，同加载在途共享、旧结果丢弃。
+STT attach 不主动停识别，pod 第一条采样运行态并暂停，回正片只恢复原先开启的识别。
+Mini hide 不暂停，close 先 pause 再退出小窗并通知；宿主持有 API，组件/会话只释放自己的资源。
+
+### 广告时钟、失败仲裁与 contentError
+
+`core/session/ad_clock.dart` 的可暂停时钟依据观测到的 playing 边沿累计广告位时长、
+跳过时间和中插 `delayRemaining`；暂停不计费，仍**不依赖媒体时间轴**。
+首帧加载期限另用墙钟。`midRollSnapback` 为 all（默认，补播跨过的全部点）、
+last（仅最后插入点完整 pod）、none（略过并记已播），同点 pod 正常播放。
+
+非终结诊断由引擎处理，恢复中等待 giveUp；按 epoch/节点/尝试只裁决一次。
+广告由广告失败策略决定 retryNode/skipNode/abandonPod；
+正片终结失败为 failItem，恢复过程中的非终结观测为 ignore。
+`MovaAds.contentError` 与 `MovaSession.contentError` 汇入解析失败、正片 open/切换异常、
+运行中终结失败（恢复开启时等放弃恢复）。包括落地窗口内 giveUp 后 open 正常返回的情况。
+宿主拒绝、被取代和销毁不当作异常；失败不发 `contentEnded`。
+`contentEnded` 仅在正片及全部后贴片结束后广播。订阅失败流不能只处理 resolver 异常。
+
+## 错误分级与有效加载规格
+
+`MovaErrorEvent.classified` 携带 `fatal/code`，旧构造器保留。
+非终结日志只发诊断事件/`MovaHook.onError`，不写 `state.error`、不弹默认遮罩。
+END_FILE(error)、已知终结文本、open 异常和 recovery giveUp 进入终结路径；
+单次加载尝试只结算一次 fatal，清 buffering 并暂停；恢复中用 `MovaPlayFailure` 通知决策，
+放弃后才写 `MovaGiveUpError`。UI 错误层独立于控制条显隐，重试用 reload。
+无事件泵时，仅包含当前主文件地址且来自 stream/cplayer/ffmpeg 的打开失败启用兜底；
+外挂字幕、外部音轨和 HLS 分片错误继续为诊断。
+
+引擎记录已接受会话与每次实际加载尝试，END_FILE 在加载前排空旧队列并带尝试编号。
+有效加载规格包含当前地址/档位、时移落后量、续播目标和播放意图；内部重试重放规格，
+不重新触发 beforeOpen、不新建 QoE 会话。新 seek（含零）取代旧寄存目标；
+时移重试按当前时间重建 URL，failover 清旧时移及档列表。
+
+## 每视图交互态（MovaChrome / MovaUiBridge）
+
+`ui/chrome/chrome.dart` 的 `MovaChrome` 实现 `ValueListenable<MovaUiState>`，
+`MovaPlayer(chrome:)` 可显式注入；未传时支持桥接的 API 每视图自动创建。
+控制条、HUD、拖动和预览隔离；锁定、zoom、fit 等 MovaState 继续共享。
+`MovaChrome.of(context)` 取得当前视图实例，使用 show/hide/showHud/setDragging。
+宿主注入的 chrome 由宿主销毁，一个实例同一时刻只能挂一个视图。
+
+`core/state/ui_bridge.dart` 的 `MovaUiBridge/uiReady/linkUi` 是包内可选过渡能力，
+**不增加 MovaApi 必需成员，不经公开 barrel 导出**。普通引擎和 cutover 代理支持；
+自定义 API 无此能力时保留旧路径，也可显式传 chrome。
+旧 UI 动词向全部视图广播，旧 uiState/uiStates 镜像取最后变化的视图；普通引擎 Ready 后
+镜像晚一个微任务。换指的 Ready 重放不重置视图状态和计时。
+末次解绑把 HUD/控制条剩余计时责任交还引擎；清拖动/预览，常显不新建隐藏计时。
+内置预览每视图独立会话，共享缓存和串行来源；自定义服务可实现 MovaPreviewSessions。
+旧 UI 接口下版计划弃用，本版仅 dartdoc/CHANGELOG 公告，尚未加成员级注解。
+
+## 视图样式（MovaPlayerStyle）
+
+`ui/style/style.dart`，ThemeExtension；MovaPlayer/MovaView 的 style 参数支持六节：
+`theme/strings/gesture/controls/danmaku/icons`。每节整体替换，优先级：
+视图参数 > ThemeExtension > 旧 options > 默认（icons 无旧值）。
+`MovaDanmakuStyle` 仅五项展示字段，enabled/items 仍在 options。
+颜色、文案、手势、控制条、弹幕样式只更新视图，MovaView 不为它们重建引擎；
+引擎 options 保留构造快照。`MovaOpts.engineSectionsEqual` 比较实际引擎配置，
+ads/playlist/mini 变化也不重建。旧 UI 配置字段只公告下版弃用，本版作为回落。
+`MovaIcons` 提供 20 个控制图标，MovaStrs 提供动作标签与 labelWithValue，
+质量的旧中文常量 kMovaAutoQualityLabel/kMovaUnknownQualityLabel 下版计划中性化。
+
+## 导出面与能力分入口
+
+`mova.dart` 继续兼容主入口，新增 `skin.dart/ads.dart/feed.dart/mini.dart/extend.dart/stt.dart`。
+`skin` 提供组件/chrome/style，`extend` 提供会话、cutover、预览与平台端口。
+STT 主入口转导出仅保留一个版本，建议独立 import stt.dart；MovaApi.stt 保留。
+导出级公告的 hash/platform kind/service、平台适配实现、feed 池、上报 session id 等 helper
+计划下版隐藏，本版不增加成员级 @Deprecated。MovaWarmOwner 等内部能力不因此公开。
+
+`test/public_api/export_surface_test.dart` 固定完整导出源路径与 show/hide 约束并递归转导出，
+主入口兼容快照 143 条；分入口快照 skin 30、ads 5、feed 6、mini 6、extend 45、stt 16 条。
+这些是导出指令条数，**不是声明总数**；更新入口必须同步审视快照及迁移公告。
+
+## C 块宿主契约补充
+
+- `MovaPlayer.fullscreenRoute` 默认 false；开启后根 Navigator 推送 mova/fullscreen，
+  同 API 多视图最多一个路由。返回键先退出、锁定提示解锁，借用 API、自建 chrome，
+  退出显示内联控制条，不重复清晰度探测；携带守卫归属，Windows 包快照守卫。
+- MovaPlayer 视频后台暂停经 api.pause；祖先同 API 的 MovaAutoPause 接管，
+  默认暂停且不自行续播；audioOnly 无视频渲染面不受影响。旧 media_kit Video 默认
+  pauseUponEnteringBackgroundMode 已关闭，surface 回收并非已证实的唯一归因。
+- `MovaSource(headers:, userAgent:, start:)` 及 requestHeaders，sameAs/pick 均纳入；
+  显式 UA 优先，mpv http-header-fields 使用长度前缀转义，start 只对点播寄存 seek。
+  旁路 `MovaHeaderedHttpFetch.getWithHeaders(Uri, Map<String, String>)` 为可选能力，
+  老 get(Uri) 保留但丢头，debug 每实例提示一次；抽帧对应 MovaHeaderedFramePuller。
+- MovaFeedPlayer 的 controller 为宿主持有的 MovaFeedPlayerController（ChangeNotifier），
+  feed/activeIndex/activeApi 可查询，jumpToPage/pause/play 可控制；池/引擎仍归组件。
+  autoPause（null 禁用）/routeObservers 管整条 feed；errorBuilder(context,index,error,retry)
+  覆盖 loader/open 拒绝或抛错/运行中终结错误，显式重试只作用于该页。
+- 注入的 kernel/cache/probe/source/extractor/fetcher/STT 识别器由宿主释放，自建资源归引擎；
+  ownsKernel:true 可显式移交。MovaAbrConfig.policyFactory 每引擎独立策略，优先旧 policy。
+  STT start 失败回滚且不再向播放链抛出；模型下载实验实现、无校验和，识别引擎由宿主注入。
 
 ## 架构分层
 
 ```
 lib/
-├─ mova.dart                      # 对外唯一入口 barrel
+├─ mova.dart                      # 兼容主入口（另有能力分入口，见下文）
 ├─ mova_platform_interface.dart   # 平台通道接口（getPlatformVersion / isPipSupported / enterPip / get·setSystemVolume）
 ├─ mova_method_channel.dart       # MethodChannel 实现
 └─ src/
@@ -157,6 +312,12 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
 
 ## 清晰度 / ABR
 
+现行默认：`probeVariants: true` 时就绪后引擎自探测；UI 还需 autoLoadQualities，
+显式 loadQualities 不受这两个自动开关影响。按会话及有效地址下标去重，迟到结果不覆盖手选。
+`manageAuto: false` 默认保留 mpv auto；实验性开启时，auto 卡顿由 mova 从次高档开始降档。
+seek/换档 ABR 租约绑定加载尝试，直播待本次 buffering true→false 释放，10s 兜底。
+
+
 - **清晰度切换 = 按档位 URL 重开内核**，不走 media_kit 同会话切轨（`MovaKernel` 没有
   `videoTracks`/`setVideoTrack`）。`loadQualities()` 只对 URL 含 `.m3u8` 的源生效：
   引擎自己拉取 master 并用 `parseHlsMasterPlaylist(content, base:)` 解析，成功后发
@@ -200,6 +361,16 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   调 `backToLiveEdge()` 而非 `reload()`。
 
 ## 无缝引擎切换（0.4.0，默认关闭）
+
+现行实现：`cutover_engine.dart` 将影子及订阅/就绪等待收进 `_WarmSlot`；操作代际隔离
+open/reload/prepare/commit，提交事务独占已认领槽，过期切换不能普通 open 抢回源。
+包内 `cutover/acceptance.dart` 的 `MovaWarmOwner` 扩展接受能力，以
+prepareOwned 返回 MovaWarmTicket，commitOwned 返回 committed/notReady/superseded，
+cancelOwned 只取消相应槽，连已认领事务也遵守取消；不扩展公开 MovaCutover。
+等待型 pod 广告逐条 prepare + 凭据提交，使用广告方向计划（1x、停首帧、就绪期限）。
+代理换指时用 render epoch 队列投递状态和事件，补发 SourceChange/Ready/FirstFrame，
+宿主回调抢源则停止补发并让位；H77 逻辑修复已落地，设备复验见检查点。
+
 
 - `MovaCutoverEngine`（`lib/src/core/cutover/cutover_engine.dart`）本身实现 `MovaApi` +
   `MovaCutover`：宿主把它交给 `MovaPlayer`，UI 只认这一份稳定的对外面；它自持
@@ -412,8 +583,8 @@ STG AL00）：Windows 桌面（`--no-enable-impeller` 强制 Skia 后端）A–F
 `core/mini/placement.dart` 的 `remapProportionally`（按旧 bounds 相对比例
 重新映射到新 bounds）修复，见该文件的详细说明；与系统 PiP 互斥（`enterPip()`
 先 `setMini(false)` 再进系统 PiP，不叠加）真机确认通过；切后台再回前台会自动
-暂停，确认是 Android 系统级 Surface 回收行为（非 mini window 引入，全屏播放
-同样会暂停），若要前后台自动续播需单独立项。验证中顺带发现并修复一个 demo
+暂停；旧记录的 Surface 回收归因未经对照证实，代码依据是 media_kit Video 默认后台暂停
+（非 mini 特有）。现行 MovaPlayer 关闭该默认路径并经 api.pause 处理，祖先守卫可接管。验证中顺带发现并修复一个 demo
 自身次生 bug：`_MisuseDemoState` 触发 assert 后若同一帧内又导航，新引擎事件
 流回调会在 widget 树锁定期间同步刷新 `_eventLog`，已改用
 `addPostFrameCallback` 推迟通知。checklist 见
@@ -734,6 +905,13 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 **首帧判据（D1）**：原生 `PLAYBACK_RESTART`（权威）；原生不可用时 buffering 下降沿 / 连续两个递增且 >0 的位置 / 暂停态打开后首个非零尺寸；
 原生可用但兜底信号先到时等 1500ms 宽限。内核 `open()` 在途期间丢弃一切观测。
 
+**END_FILE 现行订阅规则**：默认 createMovaEngine 首次 open 懒创建弱客户端，
+与 recovery 无关；RESTART 由 reporter/preciseFirstFrame 或封面按需启用。
+注入 kernel 的能力由宿主提供，movaObserveFlags 的 native 字段是历史辅助结果，
+工厂实际传 observeNativeEvents:true，不能拿该 helper 推断默认不订阅。
+默认抽帧器为 null，须显式传 extractor:MovaFrameExtractor()；wifiOnly 的默认网络探针
+只在实际远程资源请求时创建/查询，缓存、本地、禁用来源不查；自定义来源需显式 probe 才入口门控。
+
 **恢复（D7）触发源**：起播超时、卡顿超时、`open()` 抛异常（仅 recovery 开启时捕获）、原生 `END_FILE(error)`、直播 `completed`。
 看门狗的起播期限从内核 `open()` 返回后才开始计，且只在没有其他加载在途时武装；播放意图为假时不计时。
 
@@ -750,7 +928,9 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 ## 低功耗待机（2026-10-23，默认关闭）
 
 计划：[doc/plans/2026-10-23-standby-mode.md](plans/2026-10-23-standby-mode.md)（D1–D13）；调研：[doc/notes/2026-10-23-libmpv-low-power-standby.md](notes/2026-10-23-libmpv-low-power-standby.md)。
-全部经 `flutter analyze`/`flutter test` 验证，**无真机数据**（计划 Task 10 待定：等真机）。
+Windows release 已部分实测（18/18 FLV 唤醒走 grace，5s 为兜底而非首帧耗时）；
+Android CP1 S1/S7/S13/S14 为 20/20，见 [CP1](plans/2026-11-03-cp1-results.md)。
+HLS、耗电与 iOS/macOS 仍未充分验证，不表示 CP2/CP3 已通过。
 
 | 能力 | 公开面 | 落点 |
 |---|---|---|
@@ -761,6 +941,10 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 | 决策（D4） | `decideKeepAliveEntry`/`decideKeepAliveWake`/`MovaKeepAliveEntry`/`MovaKeepAliveWake`（不导出） | `keep_alive/plan.dart` |
 | 守卫（D10） | `MovaHiddenMode`、`MovaAutoPauseConfig.hiddenMode`、`MovaGuardAction.keepAlive/wake` | `guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
 | 恢复计时（D7） | `MovaFirstFrameGate.arm(resume: true)` | `render/first_frame.dart`、`engine.dart` |
+
+**现行待机修复**：唤醒用独立首帧闸门，换源/档/重载结束旧测量为 reloaded，
+不发 MovaKeepAliveResume；setKeepAlive(false) 在进入 resuming 时返回，不等待网络。
+回边缘/重开不占待机队列，返回后复查最新意图与尝试；再次待机作废旧唤醒，失败走终结上报。
 
 **状态机（D6）**：`off` → `holding`（进入）/`fallback`（退回暂停）；`holding` → `fallback`（`maxDuration`/失败/结束）或 `resuming`（唤醒）；`resuming` → `off`（首帧落地或 `resumeTimeout`）；
 任意非 off 遇宿主 `pause()` → `off(paused)`；待机请求存在期间 `open()`/`reload()` → `fallback(reloaded)`，新源首帧落地后若意图仍为播放再尝试 `holding`。所有迁移经引擎内一条串行队列。
@@ -776,7 +960,7 @@ fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disa
 
 **默认值（D13）**：`hiddenMode: pause`、`maxDuration: 30s`、`allowHls: false`、`silentStreams: keepDecoding`、`resumeTimeout: 5s`、`liveResumeGrace: 3s`、点播一律暂停、进后台一律暂停；均为真机数据出来前的保守值（校准项见计划 Task 10 的 S1–S17）。
 
-**明确不做**：`vo=null` 变体、桌面 `setSize(2,2)`、`skipframe`/`skiploopfilter`、`drop-buffers`、省流量、feed 池"邻近页保温"、QoE 识别待机、cutover 预热影子降载、cutover `muteWhileWarm` 走 `setVolume(0)` 的疑似整机静音（Q13，旁支，另立项）。
+**明确不做**：`vo=null` 变体、桌面 `setSize(2,2)`、`skipframe`/`skiploopfilter`、`drop-buffers`、省流量、feed 池"邻近页保温"、QoE 识别待机、cutover 预热影子降载；Q13 已另行修复，预热与待机以独立 mute 所有权共享属性队列，不写系统 volume。
 
 **与计划的偏差**见计划文首「落地偏差」。
 

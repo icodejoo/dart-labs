@@ -189,6 +189,21 @@ void main() {
       expect(log, isEmpty);
     });
 
+    test('a failed mute write-back keeps the saved value and a later exit retries it', () async {
+      final log = <String>[];
+      final native = _FakeNative(log);
+      final k = _kernel(_FakePlayer(native));
+      await k.enterKeepAlive(MovaKeepAliveMode.muted);
+      native.throwOnSet.add('mute=no');
+      await k.exitKeepAlive();
+      expect(native.props['mute'], 'yes');
+      native.throwOnSet.clear();
+      log.clear();
+      await k.exitKeepAlive();
+      expect(log, ['set:mute=no']);
+      expect(native.props['mute'], 'no');
+    });
+
     test('a vid that was already no is left alone and exit reports no restart', () async {
       final log = <String>[];
       final native = _FakeNative(log)..props['vid'] = 'no';

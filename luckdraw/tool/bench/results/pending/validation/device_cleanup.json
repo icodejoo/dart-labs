@@ -1,0 +1,17 @@
+{
+  "measured_at": "2026-11-10T17:04:44.3623507Z",
+  "awake": true,
+  "screen_brightness_mode": "0",
+  "screen_brightness": "1",
+  "keyguard_false": true,
+  "keyguard_evidence": [
+    "    isKeyguardShowing=false"
+  ],
+  "stay_on_while_plugged_in": "2",
+  "serial": "10AE9K17UE0011S",
+  "power_evidence": [
+    "  mWakefulness=Awake",
+    "Display Power: com.android.server.power.PowerManagerService$1@190139d"
+  ],
+  "uninstall_exit": 1
+}

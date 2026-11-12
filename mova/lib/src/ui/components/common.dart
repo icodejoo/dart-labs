@@ -1,18 +1,24 @@
+import '../../core/options/strings.dart';
+import '../style/style.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/options/theme.dart';
+import '../chrome/chrome.dart';
 
 /// A compact themed icon button used across the control bars.
 ///
-/// Presentation-only and reusable: it never reads MovaApi itself, only the
-/// [MovaTheme] it is given — the calling component is responsible for reading
-/// `api.options.theme` and passing it down.
+/// Reusable with or without a player scope: it never reads MovaApi itself.
+/// Activation renews a nearby [MovaChrome]; appearance uses the given
+/// [MovaTheme] — the calling component is responsible for reading
+/// `MovaPlayerStyle.themeOf(context)` and passing it down.
 ///
 /// 控制条中通用的带主题小图标按钮。
 ///
-/// 仅负责展示、可复用：它自身从不读取 MovaApi，只使用传入的 [MovaTheme]——由
-/// 调用方组件负责读取 `api.options.theme` 并向下传递。
-class MovaIconButton extends StatelessWidget {
+/// 可复用且不读取 MovaApi；播放器内激活时会续期交互态。主题使用传入的 [MovaTheme]，由
+/// 调用方组件负责读取 `MovaPlayerStyle.themeOf(context)` 并向下传递。
+class MovaIconButton extends StatefulWidget {
   /// The glyph to show.
   ///
   /// 要显示的图标。
@@ -33,6 +39,11 @@ class MovaIconButton extends StatelessWidget {
   /// 提供图标/文字颜色及说明文字字号的主题。
   final MovaTheme theme;
 
+  /// 无障碍名称及悬停提示；省略时按内置图标与 [caption] 推导。
+  ///
+  /// 示例：`MovaIconButton(icon: Icons.cast, label: '投屏', onPressed: connect, theme: theme)`。
+  final String? label;
+
   /// Creates a themed icon button.
   ///
   /// 创建一个带主题的图标按钮。
@@ -42,39 +53,126 @@ class MovaIconButton extends StatelessWidget {
     required this.onPressed,
     required this.theme,
     this.caption,
+    this.label,
   });
 
+  /// 返回按钮状态；聚焦和悬停样式由状态管理。
+  @override
+  State<MovaIconButton> createState() => _MovaIconButtonState();
+}
+
+/// 保留紧凑布局的键盘可操作按钮，不依赖 Material 祖先。
+class _MovaIconButtonState extends State<MovaIconButton> {
+  /// 是否显示键盘聚焦边框。
+  bool _highlight = false;
+
+  /// 播放器内的按钮续期交互态；没有播放器作用域时仍可独立使用。
+  void _activate() {
+    MovaChrome.maybeOf(context)?.touch();
+    widget.onPressed?.call();
+  }
+
+  /// 返回带语义、提示和 Enter/空格操作的按钮。
   @override
   Widget build(BuildContext context) {
-    // Uses a plain GestureDetector rather than InkResponse/InkWell: those
-    // require a Material ancestor, which the player overlay (composed via
-    // MovaScope/component tree, not a Scaffold) does not always provide.
-    //
-    // 用普通 GestureDetector 而非 InkResponse/InkWell：后者需要 Material
-    // 祖先节点，而播放器叠加层（经 MovaScope/组件树组合，并非 Scaffold）不一定
-    // 提供这个祖先。
-    return GestureDetector(
-      onTap: onPressed,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Color(theme.iconColor), size: 22),
-            if (caption != null)
-              Text(
-                caption!,
-                style: TextStyle(
-                  color: Color(theme.textColor),
-                  fontSize: theme.captionFontSize,
+    final label =
+        widget.label ??
+        _iconLabel(
+          widget.icon,
+          widget.caption,
+          MovaPlayerStyle.stringsOf(context),
+        );
+    final enabled = widget.onPressed != null;
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      },
+      child: FocusableActionDetector(
+        enabled: enabled,
+        mouseCursor: enabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        onShowFocusHighlight: (value) => setState(() => _highlight = value),
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _activate();
+              return null;
+            },
+          ),
+        },
+        child: Semantics(
+          button: true,
+          enabled: enabled,
+          label: label,
+          onTap: enabled ? _activate : null,
+          excludeSemantics: true,
+          child: Tooltip(
+            // 持久小窗可能位于 Navigator/Overlay 之上，此时保留语义并跳过浮层。
+            message: Overlay.maybeOf(context) == null ? '' : label,
+            excludeFromSemantics: true,
+            child: GestureDetector(
+              onTap: enabled ? _activate : null,
+              behavior: HitTestBehavior.opaque,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: _highlight
+                        ? Color(widget.theme.iconColor)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        color: Color(widget.theme.iconColor),
+                        size: 22,
+                      ),
+                      if (widget.caption != null)
+                        Text(
+                          widget.caption!,
+                          style: TextStyle(
+                            color: Color(widget.theme.textColor),
+                            fontSize: widget.theme.captionFontSize,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+/// 按内置图标推导动作名，并附上可选的当前值文案。
+String _iconLabel(IconData icon, String? caption, MovaStrs strings) {
+  final action = switch (icon) {
+    Icons.picture_in_picture_alt_rounded => strings.pip,
+    Icons.high_quality_rounded => strings.quality,
+    Icons.aspect_ratio_rounded => strings.aspectRatio,
+    Icons.screen_rotation_rounded => strings.rotate,
+    Icons.fullscreen_rounded => strings.enterFullscreen,
+    Icons.fullscreen_exit_rounded => strings.exitFullscreen,
+    Icons.lock_open_rounded => strings.lock,
+    Icons.lock_rounded => strings.unlock,
+    Icons.subtitles_rounded || Icons.subtitles_off_rounded => strings.subtitles,
+    Icons.speed_rounded => strings.speed,
+    Icons.sync_rounded => strings.backToLive,
+    _ => strings.action,
+  };
+  return caption == null || caption.isEmpty
+      ? action
+      : strings.labelWithValue(action, caption);
 }
 
 /// A translucent top/bottom gradient bar host that does not absorb pointer
@@ -178,13 +276,14 @@ Future<void> showMovaOptionSheet(
   MovaTheme theme,
   List<MovaSheetItem> items,
 ) {
+  final checkIcon = MovaPlayerStyle.iconsOf(context).check;
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Color(theme.sheetBackgroundColor),
     builder: (ctx) {
       return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: ListView(
+          shrinkWrap: true,
           children: [
             for (final item in items)
               ListTile(
@@ -193,7 +292,7 @@ Future<void> showMovaOptionSheet(
                   style: TextStyle(color: Color(theme.textColor)),
                 ),
                 trailing: item.checked
-                    ? Icon(Icons.check_rounded, color: Color(theme.iconColor))
+                    ? Icon(checkIcon, color: Color(theme.iconColor))
                     : null,
                 onTap: () {
                   Navigator.of(ctx).pop();

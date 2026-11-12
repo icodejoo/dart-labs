@@ -55,63 +55,146 @@ class MovaAudioExtractor implements MovaAudioPuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽取器；隐藏播放器在首次使用时才惰性创建。
-  MovaAudioExtractor();
+  /// [playerFactory] 创建独占播放器，[tempDirectory] 提供输出目录，
+  /// [timeout] 约束整个抽取操作。返回抽取器；示例：`MovaAudioExtractor(timeout: Duration(minutes: 5))`。
+  MovaAudioExtractor({
+    Player Function()? playerFactory,
+    Future<String> Function()? tempDirectory,
+    this.timeout = const Duration(minutes: 30),
+  }) : _playerFactory = playerFactory ?? Player.new,
+       _tempDirectory = tempDirectory ?? _defaultDirectory;
 
+  /// 隐藏播放器工厂。
+  final Player Function() _playerFactory;
+
+  /// 输出目录解析器。
+  final Future<String> Function() _tempDirectory;
+
+  /// 整次抽取的最长耗时。
+  final Duration timeout;
+
+  /// 当前被独占持有的播放器。
   Player? _player;
+
+  /// 是否已销毁。
   bool _disposed = false;
 
+  /// 当前抽取的取消信号，dispose 时立即唤醒等待。
+  Completer<void>? _cancel;
+
+  /// 并发请求串行执行，避免覆盖原生资源所有权。
+  Future<void> _queue = Future<void>.value();
+
+  /// 返回平台临时目录。
+  static Future<String> _defaultDirectory() async =>
+      (await getTemporaryDirectory()).path;
+
+  /// 抽取 [uri] 的 WAV 文件；异常、取消或超时返回 null。示例：`await extractor.extractWav(uri)`。
   @override
-  Future<String?> extractWav(String uri) async {
+  Future<String?> extractWav(String uri) {
+    final result = _queue.then((_) => _extractNow(uri));
+    _queue = result.then<void>((_) {}, onError: (Object e, StackTrace st) {});
+    return result;
+  }
+
+  /// 抽取 [uri]，所有退出路径都取消订阅并释放本次播放器。
+  Future<String?> _extractNow(String uri) async {
     if (_disposed) return null;
+    Player? owned;
+    StreamSubscription<bool>? sub;
+    // Output path created by this call; deleted unless ownership is handed over.
+    // 本次创建的输出路径；未成功移交给调用方时在释放播放器后删除。
+    String? createdPath;
+    var handedOver = false;
+    final cancelled = Completer<void>();
+    _cancel = cancelled;
     try {
-      final dir = await getTemporaryDirectory();
+      final operation = () async {
+        final dir = await _tempDirectory();
+        if (_disposed || cancelled.isCompleted) return null;
+        final outPath =
+            '$dir${Platform.pathSeparator}mova_stt_audio_${DateTime.now().microsecondsSinceEpoch}.wav';
+        createdPath = outPath;
+        final player = owned = _player = _playerFactory();
+        final native = player.platform;
+        if (native is NativePlayer) {
+          for (final property in <String, String>{
+            'vid': 'no',
+            'ao': 'pcm',
+            'ao-pcm-file': outPath,
+            'untimed': 'yes',
+          }.entries) {
+            await native.setProperty(property.key, property.value);
+            if (_disposed || cancelled.isCompleted) return null;
+          }
+        }
+        final completed = Completer<void>();
+        sub = player.stream.completed.listen((done) {
+          if (done && !completed.isCompleted) completed.complete();
+        });
+        await player.open(Media(uri), play: true);
+        if (_disposed || cancelled.isCompleted) return null;
+        await Future.any([completed.future, cancelled.future]);
+        if (_disposed || cancelled.isCompleted) return null;
+        return outPath;
+      }();
       final outPath =
-          '${dir.path}${Platform.pathSeparator}mova_stt_audio_${DateTime.now().microsecondsSinceEpoch}.wav';
-
-      final player = Player();
-      final native = player.platform;
-      if (native is NativePlayer) {
-        await native.setProperty('vid', 'no');
-        await native.setProperty('ao', 'pcm');
-        await native.setProperty('ao-pcm-file', outPath);
-        // Disables real-time pacing so decode-through runs as fast as I/O
-        // allows rather than at 1x playback speed — unverified whether this
-        // actually applies to a file-sink `ao=pcm` output (see class doc).
-        //
-        // 关闭实时节拍，让解码尽可能快而不是按 1x 播放速度走——这个设置对
-        // 文件 sink 的 `ao=pcm` 输出是否真的生效未经验证（见类文档注释）。
-        await native.setProperty('untimed', 'yes');
-      }
-
-      final completer = Completer<void>();
-      final sub = player.stream.completed.listen((done) {
-        if (done && !completer.isCompleted) completer.complete();
-      });
-      await player.open(Media(uri), play: true);
-      await completer.future.timeout(const Duration(minutes: 30));
-      await sub.cancel();
-      await player.dispose();
-
-      if (!await File(outPath).exists()) return null;
+          await Future.any<String?>([
+            operation,
+            cancelled.future.then<String?>((_) => null),
+          ]).timeout(
+            timeout,
+            onTimeout: () {
+              if (!cancelled.isCompleted) cancelled.complete();
+              return null;
+            },
+          );
+      // PCM 输出在播放器关闭时刷新文件头，必须先释放再检查文件。
+      await sub?.cancel();
+      sub = null;
+      await _release(owned);
+      if (outPath == null || !await File(outPath).exists()) return null;
+      handedOver = true;
       return outPath;
     } on Object {
       return null;
+    } finally {
+      if (!cancelled.isCompleted) cancelled.complete();
+      await sub?.cancel();
+      await _release(owned);
+      // The player is gone, so nothing is still writing the partial file.
+      // 播放器已释放，不会再有写入，可安全删除残留的半成品 WAV。
+      final leftover = createdPath;
+      if (!handedOver && leftover != null) {
+        try {
+          final f = File(leftover);
+          if (await f.exists()) await f.delete();
+        } on Object {
+          // 清理失败不影响返回值。
+        }
+      }
+      if (identical(_cancel, cancelled)) _cancel = null;
     }
   }
 
+  /// 释放 [player] 恰好一次；其他路径已认领释放时不重复调用。
+  Future<void> _release(Player? player) async {
+    if (player == null || !identical(_player, player)) return;
+    _player = null;
+    try {
+      await player.dispose();
+    } on Object {
+      // 辅助资源回收失败不冒充播放错误。
+    }
+  }
+
+  /// 取消当前抽取并释放原生资源；无参数、无返回值。示例：`await extractor.dispose()`。
   @override
   Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
-    final player = _player;
-    _player = null;
-    if (player != null) {
-      try {
-        await player.dispose();
-      } on Object {
-        // Disposing a hidden helper must never surface as a playback error.
-        //
-        // 释放隐藏辅助播放器时的异常绝不能冒充成播放错误。
-      }
-    }
+    final cancel = _cancel;
+    if (cancel != null && !cancel.isCompleted) cancel.complete();
+    await _release(_player);
   }
 }

@@ -23,7 +23,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   MovaEngine.ensureInitialized();
   runApp(MaterialApp(
-    builder: (context, child) => MovaMiniHost(ctl: _mini, child: child!),
+    builder: (context, child) => MovaMiniHost(mini: _mini, child: child!),
     home: const _HwmPage(),
   ));
 }

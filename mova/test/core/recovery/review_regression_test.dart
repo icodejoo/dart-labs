@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
+import 'package:mova/src/testing/hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
@@ -46,7 +47,7 @@ MovaEngine _engine(
 }) => MovaEngine(
   kernel: k,
   interceptors: hooks,
-  fetcher: fetcher,
+  fetcher: fetcher ?? const MovaTestHttpFetch(),
   options: MovaOpts(
     controls: const MovaCtrlsConfig(autoHide: false),
     recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),

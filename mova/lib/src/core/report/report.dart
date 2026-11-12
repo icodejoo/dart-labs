@@ -92,6 +92,15 @@ class MovaReportName {
   /// 打开了新的媒体源。
   static const sourceChange = MovaReportName._('sourceChange');
 
+  /// 恢复决策，含重试或放弃；示例：`event.name == MovaReportName.playFailure`。
+  static const playFailure = MovaReportName._('playFailure');
+
+  /// 失败后已恢复；示例：`event.name == MovaReportName.recovered`。
+  static const recovered = MovaReportName._('recovered');
+
+  /// 同源地址切换；示例：`event.name == MovaReportName.failover`。
+  static const failover = MovaReportName._('failover');
+
   /// Playback started or resumed.
   ///
   /// 播放开始或恢复。
@@ -187,6 +196,9 @@ class MovaReportName {
   /// 全部内置名称；自定义名称不在其中。
   static const List<MovaReportName> values = [
     sourceChange,
+    playFailure,
+    recovered,
+    failover,
     play,
     pause,
     seek,

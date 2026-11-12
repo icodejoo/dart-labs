@@ -1,3 +1,5 @@
+import 'style/style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -21,7 +23,7 @@ typedef MovaViewEngineFactory = MovaApi Function(MovaOpts options);
 /// A declarative player: give it a [source] and it owns the whole engine
 /// lifecycle — created lazily on the first non-null source, reopened only
 /// when the source really changes ([MovaSource.sameAs]), recreated when
-/// [options] change, paused when the source goes null, disposed with the
+/// [options] engine sections change, paused when the source goes null, disposed with the
 /// widget. The imperative API (`createMovaEngine` + `MovaPlayer`) is unchanged
 /// and still the way to go when you need to hand an engine around.
 ///
@@ -29,7 +31,7 @@ typedef MovaViewEngineFactory = MovaApi Function(MovaOpts options);
 /// view disposes it when it unmounts.
 ///
 /// 声明式播放器：给它一个 [source]，它就接管整个引擎生命周期——第一次拿到非空源
-/// 时懒创建、只有源真正变了（[MovaSource.sameAs]）才重开、[options] 变化时重建、
+/// 时懒创建、只有源真正变了（[MovaSource.sameAs]）才重开、[options] 的引擎节变化时重建、
 /// 源变为 null 时暂停、随组件销毁一并释放。命令式 API（`createMovaEngine` +
 /// `MovaPlayer`）不变，需要把引擎传来传去时仍然用它。
 ///
@@ -69,6 +71,7 @@ class MovaView extends StatefulWidget {
     this.fit,
     this.poster,
     this.posterFade = const Duration(milliseconds: 300),
+    this.style,
     this.skin = const MovaDefaultSkin(),
     this.options = const MovaOpts(),
     this.engineFactory,
@@ -109,10 +112,13 @@ class MovaView extends StatefulWidget {
   /// 要绘制的皮肤。
   final MovaSkin skin;
 
-  /// Construction-time engine options; a different value recreates the engine
-  /// (and reopens the current source), so change it rarely.
+  /// 本视图的样式，原样传给 MovaPlayer；优先于主题扩展。
+  final MovaPlayerStyle? style;
+
+  /// Construction-time engine options; changes to engine sections recreate the engine
+  /// and reopen the source. Style sections update the current view.
   ///
-  /// 引擎构造期配置；传入不同的值会重建引擎（并重开当前源），所以别频繁改。
+  /// 引擎构造期配置；引擎节变化会重建并重开当前源，五个样式节变化只更新视图。
   final MovaOpts options;
 
   /// Builds the engine; defaults to `createMovaEngine(options: o, preciseFirstFrame: poster != null)`,
@@ -126,6 +132,8 @@ class MovaView extends StatefulWidget {
   /// Whether to probe HLS quality variants after each successful open.
   ///
   /// 每次打开成功后是否探测 HLS 清晰度档位。
+  /// 本 UI 入口仅在此值与 `api.options.abr.probeVariants` 都为 true 时探测；
+  /// 引擎就绪后的自动探测由后者控制，显式 `api.loadQualities()` 不受两者影响。
   final bool autoLoadQualities;
 
   /// Called with each engine right after it is created (and after a recreate),
@@ -182,10 +190,49 @@ class _MovaViewState extends State<MovaView> {
     _sync();
   }
 
+  int _optionsChangeStreak = 0;
+  Duration? _optionsChangeFrame;
+  bool _optionsFrameCheckScheduled = false;
+  bool _optionsWarningShown = false;
+
+  void _trackOptionsChanges(bool equal) {
+    if (equal) {
+      _optionsChangeStreak = 0;
+      return;
+    }
+    final frame = WidgetsBinding.instance.currentFrameTimeStamp;
+    if (_optionsChangeFrame != frame) {
+      _optionsChangeFrame = frame;
+      _optionsChangeStreak++;
+    }
+    if (_optionsChangeStreak >= 10 && !_optionsWarningShown) {
+      _optionsWarningShown = true;
+      debugPrint('MovaView 连续 10 帧 options 不等，反复重建引擎；请稳定配置或回调实例。');
+    }
+    if (!_optionsFrameCheckScheduled) {
+      _optionsFrameCheckScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback(_checkOptionsFrame);
+    }
+  }
+
+  void _checkOptionsFrame(Duration frame) {
+    if (!mounted || frame != _optionsChangeFrame) {
+      _optionsChangeStreak = 0;
+      _optionsFrameCheckScheduled = false;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback(_checkOptionsFrame);
+  }
+
   @override
   void didUpdateWidget(MovaView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_engine != null && widget.options != oldWidget.options) {
+    final equal = widget.options.engineSectionsEqual(oldWidget.options);
+    assert(() {
+      _trackOptionsChanges(equal);
+      return true;
+    }());
+    if (_engine != null && !equal) {
       final dead = _engine!;
       _engine = null;
       _opened = null;
@@ -237,7 +284,9 @@ class _MovaViewState extends State<MovaView> {
               }
               return;
             }
-            if (widget.autoLoadQualities && identical(_engine, engine)) {
+            if (widget.autoLoadQualities &&
+                engine.options.abr.probeVariants &&
+                identical(_engine, engine)) {
               return engine.loadQualities();
             }
           })
@@ -275,13 +324,17 @@ class _MovaViewState extends State<MovaView> {
         child: SizedBox.expand(child: widget.poster),
       );
     }
-    final player = MovaPlayer(
-      api: engine,
-      skin: widget.skin,
-      fit: widget.fit,
-      poster: widget.poster,
-      posterFade: widget.posterFade,
-      autoLoadQualities: false,
+    final player = MovaStyleScope(
+      legacy: widget.options,
+      child: MovaPlayer(
+        api: engine,
+        style: widget.style,
+        skin: widget.skin,
+        fit: widget.fit,
+        poster: widget.poster,
+        posterFade: widget.posterFade,
+        autoLoadQualities: false,
+      ),
     );
     final guard = widget.autoPause;
     if (guard == null) return player;

@@ -1,0 +1,45 @@
+Threads: 40 total,   0 running,  40 sleeping,   0 stopped,   0 zombie
+  Mem:  7638132K total,  7512748K used,   125384K free,    10380K buffers
+ Swap:  8388604K total,  2989336K used,  5399268K free,  3767720K cached
+800%cpu 156%user  37%nice 178%sys 415%idle   0%iow  11%irq   4%sirq   0%host
+  TID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ THREAD          PROCESS
+17152 u0_a460      15  -5  23G 221M 146M S 22.2   2.9   0:02.13 1.raster        com.example.luckdraw_bench
+17126 u0_a460      10 -10  23G 221M 146M S 11.1   2.9   0:01.55 .luckdraw_bench com.example.luckdraw_bench
+17195 u0_a460      15  -5  23G 221M 146M S  3.7   2.9   0:00.04 GPU completion  com.example.luckdraw_bench
+17162 u0_a460      20   0  23G 221M 146M S  3.7   2.9   0:00.11 Dart Profiler T com.example.luckdraw_bench
+17200 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.01 binder:17126_4  com.example.luckdraw_bench
+17198 u0_a460      -2   0  23G 221M 146M S  0.0   2.9   0:00.00 binder:17126_4  com.example.luckdraw_bench
+17197 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 SurfaceSyncGrou com.example.luckdraw_bench
+17194 u0_a460      15  -5  23G 221M 146M S  0.0   2.9   0:00.00 HWC release     com.example.luckdraw_bench
+17183 u0_a460      -2 -20  23G 221M 146M S  0.0   2.9   0:00.00 binder:17126_3  com.example.luckdraw_bench
+17182 u0_a460      18  -2  23G 221M 146M S  0.0   2.9   0:00.00 hwuiTask1       com.example.luckdraw_bench
+17180 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 TracingMuxer    com.example.luckdraw_bench
+17181 u0_a460      18  -2  23G 221M 146M S  0.0   2.9   0:00.00 hwuiTask0       com.example.luckdraw_bench
+17179 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 TouchMotionHand com.example.luckdraw_bench
+17177 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 event-thread    com.example.luckdraw_bench
+17178 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 support-thread  com.example.luckdraw_bench
+17164 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.11 DartWorker      com.example.luckdraw_bench
+17163 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 DartWorker      com.example.luckdraw_bench
+17160 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.02 dart:io EventHa com.example.luckdraw_bench
+17154 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.09 1.io            com.example.luckdraw_bench
+17156 u0_a460      21   1  23G 221M 146M S  0.0   2.9   0:00.00 io.worker.1     com.example.luckdraw_bench
+17158 u0_a460      21   1  23G 221M 146M S  0.0   2.9   0:00.00 io.worker.2     com.example.luckdraw_bench
+17159 u0_a460      21   1  23G 221M 146M S  0.0   2.9   0:00.00 io.worker.3     com.example.luckdraw_bench
+17151 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.05 flutter-worker- com.example.luckdraw_bench
+17150 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 flutter-worker- com.example.luckdraw_bench
+17145 u0_a460      10 -10  23G 221M 146M S  0.0   2.9   0:00.14 RenderThread    com.example.luckdraw_bench
+17142 u0_a460      16  -4  23G 221M 146M S  0.0   2.9   0:00.00 vivo.PerfThread com.example.luckdraw_bench
+17143 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 POSIX timer 0   com.example.luckdraw_bench
+17144 u0_a460      15  -5  23G 221M 146M S  0.0   2.9   0:00.00 Cleaner-0       com.example.luckdraw_bench
+17141 u0_a460      29   9  23G 221M 146M S  0.0   2.9   0:00.01 Profile Saver   com.example.luckdraw_bench
+17140 u0_a460      30  10  23G 221M 146M S  0.0   2.9   0:00.00 AppEventListene com.example.luckdraw_bench
+17138 u0_a460      -2   0  23G 221M 146M S  0.0   2.9   0:00.20 binder:17126_2  com.example.luckdraw_bench
+17129 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 Signal Catcher  com.example.luckdraw_bench
+17134 u0_a460      24   4  23G 221M 146M S  0.0   2.9   0:00.00 ReferenceQueueD com.example.luckdraw_bench
+17135 u0_a460      24   4  23G 221M 146M S  0.0   2.9   0:00.00 FinalizerDaemon com.example.luckdraw_bench
+17136 u0_a460      24   4  23G 221M 146M S  0.0   2.9   0:00.00 FinalizerWatchd com.example.luckdraw_bench
+17137 u0_a460      -2   0  23G 221M 146M S  0.0   2.9   0:00.00 binder:17126_1  com.example.luckdraw_bench
+17132 u0_a460      29   9  23G 221M 146M S  0.0   2.9   0:01.75 Jit thread pool com.example.luckdraw_bench
+17131 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 ADB-JDWP Connec com.example.luckdraw_bench
+17130 u0_a460      20   0  23G 221M 146M S  0.0   2.9   0:00.00 perfetto_hprof_ com.example.luckdraw_bench
+17133 u0_a460      24   4  23G 221M 146M S  0.0   2.9   0:00.00 HeapTaskDaemon  com.example.luckdraw_bench

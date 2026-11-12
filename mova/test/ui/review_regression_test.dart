@@ -125,7 +125,7 @@ void main() {
   );
 
   testWidgets(
-    '#3 source null invalidates delayed beforeOpen and skips quality probe',
+    '#3 source null pauses delayed open and only engine readiness probes',
     (t) async {
       final k = FakeKernel();
       final hook = _OpenHook();
@@ -145,7 +145,8 @@ void main() {
       await t.pump();
       expect(e.state.playbackIntent, isFalse);
       expect(k.calls.where((v) => v == 'pause').length, greaterThan(pauses));
-      expect(e.probes, 0);
+      // View 跳过过期探测，但已接受的引擎加载仍自主探测一次。
+      expect(e.probes, 1);
       await t.pumpWidget(const SizedBox());
     },
   );

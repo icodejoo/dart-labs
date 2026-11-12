@@ -574,3 +574,5 @@ mova 可在会话级属性里带上，无需独立事件。
 > **调研局限**：CTA-2066 只有 PDF 公开版，本次未逐字提取其完整指标表，第 4 节引用的是
 > 仓库/商店页的范围描述。若要把 mova 的指标计算口径与标准逐条对齐（尤其是 rebuffering
 > ratio、video start time 的精确计算边界），需要单独把该 PDF 拉下来精读。
+
+> 2026-11-05：`stallMs` 只计被卡顿策略接受的卡顿；低于 `minStall` 的抖动在下降沿被拒绝，其时长归还观看时长（`MovaSessionTally.commitStall/rejectStall`）。进行中的卡顿仍实时计入 `stallMs`。

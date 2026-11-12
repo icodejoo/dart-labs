@@ -1,0 +1,456 @@
+{
+  "startHead": "f788b92d3d58890689488494866fecee6da787e4",
+  "startedAt": "2026-11-04T22:13:39.081449+08:00",
+  "builds": [
+    {
+      "run_id": "cp2-build-r4-20261104-221339",
+      "status": "PASS",
+      "attempt": 1,
+      "evidence": "E:\\workspaces\\wt-mova-cp2\\mova\\example\\tool\\coverage_evidence\\matrix-cp2-build-r4-20261104-221339",
+      "memoryBefore": {
+        "FreePhysicalMemory": 11198224,
+        "FreeVirtualMemory": 8732480,
+        "at": "2026-11-04T22:13:39.847615+08:00"
+      },
+      "apk": "E:\\workspaces\\wt-mova-cp2\\mova\\example\\tool\\coverage_evidence\\matrix-cp2-build-r4-20261104-221339\\matrix-cp2-build-r4-20261104-221339-installed.apk",
+      "metadata": {
+        "sha256": {
+          "signed": "db5149d41629225bc492b83e2401c12a084cf61faaa37cb5ee2315109821b89f",
+          "device": "db5149d41629225bc492b83e2401c12a084cf61faaa37cb5ee2315109821b89f"
+        },
+        "previousLastUpdateTime": [
+          "2026-11-04 18:37:15\r"
+        ],
+        "lastUpdateTime": [
+          "2026-11-04 22:15:19\r"
+        ]
+      },
+      "cleanup": {}
+    }
+  ],
+  "attempts": [
+    {
+      "batch": "cp2-rate",
+      "run_id": "cp2-rate-r4-20261104-221524",
+      "attempt": 1,
+      "planned": 10,
+      "executed": 10,
+      "counts": {
+        "PASS": 10,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-rate-r4-20261104-221524",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-rate-r4-20261104-221524.json",
+      "commit": "b35f5b7b46609fcc9db9a468dad532510b262294"
+    },
+    {
+      "batch": "cp2-adpaths",
+      "run_id": "cp2-adpaths-r4-20261104-221747",
+      "attempt": 1,
+      "planned": 40,
+      "executed": 40,
+      "counts": {
+        "PASS": 40,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adpaths-r4-20261104-221747",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adpaths-r4-20261104-221747.json",
+      "commit": "0a94ca8e1dc10ba8fe892e4c6ac2c7457b07335f"
+    },
+    {
+      "batch": "cp2-pod2",
+      "run_id": "cp2-pod2-r4-20261104-222802",
+      "attempt": 1,
+      "planned": 20,
+      "executed": 20,
+      "counts": {
+        "PASS": 10,
+        "FAIL": 10,
+        "BLOCKED": 0
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "FAIL",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-pod2-r4-20261104-222802",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-pod2-r4-20261104-222802.json",
+      "commit": "5574f1b393c2eaa8e0710f541f348ed0944923bf"
+    },
+    {
+      "batch": "cp2-playlist3",
+      "run_id": "cp2-playlist3-r4-20261104-223102",
+      "attempt": 1,
+      "planned": 5,
+      "executed": 5,
+      "counts": {
+        "PASS": 5,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-playlist3-r4-20261104-223102",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-playlist3-r4-20261104-223102.json",
+      "commit": "2e2b16c9f5530eb5ecead44f36ff8538d5e47b88"
+    },
+    {
+      "batch": "cp2-bgowner",
+      "run_id": "cp2-bgowner-r4-20261104-223642",
+      "attempt": 1,
+      "planned": 10,
+      "executed": 10,
+      "counts": {
+        "PASS": 10,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-bgowner-r4-20261104-223642",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-bgowner-r4-20261104-223642.json",
+      "commit": "31c13f7506d9d0d637fc92eded142e78d8b9e57a"
+    },
+    {
+      "batch": "cp2-adpause",
+      "run_id": "cp2-adpause-r4-20261104-223849",
+      "attempt": 1,
+      "planned": 10,
+      "executed": 10,
+      "counts": {
+        "PASS": 6,
+        "FAIL": 4,
+        "BLOCKED": 0
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "FAIL",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adpause-r4-20261104-223849",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adpause-r4-20261104-223849.json",
+      "commit": "a24d3ceff87a63f05690912e68a7f5dfa909d3ad"
+    },
+    {
+      "batch": "cp2-adbg",
+      "run_id": "cp2-adbg-r4-20261104-224213",
+      "attempt": 1,
+      "planned": 20,
+      "executed": 20,
+      "counts": {
+        "PASS": 19,
+        "FAIL": 1,
+        "BLOCKED": 0
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "FAIL",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adbg-r4-20261104-224213",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adbg-r4-20261104-224213.json",
+      "commit": "3c0a2c9af8db37e6ad50ffc49bb296e4067315ca"
+    },
+    {
+      "batch": "cp2-warmmute",
+      "run_id": "cp2-warmmute-r4-20261104-225542",
+      "attempt": 1,
+      "planned": 15,
+      "executed": 15,
+      "counts": {
+        "PASS": 15,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-warmmute-r4-20261104-225542",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-warmmute-r4-20261104-225542.json",
+      "commit": "29c4a7ea9e2d171226a4adcdf80c2e62ae4d7dab"
+    },
+    {
+      "batch": "cp2-audioonly-bg",
+      "run_id": "cp2-audioonly-bg-r4-20261104-230009",
+      "attempt": 1,
+      "planned": 9,
+      "executed": 9,
+      "counts": {
+        "PASS": 9,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "completed": true,
+      "harness": [],
+      "missing": [],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-audioonly-bg-r4-20261104-230009",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-audioonly-bg-r4-20261104-230009.json",
+      "commit": "dbc8b3d650549679115dbc587bf500776ac4de1f"
+    }
+  ],
+  "commits": [
+    {
+      "hash": "529578ae7392137e683a8ba1e882a8eceb0df44b",
+      "subject": "test(mova): CP2 fourth-round release rebuild evidence"
+    },
+    {
+      "hash": "b35f5b7b46609fcc9db9a468dad532510b262294",
+      "subject": "test(mova): CP2 rate fourth-round evidence 1"
+    },
+    {
+      "hash": "0a94ca8e1dc10ba8fe892e4c6ac2c7457b07335f",
+      "subject": "test(mova): CP2 adpaths fourth-round evidence 1"
+    },
+    {
+      "hash": "5574f1b393c2eaa8e0710f541f348ed0944923bf",
+      "subject": "test(mova): CP2 pod2 fourth-round evidence 1"
+    },
+    {
+      "hash": "2e2b16c9f5530eb5ecead44f36ff8538d5e47b88",
+      "subject": "test(mova): CP2 playlist3 fourth-round evidence 1"
+    },
+    {
+      "hash": "31c13f7506d9d0d637fc92eded142e78d8b9e57a",
+      "subject": "test(mova): CP2 bgowner fourth-round evidence 1"
+    },
+    {
+      "hash": "a24d3ceff87a63f05690912e68a7f5dfa909d3ad",
+      "subject": "test(mova): CP2 adpause fourth-round evidence 1"
+    },
+    {
+      "hash": "3c0a2c9af8db37e6ad50ffc49bb296e4067315ca",
+      "subject": "test(mova): CP2 adbg fourth-round evidence 1"
+    },
+    {
+      "hash": "29c4a7ea9e2d171226a4adcdf80c2e62ae4d7dab",
+      "subject": "test(mova): CP2 warmmute fourth-round evidence 1"
+    },
+    {
+      "hash": "dbc8b3d650549679115dbc587bf500776ac4de1f",
+      "subject": "test(mova): CP2 audioonly-bg fourth-round evidence 1"
+    }
+  ],
+  "apk": "E:\\workspaces\\wt-mova-cp2\\mova\\example\\tool\\coverage_evidence\\matrix-cp2-build-r4-20261104-221339\\matrix-cp2-build-r4-20261104-221339-installed.apk",
+  "apkSha256": "db5149d41629225bc492b83e2401c12a084cf61faaa37cb5ee2315109821b89f",
+  "restoration": {
+    "original": {
+      "power": "2",
+      "volume": "0",
+      "mappings": {
+        "reverse": {},
+        "forward": {}
+      }
+    },
+    "status": "VERIFIED",
+    "before": {
+      "power": "2",
+      "volume": "0",
+      "mappings": {
+        "reverse": {},
+        "forward": {}
+      }
+    },
+    "after": {
+      "power": "2",
+      "volume": "0",
+      "mappings": {
+        "reverse": {},
+        "forward": {}
+      }
+    },
+    "commands": [
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "cmd",
+          "media_session",
+          "volume",
+          "--stream",
+          "3",
+          "--get"
+        ],
+        "exit": 0,
+        "stdout": "[V] will control stream=3 (STREAM_MUSIC)\r\n[V] will get volume\r\n[V] Connecting to AudioService\r\n[V] volume is 0 in range [0..20]\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "reverse",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "forward",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "settings",
+          "get",
+          "global",
+          "stay_on_while_plugged_in"
+        ],
+        "exit": 0,
+        "stdout": "2\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "am",
+          "force-stop",
+          "com.icodejoo.mova.mova_example.coverage"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "cmd",
+          "media_session",
+          "volume",
+          "--stream",
+          "3",
+          "--set",
+          "0"
+        ],
+        "exit": 0,
+        "stdout": "[V] will control stream=3 (STREAM_MUSIC)\r\n[V] will set volume to index=0\r\n[V] Connecting to AudioService\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "settings",
+          "put",
+          "global",
+          "stay_on_while_plugged_in",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "cmd",
+          "media_session",
+          "volume",
+          "--stream",
+          "3",
+          "--get"
+        ],
+        "exit": 0,
+        "stdout": "[V] will control stream=3 (STREAM_MUSIC)\r\n[V] will get volume\r\n[V] Connecting to AudioService\r\n[V] volume is 0 in range [0..20]\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "reverse",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "forward",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "\r\n",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "adb",
+          "-s",
+          "7NQBB23606003715",
+          "shell",
+          "settings",
+          "get",
+          "global",
+          "stay_on_while_plugged_in"
+        ],
+        "exit": 0,
+        "stdout": "2\r\n",
+        "stderr": ""
+      }
+    ]
+  },
+  "finishedAt": "2026-11-04T23:05:40.370044+08:00"
+}

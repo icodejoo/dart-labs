@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -174,13 +175,28 @@ class _ProbePageState extends State<_ProbePage> {
 
   void _pollSubText(dynamic native, String tag, int maxTicks) {
     var ticks = 0;
+    var samples = 0;
+    var nonempty = 0;
+    final clock = Stopwatch()..start();
     Timer.periodic(const Duration(milliseconds: 500), (t) async {
       ticks++;
       if (ticks > maxTicks || native is! NativePlayer) {
         t.cancel();
+        // A completed poll window is independent of whether subtitles passed.
+        // No native readback means BLOCKED, never a synthesized success.
+        // ignore: avoid_print
+        print('MATRIX_RECORD ${jsonEncode({'kind': 'CHECK', 'ms': clock.elapsedMilliseconds,
+          'id': 'F11.${tag.toLowerCase()}', 'pass': samples == 0 ? null : nonempty > 0,
+          'numbers': {'samples': samples, 'nonempty': nonempty}, 'origin': 'native-sub-text'})}');
+        if (tag == 'MOVTEXT') {
+          // ignore: avoid_print
+          print('SUBFMT AUTORUN DONE');
+        }
         return;
       }
       final text = await native.getProperty('sub-text');
+      samples++;
+      if (text.isNotEmpty) nonempty++;
       final pos = await native.getProperty('time-pos');
       print('SUBFMT_PROBE[$tag] t=$ticks pos=$pos sub-text="$text"');
     });

@@ -1,0 +1,32 @@
+[
+  {
+    "ended_at": "2026-11-10T17:35:19.2669853Z",
+    "valid": true,
+    "started_at": "2026-11-10T17:35:00.9165039Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "wheel_first_frame_1",
+    "attempt": 1,
+    "scene": "wheel_first_frame"
+  },
+  {
+    "ended_at": "2026-11-10T17:35:38.2667591Z",
+    "valid": true,
+    "started_at": "2026-11-10T17:35:20.0254602Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "wheel_first_frame_2",
+    "attempt": 2,
+    "scene": "wheel_first_frame"
+  },
+  {
+    "ended_at": "2026-11-10T17:35:57.6436202Z",
+    "valid": true,
+    "started_at": "2026-11-10T17:35:39.0640955Z",
+    "error": null,
+    "binary_sha256": "1FF4EACB243B3947AA0A829B1D61CE11A545ACFBC667DEDA57EA5C63FA8EC142",
+    "directory": "wheel_first_frame_3",
+    "attempt": 3,
+    "scene": "wheel_first_frame"
+  }
+]

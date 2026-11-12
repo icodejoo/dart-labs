@@ -10,6 +10,7 @@ import 'pages/pause_page.dart';
 import 'pages/external_page.dart';
 import 'pages/mixed_page.dart';
 import 'pages/setup_page.dart';
+import 'pages/v030_page.dart';
 import 'widgets/om_state_bar.dart';
 
 // ── Destination manifest ─────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ class _Dest {
 }
 
 const _destinations = [
+  _Dest('v0.3 Features', Icons.new_releases_outlined, V030Page()),
   _Dest('Queue Basics', Icons.queue_outlined, QueuePage()),
   _Dest('Replace & Affix', Icons.swap_horiz, ReplaceAffixPage()),
   _Dest('Overlap', Icons.layers_outlined, OverlapPage()),

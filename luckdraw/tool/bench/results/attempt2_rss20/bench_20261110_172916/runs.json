@@ -1,0 +1,24 @@
+{
+  "elapsedMs": 300814,
+  "command": "flutter drive --profile --no-pub -d 10AE9K17UE0011S --driver=test_driver/perf_driver.dart --target=integration_test/wheel_bench_test.dart --dart-define=LUCKDRAW_TIMELINE=true --dart-define=SCENARIO=wheel",
+  "directory": "wheel_1",
+  "before": {
+    "recordedAt": "2026-11-10T09:29:18.6712289Z",
+    "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 2779060\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 46\n  scale: 100\n  voltage: 3889\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d3h41m22s530ms\n The last voltage value sent via the battery changed broadcast: 3889\n  temperature: 284\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1",
+    "temperatureC": 28.4,
+    "level": 46
+  },
+  "startedAt": "2026-11-10T09:29:19.1078717Z",
+  "after": {
+    "recordedAt": "2026-11-10T09:34:19.9636180Z",
+    "raw": "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  Wireless powered: false\n  Dock powered: false\n  Max charging current: 0\n Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +17s829ms\n  Max charging voltage: 4980736\n  Charge counter: 2805830\n  engine: 0\n  soc decimal: 0\n  adapter power: 0\n  board temp status: 0\n  low bat status: 0\n  reverse wl chg status: 0\n  reverse wl chg exception: 0\n  chg shut vbat: 3200\n  last mode flag: 0\n  last mode keep time: 4\n  status: 2\n  health: 2\n  present: true\n  level: 46\n  scale: 100\n  voltage: 3891\n Time when the latest updated value of the voltage was sent via battery changed broadcast: +6d3h46m22s513ms\n The last voltage value sent via the battery changed broadcast: 3891\n  temperature: 288\n  technology: Li-poly\n  Charging state: 0\n  Charging policy: 0\n  Capacity level: -1",
+    "temperatureC": 28.8,
+    "level": 46
+  },
+  "target": "wheel",
+  "exitCode": -1,
+  "endedAt": "2026-11-10T09:34:19.9639854Z",
+  "timedOut": true,
+  "attempt": 1,
+  "freeKB": 11334540
+}

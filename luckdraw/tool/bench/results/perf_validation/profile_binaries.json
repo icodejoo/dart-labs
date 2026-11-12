@@ -1,0 +1,6 @@
+{
+  "ablation_apk_sha256": "925f438be1dd31a0cadb3d641aee32b146d5e54a0dbd83b133e53bf1d4eb5389",
+  "after_apk_sha256": "ce352b375772e2a2d01d78faced91a7232bb014e1aa87f306487895645612fbe",
+  "binaries_retained_locally": "C:/ldp/luckdraw/tool/bench/results/{perf_ablation,perf_after}/perf.apk",
+  "note": "不拷贝APK和本机Gradle配置；采集后长号码/系统缩放边界修正仅影响特殊配置的低频准备，详见PERF_REPORT"
+}

@@ -14,22 +14,23 @@ import 'dart:collection';
 /// for the synchronous duration of the callback / build that receives it —
 /// **do not retain it across frames** (store the component ints you need).
 class TimeParts {
-  TimeParts._(this._components, this._value, this._total);
+  TimeParts._(this._components, this._valueMicros, this._total);
 
   /// Fixed-length `[days, hours(0-23), minutes(0-59), seconds(0-59), millis(0-999)]`.
   final List<int> _components;
-  Duration _value;
+  /// 当前整数微秒；时钟热路径不构造 Duration。
+  int _valueMicros;
   Duration? _total;
 
   /// Creates a standalone instance (owns its backing list). Used for a
   /// widget's initial value before the first tick; the engine reuses one
   /// per task via [TimeParts.zero] + [set].
   factory TimeParts.of(Duration value, [Duration? total]) =>
-      (TimeParts._(List<int>.filled(5, 0), Duration.zero, null))..set(value, total);
+      (TimeParts._(List<int>.filled(5, 0), 0, null))..set(value, total);
 
   /// Creates a zeroed instance with its own reused backing list.
   factory TimeParts.zero() =>
-      TimeParts._(List<int>.filled(5, 0), Duration.zero, null);
+      TimeParts._(List<int>.filled(5, 0), 0, null);
 
   // ── modulo components (direct reads, no allocation) ────────────────
   int get days => _components[0];
@@ -39,20 +40,20 @@ class TimeParts {
   int get millis => _components[4];
 
   // ── convenience totals (may exceed the modulo range) ───────────────
-  int get totalHours => _value.inHours;
-  int get totalMinutes => _value.inMinutes;
-  int get totalSeconds => _value.inSeconds;
+  int get totalHours => _valueMicros ~/ Duration.microsecondsPerHour;
+  int get totalMinutes => _valueMicros ~/ Duration.microsecondsPerMinute;
+  int get totalSeconds => _valueMicros ~/ Duration.microsecondsPerSecond;
 
   // ── Duration-style totals (mirror [Duration] for familiarity) ──────
-  int get inDays => _value.inDays;
-  int get inHours => _value.inHours;
-  int get inMinutes => _value.inMinutes;
-  int get inSeconds => _value.inSeconds;
-  int get inMilliseconds => _value.inMilliseconds;
-  int get inMicroseconds => _value.inMicroseconds;
+  int get inDays => _valueMicros ~/ Duration.microsecondsPerDay;
+  int get inHours => _valueMicros ~/ Duration.microsecondsPerHour;
+  int get inMinutes => _valueMicros ~/ Duration.microsecondsPerMinute;
+  int get inSeconds => _valueMicros ~/ Duration.microsecondsPerSecond;
+  int get inMilliseconds => _valueMicros ~/ Duration.microsecondsPerMillisecond;
+  int get inMicroseconds => _valueMicros;
 
   /// The raw value (remaining for countdown, elapsed for a stopwatch).
-  Duration get value => _value;
+  Duration get value => Duration(microseconds: _valueMicros);
 
   /// The initial total (countdown only — the progress denominator). `null`
   /// for elapsed timers, which have no fixed total.
@@ -63,7 +64,7 @@ class TimeParts {
   double get progress {
     final t = _total;
     if (t == null || t.inMicroseconds <= 0) return 0;
-    return (_value.inMicroseconds / t.inMicroseconds).clamp(0.0, 1.0);
+    return (_valueMicros / t.inMicroseconds).clamp(0.0, 1.0);
   }
 
   /// Live read-only view of the component list `[d, h, m, s, ms]`. Reflects
@@ -73,19 +74,18 @@ class TimeParts {
   /// Engine-internal: recompute the components in place from [value].
   /// Negative values clamp to zero.
   void set(Duration value, Duration? total) {
-    // Clamp negatives to zero on the stored value too (not just the component
-    // math), so `value`/`in*` stay consistent with the zeroed components — the
-    // documented "negative values clamp to zero" contract.
-    //
-    // 存储值也把负值钳到零（不仅是分量计算），使 `value`/`in*` 与归零的分量一致——
-    // 即文档承诺的"负值钳到零"。
-    _value = value < Duration.zero ? Duration.zero : value;
+    setMicros(value.inMicroseconds, total);
+  }
+
+  /// 用整数微秒原地更新分量，负值钳零；供时钟热路径使用。
+  void setMicros(int micros, Duration? total) {
+    _valueMicros = micros < 0 ? 0 : micros;
     _total = total;
-    final totalMs = _value.inMilliseconds;
-    _components[0] = totalMs ~/ 86400000; // days
-    _components[1] = (totalMs ~/ 3600000) % 24; // hours
-    _components[2] = (totalMs ~/ 60000) % 60; // minutes
-    _components[3] = (totalMs ~/ 1000) % 60; // seconds
-    _components[4] = totalMs % 1000; // millis
+    final totalMs = inMilliseconds;
+    _components[0] = totalMs ~/ Duration.millisecondsPerDay;
+    _components[1] = (totalMs ~/ Duration.millisecondsPerHour) % Duration.hoursPerDay;
+    _components[2] = (totalMs ~/ Duration.millisecondsPerMinute) % Duration.minutesPerHour;
+    _components[3] = (totalMs ~/ Duration.millisecondsPerSecond) % Duration.secondsPerMinute;
+    _components[4] = totalMs % Duration.millisecondsPerSecond;
   }
 }

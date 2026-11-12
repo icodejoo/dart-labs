@@ -1,0 +1,53 @@
+{
+  "backend_requested": "skia",
+  "dpr": 2.75,
+  "physical_width": 1080.0,
+  "physical_height": 2400.0,
+  "panels": {
+    "device_1": {
+      "left": 45.00000000000003,
+      "top": 292.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.0
+    },
+    "logical_1": {
+      "left": 540.0,
+      "top": 292.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.0
+    },
+    "device_1_5": {
+      "left": 45.00000000000003,
+      "top": 897.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.5
+    },
+    "logical_1_5": {
+      "left": 540.0,
+      "top": 897.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.5
+    },
+    "grid_3x3": {
+      "left": 45.00000000000003,
+      "top": 1502.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.0
+    },
+    "slot": {
+      "left": 540.0,
+      "top": 1502.5,
+      "width": 495.0,
+      "height": 605.0,
+      "scale": 1.0
+    }
+  },
+  "impeller_enabled": false,
+  "backend_verified_by": "ext.ui.window.impellerEnabled",
+  "recorded_at": "2026-11-10T11:39:29.218031Z"
+}

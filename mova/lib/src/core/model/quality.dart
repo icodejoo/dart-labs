@@ -1,3 +1,10 @@
+/// 自动档的兼容标签；界面使用 MovaStrs.auto，下个版本计划改为中性值。
+const String kMovaAutoQualityLabel = '自动';
+
+/// 无分辨率、无码率时的兼容标签；界面使用 MovaStrs.unknownQuality。
+/// 下个版本计划改为中性值，本版本保留现有宿主展示。
+const String kMovaUnknownQualityLabel = '未知';
+
 /// A selectable video quality variant.
 ///
 /// For adaptive sources (HLS), "auto" delegates bitrate selection to the
@@ -52,14 +59,16 @@ class MovaQuality {
   /// The adaptive "auto" entry (engine picks the bitrate).
   ///
   /// 自适应"自动"档（内核自动选码率）。
-  factory MovaQuality.auto() => const MovaQuality(label: '自动', uri: '', isAuto: true);
+  factory MovaQuality.auto() =>
+      const MovaQuality(label: kMovaAutoQualityLabel, uri: '', isAuto: true);
 }
 
 /// Parses an HLS master playlist into a quality list (auto first, then
-/// variants sorted highest-first). Returns an empty list if [content] is not
+/// variants sorted by resolution, then bandwidth, with heightless entries last).
+/// Returns an empty list if [content] is not
 /// a master playlist (no `#EXT-X-STREAM-INF`).
 ///
-/// 解析 HLS master playlist 为清晰度列表（"自动"在前，其余按从高到低排序）。
+/// 解析 HLS master playlist（"自动"在前，按分辨率、码率降序，无高度的档位最后）。
 /// 若 [content] 不是 master（无 `#EXT-X-STREAM-INF`），返回空列表。
 ///
 /// - [content]: raw .m3u8 text / m3u8 原文
@@ -87,7 +96,9 @@ List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
     }
     if (uri == null) continue;
     final attrs = _parseAttrs(line.substring('#EXT-X-STREAM-INF:'.length));
-    final bw = int.tryParse(attrs['BANDWIDTH'] ?? attrs['AVERAGE-BANDWIDTH'] ?? '');
+    final bw = int.tryParse(
+      attrs['BANDWIDTH'] ?? attrs['AVERAGE-BANDWIDTH'] ?? '',
+    );
     int? w, h;
     final res = attrs['RESOLUTION'];
     if (res != null) {
@@ -98,16 +109,28 @@ List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
       }
     }
     final resolved = base != null ? base.resolve(uri).toString() : uri;
-    variants.add(MovaQuality(
-      label: h != null ? '${h}p' : (bw != null ? '${(bw / 1000).round()}kbps' : '未知'),
-      uri: resolved,
-      bandwidth: bw,
-      width: w,
-      height: h,
-    ));
+    variants.add(
+      MovaQuality(
+        label: h != null
+            ? '${h}p'
+            : (bw != null
+                  ? '${(bw / 1000).round()}kbps'
+                  : kMovaUnknownQualityLabel),
+        uri: resolved,
+        bandwidth: bw,
+        width: w,
+        height: h,
+      ),
+    );
   }
   if (variants.isEmpty) return [];
-  variants.sort((a, b) => (b.height ?? b.bandwidth ?? 0).compareTo(a.height ?? a.bandwidth ?? 0));
+  variants.sort((a, b) {
+    if (a.height != null && b.height == null) return -1;
+    if (a.height == null && b.height != null) return 1;
+    final height = (b.height ?? 0).compareTo(a.height ?? 0);
+    if (height != 0) return height;
+    return (b.bandwidth ?? 0).compareTo(a.bandwidth ?? 0);
+  });
   return [MovaQuality.auto(), ...variants];
 }
 

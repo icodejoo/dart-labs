@@ -1,0 +1,31 @@
+{
+  "format": {
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.bat",
+      "format",
+      "--output=none",
+      "--set-exit-if-changed",
+      "lib",
+      "test",
+      "tool"
+    ],
+    "exitCode": 0,
+    "output": "\fFormatted 345 files (0 changed) in 1.52 seconds.\n"
+  },
+  "imports": {
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.bat",
+      "tool/check_imports.dart"
+    ],
+    "exitCode": 0,
+    "output": "\fPASS: 145 lib files; IMP-R1…R12 / 依赖图与静态规则通过\n"
+  },
+  "acceptance": {
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.bat",
+      "tool/check_acceptance.dart"
+    ],
+    "exitCode": 0,
+    "output": "\fPASS: 1468 references resolve; 1069 registered tests all mapped. / 全部测试引用有效且无遗漏\n"
+  }
+}

@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 // ignore: implementation_imports
-import 'package:countman/src/widgets/dial_countdown.dart';
 import 'demo_card.dart';
 
 class CountdownPage extends StatefulWidget {
@@ -79,7 +78,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             duration: const Duration(minutes: 5),
-            builder: (_, parts, __) {
+            builder: (_, parts, _) {
               final m = parts.totalMinutes.toString().padLeft(2, '0');
               final s = parts.seconds.toString().padLeft(2, '0');
               return Text(
@@ -116,7 +115,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             to: DateTime.now().add(const Duration(hours: 2)),
-            builder: (_, parts, __) {
+            builder: (_, parts, _) {
               final h = parts.totalHours.toString().padLeft(2, '0');
               final m = parts.minutes.toString().padLeft(2, '0');
               final s = parts.seconds.toString().padLeft(2, '0');
@@ -349,7 +348,7 @@ class _ClockBox extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             duration: const Duration(hours: 1, minutes: 23, seconds: 45),
-            builder: (_, parts, __) {
+            builder: (_, parts, _) {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1536,9 +1535,8 @@ class _DemoState extends State<_Demo> {
 // ── StatefulWidget demos ──────────────────────────────────────────────────────
 
 // Module-level singleton so Countman.use() is called once with the same
-// instance; creating a new Countdown on every initState would fail on reset
-// because Countman.use() silently ignores duplicate names, leaving the new
-// instance without an attached context.
+// instance; creating a new same-named Countdown on every initState would trip
+// the duplicate-name assertion in debug builds.
 final _msPlugin = Countdown(name: 'ms_demo', interval: 1000 ~/ 60);
 
 class _MsBuilderDemo extends StatefulWidget {
@@ -1560,7 +1558,7 @@ class _MsBuilderDemoState extends State<_MsBuilderDemo> {
     return CountdownBuilder(
       duration: const Duration(seconds: 10),
       plugin: _msPlugin,
-      builder: (_, parts, __) => Text(
+      builder: (_, parts, _) => Text(
         CountdownFormat.msMillis(parts),
         style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       ),
@@ -1586,7 +1584,7 @@ class _ControllerBuilderDemoState extends State<_ControllerBuilderDemo> {
         CountdownBuilder(
           duration: const Duration(minutes: 2),
           controller: _ctrl,
-          builder: (_, parts, __) {
+          builder: (_, parts, _) {
             final m = parts.totalMinutes.toString().padLeft(2, '0');
             final s = parts.seconds.toString().padLeft(2, '0');
             return Text(
@@ -1635,7 +1633,7 @@ class _ThresholdDemoState extends State<_ThresholdDemo> {
       duration: const Duration(seconds: 30),
       threshold: const Duration(seconds: 10),
       onThreshold: () { if (mounted) setState(() => _urgent = true); },
-      builder: (_, parts, __) {
+      builder: (_, parts, _) {
         final m = parts.totalMinutes.toString().padLeft(2, '0');
         final s = parts.seconds.toString().padLeft(2, '0');
         return Text(
@@ -1669,7 +1667,7 @@ class _OnCompleteDemoState extends State<_OnCompleteDemo> {
         CountdownBuilder(
           duration: const Duration(seconds: 10),
           onComplete: () { if (mounted) setState(() => _done = true); },
-          builder: (_, parts, __) {
+          builder: (_, parts, _) {
             final s = parts.totalSeconds.toString().padLeft(2, '0');
             return Text(
               '00:$s',

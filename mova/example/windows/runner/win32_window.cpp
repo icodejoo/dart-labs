@@ -134,8 +134,11 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+  // 安静模式下不可激活且不进任务栏/Alt-Tab，避免抢用户桌面焦点。
+  const DWORD ex_style =
+      quiet_ ? (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) : 0;
+  HWND window = CreateWindowEx(
+      ex_style, window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
@@ -150,7 +153,24 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
+  if (quiet_) {
+    // 放到虚拟屏幕（含副显示器）右下角、压到最底，再不激活地显示。
+    // Physical pixel bounds stay small even on high-DPI monitors.
+    const int width = 640;
+    const int height = 360;
+    const int x = GetSystemMetrics(SM_XVIRTUALSCREEN) +
+                  GetSystemMetrics(SM_CXVIRTUALSCREEN) - width - 8;
+    const int y = GetSystemMetrics(SM_YVIRTUALSCREEN) +
+                  GetSystemMetrics(SM_CYVIRTUALSCREEN) - height - 48;
+    SetWindowPos(window_handle_, HWND_BOTTOM, x, y, width, height,
+                 SWP_NOACTIVATE);
+    return ShowWindow(window_handle_, SW_SHOWNOACTIVATE);
+  }
   return ShowWindow(window_handle_, SW_SHOWNORMAL);
+}
+
+void Win32Window::SetQuiet(bool quiet) {
+  quiet_ = quiet;
 }
 
 // static
@@ -208,7 +228,7 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
-      if (child_content_ != nullptr) {
+      if (!quiet_ && LOWORD(wparam) != WA_INACTIVE && child_content_ != nullptr) {
         SetFocus(child_content_);
       }
       return 0;
@@ -246,7 +266,9 @@ void Win32Window::SetChildContent(HWND content) {
   MoveWindow(content, frame.left, frame.top, frame.right - frame.left,
              frame.bottom - frame.top, true);
 
-  SetFocus(child_content_);
+  if (!quiet_) {
+    SetFocus(child_content_);
+  }
 }
 
 RECT Win32Window::GetClientArea() {

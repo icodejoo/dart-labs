@@ -1,3 +1,5 @@
+import '../style/style.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -117,7 +119,7 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
   Widget build(BuildContext context) {
     final cue = _cue;
     if (cue == null) return const SizedBox.shrink();
-    final theme = widget.api.options.theme;
+    final theme = MovaPlayerStyle.themeOf(context);
     return IgnorePointer(
       // A LayoutBuilder rather than Positioned: this widget is a plain
       // (non-Positioned) child of the overlay slot's Stack, so it already
@@ -144,12 +146,18 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
           // 找不到 MovaVideoRectScope 时（例如本组件在测试里被脱离
           // MovaPlayer 单独渲染）退化为整个容器，复刻修复前"对齐整个容器"的
           // 行为。
-          final rect = MovaVideoRectScope.of(context, fallback: Offset.zero & container);
+          final rect = MovaVideoRectScope.of(
+            context,
+            fallback: Offset.zero & container,
+          );
           return Padding(
             padding: EdgeInsets.only(
               left: rect.left,
               right: (container.width - rect.right).clamp(0, double.infinity),
-              bottom: (container.height - rect.bottom + _bottomGap).clamp(0, double.infinity),
+              bottom: (container.height - rect.bottom + _bottomGap).clamp(
+                0,
+                double.infinity,
+              ),
             ),
             child: Align(
               alignment: Alignment.bottomCenter,
@@ -160,7 +168,10 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
                 // 固定 key，便于测试/验证探针在不匹配文本内容的情况下定位到
                 // 渲染出的气泡 RenderBox。
                 key: const ValueKey('movaSubtitleCueBubble'),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Color(theme.barGradientColor),
                   borderRadius: BorderRadius.circular(4),
@@ -223,13 +234,11 @@ class MovaSubtitleButtonComponent extends MovaComponent {
   }
 }
 
-/// Stateful body of [MovaSubtitleButtonComponent]: tracks whether this session
-/// turned subtitles on, purely as local UI state (`MovaApi.stt` exposes no
-/// "is running" flag to select on — see the port's doc comment).
+/// Stateful body of [MovaSubtitleButtonComponent], reading the STT service's
+/// actual running state on builds and after commands.
 ///
-/// [MovaSubtitleButtonComponent] 的有状态主体：跟踪本次会话是否已开启字幕，纯属
-/// 本地 UI 状态（`MovaApi.stt` 没有暴露"是否在运行"的字段可供 selector 使用——
-/// 见该端口的文档注释）。
+/// [MovaSubtitleButtonComponent] 的有状态主体，在构建与命令完成后读取 STT
+/// 服务的实际运行状态。
 class _SubtitleButton extends StatefulWidget {
   /// Creates the button widget.
   ///
@@ -249,18 +258,24 @@ class _SubtitleButton extends StatefulWidget {
 ///
 /// [_SubtitleButton] 的状态。
 class _SubtitleButtonState extends State<_SubtitleButton> {
-  /// Whether this session has turned subtitles on.
+  /// Whether the current service is actually running.
   ///
-  /// 本次会话是否已开启字幕。
-  bool _on = false;
+  /// 当前服务是否实际处于运行状态。
+  bool get _on => widget.api.stt.isRunning;
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.api.options.theme;
-    return MovaIconButton(
-      icon: _on ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-      theme: theme,
-      onPressed: () => _showMenu(theme),
+    final theme = MovaPlayerStyle.themeOf(context);
+    return StreamBuilder<MovaProg>(
+      stream: widget.api.progress,
+      builder: (context, _) => MovaIconButton(
+        label: MovaPlayerStyle.stringsOf(context).subtitles,
+        icon: _on
+            ? MovaPlayerStyle.iconsOf(context).subtitles
+            : MovaPlayerStyle.iconsOf(context).subtitlesOff,
+        theme: theme,
+        onPressed: () => _showMenu(theme),
+      ),
     );
   }
 
@@ -271,23 +286,24 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
   ///
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
   void _showMenu(MovaTheme theme) {
-    final languages = widget.api.stt.languages;
-    final strings = widget.api.options.strings;
+    final stt = widget.api.stt;
+    final languages = stt.languages;
+    final strings = MovaPlayerStyle.stringsOf(context);
     showMovaOptionSheet(context, theme, [
       MovaSheetItem(
         label: languages.join('/'),
         checked: _on,
         onSelected: () async {
-          await widget.api.stt.start();
-          if (mounted) setState(() => _on = true);
+          await stt.start();
+          if (mounted) setState(() {});
         },
       ),
       MovaSheetItem(
         label: strings.subtitleOff,
         checked: !_on,
         onSelected: () async {
-          await widget.api.stt.stop();
-          if (mounted) setState(() => _on = false);
+          await stt.stop();
+          if (mounted) setState(() {});
         },
       ),
     ]);

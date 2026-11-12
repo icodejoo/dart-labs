@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -79,118 +80,144 @@ class MovaDiskThumbCache implements MovaThumbCache {
   /// Returns the backing file handle.
   ///
   /// 返回对应的文件句柄。
-  File _file(Directory d, String key) => File('${d.path}${Platform.pathSeparator}$key$_kSuffix');
+  File _file(Directory d, String key) =>
+      File('${d.path}${Platform.pathSeparator}$key$_kSuffix');
 
-  /// Lists every cached file, newest-touched last; empty when unusable.
-  ///
-  /// 列出全部缓存文件，最近被触碰的排在最后；不可用时返回空列表。
-  ///
-  /// Returns the sorted file list.
-  ///
-  /// 返回排序后的文件列表。
-  Future<List<File>> _entries() async {
-    final d = await _dir();
-    if (d == null) return const <File>[];
-    try {
-      final files = (await d.list().toList())
-          .whereType<File>()
-          .where((f) => f.path.endsWith(_kSuffix))
-          .toList();
-      files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
-      return files;
-    } on FileSystemException {
-      return const <File>[];
-    }
+  /// 首次访问时异步扫描一次，后续操作增量维护索引。
+  final Map<String, ({int size, DateTime touched})> _index = {};
+
+  /// 索引是否已从磁盘读取。
+  bool _indexed = false;
+
+  /// 串行化索引与文件操作，避免并发写入破坏预算。
+  Future<void> _queue = Future<void>.value();
+
+  /// 将 [action] 排入操作队列；返回该操作的结果。
+  Future<T> _run<T>(Future<T> Function() action) {
+    final result = _queue.then((_) => action());
+    _queue = result.then<void>((_) {}, onError: (Object e, StackTrace st) {});
+    return result;
   }
 
-  /// Sums the byte size of every cached file.
-  ///
-  /// 统计全部缓存文件的字节总和。
-  ///
-  /// Returns the total size in bytes; `0` when the cache is unusable.
-  ///
-  /// 返回总字节数；缓存不可用时返回 `0`。
-  Future<int> totalBytes() async {
-    var total = 0;
-    for (final f in await _entries()) {
+  /// 在 [d] 下异步读取文件元数据；比较器只读内存。
+  Future<void> _loadIndex(Directory d) async {
+    if (_indexed) return;
+    await for (final entity in d.list()) {
+      if (entity is! File || !entity.path.endsWith(_kSuffix)) continue;
       try {
-        total += await f.length();
+        final stat = await entity.stat();
+        final name = entity.uri.pathSegments.last;
+        _index[name.substring(0, name.length - _kSuffix.length)] = (
+          size: stat.size,
+          touched: stat.modified,
+        );
       } on FileSystemException {
-        continue;
+        // 外部删除的文件不入索引。
       }
     }
-    return total;
+    _indexed = true;
   }
 
-  /// Deletes least-recently-touched files until the total fits [maxBytes].
-  ///
-  /// 从最久未触碰的文件开始删，直到总量落回 [maxBytes] 以内。
-  Future<void> evict() async {
-    final files = await _entries();
-    var total = 0;
-    final sizes = <File, int>{};
-    for (final f in files) {
-      try {
-        final len = await f.length();
-        sizes[f] = len;
-        total += len;
-      } on FileSystemException {
-        continue;
-      }
-    }
-    for (final f in files) {
+  /// 按内存索引删除 [d] 中的最旧条目，直到满足预算。
+  Future<void> _evict(Directory d) async {
+    var total = _index.values.fold<int>(0, (sum, entry) => sum + entry.size);
+    final keys = _index.keys.toList()
+      ..sort((a, b) => _index[a]!.touched.compareTo(_index[b]!.touched));
+    for (final key in keys) {
       if (total <= maxBytes) break;
       try {
-        await f.delete();
-        total -= sizes[f] ?? 0;
+        final file = _file(d, key);
+        if (await file.exists()) await file.delete();
+        total -= _index.remove(key)!.size;
       } on FileSystemException {
-        continue;
+        // 无法删除时保留索引，留给下次淘汰重试。
       }
     }
   }
+
+  /// 返回索引中的编码字节总数；无参数。示例：`await cache.totalBytes()`。
+  Future<int> totalBytes() => _run(() async {
+    try {
+      final d = await _dir();
+      if (d == null) return 0;
+      await _loadIndex(d);
+      return _index.values.fold<int>(0, (sum, entry) => sum + entry.size);
+    } on FileSystemException {
+      return 0;
+    }
+  });
+
+  /// 淘汰至 [maxBytes]；无返回值。示例：`await cache.evict()`。
+  Future<void> evict() => _run(() async {
+    try {
+      final d = await _dir();
+      if (d == null) return;
+      await _loadIndex(d);
+      await _evict(d);
+    } on FileSystemException {
+      // 缓存失败不影响播放。
+    }
+  });
 
   @override
   Uint8List? peek(String key) => null;
 
   @override
-  Future<Uint8List?> read(String key) async {
-    final d = await _dir();
-    if (d == null) return null;
-    final f = _file(d, key);
+  Future<Uint8List?> read(String key) => _run(() async {
     try {
-      if (!await f.exists()) return null;
-      final bytes = await f.readAsBytes();
-      await f.setLastModified(DateTime.now());
+      final d = await _dir();
+      if (d == null) return null;
+      await _loadIndex(d);
+      final file = _file(d, key);
+      if (!await file.exists()) {
+        _index.remove(key);
+        return null;
+      }
+      final bytes = await file.readAsBytes();
+      final now = DateTime.now();
+      await file.setLastModified(now);
+      _index[key] = (size: bytes.lengthInBytes, touched: now);
       return bytes;
     } on FileSystemException {
       return null;
     }
-  }
+  });
 
   @override
-  Future<void> write(String key, Uint8List bytes) async {
+  Future<void> write(String key, Uint8List bytes) => _run(() async {
     if (maxBytes <= 0) return;
-    final d = await _dir();
-    if (d == null) return;
     try {
+      final d = await _dir();
+      if (d == null) return;
+      await _loadIndex(d);
       await _file(d, key).writeAsBytes(bytes, flush: true);
+      _index[key] = (size: bytes.lengthInBytes, touched: DateTime.now());
+      await _evict(d);
     } on FileSystemException {
-      return;
+      // 文件失败不影响播放。
     }
-    await evict();
-  }
+  });
 
   @override
-  Future<void> clear() async {
-    for (final f in await _entries()) {
-      try {
-        await f.delete();
-      } on FileSystemException {
-        continue;
+  Future<void> clear() => _run(() async {
+    try {
+      final d = await _dir();
+      if (d == null) return;
+      await _loadIndex(d);
+      for (final key in _index.keys.toList()) {
+        try {
+          final file = _file(d, key);
+          if (await file.exists()) await file.delete();
+          _index.remove(key);
+        } on FileSystemException {
+          // 无法删除时保留条目以便重试。
+        }
       }
+    } on FileSystemException {
+      // 目录不可用时静默降级。
     }
-  }
+  });
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() => _queue;
 }

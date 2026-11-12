@@ -1,0 +1,7 @@
+{
+  "exit_code": 0,
+  "unchanged_sha256": {
+    "tool/bench/budgets.json": "89a802f8df76a883afc4c5ce0d92bd7e88ea13525cd7aa3b1226c667dfe0c4d5",
+    "tool/bench/results/met2/assessment.json": "2591e2c5dd892ada72531d8af22ef2666606465b819f0260cc3a6209971a7faa"
+  }
+}

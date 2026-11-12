@@ -95,3 +95,28 @@ Future<bool> previewAllowedOn(MovaPreviewNet policy, MovaNetProbe probe) async {
       }
   }
 }
+
+/// 按需创建真实探针；仅调用 [allowHeavy] 或读取 [changes] 才调用 [factory]。
+/// 未使用便销毁时不会创建探针。示例：`MovaLazyNetProbe(makeProbe)`。
+class MovaLazyNetProbe implements MovaNetProbe {
+  /// 保存探针工厂 [factory]，返回延迟创建的探针包装器。
+  MovaLazyNetProbe(this.factory);
+
+  /// 首次需要网络判定时调用的工厂；每个包装器最多创建一个实例。
+  final MovaNetProbe Function() factory;
+  MovaNetProbe? _inner;
+  bool _disposed = false;
+
+  @override
+  Future<bool> allowHeavy() async => !_disposed && await (_inner ??= factory()).allowHeavy();
+
+  @override
+  Stream<bool> get changes => _disposed ? const Stream.empty() : (_inner ??= factory()).changes;
+
+  @override
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await _inner?.dispose();
+  }
+}

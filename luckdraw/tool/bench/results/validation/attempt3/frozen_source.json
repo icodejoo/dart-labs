@@ -1,0 +1,729 @@
+{
+  "device": "vivo V2417",
+  "snapshot": "C:/ldd/luckdraw",
+  "flutter": "3.47.0 4cf2416426",
+  "product_files": [
+    {
+      "path": "lib/capsule.dart",
+      "frozen_sha256": "47ff4ded3a1fe8a2abc7474511ee88ad6da88eedf570c690d9b5819c13e4cd5a",
+      "real_sha256": "47ff4ded3a1fe8a2abc7474511ee88ad6da88eedf570c690d9b5819c13e4cd5a"
+    },
+    {
+      "path": "lib/compat.dart",
+      "frozen_sha256": "d5d5630257c552a3022dc5b99f4c5d91bb0251c02d46e36cc4e3ed520406f9a0",
+      "real_sha256": "d5d5630257c552a3022dc5b99f4c5d91bb0251c02d46e36cc4e3ed520406f9a0"
+    },
+    {
+      "path": "lib/extend.dart",
+      "frozen_sha256": "2cc1adbeb4b48b4059460e09d2404012127d839010d94d963e8c4bdddcb4888a",
+      "real_sha256": "2cc1adbeb4b48b4059460e09d2404012127d839010d94d963e8c4bdddcb4888a"
+    },
+    {
+      "path": "lib/grid.dart",
+      "frozen_sha256": "ee7c6e100fb5a83a11f3ee75ff981ffe856f0e38d3a85786602a4b558df5af63",
+      "real_sha256": "ee7c6e100fb5a83a11f3ee75ff981ffe856f0e38d3a85786602a4b558df5af63"
+    },
+    {
+      "path": "lib/lots.dart",
+      "frozen_sha256": "fc8bf21aae7d4fa176736872ea8fae4fc6d715346d3498c23d3d5b1ebecee0aa",
+      "real_sha256": "fc8bf21aae7d4fa176736872ea8fae4fc6d715346d3498c23d3d5b1ebecee0aa"
+    },
+    {
+      "path": "lib/lotto.dart",
+      "frozen_sha256": "43ea429540a57dfeb53d61dce2902aa15fdaa46e96799984f1fedab441c0065e",
+      "real_sha256": "43ea429540a57dfeb53d61dce2902aa15fdaa46e96799984f1fedab441c0065e"
+    },
+    {
+      "path": "lib/luckdraw.dart",
+      "frozen_sha256": "fce998beb4b314827066ba03469d6851eeaa4c22fac811ffb508d7f839e92809",
+      "real_sha256": "fce998beb4b314827066ba03469d6851eeaa4c22fac811ffb508d7f839e92809"
+    },
+    {
+      "path": "lib/number_wheel.dart",
+      "frozen_sha256": "84f7e834b078a0e5f07f90ea5f3a780a8c47bbf653a9d29db9fdd289fe2c3ba4",
+      "real_sha256": "84f7e834b078a0e5f07f90ea5f3a780a8c47bbf653a9d29db9fdd289fe2c3ba4"
+    },
+    {
+      "path": "lib/slot.dart",
+      "frozen_sha256": "1f9b68a68664fe85287009308a2223b996281fc947418d8f236e4ef91f039434",
+      "real_sha256": "1f9b68a68664fe85287009308a2223b996281fc947418d8f236e4ef91f039434"
+    },
+    {
+      "path": "lib/src/capsule/capsule_game.dart",
+      "frozen_sha256": "4d26b8d9b0cf4cf7cf8cfc66906daf283e080e6016babf7d24fecb4635b065bf",
+      "real_sha256": "4d26b8d9b0cf4cf7cf8cfc66906daf283e080e6016babf7d24fecb4635b065bf"
+    },
+    {
+      "path": "lib/src/capsule/control/capsule_controller.dart",
+      "frozen_sha256": "ea8179a13ccd4c0c40318598fea11651beb7720321c6d6b9528e3663d41bb6bd",
+      "real_sha256": "ea8179a13ccd4c0c40318598fea11651beb7720321c6d6b9528e3663d41bb6bd"
+    },
+    {
+      "path": "lib/src/capsule/layout/capsule_layout.dart",
+      "frozen_sha256": "d6211273c25dcda7d1633c7157f6f31df55f1096b7d7e303150998a746367d7e",
+      "real_sha256": "d6211273c25dcda7d1633c7157f6f31df55f1096b7d7e303150998a746367d7e"
+    },
+    {
+      "path": "lib/src/capsule/model/capsule_config.dart",
+      "frozen_sha256": "352219d92e7edb175150f3230d7d47e3632a068eb93262502787b06156737749",
+      "real_sha256": "352219d92e7edb175150f3230d7d47e3632a068eb93262502787b06156737749"
+    },
+    {
+      "path": "lib/src/capsule/model/capsule_parts.dart",
+      "frozen_sha256": "e0d73817ba5226345ab486560dd64570f7e6916540a60eca66dede421ffc7645",
+      "real_sha256": "e0d73817ba5226345ab486560dd64570f7e6916540a60eca66dede421ffc7645"
+    },
+    {
+      "path": "lib/src/capsule/motion/capsule_motion.dart",
+      "frozen_sha256": "236967efd52cd0e9a9cfff70e851e7b144fa9ec2b109a5c79409cdd2190c2030",
+      "real_sha256": "236967efd52cd0e9a9cfff70e851e7b144fa9ec2b109a5c79409cdd2190c2030"
+    },
+    {
+      "path": "lib/src/capsule/render/capsule_canvas_renderer.dart",
+      "frozen_sha256": "df1851b01e4e7083cf062a4783960185ac974e5d04d3cae7df566755e9856c5e",
+      "real_sha256": "df1851b01e4e7083cf062a4783960185ac974e5d04d3cae7df566755e9856c5e"
+    },
+    {
+      "path": "lib/src/capsule/render/capsule_painter.dart",
+      "frozen_sha256": "6a95412e906239df15928f2349357fab5668d5ba5bb2680f957839b5fd51ed9e",
+      "real_sha256": "6a95412e906239df15928f2349357fab5668d5ba5bb2680f957839b5fd51ed9e"
+    },
+    {
+      "path": "lib/src/capsule/widgets/lucky_capsule_machine.dart",
+      "frozen_sha256": "f01d82fc5cd8f98a28ed1113d803f379aa9d36b02e217e0eb917736262b3eeab",
+      "real_sha256": "f01d82fc5cd8f98a28ed1113d803f379aa9d36b02e217e0eb917736262b3eeab"
+    },
+    {
+      "path": "lib/src/compat/compat_options.dart",
+      "frozen_sha256": "98a2a5bfabcf1e4ebcd0ee1e6fd6fbb8d0511e0e83dd8c7a97ac69e87ac9efc4",
+      "real_sha256": "98a2a5bfabcf1e4ebcd0ee1e6fd6fbb8d0511e0e83dd8c7a97ac69e87ac9efc4"
+    },
+    {
+      "path": "lib/src/compat/css_color.dart",
+      "frozen_sha256": "2868d07417cb41f08b0a9fb9911450afe693b3b6692ad9bcab86d97b0bea4dfe",
+      "real_sha256": "2868d07417cb41f08b0a9fb9911450afe693b3b6692ad9bcab86d97b0bea4dfe"
+    },
+    {
+      "path": "lib/src/compat/css_fill.dart",
+      "frozen_sha256": "6541eb46c61c7a437c659d91e51c990600fc2b6e46f7b50cdc0f58fec59acc1b",
+      "real_sha256": "6541eb46c61c7a437c659d91e51c990600fc2b6e46f7b50cdc0f58fec59acc1b"
+    },
+    {
+      "path": "lib/src/compat/css_length.dart",
+      "frozen_sha256": "2ea26da1df1f105a91d696ba5da14f093389bfc234b0360e420706154a8d726a",
+      "real_sha256": "2ea26da1df1f105a91d696ba5da14f093389bfc234b0360e420706154a8d726a"
+    },
+    {
+      "path": "lib/src/compat/css_misc.dart",
+      "frozen_sha256": "93f5a4a7873a854e3c1f2aec36d0d4c120282edb1eb5ecf4831b4d6453340d25",
+      "real_sha256": "93f5a4a7873a854e3c1f2aec36d0d4c120282edb1eb5ecf4831b4d6453340d25"
+    },
+    {
+      "path": "lib/src/compat/css_shadow.dart",
+      "frozen_sha256": "1bf8dc4c8bbc0edd5744239130bb8c75a1c78c4565f85f12dcbeb191ee702236",
+      "real_sha256": "1bf8dc4c8bbc0edd5744239130bb8c75a1c78c4565f85f12dcbeb191ee702236"
+    },
+    {
+      "path": "lib/src/compat/easing_names.dart",
+      "frozen_sha256": "3bf832e5fc831c189566ce71532b7b358479e2ce7a45b0527d23e58dc19bdf00",
+      "real_sha256": "3bf832e5fc831c189566ce71532b7b358479e2ce7a45b0527d23e58dc19bdf00"
+    },
+    {
+      "path": "lib/src/compat/grid_compat.dart",
+      "frozen_sha256": "e17f73cc672f6aa4e99343bfab879aadf0318fcddb3f66456993d31879c07eef",
+      "real_sha256": "e17f73cc672f6aa4e99343bfab879aadf0318fcddb3f66456993d31879c07eef"
+    },
+    {
+      "path": "lib/src/compat/json_reader.dart",
+      "frozen_sha256": "eb65473a0b4cd23421c324fcffef28749313d41effe05e0f8376b3ba138cc22b",
+      "real_sha256": "eb65473a0b4cd23421c324fcffef28749313d41effe05e0f8376b3ba138cc22b"
+    },
+    {
+      "path": "lib/src/compat/slot_compat.dart",
+      "frozen_sha256": "33feb9e09a1cc17920d1aed0b59d73e3de90a72b21e475c8552c13bad95e9bf9",
+      "real_sha256": "33feb9e09a1cc17920d1aed0b59d73e3de90a72b21e475c8552c13bad95e9bf9"
+    },
+    {
+      "path": "lib/src/compat/wheel_compat.dart",
+      "frozen_sha256": "ec534ad044cb28f5bcd7ce08a00dce89314c9121ae99d67ee0d899933314e9c8",
+      "real_sha256": "ec534ad044cb28f5bcd7ce08a00dce89314c9121ae99d67ee0d899933314e9c8"
+    },
+    {
+      "path": "lib/src/core/control/controller.dart",
+      "frozen_sha256": "30c38275fb8141659a1a1829b29f564802e6906342c2faa8d8d08d68e984a3a6",
+      "real_sha256": "30c38275fb8141659a1a1829b29f564802e6906342c2faa8d8d08d68e984a3a6"
+    },
+    {
+      "path": "lib/src/core/control/hooks.dart",
+      "frozen_sha256": "b43580cf9b6019ce7d0da1fe59af7b540f71c22ff2bbb0c7b8d23e275c617c65",
+      "real_sha256": "b43580cf9b6019ce7d0da1fe59af7b540f71c22ff2bbb0c7b8d23e275c617c65"
+    },
+    {
+      "path": "lib/src/core/easing/easing.dart",
+      "frozen_sha256": "9c68b49150f245605d1c8611a76ae50f56693529e8581d6281ce725c6bc0ee6b",
+      "real_sha256": "9c68b49150f245605d1c8611a76ae50f56693529e8581d6281ce725c6bc0ee6b"
+    },
+    {
+      "path": "lib/src/core/foundation/angles.dart",
+      "frozen_sha256": "0dc970b068b170c93a1c456252318014649349c566ce08fdb096afaf364d83f9",
+      "real_sha256": "0dc970b068b170c93a1c456252318014649349c566ce08fdb096afaf364d83f9"
+    },
+    {
+      "path": "lib/src/core/foundation/border.dart",
+      "frozen_sha256": "71f88d78a0c648a2bd4a0bc0b01ccb52ddc2bea2231f8cb889469a16d8a7c2e0",
+      "real_sha256": "71f88d78a0c648a2bd4a0bc0b01ccb52ddc2bea2231f8cb889469a16d8a7c2e0"
+    },
+    {
+      "path": "lib/src/core/foundation/box_block.dart",
+      "frozen_sha256": "868057181fb73a4842e391668f2ca74c125aba9e12a5a6c00956638dc8973d2a",
+      "real_sha256": "868057181fb73a4842e391668f2ca74c125aba9e12a5a6c00956638dc8973d2a"
+    },
+    {
+      "path": "lib/src/core/foundation/cell_style.dart",
+      "frozen_sha256": "d3b58d36c2a0ea928a83e97f90cbd61d96b172fe8083f29fe23be0567706f24c",
+      "real_sha256": "d3b58d36c2a0ea928a83e97f90cbd61d96b172fe8083f29fe23be0567706f24c"
+    },
+    {
+      "path": "lib/src/core/foundation/color_utils.dart",
+      "frozen_sha256": "84a1328d5db4bd671253cf8e86bdf7464d0a209ef8558c7861b88a0e4a1cc9e5",
+      "real_sha256": "84a1328d5db4bd671253cf8e86bdf7464d0a209ef8558c7861b88a0e4a1cc9e5"
+    },
+    {
+      "path": "lib/src/core/foundation/constants.dart",
+      "frozen_sha256": "530d28b5209874b62eed616d1073b9d11aa2fd4cca68e7621ab66a93c63ce4d7",
+      "real_sha256": "530d28b5209874b62eed616d1073b9d11aa2fd4cca68e7621ab66a93c63ce4d7"
+    },
+    {
+      "path": "lib/src/core/foundation/edge_insets.dart",
+      "frozen_sha256": "cd3b88af0ca32b10474070a592879c29d8e22c33933e91d2a2c4960d5bdeff04",
+      "real_sha256": "cd3b88af0ca32b10474070a592879c29d8e22c33933e91d2a2c4960d5bdeff04"
+    },
+    {
+      "path": "lib/src/core/foundation/fill.dart",
+      "frozen_sha256": "1cbd67c7aadeec37cc1e818073f90ebe5999141e45367326f026811ceed9f3cf",
+      "real_sha256": "1cbd67c7aadeec37cc1e818073f90ebe5999141e45367326f026811ceed9f3cf"
+    },
+    {
+      "path": "lib/src/core/foundation/image.dart",
+      "frozen_sha256": "bb9c2c919220ab199af7b0ce457e340e088abc05798cfa8bca857f6d39d51e00",
+      "real_sha256": "bb9c2c919220ab199af7b0ce457e340e088abc05798cfa8bca857f6d39d51e00"
+    },
+    {
+      "path": "lib/src/core/foundation/length.dart",
+      "frozen_sha256": "2ebd7fc69d4d080181de64ab4b9939e956c16df17722142f340ccb741e63f750",
+      "real_sha256": "2ebd7fc69d4d080181de64ab4b9939e956c16df17722142f340ccb741e63f750"
+    },
+    {
+      "path": "lib/src/core/foundation/options.dart",
+      "frozen_sha256": "5b548aa8982414db6aa3fe11daac7b04ce29db64e26ea5692ecab6a010288804",
+      "real_sha256": "5b548aa8982414db6aa3fe11daac7b04ce29db64e26ea5692ecab6a010288804"
+    },
+    {
+      "path": "lib/src/core/foundation/shadow.dart",
+      "frozen_sha256": "15961e27756102b6da557d46c8da7e65dc6d374bb23f889aa1aacbfb9bd04c5b",
+      "real_sha256": "15961e27756102b6da557d46c8da7e65dc6d374bb23f889aa1aacbfb9bd04c5b"
+    },
+    {
+      "path": "lib/src/core/foundation/text.dart",
+      "frozen_sha256": "efe271e80f1d778ea97851049e020caaae9d137d749312d4aa270aa0ac3ebdcc",
+      "real_sha256": "efe271e80f1d778ea97851049e020caaae9d137d749312d4aa270aa0ac3ebdcc"
+    },
+    {
+      "path": "lib/src/core/game/frame.dart",
+      "frozen_sha256": "857ee003f047228a214c276da55ec26f79aae5a4ed5fbfcb77e09d7383e2499f",
+      "real_sha256": "857ee003f047228a214c276da55ec26f79aae5a4ed5fbfcb77e09d7383e2499f"
+    },
+    {
+      "path": "lib/src/core/game/game.dart",
+      "frozen_sha256": "298ba62f192da9c93fcbf306ac6781c1e505acbe2cdf352fabd0f545f9f89bbb",
+      "real_sha256": "298ba62f192da9c93fcbf306ac6781c1e505acbe2cdf352fabd0f545f9f89bbb"
+    },
+    {
+      "path": "lib/src/core/game/layout.dart",
+      "frozen_sha256": "a1904b894ee77cd1e4c1bbabfe73a595c6e86e086310183bf48abf9c3ba5e7cb",
+      "real_sha256": "a1904b894ee77cd1e4c1bbabfe73a595c6e86e086310183bf48abf9c3ba5e7cb"
+    },
+    {
+      "path": "lib/src/core/game/registry.dart",
+      "frozen_sha256": "f5f416b0c5ea61635a1a25a465a36f5a4ff3e11d0e4a00bfb345e7c85f13e2ab",
+      "real_sha256": "f5f416b0c5ea61635a1a25a465a36f5a4ff3e11d0e4a00bfb345e7c85f13e2ab"
+    },
+    {
+      "path": "lib/src/core/geometry/canvas_arc.dart",
+      "frozen_sha256": "8ad3fa374f3f71d5d87596494feb6bc1bc745085e4c9e1acd88b3793fe866707",
+      "real_sha256": "8ad3fa374f3f71d5d87596494feb6bc1bc745085e4c9e1acd88b3793fe866707"
+    },
+    {
+      "path": "lib/src/core/geometry/fan_path.dart",
+      "frozen_sha256": "c38ac948cdb0d7b86d46be32d7591a113eed41bcb53c30192e636ee2e8925da4",
+      "real_sha256": "c38ac948cdb0d7b86d46be32d7591a113eed41bcb53c30192e636ee2e8925da4"
+    },
+    {
+      "path": "lib/src/core/geometry/image_box.dart",
+      "frozen_sha256": "19830031bf9f7ce1890dd7dc7eb76aa7785bc7a3b43a5a9df4da099b9f7076e0",
+      "real_sha256": "19830031bf9f7ce1890dd7dc7eb76aa7785bc7a3b43a5a9df4da099b9f7076e0"
+    },
+    {
+      "path": "lib/src/core/geometry/round_rect.dart",
+      "frozen_sha256": "dc872b8791326b71f0843f09573c86d4adcbe5ee0e7c498f2e70e9e2625b0ee9",
+      "real_sha256": "dc872b8791326b71f0843f09573c86d4adcbe5ee0e7c498f2e70e9e2625b0ee9"
+    },
+    {
+      "path": "lib/src/core/image/image_resolver.dart",
+      "frozen_sha256": "49aba6b6936811e0ae039b3872e06e686b749ba7d2d37a7a7e48b8bf199509ad",
+      "real_sha256": "49aba6b6936811e0ae039b3872e06e686b749ba7d2d37a7a7e48b8bf199509ad"
+    },
+    {
+      "path": "lib/src/core/image/image_set.dart",
+      "frozen_sha256": "7addbdfe6d14928c4912753a234d34b3df5568104dac8e38df980c1072718fb7",
+      "real_sha256": "7addbdfe6d14928c4912753a234d34b3df5568104dac8e38df980c1072718fb7"
+    },
+    {
+      "path": "lib/src/core/kinematics/swirl_mixer.dart",
+      "frozen_sha256": "2e49201ff6878594fc4b5801abfe072bfb90f9accaa90f3d6a7da0a2add26ef2",
+      "real_sha256": "2e49201ff6878594fc4b5801abfe072bfb90f9accaa90f3d6a7da0a2add26ef2"
+    },
+    {
+      "path": "lib/src/core/motion/clock.dart",
+      "frozen_sha256": "27db9364cd8ba5b86984f23688d8af24974b658aa2cfb2eecc99628eded48921",
+      "real_sha256": "27db9364cd8ba5b86984f23688d8af24974b658aa2cfb2eecc99628eded48921"
+    },
+    {
+      "path": "lib/src/core/motion/motion.dart",
+      "frozen_sha256": "54e694ab5ff6ca26502707eeb309c60d699ff963c6c61483614a604b4316cac7",
+      "real_sha256": "54e694ab5ff6ca26502707eeb309c60d699ff963c6c61483614a604b4316cac7"
+    },
+    {
+      "path": "lib/src/core/motion/motion_options.dart",
+      "frozen_sha256": "8d494a4775c074c116f3df0f665bffe9060377d9d3ef65e96cd1501c4c49428f",
+      "real_sha256": "8d494a4775c074c116f3df0f665bffe9060377d9d3ef65e96cd1501c4c49428f"
+    },
+    {
+      "path": "lib/src/core/motion/phase.dart",
+      "frozen_sha256": "e3500be6b6bc342c1cd8ab74fb5664ca72c6e2b8053743ad80b0b4d5d62287e0",
+      "real_sha256": "e3500be6b6bc342c1cd8ab74fb5664ca72c6e2b8053743ad80b0b4d5d62287e0"
+    },
+    {
+      "path": "lib/src/core/motion/result.dart",
+      "frozen_sha256": "189b60ad081c27089ac79dab777b6972f7116927bc325e1e28ffd6dca916c602",
+      "real_sha256": "189b60ad081c27089ac79dab777b6972f7116927bc325e1e28ffd6dca916c602"
+    },
+    {
+      "path": "lib/src/core/motion/stop_solver.dart",
+      "frozen_sha256": "c60a4860dea2b42360a00b6cee2a99c317b3aa798d95eb98dae2174c6e9ec5eb",
+      "real_sha256": "c60a4860dea2b42360a00b6cee2a99c317b3aa798d95eb98dae2174c6e9ec5eb"
+    },
+    {
+      "path": "lib/src/core/motion/timebase.dart",
+      "frozen_sha256": "150e15cd3c9882510c9302121f4a291fa90cc1f11cd7a3d7bcb70e24893d8165",
+      "real_sha256": "150e15cd3c9882510c9302121f4a291fa90cc1f11cd7a3d7bcb70e24893d8165"
+    },
+    {
+      "path": "lib/src/core/motion/timeline.dart",
+      "frozen_sha256": "1c07b57a116d52e8a500284e8bf69cee7b7bf9ebf7c11c6ae65e236cec7adf6d",
+      "real_sha256": "1c07b57a116d52e8a500284e8bf69cee7b7bf9ebf7c11c6ae65e236cec7adf6d"
+    },
+    {
+      "path": "lib/src/core/picker/prize_picker.dart",
+      "frozen_sha256": "405ac8fb10c5208abf87fd0fc3b788ee4f420c036aac47b897f27c29563c0653",
+      "real_sha256": "405ac8fb10c5208abf87fd0fc3b788ee4f420c036aac47b897f27c29563c0653"
+    },
+    {
+      "path": "lib/src/core/render/layer.dart",
+      "frozen_sha256": "08de4383b75108e301d3c5b1e60205aca19604e7f6ac17583b6f1cbf537ba4ea",
+      "real_sha256": "08de4383b75108e301d3c5b1e60205aca19604e7f6ac17583b6f1cbf537ba4ea"
+    },
+    {
+      "path": "lib/src/core/render/paint_helpers.dart",
+      "frozen_sha256": "dcdff7a9febd8a45f402ba248b529bc09a884376cd2d29bcc14a2ef63e31289a",
+      "real_sha256": "dcdff7a9febd8a45f402ba248b529bc09a884376cd2d29bcc14a2ef63e31289a"
+    },
+    {
+      "path": "lib/src/core/render/perf_trace.dart",
+      "frozen_sha256": "488af86990f02fe94862d89e62a1cf413af5b9f76e50a46e9deffc3390fd803e",
+      "real_sha256": "488af86990f02fe94862d89e62a1cf413af5b9f76e50a46e9deffc3390fd803e"
+    },
+    {
+      "path": "lib/src/core/render/picture_cache.dart",
+      "frozen_sha256": "7bd93b79e26b0389c5775fe5bbccd47f2ddbf560c31e3e8e28b9e1b45173515b",
+      "real_sha256": "7bd93b79e26b0389c5775fe5bbccd47f2ddbf560c31e3e8e28b9e1b45173515b"
+    },
+    {
+      "path": "lib/src/core/render/renderer.dart",
+      "frozen_sha256": "886c662e9fec62232c36bb75dafa3f30488c37542d66fd96fc6d61e0cfdbdd62",
+      "real_sha256": "886c662e9fec62232c36bb75dafa3f30488c37542d66fd96fc6d61e0cfdbdd62"
+    },
+    {
+      "path": "lib/src/core/text/split_text.dart",
+      "frozen_sha256": "196ded81e5c8b7d411c8a9c793c5515a31dffb212d9c43ce1e8de5673ba0fb04",
+      "real_sha256": "196ded81e5c8b7d411c8a9c793c5515a31dffb212d9c43ce1e8de5673ba0fb04"
+    },
+    {
+      "path": "lib/src/core/text/text_line.dart",
+      "frozen_sha256": "50248ab7dbaf3d3285ed3e37e55ccde383cad81875b458b11dc9705c76f2efb2",
+      "real_sha256": "50248ab7dbaf3d3285ed3e37e55ccde383cad81875b458b11dc9705c76f2efb2"
+    },
+    {
+      "path": "lib/src/core/text/text_measurer.dart",
+      "frozen_sha256": "d9336488874a98b4caad89df85568e0fd1ecb28b87140421c9333cdfdd028a56",
+      "real_sha256": "d9336488874a98b4caad89df85568e0fd1ecb28b87140421c9333cdfdd028a56"
+    },
+    {
+      "path": "lib/src/core/widgets/game_view.dart",
+      "frozen_sha256": "fba18029c3b8f8f58ee11b29d2d0ecb2e886f0df6a804ca8ebe5896831201289",
+      "real_sha256": "fba18029c3b8f8f58ee11b29d2d0ecb2e886f0df6a804ca8ebe5896831201289"
+    },
+    {
+      "path": "lib/src/core/widgets/item_overlay.dart",
+      "frozen_sha256": "a72b4f432a052fbd7b086dbc269b31e633034d59de314aed916a43d6ade66ce6",
+      "real_sha256": "a72b4f432a052fbd7b086dbc269b31e633034d59de314aed916a43d6ade66ce6"
+    },
+    {
+      "path": "lib/src/core/widgets/lifecycle.dart",
+      "frozen_sha256": "caa76ad2b83a819a070a0a2345e8813c01cadb111e6f1e9409784f5375b31760",
+      "real_sha256": "caa76ad2b83a819a070a0a2345e8813c01cadb111e6f1e9409784f5375b31760"
+    },
+    {
+      "path": "lib/src/grid/control/grid_controller.dart",
+      "frozen_sha256": "1510af6a945b23f7d0e9db9a5b63a1067845b13b7f3163fda2f6b6d561d17c2e",
+      "real_sha256": "1510af6a945b23f7d0e9db9a5b63a1067845b13b7f3163fda2f6b6d561d17c2e"
+    },
+    {
+      "path": "lib/src/grid/grid_game.dart",
+      "frozen_sha256": "4f4efe36f98d0a760ec8047b751b672d08b3b97ad7d022cd2ba1c69017cbc757",
+      "real_sha256": "4f4efe36f98d0a760ec8047b751b672d08b3b97ad7d022cd2ba1c69017cbc757"
+    },
+    {
+      "path": "lib/src/grid/layout/grid_layout.dart",
+      "frozen_sha256": "aac0a0b16754c90efe4625a1a68159cad311fb067fd461a4004734ce05880845",
+      "real_sha256": "aac0a0b16754c90efe4625a1a68159cad311fb067fd461a4004734ce05880845"
+    },
+    {
+      "path": "lib/src/grid/model/grid_config.dart",
+      "frozen_sha256": "f8368d23735b7c2201ef8935c2b3980dbc2996bdd9dfc40d0e735520c3e51425",
+      "real_sha256": "f8368d23735b7c2201ef8935c2b3980dbc2996bdd9dfc40d0e735520c3e51425"
+    },
+    {
+      "path": "lib/src/grid/model/grid_parts.dart",
+      "frozen_sha256": "2f268190e311d5682457d1b379adb5b749a208440b7598a7f163c04dc975aa0c",
+      "real_sha256": "2f268190e311d5682457d1b379adb5b749a208440b7598a7f163c04dc975aa0c"
+    },
+    {
+      "path": "lib/src/grid/motion/grid_motion.dart",
+      "frozen_sha256": "b50f00a31bf3a64b1a47e7511994eb257caf096f1b99ae2824d1bdef43354d2f",
+      "real_sha256": "b50f00a31bf3a64b1a47e7511994eb257caf096f1b99ae2824d1bdef43354d2f"
+    },
+    {
+      "path": "lib/src/grid/render/grid_canvas_renderer.dart",
+      "frozen_sha256": "385d5e36d1b2ec0e038c3a47d8126a927a9bb8f9dc789baf69e4d2bdc81fa1e3",
+      "real_sha256": "385d5e36d1b2ec0e038c3a47d8126a927a9bb8f9dc789baf69e4d2bdc81fa1e3"
+    },
+    {
+      "path": "lib/src/grid/render/grid_painter.dart",
+      "frozen_sha256": "568ee59f58029e244702153a6243baad166b1cc8a0068368fdf7ba408510d3fb",
+      "real_sha256": "568ee59f58029e244702153a6243baad166b1cc8a0068368fdf7ba408510d3fb"
+    },
+    {
+      "path": "lib/src/grid/widgets/lucky_grid.dart",
+      "frozen_sha256": "72365562cff20d248f57e81e6ea8a7c172e8a14b1302950455756867d1e502b9",
+      "real_sha256": "72365562cff20d248f57e81e6ea8a7c172e8a14b1302950455756867d1e502b9"
+    },
+    {
+      "path": "lib/src/lots/control/lots_controller.dart",
+      "frozen_sha256": "7d6725bec0d1e9b2dc22e82d398ca8baf7afc3150183e8b3ba9dac459aa3cb94",
+      "real_sha256": "7d6725bec0d1e9b2dc22e82d398ca8baf7afc3150183e8b3ba9dac459aa3cb94"
+    },
+    {
+      "path": "lib/src/lots/layout/lots_layout.dart",
+      "frozen_sha256": "61402d71a159f1a8accf068ee09f97767de3b74475541e487a0f2ef777b3f40f",
+      "real_sha256": "61402d71a159f1a8accf068ee09f97767de3b74475541e487a0f2ef777b3f40f"
+    },
+    {
+      "path": "lib/src/lots/lots_game.dart",
+      "frozen_sha256": "cf7d40ff92ffb7b4d2cf4d5cc4ba63980729514f3b42c2b13be7b7ac6269b89d",
+      "real_sha256": "cf7d40ff92ffb7b4d2cf4d5cc4ba63980729514f3b42c2b13be7b7ac6269b89d"
+    },
+    {
+      "path": "lib/src/lots/model/lots_config.dart",
+      "frozen_sha256": "38e98a543bdc95a715072880551bf8d751ceaf376a505af1fc0120f0303ac604",
+      "real_sha256": "38e98a543bdc95a715072880551bf8d751ceaf376a505af1fc0120f0303ac604"
+    },
+    {
+      "path": "lib/src/lots/model/lots_parts.dart",
+      "frozen_sha256": "99fb378f76fdc1a31674b14ada6a8d91e53652522a5a4bdf6089efbc3f7a803f",
+      "real_sha256": "99fb378f76fdc1a31674b14ada6a8d91e53652522a5a4bdf6089efbc3f7a803f"
+    },
+    {
+      "path": "lib/src/lots/motion/lots_motion.dart",
+      "frozen_sha256": "7a77dc86d6f8359c1d9b5c85769f24f2102c580167a0ecabac2f1ad7487f97ab",
+      "real_sha256": "7a77dc86d6f8359c1d9b5c85769f24f2102c580167a0ecabac2f1ad7487f97ab"
+    },
+    {
+      "path": "lib/src/lots/render/lots_canvas_renderer.dart",
+      "frozen_sha256": "1d37f121fe5a804be2b675234fcac25be64b599645039ec45813c261de2a5746",
+      "real_sha256": "1d37f121fe5a804be2b675234fcac25be64b599645039ec45813c261de2a5746"
+    },
+    {
+      "path": "lib/src/lots/render/lots_painter.dart",
+      "frozen_sha256": "17406f2570000eacc63949758ce10280c8d7c44d73bad8582bc6ee65f180d1d1",
+      "real_sha256": "17406f2570000eacc63949758ce10280c8d7c44d73bad8582bc6ee65f180d1d1"
+    },
+    {
+      "path": "lib/src/lots/widgets/lucky_lots.dart",
+      "frozen_sha256": "e2c0be6fb4d249bf7f68eace8f103c95fde1f6b7585d4e2f1e57432527fc9e6c",
+      "real_sha256": "e2c0be6fb4d249bf7f68eace8f103c95fde1f6b7585d4e2f1e57432527fc9e6c"
+    },
+    {
+      "path": "lib/src/lotto/control/lotto_controller.dart",
+      "frozen_sha256": "aa29dac86b8da9305a7f09b4d6d3186c5b347d45a898cd19d44ba946055e1e9a",
+      "real_sha256": "aa29dac86b8da9305a7f09b4d6d3186c5b347d45a898cd19d44ba946055e1e9a"
+    },
+    {
+      "path": "lib/src/lotto/layout/lotto_layout.dart",
+      "frozen_sha256": "dd0c6894fd6a5cb97dfc30d40bd9eaa79b702ac24095a08f589b23199aa8018c",
+      "real_sha256": "dd0c6894fd6a5cb97dfc30d40bd9eaa79b702ac24095a08f589b23199aa8018c"
+    },
+    {
+      "path": "lib/src/lotto/lotto_game.dart",
+      "frozen_sha256": "6709f5506f8635db137d4ba1b10fb4bbfb39e6b4192870ae79512a405552dffe",
+      "real_sha256": "6709f5506f8635db137d4ba1b10fb4bbfb39e6b4192870ae79512a405552dffe"
+    },
+    {
+      "path": "lib/src/lotto/model/lotto_config.dart",
+      "frozen_sha256": "1397fc6a9e733992bfef2c84ae30e2045855e673847922bdb464bb69517574ea",
+      "real_sha256": "1397fc6a9e733992bfef2c84ae30e2045855e673847922bdb464bb69517574ea"
+    },
+    {
+      "path": "lib/src/lotto/model/lotto_options.dart",
+      "frozen_sha256": "59988a45492e7fcfdca2fabfd43378914a8a61f08eda13046a827c3676018dcf",
+      "real_sha256": "59988a45492e7fcfdca2fabfd43378914a8a61f08eda13046a827c3676018dcf"
+    },
+    {
+      "path": "lib/src/lotto/model/lotto_sampler.dart",
+      "frozen_sha256": "980b186adf67ec2b541c9889c762e6d14bc7f4f71afeffb593be61d593935d84",
+      "real_sha256": "980b186adf67ec2b541c9889c762e6d14bc7f4f71afeffb593be61d593935d84"
+    },
+    {
+      "path": "lib/src/lotto/motion/lotto_frame.dart",
+      "frozen_sha256": "07f04eeb73d879cee50b3327ae8ee8a66a8ca9576023c8be186a9e724459bdc6",
+      "real_sha256": "07f04eeb73d879cee50b3327ae8ee8a66a8ca9576023c8be186a9e724459bdc6"
+    },
+    {
+      "path": "lib/src/lotto/motion/lotto_motion.dart",
+      "frozen_sha256": "d91c95f762c1e05ae4a1a8fcf255c9f85638f6eade38a9b7b4ab240645eb4d94",
+      "real_sha256": "d91c95f762c1e05ae4a1a8fcf255c9f85638f6eade38a9b7b4ab240645eb4d94"
+    },
+    {
+      "path": "lib/src/lotto/render/lotto_canvas_renderer.dart",
+      "frozen_sha256": "630bd0e32b9af872772b568cdb6e7d0a1c16d913c27efc817b25f3f725662a71",
+      "real_sha256": "630bd0e32b9af872772b568cdb6e7d0a1c16d913c27efc817b25f3f725662a71"
+    },
+    {
+      "path": "lib/src/lotto/render/lotto_painter.dart",
+      "frozen_sha256": "9097c00a3cddb678c02d769a9b61999fe849e7650234b9b72f94aab5e16ca78b",
+      "real_sha256": "9097c00a3cddb678c02d769a9b61999fe849e7650234b9b72f94aab5e16ca78b"
+    },
+    {
+      "path": "lib/src/lotto/widgets/lucky_lotto.dart",
+      "frozen_sha256": "32ac5ca8aeaf0be56bd36337e04919a853a6c9aac950629e48572629fe7005e7",
+      "real_sha256": "32ac5ca8aeaf0be56bd36337e04919a853a6c9aac950629e48572629fe7005e7"
+    },
+    {
+      "path": "lib/src/number_wheel/control/number_wheel_controller.dart",
+      "frozen_sha256": "6b042e818c221a9790e07e1e13ffd206f2a7bf6a0354e029a024b8153e3ee97b",
+      "real_sha256": "6b042e818c221a9790e07e1e13ffd206f2a7bf6a0354e029a024b8153e3ee97b"
+    },
+    {
+      "path": "lib/src/number_wheel/layout/number_wheel_layout.dart",
+      "frozen_sha256": "5e12527268da0998846c3a2d7dbc65b1816e704cc050144d23c99280e7071eb2",
+      "real_sha256": "5e12527268da0998846c3a2d7dbc65b1816e704cc050144d23c99280e7071eb2"
+    },
+    {
+      "path": "lib/src/number_wheel/model/number_wheel_config.dart",
+      "frozen_sha256": "fd8e03d968099551a13751d86b9f4f2e212c05f9da53613e78913a2ebbe49480",
+      "real_sha256": "fd8e03d968099551a13751d86b9f4f2e212c05f9da53613e78913a2ebbe49480"
+    },
+    {
+      "path": "lib/src/number_wheel/motion/number_wheel_motion.dart",
+      "frozen_sha256": "68279e2ad98c4956178f4179fe0f629bd492ba5f3569ec32d87cf59118aa664e",
+      "real_sha256": "68279e2ad98c4956178f4179fe0f629bd492ba5f3569ec32d87cf59118aa664e"
+    },
+    {
+      "path": "lib/src/number_wheel/number_wheel_game.dart",
+      "frozen_sha256": "6eef3a8e8e6a2616cb396df44e3b4e338e3bb82ee51ca60b7a04d171e52fa001",
+      "real_sha256": "6eef3a8e8e6a2616cb396df44e3b4e338e3bb82ee51ca60b7a04d171e52fa001"
+    },
+    {
+      "path": "lib/src/number_wheel/render/number_wheel_canvas_renderer.dart",
+      "frozen_sha256": "f181963d4c21ce31bf4f0eca37b78aba780d9d8a73459c5fe3600e5704481c33",
+      "real_sha256": "f181963d4c21ce31bf4f0eca37b78aba780d9d8a73459c5fe3600e5704481c33"
+    },
+    {
+      "path": "lib/src/number_wheel/render/number_wheel_painter.dart",
+      "frozen_sha256": "250076f6d78dcf96912f43ba6f0b45d880d94383bdaf8ae40084dd10765a9761",
+      "real_sha256": "250076f6d78dcf96912f43ba6f0b45d880d94383bdaf8ae40084dd10765a9761"
+    },
+    {
+      "path": "lib/src/number_wheel/widgets/lucky_number_wheel.dart",
+      "frozen_sha256": "8c359e663561c5f65e550393b3e8c5e5a0b35e2165a474a38fba89c75a4aa5cf",
+      "real_sha256": "8c359e663561c5f65e550393b3e8c5e5a0b35e2165a474a38fba89c75a4aa5cf"
+    },
+    {
+      "path": "lib/src/slot/control/slot_controller.dart",
+      "frozen_sha256": "187d66238bedb94aab40104106737296e167c5cc34ef30540b7347c0d3b4dd3c",
+      "real_sha256": "187d66238bedb94aab40104106737296e167c5cc34ef30540b7347c0d3b4dd3c"
+    },
+    {
+      "path": "lib/src/slot/layout/slot_layout.dart",
+      "frozen_sha256": "a99026f3e45cc3f533a8d9bfb1a17ad80ba20b918b5cb9608e7930d5abb75c54",
+      "real_sha256": "a99026f3e45cc3f533a8d9bfb1a17ad80ba20b918b5cb9608e7930d5abb75c54"
+    },
+    {
+      "path": "lib/src/slot/lever/lever_options.dart",
+      "frozen_sha256": "66d8e08ad014d38414059e7046bcf1687bf41c85a26b0f20a9734420cb2ca8d4",
+      "real_sha256": "66d8e08ad014d38414059e7046bcf1687bf41c85a26b0f20a9734420cb2ca8d4"
+    },
+    {
+      "path": "lib/src/slot/lever/lever_painter.dart",
+      "frozen_sha256": "369f214ece0668b7b03c7bc016d73fa1f6199215b6073029a6cd3980aecdddc3",
+      "real_sha256": "369f214ece0668b7b03c7bc016d73fa1f6199215b6073029a6cd3980aecdddc3"
+    },
+    {
+      "path": "lib/src/slot/lever/lucky_lever_slot_machine.dart",
+      "frozen_sha256": "c5b94f51b9e53e50334fe7a6586b07e3f6b501eec86abac8f7544424e2afc0f0",
+      "real_sha256": "c5b94f51b9e53e50334fe7a6586b07e3f6b501eec86abac8f7544424e2afc0f0"
+    },
+    {
+      "path": "lib/src/slot/model/payline.dart",
+      "frozen_sha256": "bd201bebd61dbc48cd3ddd850ca07703bcccdd335306a99af895931e1ec55afb",
+      "real_sha256": "bd201bebd61dbc48cd3ddd850ca07703bcccdd335306a99af895931e1ec55afb"
+    },
+    {
+      "path": "lib/src/slot/model/slot_config.dart",
+      "frozen_sha256": "d64fd1b43d2689a61a0a41b05746a78c536c10d8a782d4edc5fe3270846d3388",
+      "real_sha256": "d64fd1b43d2689a61a0a41b05746a78c536c10d8a782d4edc5fe3270846d3388"
+    },
+    {
+      "path": "lib/src/slot/model/slot_parts.dart",
+      "frozen_sha256": "02a54c10c0fcf07543c95363427460052d057e73afee2263f13e85fd327c07b1",
+      "real_sha256": "02a54c10c0fcf07543c95363427460052d057e73afee2263f13e85fd327c07b1"
+    },
+    {
+      "path": "lib/src/slot/model/slot_result.dart",
+      "frozen_sha256": "e3cf5d6b55ed52fcb3ecdcae52fdbff6bddff976212c04ae4cba2a0ce6fd2f57",
+      "real_sha256": "e3cf5d6b55ed52fcb3ecdcae52fdbff6bddff976212c04ae4cba2a0ce6fd2f57"
+    },
+    {
+      "path": "lib/src/slot/motion/slot_motion.dart",
+      "frozen_sha256": "f4251e868f1dac4218c65fa5828601ea6188dccccfde5c2d378ca46cde9d6694",
+      "real_sha256": "f4251e868f1dac4218c65fa5828601ea6188dccccfde5c2d378ca46cde9d6694"
+    },
+    {
+      "path": "lib/src/slot/render/payline_layer.dart",
+      "frozen_sha256": "c0ae787cd255464109fc8de2d1d2efdbc63551de9a71351af2d87af073501a46",
+      "real_sha256": "c0ae787cd255464109fc8de2d1d2efdbc63551de9a71351af2d87af073501a46"
+    },
+    {
+      "path": "lib/src/slot/render/slot_atlas.dart",
+      "frozen_sha256": "53de274eb696b8ff5ded3b7d7ed16a350ffcf33d67659ff650df3edbb251d95f",
+      "real_sha256": "53de274eb696b8ff5ded3b7d7ed16a350ffcf33d67659ff650df3edbb251d95f"
+    },
+    {
+      "path": "lib/src/slot/render/slot_canvas_renderer.dart",
+      "frozen_sha256": "bd11fe95f47472b8271836769d1f24a620bef5de250a6d41ffe2926dae24afce",
+      "real_sha256": "bd11fe95f47472b8271836769d1f24a620bef5de250a6d41ffe2926dae24afce"
+    },
+    {
+      "path": "lib/src/slot/render/slot_painter.dart",
+      "frozen_sha256": "22c31bf79a36e6207a3a52179d4ea8313e380959bbf3ed0b98d8df9ecc83e977",
+      "real_sha256": "22c31bf79a36e6207a3a52179d4ea8313e380959bbf3ed0b98d8df9ecc83e977"
+    },
+    {
+      "path": "lib/src/slot/slot_game.dart",
+      "frozen_sha256": "0ac4b1eca01f368db181e081c3b5ab1d70b0d6c610e6012cb6ecf62af75e1047",
+      "real_sha256": "0ac4b1eca01f368db181e081c3b5ab1d70b0d6c610e6012cb6ecf62af75e1047"
+    },
+    {
+      "path": "lib/src/slot/widgets/lucky_slot_machine.dart",
+      "frozen_sha256": "9304c5dd7666f725cee3e94ec90dbff4fd3d271fe6071badc2fb4a6dd9e9a0ec",
+      "real_sha256": "9304c5dd7666f725cee3e94ec90dbff4fd3d271fe6071badc2fb4a6dd9e9a0ec"
+    },
+    {
+      "path": "lib/src/testing/frame_recorder.dart",
+      "frozen_sha256": "4107c10e3e23cde15b631fecda040b09ca22ef19807244538e7ac794fff655d5",
+      "real_sha256": "4107c10e3e23cde15b631fecda040b09ca22ef19807244538e7ac794fff655d5"
+    },
+    {
+      "path": "lib/src/testing/manual_clock.dart",
+      "frozen_sha256": "f438eaf2b0916cca4d4f72dfeb93ac0a36bdd635fa3176553db959ee9161ed63",
+      "real_sha256": "f438eaf2b0916cca4d4f72dfeb93ac0a36bdd635fa3176553db959ee9161ed63"
+    },
+    {
+      "path": "lib/src/testing/sequence_random.dart",
+      "frozen_sha256": "0a8e465dd35380a207a39b98e4f589b15373e62fecdfe5632ec26d14b1c9a551",
+      "real_sha256": "0a8e465dd35380a207a39b98e4f589b15373e62fecdfe5632ec26d14b1c9a551"
+    },
+    {
+      "path": "lib/src/wheel/control/wheel_controller.dart",
+      "frozen_sha256": "24534e5024cfa1901eaea9997e14eaa5c189ac8086a89402613ef245d887f20b",
+      "real_sha256": "24534e5024cfa1901eaea9997e14eaa5c189ac8086a89402613ef245d887f20b"
+    },
+    {
+      "path": "lib/src/wheel/layout/wheel_angles.dart",
+      "frozen_sha256": "bffc90ba41739e009a19aa73cff3b661ebaa17e8a94828e8795fe04cca49f076",
+      "real_sha256": "bffc90ba41739e009a19aa73cff3b661ebaa17e8a94828e8795fe04cca49f076"
+    },
+    {
+      "path": "lib/src/wheel/layout/wheel_layout.dart",
+      "frozen_sha256": "2fee7935432ebf749c825fb79c3b53350e9b62057ac1b0a037995bbe9c3f052e",
+      "real_sha256": "2fee7935432ebf749c825fb79c3b53350e9b62057ac1b0a037995bbe9c3f052e"
+    },
+    {
+      "path": "lib/src/wheel/model/wheel_config.dart",
+      "frozen_sha256": "d6999c2b00f2716b47ea25b0f96ea6de1282606db9e0ad819bbc4e82f1fa7c38",
+      "real_sha256": "d6999c2b00f2716b47ea25b0f96ea6de1282606db9e0ad819bbc4e82f1fa7c38"
+    },
+    {
+      "path": "lib/src/wheel/model/wheel_parts.dart",
+      "frozen_sha256": "c1c354e0adb5a8d9318c00b3661d27ee9cf159723b355631a11a8bf6689fd14a",
+      "real_sha256": "c1c354e0adb5a8d9318c00b3661d27ee9cf159723b355631a11a8bf6689fd14a"
+    },
+    {
+      "path": "lib/src/wheel/motion/wheel_motion.dart",
+      "frozen_sha256": "31bacb4ca3c0601a820d4a635c05cc154733a029914a6c8035ed6c32a79014cf",
+      "real_sha256": "31bacb4ca3c0601a820d4a635c05cc154733a029914a6c8035ed6c32a79014cf"
+    },
+    {
+      "path": "lib/src/wheel/render/wheel_canvas_renderer.dart",
+      "frozen_sha256": "dcea688ca8ad0e8cf12444a5c0014b74cc8dc15d38dd49f0d6494d883366bf25",
+      "real_sha256": "dcea688ca8ad0e8cf12444a5c0014b74cc8dc15d38dd49f0d6494d883366bf25"
+    },
+    {
+      "path": "lib/src/wheel/render/wheel_painter.dart",
+      "frozen_sha256": "43f5f471a799161d7a7b8597ecb6047274aacd22432ba7e2c08b3334412c3664",
+      "real_sha256": "43f5f471a799161d7a7b8597ecb6047274aacd22432ba7e2c08b3334412c3664"
+    },
+    {
+      "path": "lib/src/wheel/wheel_game.dart",
+      "frozen_sha256": "14693a0b2b4916f16653bd367ef5afe7eaa5fd35f4cd78064546d3d23b400f71",
+      "real_sha256": "14693a0b2b4916f16653bd367ef5afe7eaa5fd35f4cd78064546d3d23b400f71"
+    },
+    {
+      "path": "lib/src/wheel/widgets/lucky_wheel.dart",
+      "frozen_sha256": "d1e6a82aa653cbedb34650915a5d8113724b972c0ee2c2cc0afa315e4be13005",
+      "real_sha256": "d1e6a82aa653cbedb34650915a5d8113724b972c0ee2c2cc0afa315e4be13005"
+    },
+    {
+      "path": "lib/testing.dart",
+      "frozen_sha256": "2aeea0778ab6974e35c4f2a522ef781de8167f59f14499dcd6e5f369c01eefc0",
+      "real_sha256": "2aeea0778ab6974e35c4f2a522ef781de8167f59f14499dcd6e5f369c01eefc0"
+    },
+    {
+      "path": "lib/wheel.dart",
+      "frozen_sha256": "80677b769b59d12e624b79101203d218fba514bbc9b7afd90e2fb2f19ac0dba5",
+      "real_sha256": "80677b769b59d12e624b79101203d218fba514bbc9b7afd90e2fb2f19ac0dba5"
+    }
+  ],
+  "parallel_product_differences": [],
+  "note": "真机数据属于冻结副本；差异不是本批产品改动，本批没有修改lib。"
+}
