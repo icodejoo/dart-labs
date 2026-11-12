@@ -20,6 +20,7 @@ class SvgRenderOptions {
   /// Whether to draw grid lines, defaults to false.
   final bool grid;
 
+  /// Creates a [SvgRenderOptions].
   const SvgRenderOptions({this.width, this.height, this.grid = false});
 }
 

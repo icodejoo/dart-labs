@@ -19,6 +19,7 @@ class OutcomeDef {
   /// In bead plate number mode, which field from [GenericResult.extras] this result displays; defaults to fallback display [label].
   final String? beadTextField;
 
+  /// Creates a [OutcomeDef].
   const OutcomeDef({
     required this.code,
     required this.label,
@@ -50,6 +51,7 @@ class MarkerDef {
   /// Color lookup key, same as [OutcomeDef.paletteKey].
   final String paletteKey;
 
+  /// Creates a [MarkerDef].
   const MarkerDef({
     required this.code,
     required this.label,
@@ -61,6 +63,7 @@ class MarkerDef {
 
 /// Declarative stream selector (sealed class, exhaustive switch matching).
 sealed class StreamSelector {
+  /// Creates a [StreamSelector].
   const StreamSelector();
 }
 
@@ -69,6 +72,7 @@ final class OutcomeSelector extends StreamSelector {
   /// Binary token list for road, exactly 2, determines the two hypothesis values for predict.
   final (String, String) tokens;
 
+  /// Creates a [OutcomeSelector].
   const OutcomeSelector(this.tokens);
 }
 
@@ -78,6 +82,7 @@ class RangeBucket {
   final double min;
   final double max;
 
+  /// Creates a [RangeBucket].
   const RangeBucket({required this.token, required this.min, required this.max});
 }
 
@@ -92,6 +97,7 @@ final class RangeSelector extends StreamSelector {
   /// Result codes to skip the entire round if hit (sicbo triple takes all).
   final List<String>? skipOutcomes;
 
+  /// Creates a [RangeSelector].
   const RangeSelector({required this.field, required this.buckets, this.skipOutcomes});
 }
 
@@ -103,6 +109,7 @@ final class MarkSelector extends StreamSelector {
   /// (token for true, token for false).
   final (String, String) tokens;
 
+  /// Creates a [MarkSelector].
   const MarkSelector({required this.code, required this.tokens});
 }
 
@@ -120,6 +127,7 @@ class StreamDef {
   /// List of result codes that do not occupy cells (baccarat "T").
   final List<String>? skipOutcomes;
 
+  /// Creates a [StreamDef].
   const StreamDef({required this.id, required this.label, required this.selector, this.skipOutcomes});
 }
 
@@ -154,6 +162,7 @@ class GameSpec {
   /// Marker markers (nullable).
   final List<MarkerDef>? markers;
 
+  /// Creates a [GameSpec].
   const GameSpec({
     required this.id,
     required this.label,
@@ -178,23 +187,27 @@ class GenericResult {
   /// Numeric additional fields (sicbo total/die1-3, baccarat points, etc.), used by range selector and tooltip.
   final Map<String, num>? extras;
 
+  /// Creates a [GenericResult].
   const GenericResult({required this.no, required this.outcome, this.marks, this.extras});
 }
 
 /// Return value of [validateGameSpec] (sealed class).
 sealed class ValidateResult {
+  /// Creates a [ValidateResult].
   const ValidateResult();
 }
 
 /// Validation passed.
 final class ValidateOk extends ValidateResult {
   final GameSpec spec;
+  /// Creates a [ValidateOk].
   const ValidateOk(this.spec);
 }
 
 /// Validation failed.
 final class ValidateError extends ValidateResult {
   final List<String> errors;
+  /// Creates a [ValidateError].
   const ValidateError(this.errors);
 }
 
@@ -335,17 +348,20 @@ ValidateJsonResult validateGameSpecJson(Object? raw) {
 
 /// Return value of [validateGameSpecJson].
 sealed class ValidateJsonResult {
+  /// Creates a [ValidateJsonResult].
   const ValidateJsonResult();
 }
 
 /// Validation passed, returns the original (confirmed structurally valid) JSON Map.
 final class ValidateJsonOk extends ValidateJsonResult {
   final Map json;
+  /// Creates a [ValidateJsonOk].
   const ValidateJsonOk(this.json);
 }
 
 /// Validation failed.
 final class ValidateJsonError extends ValidateJsonResult {
   final List<String> errors;
+  /// Creates a [ValidateJsonError].
   const ValidateJsonError(this.errors);
 }

@@ -76,12 +76,14 @@ enum RoadDisplayMode { follow, window }
 
 /// Transition description for a single cell (sealed class).
 sealed class Transition {
+  /// Creates a [Transition].
   const Transition();
 }
 
 /// Cell enter (newly added).
 final class EnterTransition extends Transition {
   final LayoutCell cell;
+  /// Creates a [EnterTransition].
   const EnterTransition(this.cell);
 }
 
@@ -89,12 +91,14 @@ final class EnterTransition extends Transition {
 final class MoveTransition extends Transition {
   final LayoutCell from;
   final LayoutCell to;
+  /// Creates a [MoveTransition].
   const MoveTransition(this.from, this.to);
 }
 
 /// Cell exit (pushed out).
 final class ExitTransition extends Transition {
   final LayoutCell cell;
+  /// Creates a [ExitTransition].
   const ExitTransition(this.cell);
 }
 
