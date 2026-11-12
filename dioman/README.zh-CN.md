@@ -24,6 +24,8 @@ dart pub add dioman
 
 需要 Dart ^3.5.0，运行时只依赖 Dio。
 
+> **0.8.0 为破坏性版本**（洋葱管线重写）。从 0.7.x 升级请先读[迁移指南](docs/guides/migrating-to-pipeline.md)与 [CHANGELOG](CHANGELOG.md)。
+
 ## 快速开始
 
 快速开始使用内联路由，无需网络；替换为真实接口时移除 DiomanMock。
@@ -566,7 +568,7 @@ dart run test/accept/bin/matrix.dart gates
 
 Dio unknown 的解码 `FormatException` 现归 `kind: parse`，保留 Dio 提供的 HTTP 状态。HTML 默认按文本；`expectJson: true` 在 json 模式下将 2xx 非空文本判为 parse，不依赖 MIME 声明；显式 ResponseType.plain、bytes、stream 不受严格 JSON 判定约束。
 
-[0.7.2 → pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
+[0.7.x → 0.8.0 pipeline](docs/guides/migrating-to-pipeline.md) · [Architecture](docs/design/architecture.md) · [CHANGELOG](CHANGELOG.md)
 
 可运行版本：`dart run example/dioman_example.dart`（离线）；`dart run example/real_run.dart` 使用公共服务，需要网络。
 

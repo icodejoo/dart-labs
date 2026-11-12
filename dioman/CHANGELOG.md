@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
 - **Dependency:** minimum `dio` raised from 5.0.0 to 5.4.0 (earlier versions lack `BaseOptions.preserveHeaderCase`, so lower-bound analysis failed).
 

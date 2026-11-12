@@ -24,6 +24,8 @@ dart pub add dioman
 
 Requires Dart ^3.5.0; Dio is the only runtime dependency.
 
+> **0.8.0 is a breaking release** (pipeline rewrite). Upgrading from 0.7.x: see the [migration guide](docs/guides/migrating-to-pipeline.md) and the [CHANGELOG](CHANGELOG.md).
+
 ## Quick start
 
 The quick start uses inline routes and runs offline. Remove DiomanMock when connecting to your backend.
