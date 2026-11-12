@@ -109,8 +109,8 @@ footer{border-top:1px solid var(--border);padding:28px 0 48px;color:var(--muted)
     <img src="assets/animate-motion.svg" alt=""><img src="assets/animated-mask.svg" alt=""><img src="assets/linear-gradient.svg" alt="">
   </div>
   <div class="notice">
-    <span data-l="zh"><strong>Native FFI，不支持 Web。</strong>xvg 的静态路径通过 Rust FFI 与 <code>dart:io</code> 实现，这里没有 web/wasm 构建。此页是<strong>静态展示</strong>：下方预览由浏览器原生 <code>&lt;img&gt;</code> 渲染，不是 xvg 本身的输出。</span>
-    <span data-l="en"><strong>Native FFI &mdash; Web is not supported.</strong> xvg's static path uses Rust FFI and <code>dart:io</code>; there is no web/wasm build. This page is a <strong>static showcase</strong>: the previews below are rendered by the browser's native <code>&lt;img&gt;</code>, not by xvg itself.</span>
+    <span data-l="zh">Native FFI 包；此处另有 <a href="./demo/">wasm 版在线 demo（实验性）</a>。本页预览仍由浏览器原生 SVG 渲染。</span>
+    <span data-l="en">Native FFI package; try the <a href="./demo/">experimental wasm demo</a>. Previews on this page use browser SVG rendering.</span>
   </div>
 </div>
 
@@ -286,7 +286,7 @@ Image(image: NetworkXvg(url))</code></pre>
 
 <footer><div class="wrap">
   <a href="https://pub.dev/packages/xvg">pub.dev</a> &middot; <a href="https://github.com/icodejoo/dart-labs/tree/xvg/xvg">GitHub</a> &middot; <a href="../">dart-labs</a>
-  <p style="margin-top:8px"><span data-l="zh">Native FFI，不支持 Web。此页为静态展示。</span><span data-l="en">Native FFI, no Web support. This page is a static showcase.</span></p>
+  <p style="margin-top:8px"><span data-l="zh">Native FFI 包；<a href="./demo/">实验性 wasm demo</a>。此页为静态展示。</span><span data-l="en">Native FFI package; <a href="./demo/">experimental wasm demo</a>. This page is a static showcase.</span></p>
 </div></footer>
 
 <script>
