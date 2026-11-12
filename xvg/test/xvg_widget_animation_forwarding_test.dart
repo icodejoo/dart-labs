@@ -368,9 +368,7 @@ void main() {
             await tester.pump();
             await tester.pump();
             final actual = animated
-                ? tester
-                      .widget<XvgAnimated>(find.byType(XvgAnimated))
-                      .pixelSnap
+                ? tester.widget<XvgAnimated>(find.byType(XvgAnimated)).pixelSnap
                 : tester.widget<XvgStatic>(find.byType(XvgStatic)).pixelSnap;
             expect(actual, mode);
             await tester.pumpWidget(const SizedBox());

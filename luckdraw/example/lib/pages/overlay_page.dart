@@ -3,6 +3,7 @@ import 'package:luckdraw/extend.dart';
 import 'package:luckdraw/wheel.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 import 'wheel_page.dart';
 
@@ -41,7 +42,7 @@ class _OverlayPageState extends State<OverlayPage> {
         _controller.stop(demoTarget);
       },
       game: LuckyWheel(
-          config: WheelPageState.config,
+          config: demoConfig(context, WheelPageState.config),
           controller: _controller,
           renderer: const _OverlayRenderer(),
           width: demoSide,

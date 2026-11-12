@@ -6,12 +6,21 @@ class InMemoryTokenManager implements DiomanTokenManager {
   InMemoryTokenManager({String? access, String? refresh})
       : _access = access,
         _refresh = refresh;
+
+  /// 内存中的访问凭证。
   String? _access;
+
+  /// 内存中的刷新凭证。
   String? _refresh;
+
+  /// 当前访问凭证。
   @override
   String? get accessToken => _access;
+
+  /// 当前刷新凭证。
   @override
   String? get refreshToken => _refresh;
+
   /// 写入刷新结果，同时替换刷新凭证。
   @override
   void setTokens({required String accessToken, String? refreshToken}) {

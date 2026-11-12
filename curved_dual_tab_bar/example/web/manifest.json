@@ -1,12 +1,12 @@
 {
-    "name": "curved_dual_tab_bar_example",
-    "short_name": "curved_dual_tab_bar_example",
+    "name": "curved_dual_tab_bar",
+    "short_name": "curved_dual_tab_bar",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#7C4DFF",
+    "theme_color": "#7C4DFF",
+    "description": "Interactive curved tab demos / 双语曲线标签演示",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

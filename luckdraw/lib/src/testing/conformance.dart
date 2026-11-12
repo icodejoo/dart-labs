@@ -115,7 +115,7 @@ abstract final class LuckyConformance {
   /// 实验性（可能调整）：检查 [easing] 的两个方法，返回含端点/有限性错误、单调性警告的报告。
   ///
   /// [duration] 为正且有限的毫秒数，否则抛 ArgumentError。
-  /// 使用非零起点和正变化量，在 [0, duration] 等距采样 101 点；端点容差 1e-9。
+  /// 使用非零起点和正变化量，在 `[0, duration]` 等距采样 101 点；端点容差 1e-9。
   /// 采样不能证明采样点之间的性质；例如 `LuckyConformance.checkEasing(LuckyEasings.quad)`。
   static LuckyConformanceReport checkEasing(LuckyEasing easing,
       {double duration = _defaultDuration}) {

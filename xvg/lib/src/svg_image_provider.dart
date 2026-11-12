@@ -5,7 +5,6 @@
 // ImageProvider 输出整像素图像，无需合成阶段对齐。
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -19,6 +18,8 @@ import 'animation/svg_document_cache.dart';
 import 'animation/svg_document_parser.dart';
 import 'animation/svg_theme.dart';
 import 'rust_static_svg.dart';
+import 'platform_file.dart'
+    if (dart.library.js_interop) 'platform_file_web.dart';
 import 'svg_source_loader.dart';
 import 'svg_source_sniffer.dart';
 

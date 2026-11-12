@@ -1,279 +1,91 @@
-import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../demo_kit/demo_kit.dart';
+import '../demo_support.dart';
 
-class NamespacePage extends StatefulWidget {
-  const NamespacePage({super.key, required this.onChanged});
-  final VoidCallback onChanged;
+/// 命名空间隔离与切换的入口。
+class NamespacePage extends StatelessWidget {
+  /// 创建命名空间页面。
+  const NamespacePage({super.key});
 
-  @override
-  State<NamespacePage> createState() => _NamespacePageState();
-}
-
-class _NamespacePageState extends State<NamespacePage> {
-  final _keyCtrlA = TextEditingController(text: 'profile');
-  final _valCtrlA = TextEditingController(text: 'alice@example.com');
-  final _keyCtrlB = TextEditingController(text: 'profile');
-  final _valCtrlB = TextEditingController(text: 'bob@example.com');
-
-  List<String> _keysA = [];
-  List<String> _keysB = [];
-  String _statusMsg = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // _reload notifies the parent shell via setState; defer it past the build
-    // phase. / _reload 会经 onChanged 触发父组件 setState，须推迟到构建阶段之后。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _reload();
-    });
+  /// 在同一容器中建立两个稳定的命名空间实例。
+  static Future<DemoSession> _isolation() async {
+    final a = await demoCache('accounts:a');
+    final b = await demoCache('accounts:b');
+    return DemoSession([
+      DemoAction('Write both', '写入两侧', (_) {
+        a.write(demoKey, 'Alice');
+        b.write(demoKey, 'Bob');
+        return {'A': a.read<String>(demoKey), 'B': b.read<String>(demoKey)};
+      }),
+      DemoAction('Erase A', '清空 A', (_) {
+        a.erase();
+        return {'A': a.keys(), 'B': b.read<String>(demoKey)};
+      }),
+      DemoAction(
+        'Storage keys',
+        '查看底层键',
+        (_) => [a.storageKey(demoKey), b.storageKey(demoKey)],
+      ),
+    ]);
   }
 
-  Cacheman get _nsA {
-    cache.setNamespace('account_a');
-    return cache;
-  }
-
-  Cacheman get _nsB {
-    cache.setNamespace('account_b');
-    return cache;
-  }
-
-  void _reload() {
-    cache.setNamespace('account_a');
-    final kA = cache.keys();
-    cache.setNamespace('account_b');
-    final kB = cache.keys();
-    cache.setNamespace(null);
-    setState(() {
-      _keysA = kA;
-      _keysB = kB;
-    });
-    widget.onChanged();
-  }
-
-  void _setA() {
-    final k = _keyCtrlA.text.trim();
-    final v = _valCtrlA.text.trim();
-    if (k.isEmpty) return;
-    _nsA.write(k, v);
-    cache.setNamespace(null);
-    _reload();
-    setState(() => _statusMsg = 'Set "$k" in account_a');
-  }
-
-  void _getA() {
-    final k = _keyCtrlA.text.trim();
-    cache.setNamespace('account_a');
-    final v = cache.read<dynamic>(k);
-    cache.setNamespace(null);
-    setState(() =>
-        _statusMsg = v == null ? 'account_a: "$k" not found' : 'account_a "$k" = $v');
-  }
-
-  void _setB() {
-    final k = _keyCtrlB.text.trim();
-    final v = _valCtrlB.text.trim();
-    if (k.isEmpty) return;
-    _nsB.write(k, v);
-    cache.setNamespace(null);
-    _reload();
-    setState(() => _statusMsg = 'Set "$k" in account_b');
-  }
-
-  void _getB() {
-    final k = _keyCtrlB.text.trim();
-    cache.setNamespace('account_b');
-    final v = cache.read<dynamic>(k);
-    cache.setNamespace(null);
-    setState(() =>
-        _statusMsg = v == null ? 'account_b: "$k" not found' : 'account_b "$k" = $v');
-  }
-
-  void _clearA() {
-    cache.setNamespace('account_a');
+  /// 演示显式切域，避免在构建或 getter 中修改共享实例。
+  static Future<DemoSession> _switch() async {
+    const first = 'switch:a';
+    const second = 'switch:a:b';
+    final cache = await demoCache(first);
+    cache.setNamespace(second);
     cache.erase();
-    cache.setNamespace(null);
-    _reload();
-    setState(() => _statusMsg = 'Cleared account_a — account_b untouched');
+    cache.setNamespace(first);
+    return DemoSession([
+      DemoAction('Switch & write', '切换并写入', (_) {
+        cache.setNamespace(second);
+        cache.write(demoKey, demoValue);
+        return cache.storageKey(demoKey);
+      }),
+      DemoAction('Back to A', '切回 A', (_) {
+        cache.setNamespace(first);
+        return cache.keys();
+      }),
+    ]);
   }
 
+  /// 构建隔离和转义演示。
   @override
-  void dispose() {
-    _keyCtrlA.dispose();
-    _valCtrlA.dispose();
-    _keyCtrlB.dispose();
-    _valCtrlB.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_statusMsg.isNotEmpty) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(_statusMsg),
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, DemoCopy.namespace.en, DemoCopy.namespace.zh),
+    description: tr(
+      context,
+      'Scopes share a backend, with escaped prefixes and scoped erase.',
+      '同一后端通过转义前缀隔离，erase 只清理当前作用域。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Independent scopes', '独立作用域'),
+        code:
+            "final a = Cacheman(options: CachemanOptions(namespace: 'accounts:a'));\nfinal b = Cacheman(options: CachemanOptions(namespace: 'accounts:b'));\nawait a.ensureInitialized();\nawait b.ensureInitialized();\na.erase(); // b remains intact\na.setNamespace('accounts:a:b');\na.storageKey('message');",
+        child: DemoGrid(
+          children: [
+            actionCard(
+              context,
+              en: 'Account isolation',
+              zh: '账户隔离',
+              descriptionEn: 'The same logical key stores different values.',
+              descriptionZh: '相同逻辑键可以保存不同账户的数据。',
+              create: _isolation,
             ),
-            const SizedBox(height: 12),
+            actionCard(
+              context,
+              en: 'Switch & escape',
+              zh: '切换与转义',
+              descriptionEn:
+                  'Colons in namespaces are escaped, preventing collisions.',
+              descriptionZh: '命名空间中的冒号会转义，防止前缀碰撞。',
+              create: _switch,
+            ),
           ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _AccountPanel(
-                  account: 'account_a',
-                  color: Colors.teal.shade50,
-                  keyCtrl: _keyCtrlA,
-                  valCtrl: _valCtrlA,
-                  keys: _keysA,
-                  onSet: _setA,
-                  onGet: _getA,
-                  onClear: _clearA,
-                  getEngine: () {
-                    cache.setNamespace('account_a');
-                    return cache;
-                  },
-                  resetEngine: () => cache.setNamespace(null),
-                  onChanged: _reload,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _AccountPanel(
-                  account: 'account_b',
-                  color: Colors.indigo.shade50,
-                  keyCtrl: _keyCtrlB,
-                  valCtrl: _valCtrlB,
-                  keys: _keysB,
-                  onSet: _setB,
-                  onGet: _getB,
-                  onClear: null,
-                  getEngine: () {
-                    cache.setNamespace('account_b');
-                    return cache;
-                  },
-                  resetEngine: () => cache.setNamespace(null),
-                  onChanged: _reload,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({
-    required this.account,
-    required this.color,
-    required this.keyCtrl,
-    required this.valCtrl,
-    required this.keys,
-    required this.onSet,
-    required this.onGet,
-    required this.onClear,
-    required this.getEngine,
-    required this.resetEngine,
-    required this.onChanged,
-  });
-
-  final String account;
-  final Color color;
-  final TextEditingController keyCtrl;
-  final TextEditingController valCtrl;
-  final List<String> keys;
-  final VoidCallback onSet;
-  final VoidCallback onGet;
-  final VoidCallback? onClear;
-  final Cacheman Function() getEngine;
-  final VoidCallback resetEngine;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(account,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: keyCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Key',
-                border: OutlineInputBorder(),
-                isDense: true),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: valCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Value',
-                border: OutlineInputBorder(),
-                isDense: true),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              FilledButton(
-                  onPressed: onSet,
-                  style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact),
-                  child: const Text('Set')),
-              FilledButton.tonal(
-                  onPressed: onGet,
-                  style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact),
-                  child: const Text('Get')),
-              if (onClear != null)
-                FilledButton.tonal(
-                    onPressed: onClear,
-                    style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact),
-                    child: const Text('Clear A')),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text('${keys.length} keys:',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
-          if (keys.isEmpty)
-            const Text('(empty)', style: TextStyle(fontSize: 12))
-          else
-            for (final k in keys)
-              Text('• $k = ${_readKey(k)}',
-                  style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-
-  String _readKey(String k) {
-    final eng = getEngine();
-    final v = eng.read<dynamic>(k);
-    resetEngine();
-    return '$v';
-  }
+    ],
+  );
 }

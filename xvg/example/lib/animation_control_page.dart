@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:xvg/xvg.dart';
 
+import 'replay_demo.dart';
+
 /// Finite original motion with identified element events. / 带元素事件的原创有限动画。
 const _motionSvg = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="280" height="80" viewBox="0 0 280 80">
@@ -44,8 +46,11 @@ const _spinnerSize = 64.0;
 /// Space between controls. / 控件间距。
 const _controlSpacing = 8.0;
 
+/// 默认正向播放倍率。
+const _normalRate = 1.0;
+
 /// Offered playback speeds. / 可选播放速率。
-const _rates = [0.5, 1.0, 2.0, -1.0];
+const _rates = [0.5, _normalRate, 2.0, -1.0];
 
 /// Demonstrates three playback modes through Xvg.string.
 /// 通过 Xvg.string 演示三种播放模式。
@@ -137,6 +142,14 @@ class _AnimationControlPageState extends State<AnimationControlPage>
     setState(() {});
   }
 
+  /// 清除片段并恢复正向播放，让主动画从文档起点重播。
+  void _replayMotion() {
+    _controller.clearRange();
+    _controller.playbackRate = _normalRate;
+    _controller.stop();
+    _controller.play();
+  }
+
   /// Converts slider seconds to a seek position. / 将滑块秒数转换为定位时间。
   Duration _time(double seconds) => Duration(
     microseconds: (seconds * Duration.microsecondsPerSecond).round(),
@@ -165,12 +178,14 @@ class _AnimationControlPageState extends State<AnimationControlPage>
               spacing: _controlSpacing,
               children: [
                 for (final action in <String, VoidCallback>{
+                  ReplayDemo.label: _replayMotion,
                   'play': _controller.play,
                   'pause': _controller.pause,
                   'stop': _controller.stop,
                   'reverse': _controller.reverse,
                 }.entries)
                   OutlinedButton(
+                    style: ReplayDemo.buttonStyle,
                     onPressed: () => _act(action.value),
                     child: Text(action.key),
                   ),
@@ -274,6 +289,11 @@ class _AnimationControlPageState extends State<AnimationControlPage>
               spacing: _controlSpacing,
               children: [
                 OutlinedButton(
+                  style: ReplayDemo.buttonStyle,
+                  onPressed: () => _flutterController.forward(from: 0),
+                  child: const Text(ReplayDemo.label),
+                ),
+                OutlinedButton(
                   onPressed: () => _flutterController.repeat(reverse: true),
                   child: const Text('B · 曲线往返'),
                 ),
@@ -286,10 +306,12 @@ class _AnimationControlPageState extends State<AnimationControlPage>
             const Divider(),
             const Text('隐式自动播放 · 原创循环 spinner'),
             const Center(
-              child: Xvg.string(
-                _spinnerSvg,
-                width: _spinnerSize,
-                height: _spinnerSize,
+              child: ReplayDemo(
+                child: Xvg.string(
+                  _spinnerSvg,
+                  width: _spinnerSize,
+                  height: _spinnerSize,
+                ),
               ),
             ),
             const Text('事件日志 · 最近 $_logLimit 条（seek 不触发穿越事件）'),

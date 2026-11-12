@@ -10,7 +10,7 @@
 1:1 复刻，每项左侧是官方截图、右侧是 luckdraw 实时渲染；配置在 lib/official/，
 素材在 assets/（仅供示例对照，勿商用，见包根 NOTICE），详见 docs/OFFICIAL_PARITY_REPORT.md。
 README 片段保存在 lib/snippets/，由 lib/readme_snippets.dart 组合展示；
-与包 README 的六段 Dart 代码一致，只补充中文注释和宿主页面。
+与包 README 的 Dart 代码一致（转盘、九宫格、老虎机、拉霸机、扭蛋机、数字转盘、抽签、大乐透、compat、扩展、测试），只补充中文注释和宿主页面。
 
 在 example 内执行：
 
