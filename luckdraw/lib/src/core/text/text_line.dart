@@ -26,6 +26,27 @@ final class LuckyTextLine {
   final TextStyle style;
 }
 
+/// 在 [rect] 内排版 [text]：以 [rect] 为容器和百分比基准，每行最大宽度恒为 [maxWidth]。
+///
+/// [maxWidth] 缺省取 `rect.width`；例如卡片文字 `layoutLuckyTextLinesInRect(text: t,
+/// defaults: d, measurer: m, rect: card)`。
+List<LuckyTextLine> layoutLuckyTextLinesInRect(
+        {required LuckyText text,
+        required LuckyTextDefaults defaults,
+        LuckyTextOverride? override,
+        required LuckyTextMeasurer measurer,
+        required Rect rect,
+        double? maxWidth}) =>
+    layoutLuckyTextLines(
+        text: text,
+        defaults: defaults,
+        override: override,
+        measurer: measurer,
+        box: rect,
+        leftBase: rect.width,
+        topBase: rect.height,
+        maxWidthOf: (_, __) => maxWidth ?? rect.width);
+
 /// 将 [text] 按默认值和激活覆盖值解析，返回每行文字及基线位置。
 ///
 /// [box] 决定水平居中，[leftBase]/[topBase] 解析偏移百分比；[maxWidthOf]

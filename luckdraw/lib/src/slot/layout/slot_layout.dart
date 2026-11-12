@@ -6,7 +6,6 @@ import 'package:flutter/painting.dart';
 import '../../core/foundation/box_block.dart';
 import '../../core/foundation/constants.dart';
 import '../../core/foundation/fill.dart';
-import '../../core/foundation/image.dart';
 import '../../core/game/layout.dart';
 import '../../core/geometry/image_box.dart';
 import '../../core/render/perf_trace.dart';
@@ -170,7 +169,8 @@ SlotLayout computeSlotLayout(SlotConfig config, LuckyLayoutInput input) {
           block,
           area,
           block.background ?? config.style.cell.background,
-          _images(block.images, slotBlockImageGroup, b, area)));
+          luckyRectPlacements(block.images, area,
+              group: slotBlockImageGroup, item: b)));
       final pad = block.padding;
       area = Rect.fromLTWH(
           area.left + pad.left,
@@ -226,7 +226,8 @@ SlotLayout computeSlotLayout(SlotConfig config, LuckyLayoutInput input) {
                       (text.lengthLimit ?? config.style.text.lengthLimit)
                           .resolve(cw))
           ],
-          images: _images(prize.images, slotPrizeImageGroup, i, rect)));
+          images: luckyRectPlacements(prize.images, rect,
+              group: slotPrizeImageGroup, item: i)));
     }
     return SlotLayout(
         size: input.size,
@@ -249,21 +250,6 @@ SlotLayout computeSlotLayout(SlotConfig config, LuckyLayoutInput input) {
     luckyTraceEnd();
   }
 }
-
-/// 将图片项解析为局部摆放规则。
-List<LuckyImagePlacement> _images(
-        List<LuckyImage> images, String group, int item, Rect rect) =>
-    [
-      for (var i = 0; i < images.length; i++)
-        LuckyImagePlacement(
-            slot: LuckyImageSlot(group, item, i),
-            image: images[i],
-            box: rect,
-            maxWidth: rect.width,
-            maxHeight: rect.height,
-            leftBase: rect.width,
-            topBase: rect.height)
-    ];
 
 /// 计算一列；order 中的洞仍占据周期长度。
 SlotReelLayout _reel(SlotConfig config, int r, Rect area, double cw, double ch,

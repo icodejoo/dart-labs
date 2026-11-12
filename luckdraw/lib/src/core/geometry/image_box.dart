@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show ImageProvider;
 
 import '../foundation/constants.dart';
 import '../foundation/image.dart';
@@ -44,6 +45,20 @@ final class LuckyImagePlacement {
       required this.topBase,
       this.yOffset = 0});
 
+  /// 以 [rect] 为容器和百分比基准创建规则；例如卡片、格子内的图片。
+  LuckyImagePlacement.inRect(
+      {required LuckyImageSlot slot,
+      required LuckyImage image,
+      required Rect rect})
+      : this(
+            slot: slot,
+            image: image,
+            box: rect,
+            maxWidth: rect.width,
+            maxHeight: rect.height,
+            leftBase: rect.width,
+            topBase: rect.height);
+
   /// 图片槽。
   final LuckyImageSlot slot;
 
@@ -68,6 +83,15 @@ final class LuckyImagePlacement {
   /// 附加纵向偏移。
   final double yOffset;
 
+  /// 生成按本规则百分比基准解析解码尺寸的图片请求；[provider] 缺省用图片本身。
+  LuckyImageRequest toRequest({ImageProvider<Object>? provider}) =>
+      LuckyImageRequest(
+          slot: slot,
+          image: image,
+          provider: provider ?? image.image,
+          decodeLogicalWidth: image.width?.resolve(maxWidth),
+          decodeLogicalHeight: image.height?.resolve(maxHeight));
+
   /// 用 [natural] 计算水平居中后叠加 left/top 偏移的绘制矩形。
   Rect place(Size natural) {
     final size = computeImageBox(
@@ -85,3 +109,17 @@ final class LuckyImagePlacement {
         size.height);
   }
 }
+
+/// 把一组图片按 [rect] 解析为不可变摆放规则列表；槽位为 [group]、[item]、序号。
+///
+/// 例如 `luckyRectPlacements(prize.images, rect, group: 'prizes', item: i)`。
+List<LuckyImagePlacement> luckyRectPlacements(
+        List<LuckyImage> images, Rect rect,
+        {required String group, required int item, bool active = false}) =>
+    List.unmodifiable([
+      for (var i = 0; i < images.length; i++)
+        LuckyImagePlacement.inRect(
+            slot: LuckyImageSlot(group, item, i, active: active),
+            image: images[i],
+            rect: rect)
+    ]);

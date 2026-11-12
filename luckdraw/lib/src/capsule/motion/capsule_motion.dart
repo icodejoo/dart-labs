@@ -3,9 +3,10 @@ import 'dart:typed_data';
 
 import '../../core/easing/easing.dart';
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/duration_ms.dart';
+import '../../core/foundation/unit_range.dart';
 import '../../core/game/frame.dart';
 import '../../core/kinematics/body_driver.dart';
-import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
 import '../../core/motion/phase.dart';
@@ -29,9 +30,6 @@ const double _guideRamp = 0.35;
 
 /// 物理模式：掉落前该比例进度内，把物理位置平滑过渡到掉落折线。
 const double _dropBlend = 0.15;
-
-/// 物理世界允许的球半径与容器半径之比上限。
-const double _maxBodyRatio = 0.5;
 
 /// 扭蛋机细分阶段；收尾阶段均属于 LuckyPhase.decelerating。
 enum CapsuleStage {
@@ -119,8 +117,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   CapsuleConfig get config => _config;
 
   /// 当前是否接受停止命令。
-  bool get acceptsStop =>
-      phase == LuckyPhase.accelerating || phase == LuckyPhase.cruising;
+  bool get acceptsStop => phase.canStop;
 
   /// 当前几何。
   CapsuleLayout? _layout;
@@ -177,14 +174,6 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   @override
   LuckyPhase get phase => frame.phase;
 
-  /// 本玩法不发条目经过事件。
-  @override
-  int get passedReel => 0;
-
-  /// 本玩法不发条目经过事件。
-  @override
-  int get passedIndex => -1;
-
   /// 当前配置的单帧上限。
   @override
   Duration get maxFrameDelta => _config.options.motion.maxFrameDelta;
@@ -232,37 +221,14 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   /// 物理参数、球数与半径比都未变时沿用世界，只改换算比例，缩放窗口不会让球重新落入。
   void _installDriver(CapsuleConfig config, CapsuleLayout layout) {
     final physics = config.options.physics?..validate();
-    final count = layout.rest.length;
-    final ratio = layout.globeRadius > 0
-        ? layout.capsuleRadius / layout.globeRadius
-        : 0.0;
-    if (physics != null &&
-        count <= physics.maxBodies &&
-        ratio > 0 &&
-        ratio <= _maxBodyRatio) {
-      final old = _physics;
-      if (old != null &&
-          old.isCompatible(
-              count: count,
-              bodyRadius: layout.capsuleRadius,
-              containerRadius: layout.globeRadius,
-              physics: physics)) {
-        old.rescale(layout.globeRadius);
-        return;
-      }
-      _physics = LuckyPhysicsDriver(
-          physics: physics,
-          count: count,
-          containerRadius: layout.globeRadius,
-          bodyRadius: layout.capsuleRadius);
-      _driver = _physics;
-    } else {
-      _physics = null;
-      _driver = LuckySwirlDriver(LuckySwirlMixer(
-          rest: layout.rest,
-          containerRadius: layout.globeRadius,
-          bodyRadius: layout.capsuleRadius));
-    }
+    final driver = luckyChooseDriver(
+        physics: physics,
+        previous: _physics,
+        rest: layout.rest,
+        containerRadius: layout.globeRadius,
+        bodyRadius: layout.capsuleRadius);
+    _driver = driver;
+    _physics = driver is LuckyPhysicsDriver ? driver : null;
     frame.x = _driver!.x;
     frame.y = _driver!.y;
     frame.angle = _driver!.angle;
@@ -279,7 +245,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
   /// 开始本局；运动中拒绝，待机慢转可转入加速。
   @override
   bool start() {
-    if (!_ready || !phase.acceptsStart) return false;
+    if (!_ready || !phase.canPlay) return false;
     _startSpeed = phase == LuckyPhase.idleSpinning
         ? _config.options.motion.idleSpinSpeed
         : 0;
@@ -314,13 +280,10 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
 
   /// 作废加速或匀速；待机慢转取消不产生结果，减速取消无效。
   @override
-  bool cancel() {
-    if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
-    final report = phase != LuckyPhase.idleSpinning;
-    _resetState();
-    if (report) _result = const LuckyResult.cancelled();
-    return true;
-  }
+  bool cancel() => cancelWith((report) {
+        _resetState();
+        if (report) _result = const LuckyResult.cancelled();
+      });
 
   /// 恢复静止并清除结果与移出标记；物理模式下胶囊重新落入。
   @override
@@ -394,10 +357,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
       return LuckyMotionEvents.none;
     }
     final before = phase;
-    final dt = dtMs
-        .clamp(0,
-            maxFrameDelta.inMicroseconds / Duration.microsecondsPerMillisecond)
-        .toDouble();
+    final dt = dtMs.clamp(0, luckyMs(maxFrameDelta)).toDouble();
     if (!phase.isMoving) {
       _update(dtMs: dt);
       return LuckyMotionEvents.repaint;
@@ -431,7 +391,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
           (m.timebase == LuckyTimebase.frame
               ? (dt > 0 ? 1 : 0)
               : dt / kLuckyReferenceFrameMs);
-      frame.mix = m.speed == 0 ? 0 : (speed / m.speed).clamp(0, 1);
+      frame.mix = m.speed == 0 ? 0 : luckyUnit(speed / m.speed);
     } else if (frame.stage == CapsuleStage.settlingMix) {
       final end = math.min(_elapsed, m.decelerationMs);
       final unit = m.decelerationEasing.easeOut(
@@ -444,7 +404,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
           m.decelerationEasing.easeOut(next, 0, c, m.decelerationMs) -
               m.decelerationEasing.easeOut(end, 0, c, m.decelerationMs);
       frame.mix =
-          m.speed == 0 ? 0 : (velocity * _stopFrameMs / m.speed).clamp(0, 1);
+          m.speed == 0 ? 0 : luckyUnit(velocity * _stopFrameMs / m.speed);
       if (_physics != null) _guideCandidate(m.decelerationMs);
       if (_elapsed >= m.decelerationMs) {
         frame.mix = 0;
@@ -454,10 +414,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
         _excluded[frame.droppedCapsule] = true;
       }
     } else if (frame.stage == CapsuleStage.dropping) {
-      final duration = math.max(
-          1.0,
-          _tailOptions.dropTime.inMicroseconds /
-              Duration.microsecondsPerMillisecond);
+      final duration = math.max(1.0, luckyMs(_tailOptions.dropTime));
       frame.dropProgress = LuckyEasings.quad
           .easeIn(math.min(_elapsed, duration), 0, 1, duration);
       if (_elapsed >= duration) {
@@ -469,10 +426,7 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
         }
       }
     } else if (frame.stage == CapsuleStage.revealing) {
-      final duration = math.max(
-          1.0,
-          _tailOptions.revealTime.inMicroseconds /
-              Duration.microsecondsPerMillisecond);
+      final duration = math.max(1.0, luckyMs(_tailOptions.revealTime));
       frame.revealProgress = LuckyEasings.cubic
           .easeOut(math.min(_elapsed, duration), 0, 1, duration);
       if (_elapsed >= duration) _finish();
@@ -521,11 +475,8 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     frame.guided = _candidate;
     final l = _layout!;
     final ramp = math.max(decelerationMs * _guideRamp, 1.0);
-    _physics!.guide(
-        _candidate,
-        l.exit.dx - l.globeCenter.dx,
-        l.exit.dy - l.globeCenter.dy,
-        ((_elapsed - start) / ramp).clamp(0.0, 1.0).toDouble());
+    _physics!.guide(_candidate, l.exit.dx - l.globeCenter.dx,
+        l.exit.dy - l.globeCenter.dy, luckyUnit((_elapsed - start) / ramp));
   }
 
   /// 物理模式：确定掉落的胶囊，并记录物理位置与折线起点的偏差，供掉落初期平滑消除。
@@ -547,12 +498,12 @@ final class CapsuleMotion extends LuckyMotion<CapsuleConfig, CapsuleLayout,
     frame.stirDeg = _physics?.armDeg ?? 0;
     final i = frame.droppedCapsule, l = _layout;
     if (l == null || i < 0 || i >= _excluded.length || !_excluded[i]) return;
-    final blend = 1 - (frame.dropProgress / _dropBlend).clamp(0.0, 1.0);
+    final blend = 1 - luckyUnit(frame.dropProgress / _dropBlend);
     var remaining = l.dropLength * frame.dropProgress;
     for (var segment = 0; segment < l.lengths.length; segment++) {
       final length = l.lengths[segment];
       if (remaining <= length || segment == l.lengths.length - 1) {
-        final ratio = length == 0 ? 0.0 : (remaining / length).clamp(0, 1);
+        final ratio = length == 0 ? 0.0 : luckyUnit(remaining / length);
         final a = l.dropPath[segment], b = l.dropPath[segment + 1];
         frame.x[i] = a.dx +
             (b.dx - a.dx) * ratio -

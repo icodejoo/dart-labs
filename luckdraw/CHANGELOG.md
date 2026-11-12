@@ -1,5 +1,13 @@
 ## 0.1.0
 
+### Changed
+
+- `LuckyPhaseX.acceptsStart` is deprecated in favour of `canPlay`; new
+  `canStop` and `canCancel` getters replace repeated phase checks.
+- `LuckyMotion.passedReel` / `passedIndex` now have defaults and a new
+  `drainPassed` hook; `LuckyController.reportsIdleCancellation` replaces the
+  per-game cancel-reporting overrides.
+
 ### Added
 
 - Experimental opt-in physics collision mode for capsule machines and lotto

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/duration_ms.dart';
 import '../../core/game/frame.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
@@ -98,14 +99,6 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
   @override
   Duration get maxFrameDelta => _options.maxFrameDelta;
 
-  /// 抽签不产生经过事件。
-  @override
-  int get passedIndex => -1;
-
-  /// 非多列玩法恒为零。
-  @override
-  int get passedReel => 0;
-
   /// 应用配置；签数变化时尝试取消本局。
   @override
   void configure(LotsConfig config, LotsLayout? layout) {
@@ -129,7 +122,7 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
   /// 开始摇动；空布局或运动中拒绝。
   @override
   bool start() {
-    if (!phase.acceptsStart || _layout == null || _layout!.isEmpty) {
+    if (!phase.canPlay || _layout == null || _layout!.isEmpty) {
       return false;
     }
     frame.phase = LuckyPhase.accelerating;
@@ -143,7 +136,7 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
   /// 开始低速待机摇动。
   @override
   bool idleSpin() {
-    if (!phase.acceptsStart ||
+    if (!phase.canPlay ||
         phase == LuckyPhase.idleSpinning ||
         _layout == null ||
         _layout!.isEmpty) {
@@ -156,7 +149,7 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
 
   /// 按下标请求停止；负数取消，正数按签数取余。
   bool stop(int index) {
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising) {
+    if (!phase.canStop) {
       return false;
     }
     if (index < 0) return cancel();
@@ -166,13 +159,10 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
 
   /// 取消加速或匀速；待机取消不产生结果，减速时拒绝。
   @override
-  bool cancel() {
-    if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
-    final idle = phase == LuckyPhase.idleSpinning;
-    reset();
-    if (!idle) _result = const LuckyResult.cancelled();
-    return true;
-  }
+  bool cancel() => cancelWith((report) {
+        reset();
+        if (report) _result = const LuckyResult.cancelled();
+      });
 
   /// 回到静止并清除本局数据。
   @override
@@ -216,14 +206,8 @@ final class LotsMotion extends LuckyMotion<LotsConfig, LotsLayout, LotsFrame,
       }
     } else if (phase == LuckyPhase.decelerating) {
       final damping = _options.decelerationMs;
-      final rise = math.max(
-          1.0,
-          _config.options.riseTime.inMicroseconds /
-              Duration.microsecondsPerMillisecond);
-      final reveal = math.max(
-          1.0,
-          _config.options.revealTime.inMicroseconds /
-              Duration.microsecondsPerMillisecond);
+      final rise = math.max(1.0, luckyMs(_config.options.riseTime));
+      final reveal = math.max(1.0, luckyMs(_config.options.revealTime));
       amplitude *=
           1 - _options.decelerationEasing.easeOut(_elapsed, 0, 1, damping);
       if (_elapsed >= damping) {

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import '../../core/foundation/angles.dart';
 import '../../core/foundation/constants.dart';
 import '../../core/render/perf_trace.dart';
 import '../../core/render/raster_budget.dart';
@@ -156,8 +157,7 @@ final class SlotAtlas {
       final count = reel.stripPrizes.length;
       if (count == 0 || reel.period <= 0) continue;
       var s = frame.scroll[r] + layout.windowStart;
-      if (s < 0) s = s.remainder(reel.period) + reel.period;
-      if (s > reel.period) s = s.remainder(reel.period);
+      if (s < 0 || s > reel.period) s = luckyWrap(s, reel.period);
       final first =
           ((s - spacing / kLuckyHalfDivisor) / layout.cellAndSpacing).floor();
       for (var j = first; j < first + reel.maxVisibleCells; j++) {

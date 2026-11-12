@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../core/motion/result.dart';
+import '../../core/render/images_listener.dart';
 import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/renderer.dart';
 import '../layout/capsule_layout.dart';
@@ -36,7 +37,8 @@ final class _CapsuleSurface extends StatefulWidget {
 }
 
 /// 跨帧保留静态显示列表，图片与布局变化时重新录制。
-final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
+final class _CapsuleSurfaceState extends State<_CapsuleSurface>
+    with LuckyImagesListener<_CapsuleSurface> {
   /// 仅在 assert 内创建并记录 config 引起的缓存失效。
   late final LuckyInvalidationMonitor _invalidationMonitor =
       LuckyInvalidationMonitor('capsule');
@@ -52,7 +54,6 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
   void initState() {
     super.initState();
     _prepare();
-    widget.data.imagesListenable.addListener(_imagesChanged);
   }
 
   /// 按当前输入录制并保存图片版本。
@@ -61,8 +62,14 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
     _imagesGeneration = widget.data.images.generation;
   }
 
+  /// 图片通知源。
+  @override
+  Listenable imagesListenableOf(_CapsuleSurface widget) =>
+      widget.data.imagesListenable;
+
   /// 图片到达只失效包含图片的卡片段，保留机身与胶囊缓存。
-  void _imagesChanged() {
+  @override
+  void onImagesChanged() {
     if (_imagesGeneration == widget.data.images.generation) return;
     _pictures.prepare(widget.data, imagesOnly: true);
     _imagesGeneration = widget.data.images.generation;
@@ -72,10 +79,6 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
   @override
   void didUpdateWidget(_CapsuleSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.data.imagesListenable != widget.data.imagesListenable) {
-      oldWidget.data.imagesListenable.removeListener(_imagesChanged);
-      widget.data.imagesListenable.addListener(_imagesChanged);
-    }
     if (oldWidget.data.layoutGeneration != widget.data.layoutGeneration ||
         oldWidget.data.config != widget.data.config ||
         oldWidget.data.layers != widget.data.layers ||
@@ -91,7 +94,7 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
       }());
       _prepare();
     } else {
-      _imagesChanged();
+      onImagesChanged();
     }
   }
 
@@ -104,7 +107,6 @@ final class _CapsuleSurfaceState extends State<_CapsuleSurface> {
   /// 解除监听并释放原生资源。
   @override
   void dispose() {
-    widget.data.imagesListenable.removeListener(_imagesChanged);
     _pictures.dispose();
     super.dispose();
   }

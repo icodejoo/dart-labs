@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/control/controller.dart';
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/unit_range.dart';
 import '../../core/motion/phase.dart';
 import '../control/slot_controller.dart';
 import '../layout/slot_layout.dart';
@@ -178,10 +179,9 @@ class _LuckyLeverSlotMachineState extends State<LuckyLeverSlotMachine>
                 behavior: HitTestBehavior.opaque,
                 excludeFromSemantics: true,
                 onVerticalDragStart: (_) => _progress.stop(),
-                onVerticalDragUpdate: (details) => _progress.value =
-                    (_progress.value +
-                            details.delta.dy / (height * leverTravelFactor))
-                        .clamp(0.0, 1.0),
+                onVerticalDragUpdate: (details) => _progress.value = luckyUnit(
+                    _progress.value +
+                        details.delta.dy / (height * leverTravelFactor)),
                 onVerticalDragEnd: (_) => _release(),
                 onVerticalDragCancel: () => _progress.reverse(),
                 child: Stack(children: [

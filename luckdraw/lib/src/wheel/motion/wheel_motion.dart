@@ -10,6 +10,7 @@ import '../../core/motion/phase.dart';
 import '../../core/motion/result.dart';
 import '../../core/motion/stop_solver.dart';
 import '../../core/motion/timebase.dart';
+import '../../core/picker/pick_index.dart';
 import '../../core/picker/prize_picker.dart';
 import '../layout/wheel_angles.dart';
 import '../layout/wheel_layout.dart';
@@ -76,10 +77,6 @@ final class WheelMotion extends LuckyMotion<WheelConfig, WheelLayout,
   /// 当前阶段。
   @override
   LuckyPhase get phase => frame.phase;
-
-  /// 转盘没有多列。
-  @override
-  int get passedReel => 0;
 
   /// 最近一帧指针下的扇区。
   @override
@@ -156,8 +153,7 @@ final class WheelMotion extends LuckyMotion<WheelConfig, WheelLayout,
     final replan = phase == LuckyPhase.decelerating &&
         (_config.prizes.length != config.prizes.length ||
             _config.options.offsetDegree != config.options.offsetDegree ||
-            !listEquals(_config.prizes.map((p) => p.sectorWeight).toList(),
-                config.prizes.map((p) => p.sectorWeight).toList()));
+            !_sameSectorWeights(_config.prizes, config.prizes));
     _angles = WheelSectorAngles.fromConfig(config);
     _config = config;
     if (_angles.count == 0 && phase.isMoving) {
@@ -216,17 +212,15 @@ final class WheelMotion extends LuckyMotion<WheelConfig, WheelLayout,
   ///
   /// 只在加速或匀速阶段接受；额外圈数应非负，否则抛 ArgumentError。
   bool requestStop(int? index, {int extraRevolutions = 0}) {
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising) {
+    if (!phase.canStop) {
       return false;
     }
     if (extraRevolutions < 0) {
       throw ArgumentError.value(extraRevolutions, 'extraRevolutions');
     }
     final target = index ??
-        _picker.pick(PrizePickContext(
-            weights: [for (final prize in _config.prizes) prize.weight],
-            disabled: [for (final prize in _config.prizes) prize.disabled],
-            random: _random)) ??
+        pickIndex(_picker, _random, _config.prizes,
+            weight: (p) => p.weight, disabled: (p) => p.disabled) ??
         _unknownIndex;
     if (target < 0) return cancel();
     _prizeFlag = target.remainder(_angles.count);
@@ -237,19 +231,26 @@ final class WheelMotion extends LuckyMotion<WheelConfig, WheelLayout,
     return true;
   }
 
-  /// 作废当前局；减速时忽略，结束待机慢转不产生结果。
-  @override
-  bool cancel() {
-    if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
-    _result = _idleSpinning ? null : const LuckyResult.cancelled();
-    _idleSpinning = false;
-    _settled = false;
-    _step = _idleStep;
-    _prizeFlag = _unknownIndex;
-    frame.targetIndex = _unknownIndex;
-    _updatePhase();
+  /// 两组奖品的扇区权重是否逐项相同；长度不同视为不同。
+  static bool _sameSectorWeights(List<WheelPrize> a, List<WheelPrize> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].sectorWeight != b[i].sectorWeight) return false;
+    }
     return true;
   }
+
+  /// 作废当前局；减速时忽略，结束待机慢转不产生结果。
+  @override
+  bool cancel() => cancelWith((report) {
+        _result = report ? const LuckyResult.cancelled() : null;
+        _idleSpinning = false;
+        _settled = false;
+        _step = _idleStep;
+        _prizeFlag = _unknownIndex;
+        frame.targetIndex = _unknownIndex;
+        _updatePhase();
+      });
 
   /// 回到原点并清除未决结果。
   @override

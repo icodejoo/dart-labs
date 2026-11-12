@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../foundation/unit_range.dart';
 
 /// 拨杆轮毂半径，单位为容器半径；绘制与物理世界共用。
 const double kLuckyStirHubRadius = 0.15;
@@ -36,6 +37,23 @@ const double _slowDamping = 6;
 
 /// 邻近对列表的额外范围，相对球半径；覆盖位置修正造成的微小位移。
 const double _contactSkin = 0.5;
+
+/// 邻近检测网格的最大每边格数，限制 [LuckyCircleWorld] 的网格内存。
+const int _maxGridDim = 64;
+
+/// 容器归一化直径，网格覆盖 [-1, 1]。
+const double _gridExtent = 2;
+
+/// 按接触距离计算网格每边格数：格宽不小于接触距离，邻格足以覆盖全部可接触球对。
+int _gridDimension(double radius) {
+  final near = (2 + _contactSkin) * radius;
+  if (!(near > 0)) return 1;
+  return (_gridExtent / near).floor().clamp(1, _maxGridDim);
+}
+
+/// 把归一化坐标 [v] 映射为网格下标；越界按边缘格计，邻接关系保持。
+int _cellIndexOf(double v, double cell, int dim) =>
+    v.isFinite ? ((v + 1) / cell).floor().clamp(0, dim - 1) : 0;
 
 /// 邻近对列表每球的容量上限；稠密堆里一个球最多同时接触约六个。
 const int _pairsPerBall = 24;
@@ -151,7 +169,11 @@ final class LuckyCircleWorld {
         _prevY = Float64List(count),
         _prevAngle = Float64List(count),
         _armCos = Float64List(armCount),
-        _armSin = Float64List(armCount) {
+        _armSin = Float64List(armCount),
+        _gridDim = _gridDimension(radius),
+        _cellNext = Int32List(count),
+        _candidates = Int32List(count) {
+    _cellHead = Int32List(_gridDim * _gridDim);
     reset(dropIn: dropIn);
   }
 
@@ -223,6 +245,18 @@ final class LuckyCircleWorld {
 
   /// 各拨杆方向的正弦。
   final Float64List _armSin;
+
+  /// 邻近检测网格每边的格数；格宽不小于接触距离。
+  final int _gridDim;
+
+  /// 各网格格子内球链表的头下标，空为负一。
+  late final Int32List _cellHead;
+
+  /// 球链表的下一个球下标。
+  final Int32List _cellNext;
+
+  /// 单个球的候选邻居缓冲，按下标升序使用。
+  final Int32List _candidates;
 
   /// 邻近球对的第一个球下标，每个子步重建。
   final Int32List _pairA;
@@ -369,7 +403,7 @@ final class LuckyCircleWorld {
     _hasCommand = true;
     _armsOn = engaged > 0 && armCount > 0;
     _halfWidth =
-        _armsOn ? kLuckyStirArmHalfWidth * radius * engaged.clamp(0, 1) : 0;
+        _armsOn ? kLuckyStirArmHalfWidth * radius * luckyUnit(engaged) : 0;
     final stirring = _armsOn && delta != 0;
     if (stirring) wake();
     if (!_awake) return;
@@ -553,10 +587,44 @@ final class LuckyCircleWorld {
     _pairCount = 0;
     final capacity = _pairA.length;
     final near = (2 + _contactSkin) * radius;
+    final dim = _gridDim;
+    final cell = 2 / dim;
+    _cellHead.fillRange(0, _cellHead.length, -1);
+    for (var i = count - 1; i >= 0; i--) {
+      if (_active[i] == 0 || _guideStrength[i] >= _ghostStrength) continue;
+      final c =
+          _cellIndexOf(x[i], cell, dim) * dim + _cellIndexOf(y[i], cell, dim);
+      _cellNext[i] = _cellHead[c];
+      _cellHead[c] = i;
+    }
     for (var i = 0; i < count; i++) {
       if (_active[i] == 0 || _guideStrength[i] >= _ghostStrength) continue;
-      for (var j = i + 1; j < count; j++) {
-        if (_active[j] == 0 || _guideStrength[j] >= _ghostStrength) continue;
+      final cx = _cellIndexOf(x[i], cell, dim),
+          cy = _cellIndexOf(y[i], cell, dim);
+      var found = 0;
+      for (var gx = math.max(cx - 1, 0);
+          gx <= math.min(cx + 1, dim - 1);
+          gx++) {
+        for (var gy = math.max(cy - 1, 0);
+            gy <= math.min(cy + 1, dim - 1);
+            gy++) {
+          for (var j = _cellHead[gx * dim + gy]; j >= 0; j = _cellNext[j]) {
+            if (j > i) _candidates[found++] = j;
+          }
+        }
+      }
+      // 升序遍历候选，使球对顺序与全对检测完全一致，求解结果保持确定。
+      for (var a = 1; a < found; a++) {
+        final v = _candidates[a];
+        var b = a - 1;
+        while (b >= 0 && _candidates[b] > v) {
+          _candidates[b + 1] = _candidates[b];
+          b--;
+        }
+        _candidates[b + 1] = v;
+      }
+      for (var k = 0; k < found; k++) {
+        final j = _candidates[k];
         final dx = x[j] - x[i], dy = y[j] - y[i];
         if (dx * dx + dy * dy >= near * near) continue;
         if (_pairCount >= capacity) break;

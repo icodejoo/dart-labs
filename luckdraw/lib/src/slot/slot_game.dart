@@ -42,15 +42,7 @@ final class SlotGame
           ...layout.blocks.map((b) => b.images),
           ...layout.cells.map((c) => c.images)
         ])
-          for (final placement in placements)
-            LuckyImageRequest(
-                slot: placement.slot,
-                image: placement.image,
-                provider: placement.image.image,
-                decodeLogicalWidth:
-                    placement.image.width?.resolve(placement.maxWidth),
-                decodeLogicalHeight:
-                    placement.image.height?.resolve(placement.maxHeight))
+          for (final placement in placements) placement.toRequest()
       ];
 
   /// 创建由宿主负责释放的控制器。

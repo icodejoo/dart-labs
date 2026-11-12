@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/duration_ms.dart';
 import '../../core/game/frame.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/phase.dart';
@@ -184,7 +185,7 @@ final class SlotMotion
     if (indices != null && indices.length != _config.reels.length) {
       throw ArgumentError.value(indices, 'indices', '需要每列一个下标');
     }
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising) {
+    if (!phase.canStop) {
       return false;
     }
     if (indices == null || indices.any((i) => i < 0)) return cancel();
@@ -198,18 +199,11 @@ final class SlotMotion
 
   /// 加速、匀速和慢转可取消；减速忽略取消。
   @override
-  bool cancel() {
-    if (phase != LuckyPhase.accelerating &&
-        phase != LuckyPhase.cruising &&
-        phase != LuckyPhase.idleSpinning) {
-      return false;
-    }
-    final report = phase != LuckyPhase.idleSpinning;
-    frame.phase = LuckyPhase.idle;
-    _hasTargets = false;
-    if (report) _result = const SlotResult.cancelled();
-    return true;
-  }
+  bool cancel() => cancelWith((report) {
+        frame.phase = LuckyPhase.idle;
+        _hasTargets = false;
+        if (report) _result = const SlotResult.cancelled();
+      });
 
   /// 清空目标、位置和未取结果，回到空闲。
   @override
@@ -238,6 +232,11 @@ final class SlotMotion
       callback(r, _passedIndices[i]);
     }
   }
+
+  /// 派发本帧全部列的跨格事件。
+  @override
+  void drainPassed(void Function(int reel, int index) emit) =>
+      dispatchPassed(emit);
 
   /// 根据各列顺序、目标位置与行偏移推导线上符号；洞或无效线不中奖。
   bool _winsPayline(int lineIndex, List<int> indices) {
@@ -307,8 +306,7 @@ final class SlotMotion
         s = (prev + delta).remainder(reel.period);
         if (_hasTargets) frame.phase = LuckyPhase.decelerating;
       } else {
-        final delay =
-            spec.stopDelay.inMicroseconds / Duration.microsecondsPerMillisecond;
+        final delay = luckyMs(spec.stopDelay);
         if (tMs < _endTime + delay) {
           delta = speed * dir * k;
           s = (prev + delta).remainder(reel.period);

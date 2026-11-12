@@ -34,6 +34,14 @@ extension LuckyPhaseX on LuckyPhase {
       this == LuckyPhase.settled ||
       this == LuckyPhase.idleSpinning;
 
+  /// 是否接受 stop 命令：仅加速与匀速阶段。
+  bool get canStop =>
+      this == LuckyPhase.accelerating || this == LuckyPhase.cruising;
+
+  /// 是否可取消：加速、匀速或待机慢转；减速阶段忽略取消。
+  bool get canCancel => isMoving && this != LuckyPhase.decelerating;
+
   /// 是否接受开始回调，与 canPlay 一致。
+  @Deprecated('请改用 canPlay')
   bool get acceptsStart => canPlay;
 }

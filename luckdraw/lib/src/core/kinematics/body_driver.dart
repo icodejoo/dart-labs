@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show Offset;
 
 import '../foundation/angles.dart';
-import '../foundation/constants.dart';
 import '../render/perf_trace.dart';
 import 'circle_world.dart';
 import 'physics_options.dart';
@@ -13,6 +13,44 @@ const double _maxReach = 1;
 
 /// 球半径比的比较容差。
 const double _ratioTolerance = 1e-9;
+
+/// 物理世界允许的球半径与容器半径之比上限。
+const double _maxBodyRatio = 0.5;
+
+/// 为一个容器选择驱动：物理参数有效且球数、半径比在范围内用物理，否则参数化搅拌。
+///
+/// [previous] 与新参数兼容时沿用并只改换算比例，缩放窗口不会让球重新落入。
+/// 返回 [LuckyPhysicsDriver] 即表示走物理模式；例如
+/// `luckyChooseDriver(physics: p, previous: old, rest: rest, containerRadius: 100, bodyRadius: 12)`。
+LuckyBodyDriver luckyChooseDriver(
+    {required LuckyPhysics? physics,
+    required LuckyPhysicsDriver? previous,
+    required List<Offset> rest,
+    required double containerRadius,
+    required double bodyRadius}) {
+  final count = rest.length;
+  final ratio = containerRadius > 0 ? bodyRadius / containerRadius : 0.0;
+  if (physics != null &&
+      count <= physics.maxBodies &&
+      ratio > 0 &&
+      ratio <= _maxBodyRatio) {
+    if (previous != null &&
+        previous.isCompatible(
+            count: count,
+            bodyRadius: bodyRadius,
+            containerRadius: containerRadius,
+            physics: physics)) {
+      return previous..rescale(containerRadius);
+    }
+    return LuckyPhysicsDriver(
+        physics: physics,
+        count: count,
+        containerRadius: containerRadius,
+        bodyRadius: bodyRadius);
+  }
+  return LuckySwirlDriver(LuckySwirlMixer(
+      rest: rest, containerRadius: containerRadius, bodyRadius: bodyRadius));
+}
 
 /// 容器内一组同半径球的位置驱动：参数化轨迹或物理模拟，对外是同一组复用缓冲。
 ///
@@ -135,7 +173,7 @@ final class LuckyPhysicsDriver implements LuckyBodyDriver {
   bool get isAwake => world.isAwake;
 
   /// 拨杆当前角度，单位度，供绘制与碰撞保持一致。
-  double get armDeg => world.armAngle * kLuckyHalfTurnDeg / math.pi;
+  double get armDeg => luckyRadToDeg(world.armAngle);
 
   /// 是否可沿用现有世界：球数、半径比与物理参数都未变化，只需 [rescale]。
   bool isCompatible(

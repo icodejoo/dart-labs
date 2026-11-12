@@ -217,9 +217,7 @@ class _LuckyGameViewState<
   void didChangeDependencies() {
     super.didChangeDependencies();
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final scaler = widget.textScaling == LuckyTextScaling.system
-        ? MediaQuery.textScalerOf(context)
-        : TextScaler.noScaling;
+    final scaler = _resolveScaler();
     final direction = Directionality.of(context);
     final imageConfiguration = createLocalImageConfiguration(context);
     if (_imageConfiguration != imageConfiguration) {
@@ -265,11 +263,14 @@ class _LuckyGameViewState<
     if (oldWidget.alignment != widget.alignment ||
         oldWidget.textScaling != widget.textScaling) {
       _dirty = true;
-      _scaler = widget.textScaling == LuckyTextScaling.system
-          ? MediaQuery.textScalerOf(context)
-          : TextScaler.noScaling;
+      _scaler = _resolveScaler();
     }
   }
+
+  /// 按 textScaling 选取系统或不缩放的文字缩放器。
+  TextScaler _resolveScaler() => widget.textScaling == LuckyTextScaling.system
+      ? MediaQuery.textScalerOf(context)
+      : TextScaler.noScaling;
 
   /// 热重载重新计算布局并增加渲染版本。
   @override
@@ -369,7 +370,7 @@ class _LuckyGameViewState<
         .hitTestAll(_config!, layout, _controller.frame, position)) {
       if (hit.kind == LuckyHitKind.button) {
         widget.onButtonTap?.call(hit.index, _controller.phase.value);
-        if (_controller.phase.value.acceptsStart) {
+        if (_controller.phase.value.canPlay) {
           widget.onStart?.call();
         }
       } else {
@@ -380,7 +381,7 @@ class _LuckyGameViewState<
 
   /// 语义点击遵循与指针按钮点击相同的阶段限制。
   void _semanticTap() {
-    if (_controller.phase.value.acceptsStart) {
+    if (_controller.phase.value.canPlay) {
       widget.onStart?.call();
     }
   }

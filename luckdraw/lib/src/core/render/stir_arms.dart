@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import '../foundation/constants.dart';
 import '../kinematics/circle_world.dart';
 
 /// 拨杆颜色的 RGB 部分。
@@ -8,9 +9,6 @@ const int _rgb = 0x4A6B7C;
 
 /// 拨杆完全啮合时的不透明度，零到二百五十五。
 const int _maxAlpha = 0xB0;
-
-/// 不透明度的最大值。
-const int _opaque = 255;
 
 /// 拨杆绘制器：几何与物理世界的拨杆一致，帧内只做变换，不使用离屏图层。
 ///
@@ -45,8 +43,9 @@ final class LuckyStirArms {
       double engaged) {
     if (count <= 0 || !(engaged > 0)) return;
     final strength = math.min(engaged, 1.0);
-    _paint.color =
-        Color((((_maxAlpha * strength).round() % (_opaque + 1)) << 24) | _rgb);
+    _paint.color = Color(
+        (((_maxAlpha * strength).round() % (kLuckyMaxAlpha8 + 1)) << 24) |
+            _rgb);
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(angleDeg * math.pi / 180);

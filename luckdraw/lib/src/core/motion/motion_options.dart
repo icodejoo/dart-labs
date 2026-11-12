@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../easing/easing.dart';
 import '../foundation/constants.dart';
+import '../foundation/duration_ms.dart';
 import 'stop_solver.dart';
 import 'timebase.dart';
 
@@ -53,12 +54,10 @@ final class LuckyMotionOptions {
   final double idleSpinSpeed;
 
   /// 至少一毫秒的加速时长。
-  double get accelerationMs => math.max(
-      1, accelerationTime.inMicroseconds / Duration.microsecondsPerMillisecond);
+  double get accelerationMs => math.max(1, luckyMs(accelerationTime));
 
   /// 至少一毫秒的减速时长。
-  double get decelerationMs => math.max(
-      1, decelerationTime.inMicroseconds / Duration.microsecondsPerMillisecond);
+  double get decelerationMs => math.max(1, luckyMs(decelerationTime));
 
   /// 返回只替换非 null 参数的副本；例如 `options.copyWith(speed: 30)`。
   LuckyMotionOptions copyWith(

@@ -175,19 +175,10 @@ final class SlotPainter extends CustomPainter {
     data.config.prizes[i].painter?.call(canvas, cell.rect.size, i);
   }
 
-  /// 按列表顺序回放指定插入位置，动态层直接使用当前帧。
-  void _layers(Canvas canvas, LuckyLayerPosition position) {
-    for (var i = 0; i < data.layers.length; i++) {
-      final layer = data.layers[i];
-      if (layer.position != position) continue;
-      final picture = _staticLayers[i];
-      if (picture != null) {
-        canvas.drawPicture(picture);
-      } else {
-        layer.paint(canvas, _context);
-      }
-    }
-  }
+  /// 回放指定位置的用户层。
+  void _layers(Canvas canvas, LuckyLayerPosition position) =>
+      luckyReplayLayers(canvas, data.layers, _staticLayers, position, _context,
+          isolate: false);
 
   /// 环形索引枚举窗口内格子；每帧不分配矩形、画笔或显示列表。
   @override

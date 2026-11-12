@@ -52,38 +52,14 @@ final class GridGame extends LuckyGame<GridConfig, GridLayout, GridFrame,
   List<LuckyImageRequest> collectImages(GridConfig config, GridLayout layout) {
     final requests = <LuckyImageRequest>[];
     for (final block in layout.blocks) {
-      for (final placement in block.images) {
-        requests.add(LuckyImageRequest(
-            slot: placement.slot,
-            image: placement.image,
-            provider: placement.image.image,
-            decodeLogicalWidth:
-                placement.image.width?.resolve(placement.maxWidth),
-            decodeLogicalHeight:
-                placement.image.height?.resolve(placement.maxHeight)));
-      }
+      requests.addAll(block.images.map((p) => p.toRequest()));
     }
     for (final cell in layout.cells) {
-      for (final placement in cell.normal.images) {
-        requests.add(LuckyImageRequest(
-            slot: placement.slot,
-            image: placement.image,
-            provider: placement.image.image,
-            decodeLogicalWidth:
-                placement.image.width?.resolve(placement.maxWidth),
-            decodeLogicalHeight:
-                placement.image.height?.resolve(placement.maxHeight)));
-      }
+      requests.addAll(cell.normal.images.map((p) => p.toRequest()));
       if (identical(cell.normal, cell.active)) continue;
       for (final placement in cell.active.images) {
-        final image = placement.image as GridImage;
-        if (image.activeImage == null) continue;
-        requests.add(LuckyImageRequest(
-            slot: placement.slot,
-            image: image,
-            provider: image.activeImage!,
-            decodeLogicalWidth: image.width?.resolve(placement.maxWidth),
-            decodeLogicalHeight: image.height?.resolve(placement.maxHeight)));
+        final active = (placement.image as GridImage).activeImage;
+        if (active != null) requests.add(placement.toRequest(provider: active));
       }
     }
     return requests;

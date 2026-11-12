@@ -1,4 +1,5 @@
 import '../foundation/constants.dart';
+import '../foundation/duration_ms.dart';
 
 /// 把原始时间戳转为可暂停、单帧推进有上限的有效毫秒时间。
 ///
@@ -42,14 +43,13 @@ final class LuckyTimeline {
 
   /// 推进到 [raw]，负增量视为零，暂停期间不推进有效时间。
   void advance(Duration raw) {
-    final rawMs = raw.inMicroseconds / Duration.microsecondsPerMillisecond;
+    final rawMs = luckyMs(raw);
     var d = 0.0;
     if (_needsRebase) {
       _needsRebase = false;
     } else {
       d = rawMs - _lastRaw;
-      final max =
-          maxFrameDelta.inMicroseconds / Duration.microsecondsPerMillisecond;
+      final max = luckyMs(maxFrameDelta);
       if (d < 0) d = 0;
       if (d > max) d = max;
       if (isPaused) d = 0;

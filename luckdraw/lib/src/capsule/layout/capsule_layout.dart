@@ -3,14 +3,13 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../../core/foundation/constants.dart';
+import '../../core/foundation/unit_range.dart';
 import '../../core/game/layout.dart';
 import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/render/perf_trace.dart';
 import '../../core/text/text_line.dart';
 import '../model/capsule_config.dart';
-
-/// 布局比例，来自 IMPLEMENTATION_GUIDE T5.2。
-const double _half = 0.5;
 
 /// 球体距顶部的高度比例。
 const double _top = 0.04;
@@ -124,7 +123,7 @@ final class CapsuleLayout extends LuckyLayout {
   /// 按弧长返回掉落位置；[progress] 钳到零至一。
   Offset dropPosition(double progress) {
     if (dropPath.isEmpty) return Offset.zero;
-    var distance = lengths.fold(0.0, (a, b) => a + b) * progress.clamp(0, 1);
+    var distance = lengths.fold(0.0, (a, b) => a + b) * luckyUnit(progress);
     for (var i = 0; i < lengths.length; i++) {
       if (distance <= lengths[i] && lengths[i] > 0) {
         return dropPath[i] +
@@ -153,17 +152,18 @@ CapsuleLayout computeCapsuleLayout(
     final size = input.size.isEmpty ? Size.zero : input.size;
     final w = size.width, h = size.height;
     final radius = math.min(
-        w * config.options.globeRadiusFactor.clamp(0, _half), h * _maxRadius);
-    final rc = radius * config.options.capsuleRadiusFactor.clamp(0, 1);
-    final center = Offset(w * _half, h * _top + radius);
+        w * config.options.globeRadiusFactor.clamp(0, kLuckyHalf),
+        h * _maxRadius);
+    final rc = radius * luckyUnit(config.options.capsuleRadiusFactor);
+    final center = Offset(w * kLuckyHalf, h * _top + radius);
     final body = Rect.fromLTRB(
-        math.max(0, w * _half - _bodyWidth * radius),
+        math.max(0, w * kLuckyHalf - _bodyWidth * radius),
         center.dy + _bodyTop * radius,
-        math.min(w, w * _half + _bodyWidth * radius),
+        math.min(w, w * kLuckyHalf + _bodyWidth * radius),
         h * (1 - _trayHeight));
     final tray = Rect.fromLTWH(0, h * (1 - _trayHeight), w, h * _trayHeight);
     final exit = center + Offset(0, radius * _exitY);
-    final card = Rect.fromLTWH(w * (1 - _cardWidth) * _half,
+    final card = Rect.fromLTWH(w * (1 - _cardWidth) * kLuckyHalf,
         tray.top - h * _cardHeight, w * _cardWidth, h * _cardHeight);
     final capsules = config.capsules
             ?.where((i) => i >= 0 && i < config.prizes.length)
@@ -186,7 +186,7 @@ CapsuleLayout computeCapsuleLayout(
         exit: exit,
         dropPath: [
           exit,
-          Offset(body.center.dx + radius * _half, body.center.dy),
+          Offset(body.center.dx + radius * kLuckyHalf, body.center.dy),
           Offset(body.right - rc, body.bottom - rc),
           tray.center
         ],
@@ -196,15 +196,12 @@ CapsuleLayout computeCapsuleLayout(
           for (final prize in config.prizes)
             [
               for (final text in prize.texts)
-                ...layoutLuckyTextLines(
+                ...layoutLuckyTextLinesInRect(
                     text: text,
                     defaults: config.style.text,
                     override: config.style.card.text,
                     measurer: input.measurer,
-                    box: card,
-                    leftBase: card.width,
-                    topBase: card.height,
-                    maxWidthOf: (_, __) => card.width)
+                    rect: card)
             ]
         ]);
   } finally {

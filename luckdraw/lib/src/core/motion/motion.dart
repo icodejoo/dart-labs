@@ -56,10 +56,16 @@ abstract class LuckyMotion<C extends Object, L extends LuckyLayout,
   bool get isSimulating => false;
 
   /// 最近跨过条目的列，非多列玩法为零。
-  int get passedReel;
+  int get passedReel => 0;
 
   /// 最近跨过条目的下标。
-  int get passedIndex;
+  int get passedIndex => -1;
+
+  /// 派发本 tick 跨过的全部条目；默认只派发 [passedReel] 与 [passedIndex] 这一项。
+  ///
+  /// 一帧可能跨过多列的玩法（如老虎机）覆写，逐项调用 [emit]。
+  void drainPassed(void Function(int reel, int index) emit) =>
+      emit(passedReel, passedIndex);
 
   /// 应用配置和可选布局；缺必要布局时保持静止。
   void configure(C config, L? layout);
@@ -72,6 +78,16 @@ abstract class LuckyMotion<C extends Object, L extends LuckyLayout,
 
   /// 作废当前局；返回是否接受。
   bool cancel();
+
+  /// 取消骨架：当前阶段不可取消返回 false，否则调用 [apply] 并返回 true。
+  ///
+  /// [apply] 的参数表示是否产生作废结果：待机慢转的取消不产生结果。
+  @protected
+  bool cancelWith(void Function(bool reportsResult) apply) {
+    if (!phase.canCancel) return false;
+    apply(phase != LuckyPhase.idleSpinning);
+    return true;
+  }
 
   /// 回到初始状态。
   void reset();

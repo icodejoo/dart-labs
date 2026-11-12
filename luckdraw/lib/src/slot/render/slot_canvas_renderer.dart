@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/render/images_listener.dart';
 import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
@@ -37,7 +38,8 @@ class _SlotSurface extends StatefulWidget {
 }
 
 /// 保持跨重建缓存和图片变更监听。
-class _SlotSurfaceState extends State<_SlotSurface> {
+final class _SlotSurfaceState extends State<_SlotSurface>
+    with LuckyImagesListener<_SlotSurface> {
   /// 仅在 assert 内创建并记录 config 引起的缓存失效。
   late final LuckyInvalidationMonitor _invalidationMonitor =
       LuckyInvalidationMonitor('slot');
@@ -55,11 +57,16 @@ class _SlotSurfaceState extends State<_SlotSurface> {
   @override
   void initState() {
     super.initState();
-    widget.data.imagesListenable.addListener(_imagesChanged);
   }
 
+  /// 图片通知源。
+  @override
+  Listenable imagesListenableOf(_SlotSurface widget) =>
+      widget.data.imagesListenable;
+
   /// 图片变化时在下一次构建重新录制。
-  void _imagesChanged() {
+  @override
+  void onImagesChanged() {
     setState(() {
       _cache.invalidateAll();
     });
@@ -71,10 +78,6 @@ class _SlotSurfaceState extends State<_SlotSurface> {
     super.didUpdateWidget(oldWidget);
     final old = oldWidget.data;
     final data = widget.data;
-    if (old.imagesListenable != data.imagesListenable) {
-      old.imagesListenable.removeListener(_imagesChanged);
-      data.imagesListenable.addListener(_imagesChanged);
-    }
     if (old.layoutGeneration != data.layoutGeneration ||
         old.config != data.config ||
         old.textScale != data.textScale ||
@@ -123,7 +126,6 @@ class _SlotSurfaceState extends State<_SlotSurface> {
   /// 释放图片监听和原生显示列表。
   @override
   void dispose() {
-    widget.data.imagesListenable.removeListener(_imagesChanged);
     _atlas.dispose();
     _cache.dispose();
     super.dispose();

@@ -5,6 +5,7 @@ import 'package:flutter/painting.dart';
 import '../core/foundation/image.dart';
 import '../core/game/game.dart';
 import '../core/game/layout.dart';
+import '../core/geometry/image_box.dart';
 import '../core/motion/phase.dart';
 import '../core/motion/result.dart';
 import 'control/lots_controller.dart';
@@ -60,14 +61,11 @@ final class LotsGame extends LuckyGame<LotsConfig, LotsLayout, LotsFrame,
       [
         for (var i = 0; i < config.sticks.length; i++)
           for (var j = 0; j < config.sticks[i].images.length; j++)
-            LuckyImageRequest(
-                slot: LuckyImageSlot(_imageGroup, i, j),
-                image: config.sticks[i].images[j],
-                provider: config.sticks[i].images[j].image,
-                decodeLogicalWidth: config.sticks[i].images[j].width
-                    ?.resolve(layout.card.width),
-                decodeLogicalHeight: config.sticks[i].images[j].height
-                    ?.resolve(layout.card.height))
+            LuckyImagePlacement.inRect(
+                    slot: LuckyImageSlot(_imageGroup, i, j),
+                    image: config.sticks[i].images[j],
+                    rect: layout.card)
+                .toRequest()
       ];
 
   /// 创建默认控制器。

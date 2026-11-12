@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/animation.dart';
 
 import '../foundation/constants.dart';
+import '../foundation/unit_range.dart';
 
 // 上游 utils/tween.ts:17-98；保持各公式的括号、乘法结合和时间钳制顺序。
 
@@ -188,12 +189,12 @@ final class CurveEasing implements LuckyEasing {
   /// 将 t/d 限制在零到一后返回 b+c×曲线值。
   @override
   double easeIn(double t, double b, double c, double d) =>
-      b + c * curve.transform((t / d).clamp(0.0, 1.0));
+      b + c * curve.transform(luckyUnit(t / d));
 
   /// 使用减速曲线返回相同单位下的值。
   @override
   double easeOut(double t, double b, double c, double d) {
-    final x = (t / d).clamp(0.0, 1.0);
+    final x = luckyUnit(t / d);
     // 与 FlippedCurve.transform 相同，直接求值以保留 const API 且无需包装分配。
     final out = outCurve;
     return b +

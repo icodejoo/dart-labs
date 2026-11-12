@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import '../../core/control/controller.dart';
+import '../../core/control/motion_controller.dart';
 import '../../core/motion/result.dart';
 import '../../core/picker/prize_picker.dart';
 import '../layout/wheel_layout.dart';
@@ -10,8 +10,8 @@ import '../model/wheel_parts.dart';
 import '../motion/wheel_motion.dart';
 
 /// 转盘命令入口，可通过 attachHeadless 注入时钟。
-class WheelController extends LuckyController<WheelConfig, WheelLayout,
-    WheelFrame, LuckyResult<WheelPrize>> {
+class WheelController extends LuckyMotionController<WheelConfig, WheelLayout,
+    WheelFrame, LuckyResult<WheelPrize>, WheelMotion> {
   /// 创建控制器；选奖与停止偏移共用同一 [random] 和 [picker]。
   WheelController(
       {PrizePicker picker = const WeightedPrizePicker(), math.Random? random})
@@ -25,7 +25,7 @@ class WheelController extends LuckyController<WheelConfig, WheelLayout,
             random: random);
 
   /// 类型化状态机。
-  WheelMotion get _wheelMotion => motion as WheelMotion;
+  WheelMotion get _wheelMotion => typedMotion;
 
   /// 停在 [index]；null 使用 picker，负数作废，大下标按奖品数取余。
   ///

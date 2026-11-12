@@ -3,8 +3,9 @@ import 'dart:typed_data';
 
 import '../../core/easing/easing.dart';
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/duration_ms.dart';
+import '../../core/foundation/unit_range.dart';
 import '../../core/kinematics/body_driver.dart';
-import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
 import '../../core/motion/phase.dart';
@@ -15,17 +16,11 @@ import 'lotto_frame.dart';
 
 export 'lotto_frame.dart';
 
-/// 飞行路径分段系数。
-const double _half = 0.5;
-
 /// 飞行路径的双倍时间换算。
 const double _twice = 2;
 
 /// 物理模式：飞行前半程内，从该进度起把物理位置平滑收敛到出口。
 const double _blendStart = 0.35;
-
-/// 物理世界允许的球半径与容器半径之比上限。
-const double _maxBodyRatio = 0.5;
 
 /// 独立于 Widget 的摇奖状态机；例如 configure 后 start、stopWith、tick。
 final class LottoMotion
@@ -223,36 +218,14 @@ final class LottoMotion
     final physical = <LuckyPhysicsDriver?>[];
     for (var p = 0; p < geometry.drums.length; p++) {
       final drum = geometry.drums[p];
-      final count = drum.rest.length;
-      final ratio = drum.radius > 0 ? drum.ballRadius / drum.radius : 0.0;
-      LuckyPhysicsDriver? driver;
-      if (physics != null &&
-          count <= physics.maxBodies &&
-          ratio > 0 &&
-          ratio <= _maxBodyRatio) {
-        final old = p < previous.length ? previous[p] : null;
-        if (old != null &&
-            old.isCompatible(
-                count: count,
-                bodyRadius: drum.ballRadius,
-                containerRadius: drum.radius,
-                physics: physics)) {
-          old.rescale(drum.radius);
-          driver = old;
-        } else {
-          driver = LuckyPhysicsDriver(
-              physics: physics,
-              count: count,
-              containerRadius: drum.radius,
-              bodyRadius: drum.ballRadius);
-        }
-      }
-      physical.add(driver);
-      drivers.add(driver ??
-          LuckySwirlDriver(LuckySwirlMixer(
-              rest: drum.rest,
-              containerRadius: drum.radius,
-              bodyRadius: drum.ballRadius)));
+      final driver = luckyChooseDriver(
+          physics: physics,
+          previous: p < previous.length ? previous[p] : null,
+          rest: drum.rest,
+          containerRadius: drum.radius,
+          bodyRadius: drum.ballRadius);
+      drivers.add(driver);
+      physical.add(driver is LuckyPhysicsDriver ? driver : null);
     }
     _drivers = drivers;
     _physics = physical;
@@ -294,9 +267,8 @@ final class LottoMotion
     _resetState();
     if (idle) {
       frame.swirlDeg = angle;
-      _speedRatio = (_config!.options.motion.idleSpinSpeed /
-              _config!.options.motion.speed)
-          .clamp(0.0, 1.0);
+      _speedRatio = luckyUnit(_config!.options.motion.idleSpinSpeed /
+          _config!.options.motion.speed);
     }
     _spinOptions = _config!.options.motion;
     frame.phase = LuckyPhase.accelerating;
@@ -318,8 +290,7 @@ final class LottoMotion
 
   /// 按给定号码开奖；非法号码抛 ArgumentError，非加速或匀速返回 false。
   bool stopWith(LottoDraw draw) {
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising ||
-        _pending) {
+    if (!phase.canStop || _pending) {
       return false;
     }
     draw.validate(_config!);
@@ -348,13 +319,10 @@ final class LottoMotion
 
   /// 作废加速或匀速；待机取消不产生结果，开奖中忽略。
   @override
-  bool cancel() {
-    if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
-    final idle = phase == LuckyPhase.idleSpinning;
-    _resetState();
-    if (!idle) _result = const LottoResult.cancelled();
-    return true;
-  }
+  bool cancel() => cancelWith((report) {
+        _resetState();
+        if (report) _result = const LottoResult.cancelled();
+      });
 
   /// 还原所有球、开奖标记与角度；物理模式下球重新落入。
   @override
@@ -420,7 +388,7 @@ final class LottoMotion
         ? 1.0
         : dt / kLuckyReferenceFrameMs;
     if (phase == LuckyPhase.idleSpinning) {
-      frame.mix = (motion.idleSpinSpeed / motion.speed).clamp(0.0, 1.0);
+      frame.mix = luckyUnit(motion.idleSpinSpeed / motion.speed);
       frame.swirlDeg += motion.idleSpinSpeed * step;
     } else if (phase == LuckyPhase.accelerating) {
       _accelerated += dt;
@@ -468,12 +436,12 @@ final class LottoMotion
   /// 完成全部出球与可选排序的时间。
   double get _lastLandingMs =>
       _options.motion.decelerationMs +
-      (frame.flight.length - 1) * _ms(_options.drawInterval) +
-      _ms(_options.ballFlightTime);
+      (frame.flight.length - 1) * luckyMs(_options.drawInterval) +
+      luckyMs(_options.ballFlightTime);
 
   /// 全部结果展示完成的时间。
   double get _sortedMs =>
-      _lastLandingMs + (_options.sortResults ? _ms(kLottoSortTime) : 0);
+      _lastLandingMs + (_options.sortResults ? luckyMs(kLottoSortTime) : 0);
 
   /// 结束搅拌并可结算的时间。
   double get _endMs => _sortedMs + _options.motion.decelerationMs;
@@ -504,10 +472,10 @@ final class LottoMotion
       frame.mix = options.drawMix * (1 - ease.easeOut(tail, 0, 1, dec));
     }
     _mix(dt);
-    final lead = math.min(_ms(options.physics?.guideLead ?? Duration.zero),
-        _half * _ms(options.drawInterval));
+    final lead = math.min(luckyMs(options.physics?.guideLead ?? Duration.zero),
+        kLuckyHalf * luckyMs(options.drawInterval));
     for (var i = 0; i < frame.flight.length; i++) {
-      final elapsed = time - dec - i * _ms(options.drawInterval);
+      final elapsed = time - dec - i * luckyMs(options.drawInterval);
       final p = _poolOf[i];
       final b = _ballOf[i];
       final drum = _layout!.drums[p];
@@ -519,7 +487,7 @@ final class LottoMotion
             b,
             drum.exit.dx - drum.center.dx,
             drum.exit.dy - drum.center.dy,
-            lead <= 0 ? 1.0 : ((elapsed + lead) / lead).clamp(0.0, 1.0));
+            lead <= 0 ? 1.0 : luckyUnit((elapsed + lead) / lead));
       }
       if (elapsed < 0) continue;
       if (!_started[i]) {
@@ -531,29 +499,28 @@ final class LottoMotion
           frame.slotOf[p][b] = _slotOfDraw[i];
         }
       }
-      final progress = (elapsed / _ms(options.ballFlightTime)).clamp(0.0, 1.0);
+      final progress = luckyUnit(elapsed / luckyMs(options.ballFlightTime));
       frame.flight[i] = progress;
       final slot = drum.slots[_slotOfDraw[i]];
       final exitX = drum.exit.dx - drum.center.dx;
       final exitY = drum.exit.dy - drum.center.dy;
       final targetX = slot.dx - drum.center.dx;
       final targetY = slot.dy - drum.center.dy;
-      if (progress < _half && physics != null) {
+      if (progress < kLuckyHalf && physics != null) {
         // 物理前半程：位置由世界给出，末段平滑收敛到出口，保证进度过半时恰在出口。
-        final w = ((progress - _blendStart) / (_half - _blendStart))
-            .clamp(0.0, 1.0)
-            .toDouble();
+        final w =
+            luckyUnit((progress - _blendStart) / (kLuckyHalf - _blendStart));
         final s = w * w * (3 - 2 * w);
         frame.x[p][b] += (exitX - frame.x[p][b]) * s;
         frame.y[p][b] += (exitY - frame.y[p][b]) * s;
-      } else if (progress < _half) {
+      } else if (progress < kLuckyHalf) {
         final q = LuckyEasings.cubic.easeIn(progress * _twice, 0, 1, 1);
         frame.x[p][b] = _fromX[i] + (exitX - _fromX[i]) * q;
         frame.y[p][b] = _fromY[i] + (exitY - _fromY[i]) * q;
       } else {
         if (physics != null) _excluded[p][b] = true;
-        final q =
-            LuckyEasings.cubic.easeOut((progress - _half) * _twice, 0, 1, 1);
+        final q = LuckyEasings.cubic
+            .easeOut((progress - kLuckyHalf) * _twice, 0, 1, 1);
         frame.x[p][b] = exitX + (targetX - exitX) * q;
         frame.y[p][b] = exitY + (targetY - exitY) * q;
       }
@@ -565,9 +532,9 @@ final class LottoMotion
       if (options.sortResults) {
         final lastInPool = i - _slotOfDraw[i] + _config!.pools[p].count - 1;
         final sortStart = dec +
-            lastInPool * _ms(options.drawInterval) +
-            _ms(options.ballFlightTime);
-        final q = ((time - sortStart) / _ms(kLottoSortTime)).clamp(0.0, 1.0);
+            lastInPool * luckyMs(options.drawInterval) +
+            luckyMs(options.ballFlightTime);
+        final q = luckyUnit((time - sortStart) / luckyMs(kLottoSortTime));
         if (q > 0) {
           final sorted = drum.slots[_sortedSlot[i]];
           frame.x[p][b] += (sorted.dx - slot.dx) * q;
@@ -577,10 +544,6 @@ final class LottoMotion
       }
     }
   }
-
-  /// 时长换算为毫秒。
-  double _ms(Duration value) =>
-      value.inMicroseconds / Duration.microsecondsPerMillisecond;
 
   /// 取走一次性正常或作废结果。
   @override

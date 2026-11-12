@@ -1618,10 +1618,12 @@ abstract class LuckyMotion<C extends Object, L extends LuckyLayout, F extends Lu
   F get frame;
   /// 当前阶段（由 step 等派生）。
   LuckyPhase get phase;
-  /// 最近一次 itemPassed 事件对应的列（非老虎机为 0）与条目下标。
-  int get passedReel;
+  /// 最近一次 itemPassed 事件对应的列（非老虎机默认 0）与条目下标（默认 -1）。
+  int get passedReel => 0;
   /// 同上。
-  int get passedIndex;
+  int get passedIndex => -1;
+  /// 派发本 tick 跨过的全部条目；默认只派发上面这一项，老虎机覆写为逐列派发。
+  void drainPassed(void Function(int reel, int index) emit) => emit(passedReel, passedIndex);
   /// 应用配置与布局（布局可为 null，老虎机/扭蛋机需要布局时会保持静止直到布局有效）。
   void configure(C config, L? layout);
   /// 开始（上游 play）；当前为 idleSpinning 时，加速 easeIn 的起点 b 取慢转速度。返回是否接受。
@@ -1701,6 +1703,9 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout, F extend
   /// 作废时是否向宿主报告结果（触发 onEnd）；老虎机覆写为 false（上游 slot 取消不回调，SM-E25）。
   @protected
   bool get shouldReportCancelled => true;
+  /// 待机慢转被取消/重置时是否上报作废结果；九宫格覆写为 false。
+  @protected
+  bool get reportsIdleCancellation => true;
   /// 子类提供"作废"结果对象（dispose 或取消时完成 playUntil 用）。
   @protected
   R createCancelledResult();

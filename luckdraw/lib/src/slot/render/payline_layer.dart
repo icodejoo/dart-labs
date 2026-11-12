@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 
 import '../../core/render/layer.dart';
+import '../../core/render/paint_helpers.dart';
 import '../layout/slot_layout.dart';
 import '../model/payline.dart';
 import '../model/slot_parts.dart';
@@ -50,10 +51,10 @@ final class SlotPaylineLayer extends LuckyLayer<SlotLayout, SlotFrame> {
       }
       canvas.drawPath(
           path,
-          Paint()
-            ..color = line.color
-            ..strokeWidth = line.width
-            ..style = PaintingStyle.stroke);
+          luckyScratchPaint(
+              color: line.color,
+              strokeWidth: line.width,
+              style: PaintingStyle.stroke));
     }
   }
 

@@ -3,9 +3,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import '../../core/foundation/constants.dart';
 import '../../core/motion/phase.dart';
 import '../../core/render/cached_picture.dart';
 import '../../core/render/layer.dart';
+import '../../core/render/paint_helpers.dart';
 import '../../core/render/perf_trace.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
@@ -25,9 +27,6 @@ const int _buttonId = 2;
 
 /// 号码球缓存起点；逐池分配连续下标以兼容用户自定义的任意号码范围。
 const int _ballStart = 3;
-
-/// 直径系数。
-const double _diameter = 2;
 
 /// 号码字号占球半径的比例。
 const double _numberScale = 0.95;
@@ -91,12 +90,19 @@ final class LottoPainter extends CustomPainter {
                   id++, (canvas) => data.layers[i].paint(canvas, _context))
               : null);
     } finally {
+      for (final painter in _labels.values) {
+        painter.dispose();
+      }
+      _labels.clear();
       luckyTraceEnd();
     }
   }
 
   /// 本次布局、配置及复用帧。
   final LuckySurfaceData<LottoConfig, LottoLayout, LottoFrame> data;
+
+  /// 录制期间的已排版文字缓存，构造结束即释放。
+  final Map<(String, double, Color), TextPainter> _labels = {};
 
   /// 表面拥有的缓存。
   final LuckyPictureCache cache;
@@ -126,7 +132,7 @@ final class LottoPainter extends CustomPainter {
   /// 录制容器后板、出口及结果槽。
   void _recordBack(Canvas canvas) {
     final layout = data.layout;
-    final paint = Paint()..color = data.config.style.drumColor;
+    final paint = luckyScratchPaint(color: data.config.style.drumColor);
     for (final drum in layout.drums) {
       canvas.drawCircle(drum.center, drum.radius, paint);
     }
@@ -143,10 +149,10 @@ final class LottoPainter extends CustomPainter {
 
   /// 录制圆周及前景高光。
   void _recordFront(Canvas canvas) {
-    final paint = Paint()
-      ..color = data.config.style.rimColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _rimWidth;
+    final paint = luckyScratchPaint(
+        color: data.config.style.rimColor,
+        style: PaintingStyle.stroke,
+        strokeWidth: _rimWidth);
     for (final drum in data.layout.drums) {
       canvas.drawCircle(drum.center, drum.radius, paint);
       final rect =
@@ -160,7 +166,8 @@ final class LottoPainter extends CustomPainter {
   /// 录制按钮背景和文案。
   void _recordButton(Canvas canvas) {
     final rect = data.layout.button;
-    canvas.drawOval(rect, Paint()..color = data.config.style.buttonColor);
+    canvas.drawOval(
+        rect, luckyScratchPaint(color: data.config.style.buttonColor));
     _text(canvas, data.config.style.buttonText, rect.center,
         rect.height / _ballStart, data.config.style.buttonTextColor);
   }
@@ -170,7 +177,7 @@ final class LottoPainter extends CustomPainter {
     final drum = data.layout.drums[pool];
     final config = data.config.pools[pool];
     final rect = Rect.fromCircle(center: Offset.zero, radius: drum.ballRadius);
-    final paint = Paint();
+    final paint = luckyScratchPaint();
     config.ballFill.applyTo(paint, rect);
     canvas.drawCircle(Offset.zero, drum.ballRadius, paint);
     _text(canvas, _ballLabel(pool, ball), Offset.zero,
@@ -192,69 +199,47 @@ final class LottoPainter extends CustomPainter {
         label.length <= _numberDigits) {
       return circle.inflate(padding);
     }
-    final painter = TextPainter(
-        text: TextSpan(
-            text: label,
-            style: TextStyle(
-                color: data.config.pools[pool].textColor,
-                fontSize: radius * _numberScale,
-                fontFamily: _fontFamily)),
-        textDirection: data.textDirection,
-        textScaler: data.textScale);
-    try {
-      luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
-      try {
-        painter.layout();
-      } finally {
-        luckyTraceEnd();
-      }
-      return circle
-          .expandToInclude(Rect.fromCenter(
-              center: Offset.zero,
-              width: painter.width,
-              height: painter.height))
-          .inflate(padding);
-    } finally {
-      painter.dispose();
-    }
+    final painter =
+        _label(label, radius * _numberScale, data.config.pools[pool].textColor);
+    return circle
+        .expandToInclude(Rect.fromCenter(
+            center: Offset.zero, width: painter.width, height: painter.height))
+        .inflate(padding);
   }
 
-  /// 录制期绘制居中文字，完成后立即释放测量器。
+  /// 本次录制内复用的已排版文字；同一号码的测量与绘制只排版一次。
+  TextPainter _label(String text, double fontSize, Color color) =>
+      _labels.putIfAbsent((text, fontSize, color), () {
+        final painter = TextPainter(
+            text: TextSpan(
+                text: text,
+                style: TextStyle(
+                    color: color, fontSize: fontSize, fontFamily: _fontFamily)),
+            textDirection: data.textDirection,
+            textScaler: data.textScale);
+        luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
+        try {
+          painter.layout();
+        } finally {
+          luckyTraceEnd();
+        }
+        return painter;
+      });
+
+  /// 录制期绘制居中文字；文字对象由 [_label] 缓存，录制结束统一释放。
   void _text(
       Canvas canvas, String text, Offset center, double fontSize, Color color) {
-    final painter = TextPainter(
-        text: TextSpan(
-            text: text,
-            style: TextStyle(
-                color: color, fontSize: fontSize, fontFamily: _fontFamily)),
-        textDirection: data.textDirection,
-        textScaler: data.textScale);
-    luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
-    try {
-      painter.layout();
-    } finally {
-      luckyTraceEnd();
-    }
-    painter.paint(canvas,
-        center - Offset(painter.width / _diameter, painter.height / _diameter));
-    painter.dispose();
+    final painter = _label(text, fontSize, color);
+    painter.paint(
+        canvas,
+        center -
+            Offset(painter.width / kLuckyHalfDivisor,
+                painter.height / kLuckyHalfDivisor));
   }
 
-  /// 回放指定位置的用户层，静态层不重复执行回调。
-  void _layers(Canvas canvas, LuckyLayerPosition position) {
-    for (var i = 0; i < data.layers.length; i++) {
-      final layer = data.layers[i];
-      if (layer.position != position) continue;
-      canvas.save();
-      final picture = _layerPictures[i];
-      if (picture == null) {
-        layer.paint(canvas, _context);
-      } else {
-        canvas.drawPicture(picture);
-      }
-      canvas.restore();
-    }
-  }
+  /// 回放指定位置的用户层。
+  void _layers(Canvas canvas, LuckyLayerPosition position) => luckyReplayLayers(
+      canvas, data.layers, _layerPictures, position, _context);
 
   /// 回放一颗球的缓存；坐标计算只读复用缓冲。
   void _ball(Canvas canvas, int p, int b) {

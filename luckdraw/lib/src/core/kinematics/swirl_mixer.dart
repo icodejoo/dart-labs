@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import '../foundation/angles.dart';
+import '../foundation/constants.dart';
+import '../foundation/unit_range.dart';
 
 /// T5.0 的确定性角速度分散系数。
 const double _speedSeed = 0.6180339887;
@@ -12,12 +14,6 @@ const double _orbitSeed = 0.7548776662;
 
 /// T5.0 的确定性相位分散系数。
 const double _phaseSeed = 0.5698402910;
-
-/// 一周的角度。
-const double _turn = 360;
-
-/// 六边形密排的直径系数。
-const double _diameter = 2;
 
 /// T5.0 的轨道起始比例。
 const double _orbitBase = 0.25;
@@ -43,14 +39,14 @@ List<Offset> packCirclesInCircle(
   final limit = math.max(0.0, containerRadius - bodyRadius);
   if (limit == 0 || bodyRadius <= 0) return List.filled(count, Offset.zero);
   final points = <Offset>[];
-  var spacing = bodyRadius * _diameter;
+  var spacing = bodyRadius * kLuckyHalfDivisor;
   while (points.length < count) {
     points.clear();
-    final rowHeight = spacing * math.sqrt(3) / _diameter;
+    final rowHeight = spacing * math.sqrt(3) / kLuckyHalfDivisor;
     var row = 0;
     for (var y = limit; y >= -limit && points.length < count; y -= rowHeight) {
       final halfWidth = math.sqrt(math.max(0, limit * limit - y * y));
-      final shift = row.isOdd ? spacing / _diameter : 0.0;
+      final shift = row.isOdd ? spacing / kLuckyHalfDivisor : 0.0;
       for (var column = ((-halfWidth - shift) / spacing).ceil();
           column * spacing + shift <= halfWidth && points.length < count;
           column++) {
@@ -62,7 +58,7 @@ List<Offset> packCirclesInCircle(
       // 底部单点网格装不下时先尝试圆环和居中六角网格，再压缩间距。
       if (count > 1 && limit * math.sin(math.pi / count) >= bodyRadius) {
         return List.unmodifiable(List.generate(count, (i) {
-          final angle = _diameter * math.pi * i / count;
+          final angle = kLuckyHalfDivisor * math.pi * i / count;
           return Offset(limit * math.sin(angle), limit * math.cos(angle));
         }));
       }
@@ -71,7 +67,7 @@ List<Offset> packCirclesInCircle(
       for (var row = rows; row >= -rows && points.length < count; row--) {
         final y = row * rowHeight;
         final halfWidth = math.sqrt(math.max(0, limit * limit - y * y));
-        final shift = row.isOdd ? spacing / _diameter : 0.0;
+        final shift = row.isOdd ? spacing / kLuckyHalfDivisor : 0.0;
         for (var col = ((-halfWidth - shift) / spacing).ceil();
             col * spacing + shift <= halfWidth && points.length < count;
             col++) {
@@ -121,20 +117,20 @@ final class LuckySwirlMixer {
   /// 更新累计角 [swirlDeg] 和钳制到零至一的强度 [mix]。
   /// [excluded] 为 true 的位置保持原值，列表存在时须与物体数等长。
   void update(double swirlDeg, double mix, {List<bool>? excluded}) {
-    final strength = mix.clamp(0.0, 1.0);
+    final strength = luckyUnit(mix);
     for (var j = 0; j < _rest.length; j++) {
       if (excluded != null && excluded[j]) continue;
       final seed = j + 1;
       final w = _base + _speedRange * (_speedSeed * seed % 1);
       final orbit = (_orbitBase + _base * (_orbitSeed * seed % 1)) * _limit;
-      final theta =
-          luckyDegToRad(_turn * (_phaseSeed * seed % 1) + swirlDeg * w);
+      final theta = luckyDegToRad(
+          kLuckyFullTurnDeg * (_phaseSeed * seed % 1) + swirlDeg * w);
       var px = _rest[j].dx + (orbit * math.cos(theta) - _rest[j].dx) * strength;
       var py = _rest[j].dy +
           (orbit * math.sin(theta) -
                   _lift *
                       _radius *
-                      math.sin(_diameter * theta).abs() *
+                      math.sin(kLuckyHalfDivisor * theta).abs() *
                       strength -
                   _rest[j].dy) *
               strength;
@@ -145,7 +141,7 @@ final class LuckySwirlMixer {
       }
       x[j] = px;
       y[j] = py;
-      angle[j] = luckyDegToRad(swirlDeg * w * _diameter * strength);
+      angle[j] = luckyDegToRad(swirlDeg * w * kLuckyHalfDivisor * strength);
     }
   }
 }

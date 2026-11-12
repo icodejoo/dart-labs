@@ -107,12 +107,17 @@ final class LotsPainter extends CustomPainter {
             : null);
       }
     } finally {
+      _namePainter?.dispose();
+      _namePainter = null;
       luckyTraceEnd();
     }
   }
 
   /// 当前宿主输入。
   final LuckySurfaceData<LotsConfig, LotsLayout, LotsFrame> data;
+
+  /// 录制各签名时复用的文字对象，构造结束即释放。
+  TextPainter? _namePainter;
 
   /// surface 持有的缓存。
   final LuckyPictureCache cache;
@@ -176,27 +181,22 @@ final class LotsPainter extends CustomPainter {
       return;
     }
     _fill(canvas, rect, stick.fill ?? data.config.style.stickFill);
-    final painter = TextPainter(
-        text: TextSpan(
-            text: stick.label,
-            style: TextStyle(
-                color: data.config.style.textColor,
-                fontSize: data.config.style.fontSize,
-                fontFamily: data.config.style.fontFamily)),
-        textDirection: data.textDirection,
-        textScaler: data.textScale);
+    final painter = _namePainter ??= TextPainter(
+        textDirection: data.textDirection, textScaler: data.textScale);
+    painter.text = TextSpan(
+        text: stick.label,
+        style: TextStyle(
+            color: data.config.style.textColor,
+            fontSize: data.config.style.fontSize,
+            fontFamily: data.config.style.fontFamily));
+    luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
     try {
-      luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
-      try {
-        painter.layout(maxWidth: rect.width);
-      } finally {
-        luckyTraceEnd();
-      }
-      painter.paint(
-          canvas, Offset(rect.left, rect.top + rect.height * _labelInset));
+      painter.layout(maxWidth: rect.width);
     } finally {
-      painter.dispose();
+      luckyTraceEnd();
     }
+    painter.paint(
+        canvas, Offset(rect.left, rect.top + rect.height * _labelInset));
   }
 
   /// 录制签文卡背景、图片、文字与自绘内容。
@@ -208,14 +208,8 @@ final class LotsPainter extends CustomPainter {
       final resolved = data.images[slot];
       if (resolved == null) continue;
       final image = stick.images[i];
-      final placement = LuckyImagePlacement(
-          slot: slot,
-          image: image,
-          box: rect,
-          maxWidth: rect.width,
-          maxHeight: rect.height,
-          leftBase: rect.width,
-          topBase: rect.height);
+      final placement =
+          LuckyImagePlacement.inRect(slot: slot, image: image, rect: rect);
       drawLuckyImage(
           canvas, resolved.image, placement.place(resolved.naturalSize),
           opacity: image.opacity, borderRadius: image.borderRadius);
@@ -228,14 +222,8 @@ final class LotsPainter extends CustomPainter {
           fontSize: data.config.style.fontSize,
           fontFamily: data.config.style.fontFamily);
       for (final text in stick.texts) {
-        final lines = layoutLuckyTextLines(
-            text: text,
-            defaults: defaults,
-            measurer: measurer,
-            box: rect,
-            leftBase: rect.width,
-            topBase: rect.height,
-            maxWidthOf: (_, __) => rect.width);
+        final lines = layoutLuckyTextLinesInRect(
+            text: text, defaults: defaults, measurer: measurer, rect: rect);
         paintLuckyTextLines(canvas, lines, measurer,
             textDirection: data.textDirection, textScale: data.textScale);
       }
@@ -253,21 +241,9 @@ final class LotsPainter extends CustomPainter {
     canvas.translate(-pivot.dx, -pivot.dy);
   }
 
-  /// 回放指定位置的静态层或调用动态层。
-  void _layers(Canvas canvas, LuckyLayerPosition position) {
-    for (var i = 0; i < data.layers.length; i++) {
-      final layer = data.layers[i];
-      if (layer.position != position) continue;
-      canvas.save();
-      final picture = _layerPictures[i];
-      if (picture == null) {
-        layer.paint(canvas, _context);
-      } else {
-        canvas.drawPicture(picture);
-      }
-      canvas.restore();
-    }
-  }
+  /// 回放指定位置的用户层。
+  void _layers(Canvas canvas, LuckyLayerPosition position) => luckyReplayLayers(
+      canvas, data.layers, _layerPictures, position, _context);
 
   /// 回放缓存段，不使用 saveLayer，也不在帧内创建 Paint 或 Rect。
   @override

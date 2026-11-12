@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../core/control/controller.dart';
+import '../../core/control/motion_controller.dart';
 import '../../core/motion/phase.dart';
 import '../layout/lotto_layout.dart';
 import '../model/lotto_config.dart';
@@ -8,8 +8,8 @@ import '../model/lotto_sampler.dart';
 import '../motion/lotto_motion.dart';
 
 /// 摇奖控制器；例如 `LottoController(random: Random(42))` 可复现选号。
-class LottoController
-    extends LuckyController<LottoConfig, LottoLayout, LottoFrame, LottoResult> {
+class LottoController extends LuckyMotionController<LottoConfig, LottoLayout,
+    LottoFrame, LottoResult, LottoMotion> {
   /// 创建控制器；不传随机源时使用独立 Random。
   LottoController({this.sampler = const UniformLottoSampler(), super.random})
       : super(motion: LottoMotion());
@@ -18,7 +18,7 @@ class LottoController
   final LottoSampler sampler;
 
   /// 当前状态机的类型化视图。
-  LottoMotion get _lotto => motion as LottoMotion;
+  LottoMotion get _lotto => typedMotion;
 
   /// 应用或排队配置；减速中的结构变化由 core 延后应用。
   @override
@@ -30,8 +30,7 @@ class LottoController
 
   /// 抽样开奖；仅加速或匀速阶段接受，抽样为 null 时作废。
   bool stop() {
-    if (phase.value != LuckyPhase.accelerating &&
-        phase.value != LuckyPhase.cruising) {
+    if (!phase.value.canStop) {
       return false;
     }
     final draw = sampler.sample(_lotto.config!, random);

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 import '../../core/foundation/angles.dart';
+import '../../core/foundation/constants.dart';
 import '../../core/foundation/fill.dart';
 import '../../core/foundation/image.dart';
 import '../../core/geometry/image_box.dart';
@@ -39,9 +40,6 @@ const Color _highlight = Color(0x99FFFFFF);
 
 /// 托盘与滑道颜色。
 const Color _trayColor = Color(0xFF35485A);
-
-/// 统一二分系数。
-const double _half = 0.5;
 
 /// 胶囊描边宽度。
 const double _seamWidth = 1;
@@ -88,7 +86,7 @@ final class CapsulePictures {
   LuckyStirArms? stirArms;
 
   /// 各静态层显示列表。
-  final Map<int, ui.Picture> layers = {};
+  final List<ui.Picture?> layers = [];
 
   /// 录制当前布局与图片版本的所有静态段。
   void prepare(
@@ -131,44 +129,54 @@ final class CapsulePictures {
             c.style.bodyFill ?? _bodyFill,
             l.body);
         canvas.drawRRect(
-            RRect.fromRectAndRadius(l.tray.deflate(l.capsuleRadius * _half),
+            RRect.fromRectAndRadius(
+                l.tray.deflate(l.capsuleRadius * kLuckyHalf),
                 Radius.circular(l.capsuleRadius)),
-            Paint()..color = _trayColor);
+            luckyScratchPaint(color: _trayColor));
         canvas.drawPath(
             Path()
               ..moveTo(l.dropPath[0].dx, l.dropPath[0].dy)
               ..lineTo(l.dropPath[1].dx, l.dropPath[1].dy)
               ..lineTo(l.dropPath[2].dx, l.dropPath[2].dy)
               ..lineTo(l.dropPath[3].dx, l.dropPath[3].dy),
-            Paint()
-              ..color = _trayColor
-              ..strokeWidth = l.capsuleRadius
-              ..style = PaintingStyle.stroke);
+            luckyScratchPaint(
+                color: _trayColor,
+                strokeWidth: l.capsuleRadius,
+                style: PaintingStyle.stroke));
       });
       front = cache.picture(_front, (canvas) {
         canvas.drawArc(
             Rect.fromCircle(center: l.globeCenter, radius: l.globeRadius),
             math.pi,
-            math.pi * _half,
+            math.pi * kLuckyHalf,
             false,
-            Paint()
-              ..color = _highlight
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = l.capsuleRadius * _half);
+            luckyScratchPaint(
+                color: _highlight,
+                style: PaintingStyle.stroke,
+                strokeWidth: l.capsuleRadius * kLuckyHalf));
       });
       knob = cache.picture(_knob, (canvas) {
         final bounds =
             Rect.fromCircle(center: Offset.zero, radius: l.knobRadius);
-        paintLuckyFill(canvas, Path()..addOval(bounds),
-            c.style.knobFill ?? _knobFill, bounds);
+        paintLuckyOval(canvas, bounds, c.style.knobFill ?? _knobFill);
         canvas.drawLine(
-            Offset(-l.knobRadius * _half, 0),
-            Offset(l.knobRadius * _half, 0),
-            Paint()
-              ..color = _trayColor
-              ..strokeWidth = l.capsuleRadius * _half);
+            Offset(-l.knobRadius * kLuckyHalf, 0),
+            Offset(l.knobRadius * kLuckyHalf, 0),
+            luckyScratchPaint(
+                color: _trayColor, strokeWidth: l.capsuleRadius * kLuckyHalf));
       });
       final colors = <(LuckyFill, LuckyFill), LuckyCachedPicture>{};
+      // 半球几何与接缝画笔对所有配色一致，只录制一次构造。
+      final halfBounds =
+          Rect.fromCircle(center: Offset.zero, radius: l.capsuleRadius);
+      final topHalf = Path()
+        ..moveTo(-l.capsuleRadius, 0)
+        ..arcTo(halfBounds, math.pi, math.pi, false)
+        ..close();
+      final bottomHalf = Path()
+        ..moveTo(l.capsuleRadius, 0)
+        ..arcTo(halfBounds, 0, math.pi, false)
+        ..close();
       for (var i = 0; i < c.prizes.length; i++) {
         final prize = c.prizes[i],
             key = (c.prizes[i].topFill, c.prizes[i].bottomFill);
@@ -181,31 +189,21 @@ final class CapsulePictures {
                         center: Offset.zero,
                         radius: l.capsuleRadius + _seamWidth),
                     data.devicePixelRatio, (canvas) {
-                  final bounds = Rect.fromCircle(
-                      center: Offset.zero, radius: l.capsuleRadius);
-                  final top = Path()
-                    ..moveTo(-l.capsuleRadius, 0)
-                    ..arcTo(bounds, math.pi, math.pi, false)
-                    ..close();
-                  final bottom = Path()
-                    ..moveTo(l.capsuleRadius, 0)
-                    ..arcTo(bounds, 0, math.pi, false)
-                    ..close();
-                  paintLuckyFill(canvas, top, prize.topFill, bounds);
-                  paintLuckyFill(canvas, bottom, prize.bottomFill, bounds);
+                  paintLuckyFill(canvas, topHalf, prize.topFill, halfBounds);
+                  paintLuckyFill(
+                      canvas, bottomHalf, prize.bottomFill, halfBounds);
                   canvas.drawCircle(
                       Offset.zero,
                       l.capsuleRadius,
-                      Paint()
-                        ..color = c.style.seamColor
-                        ..style = PaintingStyle.stroke
-                        ..strokeWidth = _seamWidth);
+                      luckyScratchPaint(
+                          color: c.style.seamColor,
+                          style: PaintingStyle.stroke,
+                          strokeWidth: _seamWidth));
                   canvas.drawLine(
                       Offset(-l.capsuleRadius, 0),
                       Offset(l.capsuleRadius, 0),
-                      Paint()
-                        ..color = c.style.seamColor
-                        ..strokeWidth = _seamWidth);
+                      luckyScratchPaint(
+                          color: c.style.seamColor, strokeWidth: _seamWidth));
                 }, data.performance));
         capsules.add(picture.picture);
         capsulePlayback.add(picture);
@@ -222,14 +220,10 @@ final class CapsulePictures {
             final image = prize.images[j],
                 resolved = data.images[LuckyImageSlot('prizes', i, j)];
             if (resolved != null) {
-              final rect = LuckyImagePlacement(
+              final rect = LuckyImagePlacement.inRect(
                       slot: LuckyImageSlot('prizes', i, j),
                       image: image,
-                      box: l.card,
-                      maxWidth: l.card.width,
-                      maxHeight: l.card.height,
-                      leftBase: l.card.width,
-                      topBase: l.card.height)
+                      rect: l.card)
                   .place(resolved.naturalSize);
               drawLuckyImage(canvas, resolved.image, rect,
                   borderRadius: image.borderRadius, opacity: image.opacity);
@@ -254,10 +248,10 @@ final class CapsulePictures {
         ..devicePixelRatio = data.devicePixelRatio;
       for (var i = 0; i < data.layers.length; i++) {
         final layer = data.layers[i];
-        if (layer.isStatic) {
-          layers[i] = cache.picture(
-              _layerBase + i, (canvas) => layer.paint(canvas, context));
-        }
+        layers.add(layer.isStatic
+            ? cache.picture(
+                _layerBase + i, (canvas) => layer.paint(canvas, context))
+            : null);
       }
     } finally {
       luckyTraceEnd();
@@ -286,18 +280,10 @@ final class CapsulePainter extends CustomPainter {
   final LuckyLayerContext<CapsuleLayout, CapsuleFrame> _context =
       LuckyLayerContext();
 
-  /// 绘制指定位置的层。
-  void _layers(Canvas canvas, LuckyLayerPosition position) {
-    for (var i = 0; i < data.layers.length; i++) {
-      final layer = data.layers[i];
-      if (layer.position != position) continue;
-      if (layer.isStatic) {
-        canvas.drawPicture(pictures.layers[i]!);
-      } else {
-        layer.paint(canvas, _context);
-      }
-    }
-  }
+  /// 回放指定位置的用户层。
+  void _layers(Canvas canvas, LuckyLayerPosition position) => luckyReplayLayers(
+      canvas, data.layers, pictures.layers, position, _context,
+      isolate: false);
 
   /// 平移并旋转回放胶囊。
   void _capsule(Canvas canvas, int index, int prize) {

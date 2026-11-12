@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/motion/motion.dart';
 import '../../core/motion/result.dart';
+import '../../core/render/images_listener.dart';
 import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
@@ -38,7 +39,8 @@ final class _GridSurface extends StatefulWidget {
 }
 
 /// 持有长期 painter、缓存及图片版本。
-final class _GridSurfaceState extends State<_GridSurface> {
+final class _GridSurfaceState extends State<_GridSurface>
+    with LuckyImagesListener<_GridSurface> {
   /// 仅在 assert 内创建并记录 config 引起的缓存失效。
   late final LuckyInvalidationMonitor _invalidationMonitor =
       LuckyInvalidationMonitor('grid');
@@ -61,11 +63,16 @@ final class _GridSurfaceState extends State<_GridSurface> {
     super.initState();
     _painter = GridPainter(data: widget.data, cache: _cache, updates: _updates);
     _imageGeneration = widget.data.images.generation;
-    widget.data.imagesListenable.addListener(_imagesChanged);
   }
 
+  /// 图片通知源。
+  @override
+  Listenable imagesListenableOf(_GridSurface widget) =>
+      widget.data.imagesListenable;
+
   /// 图片到达时录制新图片，无需重建布局或宿主。
-  void _imagesChanged() {
+  @override
+  void onImagesChanged() {
     _painter.rebuildSegments(widget.data);
     _imageGeneration = widget.data.images.generation;
   }
@@ -76,10 +83,6 @@ final class _GridSurfaceState extends State<_GridSurface> {
     super.didUpdateWidget(oldWidget);
     final old = oldWidget.data;
     final next = widget.data;
-    if (old.imagesListenable != next.imagesListenable) {
-      old.imagesListenable.removeListener(_imagesChanged);
-      next.imagesListenable.addListener(_imagesChanged);
-    }
     if (old.frameListenable != next.frameListenable ||
         old.imagesListenable != next.imagesListenable) {
       assert(() {
@@ -120,7 +123,6 @@ final class _GridSurfaceState extends State<_GridSurface> {
   /// 移除图片监听并释放全部原生图片。
   @override
   void dispose() {
-    widget.data.imagesListenable.removeListener(_imagesChanged);
     _updates.dispose();
     _cache.dispose();
     super.dispose();

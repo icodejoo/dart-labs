@@ -24,7 +24,27 @@ void main() {
           LuckyPhase.idleSpinning
         }.contains(phase);
         expect(phase.canPlay, expected);
+        // ignore: deprecated_member_use_from_same_package
         expect(phase.acceptsStart, expected);
+      }
+    });
+    test('canStop is true only for accelerating and cruising', () {
+      for (final phase in LuckyPhase.values) {
+        expect(
+            phase.canStop,
+            const {LuckyPhase.accelerating, LuckyPhase.cruising}
+                .contains(phase));
+      }
+    });
+    test('canCancel covers moving phases except decelerating', () {
+      for (final phase in LuckyPhase.values) {
+        expect(
+            phase.canCancel,
+            const {
+              LuckyPhase.idleSpinning,
+              LuckyPhase.accelerating,
+              LuckyPhase.cruising
+            }.contains(phase));
       }
     });
   });

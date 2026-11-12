@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import '../../core/easing/easing.dart';
+import '../../core/foundation/angles.dart';
 import '../../core/foundation/constants.dart';
+import '../../core/foundation/unit_range.dart';
 import '../../core/game/frame.dart';
 import '../../core/motion/motion.dart';
 import '../../core/motion/motion_options.dart';
@@ -11,9 +13,6 @@ import '../../core/motion/stop_solver.dart';
 import '../../core/motion/timebase.dart';
 import '../layout/number_wheel_layout.dart';
 import '../model/number_wheel_config.dart';
-
-/// 一周角度。
-const double _turn = 360;
 
 /// 数字转盘的复用帧，角度为从正上方起顺时针的度数。
 final class NumberWheelFrame extends LuckyFrame {
@@ -96,10 +95,6 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
   @override
   Duration get maxFrameDelta => _options.maxFrameDelta;
 
-  /// 非多列玩法恒为零。
-  @override
-  int get passedReel => 0;
-
   /// 最近经过的格子。
   @override
   int get passedIndex => frame.ballPocket;
@@ -141,7 +136,7 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
   /// 开始本局；无格子、空布局或运动中返回 false。
   @override
   bool start() {
-    if (!phase.acceptsStart || _layout == null || _layout!.isEmpty) {
+    if (!phase.canPlay || _layout == null || _layout!.isEmpty) {
       return false;
     }
     frame.phase = LuckyPhase.accelerating;
@@ -157,7 +152,7 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
   /// 开始待机慢转，缺少有效布局时拒绝。
   @override
   bool idleSpin() {
-    if (!phase.acceptsStart ||
+    if (!phase.canPlay ||
         phase == LuckyPhase.idleSpinning ||
         _layout == null ||
         _layout!.isEmpty) {
@@ -169,7 +164,7 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
 
   /// 请求按下标停止；负数作废，正数按格子数取余，减速时拒绝。
   bool stop(int index) {
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising) {
+    if (!phase.canStop) {
       return false;
     }
     if (index < 0) return cancel();
@@ -179,13 +174,10 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
 
   /// 取消加速或匀速中的一局；待机取消不产生结果。
   @override
-  bool cancel() {
-    if (!phase.isMoving || phase == LuckyPhase.decelerating) return false;
-    final idle = phase == LuckyPhase.idleSpinning;
-    reset();
-    if (!idle) _result = const LuckyResult.cancelled();
-    return true;
-  }
+  bool cancel() => cancelWith((report) {
+        reset();
+        if (report) _result = const LuckyResult.cancelled();
+      });
 
   /// 回到原点，清除待停止请求和结果。
   @override
@@ -215,11 +207,12 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
     final unit = _options.decelerationEasing
         .easeOut(frameMs, 0, 1, _options.decelerationMs);
     _discChange = unit == 0 ? 0 : _options.speed * o.discSpeedRatio / unit;
-    final target = _pending * _turn / _config.pockets.length + o.offsetDegree;
-    final base = -((_psi0 - target) % _turn);
+    final target =
+        _pending * kLuckyFullTurnDeg / _config.pockets.length + o.offsetDegree;
+    final base = -luckyWrap(_psi0 - target, kLuckyFullTurnDeg);
     _psiChange = _options.stopSolver.solve(LuckyStopProblem(
         start: _psi0,
-        candidate: (i) => base - _turn * (i - 1),
+        candidate: (i) => base - kLuckyFullTurnDeg * (i - 1),
         cruiseSpeed: _options.speed * (1 + o.discSpeedRatio),
         frameMs: frameMs,
         decelerationMs: _options.decelerationMs,
@@ -240,14 +233,14 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
     _elapsed += dt;
     if (phase == LuckyPhase.decelerating) {
       final o = _config.options;
-      final p = (_elapsed / _options.decelerationMs).clamp(0.0, 1.0);
+      final p = luckyUnit(_elapsed / _options.decelerationMs);
       frame.discDeg = _options.decelerationEasing
           .easeOut(_elapsed, _disc0, _discChange, _options.decelerationMs);
       frame.ballDeg = frame.discDeg +
           _options.decelerationEasing
               .easeOut(_elapsed, _psi0, _psiChange, _options.decelerationMs);
       final fraction = o.dropFraction.clamp(0.000001, 1.0);
-      final q = ((p - (1 - fraction)) / fraction).clamp(0.0, 1.0);
+      final q = luckyUnit((p - (1 - fraction)) / fraction);
       final eased = LuckyEasings.quad.easeIn(q, 0, 1, 1);
       frame.ballRadius = _layout!.trackRadius +
           (_layout!.pocketRadius - _layout!.trackRadius) * eased +
@@ -287,12 +280,14 @@ final class NumberWheelMotion extends LuckyMotion<NumberWheelConfig,
       frame.discDeg += speed * _config.options.discSpeedRatio * k;
       frame.ballDeg -= speed * k;
     }
-    frame.ballPocket = (((frame.ballDeg -
+    final pocketWidth = kLuckyFullTurnDeg / _config.pockets.length;
+    frame.ballPocket = (luckyWrap(
+                    frame.ballDeg -
                         frame.discDeg -
                         _config.options.offsetDegree +
-                        _turn / _config.pockets.length / kLuckyHalfDivisor) %
-                    _turn) /
-                (_turn / _config.pockets.length))
+                        pocketWidth / kLuckyHalfDivisor,
+                    kLuckyFullTurnDeg) /
+                pocketWidth)
             .floor() %
         _config.pockets.length;
     if (frame.ballPocket != pocket) events |= LuckyMotionEvents.itemPassed;

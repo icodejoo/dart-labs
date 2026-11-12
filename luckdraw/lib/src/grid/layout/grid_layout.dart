@@ -6,7 +6,6 @@ import 'package:flutter/painting.dart';
 import '../../core/foundation/border.dart';
 import '../../core/foundation/box_block.dart';
 import '../../core/foundation/fill.dart';
-import '../../core/foundation/image.dart';
 import '../../core/foundation/shadow.dart';
 import '../../core/game/layout.dart';
 import '../../core/geometry/image_box.dart';
@@ -149,8 +148,8 @@ GridLayout computeGridLayout(GridConfig config, LuckyLayoutInput input) {
       blocks.add(GridBlockLayout(
           area,
           block,
-          _images(block.images, area, kLuckyGridBlocksGroup, i,
-              active: false)));
+          luckyRectPlacements(block.images, area,
+              group: kLuckyGridBlocksGroup, item: i, active: false)));
       final padding = block.padding;
       area = Rect.fromLTWH(
           area.left + padding.left,
@@ -232,35 +231,17 @@ GridCellVisual _visual(GridConfig config, LuckyLayoutInput input, GridCell cell,
       border: active ? style.border : normal?.border ?? defaults.border,
       foreground:
           active ? style.foreground : normal?.foreground ?? defaults.foreground,
-      images: _images(cell.images, rect, group, index, active: active),
+      images: luckyRectPlacements(cell.images, rect,
+          group: group, item: index, active: active),
       texts: List.unmodifiable([
         for (final text in cell.texts)
-          ...layoutLuckyTextLines(
+          ...layoutLuckyTextLinesInRect(
               text: text,
               defaults: config.style.text,
               override: active ? style.text : null,
               measurer: input.measurer,
-              box: rect,
-              leftBase: rect.width,
-              topBase: rect.height,
-              maxWidthOf: (_, __) =>
-                  (text.lengthLimit ?? config.style.text.lengthLimit)
-                      .resolve(rect.width))
+              rect: rect,
+              maxWidth: (text.lengthLimit ?? config.style.text.lengthLimit)
+                  .resolve(rect.width))
       ]));
 }
-
-/// 图片尺寸使用绘制区域解析；激活槽的加载与普通图门控由绘制阶段处理。
-List<LuckyImagePlacement> _images(
-        List<LuckyImage> images, Rect rect, String group, int index,
-        {required bool active}) =>
-    List.unmodifiable([
-      for (var i = 0; i < images.length; i++)
-        LuckyImagePlacement(
-            slot: LuckyImageSlot(group, index, i, active: active),
-            image: images[i],
-            box: rect,
-            maxWidth: rect.width,
-            maxHeight: rect.height,
-            leftBase: rect.width,
-            topBase: rect.height)
-    ]);

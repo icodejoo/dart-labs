@@ -124,7 +124,7 @@ final class WheelPainter extends CustomPainter {
           if (background != null) {
             final bounds =
                 Rect.fromCircle(center: Offset.zero, radius: block.radius);
-            paintLuckyFill(canvas, Path()..addOval(bounds), background, bounds);
+            paintLuckyOval(canvas, bounds, background);
           }
         });
         for (var i = 0; i < block.images.length; i++) {
@@ -241,7 +241,7 @@ final class WheelPainter extends CustomPainter {
       if (background != null) {
         final bounds =
             Rect.fromCircle(center: Offset.zero, radius: button.radius);
-        paintLuckyFill(canvas, Path()..addOval(bounds), background, bounds);
+        paintLuckyOval(canvas, bounds, background);
         final pointer = button.pointerPath;
         if (pointer != null) {
           paintLuckyFill(canvas, pointer, background, bounds);

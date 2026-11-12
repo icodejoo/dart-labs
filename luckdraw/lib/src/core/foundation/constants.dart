@@ -8,6 +8,9 @@ const double kLuckyReferenceFrameMs = 1000 / 60;
 /// 几何平分、直径与二次缓动公式中的二分系数。
 const double kLuckyHalfDivisor = 2;
 
+/// 对半取值的系数，用于路径分段、比例折半等。
+const double kLuckyHalf = 0.5;
+
 /// 上游 FPS 初值（wheel.ts:42）。
 const double kLuckyInitialFps = 16.6;
 

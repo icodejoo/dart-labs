@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../core/foundation/image.dart';
 import '../core/game/game.dart';
 import '../core/game/layout.dart';
+import '../core/geometry/image_box.dart';
 import '../core/motion/phase.dart';
 import '../core/motion/result.dart';
 import '../core/widgets/physics_reduce.dart';
@@ -49,14 +50,11 @@ final class CapsuleGame extends LuckyGame<CapsuleConfig, CapsuleLayout,
       [
         for (var i = 0; i < config.prizes.length; i++)
           for (var j = 0; j < config.prizes[i].images.length; j++)
-            LuckyImageRequest(
-                slot: LuckyImageSlot('prizes', i, j),
-                image: config.prizes[i].images[j],
-                provider: config.prizes[i].images[j].image,
-                decodeLogicalWidth: config.prizes[i].images[j].width
-                    ?.resolve(layout.card.width),
-                decodeLogicalHeight: config.prizes[i].images[j].height
-                    ?.resolve(layout.card.height))
+            LuckyImagePlacement.inRect(
+                    slot: LuckyImageSlot('prizes', i, j),
+                    image: config.prizes[i].images[j],
+                    rect: layout.card)
+                .toRequest()
       ];
 
   /// 系统要求减弱动效（或显式 always）时去掉物理参数，回退参数化轨迹。

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'angles.dart';
 import 'color_utils.dart';
 import 'constants.dart';
 
@@ -214,8 +215,7 @@ final class LuckyLegacyGradientDirection {
         LuckyGradientKeyword.none => (0.0, 0.0, 0.0, 0.0),
       };
     } else {
-      var deg = angle.remainder(kLuckyFullTurnDeg);
-      if (deg < 0) deg += kLuckyFullTurnDeg;
+      final deg = luckyWrap(angle, kLuckyFullTurnDeg);
       const sector = kLuckyGradientSectorDeg;
       // 上游 utils/math.ts:104-113；先除以 180，再乘 π，不复用 getAngle。
       /// 按上游除后乘的次序计算角度正切。

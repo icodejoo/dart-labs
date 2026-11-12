@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../core/motion/result.dart';
+import '../../core/render/images_listener.dart';
 import '../../core/render/invalidation_monitor.dart';
 import '../../core/render/picture_cache.dart';
 import '../../core/render/renderer.dart';
@@ -38,7 +39,8 @@ final class _WheelSurface extends StatefulWidget {
 }
 
 /// 仅在低频输入变化时重新录制，动画期间保持同一画笔。
-final class _WheelSurfaceState extends State<_WheelSurface> {
+final class _WheelSurfaceState extends State<_WheelSurface>
+    with LuckyImagesListener<_WheelSurface> {
   /// 仅在 assert 内创建并记录 config 引起的缓存失效。
   late final LuckyInvalidationMonitor _invalidationMonitor =
       LuckyInvalidationMonitor('wheel');
@@ -58,11 +60,16 @@ final class _WheelSurfaceState extends State<_WheelSurface> {
     super.initState();
     _painter = WheelPainter(widget.data, _cache);
     _imageGeneration = widget.data.images.generation;
-    widget.data.imagesListenable.addListener(_imagesChanged);
   }
 
+  /// 图片通知源。
+  @override
+  Listenable imagesListenableOf(_WheelSurface widget) =>
+      widget.data.imagesListenable;
+
   /// 图片通知只重录含图片的段，并请求绘制。
-  void _imagesChanged() {
+  @override
+  void onImagesChanged() {
     if (_imageGeneration == widget.data.images.generation) return;
     _imageGeneration = widget.data.images.generation;
     _painter.imagesChanged(widget.data);
@@ -78,10 +85,6 @@ final class _WheelSurfaceState extends State<_WheelSurface> {
     super.didUpdateWidget(oldWidget);
     final old = oldWidget.data;
     final data = widget.data;
-    if (old.imagesListenable != data.imagesListenable) {
-      old.imagesListenable.removeListener(_imagesChanged);
-      data.imagesListenable.addListener(_imagesChanged);
-    }
     if (old.frameListenable != data.frameListenable) {
       assert(() {
         if (old.config != data.config) {
@@ -126,7 +129,6 @@ final class _WheelSurfaceState extends State<_WheelSurface> {
   /// 移除图片监听并释放显示列表及纹理；绘制对象负责帧监听。
   @override
   void dispose() {
-    widget.data.imagesListenable.removeListener(_imagesChanged);
     _cache.dispose();
     super.dispose();
   }

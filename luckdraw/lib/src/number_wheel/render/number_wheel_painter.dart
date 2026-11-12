@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/foundation/angles.dart';
 import '../../core/foundation/constants.dart';
-import '../../core/geometry/fan_path.dart';
+import '../../core/geometry/canvas_arc.dart';
 import '../../core/motion/phase.dart';
 import '../../core/render/cached_picture.dart';
 import '../../core/render/layer.dart';
@@ -28,9 +28,6 @@ const int _ballId = 2;
 
 /// 用户静态层编号起点。
 const int _layerBase = 100;
-
-/// 一周角度。
-const double _turn = 360;
 
 /// 刻度线占标签环宽的比例，给数字留出空间。
 const double _tickFraction = 0.15;
@@ -91,8 +88,7 @@ final class NumberWheelPainter extends CustomPainter {
   void _recordTrack(Canvas canvas) {
     final l = data.layout;
     final bounds = Rect.fromCircle(center: l.center, radius: l.radius);
-    paintLuckyFill(
-        canvas, Path()..addOval(bounds), data.config.style.trackFill, bounds);
+    paintLuckyOval(canvas, bounds, data.config.style.trackFill);
   }
 
   /// 录制圆盘和全部刻度，标签按布局间隔抽稀。
@@ -103,67 +99,62 @@ final class NumberWheelPainter extends CustomPainter {
     canvas.translate(l.center.dx, l.center.dy);
     final bounds = Rect.fromCircle(
         center: Offset.zero, radius: l.radius * o.trackInnerFactor);
-    paintLuckyFill(canvas, Path()..addOval(bounds), c.style.background, bounds);
-    final tickPaint = Paint()..color = c.style.textColor;
-    for (var i = 0; i < c.pockets.length; i++) {
-      final mid = luckyDegToRad(
-          i * _turn / c.pockets.length + o.offsetDegree + kLuckyPointerDeg);
-      final half = math.pi / c.pockets.length;
-      final path = buildFanPath(
-          outerRadius: l.radius * o.pocketOuterFactor,
-          start: mid - half,
-          end: mid + half,
-          gutter: 0);
-      final inner = Path()
-        ..addOval(Rect.fromCircle(
-            center: Offset.zero, radius: l.radius * o.pocketInnerFactor));
-      final ring = Path.combine(PathOperation.difference, path, inner);
-      paintLuckyFill(
-          canvas,
-          ring,
-          c.pockets[i].fill ??
-              kNumberWheelDefaultPalette[i % kNumberWheelDefaultPalette.length],
-          bounds);
-      canvas.save();
-      canvas.rotate(mid);
-      canvas.drawLine(
-          Offset(
-              l.radius *
-                  (o.labelOuterFactor -
-                      (o.labelOuterFactor - o.labelInnerFactor) *
-                          _tickFraction),
-              0),
-          Offset(l.radius * o.labelOuterFactor, 0),
-          tickPaint);
-      if (i % l.labelEvery == 0) {
-        final text = TextPainter(
-            text: TextSpan(
-                text: c.pockets[i].label ?? c.pockets[i].number.toString(),
-                style: TextStyle(
-                    color: c.style.textColor,
-                    fontSize: c.style.fontSize,
-                    fontFamily: c.style.fontFamily)),
-            textDirection: data.textDirection,
-            textScaler: data.textScale);
-        try {
-          luckyTraceStart(kLuckyTextPainterLayoutTrace, layouts: 1);
-          try {
-            text.layout();
-          } finally {
-            luckyTraceEnd();
-          }
+    paintLuckyOval(canvas, bounds, c.style.background);
+    final outerRect = Rect.fromCircle(
+        center: Offset.zero, radius: l.radius * o.pocketOuterFactor);
+    final innerRect = Rect.fromCircle(
+        center: Offset.zero, radius: l.radius * o.pocketInnerFactor);
+    final labels = LuckyTextPass(
+        textDirection: data.textDirection, textScale: data.textScale);
+    try {
+      for (var i = 0; i < c.pockets.length; i++) {
+        final mid = luckyDegToRad(i * kLuckyFullTurnDeg / c.pockets.length +
+            o.offsetDegree +
+            kLuckyPointerDeg);
+        final half = math.pi / c.pockets.length;
+        final sweep = canvasArcSweep(mid - half, mid + half);
+        // 环形扇面：外弧顺时针、内弧逆时针回到起点，无需布尔运算。
+        final ring = Path()
+          ..arcTo(outerRect, mid - half, sweep, true)
+          ..arcTo(innerRect, mid + half, -sweep, false)
+          ..close();
+        paintLuckyFill(
+            canvas,
+            ring,
+            c.pockets[i].fill ??
+                kNumberWheelDefaultPalette[
+                    i % kNumberWheelDefaultPalette.length],
+            bounds);
+        canvas.save();
+        canvas.rotate(mid);
+        canvas.drawLine(
+            Offset(
+                l.radius *
+                    (o.labelOuterFactor -
+                        (o.labelOuterFactor - o.labelInnerFactor) *
+                            _tickFraction),
+                0),
+            Offset(l.radius * o.labelOuterFactor, 0),
+            luckyScratchPaint(color: c.style.textColor));
+        if (i % l.labelEvery == 0) {
+          final text = labels.layout(TextSpan(
+              text: c.pockets[i].label ?? c.pockets[i].number.toString(),
+              style: TextStyle(
+                  color: c.style.textColor,
+                  fontSize: c.style.fontSize,
+                  fontFamily: c.style.fontFamily)));
           text.paint(
               canvas,
               Offset(l.labelRadius - text.width / kLuckyHalfDivisor,
                   -text.height / kLuckyHalfDivisor));
-        } finally {
-          text.dispose();
         }
+        canvas.restore();
       }
-      canvas.restore();
+    } finally {
+      labels.dispose();
     }
     final hub = Rect.fromCircle(center: Offset.zero, radius: l.hubRadius);
-    paintLuckyFill(canvas, Path()..addOval(hub), c.style.hubFill, hub);
+    paintLuckyOval(canvas, hub, c.style.hubFill);
     canvas.restore();
   }
 
@@ -171,26 +162,13 @@ final class NumberWheelPainter extends CustomPainter {
   void _recordBall(Canvas canvas) {
     final rect =
         Rect.fromCircle(center: Offset.zero, radius: data.layout.ballSize);
-    paintLuckyFill(
-        canvas, Path()..addOval(rect), data.config.style.ballFill, rect);
+    paintLuckyOval(canvas, rect, data.config.style.ballFill);
   }
 
-  /// 绘制指定位置的用户层，静态层只回放。
-  void _layers(Canvas canvas, LuckyLayerPosition position) {
-    for (var i = 0; i < data.layers.length; i++) {
-      final layer = data.layers[i];
-      if (layer.position != position) continue;
-      canvas.save();
-      if (layer.rotatesWithWheel) _rotate(canvas);
-      final picture = _layerPictures[i];
-      if (picture == null) {
-        layer.paint(canvas, _context);
-      } else {
-        canvas.drawPicture(picture);
-      }
-      canvas.restore();
-    }
-  }
+  /// 回放指定位置的用户层。
+  void _layers(Canvas canvas, LuckyLayerPosition position) =>
+      luckyReplayLayers(canvas, data.layers, _layerPictures, position, _context,
+          rotate: _rotate);
 
   /// 绕布局圆心旋转当前画布。
   void _rotate(Canvas canvas) {

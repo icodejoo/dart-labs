@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import '../../core/foundation/constants.dart';
 import '../../core/game/layout.dart';
 import '../../core/kinematics/swirl_mixer.dart';
 import '../../core/render/perf_trace.dart';
@@ -13,9 +14,6 @@ const double _drumWidth = 0.85;
 
 /// T5.9 的容器高度上限比例。
 const double _drumHeight = 0.28;
-
-/// 直径系数。
-const double _diameter = 2;
 
 /// 结果槽行中心高度比例。
 const double _resultY = 0.9;
@@ -96,18 +94,18 @@ LottoLayout computeLottoLayout(LottoConfig config, LuckyLayoutInput input) {
           size: size, drums: const [], button: Rect.zero, slotRadius: 0);
     }
     final m = config.pools.length;
-    final radius = math.min(
-        size.width / (_diameter * m) * _drumWidth, _drumHeight * size.height);
+    final radius = math.min(size.width / (kLuckyHalfDivisor * m) * _drumWidth,
+        _drumHeight * size.height);
     final count = config.pools.fold<int>(0, (n, p) => n + p.count);
     final cell = size.width / (count + m);
     final ballRadius = math.min(radius * config.options.ballRadiusFactor,
-        math.min(cell, size.height * (1 - _resultY)) / _diameter);
+        math.min(cell, size.height * (1 - _resultY)) / kLuckyHalfDivisor);
     final drums = <LottoDrumLayout>[];
     var slot = 0;
     for (var p = 0; p < m; p++) {
       final pool = config.pools[p];
-      final center = Offset(
-          size.width * (p + 1 / _diameter) / m, size.height * _drumHeight);
+      final center = Offset(size.width * (p + 1 / kLuckyHalfDivisor) / m,
+          size.height * _drumHeight);
       final slots = List.generate(pool.count,
           (j) => Offset(cell * (slot + j + 1), size.height * _resultY));
       slot += pool.count + 1;
@@ -123,13 +121,14 @@ LottoLayout computeLottoLayout(LottoConfig config, LuckyLayoutInput input) {
           slots: List.unmodifiable(slots),
           min: pool.min));
     }
-    final buttonRadius =
-        math.min(size.width / (m * _diameter), size.height * _buttonRadius);
+    final buttonRadius = math.min(
+        size.width / (m * kLuckyHalfDivisor), size.height * _buttonRadius);
     return LottoLayout(
         size: size,
         drums: List.unmodifiable(drums),
         button: Rect.fromCircle(
-            center: Offset(size.width / _diameter, size.height * _buttonY),
+            center:
+                Offset(size.width / kLuckyHalfDivisor, size.height * _buttonY),
             radius: buttonRadius),
         slotRadius: ballRadius);
   } finally {

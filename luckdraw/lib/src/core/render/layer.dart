@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/rendering.dart';
 
 import '../game/frame.dart';
@@ -74,4 +76,32 @@ final class LuckyCallbackLayer<L extends LuckyLayout, F extends LuckyFrame>
   @override
   void paint(Canvas canvas, LuckyLayerContext<L, F> context) =>
       onPaint(canvas, context);
+}
+
+/// 回放 [position] 位置的用户层：有 [pictures] 缓存的直接回放，其余调用动态绘制。
+///
+/// [isolate] 为真时每层包在 save/restore 里；[rotate] 非空时，对 `rotatesWithWheel`
+/// 的层先用它施加转盘旋转。例如
+/// `luckyReplayLayers(canvas, data.layers, _layerPictures, position, _context)`。
+void luckyReplayLayers<L extends LuckyLayout, F extends LuckyFrame>(
+    Canvas canvas,
+    List<LuckyLayer<L, F>> layers,
+    List<ui.Picture?> pictures,
+    LuckyLayerPosition position,
+    LuckyLayerContext<L, F> context,
+    {bool isolate = true,
+    void Function(Canvas canvas)? rotate}) {
+  for (var i = 0; i < layers.length; i++) {
+    final layer = layers[i];
+    if (layer.position != position) continue;
+    if (isolate) canvas.save();
+    if (layer.rotatesWithWheel) rotate?.call(canvas);
+    final picture = pictures[i];
+    if (picture == null) {
+      layer.paint(canvas, context);
+    } else {
+      canvas.drawPicture(picture);
+    }
+    if (isolate) canvas.restore();
+  }
 }

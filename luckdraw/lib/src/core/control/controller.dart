@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import '../foundation/duration_ms.dart';
 import '../game/frame.dart';
 import '../game/layout.dart';
 import '../motion/clock.dart';
@@ -79,11 +80,8 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   /// 等待停止的有效时间。
   double _stopAtMs = 0;
 
-  /// 减速期间排队的最新结构配置。
-  C? _queuedConfig;
-
-  /// 排队的布局。
-  L? _queuedLayout;
+  /// 减速期间排队的最新结构配置与布局。
+  ({C config, L? layout})? _queued;
 
   /// 是否已经释放。
   bool _disposed = false;
@@ -128,7 +126,11 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   }
 
   /// 作废本局；减速阶段是否接受由玩法决定。
-  bool cancel() => !_disposed && commitCommand(motion.cancel());
+  bool cancel() {
+    if (_disposed) return false;
+    final fromIdle = motion.phase == LuckyPhase.idleSpinning;
+    return commitCommand(motion.cancel(), fromIdle: fromIdle);
+  }
 
   /// 开始待机慢转，返回是否接受。
   bool idleSpin() => !_disposed && commitCommand(motion.idleSpin());
@@ -158,18 +160,13 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   void reset() {
     if (_disposed) return;
     final cancelled = motion.phase.isMoving;
+    final fromIdle = motion.phase == LuckyPhase.idleSpinning;
     final pending = _pending;
-    if (cancelled) _releasePending(pending);
     motion.reset();
     _timeline.resumeUser();
     _userPaused = false;
-    _syncPhase();
-    if (_disposed) return;
-    _frames.notify();
-    if (cancelled) {
-      _finish(createCancelledResult(), pending);
-    }
-    _syncClock();
+    _afterCommand(cancelled ? createCancelledResult() : null, pending,
+        fromIdle: fromIdle);
   }
 
   /// 挂接宿主；已有宿主时抛出 StateError。
@@ -197,10 +194,9 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   /// 应用配置；减速中的结构变化排队，结算后应用最新一份。
   void configure(C config, L? layout, {bool structural = false}) {
     if (_disposed) return;
-    if (_queuedConfig != null ||
+    if (_queued != null ||
         structural && motion.phase == LuckyPhase.decelerating) {
-      _queuedConfig = config;
-      _queuedLayout = layout;
+      _queued = (config: config, layout: layout);
     } else {
       motion.configure(config, layout);
       _syncClock();
@@ -222,21 +218,23 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   }
 
   /// 子类执行类型化命令后调用，统一同步阶段、结果和时间源。
+  ///
+  /// [fromIdle] 表示命令发出时处于待机慢转，供取消上报策略判断。
   @protected
-  bool commitCommand(bool accepted) {
+  bool commitCommand(bool accepted, {bool fromIdle = false}) {
     if (_disposed || !accepted) return false;
-    final pending = _pending;
-    final result = motion.takeResult();
+    _afterCommand(motion.takeResult(), _pending, fromIdle: fromIdle);
+    return true;
+  }
+
+  /// 命令生效后的统一收尾：释放未决、同步阶段、交付结果、重绘并校准时钟。
+  void _afterCommand(R? result, Completer<R>? pending,
+      {required bool fromIdle}) {
     if (result != null) _releasePending(pending);
     _syncPhase();
-    if (result != null) {
-      _finish(result, pending);
-    }
-    if (!_disposed) {
-      _frames.notify();
-    }
+    if (result != null) _finish(result, pending, fromIdle: fromIdle);
+    if (!_disposed) _frames.notify();
     _syncClock();
-    return true;
   }
 
   /// play 后获取目标并等待最短有效时间，再应用停止命令。
@@ -250,8 +248,7 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
     }
     final pending = Completer<R>();
     _pending = pending;
-    _stopAtMs = _timeline.nowMs +
-        minSpin.inMicroseconds / Duration.microsecondsPerMillisecond;
+    _stopAtMs = _timeline.nowMs + luckyMs(minSpin);
     if (!play()) {
       _pending = null;
       pending.completeError(StateError('当前不能开始抽奖'));
@@ -305,6 +302,10 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   @protected
   bool get shouldReportCancelled => true;
 
+  /// 待机慢转被取消或重置时是否上报作废结果；九宫格覆写为 false。
+  @protected
+  bool get reportsIdleCancellation => true;
+
   /// 子类提供类型化的作废结果。
   @protected
   R createCancelledResult();
@@ -357,7 +358,8 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
       _frames.notify();
     }
     if (!_disposed && events & LuckyMotionEvents.itemPassed != 0) {
-      _host?.handleItemPassed(motion.passedReel, motion.passedIndex);
+      final host = _host;
+      if (host != null) motion.drainPassed(host.handleItemPassed);
     }
     if (!_disposed && events & LuckyMotionEvents.phaseChanged != 0) {
       _syncPhase();
@@ -371,19 +373,17 @@ abstract class LuckyController<C extends Object, L extends LuckyLayout,
   }
 
   /// 保存结果、应用排队配置并完成本局。
-  void _finish(R result, Completer<R>? pending) {
+  void _finish(R result, Completer<R>? pending, {bool fromIdle = false}) {
     _lastResult = result;
-    final config = _queuedConfig;
-    if (config != null) {
-      final layout = _queuedLayout;
-      _queuedConfig = null;
-      _queuedLayout = null;
-      motion.configure(config, layout);
+    final queued = _queued;
+    if (queued != null) {
+      _queued = null;
+      motion.configure(queued.config, queued.layout);
     }
     pending?.complete(result);
-    if (!_disposed && (!result.cancelled || shouldReportCancelled)) {
-      _host?.handleResult(result);
-    }
+    final reported = !result.cancelled ||
+        shouldReportCancelled && (!fromIdle || reportsIdleCancellation);
+    if (!_disposed && reported) _host?.handleResult(result);
   }
 
   /// 完成并清空未决调用。

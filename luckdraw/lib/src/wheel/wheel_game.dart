@@ -59,15 +59,7 @@ final class WheelGame extends LuckyGame<WheelConfig, WheelLayout, WheelFrame,
       for (final button in layout.buttons) ...button.images,
     ];
     return [
-      for (final placement in placements)
-        LuckyImageRequest(
-            slot: placement.slot,
-            image: placement.image,
-            provider: placement.image.image,
-            decodeLogicalWidth:
-                placement.image.width?.resolve(placement.maxWidth),
-            decodeLogicalHeight:
-                placement.image.height?.resolve(placement.maxHeight)),
+      for (final placement in placements) placement.toRequest(),
     ];
   }
 

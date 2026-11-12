@@ -50,10 +50,6 @@ final class GridMotion extends LuckyMotion<GridConfig, GridLayout, GridFrame,
   @override
   Duration get maxFrameDelta => _options.maxFrameDelta;
 
-  /// 单列玩法列号固定为零。
-  @override
-  int get passedReel => 0;
-
   /// 本帧高亮变更的下标。
   @override
   int get passedIndex => frame.activeIndex;
@@ -182,7 +178,7 @@ final class GridMotion extends LuckyMotion<GridConfig, GridLayout, GridFrame,
   /// 加速阶段保留停止请求，加速完成后的推进帧直接投影为减速。
   bool requestStop(int? index, {int extraLaps = 0}) {
     if (_step == 3) return false;
-    if (phase != LuckyPhase.accelerating && phase != LuckyPhase.cruising) {
+    if (!phase.canStop) {
       return false;
     }
     if (index == null || index < 0) return cancel();
