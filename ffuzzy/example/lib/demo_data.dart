@@ -1,27 +1,66 @@
-// Shared sample data used across the demo tabs.
-//
-// 各 demo Tab 共用的示例数据。
-library;
-
-/// Plain-string corpus used by the search-mode / raws / async tabs.
-///
-/// 搜索模式/Raws变体/Async镜像 三个 Tab 共用的纯字符串语料。
+/// 搜索方法与变体共用的纯字符串语料。
 const List<String> demoItems = [
   'lib/src/widgets/scaffold.dart',
   'lib/src/material/app_bar.dart',
-  'packages/ffz/lib/ffz.dart',
-  'README.md',
+  'packages/ffuzzy/lib/ffuzzy.dart',
+  readmeItem,
   'CHANGELOG.md',
   '中文搜索引擎',
   'café_menu.json',
   'src/main.rs',
 ];
 
-/// Map records for the byKey / byKeys static-constructor demos.
-///
-/// 静态构造 Tab 里 byKey / byKeys 演示用的 Map 记录。
+/// byKey 与 byKeys 工厂共用的联系人。
 const List<Map<String, dynamic>> demoContacts = [
-  {'name': 'Alice Chen', 'email': 'alice@example.com', 'company': 'Acme'},
-  {'name': 'Bob Zhang', 'email': 'bob@example.com', 'company': 'Globex'},
-  {'name': 'Carol Wu', 'email': 'carol@acme.com', 'company': 'Acme'},
+  {
+    nameField: 'Alice Chen',
+    emailField: 'alice@example.com',
+    companyField: sampleCompany
+  },
+  {
+    nameField: 'Bob Zhang',
+    emailField: 'bob@example.com',
+    companyField: 'Globex'
+  },
+  {
+    nameField: 'Carol Wu',
+    emailField: 'carol@acme.com',
+    companyField: sampleCompany
+  },
 ];
+
+/// 卡片最多展示的命中条数。
+const resultLimit = 3;
+
+/// 联系人主字段。
+const nameField = 'name';
+
+/// 联系人多字段索引。
+const contactFields = [nameField, emailField, companyField];
+
+/// 开发期异步构建基准保留的条目数。
+const benchmarkSize = 3000;
+
+/// 联系人邮箱字段。
+const emailField = 'email';
+
+/// 联系人公司字段。
+const companyField = 'company';
+
+/// 查询标签英文。
+const queryEn = 'Query';
+
+/// 查询标签中文。
+const queryZh = '查询';
+
+/// 空结果英文。
+const emptyEn = 'No matches';
+
+/// 空结果中文。
+const emptyZh = '无匹配结果';
+
+/// 完整匹配示例的文档路径。
+const readmeItem = 'README.md';
+
+/// 多字段搜索用的共享公司名。
+const sampleCompany = 'Acme';

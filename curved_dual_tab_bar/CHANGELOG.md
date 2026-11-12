@@ -1,3 +1,7 @@
+## 0.2.5
+
+- Docs only: rewrote README wording in plain language and added a Chinese README (README.zh-CN.md).
+
 ## 0.2.4
 
 * Add `safeArea` (default `true`): wraps the bar in a top-only `SafeArea` internally, so it clears the status bar/notch out of the box when dropped straight into `Scaffold.appBar` via the new `PreferredSizeWidget` support. **Behavior change**: previously callers had to add their own `SafeArea`; existing call sites that already wrap this widget in their own `SafeArea` will now get it applied twice (harmless — nested `SafeArea`s are no-ops after the first) but can drop the outer one, or pass `safeArea: false` to opt out and keep doing it themselves.

@@ -17,12 +17,12 @@ const int _defaultVisible = 12;
 /// T5.7 的升签与加速时长。
 const Duration _defaultRiseTime = Duration(milliseconds: 600);
 
-/// 根据累计相位 [phaseDeg]（度）返回有限的 [-1, 1] 摇动幅度。
+/// 根据累计相位 [phaseDeg]（度）返回有限的 `[-1, 1]` 摇动幅度。
 ///
 /// 例如 `LotsOptions(shakeWaveform: (phaseDeg) => phaseDeg % 360 < 180 ? 1 : -1)`。
 typedef LotsShakeWaveform = double Function(double phaseDeg);
 
-/// 默认正弦波；将 [phaseDeg] 从度转弧度后返回 [-1, 1]。
+/// 默认正弦波；将 [phaseDeg] 从度转弧度后返回 `[-1, 1]`。
 ///
 /// 例如 `const LotsOptions(shakeWaveform: lotsSineWaveform)`。
 double lotsSineWaveform(double phaseDeg) => math.sin(luckyDegToRad(phaseDeg));

@@ -150,7 +150,7 @@ final class LuckyCanvasCompatResult<C> {
       Object.hash(config, width, height, Object.hashAll(warnings));
 }
 
-/// 迁移诊断；[path] 使用 prizes[2].fonts[0].fontSize 形式的字段路径。
+/// 迁移诊断；[path] 使用 `prizes[2].fonts[0].fontSize` 形式的字段路径。
 @immutable
 final class LuckyCanvasCompatWarning {
   /// 创建指定字段路径和中文说明的警告。
