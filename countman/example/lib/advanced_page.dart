@@ -134,6 +134,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
           children: [
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Second-level timer', '秒级计时器'),
                 description: tr(
                   context,
@@ -162,6 +163,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Precise comparison', '精细更新对照'),
                 description: tr(
                   context,
@@ -204,6 +206,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
           children: [
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: 'Countman.fps',
                 description: tr(
                   context,
@@ -252,6 +255,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: 'TickerMode',
                 description: tr(
                   context,
@@ -367,6 +371,7 @@ class _PomodoroDemoState extends State<_PomodoroDemo> {
         ? tr(context, 'Rest', '休息')
         : tr(context, 'Focus', '专注');
     return DemoCard(
+      replayable: false,
       title: tr(context, 'Pomodoro', '番茄钟'),
       description: tr(
         context,

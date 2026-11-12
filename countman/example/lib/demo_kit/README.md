@@ -45,6 +45,8 @@ DemoApp(
   Page content is capped at 1200px. Rows share height; cards cap at 420px.
   `DemoGridItem.span` is a column count; zero spans the whole row.
 - Use compact cards for small interactive examples; large panels span a row.
+  DemoCard replay remounts local child state. Set `replayable: false` when
+  controls or controllers outside the card already manage replay.
 - Put complete code on `DemoSection.code`. `CodeBlock` starts collapsed,
   expands across the section, scrolls horizontally and copies exact text.
 - `InfoNoteKind` supports tip, warning and deprecated messages.
@@ -52,3 +54,20 @@ DemoApp(
   full details. Use readable text, 12px gaps and 24px section spacing.
 - Copy `test/demo_kit_test.dart` too and adjust its package import.
 - Validate both languages and themes at 375x667 and 1440x900 before shipping.
+
+## countman page inventory
+
+The countman host registers these pages; demo_kit itself stays SDK-only.
+
+| Group (English / 中文) | Stable page IDs | Platforms |
+| --- | --- | --- |
+| Explore / 探索 | `counter`, `countdown`, `elapsed`, `renderers` | Web and native |
+| Under the hood / 深入了解 | `advanced`, `providers` | Web and native |
+| Benchmarks / 压测 | `stress`, `perf`, `digit-test` | Web and native; explicit Start/Stop, translated DemoPage and profile reminder |
+| Benchmarks / 压测 | `benchmark` | Web: translated native-desktop requirement; native: manual cross-library frame/FPS/RSS run |
+
+Links use `#/pages/<id>`. The separate native script entry retains
+`INITIAL_ROUTE=/benchmark`, `COUNTMAN_BENCH` and its existing named routes.
+Do not move browser-compatible stress/performance/digit diagnostics out of the
+public navigation. Browser numbers are only a reference; use desktop/real-device
+profile mode for benchmarks.

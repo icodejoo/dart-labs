@@ -18,6 +18,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -47,6 +58,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -83,6 +105,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -118,6 +151,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -152,6 +196,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -196,6 +251,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -231,6 +297,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -275,6 +352,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -311,6 +399,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -346,6 +445,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -379,6 +489,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -414,6 +535,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -461,6 +593,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -498,6 +641,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -529,6 +683,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -576,6 +741,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -587,15 +763,15 @@ const double demoCounterGoal = 100;
 
 /// 展示在同一个作用域里使用三个计时家族。
 Widget providerSample() => const CountmanProvider(
-  child: Column(
-    mainAxisSize: MainAxisSize.min,
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
     children: [
       TextCounter(
         to: demoCounterGoal,
-        style: TextCounterStyle(textStyle: demoNumberStyle),
+        style: TextCounterStyle(textStyle: demoCompactNumberStyle),
       ),
-      TextCountdown(to: demoDuration, style: demoTextStyle),
-      TextElapsed(style: demoTextStyle),
+      TextCountdown(to: demoDuration, style: demoCompactTextStyle),
+      TextElapsed(style: demoCompactTextStyle),
     ],
   ),
 );''',
@@ -617,6 +793,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
@@ -661,6 +848,17 @@ const demoDuration = Duration(minutes: 2);
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
 
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
+
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);
 
@@ -693,6 +891,17 @@ const demoDuration = Duration(minutes: 2);
 
 /// 示例共用的显示取整样式。
 const demoTextStyle = CountmanTextStyle(textStyle: demoNumberStyle);
+
+/// 并排展示多个家族时使用的紧凑数字样式。
+const demoCompactNumberStyle = TextStyle(
+  fontSize: 20,
+  fontWeight: FontWeight.w600,
+);
+
+/// 并排计时组件共用的样式对象。
+const demoCompactTextStyle = CountmanTextStyle(
+  textStyle: demoCompactNumberStyle,
+);
 
 /// 示例共用的短时上限与隐藏计时时长。
 const demoShortDuration = Duration(seconds: 8);

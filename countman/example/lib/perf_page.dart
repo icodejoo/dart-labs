@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
+import 'benchmark_common.dart';
+import 'demo_kit/demo_kit.dart';
 
 /// 大跨度快速计数用的 formatter：仅打散低位，结尾精确落在 [target]。
 ///
@@ -7,101 +9,206 @@ import 'package:countman/countman.dart';
 String Function(double) movingFormatter(double target, double step) =>
     _PerfPageState._movingFormatter(target, step);
 
-/// Performance test page.
-/// Animates multiple counters from 0 → 999,999,999 over 10 s.
-/// Open via route '/perf'.
+/// 六种效果各五个计数器的大跨度性能对照页。
 class PerfPage extends StatefulWidget {
+  /// 创建手动启动的性能对照页。
   const PerfPage({super.key});
+
+  /// 创建计数目标与运行状态。
   @override
   State<PerfPage> createState() => _PerfPageState();
 }
 
+/// 持有目标值和用于立即停止的挂载代次。
 class _PerfPageState extends State<PerfPage> {
+  /// 当前计数目标。
   double _value = 0;
 
-  void _start() => setState(() => _value = 999999999);
+  /// 停止时更换子树以立即清除动画。
+  int _generation = 0;
+
+  /// 切换目标，运行全部六组计数器。
+  void _start() {
+    setState(() {
+      _value = 0;
+      _generation++;
+    });
+    final generation = _generation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && generation == _generation) {
+        setState(() => _value = benchmarkTarget);
+      }
+    });
+  }
+
+  /// 保留原有反向归零效果。
   void _reset() => setState(() => _value = 0);
 
-  static const _dur = Duration(seconds: 10);
+  /// 立即停止并挂载静止的零值实例。
+  void _stop() => setState(() {
+    _value = 0;
+    _generation++;
+  });
+
+  /// 黑色演示区域的数字样式。
   // Explicit white: the page forces a black background, so relying on the
   // theme's default text color makes digits invisible under a light theme.
   //
   // 显式白色：本页强制黑底，若依赖主题默认文字色，浅色主题下数字会看不见。
-  static const _ts  = TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white);
+  static const _ts = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  );
 
+  /// 构建统一骨架、显式控件与黑底性能对照区。
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Perf Test  0 → 999,999,999 · 10 s'),
-        backgroundColor: Colors.black,
-        // Forced dark app bar → set light foreground so the title/actions stay
-        // visible under a light theme (default foreground follows the theme).
-        //
-        // 强制深色 AppBar → 设浅色前景，使标题/操作在浅色主题下仍可见。
-        foregroundColor: Colors.white,
-        actions: [
-          TextButton(onPressed: _reset, child: const Text('Reset')),
-          const SizedBox(width: 8),
-          FilledButton(onPressed: _start, child: const Text('Start')),
-          const SizedBox(width: 12),
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, 'Performance', '性能对照'),
+    description: tr(
+      context,
+      'Six effects, five counters each: 0 → 999,999,999 in 10 s. Start, reverse to zero, or stop immediately.',
+      '六种效果各五个实例：10 秒内 0 → 999,999,999；可开始、反向归零或立即停止。',
+    ),
+    sections: [
+      const BenchmarkNotice(),
+      Wrap(
+        spacing: DemoTokens.gap,
+        runSpacing: DemoTokens.smallGap,
+        children: [
+          FilledButton(
+            onPressed: _start,
+            child: Text(BenchmarkLabels.start(context)),
+          ),
+          OutlinedButton(
+            onPressed: _reset,
+            child: Text(BenchmarkLabels.reset(context)),
+          ),
+          OutlinedButton(
+            onPressed: _stop,
+            child: Text(BenchmarkLabels.stop(context)),
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _group('AnimatedCounter — roll (default)', [
-              for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value,
-                    format: const CounterFormat(thousandSeparator: ','),
-                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
-                    style: const AnimatedCounterStyle(textStyle: _ts)),
-            ]),
-            _group('AnimatedCounter — flip', [
-              for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value,
-                    transition: CounterTransition.flip,
-                    format: const CounterFormat(thousandSeparator: ','),
-                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
-                    style: const AnimatedCounterStyle(textStyle: _ts)),
-            ]),
-            _group('AnimatedCounter — blur', [
-              for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value,
-                    transition: CounterTransition.slideBlur,
-                    format: const CounterFormat(thousandSeparator: ','),
-                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear),
-                    style: const AnimatedCounterStyle(textStyle: _ts)),
-            ]),
-            _group('AnimatedCounter — stagger', [
-              for (var i = 0; i < 5; i++)
-                AnimatedCounter(value: _value,
-                    format: const CounterFormat(thousandSeparator: ','),
-                    timeline: const CounterTimeline(duration: _dur, curve: Curves.linear, staggerDelay: Duration(milliseconds: 80)),
-                    style: const AnimatedCounterStyle(textStyle: _ts)),
-            ]),
-            _group('OdometerCounter', [
-              for (var i = 0; i < 5; i++)
-                OdometerCounter(to: _value, duration: _dur, curve: Curves.linear,
-                    style: const OdometerCounterStyle(
-                        numberTextStyle: _ts),
-                    groupSeparator: ','),
-            ]),
-            _group('TextCounter', [
-              for (var i = 0; i < 5; i++)
-                TextCounter(to: _value, duration: _dur, curve: Curves.linear,
-                    formatter: _movingFormatter(
-                        _value, _value / (_dur.inMilliseconds / 16.667)),
-                    style: const TextCounterStyle(textStyle: _ts)),
-            ]),
-          ],
+      ColoredBox(
+        color: Colors.black,
+        child: Padding(
+          padding: const EdgeInsets.all(DemoTokens.padding),
+          child: KeyedSubtree(
+            key: ValueKey(_generation),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _group(
+                  tr(
+                    context,
+                    'AnimatedCounter — roll (default)',
+                    'AnimatedCounter — 默认滚动',
+                  ),
+                  [
+                    for (var i = 0; i < benchmarkInstances; i++)
+                      AnimatedCounter(
+                        value: _value,
+                        format: benchmarkFormat,
+                        timeline: const CounterTimeline(
+                          duration: benchmarkDuration,
+                          curve: Curves.linear,
+                        ),
+                        style: const AnimatedCounterStyle(textStyle: _ts),
+                      ),
+                  ],
+                ),
+                _group(
+                  tr(context, 'AnimatedCounter — flip', 'AnimatedCounter — 翻转'),
+                  [
+                    for (var i = 0; i < benchmarkInstances; i++)
+                      AnimatedCounter(
+                        value: _value,
+                        transition: CounterTransition.flip,
+                        format: benchmarkFormat,
+                        timeline: const CounterTimeline(
+                          duration: benchmarkDuration,
+                          curve: Curves.linear,
+                        ),
+                        style: const AnimatedCounterStyle(textStyle: _ts),
+                      ),
+                  ],
+                ),
+                _group(
+                  tr(
+                    context,
+                    'AnimatedCounter — blur',
+                    'AnimatedCounter — 模糊滑动',
+                  ),
+                  [
+                    for (var i = 0; i < benchmarkInstances; i++)
+                      AnimatedCounter(
+                        value: _value,
+                        transition: CounterTransition.slideBlur,
+                        format: benchmarkFormat,
+                        timeline: const CounterTimeline(
+                          duration: benchmarkDuration,
+                          curve: Curves.linear,
+                        ),
+                        style: const AnimatedCounterStyle(textStyle: _ts),
+                      ),
+                  ],
+                ),
+                _group(
+                  tr(
+                    context,
+                    'AnimatedCounter — stagger',
+                    'AnimatedCounter — 交错',
+                  ),
+                  [
+                    for (var i = 0; i < benchmarkInstances; i++)
+                      AnimatedCounter(
+                        value: _value,
+                        format: benchmarkFormat,
+                        timeline: const CounterTimeline(
+                          duration: benchmarkDuration,
+                          curve: Curves.linear,
+                          staggerDelay: Duration(milliseconds: 80),
+                        ),
+                        style: const AnimatedCounterStyle(textStyle: _ts),
+                      ),
+                  ],
+                ),
+                _group(
+                  tr(context, 'OdometerCounter', 'OdometerCounter · 里程表'),
+                  [
+                    for (var i = 0; i < benchmarkInstances; i++)
+                      OdometerCounter(
+                        to: _value,
+                        duration: benchmarkDuration,
+                        curve: Curves.linear,
+                        style: const OdometerCounterStyle(numberTextStyle: _ts),
+                        groupSeparator: benchmarkSeparator,
+                      ),
+                  ],
+                ),
+                _group(tr(context, 'TextCounter', 'TextCounter · 文本'), [
+                  for (var i = 0; i < benchmarkInstances; i++)
+                    TextCounter(
+                      to: _value,
+                      duration: benchmarkDuration,
+                      curve: Curves.linear,
+                      formatter: _movingFormatter(
+                        _value,
+                        _value /
+                            (benchmarkDuration.inMilliseconds /
+                                benchmarkFrameMs),
+                      ),
+                      style: const TextCounterStyle(textStyle: _ts),
+                    ),
+                ]),
+              ],
+            ),
+          ),
         ),
       ),
-    );
-  }
+    ],
+  );
 
   /// A truthful-where-readable `formatter` for a huge fast count: each frame it
   /// shows `trueValue − rand[0, step)`. The subtraction is smaller than one
@@ -130,7 +237,8 @@ class _PerfPageState extends State<PerfPage> {
       final iv = v.round();
       if (!applies || iv >= tgt || iv <= 0) return '$iv'; // exact true value
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      final disp = iv - (seed % st); // subtract < one step → high digits stay true
+      final disp =
+          iv - (seed % st); // subtract < one step → high digits stay true
       return '${disp < 0 ? 0 : disp}';
     };
   }
@@ -147,26 +255,40 @@ class _PerfPageState extends State<PerfPage> {
     return m == 1;
   }
 
+  /// 平铺一组同类计数器，保持全部实例挂载。
   Widget _group(String title, List<Widget> children) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(title,
-            style: const TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 0.8)),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            letterSpacing: 0.8,
+          ),
+        ),
       ),
       Wrap(
-        spacing: 12, runSpacing: 8,
-        children: children.map((w) => Card(
-          color: Colors.grey[900],
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: w,
-          ),
-        )).toList(),
+        spacing: 12,
+        runSpacing: 8,
+        children: children
+            .map(
+              (w) => Card(
+                color: Colors.grey[900],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: w,
+                ),
+              ),
+            )
+            .toList(),
       ),
       const SizedBox(height: 8),
     ],
   );
 }
-

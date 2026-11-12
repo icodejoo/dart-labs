@@ -68,6 +68,7 @@ class _ElapsedPageState extends State<ElapsedPage> {
           children: [
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Stopwatch & laps', '秒表与圈速'),
                 description: tr(
                   context,
@@ -104,6 +105,7 @@ class _ElapsedPageState extends State<ElapsedPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Elapsed since', '从起点计时'),
                 description: tr(
                   context,
@@ -115,6 +117,7 @@ class _ElapsedPageState extends State<ElapsedPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Completion limit', '时长上限'),
                 description: tr(
                   context,

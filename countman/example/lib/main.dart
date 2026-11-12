@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'advanced_page.dart';
+import 'benchmark_demo_page.dart';
+import 'digit_test_page.dart';
+import 'perf_page.dart';
+import 'stress_page.dart';
 import 'card_demo_page.dart';
 import 'counter_page.dart';
 import 'countdown_page.dart';
 import 'elapsed_page.dart';
 import 'provider_page.dart';
-import 'stress_page.dart';
 import 'demo_kit/demo_kit.dart';
 import 'bench_entry_stub.dart' if (dart.library.io) 'bench_entry_native.dart';
 
@@ -19,6 +22,12 @@ const initialDemoRoute = String.fromEnvironment(
 /// 原生开发入口默认关闭，旧脚本路由仍可显式启用。
 const benchEnabled =
     bool.fromEnvironment('COUNTMAN_BENCH') || initialDemoRoute == '/benchmark';
+
+/// 压测导航分组英文标题。
+const _benchmarksEn = 'Benchmarks';
+
+/// 压测导航分组中文标题。
+const _benchmarksZh = '压测';
 
 /// 启动线上演示或显式启用的原生基准入口。
 void main() => runApp(
@@ -38,7 +47,7 @@ class CountmanDemoApp extends StatelessWidget {
   /// 可选外部管理的语言状态。
   final DemoLocale? locale;
 
-  /// 构建六个线上页面与统一骨架。
+  /// 构建功能示例、压测页面与统一骨架。
   @override
   Widget build(BuildContext context) => DemoApp(
     title: 'countman',
@@ -104,9 +113,36 @@ class CountmanDemoApp extends StatelessWidget {
           en: 'Stress test',
           zh: '并发压测',
           icon: Icons.speed_rounded,
-          sectionEn: 'Under the hood',
-          sectionZh: '深入了解',
+          sectionEn: _benchmarksEn,
+          sectionZh: _benchmarksZh,
           builder: (_) => const StressPage(),
+        ),
+        DemoDestination(
+          id: 'perf',
+          en: 'Performance',
+          zh: '性能对照',
+          icon: Icons.monitor_heart_outlined,
+          sectionEn: _benchmarksEn,
+          sectionZh: _benchmarksZh,
+          builder: (_) => const PerfPage(),
+        ),
+        DemoDestination(
+          id: 'digit-test',
+          en: 'Digit debug',
+          zh: '数字诊断',
+          icon: Icons.bug_report_outlined,
+          sectionEn: _benchmarksEn,
+          sectionZh: _benchmarksZh,
+          builder: (_) => const DigitTestPage(),
+        ),
+        DemoDestination(
+          id: 'benchmark',
+          en: 'Native benchmark',
+          zh: '原生基准',
+          icon: Icons.desktop_windows_outlined,
+          sectionEn: _benchmarksEn,
+          sectionZh: _benchmarksZh,
+          builder: (_) => const BenchmarkDemoPage(),
         ),
       ],
     ),

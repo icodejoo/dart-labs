@@ -38,6 +38,7 @@ class _ProviderPageState extends State<ProviderPage> {
           children: [
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: 'CountmanProvider',
                 description: tr(
                   context,
@@ -60,6 +61,7 @@ class _ProviderPageState extends State<ProviderPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: 'CountmanTheme',
                 description: tr(
                   context,

@@ -2,19 +2,8 @@ import 'package:countman/countman.dart';
 import 'package:flutter/material.dart';
 import 'demo_kit/demo_kit.dart';
 import 'demo_samples.dart';
+import 'benchmark_common.dart';
 import 'perf_page.dart' show movingFormatter;
-
-/// 压测的目标值：九位全 9，覆盖低位快速翻滚的最坏情况。
-const double _stressTarget = 999999999;
-
-/// 压测的单次动画时长。
-const Duration _stressDuration = Duration(seconds: 10);
-
-/// 每个玩法并发的实例数。
-const int _instancesPerGroup = 5;
-
-/// 千分位格式，全部玩法共用。
-const CounterFormat _stressFormat = CounterFormat(thousandSeparator: ',');
 
 /// 并发压测页：每种玩法同时跑多个实例，每个实例可单独重播。
 class StressPage extends StatefulWidget {
@@ -31,8 +20,20 @@ class _StressPageState extends State<StressPage> {
   /// 全部重播的代次。
   int _generation = 0;
 
+  /// 是否允许挂载实例开始动画。
+  bool _running = false;
+
   /// 让所有实例同时从 0 重新开始。
-  void _restartAll() => setState(() => _generation++);
+  void _restartAll() => setState(() {
+    _running = true;
+    _generation++;
+  });
+
+  /// 卸载运行中的实例，归零时不反向播放。
+  void _stopAll() => setState(() {
+    _running = false;
+    _generation++;
+  });
 
   /// 构建一个玩法分组：并发的实例各占一张可重播卡片。
   DemoSection _group(
@@ -44,7 +45,7 @@ class _StressPageState extends State<StressPage> {
       key: ValueKey('$title/$_generation'),
       child: DemoGrid(
         children: [
-          for (var i = 1; i <= _instancesPerGroup; i++)
+          for (var i = 1; i <= benchmarkInstances; i++)
             DemoGridItem(
               child: DemoCard(
                 title: '$title #$i',
@@ -53,7 +54,8 @@ class _StressPageState extends State<StressPage> {
                   '0 → 999,999,999 in 10 s. Replay restarts only this instance.',
                   '10 秒内 0 → 999,999,999；重播只重启这一个实例。',
                 ),
-                child: _FromZero(builder: builder),
+                replayable: _running,
+                child: _FromZero(active: _running, builder: builder),
               ),
             ),
         ],
@@ -67,66 +69,74 @@ class _StressPageState extends State<StressPage> {
     title: tr(context, 'Stress test', '并发压测'),
     description: tr(
       context,
-      'Run many counters at once from 0 to 999,999,999. Replay one, or restart all.',
-      '同时运行多个计数器，从 0 到 999,999,999；可单个重播，也可全部重来。',
+      'Manually run 30 counters from 0 to 999,999,999. Replay one, restart all, or stop.',
+      '手动启动 30 个计数器，从 0 到 999,999,999；可单个重播、全部重来或停止。',
     ),
     sections: [
+      const BenchmarkNotice(),
       DemoSection(
         title: tr(context, 'Run all', '全部运行'),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            onPressed: _restartAll,
-            icon: const Icon(Icons.replay_rounded),
-            label: Text(tr(context, 'Restart all', '全部重来')),
-          ),
+        child: Wrap(
+          spacing: DemoTokens.gap,
+          runSpacing: DemoTokens.smallGap,
+          children: [
+            FilledButton.icon(
+              onPressed: _restartAll,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(BenchmarkLabels.start(context)),
+            ),
+            OutlinedButton(
+              onPressed: _running ? _stopAll : null,
+              child: Text(BenchmarkLabels.stop(context)),
+            ),
+          ],
         ),
       ),
       _group(
-        'AnimatedCounter · roll',
+        tr(context, 'AnimatedCounter · roll', 'AnimatedCounter · 滚动'),
         (v) => AnimatedCounter(
           value: v,
-          format: _stressFormat,
+          format: benchmarkFormat,
           timeline: const CounterTimeline(
-            duration: _stressDuration,
+            duration: benchmarkDuration,
             curve: Curves.linear,
           ),
           style: const AnimatedCounterStyle(textStyle: demoNumberStyle),
         ),
       ),
       _group(
-        'AnimatedCounter · flip',
+        tr(context, 'AnimatedCounter · flip', 'AnimatedCounter · 翻转'),
         (v) => AnimatedCounter(
           value: v,
           transition: CounterTransition.flip,
-          format: _stressFormat,
+          format: benchmarkFormat,
           timeline: const CounterTimeline(
-            duration: _stressDuration,
+            duration: benchmarkDuration,
             curve: Curves.linear,
           ),
           style: const AnimatedCounterStyle(textStyle: demoNumberStyle),
         ),
       ),
       _group(
-        'AnimatedCounter · blur',
+        tr(context, 'AnimatedCounter · blur', 'AnimatedCounter · 模糊滑动'),
         (v) => AnimatedCounter(
           value: v,
           transition: CounterTransition.slideBlur,
-          format: _stressFormat,
+          format: benchmarkFormat,
           timeline: const CounterTimeline(
-            duration: _stressDuration,
+            duration: benchmarkDuration,
             curve: Curves.linear,
           ),
           style: const AnimatedCounterStyle(textStyle: demoNumberStyle),
         ),
       ),
       _group(
-        'AnimatedCounter · stagger',
+        tr(context, 'AnimatedCounter · stagger', 'AnimatedCounter · 交错'),
         (v) => AnimatedCounter(
           value: v,
-          format: _stressFormat,
+          format: benchmarkFormat,
           timeline: const CounterTimeline(
-            duration: _stressDuration,
+            duration: benchmarkDuration,
             curve: Curves.linear,
             staggerDelay: Duration(milliseconds: 80),
           ),
@@ -134,24 +144,24 @@ class _StressPageState extends State<StressPage> {
         ),
       ),
       _group(
-        'OdometerCounter',
+        tr(context, 'OdometerCounter · odometer', 'OdometerCounter · 里程表'),
         (v) => OdometerCounter(
           to: v,
-          duration: _stressDuration,
+          duration: benchmarkDuration,
           curve: Curves.linear,
-          groupSeparator: ',',
+          groupSeparator: benchmarkSeparator,
           style: const OdometerCounterStyle(numberTextStyle: demoNumberStyle),
         ),
       ),
       _group(
-        'TextCounter',
+        tr(context, 'TextCounter · text', 'TextCounter · 文本'),
         (v) => TextCounter(
           to: v,
-          duration: _stressDuration,
+          duration: benchmarkDuration,
           curve: Curves.linear,
           formatter: movingFormatter(
             v,
-            v / (_stressDuration.inMilliseconds / 16.667),
+            v / (benchmarkDuration.inMilliseconds / benchmarkFrameMs),
           ),
           style: const TextCounterStyle(textStyle: demoNumberStyle),
         ),
@@ -163,7 +173,10 @@ class _StressPageState extends State<StressPage> {
 /// 挂载时先以 0 渲染，下一帧再切到压测目标，使每次挂载都从 0 重播。
 class _FromZero extends StatefulWidget {
   /// 创建从 0 起跑的包装，[builder] 接收当前目标值。
-  const _FromZero({required this.builder});
+  const _FromZero({required this.active, required this.builder});
+
+  /// 用户已启动本轮时才允许首帧后切换目标。
+  final bool active;
 
   /// 按当前值构建被压测的计数器。
   final Widget Function(double value) builder;
@@ -182,8 +195,9 @@ class _FromZeroState extends State<_FromZero> {
   @override
   void initState() {
     super.initState();
+    if (!widget.active) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _value = _stressTarget);
+      if (mounted) setState(() => _value = benchmarkTarget);
     });
   }
 

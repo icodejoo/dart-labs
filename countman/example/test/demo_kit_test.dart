@@ -92,7 +92,6 @@ class _MountProbeState extends State<_MountProbe> {
   Widget build(BuildContext context) => const Text('probe');
 }
 
-
 void main() {
   test('URL language wins; Chinese locales and fallback resolve', () {
     final chinese = DemoLocale(
@@ -190,7 +189,10 @@ void main() {
             .arguments['uri'],
         '/pages/two',
       );
-      expect(routes.any((call) => call.method == 'selectMultiEntryHistory'), isTrue);
+      expect(
+        routes.any((call) => call.method == 'selectMultiEntryHistory'),
+        isTrue,
+      );
       await tester.binding.handlePushRoute('/pages/one');
       await tester.pumpAndSettle();
       expect(find.text('Hello'), findsOneWidget);
@@ -470,10 +472,36 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(DemoCard), findsNWidgets(30));
-    expect(find.byIcon(Icons.replay_rounded), findsNWidgets(31));
-    await tester.tap(find.byIcon(Icons.replay_rounded).at(1));
+    expect(find.byIcon(Icons.replay_rounded), findsNothing);
+    await tester.tap(find.text('Start / restart'));
+    await tester.pump();
+    expect(find.byIcon(Icons.replay_rounded), findsNWidgets(30));
+    await tester.tap(find.byIcon(Icons.replay_rounded).first);
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('card replay remounts its local demo state', (tester) async {
+    final locale = DemoLocale(uri: Uri.parse('$_url?lang=en'));
+    await tester.pumpWidget(
+      DemoApp(
+        title: 'replay',
+        seedColor: Colors.blue,
+        locale: locale,
+        home: const Scaffold(
+          body: DemoCard(
+            title: 'Local state',
+            description: 'Reset child state',
+            child: TextField(),
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'changed');
+    await tester.tap(find.byTooltip('Replay'));
+    await tester.pump();
+    expect(find.text('changed'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    locale.dispose();
   });
 }

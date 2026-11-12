@@ -68,6 +68,7 @@ class _CountdownPageState extends State<CountdownPage> {
           children: [
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Pause & resume', '暂停与继续'),
                 description: tr(
                   context,
@@ -100,6 +101,7 @@ class _CountdownPageState extends State<CountdownPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Progress denominator', '进度分母'),
                 description: tr(
                   context,
@@ -111,6 +113,7 @@ class _CountdownPageState extends State<CountdownPage> {
             ),
             DemoGridItem(
               child: DemoCard(
+                replayable: false,
                 title: tr(context, 'Absolute deadline', '绝对截止时间'),
                 description: tr(
                   context,

@@ -17,6 +17,10 @@ void main() {
     'renderers',
     'advanced',
     'providers',
+    'stress',
+    'perf',
+    'digit-test',
+    'benchmark',
   ];
   for (final width in <double>[375, 1440]) {
     for (final page in pages) {
@@ -106,7 +110,7 @@ void main() {
     expect(app.initialRoute, '/benchmark');
     expect(
       app.routes!.keys,
-      containsAll(['/benchmark', '/perf', '/digit-test']),
+      containsAll(['/benchmark', '/perf', '/digit-test', '/stress']),
     );
     expect((buildBenchApp('/') as MaterialApp).initialRoute, '/benchmark');
   });

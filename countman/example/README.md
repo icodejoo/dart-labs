@@ -28,6 +28,10 @@ native `window.open`; native applications copy links to the clipboard.
 | Card & dial | Calendar/slide/flip, dial, bitmap cache release | Large effect matrix; dial import workaround |
 | Advanced | Passive frame/wake counters, fps, hidden muting, pomodoro | Old scheduler assumptions and performance claims |
 | Providers & theme | Aggregate provider, CountmanTheme | Deprecated provider-level style arguments |
+| Benchmarks / 压测: Stress (`stress`) | 30 counters, per-instance replay, start/restart and stop | Available on Web and native |
+| Benchmarks / 压测: Performance (`perf`) | Six effects × five counters, 10 s, start/reset/stop | Available on Web and native |
+| Benchmarks / 压测: Digit debug (`digit-test`) | 0 → 99 and reverse, original nine-digit normalized logs | Available on Web and native |
+| Benchmarks / 压测: Native benchmark (`benchmark`) | Cross-library 50-countdown frame/FPS/RSS comparison | Web shows “该页需桌面原生运行 / This page requires a native desktop app.” |
 
 Styles now use style objects; AnimatedCounter formatting and timing use
 CounterFormat and CounterTimeline. No old 0.2.x performance figures appear in
@@ -37,9 +41,19 @@ comparison and other animations when observing second-level sleeping.
 
 ## Native development benchmarks
 
-`benchmark_page.dart`, `perf_page.dart`, `digit_test_page.dart`, the frame driver
-and presentation statistics remain available outside the public shell.
-They are conditionally imported only on native platforms. Web never exposes them.
+The public shell retains the **Benchmarks / 压测** group at
+`#/pages/stress`, `#/pages/perf`, `#/pages/digit-test` and `#/pages/benchmark`.
+Each page uses DemoPage, translated controls and a profile-mode reminder.
+Heavy workloads start only after an explicit button click; Stop immediately
+unmounts active instances. Stress retains individual replay after starting;
+Performance and Digit debug also retain reverse-to-zero Reset.
+
+浏览器里的数字仅供参考，真实基准请用桌面 / 真机 profile 模式。
+Browser numbers are for reference only; use desktop or a real device in profile
+mode for real benchmarks. Only the native benchmark panel, frame driver and
+presentation statistics are conditionally imported: its process environment,
+RSS sampling and isolated-run exit require `dart:io`. Web displays a translated
+native-desktop requirement without loading that implementation.
 
 ```powershell
 flutter run --profile -d windows --dart-define=COUNTMAN_BENCH=true
@@ -47,10 +61,15 @@ flutter run --profile -d windows --dart-define=COUNTMAN_BENCH=true --dart-define
 flutter run --profile -d windows --dart-define=COUNTMAN_BENCH=true --dart-define=INITIAL_ROUTE=/digit-test
 ```
 
-The existing `tool/bench_desktop.ps1` and `tool/bench.ps1` commands still work:
-`--dart-define=INITIAL_ROUTE=/benchmark` alone explicitly enables the native
-benchmark entry. Neither script needs editing. Benchmarks must run in a real
-native window; their results are not reproduced on the public site.
+The existing `tool/bench_desktop.ps1` still uses
+`--dart-define=INITIAL_ROUTE=/benchmark`, which alone explicitly enables the
+native benchmark entry, including automatic collection and BENCH_LIB isolated-run
+exit for script compatibility. COUNTMAN_BENCH continues to enable the same named
+routes (`/benchmark`, `/perf`, `/digit-test`, `/stress`). This explicit script
+entry is the exception to the public shell's manual-start behavior.
+`tool/bench.ps1` runs tagged engine/painter tests and
+does not depend on example routes. Neither script needs editing. Benchmarks must run in a real
+native window; their results are not reproduced by browser timing figures.
 
 ## Validation and snippets
 
