@@ -195,6 +195,9 @@ class XvgAnimationController extends ChangeNotifier {
   /// Ready widgets in readiness order. / 按就绪次序排列的控件。
   final _attachments = <Object, _Attachment>{};
 
+  /// Whether every ready widget freezes. / 是否全部就绪控件都在冻结。
+  bool _allFrozen = false;
+
   /// Cue callbacks grouped by document time. / 按文档时刻分组的 cue 回调。
   final _cues = <Duration, List<VoidCallback>>{};
 
@@ -354,14 +357,18 @@ class XvgAnimationController extends ChangeNotifier {
   /// 600 s to 3600 s jump in a three-dot animation).
   /// 钳位到当前边界与约 115 天安全上限；大幅前跳可能产生一次性开销
   /// （三点环实测从 600 秒跳到 3600 秒约需 9.5 毫秒）。
-  void seek(Duration t) {
+  void seek(Duration t) => _seek(t);
+
+  /// Applies a seek; internal first-frame freezing may bypass range bounds.
+  /// 执行跳转；内部首帧冻结可绕过片段边界，公开 seek 仍遵守片段范围。
+  void _seek(Duration t, {bool clampToRange = true}) {
     _assertAlive();
     final revision = ++_revision;
     if (_status == XvgPlaybackStatus.completed) {
       _wantsPlay = false;
       _status = XvgPlaybackStatus.paused;
     }
-    _time.value = _clamp(t);
+    _time.value = clampToRange ? _clamp(t) : t;
     if (_disposed || revision != _revision) return;
     _rebase();
     _refreshStatus();
@@ -502,12 +509,19 @@ class XvgAnimationController extends ChangeNotifier {
     Object owner, {
     required SvgDocument document,
     required bool visible,
+    bool frozen = false,
     required XvgAnimationQuality Function() quality,
     required int Function() fpsDivisor,
   }) {
     _assertAlive();
     final revision = ++_revision;
-    _attachments[owner] = _Attachment(document, visible, quality, fpsDivisor);
+    _attachments[owner] = _Attachment(
+      document,
+      visible,
+      frozen,
+      quality,
+      fpsDivisor,
+    );
     if (_status == XvgPlaybackStatus.error) {
       _status = XvgPlaybackStatus.loading;
     }
@@ -530,11 +544,15 @@ class XvgAnimationController extends ChangeNotifier {
     _syncSubscription();
   }
 
-  /// Updates a widget's TickerMode eligibility. / 更新控件的 TickerMode 可见性。
+  /// Updates TickerMode/freeze eligibility without changing playback intent.
+  /// 更新 TickerMode/冻结播放资格，不改变播放意图。
   @internal
-  void setVisible(Object owner, bool visible) {
+  void setVisible(Object owner, bool visible, {bool frozen = false}) {
     _assertAlive();
-    _attachments[owner]?.visible = visible;
+    final attachment = _attachments[owner];
+    if (attachment == null) return;
+    attachment.visible = visible;
+    attachment.frozen = frozen;
     _syncSubscription();
   }
 
@@ -670,6 +688,25 @@ class XvgAnimationController extends ChangeNotifier {
   /// Joins the shared clock only while requested and at least one widget is visible.
   /// 仅请求播放且至少一个控件可见时订阅共享时钟。
   void _syncSubscription() {
+    final allFrozen =
+        !_externallyDriven &&
+        _attachments.isNotEmpty &&
+        _attachments.values.every((attachment) => attachment.frozen);
+    if (allFrozen != _allFrozen) {
+      _allFrozen = allFrozen;
+      if (allFrozen) {
+        // Seek once on entry; its subscription sync sees the updated flag.
+        // 仅进入时跳转一次；seek 再同步订阅时会看到已更新的标记。
+        _seek(Duration.zero, clampToRange: false);
+        return;
+      }
+      if (_time.value != _clamp(_time.value)) {
+        // Restore selected bounds before resuming a frozen nonzero range.
+        // 非零起点片段解除冻结时，先恢复片段边界再继续播放。
+        seek(_time.value);
+        return;
+      }
+    }
     final eligible =
         !_externallyDriven &&
         _status == XvgPlaybackStatus.playing &&
@@ -905,13 +942,23 @@ class XvgAnimationController extends ChangeNotifier {
 /// One ready widget's live playback preferences. / 一个就绪控件的实时播放偏好。
 final class _Attachment {
   /// Creates a widget attachment. / 创建控件挂载记录。
-  _Attachment(this.document, this.visible, this.quality, this.fpsDivisor);
+  _Attachment(
+    this.document,
+    this.visible,
+    this.frozen,
+    this.quality,
+    this.fpsDivisor,
+  );
 
   /// Ready document. / 就绪文档。
   final SvgDocument document;
 
-  /// Current TickerMode eligibility. / 当前 TickerMode 可见性。
+  /// Current TickerMode/freeze eligibility. / 当前 TickerMode/冻结播放资格。
   bool visible;
+
+  /// Resolved freeze preference, separate from TickerMode.
+  /// 已解析的冻结偏好，与 TickerMode 分开保存。
+  bool frozen;
 
   /// Live quality preference. / 实时画质偏好。
   final XvgAnimationQuality Function() quality;
