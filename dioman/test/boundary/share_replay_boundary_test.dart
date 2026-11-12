@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
-import '../support/b4_helpers.dart';
+import '../support/auth_test_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -82,7 +82,7 @@ void main() {
                   call: b4Call(
                       share: DiomanShareOptions(
                           policy: DiomanSharePolicy.retry, retries: count))))
-              .httpStatus,
+              .status,
           500);
       expect(net.sends.length, count == null ? 4 : 1);
     }

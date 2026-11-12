@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "findings": 1,
+  "severity": "P2",
+  "issue": "deadline 被 breaker 当作普通取消，未计入失败",
+  "fixed": true,
+  "proof": "coverage/r6b-breaker-before.log 修复前 2 失败；最终全量覆盖默认、自定义和半开探测",
+  "raw_log": "coverage/r6b-review.log",
+  "execution_deviation": "review 内部额外执行未设置 concurrency=1 的全量测试并写入 TEMP；正式证据仅使用独立串行最终运行"
+}

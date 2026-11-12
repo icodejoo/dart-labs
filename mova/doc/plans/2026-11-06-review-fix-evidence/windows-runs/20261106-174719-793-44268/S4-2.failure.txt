@@ -1,0 +1,10 @@
+Bad state: Orphan neither removed nor uniquely adopted
+#0      require (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:25:19)
+#1      deletionRace.<anonymous closure> (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:559:7)
+<asynchronous suspension>
+#2      runCase (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:319:5)
+<asynchronous suspension>
+#3      deletionRace (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:492:3)
+<asynchronous suspension>
+#4      main (file:///E:/workspaces/dart-labs-mova/mova/example/tool/win_lease_verify/verify.dart:720:7)
+<asynchronous suspension>

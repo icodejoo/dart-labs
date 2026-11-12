@@ -1,7 +1,9 @@
+import 'package:dioman/src/response.dart' show DiomanResponseInternal;
+import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
+import '../support/auth_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/helpers.dart';
 
@@ -12,7 +14,7 @@ const _retryHeader = 'retry-after';
 const _serverSeconds = '2';
 
 /// 普通退避窗口。
-const _normalDelay = Duration(seconds: 3);
+const _normalDelay = Duration(milliseconds: 300);
 
 /// 验证覆盖选项的实际等待时间，不只检验发送次数。
 void main() {
@@ -44,7 +46,10 @@ void main() {
         }),
         b3Tick
       ),
-      (const DiomanRetryOptions(delayMax: b3Tick), b3Tick),
+      (
+        const DiomanRetryOptions(delayMax: Duration(milliseconds: 100)),
+        const Duration(milliseconds: 100)
+      ),
       (
         DiomanRetryOptions(jitter: (Duration raw) {
           expect(raw, _normalDelay);
@@ -68,11 +73,9 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           sends++;
-          return DiomanResponse<dynamic>(
+          final result = DiomanResponse<dynamic>(
               ok: false,
-              kind: DiomanKind.biz,
               status: 500,
-              httpStatus: 200,
               data: null,
               request: ctx.request,
               raw: Response<dynamic>(
@@ -80,6 +83,8 @@ void main() {
                   headers: Headers.fromMap({
                     _retryHeader: [_serverSeconds]
                   })));
+          DiomanResponseInternal.setRetryAfter(result, _serverSeconds);
+          return result;
         })
       ]);
       final pending = api.send<Object?>(b3ValueGet, b3Path,
@@ -113,8 +118,7 @@ void main() {
         TestPlugin(b3ValueResult, stage: DiomanStage.source,
             handler: (ctx, next) async {
           sends++;
-          return ctx
-              .fail(const DiomanFailure(kind: DiomanKind.http, status: 400));
+          return scriptedResult(ctx, diomanTestHttp, status: 400);
         })
       ]);
       final result = await b3Finish(

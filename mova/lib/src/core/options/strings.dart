@@ -12,6 +12,11 @@ import '../model/fit.dart';
 /// 所有字段默认简体中文，对应产品当前的单语言需求。需要其他语言的应用可以
 /// 整体构造替换实例（`const MovaStrs(live: 'ON AIR')`）并传入 `MovaPlayerStyle(strings:)`。
 class MovaStrs {
+  /// Default multiplier suffix for both speed and zoom.
+  ///
+  /// 倍速与缩放共用的默认倍率后缀。
+  static const _multiplierSuffix = 'x';
+
   /// 播放的界面与无障碍文案。
   final String play;
 
@@ -199,8 +204,8 @@ class MovaStrs {
     this.timeshift = '时移',
     this.auto = '自动',
     this.quality = '清晰度',
-    this.zoomSuffix = 'x',
-    this.speedSuffix = 'x',
+    this.zoomSuffix = _multiplierSuffix,
+    this.speedSuffix = _multiplierSuffix,
     this.subtitleOff = '关闭字幕',
     this.nextUp = '即将播放',
     this.playNow = '立即播放',

@@ -1,3 +1,23 @@
+# 性能基准
+
+一条命令跑全部（报告落 `build/perf/`）：
+
+```powershell
+pwsh tool/bench.ps1                 # engine + painter
+pwsh tool/bench.ps1 -Only engine    # 只跑一类
+```
+
+| 目录 | 内容 | 方式 |
+| --- | --- | --- |
+| `engine/` | 引擎 tick 吞吐（Counter/Countdown/Elapsed × 100/1k/1w 任务）、`add()` 批量创建 | 直接驱动插件，不含 widget |
+| `painter/` | Dial / Counter painter 录制耗时、分层重绘 | PictureRecorder，不含栅格化 |
+| `archive/` | 历史验证夹具（被否决候选的几何/像素证据）与 `measurements.txt` | tag `benchmark-archive`，默认不跑，已与现生产代码脱节（Dial 内圈已合并分钟弧） |
+| 真窗口 | `example/lib/benchmark_page.dart`、`perf_page.dart`：UI/Raster、RSS、FPS；脚本额外采 CPU，支持 Fair / 450ms / Default / Staggered 变体 | `pwsh tool/bench_desktop.ps1`：预跑一次后按轮交错测原四库，默认 5 轮；`-Libs` 通过运行时 `BENCH_LIB` 选库，报告含中位数、极差、RSS 增量与逐轮明细，落 `build/perf/`；手动用 `flutter run --no-pub -d windows --profile` 进入对应页面 |
+
+Widget 级的 pump 计时在 flutter test 里不可信（fake 时钟下动画不一定真在跑），统一用真窗口那一类。
+
+以下为早期 painter 优化记录，路径为整理前的写法。
+
 # Dial / Counter 绘制测量
 
 本轮只保留基准和验证夹具，生产代码不变。分钟弧段直接合并虽然明显更快，但会改变

@@ -1,211 +1,73 @@
-import 'package:curved_dual_tab_bar/curved_dual_tab_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 
-void main() {
-  runApp(const CurvedDualTabBarExampleApp());
-}
+import 'demo_kit/demo_kit.dart';
+import 'demo_pages.dart';
+import 'demo_palette.dart';
 
+/// 包名与线上演示的统一标识。
+const demoProject = 'curved_dual_tab_bar';
+
+/// 与包 pubspec.yaml 同步，并由 widget 测试校验的当前版本。
+const demoVersion = '0.2.4';
+
+/// 包源码目录的外链。
+const demoGithubUrl =
+    'https://github.com/icodejoo/dart-labs/tree/main/$demoProject';
+
+/// 包文档的外链。
+const demoReadmeUrl =
+    'https://github.com/icodejoo/dart-labs/blob/main/$demoProject/README.md';
+
+/// 包发布页的外链。
+const demoPubUrl = 'https://pub.dev/packages/$demoProject';
+
+/// 启动使用统一演示骨架的应用。
+void main() => runApp(const CurvedDualTabBarExampleApp());
+
+/// 展示当前 API 的双语响应式演示应用。
 class CurvedDualTabBarExampleApp extends StatelessWidget {
-  const CurvedDualTabBarExampleApp({super.key});
+  /// 创建应用，可注入语言和页面路径以便验证。
+  const CurvedDualTabBarExampleApp({
+    super.key,
+    this.locale,
+    this.initialFragment,
+  });
 
+  /// 可选外部管理的语言状态。
+  final DemoLocale? locale;
+
+  /// 可选初始页面路径。
+  final String? initialFragment;
+
+  /// 构建统一页头、主题和两组演示。
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'curved_dual_tab_bar demo',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF7C4DFF)),
-      home: const CurvedDualTabBarDemoPage(),
-    );
-  }
-}
-
-/// Demo page for [CurvedDualTabBar]: showcases the DEPOSIT/WITHDRAW header
-/// from the design mocks, plus a handful of other instances to confirm the
-/// component isn't hardcoded to that one use case.
-///
-/// [CurvedDualTabBar] 的演示页：还原设计稿里的 DEPOSIT/WITHDRAW 头部，
-/// 再加上几组不同配色/文案的实例，验证组件没有写死某个具体场景。
-class CurvedDualTabBarDemoPage extends HookWidget {
-  const CurvedDualTabBarDemoPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final curveCheckSelected = useState(0);
-    final dividerSelected = useState(0);
-    final depositSelected = useState(0);
-    final customSelected = useState(1);
-    final gradientSelected = useState(0);
-    final dividerStyleSelected = useState(0);
-
-    final nativeTabController = useTabController(initialLength: 2);
-    final nativeSelected = useState(0);
-    useEffect(() {
-      void listener() {
-        if (!nativeTabController.indexIsChanging) {
-          nativeSelected.value = nativeTabController.index;
-        }
-      }
-
-      nativeTabController.addListener(listener);
-      return () => nativeTabController.removeListener(listener);
-    }, [nativeTabController]);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('CurvedDualTabBar Demo')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text('曲线本身验证（两侧纯色对比，确认 S 曲线贯穿整个高度）'),
-              const SizedBox(height: 8),
-              CurvedDualTabBar(
-                titles: const ['LEFT', 'RIGHT'],
-                selectedIndex: curveCheckSelected.value,
-                onChanged: (i) => curveCheckSelected.value = i,
-                leanAmplitude: 0.22,
-                activeColor: const Color(0xFF7C4DFF),
-                inactiveColor: const Color(0xFFEDE7F6),
-                unselectedColor: const Color(0xFFEDE7F6),
-                unselectedBorderColor: Colors.transparent,
-                unselectedTopInset: 0,
-                activeTextColor: Colors.white,
-                inactiveTextColor: const Color(0xFF4A3F72),
-                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-                splashFactory: NoSplash.splashFactory,
-              ),
-              const SizedBox(height: 24),
-              const Text('还原设计稿配色（三层：底层透明 / 未选中底板 / 左右分割层）'),
-              const SizedBox(height: 8),
-              Container(
-                color: const Color(0xFF2B2640),
-                padding: const EdgeInsets.only(top: 16),
-                child: CurvedDualTabBar(
-                  titles: const ['DEPOSIT', 'WITHDRAW'],
-                  selectedIndex: depositSelected.value,
-                  onChanged: (i) => depositSelected.value = i,
-                  unselectedTopInset: 2,
-                  activeColor: const Color(0xFFF3EEFC),
-                  activeTextColor: const Color(0xFF2B2640),
-                  inactiveTextColor: const Color(0xFF8A82A0),
-                  indicatorColor: const Color(0xFFEC4899),
-                  indicatorSize: TabBarIndicatorSize.label,
-                  overlayColor: const WidgetStatePropertyAll(
-                    Colors.transparent,
-                  ),
-                  splashFactory: NoSplash.splashFactory,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text('分割曲线描边 + 左右两侧各自不同颜色的描边'),
-              const SizedBox(height: 8),
-              CurvedDualTabBar(
-                titles: const ['LEFT', 'RIGHT'],
-                selectedIndex: dividerSelected.value,
-                onChanged: (i) => dividerSelected.value = i,
-                unselectedTopInset: 0,
-                unselectedBorderColor: Colors.transparent,
-                dividerColor: const Color(0xFF7C4DFF),
-                dividerWidth: 3,
-                activeBorderColor: const Color(0xFFEC4899),
-                inactiveBorderColor: const Color(0xFF2196F3),
-                splitBorderWidth: 2,
-                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-                splashFactory: NoSplash.splashFactory,
-              ),
-              const SizedBox(height: 24),
-              const Text('主题默认配色'),
-              const SizedBox(height: 8),
-              CurvedDualTabBar(
-                titles: const ['月度账单', '年度账单'],
-                selectedIndex: customSelected.value,
-                onChanged: (i) => customSelected.value = i,
-                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-                splashFactory: NoSplash.splashFactory,
-              ),
-              const SizedBox(height: 24),
-              const Text('自定义分割层渐变 + 可见底板边框'),
-              const SizedBox(height: 8),
-              CurvedDualTabBar(
-                titles: const ['充值', '提现'],
-                selectedIndex: gradientSelected.value,
-                onChanged: (i) => gradientSelected.value = i,
-                unselectedBorderColor: const Color(0xFFB39DDB),
-                activeGradient: const LinearGradient(
-                  colors: [Color(0xFF7C4DFF), Color(0xFFB388FF)],
-                ),
-                inactiveGradient: const LinearGradient(
-                  colors: [Colors.transparent, Colors.transparent],
-                ),
-                activeTextColor: Colors.white,
-                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-                splashFactory: NoSplash.splashFactory,
-              ),
-              const SizedBox(height: 24),
-              const Text('分割线细节：渐变描边 + 圆头线帽 + 发光阴影 + 控制点偏移（曲线不再贴平首尾边）'),
-              const SizedBox(height: 8),
-              CurvedDualTabBar(
-                titles: const ['LEFT', 'RIGHT'],
-                selectedIndex: dividerStyleSelected.value,
-                onChanged: (i) => dividerStyleSelected.value = i,
-                unselectedBorderColor: Colors.transparent,
-                dividerGradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFEC4899),
-                    Color(0xFF7C4DFF),
-                    Color(0xFF2196F3),
-                  ],
-                ),
-                dividerWidth: 3,
-                dividerCap: StrokeCap.round,
-                dividerShadow: const BoxShadow(
-                  color: Color(0x807C4DFF),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-                topControlOffset: const Offset(16, 6),
-                bottomControlOffset: const Offset(-16, -6),
-                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-                splashFactory: NoSplash.splashFactory,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                '结合原生 TabBar：曲线背景（CurvedTabBackground）作装饰，切换/滑动交给系统 TabBar',
-              ),
-              const SizedBox(height: 8),
-              CurvedTabBackground(
-                selectedIndex: nativeSelected.value,
-                progress: nativeTabController.animation,
-                activeColor: const Color(0xFFFFFFFF),
-                unselectedColor: const Color(0xFFEDE7F6),
-                unselectedBorderColor: Colors.transparent,
-                // TabBar 不依赖 t，放进 child 缓存，动画帧不重建它。
-                child: TabBar(
-                  controller: nativeTabController,
-                  indicatorColor: Colors.transparent,
-                  dividerColor: Colors.transparent,
-                  overlayColor: WidgetStateProperty.all(Colors.transparent),
-                  splashFactory: NoSplash.splashFactory,
-                  labelColor: const Color(0xFF2B2640),
-                  unselectedLabelColor: const Color(0xFF8A82A0),
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  tabs: const [
-                    Tab(text: 'NATIVE LEFT'),
-                    Tab(text: 'NATIVE RIGHT'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                '当前选中：${depositSelected.value == 0 ? 'DEPOSIT' : 'WITHDRAW'} / '
-                '${customSelected.value == 0 ? '月度账单' : '年度账单'} / '
-                '${gradientSelected.value == 0 ? '充值' : '提现'}',
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) => DemoApp(
+    title: demoProject,
+    seedColor: DemoPalette.purple,
+    locale: locale,
+    home: DemoShell(
+      project: demoProject,
+      version: demoVersion,
+      pubUrl: demoPubUrl,
+      githubUrl: demoGithubUrl,
+      readmeUrl: demoReadmeUrl,
+      initialFragment: initialFragment,
+      destinations: [
+        DemoDestination(
+          id: 'styles',
+          en: stylesPageEn,
+          zh: stylesPageZh,
+          icon: Icons.palette_outlined,
+          builder: (_) => const StylesPage(),
         ),
-      ),
-    );
-  }
+        DemoDestination(
+          id: 'controllers',
+          en: 'Controllers & swipes',
+          zh: controllersPageZh,
+          icon: Icons.swipe_outlined,
+          builder: (_) => const ControllersPage(),
+        ),
+      ],
+    ),
+  );
 }

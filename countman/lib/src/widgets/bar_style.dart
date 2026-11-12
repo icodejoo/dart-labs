@@ -1,20 +1,23 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import 'painter/bar_painter.dart';
 import 'style_support.dart';
 
+/// 进度条默认主轴长度，供横向宽度和竖向高度共用。
+const double defaultBarLength = 200;
+
+/// 进度条默认横轴厚度，供横向高度和竖向宽度共用。
+const double defaultBarThickness = 8;
+
 /// Shared visual-field contract for [BarCounterStyle] / [BarCountdownStyle].
 ///
 /// [BarCounterStyle] / [BarCountdownStyle] 共享的视觉字段契约。
 mixin BarStyleFields {
-  /// Bar length along the main axis (width when horizontal).
-  ///
-  /// 主轴长度（水平时为宽度）。
+  /// 字面布局宽度；横向默认 200，竖向默认 8，与填充方向无关。
   double? get width;
 
-  /// Bar thickness along the cross axis (height when horizontal).
-  ///
-  /// 横轴厚度（水平时为高度）。
+  /// 字面布局高度；横向默认 8，竖向默认 200，与填充方向无关。
   double? get height;
 
   /// Cross-axis thickness of the track/fill band. Falls back to the full extent.
@@ -91,16 +94,22 @@ mixin BarStyleFields {
 /// @returns A configured [BarPainter].
 ///
 ///   配置好的 [BarPainter]。
+/// textDirection 用于解析方向性渐变；例如传 Directionality.maybeOf(context)。
+/// 常驻用法：传 [progressListenable]（此时 [progress] 可省略），画笔只创建一次。
 BarPainter barPainterFrom(
   BarStyleFields s, {
-  required double progress,
+  double progress = 0,
+  ValueListenable<double>? progressListenable,
   required Color color,
   required Color trackColor,
+  TextDirection? textDirection,
 }) {
   return BarPainter(
     progress: progress,
+    progressListenable: progressListenable,
     color: color,
     trackColor: trackColor,
+    textDirection: textDirection,
     borderRadius: s.borderRadius ?? const Radius.circular(4),
     borderRadiusGeometry: s.borderRadiusGeometry,
     gradient: s.gradient,
@@ -225,13 +234,41 @@ class BarStyle with BoxStyleFields, BarStyleFields, StyleProps {
           gradient: gradient ?? other.gradient,
           trackGradient: trackGradient ?? other.trackGradient,
           borderRadius: borderRadius ?? other.borderRadius,
-          borderRadiusGeometry: borderRadiusGeometry ?? other.borderRadiusGeometry,
+          borderRadiusGeometry:
+              borderRadiusGeometry ?? other.borderRadiusGeometry,
           fillFromStart: fillFromStart ?? other.fillFromStart,
           showTrack: showTrack ?? other.showTrack,
           vertical: vertical ?? other.vertical,
           padding: padding ?? other.padding,
           decoration: decoration ?? other.decoration,
         );
+
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、颜色、渐变、圆角、内边距、装饰逐字段插值；填充方向、朝向等不可插值字段在
+  /// `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按 `t < 0.5` 取一端。
+  /// 例如 `BarStyle.lerp(const BarStyle(width: 200), const BarStyle(width: 300), 0.5)`。
+  static BarStyle? lerp(BarStyle? a, BarStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return BarStyle(
+      width: lerpNum(a.width, b.width, t),
+      height: lerpNum(a.height, b.height, t),
+      trackHeight: lerpNum(a.trackHeight, b.trackHeight, t),
+      color: lerpColor(a.color, b.color, t),
+      trackColor: lerpColor(a.trackColor, b.trackColor, t),
+      gradient: Gradient.lerp(a.gradient, b.gradient, t),
+      trackGradient: Gradient.lerp(a.trackGradient, b.trackGradient, t),
+      borderRadius: Radius.lerp(a.borderRadius, b.borderRadius, t),
+      borderRadiusGeometry:
+          BorderRadius.lerp(a.borderRadiusGeometry, b.borderRadiusGeometry, t),
+      fillFromStart: pickField(a.fillFromStart, b.fillFromStart, t),
+      showTrack: pickField(a.showTrack, b.showTrack, t),
+      vertical: pickField(a.vertical, b.vertical, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
 
   @override
   List<Object?> get props => [

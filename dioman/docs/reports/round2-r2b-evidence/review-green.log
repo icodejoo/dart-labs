@@ -1,0 +1,8 @@
+00:00 +0: loading test/combo/share_retry_cancel_combo_test.dart
+00:00 +0: test/combo/share_retry_cancel_combo_test.dart: [DiomanSharePolicy.retry][DiomanNext] 首发取消后仍为跟随者重试
+00:00 +1: test/unit/key_parity_test.dart: [DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores][DiomanKeyService.build] 固定种子 2400 个入口中 有意变化逐项断言，其余入口逐字节兼容旧基准
+00:00 +2: test/unit/key_parity_test.dart: [DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores][DiomanKeyService.build] 固定种子 2400 个入口中 有意变化逐项断言，其余入口逐字节兼容旧基准
+00:00 +3: test/unit/key_parity_test.dart: [DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores][DiomanKeyService.build] 固定种子 2400 个入口中 有意变化逐项断言，其余入口逐字节兼容旧基准
+00:00 +4: test/unit/key_parity_test.dart: [DiomanKeyOptions.fastMode][DiomanKeyOptions.ignores][DiomanKeyService.build] 固定种子 2400 个入口中 有意变化逐项断言，其余入口逐字节兼容旧基准
+00:00 +5: test/unit/key_parity_test.dart: [DiomanKeyService.build] 开关、显式键、异常及不可序列化回退
+00:00 +6: All tests passed!

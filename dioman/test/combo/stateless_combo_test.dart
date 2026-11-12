@@ -1,4 +1,5 @@
-import '../support/b2_constants.dart';
+import '../support/response_contract.dart';
+import '../support/request_constants.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
@@ -54,11 +55,11 @@ void main() {
       '[DiomanLoadingApi.activeCount] credential 等待期间已计数，失败出口均释放自己的括号',
       () async {
     for (final kind in [
-      DiomanKind.http,
-      DiomanKind.network,
-      DiomanKind.timeout,
-      DiomanKind.cancel,
-      DiomanKind.internal
+      diomanTestHttp,
+      diomanTestNetwork,
+      diomanTestTimeout,
+      diomanTestCancel,
+      diomanTestInternal
     ]) {
       final events = <bool>[];
       final gate = Completer<void>();
@@ -72,22 +73,22 @@ void main() {
         }),
         TestPlugin('source-result',
             stage: DiomanStage.source,
-            handler: (ctx, _) async => ctx.fail(DiomanFailure(
-                kind: kind, error: kind == DiomanKind.internal ? bug : null)))
+            handler: (ctx, _) async => scriptedResult(ctx, kind,
+                error: kind == diomanTestInternal ? bug : null))
       ]);
       final pending = api.send<Object?>(b2Get, comboPath);
-      final checked = kind == DiomanKind.internal
+      final checked = kind == diomanTestInternal
           ? expectLater(pending, throwsA(same(bug)))
-          : pending.then((r) => expect(r.kind, kind));
+          : pending.then((r) => expect(outcomeOf(r), kind));
       await flush();
       expect(events, [true]);
       expect(api.plugin<DiomanLoadingApi>()!.activeCount, 1);
       // 未参与 loading 的调用不能抢走另一请求的计数。
       final optedOut = api.send<Object?>(b2Get, comboPath,
           call: DiomanCall(options: {DiomanLoading.option: false}));
-      final other = kind == DiomanKind.internal
+      final other = kind == diomanTestInternal
           ? expectLater(optedOut, throwsA(same(bug)))
-          : optedOut.then((r) => expect(r.kind, kind));
+          : optedOut.then((r) => expect(outcomeOf(r), kind));
       gate.complete();
       await Future.wait([checked, other]);
       expect(events, [true, false]);
@@ -190,8 +191,8 @@ void main() {
         ...h.probes(),
         TestPlugin('short', stage: DiomanStage.source, handler: (ctx, _) async {
           if (cancel) ctx.client.cancelAll();
-          return ctx.fail(DiomanFailure(
-              kind: cancel ? DiomanKind.cancel : DiomanKind.http));
+          return scriptedResult(
+              ctx, cancel ? diomanTestCancel : diomanTestHttp);
         })
       ]);
       await h.track(1, api.send<Object?>(b2Get, comboPath));

@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+/// 格式配置和组件断言共用的小数位上限，与 toStringAsFixed 的范围一致。
+const int counterMaxFractionDigits = 20;
+
 // 默认缩写只声明一次；按降序保存，避免每次拆位与构建时重复排序。
 const _defaultAbbreviations = <num, String>{
   1000000000000: 'T',

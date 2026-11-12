@@ -81,6 +81,27 @@ class _SlowKeepAliveApi extends FakeKeepAliveApi {
 }
 
 void main() {
+  for (final playing in [false, true]) {
+    testWidgets('engine replacement owns its resume intent: $playing', (t) async {
+      final first = FakeMovaApi()..push(const MovaState(playing: true));
+      final second = FakeMovaApi()..push(MovaState(playing: playing));
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      await t.pumpWidget(_list(first, scroll));
+      scroll.jumpTo(150);
+      await t.pump();
+      expect(_n(first, 'pause'), 1);
+      await t.pumpWidget(_list(second, scroll));
+      await t.pump();
+      expect(_n(second, 'pause'), playing ? 1 : 0);
+      scroll.jumpTo(0);
+      await t.pump();
+      expect(_n(second, 'play'), playing ? 1 : 0);
+      await t.pumpWidget(const SizedBox());
+      await first.dispose();
+      await second.dispose();
+    });
+  }
   testWidgets('B13 全屏时滚出视口不暂停，退出全屏重新检查隐藏', (t) async {
     final api = FakeMovaApi()
       ..push(const MovaState(playing: true, fullscreen: true));

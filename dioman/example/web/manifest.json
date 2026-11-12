@@ -5,5 +5,5 @@
   "display": "standalone",
   "background_color": "#0d1117",
   "theme_color": "#0d1117",
-  "description": "Interactive demo for the dioman Dio interceptor library."
+  "description": "Bilingual dioman request pipeline demo / dioman 请求管线双语演示。"
 }

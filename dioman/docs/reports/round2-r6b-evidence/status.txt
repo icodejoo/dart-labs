@@ -1,0 +1,27 @@
+ M CHANGELOG.md
+ M README.md
+ M README.zh-CN.md
+ M docs/README.md
+ M docs/design/pipeline-architecture.md
+ M docs/design/pipeline-plugin-spec.md
+ M docs/guides/migrating-to-pipeline.md
+ M lib/src/client.dart
+ M lib/src/context.dart
+ M lib/src/context_state.dart
+ M lib/src/options.dart
+ M lib/src/plugins/breaker.dart
+ M lib/src/transport.dart
+ M test/accept/lib/api-inventory.json
+ M test/accept/lib/client.dart
+ M test/accept/lib/common.dart
+ M test/accept/lib/matrix.json
+ M test/accept/lib/probes_fields.dart
+ M test/integration/documentation_examples_integration_test.dart
+ M test/unit/accept_runner_test.dart
+?? docs/reports/2026-11-03-round2-r6b.md
+?? docs/reports/round2-r6b-evidence/
+?? test/accept/evidence/2026-11-03-r6b-summary.json
+?? test/boundary/deadline_boundary_test.dart
+?? test/integration/deadline_transport_integration_test.dart
+?? test/unit/deadline_test.dart
+?? tool/round2_r6b_mutations.py

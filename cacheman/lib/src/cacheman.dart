@@ -200,17 +200,23 @@ class Cacheman {
   Object get hubIdentity => _custom ? this : container;
 
   /// Subscribe to storage keys; null denotes clear. Null return means unsupported.
-  /// Notifications must describe memory after mutation; default maps erase's empty
-  /// key to null. Subclasses opt in by overriding this hook.
+  /// Notifications describe memory after mutation; table replacements and erase
+  /// report null, while writes to the empty key stay keyed. Subclasses may opt in.
   /// 订阅存储键，null 表示整体清空；返回 null 表示不支持。通知须反映变更后的内存，
-  /// 默认把 erase 的空键转为 null；子类可覆写以支持通知。
+  /// 整表替换及 erase 上报 null，空串键写入仍按键上报；子类可覆写以支持通知。
   /// Context uses init with no key. / 上下文使用无键 init。
   @protected
   VoidCallback? listenRaw(CacheContext ctx, void Function(String?) onChange) {
     if (_custom) return null;
+    Map<String, dynamic>? last;
     return container.listen(() {
-      final key = container.changes.keys.single;
-      onChange(key.isEmpty ? null : key);
+      final changes = container.changes;
+      final fresh = !identical(changes, last);
+      last = changes;
+      final key = fresh && changes.length == 1 ? changes.keys.first : null;
+      onChange(key != null && key.isEmpty && container.getKeys<Iterable>().isEmpty
+          ? null
+          : key);
     });
   }
 
@@ -461,6 +467,10 @@ class Cacheman {
   /// 可选 adapter 在序列化前转换；raw 忽略它。
   /// Example / 示例：`cache.write('names', ['Ada'], adapter: ValueAdapter.listOf<String>())`.
   /// 按毫秒 TTL 或 DateTime/整数绝对过期时间写入。
+  /// With sliding, ttl takes precedence and expireAt only sets the first expiry;
+  /// past expireAt restarts from now, and renewal may extend beyond expireAt.
+  /// sliding 下 ttl 优先，expireAt 只决定首次过期时间；过去的 expireAt 会从现在
+  /// 重新起算；续期可能使实际过期时间超过原 expireAt。
   /// Example / 示例：`cache.write('token', 'abc', ttl: 60000)`.
   void write<T>(String key, T value,
       {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {

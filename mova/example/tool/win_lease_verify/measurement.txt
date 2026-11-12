@@ -1,0 +1,60 @@
+Windows lease verification measurement contract (written before execution)
+=======================================================================
+Scope: pure Dart console processes only. No Flutter app, playback, media_kit,
+libmpv, audio device, system volume, visible window, or real mova_thumbs access.
+All roots and generated sources are under a fresh systemTemp/mova_wrfv_* tree.
+Only this tree may be recursively removed. No lib/ edits or git mutations.
+
+Source fidelity: dir_lease.dart is only an interface. The implementation is in
+thumb_dir_impl.dart, whose path_provider dependency imports Flutter. Generate a
+temporary mirror replacing ONLY its four imports: two pure annotation/plugin
+stubs and absolute imports of the real core interfaces. Assert that everything
+after the imports is identical. Use forTesting(temporaryDirectory: ...) only;
+do not inject lock, modified, or now. Real RandomAccessFile locks, real OS
+processes, real directory stat mtimes, and the original scan/delete body run.
+The plugin stub throws if called. path_provider and Flutter integration are NOT
+covered. Record source SHA256 before/after and the exact transformation.
+Launch the controller from an isolated systemTemp bootstrap, outside the
+repository package context, so dart run cannot invoke repository build hooks.
+Canonicalize fixture roots and orphan paths before comparing paths returned
+by production; serialize commands/flushes sent to the same stdin pipe.
+
+Signals: worker ARMED -> parent GO -> RESOLVE_BEGIN -> READY, emitted only after
+resolve and a unique token write/flush. Workers keep stdin open and retain their
+provider until RELEASE/STOP, or taskkill /F. Every event has PID and worker id.
+Parent waits for events or OS exit, never sleeps to infer readiness. Timeouts
+are failure guards only. ERROR/nonzero unexpected exits are failures.
+
+S1 x3: A READY, independent-process raw exclusive lock probe must fail, then B
+resolves the same root. A/B must remain alive with distinct directories; inspect
+both tokens and ask both workers to read their own token before recording PASS.
+
+S2 x3, continuing S1: gracefully STOP B (confirmed RELEASED + exit=0), taskkill
+/F A without dispose (confirmed OS exit and no RELEASED event). Snapshot actual
+DA/DB directory mtimes; ties allow either maximum. C directly probes DA's lease
+and must acquire/close it, proving OS release in a new process, then resolves.
+C must adopt a maximum-mtime orphan, keep its original token, and leave exactly
+one engine directory. The other orphan must actually be deleted (also checks
+Windows close-before-delete). C remains leased until all assertions finish.
+
+S3 x3: start four independent workers, await all ARMED, hold root .scan gate,
+send GO to all. Each must observe a failed nonblocking .scan probe and emit
+RESOLVE_BEGIN. Release gate only after all begin events. Await four READY;
+assert four distinct worker PIDs/directories and four intact tokens while all
+leases remain held; re-read tokens through worker commands. Require exit=0.
+
+S4 x3: A READY + exactly one eligible legacy orphan (no .lease, unique token).
+Use the same .scan gate and ARMED/GO/begin barrier for two concurrent scanners.
+Check A/token after each scanner READY and after both; raw A lease probe must
+still fail. The orphan must be gone or adopted by exactly one scanner; if
+adopted its original token must survive. Check all live workers' tokens, final
+directory count, and clean exit. S2 supplies the actual deletion branch with
+two orphan lease handles; S4 supplies concurrent cleanup/adoption contention.
+No instruction-level pause is injected into production close/delete code.
+
+Evidence: keep raw per-worker stdout/stderr and parent observations, taskkill
+stdout/stderr/exit, all result lines, PIDs, mtimes, root/dir names, and failures
+in permanent evidence files. Continue independent repetitions after failure.
+Always stop/kill only owned workers, await their exits, then remove dedicated
+temp tree; verify no owned PID/command line remains. Pre-existing unrelated
+Dart processes are recorded separately and never terminated.

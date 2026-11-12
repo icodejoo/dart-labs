@@ -1,0 +1,33 @@
+[
+  {
+    "name": "matrix-evidence",
+    "exit": 0,
+    "args": [
+      "run",
+      "test/accept/bin/matrix.dart",
+      "evidence",
+      "coverage\\round2-final\\acceptance-final.json",
+      "coverage\\round2-final\\plugin-matrix-final.json",
+      "--out=test\\accept\\evidence\\2026-11-03-round2-final-summary.json.gz"
+    ]
+  },
+  {
+    "name": "matrix-results",
+    "exit": 0,
+    "args": [
+      "run",
+      "test/accept/bin/matrix.dart",
+      "results"
+    ]
+  },
+  {
+    "name": "gates",
+    "exit": 0,
+    "args": [
+      "run",
+      "test/accept/bin/matrix.dart",
+      "gates",
+      "--lcov=coverage/round2-final/final.info"
+    ]
+  }
+]

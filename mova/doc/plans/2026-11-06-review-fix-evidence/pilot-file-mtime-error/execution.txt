@@ -1,0 +1,143 @@
+KEYGUARD isKeyguardShowing=false | isKeyguardShowing=false
+FIXTURE stereo44100.wav channels=2 sampleRate=44100 bitsPerSample=16 frames=352800 seconds=8.0
+FIXTURE mono48000.wav channels=1 sampleRate=48000 bitsPerSample=16 frames=384000 seconds=8.0
+HTTP pid=36148 temp=C:\Users\jelon\AppData\Local\Temp\mova-rfv-812dpjsv
+BUILD E:\sdk\flutter\bin\flutter.BAT build apk --release --target-platform android-arm64 -t lib/main_review_fix_verify.dart --dart-define=PHASE=1
+Resolving dependencies...
+Downloading packages...
+  archive 4.3.0 (4.6.0 available)
+  code_assets 1.2.1 (2.1.0 available)
+  connectivity_plus 6.1.5 (7.3.2 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  crypto 3.0.7 (3.0.8 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 11.0.3 (13.3.2 available)
+  hooks 2.0.2 (2.2.0 available)
+  image 4.10.1 (4.12.0 available)
+  jni 1.0.3 (1.1.2 available)
+  jni_flutter 1.0.3 (1.0.4+1 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+! media_kit_libs_android_video 1.0.0 from path ..\packages\media_kit_libs_android_video_slim (overridden)
+! media_kit_libs_windows_video 1.0.11 from path ..\packages\media_kit_libs_windows_video_slim (overridden)
+  meta 1.18.3 (1.19.0 available)
+  nm 0.5.0 (0.6.0 available)
+  objective_c 9.5.0 (9.6.3 available)
+  package_info_plus 9.0.1 (10.2.2 available)
+  package_info_plus_platform_interface 3.2.1 (4.1.0 available)
+  petitparser 7.0.2 (7.1.0 available)
+  posix 6.5.2 (6.5.4 available)
+  record_use 0.6.0 (1.1.1 available)
+  safe_local_storage 2.0.6 (2.0.7 available)
+  synchronized 3.4.2 (3.6.1 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.2 (2.4.4 available)
+  vm_service 15.3.0 (15.4.0 available)
+  wakelock_plus 1.5.2 (1.8.2 available)
+  web 1.1.1 (1.1.2 available)
+  win32 5.15.0 (6.4.0 available)
+  xml 7.0.1 (7.1.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'assembleRelease'...                        
+
+Running Gradle task 'assembleRelease'...                          148.1s
+√ Built build\app\outputs\flutter-apk\app-release.apk (37.4MB)
+
+BUILD E:\sdk\flutter\bin\flutter.BAT build apk --release --target-platform android-arm64 -t lib/main_review_fix_verify.dart --dart-define=PHASE=2
+Resolving dependencies...
+Downloading packages...
+  archive 4.3.0 (4.6.0 available)
+  code_assets 1.2.1 (2.1.0 available)
+  connectivity_plus 6.1.5 (7.3.2 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  crypto 3.0.7 (3.0.8 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 11.0.3 (13.3.2 available)
+  hooks 2.0.2 (2.2.0 available)
+  image 4.10.1 (4.12.0 available)
+  jni 1.0.3 (1.1.2 available)
+  jni_flutter 1.0.3 (1.0.4+1 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+! media_kit_libs_android_video 1.0.0 from path ..\packages\media_kit_libs_android_video_slim (overridden)
+! media_kit_libs_windows_video 1.0.11 from path ..\packages\media_kit_libs_windows_video_slim (overridden)
+  meta 1.18.3 (1.19.0 available)
+  nm 0.5.0 (0.6.0 available)
+  objective_c 9.5.0 (9.6.3 available)
+  package_info_plus 9.0.1 (10.2.2 available)
+  package_info_plus_platform_interface 3.2.1 (4.1.0 available)
+  petitparser 7.0.2 (7.1.0 available)
+  posix 6.5.2 (6.5.4 available)
+  record_use 0.6.0 (1.1.1 available)
+  safe_local_storage 2.0.6 (2.0.7 available)
+  synchronized 3.4.2 (3.6.1 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.2 (2.4.4 available)
+  vm_service 15.3.0 (15.4.0 available)
+  wakelock_plus 1.5.2 (1.8.2 available)
+  web 1.1.1 (1.1.2 available)
+  win32 5.15.0 (6.4.0 available)
+  xml 7.0.1 (7.1.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'assembleRelease'...                        
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1420 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'assembleRelease'...                           62.4s
+√ Built build\app\outputs\flutter-apk\app-release.apk (37.7MB)
+
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=1 phase=1 pid=13416
+RFV cycle=1 phase=1 START release=true
+RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OEBIEM token=39961674ed780b8182318efe4a75bbd7 count=1 engines=["engine_OEBIEM"] disposed=false
+RFV cycle=1 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=1 phase=1 previousPid=13416 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=1 phase=2 pid=13417
+RFV cycle=1 phase=2 START release=true
+RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OEBIEM expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OEBIEM token=39961674ed780b8182318efe4a75bbd7 expectedToken=39961674ed780b8182318efe4a75bbd7
+RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_OEBIEM"]
+RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OEBIEM B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_WBBWJC AExists=true tokenIntact=true count=2 engines=["engine_OEBIEM","engine_WBBWJC"]
+RFV cycle=1 phase=2 FAIL HARNESS error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)" stack="#0      _checkForErrorResponse (dart:io/common.dart:58)\n#1      _File.setLastModified.<anonymous closure> (dart:io/file_impl.dart:538)\n<asynchronous suspension>\n#2      _ReviewState._phaseTwo (package:mova_example/main_review_fix_verify.dart:178)\n<asynchronous suspension>\n#3      _ReviewState._run (package:mova_example/main_review_fix_verify.dart:378)\n<asynchronous suspension>\n"
+RFV cycle=1 phase=2 DONE failures=1
+EXTERNAL_FORCE_STOP cycle=1 phase=2 previousPid=13417 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=2 phase=1 pid=13418
+RFV cycle=2 phase=1 START release=true
+RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old token=b1518cf41ffee51a0ab844994a978976 count=1 engines=["engine_old"] disposed=false
+RFV cycle=2 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=2 phase=1 previousPid=13418 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=2 phase=2 pid=20881
+RFV cycle=2 phase=2 START release=true
+RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old token=b1518cf41ffee51a0ab844994a978976 expectedToken=b1518cf41ffee51a0ab844994a978976
+RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_old"]
+RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_FHMUGQ AExists=true tokenIntact=true count=2 engines=["engine_FHMUGQ","engine_old"]
+RFV cycle=2 phase=2 FAIL HARNESS error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)" stack="#0      _checkForErrorResponse (dart:io/common.dart:58)\n#1      _File.setLastModified.<anonymous closure> (dart:io/file_impl.dart:538)\n<asynchronous suspension>\n#2      _ReviewState._phaseTwo (package:mova_example/main_review_fix_verify.dart:178)\n<asynchronous suspension>\n#3      _ReviewState._run (package:mova_example/main_review_fix_verify.dart:378)\n<asynchronous suspension>\n"
+RFV cycle=2 phase=2 DONE failures=1
+EXTERNAL_FORCE_STOP cycle=2 phase=2 previousPid=20881 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=3 phase=1 pid=20882
+RFV cycle=3 phase=1 START release=true
+RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh token=a07bc2e8335833d529594a5626f1b95a count=1 engines=["engine_fresh"] disposed=false
+RFV cycle=3 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=3 phase=1 previousPid=20882 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=3 phase=2 pid=20883
+RFV cycle=3 phase=2 START release=true
+RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh token=a07bc2e8335833d529594a5626f1b95a expectedToken=a07bc2e8335833d529594a5626f1b95a
+RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_fresh"]
+RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CCPCPQ AExists=true tokenIntact=true count=2 engines=["engine_CCPCPQ","engine_fresh"]
+RFV cycle=3 phase=2 FAIL HARNESS error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)" stack="#0      _checkForErrorResponse (dart:io/common.dart:58)\n#1      _File.setLastModified.<anonymous closure> (dart:io/file_impl.dart:538)\n<asynchronous suspension>\n#2      _ReviewState._phaseTwo (package:mova_example/main_review_fix_verify.dart:178)\n<asynchronous suspension>\n#3      _ReviewState._run (package:mova_example/main_review_fix_verify.dart:378)\n<asynchronous suspension>\n"
+RFV cycle=3 phase=2 DONE failures=1
+EXTERNAL_FORCE_STOP cycle=3 phase=2 previousPid=20883 noProcess=True
+RESULT pass=12 fail=3
+CLEANUP appStopped=true httpStopped=true tempRemoved=True reverse=''

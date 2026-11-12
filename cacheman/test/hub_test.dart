@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show JsonUnsupportedObjectError, jsonDecode, jsonEncode;
 import 'dart:io';
 
 import 'package:cacheman/cacheman.dart';
@@ -48,6 +48,25 @@ const _foreignKey = 'foreign';
 
 /// Jsonx type tag field. / Jsonx类型标签字段。
 const _tagField = '#t';
+
+/// DateTime type tag. / DateTime 类型标签。
+const _dateTimeTag = 'DateTime';
+
+/// Empty logical key. / 空串逻辑键。
+const _emptyKey = '';
+
+/// Legacy DateTime text. / 旧版 DateTime 文本。
+const _legacyDateTime = '2026-11-06T12:34:56.123456Z';
+
+/// Object whose toJson fails internally. / toJson 内部抛错的对象。
+class _BrokenJson {
+  /// Original failure retained by the encoder. / 编码器保留的原始错误。
+  final failure = NoSuchMethodError.withInvocation(
+      Object(), Invocation.method(#missing, const []));
+
+  /// Fails during conversion. / 转换期间抛错。
+  Object toJson() => throw failure;
+}
 
 /// Observable backend shared by test subclasses. / 测试子类共享的可监听底层。
 class _Backend {
@@ -334,6 +353,61 @@ void main() {
   }
 
   String name() => 'hub_${seq++}';
+
+  test(
+      'real watch before initialization survives empty changes and later writes',
+      () async {
+    final cache = Cacheman(container: name(), path: dir.path);
+    final values = <int?>[];
+    final stop = cache.watch<int>(_key, values.add, includeOwnWrites: true);
+    addTearDown(stop);
+    await cache.ensureInitialized();
+    values.clear();
+    cache.write(_key, 1);
+    expect(values, [1]);
+    expect(cache.read<int>(_key), 1);
+  });
+
+  test('real initialization table replacement ignores stale single-key changes',
+      () async {
+    final id = name();
+    await File('${dir.path}/$id.gs').writeAsString(jsonEncode({
+      _key: defaultSerialize(CacheEntity(value: 1, createdAt: 1)),
+    }));
+    final cache = Cacheman(container: id, path: dir.path);
+    final values = <int?>[];
+    final others = <int?>[];
+    addTearDown(cache.watch<int>(_key, values.add, includeOwnWrites: true));
+    addTearDown(cache.watch<int>(_other, others.add, includeOwnWrites: true));
+    cache.container.writeInMemory(
+        _other, defaultSerialize(CacheEntity(value: 2, createdAt: 1)));
+    expect(values, isEmpty);
+    expect(others, [2]);
+    await cache.ensureInitialized();
+    expect(values, [null, 1]);
+    expect(others, [2, null, null]);
+  });
+
+  test(
+      'real empty key writes stay keyed and default erase notifies all watchers',
+      () async {
+    final cache = await real(name(), const CachemanOptions());
+    final empty = <int?>[];
+    final others = <int?>[];
+    addTearDown(cache.watch<int>(_emptyKey, empty.add, includeOwnWrites: true));
+    addTearDown(cache.watch<int>(_other, others.add, includeOwnWrites: true));
+    cache.write(_emptyKey, 1);
+    expect(empty, [1]);
+    expect(others, isEmpty);
+    cache.write(_other, 2);
+    cache.write(_emptyKey, 3);
+    expect(empty, [1, 3]);
+    expect(others, [2]);
+    cache.erase();
+    expect(empty, [1, 3, null]);
+    expect(others, [2, null]);
+    expect(cache.keys(), isEmpty);
+  });
 
   test('real shared container indexes heal after peers and external changes',
       () async {
@@ -1223,8 +1297,55 @@ void main() {
     expect(Jsonx.decode<Object>(' {"#t":"unknown","value":1}'),
         {_tagField: 'unknown', _value: 1});
     expect(Jsonx.decode<Object>('{"#t":"DateTime","value":"x","sibling":1}'),
-        {_tagField: 'DateTime', _value: 'x', 'sibling': 1});
+        {_tagField: _dateTimeTag, _value: 'x', 'sibling': 1});
     expect(() => Jsonx.decode<int>('"wrong"'), throwsA(isA<TypeError>()));
     expect(() => Jsonx.encode({1: _value}), throwsA(isA<Object>()));
+  });
+
+  test('Jsonx DateTime preserves instant and UTC mode with legacy decoding',
+      () {
+    for (final isUtc in [false, true]) {
+      final original =
+          DateTime.fromMicrosecondsSinceEpoch(1793943296123456, isUtc: isUtc);
+      final encoded = Jsonx.encode(original);
+      expect(jsonDecode(encoded), {
+        _tagField: _dateTimeTag,
+        _value: [original.microsecondsSinceEpoch, isUtc],
+      });
+      final decoded = Jsonx.decode<DateTime>(encoded);
+      expect(decoded, original);
+      expect(decoded.isUtc, isUtc);
+      expect(decoded.microsecondsSinceEpoch, original.microsecondsSinceEpoch);
+    }
+    expect(
+        Jsonx.decode<DateTime>(
+            jsonEncode({_tagField: _dateTimeTag, _value: _legacyDateTime})),
+        DateTime.parse(_legacyDateTime));
+    for (final raw in [
+      null,
+      [],
+      [1],
+      [1, true, 2],
+      ['1', true],
+      [1, 0]
+    ]) {
+      final tagged = {_tagField: _dateTimeTag, _value: raw};
+      expect(Jsonx.decode<Object>(jsonEncode(tagged)), tagged);
+    }
+  });
+
+  test('Jsonx wraps internal NoSuchMethodError with its original cause', () {
+    final value = _BrokenJson();
+    expect(
+        () => Jsonx.encode(value),
+        throwsA(isA<JsonUnsupportedObjectError>().having(
+            (e) => e.cause,
+            _causeLabel,
+            allOf(isA<NoSuchMethodError>(), same(value.failure)))));
+  });
+
+  test('Jsonx Enum encoding throws JsonUnsupportedObjectError', () {
+    expect(() => Jsonx.encode(CacheOp.read),
+        throwsA(isA<JsonUnsupportedObjectError>()));
   });
 }

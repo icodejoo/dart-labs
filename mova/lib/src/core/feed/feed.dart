@@ -307,7 +307,15 @@ class MovaFeed {
           // 恰好就是仍在新窗口内的那些页。
           pool.retain(window);
           _activeIndex = index;
-          await pool.bind(index, item.source, autoPlay: true);
+          try {
+            await pool.bind(index, item.source, autoPlay: true);
+          } catch (_) {
+            // A failed binding must still silence the page left in the window.
+            //
+            // 绑定失败后仍须让保留窗口内的上一页停止出声。
+            if (_isCurrent(generation)) await pool.focus(index);
+            rethrow;
+          }
           if (_disposed) return;
           if (!_isCurrent(generation)) continue;
           // Everything else in the pool must go quiet — a neighbour left

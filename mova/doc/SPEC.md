@@ -8,7 +8,7 @@
 
 设计意图看 DESIGN，签名与落点看本 SPEC 和代码。下文旧章节中的阶段号不是发版号；
 本节及各节新增的现行规则覆盖历史描述。A/B/C 块已落地，CP1 仍有阻塞，CP2/CP3 待真机。
-版本以 pubspec 的 0.4.0 为准，后续变更列在 CHANGELOG Unreleased，不代表已发布。
+版本以 pubspec 的 0.4.1 为准（已发布）；CHANGELOG 若出现 Unreleased 节，则为其后的仓库变更，不代表已发布。
 
 ## 编排会话（MovaSession）
 
@@ -95,6 +95,7 @@ END_FILE(error)、已知终结文本、open 异常和 recovery giveUp 进入终�
 外挂字幕、外部音轨和 HLS 分片错误继续为诊断。
 
 引擎记录已接受会话与每次实际加载尝试，END_FILE 在加载前排空旧队列并带尝试编号。
+**已知限制（已评估，不修）**：排空队列至 `Player.open` 的 stop 生效之间，旧文件恰好到达的 `END_FILE(error)` 仍可能误归新尝试并多触发一次重试；START_FILE 闸门与 open 后读取 `playlist_entry_id` 的方案均被真机证伪并撤销（分别破坏 HE V9 与恢复时序），详见 [未修项设计 §1](plans/2026-11-06-review-unfixed-design.md)。
 有效加载规格包含当前地址/档位、时移落后量、续播目标和播放意图；内部重试重放规格，
 不重新触发 beforeOpen、不新建 QoE 会话。新 seek（含零）取代旧寄存目标；
 时移重试按当前时间重建 URL，failover 清旧时移及档列表。

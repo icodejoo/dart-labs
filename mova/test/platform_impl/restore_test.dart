@@ -183,8 +183,8 @@ void main() {
       'DeviceOrientation.landscapeLeft',
       'DeviceOrientation.landscapeRight',
     ]);
-    expect(calls.last.method, 'SystemChrome.setEnabledSystemUIMode');
-    expect(calls.last.arguments, SystemUiMode.edgeToEdge.toString());
+    expect(calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
+    expect(calls.last.arguments, ['SystemUiOverlay.top']);
     await api.setFullscreen(true);
     calls.clear();
     await api.dispose();

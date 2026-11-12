@@ -8,23 +8,27 @@ import 'theme.dart';
 
 /// Return value of [resolveToken] (sealed class).
 sealed class TokenResult {
+  /// Creates a [TokenResult].
   const TokenResult();
 }
 
 /// Successfully resolved token.
 final class TokenOk extends TokenResult {
   final String token;
+  /// Creates a [TokenOk].
   const TokenOk(this.token);
 }
 
 /// This round should be skipped (does not occupy a cell, e.g., baccarat tie / sicbo triple).
 final class TokenSkip extends TokenResult {
+  /// Creates a [TokenSkip].
   const TokenSkip();
 }
 
 /// Configuration error (selector does not match actual data).
 final class TokenError extends TokenResult {
   final String message;
+  /// Creates a [TokenError].
   const TokenError(this.message);
 }
 

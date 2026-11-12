@@ -84,7 +84,10 @@ void main() {
         slot: 'snack',
         present: (_) {
           nextShown = true;
-          return PresentedOverlay(dismissed: Completer<void>().future);
+          return PresentedOverlay(
+            visible: Future<void>.value(),
+            dismissed: Completer<void>().future,
+          );
         },
       );
       await tester.pump();
@@ -118,7 +121,10 @@ void main() {
           slot: 'toast',
           present: (_) {
             nextShown = true;
-            return PresentedOverlay(dismissed: Completer<void>().future);
+            return PresentedOverlay(
+            visible: Future<void>.value(),
+            dismissed: Completer<void>().future,
+          );
           },
         );
         await tester.pumpAndSettle();

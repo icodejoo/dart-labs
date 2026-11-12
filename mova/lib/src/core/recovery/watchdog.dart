@@ -89,7 +89,6 @@ class MovaPlayWatchdog {
   void armStart({required bool playing, Duration? startTimeout, Duration? stallTimeout, bool overrideStall = false}) {
     _attemptStart = startTimeout ?? this.startTimeout;
     _attemptStall = overrideStall ? stallTimeout : this.stallTimeout;
-    _cancel();
     _armed = true;
     _landed = false;
     _buffering = false;

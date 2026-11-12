@@ -10,6 +10,11 @@
 /// `Color`），以保证 `lib/src/core/**` 不引入任何 Flutter 依赖；`ui/` 层在
 /// 使用处再把这些 int 转换为 `Color`。
 class MovaTheme {
+  /// Default foreground color for icons and text.
+  ///
+  /// 图标与文字共用的默认前景色。
+  static const _foregroundColor = 0xFFFFFFFF;
+
   /// ARGB color for icons.
   ///
   /// 图标的 ARGB 颜色。
@@ -95,8 +100,8 @@ class MovaTheme {
   ///
   /// 创建主题；默认使用产品的深色背景白字、红色强调配色。
   const MovaTheme({
-    this.iconColor = 0xFFFFFFFF,
-    this.textColor = 0xFFFFFFFF,
+    this.iconColor = _foregroundColor,
+    this.textColor = _foregroundColor,
     this.accentColor = 0xFFE53935,
     this.timeshiftBadgeColor = 0xFF616161,
     this.barGradientColor = 0x99000000,

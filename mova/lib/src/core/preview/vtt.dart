@@ -15,6 +15,9 @@ final RegExp _kTimingLine = RegExp(
 /// 匹配 `xywh=x,y,w,h` 媒体片段（前导 `#` 已被去掉）。
 final RegExp _kXywh = RegExp(r'^xywh=(-?\d+),(-?\d+),(-?\d+),(-?\d+)$');
 
+/// Reused line separator pattern. / 复用的换行分隔模式。
+final RegExp _kLineBreak = RegExp(r'\r\n|\n|\r');
+
 /// Converts one side of a timing line's captured groups into a [Duration].
 ///
 /// 把时间轴行一侧捕获到的分组转换为 [Duration]。
@@ -29,7 +32,12 @@ final RegExp _kXywh = RegExp(r'^xywh=(-?\d+),(-?\d+),(-?\d+),(-?\d+)$');
 /// Returns the parsed duration.
 ///
 /// 返回解析出的时长。
-Duration _toDuration(String? hours, String minutes, String seconds, String millis) {
+Duration _toDuration(
+  String? hours,
+  String minutes,
+  String seconds,
+  String millis,
+) {
   final h = hours == null ? 0 : int.parse(hours.substring(0, hours.length - 1));
   return Duration(
     hours: h,
@@ -68,13 +76,18 @@ MovaThumbIndex parseVttThumbs(String content, {required Uri base}) {
     return const MovaThumbIndex(<MovaThumbCue>[]);
   }
 
-  final lines = content.split(RegExp(r'\r\n|\n|\r'));
+  final lines = content.split(_kLineBreak);
   final cues = <MovaThumbCue>[];
 
   for (var i = 0; i < lines.length; i++) {
     final m = _kTimingLine.firstMatch(lines[i]);
     if (m == null) continue;
-    final start = _toDuration(m.group(1), m.group(2)!, m.group(3)!, m.group(4)!);
+    final start = _toDuration(
+      m.group(1),
+      m.group(2)!,
+      m.group(3)!,
+      m.group(4)!,
+    );
     final end = _toDuration(m.group(5), m.group(6)!, m.group(7)!, m.group(8)!);
 
     // Payload is the line right after the timing line; a blank line there
@@ -94,8 +107,15 @@ MovaThumbIndex parseVttThumbs(String content, {required Uri base}) {
     final y = f == null ? null : int.tryParse(f.group(2)!);
     final w = f == null ? null : int.tryParse(f.group(3)!);
     final h = f == null ? null : int.tryParse(f.group(4)!);
-    final crop = x == null || y == null || w == null || h == null ||
-            x < 0 || y < 0 || w <= 0 || h <= 0
+    final crop =
+        x == null ||
+            y == null ||
+            w == null ||
+            h == null ||
+            x < 0 ||
+            y < 0 ||
+            w <= 0 ||
+            h <= 0
         ? null
         : MovaThumbCrop(x: x, y: y, w: w, h: h);
 

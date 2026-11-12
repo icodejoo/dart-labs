@@ -1,10 +1,11 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -82,7 +83,7 @@ void main() {
             error: DioException(
                 requestOptions: RequestOptions(path: b4Path),
                 type: DioExceptionType.connectionError,
-                error: const SocketException('offline')))
+                error: const SocketException(diomanTestOffline)))
       ];
     final api = testClient(network: net, plugins: [const DiomanMock<Result>()]);
     expect(
@@ -108,10 +109,9 @@ void main() {
         throwsStateError);
     final token = CancelToken()..cancel();
     expect(
-        (await api.send<Object?>(b4Get, b4Path,
-                call: DiomanCall(cancelToken: token)))
-            .kind,
-        DiomanKind.cancel);
+        outcomeOf((await api.send<Object?>(b4Get, b4Path,
+            call: DiomanCall(cancelToken: token)))),
+        diomanTestCancel);
   });
   test(
       '[DiomanCacheOptions.cachePolicy]'
@@ -178,7 +178,7 @@ void main() {
       final source = TestPlugin(b4LiteralSource,
           stage: DiomanStage.source,
           handler: (ctx, next) async =>
-              ctx.fail(DiomanFailure(kind: DiomanKind.ok, data: body)));
+              scriptedResult(ctx, diomanTestOk, data: body));
       for (final clone in [DiomanClonePolicy.deep, DiomanClonePolicy.shallow]) {
         final api =
             testClient(plugins: [DiomanCache<Result>(clone: clone), source]);
@@ -229,10 +229,9 @@ void main() {
           isOnline: () => false, onConnectivityChanged: stream.stream)
     ]);
     expect(
-        (await cancelled.send<Object?>(b4Get, b4Path,
-                call: DiomanCall(cancelToken: token)))
-            .kind,
-        DiomanKind.cancel);
+        outcomeOf((await cancelled.send<Object?>(b4Get, b4Path,
+            call: DiomanCall(cancelToken: token)))),
+        diomanTestCancel);
     expect(cancelled.plugin<DiomanOfflineApi>()!.pending, 0);
     api.dispose();
     cancelled.dispose();
@@ -252,7 +251,7 @@ void main() {
       final a = api.send<Object?>(b4Get, b4Path, call: b4Call(share: p));
       await b4Turn();
       api.eject(DiomanShare.pluginName);
-      expect((await a).kind, DiomanKind.cancel);
+      expect(outcomeOf((await a)), diomanTestCancel);
       gate.complete();
       await b4Turn();
       expect(clock.pendingTimers, 0);
@@ -267,7 +266,7 @@ void main() {
         call: b4Call(share: DiomanSharePolicy.retry));
     await b4Turn();
     api.cancelAll();
-    expect((await a).kind, DiomanKind.cancel);
+    expect(outcomeOf((await a)), diomanTestCancel);
     await b4Turn();
     expect(clock.pendingTimers, 0);
     final b = api.send<Object?>(b4Get, b4Path,
@@ -276,7 +275,7 @@ void main() {
                 policy: DiomanSharePolicy.retry,
                 interval: Duration.zero,
                 retries: 1)));
-    expect((await b).httpStatus, 500);
+    expect((await b).status, 500);
     expect(api.plugin<DiomanShareApi>()!.activeEntries, 0);
   });
 }

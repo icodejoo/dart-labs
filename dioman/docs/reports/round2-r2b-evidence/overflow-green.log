@@ -1,0 +1,5 @@
+00:00 +0: loading test/unit/retry_delay_test.dart
+00:00 +0: test/unit/retry_delay_test.dart: [DiomanRetry.defaultDelay] 大序号和超大指数仍是正向有限时长
+00:00 +1: test/rule/retry_defaults_rule_test.dart: [DiomanRetry.max][DiomanRetry.delayMax][DiomanRetry.defaultDelay] 默认重试两次，300/600ms 且仅幂等方法
+00:00 +2: test/rule/retry_defaults_rule_test.dart: [DiomanRetry.delayMax] 百次重试仍由默认十秒上限裁剪
+00:00 +3: All tests passed!

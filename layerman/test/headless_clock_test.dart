@@ -47,7 +47,10 @@ void main() {
     await manager.ready();
     const cooldown = OverlayCooldown(minGap: _second);
     final first = manager.submit(
-        id: 'cap', present: HeadlessBackend<void>().present, cooldown: cooldown);
+        id: 'cap',
+        present: HeadlessBackend<void>().present,
+        cooldown: cooldown);
+    await flushAsync(); // 等可见确认后再验证 minGap。
     first.remove();
     final backend = HeadlessBackend<void>();
     manager.open(id: 'cap', present: backend.present, cooldown: cooldown);

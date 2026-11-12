@@ -35,6 +35,10 @@ class FastAccessor<V> {
   ///
   /// 写入绑定的 key；ttl 未指定时使用访问器默认值。
   /// Uses the accessor ttl when omitted; an explicit ttl overrides it.
+  /// With sliding, ttl takes precedence and expireAt only sets the first expiry;
+  /// past expireAt restarts from now, and renewal may extend beyond expireAt.
+  /// sliding 下 ttl 优先，expireAt 只决定首次过期时间；过去的 expireAt 会从现在
+  /// 重新起算；续期可能使实际过期时间超过原 expireAt。
   void set(V value, {int? ttl, Object? expireAt}) =>
       _cacheman.write<V>(_key, value,
           ttl: ttl ?? _ttl, expireAt: expireAt, adapter: _adapter);

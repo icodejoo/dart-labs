@@ -64,10 +64,10 @@ Future<ApiEvidence> runApiProbes() async {
       'Dioman.send',
       'Dioman.pending',
       'DiomanResponse',
-      'DiomanResponse.kind'
+      'failureOf'
     ], '真实 ping');
     evidence.observations
-        .add({'kind': result.kind.name, 'status': result.status});
+        .add({'kind': failureOf(result)?.kind.name, 'status': result.status});
     inspectApiFields(
         evidence, {'Dioman': client.api, 'DiomanResponse': result});
   } finally {

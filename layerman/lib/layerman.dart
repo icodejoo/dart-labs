@@ -32,5 +32,5 @@ export 'src/overlay_types.dart'
         OverlaySlotOptions;
 export 'src/overlay_navigator_observer.dart' show LayermanNavigatorObserver;
 export 'src/route_managers.dart'
-    show DialogManager, BottomSheetManager, presentRoute;
+    show DialogManager, BottomSheetManager, presentRoute, OverlayVisibility;
 export 'src/lifecycle_binding.dart' show LayermanLifecycle;

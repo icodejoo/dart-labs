@@ -1,157 +1,100 @@
 import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../demo_kit/demo_kit.dart';
+import '../demo_support.dart';
 
-class AdvancedPage extends StatefulWidget {
-  const AdvancedPage({super.key, required this.onChanged});
-  final VoidCallback onChanged;
+/// 扩展 JSON 类型与缓存快照的入口。
+class AdvancedPage extends StatelessWidget {
+  /// 创建扩展类型页面。
+  const AdvancedPage({super.key});
 
-  @override
-  State<AdvancedPage> createState() => _AdvancedPageState();
-}
-
-class _AdvancedPageState extends State<AdvancedPage> {
-  String _jsonxResult = '';
-  String _debugSnapshot = '';
-
-  void _storeDateTime() {
-    final now = DateTime.now();
-    final encoded = Jsonx.encode(now);
-    cache.write('jsonx_datetime', encoded);
-    final decoded = Jsonx.decode<DateTime>(encoded);
-    setState(() =>
-        _jsonxResult = 'DateTime\n  in:  $now\n  enc: $encoded\n  out: $decoded');
-  }
-
-  void _storeDuration() {
-    const dur = Duration(hours: 2, minutes: 30);
-    final encoded = Jsonx.encode(dur);
-    cache.write('jsonx_duration', encoded);
-    final decoded = Jsonx.decode<Duration>(encoded);
-    setState(() =>
-        _jsonxResult = 'Duration\n  in:  $dur\n  enc: $encoded\n  out: $decoded');
-  }
-
-  void _storeSet() {
-    const s = {1, 2, 3, 99};
-    final encoded = Jsonx.encode(s);
-    cache.write('jsonx_set', encoded);
-    final decoded = Jsonx.decode<Set<dynamic>>(encoded);
-    setState(() =>
-        _jsonxResult = 'Set\n  in:  $s\n  enc: $encoded\n  out: $decoded');
-  }
-
-  void _storeBigInt() {
-    final b = BigInt.parse('99999999999999999999999999999');
-    final encoded = Jsonx.encode(b);
-    cache.write('jsonx_bigint', encoded);
-    final decoded = Jsonx.decode<BigInt>(encoded);
-    setState(() =>
-        _jsonxResult = 'BigInt\n  in:  $b\n  enc: $encoded\n  out: $decoded');
-  }
-
-  void _storeUri() {
-    final uri = Uri.parse('https://pub.dev/packages/cacheman?tab=readme');
-    final encoded = Jsonx.encode(uri);
-    cache.write('jsonx_uri', encoded);
-    final decoded = Jsonx.decode<Uri>(encoded);
-    setState(() =>
-        _jsonxResult = 'Uri\n  in:  $uri\n  enc: $encoded\n  out: $decoded');
-  }
-
-  void _takeSnapshot() {
-    final snap = debug(cache);
-    if (snap.isEmpty) {
-      setState(() => _debugSnapshot = '(ls is empty — set some keys first)');
-      return;
-    }
-    final buf = StringBuffer();
-    for (final entry in snap.entries) {
-      buf.writeln('${entry.key}: ${entry.value}');
-    }
-    setState(() => _debugSnapshot = buf.toString().trim());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Jsonx — extended type roundtrip',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-              'Encode/decode types that plain jsonEncode cannot handle.',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(
-                  onPressed: _storeDateTime, child: const Text('DateTime')),
-              FilledButton(
-                  onPressed: _storeDuration, child: const Text('Duration')),
-              FilledButton(onPressed: _storeSet, child: const Text('Set')),
-              FilledButton(
-                  onPressed: _storeBigInt, child: const Text('BigInt')),
-              FilledButton(onPressed: _storeUri, child: const Text('Uri')),
-            ],
-          ),
-          if (_jsonxResult.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                _jsonxResult,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontFamily: 'monospace'),
-              ),
-            ),
-          ],
-          const SizedBox(height: 28),
-          const Divider(),
-          const SizedBox(height: 12),
-          Text('debug() — ls snapshot',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text('Reads all entries in ls with metadata.',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 12),
-          FilledButton(
-              onPressed: _takeSnapshot, child: const Text('Take snapshot')),
-          if (_debugSnapshot.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 320),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  _debugSnapshot,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontFamily: 'monospace'),
-                ),
-              ),
-            ),
-          ],
-        ],
+  /// 使用实际缓存自动序列化类型，避免将编码字符串再次写入。
+  static Future<DemoSession> _types() async {
+    const scope = 'jsonx';
+    final cache = await demoCache(
+      scope,
+      options: CachemanOptions(
+        namespace: scope,
+        serialize: (entity) => Jsonx.encode(entity.toJson()),
+        deserialize: (raw) =>
+            CacheEntity.fromJson(Jsonx.decode<Map<String, dynamic>>(raw)),
       ),
     );
+    final samples = <String, Object>{
+      'DateTime': DateTime.utc(2026, 1, 1),
+      'Duration': const Duration(hours: 2, minutes: 30),
+      'Set': {1, 2, 3},
+      'BigInt': BigInt.parse('99999999999999999999999999999'),
+      'Uri': Uri.parse(demoPubUrl),
+    };
+    return DemoSession([
+      for (final entry in samples.entries)
+        DemoAction(entry.key, entry.key, (_) {
+          cache.write(demoKey, entry.value);
+          final value = cache.read<dynamic>(demoKey);
+          return {
+            'type': value.runtimeType,
+            demoValueField: value,
+            'Jsonx.encode': Jsonx.encode(entry.value),
+          };
+        }),
+    ]);
   }
+
+  /// 提供只读快照与对应命名空间数据。
+  static Future<DemoSession> _snapshot() async {
+    final cache = await demoCache('snapshot');
+    return DemoSession([
+      DemoAction('Seed values', '写入样本', (_) {
+        cache.writeAll(demoKeys, [demoValue, 42]);
+        return cache.keys();
+      }),
+      DemoAction('Take snapshot', '获取快照', (_) => debug(cache)),
+    ]);
+  }
+
+  /// 构建类型往返和调试卡片。
+  @override
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, DemoCopy.advanced.en, DemoCopy.advanced.zh),
+    description: tr(
+      context,
+      'Configure Jsonx serialization, then store extended Dart values directly.',
+      '配置 Jsonx 序列化后，直接存储支持的扩展 Dart 值。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Inspect values', '检查数据'),
+        code:
+            "final cache = Cacheman(options: CachemanOptions(\n  serialize: (e) => Jsonx.encode(e.toJson()),\n  deserialize: (s) => CacheEntity.fromJson(\n    Jsonx.decode<Map<String, dynamic>>(s)),\n));\nawait cache.ensureInitialized();\nfinal date = DateTime.utc(2026, 1, 1);\ncache.write('date', date);\nfinal restored = cache.read<DateTime>('date');\nfinal encoded = Jsonx.encode(date);\nfinal decoded = Jsonx.decode<DateTime>(encoded);\nfinal snapshot = debug(cache);",
+        child: DemoGrid(
+          children: [
+            actionCard(
+              context,
+              en: 'Extended types',
+              zh: '扩展类型',
+              descriptionEn: 'DateTime, Duration, Set, BigInt and Uri.',
+              descriptionZh: '日期、时长、集合、大整数和 URI。',
+              create: _types,
+            ),
+            actionCard(
+              context,
+              en: 'Debug snapshot',
+              zh: '调试快照',
+              descriptionEn: 'Decoded values with namespace-prefixed keys.',
+              descriptionZh: '查看解码值与带命名空间的键。',
+              create: _snapshot,
+            ),
+          ],
+        ),
+      ),
+      InfoNote(
+        text: tr(
+          context,
+          'debug() performs normal reads: it can delete expired entries or renew sliding TTL. It is not an expiry-metadata inspector.',
+          'debug() 会执行普通读取：可能删除过期项或触发滑动续期；它不展示过期元数据。',
+        ),
+      ),
+    ],
+  );
 }

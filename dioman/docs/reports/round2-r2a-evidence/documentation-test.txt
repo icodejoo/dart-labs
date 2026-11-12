@@ -1,0 +1,3 @@
+00:00 +0: loading test/integration/documentation_examples_integration_test.dart
+00:00 +0: [DiomanCall] 四份文档的 Dart 示例均能编译
+00:02 +1: All tests passed!

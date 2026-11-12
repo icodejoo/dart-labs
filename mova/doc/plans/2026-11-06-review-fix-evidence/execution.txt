@@ -1,0 +1,131 @@
+KEYGUARD isKeyguardShowing=false
+FIXTURE stereo44100.wav channels=2 sampleRate=44100 bitsPerSample=16 frames=352800 seconds=8.0
+FIXTURE mono48000.wav channels=1 sampleRate=48000 bitsPerSample=16 frames=384000 seconds=8.0
+HTTP pid=2332 temp=C:\Users\jelon\AppData\Local\Temp\mova-rfv-g4c4d5df
+REUSE PHASE=1 example\build\app\outputs\flutter-apk\app-release.apk
+BUILD E:\sdk\flutter\bin\flutter.BAT build apk --release --target-platform android-arm64 -t lib/main_review_fix_verify.dart --dart-define=PHASE=2
+Resolving dependencies...
+Downloading packages...
+  archive 4.3.0 (4.6.0 available)
+  code_assets 1.2.1 (2.1.0 available)
+  connectivity_plus 6.1.5 (7.3.2 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  crypto 3.0.7 (3.0.8 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 11.0.3 (13.3.2 available)
+  hooks 2.0.2 (2.2.0 available)
+  image 4.10.1 (4.12.0 available)
+  jni 1.0.3 (1.1.2 available)
+  jni_flutter 1.0.3 (1.0.4+1 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+! media_kit_libs_android_video 1.0.0 from path ..\packages\media_kit_libs_android_video_slim (overridden)
+! media_kit_libs_windows_video 1.0.11 from path ..\packages\media_kit_libs_windows_video_slim (overridden)
+  meta 1.18.3 (1.19.0 available)
+  nm 0.5.0 (0.6.0 available)
+  objective_c 9.5.0 (9.6.3 available)
+  package_info_plus 9.0.1 (10.2.2 available)
+  package_info_plus_platform_interface 3.2.1 (4.1.0 available)
+  petitparser 7.0.2 (7.1.0 available)
+  posix 6.5.2 (6.5.4 available)
+  record_use 0.6.0 (1.1.1 available)
+  safe_local_storage 2.0.6 (2.0.7 available)
+  synchronized 3.4.2 (3.6.1 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.2 (2.4.4 available)
+  vm_service 15.3.0 (15.4.0 available)
+  wakelock_plus 1.5.2 (1.8.2 available)
+  web 1.1.1 (1.1.2 available)
+  win32 5.15.0 (6.4.0 available)
+  xml 7.0.1 (7.1.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Running Gradle task 'assembleRelease'...                        
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 1420 bytes (99.9% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Running Gradle task 'assembleRelease'...                           73.5s
+√ Built build\app\outputs\flutter-apk\app-release.apk (37.7MB)
+
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=1 phase=1 pid=25691
+RFV cycle=1 phase=1 START release=true
+RFV cycle=1 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a count=1 engines=["engine_HVWHAK"] disposed=false
+RFV cycle=1 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=1 phase=1 previousPid=25691 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=1 phase=2 pid=25692
+RFV cycle=1 phase=2 START release=true
+RFV cycle=1 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK token=a6a03d8965de59a9841a2a40f4c6319a expectedToken=a6a03d8965de59a9841a2a40f4c6319a
+RFV cycle=1 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_HVWHAK"]
+RFV cycle=1 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_HVWHAK B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_OHBBAD AExists=true tokenIntact=true count=2 engines=["engine_HVWHAK","engine_OHBBAD"]
+RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:13.000
+RFV cycle=1 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=1 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:13.000
+RFV cycle=1 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=1 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_HVWHAK","engine_OHBBAD","engine_fresh"]
+RFV cycle=1 phase=2 V1_CLEANUP remaining=[]
+RFV cycle=1 phase=2 V2_BEGIN source=stereo44100 run=1 uri=http://127.0.0.1:18764/stereo44100.wav?cycle=1&run=1&t=1793956873968191 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956873968656.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 V2_BEGIN source=stereo44100 run=2 uri=http://127.0.0.1:18764/stereo44100.wav?cycle=1&run=2&t=1793956874178484 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874178909.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 V2_BEGIN source=stereo44100 run=3 uri=http://127.0.0.1:18764/stereo44100.wav?cycle=1&run=3&t=1793956874328133 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=stereo44100 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874328446.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 V2_BEGIN source=mono48000 run=1 uri=http://127.0.0.1:18764/mono48000.wav?cycle=1&run=1&t=1793956874450326 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=1 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874450610.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 V2_BEGIN source=mono48000 run=2 uri=http://127.0.0.1:18764/mono48000.wav?cycle=1&run=2&t=1793956874556321 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=2 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874556647.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 V2_BEGIN source=mono48000 run=3 uri=http://127.0.0.1:18764/mono48000.wav?cycle=1&run=3&t=1793956874701351 extractor=default
+RFV cycle=1 phase=2 PASS V2_WAV source=mono48000 run=3 path=/data/user/0/com.icodejoo.mova.mova_example/cache/mova_stt_audio_1793956874701620.wav channels=1 sampleRate=16000 bitsPerSample=16 format=65534 dataBytes=256000 seconds=8.0 fileBytes=256068
+RFV cycle=1 phase=2 DONE failures=0
+EXTERNAL_FORCE_STOP cycle=1 phase=2 previousPid=25692 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=2 phase=1 pid=25693
+RFV cycle=2 phase=1 START release=true
+RFV cycle=2 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b count=1 engines=["engine_CNFAMH"] disposed=false
+RFV cycle=2 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=2 phase=1 previousPid=25693 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=2 phase=2 pid=26229
+RFV cycle=2 phase=2 START release=true
+RFV cycle=2 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH token=feeded810a3b7c715375bd73dd95c54b expectedToken=feeded810a3b7c715375bd73dd95c54b
+RFV cycle=2 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_CNFAMH"]
+RFV cycle=2 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_CNFAMH B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_ZLJWKO AExists=true tokenIntact=true count=2 engines=["engine_CNFAMH","engine_ZLJWKO"]
+RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:24.000
+RFV cycle=2 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=2 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:24.000
+RFV cycle=2 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=2 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_CNFAMH","engine_ZLJWKO","engine_fresh"]
+RFV cycle=2 phase=2 V1_CLEANUP remaining=[]
+RFV cycle=2 phase=2 DONE failures=0
+EXTERNAL_FORCE_STOP cycle=2 phase=2 previousPid=26229 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=3 phase=1 pid=26230
+RFV cycle=3 phase=1 START release=true
+RFV cycle=3 phase=1 PASS V1_PREPARE A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b count=1 engines=["engine_PUTGEC"] disposed=false
+RFV cycle=3 phase=1 READY_FORCE_STOP
+EXTERNAL_FORCE_STOP cycle=3 phase=1 previousPid=26230 noProcess=True
+KEYGUARD isKeyguardShowing=false
+KEYGUARD isKeyguardShowing=false
+PROCESS cycle=3 phase=2 pid=26231
+RFV cycle=3 phase=2 START release=true
+RFV cycle=3 phase=2 PASS V1_ADOPT A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC expected=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC token=a067eb67e09ccabbe76ba999d0ec694b expectedToken=a067eb67e09ccabbe76ba999d0ec694b
+RFV cycle=3 phase=2 PASS V1_COUNT before=1 after=1 engines=["engine_PUTGEC"]
+RFV cycle=3 phase=2 PASS V1_SECOND A=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_PUTGEC B=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_QENYOE AExists=true tokenIntact=true count=2 engines=["engine_PUTGEC","engine_QENYOE"]
+RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old' (OS Error: Is a directory, errno = 21)"
+RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-10-29T17:21:33.000
+RFV cycle=3 phase=2 FIXTURE_MTIME_FALLBACK path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh error="FileSystemException: Cannot set modification time, path = '/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh' (OS Error: Is a directory, errno = 21)"
+RFV cycle=3 phase=2 FIXTURE_MTIME path=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh method=File.setLastModified(stamp)+libc.utime(directory) actual=2026-11-06T17:21:33.000
+RFV cycle=3 phase=2 PASS V1_LEGACY_SETUP old=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_old ageSeconds=691200 fresh=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldLease=false freshLease=false
+RFV cycle=3 phase=2 PASS V1_PRUNE C=/data/data/com.icodejoo.mova.mova_example/cache/mova_thumbs/engine_fresh oldExists=false freshExists=true count=3 engines=["engine_PUTGEC","engine_QENYOE","engine_fresh"]
+RFV cycle=3 phase=2 V1_CLEANUP remaining=[]
+RFV cycle=3 phase=2 DONE failures=0
+EXTERNAL_FORCE_STOP cycle=3 phase=2 previousPid=26231 noProcess=True
+RESULT pass=24 fail=0
+CLEANUP appStopped=true httpStopped=true tempRemoved=True reverse=''

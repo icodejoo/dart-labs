@@ -1,4 +1,4 @@
-import '../support/b2_constants.dart';
+import '../support/request_constants.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';

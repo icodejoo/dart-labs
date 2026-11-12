@@ -1,0 +1,83 @@
+[
+  {
+    "mutation": "next-cancellation-scope",
+    "source": "lib/src/pipeline.dart",
+    "test": "test/combo/share_retry_cancel_combo_test.dart",
+    "failures": 1,
+    "seconds": 2.832,
+    "before_sha256": "70ceb07f012fc42ae45400e769c2d4c516d300d1c6496ab02d4be9b1f8cfceed",
+    "restored_sha256": "70ceb07f012fc42ae45400e769c2d4c516d300d1c6496ab02d4be9b1f8cfceed"
+  },
+  {
+    "mutation": "native-network-classification",
+    "source": "lib/src/network_error_io.dart",
+    "test": "test/unit/response_platform_test.dart",
+    "failures": 1,
+    "seconds": 2.75,
+    "before_sha256": "9a8f4f4e6b6d0162a150e9ac8516d8be6bd8665aa63f3c4ad4215e055d774fd7",
+    "restored_sha256": "9a8f4f4e6b6d0162a150e9ac8516d8be6bd8665aa63f3c4ad4215e055d774fd7"
+  },
+  {
+    "mutation": "deep-key-response-type",
+    "source": "lib/src/key.dart",
+    "test": "test/unit/key_types_test.dart",
+    "failures": 1,
+    "seconds": 2.735,
+    "before_sha256": "099fbc1b1d0d4285aaccf2981cc0d7cbcadc3e8037c6d3ad9c313e8ce759621d",
+    "restored_sha256": "099fbc1b1d0d4285aaccf2981cc0d7cbcadc3e8037c6d3ad9c313e8ce759621d"
+  },
+  {
+    "mutation": "fast-key-response-type",
+    "source": "lib/src/key.dart",
+    "test": "test/unit/key_types_test.dart",
+    "failures": 1,
+    "seconds": 2.962,
+    "before_sha256": "099fbc1b1d0d4285aaccf2981cc0d7cbcadc3e8037c6d3ad9c313e8ce759621d",
+    "restored_sha256": "099fbc1b1d0d4285aaccf2981cc0d7cbcadc3e8037c6d3ad9c313e8ce759621d"
+  },
+  {
+    "mutation": "cache-internal-veto",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_veto_rule_test.dart",
+    "failures": 1,
+    "seconds": 2.445,
+    "before_sha256": "a6551336dfa2b259af5374013ce57731c73f1d0a709947186c70af5562acfe56",
+    "restored_sha256": "a6551336dfa2b259af5374013ce57731c73f1d0a709947186c70af5562acfe56"
+  },
+  {
+    "mutation": "cache-cancel-veto",
+    "source": "lib/src/plugins/cache.dart",
+    "test": "test/rule/cache_veto_rule_test.dart",
+    "failures": 1,
+    "seconds": 2.619,
+    "before_sha256": "a6551336dfa2b259af5374013ce57731c73f1d0a709947186c70af5562acfe56",
+    "restored_sha256": "a6551336dfa2b259af5374013ce57731c73f1d0a709947186c70af5562acfe56"
+  },
+  {
+    "mutation": "retry-default-max",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/rule/retry_defaults_rule_test.dart",
+    "failures": 1,
+    "seconds": 2.901,
+    "before_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134",
+    "restored_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134"
+  },
+  {
+    "mutation": "retry-default-delay",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/rule/retry_defaults_rule_test.dart",
+    "failures": 2,
+    "seconds": 2.534,
+    "before_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134",
+    "restored_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134"
+  },
+  {
+    "mutation": "retry-default-cap",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/rule/retry_defaults_rule_test.dart",
+    "failures": 2,
+    "seconds": 2.552,
+    "before_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134",
+    "restored_sha256": "2b2f209abdc99365d97adb3b9b63d429fa4d56f56367c40fe237973aae3ef134"
+  }
+]

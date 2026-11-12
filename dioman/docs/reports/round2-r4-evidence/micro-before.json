@@ -1,0 +1,42 @@
+{
+  "warmupMillis": 500,
+  "measurementMillis": 2000,
+  "results": [
+    {
+      "scenario": "construct",
+      "operations": 2419300,
+      "elapsedSeconds": 2.0001087,
+      "meanMicros": 0.8267303352209318
+    },
+    {
+      "scenario": "patch",
+      "operations": 1061900,
+      "elapsedSeconds": 2.0001232,
+      "meanMicros": 1.8835325360203408
+    },
+    {
+      "scenario": "export",
+      "operations": 3301100,
+      "elapsedSeconds": 2.0000217,
+      "meanMicros": 0.6058652267426009
+    },
+    {
+      "scenario": "uri",
+      "operations": 1103400,
+      "elapsedSeconds": 2.0000399,
+      "meanMicros": 1.8126154613014318
+    },
+    {
+      "scenario": "strict-json",
+      "operations": 2655100,
+      "elapsedSeconds": 2.0000352,
+      "meanMicros": 0.7532805544047306
+    },
+    {
+      "scenario": "key",
+      "operations": 266500,
+      "elapsedSeconds": 2.0004371,
+      "meanMicros": 7.506330581613509
+    }
+  ]
+}

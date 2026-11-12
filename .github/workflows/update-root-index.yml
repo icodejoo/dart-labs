@@ -145,6 +145,15 @@ jobs:
                 </div>
                 <span class="badge">Flutter Web</span>
               </a>
+              <a class="card" href="xvg/">
+                <div class="card-title">🎨 xvg</div>
+                <div class="card-desc">
+                  High-performance static &amp; animated SVG for Flutter — Rust usvg
+                  parsing, GPU rendering, SMIL animation engine. Static showcase
+                  (native FFI, no Web build): feature tour, live previews, benchmarks.
+                </div>
+                <span class="badge">Static showcase</span>
+              </a>
             </div>
           </body>
           </html>

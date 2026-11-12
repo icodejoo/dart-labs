@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
-import '../support/b5_powerset.dart';
+import '../support/auth_test_helpers.dart';
+import '../support/powerset_fixture.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -27,7 +27,7 @@ void main() {
     for (var j = i + 1; j < names.length; j++) {
       final pair = [names[i], names[j]];
       if (!pair.any(prepareNames.contains)) continue;
-      test('[DiomanPlugin pairs] ${pair.join(pairSeparator)} 补丁穿透发送', () async {
+      test('[INV-pairs] ${pair.join(pairSeparator)} 补丁穿透发送', () async {
         final clock = FakeClock();
         final stream = StreamController<bool>.broadcast(sync: true);
         final net = FakeNetwork();

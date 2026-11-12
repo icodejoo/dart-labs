@@ -100,7 +100,7 @@ packages:
     source: hosted
     version: "6.0.0"
   flutter_rust_bridge:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_rust_bridge
       sha256: ec69331e2335ab4d456c0a9fc700892c2c85b72b9c0cb39df3ecfe8833d5d5c8
@@ -263,13 +263,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  xvg:
-    dependency: "direct main"
-    description:
-      path: ".."
-      relative: true
-    source: path
-    version: "0.1.1"
   sync_http:
     dependency: transitive
     description:
@@ -334,6 +327,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.1.0"
+  xvg:
+    dependency: "direct main"
+    description:
+      path: ".."
+      relative: true
+    source: path
+    version: "0.1.2"
 sdks:
   dart: ">=3.13.0 <4.0.0"
   flutter: ">=3.18.0-18.0.pre.54"

@@ -578,17 +578,33 @@ String? latestEvidence(Directory root) {
   final files = dir
       .listSync()
       .whereType<File>()
-      .where((f) => f.path.endsWith('.json'))
+      .where((f) =>
+          f.path.endsWith('.json') || f.path.endsWith('.json.gz'))
       .map((f) => '$evidenceDirectory/${f.uri.pathSegments.last}')
       .toList()
     ..sort();
   return files.lastOrNull;
 }
 
-/// 读取 [path] 的 JSON，不存在返回 [fallback]；例如 `readMatrixJson('missing', [])`。
-dynamic readMatrixJson(String path, dynamic fallback) => File(path).existsSync()
-    ? jsonDecode(File(path).readAsStringSync())
-    : fallback;
+/// 读取普通或 gzip JSON，不存在返回 [fallback]。
+dynamic readMatrixJson(String path, dynamic fallback) {
+  final file = File(path);
+  if (!file.existsSync()) return fallback;
+  return jsonDecode(path.endsWith('.json.gz')
+      ? utf8.decode(gzip.decode(file.readAsBytesSync()))
+      : file.readAsStringSync());
+}
+
+/// 按扩展名写普通或 gzip JSON，保留完整逐格证据。
+void writeMatrixJson(String path, Object value) {
+  final text = '${const JsonEncoder.withIndent('  ').convert(value)}\n';
+  final file = File(path);
+  if (path.endsWith('.json.gz')) {
+    file.writeAsBytesSync(gzip.encode(utf8.encode(text)));
+  } else {
+    file.writeAsStringSync(text);
+  }
+}
 
 /// 从 [root] 读取闸门输入，返回缺口；[full] 控制真实侧，例如 `repositoryGaps(Directory.current, rows)`。
 Set<String> repositoryGaps(Directory root, List<MatrixRow> rows,

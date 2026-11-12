@@ -95,6 +95,7 @@ readonly、续期不是事务，包不提供并发隔离，也不负责用户后
 
 1. 每次通过 getRaw 读取后端；缺失或外部非字符串值返回默认值，无额外读值缓存。
 2. raw 直接返回字符串；否则内核 load 负责值解码和信封反序列化。
+   非 raw 模式下任何 JSON 对象都按信封解析，缺少 value 键视为存储了 null。
 3. 解码失败删除后上报 CorruptEntryError(dropped:true)，cause 保留原异常（codec 返回 null 构造 FormatException），返回默认值。
    purge/readonly 探测不上报。后端读取/删除等 IO 失败和抛错的 onError 回调向上传播。
 4. 带 createdAt 标记且过期的信封懒删除；内核返回可选的续期副本，由薄层写回。

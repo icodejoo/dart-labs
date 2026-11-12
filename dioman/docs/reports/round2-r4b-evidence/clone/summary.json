@@ -1,0 +1,44 @@
+{
+  "differencesMicros": [
+    3.083286730175942,
+    -3.629419064570868,
+    -0.44709892018797603
+  ],
+  "medianDifferenceMicros": -0.44709892018797603,
+  "metrics": {
+    "clone-off": {
+      "clone-off": {
+        "selected": {
+          "scenario": "clone-off",
+          "operations": 38173,
+          "elapsedSeconds": 2.0000389,
+          "meanMicros": 52.394071726089116
+        },
+        "selectedRound": 3,
+        "spreadPercent": 10.85757932353635,
+        "means": [
+          48.1385900305678,
+          53.36527562836864,
+          52.394071726089116
+        ]
+      }
+    },
+    "clone-on": {
+      "clone-on": {
+        "selected": {
+          "scenario": "clone-on",
+          "operations": 39046,
+          "elapsedSeconds": 2.0000094,
+          "meanMicros": 51.22187676074374
+        },
+        "selectedRound": 1,
+        "spreadPercent": 4.445718632124285,
+        "means": [
+          51.22187676074374,
+          49.735856563797775,
+          51.94697280590114
+        ]
+      }
+    }
+  }
+}

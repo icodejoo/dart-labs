@@ -1,0 +1,77 @@
+[
+  {
+    "name": "baseline-2",
+    "round": 1,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 14.831053884615676,
+        "reasons": [],
+        "stem": "baseline-2-1-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 10.520977195463233,
+        "reasons": [],
+        "stem": "baseline-2-1-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-2",
+    "round": 2,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 8.573075613481793,
+        "reasons": [],
+        "stem": "baseline-2-2-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 9.27743820206826,
+        "reasons": [],
+        "stem": "baseline-2-2-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  },
+  {
+    "name": "baseline-2",
+    "round": 3,
+    "attempt": 1,
+    "accepted": true,
+    "members": [
+      {
+        "clean": true,
+        "meanExternalPercent": 14.323393638197729,
+        "reasons": [],
+        "stem": "baseline-2-3-try-1-legacy",
+        "returncode": 0,
+        "highPriority": false
+      },
+      {
+        "clean": true,
+        "meanExternalPercent": 15.720664900029336,
+        "reasons": [],
+        "stem": "baseline-2-3-try-1-pipeline",
+        "returncode": 0,
+        "highPriority": false
+      }
+    ],
+    "complete": true
+  }
+]

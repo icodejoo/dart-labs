@@ -1,0 +1,278 @@
+{
+  "S1": {
+    "legacy": {
+      "median": {
+        "scenario": "S1",
+        "operations": 68464,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000273,
+        "opsPerSecond": 34231.532739578106,
+        "meanMicros": 28.904735335358733,
+        "p99Micros": 89.2,
+        "sends": 68464
+      },
+      "spreadPercent": 201.03887709299974,
+      "stable": false,
+      "ops": [
+        34231.532739578106,
+        34281.246318777245,
+        11387.647552308255
+      ],
+      "selectedRound": 1
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S1",
+        "operations": 54558,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.000015,
+        "opsPerSecond": 27278.795409034432,
+        "meanMicros": 36.270974009311196,
+        "p99Micros": 143.9,
+        "sends": 54558
+      },
+      "spreadPercent": 265.2220323753879,
+      "stable": false,
+      "ops": [
+        36955.289354850676,
+        27278.795409034432,
+        10118.581596650978
+      ],
+      "selectedRound": 2
+    }
+  },
+  "S2": {
+    "legacy": {
+      "median": {
+        "scenario": "S2",
+        "operations": 66027,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000341,
+        "opsPerSecond": 33012.937129421945,
+        "meanMicros": 29.992995289805688,
+        "p99Micros": 106.10000000000001,
+        "sends": 66027
+      },
+      "spreadPercent": 167.87402383364528,
+      "stable": false,
+      "ops": [
+        37982.23056172394,
+        33012.937129421945,
+        14179.139140908865
+      ],
+      "selectedRound": 2,
+      "overheadRatios": [
+        -0.09804361950790241,
+        0.0385920346847628,
+        -0.19752661476684952
+      ],
+      "medianOverheadRatio": -0.09804361950790241
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S2",
+        "operations": 52854,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000275,
+        "opsPerSecond": 26426.636633746286,
+        "meanMicros": 37.510010595224585,
+        "p99Micros": 118.30000000000001,
+        "sends": 52854
+      },
+      "spreadPercent": 201.23653732904222,
+      "stable": false,
+      "ops": [
+        27809.949942090105,
+        26426.636633746286,
+        9231.931222112395
+      ],
+      "selectedRound": 2,
+      "overheadRatios": [
+        0.33127983080935874,
+        0.03416055454136169,
+        0.09517666676403991
+      ],
+      "medianOverheadRatio": 0.09517666676403991
+    }
+  },
+  "S3": {
+    "legacy": {
+      "median": {
+        "scenario": "S3",
+        "operations": 5822,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0001611,
+        "opsPerSecond": 2910.7655378359273,
+        "meanMicros": 343.06283064239096,
+        "p99Micros": 819.9000000000001,
+        "sends": 5822
+      },
+      "spreadPercent": 194.23991413927175,
+      "stable": false,
+      "ops": [
+        3499.3033391523395,
+        2910.7655378359273,
+        1189.2687466922057
+      ],
+      "selectedRound": 2,
+      "overheadRatios": [
+        8.872587318046655,
+        10.879517862715717,
+        8.666411098084808
+      ],
+      "medianOverheadRatio": 8.872587318046655
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S3",
+        "operations": 13629,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000655,
+        "opsPerSecond": 6814.276832433738,
+        "meanMicros": 146.38870056497177,
+        "p99Micros": 506.6,
+        "sends": 13629
+      },
+      "spreadPercent": 230.20093660334365,
+      "stable": false,
+      "ops": [
+        8003.2707062942645,
+        6814.276832433738,
+        2423.757724196965
+      ],
+      "selectedRound": 2,
+      "overheadRatios": [
+        3.654561204145863,
+        3.0359737934633912,
+        3.215326976446833
+      ],
+      "medianOverheadRatio": 3.215326976446833
+    }
+  },
+  "S4": {
+    "legacy": {
+      "median": {
+        "scenario": "S4",
+        "operations": 15904,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000108,
+        "opsPerSecond": 7951.957059431879,
+        "meanMicros": 125.3624559859155,
+        "p99Micros": 341.20000000000005,
+        "sends": 0
+      },
+      "spreadPercent": 136.7086531626217,
+      "stable": false,
+      "ops": [
+        8148.997614297078,
+        7951.957059431879,
+        3442.6276798164276
+      ],
+      "selectedRound": 2
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S4",
+        "operations": 39768,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000266,
+        "opsPerSecond": 19883.735546317235,
+        "meanMicros": 50.02522379802857,
+        "p99Micros": 251.10000000000002,
+        "sends": 0
+      },
+      "spreadPercent": 75.45568501290849,
+      "stable": false,
+      "ops": [
+        30200.495469925678,
+        19883.735546317235,
+        17212.605831326462
+      ],
+      "selectedRound": 2
+    }
+  },
+  "S5": {
+    "legacy": {
+      "median": {
+        "scenario": "S5",
+        "operations": 505,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.0004996,
+        "opsPerSecond": 252.43694125207523,
+        "meanMicros": 3959.397821782178,
+        "p99Micros": 8373.6,
+        "sends": 505
+      },
+      "spreadPercent": 159.59887149691613,
+      "stable": false,
+      "ops": [
+        252.43694125207523,
+        274.10991418112883,
+        105.58979420847947
+      ],
+      "selectedRound": 1
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S5",
+        "operations": 1043,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.0012838,
+        "opsPerSecond": 521.1654638887298,
+        "meanMicros": 1917.6238734419942,
+        "p99Micros": 4332.1,
+        "sends": 1043
+      },
+      "spreadPercent": 108.23465135378174,
+      "stable": false,
+      "ops": [
+        855.2695903723537,
+        410.72395243157075,
+        521.1654638887298
+      ],
+      "selectedRound": 3
+    }
+  },
+  "S6": {
+    "legacy": {
+      "median": {
+        "scenario": "S6",
+        "operations": 41866,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000137,
+        "opsPerSecond": 20932.856609932223,
+        "meanMicros": 47.47432522810873,
+        "p99Micros": 132.70000000000002,
+        "sends": 41866
+      },
+      "spreadPercent": 97.05857127703221,
+      "stable": false,
+      "ops": [
+        21764.41294234823,
+        20932.856609932223,
+        11044.641601380035
+      ],
+      "selectedRound": 2
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S6",
+        "operations": 34175,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000506,
+        "opsPerSecond": 17087.06769718726,
+        "meanMicros": 58.16857644476957,
+        "p99Micros": 172.8,
+        "sends": 34175
+      },
+      "spreadPercent": 60.746807621954616,
+      "stable": false,
+      "ops": [
+        22262.345276700325,
+        13849.32342112638,
+        17087.06769718726
+      ],
+      "selectedRound": 3
+    }
+  }
+}

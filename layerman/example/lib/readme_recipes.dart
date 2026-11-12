@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
 
-// 以下保留 README 英文配方正文，仅增加函数包装和 return，供分析器及 widget 测试执行。
+// 以下保留 visible 版 README 英文配方正文，仅增加函数包装和 return，供分析器及 widget 测试执行。
 // bottom sheet 按 README 指示只替换 route 构造；不借用其他演示的 presenter helper。
 
 /// 配方出处：README 第「GetX dialog / bottom sheet」节；通过真实后端打开并交付结果。
@@ -19,21 +19,8 @@ Future<bool?> openReadmeGetxDialog(Layerman manager) {
         settings: RouteSettings(name: 'om://${ctx.id}'),
         builder: (_) => const ConfirmDialog(),
       );
-      navigator.push(route);
-      return PresentedOverlay<bool>(
-        dismissed: route.completed,
-        dismiss: ([r]) async {
-          final nav = route.navigator;
-          if (nav == null || !route.isActive) return;
-          if (route.isCurrent && !route.willHandlePopInternally) {
-            nav.pop(r); // on top: animated pop
-          } else {
-            nav.removeRoute(
-              route,
-            ); // covered or internal history: remove exactly this one
-          }
-        },
-      );
+      // 出处：visible 版 README，路由首帧确认与定向关闭统一交给 presentRoute。
+      return presentRoute(navigator, route);
     },
   );
 }
@@ -49,21 +36,8 @@ Future<bool?> openReadmeGetxBottomSheet(Layerman manager) {
         builder: (_) => const ConfirmDialog(),
         isScrollControlled: false,
       );
-      navigator.push(route);
-      return PresentedOverlay<bool>(
-        dismissed: route.completed,
-        dismiss: ([r]) async {
-          final nav = route.navigator;
-          if (nav == null || !route.isActive) return;
-          if (route.isCurrent && !route.willHandlePopInternally) {
-            nav.pop(r); // on top: animated pop
-          } else {
-            nav.removeRoute(
-              route,
-            ); // covered or internal history: remove exactly this one
-          }
-        },
-      );
+      // 出处：visible 版 README，路由首帧确认与定向关闭统一交给 presentRoute。
+      return presentRoute(navigator, route);
     },
   );
 }
@@ -75,8 +49,12 @@ Future<void> openReadmeGetxSnackbar(Layerman manager) {
     slot:
         'snack', // a dedicated lane so a toast can coexist with a modal dialog
     present: (ctx) {
-      final c = Get.snackbar('Saved', 'Your changes are safe.');
+      final visible = Completer<void>();
+      final c = Get.snackbar('Saved', 'Your changes are safe.',
+        messageText: OverlayVisibility(visible: visible, child: const Text('Your changes are safe.')),
+      );
       return PresentedOverlay<void>(
+        visible: visible.future,
         dismissed: c.future,
         dismiss: ([_]) => c.close(),
       );
@@ -90,13 +68,15 @@ Future<void> openReadmeBotToast(Layerman manager) {
     id: 'tip',
     slot: 'toast',
     present: (ctx) {
+      final visible = Completer<void>();
       final done = Completer<void>();
-      final cancel = BotToast.showText(
-        text: 'Copied to clipboard',
+      final cancel = BotToast.showCustomText(
+        toastBuilder: (_) => OverlayVisibility(visible: visible, child: Card(child: Text('Copied to clipboard'))),
         onlyOne: false, // replace decisions belong to the manager
         onClose: () => done.complete(), // fires after the exit animation
       );
       return PresentedOverlay<void>(
+        visible: visible.future,
         dismissed: done.future,
         dismiss: ([_]) async => cancel(),
       );

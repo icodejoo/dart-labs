@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -112,3 +114,44 @@ mixin TextualStyleFields {
   /// 后缀字符串的文本样式（回退到 [textStyle]）。
   TextStyle? get suffixStyle;
 }
+
+/// 字段级插值：两端都有值时用 [lerp] 插值；任一端为空（视为“未设置”）或值不可插值时，
+/// 以 `t < 0.5` 为界取前者或后者。
+///
+/// 用于各 `*Style.lerp` 与 `CountmanTheme.lerp`，例如
+/// `lerpField(a.size, b.size, t, (x, y, t) => lerpDouble(x, y, t)!)`。
+T? lerpField<T>(T? a, T? b, double t, T Function(T a, T b, double t) lerp) {
+  if (a == null || b == null) return t < 0.5 ? a : b;
+  return lerp(a, b, t);
+}
+
+/// 不可插值字段（布尔、枚举、配置对象等）的取值：`t < 0.5` 取 [a]，否则取 [b]。
+///
+/// 例如 `pickField(a.clockwise, b.clockwise, t)`。
+T? pickField<T>(T? a, T? b, double t) => t < 0.5 ? a : b;
+
+/// 数值字段插值，任一端为空时按 [lerpField] 的规则取前者或后者。
+///
+/// 例如 `lerpNum(a.strokeWidth, b.strokeWidth, t)`。
+double? lerpNum(double? a, double? b, double t) =>
+    lerpField<double>(a, b, t, (x, y, t) => lerpDouble(x, y, t)!);
+
+/// 颜色字段插值，任一端为空时按 [lerpField] 的规则取前者或后者。
+///
+/// 例如 `lerpColor(a.color, b.color, t)`。
+Color? lerpColor(Color? a, Color? b, double t) =>
+    lerpField<Color>(a, b, t, (x, y, t) => Color.lerp(x, y, t)!);
+
+/// 时长字段插值（按微秒），任一端为空时按 [lerpField] 的规则取前者或后者。
+///
+/// 例如 `lerpDuration(a.colorFadeDuration, b.colorFadeDuration, t)`。
+Duration? lerpDuration(Duration? a, Duration? b, double t) =>
+    lerpField<Duration>(
+      a,
+      b,
+      t,
+      (x, y, t) => Duration(
+        microseconds:
+            lerpDouble(x.inMicroseconds, y.inMicroseconds, t)!.round(),
+      ),
+    );

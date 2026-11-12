@@ -19,6 +19,7 @@ class _FakeBackend<T> {
   PresentedOverlay<T> present(PresentContext context) {
     presented = true;
     return PresentedOverlay<T>(
+      visible: Future<void>.value(),
       dismissed: _dismissed.future,
       dismiss: ([T? result]) async {
         dismissCalled = true;
@@ -97,6 +98,7 @@ void main() {
       expect(snapshot['other']['t'], 3);
       expect(snapshot['promo']['t'], 5);
     }
+    await tester.pump(); // 等 visible 确认触发持久化，再释放写入。
     storage.writes.single.complete();
     await tester.pump();
     manager.dispose();
@@ -118,10 +120,12 @@ void main() {
     await manager.ready();
     expect(fresh.presented, isTrue);
     expect(notified, isTrue);
+    await tester.pump(); // ready 只保证完成 hydrate 调度，计数还需 visible。
     final snapshot = storage.snapshots.single;
     expect(snapshot['fresh']['t'], 1);
     expect(snapshot['promo']['t'], 5);
     expect(snapshot['other']['t'], 3);
+    await tester.pump(); // 等 visible 确认触发持久化，再释放写入。
     storage.writes.single.complete();
     await tester.pump();
     manager.dispose();
@@ -147,6 +151,7 @@ void main() {
     storage.readGate.complete(initial);
     await manager.ready();
     expect(backend.presented, isTrue);
+    await tester.pump(); // 等 visible 确认触发持久化，再释放写入。
     storage.writes.single.complete();
     await tester.pump();
     manager.dispose();
@@ -193,6 +198,7 @@ void main() {
     expect(tester.takeException(), isA<StateError>());
     await manager.ready();
     expect(backend.presented, isTrue);
+    await tester.pump(); // 等 visible 确认触发持久化，再释放写入。
     storage.writes.single.complete();
     await tester.pump();
     manager.dispose();
@@ -216,6 +222,7 @@ void main() {
         cooldown: const OverlayCooldown(total: 9),
         present: b.present);
     expect(a.presented && b.presented, isTrue);
+    await tester.pump(); // 只计真正可见的两次展示，写入仍串行。
     expect(storage.writes, hasLength(1));
     expect(storage.snapshots.single.containsKey('b'), isFalse);
     storage.writes.first.completeError(StateError('写入失败'));
@@ -269,6 +276,7 @@ void main() {
         id: 'fresh',
         cooldown: const OverlayCooldown(total: 9),
         present: first.present);
+    await tester.pump(); // 同 id 累计用例先确认第一次展示。
     manager.close('fresh');
     await tester.pump();
     manager.open(
@@ -276,6 +284,7 @@ void main() {
         cooldown: const OverlayCooldown(total: 9),
         present: second.present);
     expect(second.presented, isTrue);
+    await tester.pump(); // 只计真正可见的两次展示，写入仍串行。
     expect(storage.writes, hasLength(1));
     expect(storage.snapshots.single['fresh']['t'], 1);
     storage.writes.first.complete();

@@ -4,7 +4,13 @@ import 'dart:typed_data';
 
 import 'package:media_kit/media_kit.dart';
 
+import '../core/kernel/mpv_defaults.dart' show kDuration;
 import '../core/preview/extractor.dart';
+
+/// Reused mpv option values. / 复用的 mpv 选项值。
+const _mpvOff = 'no';
+const _mpvAuto = 'auto';
+const _mpvNullOutput = 'null';
 
 /// The default [MovaFramePuller]: a second, hidden media_kit `Player` used
 /// only to decode single frames.
@@ -66,9 +72,6 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   /// 隐藏播放器；已释放时为 null。
   Player? _player;
 
-  /// The hidden player's video controller; kept alive alongside [_player].
-  ///
-  /// 隐藏播放器的视频控制器；与 [_player] 同生共死。
   /// The media currently open on the hidden player, or null when none.
   ///
   /// 隐藏播放器当前已打开的媒体；无则为 null。
@@ -90,13 +93,12 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   ///
   /// 按需创建隐藏播放器，并应用为抽帧调优过的 mpv 属性。
   ///
-  /// - [width]: target frame width in pixels / 目标帧宽度（像素）
   /// - [hwdec]: whether hardware decoding may be used / 是否允许硬件解码
   ///
   /// Returns the ready player.
   ///
   /// 返回就绪的播放器。
-  Future<Player> _ensurePlayer(int width, bool hwdec) async {
+  Future<Player> _ensurePlayer(bool hwdec) async {
     final existing = _player;
     if (existing != null) return existing;
     final generation = _generation;
@@ -109,24 +111,24 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         // setProperty 一直等，extract 永不返回。改为手动开视频解码（vid=auto）并把 vo
         // 设为 null——mpv 仍会解码，screenshot() 取得到帧。
         for (final property in <String, String>{
-          'ao': 'null',
-          'vo': 'null',
-          'vid': 'auto',
-          'hwdec': hwdec ? 'auto' : 'no',
+          'ao': _mpvNullOutput,
+          'vo': _mpvNullOutput,
+          'vid': _mpvAuto,
+          'hwdec': hwdec ? _mpvAuto : _mpvOff,
           'hr-seek': 'yes',
-          'cache': 'no',
+          'cache': _mpvOff,
         }.entries) {
           await native.setProperty(property.key, property.value);
           if (_disposed || generation != _generation) {
             throw StateError('Preview initialization cancelled');
           }
         }
-        // `width` is intentionally unused here: neither `vf=scale` nor
+        // The requested `width` is intentionally unused here: neither `vf=scale` nor
         // VideoControllerConfiguration sizing shrinks screenshot() output on
         // Windows (Task 1 spike, plan appendix A), so no mpv-side scaling is
         // attempted.
         //
-        // `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
+        // 请求的 `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
         // Windows 上 `vf=scale` 与 VideoControllerConfiguration 都不能真正
         // 缩小 screenshot() 的输出，因此不在 mpv 层做任何缩放尝试。
       }
@@ -143,19 +145,18 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   Future<Uint8List?> _extractNow(
     String uri,
     Duration at, {
-    required int width,
+    required int generation,
     required bool hwdec,
     Map<String, String> headers = const {},
   }) async {
-    if (_disposed) return null;
-    final generation = _generation;
+    if (_disposed || generation != _generation) return null;
 
     /// Checks that release or disposal has not superseded this operation.
     ///
     /// 检查操作尚未被释放或销毁取代。
     bool current() => !_disposed && generation == _generation;
     try {
-      final player = await _ensurePlayer(width, hwdec);
+      final player = await _ensurePlayer(hwdec);
       if (!current()) return null;
       final native = player.platform;
       final headerKey = jsonEncode(headers);
@@ -168,8 +169,7 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         if (native is NativePlayer) {
           final ready = await movaWaitForPreviewFrame(
             () async =>
-                (double.tryParse(await native.getProperty('duration')) ?? 0) >
-                0,
+                (double.tryParse(await native.getProperty(kDuration)) ?? 0) > 0,
           );
           if (!ready || !current()) return null;
         }
@@ -185,9 +185,9 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
         },
         landed: () async {
           if (native is! NativePlayer) return false;
-          final target = at.inMilliseconds / 1000.0;
+          final target = at.inMilliseconds / Duration.millisecondsPerSecond;
           return movaWaitForPreviewFrame(() async {
-            if (!current() || await native.getProperty('seeking') != 'no') {
+            if (!current() || await native.getProperty('seeking') != _mpvOff) {
               return false;
             }
             final pos = double.tryParse(await native.getProperty('time-pos'));
@@ -203,6 +203,8 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     }
   }
 
+  /// Serializes extraction with optional per-request [headers], empty by default.
+  ///
   /// 串行抽帧；可选 [headers] 仅作用于本次媒体请求，旧调用默认无头。
   @override
   Future<Uint8List?> extract(
@@ -214,6 +216,8 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }) =>
       extractWithHeaders(uri, at, width: width, hwdec: hwdec, headers: headers);
 
+  /// Serializes extraction with source headers, reopening when credentials change.
+  ///
   /// 使用当前源请求头串行抽帧，同地址换鉴权时重新打开媒体。
   @override
   Future<Uint8List?> extractWithHeaders(
@@ -224,13 +228,17 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
     required Map<String, String> headers,
   }) {
     headers = Map.of(headers);
+    // Capture ownership when enqueuing so release also cancels waiting work.
+    //
+    // 入队时记录所有权，确保 release 同样取消尚在排队的请求。
+    final generation = _generation;
     final completer = Completer<Uint8List?>();
     _queue = _queue.then((_) async {
       completer.complete(
         await _extractNow(
           uri,
           at,
-          width: width,
+          generation: generation,
           hwdec: hwdec,
           headers: headers,
         ),
@@ -270,6 +278,9 @@ class MovaFrameExtractor implements MovaHeaderedFramePuller {
   }
 }
 
+/// Polls [done] at [pollInterval] until [timeout]; returns false on failure.
+/// Example: `await movaWaitForPreviewFrame(check)`.
+///
 /// 轮询 [done] 确认落地；[timeout] 为总期限，[pollInterval] 为轮询间隔。
 /// 返回是否及时确认；异常按未就绪处理。示例：`await movaWaitForPreviewFrame(check)`。
 Future<bool> movaWaitForPreviewFrame(
@@ -293,6 +304,9 @@ Future<bool> movaWaitForPreviewFrame(
   return false;
 }
 
+/// Calls [capture] after [landed] and [settleDelay], optionally retrying a seek
+/// once with [retrySeek]; returns null on failure. See the example below.
+///
 /// 仅在 [landed] 确认落地后等待 [settleDelay] 并调用 [capture] 截图。
 /// 首次未落地时可通过 [retrySeek] 重发一次 seek；再次未落地或异常返回 null。
 /// 不重试截图失败，防止错误帧入缓存。

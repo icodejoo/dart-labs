@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_builder.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
@@ -31,6 +32,9 @@ class RingCountdown extends StatelessWidget {
     this.repaintBoundary,
     this.painterBuilder,
     this.plugin,
+    this.fps,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.controller,
     this.onComplete,
     this.onTick,
@@ -41,7 +45,10 @@ class RingCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
@@ -60,9 +67,22 @@ class RingCountdown extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in ring painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
+  /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。详见 [CountdownBuilder.rounding]。
+  final CountdownRounding rounding;
   final CountdownController? controller;
   final void Function()? onComplete;
 
@@ -84,10 +104,16 @@ class RingCountdown extends StatelessWidget {
   final VoidCallback? onPause;
   final VoidCallback? onResume;
 
+  /// 剩余时间换算的 0–1 进度（剩余 / 分母）。
+  static double _progressOf(TimeParts p) => p.progress;
+
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = (style ?? const RingCountdownStyle()).merge(scope?.ringCountdownStyle);
+    final effStyle = (style ?? const RingCountdownStyle())
+        .merge(scope?.ringCountdownStyle)
+        .merge(CountmanTheme.maybeOf(context)?.ringCountdownStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,
@@ -112,9 +138,13 @@ class RingCountdown extends StatelessWidget {
           )
         : null;
 
-    final driver = CountdownBuilder(
+    final dir = Directionality.maybeOf(context);
+    final driver = CountdownBuilder.listenable(
       to: to,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
+      fps: fps,
+      total: total,
+      rounding: rounding,
       controller: controller,
       onComplete: onComplete,
       onTick: onTick,
@@ -126,29 +156,41 @@ class RingCountdown extends StatelessWidget {
       onPause: onPause,
       onResume: onResume,
       child: centerChild,
-      builder: (ctx, p, centerWidget) {
-        final progress = p.progress;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, parts, centerWidget) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<TimeParts>(
+            valueListenable: parts,
+            child: centerWidget,
+            builder: (ctx, p, child) {
+              final progress = p.progress;
+              return buildProgressPaint(
+                size: Size.square(effSize),
+                progress: progress,
+                painter: custom(ctx, progress),
+                paintChild: child,
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<TimeParts>(
+          source: parts,
+          toProgress: _progressOf,
           size: Size.square(effSize),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : ringPainterFrom(effStyle,
-                  progress: progress,
-                  color: colors.fill,
-                  trackColor: colors.track,
-                  // Countdown depletes: pin the arc's far end so the empty gap
-                  // opens at 12 o'clock and sweeps clockwise. A leading thumb
-                  // dot (on by default here, off/customizable via style) rides
-                  // the depleting edge so even a slow long countdown visibly
-                  // moves every tick while keeping rounded ends.
-                  //
-                  // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。前导游标圆点
-                  // （此处默认开，可经 style 关闭/定制）骑在递减边缘，使即便缓慢的
-                  // 长倒计时也每 tick 明显移动，同时保留圆头。
-                  anchorAtEnd: true,
-                  defaultShowThumb: true),
-          paintChild: centerWidget,
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。前导游标圆点（此处默认
+          // 开，可经 style 关闭/定制）骑在递减边缘，使缓慢的长倒计时也每 tick 明显移动，
+          // 同时保留圆头。
+          painterFactory: (progress) => ringPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track,
+              anchorAtEnd: true,
+              defaultShowThumb: true),
+          child: centerWidget,
         );
       },
     );
@@ -158,8 +200,8 @@ class RingCountdown extends StatelessWidget {
     //
     // 盒层（padding + decoration）不依赖值——在每 tick 的 builder 外只包一次；
     // RepaintBoundary（若有）为最外层。
-    final decorated =
-        applyBoxStyle(driver, padding: effStyle.padding, decoration: effStyle.decoration);
+    final decorated = applyBoxStyle(driver,
+        padding: effStyle.padding, decoration: effStyle.decoration);
     return effRepaint ? RepaintBoundary(child: decorated) : decorated;
   }
 }

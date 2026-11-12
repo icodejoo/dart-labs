@@ -1,0 +1,16 @@
+00:00 +0: loading test/combo/share_retry_cancel_combo_test.dart
+00:00 +0: [DiomanSharePolicy.retry][DiomanNext] 首发取消后仍为跟随者重试
+00:00 +0 -1: [DiomanSharePolicy.retry][DiomanNext] 首发取消后仍为跟随者重试 [E]
+  Expected: true
+    Actual: <false>
+  
+  package:matcher                                     expect
+  test\combo\share_retry_cancel_combo_test.dart 42:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/share_retry_cancel_combo_test.dart: [DiomanSharePolicy.retry][DiomanNext] 首发取消后仍为跟随者重试
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

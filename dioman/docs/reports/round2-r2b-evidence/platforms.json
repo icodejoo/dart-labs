@@ -1,0 +1,60 @@
+{
+  "results": {
+    "vm": {
+      "connectionTimeout": "timeout",
+      "sendTimeout": "timeout",
+      "receiveTimeout": "timeout",
+      "badCertificate": "network",
+      "badResponse": null,
+      "cancel": "cancel",
+      "connectionError": "network",
+      "unknown": "internal",
+      "transformTimeout": "internal",
+      "decode": "parse",
+      "bug": "internal",
+      "socket": "network",
+      "http": "network",
+      "tls": "network"
+    },
+    "js": {
+      "connectionTimeout": "timeout",
+      "sendTimeout": "timeout",
+      "receiveTimeout": "timeout",
+      "badCertificate": "network",
+      "badResponse": null,
+      "cancel": "cancel",
+      "connectionError": "network",
+      "unknown": "internal",
+      "transformTimeout": "internal",
+      "decode": "parse",
+      "bug": "internal",
+      "socket": "network",
+      "http": "network",
+      "tls": "network"
+    },
+    "wasm": {
+      "connectionTimeout": "timeout",
+      "sendTimeout": "timeout",
+      "receiveTimeout": "timeout",
+      "badCertificate": "network",
+      "badResponse": null,
+      "cancel": "cancel",
+      "connectionError": "network",
+      "unknown": "internal",
+      "transformTimeout": "internal",
+      "decode": "parse",
+      "bug": "internal",
+      "socket": "network",
+      "http": "network",
+      "tls": "network"
+    }
+  },
+  "equal": true,
+  "cases": 14,
+  "runtime": "Dart 3.13.0 / Node v24.11.0",
+  "native_equivalence": "socket/http/tls: VM unknown 原生原因；JS/Wasm connectionError，浏览器无 dart:io 类",
+  "compilers": {
+    "js": "Compiled 14,625,287 input bytes (9,195,141 characters source) to 214,819 characters JavaScript in 6.45 seconds",
+    "wasm": "Generated wasm module 'coverage/r2b-probe.wasm', and JS init file 'coverage/r2b-probe.mjs'."
+  }
+}
