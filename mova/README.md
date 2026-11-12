@@ -7,10 +7,10 @@ A Flutter video player built on [media_kit](https://pub.dev/packages/media_kit)
 playback.
 
 > **Repository version: 0.4.2** (pubspec.yaml is authoritative).
-> An `Unreleased` section in the CHANGELOG (if any) describes repository
-> capabilities that come after the current release and are only available through
-> a path/git dependency; check the matching CHANGELOG entry before installing a
-> pub.dev version, and do not treat repository features as released features.
+> The CHANGELOG may have an `Unreleased` section. Those changes come after the
+> current release and are only available through a path or git dependency.
+> Before installing a pub.dev version, check its CHANGELOG entry, and don't assume
+> a repository feature has been released.
 > Android/Windows have partial real-device verification; iOS is not verified,
 > CP2/CP3 still need real devices, and CP1 is 13 PASS / 3 BLOCKED, so it has not
 > passed as a whole. The target-device acceptance scope is in the
@@ -21,15 +21,15 @@ playback.
 
 - **Gestures**: vertical swipe on the left half = brightness, right half = volume, horizontal swipe = seek, double tap = fast forward/rewind, two-finger pinch = zoom, all with HUD feedback; the side-to-action mapping is configurable.
 - **Fill modes**: cycle through `contain` / `cover` / `fill`.
-- **Lock**: one tap locks out all interaction (accidental-touch protection) for immersive viewing.
+- **Lock**: one tap blocks all touch input, so nothing triggers by accident while you watch.
 - **Orientation**: fullscreen picks landscape/portrait from the video aspect ratio; the top-bar orientation button (mobile only) can force landscape/portrait via `setOrientation`, independent of fullscreen.
-- **Quality**: parses the HLS master playlist for renditions, manual switching, automatic step-down on network stalls; the "auto" rendition delegates to libmpv's native ABR.
+- **Quality**: reads renditions from the HLS master playlist, switches manually, and steps down automatically when the network stalls. The "auto" rendition uses libmpv's own ABR.
 - **PiP**: Android system-level picture-in-picture (iOS/desktop not supported yet, see below).
-- **VOD & Live**: two control bars; live seeking is disabled by default, and can be enabled as DVR (seek inside the server window) or time-shift (seeking re-opens the source), with a "back to live" button and a time-shift badge.
+- **VOD & Live**: separate control bars. Live seeking is off by default; you can turn it on as DVR (seek inside the server window) or time-shift (seeking re-opens the source). Live has a "back to live" button and a time-shift badge.
 - **Scrub preview**: while dragging the progress bar or horizontal-swiping, a thumbnail bubble for the target time floats above the bar (WebVTT sprite sheet / libmpv frame extraction fallback, two-level cache, Wi-Fi only by default).
 - **Ad orchestration (optional)**: `MovaAds` plays pre/mid/post-roll breaks on a schedule, with deferred content-source resolution, ad-slot duration decoupled from asset duration, readiness waiting, and failure fallback.
-- **Seamless engine swapping (optional)**: `MovaCutoverEngine` holds the current engine and a warming shadow engine behind one stable render surface and swaps the pointer atomically when ready, removing the black screen/loading in cases such as "back to content after an ad". Off by default.
-- **In-app mini window (optional)**: independent of system PiP, shrinks the picture into a draggable floating window without re-decoding or a black screen. Off by default.
+- **Seamless engine swapping (optional)**: `MovaCutoverEngine` keeps the current engine and a warming-up shadow engine behind one render surface, and swaps them atomically when the shadow is ready. This removes the black screen or loading spinner when, for example, content resumes after an ad. Off by default.
+- **In-app mini window (optional)**: separate from system PiP. Shrinks the picture into a draggable floating window, with no re-decoding and no black screen. Off by default.
 - **Audio-only mode (optional)**: skips the video pipeline and decodes audio only, saving memory/CPU. Off by default.
 
 ## Platform support
@@ -47,11 +47,11 @@ playback.
 - Desktop platforms (Windows/macOS/Linux) have no "true fullscreen" (fill the OS window, remove the title bar); `setFullscreen()` itself only updates state/orientation. For in-app fill use `MovaPlayer(fullscreenRoute: true)`; OS-window fullscreen must be wired by the host with a package such as `window_manager` (see the "Platform ports" section below).
 - Strict TLS verification (`createMovaEngine(tlsVerify: true, tlsCaFile: ...)`, off by default, in which case Android libmpv does not verify certificates): **on Android, enabling it requires also passing `tlsCaFile` (a PEM CA bundle, for example concatenated from the certificates under `/system/etc/security/cacerts/`), otherwise every HTTPS request fails** (the slimmed libmpv uses mbedtls and has no system trust store); direct-IP connections do not verify the certificate host name, only domain names are checked; iOS/macOS are not verified.
 - Audio-only mode (`audioOnly`) does not provide background playback, lock-screen/notification controls, headset buttons, audio focus, gapless playback, or playlists; those need a dedicated solution such as `just_audio` + `audio_service`.
-- **A `VideoController` of a kernel with video must actually be attached to the UI before it can be disposed properly** (this is media_kit behavior, not introduced by mova): if a `VideoController` is created but never attached to a video widget, `Player.dispose()` keeps waiting for it; on real devices 3 of 6 disposes on Windows and 4 of 5 on Android hit the 8-second timeout. The default implementation (`createMovaEngine()` / `MovaEngine()`) creates it **lazily**, on first render (when `MovaPlayer` is mounted and reads `renderHandle`), so "created an engine but never showed it, then disposed it" is safe. **If you create and inject the `VideoController` yourself (passing your own `MovaMpvKernel`/`Player`, or a kernel with `lazyVideo: false`), you must make sure it ends up attached to the UI before disposing it**; for scenarios that show no picture (pure logic, background warm-up, unit tests) use `audioOnly: true`, or keep the default lazy creation and do not read `renderHandle`. The shadow engine of seamless swapping is the exception: it needs to decode frames during warm-up, so it creates the controller early.
+- **For a kernel with video, the `VideoController` must be attached to the UI before it can be disposed cleanly** (this is media_kit behavior, not introduced by mova): if a `VideoController` is created but never attached to a video widget, `Player.dispose()` keeps waiting for it; on real devices 3 of 6 disposes on Windows and 4 of 5 on Android hit the 8-second timeout. The default implementation (`createMovaEngine()` / `MovaEngine()`) creates it **lazily**, on first render (when `MovaPlayer` is mounted and reads `renderHandle`), so "created an engine but never showed it, then disposed it" is safe. **If you create and inject the `VideoController` yourself (passing your own `MovaMpvKernel`/`Player`, or a kernel with `lazyVideo: false`), you must make sure it ends up attached to the UI before disposing it**; for scenarios that show no picture (pure logic, background warm-up, unit tests) use `audioOnly: true`, or keep the default lazy creation and do not read `renderHandle`. The shadow engine of seamless swapping is the exception: it needs to decode frames during warm-up, so it creates the controller early.
 - **Flutter 3.47.0/3.47.1 (Impeller) on Windows: pushing/popping an opaque route crashes the process natively**. This is an engine bug (flutter/flutter#190774, fixed in 3.47.2), unrelated to mova, and plain media_kit crashes too. mova works around it on Windows by excluding the player render surface from page-transition snapshots; hosts are still advised to upgrade to Flutter 3.47.2 or later. Pages that use the media_kit `Video` directly are not covered by this workaround and need to upgrade or turn off snapshotting for the transition (`ZoomPageTransitionsBuilder(allowSnapshotting: false)`).
 - The viewport detection of the auto-pause guard (`MovaAutoPause`) only walks ancestor `Scrollable`s and does **not** cover occlusion caused by arbitrary `ClipRect`/`Transform`/`Overlay`; translucent routes on an outer navigator require `routeObservers` (one observer per navigator, they cannot be shared); if a lazy list disposes a card before the guard had a chance to pause it, the engine belongs to its owner from then on.
 - Standby has Windows release data (FLV wake-up 18/18 went through the grace period, and the timing readings are the 5s fallback, so they cannot be used as measured first-frame times), and Android CP1 S1/S7/S13/S14 are 20/20; HLS, power consumption and iOS/macOS are still not sufficiently verified. See the [standby verification record](https://github.com/icodejoo/dart-labs/blob/main/mova/doc/plans/2026-10-23-standby-mode.md) and [CP1](https://github.com/icodejoo/dart-labs/blob/main/mova/doc/plans/2026-11-03-cp1-results.md).
-- Recovery, ads and cutover are now arbitrated by a session: non-terminal diagnostics are left to the engine; while recovering it waits for giveUp, and a terminal ad failure is decided once by the ad policy; a content failure enters `contentError` and does not advance to the next episode automatically. A new host `open` takes priority, and the old session and old shadow yield.
+- Recovery, ads and cutover are now coordinated by one session: non-terminal diagnostics are left to the engine; while recovering it waits for giveUp, and a terminal ad failure is decided once by the ad policy; a content failure enters `contentError` and does not advance to the next episode automatically. A new host `open` takes priority, and the old session and old shadow yield.
 - Out-of-pool network prefetch for Feed only issues a Range request of about **64KB** (default `bytes=0-65536`, 65537 bytes inclusive); the code drains the response, so a server that ignores Range may deliver the whole resource; for HLS only the **m3u8** is fetched and media segments are not prefetched. Every prefetch does a `force close`, so connections are not reused; the engine of an out-of-pool live item may still pull the stream at full speed, so prefetch is not a substitute for rate limiting or an offline cache.
 - STT model download is an **experimental implementation with no checksum verification**, and this package ships no recognition engine.
 - **DRM, casting and offline download are not supported**.
@@ -75,7 +75,7 @@ To use picture-in-picture on Android, declare it on the Activity in `AndroidMani
 
 ## Capability entry points (0.4.x)
 
-`package:mova/mova.dart` keeps exporting the original symbols. Pick by capability:
+`package:mova/mova.dart` still exports everything it used to. You can also import by capability:
 
 | Entry | Purpose |
 |---|---|
@@ -87,7 +87,7 @@ To use picture-in-picture on Android, declare it on the Activity in `AndroidMani
 | `package:mova/stt.dart` | STT port, subtitles and experimental model download |
 
 The STT re-export from the main entry is kept for one version only; switch to importing `package:mova/stt.dart` (`MovaSttConfig`, `MovaSttEngine`, `formatSrt` and the other STT types live there; `MovaApi.stt` stays).
-The announcement about hiding internal helpers on the exports is in the [SPEC](https://github.com/icodejoo/dart-labs/blob/main/mova/doc/SPEC.md); member-level deprecation annotations have not been added yet.
+The plan to hide internal helpers from the exports is in the [SPEC](https://github.com/icodejoo/dart-labs/blob/main/mova/doc/SPEC.md); members are not marked `@Deprecated` yet.
 
 ## In-app fullscreen and view styles (0.4.x)
 
@@ -99,7 +99,7 @@ MovaPlayer(
 )
 ```
 
-The back key leaves fullscreen first, and while locked it prompts to unlock; the route borrows the same API and builds its own chrome, and leaving it brings back the inline control bar.
+The back key leaves fullscreen first (while locked, it asks you to unlock). The fullscreen route reuses the same API and builds its own controls; when you leave it, the inline control bar comes back.
 Orientation and PiP/mini are still managed by the engine; a custom surface on Windows is protected by the snapshot guard as well.
 `MovaPlayerStyle` is looked up per section: view parameter > ThemeExtension > legacy options > defaults, and switching themes does not rebuild the engine.
 A component can use `MovaChrome.of(context)` to control the HUD/control bar/dragging of its own view; lock, fit and zoom are still shared.
@@ -115,13 +115,13 @@ const source = MovaSource(
 );
 ```
 
-An explicit userAgent overrides a header of the same name. Playback, quality probing, VTT/sprite sheets, frame extraction and Feed prefetch share the headers;
+An explicit `userAgent` overrides a header of the same name. Playback, quality probing, VTT/sprite sheets, frame extraction and Feed prefetch share the headers;
 `start` is for VOD only and waits for readiness through the seek register chain. A custom side-channel HTTP client should implement
 `MovaHeaderedHttpFetch.getWithHeaders(Uri url, Map<String, String> headers)`;
-the old `MovaHttpFetch.get(Uri)` still works, but the headers are lost, with a debug hint once per instance.
+the old `MovaHttpFetch.get(Uri)` still works, but it drops the headers and prints a debug hint once per instance.
 The default IO implementation sets headers per request and does not leak them into the next request; a custom frame extractor can implement `MovaHeaderedFramePuller`.
-When the same URL is opened with different headers by different engines (content and cutover shadow, feed pool) or by retries, the headers do not cross over;
-the preview thumbnail cache key also distinguishes headers (identical to the old version when there are no headers); a failure to parse `http-header-fields` is no longer silently cleared but reported through the diagnostics stream.
+If different engines (content and cutover shadow, feed pool) or retries open the same URL with different headers, the headers stay separate;
+the preview thumbnail cache key also includes the headers (same as before when there are none). A failure to parse `http-header-fields` is no longer silently cleared; it is reported on the diagnostics stream.
 
 ## Usage
 
@@ -177,7 +177,7 @@ class _PageState extends State<Page> {
 ```
 
 > **Note**: apps should use `createMovaEngine()` exported by `package:mova/mova.dart`, which wires the
-> brightness/PiP/orientation ports by default. A bare `MovaEngine()` constructor uses empty platform ports by default,
+> brightness/PiP/orientation ports by default. A bare `MovaEngine()` uses empty platform ports,
 > which suits tests or injecting your own ports, and prints a one-time hint in debug.
 
 To customize the gesture side-to-action mapping and switches, pass `MovaOpts` to the engine. Sides and actions are decoupled and can be
@@ -187,7 +187,7 @@ remapped freely (put brightness on the right, or disable a side with `MovaGestur
 final engine = createMovaEngine(
   options: const MovaOpts(
     gesture: MovaGestureConfig(
-      // The default is the mainstream convention: left brightness, right volume, horizontal seek. Below we switch back to the old left volume / right brightness.
+      // Default: left brightness, right volume, horizontal seek. This example switches back to the old layout (left volume, right brightness).
       leftVertical: MovaGestureAction.volume,      // left vertical swipe = volume
       rightVertical: MovaGestureAction.brightness, // right vertical swipe = brightness
       horizontal: MovaGestureAction.seek,          // horizontal swipe = seek
@@ -228,7 +228,7 @@ api.events.listen((e) {
 });
 ```
 
-- Criteria: the native `PLAYBACK_RESTART` is the most accurate; without a subscription it falls back to the buffering falling edge, consecutively increasing positions, and the first picture size in the paused state. If the native subscription is working but RESTART never arrives, it lands after at most a 1.5s grace period.
+- How it is detected: the native `PLAYBACK_RESTART` is the most accurate; without a subscription it falls back to the buffering falling edge, consecutively increasing positions, and the first picture size in the paused state. If the native subscription is working but RESTART never arrives, it lands after at most a 1.5s grace period.
 - **By default the first open lazily subscribes to END_FILE, and RESTART is not enabled** (one weak mpv client per engine, plus a 100ms poll in debug; END_FILE is independent of the recovery switch): `createMovaEngine(preciseFirstFrame: true)` turns it on and gives a more accurate first frame (on real devices the buffering fallback is about 200ms earlier than the real RESTART, which is optimistic); `MovaView` enables it by default when it has a `poster`.
 - `MovaPlayer(poster:)` / `MovaView(poster:)`: the poster is layered into the "picture layer" passed to the skin, with the buffering spinner, error layer and control bar painted above it; it fades out (`posterFade`) once `rendered` and the picture size is known, and covers again the moment the source changes; for audio-only sources the poster stays. `MovaFeedPlayer(posterUntilFirstFrame: true)` works the same way and is off by default.
 - Fill mode is declarative: `MovaEngine(fit:)` / `createMovaEngine(fit:)` give the initial value, and `MovaPlayer(fit:)` / `MovaView(fit:)` apply it once at mount and **when that parameter changes**; a value picked by the user with the fit button is not overwritten by unrelated rebuilds.
@@ -236,9 +236,9 @@ api.events.listen((e) {
 
 ## Playback errors
 
-`state.error` only holds terminal errors, for the retry overlay and failure state; this includes `END_FILE(error)`, recovery giving up, known terminal texts, and an `open` throw. The default configuration also detects END_FILE, with the weak client started only on the first open; old events are drained before each load and late notifications are dropped per load attempt. Only one terminal report is made per attempt and duplicate logs stay as diagnostics; a standby failure is recorded silently and re-opened at wake-up. With recovery off, an open failure is still thrown in this version and also writes the terminal state; the next version will stop throwing.
+`state.error` only holds terminal errors, for the retry overlay and failure state; this includes `END_FILE(error)`, recovery giving up, known terminal texts, and an `open` throw. The default configuration also detects END_FILE, with the weak client started only on the first open; old events are drained before each load and late notifications are dropped per load attempt. Each attempt reports a terminal error only once, and duplicate logs stay as diagnostics; a standby failure is recorded silently and re-opened at wake-up. With recovery off, an open failure is still thrown in this version and also writes the terminal state; the next version will stop throwing.
 
-Without an END_FILE event pump or when its registration fails, a fallback for main-file open failures is restored: when an error arrives it checks whether the pump is available, and only if a stream/cplayer/ffmpeg error text contains the current main file's effective address does it enter the same recovery or terminal entry. Separate addresses of external subtitles, external audio tracks and HLS segments do not trigger this fallback; when the pump is active, END_FILE still decides termination.
+Without an END_FILE event pump or when its registration fails, mova falls back to catching main-file open failures: when an error arrives it checks whether the pump is available, and only if a stream/cplayer/ffmpeg error text contains the current main file's effective address does it enter the same recovery or terminal entry. Separate addresses of external subtitles, external audio tracks and HLS segments do not trigger this fallback; when the pump is active, END_FILE still decides termination.
 
 Non-terminal kernel logs keep being sent as `MovaErrorEvent(fatal: false)` and notify `MovaHook.onError`, and do not write `state.error` or show the error overlay. When migrating code that "listens to state.error to collect all errors", listen to events instead:
 
@@ -252,11 +252,11 @@ engine.events.listen((event) {
 });
 ```
 
-With recovery enabled, `MovaPlayFailure` tracks every retry/failover/give-up decision. The error overlay texts are configured with `MovaStrs(playbackError: 'Playback failed, please retry', retry: 'Retry')`, and the raw error text is only shown in debug mode. A `MovaPlayer`/`MovaView` with a poster enables the RESTART precise first frame.
+With recovery enabled, `MovaPlayFailure` reports every retry/failover/give-up decision. The error overlay texts are configured with `MovaStrs(playbackError: 'Playback failed, please retry', retry: 'Retry')`, and the raw error text is only shown in debug mode. A `MovaPlayer`/`MovaView` with a poster enables the RESTART precise first frame.
 
 ## Timeouts and multiple addresses (optional, off by default)
 
-Terminal failures are already detected through `END_FILE(error)` by default and end the spinner; `MovaOpts.recovery` additionally provides timeout fallback, retry and multi-address failover:
+Terminal failures are already detected through `END_FILE(error)` by default and end the spinner; `MovaOpts.recovery` adds a timeout fallback, retry and multi-address failover:
 
 ```dart
 createMovaEngine(
@@ -266,11 +266,11 @@ createMovaEngine(
 final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
 ```
 
-- Triggers: **start timeout** (no first frame; a fallback deadline derived from `timeouts`, default 65s for non-WHEP / 85s for WHEP; opening in the paused state with `autoPlay: false` is not timed, and timing starts from scratch after `play()`), **stall timeout** (continuous buffering after the first frame; fallback deadline default 65s non-WHEP / 10s WHEP, turned off with `stallWatchdog: false`; pausing stops the timer), an `open()` throw, native `END_FILE(error)` (a bad address is judged instantly without waiting for a timeout; subscribed by default, independent of `recovery`, no need to add `preciseFirstFrame`), and a live stream reaching its end (`liveEndIsFailure`, counted as a failure by default).
+- Triggers: **start timeout** (no first frame; a fallback deadline derived from `timeouts`, default 65s for non-WHEP / 85s for WHEP; opening in the paused state with `autoPlay: false` is not timed, and timing starts from scratch after `play()`), **stall timeout** (continuous buffering after the first frame; fallback deadline default 65s non-WHEP / 10s WHEP, turned off with `stallWatchdog: false`; pausing stops the timer), an `open()` throw, native `END_FILE(error)` (a bad address fails immediately instead of waiting for a timeout; subscribed by default, independent of `recovery`, no need to add `preciseFirstFrame`), and a live stream reaching its end (`liveEndIsFailure`, counted as a failure by default).
 - Default policy `MovaDefaultRecovery`: **VOD** uses `MovaRetryThenFailover` (wait 1s and retry each address once, then move to the next alternative, give up when all are used; same behavior as before); **live** uses `MovaLiveReconnect` (exponential backoff 1s, 2s, 4s... capped at 15s (`maxDelay` is adjustable), reconnecting continuously so playback resumes automatically after the publisher restarts or drops; with alternatives, earlier addresses are retried once each before moving on, the last address reconnects forever, and `maxAttempts` can set a cap). To stop live from reconnecting forever: `MovaRecoveryConfig(liveReconnect: false)`, and live goes back to the same "retry once then give up" as VOD. `MovaFailoverOnly` does not retry the same address; you can also implement `MovaRecoveryPolicy` to replace it entirely (a policy that throws is treated as giving up; `MovaPlayFail.isLive` tells live from VOD).
-- **Division of reconnect work**: timeouts are handled by libmpv/ffmpeg, and Dart only handles reconnecting. Live does **not** enable libmpv's `reconnect_streamed`; stream-drop reconnects are left entirely to `MovaLiveReconnect` (exponential backoff, multi-address failover, events); VOD **keeps** mpv's default ffmpeg reconnect (Range resume, window about 11s). The **main path** that triggers reconnecting is mpv's `END_FILE(error)`; Dart's `startTimeout`/`stallTimeout` are only a **fallback watchdog**, covering hangs where mpv reports no error (buffering spinning forever, WHEP where server-side STUN keepalives keep `media_timeout` from firing, and so on).
-- **Unified timeout config `MovaRecoveryConfig.timeouts` (`MovaTimeouts`)**: `network` -> mpv `network-timeout` (whole seconds), `whepHandshake`/`whepFirstFrame`/`whepMedia` -> WHEP `handshake_timeout`/`first_frame_timeout`/`media_timeout` (microseconds, `whep...` addresses only), pushed to mpv before every open; if not set, mpv defaults are untouched. Explicit settings of the same option in `MovaSource.mpvOptions`/`demuxerOptions`/`whepMediaTimeout` take precedence.
-- **Watchdog deadlines are derived from the mpv window by default**: when `startTimeout`/`stallTimeout` are not set they equal the longest mpv-side window + 5s margin, which guarantees the watchdog does not cut in before mpv's reconnect/handshake window ends; if set explicitly, your value wins (a value shorter than the mpv window interrupts mpv's reconnecting). The mpv window: for non-WHEP it is `max(network, 11s)` (an unset `network` uses mpv's default 60s; 11s is the ffmpeg reconnect window), for WHEP start it is `network+handshake+firstFrame` (default 60+10+10), and for stalls it is `media_timeout` (default 5s). Turn the stall watchdog off with `stallWatchdog: false` (replacing the old `stallTimeout: null`).
+- **Who does what on reconnect**: timeouts are handled by libmpv/ffmpeg, and Dart only handles reconnecting. Live does **not** enable libmpv's `reconnect_streamed`; stream-drop reconnects are left entirely to `MovaLiveReconnect` (exponential backoff, multi-address failover, events); VOD **keeps** mpv's default ffmpeg reconnect (Range resume, window about 11s). The **main path** that triggers reconnecting is mpv's `END_FILE(error)`; Dart's `startTimeout`/`stallTimeout` are only a **fallback watchdog**, covering hangs where mpv reports no error (buffering spinning forever, WHEP where server-side STUN keepalives keep `media_timeout` from firing, and so on).
+- **Unified timeout config `MovaRecoveryConfig.timeouts` (`MovaTimeouts`)**: `network` -> mpv `network-timeout` (whole seconds), `whepHandshake`/`whepFirstFrame`/`whepMedia` -> WHEP `handshake_timeout`/`first_frame_timeout`/`media_timeout` (microseconds, `whep...` addresses only), sent to mpv before every open; anything you leave unset keeps mpv's default. Explicit settings of the same option in `MovaSource.mpvOptions`/`demuxerOptions`/`whepMediaTimeout` take precedence.
+- **Watchdog deadlines are derived from the mpv window by default**: when `startTimeout`/`stallTimeout` are not set they equal the longest mpv-side window + 5s margin, so the watchdog never fires before mpv's reconnect/handshake window ends; if set explicitly, your value wins (a value shorter than the mpv window interrupts mpv's reconnecting). The mpv window: for non-WHEP it is `max(network, 11s)` (an unset `network` uses mpv's default 60s; 11s is the ffmpeg reconnect window), for WHEP start it is `network+handshake+firstFrame` (default 60+10+10), and for stalls it is `media_timeout` (default 5s). Turn the stall watchdog off with `stallWatchdog: false` (replacing the old `stallTimeout: null`).
   ```dart
   // 10s network timeout: non-WHEP start/stall fallback 16s; WHEP (handshake 5 / first frame 8 / media 5) start 28s, stall 10s
   const MovaRecoveryConfig(
@@ -296,7 +296,7 @@ final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
   );
   ```
 - The duration of a live stream keeps growing, so `MovaDurationChange` (and `state.duration`) is throttled for live sources by `MovaLiveConfig.durationStep` (default 2s): changes smaller than one step are not reported; `Duration.zero` restores reporting every change. VOD is unaffected.
-- mova provides no hook to sort/filter alternative addresses: the sort criteria (such as rendition names) and whether a protocol can play (depends on the libmpv build you use) are only known to the host, so pass them in already sorted. `MovaSource.pick` only cleans: trims whitespace, drops empty strings, de-duplicates, and keeps order.
+- mova has no hook to sort or filter alternative addresses: the sort criteria (such as rendition names) and whether a protocol can play (depends on the libmpv build you use) are only known to the host, so pass them in already sorted. `MovaSource.pick` only cleans: trims whitespace, drops empty strings, de-duplicates, and keeps order.
 
 ## Event delivery, frame capture and capability lookup
 
@@ -332,7 +332,7 @@ MovaView(source: src, autoPause: const MovaAutoPauseConfig())
 
 ## Standby while hidden (keepAlive, optional)
 
-When a live card is hidden (switched tab, scrolled off screen, covered by a route), besides pausing you can put it on "standby": no picture and no sound, but **the stream connection and the live progress are kept**. When shown again only video decoding needs to be restored, with no need to walk the whole "re-request -> first segment -> decoder -> first frame" chain again.
+When a live card is hidden (switched tab, scrolled off screen, covered by a route), besides pausing you can put it on "standby": no picture and no sound, but **the stream connection and the live progress are kept**. When shown again only video decoding needs to be restored, without going through the whole "re-request -> first segment -> decoder -> first frame" chain again.
 
 ```dart
 // Handled automatically by the guard (recommended; the default is still pause)
@@ -350,16 +350,16 @@ if (api is MovaKeepAlive) {
 ```
 
 - **Mechanism**: if the stream has audio -> turn off video decoding and mute (the audio chain is the clock, and the demuxer keeps chasing the edge); if the stream has no audio -> keep decoding and only mute; VOD, going to the background, unknown media info, and HLS (default) -> fall back to a normal pause. Standby lasts at most `MovaKeepAliveConfig.maxDuration` (default 30s), then falls back to pause automatically.
-- **No network savings at all**: during standby it keeps downloading at full speed; what is saved is decoding/rendering/battery. On cellular networks the host is advised to switch back to `hiddenMode: MovaHiddenMode.pause`; **when there are several live cards in a list, enable standby only for the primary card**, since every standby card downloads at full speed.
+- **It saves no network traffic**: during standby it keeps downloading at full speed; what is saved is decoding/rendering/battery. On cellular networks, switch back to `hiddenMode: MovaHiddenMode.pause`; **when there are several live cards in a list, enable standby only for the primary card**, since every standby card downloads at full speed.
 - **By default it only takes effect for live streams such as FLV**: HLS/DASH pause by default (`MovaKeepAliveConfig.allowHls: false`); after switching back to `vid`, whether the demuxer reads back from the network and whether problems appear after the live window slides away have not been tested on real devices yet.
 - **Resuming waits for a keyframe**: typically 0 to 1 GOP, with no reconnect. `MovaKeepAliveResume.elapsed` records the time from the wake-up call to the first new frame, and `signal` says what triggered the landing.
 - **Always pause when going to the background**: the guard downgrades standby to pause when the app goes to the background (the system throttles network and CPU). Imperative users must `pause()` themselves when going to the background.
 - **Only `setKeepAlive(false)` can wake it**: a programmatic `play()` during standby (ads, playlist) does not make an invisible card make sound. If `open()` switches source while a standby request exists, the new source loads paused, and after the first frame lands it tries to enter standby again if it should still be playing.
-- Tuning is in `MovaOpts.keepAlive` (`MovaKeepAliveConfig`: `maxDuration`/`silentStreams`/`allowHls`/`resumeTimeout`/`liveResumeGrace`); there is tuning only, no switch: without calling `setKeepAlive` not a single line of standby code runs.
+- Tuning is in `MovaOpts.keepAlive` (`MovaKeepAliveConfig`: `maxDuration`/`silentStreams`/`allowHls`/`resumeTimeout`/`liveResumeGrace`); these options only tune it, and there is no on/off switch: standby code does not run until you call `setKeepAlive`.
 - State and events: `MovaState.keepAlivePhase` (`off`/`holding`/`fallback`/`resuming`), `MovaKeepAliveChange`, `MovaKeepAliveResume`. With a poster (`poster`), the poster covers instantly during standby and resume, and fades out after the resume lands.
-- During standby QoE keeps counting watch time and stalls (this round does not make the collector aware of standby).
+- During standby QoE keeps counting watch time and stalls (the collector does not know about standby yet).
 - In host widget tests, `MovaTestKernel`'s `hasAudio` (default `null` = media info unknown, which falls back to pause) and `fileFormat` can script standby scenarios.
-- Verification page: [example/lib/main_keep_alive_verify.dart](https://github.com/icodejoo/dart-labs/blob/main/mova/example/lib/main_keep_alive_verify.dart); partially measured on Windows, Android CP1 is in the record above, and this must not be taken as CP2/CP3 having passed.
+- Verification page: [example/lib/main_keep_alive_verify.dart](https://github.com/icodejoo/dart-labs/blob/main/mova/example/lib/main_keep_alive_verify.dart); partially measured on Windows, Android CP1 is in the record above, and that does not mean CP2/CP3 passed.
 
 ## Widget tests
 
@@ -400,8 +400,8 @@ final engine = createMovaEngine(
 );
 ```
 
-The conventional thumbnail track address is `<video address>.vtt`; to change it use `vttUrl` or `vttUrlResolver`.
-To replace the whole bubble appearance:
+The thumbnail track is expected at `<video address>.vtt`; to change that, use `vttUrl` or `vttUrlResolver`.
+To replace the whole bubble:
 
 ```dart
 MovaPlayer(
@@ -441,7 +441,7 @@ The default is `off` (seeking disabled); `timeshift` mode has no effect without 
 ## Danmaku (optional)
 
 `MovaDanmakuItem` is a pure data value (text / trigger position / optional color) used together with
-`MovaDanmakuTrackComponent` to render scrolling danmaku tracks; the core layer never renders and only provides the data shape:
+`MovaDanmakuTrackComponent` to render scrolling danmaku; the core layer only defines the data and never renders:
 
 ```dart
 final items = [
@@ -488,7 +488,7 @@ final outcome = await session.jumpTo(0);
 
 `MovaFeedPlayer` is a bilibili/TikTok-style "swipe up for the next video" vertical feed widget, backed by
 `MovaFeed` + `MovaFeedEnginePool`: every hot page has its own independent engine instead of all pages
-sharing one, so a swipe up exchanges two already-live pictures (no black flash, no leftover old frame).
+sharing one, so a swipe up switches between two pictures that are already playing (no black flash, no stale frame).
 
 ```dart
 MovaFeedPlayer(
@@ -534,8 +534,8 @@ mova ships no recognition engine; for the selection see the [08-04 decision](htt
 
 ## Ad orchestration (optional)
 
-`MovaAds` plays pre/mid/post-roll breaks on a schedule and can express the real timing of the ad business. **Except for the ad-slot duration,
-all new capabilities are off by default or do not change behavior by default.**
+`MovaAds` plays pre/mid/post-roll breaks on a schedule and can model real ad-business timing. **Apart from ad-slot duration,
+every new option is off by default or leaves existing behavior unchanged.**
 
 ```dart
 // Deferred content-source resolution: the content address is only resolved after the pre-roll ends (short-lived signed URLs).
@@ -585,7 +585,7 @@ For detailed behavior rules, the state machine and real-device verification prog
 ## Seamless engine swapping (optional)
 
 `MovaCutoverEngine` is itself a `MovaApi`: behind one stable render surface it holds the engine currently in effect and
-an optional, warming shadow engine; once the shadow is ready the pointer is swapped atomically and the UI notices nothing (no remount, no black screen).
+an optional, warming shadow engine; once the shadow is ready the two are swapped atomically, with no remount and no black screen.
 It is **off** by default (`MovaCutoverConfig.enabled` is `false`), in which case it is a pure pass-through proxy whose behavior is identical to using
 `MovaEngine` directly.
 
@@ -608,10 +608,10 @@ ends. See the "Seamless engine swapping" section of [doc/SPEC.md](https://github
 
 Without relying on any system PiP API, the picture shrinks from the page into a draggable floating window, with no re-decoding and no black screen. It is neither
 system-level PiP (`MovaApi.enterPip()`) nor a system overlay window that needs the `SYSTEM_ALERT_WINDOW` permission:
-this feature is compositing inside Flutter's own paint tree, never leaves the app, and needs zero permissions on all four platforms.
+it is drawn inside Flutter's own paint tree, never leaves the app, and needs no permissions on any of the four platforms.
 It is **off** by default (`MovaMiniConfig.enabled` is `false`).
 
-Two mounting styles coexist; pick as needed:
+There are two ways to mount it; use whichever fits:
 
 ```dart
 // Style A - in-page floating: floats inside the current page and disappears when the page is popped.
@@ -652,7 +652,7 @@ A usage example is in [example/lib/main_coverage_api.dart](https://github.com/ic
 
 ## Audio-only mode (`audioOnly`, optional)
 
-When one project plays both video and pure audio, the audio path should not carry the video resource overhead.
+If your app plays both video and pure audio, the audio path should not pay for video resources.
 An engine built with `audioOnly: true` creates no video pipeline at all: the default kernel skips `VideoController`,
 and the frame-extraction fallback is not wired either. `renderHandle` is then `null`, and `MovaPlayer` renders a black placeholder, or any
 `surface` you pass it (cover art, waveform, lyrics). It is **off** by default, and when off the behavior is byte-for-byte identical to not passing this
@@ -675,8 +675,8 @@ another plugin. For measured memory/CPU gains see the "Audio-only mode" section 
 
 `createMovaEngine(reporter: ...)` takes a `MovaReporter` (wrap a callback with `MovaCallbackReporter`, see "State,
 events and custom components" below); by default it only forwards the UI action stream. Setting `MovaOpts.report` to
-`MovaReportConfig(qoe: true)` additionally produces the four industry-standard must-measure metrics: startup time (`firstFrame`/
-`startupFail`), stall count and duration (`rebuffer`), playback failure fatal/non-fatal distinction
+`MovaReportConfig(qoe: true)` also reports four standard metrics: startup time (`firstFrame`/
+`startupFail`), stall count and duration (`rebuffer`), playback failures marked fatal or non-fatal
 (`MovaErrorEvent` gains `fatal`/`code`), and session start/end (`sessionStart`/`sessionEnd`,
 with `reason` being one of `ended`/`stopped`/`failed`/`abandoned`). It is **off** by default,
 and when off the event stream is byte-for-byte identical to not passing `report`. When a VOD session ends at EOF but the completion rate is below
@@ -687,14 +687,14 @@ and when off the event stream is byte-for-byte identical to not passing `report`
 final engine = createMovaEngine(
   options: const MovaOpts(report: MovaReportConfig(qoe: true)),
   reporter: MovaCallbackReporter((e) {
-    // Turn it into a call to any analytics SDK; mova only standardizes, and never sends/batches/schedules by itself.
+    // Forward it to any analytics SDK. mova only standardizes events; it never sends, batches or schedules anything itself.
     myAnalytics.track(e.name.value, {...e.params, 'sessionId': e.sessionId});
   }),
 );
 ```
 
-Since 0.2.x `MovaReportName` is a const value class rather than an enum (built-in entries + `MovaReportName.custom`
-custom names on two tracks, with `==`/`hashCode`/`Map`/`Set` key usage unchanged); see the CHANGELOG for the breaking surface. Signals prefer
+Since 0.2.x `MovaReportName` is a const value class, not an enum (built-in names plus `MovaReportName.custom`
+for your own names; `==`, `hashCode` and use as `Map`/`Set` keys work as before). See the CHANGELOG for the breaking changes. Signals prefer
 libmpv's native capabilities (`paused-for-cache` as the real stall signal, `video-bitrate`/`cache-speed`/
 dropped-frame counts, error classification from mpv log prefixes), and where necessary (exact TTFF landing, session end reason) subscribe to native mpv events through a self-built
 `dart:ffi` weak client (the `media_kit` dependency stays at the pub.dev version, no git commit needed). See the
@@ -739,9 +739,9 @@ has no built-in empty implementation, so when you do not need it, implement an e
 ### Desktop true fullscreen
 
 `MovaSystemChromeOrientationPort` only handles orientation locking / immersive system UI on mobile; desktop platforms
-(Windows/macOS/Linux) have no matching "true fullscreen" concept (stretch the OS window to fill the screen and remove the title bar),
-so calling `setFullscreen(true)` on desktop has no visible effect. mova ships no window-management dependency, and
-true desktop fullscreen is left to the host to wire:
+(Windows/macOS/Linux) have no "true fullscreen" here (stretching the OS window over the screen and removing the title bar),
+so `setFullscreen(true)` has no visible effect on desktop. mova has no window-management dependency, so
+the host has to wire up true desktop fullscreen:
 
 ```dart
 engine.events.listen((e) {
@@ -782,8 +782,8 @@ class _MyState extends State<MyWidget> with MovaPlugin<MyWidget> {
 }
 ```
 
-`MovaPlugin` provides only two business-agnostic capabilities, `api` (a stable handle) and `bind` (a lifecycle-safe subscription),
-so no member names can clash wherever you use it.
+`MovaPlugin` adds only two members, `api` (a stable handle) and `bind` (a lifecycle-safe subscription),
+so there is little room for name clashes.
 
 ## Built-in skins
 
