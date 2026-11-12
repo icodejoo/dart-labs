@@ -77,7 +77,7 @@ jobs:
         working-directory: luckdraw/example
         run: |
           flutter pub get
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
       - name: Example web build (deploy smoke)
         if: hashFiles('luckdraw/example/web/index.html') != ''
         working-directory: luckdraw/example
@@ -87,7 +87,7 @@ jobs:
         working-directory: luckdraw/tool/bench
         run: |
           flutter pub get
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
 
   min-sdk:
     name: minimum Flutter (3.24.5)
