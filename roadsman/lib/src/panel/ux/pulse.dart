@@ -18,6 +18,7 @@ class PulseOptions {
   /// Halo color (ARGB), defaults to gold.
   final int color;
 
+  /// Creates a [PulseOptions].
   const PulseOptions({this.duration = 2000, this.color = 0xFFFFD700});
 }
 
@@ -26,6 +27,7 @@ class PulseEffect {
   bool enabled;
   final PulseOptions options;
 
+  /// Creates a [PulseEffect].
   PulseEffect({this.enabled = true, this.options = const PulseOptions()});
 
   /// Toggle the effect on/off.

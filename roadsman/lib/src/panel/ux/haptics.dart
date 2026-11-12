@@ -15,6 +15,7 @@ class HapticsOptions {
   /// haptic feedback should be something the user opts into).
   final bool enabled;
 
+  /// Creates a [HapticsOptions].
   const HapticsOptions({this.enabled = false});
 }
 
@@ -22,6 +23,7 @@ class HapticsOptions {
 class HapticsEffect {
   bool enabled;
 
+  /// Creates a [HapticsEffect].
   HapticsEffect({this.enabled = false});
 
   /// Toggle the effect on/off.

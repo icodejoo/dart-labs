@@ -1,3 +1,12 @@
+/// Production-ready STOMP-over-WebSocket client for Flutter.
+///
+/// A thin wrapper around `stomp_dart_client` that adds shared-parse
+/// subscription callbacks, automatic re-subscribe after reconnect, offline
+/// send buffering, auto/smart/manual ack modes, an injectable binary decoder,
+/// pre-connect token refresh, observable connection state, and optional
+/// reconnect when the app returns to the foreground.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;

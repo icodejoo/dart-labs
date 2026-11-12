@@ -459,6 +459,13 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
                 .map_err(|_| "SVG stylesheet worker panicked".to_owned())?
         });
     }
+    // wasm 没有大栈 worker，仍须在 SSE 编码前检查 CSS 解析后的引用深度。
+    #[cfg(target_family = "wasm")]
+    if _stylesheet_needs_stack {
+        let scene = parse_svg_document(&data, &doc, current_color)?;
+        limit_scene_reference_depth(&scene)?;
+        return Ok(scene);
+    }
     // wasm and targets without native threads retain direct execution.
     parse_svg_document(&data, &doc, current_color)
 }
@@ -3941,6 +3948,39 @@ mod tests {
             );
         }
     }
+    /// 用合成场景验证 CSS 解析后检查的深度边界，避免依赖 usvg 的递归解析栈。
+    #[test]
+    fn scene_reference_depth_boundary() {
+        const SOURCE: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'><rect width='1' height='1'/></svg>";
+        let mut scene = parse_svg(SOURCE.into(), None).unwrap();
+        let template = scene.paths[0].clone();
+        for depth in 1..=MAX_REFERENCE_DEPTH + 1 {
+            let mut parent = template.clone();
+            parent.effects = SvgEffects::some_if_present(
+                None,
+                None,
+                Vec::new(),
+                Some(SvgMask {
+                    kind: 0,
+                    x: 0.0,
+                    y: 0.0,
+                    width: 1.0,
+                    height: 1.0,
+                    paths: std::mem::take(&mut scene.paths),
+                    commands: Vec::new(),
+                }),
+                None,
+            );
+            scene.paths = vec![parent];
+            let result = limit_scene_reference_depth(&scene);
+            if depth <= MAX_REFERENCE_DEPTH {
+                assert!(result.is_ok(), "depth={depth}");
+            } else {
+                assert_eq!(result, Err(REFERENCE_ERROR.into()));
+            }
+        }
+    }
+
     #[test]
     fn revision_css_independent_depths() {
         for chains in [3, 4] {

@@ -55,6 +55,7 @@ class GridCellPaintInfo {
   /// [row]).
   final int col;
 
+  /// Creates a [GridCellPaintInfo].
   const GridCellPaintInfo({
     required this.canvas,
     required this.rect,
@@ -83,6 +84,7 @@ class CommandPaintInfo {
   /// The command about to be / just painted by the built-in drawing.
   final DrawCommand command;
 
+  /// Creates a [CommandPaintInfo].
   const CommandPaintInfo({required this.canvas, required this.command});
 }
 

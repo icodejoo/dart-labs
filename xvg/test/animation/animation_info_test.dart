@@ -204,10 +204,7 @@ void main() {
     );
     expect(info, same);
     expect(info.hashCode, same.hashCode);
-    expect(
-      info,
-      isNot(XvgAnimationInfo(settleTime: _seconds(4), loops: true)),
-    );
+    expect(info, isNot(XvgAnimationInfo(settleTime: _seconds(4), loops: true)));
     expect(
       info,
       isNot(XvgAnimationInfo(settleTime: _seconds(3), loops: false)),
