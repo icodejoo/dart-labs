@@ -35,7 +35,10 @@ class Evidence:
         self.logs = {}
         self.errors = []
         self.files = set()
-        self.texts={p.name:p.read_text(encoding="utf-8",errors="replace") for p in Path(out).glob(prefix+"*.txt")}
+        # Full device campaigns retain gigabytes of logcat TXT captures. Only
+        # the native-volume rule consumes TXT, so index paths without loading
+        # unrelated captures into memory. Original evidence remains untouched.
+        self.texts={p.name:p for p in Path(out).glob(prefix+"*.txt")}
         for path in sorted(Path(out).glob(prefix + '*.json')):
             # CP0 has its own measurement ledger (us stamps / *Ms state keys).
             # It cannot supply or invalidate v1's legacy event assertions.
@@ -60,7 +63,8 @@ class Evidence:
                     self.errors.append(f'{path.name}: records 含非对象记录'); continue
                 start = max((i for i,r in enumerate(records) if r.get('kind') == 'BEGIN'), default=0)
                 records = records[start:]
-                if records and data.get('status') not in ('done', None):
+                # 命令连一条记录都没产出就失败，也必须进入整轮完整性门禁。
+                if (records or data.get('status') in ('error', 'running', 'timeout')) and data.get('status') not in ('done', None):
                     self.errors.append(f'{path.name}: 命令未完成 status={data.get("status")}')
                     continue
             else:
@@ -240,7 +244,9 @@ class Evidence:
             rows=[(r,p) for r,p in self.records if p.split(':records')[0].endswith(file)]
             requests=[r['input'] for r,p in rows if r.get('kind')=='RATE']
             actual=[r.get('payload',{}).get('value') for r,p in rows if r.get('kind')=='EVENT' and r.get('event')=='MovaRateChange']
-            expected=[max(.25,min(4,v)) for v in requests]
+            clamped=[max(.25,min(4,v)) for v in requests]
+            # 同值 setRate 不发事件；只压缩相邻相同值，仍核对每次实际变化。
+            expected=[v for i,v in enumerate(clamped) if i == 0 or v != clamped[i-1]]
             cursor=0
             for v in actual:
                 if cursor<len(expected) and v==expected[cursor]:cursor+=1
@@ -255,7 +261,7 @@ class Evidence:
                 suffix=f'rerun-native-{mode}-volume{v}.native.txt'
                 file=next((f for f in self.texts if f.endswith(suffix)),None)
                 if not file:values.append('BLOCKED');details.append('缺 '+suffix);continue
-                text=self.texts[file]
+                text=self.texts[file].read_text(encoding='utf-8',errors='replace')
                 match=re.search(r'volume is (\d+) in range \[(\d+)\.\.(\d+)\]',text)
                 if not match:values.append('BLOCKED');details.append(file+': 缺原生音量读回');continue
                 got,lo,hi=map(int,match.groups());target=lo+(hi-lo)*max(0,min(100,v))/100
@@ -302,9 +308,15 @@ class Evidence:
         return status(vals), '缺 HLS_RESULT' if not samples else '; '.join(details)
 
 
+class EvidenceVerdicts(dict):
+    """逐行结论与独立的整轮证据完整性结果。"""
+    evidence_errors = ()
+
+
 def reduce_evidence(manifest, out, prefix, rules=None):
     rules = rules or json.loads((Path(__file__).with_name('matrix_rules.json')).read_text(encoding='utf-8'))
-    ev=Evidence(out,prefix); verdicts={}
+    ev=Evidence(out,prefix); verdicts=EvidenceVerdicts()
+    verdicts.evidence_errors = tuple(ev.errors)
     manual={r['id']:r['reason'] for r in manifest['manual']}
     for ident in manifest['ids']:
         subs=[]
@@ -327,8 +339,8 @@ def reduce_evidence(manifest, out, prefix, rules=None):
             subs.append(dict(id=ident+'/missing',status='BLOCKED',evidence='缺用例/判据：'+clause))
         # Invalid historical assertions are excluded. Their replacement is a
         # required rule; keeping the invalid boolean must not poison a rerun.
-        if ev.errors:
-            subs.append(dict(id=ident+'/evidence-errors',status='BLOCKED',evidence='证据解析错误：'+'; '.join(ev.errors)))
+        # 错误保留为整轮门禁；逐行仍由必需 CHECK、来源和完成标记判定。
+        # 不再把无关命令的解析错误附加到每一行。
         if ident in manual:
             value='BLOCKED'; detail='manual 环境：'+manual[ident]
         else:

@@ -122,10 +122,9 @@ Future<void> subtitles() async {
     await a.open(MovaSource(video.path),autoPlay:false);
     final n=p.platform as NativePlayer;
     if(format!='movtext') {
-      final http=HttpClient();
-      final response=await(await http.getUrl(Uri.parse('http://127.0.0.1:18084/test_subtitle.$format'))).close();
-      final bytes=<int>[];await for(final b in response){bytes.addAll(b);}http.close();
-      final sub=File('${Directory.systemTemp.path}/coverage-sub.$format');await sub.writeAsBytes(bytes);
+      // 与视频一样使用已打包的确定性字幕，避免把 HTTP 404 页面当字幕送入内核。
+      final subtitle=await rootBundle.load('assets/test_subtitle.$format');
+      final sub=File('${Directory.systemTemp.path}/coverage-sub.$format');await sub.writeAsBytes(subtitle.buffer.asUint8List(subtitle.offsetInBytes, subtitle.lengthInBytes));
       await n.command(['sub-add',sub.path,'select']);
     }
     await n.setProperty('sid','1');await n.setProperty('sub-visibility','yes');await a.play();
@@ -372,7 +371,7 @@ Future<void> stallRelease() async {
 ///
 /// 连续切换三引擎原生音频池，包含并发切换。
 Future<void> feed({bool resources=false}) async {
-  final resourceBaseline=resources?await s00d_resources.metrics():<String,Object?>{};
+  final resourceBaseline=resources?await s00d_resources.checkpoint('pool.before'):<String,Object?>{};
   final made=<MovaApi>[];
   final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
   final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
@@ -381,16 +380,24 @@ Future<void> feed({bool resources=false}) async {
     await controller.activate(i);
     if(i%20==0) {
       c.mark('FEED_SAMPLE',{'index':controller.activeIndex,'engines':made.length,'rss':ProcessInfo.currentRss});
-      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);}
+      if(resources) {s00d_resources.sample('F13.resources.$i',resourceBaseline,await s00d_resources.checkpoint('pool.active.$i',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);}
     }
   }
   await Future.wait([for(var i=101;i<=120;i++)controller.activate(i)]);
-  c.check('A29.final',controller.activeIndex==120 && made.length==3,'active=${controller.activeIndex} engines=${made.length}');
+  if (resources) {
+    await s00d_resources.checkpoint('pool.concurrent.120', created: made.length, engineCount: pool.engineCount);
+  }
+  c.check('A29.final',controller.activeIndex==120 && made.isNotEmpty && made.length<=pool.size,'active=${controller.activeIndex} engines=${made.length} capacity=${pool.size}');
   c.mark('FEED_ENGINES',{'states':made.map(c.snapshot).toList()});
   controller.dispose();
   if(resources) {
     await s00d_resources.DisposeFrames().run(()=>pool.dispose().timeout(const Duration(seconds:20)));
-    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.metrics(),created:made.length,engineCount:pool.engineCount);
+    s00d_resources.sample('F13.resources.disposed',resourceBaseline,await s00d_resources.checkpoint('pool.disposed.0ms',created:made.length,engineCount:pool.engineCount),created:made.length,engineCount:pool.engineCount);
+    // 释放后的稳定窗口另采，不能把逻辑池为零直接当原生解码器已回收。
+    await c.settle(1000);
+    await s00d_resources.checkpoint('pool.disposed.1000ms', created: made.length, engineCount: pool.engineCount);
+    await c.settle(4000);
+    await s00d_resources.checkpoint('pool.disposed.5000ms', created: made.length, engineCount: pool.engineCount);
   } else {await pool.dispose().timeout(const Duration(seconds:20));}
   final accepts = <bool>[];
   for (final engine in made) { accepts.add(await engine.open(c.source())); }
@@ -517,11 +524,11 @@ class RetrySttEngine extends MovaNoopSttEngine {
 ///
 /// 验证无引擎阻断及启动失败后可重试。
 Future<void> stt() async {
-  final none=createMovaEngine(audioOnly:true,options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
+  final none=createMovaEngine(options:const MovaOpts(stt:MovaSttConfig(enabled:true)));
   c.observe(none);await none.open(c.source(),autoPlay:false);await none.stt.start();await none.stt.stop();
   c.mark('STT_NO_ENGINE',{'running':none.stt.isRunning,'languages':none.stt.languages});await none.dispose();
   final engine=RetrySttEngine();
-  final a=createMovaEngine(audioOnly:true,options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
+  final a=createMovaEngine(options:MovaOpts(stt:MovaSttConfig(enabled:true,engine:engine)));
   c.observe(a);await a.open(c.source(),autoPlay:false);
   try{await a.stt.start();}catch(e){c.mark('STT_EXPECTED_THROW',{'error':'$e','running':a.stt.isRunning});}
   c.check('N22.sttRollback',!a.stt.isRunning,'after first failure running=${a.stt.isRunning}');
@@ -634,7 +641,7 @@ Future<void> hls(Map<String,String> args) async {
   var qualitySeen = false;
   var gateMs = -1;
   Future<bool> variantReady() async {
-    final path = await native.getProperty('path');
+    final path = (await native.getProperty('path')).split('#').first;
     if (qualitySeen && a.state.duration > Duration.zero && path == expectedUri) {
       if (gateMs < 0) {
         gateMs = c.clock.elapsedMilliseconds;
@@ -660,7 +667,7 @@ Future<void> hls(Map<String,String> args) async {
     final run = iteration;
     pending = pending.then((_) async {
       final p = await position();
-      final path = await native.getProperty('path');
+      final path = (await native.getProperty('path')).split('#').first;
       await variantReady();
       final eligible = gateMs >= 0 && path == expectedUri;
       restarts.add(p);

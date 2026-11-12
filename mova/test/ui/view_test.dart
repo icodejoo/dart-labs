@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
@@ -52,6 +54,40 @@ Widget _view(
 }
 
 void main() {
+  for (final change in ['source', 'engine', 'unmount']) {
+    testWidgets('stale open error is ignored after $change', (t) async {
+      final gate = Completer<void>();
+      final first = FakeMovaApi()
+        ..openGate = gate
+        ..openThrows = StateError('old open')
+        ..openThrowsFor = 'https://host/a.mp4';
+      final errors = <Object>[];
+      final options = change == 'engine'
+          ? const MovaOpts(preview: MovaPreviewConfig(frameWidth: 99))
+          : const MovaOpts();
+      await t.pumpWidget(MaterialApp(home: MovaView(
+        source: const MovaSource('https://host/a.mp4'),
+        engineFactory: (_) => first,
+        onOpenError: (e, _) => errors.add(e),
+      )));
+      if (change == 'unmount') {
+        await t.pumpWidget(const SizedBox());
+      } else {
+        await t.pumpWidget(MaterialApp(home: MovaView(
+          source: const MovaSource('https://host/b.mp4'),
+          options: options,
+          engineFactory: (_) => change == 'engine' ? FakeMovaApi() : first,
+          onOpenError: (e, _) => errors.add(e),
+        )));
+      }
+      gate.complete();
+      await t.pump();
+      await t.pump();
+      expect(errors, isEmpty);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+  }
   for (final entry in <String, MovaOpts>{
     'ads': const MovaOpts(ads: MovaAdConfig(enabled: true)),
     'playlist': const MovaOpts(playlist: MovaPlaylistConfig(enabled: true)),

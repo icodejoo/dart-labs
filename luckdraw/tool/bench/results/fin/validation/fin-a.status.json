@@ -1,0 +1,18 @@
+{
+  "name": "fin-a",
+  "args": [
+    "flutter",
+    "test",
+    "--no-pub",
+    "--concurrency=1",
+    "--coverage",
+    "--coverage-path=coverage/fin-a.lcov",
+    "--reporter=json",
+    "test/capsule",
+    "test/compat",
+    "test/core",
+    "test/grid"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 66.881
+}

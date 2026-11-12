@@ -1,0 +1,40 @@
+00:00 +0: loading test/boundary/native_slot_boundary_test.dart
+00:00 +0: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=200
+00:00 +1: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=false status=503
+00:00 +2: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=200
+00:00 +3: [DiomanCall.raw][DiomanCall.new(raw)][DiomanResponse.raw][DiomanResponse.error] 自身成功与失败 raw=true status=503
+00:00 +4: [DiomanResponse.error][DiomanCall.raw] 网络失败按需附自身异常
+00:00 +5: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 return 落定清空并拒绝迟到写入
+00:00 +6: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 throw 落定清空并拒绝迟到写入
+00:00 +7: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 reject 落定清空并拒绝迟到写入
+00:00 +7 -1: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 reject 落定清空并拒绝迟到写入 [E]
+  Expected: throws same instance as StateError:<Bad state: reject>
+    Actual: <Instance of 'Future<Object?>'>
+     Which: threw TestFailure:<Expected: same instance as DiomanResponse<dynamic>:<DiomanResponse(false, 503, )>
+                    Actual: <null>
+                  >
+            stack package:matcher                                     expect
+                  test\boundary\native_slot_boundary_test.dart 84:19  main.<fn>.<fn>
+                  package:dioman/src/client.dart 254:36               Dioman.request
+                  ===== asynchronous gap ===========================
+                  test\support\invariant_harness.dart 142:73          InvariantHarness.track.<fn>
+                  ===== asynchronous gap ===========================
+                  test\boundary\native_slot_boundary_test.dart 109:9  main.<fn>
+  
+  test\boundary\native_slot_boundary_test.dart 109:9  main.<fn>
+  
+00:00 +7 -1: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 internal 落定清空并拒绝迟到写入
+00:00 +8 -1: [DiomanContext.native][DiomanCall.raw] 重试成功清空上次异常
+00:00 +9 -1: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=false
+00:00 +10 -1: [DiomanNext][DiomanContext.native] 已传输后短路立即解除原生视图 cancelled=true
+00:00 +11 -1: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=false
+00:00 +12 -1: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=200 error=true
+00:00 +13 -1: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=false
+00:00 +14 -1: [DiomanRetry.respectRetryAfter][DiomanResponseFactory.normalize] 多值头不把正常协议结果改为 internal status=503 error=true
+00:00 +15 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/native_slot_boundary_test.dart: [Dioman.send][Dioman.reject][DiomanFailure.error][DiomanFailure.errorStack] I11 reject 落定清空并拒绝迟到写入
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

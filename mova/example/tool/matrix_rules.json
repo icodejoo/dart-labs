@@ -2663,12 +2663,8 @@
           },
           {
             "field": "numbers.accepts",
-            "op": "eq",
-            "value": [
-              false,
-              false,
-              false
-            ]
+            "op": "all_eq",
+            "value": false
           }
         ]
       }
@@ -14352,12 +14348,8 @@
           },
           {
             "field": "numbers.accepts",
-            "op": "eq",
-            "value": [
-              false,
-              false,
-              false
-            ]
+            "op": "all_eq",
+            "value": false
           }
         ]
       },

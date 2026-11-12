@@ -1,5 +1,4 @@
 // ignore_for_file: avoid_relative_lib_imports
-import 'dart:convert';
 import 'dart:io';
 import '../lib/matrix.dart';
 
@@ -22,8 +21,7 @@ const _sync = 'sync';
 const _gates = {_g0, _g1, _g2, _g3, 'G4:', 'G5:'};
 
 /// 写入格式化 JSON。
-void _writeJson(String path, Object value) => File(path).writeAsStringSync(
-    '${const JsonEncoder.withIndent('  ').convert(value)}\n');
+void _writeJson(String path, Object value) => writeMatrixJson(path, value);
 
 /// 输出中文缺口报告。
 void _report(

@@ -75,7 +75,37 @@ class _ScriptedEngine extends MovaNoopSttEngine {
 MovaSttCue _cue(String text, int from, int to) =>
     MovaSttCue(text: text, start: Duration(seconds: from), end: Duration(seconds: to));
 
+/// Holds the first start until a newer run has succeeded.
+///
+/// 挂起第一次启动，直到新一轮启动成功。
+class _DelayedFailureEngine extends _ScriptedEngine {
+  final first = Completer<void>();
+
+  @override
+  Future<void> start(Duration position) {
+    starts.add(position);
+    return starts.length == 1 ? first.future : Future<void>.value();
+  }
+}
+
 void main() {
+  test('D2 stale start failure cannot stop a newer successful run', () async {
+    final engine = _DelayedFailureEngine();
+    final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
+      ..attach(const MovaSource('https://host/a.mp4'));
+    final oldStart = svc.start();
+    await svc.stop();
+    await svc.start();
+    engine.first.completeError(StateError('old start failed'));
+    await oldStart;
+    expect(svc.isRunning, isTrue);
+    await svc.stop();
+    expect(svc.isRunning, isFalse);
+    expect(engine.stops, 2);
+    await svc.dispose();
+    await engine.dispose();
+  });
+
   test('C02 missing recognizer warns once and remains stopped', () async {
     final messages = <String>[];
     final reasons = <MovaSttBlockReason>[];

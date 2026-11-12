@@ -20,6 +20,7 @@ import 'package:flutter/widgets.dart';
 
 import '../animated_counter/types.dart';
 import '../animated_counter/digit_layout.dart';
+import '../animated_counter/digit_motion.dart';
 import 'perspective.dart';
 
 /// Factory signature for [AnimatedCounter.painterBuilder]. Receives the exact
@@ -47,6 +48,7 @@ typedef CounterPainterBuilder = CounterPainter Function({
   double numberAlignment,
 });
 
+/// 常驻数字画笔；原地更新数位、方向及有限档位颜色，缓存排版段落。
 class CounterPainter extends CustomPainter {
   CounterPainter({
     required Listenable repaint,
@@ -172,6 +174,21 @@ class CounterPainter extends CustomPainter {
   //（原 10·256 = 2560）。亚秒交叉淡入下 16 级不透明度肉眼无差。
   static const int _alphaBuckets = 16;
   final Map<int, ui.Paragraph> _cache = {};
+  /// 本次方向色渐变的有限色板，数字和透明度档位共同作为段落缓存键。
+  List<Color> _tintPalette = const [];
+  /// 当前方向色档位。
+  int _tintBucket = 0;
+  /// 更新方向色板；仅换色板时释放旧段落，逐帧只切换整数档位。
+  /// [colors] 为空时使用原文字色，[bucket] 必须在色板范围内。
+  /// 示例：`painter.updateTint([Colors.red, Colors.black], 0)`。
+  void updateTint(List<Color> colors, int bucket) {
+    if (!identical(colors, _tintPalette)) {
+      for (final paragraph in _cache.values) { paragraph.dispose(); }
+      _cache.clear();
+      _tintPalette = colors;
+    }
+    _tintBucket = bucket;
+  }
 
   /// Reused each column each frame by [_resolveColumnPhaseInto] so the paint
   /// hot path stays allocation-free.
@@ -181,9 +198,10 @@ class CounterPainter extends CustomPainter {
 
   /// Builds (or reuses) a laid-out [ui.Paragraph] for [digit] at [alpha]
   /// (quantized to [_alphaBuckets] levels to bound the cache).
+  /// 数位、方向色和透明度量化档位共同命中缓存，避免逐帧重新排版。
   ui.Paragraph paragraphFor(int digit, double alpha) {
     final bucket = (alpha.clamp(0.0, 1.0) * (_alphaBuckets - 1)).round();
-    final key = digit * _alphaBuckets + bucket;
+    final key = (_tintBucket * 10 + digit) * _alphaBuckets + bucket;
     return _cache.putIfAbsent(key, () {
       final str = numeralMapper != null
           ? numeralMapper!(digit)
@@ -202,8 +220,10 @@ class CounterPainter extends CustomPainter {
 
   /// 数字在不透明度 [alpha]（0–1）下的绘制颜色，叠乘原颜色自带的 alpha。
   @visibleForTesting
-  Color digitColorFor(double alpha) =>
-      color.withValues(alpha: color.a * alpha.clamp(0.0, 1.0));
+  Color digitColorFor(double alpha) {
+    final base = _tintPalette.isEmpty ? color : _tintPalette[_tintBucket];
+    return base.withValues(alpha: base.a * alpha.clamp(0.0, 1.0));
+  }
 
   /// 以完整文字样式构建并排版一段分隔符段落，宽度为 [width]。
   ui.Paragraph _buildSeparatorParagraph(String text, double width) {
@@ -218,6 +238,7 @@ class CounterPainter extends CustomPainter {
 
   /// Computes each visible digit column's x-offset, skipping hidden leading
   /// zeroes and leaving room for thousand and decimal separators.
+  /// fast 在过渡中保留两端有效列，落位后仅按新端点收起旧高位。
   List<DigitColumnLayout> buildColumns() {
     final n   = digitValues.length;
     final dw  = digitSize.width + padding.horizontal;
@@ -236,7 +257,7 @@ class CounterPainter extends CustomPainter {
         for (int i = 0; i < n; i++) {
           final f = i < _fastFrom.length ? _fastFrom[i] : 0;
           final t = i < _fastTo.length ? _fastTo[i] : 0;
-          if (f != 0 || t != 0) { firstVisible = i; break; }
+          if ((_digitValues[i] < 1.0 && f != 0) || t != 0) { firstVisible = i; break; }
         }
       } else {
         // Normal columns carry the cumulative place value: a place is present
@@ -398,7 +419,7 @@ class CounterPainter extends CustomPainter {
       final double bounceOff =
           col.index < _bounceOffsets.length ? _bounceOffsets[col.index] : 0.0;
       if (bounceOff != 0.0) {
-        canvas.translate(0, bounceOff * dh * exitDirection());
+        canvas.translate(0, digitBounceShift(_rollDirection, bounceOff, dh));
       }
       if (reveal < 1.0) {
         // saveLayer scales the whole column's alpha — only on the ≤1 fading
@@ -482,127 +503,105 @@ class CounterPainter extends CustomPainter {
     return (_phase.cur, _phase.nxt, _phase.p);
   }
 
-  /// Renders the transition by composing [CounterTransition]: an optional
-  /// motion-blur layer wrapping the [CounterMotion] movement plus the
-  /// scale/fade modifiers. Override to customize or add an effect.
-  ///
   /// 按 [CounterTransition] 组合渲染过渡：可选的运动模糊层包裹 [CounterMotion] 运动，
   /// 再叠加 scale/fade 修饰。可覆写以定制或新增效果。
+  ///
+  /// 数值（位移、旋转、缩放、透明度）统一由 [resolveDigitMotion] 解算，与组件树路径
+  /// （DigitColumn）共用同一份运动解算；本类只负责把数值应用到 Canvas。
   void paintTransition(Canvas canvas, int cur, int nxt, double p, double x, double h, double w) {
-    if (transition.blur) {
-      final sigma = (0.5 - (p - 0.5).abs()) * 8.0;
-      if (sigma >= 0.1) {
-        canvas.saveLayer(
-          Rect.fromLTWH(x, 0, w, h),
-          Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        );
-        _paintMotion(canvas, cur, nxt, p, x, h, w);
-        canvas.restore();
-        return;
-      }
+    final sigma = digitBlurSigma(transition, p);
+    if (sigma > 0) {
+      canvas.saveLayer(
+        Rect.fromLTWH(x, 0, w, h),
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      );
+      _paintMotion(canvas, cur, nxt, p, x, h, w);
+      canvas.restore();
+      return;
     }
     _paintMotion(canvas, cur, nxt, p, x, h, w);
   }
 
-  /// Draws the outgoing [cur] and incoming [nxt] digits for the current
-  /// [CounterMotion]. Flip is single-sided (one face at a time); the others
-  /// draw both digits (the scale/fade modifiers separate/blend them).
-  ///
-  /// 为当前 [CounterMotion] 绘制离场 [cur] 与入场 [nxt] 数位。flip 单面（同一时刻一面）；
-  /// 其余绘制两位（由 scale/fade 修饰分离/混合）。
+  /// 绘制离场 [cur] 与入场 [nxt] 数位；flip 同一时刻只显示一面，由
+  /// [DigitMotion.visible] 决定哪一面被跳过。
   void _paintMotion(Canvas c, int cur, int nxt, double p, double x, double h, double w) {
-    if (transition.motion == CounterMotion.flip) {
-      final showCur = p < 0.5;
-      _drawDigit(c, showCur ? cur : nxt, leaving: showCur, p: p, x: x, h: h, w: w);
-      return;
-    }
     _drawDigit(c, cur, leaving: true,  p: p, x: x, h: h, w: w);
     _drawDigit(c, nxt, leaving: false, p: p, x: x, h: h, w: w);
   }
 
-  /// Draws one digit at progress [p], composing scale + motion + fade.
-  /// [leaving] = outgoing (at rest as p→0); else incoming (at rest as p→1).
-  ///
-  /// 在进度 [p] 绘制一个数位，组合 scale + 运动 + fade。[leaving] = 离场（p→0 归位）；
-  /// 否则入场（p→1 归位）。
+  /// 复用的运动数值容器，逐数位逐帧由 [resolveDigitMotion] 写入，热路径零分配。
+  final DigitMotion _motion = DigitMotion();
+
+  /// 已折算方向后的滚动方向（递减时翻转 [flipDirection]）。
+  AxisDirection get _rollDirection => effectiveRollDirection(flipDirection, _increasing);
+
+  /// 在相位 [p] 绘制一个数位：先解算运动数值，再按 scale → 运动的顺序应用到画布。
+  /// [leaving] = 离场（p→0 归位）；否则入场（p→1 归位）。
   void _drawDigit(Canvas c, int digit,
       {required bool leaving,
       required double p,
       required double x,
       required double h,
       required double w}) {
-    final double away = leaving ? p : (1 - p); // 0 = at rest, 1 = fully displaced
-    final double alpha = transition.fade ? (1 - away) : 1.0;
-    if (alpha <= 0.001) return;
+    final m = _motion;
+    resolveDigitMotion(m,
+        transition: transition,
+        direction: _rollDirection,
+        p: p,
+        leaving: leaving,
+        width: w,
+        height: h);
+    if (!m.visible) return;
 
-    // Only scale + rotate mutate the canvas transform here; slide bakes its
-    // offset into the draw Offset and flip's applyRotateX self-saves/restores.
-    // So the default slide/none look (the hot path) skips the save/restore pair
-    // entirely, and flip only needs the outer restore if scale added a save.
-    //
-    // 此处仅 scale 与 rotate 会改动画布变换；slide 把偏移写入 draw 的 Offset，
+    // 只有 scale 与 rotate 会改动画布变换；slide 把偏移写入 draw 的 Offset，
     // flip 的 applyRotateX 自带 save/restore。故默认 slide/none（热路径）完全跳过
     // 这对 save/restore，flip 也仅在 scale 已 save 时才需外层 restore。
     final bool needsRestore =
         transition.scale || transition.motion == CounterMotion.rotate;
     if (needsRestore) c.save();
 
-    // Scale about the cell center (shrinks the leaving / grows the arriving).
-    if (transition.scale) {
-      final double s = (1 - away).clamp(0.0, 1.0);
-      if (s <= 0) {
-        c.restore(); // needsRestore is true here — scale set the save.
-        return;
-      }
-      final double cx = x + w / 2;
-      final double cy = h / 2;
+    final double cx = x + w / 2;
+    final double cy = h / 2;
+    // 位移（slide 的 dx/dy）必须在缩放之外应用，与组件树路径（外层 translate、内层
+    // scale）一致：scale 开启时先在画布上平移，绘制 Offset 不再带位移，位移因此不随
+    // 缩放变化；未开 scale 时仍把位移直接写进 draw 的 Offset（热路径少一次变换）。
+    final bool shiftOnCanvas = transition.scale;
+    if (shiftOnCanvas) {
+      c.translate(m.dx, m.dy);
       c.translate(cx, cy);
-      c.scale(s, s);
+      c.scale(m.scale, m.scale);
       c.translate(-cx, -cy);
     }
 
-    double dy = 0;
     switch (transition.motion) {
       case CounterMotion.none:
-        break;
       case CounterMotion.slide:
-        {
-          final double d = exitDirection();
-          dy = (leaving ? away : -away) * h * d;
-        }
+        break;
       case CounterMotion.rotate:
-        {
-          final double cx = x + w / 2;
-          final double cy = h / 2;
-          final double ang = (leaving ? -away : away) * math.pi / 2;
-          c.translate(cx, cy);
-          c.rotate(ang);
-          c.translate(-cx, -cy);
-        }
+        c.translate(cx, cy);
+        c.rotate(m.rotateZ);
+        c.translate(-cx, -cy);
       case CounterMotion.flip:
-        {
-          // ⚠️ perspective rotateX (setEntry 3,2) → GPU compositing layer.
-          final double cx = x + w / 2;
-          final double cy = h / 2;
-          final double ang = leaving ? -p * math.pi : (1 - p) * math.pi;
-          applyRotateX(c, Offset(cx, cy), ang, 0.002, () {
-            c.drawParagraph(paragraphFor(digit, alpha), Offset(x, topY(h)));
-          });
-          if (needsRestore) c.restore(); // only when scale added a save
-          return;
-        }
+        // ⚠️ 透视 rotateX（setEntry 3,2）→ GPU 合成层。
+        applyRotateX(c, Offset(cx, cy), m.rotateX, kDigitFlipPerspective, () {
+          c.drawParagraph(paragraphFor(digit, m.alpha), Offset(x, topY(h)));
+        });
+        if (needsRestore) c.restore(); // 仅当 scale 已 save
+        return;
     }
 
-    c.drawParagraph(paragraphFor(digit, alpha), Offset(x, topY(h) + dy));
+    c.drawParagraph(
+        paragraphFor(digit, m.alpha),
+        shiftOnCanvas
+            ? Offset(x, topY(h))
+            : Offset(x + m.dx, topY(h) + m.dy));
     if (needsRestore) c.restore();
   }
 
   double topY(double h) => (h - digitSize.height) / 2;
 
-  double exitDirection() {
-    final base = (flipDirection == AxisDirection.up || flipDirection == AxisDirection.right) ? -1.0 : 1.0;
-    return _increasing ? base : -base;
-  }
+  /// 离场一侧的符号：递增向上（-1）、递减向下（+1），随 [flipDirection] 与方向折算。
+  double exitDirection() => verticalExitSign(_rollDirection);
 
   // ── separator drawing ──────────────────────────────────────────────────────
 

@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import 'guard_scope.dart';
+import '../fullscreen/ownership.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
 import '../../core/keep_alive/keep_alive.dart';
@@ -70,7 +71,7 @@ class MovaAutoPause extends StatefulWidget {
   /// The engine to pause/resume.
   ///
   /// 要暂停/恢复的引擎。
-  final MovaApi api;
+  final MovaApi? api; // 未绑定时保持子树位置，暂停守卫动作。
 
   /// Which kinds of hiding count, and how to resume.
   ///
@@ -99,7 +100,7 @@ class MovaAutoPause extends StatefulWidget {
   final Widget child;
 
   @override
-  State<MovaAutoPause> createState() => _MovaAutoPauseState();
+  MovaAutoPauseState createState() => MovaAutoPauseState();
 }
 
 /// Tracks one ancestor route layer for the route observer.
@@ -148,7 +149,14 @@ class _RouteLayer with RouteAware {
 /// them to a [MovaAutoPauseGate].
 ///
 /// [MovaAutoPause] 的状态：收集四类可见性信号并喂给 [MovaAutoPauseGate]。
-class _MovaAutoPauseState extends State<MovaAutoPause> {
+/// 守卫状态，允许宿主明确撤销自动恢复。
+class MovaAutoPauseState extends State<MovaAutoPause> {
+  /// 显式暂停优先于隐藏前的播放意图，并取消在途恢复。
+  void cancelResume() {
+    _resumeGen++;
+    _gate.cancelResume();
+  }
+
   late final MovaAutoPauseGate _gate = MovaAutoPauseGate(widget.config);
   AppLifecycleListener? _lifecycle;
   ValueListenable<TickerModeData>? _ticker;
@@ -180,11 +188,21 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
     _scheduleViewport();
   }
 
+  /// Reconciles engine, configuration, and observer identity changes.
+  ///
+  /// 协调引擎、配置与观察者身份的变化。
   @override
-  void didUpdateWidget(MovaAutoPause old) {
-    super.didUpdateWidget(old);
-    if (old.config != widget.config) {
-      final s = widget.api.state;
+  void didUpdateWidget(MovaAutoPause oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Resume intent belongs to one engine, including during reconfiguration.
+    //
+    // 恢复意图只属于原引擎，重新配置时也不能传给新引擎。
+    if (!identical(oldWidget.api, widget.api)) {
+      _resumeGen++;
+      _gate.cancelResume();
+    }
+    if (oldWidget.config != widget.config) {
+      final s = widget.api?.state ?? const MovaState();
       _act(
         _gate.reconfigure(
           widget.config,
@@ -198,10 +216,12 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _bindTicker();
       _bindRoute();
     }
-    if (!identical(old.api, widget.api)) {
-      _resumeGen++;
+    if (!identical(oldWidget.api, widget.api)) {
       _bindState();
-      final s = widget.api.state;
+      if (widget.api == null) {
+        return;
+      }
+      final s = widget.api?.state ?? const MovaState();
       _act(
         _gate.observe(
           playing: s.playbackIntent || s.playing,
@@ -211,7 +231,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         ),
       );
     }
-    if (!_sameObservers(old.routeObservers, widget.routeObservers)) {
+    if (!_sameIdentities(oldWidget.routeObservers, widget.routeObservers)) {
       _bindRoute();
     }
     _scheduleViewport();
@@ -237,7 +257,8 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   void _set(MovaHideReason reason, bool active) {
     if (_disposed) return;
     final api = widget.api;
-    final s = api.state;
+    // 没有引擎时仍记录可见性，后续绑定即可应用隐藏状态。
+    final s = api?.state ?? const MovaState();
     final before = _gate.reasons;
     final action = _gate.update(
       reason,
@@ -262,6 +283,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   void _bindState() {
     unawaited(_stateSub?.cancel());
     final api = widget.api;
+    if (api == null) return;
     var last = (
       api.state.playbackIntent,
       api.state.playing,
@@ -274,7 +296,8 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       final next = (s.playbackIntent, s.playing, s.pip, s.mini, s.fullscreen);
       if (next == last) return;
       final started = (!last.$1 && next.$1) || (!last.$2 && next.$2);
-      final lostExemption = (last.$3 || last.$4 || last.$5) && !(next.$3 || next.$4 || next.$5);
+      final lostExemption =
+          (last.$3 || last.$4 || last.$5) && !(next.$3 || next.$4 || next.$5);
       last = next;
       if (started || lostExemption) {
         _act(
@@ -294,6 +317,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
   /// 对当前引擎执行守卫决策。
   void _act(MovaGuardAction action) {
     final api = widget.api;
+    if (api == null) return;
     switch (action) {
       case MovaGuardAction.none:
         break;
@@ -324,10 +348,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         //
         // 设置待机途中又变可见了：守卫发出的唤醒在引擎里排在本次调用之后；这里再补一次，
         // 保证引擎答复得晚时也不会残留待机。
-        if (on &&
-            !_disposed &&
-            !_gate.hidden &&
-            identical(api, widget.api)) {
+        if (on && !_disposed && !_gate.hidden && identical(api, widget.api)) {
           await (api as MovaKeepAlive).setKeepAlive(false);
         }
       } else if (on) {
@@ -383,7 +404,8 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         if (!_gate.reasons.contains(MovaHideReason.background)) {
           _gate.onInactive(
             playing:
-                widget.api.state.playbackIntent || widget.api.state.playing,
+                (widget.api?.state.playbackIntent ?? false) ||
+                (widget.api?.state.playing ?? false),
           );
         } else {
           _set(MovaHideReason.background, false);
@@ -414,6 +436,9 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
 
   // ---- routes ----------------------------------------------------------
 
+  /// Rebinds ancestor routes using identity without temporary comparison lists.
+  ///
+  /// 按身份重绑祖先路由，避免创建临时比较列表。
   void _bindRoute() {
     final route = ModalRoute.of(context);
     _set(MovaHideReason.routeCovered, _routeCovered(route));
@@ -437,13 +462,12 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         r = ModalRoute.of(nav.context);
       }
     }
-    final same =
-        wanted.length == _layers.length &&
-        [
-          for (var i = 0; i < wanted.length; i++)
-            identical(wanted[i].$1, _layers[i].route) &&
-                identical(wanted[i].$2, _layers[i].observer),
-        ].every((e) => e);
+    var same = wanted.length == _layers.length;
+    for (var i = 0; same && i < wanted.length; i++) {
+      same =
+          identical(wanted[i].$1, _layers[i].route) &&
+          identical(wanted[i].$2, _layers[i].observer);
+    }
     if (same) return;
     _unobserve();
     for (final (r, o) in wanted) {
@@ -454,10 +478,10 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
     _onLayer();
   }
 
-  static bool _sameObservers(
-    List<RouteObserver<ModalRoute<dynamic>>> a,
-    List<RouteObserver<ModalRoute<dynamic>>> b,
-  ) {
+  /// Compares subscription targets by identity, preserving their order.
+  ///
+  /// 按身份与顺序比较订阅目标。
+  static bool _sameIdentities<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (!identical(a[i], b[i])) return false;
@@ -476,12 +500,24 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       _set(MovaHideReason.routeCovered, _routeCovered(ModalRoute.of(context)));
 
   bool _routeCovered(ModalRoute<dynamic>? route) {
-    if (route != null && !route.isCurrent) return true;
-    return _layers.any((l) => l.covered);
+    if (route != null &&
+        !route.isCurrent &&
+        !(widget.api != null && movaCoveredByFullscreen(widget.api!, route))) {
+      return true;
+    }
+    return _layers.any(
+      (l) =>
+          l.covered &&
+          !(widget.api != null &&
+              movaCoveredByFullscreen(widget.api!, l.route)),
+    );
   }
 
   // ---- viewport --------------------------------------------------------
 
+  /// Reuses listeners when ancestor scroll positions keep the same identities.
+  ///
+  /// 祖先滚动位置身份不变时复用监听。
   void _bindScrollables() {
     final found = <ScrollableState>[];
     var s = Scrollable.maybeOf(context);
@@ -490,13 +526,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       s = Scrollable.maybeOf(s.context);
     }
     final positions = [for (final f in found) f.position];
-    final same =
-        positions.length == _positions.length &&
-        [
-          for (var i = 0; i < positions.length; i++)
-            identical(positions[i], _positions[i]),
-        ].every((e) => e);
-    if (same) return;
+    if (_sameIdentities(positions, _positions)) return;
     for (final p in _positions) {
       p.removeListener(_scheduleViewport);
     }

@@ -11,9 +11,10 @@ import 'slot.dart';
 /// 补丁只是数据而非动作——只有 [applyPatches] 会解释它们，从而让树的变更
 /// 保持为一个纯函数、便于测试。
 sealed class MovaPatch {
-  /// Base constructor for the concrete patch kinds; use the factories above.
+  /// Base constructor for the concrete patch kinds; use the factories below.
   ///
-  /// 各具体补丁类型的基础构造器；调用方请使用上面的工厂构造。
+  /// 各具体补丁类型的基础构造器；调用方请使用下方的工厂构造。
+  /// 路径不存在时 debug 断言失败，release 忽略该补丁；顺序按传入列表执行。
   const MovaPatch();
 
   /// Replaces the component found at [path] with [component].

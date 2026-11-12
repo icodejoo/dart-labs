@@ -74,7 +74,9 @@ class MovaNetworkWarmFeedPrefetcher
   Future<void> prime(MovaSource source) =>
       primeWhileCurrent(source, () => true);
 
-  /// 请求前、连接建立后和响应头返回后校验代际，过期时立即关闭连接。
+  /// Checks ownership across awaits and cancels once the byte budget is read.
+  ///
+  /// 每次异步返回检查归属，读取达到字节预算后取消响应。
   @override
   Future<void> primeWhileCurrent(
     MovaSource source,
@@ -97,7 +99,14 @@ class MovaNetworkWarmFeedPrefetcher
       request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-$rangeBytes');
       final response = await request.close().timeout(timeout);
       if (!isCurrent()) return;
-      await response.drain<void>().timeout(timeout);
+      var received = 0;
+      await response
+          .takeWhile((chunk) {
+            received += chunk.length;
+            return isCurrent() && received < rangeBytes;
+          })
+          .drain<void>()
+          .timeout(timeout);
     } on Object {
       // Best-effort: any transport failure just means no warm-up happened,
       // never a playback error.

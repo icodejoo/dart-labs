@@ -1,0 +1,12 @@
+{
+  "tests": 5704,
+  "success": 5704,
+  "failed": 0,
+  "skipped": 0,
+  "powerset": 5120,
+  "done": {
+    "success": true,
+    "type": "done",
+    "time": 64643
+  }
+}

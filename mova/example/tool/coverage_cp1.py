@@ -95,7 +95,10 @@ def main():
         text=r.stdout.decode('utf-8',errors='replace');log.write(f'RET exit={r.returncode}\n'+text+'\n');log.flush()
         if r.returncode:raise RuntimeError(f'{cmd}: exit={r.returncode}: {text[-1500:]}')
         return text
-    def adb(*cmd):return command(['adb','-s',SERIAL,*cmd])
+    def adb(*cmd):
+        from cp0_device_guard import wait_online
+        wait_online(SERIAL)
+        return command(['adb','-s',SERIAL,*cmd])
     def unlocked():
         window=adb('shell','dumpsys','window')
         if 'isKeyguardShowing=false' not in window or 'isKeyguardShowing=true' in window or 'mScreenOnFully=true' not in window:raise RuntimeError('设备锁屏/熄屏；停止，需要机主解锁')

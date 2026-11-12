@@ -124,3 +124,119 @@ class AnimateOnceScope extends InheritedWidget {
   @override
   bool updateShouldNotify(AnimateOnceScope old) => skip != old.skip;
 }
+
+/// 一次 animate-once 解析的结果：是否参与、是否跳过入场、是否为入口。
+///
+/// 由 [resolveAnimateOnce] 产出，组件在挂载时保存，build 时用 [wrap] 把入口决策
+/// 发布给后代。
+class AnimateOnceDecision {
+  const AnimateOnceDecision._({
+    required this.participates,
+    required this.skip,
+    required this.entry,
+  });
+
+  /// 不参与 animate-once：每次挂载都播放入场动画。
+  static const AnimateOnceDecision none = AnimateOnceDecision._(
+    participates: false,
+    skip: false,
+    entry: false,
+  );
+
+  /// 本实例是否参与 animate-once。
+  final bool participates;
+
+  /// 参与时，入场过渡是否应跳过（直接显示终值）。
+  final bool skip;
+
+  /// 本实例是否为入口（自行解析决策而非继承祖先 [AnimateOnceScope]）。
+  final bool entry;
+
+  /// 参与且需要跳过入场时为 true，等价于 `participates && skip`。
+  bool get shouldSkip => participates && skip;
+
+  /// 入口实例把决策包成 [AnimateOnceScope] 发布给后代；其余实例原样返回 [child]。
+  ///
+  /// 示例：`return _once.wrap(result);`
+  Widget wrap(Widget child) =>
+      entry ? AnimateOnceScope(skip: skip, child: child) : child;
+}
+
+/// 已经打印过的 animate-once 警告键，保证每种问题只在 debug 下提示一次。
+final Set<String> _warnedAnimateOnce = <String>{};
+
+/// 测试用：清空已打印的 animate-once 警告记录，便于重复断言。
+@visibleForTesting
+void debugResetAnimateOnceWarnings() => _warnedAnimateOnce.clear();
+
+/// 仅 debug 下、同一 [key] 只打印一次 [message]；release 下什么也不做。
+void _warnAnimateOnceOnce(String key, String message) {
+  assert(() {
+    if (_warnedAnimateOnce.add(key)) debugPrint(message);
+    return true;
+  }());
+}
+
+/// 在组件挂载时解析一次 animate-once 决策，供 CounterBuilder、AnimatedCounter 等共用。
+///
+/// 规则：祖先 [AnimateOnceScope] 已决策则遵从（不解析、不记录自己的 id，保证同一
+/// 条目内多个数字一致）；否则有效开关为 [widgetAnimateOnce] ?? [scopeAnimateOnce]
+/// ?? false，开启时用 [id] 与 [registry] 解析并记录，成为入口。
+///
+/// 没有稳定 id（[id] 为空）或没有 Provider（[registry] 为空）时**不断言**，debug 下
+/// 用 `debugPrint` 对每种 [owner] 只警告一次，并退化为每次都动画（返回 [AnimateOnceDecision.none]）。
+///
+/// 参数：[context] 为组件上下文（不注册依赖，可在 initState 调用）；[owner] 用于
+/// 警告文案，例如 `'CounterBuilder'`。返回解析结果。
+///
+/// 示例：
+/// ```dart
+/// _once = resolveAnimateOnce(context,
+///     widgetAnimateOnce: widget.animateOnce,
+///     scopeAnimateOnce: scope?.animateOnce,
+///     registry: scope?.once,
+///     id: widget.onceId ?? stableOnceIdFromKey(widget.key),
+///     owner: 'CounterBuilder');
+/// ```
+AnimateOnceDecision resolveAnimateOnce(
+  BuildContext context, {
+  required bool? widgetAnimateOnce,
+  required bool? scopeAnimateOnce,
+  required AnimateOnceRegistry? registry,
+  required String? id,
+  required String owner,
+}) {
+  final inherited = AnimateOnceScope.maybeOf(context);
+  if (inherited != null) {
+    return AnimateOnceDecision._(
+      participates: true,
+      skip: inherited.skip,
+      entry: false,
+    );
+  }
+  if (!(widgetAnimateOnce ?? scopeAnimateOnce ?? false)) {
+    return AnimateOnceDecision.none;
+  }
+  if (id == null) {
+    _warnAnimateOnceOnce(
+      '$owner:no-id',
+      '$owner.animateOnce 已开启，但没有稳定 id：请给组件加 ValueKey（例如 '
+      'ValueKey(row.id)）或传 onceId。本组件退化为每次都播放入场动画。',
+    );
+    return AnimateOnceDecision.none;
+  }
+  if (registry == null) {
+    _warnAnimateOnceOnce(
+      '$owner:no-provider',
+      '$owner.animateOnce 已开启，但上层没有 CounterProvider：animate-once 的登记表'
+      '存在于 Provider 中。本组件退化为每次都播放入场动画。',
+    );
+    return AnimateOnceDecision.none;
+  }
+  // shouldAnimate 首次见到 id 时返回 true（应动画，不跳过）。
+  return AnimateOnceDecision._(
+    participates: true,
+    skip: !registry.shouldAnimate(id),
+    entry: true,
+  );
+}

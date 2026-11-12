@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:meta/meta.dart';
 
@@ -208,10 +209,19 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     _debounce = null;
     _wanted = null;
     _publish(null);
-    if (_parent == null) {
-      for (final s in sources) {
-        unawaited(s.reset());
-      }
+    if (_parent == null && !_disposed) {
+      _sourceQueue = _sourceQueue.then((_) async {
+        if (_disposed) return;
+        for (final s in sources) {
+          try {
+            await s.reset();
+          } on Object {
+            // A failed reset must not poison later sources or requests.
+            //
+            // 重置失败不能阻断其余来源或后续请求。
+          }
+        }
+      });
     }
   }
 
@@ -245,8 +255,22 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
   String? _keyFor(Duration bucket, [MovaSource? media]) {
     final src = media ?? _source;
     if (src == null) return null;
-    final builder = config.cacheKeyBuilder ?? defaultCacheKey;
-    return builder(src.uri, bucket.inSeconds, config.frameWidth);
+    final builder = config.cacheKeyBuilder;
+    if (builder != null) {
+      return builder(src.uri, bucket.inSeconds, config.frameWidth);
+    }
+    final headers = src.requestHeaders.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final identity = headers.isEmpty
+        ? src.uri
+        : jsonEncode([src.uri, for (final h in headers) [h.key, h.value]]);
+    // Whole-second buckets keep the legacy key; sub-second buckets use a distinct
+    // millisecond key so 0ms/500ms do not collide.
+    // 整秒桶沿用旧 key；亚秒桶用毫秒 key，避免 0ms/500ms 撞 key。
+    if (bucket.inMilliseconds % 1000 != 0) {
+      return '${defaultCacheKey(identity, 0, config.frameWidth)}_${bucket.inMilliseconds}ms';
+    }
+    return defaultCacheKey(identity, bucket.inSeconds, config.frameWidth);
   }
 
   /// Exposes [_keyFor] to tests that assert on cache contents.
@@ -291,6 +315,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
 
   @override
   MovaThumb? peekAt(Duration position) {
+    if (_disposed || !config.enabled || audioOnly) return null;
     final bucket = _bucketOf(position);
     final key = _keyFor(bucket);
     if (key == null) return null;
@@ -308,6 +333,13 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     _debounce = null;
     final bucket = _bucketOf(position);
     _wanted = bucket;
+    if (!config.enabled || audioOnly) {
+      _publish(null);
+      _block(!config.enabled
+          ? MovaPreviewBlockReason.disabled
+          : MovaPreviewBlockReason.platform);
+      return;
+    }
 
     final hit = peekAt(bucket);
     if (hit != null) {
@@ -395,7 +427,10 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
       final remote = uri?.scheme == 'http' || uri?.scheme == 'https';
       final allowed = config.network == MovaPreviewNet.wifiOnly && !remote
           ? true
-          : await previewAllowedOn(config.network, probe);
+          : await Future.any<bool>([
+              previewAllowedOn(config.network, probe),
+              _requestCancelled.future.then((_) => false),
+            ]);
       if (!_isWanted(epoch, revision)) return;
       if (!allowed) {
         _block(MovaPreviewBlockReason.network);
@@ -506,6 +541,7 @@ class MovaPreviewService implements MovaPreviewSession, MovaPreviewSessions {
     await closing;
     // 先关闭来源以中止网络与解码，再等待队列收敛。
     await _queue;
+    await _sourceQueue;
     if (ownsCache) {
       if (config.clearOnDispose) await step(cache.clear);
       await step(cache.dispose);

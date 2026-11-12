@@ -1,0 +1,16 @@
+[
+  {
+    "name": "decode-on-failure",
+    "exit": 1,
+    "killed_by_assertion": true,
+    "log": "coverage\\r5-mutation-decode-on-failure.log",
+    "all_lib_sha256_restored": true
+  },
+  {
+    "name": "dispose-without-await",
+    "exit": 1,
+    "killed_by_assertion": true,
+    "log": "coverage\\r5-mutation-dispose-without-await.log",
+    "all_lib_sha256_restored": true
+  }
+]

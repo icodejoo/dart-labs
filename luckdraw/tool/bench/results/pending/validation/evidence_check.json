@@ -1,0 +1,40 @@
+{
+  "device": "V2417",
+  "serial": "10AE9K17UE0011S",
+  "attempts": 53,
+  "project_attempts": {
+    "blank_first_frame": 3,
+    "wheel_first_frame": 5,
+    "grid_first_frame": 5,
+    "slot_first_frame": 3,
+    "cpu_wheel_steady": 5,
+    "cpu_grid_steady": 5,
+    "cpu_slot_steady": 5,
+    "cpu_capsule_mixing": 5,
+    "cpu_lotto_draw": 5,
+    "slot_raster": 3,
+    "grid_steady": 3,
+    "lotto_draw": 3,
+    "lots_shaking": 3
+  },
+  "driver_valid_rounds": {
+    "blank_first_frame": 3,
+    "wheel_first_frame": 2,
+    "grid_first_frame": 1,
+    "slot_first_frame": 3,
+    "cpu_wheel_steady": 0,
+    "cpu_grid_steady": 0,
+    "cpu_slot_steady": 0,
+    "cpu_capsule_mixing": 0,
+    "cpu_lotto_draw": 0,
+    "slot_raster": 3,
+    "grid_steady": 3,
+    "lotto_draw": 3,
+    "lots_shaking": 3
+  },
+  "fresh_summaries": 33,
+  "raw_response_windows": 28,
+  "zero_fps_rounds": 0,
+  "lib_changed": [],
+  "provenance_checked": 341
+}

@@ -1,0 +1,24 @@
+--- a/lib/src/request.dart
++++ b/lib/src/request.dart
+@@ -4,6 +4,10 @@
+ 
+ /// 区分未提供和显式 null 的补丁哨兵。
+ const _absent = Object();
++
++/// 内部读取快照中的响应格式，避免复制整份有效配置。
++ResponseType diomanRequestResponseType(DiomanRequest request) =>
++    request._options.responseType;
+ 
+ /// 有效 Dio 配置的不可变请求视图；入口合并一次后构造。
+ class DiomanRequest {
+--- a/lib/src/response.dart
++++ b/lib/src/response.dart
+@@ -322,7 +322,7 @@
+       final body = response.data;
+       if (httpOk &&
+           expectJson &&
+-          request.toRequestOptions().responseType == ResponseType.json &&
++          diomanRequestResponseType(request) == ResponseType.json &&
+           body is String &&
+           body.isNotEmpty) {
+         return _normalizeResult(

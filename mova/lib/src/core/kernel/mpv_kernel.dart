@@ -21,7 +21,8 @@ import 'source_options_kernel.dart';
 import 'keep_alive_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
-typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
+typedef MovaMpvEventBackendFactory =
+    MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
 
 /// 视频控制器工厂：为给定播放器创建 [VideoController]（测试可替换）。
 typedef MovaVideoControllerFactory = VideoController Function(Player player);
@@ -47,6 +48,15 @@ const String _kVidOff = 'no';
 /// 让 mpv 自动选视频轨的取值。
 const String _kVidAuto = 'auto';
 
+/// Shared mpv property, value and diagnostic names. / 共用的 mpv 属性、取值及诊断名称。
+const _kYes = 'yes';
+const _kMute = 'mute';
+const _kHeaderFields = 'http-header-fields';
+const _kChangeList = 'change-list';
+const _kErrorLevel = 'error';
+const _kFfmpegPrefix = 'ffmpeg';
+const _kFile = 'file';
+
 /// A [MovaKernel] implementation backed by media_kit's `Player`.
 ///
 /// This is the one file in the core layer allowed to depend on
@@ -63,7 +73,15 @@ const String _kVidAuto = 'auto';
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaAttemptEventKernel, MovaRestartObserver, MovaKernel, MovaClassifiedErrorKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements
+        MovaAttemptEventKernel,
+        MovaRestartObserver,
+        MovaKernel,
+        MovaClassifiedErrorKernel,
+        MovaStatsProbe,
+        MovaKeepAliveKernel,
+        MovaPlayerMute,
+        MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -154,27 +172,32 @@ class MovaMpvKernel
     this.mountYield,
     this.realtimeFormats = kRealtimeFileFormats,
     this.liveProbeInterval = kLiveProbeInterval,
-  })
-    : _player = player ?? Player(configuration: PlayerConfiguration(protocolWhitelist: movaProtocolWhitelist())),
-      _observeRestarts = observeRestarts, // ignore: prefer_initializing_formals
-      _backendFactory = backendFactory,
-      _videoControllerFactory = videoControllerFactory ?? VideoController.new,
-      _videoReadyProbe = videoReady ?? ((c) => c.platform.future) {
+  }) : _player =
+           player ??
+           Player(
+             configuration: PlayerConfiguration(
+               protocolWhitelist: movaProtocolWhitelist(),
+             ),
+           ),
+       // ignore: prefer_initializing_formals
+       _observeRestarts = observeRestarts,
+       _backendFactory = backendFactory,
+       _videoControllerFactory = videoControllerFactory ?? VideoController.new,
+       _videoReadyProbe = videoReady ?? ((c) => c.platform.future) {
     _applyTls();
     if (!audioOnly && !lazyVideo) {
       _attachController();
     }
     _widthSub = _player.stream.width.listen((w) {
       _lastWidth = w ?? 0;
-      _widthSeen = true;
       _emitSize();
     });
     _heightSub = _player.stream.height.listen((h) {
       _lastHeight = h ?? 0;
-      _heightSeen = true;
       _emitSize();
     });
-    _wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
+    _wantNative =
+        (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
     if (!observeQoeSignals && !_wantNative) return;
     // Observe mpv's own `paused-for-cache` — the *real* rebuffer signal,
     // distinct from the `buffering` stream's merge of `core-idle` +
@@ -196,7 +219,7 @@ class MovaMpvKernel
         setup = native
             .observeProperty('paused-for-cache', (value) async {
               if (_stallingController.isClosed) return;
-              _stallingController.add(value == 'yes');
+              _stallingController.add(value == _kYes);
             })
             .catchError((_) {
               // 静默降级：这次会话就是没有原生卡顿信号，QoE 层退回旧的
@@ -255,12 +278,21 @@ class MovaMpvKernel
     final seq = _openSeq;
     final format = await _readNativeProperty(kFileFormat) ?? '';
     if (seq != _openSeq) return;
-    final live = realtimeFormats.contains(format) ||
-        (!kPlaylistFileFormats.contains(format) && await _probeUnseekableLive(seq));
+    final live =
+        realtimeFormats.contains(format) ||
+        (!kPlaylistFileFormats.contains(format) &&
+            await _probeUnseekableLive(seq));
     if (!live || seq != _openSeq || _disposed) return;
-    await _limitLiveCache();
-    // 限制落地期间若已换源，立即还原，避免残留。
-    if (seq != _openSeq) await _restoreLiveCache();
+    // Share the option queue so a later source restores this limit before
+    // applying its own settings, even when a native read/write is in flight.
+    //
+    // 共用选项队列，使后续源即使遇到在途原生读写，也先还原限制再下发自己的配置。
+    final limit = _sourceOptionsQueue.then((_) async {
+      if (seq != _openSeq || _disposed) return;
+      await _limitLiveCache();
+    });
+    _sourceOptionsQueue = limit.then<void>((_) {}, onError: (Object _) {});
+    await limit;
   }
 
   /// 兜底判断：间隔 [liveProbeInterval] 采样两次，两次都 `seekable=no`，且时长两次都读不到、
@@ -271,7 +303,10 @@ class MovaMpvKernel
       await Future<void>.delayed(liveProbeInterval);
       if (seq != _openSeq || _disposed) return null;
       // 两次读取互不依赖，并行发起。
-      final r = await Future.wait([_readNativeProperty(kSeekable), _readNativeProperty(kDuration)]);
+      final r = await Future.wait([
+        _readNativeProperty(kSeekable),
+        _readNativeProperty(kDuration),
+      ]);
       return (r[0] ?? '', double.tryParse(r[1] ?? ''));
     }
 
@@ -281,7 +316,8 @@ class MovaMpvKernel
     if (b == null || b.$1 != kNotSeekable) return false;
     final (da, db) = (a.$2, b.$2);
     if (da == null || db == null) return da == db;
-    return db - da >= liveProbeInterval.inMilliseconds / 1000 * kLiveDurationGrowthRatio;
+    return db - da >=
+        liveProbeInterval.inMilliseconds / 1000 * kLiveDurationGrowthRatio;
   }
 
   /// [t] 里是否有 auto/no 之外的真实轨道。
@@ -295,8 +331,10 @@ class MovaMpvKernel
     final native = _player.platform;
     if (native is! NativePlayer) return;
     try {
-      final back = await _readNativeProperty(kDemuxerMaxBackBytes) ?? kVodMaxBackBytes;
-      final seekable = await _readNativeProperty(kDemuxerSeekableCache) ?? kVodSeekableCache;
+      final back =
+          await _readNativeProperty(kDemuxerMaxBackBytes) ?? kVodMaxBackBytes;
+      final seekable =
+          await _readNativeProperty(kDemuxerSeekableCache) ?? kVodSeekableCache;
       await native.setProperty(kDemuxerMaxBackBytes, kLiveMaxBackBytes);
       await native.setProperty(kDemuxerSeekableCache, kLiveSeekableCache);
       _savedCache = (back: back, seekable: seekable);
@@ -329,7 +367,7 @@ class MovaMpvKernel
     _tlsSetup = () async {
       try {
         if (ca != null) await native.setProperty('tls-ca-file', ca);
-        await native.setProperty('tls-verify', 'yes');
+        await native.setProperty('tls-verify', _kYes);
       } catch (_) {}
     }();
   }
@@ -429,7 +467,7 @@ class MovaMpvKernel
     } catch (_) {
       return;
     }
-    
+
     if (_disposed) return;
     if (_backendFactory == null) return;
 
@@ -462,7 +500,7 @@ class MovaMpvKernel
 
     _pump = pump;
     await pump.start(Future.value());
-    
+
     if (_disposed) {
       await pump.dispose();
     }
@@ -595,40 +633,33 @@ class MovaMpvKernel
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
 
-  /// The most recently observed frame width; seeded to 0 until the first
-  /// callback arrives.
+  /// The most recently observed frame width; null until the width stream
+  /// has delivered at least one value, with unavailable values mapped to 0.
   ///
-  /// 最近观测到的帧宽度；首次回调到达前为 0。
-  int _lastWidth = 0;
+  /// 最近观测到的帧宽度；null 表示宽度流尚未推送过值，不可用的观测值记为 0。
+  int? _lastWidth;
 
-  /// The most recently observed frame height; seeded to 0 until the first
-  /// callback arrives.
+  /// The most recently observed frame height; null until the height stream
+  /// has delivered at least one value, with unavailable values mapped to 0.
   ///
-  /// 最近观测到的帧高度；首次回调到达前为 0。
-  int _lastHeight = 0;
+  /// 最近观测到的帧高度；null 表示高度流尚未推送过值，不可用的观测值记为 0。
+  int? _lastHeight;
 
-  /// Whether the width stream has delivered at least one value yet.
-  ///
-  /// 宽度流是否已至少推送过一次值。
-  bool _widthSeen = false;
-
-  /// Whether the height stream has delivered at least one value yet.
-  ///
-  /// 高度流是否已至少推送过一次值。
-  bool _heightSeen = false;
-
-  final StreamController<MovaSize> _sizeController = StreamController<MovaSize>.broadcast();
+  final StreamController<MovaSize> _sizeController =
+      StreamController<MovaSize>.broadcast();
 
   /// Backing controller for [stalling]; fed from mpv's `paused-for-cache`.
   ///
   /// [stalling] 的底层控制器；由 mpv 的 `paused-for-cache` 驱动。
-  final StreamController<bool> _stallingController = StreamController<bool>.broadcast();
+  final StreamController<bool> _stallingController =
+      StreamController<bool>.broadcast();
 
   /// Backing controller for [playbackRestarts]; fed from
   /// `MPV_EVENT_PLAYBACK_RESTART`.
   ///
   /// [playbackRestarts] 的底层控制器；由 `MPV_EVENT_PLAYBACK_RESTART` 驱动。
-  final StreamController<void> _restartController = StreamController<void>.broadcast();
+  final StreamController<void> _restartController =
+      StreamController<void>.broadcast();
 
   /// Backing controller for [endFiles]; fed from `MPV_EVENT_END_FILE`.
   ///
@@ -645,8 +676,59 @@ class MovaMpvKernel
   /// 被观测到至少一次时才会推送，以避免在 media_kit 尚未同时报告二者前推送
   /// 出错误的中间尺寸（如只有宽度）。
   void _emitSize() {
-    if (!_widthSeen || !_heightSeen) return;
-    _sizeController.add(MovaSize(width: _lastWidth, height: _lastHeight));
+    final width = _lastWidth;
+    final height = _lastHeight;
+    if (width == null || height == null) return;
+    _sizeController.add(MovaSize(width: width, height: height));
+  }
+
+  /// Recoverable option diagnostics, shared by the legacy and classified exits.
+  ///
+  /// 可恢复的选项诊断，供旧错误出口和分类错误出口共同使用。
+  final _optionErrors = StreamController<MovaKernelError>.broadcast();
+
+  /// Unique across kernels and retries in this isolate, like Media's cache.
+  ///
+  /// 与 Media 缓存同属 isolate，在不同内核和重试之间保持唯一。
+  static int _mediaLoadId = 0;
+
+  /// Creates a load-specific network cache key without changing the HTTP target.
+  /// Fragments stay in mpv's path / Media cache but are not sent over HTTP.
+  /// Keep Media headers: media_kit clears the property in its unload hook.
+  ///
+  /// 创建每次加载独立的网络缓存键，不改变 HTTP 请求目标。
+  /// 片段保留在 mpv path / Media 缓存里，但不会发送到 HTTP 服务端。
+  /// 保留 Media 请求头透传，因为 media_kit 的卸载钩子会清空属性。
+  Media _mediaForOpen(String uri, Map<String, String> options) {
+    final fields = parseMpvStringList(options[_kHeaderFields] ?? '');
+    Map<String, String>? headers;
+    if (fields == null) {
+      _optionErrors.add(
+        const MovaKernelError(
+          'Invalid http-header-fields: malformed mpv string list',
+          'mova-options',
+        ),
+      );
+    } else {
+      headers = <String, String>{};
+      for (final field in fields) {
+        final colon = field.indexOf(':');
+        if (colon > 0) {
+          headers[field.substring(0, colon).trim()] = field
+              .substring(colon + 1)
+              .trim();
+        }
+      }
+    }
+    final parsed = Uri.tryParse(uri);
+    final network =
+        parsed != null &&
+        parsed.hasAuthority &&
+        !const {_kFile, 'content', 'asset', 'fd'}.contains(parsed.scheme);
+    final resource = network && options.containsKey(_kHeaderFields)
+        ? '$uri${uri.contains('#') ? '&' : '#'}mova-load=${++_mediaLoadId}'
+        : uri;
+    return Media(resource, httpHeaders: headers);
   }
 
   /// 暂存、待下一次 [open] 应用的按源选项；[open] 一开头就取走并清空。
@@ -655,12 +737,18 @@ class MovaMpvKernel
   /// 已下发的按源选项在下发前的原值（属性名 → 原值）；非空即有待还原项，下次 [open] 先还原。
   final Map<String, String> _appliedOptions = {};
 
+  /// Serializes option restoration and application across overlapping opens.
+  ///
+  /// 串行化重叠加载的选项还原和下发。
+  Future<void> _sourceOptionsQueue = Future<void>.value();
+
   /// 已下发的键值列表选项：选项名 → 本源加入的键及其原值（`null` 表示原来没有该键）。
   /// 还原时只删这些键、把有原值的补回去，不碰列表里别的项。
   final Map<String, Map<String, String?>> _appliedLists = {};
 
   @override
-  void stageSourceOptions(Map<String, String> options) => _stagedOptions = Map.of(options);
+  void stageSourceOptions(Map<String, String> options) =>
+      _stagedOptions = Map.of(options);
 
   /// 把上一个源下发过的属性写回原值；写入失败被吞掉。
   Future<void> _restoreSourceOptions() async {
@@ -679,9 +767,16 @@ class MovaMpvKernel
     for (final list in savedLists.entries) {
       for (final key in list.value.entries) {
         try {
-          await native.command(['change-list', list.key, 'remove', key.key]);
+          await native.command([_kChangeList, list.key, 'remove', key.key]);
           final original = key.value;
-          if (original != null) await native.command(['change-list', list.key, 'append', '${key.key}=$original']);
+          if (original != null) {
+            await native.command([
+              _kChangeList,
+              list.key,
+              'append',
+              '${key.key}=$original',
+            ]);
+          }
         } catch (_) {}
       }
     }
@@ -689,13 +784,19 @@ class MovaMpvKernel
 
   /// 把键值列表选项 [name] 的 [value] 并入现有列表（`change-list add`，不覆盖别的项），
   /// 并记下这些键的原值供还原；值不合法或写入失败就整项跳过。
-  Future<void> _applyListOption(NativePlayer native, String name, String value) async {
+  Future<void> _applyListOption(
+    NativePlayer native,
+    String name,
+    String value,
+  ) async {
     final entries = parseMpvKeyValueList(value);
     if (entries == null || entries.isEmpty) return;
     final printed = await _readNativeProperty(name) ?? '';
-    final originals = <String, String?>{for (final e in entries) e.key: lookupMpvKeyValue(printed, e.key)};
+    final originals = <String, String?>{
+      for (final e in entries) e.key: lookupMpvKeyValue(printed, e.key),
+    };
     try {
-      await native.command(['change-list', name, 'add', value]);
+      await native.command([_kChangeList, name, 'add', value]);
       _appliedLists.putIfAbsent(name, () => {}).addAll(originals);
     } catch (_) {}
   }
@@ -717,6 +818,9 @@ class MovaMpvKernel
     }
   }
 
+  /// Opens the staged source with headers isolated to this load attempt.
+  ///
+  /// 打开暂存的媒体源，请求头按本次加载尝试隔离。
   @override
   Future<void> open(String uri, {bool play = true}) async {
     // 同步取走身份，避免等待原生准备时被后一次 open 覆盖。
@@ -728,20 +832,22 @@ class MovaMpvKernel
     await _ensureNativeEvents();
     final seq = ++_openSeq;
     _formatProbePending = false;
-    // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
-    await _restoreLiveCache();
-    // A newer open() (or dispose) superseded this one while it was waiting.
+    // Finish each option transaction before another load can restore its values.
     //
-    // 等待期间已被更新的 open()（或 dispose）取代。
-    if (seq != _openSeq || _disposed) return;
-    // 先还原上一个源的按源选项，再下发本源的：选项不跨源泄漏。
-    await _restoreSourceOptions();
-    if (seq != _openSeq || _disposed) return;
-    await _applySourceOptions(options);
+    // 每次选项事务完成后，下一次加载才能还原它保存的原值。
+    final setup = _sourceOptionsQueue.then((_) async {
+      if (seq != _openSeq || _disposed) return;
+      await _restoreLiveCache();
+      if (seq != _openSeq || _disposed) return;
+      await _restoreSourceOptions();
+      if (seq != _openSeq || _disposed) return;
+      await _applySourceOptions(options);
+    });
+    _sourceOptionsQueue = setup.then<void>((_) {}, onError: (Object _) {});
+    await setup;
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
-      _formatProbePending = true;
     }
     if (lazyVideo && !audioOnly && _controller == null) await _yieldForMount();
     if (seq != _openSeq || _disposed) return;
@@ -752,10 +858,27 @@ class MovaMpvKernel
       if (seq != _openSeq || _disposed) return;
     }
     try {
+      // Arm the probe only now: during the mount/render waits above the OLD
+      // file may still refresh its track list, which must not be read as the new one.
+      // 到此才武装格式探测：上面等挂载/渲染面期间旧文件仍可能刷新轨道，不能当成新文件的。
+      if (_player.platform is NativePlayer) _formatProbePending = true;
       _pump?.discardPending();
+      // Evaluated, won't fix: an old-file END_FILE(error) arriving before
+      // Player.open's stop takes effect can still inherit the new attempt.
+      // START_FILE gating failed HE V9 (1/5); playlist_entry_id reads after open
+      // disturbed recovery timing. Device replacement events were STOP (24/24),
+      // so the rare remaining error window only risks a spurious retry.
+      // Reopening needs device ID correlation without post-open native reads.
+      // See doc/plans/2026-11-06-review-unfixed-design.md section 1.
+      //
+      // 已评估，不修：Player.open 的 stop 生效前到达的旧文件 END_FILE(error)
+      // 仍可能归到新尝试。START_FILE 闸门令 HE V9 仅 1/5 通过；open 后读取
+      // playlist_entry_id 扰动恢复时序。真机换源事件 24/24 为 STOP，剩余罕见
+      // 错误窗口只可能多触发一次误判重试。重开须先真机核对 ID，且不新增 open 后
+      // 原生读取；见 doc/plans/2026-11-06-review-unfixed-design.md 第 1 节。
       _eventAttempt = eventAttempt;
       _eventUri = uri;
-      await _player.open(Media(uri), play: play);
+      await _player.open(_mediaForOpen(uri, options), play: play);
     } catch (_) {
       if (seq == _openSeq) _formatProbePending = false;
       rethrow;
@@ -794,28 +917,41 @@ class MovaMpvKernel
   Future<Uint8List?> screenshot() async =>
       audioOnly || _controller == null ? null : _player.screenshot(format: 'image/jpeg');
 
+  /// Releases player resources and option diagnostics.
+  ///
+  /// 释放播放器资源及选项诊断。
   @override
   Future<void> dispose() async {
     _disposed = true;
     await _widthSub?.cancel();
     await _heightSub?.cancel();
     await _tracksSub?.cancel();
-    await _sizeController.close();
-    await _stallingController.close();
-    await _restartController.close();
-    await _endFileController.close();
-    // 必须等构造期发起的原生观察者注册落地，才能销毁 _player——见
-    // _observeSetup 的文档注释。
-    // 因为 observeProperty 自身也 await 同一个初始化 future，如果
-    // handle 挂起会拖死 dispose，因此加一个 5 秒的超时。
+    // Closing marks streams closed immediately; paused listeners must not
+    // delay native resource release while waiting to consume their done event.
+    //
+    // close 会立即标记流已关闭；暂停的监听者等待消费结束事件时不能阻塞原生资源释放。
+    unawaited(_sizeController.close());
+    unawaited(_stallingController.close());
+    unawaited(_restartController.close());
+    unawaited(_endFileController.close());
+    unawaited(_optionErrors.close());
+    // Bound both setup tasks together; a late handle checks _disposed before
+    // creating a client, so it cannot register after player teardown.
+    //
+    // 两项准备任务共用等待上限；迟到的句柄在创建客户端前检查 _disposed，
+    // 不会在播放器销毁后注册客户端。
     try {
-      await _observeSetup?.timeout(const Duration(seconds: 5));
+      await Future.wait<void>([
+        ?_observeSetup,
+        ?_nativeSetup,
+      ]).timeout(const Duration(seconds: 5));
     } catch (_) {
-      // 超时或抛错吞掉继续销毁
+      // Continue teardown after a setup failure or timeout.
+      //
+      // 准备失败或超时后继续释放资源。
     }
-    await _nativeSetup;
     await _pump?.dispose();
-    await _attemptEnds.close();
+    unawaited(_attemptEnds.close());
     await _player.dispose();
   }
 
@@ -840,16 +976,37 @@ class MovaMpvKernel
   @override
   Stream<MovaSize> get size => _sizeController.stream;
 
+  /// Reports player errors and recoverable option diagnostics.
+  ///
+  /// 报告播放器错误及可恢复的选项诊断。
   @override
-  Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
+  Stream<Object> get error => _mergeDiagnostics(
+    _player.stream.error.where((e) => !isBenignMpvError(e)),
+    _optionErrors.stream.map((e) => e.error),
+  );
 
-  /// 按 media_kit 的错误过滤保留日志前缀；无泵时额外放行含主文件地址的 ffmpeg 错误。
+  /// Preserves log prefixes and includes recoverable option diagnostics.
+  ///
+  /// 保留日志前缀并包含可恢复的选项诊断。
   @override
-  Stream<MovaKernelError> get kernelErrors => _player.stream.log
-      .where((log) => isMovaMpvErrorLog(prefix: log.prefix, level: log.level, text: log.text) ||
-          (!endFileAvailable && _eventUri.isNotEmpty && log.level == 'error' &&
-              log.prefix == 'ffmpeg' && log.text.contains(_eventUri)))
-      .map((log) => MovaKernelError(log.text, log.prefix));
+  Stream<MovaKernelError> get kernelErrors => _mergeDiagnostics(
+    _player.stream.log
+        .where(
+          (log) =>
+              isMovaMpvErrorLog(
+                prefix: log.prefix,
+                level: log.level,
+                text: log.text,
+              ) ||
+              (!endFileAvailable &&
+                  _eventUri.isNotEmpty &&
+                  log.level == _kErrorLevel &&
+                  log.prefix == _kFfmpegPrefix &&
+                  log.text.contains(_eventUri)),
+        )
+        .map((log) => MovaKernelError(log.text, log.prefix)),
+    _optionErrors.stream,
+  );
 
   @override
   Object? get renderHandle {
@@ -875,14 +1032,15 @@ class MovaMpvKernel
 
   @override
   // 不转发 RESTART 时不能声称有信号，否则首帧闸门会白等宽限。
-  bool get nativeRestartAvailable => _observeRestarts && (_pump?.isActive ?? false);
+  bool get nativeRestartAvailable =>
+      _observeRestarts && (_pump?.isActive ?? false);
 
   @override
   Stream<MovaEndFileReason> get endFiles => _endFileController.stream;
 
   @override
   Stream<MovaLogLine> get logs => _player.stream.log
-      .where((l) => l.level == 'error')
+      .where((l) => l.level == _kErrorLevel)
       .map((l) => MovaLogLine(prefix: l.prefix, level: l.level, text: l.text));
 
   @override
@@ -897,7 +1055,9 @@ class MovaMpvKernel
     final results = await Future.wait([
       audioOnly ? Future.value(null) : _tryIntProperty('video-bitrate'),
       audioOnly ? Future.value(null) : _tryIntProperty('frame-drop-count'),
-      audioOnly ? Future.value(null) : _tryIntProperty('decoder-frame-drop-count'),
+      audioOnly
+          ? Future.value(null)
+          : _tryIntProperty('decoder-frame-drop-count'),
       _tryIntProperty('cache-speed'),
       audioOnly ? Future.value(null) : _tryStringProperty('hwdec-current'),
       _tryBoolProperty('demuxer-via-network'),
@@ -927,7 +1087,9 @@ class MovaMpvKernel
   Future<String?> _readNativeProperty(String property) async {
     try {
       final native = _player.platform;
-      final raw = native is NativePlayer ? await native.getProperty(property) : null;
+      final raw = native is NativePlayer
+          ? await native.getProperty(property)
+          : null;
       if (raw == null || raw.isEmpty) return null;
       return raw;
     } on Object {
@@ -946,7 +1108,8 @@ class MovaMpvKernel
   /// Reads [property] as a string; see [_readNativeProperty].
   ///
   /// 把 [property] 读作字符串；见 [_readNativeProperty]。
-  Future<String?> _tryStringProperty(String property) => _readNativeProperty(property);
+  Future<String?> _tryStringProperty(String property) =>
+      _readNativeProperty(property);
 
   /// Reads [property] as a `yes`/`no` bool; see [_readNativeProperty].
   ///
@@ -954,7 +1117,7 @@ class MovaMpvKernel
   Future<bool?> _tryBoolProperty(String property) async {
     final raw = await _readNativeProperty(property);
     if (raw == null) return null;
-    return raw == 'yes';
+    return raw == _kYes;
   }
 
   // ---------------------------------------------------------------------
@@ -978,6 +1141,11 @@ class MovaMpvKernel
   /// [enterKeepAlive] 保存的原值；不在待机时为 null。
   Map<String, String>? _keepAliveSaved;
 
+  /// True when a restore left some entries unwritten (retry on next enter/exit).
+  ///
+  /// 上一次还原有条目没写回成功（下次进入/退出时重试）。
+  bool _keepAliveRestoreFailed = false;
+
   /// Original mute before warm-up; keepAlive's saved mute follows this ownership.
   ///
   /// 预热前的原始静音；待机保存的静音随此所有权调整。
@@ -994,30 +1162,31 @@ class MovaMpvKernel
   /// Example / 示例：`await kernel.setWarmMute(true);`
   @override
   Future<bool> setWarmMute(bool on) => _keepAliveSerial(() async {
-        final native = _player.platform;
-        if (_disposed || native is! NativePlayer) return false;
-        if (on == (_warmMuteSaved != null)) return true;
-        try {
-          if (on) {
-            final saved = _keepAliveSaved?['mute'] ??
-                await native.getProperty('mute').timeout(_keepAliveOpTimeout);
-            await native.setProperty('mute', 'yes').timeout(_keepAliveOpTimeout);
-            _warmMuteSaved = saved;
-            if (_keepAliveSaved != null) _keepAliveSaved!['mute'] = 'yes';
-          } else {
-            final saved = _warmMuteSaved!;
-            if (_keepAliveSaved != null) {
-              _keepAliveSaved!['mute'] = saved;
-            } else {
-              await native.setProperty('mute', saved).timeout(_keepAliveOpTimeout);
-            }
-            _warmMuteSaved = null;
-          }
-          return true;
-        } on Object {
-          return false;
+    final native = _player.platform;
+    if (_disposed || native is! NativePlayer) return false;
+    if (on == (_warmMuteSaved != null)) return true;
+    try {
+      if (on) {
+        final saved =
+            _keepAliveSaved?[_kMute] ??
+            await native.getProperty(_kMute).timeout(_keepAliveOpTimeout);
+        await native.setProperty(_kMute, _kYes).timeout(_keepAliveOpTimeout);
+        _warmMuteSaved = saved;
+        if (_keepAliveSaved != null) _keepAliveSaved![_kMute] = _kYes;
+      } else {
+        final saved = _warmMuteSaved!;
+        if (_keepAliveSaved != null) {
+          _keepAliveSaved![_kMute] = saved;
+        } else {
+          await native.setProperty(_kMute, saved).timeout(_keepAliveOpTimeout);
         }
-      });
+        _warmMuteSaved = null;
+      }
+      return true;
+    } on Object {
+      return false;
+    }
+  });
 
   /// Serializes enter/exit so property writes never interleave.
   ///
@@ -1033,9 +1202,12 @@ class MovaMpvKernel
     return next;
   }
 
+  /// Inspects media for keepAlive using the shared format property name.
+  ///
+  /// 使用共用格式属性名检查待机媒体信息。
   @override
   Future<MovaKeepAliveMedia> inspectKeepAlive() async {
-    final format = await _readNativeProperty('file-format');
+    final format = await _readNativeProperty(kFileFormat);
     try {
       final s = _player.state;
       final audio = movaAudioPresence(
@@ -1046,27 +1218,39 @@ class MovaMpvKernel
       );
       return MovaKeepAliveMedia(audio: audio, format: format);
     } on Object {
-      return MovaKeepAliveMedia(audio: MovaAudioPresence.unknown, format: format);
+      return MovaKeepAliveMedia(
+        audio: MovaAudioPresence.unknown,
+        format: format,
+      );
     }
   }
 
   @override
-  Future<bool> enterKeepAlive(MovaKeepAliveMode mode) => _keepAliveSerial(() async {
+  Future<bool> enterKeepAlive(MovaKeepAliveMode mode) =>
+      _keepAliveSerial(() async {
         if (_disposed) return false;
-        if (_keepAliveSaved != null) return true; // 幂等
         final native = _player.platform;
+        if (_keepAliveRestoreFailed && native is NativePlayer) {
+          await _restoreKeepAlive(native);
+          if (_keepAliveRestoreFailed) return false;
+        }
+        if (_keepAliveSaved != null) return true; // 幂等
         if (native is! NativePlayer) return false;
         try {
-          final mute = await native.getProperty('mute').timeout(_keepAliveOpTimeout);
+          final mute = await native
+              .getProperty(_kMute)
+              .timeout(_keepAliveOpTimeout);
           final vid = mode == MovaKeepAliveMode.muted
-              ? await native.getProperty('vid').timeout(_keepAliveOpTimeout)
+              ? await native.getProperty(_kVid).timeout(_keepAliveOpTimeout)
               : null;
-          final saved = <String, String>{'mute': mute};
-          if (vid != null) saved['vid'] = vid;
+          final saved = <String, String>{_kMute: mute};
+          if (vid != null) saved[_kVid] = vid;
           _keepAliveSaved = saved;
-          await native.setProperty('mute', 'yes').timeout(_keepAliveOpTimeout);
-          if (vid != null && vid != 'no') {
-            await native.setProperty('vid', 'no').timeout(_keepAliveOpTimeout);
+          await native.setProperty(_kMute, _kYes).timeout(_keepAliveOpTimeout);
+          if (vid != null && vid != _kVidOff) {
+            await native
+                .setProperty(_kVid, _kVidOff)
+                .timeout(_keepAliveOpTimeout);
           }
           return true;
         } on Object {
@@ -1077,13 +1261,13 @@ class MovaMpvKernel
 
   @override
   Future<bool> exitKeepAlive() => _keepAliveSerial(() async {
-        final native = _player.platform;
-        if (_disposed || native is! NativePlayer) {
-          _keepAliveSaved = null;
-          return false;
-        }
-        return _restoreKeepAlive(native);
-      });
+    final native = _player.platform;
+    if (_disposed || native is! NativePlayer) {
+      _keepAliveSaved = null;
+      return false;
+    }
+    return _restoreKeepAlive(native);
+  });
 
   /// Writes back whatever [_keepAliveSaved] holds, video first; best effort.
   /// Returns whether `vid` went from `no` back to a real value.
@@ -1091,26 +1275,34 @@ class MovaMpvKernel
   /// 把 [_keepAliveSaved] 里的值写回，先视频后声音；尽力而为。返回 `vid` 是否从 `no` 恢复成了实际值。
   Future<bool> _restoreKeepAlive(NativePlayer native) async {
     final saved = _keepAliveSaved;
-    _keepAliveSaved = null;
     if (saved == null) return false;
+    // Keep an entry until its write-back succeeds, so a later exit retries it.
+    // 写回成功才移除对应条目；失败的留着，下次退出继续重试，不丢原值。
+    final pending = Map<String, String>.of(saved);
     var restarted = false;
-    final vid = saved['vid'];
-    if (vid != null && vid != 'no') {
+    final vid = saved[_kVid];
+    if (vid != null) {
       try {
-        await native.setProperty('vid', vid).timeout(_keepAliveOpTimeout);
-        restarted = true;
+        if (vid != _kVidOff) {
+          await native.setProperty(_kVid, vid).timeout(_keepAliveOpTimeout);
+          restarted = true;
+        }
+        pending.remove(_kVid);
       } on Object {
         // 尽力而为：写不回去就让后续的 mute 继续还原。
       }
     }
-    final mute = saved['mute'];
+    final mute = saved[_kMute];
     if (mute != null) {
       try {
-        await native.setProperty('mute', mute).timeout(_keepAliveOpTimeout);
+        await native.setProperty(_kMute, mute).timeout(_keepAliveOpTimeout);
+        pending.remove(_kMute);
       } on Object {
         // 尽力而为。
       }
     }
+    _keepAliveSaved = pending.isEmpty ? null : pending;
+    _keepAliveRestoreFailed = pending.isNotEmpty;
     return restarted;
   }
 }
@@ -1118,8 +1310,41 @@ class MovaMpvKernel
 /// 判断日志是否对应 media_kit 1.2.6 的 stream.error，并排除已知良性诊断。
 /// [prefix]/[level]/[text] 为 PlayerLog 已裁剪的原字段；返回 true 才转发错误。
 /// 示例：`isMovaMpvErrorLog(prefix: 'ffmpeg', level: 'error', text: 'tcp: reset')`。
-bool isMovaMpvErrorLog({required String prefix, required String level, required String text}) {
-  if (level != 'error' || isBenignMpvError(text)) return false;
-  return const {'file', 'vd', 'ad', 'cplayer', 'stream'}.contains(prefix) ||
-      (prefix == 'ffmpeg' && text.startsWith('tcp:'));
+bool isMovaMpvErrorLog({
+  required String prefix,
+  required String level,
+  required String text,
+}) {
+  if (level != _kErrorLevel || isBenignMpvError(text)) return false;
+  return const {_kFile, 'vd', 'ad', 'cplayer', 'stream'}.contains(prefix) ||
+      (prefix == _kFfmpegPrefix && text.startsWith('tcp:'));
 }
+
+/// Merges diagnostics without eagerly subscribing to the player stream.
+///
+/// 合并诊断流，保持播放器流的惰性订阅。
+Stream<T> _mergeDiagnostics<T>(Stream<T> player, Stream<T> diagnostics) =>
+    Stream<T>.multi((sink) {
+      var done = 0;
+      // Close only after both inputs have finished.
+      //
+      // 两个输入都结束后才关闭输出。
+      void onDone() {
+        if (++done == 2) sink.close();
+      }
+
+      final first = player.listen(
+        sink.add,
+        onError: sink.addError,
+        onDone: onDone,
+      );
+      final second = diagnostics.listen(
+        sink.add,
+        onError: sink.addError,
+        onDone: onDone,
+      );
+      sink.onCancel = () async {
+        await first.cancel();
+        await second.cancel();
+      };
+    }, isBroadcast: true);

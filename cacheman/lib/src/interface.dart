@@ -23,13 +23,90 @@ abstract class Codec {
   String? decode(String value);
 }
 
-/// Write-failure callback (a throwing `serialize`/codec, `force`-retry still
-/// failing). Guaranteed for synchronous failures only: with get_storage 2.1.1
-/// real disk-flush errors (disk full, permission) never reach it. When provided it replaces the default `print`-based log, so the
-/// caller can observe failures (`set` returns `void`, so a failure is
-/// otherwise invisible).
-///
-/// 写入失败回调（`serialize`/codec 抛错、`force` 重试仍失败）。只保证同步
-/// 失败会触发：get_storage 2.1.1 下真正的落盘错误（磁盘满、权限）到不了这里。提供时取代默认的
-/// `print` 日志，让调用方能感知失败（`set` 返回 `void`，失败本不可见）。
+/// Receives an actual storage key and a CachemanError; cause is the original error.
+/// All reported failures are classified; callback exceptions still propagate.
+/// Breaking: replace `error is FormatException` with
+/// `error is CorruptEntryError && error.cause is FormatException`.
+/// 接收实际存储键与 CachemanError，cause 保留原异常；回调自身异常仍向上传播。
+/// 破坏性：原 `error is FormatException` 判断需改为
+/// `error is CorruptEntryError && error.cause is FormatException`。
+/// Example / 示例：`onError: (key, error) => print(error)`.
 typedef CachemanOnError = void Function(String key, Object error);
+
+/// Backend primitive operation, including internal expiry cleanup/renewal.
+/// 底层原语操作类型，也用于内部过期清理与续期。
+enum CacheOp {
+  /// Initialize. / 初始化。
+  init,
+
+  /// Read. / 读取。
+  read,
+
+  /// Write or renew. / 写入或续期。
+  write,
+
+  /// Remove. / 删除。
+  remove,
+
+  /// Enumerate storage keys. / 枚举存储键。
+  keys,
+
+  /// Clear the backend. / 清空后端。
+  clear,
+}
+
+/// Immutable routing/logging context for one primitive call.
+/// 单次原语调用的不可变路由/日志上下文。
+/// Example / 示例：`if (ctx.key?.startsWith('large/') ?? false) ...`.
+class CacheContext {
+  /// Captures the scope at the primitive boundary. / 在原语边界记录作用域。
+  const CacheContext(
+      {String? key, required this.namespace, required this.op, this.storageKey})
+      : _key = key,
+        _lazy = null;
+
+  /// Defers logical-key resolution until a backend needs it.
+  /// 延迟解析逻辑键，直到后端实际访问它。
+  /// Example / 示例：`CacheContext.lazy(storageKey: 'n:x', namespace: 'n:',
+  /// op: CacheOp.read, resolveKey: () => 'x')`.
+  CacheContext.lazy(
+      {required this.storageKey,
+      required this.namespace,
+      required this.op,
+      required String? Function() resolveKey})
+      : _key = null,
+        _lazy = _LazyKey(resolveKey);
+
+  /// Explicit logical key for the compatible const constructor. / 兼容 const 构造的逻辑键。
+  final String? _key;
+
+  /// Mutable memoization lives outside the immutable context. / 惰性缓存独立于不可变上下文。
+  final _LazyKey? _lazy;
+
+  /// Logical key before prefix/encoding; null for init, enumeration and clear.
+  /// 加前缀/编码前的逻辑键；初始化、枚举、清空时为 null。
+  String? get key => _lazy == null ? _key : _lazy.value;
+
+  /// Actual backend key; null for operations without a key.
+  /// 实际底层键；无键操作时为 null。
+  final String? storageKey;
+
+  /// Escaped namespace prefix, matching the cache's namespace getter.
+  /// 转义后的命名空间前缀，与缓存的 namespace getter 一致。
+  final String namespace;
+
+  /// Actual primitive operation, which can differ from the public operation.
+  /// 实际原语操作类型，可能与外层公开操作不同。
+  final CacheOp op;
+}
+
+/// Resolves once, including null results. / 只解析一次，也缓存 null 结果。
+class _LazyKey {
+  _LazyKey(this.resolve);
+
+  /// Captured resolver. / 捕获的解析函数。
+  final String? Function() resolve;
+
+  /// Memoized logical key. / 缓存的逻辑键。
+  late final String? value = resolve();
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/bench/compare.dart",
+    "--classify-windows",
+    "--rss-all-scenes",
+    "--input=tool/bench/results/met/comparison",
+    "--output=tool/bench/results/met/assessment.json"
+  ],
+  "exit_code": 1
+}

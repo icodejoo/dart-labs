@@ -1,0 +1,42 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":48248,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/ldp/luckdraw/test/core/render/perf_cache_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":3,"time":4,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6882}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":null,"column":null,"url":null},"type":"group","time":6884}
+{"group":{"id":3,"suiteID":0,"parentID":2,"name":"PERF cache","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":12,"column":3,"url":"file:///C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"group","time":6884}
+{"test":{"id":4,"name":"PERF cache auto replays raster only while moving and honors filter quality","suiteID":0,"groupIDs":[2,3],"metadata":{"skip":false,"skipReason":null},"line":13,"column":5,"url":"file:///C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"testStart","time":6884}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7254}
+{"test":{"id":5,"name":"PERF cache explicit modes and oversized segments preserve vector fallback","suiteID":0,"groupIDs":[2,3],"metadata":{"skip":false,"skipReason":null},"line":44,"column":5,"url":"file:///C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"testStart","time":7255}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7260}
+{"test":{"id":6,"name":"PERF cache origin and DPR changes rebuild even at identical rounded pixel size","suiteID":0,"groupIDs":[2,3],"metadata":{"skip":false,"skipReason":null},"line":78,"column":5,"url":"file:///C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"testStart","time":7261}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7266}
+{"test":{"id":7,"name":"PERF cache negative origins retain the complete centered sprite","suiteID":0,"groupIDs":[2,3],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":101,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/core/render/perf_cache_test.dart"},"type":"testStart","time":7267}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7436}
+{"suite":{"id":8,"platform":"vm","path":"C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"suite","time":7467}
+{"test":{"id":9,"name":"loading C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart","suiteID":8,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":7467}
+{"testID":9,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":8185}
+{"group":{"id":10,"suiteID":8,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":3,"line":null,"column":null,"url":null},"type":"group","time":8185}
+{"group":{"id":11,"suiteID":8,"parentID":10,"name":"PERF wheel","metadata":{"skip":false,"skipReason":null},"testCount":3,"line":13,"column":3,"url":"file:///C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"group","time":8185}
+{"test":{"id":12,"name":"PERF wheel auto switches between moving raster and settled picture","suiteID":8,"groupIDs":[10,11],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":14,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"testStart","time":8186}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8358}
+{"test":{"id":13,"name":"PERF wheel strict upstream frame configuration keeps picture playback","suiteID":8,"groupIDs":[10,11],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":39,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"testStart","time":8358}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8375}
+{"test":{"id":14,"name":"PERF wheel repeated mount dispose balances pictures images and tickers","suiteID":8,"groupIDs":[10,11],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":55,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/wheel/perf_wheel_test.dart"},"type":"testStart","time":8376}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":8511}
+{"suite":{"id":15,"platform":"vm","path":"C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"suite","time":8532}
+{"test":{"id":16,"name":"loading C:/ldp/luckdraw/test/perf/perf_resources_test.dart","suiteID":15,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":8533}
+{"testID":16,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":9214}
+{"group":{"id":17,"suiteID":15,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":9215}
+{"group":{"id":18,"suiteID":15,"parentID":17,"name":"PERF resources","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":99,"column":3,"url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"group","time":9215}
+{"test":{"id":19,"name":"PERF resources wheel releases native caches streams and tickers in ten cycles","suiteID":15,"groupIDs":[17,18],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":100,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":9215}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9551}
+{"test":{"id":20,"name":"PERF resources grid releases native caches streams and tickers in ten cycles","suiteID":15,"groupIDs":[17,18],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":115,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":9551}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9688}
+{"test":{"id":21,"name":"PERF resources number wheel releases native caches streams and tickers in ten cycles","suiteID":15,"groupIDs":[17,18],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":138,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":9688}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9976}
+{"test":{"id":22,"name":"PERF resources capsule releases native caches streams and tickers in ten cycles","suiteID":15,"groupIDs":[17,18],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":150,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":9977}
+{"testID":22,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":10095}
+{"test":{"id":23,"name":"PERF resources lotto releases native caches streams and tickers in ten cycles","suiteID":15,"groupIDs":[17,18],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":166,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":10095}
+{"testID":23,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":10226}
+{"success":true,"type":"done","time":10248}

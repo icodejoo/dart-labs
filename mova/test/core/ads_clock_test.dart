@@ -37,6 +37,47 @@ void playing(FakeAsync a, FakeMovaApi api, bool value) {
 }
 
 void main() {
+  for (final pending in [false, true]) {
+    test('${pending ? '倒计时' : '广告位'}按延迟播放观测冻结，恢复不重复扣时', () => fakeAsync((a) {
+      final (api, ads, events) = rig(a, pending: pending);
+      a.elapse(const Duration(seconds: 1));
+      api.pause();
+      a.flushMicrotasks();
+      // 暂停命令先改变意图，内核仍播放 520ms；应计入已交付时长。
+      a.elapse(const Duration(milliseconds: 520));
+      playing(a, api, false);
+      if (pending) {
+        expect(ads.delayRemaining, const Duration(milliseconds: 3480));
+      }
+      a.elapse(const Duration(seconds: 10));
+      api.play();
+      a.flushMicrotasks();
+      // 恢复命令到播放观测再延迟 440ms；这段仍冻结，不能重复扣掉。
+      a.elapse(const Duration(milliseconds: 440));
+      if (pending) {
+        expect(ads.delayRemaining, const Duration(milliseconds: 3480));
+        expect(ads.isAdPending, isTrue);
+      }
+      expect(events.where((e) => e.type == MovaAdEventType.completed), isEmpty);
+      playing(a, api, true);
+      final left = Duration(milliseconds: pending ? 3480 : 8480);
+      a.elapse(left - const Duration(milliseconds: 1));
+      if (pending) {
+        expect(ads.delayRemaining, const Duration(milliseconds: 1));
+        expect(ads.isAdPending, isTrue);
+      } else {
+        expect(events.where((e) => e.type == MovaAdEventType.completed), isEmpty);
+      }
+      a.elapse(const Duration(milliseconds: 1));
+      if (pending) {
+        expect(ads.isShowingAd, isTrue);
+      } else {
+        expect(events.where((e) => e.type == MovaAdEventType.completed), hasLength(1));
+      }
+      ads.dispose();
+      a.flushMicrotasks();
+    }));
+  }
   test('广告位计时中 playing 真→假→真：剩余时长保留', () => fakeAsync((a) {
     final (api, ads, events) = rig(a);
     a.elapse(const Duration(seconds: 4));

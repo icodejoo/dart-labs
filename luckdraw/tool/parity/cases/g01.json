@@ -1,0 +1,153 @@
+{
+  "id": "g01",
+  "game": "grid",
+  "size": {
+    "width": 180,
+    "height": 180
+  },
+  "dpr": 1,
+  "config": {
+    "rows": 3,
+    "cols": 3,
+    "blocks": [
+      {
+        "padding": "5px",
+        "background": "#354369"
+      }
+    ],
+    "prizes": [
+      {
+        "background": "#ffe4b5",
+        "fonts": [
+          {
+            "text": "P0",
+            "top": "10%"
+          }
+        ],
+        "x": 0,
+        "y": 0
+      },
+      {
+        "background": "#cce8ff",
+        "fonts": [
+          {
+            "text": "P1",
+            "top": "10%"
+          }
+        ],
+        "x": 1,
+        "y": 0
+      },
+      {
+        "background": "#d7f5df",
+        "fonts": [
+          {
+            "text": "P2",
+            "top": "10%"
+          }
+        ],
+        "x": 2,
+        "y": 0
+      },
+      {
+        "background": "#ffd6df",
+        "fonts": [
+          {
+            "text": "P3",
+            "top": "10%"
+          }
+        ],
+        "x": 2,
+        "y": 1
+      },
+      {
+        "background": "#eee0ff",
+        "fonts": [
+          {
+            "text": "P4",
+            "top": "10%"
+          }
+        ],
+        "x": 2,
+        "y": 2
+      },
+      {
+        "background": "#fff3b0",
+        "fonts": [
+          {
+            "text": "P5",
+            "top": "10%"
+          }
+        ],
+        "x": 1,
+        "y": 2
+      },
+      {
+        "background": "#ffe4b5",
+        "fonts": [
+          {
+            "text": "P6",
+            "top": "10%"
+          }
+        ],
+        "x": 0,
+        "y": 2
+      },
+      {
+        "background": "#cce8ff",
+        "fonts": [
+          {
+            "text": "P7",
+            "top": "10%"
+          }
+        ],
+        "x": 0,
+        "y": 1
+      }
+    ],
+    "buttons": [
+      {
+        "x": 1,
+        "y": 1,
+        "background": "#f6c76a",
+        "fonts": [
+          {
+            "text": "GO",
+            "top": "10%"
+          }
+        ]
+      }
+    ],
+    "defaultStyle": {
+      "fontStyle": "Roboto",
+      "fontSize": "14px",
+      "fontWeight": "400",
+      "fontColor": "#202030"
+    }
+  },
+  "script": [
+    {
+      "frame": 0,
+      "action": "play"
+    },
+    {
+      "frame": 180,
+      "action": "stop",
+      "index": 5
+    }
+  ],
+  "random": [
+    0.4170220047,
+    0.7203244934,
+    0.0001143748,
+    0.3023325726
+  ],
+  "frames": 420,
+  "keyframes": [
+    0,
+    60,
+    170,
+    240,
+    "settled"
+  ]
+}

@@ -7,6 +7,11 @@ import '../preview/platform_kind.dart';
 import '../preview/source.dart';
 import '../preview/vtt_source.dart';
 
+/// Bytes per mebibyte for the disk cache budget.
+///
+/// 磁盘缓存预算使用的每 MiB 字节数。
+const _bytesPerMiB = 1024 * 1024;
+
 /// Why a scrub-preview request was refused before any work happened.
 ///
 /// 一次拖动预览请求在真正开工前被拒绝的原因。
@@ -124,6 +129,11 @@ class MovaPreviewConfig {
   /// reuses one image.
   ///
   /// 位置对齐所用的桶大小，使同一桶内的拖动复用同一张图。
+  ///
+  /// Note: a custom [cacheKeyBuilder] only receives whole seconds, so keep
+  /// the bucket a whole number of seconds when using one.
+  ///
+  /// 注意：自定义 [cacheKeyBuilder] 只收到整秒，使用时请让桶为整秒。
   final Duration bucket;
 
   /// Whether extraction may use hardware decoding.
@@ -225,7 +235,7 @@ class MovaPreviewConfig {
     this.bucket = const Duration(seconds: 10),
     this.hwdec = false,
     this.memMaxEntries = 40,
-    this.diskMaxBytes = 64 * 1024 * 1024,
+    this.diskMaxBytes = 64 * _bytesPerMiB,
     this.diskDir,
     this.cache,
     this.dirProvider,
@@ -326,29 +336,29 @@ class MovaPreviewConfig {
 
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        enabled,
-        network,
-        probe,
-        onBlocked,
-        sources,
-        vttEnabled,
-        vttUrl,
-        vttUrlResolver,
-        extractFallback,
-        Object.hashAllUnordered(extractPlatforms),
-        extractor,
-        frameWidth,
-        bucket,
-        hwdec,
-        memMaxEntries,
-        diskMaxBytes,
-        diskDir,
-        cache,
-        dirProvider,
-        cacheKeyBuilder,
-        clearOnDispose,
-        debounce,
-      ]);
+    enabled,
+    network,
+    probe,
+    onBlocked,
+    sources,
+    vttEnabled,
+    vttUrl,
+    vttUrlResolver,
+    extractFallback,
+    Object.hashAllUnordered(extractPlatforms),
+    extractor,
+    frameWidth,
+    bucket,
+    hwdec,
+    memMaxEntries,
+    diskMaxBytes,
+    diskDir,
+    cache,
+    dirProvider,
+    cacheKeyBuilder,
+    clearOnDispose,
+    debounce,
+  ]);
 }
 
 /// Order-insensitive set equality; core cannot import `setEquals` from

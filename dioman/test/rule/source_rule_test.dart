@@ -1,23 +1,25 @@
+import '../support/response_contract.dart';
 import 'package:dioman/src/diagnostics.dart';
 import 'dart:async';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../support/b4_helpers.dart';
+import '../support/source_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
 
 /// 四个 source 插件的公开规则。
 void main() {
-  test('[DiomanKind.biz]' '[DiomanMock.routes] 默认生效，内联数据经工厂识别 business 且零触网',
-      () async {
+  test(
+      '[DiomanResponse.code]'
+      '[DiomanMock.routes] 默认生效，内联数据经工厂识别 business 且零触网', () async {
     final net = FakeNetwork();
     final api = testClient(network: net, plugins: [
       DiomanMock<Result>(routes: {
         b4Route: (_) => {b4LiteralCode: 401, b4LiteralData: null}
       })
     ]);
-    expect((await api.send<Object?>(b4Get, b4Path)).kind, DiomanKind.biz);
+    expect(outcomeOf((await api.send<Object?>(b4Get, b4Path))), diomanTestBiz);
     expect(net.sends, isEmpty);
     expect(
         (await api.send<Object?>(b4Get, b4Path, call: b4Call(mock: false))).ok,
@@ -32,7 +34,7 @@ void main() {
           network: net,
           plugins: [const DiomanMock<Result>(mockUrl: 'https://mock.test/')]);
       final r = await api.send<Object?>(b4Get, b4Path);
-      expect(r.httpStatus, status == 404 ? 200 : 500);
+      expect(r.status, status == 404 ? 200 : 500);
       expect(net.sends.length, status == 404 ? 2 : 1);
     }
     final logs = <String>[];
@@ -76,8 +78,7 @@ void main() {
         await b4Turn();
         second.complete();
         final r = await Future.wait([a, b]);
-        expect(
-            r.map((r) => r.httpStatus), everyElement(successful ? 200 : 503));
+        expect(r.map((r) => r.status), everyElement(successful ? 200 : 503));
         expect(identical(r[0], r[1]), isTrue);
       }
     }
@@ -147,9 +148,9 @@ void main() {
     ]);
     for (var i = 0; i < 2; i++) {
       expect(
-          (await api.send<Object?>(b4Get, b4Path, call: b4Call(cache: true)))
-              .kind,
-          DiomanKind.biz);
+          outcomeOf((await api.send<Object?>(b4Get, b4Path,
+              call: b4Call(cache: true)))),
+          diomanTestBiz);
     }
     expect(net.sends.length, 2);
     expect(api.plugin<DiomanCacheApi>()!.pendingWrites, 0);

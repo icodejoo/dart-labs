@@ -1,0 +1,30 @@
+{
+  "tests": 5628,
+  "added_tests": 14,
+  "coverage_files": 36,
+  "coverage_totals_LF_LH_BRF_BRH": [
+    1573,
+    1573,
+    768,
+    768
+  ],
+  "gates": {
+    "G0": 0,
+    "G1": 0,
+    "G2": 0,
+    "G3": 0,
+    "G4": 1,
+    "G5": 0
+  },
+  "api_count": 733,
+  "matrix_rows": 451,
+  "analyze_exit": 0,
+  "example_analyze_exit": 0,
+  "documentation_units": 59,
+  "historical_documentation_blocks": 25,
+  "baseline_sha256": "e90c638898e98f5f6346f3e2d7c2e761399fe87e15a1f66398fc4f44ce909ea0",
+  "head": "7ebe79757c90799dc5e9b6498a47fe8fb2a0ad38",
+  "pana_version": "0.23.16",
+  "pana_latest_windows_failure": "0.23.19 colon path validation",
+  "review": "pending final review"
+}

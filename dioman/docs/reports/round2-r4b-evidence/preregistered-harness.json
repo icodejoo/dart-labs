@@ -1,0 +1,17 @@
+{
+  "recorded_date": "2026-11-03",
+  "external_mean_max_percent": 20,
+  "external_consecutive_max_percent": 35,
+  "external_consecutive_seconds": 3,
+  "sample_interval_seconds": 1,
+  "before_start_three_sample_mean_max_percent": 15,
+  "before_start_sample_max_percent": 25,
+  "pair_max_attempts": 5,
+  "campaign_budget_seconds": 1800,
+  "priority_pilot": "normal three legacy/legacy pairs, then high three legacy/legacy pairs; retain high only if median of six scenario spreads decreases",
+  "priority_pilot_comparison": "use first member of each pair as three independent legacy runs; all six scenarios and both priority groups must be clean",
+  "rationale": "quiet-probe clean round boundary points mostly 2-19%; polluted boundary points 44-81%; mean 20 and three successive points above 35 separate sustained external contention without rejecting an isolated short spike. Process-tree CPU is subtracted from system busy CPU on the same machine-wide denominator. Missing samples invalidate a run.",
+  "pair_policy": "A1 B1 A2 B2 A3 B3; contaminated A or B invalidates both; rejected raw data retained in coverage; no cross-set stitching",
+  "stability": "throughput max/min-1 < 10%; S2/S3 per-run mean ratio to own S1 then median; selected throughput row stays intact",
+  "candidate_thresholds": "unchanged R4 preregistered.json; target >=2us or >=5%, others regression <=3%, spread <10%"
+}

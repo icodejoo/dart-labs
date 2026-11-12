@@ -1,0 +1,17 @@
+{
+  "branch": "jelon/dioman-round2",
+  "head": "1ac8e0cfa130cdea63ffa7cc564f156744a1b7ee",
+  "sdk_unchanged": true,
+  "ports_verified": {
+    "processes": {
+      "netem": 35324,
+      "server": 29496
+    },
+    "listening": 0,
+    "checkedPorts": [
+      47280,
+      47290
+    ],
+    "stopped": true
+  }
+}

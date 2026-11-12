@@ -94,6 +94,11 @@ class MovaSttService implements MovaSttApi {
   /// 宿主的识别启用状态；换源不重置。
   bool _started = false;
 
+  /// Identifies the latest start/stop intent for asynchronous rollback.
+  ///
+  /// 标识最新启停意图，防止异步失败回滚覆盖新状态。
+  int _runEpoch = 0;
+
   @override
   bool get isRunning => _started;
 
@@ -134,13 +139,14 @@ class MovaSttService implements MovaSttApi {
     if (_source == null) return _blocked(MovaSttBlockReason.noSource);
     if (_started) return;
     _started = true;
+    final epoch = ++_runEpoch;
     try {
       await engine.start(_position);
     } catch (_) {
       // Roll back so a failed start can be retried without a stop() first.
       //
       // 回滚，使失败的 start 可直接重试，不必先 stop()。
-      _started = false;
+      if (!_disposed && epoch == _runEpoch) _started = false;
       // 失败只回滚状态，宿主可以再次 start；不把识别异常泄漏到播放调用链。
     }
   }
@@ -148,6 +154,7 @@ class MovaSttService implements MovaSttApi {
   @override
   Future<void> stop() async {
     if (!_started) return;
+    _runEpoch++;
     _started = false;
     await config.engine?.stop();
   }

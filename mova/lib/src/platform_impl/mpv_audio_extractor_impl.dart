@@ -53,6 +53,8 @@ import '../core/stt/audio_extractor.dart';
 /// 形状是为了有东西可以迭代，不是因为已知它能跑通。
 class MovaAudioExtractor implements MovaAudioPuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
+  /// [playerFactory] creates the owned player, [tempDirectory] supplies output
+  /// storage, and [timeout] bounds extraction; see the example below.
   ///
   /// 创建抽取器；隐藏播放器在首次使用时才惰性创建。
   /// [playerFactory] 创建独占播放器，[tempDirectory] 提供输出目录，
@@ -64,31 +66,55 @@ class MovaAudioExtractor implements MovaAudioPuller {
   }) : _playerFactory = playerFactory ?? Player.new,
        _tempDirectory = tempDirectory ?? _defaultDirectory;
 
+  /// The hidden player factory.
+  ///
   /// 隐藏播放器工厂。
   final Player Function() _playerFactory;
 
+  /// The output directory resolver.
+  ///
   /// 输出目录解析器。
   final Future<String> Function() _tempDirectory;
 
+  /// The deadline for one extraction operation.
+  ///
   /// 整次抽取的最长耗时。
   final Duration timeout;
 
+  /// The currently owned player.
+  ///
   /// 当前被独占持有的播放器。
   Player? _player;
 
+  /// Pending native disposal shared by cancellation and extraction cleanup.
+  ///
+  /// 取消路径和抽取清理路径共同等待的原生释放操作。
+  Future<void>? _releasePending;
+
+  /// Whether this extractor has been disposed.
+  ///
   /// 是否已销毁。
   bool _disposed = false;
 
+  /// Cancellation signal that immediately wakes extraction on disposal.
+  ///
   /// 当前抽取的取消信号，dispose 时立即唤醒等待。
   Completer<void>? _cancel;
 
+  /// Serializes requests to preserve native resource ownership.
+  ///
   /// 并发请求串行执行，避免覆盖原生资源所有权。
   Future<void> _queue = Future<void>.value();
 
+  /// Returns the platform temporary directory.
+  ///
   /// 返回平台临时目录。
   static Future<String> _defaultDirectory() async =>
       (await getTemporaryDirectory()).path;
 
+  /// Extracts a WAV from [uri], returning null on failure, cancellation or timeout.
+  /// Example: `await extractor.extractWav(uri)`.
+  ///
   /// 抽取 [uri] 的 WAV 文件；异常、取消或超时返回 null。示例：`await extractor.extractWav(uri)`。
   @override
   Future<String?> extractWav(String uri) {
@@ -97,11 +123,17 @@ class MovaAudioExtractor implements MovaAudioPuller {
     return result;
   }
 
+  /// Extracts [uri], cancelling subscriptions and releasing the player on every exit.
+  ///
   /// 抽取 [uri]，所有退出路径都取消订阅并释放本次播放器。
   Future<String?> _extractNow(String uri) async {
     if (_disposed) return null;
     Player? owned;
     StreamSubscription<bool>? sub;
+    // Output path created by this call; deleted unless ownership is handed over.
+    // 本次创建的输出路径；未成功移交给调用方时在释放播放器后删除。
+    String? createdPath;
+    var handedOver = false;
     final cancelled = Completer<void>();
     _cancel = cancelled;
     try {
@@ -110,6 +142,7 @@ class MovaAudioExtractor implements MovaAudioPuller {
         if (_disposed || cancelled.isCompleted) return null;
         final outPath =
             '$dir${Platform.pathSeparator}mova_stt_audio_${DateTime.now().microsecondsSinceEpoch}.wav';
+        createdPath = outPath;
         final player = owned = _player = _playerFactory();
         final native = player.platform;
         if (native is NativePlayer) {
@@ -117,6 +150,8 @@ class MovaAudioExtractor implements MovaAudioPuller {
             'vid': 'no',
             'ao': 'pcm',
             'ao-pcm-file': outPath,
+            'audio-samplerate': '16000',
+            'audio-channels': 'mono',
             'untimed': 'yes',
           }.entries) {
             await native.setProperty(property.key, property.value);
@@ -144,11 +179,14 @@ class MovaAudioExtractor implements MovaAudioPuller {
               return null;
             },
           );
+      // PCM output flushes its header on close; release before checking the file.
+      //
       // PCM 输出在播放器关闭时刷新文件头，必须先释放再检查文件。
       await sub?.cancel();
       sub = null;
       await _release(owned);
       if (outPath == null || !await File(outPath).exists()) return null;
+      handedOver = true;
       return outPath;
     } on Object {
       return null;
@@ -156,21 +194,50 @@ class MovaAudioExtractor implements MovaAudioPuller {
       if (!cancelled.isCompleted) cancelled.complete();
       await sub?.cancel();
       await _release(owned);
+      // The player is gone, so nothing is still writing the partial file.
+      // 播放器已释放，不会再有写入，可安全删除残留的半成品 WAV。
+      final leftover = createdPath;
+      if (!handedOver && leftover != null) {
+        try {
+          final f = File(leftover);
+          if (await f.exists()) await f.delete();
+        } on Object {
+          // Cleanup failures do not affect the extraction result.
+          //
+          // 清理失败不影响返回值。
+        }
+      }
       if (identical(_cancel, cancelled)) _cancel = null;
     }
   }
 
-  /// 释放 [player] 恰好一次；其他路径已认领释放时不重复调用。
+  /// Releases [player] once, waiting if another path already owns disposal.
+  ///
+  /// 释放 [player] 恰好一次；其他路径已认领释放时等待同一次释放完成。
   Future<void> _release(Player? player) async {
-    if (player == null || !identical(_player, player)) return;
+    if (player == null) return;
+    if (!identical(_player, player)) {
+      await _releasePending;
+      return;
+    }
     _player = null;
+    final released = Completer<void>();
+    _releasePending = released.future;
     try {
       await player.dispose();
     } on Object {
+      // Helper disposal failures must not surface as playback errors.
+      //
       // 辅助资源回收失败不冒充播放错误。
+    } finally {
+      released.complete();
+      _releasePending = null;
     }
   }
 
+  /// Cancels extraction and releases native resources; no arguments or return value.
+  /// Example: `await extractor.dispose()`.
+  ///
   /// 取消当前抽取并释放原生资源；无参数、无返回值。示例：`await extractor.dispose()`。
   @override
   Future<void> dispose() async {

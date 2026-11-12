@@ -74,12 +74,18 @@ class MovaTimeouts {
   /// 创建配置；所有字段默认“不动 mpv 默认值”。
   ///
   /// Creates the settings; every field defaults to leaving mpv's default.
-  const MovaTimeouts({this.network, this.whepHandshake, this.whepFirstFrame, this.whepMedia});
+  const MovaTimeouts({
+    this.network,
+    this.whepHandshake,
+    this.whepFirstFrame,
+    this.whepMedia,
+  });
 
   /// [address] 是否为 `whep…` 地址。
   ///
   /// Whether [address] is a `whep…` address.
-  static bool isWhep(String address) => address.toLowerCase().startsWith('whep');
+  static bool isWhep(String address) =>
+      address.toLowerCase().startsWith('whep');
 
   /// [address] 对应的 mpv 顶层选项（`network-timeout`）；返回新 Map。
   ///
@@ -89,7 +95,7 @@ class MovaTimeouts {
   Map<String, String> mpvOptionsFor(String address) {
     final n = network;
     if (n == null) return {};
-    final secs = (n.inMilliseconds / 1000).ceil();
+    final secs = (n.inMilliseconds / Duration.millisecondsPerSecond).ceil();
     return {'network-timeout': (secs < 1 ? 1 : secs).toString()};
   }
 
@@ -101,9 +107,12 @@ class MovaTimeouts {
   Map<String, String> demuxerOptionsFor(String address) {
     if (!isWhep(address)) return {};
     return {
-      if (whepHandshake != null) 'handshake_timeout': whepHandshake!.inMicroseconds.toString(),
-      if (whepFirstFrame != null) 'first_frame_timeout': whepFirstFrame!.inMicroseconds.toString(),
-      if (whepMedia != null) 'media_timeout': whepMedia!.inMicroseconds.toString(),
+      if (whepHandshake != null)
+        'handshake_timeout': whepHandshake!.inMicroseconds.toString(),
+      if (whepFirstFrame != null)
+        'first_frame_timeout': whepFirstFrame!.inMicroseconds.toString(),
+      if (whepMedia != null)
+        'media_timeout': whepMedia!.inMicroseconds.toString(),
     };
   }
 
@@ -113,10 +122,12 @@ class MovaTimeouts {
   /// Longest time mpv itself may take before a start attempt reports an error.
   ///
   /// - [address]: 正在加载的地址 / the address being loaded
-  Duration startWindowFor(String address) {
-    final net = network ?? kMpvDefaultNetworkTimeout;
+  Duration startWindowFor(String address, {Duration? networkOverride}) {
+    final net = networkOverride ?? network ?? kMpvDefaultNetworkTimeout;
     if (isWhep(address)) {
-      return net + (whepHandshake ?? kWhepDefaultHandshake) + (whepFirstFrame ?? kWhepDefaultFirstFrame);
+      return net +
+          (whepHandshake ?? kWhepDefaultHandshake) +
+          (whepFirstFrame ?? kWhepDefaultFirstFrame);
     }
     return net > kFfmpegReconnectWindow ? net : kFfmpegReconnectWindow;
   }
@@ -126,9 +137,9 @@ class MovaTimeouts {
   /// Longest time mpv may stay silent after the first frame before reporting an error.
   ///
   /// - [address]: 正在播放的地址 / the address being played
-  Duration stallWindowFor(String address) {
+  Duration stallWindowFor(String address, {Duration? networkOverride}) {
     if (isWhep(address)) return whepMedia ?? kWhepDefaultMedia;
-    return startWindowFor(address);
+    return startWindowFor(address, networkOverride: networkOverride);
   }
 
   @override
@@ -141,5 +152,6 @@ class MovaTimeouts {
           whepMedia == other.whepMedia;
 
   @override
-  int get hashCode => Object.hash(network, whepHandshake, whepFirstFrame, whepMedia);
+  int get hashCode =>
+      Object.hash(network, whepHandshake, whepFirstFrame, whepMedia);
 }

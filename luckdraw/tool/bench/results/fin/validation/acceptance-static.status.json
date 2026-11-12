@@ -1,0 +1,10 @@
+{
+  "name": "acceptance-static",
+  "args": [
+    "dart",
+    "run",
+    "tool/check_acceptance.dart"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 1.493
+}

@@ -88,6 +88,11 @@ void main() {
     addTearDown(() => PathProviderPlatform.instance = old);
     final first = MovaTempThumbDirProvider();
     final second = MovaTempThumbDirProvider();
+    // Release both leases before deleting the test root, even on assertion failure.
+    //
+    // 即使断言失败，也要在删除测试根目录前释放两个租约。
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
     final paths = await Future.wait([
       first.resolve(),
       first.resolve(),

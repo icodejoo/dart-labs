@@ -1,0 +1,12 @@
+{
+  "warmupMillis": 500,
+  "measurementMillis": 2000,
+  "results": [
+    {
+      "scenario": "strict-json",
+      "operations": 1555900,
+      "elapsedSeconds": 2.0006909,
+      "meanMicros": 1.2858737065364096
+    }
+  ]
+}

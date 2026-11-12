@@ -1,0 +1,16 @@
+{
+  "head": "fa04fe1a877b2f279f19d19c0ff88b6858416c06",
+  "branch": "jelon/dioman-round2",
+  "testkit_head": "c3b8965f6257f2ea7c5a594c951c11a90fc0a9a2",
+  "testkit_clean": true,
+  "lib_hashes_unchanged": 37,
+  "compressed_cases": 459,
+  "compressed_cells": 6426,
+  "fresh_api_hits": 64,
+  "ports_listening": {
+    "47480": false,
+    "47490": false
+  },
+  "docs_index_exit": 1,
+  "docs_index_problems": 1
+}

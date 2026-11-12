@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/events/events.dart';
 import '../../core/model/source.dart';
 import '../../core/state/progress.dart';
 import '../format.dart';
@@ -60,6 +61,9 @@ class MovaBottomBarComponent extends MovaComponent {
   ];
 
   @override
+  /// Groups patched children by their original layout role.
+  ///
+  /// 按原始布局角色为补丁后的子节点分组。
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = MovaPlayerStyle.themeOf(context);
     // 自定义插入节点跟随前一个已知节点；移除后不再依赖任何列表下标。
@@ -67,8 +71,8 @@ class MovaBottomBarComponent extends MovaComponent {
     final names = this.children.map((child) => child.name).toSet();
     String? anchor;
     for (final child in children) {
-      if (child is MovaBuiltChild && names.contains(child.name)) {
-        anchor = child.name;
+      if (child is MovaBuiltChild && names.contains(child.layoutName)) {
+        anchor = child.layoutName;
       }
       if (anchor != null) groups.putIfAbsent(anchor, () => []).add(child);
     }
@@ -80,7 +84,7 @@ class MovaBottomBarComponent extends MovaComponent {
     List<Widget> seekWidgets() => [
       for (final child in group(MovaSeekBarComponent.componentName))
         if (child is MovaBuiltChild &&
-            child.name == MovaSeekBarComponent.componentName)
+            child.layoutName == MovaSeekBarComponent.componentName)
           Expanded(child: child)
         else
           child,
@@ -304,6 +308,10 @@ class _SeekBarState extends State<_SeekBar> {
   ///
   /// 为 [_position] 供数的订阅；在 dispose 时取消。
   StreamSubscription<MovaProg>? _sub;
+  StreamSubscription<MovaEvent>? _events;
+  Timer? _seekTimeout;
+  int _seekGeneration = 0;
+  bool _acceptedSeek = false;
 
   /// How close [_position] must land to a pinned [_dragValue] before the pin
   /// is released back to following the live progress stream.
@@ -312,6 +320,9 @@ class _SeekBarState extends State<_SeekBar> {
   /// 跟随实时进度流。
   static const double _settleToleranceMs = 500;
 
+  /// Follows playback progress and accepted seek targets.
+  ///
+  /// 跟踪播放进度及实际接受的跳转目标。
   @override
   void initState() {
     super.initState();
@@ -333,21 +344,56 @@ class _SeekBarState extends State<_SeekBar> {
             (_position - drag).abs() < _settleToleranceMs) {
           _dragValue = null;
           _awaitingSeek = false;
+          _seekTimeout?.cancel();
         }
       });
+    });
+    _events = api.events.listen((event) {
+      if (event is MovaSourceChange) {
+        _clearSeek();
+      } else if (_awaitingSeek && event is MovaSeek) {
+        _acceptedSeek = true;
+        setState(() => _dragValue = event.target.inMilliseconds.toDouble());
+      } else if (_awaitingSeek && event is MovaSeeked) {
+        _position = event.position.inMilliseconds.toDouble();
+        _clearSeek();
+      }
+    });
+  }
+
+  /// Releases the local target when seeking ends, fails, or changes source.
+  ///
+  /// 跳转结束、失败或换源时解除本地目标。
+  void _clearSeek() {
+    ++_seekGeneration;
+    _seekTimeout?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _dragValue = null;
+      _awaitingSeek = false;
     });
   }
 
   @override
+  /// Cancels progress, seek events, and the confirmation deadline.
+  ///
+  /// 取消进度、跳转事件订阅及确认期限。
   void dispose() {
     _sub?.cancel();
+    _events?.cancel();
+    _seekTimeout?.cancel();
     if (_ownsDrag) _ui.setDragging(false);
     super.dispose();
   }
 
   @override
+  /// Builds the slider using one resolved progress color for track and thumb.
+  ///
+  /// 构建滑块，为轨道与滑块复用一次解析的进度颜色。
   Widget build(BuildContext context) {
     final theme = MovaPlayerStyle.themeOf(context);
+    final progressColor = theme.progressColor;
+    final color = progressColor == null ? null : Color(progressColor);
     final max = widget.duration.inMilliseconds.toDouble();
     final enabled = max > 0;
     final value = (_dragValue ?? _position).clamp(0.0, enabled ? max : 0.0);
@@ -356,12 +402,8 @@ class _SeekBarState extends State<_SeekBar> {
       child: SliderTheme(
         data: SliderTheme.of(context).copyWith(
           trackHeight: theme.progressHeight,
-          activeTrackColor: theme.progressColor == null
-              ? null
-              : Color(theme.progressColor!),
-          thumbColor: theme.progressColor == null
-              ? null
-              : Color(theme.progressColor!),
+          activeTrackColor: color,
+          thumbColor: color,
         ),
         child: Slider(
           value: value,
@@ -381,6 +423,8 @@ class _SeekBarState extends State<_SeekBar> {
   ///
   /// - [v]: the new slider value in milliseconds / 新滑块值（毫秒）
   void _onChanged(double v) {
+    ++_seekGeneration;
+    _seekTimeout?.cancel();
     setState(() {
       _dragValue = v;
       _awaitingSeek = false;
@@ -389,31 +433,25 @@ class _SeekBarState extends State<_SeekBar> {
     _ui.setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
-  /// Commits the dragged position via [MovaApi.seek] and clears the drag
-  /// preview.
+  /// Commits [v], follows accepted seek events, and bounds confirmation time.
   ///
-  /// Deliberately does *not* clear [_dragValue] here: [MovaApi.seek] pins the
-  /// engine's own progress stream to the target too, but that stream is
-  /// throttled, so clearing the local pin immediately could still flash the
-  /// slider back to the stale pre-seek position for the throttle window.
-  /// [_dragValue] is released once [_position] actually reports something
-  /// close to it (see the `progress` listener in [initState]), so the
-  /// displayed value never regresses.
-  ///
-  /// 通过 [MovaApi.seek] 提交拖动结果，清除拖动预览。
-  ///
-  /// 这里刻意**不**清空 [_dragValue]：[MovaApi.seek] 也会把 engine 自身的进度流
-  /// 钉在目标值上，但那条流带节流，若立刻清掉本地钉住值，滑块仍可能在节流
-  /// 窗口内闪回 seek 前的旧位置。[_dragValue] 只在 [_position] 真的报告出
-  /// 接近目标的值时才释放（见 [initState] 里的 `progress` 监听），因此展示值
-  /// 绝不会倒退。
-  ///
-  /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
-  void _onChangeEnd(double v) {
-    widget.api.seek(Duration(milliseconds: v.round()));
+  /// 提交 [v]，跟随实际接受的跳转事件，并限制等待确认的时间。
+  Future<void> _onChangeEnd(double v) async {
+    final generation = ++_seekGeneration;
+    _acceptedSeek = false;
     _ownsDrag = false;
     _ui.setDragging(false);
     setState(() => _awaitingSeek = true);
+    _seekTimeout?.cancel();
+    _seekTimeout = Timer(const Duration(seconds: 3), _clearSeek);
+    try {
+      await widget.api.seek(Duration(milliseconds: v.round()));
+      if (mounted && generation == _seekGeneration && !_acceptedSeek) {
+        _clearSeek();
+      }
+    } on Object {
+      if (mounted && generation == _seekGeneration) _clearSeek();
+    }
   }
 }
 

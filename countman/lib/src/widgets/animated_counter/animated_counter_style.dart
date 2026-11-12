@@ -140,6 +140,36 @@ class AnimatedCounterStyle with StyleProps {
         );
 
   // 字段顺序同时用于相等性与哈希，新增字段只需维护一处。
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 文字样式、对齐系数、颜色、渐隐时长、内边距、装饰逐字段插值；主轴/交叉轴对齐、
+  /// 等宽数字开关不可插值，在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按
+  /// `t < 0.5` 取一端。例如 `AnimatedCounterStyle.lerp(a, b, 0.5)`。
+  static AnimatedCounterStyle? lerp(
+      AnimatedCounterStyle? a, AnimatedCounterStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return AnimatedCounterStyle(
+      textStyle: TextStyle.lerp(a.textStyle, b.textStyle, t),
+      prefixStyle: TextStyle.lerp(a.prefixStyle, b.prefixStyle, t),
+      infixStyle: TextStyle.lerp(a.infixStyle, b.infixStyle, t),
+      suffixStyle: TextStyle.lerp(a.suffixStyle, b.suffixStyle, t),
+      separatorStyle: TextStyle.lerp(a.separatorStyle, b.separatorStyle, t),
+      numberAlignment: lerpNum(a.numberAlignment, b.numberAlignment, t),
+      mainAxisAlignment:
+          pickField(a.mainAxisAlignment, b.mainAxisAlignment, t),
+      crossAxisAlignment:
+          pickField(a.crossAxisAlignment, b.crossAxisAlignment, t),
+      padding: EdgeInsets.lerp(a.padding, b.padding, t),
+      useTabularFigures: pickField(a.useTabularFigures, b.useTabularFigures, t),
+      increasingColor: lerpColor(a.increasingColor, b.increasingColor, t),
+      decreasingColor: lerpColor(a.decreasingColor, b.decreasingColor, t),
+      colorFadeDuration:
+          lerpDuration(a.colorFadeDuration, b.colorFadeDuration, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         textStyle,

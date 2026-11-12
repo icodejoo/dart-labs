@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'counter_builder.dart';
+import 'animate_once.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
@@ -21,7 +23,9 @@ export 'ring_style.dart' show RingCounterStyle;
 ///   center: TextCounter(to: 100, suffix: '%'),
 /// )
 /// ```
+/// 环形计数器，稳定 ValueKey 用于 provider 的首次播放登记。
 class RingCounter extends StatelessWidget {
+  /// 创建进度计数器；animateOnce 可选覆盖 provider 的首次播放策略。
   const RingCounter({
     super.key,
     this.from,
@@ -30,7 +34,9 @@ class RingCounter extends StatelessWidget {
     this.curve,
     this.allowNegative,
     this.plugin,
+    this.fps,
     this.controller,
+    this.animateOnce,
     this.style,
     this.center,
     this.repaintBoundary,
@@ -40,7 +46,10 @@ class RingCounter extends StatelessWidget {
     this.onReady,
     this.onStart,
     this.onCancel,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Start value. Defaults to 0.
   final double? from;
@@ -60,8 +69,17 @@ class RingCounter extends StatelessWidget {
   /// Optional [Counter] group for isolation. Defaults to the shared instance.
   final Counter? plugin;
 
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
   /// Optional controller for imperative retarget/cancel and value read-out.
   final CounterValueController? controller;
+
+  /// 是否仅首次入场播放；null 继承 CounterProvider，false 始终播放。
+  /// 配合稳定 ValueKey 使用，例如 `RingCounter(key: ValueKey('score'), to: 10, animateOnce: true)`。
+  /// 再次挂载直接显示目标值，controller.value 同步为该显示值。
+  final bool? animateOnce;
 
   /// Visual style. Merged over the enclosing [CounterProvider]'s defaults.
   ///
@@ -76,7 +94,8 @@ class RingCounter extends StatelessWidget {
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
   /// the built-in ring painter. All [style] visuals are ignored then.
-  final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
+  final CustomPainter Function(BuildContext context, double progress)?
+      painterBuilder;
 
   /// Called every frame with the raw animated value.
   final void Function(double value)? onUpdate;
@@ -89,12 +108,19 @@ class RingCounter extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
 
+  /// 由当前值换算 0–1 进度；起止相同（[span] 为 0）时视为已完成。
+  static double _progressOf(double v, double from, double span) =>
+      span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
+
+  /// 解析样式、方向与稳定身份，并构建进度展示。
   @override
   Widget build(BuildContext context) {
     final from = this.from ?? 0;
     final span = to - from;
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final effStyle = (style ?? const RingCounterStyle()).merge(scope?.ringCounterStyle);
+    final effStyle = (style ?? const RingCounterStyle())
+        .merge(scope?.ringCounterStyle)
+        .merge(CountmanTheme.maybeOf(context)?.ringCounterStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,
@@ -123,14 +149,19 @@ class RingCounter extends StatelessWidget {
     //
     // 盒层（padding + decoration）不依赖值——在 builder 外只包一次，使每 tick 重建
     // 不碰它。
-    final core = CounterBuilder(
+    final dir = Directionality.maybeOf(context);
+    final core = CounterBuilder.listenable(
       from: this.from,
       to: to,
-      duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
+      duration:
+          duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
       curve: curve ?? scope?.curve ?? Curves.easeOut,
       allowNegative: allowNegative ?? scope?.allowNegative ?? false,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
+      fps: fps,
       controller: controller,
+      animateOnce: animateOnce,
+      onceId: stableOnceIdFromKey(key),
       repaintBoundary: repaintBoundary ?? scope?.repaintBoundary ?? true,
       onUpdate: onUpdate,
       onComplete: onComplete,
@@ -138,19 +169,40 @@ class RingCounter extends StatelessWidget {
       onStart: onStart,
       onCancel: onCancel,
       child: centerChild,
-      builder: (ctx, v, centerWidget) {
-        final progress = span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
-        return buildProgressPaint(
+      // 默认路径：painter 常驻，进度经 repaint 原地更新；自定义 painterBuilder 保持
+      // 原有行为（每次进度变化调用一次）。
+      listenableBuilder: (ctx, value, centerWidget) {
+        final custom = painterBuilder;
+        if (custom != null) {
+          return ValueListenableBuilder<double>(
+            valueListenable: value,
+            child: centerWidget,
+            builder: (ctx, v, child) {
+              final progress = _progressOf(v, from, span);
+              return buildProgressPaint(
+                size: Size.square(effSize),
+                progress: progress,
+                painter: custom(ctx, progress),
+                paintChild: child,
+              );
+            },
+          );
+        }
+        return ResidentProgressPaint<double>(
+          source: value,
+          toProgress: (v) => _progressOf(v, from, span),
           size: Size.square(effSize),
-          progress: progress,
-          painter: painterBuilder != null
-              ? painterBuilder!(ctx, progress)
-              : ringPainterFrom(effStyle,
-                  progress: progress, color: colors.fill, trackColor: colors.track),
-          paintChild: centerWidget,
+          configKey: (effStyle, colors.fill, colors.track, dir),
+          painterFactory: (progress) => ringPainterFrom(effStyle,
+              textDirection: dir,
+              progressListenable: progress,
+              color: colors.fill,
+              trackColor: colors.track),
+          child: centerWidget,
         );
       },
     );
-    return applyBoxStyle(core, padding: effStyle.padding, decoration: effStyle.decoration);
+    return applyBoxStyle(core,
+        padding: effStyle.padding, decoration: effStyle.decoration);
   }
 }

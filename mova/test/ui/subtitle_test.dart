@@ -7,7 +7,85 @@ import 'package:mova/src/ui/components/subtitle.dart';
 import '../support/fake_api.dart';
 import '../support/pump.dart';
 
+/// A recognizer that refuses to start, as a disabled service would.
+///
+/// 模拟禁用服务、拒绝启动的识别器。
+class _RefusingStt extends FakeSttApi {
+  @override
+  Future<void> start() async => calls.add('start');
+}
+
+/// API fixture using the refusing recognizer.
+///
+/// 使用拒绝启动识别器的 API 夹具。
+class _RefusingApi extends FakeMovaApi {
+  final FakeSttApi _stt = _RefusingStt();
+
+  @override
+  FakeSttApi get stt => _stt;
+}
+
 void main() {
+  testWidgets('turning subtitles off hides a paused cue without progress', (t) async {
+    final api = FakeMovaApi();
+    api.stt.languages = ['zh'];
+    await api.stt.start();
+    final overlay = MovaSubtitleOverlayComponent();
+    final button = MovaSubtitleButtonComponent();
+    await t.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+      return Stack(children: [
+        overlay.build(context, api, []),
+        Align(alignment: Alignment.topRight, child: button.build(context, api, [])),
+      ]);
+    })));
+    api.stt.push(const MovaSttCue(
+      text: 'paused cue', start: Duration.zero, end: Duration(seconds: 5),
+    ));
+    await t.pump();
+    await t.pump();
+    expect(find.text('paused cue'), findsOneWidget);
+    await t.tap(find.byIcon(Icons.subtitles_rounded));
+    await t.pumpAndSettle();
+    await t.tap(find.text(api.options.strings.subtitleOff));
+    await t.pumpAndSettle();
+    expect(api.stt.current, isNotNull);
+    expect(find.text('paused cue'), findsNothing);
+    await t.tap(find.byIcon(Icons.subtitles_off_rounded));
+    await t.pumpAndSettle();
+    await t.tap(find.text('zh'));
+    await t.pumpAndSettle();
+    expect(find.text('paused cue'), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
+    await api.dispose();
+  });
+  testWidgets('subtitle button reflects a service started before mounting', (t) async {
+    final api = FakeMovaApi();
+    api.stt.languages = ['zh'];
+    await api.stt.start();
+    await pumpComponent(t, api, MovaSubtitleButtonComponent());
+    expect(find.byIcon(Icons.subtitles_rounded), findsOneWidget);
+    await api.stt.stop();
+    api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+    await t.pump();
+    await t.pump();
+    expect(find.byIcon(Icons.subtitles_off_rounded), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('subtitle button stays off when start is refused', (t) async {
+    final api = _RefusingApi();
+    api.stt.languages = ['zh'];
+    await pumpComponent(t, api, MovaSubtitleButtonComponent());
+    await t.tap(find.byIcon(Icons.subtitles_off_rounded));
+    await t.pumpAndSettle();
+    await t.tap(find.text('zh'));
+    await t.pumpAndSettle();
+    expect(api.stt.calls, contains('start'));
+    expect(find.byIcon(Icons.subtitles_off_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.subtitles_rounded), findsNothing);
+    await api.dispose();
+  });
+
   group('MovaSubtitleButtonComponent', () {
     testWidgets('renders nothing when no engine is configured', (t) async {
       final api = FakeMovaApi();

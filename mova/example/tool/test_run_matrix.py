@@ -22,10 +22,66 @@ import run_matrix as matrix
 
 
 class MatrixTests(unittest.TestCase):
+    def test_integrity_gate_does_not_poison_unrelated_rows(self):
+        from matrix_evidence import reduce_evidence
+        from cp3_compare import compare
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            out = Path(folder)
+            (out/'unit-good.json').write_text(json.dumps(dict(status='done', records=[dict(kind='CHECK', id='A4.ok', **{'pass': True})])))
+            (out/'unit-bad.json').write_text(json.dumps(dict(status='error', records=[dict(kind='CHECK', id='A22.ok', **{'pass': True})])))
+            manifest = dict(ids=['A4', 'A22'], manual=[])
+            rules = {key: dict(requires=[dict(kind='check', ident=key+'.ok')]) for key in manifest['ids']}
+            verdicts = reduce_evidence(manifest, out, 'unit-', rules)
+            self.assertEqual(verdicts['A4']['status'], 'PASS')
+            self.assertEqual(verdicts['A22']['status'], 'BLOCKED')
+            self.assertEqual(len(verdicts.evidence_errors), 1)
+            current = dict(rows=[dict(id='A4', status='PASS')], evidenceErrors=verdicts.evidence_errors)
+            self.assertFalse(compare(dict(rows=current['rows']), current)['passed'])
+            (out/'unit-malformed.json').write_text('{')
+            self.assertEqual(len(reduce_evidence(manifest, out, 'unit-', rules).evidence_errors), 2)
+            (out/'unit-empty-error.json').write_text(json.dumps(dict(status='error', records=[])))
+            verdicts = reduce_evidence(manifest, out, 'unit-', rules)
+            self.assertEqual(len(verdicts.evidence_errors), 3)
+            self.assertEqual(verdicts['A4']['status'], 'PASS')
+
+    def test_pool_reclaimed_checks_every_created_engine_without_fixed_size(self):
+        from matrix_evidence import Evidence
+        rules = json.loads((matrix.TOOL/'matrix_rules.json').read_text(encoding='utf8'))
+        clauses = next(r['assertions'] for r in rules['A29']['requires'] if r.get('ident') == 'A29.poolReclaimed')
+        for accepts in ([False, False], [False, False, False]):
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'PASS')
+        for accepts in ([], [False, True]):
+            self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=0, accepts=accepts)), clauses), 'FAIL')
+        self.assertEqual(Evidence.assertions(dict(numbers=dict(engineCount=1, accepts=[False, False])), clauses), 'FAIL')
+
     """Test manifest, selection, verdicts and report logic / 测清单、选择、判定和汇总。"""
     def setUp(self):
         """Read only the manifest / 只读清单。"""
         self.manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+
+    def test_evidence_txt_is_lazy_and_volume_still_checks_native_values(self):
+        from matrix_evidence import Evidence
+        with tempfile.TemporaryDirectory(dir=matrix.TOOL) as folder:
+            root=Path(folder)
+            unused=root/'unit-unused.logcat.txt'
+            unused.write_text('unrelated capture',encoding='utf-8')
+            for mode in ('engine','cutover'):
+                for value in (-10,0,1,30,50,100,110):
+                    native=root/f'unit-rerun-native-{mode}-volume{value}.native.txt'
+                    native.write_text(f'volume is {round(15*max(0,min(100,value))/100)} in range [0..15]',encoding='utf-8')
+            real_read=Path.read_text
+            reads=[]
+            def guarded(path,*args,**kwargs):
+                self.assertNotEqual(path,unused,'unrelated TXT must never be loaded')
+                reads.append(path.name)
+                return real_read(path,*args,**kwargs)
+            with patch.object(Path,'read_text',guarded):
+                evidence=Evidence(root,'unit-')
+                self.assertEqual(reads,[])
+                self.assertEqual(evidence.volume()[0],'PASS')
+                self.assertEqual(len(reads),14)
+                (root/'unit-rerun-native-engine-volume30.native.txt').write_text('volume is 15 in range [0..15]',encoding='utf-8')
+                self.assertEqual(evidence.volume()[0],'FAIL')
 
     def test_s00e_native_host_parsers_keep_unknown_and_target_device(self):
         import coverage_s00e as host
@@ -429,10 +485,12 @@ class MatrixTests(unittest.TestCase):
             out=Path(folder)
             for mode in ('basic','basic-cutover'):
                 records=[dict(kind='RATE',input=v,actual=99) for v in (.5,1,1.5,2,-1,0)]
-                records += [dict(kind='EVENT',event='MovaRateChange',payload=dict(value=v)) for v in (.5,1,1.5,2,.25,.25)]
+                records += [dict(kind='EVENT',event='MovaRateChange',payload=dict(value=v)) for v in (.5,1,1.5,2,.25)]
                 (out/('unit-rerun-batch15-'+mode+'.json')).write_text(json.dumps(dict(status='done',records=records)))
             ev=Evidence(out,'unit-')
             self.assertEqual(ev.rate_sequence()[0],'PASS')
+            ev.records = [(r,p) for r,p in ev.records if r.get('payload',{}).get('value') != 1.5]
+            self.assertEqual(ev.rate_sequence()[0], 'FAIL')
             (out/'unit-hls.json').write_text(json.dumps(dict(status='done',records=[dict(kind='HLS_RESULT',cutover=False,paused=False,**{'pass':True})])))
             self.assertEqual(Evidence(out,'unit-').hls(variants=[dict(cutover=True,paused=False)])[0],'BLOCKED')
 
@@ -458,9 +516,11 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(reduce_evidence(m,out,'unit-',rules)['A6']['status'],'BLOCKED')
             (out/'unit-invalid.json').write_text(json.dumps(dict(records=[None])))
             rules={'A6':dict(requires=[dict(kind='check',ident='A6.pause')])}
-            result=reduce_evidence(m,out,'unit-',rules)['A6']
+            verdicts=reduce_evidence(m,out,'unit-',rules)
+            result=verdicts['A6']
             self.assertEqual(result['status'],'BLOCKED')
-            self.assertIn('证据解析错误',result['evidence'])
+            self.assertIn('缺 CHECK',result['evidence'])
+            self.assertIn('records 含非对象记录',verdicts.evidence_errors[0])
 
     def test_cp0_events_cannot_poison_legacy_event_verdicts(self):
         from matrix_evidence import Evidence
@@ -838,6 +898,78 @@ class Cp1CompletionTests(unittest.TestCase):
         failed=review_check('S7',0,'os=android\nVERDICT S7 FAIL no decoded frame',[],'raw.log')
         self.assertEqual(failed['status'],'FAIL')
         self.assertFalse(failed['pass'])
+
+
+class Cp2Tests(unittest.TestCase):
+    def test_cp2_missing_duplicate_and_blocked_never_pass(self):
+        from coverage_cp2 import validate_checks,FIELDS
+        numbers=dict.fromkeys(FIELDS['pod2'],1)
+        for key in ('first','second'):numbers[key]=dict(path='ad',timePosMs=1000)
+        rows=[dict(kind='CHECK',id=f'CP2.pod2.{v}.{i}',status='PASS',numbers=numbers.copy()) for v in ('wait.ad2','nowait.ad2') for i in range(10)]
+        self.assertEqual(validate_checks('pod2',10,rows),[])
+        self.assertTrue(validate_checks('pod2',10,rows[:-1]))
+        self.assertTrue(validate_checks('pod2',10,rows+[rows[0]]))
+        rows[0]['status']='BLOCKED'
+        self.assertTrue(validate_checks('pod2',10,rows))
+        rows[0]['status']='FAIL'
+        self.assertEqual(validate_checks('pod2',10,rows),[])
+        result=dict(run_id='offline',group='pod2',completed=True,harness=[],missing=[],records=rows,verdicts=[dict(status='FAIL')])
+        self.assertEqual(matrix.cp2_result_kind(result,'offline','pod2',1,10),'FAIL')
+        rows[0]['numbers'].pop('epoch2')
+        self.assertEqual(matrix.cp2_result_kind(result,'offline','pod2',1,10),'BLOCKED')
+
+    def test_cp2_native_background_schema_required(self):
+        from coverage_cp2 import validate_checks,FIELDS
+        rows=[]
+        for v in ('plain','view'):
+            n=dict.fromkeys(FIELDS['bgowner'],[])
+            n.update(before=dict(path='a',timePosMs=1000),after=dict(path='a',timePosMs=1000))
+            rows.append(dict(id=f'CP2.bgowner.{v}.0',status='PASS',numbers=n))
+        self.assertTrue(validate_checks('bgowner',1,rows))
+        for r in rows:r['numbers']['backgroundSamples']=[dict(path='a',timePosMs=1000,pause='yes')]*2
+        self.assertEqual(validate_checks('bgowner',1,rows),[])
+
+    def test_cp2_pip_na_is_blocked_and_extra_verdicts_rejected(self):
+        from cp2_alias import reduce_alias
+        rows=reduce_alias('pip',1,'VERDICT V11 PASS n/a: pipSupported=false')
+        self.assertEqual(rows[0]['status'],'BLOCKED')
+        self.assertEqual(reduce_alias('pip',1,'VERDICT V11 PASS entered\nVERDICT V11 PASS entered')[0]['status'],'BLOCKED')
+        self.assertEqual(reduce_alias('pip',1,'VERDICT V11 FAIL pauseEvents=1')[0]['status'],'FAIL')
+
+    def test_cp2_liveedge_requires_hidden_and_actual_edge(self):
+        from cp2_alias import reduce_alias
+        text='VERDICT V9 PASS play=true advance=3000ms\nV9 lifecycle=[inactive,hidden,paused,resumed] play=true liveEdgeReach=true positionAdvanceOver3s=3000ms'
+        self.assertEqual(reduce_alias('liveedge',1,text)[0]['status'],'PASS')
+        self.assertEqual(reduce_alias('liveedge',1,text.replace('liveEdgeReach=true','liveEdgeReach=false'))[0]['status'],'FAIL')
+        self.assertEqual(reduce_alias('liveedge',1,text.replace('inactive,hidden,paused,resumed','inactive,resumed'))[0]['status'],'FAIL')
+
+    def test_cp2_rate_requires_both_variants_and_all_runs(self):
+        from cp2_alias import reduce_alias
+        text='\n'.join(f'RFV2|10|RESULT|{v}|run{i}|PASS|adRate settled1x=true rateAfterReturn=2.0' for v in ('V13a','V13b') for i in range(1,6))
+        rows=reduce_alias('rate',5,text)
+        self.assertEqual(len(rows),10)
+        self.assertTrue(all(r['status']=='PASS' for r in rows))
+        self.assertTrue(any(r['status']=='BLOCKED' for r in reduce_alias('rate',5,text.replace('run5','run4'))))
+
+    def test_cp2_warmmute_requires_native_system_volume(self):
+        from cp2_alias import reduce_alias
+        text='\n'.join(f'VERDICT {v} PASS shadow muted' for v in ('Q13A','Q13B','Q13C'))
+        self.assertTrue(all(r['status']=='BLOCKED' for r in reduce_alias('warmmute',1,text)))
+        volumes=[dict(marker=m,raw='volume is 7',status='OK') for m in
+            ['before','verdict:Q13A:0','verdict:Q13B:0','verdict:Q13C:0','after']]
+        self.assertTrue(all(r['status']=='PASS' for r in reduce_alias('warmmute',1,text,volumes)))
+        volumes[-1]['raw']='volume is 8'
+        self.assertTrue(all(r['status']=='FAIL' for r in reduce_alias('warmmute',1,text,volumes)))
+
+    def test_cp2_registered_counts_and_alias_sources(self):
+        manifest=json.loads(matrix.MANIFEST.read_text(encoding='utf-8'))
+        batches={b['id']:b for b in manifest['batches'] if b['id'].startswith('cp2-')}
+        self.assertEqual(len(batches),14)
+        for name in ('adpause','adbg','pod2','audioonly-bg'):
+            self.assertEqual(batches['cp2-'+name]['argv'][6],'10')
+        self.assertFalse(any('windows' in name for name in batches))
+        self.assertTrue(batches['cp2-rate']['cp2_alias'])
+        self.assertEqual(matrix.validate_manifest(manifest),[])
 
 
 if __name__=='__main__':

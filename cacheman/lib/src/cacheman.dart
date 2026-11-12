@@ -1,625 +1,569 @@
-import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show protected, VoidCallback;
+import 'package:flutter/widgets.dart'
+    show
+        WidgetsFlutterBinding,
+        WidgetsBinding,
+        WidgetsBindingObserver,
+        AppLifecycleState;
 import 'package:get_storage/get_storage.dart';
 
 import 'entity.dart';
+import 'errors.dart';
+import 'value_adapter.dart';
 import 'interface.dart';
 import 'options.dart';
 
-/// Unified, type-safe wrapper over `get_storage` (persistent): TTL & absolute
-/// expiry, sliding renewal, namespaces, pluggable serialization, an optional
-/// codec hook, and batch ops. All the read/write/expiry/namespace logic lives
-/// directly on this class — there is no internal `Engine` (or `.ls`)
-/// indirection.
+part 'core.dart';
+part 'async_cacheman.dart';
+part 'hub.dart';
+
+/// Synchronous cache semantics over overridable storage primitives.
+/// 默认封装 get_storage、可覆写存储原语的同步缓存语义层。
 ///
-/// **Design note — why this is fully synchronous (unlike the sibling
-/// `@codejoo/storage` TS project, whose `db`/IndexedDB tier returns
-/// Promises)**: `get_storage`'s `read`/`write`/`remove` are synchronous
-/// against its in-memory map once `init()` has completed — disk flush
-/// happens in the background, debounced, and never blocks a read. There's no
-/// second, genuinely-async persistent backend to justify a sync/async dual
-/// API the way the TS version's `ls` (sync) vs `db` (async IndexedDB) split
-/// does. The one `Future` in the API is [ensureInitialized] — call and await
-/// it once right after constructing, before any read/write; every other
-/// method on [Cacheman] is synchronous.
-///
-/// 统一、类型安全地封装 `get_storage`（持久层）：TTL/绝对过期、滑动续期、
-/// 命名空间、可插拔序列化、可选 codec 钩子、批量操作。全部读写/过期/命名
-/// 空间逻辑都直接挂在本类上——没有内部 `Engine`（或 `.ls`）这层间接。
-///
-/// **设计说明——为什么这里全同步（不像姊妹 TS 项目 `@codejoo/storage`的
-/// `db`/IndexedDB 层要返回 Promise）**：`get_storage` 的
-/// `read`/`write`/`remove` 在 `init()` 完成之后，对它自己的内存态就是同步
-/// 的——落盘是后台防抖做的，从不阻塞读。这里没有第二个真正异步的持久后端，
-/// 犯不着像 TS 版 `ls`（同步）vs `db`（异步 IndexedDB）那样搞一套同步/异步
-/// 二态 API。整个 API 里唯一的 `Future` 是 [ensureInitialized]——构造完实例后
-/// 先 await 它一次，再做任何读写；[Cacheman] 上其余方法都是同步的。
+/// Await [ensureInitialized] once before use. CRUD stays synchronous: mutation
+/// primitives must update backend memory before returning; their Futures only
+/// carry background flush errors. Use [AsyncCacheman] for on-demand disk IO.
+/// 使用前 await [ensureInitialized]；读写保持同步，原语返回前须完成内存态更新，
+/// Future 仅承载后台落盘错误。按需读盘请继承 [AsyncCacheman]。
 ///
 /// ```dart
 /// final cache = Cacheman();
-/// await cache.ensureInitialized();     // must run before first read/write
-/// cache.write('token', 'abc');         // persists across restarts
-/// cache.read<String>('token');         // 'abc' — synchronous
-/// cache.setNamespace('alice');         // per-account isolation
+/// await cache.ensureInitialized();
+/// cache.write('token', 'abc', ttl: 60000);
+/// final token = cache.read<String>('token');
 /// ```
 class Cacheman {
-  /// Builds a [Cacheman] for [container]/[path] with [options]. Synchronous
-  /// — building the underlying `GetStorage` is itself synchronous, but its
-  /// disk-backed state isn't loaded yet. **Callers must call and await
-  /// [ensureInitialized] before any read/write** (this constructor can't be
-  /// `async` itself, so that guarantee isn't compiler-enforced — it's on the
-  /// caller).
-  ///
-  /// A subclass just forwards its own constructor params via `super(...)`,
-  /// e.g. `MySub({super.container, super.path, super.options});` — no extra
-  /// factory boilerplate needed.
-  ///
-  /// 用 [container]/[path]/[options] 构造一个 [Cacheman]。同步——底层
-  /// `GetStorage` 的构造本身是同步的，但它的磁盘态数据这时候还没加载。
-  /// **调用方必须在任何读写之前先调用并 await [ensureInitialized]**（构造函数
-  /// 没法是 `async` 的，所以这条保证编译器不会帮你check，靠调用方自觉）。
-  ///
-  /// 子类只需把自己构造函数的参数用 `super(...)` 转发下去即可，比如
-  /// `MySub({super.container, super.path, super.options});`——不需要额外的
-  /// 工厂方法样板代码。
+  /// Constructs synchronously; the default container is created lazily with
+  /// the supplied path. Subclasses may forward `super.options` etc.
+  /// 同步构造；默认 container 首次访问时才按所给 path 创建，子类可转发 super.options 等。
   Cacheman({
-    String container = 'cacheman',
+    String container = _defaultContainer,
     String? path,
     CachemanOptions options = const CachemanOptions(),
-  })  : _gs = GetStorage(container, path),
-        _opts = options,
-        _ns = _initialNs(options.namespace) {
-    if (_opts.enckey && _keyCodec == null) {
-      // ignore: avoid_print
-      print('[cacheman] `enckey` requires a `keyCodec` or `codec`; none provided — keys remain in plaintext.');
-    }
-    if (_opts.codeable && _opts.codec == null) {
-      // ignore: avoid_print
-      print('[cacheman] `codeable` requires a `codec`; none provided — values are not encoded.');
-    }
-  }
+  })  : _containerName = container,
+        _path = path,
+        _custom = false,
+        _core = _CacheCore(options);
 
-  /// 命名空间前缀：转义 `%`/`:` 后再接 `:`，保证 `ns:key` 的拼接无歧义。
-  static String _initialNs(String? namespace) => namespace != null && namespace.isNotEmpty ? '${_escapeNs(namespace)}:' : '';
-
-  /// 转义命名空间里的 `%` 和 `:`，让前缀里的 `:` 只可能是分隔符。
-  static String _escapeNs(String ns) => ns.replaceAll('%', '%25').replaceAll(':', '%3A');
-
-  /// Awaits this instance's `GetStorage` disk load. Must be called once and
-  /// awaited before any read/write — this is the only `Future` boundary in
-  /// the whole API (see the class doc).
+  /// For subclasses that supply their own storage primitives (no get_storage).
+  /// Hub identity defaults to `this`; notifications are off until [listenRaw]
+  /// is overridden; delayed writes fall back to [setRaw]; [flushRaw] is a no-op.
+  /// Plain forwarding subclasses should use the default constructor instead.
+  /// 供自带存储原语（不用 get_storage）的子类使用：Hub 身份默认 `this`，覆写
+  /// [listenRaw] 前不支持通知，延迟写退化为 [setRaw]，[flushRaw] 不操作。
+  /// 只转发参数的子类应使用默认构造。
   ///
-  /// Not routed through `GetStorage.init(container)` — it internally always
-  /// calls `GetStorage(container)` (no path) to create/fetch a cached
-  /// instance; once that's run once for a container name, `path` is
-  /// permanently baked in as null for that name and any `path` passed to the
-  /// constructor above would've been ignored (the factory caches by
-  /// container name — a cache hit just returns the old instance, constructor
-  /// args and all). The constructor above builds `GetStorage(container,
-  /// path)` itself instead, so `path` sticks; this method just awaits that
-  /// instance's own `initStorage`. **Caveat**: that factory caches per
-  /// container name, so for the same container the first-seen `path` wins —
-  /// a later instance with a different `path` silently shares the first one.
-  ///
-  /// 等待本实例的 `GetStorage` 磁盘态加载完。必须在任何读写之前调用并 await
-  /// 一次——这是整个 API 里唯一的 `Future` 边界（见类文档）。
-  ///
-  /// 没有走 `GetStorage.init(container)`——它内部固定用 `GetStorage(container)`
-  /// （不带 path）去建/取缓存实例，一旦某个 container 名跑过一次，`path` 就
-  /// 永久钉死成 null，上面构造函数传的 `path` 会被无视（factory 按
-  /// container 名读缓存，命中就直接返回旧实例，构造参数被无视）。上面的
-  /// 构造函数改成自己直接用带 `path` 的 `GetStorage(container, path)` 建实例，
-  /// 所以 `path` 能生效；这个方法只是 await 那个实例自己的 `initStorage`。
-  /// **注意**：factory 按 container 名缓存，同名 container 以最先创建的
-  /// `path` 为准——之后换 `path` 的实例会悄悄共用第一个。
-  Future<void> ensureInitialized() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await _gs.initStorage;
-  }
+  /// ```dart
+  /// class PrefsCache extends Cacheman {
+  ///   PrefsCache({super.options}) : super.custom();
+  ///   // override initRaw/getRaw/keysRaw/setRaw/removeRaw/clearRaw ...
+  /// }
+  /// ```
+  Cacheman.custom({CachemanOptions options = const CachemanOptions()})
+      : _containerName = _defaultContainer,
+        _path = null,
+        _custom = true,
+        _core = _CacheCore(options);
 
-  /// The `get_storage` container this instance persists to.
-  ///
-  /// get_storage's `read`/`write`/`remove` are synchronous against its
-  /// in-memory map (the disk flush happens in the background, debounced) —
-  /// so every method below that touches [_gs] is synchronous too, and the
-  /// flush Future is fire-and-forget with an attached error handler
-  /// ([_reportFlushError] via `.catchError`).
-  ///
-  /// **Known limitation (get_storage 2.1.1)**: the Future returned by
-  /// `write`/`remove`/`erase` completes as soon as the flush is *scheduled*
-  /// (`Microtask.exec` returns void and drops the queued flush Future), so a
-  /// real disk-flush failure never reaches that handler — [CachemanOptions.onError]
-  /// is therefore only guaranteed for synchronous failures.
-  ///
-  /// **Real difference from the sibling `@codejoo/storage` TS project**: TS's
-  /// `force` option retries synchronously (persist throws → purge expired →
-  /// retry once) because `localStorage.setItem` fails *synchronously* on
-  /// quota. get_storage's flush failure surfaces *asynchronously*, decoupled
-  /// from any single call (it writes the whole current map, not one key) —
-  /// there's no reliable synchronous failure signal to retry against.
-  /// There is no purge-and-retry step for flush failures (that only applies
-  /// to [_persist]'s own synchronous try/catch, see its doc).
-  ///
-  /// 本实例落盘的 get_storage container。
-  ///
-  /// get_storage 的 `read`/`write`/`remove` 对它自己的内存态是同步的（落盘是
-  /// 后台防抖做的）——所以下面每个碰 [_gs] 的方法也都是同步的，flush 的
-  /// Future 是即发即弃、挂了错误处理的（经 `.catchError` 调 [_reportFlushError]）。
-  ///
-  /// **已知限制（get_storage 2.1.1）**：`write`/`remove`/`erase` 返回的 Future
-  /// 在 flush 被*调度*时就完成了（`Microtask.exec` 返回 void，丢掉了排队 flush
-  /// 的 Future），真正的落盘失败传不到这个 handler——所以
-  /// [CachemanOptions.onError] 只保证同步失败会触发。
-  ///
-  /// **跟姊妹 TS 项目 `@codejoo/storage` 的真实差异**：TS 的 `force` 选项是
-  /// 同步重试的（persist 抛错 → 清过期 → 重试一次），因为
-  /// `localStorage.setItem` 在配额超限时是**同步**失败的。get_storage 的
-  /// 落盘失败是**异步**冒出来的，且跟某一次具体调用脱钩（它落盘的是当前整个
-  /// map，不是单个 key）——没有可靠的同步失败信号可供重试。
-  /// 落盘失败没有"清过期后重试"这一步（那一步只针对 [_persist] 自己的
-  /// 同步 try/catch，见其文档）。
-  final GetStorage _gs;
+  /// Default get_storage container name. / 默认 get_storage 容器名。
+  static const _defaultContainer = 'cacheman';
 
-  /// The underlying `get_storage` container this instance persists to.
-  /// Exposed for interop that needs the raw container — e.g. `listenKey`
-  /// for external change notifications (see [storageKey] for the key to
-  /// pass it).
-  ///
-  /// 本实例落盘的底层 `get_storage` container。给需要拿到原始 container 的
-  /// 互操作场景用——比如用 `listenKey` 监听外部变更（配合 [storageKey] 拿
-  /// 要传给它的 key）。
-  GetStorage get container => _gs;
+  /// Whether a subclass supplies its own primitives via [Cacheman.custom].
+  /// 子类是否经 [Cacheman.custom] 自带存储原语。
+  final bool _custom;
 
-  final CachemanOptions _opts;
+  /// Shared storage-free semantics. / 共用的纯语义内核。
+  final _CacheCore _core;
 
-  String _ns;
+  /// Default container identity. / 默认容器名称。
+  final String _containerName;
 
-  bool get _codeable => _opts.codeable && _opts.codec != null;
-  /// 键编码用的 codec：优先 `keyCodec`，缺省回退 `codec`。
-  Codec? get _keyCodec => _opts.keyCodec ?? _opts.codec;
+  /// Default backend directory, retained until first use. / 首次使用前保留的默认后端目录。
+  final String? _path;
 
-  bool get _enckey => _opts.enckey && _keyCodec != null;
+  /// First access preserves GetStorage's first-container-path-wins behavior.
+  /// 首次访问仍遵循 GetStorage 同名容器首次 path 生效的行为。
+  late final GetStorage _gs = GetStorage(_containerName, _path);
 
-  final Map<String, String> _ekCache = <String, String>{};
+  /// Whether explicit initialization finished. / 是否已完成显式初始化。
+  bool _initialized = false;
 
-  /// Current namespace prefix (`''` if none set).
-  ///
-  /// 当前命名空间前缀（未设置时为 `''`）。
-  String get namespace => _ns;
-
-  /// Switches the namespace prefix **in place** (great for per-account
-  /// isolation on login/logout) — handles you already hold keep working; it
-  /// only isolates, it does not erase the previous namespace's persisted
-  /// data.
-  ///
-  /// 原地切换命名空间前缀（很适合登入/登出时按账号隔离）——已经持有
-  /// 的引用继续生效；只做隔离，不清除上个命名空间的落盘数据。
-  void setNamespace([String? namespace]) {
-    _ns = _initialNs(namespace);
-    _ownedKeysCache = null; // ownership predicate (_owns) just changed — stale under the old ns
-  }
-
-  // ── key helpers ──────────────────────────────────────────────────────────
-
-  /// The actual key [key] is persisted under in [container] — namespace
-  /// prefixed and, with `enckey`, codec-encoded on top. External listeners
-  /// (e.g. `container.listenKey(...)`) must watch this, not [key] itself,
-  /// since the raw storage key is otherwise opaque (the codec is a
-  /// pluggable, private implementation detail).
-  ///
-  /// [key] 在 [container] 里实际落盘用的 key——加了命名空间前缀，`enckey`
-  /// 时还会经 codec 编码。外部监听器（比如 `container.listenKey(...)`）必须
-  /// 监听这个，而不是 [key] 本身，因为原始存储 key 否则是不透明的（codec 是
-  /// 可插拔的私有实现细节）。
-  String storageKey(String key) => _fullKey(key);
-
-  String _fullKey(String key) {
-    final nk = '$_ns$key';
-    if (!_enckey) return nk;
-    final cached = _ekCache[nk];
-    if (cached != null) return cached;
-    if (_ekCache.length >= 1024) _ekCache.clear(); // 防动态键名场景无限增长
-    final encoded = _keyCodec!.encode(nk);
-    _ekCache[nk] = encoded;
-    return encoded;
-  }
-
-  String _decKey(String storageKey) => _enckey ? (_keyCodec!.decode(storageKey) ?? storageKey) : storageKey;
-
-  /// Whether this storage key is owned by this instance (namespace matches;
-  /// with `enckey`, it must decode successfully).
-  ///
-  /// 该存储键是否归本实例管辖（命名空间匹配；`enckey` 时须能解开）。
-  bool _owns(String storageKey) {
-    if (_enckey) {
-      final decoded = _keyCodec!.decode(storageKey);
-      return decoded != null && decoded.startsWith(_ns);
-    }
-    return storageKey.startsWith(_ns);
-  }
-
-  String _logical(String storageKey) {
-    final fk = _decKey(storageKey);
-    return _ns.isNotEmpty && fk.startsWith(_ns) ? fk.substring(_ns.length) : fk;
-  }
-
-  // ── serialize / codec ────────────────────────────────────────────────────
-
-  String _dump(CacheEntity e) {
-    final s = _opts.serialize(e);
-    return _codeable ? _opts.codec!.encode(s) : s;
-  }
-
-  CacheEntity? _load(String raw) {
-    try {
-      final text = _codeable ? _opts.codec!.decode(raw) : raw;
-      return text == null ? null : _opts.deserialize(text);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ── delete / collect / purge ─────────────────────────────────────────────
-
-  void _del(String storageKey) {
-    _gs.remove(storageKey).catchError((Object e, StackTrace _) => _reportFlushError(storageKey, e));
-    _untrackOwned(storageKey);
-  }
-
-  /// Lazily-built, incrementally-maintained cache of this instance's own
-  /// storage keys — avoids re-scanning the whole (possibly shared) backend on
-  /// every [keys]/[length]/[key]/[erase]/[purge] call. Built once on first
-  /// access via a full scan, then kept in sync by [_trackOwned]/
-  /// [_untrackOwned] as this instance writes/deletes. Invalidated wholesale on
-  /// [setNamespace] (the ownership predicate changed).
-  ///
-  /// **Caveat**: only writes/deletes made *through this instance* update the
-  /// cache. A different [Cacheman] instance sharing the same namespace on the
-  /// same backend (e.g. two `Cacheman()` instances for the same
-  /// container+namespace) can drift this cache stale — the original
-  /// always-full-scan behavior didn't have that limitation. Fine when each
-  /// namespace is owned by exactly one live instance, which is the normal
-  /// per-account-isolation use case.
-  ///
-  /// 懒建、增量维护的"本实例自有 key"缓存——避免每次 [keys]/[length]/[key]/
-  /// [erase]/[purge] 都把（可能是共享的）后端整个扫一遍。首次访问时全扫建一
-  /// 次，之后靠 [_trackOwned]/[_untrackOwned] 随本实例的写入/删除增量维护。
-  /// [setNamespace] 时整体失效（所有权判定变了）。
-  ///
-  /// **注意**：只有经过本实例的写入/删除才会更新缓存。如果同一个 namespace
-  /// 在同一个 backend 上被另一个 [Cacheman] 实例同时使用（比如同一个
-  /// container+namespace 建了两个 `Cacheman()` 实例），这个缓存可能读不到
-  /// 对方的变更而过期——原来的每次全扫版本没有这个限制。正常的"每个
-  /// namespace 只有一个存活实例"用法（比如按账号隔离）下没问题。
+  /// Owned-key snapshot healed by shared versions; unsupported backends rescan.
+  /// 共享版本自动修复自有键快照；无同步通知的后端每次重扫。
   Set<String>? _ownedKeysCache;
 
-  void _trackOwned(String storageKey) => _ownedKeysCache?.add(storageKey);
+  /// Version represented by the current snapshot. / 当前快照对应的版本。
+  int _indexVersion = -1;
 
-  void _untrackOwned(String storageKey) => _ownedKeysCache?.remove(storageKey);
+  /// Scope generation detects namespace switches during mutations.
+  /// 作用域代数用于识别写入期间发生的命名空间切换。
+  int _scopeGeneration = 0;
 
-  /// Walks `get_storage`'s key iterable directly instead of allocating a
-  /// full `toString()`'d, materialized `List` first — this only runs once
-  /// (to seed [_ownedKeysCache]), so the intermediate `.toSet()` is the only
-  /// allocation.
-  ///
-  /// 直接遍历 get_storage 的 key 迭代器，不预先物化成完整 `List`——这只在
-  /// 建缓存时跑一次（用来播种 [_ownedKeysCache]），中间的 `.toSet()` 已经是
-  /// 唯一的一次分配。
-  Set<String> _ownSet() => _ownedKeysCache ??= _gs.getKeys<Iterable<dynamic>>().map((k) => k.toString()).where(_owns).toSet();
+  /// Reentrant own-mutation depth for feedback-loop suppression. / 本实例嵌套写入深度，用于断环。
+  int _selfDepth = 0;
 
-  /// 自有键的快照列表；遍历中要删键时用它，避免边遍历边改 Set。
+  /// Subscriptions that migrate with this instance's namespace. / 随本实例命名空间迁移的订阅。
+  final _watches = <_HubWatch>{};
+
+  /// One shared hub, created only when needed. / 按需创建的共享 Hub。
+  late final _hub = _ContainerHub.of(
+    hubIdentity,
+    listen: (callback) => listenRaw(_core.context(CacheOp.init), callback),
+    synchronous: syncNotificationsRaw,
+    flush: () => flushRaw(_core.context(CacheOp.write)),
+    report: _reportHubError,
+  );
+
+  /// Reports hub flush errors on the whole-backend key. / 以整库错误键上报 Hub 落盘异常。
+  void _reportHubError(Object error, StackTrace trace) =>
+      _core._reportFlushError(_allKeys, error, trace);
+
+  /// Observe background failures without reclassifying onError exceptions.
+  /// 观察后台失败，保留 onError 异常的原始身份与分类边界。
+  void _observeFlush(String key, Future<void> pending) {
+    pending.catchError((Object error, StackTrace trace) {
+      // Default get_storage write is async: synchronous notification handler
+      // exceptions enter its Future and must propagate unchanged to the Zone.
+      // 默认 get_storage write 为 async；同步通知的处理器异常进入其 Future，
+      // 须保留原异常并按 Zone 规则传播。
+      if (identical(error, _CacheCore._propagatingHandlerError)) {
+        Error.throwWithStackTrace(error, trace);
+      }
+      _core._reportFlushError(key, error, trace);
+    });
+  }
+
+  /// Raw get_storage container for interop; accessing it creates it even for
+  /// custom subclasses. Use `container.listenKey(storageKey('token'), ...)`.
+  /// 互操作用的原始容器；自定义子类访问它也会创建容器。监听时配合 storageKey。
+  GetStorage get container => _gs;
+
+  /// Escaped namespace prefix (empty if unset). / 转义后的命名空间前缀（未设置时为空）。
+  String get namespace => _core.namespace;
+
+  /// Initializes through [initRaw]; await once before reads/writes.
+  /// 通过 [initRaw] 初始化，读写前须 await 一次，例如 `await cache.ensureInitialized()`。
+  Future<void> ensureInitialized() async {
+    await initRaw(_core.context(CacheOp.init));
+    _initialized = true;
+    if (_core._opts.purgeOnInit && !_core._opts.raw) Timer.run(_purgeExpired);
+  }
+
+  /// Initializes the default binding and path-aware container without GetStorage.init.
+  /// 默认初始化 binding 并等待带 path 的容器，不调用 GetStorage.init。
+  /// Override to initialize your own sync backend. / 可覆写以初始化自定义同步后端。
+  @protected
+  Future<void> initRaw(CacheContext ctx) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await container.initStorage;
+  }
+
+  /// Reads synchronously; null denotes absence. / 同步读取，null 表示缺失。
+  /// Override e.g. `return prefs.get(storageKey);`. / 例如覆写为 prefs.get(storageKey)。
+  @protected
+  Object? getRaw(CacheContext ctx, String storageKey) =>
+      container.read<dynamic>(storageKey);
+
+  /// Enumerates actual storage keys synchronously (before namespace filtering).
+  /// 同步枚举真实存储键（尚未过滤 namespace），例如返回 map.keys。
+  @protected
+  Iterable<String> keysRaw(CacheContext ctx) =>
+      container.getKeys<Iterable<dynamic>>().map((k) => k.toString());
+
+  /// Updates memory synchronously before returning; Future is only for background
+  /// flush errors, never force-retried. Do not implement with an async body.
+  /// 返回前同步更新内存态；Future 只承载后台落盘错误，不参与 force 重试。
+  /// 不可用 async 函数体实现；例如先 map[storageKey] = value，再返回 Future.value()。
+  @protected
+  Future<void> setRaw(CacheContext ctx, String storageKey, String value) =>
+      container.write(storageKey, value);
+
+  /// Deletes synchronously before return; Future only carries background errors.
+  /// 返回前同步删除，Future 仅承载后台错误；例如先 map.remove(storageKey)。
+  @protected
+  Future<void> removeRaw(CacheContext ctx, String storageKey) =>
+      container.remove(storageKey);
+
+  /// Clears the entire backend synchronously; Future only carries background errors.
+  /// 返回前同步清空整个后端，Future 仅承载后台错误；例如先 map.clear()。
+  /// Scoped erase uses removeRaw instead. / 有作用域的 erase 改用 removeRaw。
+  @protected
+  Future<void> clearRaw(CacheContext ctx) => container.erase();
+
+  /// Shared identity: the GetStorage singleton for the default constructor
+  /// (including forwarding subclasses), `this` for [Cacheman.custom].
+  /// 共享身份：默认构造（含只转发参数的子类）为 GetStorage 单例，[Cacheman.custom] 为 `this`。
+  /// Override with your stable backend handle. / 可覆写为稳定的底层句柄。
+  @protected
+  Object get hubIdentity => _custom ? this : container;
+
+  /// Subscribe to storage keys; null denotes clear. Null return means unsupported.
+  /// Notifications describe memory after mutation; table replacements and erase
+  /// report null, while writes to the empty key stay keyed. Subclasses may opt in.
+  /// 订阅存储键，null 表示整体清空；返回 null 表示不支持。通知须反映变更后的内存，
+  /// 整表替换及 erase 上报 null，空串键写入仍按键上报；子类可覆写以支持通知。
+  /// Context uses init with no key. / 上下文使用无键 init。
+  @protected
+  VoidCallback? listenRaw(CacheContext ctx, void Function(String?) onChange) {
+    if (_custom) return null;
+    Map<String, dynamic>? last;
+    return container.listen(() {
+      final changes = container.changes;
+      final fresh = !identical(changes, last);
+      last = changes;
+      final key = fresh && changes.length == 1 ? changes.keys.first : null;
+      onChange(key != null && key.isEmpty && container.getKeys<Iterable>().isEmpty
+          ? null
+          : key);
+    });
+  }
+
+  /// Whether notifications precede mutation return; verified for get_storage 2.1.1.
+  /// 通知是否在变更原语返回前发出；已实测 get_storage 2.1.1 为同步。
+  @protected
+  bool get syncNotificationsRaw => true;
+
+  /// Memory-only write for delayed flush; custom backends fall back to setRaw.
+  /// 延迟落盘用的仅内存写；自定义底层默认退化为 setRaw。
+  @protected
+  void setDeferredRaw(CacheContext ctx, String storageKey, String value) {
+    if (_custom) {
+      _observeFlush(storageKey, setRaw(ctx, storageKey, value));
+    } else {
+      container.writeInMemory(storageKey, value);
+    }
+  }
+
+  /// Queue persistence; custom backends whose setRaw already persists need no work.
+  /// 排一次落盘；setRaw 已持久化的自定义后端默认无需额外操作。
+  /// Context uses write with no key. / 上下文使用无键 write。
+  @protected
+  Future<void> flushRaw(CacheContext ctx) =>
+      _custom ? Future<void>.value() : container.save();
+
+  /// Queue a shared flush immediately; errors go to onError. Returns synchronously.
+  /// 立即排共享落盘；错误走 onError，同步返回。例如 `cache.flush()`。
+  void flush() => _hub.flushNow(_reportHubError);
+
+  /// Watch decoded values, including expiry semantics; cancel with the return value.
+  /// Own writes (including renewal/lazy deletion) are excluded by default, allowing
+  /// Rx feedback binding. Unsupported notifications throw UnsupportedError; with
+  /// asynchronous notifications own writes may still arrive: compare values yourself.
+  /// 监听解码值（含过期语义），返回取消函数；默认忽略本实例写入（含续期/懒删），
+  /// 可用于 Rx 双向断环。底层不支持通知时抛 UnsupportedError；异步通知可能仍收到
+  /// 本实例写入，此时调用方须自行判等。
+  /// Example / 示例：`final stop = cache.watch<int>('count', (v) => print(v)); stop();`.
+  VoidCallback watch<T>(String key, void Function(T? value) onChange,
+      {bool includeOwnWrites = false}) {
+    if (!_hub.supportsWatch) {
+      throw UnsupportedError('Backend does not support watch / 底层不支持变更通知');
+    }
+    late final _HubWatch watcher;
+    watcher = _HubWatch(key, storageKey(key), () {
+      if (!includeOwnWrites && _selfDepth > 0) return;
+      final errorKey = watcher.storageKey;
+      try {
+        onChange(read<T>(key));
+      } catch (error, trace) {
+        if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
+        _core._reportError(WatchError(errorKey, error, trace));
+      }
+    });
+    _watches.add(watcher);
+    _hub.add(watcher);
+    return () {
+      watcher.active = false;
+      _watches.remove(watcher);
+      _hub.remove(watcher);
+    };
+  }
+
+  /// Switches scope without deleting old data; invalidates key caches.
+  /// 切换作用域但不删旧数据，并清空键缓存，例如 cache.setNamespace('alice')。
+  void setNamespace([String? namespace]) {
+    _core.setNamespace(namespace);
+    _scopeGeneration++;
+    _ownedKeysCache = null;
+    for (final watcher in _watches) {
+      _hub.remove(watcher);
+      watcher.storageKey = storageKey(watcher.key);
+      _hub.add(watcher);
+    }
+  }
+
+  /// Actual prefixed/encoded storage key, e.g. for container.listenKey.
+  /// 实际加前缀/编码后的存储键，例如供 container.listenKey 使用。
+  String storageKey(String key) => _core._fullKey(key);
+
+  /// Reads a fresh backend string; foreign non-strings count as absent.
+  /// 每次读取后端字符串，外部非字符串数据视为缺失。
+  String? _get(String key) {
+    final value = getRaw(_core.context(CacheOp.read, key), key);
+    return value is String ? value : null;
+  }
+
+  /// Removes and updates the owned-key snapshot. / 删除并维护自有键快照。
+  void _del(String key) {
+    _mutate(key, () {
+      _observeFlush(key, removeRaw(_core.context(CacheOp.remove, key), key));
+    }, remove: true);
+  }
+
+  /// Rebuild only on external changes, or always without synchronous notifications.
+  /// 外部变更时才重建；没有同步通知能力则每次重建。
+  Set<String> _ownSet() {
+    if (_ownedKeysCache == null ||
+        !_hub.synchronous ||
+        _indexVersion != _hub.version) {
+      _ownedKeysCache =
+          keysRaw(_core.context(CacheOp.keys)).where(_core._owns).toSet();
+      _indexVersion = _hub.version;
+    }
+    return _ownedKeysCache!;
+  }
+
+  /// Increment only the same fresh index in the same scope with one notification.
+  /// Reentrant index rebuilds or scope changes invalidate it instead.
+  /// 仅对同一作用域内未替换的新鲜索引且恰好一次通知做增量更新；重建或切域则失效。
+  void _mutate(String key, VoidCallback action, {bool remove = false}) {
+    final version = _hub.version;
+    final before = _ownedKeysCache;
+    final generation = _scopeGeneration;
+    final fresh = before != null && _indexVersion == version;
+    _selfDepth++;
+    try {
+      action();
+      if (fresh &&
+          identical(_ownedKeysCache, before) &&
+          _scopeGeneration == generation &&
+          _hub.synchronous &&
+          _hub.version == version + 1) {
+        if (remove) {
+          _ownedKeysCache!.remove(key);
+        } else {
+          _ownedKeysCache!.add(key);
+        }
+        _indexVersion = _hub.version;
+      } else {
+        _ownedKeysCache = null;
+      }
+    } finally {
+      _selfDepth--;
+    }
+  }
+
+  /// Snapshot safe for removal during iteration. / 允许遍历中删除的快照。
   List<String> _ownKeys() => _ownSet().toList(growable: false);
 
-  bool _isExpired(CacheEntity? e, int now) => e != null && e.expireAt != null && e.createdAt != null && now >= e.expireAt!;
-
+  /// Purge silently probes marked envelopes only. / 清理只静默探测带标记的信封。
   void _purgeExpired() {
-    if (_opts.raw) return; // raw 不带信封，没有过期语义
+    if (_core._opts.raw) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final k in _ownKeys()) {
-      final raw = _gsGet(k);
-      if (raw != null && _isExpired(_load(raw), now)) _del(k);
+    for (final key in _ownKeys()) {
+      final raw = _get(key);
+      if (raw != null && _core._isExpired(_core._load(raw), now)) _del(key);
     }
   }
 
-  /// Reads the raw stored string for [key], or `null` if absent.
-  ///
-  /// This package only ever writes `String`s through [_persist]; if a
-  /// non-`String` value is read back, it means external code wrote something
-  /// else into the same container — treated as unrecognized data (absent),
-  /// not an error.
-  ///
-  /// 读取 [key] 的原始存储串，不存在则 `null`。
-  ///
-  /// 本库只经 [_persist] 写入字符串；若读到非字符串，说明外部代码往同一个
-  /// container 里塞了别的东西——视为不认识的数据（当缺失处理），不抛异常。
-  String? _gsGet(String key) {
-    final v = _gs.read<dynamic>(key);
-    return v is String ? v : null;
-  }
-
-  // ── persist ──────────────────────────────────────────────────────────────
-
-  /// Writes the string produced by [build] under [storageKey].
-  ///
-  /// get_storage's `write` is synchronous against its in-memory map; the
-  /// actual disk flush happens in the background (debounced) and is
-  /// fire-and-forget here — a flush failure surfaces later, asynchronously,
-  /// via [_reportFlushError], decoupled from this specific call (see [_gs]'s
-  /// class-level doc for why that rules out a synchronous retry there).
-  ///
-  /// [build] produces the string inside the try/catch, so a throwing
-  /// [CachemanOptions.serialize]/codec is caught too. The try/catch only ever
-  /// catches a *synchronous* failure and is the only thing
-  /// [CachemanOptions.force] retries against.
-  ///
-  /// 把 [build] 生成的字符串写到 [storageKey] 下。
-  ///
-  /// get_storage 的 `write` 对它自己的内存态是同步的；真正落盘是后台防抖做的，
-  /// 这里即发即弃——落盘失败会晚一点、异步地通过 [_reportFlushError] 冒出来，
-  /// 跟这一次具体调用脱钩（为什么这排除了同步重试，见 [_gs] 的类级文档）。
-  ///
-  /// [build] 在 try/catch 里生成字符串，所以自定义 [CachemanOptions.serialize]/
-  /// codec 抛错也会被接住。try/catch 只捕获**同步**失败，这也是
-  /// [CachemanOptions.force] 唯一会重试的对象。
-  bool _persist(String storageKey, String Function() build) {
+  /// Builds once, then retries only backend writes; background failures stay separate.
+  /// 仅构造一次，然后只重试底层写入；后台失败独立处理。
+  bool _persist(String key, String Function() build) {
+    assert(_initialized, _initializationMessage);
+    final encoded = _core.build(key, build);
+    if (encoded == null) return false;
     try {
-      _writeNow(storageKey, build());
+      _writeNow(key, encoded);
       return true;
-    } catch (e) {
-      if (!_opts.force) {
-        _reportError(storageKey, e);
+    } catch (error, trace) {
+      if (identical(error, _CacheCore._propagatingHandlerError)) rethrow;
+      if (!_core._opts.force) {
+        _core._reportError(WriteError(key, error, trace));
         return false;
       }
-      _purgeExpired();
       try {
-        _writeNow(storageKey, build());
+        _purgeExpired();
+        _writeNow(key, encoded);
         return true;
-      } catch (e2) {
-        _reportError(storageKey, e2);
+      } catch (retryError, retryTrace) {
+        if (identical(retryError, _CacheCore._propagatingHandlerError)) rethrow;
+        _core._reportError(WriteError(key, retryError, retryTrace));
         return false;
       }
     }
   }
 
-  /// 同步写内存态并挂上后台落盘的错误处理。
-  void _writeNow(String storageKey, String str) {
-    _gs.write(storageKey, str).catchError((Object e, StackTrace _) => _reportFlushError(storageKey, e));
-    _trackOwned(storageKey);
+  /// Tracks successful memory writes, including retries. / 记录成功的内存态写入（含重试）。
+  void _writeNow(String key, String value) {
+    _mutate(key, () {
+      final ctx = _core.context(CacheOp.write, key);
+      final delay = _core._opts.flushDelay;
+      if (delay == null) {
+        _observeFlush(key, setRaw(ctx, key, value));
+      } else {
+        // Register before notification so a nested writer becomes the latest owner.
+        // 通知前登记，使回调内的嵌套写入者后登记并成为最新错误归属。
+        _hub.scheduleFlush(delay, _reportHubError);
+        setDeferredRaw(ctx, key, value);
+      }
+    });
   }
 
-  /// Reports a *synchronous* write failure ([_persist]'s own try/catch — a
-  /// throwing `serialize`/codec — after [CachemanOptions.force]'s retry, if
-  /// enabled, also failed).
-  ///
-  /// 上报一次**同步**写入失败（[_persist] 自己的 try/catch，比如 `serialize`/
-  /// codec 抛错；若启用了 [CachemanOptions.force] 重试也失败之后）。
-  void _reportError(String key, Object error) => _emitError(key, error, 'write failed for "$key", giving up');
+  /// Reads with lazy expiry, decode reporting and guarded sliding renewal.
+  /// 读取时懒删除过期项、上报解码失败并按阈值续期。
+  /// Type/adapter mismatches return the default and retain data; no numeric coercion.
+  /// 类型/适配器不符返回默认值并保留数据；不做数字互转，int 可用 num 读取。
+  /// Backend IO and user onError exceptions still propagate. / 后端 IO 及用户 onError 异常仍传播。
+  /// Example / 示例：`cache.read<String>('token', 'guest')`.
+  T? read<T>(String key, [T? defaultValue]) => _read(key, defaultValue, null);
 
-  /// Reports a background disk-flush failure. Note: with get_storage 2.1.1 the
-  /// Future returned by `write`/`remove`/`erase` never carries flush errors, so
-  /// this is best-effort and may never fire — see [_gs].
-  ///
-  /// 上报后台落盘失败。注意：get_storage 2.1.1 里 `write`/`remove`/`erase`
-  /// 返回的 Future 带不出 flush 错误，这里是尽力而为，可能永远不触发——见 [_gs]。
-  void _reportFlushError(String key, Object error) => _emitError(key, error, 'background flush failed for "$key"');
+  /// Reads with JSON adaptation; mismatches return defaultValue without removal.
+  /// 带 JSON 适配读取；不匹配返回 defaultValue，不删除数据。
+  /// Dart cannot mix optional positional and named parameters; read keeps its
+  /// positional default, while this entry accepts named defaultValue/adapter.
+  /// Dart 无法混合可选位置与命名参数；read 保留位置默认值，本方法提供命名参数。
+  /// Example / 示例：
+  /// ```dart
+  /// cache.readWith<List<String>>('names', adapter: ValueAdapter.listOf<String>());
+  /// ```
+  T? readWith<T>(String key, {T? defaultValue, ValueAdapter<T>? adapter}) =>
+      _read(key, defaultValue, adapter);
 
-  void _emitError(String key, Object error, String message) {
-    final cb = _opts.onError;
-    if (cb != null) {
-      cb(key, error);
-    } else {
-      // ignore: avoid_print
-      print('[cacheman] $message: $error');
+  /// Shared read orchestration with optional adaptation. / 带可选适配的共用读取编排。
+  T? _read<T>(String key, T? defaultValue, ValueAdapter<T>? adapter) {
+    final sk = storageKey(key);
+    final raw = _get(sk);
+    if (raw == null) return defaultValue;
+    if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
+      return _core.typed(sk, raw, defaultValue, null);
     }
-  }
-
-  // ── read resolution ──────────────────────────────────────────────────────
-
-  /// entity 命中后的过期/续期处理，返回最终值。
-  dynamic _resolve(CacheEntity entity, String storageKey, dynamic fallback) {
+    final entity = _core._load(raw, onFailure: (error, trace) {
+      _del(sk);
+      _core.reportDecodeError(sk, error, trace);
+    });
+    if (entity == null) return defaultValue;
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (_isExpired(entity, now)) {
-      _del(storageKey);
-      return fallback;
+    if (_core._isExpired(entity, now)) {
+      _del(sk);
+      return defaultValue;
     }
-    if (_opts.sliding && entity.ttl != null && entity.expireAt != null && entity.expireAt! - now <= entity.ttl! * 0.9) {
-      final renewed = entity.renewed(now + entity.ttl!);
-      _persist(storageKey, () => _dump(renewed));
-      return entity.value;
-    }
-    return entity.value;
+    final renewed = _core.renewal(entity, now);
+    if (renewed != null) _persist(sk, () => _core._dump(renewed));
+    return _core.typed(sk, entity.value, defaultValue, adapter);
   }
 
-  dynamic _hydrate(String? raw, String storageKey, dynamic fallback) {
-    if (raw == null) return fallback;
-    if (_opts.raw) return raw;
-    final entity = _load(raw);
-    if (entity == null) {
-      _del(storageKey);
-      return fallback;
-    }
-    return _resolve(entity, storageKey, fallback);
-  }
-
-  // ── public: read ─────────────────────────────────────────────────────────
-
-  /// Reads a key. Returns [defaultValue] if absent/expired.
-  ///
-  /// 读取一个键。不存在/已过期时返回 [defaultValue]。
-  T? read<T>(String key, [T? defaultValue]) {
-    final storageKey = _fullKey(key);
-    return _hydrate(_gsGet(storageKey), storageKey, defaultValue) as T?;
-  }
-
-  /// Batch read: returns a same-length list, positionally paired with
-  /// [defaults] (missing slots fall back to `null`).
-  ///
-  /// 批量读取：返回等长 list，跟 [defaults] 逐位对应（缺位为 `null`）。
+  /// Positional batch read; missing defaults are null. / 按位置批量读取，缺省默认值为 null。
+  /// Example / 示例：`cache.readAll(['a', 'b'], [1])`.
   List<dynamic> readAll(List<String> keys, [List<dynamic>? defaults]) => [
-        for (var i = 0; i < keys.length; i++) read<dynamic>(keys[i], defaults != null && i < defaults.length ? defaults[i] : null),
+        for (var i = 0; i < keys.length; i++)
+          read<dynamic>(keys[i],
+              defaults != null && i < defaults.length ? defaults[i] : null),
       ];
 
-  // ── public: write ────────────────────────────────────────────────────────
-
-  /// Builds the entity to persist; `null` means validation failed (already
-  /// warned) and the write should be skipped.
-  ///
-  /// 构造要落盘的 entity；`null` 表示校验没过（已经警告过），应放弃写入。
-  CacheEntity? _mkEntity(dynamic value, int? ttl, Object? expireAt, String key) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    int? finalTtl = ttl;
-    if (finalTtl != null && finalTtl <= 0) {
-      // ignore: avoid_print
-      print('[cacheman] ttl must be a positive number of ms, got $finalTtl; ignoring ttl for "$key"');
-      finalTtl = null;
-    }
-    int? entityExpireAt = finalTtl == null ? null : now + finalTtl;
-    if (expireAt != null) {
-      final abs = expireAt is DateTime
-          ? expireAt.millisecondsSinceEpoch
-          : expireAt is int
-              ? expireAt
-              : null;
-      final inPast = abs != null && abs <= now;
-      // 绝对时间已过：只有 sliding + ttl 能从现在重新起算，否则放弃写入
-      if (abs == null || (inPast && !(_opts.sliding && finalTtl != null))) {
-        // ignore: avoid_print
-        print('[cacheman] expireAt is invalid or in the past; skipped writing "$key"');
-        return null;
-      }
-      entityExpireAt = inPast ? now + finalTtl! : abs;
-    }
-    return CacheEntity(value: value, createdAt: now, expireAt: entityExpireAt, ttl: finalTtl);
-  }
-
-  /// Writes a key, with optional per-call [ttl]/[expireAt].
-  ///
-  /// 写入一个键，可选 per-call 的 [ttl]/[expireAt]。
-  void write<T>(String key, T value, {int? ttl, Object? expireAt}) {
-    final storageKey = _fullKey(key);
-    if (_opts.readonly && _alive(storageKey)) return;
-
-    if (_opts.raw) {
-      if (value is! String) {
-        // ignore: avoid_print
-        print('[cacheman] raw mode requires a String value for "$key", got ${value.runtimeType}; skipped');
-        return;
-      }
-      final String text = value;
-      _persist(storageKey, () => text);
+  /// Writes with millisecond TTL or DateTime/integer absolute expiry.
+  /// Optional adapter converts before serialization; raw ignores it.
+  /// 可选 adapter 在序列化前转换；raw 忽略它。
+  /// Example / 示例：`cache.write('names', ['Ada'], adapter: ValueAdapter.listOf<String>())`.
+  /// 按毫秒 TTL 或 DateTime/整数绝对过期时间写入。
+  /// With sliding, ttl takes precedence and expireAt only sets the first expiry;
+  /// past expireAt restarts from now, and renewal may extend beyond expireAt.
+  /// sliding 下 ttl 优先，expireAt 只决定首次过期时间；过去的 expireAt 会从现在
+  /// 重新起算；续期可能使实际过期时间超过原 expireAt。
+  /// Example / 示例：`cache.write('token', 'abc', ttl: 60000)`.
+  void write<T>(String key, T value,
+      {int? ttl, Object? expireAt, ValueAdapter<T>? adapter}) {
+    final sk = storageKey(key);
+    if (_core._opts.readonly && _alive(sk)) return;
+    if (_core._opts.raw) {
+      _core.warnRawAdapter(adapter);
+      if (_core.acceptsRaw(key, value)) _persist(sk, () => value as String);
       return;
     }
-    final entity = _mkEntity(value, ttl, expireAt, key);
-    if (entity == null) return;
-    _persist(storageKey, () => _dump(entity));
-  }
-
-  /// 键下是否有一条未过期、可识别的有效数据；不续期、不删除、不取业务值。
-  bool _alive(String storageKey) {
-    final raw = _gsGet(storageKey);
-    if (raw == null) return false;
-    if (_opts.raw) return true;
-    final entity = _load(raw);
-    return entity != null && !_isExpired(entity, DateTime.now().millisecondsSinceEpoch);
-  }
-
-  /// Batch write: [values] pairs positionally with [keys]; [ttl]/[expireAt]
-  /// apply to every key. If [values] is shorter, missing slots are
-  /// skipped (warned).
-  ///
-  /// 批量写入：[values] 跟 [keys] 逐位对应；[ttl]/[expireAt] 对
-  /// 全部键生效。[values] 短于 [keys] 时，缺位的键跳过（警告）。
-  void writeAll(List<String> keys, List<dynamic> values, {int? ttl, Object? expireAt}) {
-    if (values.length < keys.length) {
-      // ignore: avoid_print
-      print('[cacheman] batch set: values(${values.length}) shorter than keys(${keys.length}); missing entries skipped');
+    final entity = _core._mkEntity(value, ttl, expireAt, key);
+    if (entity != null) {
+      _persist(sk, () => _core.encode(entity, value, adapter));
     }
-    final n = keys.length < values.length ? keys.length : values.length;
+  }
+
+  /// Presence probe without deletion, reporting or renewal; null values count.
+  /// 存在性探测不删除、不上报、不续期；存储的 null 值也算存在。
+  bool _alive(String key) {
+    final raw = _get(key);
+    if (raw == null) return false;
+    if (_core._opts.raw) return true;
+    final entity = _core._load(raw);
+    return entity != null &&
+        !_core._isExpired(entity, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// Positional batch write, warning/skipping missing values; expiry applies to all.
+  /// 按位置批量写入，缺值警告并跳过；过期参数应用于全部键。
+  /// Example / 示例：`cache.writeAll(['a', 'b'], [1, 2], ttl: 60000)`.
+  void writeAll(List<String> keys, List<dynamic> values,
+      {int? ttl, Object? expireAt}) {
+    final n = _core.batchLength(keys, values);
     for (var i = 0; i < n; i++) {
       write<dynamic>(keys[i], values[i], ttl: ttl, expireAt: expireAt);
     }
   }
 
-  // ── public: remove / erase / keys / purge ────────────────────────────────
+  /// Removes one key, e.g. cache.remove('token'). / 删除一个键，例如 cache.remove('token')。
+  void remove(String key) => _del(storageKey(key));
 
-  /// Removes a key.
-  ///
-  /// 删除一个键。
-  void remove(String key) => _del(_fullKey(key));
-
-  /// Removes several keys at once.
-  ///
-  /// 一次删除多个键。
+  /// Removes a batch, e.g. cache.removeAll(['a', 'b']). / 批量删除，例如 cache.removeAll(['a', 'b'])。
   void removeAll(List<String> keys) {
-    for (final k in keys) {
-      _del(_fullKey(k));
+    for (final key in keys) {
+      remove(key);
     }
   }
 
-  /// With `namespace` or `enckey`: removes only this instance's keys.
-  /// Otherwise erases the whole backend.
-  ///
-  /// 带 `namespace` 或 `enckey` 时：只删本实例管辖的键。否则整个后端清空。
+  /// Deletes owned keys with namespace/enckey, otherwise clears the whole backend.
+  /// 有 namespace/enckey 时删除自有键，否则清空整个后端，例如 cache.erase()。
   void erase() {
-    if (_ns.isEmpty && !_enckey) {
-      _gs.erase().catchError((Object e, StackTrace _) => _reportFlushError('*', e));
-      _ownedKeysCache = <String>{};
+    if (namespace.isEmpty && !_core._enckey) {
+      _selfDepth++;
+      try {
+        _observeFlush(_allKeys, clearRaw(_core.context(CacheOp.clear)));
+        _ownedKeysCache = null;
+      } finally {
+        _selfDepth--;
+      }
       return;
     }
     _ownKeys().forEach(_del);
   }
 
-  /// The `index`-th logical key (decrypted, namespace-stripped).
-  ///
-  /// Without a namespace/`enckey`, walks `get_storage`'s key iterable
-  /// directly instead of going through [keys]/[_ownKeys] — those allocate a
-  /// full `toString()`'d, materialized `List` for every key just to then
-  /// index into it once. get_storage exposes no positional-access API, so
-  /// this is still O(index) (can't do better than a walk), but it skips the
-  /// wasted full-list allocation.
-  ///
-  /// 第 `index` 个逻辑键（已解密、去命名空间前缀）。
-  ///
-  /// 没有 namespace/`enckey` 时，直接遍历 get_storage 的 key 迭代器，不经过
-  /// [keys]/[_ownKeys]——它们会把每个 key 都 `toString()` 一遍、物化成完整
-  /// `List`，只为了取其中一个下标。get_storage 没有按下标直接访问的 API，
-  /// 所以这里仍是 O(index)（避不开遍历），但省掉了那次浪费的整表分配。
+  /// Positional logical key, null out of range. O(index); use one keys() snapshot
+  /// instead of O(n²) indexed loops. / 按下标取逻辑键，越界返回 null；O(index)，
+  /// 循环为 O(n²)，请改用一次 keys() 快照。Example / 示例：`for (final k in cache.keys()) ...`.
+  @Deprecated('O(index); loops cost O(n²). Use keys() instead. / 请使用 keys()。')
   String? key(int index) {
-    if (_ns.isNotEmpty || _enckey) {
+    if (namespace.isNotEmpty || _core._enckey) {
       final ks = _ownSet();
-      return index < 0 || index >= ks.length ? null : _logical(ks.elementAt(index));
+      return index < 0 || index >= ks.length
+          ? null
+          : _core._logical(ks.elementAt(index));
     }
     if (index < 0) return null;
     var i = 0;
-    for (final k in _gs.getKeys<Iterable<dynamic>>()) {
-      if (i == index) return _logical(k.toString());
+    for (final key in keysRaw(_core.context(CacheOp.keys))) {
+      if (i == index) return _core._logical(key);
       i++;
     }
     return null;
   }
 
-  /// All logical keys owned by this instance (decrypted, namespace-stripped).
-  ///
-  /// 本实例管辖的全部逻辑键（已解密、去命名空间前缀）。
-  List<String> keys() => _ownSet().map(_logical).toList(growable: false);
+  /// Owned logical keys, e.g. cache.keys(). / 自有逻辑键，例如 cache.keys()。
+  List<String> keys() => _ownSet().map(_core._logical).toList(growable: false);
 
-  /// Proactively deletes expired entries (owned, written by this library).
-  /// Expiry is otherwise lazy.
-  ///
-  /// 主动清理已过期条目（本实例管辖、本库写入的）。平时是懒过期。
+  /// Proactively deletes owned expired envelopes. / 主动删除自有过期信封。
   void purge() => _purgeExpired();
 
-  /// Entry count. With `namespace`/`enckey`, counts only owned keys;
-  /// otherwise the backend's global count.
-  ///
-  /// Without a namespace/`enckey`, counts `get_storage`'s key iterable
-  /// directly instead of `keys().length` — same rationale as [key]: no need
-  /// to `toString()`/materialize every key just to count them.
-  ///
-  /// 条目数。带 `namespace`/`enckey` 时只数本实例管辖的键；否则是后端的
-  /// 全局条目数。
-  ///
-  /// 没有 namespace/`enckey` 时，直接数 get_storage key 迭代器的元素个数，
-  /// 不走 `keys().length`——理由同 [key]：数个数用不着把每个 key 都
-  /// `toString()`/物化一遍。
-  int get length => _ns.isNotEmpty || _enckey ? _ownSet().length : _gs.getKeys<Iterable<dynamic>>().length;
+  /// Counts owned keys; global count without namespace/enckey.
+  /// 统计自有键；无 namespace/enckey 时为后端全局数量。
+  int get length => namespace.isNotEmpty || _core._enckey
+      ? _ownSet().length
+      : keysRaw(_core.context(CacheOp.keys)).length;
 }

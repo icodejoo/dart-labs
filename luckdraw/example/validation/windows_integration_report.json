@@ -1,0 +1,290 @@
+{
+  "device": "windows",
+  "repeat": 3,
+  "files": [
+    "capsule_flow_test.dart",
+    "grid_flow_test.dart",
+    "lever_flow_test.dart",
+    "lifecycle_test.dart",
+    "lots_flow_test.dart",
+    "lotto_flow_test.dart",
+    "number_wheel_flow_test.dart",
+    "resize_test.dart",
+    "route_test.dart",
+    "slot_flow_test.dart",
+    "wheel_flow_test.dart"
+  ],
+  "total": 33,
+  "passed": 33,
+  "failed": 0,
+  "passRate": 1.0,
+  "elapsedMs": 913606,
+  "complete": true,
+  "success": true,
+  "runs": [
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 39547,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 24516,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "capsule_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 24077,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 22820,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 21407,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "grid_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 22488,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 25061,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 28014,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lever_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 27719,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 39541,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 36643,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lifecycle_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 34800,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lots_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 26146,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lots_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 27765,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lots_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 27498,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lotto_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 30689,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lotto_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 29158,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "lotto_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 26115,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "number_wheel_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 21346,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "number_wheel_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 20405,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "number_wheel_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 21333,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "resize_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 30773,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "resize_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 27817,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "resize_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 25522,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "route_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 38346,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "route_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 37691,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "route_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 39366,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "slot_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 20762,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "slot_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 25367,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "slot_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 20423,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "wheel_flow_test.dart",
+      "attempt": 1,
+      "exitCode": 0,
+      "elapsedMs": 22946,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "wheel_flow_test.dart",
+      "attempt": 2,
+      "exitCode": 0,
+      "elapsedMs": 24360,
+      "timedOut": false,
+      "passed": true
+    },
+    {
+      "file": "wheel_flow_test.dart",
+      "attempt": 3,
+      "exitCode": 0,
+      "elapsedMs": 23145,
+      "timedOut": false,
+      "passed": true
+    }
+  ]
+}

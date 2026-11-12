@@ -1,0 +1,111 @@
+{
+  "planned": 168,
+  "executed": 168,
+  "interrupted": false,
+  "counts": {
+    "通过": 26,
+    "跳过": 142
+  },
+  "missing_capability_skips": 0,
+  "networks": [
+    "blackhole",
+    "dns",
+    "flap",
+    "lossy",
+    "normal",
+    "offline",
+    "weak"
+  ],
+  "styles": [
+    "business",
+    "http"
+  ],
+  "real_networks": [
+    "normal",
+    "weak"
+  ],
+  "scenarios": [
+    {
+      "id": "share.single-all-timeout-aborts-server",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.total-hang",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.total-over-slow-chunks",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.request-override-shorter",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.request-override-longer",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.within-budget",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.recovers-after-timeout",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.parallel-all-timeout",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.weak-generous-budget",
+      "declared_networks": [
+        "normal",
+        "weak"
+      ]
+    },
+    {
+      "id": "timeout.total-slow-chunks-small",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.total-budget-slow-body-ok",
+      "declared_networks": [
+        "normal"
+      ]
+    },
+    {
+      "id": "timeout.receive-gap-vs-chunk-bytes",
+      "declared_networks": [
+        "normal"
+      ]
+    }
+  ],
+  "testkit": {
+    "testkit_commit": "c3b8965f6257f2ea7c5a594c951c11a90fc0a9a2",
+    "sha256": {
+      "api-ws-demo": "93e266b640c296be224a85710c77f4245884be088fd06ab9fdd4efbf753849a7",
+      "netem": "84d55bfac0f84f91d734a0efc47702a4531282db055509920c466e15c15a0410"
+    },
+    "server": "http://127.0.0.1:47380",
+    "control": "http://127.0.0.1:47390"
+  }
+}

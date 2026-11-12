@@ -189,6 +189,7 @@ Future<void> _session(Random rnd, _Run run, int steps) async {
         run.trail.add('setFullscreen($v)');
         await e.setFullscreen(v);
         m.fullscreen = v;
+        if (v) m.mini = false; // 进入全屏先收起小窗
       case 13:
         final v = rnd.nextBool();
         run.trail.add('setMini($v)');

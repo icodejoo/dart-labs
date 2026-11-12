@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
 import 'countdown_builder.dart';
 import 'text_style.dart';
@@ -33,7 +34,10 @@ class TextCountdown extends StatelessWidget {
     this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.fps,
     this.precise = false,
+    this.total,
+    this.rounding = CountdownRounding.floor,
     this.controller,
     this.onComplete,
     this.onTick,
@@ -44,7 +48,10 @@ class TextCountdown extends StatelessWidget {
     this.onCancel,
     this.onPause,
     this.onResume,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
@@ -82,6 +89,10 @@ class TextCountdown extends StatelessWidget {
   /// Optional [Countdown] group. Defaults to [defaultCountdown].
   final Countdown? plugin;
 
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
   /// Drive on the shared precise group ([defaultCountdownMs], `interval: 0`)
   /// so sub-second formatters update every frame. Ignored when [plugin] or a
   /// provider group is set.
@@ -89,6 +100,14 @@ class TextCountdown extends StatelessWidget {
   /// 用共享精确组（[defaultCountdownMs]，`interval: 0`）驱动，使亚秒格式化器每帧
   /// 更新。设置了 [plugin] 或 provider 分组时忽略。
   final bool precise;
+
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间。例如拍卖整段时长：
+  /// `to: end, total: end.difference(start)`。详见 [CountdownBuilder.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。详见 [CountdownBuilder.rounding]。
+  final CountdownRounding rounding;
 
   /// Optional controller for pause / resume / reset.
   final CountdownController? controller;
@@ -119,14 +138,20 @@ class TextCountdown extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认文本样式之上，并取默认 formatter。
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final s = (style ?? const TextCountdownStyle()).merge(scope?.textCountdownStyle);
+    final theme = CountmanTheme.maybeOf(context);
+    final s = (style ?? const TextCountdownStyle())
+        .merge(scope?.textCountdownStyle)
+        .merge(theme?.textCountdownStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 
     final number = CountdownBuilder(
       to: to,
-      plugin: plugin ?? scope?.plugin,
+      plugin: plugin,
+      fps: fps,
       precise: precise,
+      total: total,
+      rounding: rounding,
       controller: controller,
       onComplete: onComplete,
       onTick: onTick,

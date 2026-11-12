@@ -1,0 +1,36 @@
+{
+  "instr-a": {
+    "passed": 554,
+    "skipped": 0,
+    "failed": 0,
+    "files": 63,
+    "sha256": "7fd2bbbb602cff84c6b84590f25cee9d62c95518b16e54cf8159eeb73232d597"
+  },
+  "instr-b": {
+    "passed": 130,
+    "skipped": 0,
+    "failed": 0,
+    "files": 31,
+    "sha256": "8ddc30d1061c55c940d5221f98045b9cb4dafe39c42707e01f632f89c83daec9"
+  },
+  "instr-c": {
+    "passed": 401,
+    "skipped": 0,
+    "failed": 0,
+    "files": 46,
+    "sha256": "f8845e1db0dc0f31d62abc62e87f4fea543e2add36a8d446479325a8d100419a"
+  },
+  "instr-d": {
+    "passed": 23,
+    "skipped": 0,
+    "failed": 0,
+    "files": 4,
+    "sha256": "6c4e2a4b89f68543d4922e9d7e330582f167c84baebffbb49b908f7bf1b2752e"
+  },
+  "total": {
+    "passed": 1108,
+    "files": 144,
+    "skipped": 0,
+    "failed": 0
+  }
+}

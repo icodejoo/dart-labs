@@ -1,4 +1,12 @@
 # 基准默认跳过；显式运行时加 --tags benchmark --run-skipped。
+# golden（像素回归）同样默认跳过：golden 文件在 Windows 上用
+#   flutter test --tags golden --run-skipped --update-goldens test/golden
+# 生成；跨平台的抗锯齿像素会有细微差异，所以默认不跑，需要时显式比对：
+#   flutter test --tags golden --run-skipped test/golden
 tags:
   benchmark:
     skip: '性能基准：使用 --tags benchmark --run-skipped 显式运行'
+  golden:
+    skip: '像素回归：使用 --tags golden --run-skipped 显式运行（生成加 --update-goldens）'
+  benchmark-archive:
+    skip: '历史验证夹具（被否决候选的几何/像素证据），不属于性能基准；已与当前生产代码脱节'

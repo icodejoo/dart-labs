@@ -1,0 +1,705 @@
+{
+  "n": "Root",
+  "value": 0,
+  "type": "apk",
+  "fixtureNote": "2026-11-10 Flutter 3.47 arm64 wheel_only; real directory and VM data nodes retained; library implementations and other packages collapsed to original leaf sums; ZIP assets omitted.",
+  "children": [
+    {
+      "n": "lib",
+      "children": [
+        {
+          "n": "arm64-v8a",
+          "children": [
+            {
+              "n": "libapp.so (Dart AOT)",
+              "value": 1966984,
+              "children": [
+                {
+                  "n": "@unknown",
+                  "value": 175966
+                },
+                {
+                  "n": "@shared",
+                  "value": 21912
+                },
+                {
+                  "n": "package:flutter",
+                  "value": 565032
+                },
+                {
+                  "n": "dart:_compact_hash",
+                  "value": 39586
+                },
+                {
+                  "n": "dart:core",
+                  "value": 230097
+                },
+                {
+                  "n": "package:luckdraw",
+                  "k": "p",
+                  "children": [
+                    {
+                      "n": "package:luckdraw/src",
+                      "k": "p",
+                      "children": [
+                        {
+                          "n": "wheel",
+                          "k": "p",
+                          "children": [
+                            {
+                              "n": "motion/wheel_motion.dart",
+                              "k": "p",
+                              "lastPathElement": true,
+                              "value": 5836
+                            },
+                            {
+                              "n": "model",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "wheel_config.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 1451
+                                },
+                                {
+                                  "n": "wheel_parts.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 692
+                                }
+                              ]
+                            },
+                            {
+                              "n": "render",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "wheel_painter.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 9489
+                                },
+                                {
+                                  "n": "wheel_canvas_renderer.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 3266
+                                }
+                              ]
+                            },
+                            {
+                              "n": "layout",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "wheel_layout.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 2470
+                                },
+                                {
+                                  "n": "wheel_angles.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 2755
+                                }
+                              ]
+                            },
+                            {
+                              "n": "wheel_game.dart",
+                              "k": "p",
+                              "lastPathElement": true,
+                              "value": 794
+                            },
+                            {
+                              "n": "control/wheel_controller.dart",
+                              "k": "p",
+                              "lastPathElement": true,
+                              "value": 532
+                            },
+                            {
+                              "n": "widgets/lucky_wheel.dart",
+                              "k": "p",
+                              "lastPathElement": true,
+                              "value": 448
+                            }
+                          ]
+                        },
+                        {
+                          "n": "core",
+                          "k": "p",
+                          "children": [
+                            {
+                              "n": "motion",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "timeline.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 582
+                                },
+                                {
+                                  "n": "result.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 201
+                                },
+                                {
+                                  "n": "stop_solver.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 1262
+                                },
+                                {
+                                  "n": "clock.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 1313
+                                },
+                                {
+                                  "n": "timebase.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 305
+                                },
+                                {
+                                  "n": "motion_options.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 467
+                                },
+                                {
+                                  "n": "motion.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 368
+                                },
+                                {
+                                  "n": "phase.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 283
+                                }
+                              ]
+                            },
+                            {
+                              "n": "widgets",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "game_view.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 9209
+                                },
+                                {
+                                  "n": "lifecycle.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 467
+                                }
+                              ]
+                            },
+                            {
+                              "n": "text",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "text_line.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 152
+                                },
+                                {
+                                  "n": "text_measurer.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 777
+                                }
+                              ]
+                            },
+                            {
+                              "n": "render",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "renderer.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 442
+                                },
+                                {
+                                  "n": "picture_cache.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 2062
+                                },
+                                {
+                                  "n": "layer.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 581
+                                },
+                                {
+                                  "n": "paint_helpers.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 294
+                                }
+                              ]
+                            },
+                            {
+                              "n": "foundation",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "length.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 454
+                                },
+                                {
+                                  "n": "options.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 808
+                                },
+                                {
+                                  "n": "text.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 629
+                                },
+                                {
+                                  "n": "image.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 247
+                                },
+                                {
+                                  "n": "fill.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 605
+                                },
+                                {
+                                  "n": "angles.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 137
+                                }
+                              ]
+                            },
+                            {
+                              "n": "control",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "controller.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 4955
+                                },
+                                {
+                                  "n": "hooks.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 161
+                                }
+                              ]
+                            },
+                            {
+                              "n": "geometry",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "image_box.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 162
+                                },
+                                {
+                                  "n": "canvas_arc.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 299
+                                },
+                                {
+                                  "n": "fan_path.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 1116
+                                }
+                              ]
+                            },
+                            {
+                              "n": "game",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "layout.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 230
+                                },
+                                {
+                                  "n": "frame.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 144
+                                },
+                                {
+                                  "n": "game.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 254
+                                }
+                              ]
+                            },
+                            {
+                              "n": "image",
+                              "k": "p",
+                              "children": [
+                                {
+                                  "n": "image_set.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 153
+                                },
+                                {
+                                  "n": "image_resolver.dart",
+                                  "k": "p",
+                                  "lastPathElement": true,
+                                  "value": 1982
+                                }
+                              ]
+                            },
+                            {
+                              "n": "easing/easing.dart",
+                              "k": "p",
+                              "lastPathElement": true,
+                              "value": 224
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "n": "<String>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 63
+                    },
+                    {
+                      "n": "<int>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 29
+                    },
+                    {
+                      "n": "<TypeArguments>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 11
+                    },
+                    {
+                      "n": "<Array>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 7
+                    },
+                    {
+                      "n": "<Type>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 40
+                    },
+                    {
+                      "n": "<Instance>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 32
+                    },
+                    {
+                      "n": "<FunctionType>",
+                      "k": "s",
+                      "t": "D",
+                      "value": 15
+                    }
+                  ],
+                  "lastPathElement": true
+                },
+                {
+                  "n": "dart:mixin_deduplication",
+                  "value": 93199
+                },
+                {
+                  "n": "dart:ui",
+                  "value": 125112
+                },
+                {
+                  "n": "dart:_internal",
+                  "value": 53694
+                },
+                {
+                  "n": "package:vector_math/package:vector_math/vector_math_64.dart",
+                  "value": 12133
+                },
+                {
+                  "n": "dart:ffi",
+                  "value": 11086
+                },
+                {
+                  "n": "dart:convert",
+                  "value": 44477
+                },
+                {
+                  "n": "dart:io",
+                  "value": 26958
+                },
+                {
+                  "n": "dart:typed_data",
+                  "value": 154418
+                },
+                {
+                  "n": "dart:async",
+                  "value": 88107
+                },
+                {
+                  "n": "dart:developer",
+                  "value": 302
+                },
+                {
+                  "n": "dart:isolate",
+                  "value": 23807
+                },
+                {
+                  "n": "ExceptionHandlers",
+                  "value": 40
+                },
+                {
+                  "n": "dart:_vm",
+                  "value": 2233
+                },
+                {
+                  "n": "dart:mirrors",
+                  "value": 1061
+                },
+                {
+                  "n": "dart:collection",
+                  "value": 32604
+                },
+                {
+                  "n": "PatchClass",
+                  "value": 34
+                },
+                {
+                  "n": "package:meta/package:meta/meta.dart",
+                  "value": 163
+                },
+                {
+                  "n": "package:collection/package:collection/src/priority_queue.dart",
+                  "value": 435
+                },
+                {
+                  "n": "dart:_http",
+                  "value": 506
+                },
+                {
+                  "n": "MegamorphicCache",
+                  "value": 40
+                },
+                {
+                  "n": "ApiError",
+                  "value": 32
+                },
+                {
+                  "n": "Script",
+                  "value": 30
+                },
+                {
+                  "n": "dart:math",
+                  "value": 2908
+                },
+                {
+                  "n": "ICData",
+                  "value": 30
+                },
+                {
+                  "n": "InstructionsSection",
+                  "value": 43
+                },
+                {
+                  "n": "Code",
+                  "value": 28
+                },
+                {
+                  "n": "dart:vmservice_io",
+                  "value": 107
+                },
+                {
+                  "n": "WeakArray",
+                  "value": 33
+                },
+                {
+                  "n": "dart:concurrent",
+                  "value": 434
+                },
+                {
+                  "n": "Namespace",
+                  "value": 33
+                },
+                {
+                  "n": "package:luckdraw_treeshake_probe/package:luckdraw_treeshake_probe/main.dart",
+                  "value": 1381
+                },
+                {
+                  "n": "PcDescriptors",
+                  "value": 37
+                },
+                {
+                  "n": "CompressedStackMaps",
+                  "value": 43
+                },
+                {
+                  "n": "dart:_vmservice",
+                  "value": 106
+                },
+                {
+                  "n": "Library",
+                  "value": 31
+                },
+                {
+                  "n": "ContextScope",
+                  "value": 36
+                },
+                {
+                  "n": "dart:nativewrappers",
+                  "value": 167
+                },
+                {
+                  "n": "LoadingUnit",
+                  "value": 35
+                },
+                {
+                  "n": "MonomorphicSmiableCall",
+                  "value": 46
+                },
+                {
+                  "n": "Bytecode",
+                  "value": 32
+                },
+                {
+                  "n": "Instructions",
+                  "value": 36
+                },
+                {
+                  "n": "ObjectPool",
+                  "value": 34
+                },
+                {
+                  "n": "dynamic",
+                  "value": 33
+                },
+                {
+                  "n": "Context",
+                  "value": 31
+                },
+                {
+                  "n": "CodeSourceMap",
+                  "value": 37
+                },
+                {
+                  "n": "Never",
+                  "value": 31
+                },
+                {
+                  "n": "ClosureData",
+                  "value": 35
+                },
+                {
+                  "n": "SingleTargetCache",
+                  "value": 41
+                },
+                {
+                  "n": "LocalVarDescriptors",
+                  "value": 43
+                },
+                {
+                  "n": "TypeParameters",
+                  "value": 38
+                },
+                {
+                  "n": "WeakSerializationReference",
+                  "value": 50
+                },
+                {
+                  "n": "UnwindError",
+                  "value": 35
+                },
+                {
+                  "n": "SubtypeTestCache",
+                  "value": 40
+                },
+                {
+                  "n": "Field",
+                  "value": 29
+                },
+                {
+                  "n": "Sentinel",
+                  "value": 35
+                },
+                {
+                  "n": "KernelProgramInfo",
+                  "value": 41
+                },
+                {
+                  "n": "InstructionsTable",
+                  "value": 41
+                },
+                {
+                  "n": "void",
+                  "value": 77
+                },
+                {
+                  "n": "UnlinkedCall",
+                  "value": 36
+                },
+                {
+                  "n": "UnhandledException",
+                  "value": 42
+                },
+                {
+                  "n": "TypeArguments",
+                  "value": 40
+                },
+                {
+                  "n": "Class",
+                  "value": 29
+                },
+                {
+                  "n": "LanguageError",
+                  "value": 37
+                },
+                {
+                  "n": "FfiTrampolineData",
+                  "value": 41
+                },
+                {
+                  "n": "@stubs",
+                  "value": 111917
+                },
+                {
+                  "n": "Function",
+                  "value": 22
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

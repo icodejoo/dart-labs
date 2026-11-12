@@ -1,0 +1,411 @@
+{
+  "apk": "E:\\workspaces\\wt-mova-cp2\\mova\\example\\tool\\coverage_evidence\\matrix-cp2-build-r2-20261104-171125\\matrix-cp2-build-r2-20261104-171125-installed.apk",
+  "attempts": [
+    {
+      "batch": "cp2-liveedge",
+      "run_id": "cp2-liveedge-resume-20261104-175907",
+      "planned": 5,
+      "executed": 5,
+      "counts": {
+        "PASS": 5,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "memory": [
+        {
+          "FreePhysicalMemory": 6001092,
+          "FreeVirtualMemory": 2997648,
+          "at": "2026-11-04T17:59:07.620070"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-liveedge-resume-20261104-175907",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-liveedge-resume-20261104-175907.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-liveedge-resume-20261104-175907.console.log",
+      "harness": [],
+      "missing": []
+    },
+    {
+      "batch": "cp2-audioonly-bg",
+      "run_id": "cp2-audioonly-bg-resume-20261104-180047",
+      "planned": 30,
+      "executed": 21,
+      "counts": {
+        "PASS": 21,
+        "FAIL": 0,
+        "BLOCKED": 9
+      },
+      "status": "BLOCKED",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 5278640,
+          "FreeVirtualMemory": 2046460,
+          "at": "2026-11-04T18:00:47.373315"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-audioonly-bg-resume-20261104-180047",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-audioonly-bg-resume-20261104-180047.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-audioonly-bg-resume-20261104-180047.console.log",
+      "harness": [
+        "",
+        "cleanup ['adb', '-s', '7NQBB23606003715', 'reverse', '--remove', 'tcp:18190']: exit=1: adb.exe: error: protocol fault (couldn't read status): connection reset\r\n"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.audioonly-bg.videoGuard.1: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.2: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.3: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.4: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.5: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.6: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.7: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.8: missing/duplicate CHECK",
+        "CP2.audioonly-bg.videoGuard.9: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-events",
+      "run_id": "cp2-events-resume-20261104-181428",
+      "planned": 5,
+      "executed": 5,
+      "counts": {
+        "PASS": 5,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS",
+      "exit": 0,
+      "kind": "OK",
+      "memory": [
+        {
+          "FreePhysicalMemory": 4524360,
+          "FreeVirtualMemory": 3241068,
+          "at": "2026-11-04T18:14:28.090830"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-events-resume-20261104-181428",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-events-resume-20261104-181428.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-events-resume-20261104-181428.console.log",
+      "harness": [],
+      "missing": []
+    },
+    {
+      "batch": "cp2-qoe",
+      "run_id": "cp2-qoe-resume-20261104-181724",
+      "planned": 10,
+      "executed": 9,
+      "counts": {
+        "PASS": 9,
+        "FAIL": 0,
+        "BLOCKED": 1
+      },
+      "status": "BLOCKED",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 6057748,
+          "FreeVirtualMemory": 5769948,
+          "at": "2026-11-04T18:17:24.555348"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-qoe-resume-20261104-181724",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-qoe-resume-20261104-181724.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-qoe-resume-20261104-181724.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 197065650, 'scene': 'qoe', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: native path/time-pos unavailable', 'stack': '#0      Cp2Harness.native (package:mova_example/verify_auto/cp2_harness.dart:468)\\n<asynchronous suspension>\\n#1      runQoe.<anonymous closure> (package:mova_example/verify_auto/cp2_qoe_auto.dart:37)\\n<asynchronous suspension>\\n#2      Cp2Harness.until (package:mova_example/verify_auto/cp2_harness.dart:407)\\n<asynchronous suspension>\\n#3      runQoe (package:mova_example/verify_auto/cp2_qoe_auto.dart:37)\\n<asynchronous suspension>\\n#4      Cp2Harness.start (package:mova_example/verify_auto/cp2_harness.dart:532)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CP2.qoe.manual720.4: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-adpaths",
+      "run_id": "cp2-adpaths-resume-20261104-182245",
+      "planned": 40,
+      "executed": 7,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 7,
+        "BLOCKED": 33
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 4697892,
+          "FreeVirtualMemory": 3908924,
+          "at": "2026-11-04T18:22:45.416527"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adpaths-resume-20261104-182245",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adpaths-resume-20261104-182245.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-adpaths-resume-20261104-182245.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 70823670, 'scene': 'adpaths', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: native path/time-pos unavailable', 'stack': '#0      Cp2Harness.native (package:mova_example/verify_auto/cp2_harness.dart:468)\\n<asynchronous suspension>\\n#1      runAdpaths.<anonymous closure> (package:mova_example/verify_auto/cp2_adpaths_auto.dart:31)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.adpaths.hls.mid.0: missing/duplicate CHECK",
+        "CP2.adpaths.hls.mid.1: missing/duplicate CHECK",
+        "CP2.adpaths.hls.mid.2: missing/duplicate CHECK",
+        "CP2.adpaths.hls.mid.3: missing/duplicate CHECK",
+        "CP2.adpaths.hls.mid.4: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pod.0: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pod.1: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pod.2: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pod.3: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pod.4: missing/duplicate CHECK",
+        "CP2.adpaths.hls.post.0: missing/duplicate CHECK",
+        "CP2.adpaths.hls.post.1: missing/duplicate CHECK",
+        "CP2.adpaths.hls.post.2: missing/duplicate CHECK",
+        "CP2.adpaths.hls.post.3: missing/duplicate CHECK",
+        "CP2.adpaths.hls.post.4: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pre.0: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pre.1: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pre.2: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pre.3: missing/duplicate CHECK",
+        "CP2.adpaths.hls.pre.4: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.mid.2: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.mid.3: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.mid.4: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.pod.0: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.pod.1: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.pod.2: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.pod.3: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.pod.4: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.post.0: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.post.1: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.post.2: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.post.3: missing/duplicate CHECK",
+        "CP2.adpaths.mp4.post.4: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-adpause",
+      "run_id": "cp2-adpause-resume-20261104-182433",
+      "planned": 10,
+      "executed": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "BLOCKED": 10
+      },
+      "status": "BLOCKED",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 4760840,
+          "FreeVirtualMemory": 4026992,
+          "at": "2026-11-04T18:24:33.277410"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adpause-resume-20261104-182433",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adpause-resume-20261104-182433.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-adpause-resume-20261104-182433.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 42857551, 'scene': 'adpause', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP2 condition; scene=adpause', 'stack': '#0      Cp2Harness.until (package:mova_example/verify_auto/cp2_harness.dart:415)\\n<asynchronous suspension>\\n#1      runCp2AdHold (package:mova_example/verify_auto/cp2_adpause_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp2Harness.start (package:mova_example/verify_auto/cp2_harness.dart:532)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.adpause.pause.0: missing/duplicate CHECK",
+        "CP2.adpause.pause.1: missing/duplicate CHECK",
+        "CP2.adpause.pause.2: missing/duplicate CHECK",
+        "CP2.adpause.pause.3: missing/duplicate CHECK",
+        "CP2.adpause.pause.4: missing/duplicate CHECK",
+        "CP2.adpause.pause.5: missing/duplicate CHECK",
+        "CP2.adpause.pause.6: missing/duplicate CHECK",
+        "CP2.adpause.pause.7: missing/duplicate CHECK",
+        "CP2.adpause.pause.8: missing/duplicate CHECK",
+        "CP2.adpause.pause.9: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-adbg",
+      "run_id": "cp2-adbg-resume-20261104-182539",
+      "planned": 20,
+      "executed": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "BLOCKED": 20
+      },
+      "status": "BLOCKED",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 5269536,
+          "FreeVirtualMemory": 4111084,
+          "at": "2026-11-04T18:25:39.879615"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-adbg-resume-20261104-182539",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-adbg-resume-20261104-182539.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-adbg-resume-20261104-182539.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 63940385, 'scene': 'adbg', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP2 condition; scene=adbg', 'stack': '#0      Cp2Harness.until (package:mova_example/verify_auto/cp2_harness.dart:415)\\n<asynchronous suspension>\\n#1      runCp2AdHold (package:mova_example/verify_auto/cp2_adpause_auto.dart:40)\\n<asynchronous suspension>\\n#2      Cp2Harness.start (package:mova_example/verify_auto/cp2_harness.dart:532)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.adbg.guard.0: missing/duplicate CHECK",
+        "CP2.adbg.guard.1: missing/duplicate CHECK",
+        "CP2.adbg.guard.2: missing/duplicate CHECK",
+        "CP2.adbg.guard.3: missing/duplicate CHECK",
+        "CP2.adbg.guard.4: missing/duplicate CHECK",
+        "CP2.adbg.guard.5: missing/duplicate CHECK",
+        "CP2.adbg.guard.6: missing/duplicate CHECK",
+        "CP2.adbg.guard.7: missing/duplicate CHECK",
+        "CP2.adbg.guard.8: missing/duplicate CHECK",
+        "CP2.adbg.guard.9: missing/duplicate CHECK",
+        "CP2.adbg.plain.0: missing/duplicate CHECK",
+        "CP2.adbg.plain.1: missing/duplicate CHECK",
+        "CP2.adbg.plain.2: missing/duplicate CHECK",
+        "CP2.adbg.plain.3: missing/duplicate CHECK",
+        "CP2.adbg.plain.4: missing/duplicate CHECK",
+        "CP2.adbg.plain.5: missing/duplicate CHECK",
+        "CP2.adbg.plain.6: missing/duplicate CHECK",
+        "CP2.adbg.plain.7: missing/duplicate CHECK",
+        "CP2.adbg.plain.8: missing/duplicate CHECK",
+        "CP2.adbg.plain.9: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-pod2",
+      "run_id": "cp2-pod2-resume-20261104-182714",
+      "planned": 20,
+      "executed": 6,
+      "counts": {
+        "PASS": 5,
+        "FAIL": 1,
+        "BLOCKED": 14
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 4371840,
+          "FreeVirtualMemory": 3334308,
+          "at": "2026-11-04T18:27:14.761144"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-pod2-resume-20261104-182714",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-pod2-resume-20261104-182714.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-pod2-resume-20261104-182714.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 80067605, 'scene': 'pod2', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP2 condition; scene=pod2', 'stack': '#0      Cp2Harness.until (package:mova_example/verify_auto/cp2_harness.dart:415)\\n<asynchronous suspension>\\n#1      runPod2 (package:mova_example/verify_auto/cp2_pod2_auto.dart:51)\\n<asynchronous suspension>\\n#2      Cp2Harness.start (package:mova_example/verify_auto/cp2_harness.dart:532)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.pod2.nowait.ad2.0: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.1: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.2: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.3: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.4: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.5: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.6: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.7: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.8: missing/duplicate CHECK",
+        "CP2.pod2.nowait.ad2.9: missing/duplicate CHECK",
+        "CP2.pod2.wait.ad2.6: missing/duplicate CHECK",
+        "CP2.pod2.wait.ad2.7: missing/duplicate CHECK",
+        "CP2.pod2.wait.ad2.8: missing/duplicate CHECK",
+        "CP2.pod2.wait.ad2.9: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-playlist3",
+      "run_id": "cp2-playlist3-resume-20261104-182900",
+      "planned": 5,
+      "executed": 2,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 2,
+        "BLOCKED": 3
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 4526028,
+          "FreeVirtualMemory": 3633100,
+          "at": "2026-11-04T18:29:00.956527"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-playlist3-resume-20261104-182900",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-playlist3-resume-20261104-182900.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-playlist3-resume-20261104-182900.console.log",
+      "harness": [
+        "{'kind': 'ERROR', 'us': 311038909, 'scene': 'playlist3', 'kindDetail': 'HARNESS', 'error': 'TimeoutException: CP2 condition; scene=playlist3', 'stack': '#0      Cp2Harness.until (package:mova_example/verify_auto/cp2_harness.dart:415)\\n<asynchronous suspension>\\n#1      runPlaylist3 (package:mova_example/verify_auto/cp2_playlist3_auto.dart:20)\\n<asynchronous suspension>\\n#2      Cp2Harness.start (package:mova_example/verify_auto/cp2_harness.dart:532)\\n<asynchronous suspension>\\n'}"
+      ],
+      "missing": [
+        "CHECK cardinality mismatch",
+        "CP2.playlist3.series.2: missing/duplicate CHECK",
+        "CP2.playlist3.series.3: missing/duplicate CHECK",
+        "CP2.playlist3.series.4: missing/duplicate CHECK"
+      ]
+    },
+    {
+      "batch": "cp2-rate",
+      "run_id": "cp2-rate-resume-20261104-183441",
+      "planned": 10,
+      "executed": 10,
+      "counts": {
+        "PASS": 5,
+        "FAIL": 5,
+        "BLOCKED": 0
+      },
+      "status": "FAIL",
+      "exit": 1,
+      "kind": "FAIL",
+      "memory": [
+        {
+          "FreePhysicalMemory": 2860584,
+          "FreeVirtualMemory": 1502880,
+          "at": "2026-11-04T18:34:41.954743"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-rate-resume-20261104-183441",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-rate-resume-20261104-183441.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-rate-resume-20261104-183441.console.log",
+      "harness": [],
+      "missing": []
+    },
+    {
+      "batch": "cp2-warmmute",
+      "run_id": "cp2-warmmute-resume-20261104-183712",
+      "planned": 15,
+      "executed": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "BLOCKED": 15
+      },
+      "status": "BLOCKED",
+      "exit": 1,
+      "kind": "HARNESS",
+      "memory": [
+        {
+          "FreePhysicalMemory": 7015560,
+          "FreeVirtualMemory": 4627092,
+          "at": "2026-11-04T18:37:12.812667"
+        }
+      ],
+      "evidence": "example/tool/coverage_evidence/matrix-cp2-warmmute-resume-20261104-183712",
+      "report": "doc\\plans\\2026-11-04-matrix-run-cp2-warmmute-resume-20261104-183712.json",
+      "console": "example\\tool\\coverage_evidence\\cp2-warmmute-resume-20261104-183712.console.log",
+      "harness": [
+        "alias command exit=4294967295"
+      ],
+      "missing": []
+    }
+  ]
+}

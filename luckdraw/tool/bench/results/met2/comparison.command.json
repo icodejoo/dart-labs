@@ -1,0 +1,11 @@
+{
+  "command": [
+    "dart",
+    "run",
+    "tool/bench/compare.dart",
+    "--rss-all-scenes",
+    "--input=tool/bench/results/met2/comparison",
+    "--output=tool/bench/results/met2/comparison.json"
+  ],
+  "exit_code": 1
+}

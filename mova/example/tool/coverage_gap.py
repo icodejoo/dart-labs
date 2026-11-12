@@ -15,6 +15,8 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import http.server
+import threading
 
 import run_matrix as matrix
 
@@ -94,6 +96,27 @@ class GapDriver(matrix.Driver):
         raise RuntimeError('HARNESS watchdog: no expected device handshake')
 
     def launch(self):
+        # CP3 uses a shared suite rather than the old gap-only entry APK.
+        # An existing CP0 selector owns its own lifecycle; do not replace it.
+        if os.environ.get('MOVA_CP3_CAMPAIGN') == '1':
+            class Selector(http.server.BaseHTTPRequestHandler):
+                def do_GET(self):
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'gap||30')
+
+                def log_message(self, *args):
+                    pass
+
+            try:
+                self.campaign_selector = http.server.ThreadingHTTPServer(('127.0.0.1', 18082), Selector)
+            except OSError:
+                self.campaign_selector = None
+            if self.campaign_selector:
+                threading.Thread(target=self.campaign_selector.serve_forever, daemon=True).start()
+                self.adb('reverse', 'tcp:18082', 'tcp:18082')
+                self.mappings.append(('reverse', 18082))
+                self.note('STEP', 'CP3 shared APK selector: gap||30 on 18082')
         self.adb('forward', 'tcp:18086', 'tcp:18086')
         self.mappings.append(('forward', 18086))
         self.adb('reverse', 'tcp:18085', 'tcp:18085')
@@ -111,6 +134,13 @@ class GapDriver(matrix.Driver):
                                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         self.children.append((proc, stream))
         self.note('RET', f'logcat pid={proc.pid} started')
+
+    def cleanup(self):
+        selector = getattr(self, 'campaign_selector', None)
+        if selector:
+            selector.shutdown()
+            selector.server_close()
+        super().cleanup()
 
     def media(self, fixtures):
         if not (fixtures / 'generation.json').is_file():

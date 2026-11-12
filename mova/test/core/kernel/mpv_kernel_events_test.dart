@@ -46,6 +46,12 @@ class _FakeNative extends Fake implements NativePlayer {
   final List<String> callLog;
   _FakeNative(this.callLog);
 
+  /// Optional setup barriers for bounded teardown tests.
+  ///
+  /// 用于有界销毁测试的可选准备阻塞点。
+  Completer<int>? handleBarrier;
+  Completer<void>? observeBarrier;
+
   /// 原生属性操作为空实现，支持首次 open 的准备阶段。
   @override
   Future<String> getProperty(String name, {bool waitForInitialization = true}) async => '';
@@ -57,12 +63,13 @@ class _FakeNative extends Fake implements NativePlayer {
   @override
   Future<int> get handle async {
     callLog.add('native.handle');
-    return 12345;
+    return handleBarrier == null ? 12345 : await handleBarrier!.future;
   }
 
   @override
   Future<void> observeProperty(String name, Future<void> Function(String) callback, {bool waitForInitialization = true}) async {
     callLog.add('native.observeProperty:$name');
+    await observeBarrier?.future;
   }
 }
 
@@ -380,6 +387,48 @@ void main() {
       await kernel.dispose();
     });
 
+    for (final blockObserver in [true, false]) {
+      test('B4 dispose bounds native setup and rejects late registration observer=$blockObserver', () async {
+        final calls = <String>[];
+        final player = _FakePlayer(calls);
+        final native = player._platform!;
+        if (blockObserver) {
+          native.observeBarrier = Completer<void>();
+        } else {
+          native.handleBarrier = Completer<int>();
+        }
+        var created = 0;
+        final kernel = MovaMpvKernel(
+          player: player,
+          audioOnly: true,
+          observeQoeSignals: true,
+          observeNativeEvents: true,
+          backendFactory: (_, _) {
+            created++;
+            return FakeMpvEventBackend();
+          },
+        );
+        var opened = false;
+        kernel.open('https://h/late.mp4').then((_) => opened = true);
+        await pumpEventQueue();
+        var disposed = false;
+        kernel.dispose().then((_) => disposed = true);
+        await pumpEventQueue();
+        expect(disposed, isFalse);
+        await Future<void>.delayed(const Duration(seconds: 5));
+        await pumpEventQueue();
+        expect(disposed, isTrue);
+        expect(calls.where((v) => v == 'player.dispose'), hasLength(1));
+        expect(created, 0);
+        native.observeBarrier?.complete();
+        native.handleBarrier?.complete(12345);
+        await pumpEventQueue();
+        expect(opened, isTrue);
+        expect(created, 0);
+        expect(kernel.endFileAvailable, isFalse);
+      });
+    }
+
     test('immediate dispose race loop', () async {
       int createSum = 0;
       int destroySum = 0;
@@ -441,6 +490,39 @@ void main() {
       expect(restartsDone, isTrue);
       expect(endFilesDone, isTrue);
     });
+
+    for (final streamName in ['size', 'stalling', 'playbackRestarts', 'endFiles', 'attemptEnds']) {
+      test('dispose releases native resources with paused $streamName listener', () async {
+        final calls = <String>[];
+        final kernel = MovaMpvKernel(
+          player: _FakePlayer(calls),
+          audioOnly: true,
+          backendFactory: (_, _) => _SharedLogBackend(calls, () {}, () {}),
+        );
+        await kernel.open('https://h/a.mp4');
+        final Stream<dynamic> stream = switch (streamName) {
+          'size' => kernel.size,
+          'stalling' => kernel.stalling,
+          'playbackRestarts' => kernel.playbackRestarts,
+          'endFiles' => kernel.endFiles,
+          _ => kernel.attemptEnds,
+        };
+        var done = false;
+        final sub = stream.listen((_) {}, onDone: () => done = true)..pause();
+        try {
+          await kernel.dispose().timeout(const Duration(seconds: 1));
+          expect(calls, contains('backend.destroy'));
+          expect(calls, contains('player.dispose'));
+          expect(calls.indexOf('backend.destroy'), lessThan(calls.indexOf('player.dispose')));
+          expect(done, isFalse);
+          sub.resume();
+          await pumpEventQueue();
+          expect(done, isTrue);
+        } finally {
+          await sub.cancel();
+        }
+      });
+    }
 
     test('reason mappings', () async {
       final callLog = <String>[];

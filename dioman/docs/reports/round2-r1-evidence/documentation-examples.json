@@ -1,0 +1,24 @@
+{
+  "files": {
+    "README.md": {
+      "compiled": 15,
+      "skippedOld": 0
+    },
+    "README.zh-CN.md": {
+      "compiled": 15,
+      "skippedOld": 0
+    },
+    "docs/guides/migrating-to-pipeline.md": {
+      "compiled": 18,
+      "skippedOld": 18
+    },
+    "CHANGELOG.md": {
+      "compiled": 7,
+      "skippedOld": 7
+    }
+  },
+  "compiled": 55,
+  "skippedOld": 25,
+  "errors": [],
+  "exitCode": 0
+}

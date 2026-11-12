@@ -5,6 +5,23 @@
 > **读者**：没有任何会话上下文的 AI 或人。只读本文 + 文中链接就能接着做。
 > **事实口径**：每个「最近结论」都带出处；盘点里没有结论的写「未跑/待确认」，不脑补。单测基线 **1738 项全绿**（2026-10-28 回填后，主会话实跑完整 `flutter test` 得 `+1738: All tests passed!`、0 skip，`flutter analyze lib test` 0 issues；矩阵初稿成稿时的基线是 1519）。真机列只有历史结论；**本轮新增的真机用例都只做了离线校验（`run_matrix.py --check`、unittest），没有上机**，其「最近结论」一律保持「未跑」。
 
+## 统一编排验收增补（2026-11-04 C17）
+
+本节为现行验收口径，覆盖下文 2026-10-28 历史表中的过期状态，不把旧证据重记为新测试。
+A/B/C 代码已落地，CP2/CP3 待真机；CP1 为 13 PASS / 3 BLOCKED，尚未整体通过。
+
+| 新增行 | 逻辑验收 | 已有证据 / 设备边界 |
+|---|---|---|
+| OR1 会话 | item/node/attempt 身份、epoch、拒绝/抢源、共享广告列表、后贴片后连播 | test/core/session/；新全量基线见 CLAUDE，CP2/CP3 待真机 |
+| OR2 广告时钟 | 暂停不计广告位/跳过/delay；首帧期限仍为墙钟；不依赖媒体进度 | ads_clock_test、session/ad_clock_test；CP2/CP3 待真机 |
+| OR3 错误分级 | 非终结诊断不写 state.error；终结单次结算；正片失败汇入 contentError | orchestration_terminal_error_test、session_failure_test；CP1 错误分级 10/10、poster 5/5 |
+| OR4 加载规格 | 重试保手选档/时移/最新 seek/意图，failover 清旧规格 | engine_load_spec_record/replay_test；CP1 手选 720p 重试 20/20 |
+| OR5 UI 与导出 | chrome 多视图隔离、style 不重建引擎、全屏路由及入口快照 | test/ui/、test/public_api/export_surface_test；CP3 待设备 |
+
+**F3/A17 统一判据**：原生 time-pos 稳定落点误差 ≤500ms 且 path 正确；同时记录 <200ms
+比例，不把 <200ms 当通过门槛。等待既有续播校验链稳定，下一次 seek 前完成采样。
+CP1 precise 三组 280/280、H28 默认三组 90/90，最大误差分别见原报告，不能用瞬时 0 秒读回判失败。
+
 ## 0. 三档定义与判定流程
 
 | 档 | 一句话 | 谁给结论 | 验收动作 |
@@ -603,15 +620,21 @@
 
 ### 4.2 存疑 / 未核对（按风险排序，建议优先补测）
 
-1. **H28 默认配置（无 RESTART 泵）下的档位落地信号**：F3/A17 的 280 次真机复测全是 `preciseFirstFrame:true`；宿主默认用 `createMovaEngine()`，走 `buffering` 下降沿 + 4s 兜底，**这条路径零真机数据**，而单测（`engine_test.dart:178-292`、`first_frame_engine_test.dart:223-262`）恰好全是这个模型。 **用例已写，待上机**：gap-assumptions `H28.{default,precise}.*`。
-2. **H20/H50 HLS 首次 open 后的寄存 seek（含 cutover 影子 `seek(at)`）**：A7/F4 都用 mp4；HLS 没有 `_variantLanded` 保护，只靠 duration 到达 + 最多 3 次重发。 **用例已写，待上机**：gap-assumptions `H20.hlsSeek`、`H50.hlsSeek`。
+1. **H28 已有 CP1 真机数据**：默认 playing/paused/cutover 各 30/30，最大稳定落点误差 463/23/463ms。默认配置已有 END_FILE 泵，RESTART 仍按需。旧瞬时 0 秒读回是测量锚点问题；不能反推所有时序假设已证明。
+2. **H20/H50 HLS 已核对 CP1**：首次加载寄存 seek 与影子目标共 60/60；详细逐样本证据见 CP1 报告，其他网络/设备不外推。
 3. **H7 旧文件迟到的 END_FILE(error)** 会不会算到新 open 头上：V4 只测了 RESTART。 **用例已写，待上机**：gap-assumptions `H7.lateError`。
 4. **H14/H26 用户 seek / 暂停态 seek 的 `buffering` 边沿**：media_kit 的 `buffering` 含 `core-idle`，seek 时会翻转；ABR 无时间窗、默认开启、阈值 3；手选非自动档后连续 seek 可能误降档。 **用例已写，待上机**：gap-assumptions `H14.manualSeek`。
 5. **H17 落点偏差 >500ms 时位置回声被永久抑制**（进度冻结）：长 GOP/片段边界没测。 **用例已写，待上机**：gap-assumptions `H17.{mp4,m3u8}`（偏差未超则 BLOCKED）。
 6. **H33 `kernel.open()` 对坏地址是否抛**：CLAUDE「广告编排」称走 openThrew，HE/R 实测「404/拒连 `open()` 不抛」，两处记录矛盾。 **用例已写，待上机**：gap-assumptions `H33.*`（记录型）。
-7. **H42 的产品面**：`resuming` 阶段 5s、`MovaKeepAliveResume.elapsed` 恒等超时值，属于「测试替身与真机语义分叉但仍绿」。 单测侧已补静默唤醒用例（`engine_keep_alive_silent_wake_test.dart`）；真机 gap-lifecycle `H42.wake`（待上机）。
+7. **H42 已补证据，读数仍有限制**：Windows FLV 唤醒 18/18 grace，5s 为兜底而非首帧实测；Android CP1 keepAlive S1/S7/S13/S14 为 20/20。A07/A08 的独立闸门与异步重开修复有单测；CP2/CP3 仍待真机。
 8. **H12 半更新尺寸 → 全屏方向抖动**、**H53/H54 外部改音量/亮度不同步**、**H56 A15/F5 修后复测只覆盖专项**（retest.md:134–135 仅 MiniHost→PiP 衔接流程 PASS，整项其余子条件未重跑）、**H37 修后复测只覆盖专项**（retest.md:136 仅重复 dispose 4/4）。 H56/H37 修后复测的用例已写：gap-lifecycle `A15.miniPip`、`H37.dispose`（待上机）。
 9. **文档与代码不一致（2026-10-28 已处理）**：`doc/SPEC.md` 清晰度节已按代码（按档位 URL 重开）改写（H30）；`CLAUDE.md` 的「PiP 退出不复位」段已改为已修复；`plans/*retest*` 的 RT6 实为 rerun7 仍如旧。
+
+
+以上 CP1 结论均来自 [CP1 收口报告](plans/2026-11-03-cp1-results.md)，不是本次上机结果。
+终审 7b 协议错误归因、B 块部分刺激、Windows 相对 CP0 基线仍 BLOCKED。
+下文 H28/H20/H50/H42 表行保留历史假设原文，其“未上机”状态由本节覆盖。
+H77 已由 A28 合并状态/事件投递修复逻辑，不能继续写“降级 P3 未改”；设备对账留在检查点。
 
 ### 4.3 假内核「默认就做了、但真实 mpv 不一定做」的隐含行为
 
@@ -1025,6 +1048,10 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 | 8 | **已决定**：HE V6“Windows 从头播放”按验证脚本缺陷处理 | 2026-10-24 的“VOD 卡顿重试后从头播放”：2026-10-24 已修代码（等有效尝试首帧落地再 seek）；2026-10-29 Windows release 复测 3/3 续播误差 `posDiff=0ms`，Android full-02 pump 批 V6 PASS；旧现象的根因是验证脚本的锚点缺陷（与 H35 的判断一致），不再作为产品缺陷跟踪。 | —（已选 (a)） | `example/lib/verify_auto/he_auto.dart`（V6）；H35；`doc/plans/2026-10-29-windows-matrix-run.md` |
 
 ## 7. 矩阵修订记录（本次合并修掉的问题）
+
+- 2026-11-04 C17：新增 OR1–OR5，统一 F3 稳定落点 ≤500ms / <200ms 仅统计口径；
+  §4.2 回填 CP1 H28、H20/H50、keepAlive 与错误/规格验证，不扩大 PASS 范围，保留三项阻塞。
+
 
 | # | 主题 | 内容 |
 |---|---|---|

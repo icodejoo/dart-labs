@@ -31,17 +31,24 @@ T? resolveOption<T>(Object? value,
 
 /// 一次逻辑调用的配置；省略字段沿用 Dio 或客户端配置。
 class DiomanCall {
-  /// 创建调用配置，例如 `DiomanCall(key: false, envelope: false)`。
+  /// 创建调用配置，例如 `DiomanCall(key: false)`。
+  /// [deadline] 为整体预算，null 沿用客户端，非正值立即到期。
   const DiomanCall(
-      {this.headers,
+      {this.raw = false,
+      this.headers,
       this.connectTimeout,
       this.sendTimeout,
       this.receiveTimeout,
+      this.deadline,
       this.cancelToken,
       this.key,
-      this.envelope,
+      this.extra = const {},
       this.silent = false,
       this.options = const {}});
+
+  /// 是否在落定副本附带自身原生响应与异常，默认 false。
+  /// 例如 `DiomanCall(raw: true)`；缓存和共享跟随者仍为空。
+  final bool raw;
 
   /// 按不区分大小写的键覆盖请求头。
   final Map<String, dynamic>? headers;
@@ -55,14 +62,19 @@ class DiomanCall {
   /// 接收超时。
   final Duration? receiveTimeout;
 
+  /// 本次逻辑请求的整体预算，优先于客户端；null 沿用客户端默认值。
+  /// 含排队、重试和传输，到期返回 timeout/deadline；与 Dio 阶段超时独立。
+  /// 例如 `DiomanCall(deadline: Duration(seconds: 2))`。
+  final Duration? deadline;
+
   /// 用户取消令牌。
   final CancelToken? cancelToken;
 
   /// String、false 或 DiomanKeyOptions；null 为自动计算。
   final Object? key;
 
-  /// false 禁用本次信封识别。
-  final bool? envelope;
+  /// 请求附加协议标记，parse 可从 raw.requestOptions.extra 读取。
+  final Map<String, dynamic> extra;
 
   /// 是否静默通知。
   final bool silent;

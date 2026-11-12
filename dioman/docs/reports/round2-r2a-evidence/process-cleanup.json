@@ -1,0 +1,12 @@
+{
+  "processes": {
+    "netem": 35324,
+    "server": 29496
+  },
+  "listening": 0,
+  "checkedPorts": [
+    47280,
+    47290
+  ],
+  "stopped": true
+}

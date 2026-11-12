@@ -1,0 +1,47 @@
+{
+  "rounds": [
+    {
+      "command": "codex review --uncommitted",
+      "exitCode": 0,
+      "findings": [
+        "多值 Retry-After 抛错",
+        "next 取消和补丁失败短路暴露旧槽"
+      ],
+      "resolution": "回归先红后绿，全部修复"
+    },
+    {
+      "command": "codex review --uncommitted",
+      "exitCode": 0,
+      "findings": [
+        "持久化恢复 internal 快照丢失异常",
+        "内存快照丢失 Retry-After",
+        "内联 mock 丢失 Retry-After"
+      ],
+      "resolution": "回归先红后绿，全部修复；额外修复克隆工厂 internal 不入缓存"
+    },
+    {
+      "command": "codex review --uncommitted",
+      "exitCode": 0,
+      "findings": [
+        "内存快照恢复把显式 null 业务码补成 0"
+      ],
+      "resolution": "三种缓存策略回归先红后绿，区分 containsKey 与显式 null；补缺省码兼容用例"
+    },
+    {
+      "command": "codex review --uncommitted",
+      "exitCode": 0,
+      "findings": [],
+      "resolution": "未发现仍成立的具体缺陷"
+    },
+    {
+      "command": "codex review --uncommitted",
+      "exitCode": 0,
+      "findings": [],
+      "resolution": "最后一次 reject 收口后的只读复审完成，无仍成立的具体回归"
+    }
+  ],
+  "additionalFixes": [
+    "快照生成前克隆工厂产生 internal 时立即返回，防止入缓存和丢异常",
+    "reject 移入 _dispatch 的 finally 保护边界，转换期间可读匹配 native，完成后清空封闭"
+  ]
+}

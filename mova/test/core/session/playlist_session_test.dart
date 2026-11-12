@@ -285,6 +285,71 @@ void main() {
     expect(shadow.calls.where((call) => call == 'dispose'), hasLength(1));
   });
 
+  test('中插预热提交期间正片自然结束，不吞结束事件、自动连播下一集', () async {
+    const waiting = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/waiting.mp4'),
+      offset: Duration(seconds: 30),
+    );
+    final factory = GatedEngineFactory();
+    final api = MovaCutoverEngine(
+      engineFactory: () {
+        final engine = FakeMovaApi(
+          commandLog: factory.log,
+          options: const MovaOpts(
+            ads: MovaAdConfig(enabled: true, breaks: [waiting]),
+            playlist: MovaPlaylistConfig(enabled: true, items: episodes),
+            cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
+          ),
+        );
+        factory.engines.add(engine);
+        return engine;
+      },
+    );
+    final ads = MovaAds(api, cutover: api);
+    final playlist = MovaPlaylist(api, ads: ads);
+    final pause = Completer<void>();
+    addTearDown(() async {
+      if (!pause.isCompleted) pause.complete();
+      await playlist.dispose();
+      await ads.dispose();
+      await api.dispose();
+    });
+    await playlist.jumpTo(0);
+    final active = factory.engines.first..pauseGate = pause;
+    await reachMid(active);
+    expect(ads.isAdPending, isTrue);
+    final shadow = factory.engines.last;
+    expect(shadow, isNot(same(active)));
+    const ready = MovaProg(
+      position: Duration(seconds: 1),
+      buffer: Duration(seconds: 10),
+    );
+    shadow.pushProgress(ready);
+    await settleOperations();
+    shadow.pushProgress(ready);
+    await settleOperations();
+    expect(active.calls.last, 'pause');
+    active.push(active.state.copyWith(duration: const Duration(seconds: 40)));
+    // 换指副产物：位置还在 30s，不在片尾，MovaDone 必须继续被吞。
+    await done(active);
+    expect(playlist.currentIndex, 0);
+    // 真正播到片尾后的 MovaDone 才是自然结束。
+    active.pushProgress(const MovaProg(position: Duration(milliseconds: 39500)));
+    await settleOperations();
+    await done(active);
+    expect(playlist.currentIndex, 1);
+    pause.complete();
+    await settleOperations();
+    expect(active.source, b);
+    expect(ads.isShowingAd, isFalse);
+    expect(
+      ads.session.cursor.node,
+      const MovaNodeId(1, MovaNodeKind.content, 0),
+    );
+    expect(api.state.renderEpoch, 0);
+  });
+
   test('open 被拒下标不动且不发 indexChanges', () async {
     final f = fixture();
     final changes = <int>[];

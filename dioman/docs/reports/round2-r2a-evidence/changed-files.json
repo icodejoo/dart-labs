@@ -1,0 +1,454 @@
+[
+  {
+    "file": ".claude/skills/dioman/SKILL.md",
+    "change": "同步 R2a：插件读 ctx.statusOf、失败只能由 fail/内部入口写入；保留 R3 边界。"
+  },
+  {
+    "file": "CHANGELOG.md",
+    "change": "Unreleased 记录 C22/C23 Breaking、缓存落盘兼容与当前示例。"
+  },
+  {
+    "file": "README.md",
+    "change": "重写结果与业务风格：statusOf、failureOf、穷举 switch；更新全部示例。"
+  },
+  {
+    "file": "README.zh-CN.md",
+    "change": "与英文 README 对齐相同章节、契约和示例。"
+  },
+  {
+    "file": "docs/guides/migrating-to-pipeline.md",
+    "change": "Breaking API 对照、HTTP status、parse 与 call.extra 按请求跳过示例。"
+  },
+  {
+    "file": "docs/reports/2026-11-03-round2-r2a.md",
+    "change": "本批交付报告。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/acceptance.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/analyze-example.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/analyze.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/api-changes.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/changed-files.json",
+    "change": "本批小体积验证证据。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/checks.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/coverage.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/coverage.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/documentation-examples.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/documentation-test.txt",
+    "change": "本批小体积验证证据。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/gates.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/git-status.txt",
+    "change": "本批小体积验证证据。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/internal-status-green.log",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/internal-status-red.log",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/mutations.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/powerset-mutations.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/process-cleanup.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/proxy-cleanup.json",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/review-final.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/review-green.log",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/review-initial.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/review-red.log",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/tests.txt",
+    "change": "本批小体积验证证据；原始大日志留 coverage。"
+  },
+  {
+    "file": "docs/reports/round2-r2a-evidence/workspace.json",
+    "change": "本批小体积验证证据。"
+  },
+  {
+    "file": "example/dioman_example.dart",
+    "change": "展示 failureOf、HTTP status/code，释放客户端。"
+  },
+  {
+    "file": "example/lib/main.dart",
+    "change": "演示改读 failureOf，并用取消判别函数。"
+  },
+  {
+    "file": "lib/dioman.dart",
+    "change": "公开导出新枚举、只读标记、解析结果与两个顶层函数，移除旧类型。"
+  },
+  {
+    "file": "lib/src/client.dart",
+    "change": "statusOf 配置及 extend 继承、isCancel、按标记落定、call.extra 传递。"
+  },
+  {
+    "file": "lib/src/context.dart",
+    "change": "新 fail 签名、ctx.statusOf、取消覆盖保存结果，保持 R1 销毁语义。"
+  },
+  {
+    "file": "lib/src/options.dart",
+    "change": "删除 envelope，增加 extra 协议标记。"
+  },
+  {
+    "file": "lib/src/pipeline.dart",
+    "change": "插件及补丁构造异常固定 internal，避免误走传输分类。"
+  },
+  {
+    "file": "lib/src/plugins/auth.dart",
+    "change": "默认路由读取 ctx.statusOf，fail 使用只读标记；保留会话共享与回调签名。"
+  },
+  {
+    "file": "lib/src/plugins/breaker.dart",
+    "change": "默认 shouldTrip 读标记和有效状态；打开时 ctx.fail(breaker)。"
+  },
+  {
+    "file": "lib/src/plugins/cache.dart",
+    "change": "派生和重建保留标记；新格式保存 ok/可选失败类别，兼容 0.7 与 B4。"
+  },
+  {
+    "file": "lib/src/plugins/loading.dart",
+    "change": "internal 优先读取 failureOf；R1 共享资源逻辑不变。"
+  },
+  {
+    "file": "lib/src/plugins/mock.dart",
+    "change": "回落仅按 HTTP 404 或 network 标记。"
+  },
+  {
+    "file": "lib/src/plugins/notify.dart",
+    "change": "默认抑制成功/cancel/internal/silent；消息为空时显示类别（如有）与 HTTP 状态。"
+  },
+  {
+    "file": "lib/src/plugins/offline.dart",
+    "change": "经 ctx.fail 生成离线失败；销毁覆盖保留 disposed。"
+  },
+  {
+    "file": "lib/src/plugins/retry.dart",
+    "change": "失败类别硬否决；statusCodes/afterStatusCodes 读取有效状态。"
+  },
+  {
+    "file": "lib/src/plugins/share.dart",
+    "change": "读失败标记，程序异常经 internalError；撤回仍只看自身取消/预算。"
+  },
+  {
+    "file": "lib/src/request.dart",
+    "change": "保留不可变 call.extra 快照。"
+  },
+  {
+    "file": "lib/src/response.dart",
+    "change": "失败私有槽与合成 ok、HTTP status、parse/缺省值、派生保护、首次 internal 异常与栈保护。"
+  },
+  {
+    "file": "lib/src/response_internal.dart",
+    "change": "create 后标记写入、持久化恢复、专用 internalError 与 debug 副本。"
+  },
+  {
+    "file": "test/accept/lib/api-inventory.json",
+    "change": "按新公开入口重建 733 项声明/参数。"
+  },
+  {
+    "file": "test/accept/lib/client.dart",
+    "change": "分类只读 failureOf/ok/status/code；business 显式配置 statusOf；服务守卫读取同一有效状态。"
+  },
+  {
+    "file": "test/accept/lib/matrix.json",
+    "change": "删除失效 API 行、新增 API 定档、保持 G4 基线；组合标题改为登记的 INV id。"
+  },
+  {
+    "file": "test/accept/lib/probes.dart",
+    "change": "观测新失败标记。"
+  },
+  {
+    "file": "test/accept/lib/probes_fields.dart",
+    "change": "inventory 重新生成新字段逐项读取。"
+  },
+  {
+    "file": "test/boundary/auth_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/b3_await_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/b3_options_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/b4_final_review_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/breaker_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/cache_persist_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/client_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/internal_callback_boundary_test.dart",
+    "change": "插件及 statusOf 抛出每种 DioException 都固定 internal 并原栈抛出。"
+  },
+  {
+    "file": "test/boundary/internal_settlement_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/mock_cancel_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/response_cache_contract_boundary_test.dart",
+    "change": "0.7/B4/新落盘格式与失败标记重建兼容。"
+  },
+  {
+    "file": "test/boundary/retry_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/retry_options_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/share_replay_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/source_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/source_lifecycle_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/source_options_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/source_review_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/stateless_outer_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/boundary/stateless_prepare_boundary_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/b3_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/b3_outer_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/b8_share_withdrawal_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/powerset_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/prepare_pairs_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/source_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/source_migration_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/combo/stateless_combo_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/integration/b3_transport_integration_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/integration/b8_decode_integration_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/integration/client_methods_real_integration_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/integration/documentation_examples_integration_test.dart",
+    "change": "同步 16/16/19/7、合计 58 个当前示例；历史块仍为 25。"
+  },
+  {
+    "file": "test/integration/source_transport_integration_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/integration/timeout_effective_integration_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/auth_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/b8_regression_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/breaker_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/client_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/response_contract_rule_test.dart",
+    "change": "send/debug 标记、取消判别、显式/默认有效状态、原栈、Retry-After、notify 回归。"
+  },
+  {
+    "file": "test/rule/response_extension_rule_test.dart",
+    "change": "迁移子类构造字段，并为直接构造的客户端补 dispose。"
+  },
+  {
+    "file": "test/rule/retry_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/source_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/stateless_outer_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/rule/transport_rule_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/support/b4_migration_scenarios.dart",
+    "change": "组合夹具改读新失败标记，并对业务流程显式配置 statusOf。"
+  },
+  {
+    "file": "test/support/b4_retry_migration_scenarios.dart",
+    "change": "组合夹具改读新失败标记，并对业务流程显式配置 statusOf。"
+  },
+  {
+    "file": "test/support/b5_powerset.dart",
+    "change": "baseline 改读 failureOf/ok/status/code，显式配置业务有效状态。"
+  },
+  {
+    "file": "test/support/helpers.dart",
+    "change": "testClient 接受显式 statusOf，保留统一 dispose/I10。"
+  },
+  {
+    "file": "test/support/invariant_harness.dart",
+    "change": "I6/I8 的结果类别比较改为新契约。"
+  },
+  {
+    "file": "test/support/response_contract.dart",
+    "change": "测试专用结果归类与脚本响应夹具；业务风格映射显式供用例选择。"
+  },
+  {
+    "file": "test/unit/accept_runner_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/b8_core_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/context_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/fixtures_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/pipeline_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/public_exports_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "test/unit/response_contract_test.dart",
+    "change": "纯工厂标记保护、缺省/成功规则、parse 门槛、取消、首次异常/栈回归。"
+  },
+  {
+    "file": "test/unit/response_test.dart",
+    "change": "按新响应契约迁移既有断言和 API id，保留原用例；HTTP/业务分离处更新有意变化的预期。"
+  },
+  {
+    "file": "tool/round2_r2a_mutations.py",
+    "change": "8 项最低层契约变异，拒绝编译/加载失败，按 SHA256 原字节恢复。"
+  }
+]

@@ -30,9 +30,8 @@ typedef MovaEngineFactory = MovaApi Function();
 /// placeholder instead of the video surface. It is *not* a "first frame has
 /// been rendered" signal: media_kit exposes no repeatable event for that
 /// (`VideoController.waitUntilFirstFrameRendered` is a one-shot `Completer`
-/// that never re-fires when a pooled engine is reused for a later item), but
-/// a cold `open()` keeps the surface blank until the frame size is known
-/// anyway, so `open()` resolving is a close enough proxy.
+/// that never re-fires when a pooled engine is reused for a later item).
+/// Opening is not a screenshot-readiness guarantee either.
 ///
 /// 池中一个当前绑定到某个 feed 索引的引擎，以及它的媒体是否已打开完毕。
 ///
@@ -40,8 +39,8 @@ typedef MovaEngineFactory = MovaApi Function();
 /// `false`——这段窗口内 UI 应绘制占位而非视频画面。它*不是*"首帧已渲染"信号：
 /// media_kit 没有暴露可重复触发的首帧事件
 /// （`VideoController.waitUntilFirstFrameRendered` 是一次性 `Completer`，
-/// 池化引擎被复用于后续条目时不会再次触发），但冷 `open()` 在帧尺寸确定前
-/// 本就保持画面空白，因此用 `open()` resolve 作为近似判据足够。
+/// 池化引擎被复用于后续条目时不会再次触发）。open 接受也不保证截图可读；
+/// 暂停画面需要确定截图结果时，可探测 MovaFrameCapture 并等待其非空返回。
 class MovaFeedSlot {
   /// Creates a slot snapshot.
   ///
@@ -416,10 +415,12 @@ class MovaFeedEnginePool {
   ///
   /// - [index]: the feed index the caller is about to bind / 调用方即将绑定的
   ///   feed 索引
+  /// Reuses [engineCount] and computes each eviction distance once.
+  /// 复用 [engineCount]，每个淘汰候选的距离只计算一次。
   MovaApi _acquire(int index) {
     if (_idle.isNotEmpty) return _idle.removeLast();
 
-    if (_idle.length + _bound.length < size) {
+    if (engineCount < size) {
       final engine = _factory();
       final f = fit;
       if (f != null) unawaited(engine.setFit(f));
@@ -432,12 +433,16 @@ class MovaFeedEnginePool {
     // 先淘汰最远的；距离相同时优先淘汰后方那页，因为 feed 的下一次上滑绝大
     // 多数是往前而非往回。
     var victim = _bound.keys.first;
+    var victimDistance = (victim - index).abs();
     for (final candidate in _bound.keys) {
+      final distance = (candidate - index).abs();
       final better =
-          (candidate - index).abs() > (victim - index).abs() ||
-          ((candidate - index).abs() == (victim - index).abs() &&
-              candidate < victim);
-      if (better) victim = candidate;
+          distance > victimDistance ||
+          (distance == victimDistance && candidate < victim);
+      if (better) {
+        victim = candidate;
+        victimDistance = distance;
+      }
     }
     _release(victim);
     return _idle.removeLast();

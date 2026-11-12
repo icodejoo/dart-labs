@@ -1,0 +1,533 @@
+{
+  "testkit": {
+    "commit": "c3b8965f6257f2ea7c5a594c951c11a90fc0a9a2",
+    "branch": "main",
+    "source_clean": true,
+    "target": "C:\\Users\\jelon\\AppData\\Local\\Temp\\claude\\E--workspaces-dart-labs-dioman\\4972dd0a-b8a0-42b8-a0f6-cad7ce91ba60\\scratchpad\\tk-target-r2a\\release",
+    "server": "http://127.0.0.1:47280",
+    "netem": "http://127.0.0.1:47290",
+    "binaries": {
+      "api-ws-demo.exe": "abacd577db7f28839c161530adc5a19e5aa9d322e2eac7ff22b3881d1ba661e0",
+      "netem.exe": "63ee9185094b5a9d5e24b4832f4b406bec135766717bf5e174a17ada171f66a0"
+    }
+  },
+  "planned": 918,
+  "executed": 918,
+  "interrupted": false,
+  "remaining": 0,
+  "counts": {
+    "通过": 768,
+    "跳过": 150,
+    "失败": 0
+  },
+  "by_style": {
+    "http": {
+      "通过": 401,
+      "跳过": 58,
+      "失败": 0
+    },
+    "business": {
+      "通过": 367,
+      "跳过": 92,
+      "失败": 0
+    }
+  },
+  "skip_reasons": {
+    "不适用：场景未声明此网络或风格；不推断未定义的正确预期": 90,
+    "skipped: missing raw-business-code": 36,
+    "skipped: missing timeout-total": 24
+  },
+  "skips": {
+    "auth.network-failure-keeps-session@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "auth.network-failure-keeps-session@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "auth.style-switch-refresh@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "auth.style-switch-concurrent@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "auth.style-switch-expired@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-auth@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-auth@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-auth-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "basic.business-code-without-normalize@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "basic.business-code-without-normalize@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-envs@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-envs@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-envs-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-log@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-log@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-log-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "breaker.network-errors-trip@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "breaker.network-errors-trip@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-breaker@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-breaker@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-breaker-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-cache@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-cache@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-cache-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "cancel.blackhole-cancel-before-timeout@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "cancel.blackhole-cancel-before-timeout@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-cancel@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-cancel@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-cancel-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.flap-share-cache-loading@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.flap-share-cache-loading@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.offline-share-notify@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.offline-share-notify@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.cache-mock-fallback-cached-once@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.loading-mock-fallback-single-pair@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "combo.mock-share-fallback-single-flight@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "faults.html-502@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-loading@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-loading@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-loading-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "mock.fallback-to-real-on-404@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-mock@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-mock@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-mock-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "mock.single-fallback-disabled@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-immediate@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-immediate@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-all-methods@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-all-methods@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-timeout@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-timeout@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-parallel-timeouts@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-parallel-timeouts@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-cancel-all@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.blackhole-cancel-all@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.flap-no-retry@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.flap-no-retry@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.flap-parallel-retry@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.flap-parallel-retry@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.lossy-parallel-retry@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.lossy-parallel-retry@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-share-loading@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.offline-share-loading@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.dns-failure@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "network.dns-failure@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "normalize.per-request-off@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "normalize.per-request-off@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "normalize.style-switch@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-notify@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-notify@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-notify-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "notify.single-silent-and-stringify@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.probe-fails-fast@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.probe-fails-fast@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.recovers-after-online@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.recovers-after-online@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.flap-recovers@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.flap-recovers@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.parallel-all-offline@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.parallel-all-offline@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.cancel-while-probing@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.cancel-while-probing@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.then-online-no-stale-state@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "offline.then-online-no-stale-state@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-offline@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-offline@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-offline-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.full-flap-workflow@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.full-flap-workflow@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-filter@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-filter@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-filter-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-key@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-key@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-key-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-repath@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-repath@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-repath-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.offline-exhausts@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.offline-exhausts@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.blackhole-timeout@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.blackhole-timeout@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.flap-no-retry-then-ok@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.flap-no-retry-then-ok@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.lossy-converges@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.lossy-converges@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.style-switch@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-retry@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-retry@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-retry-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-req-max-delay@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-req-methods@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-plugin-methods@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-retry-after-honored@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-retry-after-ignored@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "retry.single-req-retry-after-override@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "share.network-failure-all-fail@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "share.network-failure-all-fail@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "plugins.single-share@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-share@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-share-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "share.single-all-timeout-aborts-server@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "share.single-all-timeout-aborts-server@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-hang@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-hang@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-over-slow-chunks@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-over-slow-chunks@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.connect-blackhole@normal@http": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "timeout.connect-blackhole@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ],
+    "timeout.request-override-shorter@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.request-override-shorter@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.request-override-longer@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.request-override-longer@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.within-budget@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.within-budget@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.recovers-after-timeout@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.recovers-after-timeout@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.parallel-all-timeout@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.parallel-all-timeout@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.weak-generous-budget@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.weak-generous-budget@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-slow-chunks-small@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-slow-chunks-small@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-budget-slow-body-ok@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.total-budget-slow-body-ok@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.receive-gap-vs-chunk-bytes@normal@http": [
+      "skipped: missing timeout-total"
+    ],
+    "timeout.receive-gap-vs-chunk-bytes@normal@business": [
+      "skipped: missing timeout-total"
+    ],
+    "plugins.single-timeout@normal@http": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-timeout@normal@business": [
+      "skipped: missing raw-business-code"
+    ],
+    "plugins.single-timeout-http@normal@business": [
+      "不适用：场景未声明此网络或风格；不推断未定义的正确预期"
+    ]
+  },
+  "runs": [
+    {
+      "session": "dioman-1793670102310950-45780",
+      "planned": 918,
+      "executed": 918,
+      "counts": {
+        "通过": 768,
+        "跳过": 150,
+        "失败": 0
+      }
+    },
+    {
+      "session": "dioman-1793670763864229-17568",
+      "planned": 918,
+      "executed": 918,
+      "counts": {
+        "通过": 768,
+        "跳过": 150,
+        "失败": 0
+      }
+    },
+    {
+      "session": "dioman-1793671185943084-49768",
+      "planned": 918,
+      "executed": 918,
+      "counts": {
+        "通过": 768,
+        "跳过": 150,
+        "失败": 0
+      }
+    }
+  ],
+  "identical_grids": true,
+  "new_inapplicability_rules": 0,
+  "extra_skips": 0,
+  "missing_skips": 0,
+  "unchanged_rule_sha256": {
+    "test/accept/lib/common.dart": "19db49e4e7a3568493ace8b10d725e8e3efc15e23e57cc67adc2003aa66b29a3",
+    "test/accept/lib/plugin_rules.dart": "2bb48fd3f2e9986d5e6d6ff66032053fb2d51296ecd9277d9bb6b322004ad2e0",
+    "test/accept/lib/runner.dart": "cca4c1d32614712dfcd4fba4d94ccc0dc411642c2b7b0a32fa04465320534ea7"
+  }
+}

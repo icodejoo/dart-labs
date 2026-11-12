@@ -44,6 +44,22 @@ void main() {
     api = FakeMovaApi(options: const MovaOpts(mini: MovaMiniConfig(enabled: true)));
   });
 
+  testWidgets('reused window applies the next engine size and aspect ratio', (tester) async {
+    final next = FakeMovaApi();
+    await pumpWindow(tester, ctl: ctl, api: api,
+        config: const MovaMiniConfig(enabled: true, width: 180));
+    final window = find.byKey(const ValueKey('movaMiniWindowGesture'));
+    expect(tester.getSize(window).width, 180);
+    await pumpWindow(tester, ctl: ctl, api: next,
+        config: const MovaMiniConfig(enabled: true, width: 300, aspectRatio: 1));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(window), const Size(300, 300));
+    await tester.pumpWidget(const SizedBox());
+    await next.dispose();
+    await api.dispose();
+    ctl.dispose();
+  });
+
   for (final corner in MovaMiniCorner.values) {
     testWidgets('first frame lands at ${corner.name}', (tester) async {
       await pumpWindow(

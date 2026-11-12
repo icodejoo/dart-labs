@@ -1,0 +1,3 @@
+00:00 +0: loading test/combo/auth_session_combo_test.dart
+00:00 +0: [DiomanAuth.onRefresh × Dioman.extend] 轮换刷新凭证只刷新一次且不登出
+00:00 +1: All tests passed!

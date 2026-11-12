@@ -1492,6 +1492,22 @@ void main() {
     },
   );
 
+  test('窗口互斥：PiP 中拒绝小窗；进入全屏先收起小窗', () async {
+    final pip = _ObservablePip();
+    final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: FakeKernel(), pip: pip);
+    addTearDown(e2.dispose);
+    await e2.setMini(true);
+    expect(e2.state.mini, isTrue);
+    await e2.setFullscreen(true);
+    expect(e2.state.mini, isFalse);
+    expect(e2.state.fullscreen, isTrue);
+    await e2.setFullscreen(false);
+    expect(await e2.enterPip(), isTrue);
+    expect(e2.state.pip, isTrue);
+    await e2.setMini(true);
+    expect(e2.state.mini, isFalse);
+  });
+
   test('pipSupported starts false and flips once the port answers', () async {
     final k2 = FakeKernel();
     final e2 = MovaEngine(fetcher: const MovaTestHttpFetch(), kernel: k2, pip: _YesPip());

@@ -1,0 +1,41 @@
+{
+  "fin-a": {
+    "passed": 552,
+    "skipped": 0,
+    "failed": 0,
+    "files": 62,
+    "sha256": "4f6fed313f9960ce942da90791d6a1c8e72da64cd517f5f80bec643dc0043934",
+    "seconds": 66.881
+  },
+  "fin-b": {
+    "passed": 130,
+    "skipped": 0,
+    "failed": 0,
+    "files": 31,
+    "sha256": "2cd46b913605558c5b2e9aa71ca039568d88a65cd0822ecccfe88f472b7175fe",
+    "seconds": 36.541
+  },
+  "fin-c": {
+    "passed": 346,
+    "skipped": 0,
+    "failed": 0,
+    "files": 41,
+    "sha256": "bab933b3b8a7ff46fd4fb99aa910d49c511e2001c4382c9d167606fbf19bae88",
+    "seconds": 62.735
+  },
+  "fin-d": {
+    "passed": 23,
+    "skipped": 0,
+    "failed": 0,
+    "files": 4,
+    "sha256": "a67a3974bdfe3aa134ea34ce56f50b325d94b1488daba1bdaf9e078f1411e93e",
+    "seconds": 9.724
+  },
+  "total": {
+    "passed": 1051,
+    "skipped": 0,
+    "failed": 0,
+    "files": 138
+  },
+  "reporter_encoding": "UTF-8 LF; only newline encoding normalized; event names, IDs and results unchanged"
+}

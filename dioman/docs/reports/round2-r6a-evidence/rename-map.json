@@ -1,0 +1,84 @@
+{
+  "test/support/b2_constants.dart": [
+    "test/support/request_constants.dart"
+  ],
+  "test/support/b3_helpers.dart": [
+    "test/support/auth_test_helpers.dart"
+  ],
+  "test/support/b4_constants.dart": [
+    "test/support/source_constants.dart"
+  ],
+  "test/support/b4_helpers.dart": [
+    "test/support/source_test_helpers.dart"
+  ],
+  "test/support/b4_migration_scenarios.dart": [
+    "test/support/auth_mock_retry_share_scenarios.dart"
+  ],
+  "test/support/b4_retry_migration_scenarios.dart": [
+    "test/support/retry_share_scenarios.dart"
+  ],
+  "test/support/b5_powerset.dart": [
+    "test/support/powerset_fixture.dart"
+  ],
+  "test/combo/b8_share_withdrawal_test.dart": [
+    "test/combo/share_withdrawal_combo_test.dart"
+  ],
+  "test/combo/b4_auth_migration_combo_test.dart": [
+    "test/combo/auth_share_lifecycle_combo_test.dart"
+  ],
+  "test/unit/b8_core_test.dart": [
+    "test/unit/fixtures_test.dart",
+    "test/unit/key_types_test.dart",
+    "test/unit/context_test.dart",
+    "test/unit/response_test.dart",
+    "test/unit/notify_stringify_test.dart"
+  ],
+  "test/rule/b8_regression_test.dart": [
+    "test/rule/transport_replay_rule_test.dart",
+    "test/rule/auth_replay_rule_test.dart",
+    "test/boundary/cache_clone_cancel_boundary_test.dart",
+    "test/boundary/auth_refresh_boundary_test.dart",
+    "test/boundary/retry_after_boundary_test.dart"
+  ],
+  "test/boundary/b3_await_boundary_test.dart": [
+    "test/unit/request_options_test.dart",
+    "test/boundary/auth_callback_cancel_boundary_test.dart",
+    "test/integration/plugin_state_integration_test.dart",
+    "test/boundary/retry_cancel_boundary_test.dart"
+  ],
+  "test/boundary/b3_options_boundary_test.dart": [
+    "test/boundary/auth_options_boundary_test.dart",
+    "test/boundary/breaker_bucket_boundary_test.dart"
+  ],
+  "test/boundary/b4_final_review_boundary_test.dart": [
+    "test/boundary/share_timeout_boundary_test.dart",
+    "test/boundary/offline_online_boundary_test.dart",
+    "test/boundary/share_withdrawal_boundary_test.dart",
+    "test/boundary/cache_clone_boundary_test.dart"
+  ],
+  "test/combo/b3_combo_test.dart": [
+    "test/combo/breaker_retry_combo_test.dart",
+    "test/combo/auth_retry_combo_test.dart",
+    "test/combo/auth_loading_notify_combo_test.dart",
+    "test/combo/auth_retry_replay_combo_test.dart",
+    "test/boundary/retry_cancel_boundary_test.dart"
+  ],
+  "test/combo/b3_outer_combo_test.dart": [
+    "test/combo/loading_notify_retry_combo_test.dart",
+    "test/combo/auth_loading_notify_combo_test.dart"
+  ],
+  "test/combo/b4_retry_migration_combo_test.dart": [
+    "test/combo/retry_share_arbitration_combo_test.dart",
+    "test/combo/mock_retry_share_combo_test.dart"
+  ],
+  "test/integration/b3_transport_integration_test.dart": [
+    "test/integration/auth_session_integration_test.dart",
+    "test/integration/auth_retry_transport_integration_test.dart",
+    "test/integration/retry_after_integration_test.dart",
+    "test/integration/breaker_lifecycle_integration_test.dart"
+  ],
+  "test/integration/b8_decode_integration_test.dart": [
+    "test/integration/share_timeout_integration_test.dart",
+    "test/integration/response_decode_integration_test.dart"
+  ]
+}

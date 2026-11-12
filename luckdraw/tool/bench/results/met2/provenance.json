@@ -1,0 +1,200 @@
+[
+  {
+    "source": "tool/bench/results/perf_after/capsule_mixing_1/capsule_mixing_1794313856923256.timeline_summary.json",
+    "sha256": "d445169d3f56f2549447f1c8b1956b6179166c0d7611304bc6e21aa009e5a0ab",
+    "scenario": "capsule_mixing",
+    "run_id": "1794313856923256"
+  },
+  {
+    "source": "tool/bench/results/perf_after/capsule_mixing_2/capsule_mixing_1794313932872435.timeline_summary.json",
+    "sha256": "0bec731b02a880589f3850fa17bd47a09ec303c49a46e6401c09a46d423389b3",
+    "scenario": "capsule_mixing",
+    "run_id": "1794313932872435"
+  },
+  {
+    "source": "tool/bench/results/perf_after/capsule_mixing_4/capsule_mixing_1794314342104240.timeline_summary.json",
+    "sha256": "f7cd197b3ae51279ba4d55ef2a2e13581e53b6f7b61118e47d91f0d5e51e0238",
+    "scenario": "capsule_mixing",
+    "run_id": "1794314342104240"
+  },
+  {
+    "source": "tool/bench/results/perf_after/grid_steady_1/grid_steady_1794314642091899.timeline_summary.json",
+    "sha256": "fc3fd5507990cd8fad502ad066386b1aaf5d79f2975c2f5043be78cf289c90ec",
+    "scenario": "grid_steady",
+    "run_id": "1794314642091899"
+  },
+  {
+    "source": "tool/bench/results/perf_after/grid_steady_2/grid_steady_1794314716054046.timeline_summary.json",
+    "sha256": "718aecb30afe2b026bab849155cba982bd9ed0d174aae24fa3faca6a4b4045b0",
+    "scenario": "grid_steady",
+    "run_id": "1794314716054046"
+  },
+  {
+    "source": "tool/bench/results/perf_after/grid_steady_3/grid_steady_1794314791537683.timeline_summary.json",
+    "sha256": "441c7311cef999383a4377397d3d1061841c2d164a76cf0281ac2436928f5746",
+    "scenario": "grid_steady",
+    "run_id": "1794314791537683"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lever_1/lever_steady_1794306971906081.timeline_summary.json",
+    "sha256": "cd9b49792abd1f455581f008e03889af599b7d1e2e6b4bbba4450c88fc8a412c",
+    "scenario": "lever_steady",
+    "run_id": "1794306971906081"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lever_2/lever_steady_1794307088000701.timeline_summary.json",
+    "sha256": "51940f408523bded256db72f678d218cd95d548557f373ffc0afb323c6236a00",
+    "scenario": "lever_steady",
+    "run_id": "1794307088000701"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lever_3/lever_steady_1794307182571397.timeline_summary.json",
+    "sha256": "5984025e9d141da65234dff7ce6b781b585c6a20c1d64f3bbd05d1112febc4c5",
+    "scenario": "lever_steady",
+    "run_id": "1794307182571397"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lots_2/lots_shaking_1794308933597372.timeline_summary.json",
+    "sha256": "39db8b31dbd17604db289603791e45c63cd908c6205c24509bf55a688149471a",
+    "scenario": "lots_shaking",
+    "run_id": "1794308933597372"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lots_3/lots_shaking_1794309094772711.timeline_summary.json",
+    "sha256": "e1ef402222d141a883bbd2bce868812e6c16f99a8137b4766d72dfa45fbe3fc4",
+    "scenario": "lots_shaking",
+    "run_id": "1794309094772711"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/lots_4/lots_shaking_1794309197830176.timeline_summary.json",
+    "sha256": "9a7fa6a41dfd125cab931ffec905d0543408170bfedaba4cd4b893713d9ddfe4",
+    "scenario": "lots_shaking",
+    "run_id": "1794309197830176"
+  },
+  {
+    "source": "tool/bench/results/perf_after/lotto_draw_1/lotto_draw_1794314421829493.timeline_summary.json",
+    "sha256": "778e02552ea12edc4e427f9f412963de636e6670ca08cc4e898194a4921999ca",
+    "scenario": "lotto_draw",
+    "run_id": "1794314421829493"
+  },
+  {
+    "source": "tool/bench/results/perf_after/lotto_draw_2/lotto_draw_1794314496989620.timeline_summary.json",
+    "sha256": "7f109d7323b83c76747d4a90b6e90a32a2fe5c809ec1384042cf69c73739de07",
+    "scenario": "lotto_draw",
+    "run_id": "1794314496989620"
+  },
+  {
+    "source": "tool/bench/results/perf_after/lotto_draw_3/lotto_draw_1794314571366953.timeline_summary.json",
+    "sha256": "91b6384f2fe59cf7059bb432cf948044a5b0004531ad7469c14191492cc024dd",
+    "scenario": "lotto_draw",
+    "run_id": "1794314571366953"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/memory_1/memory_cycles_1794310311094766.timeline_summary.json",
+    "sha256": "4a7481e5c2399d13d53c42aea42536b92b14961330d7becd71101e90836c7e2f",
+    "scenario": "memory_cycles",
+    "run_id": "1794310311094766"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/memory_2/memory_cycles_1794310371442895.timeline_summary.json",
+    "sha256": "44de7ba81522574946ae19649d006b5eb9f9a7bbdcb0ad02094164a1be9e7061",
+    "scenario": "memory_cycles",
+    "run_id": "1794310371442895"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/memory_3/memory_cycles_1794310535504668.timeline_summary.json",
+    "sha256": "ca4d7d67fcf0232f3b19a051bcfe87ca59ecd1704bd3354c8e29c61467680a0a",
+    "scenario": "memory_cycles",
+    "run_id": "1794310535504668"
+  },
+  {
+    "source": "tool/bench/results/perf_after/number_wheel_spin_1/number_wheel_spin_1794313634381578.timeline_summary.json",
+    "sha256": "777116fcb40cdead535bc657e9181e4e7e07b963661866bd9ce9c72f50fdd781",
+    "scenario": "number_wheel_spin",
+    "run_id": "1794313634381578"
+  },
+  {
+    "source": "tool/bench/results/perf_after/number_wheel_spin_2/number_wheel_spin_1794313710151659.timeline_summary.json",
+    "sha256": "537a632aa5291afec56b759094c4603392349b32194dd814ba2ecdafb647792b",
+    "scenario": "number_wheel_spin",
+    "run_id": "1794313710151659"
+  },
+  {
+    "source": "tool/bench/results/perf_after/number_wheel_spin_3/number_wheel_spin_1794313785579170.timeline_summary.json",
+    "sha256": "e1177aa7b55b78c106f06e111dc30327a0f4617d2bb303081c03fb5b4b962c23",
+    "scenario": "number_wheel_spin",
+    "run_id": "1794313785579170"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_1/slot_raster_1794306159431550.timeline_summary.json",
+    "sha256": "f53dd16cd08a2c6909288c9aa49cdd7e91d626f2a9fce58f473abd28fb3a7850",
+    "scenario": "slot_raster",
+    "run_id": "1794306159431550"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_3/slot_raster_1794306659957714.timeline_summary.json",
+    "sha256": "ec63028476e2a7812be1fd2df8fb04278b553a7ab6f28a845f700c67a5f9bbdf",
+    "scenario": "slot_raster",
+    "run_id": "1794306659957714"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_4/slot_raster_1794306825736505.timeline_summary.json",
+    "sha256": "43722cbf4445fd7596b516780a0490dc2ec76889594236d5bd3d1878efbbd698",
+    "scenario": "slot_raster",
+    "run_id": "1794306825736505"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_1/slot_steady_1794306159431550.timeline_summary.json",
+    "sha256": "9b318036d2c44d2b4e919c1e33a2d9a57cb7884e536df7a0fa26b387225342d3",
+    "scenario": "slot_steady",
+    "run_id": "1794306159431550"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_3/slot_steady_1794306659957714.timeline_summary.json",
+    "sha256": "247315b16e622cca2ba9fb3873dbbc7bbe2be672dead18c32e3045d80d0232c4",
+    "scenario": "slot_steady",
+    "run_id": "1794306659957714"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/slot_4/slot_steady_1794306825736505.timeline_summary.json",
+    "sha256": "ef545e7bed86c6b4e769a64e6755b139d83beb217a3f3ce769e8a4544cd8bbf5",
+    "scenario": "slot_steady",
+    "run_id": "1794306825736505"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/wheel_1/wheel_first_frame_1794305396820500.timeline_summary.json",
+    "sha256": "453eee9a11ad438372a0bcbf08cc29bf445ff49ac85ad59f3d4687ebabcd6531",
+    "scenario": "wheel_first_frame",
+    "run_id": "1794305396820500"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/wheel_3/wheel_first_frame_1794305572288023.timeline_summary.json",
+    "sha256": "6fbcd579400ae8eb7a2c961a08aa88218d3a69c9788366fc295107503b10c116",
+    "scenario": "wheel_first_frame",
+    "run_id": "1794305572288023"
+  },
+  {
+    "source": "tool/bench/results/bench_20261110_180650/wheel_4/wheel_first_frame_1794305667616945.timeline_summary.json",
+    "sha256": "084c74480491a36ad5db4aca4a238e85126e59d90bb1d451b0f84aef79ef2234",
+    "scenario": "wheel_first_frame",
+    "run_id": "1794305667616945"
+  },
+  {
+    "source": "tool/bench/results/perf_after/wheel_default_1/wheel_steady_1794313406972146.timeline_summary.json",
+    "sha256": "c189e448d7c0e9b5a64b8ed93b06e54313d53d2560bf26f700cdba10d1e778fe",
+    "scenario": "wheel_steady",
+    "run_id": "1794313406972146"
+  },
+  {
+    "source": "tool/bench/results/perf_after/wheel_default_2/wheel_steady_1794313485209525.timeline_summary.json",
+    "sha256": "64daada823f96c4eb0c31d5e43cee2d7366e5b86d4ca509cf219e3743885897d",
+    "scenario": "wheel_steady",
+    "run_id": "1794313485209525"
+  },
+  {
+    "source": "tool/bench/results/perf_after/wheel_default_3/wheel_steady_1794313560628439.timeline_summary.json",
+    "sha256": "03a593a9a6b935ba7e1218f6066c11ac73e78f1960e69be5dbdc257977d38bc7",
+    "scenario": "wheel_steady",
+    "run_id": "1794313560628439"
+  }
+]

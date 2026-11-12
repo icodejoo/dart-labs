@@ -1,0 +1,40 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":17308,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/ldp/luckdraw/test/perf/perf_memory_sizes_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/ldp/luckdraw/test/perf/perf_memory_sizes_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":3,"time":7,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":2119}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":2123}
+{"test":{"id":3,"name":"PERF memory > native byte totals match bench bounds at device DPR","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":16,"root_column":3,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_memory_sizes_test.dart"},"type":"testStart","time":2124}
+{"testID":3,"messageType":"print","message":"PERF_NATIVE_RGBA_BYTES {\"wheel_steady\":3097600,\"number_wheel_spin\":3097600,\"capsule_mixing\":25600,\"lotto_draw\":363968,\"grid_steady\":4624000}","type":"print","time":2870}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":2870}
+{"suite":{"id":4,"platform":"vm","path":"C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"suite","time":2894}
+{"test":{"id":5,"name":"loading C:/ldp/luckdraw/test/perf/perf_renderers_test.dart","suiteID":4,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2894}
+{"testID":5,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3474}
+{"group":{"id":6,"suiteID":4,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":3474}
+{"group":{"id":7,"suiteID":4,"parentID":6,"name":"PERF renderers","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":59,"column":3,"url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"group","time":3474}
+{"test":{"id":8,"name":"PERF renderers number disc switches phases and invalidates DPR options and size","suiteID":4,"groupIDs":[6,7],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":60,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"testStart","time":3475}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3763}
+{"test":{"id":9,"name":"PERF renderers grid caches only shadow backgrounds and preserves vector content order","suiteID":4,"groupIDs":[6,7],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":111,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"testStart","time":3764}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3808}
+{"test":{"id":10,"name":"PERF renderers capsule color sprites honor phase limit and sampling changes","suiteID":4,"groupIDs":[6,7],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":148,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"testStart","time":3809}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3864}
+{"test":{"id":11,"name":"PERF renderers lotto balls restore vectors and dispose raster after option changes","suiteID":4,"groupIDs":[6,7],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":179,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"testStart","time":3865}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3927}
+{"test":{"id":12,"name":"PERF renderers lotto sprite bounds include long labels and system scaled text","suiteID":4,"groupIDs":[6,7],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":205,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_renderers_test.dart"},"type":"testStart","time":3928}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3960}
+{"suite":{"id":13,"platform":"vm","path":"C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"suite","time":3982}
+{"test":{"id":14,"name":"loading C:/ldp/luckdraw/test/perf/perf_resources_test.dart","suiteID":13,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3982}
+{"testID":14,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":4590}
+{"group":{"id":15,"suiteID":13,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":4591}
+{"group":{"id":16,"suiteID":13,"parentID":15,"name":"PERF resources","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":126,"column":3,"url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"group","time":4591}
+{"test":{"id":17,"name":"PERF resources wheel releases native caches streams and tickers in ten cycles","suiteID":13,"groupIDs":[15,16],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":127,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":4592}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4947}
+{"test":{"id":18,"name":"PERF resources grid releases native caches streams and tickers in ten cycles","suiteID":13,"groupIDs":[15,16],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":142,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":4948}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5057}
+{"test":{"id":19,"name":"PERF resources number wheel releases native caches streams and tickers in ten cycles","suiteID":13,"groupIDs":[15,16],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":165,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":5057}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5203}
+{"test":{"id":20,"name":"PERF resources capsule releases native caches streams and tickers in ten cycles","suiteID":13,"groupIDs":[15,16],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":177,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":5204}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5303}
+{"test":{"id":21,"name":"PERF resources lotto releases native caches streams and tickers in ten cycles","suiteID":13,"groupIDs":[15,16],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":193,"root_column":5,"root_url":"file:///C:/ldp/luckdraw/test/perf/perf_resources_test.dart"},"type":"testStart","time":5303}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":5455}
+{"success":true,"type":"done","time":5492}

@@ -1,0 +1,44 @@
+[
+  {
+    "mutation": "1-share-withdrawal",
+    "failures": 1,
+    "test": "test/combo/share_withdrawal_combo_test.dart",
+    "before_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781",
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  },
+  {
+    "mutation": "2-byte-key",
+    "failures": 1,
+    "test": "test/unit/key_types_test.dart",
+    "before_sha256": "97173b1350a2ff53b2ee9b40ddba73f9e8538d7b647757447f19b1f22f2bbcfd",
+    "restored_sha256": "97173b1350a2ff53b2ee9b40ddba73f9e8538d7b647757447f19b1f22f2bbcfd"
+  },
+  {
+    "mutation": "3-auth-session",
+    "failures": 1,
+    "test": "test/boundary/auth_refresh_boundary_test.dart",
+    "before_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c",
+    "restored_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c"
+  },
+  {
+    "mutation": "4-retry-after-limit",
+    "failures": 1,
+    "test": "test/boundary/retry_after_boundary_test.dart",
+    "before_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59",
+    "restored_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59"
+  },
+  {
+    "mutation": "5-cache-cancel",
+    "failures": 2,
+    "test": "test/boundary/cache_clone_cancel_boundary_test.dart",
+    "before_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be",
+    "restored_sha256": "70c430960891db1b696d3e8a941f74641ff8352e1c35c3016b209cbccde710be"
+  },
+  {
+    "mutation": "6-one-shot",
+    "failures": 1,
+    "test": "test/rule/transport_replay_rule_test.dart",
+    "before_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59",
+    "restored_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59"
+  }
+]

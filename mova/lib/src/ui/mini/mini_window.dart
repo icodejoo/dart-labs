@@ -38,7 +38,12 @@ class MovaMiniWindow extends StatefulWidget {
   /// Creates the mini window.
   ///
   /// 创建小窗。
-  const MovaMiniWindow({super.key, required this.ctl, required this.api, required this.config});
+  const MovaMiniWindow({
+    super.key,
+    required this.ctl,
+    required this.api,
+    required this.config,
+  });
 
   /// The route-independent holder this window reads/writes its rect through.
   ///
@@ -69,6 +74,22 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
   // 主动拖动期间小窗须瞬时跟手——落位动画只在松手后的吸边阶段生效。
   bool _dragging = false;
 
+  /// Recomputes geometry when the borrowed engine or its sizing changes.
+  ///
+  /// 借用的引擎或尺寸配置变化时重新计算窗口几何。
+  @override
+  void didUpdateWidget(covariant MovaMiniWindow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.api, oldWidget.api) ||
+        widget.config.width != oldWidget.config.width ||
+        widget.config.aspectRatio != oldWidget.config.aspectRatio) {
+      _rect = null;
+      _lastBounds = null;
+      _lastInsets = null;
+      _dragging = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -88,7 +109,8 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
         );
 
         final height = widget.config.width / widget.config.aspectRatio;
-        var rect = _rect ??
+        var rect =
+            _rect ??
             rectForCorner(
               widget.config.initialCorner,
               width: widget.config.width,
@@ -111,9 +133,19 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
         // 规则之外矩形"的落点策略打架。先按比例重新映射（转屏这类 bounds
         // 形状变化后仍"贴在原来那个角落附近"），再钳制兜底合法性——真机验证
         // （2026-09-24）发现只钳制会导致连续转屏后小窗往一侧走位。
-        if (_lastBounds != null && (_lastBounds != bounds || _lastInsets != insets)) {
-          rect = remapProportionally(rect, oldBounds: _lastBounds!, newBounds: bounds);
-          rect = clampToBounds(rect, bounds: bounds, insets: insets, margin: widget.config.margin);
+        if (_lastBounds != null &&
+            (_lastBounds != bounds || _lastInsets != insets)) {
+          rect = remapProportionally(
+            rect,
+            oldBounds: _lastBounds!,
+            newBounds: bounds,
+          );
+          rect = clampToBounds(
+            rect,
+            bounds: bounds,
+            insets: insets,
+            margin: widget.config.margin,
+          );
         }
         _lastBounds = bounds;
         _lastInsets = insets;
@@ -125,7 +157,9 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
           fit: StackFit.expand,
           children: [
             AnimatedPositioned(
-              duration: _dragging ? Duration.zero : widget.config.settleDuration,
+              duration: _dragging
+                  ? Duration.zero
+                  : widget.config.settleDuration,
               curve: Curves.easeOut,
               left: rect.left,
               top: rect.top,
@@ -142,7 +176,11 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
                   borderRadius: BorderRadius.circular(8),
                   child: Material(
                     elevation: 8,
-                    child: MovaPlayer(api: widget.api, skin: skin, autoLoadQualities: false),
+                    child: MovaPlayer(
+                      api: widget.api,
+                      skin: skin,
+                      autoLoadQualities: false,
+                    ),
                   ),
                 ),
               ),
@@ -167,11 +205,20 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     return skin;
   }
 
-  void _onDrag(DragUpdateDetails details, MovaMiniRect bounds, MovaMiniInsets insets) {
+  void _onDrag(
+    DragUpdateDetails details,
+    MovaMiniRect bounds,
+    MovaMiniInsets insets,
+  ) {
     final current = _rect;
     if (current == null) return;
     final moved = current.shift(details.delta.dx, details.delta.dy);
-    final clamped = clampToBounds(moved, bounds: bounds, insets: insets, margin: widget.config.margin);
+    final clamped = clampToBounds(
+      moved,
+      bounds: bounds,
+      insets: insets,
+      margin: widget.config.margin,
+    );
     setState(() {
       _dragging = true;
       _rect = clamped;
@@ -179,12 +226,20 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     widget.ctl.setRect(clamped);
   }
 
-  void _onDragEnd(DragEndDetails details, MovaMiniRect bounds, MovaMiniInsets insets) {
+  /// Closes an outward fling or settles within the effective bounds.
+  ///
+  /// 关闭向外甩动的小窗，或在有效边界内落位。
+  void _onDragEnd(
+    DragEndDetails details,
+    MovaMiniRect bounds,
+    MovaMiniInsets insets,
+  ) {
     final current = _rect;
     if (current == null) return;
     final velocity = details.velocity.pixelsPerSecond;
 
-    if (widget.config.dismissible && _isFlungOffscreen(current, bounds, velocity)) {
+    if (widget.config.dismissible &&
+        _isFlungOffscreen(current, bounds, insets, velocity)) {
       setState(() => _dragging = false);
       widget.ctl.close();
       return;
@@ -204,17 +259,29 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     widget.ctl.setRect(settled);
   }
 
-  /// Whether the release velocity is fast enough, and points far enough
-  /// outside [bounds], to count as "flung away".
+  /// Detects an outward release at the same safe-area/margin drag boundary.
   ///
-  /// 松手速度是否足够快、且指向 [bounds] 之外足够远，构成"甩出关闭"。
-  bool _isFlungOffscreen(MovaMiniRect rect, MovaMiniRect bounds, Offset velocity) {
+  /// 使用与拖动一致的安全区和边距边界识别向外甩动。
+  bool _isFlungOffscreen(
+    MovaMiniRect rect,
+    MovaMiniRect bounds,
+    MovaMiniInsets insets,
+    Offset velocity,
+  ) {
     const threshold = 1200.0;
-    if (velocity.distance < threshold) return false;
-    final movingLeftOut = velocity.dx < 0 && rect.left <= bounds.left;
-    final movingRightOut = velocity.dx > 0 && rect.right >= bounds.right;
-    final movingUpOut = velocity.dy < 0 && rect.top <= bounds.top;
-    final movingDownOut = velocity.dy > 0 && rect.bottom >= bounds.bottom;
+    final margin = widget.config.margin;
+    final movingLeftOut =
+        velocity.dx <= -threshold &&
+        rect.left <= bounds.left + insets.left + margin;
+    final movingRightOut =
+        velocity.dx >= threshold &&
+        rect.right >= bounds.right - insets.right - margin;
+    final movingUpOut =
+        velocity.dy <= -threshold &&
+        rect.top <= bounds.top + insets.top + margin;
+    final movingDownOut =
+        velocity.dy >= threshold &&
+        rect.bottom >= bounds.bottom - insets.bottom - margin;
     return movingLeftOut || movingRightOut || movingUpOut || movingDownOut;
   }
 }

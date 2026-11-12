@@ -1,0 +1,74 @@
+[
+  {
+    "mutation": "post-create-marker",
+    "source": "lib/src/response.dart",
+    "test": "test/rule/response_contract_rule_test.dart",
+    "failures": 1,
+    "seconds": 28.083,
+    "before_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "restored_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  },
+  {
+    "mutation": "retry-effective-status",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/rule/response_contract_rule_test.dart",
+    "failures": 3,
+    "seconds": 26.716,
+    "before_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59",
+    "restored_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59"
+  },
+  {
+    "mutation": "retry-after-effective-status",
+    "source": "lib/src/plugins/retry.dart",
+    "test": "test/rule/response_contract_rule_test.dart",
+    "failures": 1,
+    "seconds": 7.537,
+    "before_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59",
+    "restored_sha256": "8452a2f28bc69d905fbe727b54b16746daf7e0d7d13732665b357c62c9e6bb59"
+  },
+  {
+    "mutation": "auth-effective-status",
+    "source": "lib/src/plugins/auth.dart",
+    "test": "test/rule/response_contract_rule_test.dart",
+    "failures": 1,
+    "seconds": 10.048,
+    "before_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c",
+    "restored_sha256": "4a7e96fba1d79c0c669bab1a4b650f998427648e1b4236f80f1b25334619e73c"
+  },
+  {
+    "mutation": "breaker-effective-status",
+    "source": "lib/src/plugins/breaker.dart",
+    "test": "test/rule/response_contract_rule_test.dart",
+    "failures": 1,
+    "seconds": 16.671,
+    "before_sha256": "95898f8efce4ea5123293ab5da3b130ab3671462c376dcb16827788763b3051e",
+    "restored_sha256": "95898f8efce4ea5123293ab5da3b130ab3671462c376dcb16827788763b3051e"
+  },
+  {
+    "mutation": "parse-envelope-threshold",
+    "source": "lib/src/response.dart",
+    "test": "test/unit/response_contract_test.dart",
+    "failures": 1,
+    "seconds": 11.297,
+    "before_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb",
+    "restored_sha256": "02ef227e056de3e1e7a4e2fcdcaab1b906831d47c85905cd96a007be396f5cdb"
+  },
+  {
+    "mutation": "callback-internal-boundary",
+    "source": "lib/src/pipeline.dart",
+    "test": "test/boundary/internal_callback_boundary_test.dart",
+    "failures": 2,
+    "seconds": 17.284,
+    "before_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b",
+    "restored_sha256": "3226def07718519fca548226426c44168d8cdb739b0c56987ca432ca5fef198b"
+  },
+  {
+    "mutation": "runner-classification",
+    "source": "test/accept/lib/client.dart",
+    "test": "test/unit/accept_runner_test.dart",
+    "failures": 1,
+    "seconds": 9.649,
+    "before_sha256": "6650861795978d183ed08e86ef9ff57dd681a89cbb5ccf0921088761bbaa558e",
+    "restored_sha256": "6650861795978d183ed08e86ef9ff57dd681a89cbb5ccf0921088761bbaa558e"
+  }
+]

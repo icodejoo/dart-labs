@@ -1,0 +1,4 @@
+Review comment:
+
+- [P2] 将插件边界捕获的异常固定归为 internal — E:/workspaces/dart-labs-dioman/dioman/lib/src/pipeline.dart:82-83
+  当 `statusOf` 或插件判定回调抛出 `DioException` 时，这里改用 `normalize` 会按异常类型将程序错误误归为 network、timeout、cancel 或 HTTP 失败。外层因此可能重试、静默取消，或让 `send` 返回普通失败，而不再原异常原栈抛出；此前这里明确构造 internal。应使用不执行传输分类的内部错误入口，符合 [R2a 契约](docs/decisions/0002-response-contract.md#L25-L26) 对判定回调异常的要求。

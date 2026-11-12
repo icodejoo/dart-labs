@@ -16,12 +16,24 @@ Future<int?> readInt(String path) async {
 
 /// Actual process counters; no assumed memory or power budget.
 Future<Map<String, Object?>> metrics() async {
+  final errors = <String, String>{};
+  // 各计数独立失败，fd 的瞬时消失不能抹掉 CPU 和线程证据。
+  Future<int?> counter(String name, Future<int> Function() read) async {
+    try {
+      return await read();
+    } on Object catch (error) {
+      errors[name] = '$error';
+      return null;
+    }
+  }
   final values = <String, Object?>{
     'rss': ProcessInfo.currentRss,
     'pid': pid,
     'threads': null,
     'handles': null,
     'cpuTicks': null,
+    'cpuUnit': Platform.isWindows ? '100ns' : 'clockTicks',
+    'sampleUs': c.clock.elapsedMicroseconds,
   };
   try {
     if (Platform.isWindows) {
@@ -45,18 +57,23 @@ Future<Map<String, Object?>> metrics() async {
         values['counterError'] = '${result.stderr}';
       }
     } else if (Platform.isAndroid || Platform.isLinux) {
-      values['threads'] = await Directory('/proc/self/task').list().length;
-      values['handles'] = await Directory('/proc/self/fd').list().length;
-      final raw = await File('/proc/self/stat').readAsString();
-      final fields = raw
-          .substring(raw.lastIndexOf(')') + 2)
-          .trim()
-          .split(RegExp(r'\s+'));
-      values['cpuTicks'] = int.parse(fields[11]) + int.parse(fields[12]);
+      values['threads'] = await counter('threads', () =>
+          Directory('/proc/self/task').list(followLinks: false).length);
+      // 不跟随动态 fd 符号链接，避免关闭中的 fd 导致 stat ENOENT。
+      values['handles'] = await counter('handles', () =>
+          Directory('/proc/self/fd').list(followLinks: false).length);
+      values['cpuTicks'] = await counter('cpuTicks', () async {
+        final raw = await File('/proc/self/stat').readAsString();
+        final fields = raw.substring(raw.lastIndexOf(')') + 2).trim()
+            .split(RegExp(r'\s+'));
+        values['processStartTicks'] = int.parse(fields[19]);
+        return int.parse(fields[11]) + int.parse(fields[12]);
+      });
     }
   } on Object catch (error) {
     values['counterError'] = '$error';
   }
+  if (errors.isNotEmpty) values['counterErrors'] = errors;
   values['power'] = {
     'chargeCounter': await readInt(
       '/sys/class/power_supply/battery/charge_counter',
@@ -66,6 +83,17 @@ Future<Map<String, Object?>> metrics() async {
     'voltageNow': await readInt('/sys/class/power_supply/battery/voltage_now'),
   };
   return values;
+}
+
+// 带阶段、进程与单调时间的采样点，便于与主机 dumpsys/原生计数对齐。
+Future<Map<String, Object?>> checkpoint(String phase, {
+  int? created, int? engineCount,
+}) async {
+  final data = await metrics();
+  c.mark('RESOURCE_SAMPLE', {
+    'phase': phase, ...data, 'created': created, 'engineCount': engineCount,
+  });
+  return data;
 }
 
 void sample(
@@ -207,10 +235,10 @@ Future<void> audioResources() async {
   c.observe(a);
   c.screen.value = a;
   try {
-    final before = await metrics();
+    final before = await checkpoint('audio.before');
     await a.open(c.source());
     await c.until(() => positions.where((p) => p > 0).length >= 10);
-    final after = await metrics();
+    final after = await checkpoint('audio.active');
     sample('F12.audioCounters', before, after);
     final starts = reports
         .where((r) => r.name == MovaReportName.sessionStart)
@@ -246,5 +274,7 @@ Future<void> audioResources() async {
     await sub.cancel();
     await a.dispose();
     c.screen.value = null;
+    await c.settle(1000);
+    await checkpoint('audio.disposed.1000ms');
   }
 }

@@ -1,0 +1,244 @@
+{
+  "variants": {
+    "capsule_physics": {
+      "valid_runs": 3,
+      "median": {
+        "frame_count": 301.0,
+        "new_gen_gc": 4,
+        "physics_step_avg_ms": 2.3969003436426117,
+        "physics_step_count": 291,
+        "physics_step_max_ms": 6.583,
+        "physics_step_p99_ms": 5.564,
+        "raster_avg_ms": 5.854916943521597,
+        "raster_p90_ms": 15.976,
+        "raster_p99_ms": 17.625,
+        "ui_avg_ms": 4.40242524916943,
+        "ui_p90_ms": 7.013,
+        "ui_p99_ms": 8.393
+      },
+      "runs": [
+        {
+          "ui_avg_ms": 4.40242524916943,
+          "ui_p90_ms": 7.262,
+          "ui_p99_ms": 8.393,
+          "raster_avg_ms": 5.854916943521597,
+          "raster_p90_ms": 15.976,
+          "raster_p99_ms": 17.625,
+          "frame_count": 301.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 291,
+          "physics_step_avg_ms": 2.3969003436426117,
+          "physics_step_p99_ms": 5.564,
+          "physics_step_max_ms": 6.583
+        },
+        {
+          "ui_avg_ms": 4.444289036544851,
+          "ui_p90_ms": 7.013,
+          "ui_p99_ms": 8.844,
+          "raster_avg_ms": 3.8816046511627955,
+          "raster_p90_ms": 4.279,
+          "raster_p99_ms": 8.014,
+          "frame_count": 301.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 291,
+          "physics_step_avg_ms": 2.4092474226804126,
+          "physics_step_p99_ms": 6.075,
+          "physics_step_max_ms": 7.593
+        },
+        {
+          "ui_avg_ms": 4.25179069767442,
+          "ui_p90_ms": 6.987,
+          "ui_p99_ms": 8.351,
+          "raster_avg_ms": 16.767853820598017,
+          "raster_p90_ms": 17.661,
+          "raster_p99_ms": 20.308,
+          "frame_count": 301.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 287,
+          "physics_step_avg_ms": 2.3361114982578397,
+          "physics_step_p99_ms": 5.425,
+          "physics_step_max_ms": 6.361
+        }
+      ]
+    },
+    "lotto_draw": {
+      "valid_runs": 3,
+      "median": {
+        "frame_count": 579.0,
+        "new_gen_gc": 3,
+        "physics_step_count": 0,
+        "raster_avg_ms": 9.673863793103457,
+        "raster_p90_ms": 16.861,
+        "raster_p99_ms": 19.243,
+        "ui_avg_ms": 2.2278065630397235,
+        "ui_p90_ms": 3.295,
+        "ui_p99_ms": 3.934
+      },
+      "runs": [
+        {
+          "ui_avg_ms": 2.2278065630397235,
+          "ui_p90_ms": 3.312,
+          "ui_p99_ms": 4.063,
+          "raster_avg_ms": 4.832981001727114,
+          "raster_p90_ms": 5.209,
+          "raster_p99_ms": 5.685,
+          "frame_count": 579.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        },
+        {
+          "ui_avg_ms": 2.226647668393781,
+          "ui_p90_ms": 3.29,
+          "ui_p99_ms": 3.873,
+          "raster_avg_ms": 13.955787564766842,
+          "raster_p90_ms": 17.315,
+          "raster_p99_ms": 19.243,
+          "frame_count": 579.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        },
+        {
+          "ui_avg_ms": 2.3201758620689663,
+          "ui_p90_ms": 3.295,
+          "ui_p99_ms": 3.934,
+          "raster_avg_ms": 9.673863793103457,
+          "raster_p90_ms": 16.861,
+          "raster_p99_ms": 19.279,
+          "frame_count": 580.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        }
+      ]
+    },
+    "lotto_physics": {
+      "valid_runs": 3,
+      "median": {
+        "frame_count": 579.0,
+        "new_gen_gc": 4,
+        "physics_step_avg_ms": 1.2860766283524905,
+        "physics_step_count": 520,
+        "physics_step_max_ms": 5.702,
+        "physics_step_p99_ms": 4.916,
+        "raster_avg_ms": 4.725020725388601,
+        "raster_p90_ms": 5.065,
+        "raster_p99_ms": 8.563,
+        "ui_avg_ms": 5.221918825561316,
+        "ui_p90_ms": 8.241,
+        "ui_p99_ms": 10.436
+      },
+      "runs": [
+        {
+          "ui_avg_ms": 4.809436206896548,
+          "ui_p90_ms": 7.931,
+          "ui_p99_ms": 10.196,
+          "raster_avg_ms": 4.721410344827586,
+          "raster_p90_ms": 5.077,
+          "raster_p99_ms": 8.248,
+          "frame_count": 580.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 520,
+          "physics_step_avg_ms": 1.2603173076923078,
+          "physics_step_p99_ms": 4.804,
+          "physics_step_max_ms": 6.109
+        },
+        {
+          "ui_avg_ms": 5.318362694300519,
+          "ui_p90_ms": 8.241,
+          "ui_p99_ms": 10.436,
+          "raster_avg_ms": 4.879937823834198,
+          "raster_p90_ms": 5.065,
+          "raster_p99_ms": 8.563,
+          "frame_count": 579.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 520,
+          "physics_step_avg_ms": 1.423001923076923,
+          "physics_step_p99_ms": 4.916,
+          "physics_step_max_ms": 5.702
+        },
+        {
+          "ui_avg_ms": 5.221918825561316,
+          "ui_p90_ms": 8.404,
+          "ui_p99_ms": 10.679,
+          "raster_avg_ms": 4.725020725388601,
+          "raster_p90_ms": 5.019,
+          "raster_p99_ms": 8.86,
+          "frame_count": 579.0,
+          "new_gen_gc": 4,
+          "physics_step_count": 522,
+          "physics_step_avg_ms": 1.2860766283524905,
+          "physics_step_p99_ms": 5.139,
+          "physics_step_max_ms": 5.544
+        }
+      ]
+    },
+    "capsule_mixing": {
+      "valid_runs": 3,
+      "median": {
+        "frame_count": 301.0,
+        "new_gen_gc": 3,
+        "physics_step_count": 0,
+        "raster_avg_ms": 3.965338870431893,
+        "raster_p90_ms": 4.664,
+        "raster_p99_ms": 5.09,
+        "ui_avg_ms": 1.8030199335548174,
+        "ui_p90_ms": 2.695,
+        "ui_p99_ms": 3.328
+      },
+      "runs": [
+        {
+          "ui_avg_ms": 1.517049833887043,
+          "ui_p90_ms": 2.465,
+          "ui_p99_ms": 3.138,
+          "raster_avg_ms": 3.5841096345514973,
+          "raster_p90_ms": 4.327,
+          "raster_p99_ms": 4.945,
+          "frame_count": 301.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        },
+        {
+          "ui_avg_ms": 1.8753720930232545,
+          "ui_p90_ms": 2.844,
+          "ui_p99_ms": 3.328,
+          "raster_avg_ms": 3.965338870431893,
+          "raster_p90_ms": 4.664,
+          "raster_p99_ms": 5.09,
+          "frame_count": 301.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        },
+        {
+          "ui_avg_ms": 1.8030199335548174,
+          "ui_p90_ms": 2.695,
+          "ui_p99_ms": 3.328,
+          "raster_avg_ms": 4.059877076411959,
+          "raster_p90_ms": 4.674,
+          "raster_p99_ms": 5.096,
+          "frame_count": 301.0,
+          "new_gen_gc": 3,
+          "physics_step_count": 0
+        }
+      ]
+    }
+  },
+  "deltas": {
+    "capsule": {
+      "ui_avg_ms": 2.5994053156146126,
+      "ui_p90_ms": 4.318,
+      "ui_p99_ms": 5.065000000000001,
+      "raster_avg_ms": 1.8895780730897043,
+      "raster_p90_ms": 11.312000000000001,
+      "raster_p99_ms": 12.535,
+      "new_gen_gc": 1
+    },
+    "lotto": {
+      "ui_avg_ms": 2.9941122625215923,
+      "ui_p90_ms": 4.946,
+      "ui_p99_ms": 6.502,
+      "raster_avg_ms": -4.948843067714856,
+      "raster_p90_ms": -11.796,
+      "raster_p99_ms": -10.679999999999998,
+      "new_gen_gc": 1
+    }
+  }
+}

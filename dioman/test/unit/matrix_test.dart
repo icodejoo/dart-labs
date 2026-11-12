@@ -1,6 +1,13 @@
 // ignore_for_file: avoid_relative_lib_imports
+import 'dart:io';
 import 'package:test/test.dart';
 import '../accept/lib/matrix.dart';
+
+/// 本轮证据夹具目录。
+const _matrixTempParent = 'coverage/matrix-evidence-test';
+
+/// API 触达清单字段。
+const _apiHits = 'apiHits';
 
 /// B7 共用字面量。
 const _b7Literal0 = 'scenario';
@@ -40,6 +47,44 @@ const _b7Literal11 = 'normal@http';
 
 /// 闸门工具的标题扫描及跳过语义必须支持新测试布局。
 void main() {
+  test('[matrix.readMatrixJson][matrix.writeMatrixJson] 压缩往返保留格子与 API 触达',
+      () {
+    final parent = Directory(_matrixTempParent)
+      ..createSync(recursive: true);
+    final temp = parent.createTempSync();
+    addTearDown(() => temp.delete(recursive: true));
+    final payload = {
+      _b7Literal10: {
+        _b7Literal0: {_b7Literal11: '通过'}
+      },
+      _apiHits: ['Dioman.send']
+    };
+    for (final name in ['plain.json', 'compressed.json.gz']) {
+      final path = '${temp.path}/$name';
+      writeMatrixJson(path, payload);
+      expect(readMatrixJson(path, null), payload);
+    }
+    expect(File('${temp.path}/compressed.json.gz').readAsBytesSync().take(2),
+        [0x1f, 0x8b]);
+    expect(readMatrixJson('${temp.path}/absent.json.gz', []), isEmpty);
+  });
+  test('[matrix.latestEvidence] 最新压缩摘要覆盖旧普通摘要', () {
+    final parent = Directory(_matrixTempParent)
+      ..createSync(recursive: true);
+    final temp = parent.createTempSync();
+    addTearDown(() => temp.delete(recursive: true));
+    Directory('${temp.path}/$evidenceDirectory').createSync(recursive: true);
+    writeMatrixJson('${temp.path}/$evidenceDirectory/2026-10-29-summary.json',
+        {_apiHits: ['removed']});
+    const selected = '$evidenceDirectory/2026-11-03-summary.json.gz';
+    writeMatrixJson('${temp.path}/$selected', {
+      _apiHits: ['current']
+    });
+    expect(latestEvidence(temp), selected);
+    expect(readMatrixJson('${temp.path}/$selected', null), {
+      _apiHits: ['current']
+    });
+  });
   test('[matrix.titleIdsFromSource] 常量插值及相邻字面量被反查，注释和普通字符串忽略', () {
     final source = r'''
 const title = '[INV-scan]';

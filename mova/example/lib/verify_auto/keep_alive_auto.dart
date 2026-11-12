@@ -512,7 +512,12 @@ class _KeepAliveAutoPageState extends State<KeepAliveAutoPage> with WidgetsBindi
   /// S6: the public API must fall back for a silent stream. Directly forcing
   /// kernel muted mode bypasses that decision and can end the FLV demuxer.
   Future<void> _s6(int run) async {
-    if (!await _play(_Cfg(source: _src(_live(audio: false))))) return _verdict('S6', false, 'never rendered');
+    // 本场景验证显式暂停策略；默认 keepDecoding 应由 S3 继续验证。
+    if (!await _play(_Cfg(source: _src(_live(audio: false)), keepAlive: const MovaKeepAliveConfig(
+      maxDuration: Duration(seconds: 300), silentStreams: MovaSilentKeepAlive.pause,
+    )))) {
+      return _verdict('S6', false, 'never rendered');
+    }
     final media = await _kernel!.inspectKeepAlive();
     final mark = _ev!.mark;
     final phase = await _keepAlive(true);

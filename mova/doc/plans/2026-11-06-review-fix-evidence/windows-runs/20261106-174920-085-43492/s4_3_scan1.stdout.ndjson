@@ -1,0 +1,6 @@
+{"event":"ARMED","pid":34348,"id":"s4_3_scan1","root":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache"}
+{"event":"GATE_PROBE","pid":34348,"id":"s4_3_scan1","acquired":false}
+{"event":"RESOLVE_BEGIN","pid":34348,"id":"s4_3_scan1"}
+{"event":"READY","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan","marker":"token_s4_3_scan1.txt","token":"s4_3_scan1:34348:1793958575806056"}
+{"event":"CHECKED","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan","token":"s4_3_scan1:34348:1793958575806056","request":"S4-final"}
+{"event":"RELEASED","pid":34348,"id":"s4_3_scan1","directory":"C:\\Users\\jelon\\AppData\\Local\\Temp\\mova_wrfv_5a8ac999\\S4_3\\cache\\engine_legacy_orphan"}

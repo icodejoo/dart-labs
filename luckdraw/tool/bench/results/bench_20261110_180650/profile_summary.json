@@ -1,0 +1,6306 @@
+{
+  "device": "vivo V2417",
+  "serial": "10AE9K17UE0011S",
+  "rss_cycles": 5,
+  "source": "bench_20261110_180650",
+  "valid_rounds": {
+    "wheel_steady": 3,
+    "wheel_first_frame": 3,
+    "grid_steady": 3,
+    "slot_steady": 3,
+    "slot_raster": 3,
+    "capsule_mixing": 3,
+    "number_wheel_spin": 3,
+    "lots_shaking": 3,
+    "lotto_draw": 3,
+    "memory_cycles": 3,
+    "lever_steady": 3
+  },
+  "scenarios": {
+    "wheel_steady": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.0449734219269113,
+          "min": 1.019423333333333,
+          "max": 1.1362823920265777,
+          "spread_ratio": 0.1118296946517155,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.509,
+          "min": 1.476,
+          "max": 1.635,
+          "spread_ratio": 0.10536779324055669,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 1.93,
+          "min": 1.784,
+          "max": 2.312,
+          "spread_ratio": 0.2735751295336787,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 2.405,
+          "min": 2.351,
+          "max": 2.569,
+          "spread_ratio": 0.09064449064449064,
+          "stable": true
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 16.44903986710963,
+          "min": 11.078690000000005,
+          "max": 16.787325581395343,
+          "spread_ratio": 0.3470497747901951,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.7173340891108989,
+          "min": 0.7163788571226138,
+          "max": 5.010112777083622,
+          "spread_ratio": 5.985682243657045,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 17.536,
+          "min": 16.897,
+          "max": 17.576,
+          "spread_ratio": 0.038720346715328584,
+          "stable": true
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 19.181,
+          "min": 18.871,
+          "max": 20.283,
+          "spread_ratio": 0.07361451436317203,
+          "stable": true
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 23.518,
+          "min": 20.546,
+          "max": 28.247,
+          "spread_ratio": 0.3274513138872353,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 228,
+          "min": 100,
+          "max": 233,
+          "spread_ratio": 0.5833333333333334,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 300.0,
+          "max": 301.0,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 291,
+          "min": 291,
+          "max": 294,
+          "spread_ratio": 0.010309278350515464,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 0.0,
+          "max": 2.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0158730158730158,
+          "spread_ratio": 0.015873015873015817,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 2.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16311.416949152543,
+          "min": 16280.738831615121,
+          "max": 16314.130136986301,
+          "spread_ratio": 0.002047112490304847,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16644.0,
+          "min": 16593.0,
+          "max": 16679.0,
+          "spread_ratio": 0.005167027156933429,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17214.0,
+          "min": 17154.0,
+          "max": 17215.0,
+          "spread_ratio": 0.003543627280120832,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 3.589,
+          "min": 0.0,
+          "max": 7.066,
+          "spread_ratio": 1.968793535803845,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.3554817275747508,
+          "min": 0.16666666666666666,
+          "max": 0.3754152823920266,
+          "spread_ratio": 0.5872274143302182,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 0.934,
+          "min": 0.882,
+          "max": 1.033,
+          "spread_ratio": 0.16167023554603843,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 16.44,
+          "min": 7.753,
+          "max": 16.466,
+          "spread_ratio": 0.5299878345498784,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 17.489,
+          "min": 9.374,
+          "max": 17.521,
+          "spread_ratio": 0.4658356681342558,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 18.746,
+          "min": 18.202,
+          "max": 18.836,
+          "spread_ratio": 0.03382054838365501,
+          "stable": true
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 20.51,
+          "min": 19.591,
+          "max": 20.778,
+          "spread_ratio": 0.05787420770355912,
+          "stable": true
+        },
+        "fps": {
+          "median": 59.98830128476606,
+          "min": 59.94093420343594,
+          "max": 60.11197202816196,
+          "spread_ratio": 0.002851186332383373,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5007322,
+          "min": 5004927,
+          "max": 5017645,
+          "spread_ratio": 0.0025398805988510425,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 268156928,
+          "min": 260714496,
+          "max": 270729216,
+          "spread_ratio": 0.03734648988818965,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 316858368,
+          "min": 310235136,
+          "max": 319889408,
+          "spread_ratio": 0.03046872980170118,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 49160192,
+          "min": 48701440,
+          "max": 49520640,
+          "spread_ratio": 0.016663889351774704,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 2641920,
+          "min": 1568768,
+          "max": 3211264,
+          "spread_ratio": 0.6217054263565891,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 2174976,
+          "min": 1503232,
+          "max": 2600960,
+          "spread_ratio": 0.504708097928437,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 302956544,
+          "min": 295239680,
+          "max": 304943104,
+          "spread_ratio": 0.032029095235519986,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.0449734219269113,
+          "min": 1.019423333333333,
+          "max": 1.1362823920265777,
+          "spread_ratio": 0.1118296946517155,
+          "stable": true,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.509,
+          "min": 1.476,
+          "max": 1.635,
+          "spread_ratio": 0.10536779324055669,
+          "stable": true,
+          "limit": 2,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 16.44903986710963,
+          "min": 11.078690000000005,
+          "max": 16.787325581395343,
+          "spread_ratio": 0.3470497747901951,
+          "stable": false,
+          "limit": 5,
+          "within_budget": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 17.536,
+          "min": 16.897,
+          "max": 17.576,
+          "spread_ratio": 0.038720346715328584,
+          "stable": true,
+          "limit": 8,
+          "within_budget": false
+        },
+        "dropped_frame_ratio": {
+          "median": 0.3554817275747508,
+          "min": 0.16666666666666666,
+          "max": 0.3754152823920266,
+          "spread_ratio": 0.5872274143302182,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": false
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 2641920,
+          "min": 1568768,
+          "max": 3211264,
+          "spread_ratio": 0.6217054263565891,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 2174976,
+          "min": 1503232,
+          "max": 2600960,
+          "spread_ratio": 0.504708097928437,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794305396820500",
+        "1794305572288023",
+        "1794305667616945"
+      ]
+    },
+    "wheel_first_frame": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 20.337,
+          "min": 20.282999999999998,
+          "max": 21.175500000000003,
+          "spread_ratio": 0.04388552883906208,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 40.378,
+          "min": 40.257,
+          "max": 42.014,
+          "spread_ratio": 0.04351379464064602,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 40.378,
+          "min": 40.257,
+          "max": 42.014,
+          "spread_ratio": 0.04351379464064602,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 41.389,
+          "min": 41.063,
+          "max": 42.952,
+          "spread_ratio": 0.04564014593249403,
+          "stable": true
+        },
+        "missed_frame_build_budget_count": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 2.9855,
+          "min": 2.935,
+          "max": 3.41,
+          "spread_ratio": 0.15910232791827167,
+          "stable": true
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.1765000000000001,
+          "min": 0.10850000000000004,
+          "max": 0.6604999999999999,
+          "spread_ratio": 3.1274787535410735,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.15,
+          "min": 3.031,
+          "max": 4.049,
+          "spread_ratio": 0.3231746031746033,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.15,
+          "min": 3.031,
+          "max": 4.049,
+          "spread_ratio": 0.3231746031746033,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 3.225,
+          "min": 3.093,
+          "max": 4.127,
+          "spread_ratio": 0.3206201550387596,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "frame_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 2,
+          "min": 2,
+          "max": 2,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 22744.666666666668,
+          "min": 15962.0,
+          "max": 24232.5,
+          "spread_ratio": 0.3636237066565055,
+          "stable": false
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 29041.0,
+          "min": 21801.0,
+          "max": 37072.0,
+          "spread_ratio": 0.5258427740091595,
+          "stable": false
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 29041.0,
+          "min": 21801.0,
+          "max": 37072.0,
+          "spread_ratio": 0.5258427740091595,
+          "stable": false
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.5,
+          "min": 0.5,
+          "max": 0.5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 0.309,
+          "min": 0.296,
+          "max": 0.337,
+          "spread_ratio": 0.13268608414239494,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 2.821,
+          "min": 2.771,
+          "max": 2.839,
+          "spread_ratio": 0.024104927330733803,
+          "stable": true
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 3.117,
+          "min": 3.08,
+          "max": 3.176,
+          "spread_ratio": 0.030798845043310902,
+          "stable": true
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 44.306,
+          "min": 43.528,
+          "max": 45.045,
+          "spread_ratio": 0.03423915496772453,
+          "stable": true
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 44.306,
+          "min": 43.528,
+          "max": 45.045,
+          "spread_ratio": 0.03423915496772453,
+          "stable": true
+        },
+        "fps": {
+          "median": 24.274790629930816,
+          "min": 21.591743317355444,
+          "max": 26.997475736018682,
+          "spread_ratio": 0.2226891469868321,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 82390,
+          "min": 74081,
+          "max": 92628,
+          "spread_ratio": 0.22511227090666344,
+          "stable": true
+        },
+        "first_frame_ui_millis": {
+          "median": 40.378,
+          "min": 40.257,
+          "max": 42.014,
+          "spread_ratio": 0.04351379464064602,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "first_frame_ui_millis": {
+          "median": 40.378,
+          "min": 40.257,
+          "max": 42.014,
+          "spread_ratio": 0.04351379464064602,
+          "stable": true,
+          "limit": 4,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794305396820500",
+        "1794305572288023",
+        "1794305667616945"
+      ]
+    },
+    "grid_steady": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 0.9603488372093021,
+          "min": 0.8581029900332225,
+          "max": 1.0905249169435212,
+          "spread_ratio": 0.24201823119367583,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.611,
+          "min": 1.466,
+          "max": 1.736,
+          "spread_ratio": 0.1675977653631285,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.12,
+          "min": 1.923,
+          "max": 2.185,
+          "spread_ratio": 0.12358490566037736,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 3.95,
+          "min": 2.479,
+          "max": 4.02,
+          "spread_ratio": 0.39012658227848085,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 5.419003322259136,
+          "min": 3.5583521594684364,
+          "max": 6.173956810631226,
+          "spread_ratio": 0.48267264211094196,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.8961429214900231,
+          "min": 0.3604789874329988,
+          "max": 0.9310579872802088,
+          "spread_ratio": 0.6367053582240033,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 7.2,
+          "min": 4.044,
+          "max": 7.37,
+          "spread_ratio": 0.4619444444444445,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 8.177,
+          "min": 4.668,
+          "max": 9.856,
+          "spread_ratio": 0.634462516815458,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 10.603,
+          "min": 4.94,
+          "max": 11.249,
+          "spread_ratio": 0.5950202772800152,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 301.0,
+          "max": 301.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 298,
+          "min": 297,
+          "max": 298,
+          "spread_ratio": 0.003355704697986577,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16296.060606060606,
+          "min": 16255.946127946128,
+          "max": 16338.636363636364,
+          "spread_ratio": 0.005074246941587991,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16631.0,
+          "min": 16570.0,
+          "max": 16730.0,
+          "spread_ratio": 0.009620588058445073,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17282.0,
+          "min": 17115.0,
+          "max": 17373.0,
+          "spread_ratio": 0.014928827681981251,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 0.86,
+          "min": 0.8,
+          "max": 0.978,
+          "spread_ratio": 0.20697674418604645,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 5.138,
+          "min": 3.624,
+          "max": 5.595,
+          "spread_ratio": 0.3836123005060334,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 5.858,
+          "min": 4.43,
+          "max": 7.041,
+          "spread_ratio": 0.4457152611812907,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 8.649,
+          "min": 5.509,
+          "max": 8.657,
+          "spread_ratio": 0.36397271360850963,
+          "stable": false
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 9.206,
+          "min": 6.61,
+          "max": 10.406,
+          "spread_ratio": 0.4123397784053878,
+          "stable": false
+        },
+        "fps": {
+          "median": 60.005773312940676,
+          "min": 59.98524084074197,
+          "max": 60.02280068780945,
+          "spread_ratio": 0.0006259372222668672,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5016184,
+          "min": 5014761,
+          "max": 5017901,
+          "spread_ratio": 0.0006259738478492815,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 268824576,
+          "min": 268357632,
+          "max": 269606912,
+          "spread_ratio": 0.004647194161295729,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 317874176,
+          "min": 314265600,
+          "max": 318128128,
+          "spread_ratio": 0.012151122335901864,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 48267264,
+          "min": 45441024,
+          "max": 49770496,
+          "spread_ratio": 0.0896978954514596,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 294912,
+          "min": 94208,
+          "max": 1323008,
+          "spread_ratio": 4.166666666666667,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 294912,
+          "min": 0,
+          "max": 1323008,
+          "spread_ratio": 4.486111111111111,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 302628864,
+          "min": 302227456,
+          "max": 303661056,
+          "spread_ratio": 0.00473715554111851,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 0.9603488372093021,
+          "min": 0.8581029900332225,
+          "max": 1.0905249169435212,
+          "spread_ratio": 0.24201823119367583,
+          "stable": true,
+          "limit": 0.6,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.611,
+          "min": 1.466,
+          "max": 1.736,
+          "spread_ratio": 0.1675977653631285,
+          "stable": true,
+          "limit": 1.5,
+          "within_budget": false
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 5.419003322259136,
+          "min": 3.5583521594684364,
+          "max": 6.173956810631226,
+          "spread_ratio": 0.48267264211094196,
+          "stable": false,
+          "limit": 4,
+          "within_budget": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 7.2,
+          "min": 4.044,
+          "max": 7.37,
+          "spread_ratio": 0.4619444444444445,
+          "stable": false,
+          "limit": 7,
+          "within_budget": false
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": null,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 294912,
+          "min": 94208,
+          "max": 1323008,
+          "spread_ratio": 4.166666666666667,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 294912,
+          "min": 0,
+          "max": 1323008,
+          "spread_ratio": 4.486111111111111,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": true
+        }
+      },
+      "run_ids": [
+        "1794305776155025",
+        "1794305881436541",
+        "1794305983682447"
+      ]
+    },
+    "slot_steady": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.3574133333333325,
+          "min": 1.3441694352159455,
+          "max": 1.3711096345514955,
+          "spread_ratio": 0.019846717778581355,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.908,
+          "min": 1.884,
+          "max": 1.921,
+          "spread_ratio": 0.019392033542977017,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.502,
+          "min": 2.376,
+          "max": 2.527,
+          "spread_ratio": 0.060351718625100026,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 3.383,
+          "min": 2.855,
+          "max": 3.919,
+          "spread_ratio": 0.3145137451965711,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 3.455634551495018,
+          "min": 3.440528239202658,
+          "max": 9.10642666666667,
+          "spread_ratio": 1.6396115801691942,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.4265438571318199,
+          "min": 0.2314989017781258,
+          "max": 5.211720830863186,
+          "spread_ratio": 11.675755835691152,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.084,
+          "min": 3.832,
+          "max": 16.862,
+          "spread_ratio": 3.190499510284035,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.633,
+          "min": 4.283,
+          "max": 22.797,
+          "spread_ratio": 3.996114828404921,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 4.826,
+          "min": 4.56,
+          "max": 26.026,
+          "spread_ratio": 4.447990053874845,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 69,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 300.0,
+          "max": 301.0,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 301,
+          "min": 299,
+          "max": 301,
+          "spread_ratio": 0.006644518272425249,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0147783251231528,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16277.266666666666,
+          "min": 16272.046666666667,
+          "max": 16282.67,
+          "spread_ratio": 0.0006526484790648509,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16648.0,
+          "min": 16552.0,
+          "max": 16679.0,
+          "spread_ratio": 0.007628543969245555,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17153.0,
+          "min": 16958.0,
+          "max": 17265.0,
+          "spread_ratio": 0.017897743834897686,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 4.45,
+          "min": 3.227,
+          "max": 7.016,
+          "spread_ratio": 0.8514606741573034,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.12666666666666668,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.221,
+          "min": 1.207,
+          "max": 1.332,
+          "spread_ratio": 0.10237510237510236,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.498,
+          "min": 3.465,
+          "max": 5.296,
+          "spread_ratio": 0.5234419668381933,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 4.738,
+          "min": 4.693,
+          "max": 7.062,
+          "spread_ratio": 0.5000000000000001,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 6.058,
+          "min": 5.671,
+          "max": 18.376,
+          "spread_ratio": 2.097226807527237,
+          "stable": false
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 6.578,
+          "min": 6.422,
+          "max": 23.632,
+          "spread_ratio": 2.6162967467315292,
+          "stable": false
+        },
+        "fps": {
+          "median": 60.0674791275488,
+          "min": 59.861110251993324,
+          "max": 60.07912080893243,
+          "spread_ratio": 0.0036294274390336386,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5011031,
+          "min": 5010060,
+          "max": 5011601,
+          "spread_ratio": 0.00030752154596529137,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 270733312,
+          "min": 270630912,
+          "max": 271986688,
+          "spread_ratio": 0.005007791579042921,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 317607936,
+          "min": 317476864,
+          "max": 318238720,
+          "spread_ratio": 0.002398730993925794,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 46845952,
+          "min": 45621248,
+          "max": 47505408,
+          "spread_ratio": 0.04022033750109295,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1470464,
+          "min": 1429504,
+          "max": 2240512,
+          "spread_ratio": 0.5515320334261838,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1429504,
+          "min": 1384448,
+          "max": 2400256,
+          "spread_ratio": 0.7106017191977078,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 304619520,
+          "min": 304148480,
+          "max": 305012736,
+          "spread_ratio": 0.002837165523732688,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.3574133333333325,
+          "min": 1.3441694352159455,
+          "max": 1.3711096345514955,
+          "spread_ratio": 0.019846717778581355,
+          "stable": true,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.908,
+          "min": 1.884,
+          "max": 1.921,
+          "spread_ratio": 0.019392033542977017,
+          "stable": true,
+          "limit": 2,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 3.455634551495018,
+          "min": 3.440528239202658,
+          "max": 9.10642666666667,
+          "spread_ratio": 1.6396115801691942,
+          "stable": false,
+          "limit": 5,
+          "within_budget": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.084,
+          "min": 3.832,
+          "max": 16.862,
+          "spread_ratio": 3.190499510284035,
+          "stable": false,
+          "limit": 8,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.12666666666666668,
+          "spread_ratio": null,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1470464,
+          "min": 1429504,
+          "max": 2240512,
+          "spread_ratio": 0.5515320334261838,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1429504,
+          "min": 1384448,
+          "max": 2400256,
+          "spread_ratio": 0.7106017191977078,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794306159431550",
+        "1794306659957714",
+        "1794306825736505"
+      ]
+    },
+    "slot_raster": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.0640664451827238,
+          "min": 0.769212624584717,
+          "max": 1.1085415282392022,
+          "spread_ratio": 0.3188982278228076,
+          "stable": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.405,
+          "min": 0.942,
+          "max": 1.517,
+          "spread_ratio": 0.40925266903914587,
+          "stable": false
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 1.787,
+          "min": 1.518,
+          "max": 2.19,
+          "spread_ratio": 0.37604924454392835,
+          "stable": false
+        },
+        "worst_frame_build_time_millis": {
+          "median": 2.34,
+          "min": 1.682,
+          "max": 2.885,
+          "spread_ratio": 0.514102564102564,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 2.768136212624582,
+          "min": 2.7336511627906988,
+          "max": 6.167504983388707,
+          "spread_ratio": 1.2404930815677715,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.2886742971931879,
+          "min": 0.19537949912252617,
+          "max": 1.0923717777777782,
+          "spread_ratio": 3.107281414995402,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.163,
+          "min": 3.056,
+          "max": 7.073,
+          "spread_ratio": 1.2699968384445148,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.455,
+          "min": 3.4,
+          "max": 15.553,
+          "spread_ratio": 3.517510853835022,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 3.795,
+          "min": 3.547,
+          "max": 16.104,
+          "spread_ratio": 3.3088274044795782,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 301.0,
+          "max": 301.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 301,
+          "min": 300,
+          "max": 301,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16275.843333333334,
+          "min": 16261.25,
+          "max": 16371.746666666666,
+          "spread_ratio": 0.00678899792801311,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16581.0,
+          "min": 16531.0,
+          "max": 16660.0,
+          "spread_ratio": 0.0077799891442011946,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 16951.0,
+          "min": 16938.0,
+          "max": 17026.0,
+          "spread_ratio": 0.005191434133679429,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 6.857,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.008,
+          "min": 0.723,
+          "max": 1.024,
+          "spread_ratio": 0.29861111111111116,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 2.782,
+          "min": 2.745,
+          "max": 5.471,
+          "spread_ratio": 0.9798705966930266,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 3.796,
+          "min": 3.492,
+          "max": 6.445,
+          "spread_ratio": 0.7779241306638568,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 4.698,
+          "min": 3.904,
+          "max": 8.413,
+          "spread_ratio": 0.9597701149425287,
+          "stable": false
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 5.409,
+          "min": 4.493,
+          "max": 16.905,
+          "spread_ratio": 2.294694028471067,
+          "stable": false
+        },
+        "fps": {
+          "median": 60.06177383369913,
+          "min": 60.01329862796839,
+          "max": 60.135498664132854,
+          "spread_ratio": 0.002034572546971653,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5011507,
+          "min": 5005363,
+          "max": 5015555,
+          "spread_ratio": 0.002033719597717812,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 342896640,
+          "min": 338956288,
+          "max": 344035328,
+          "spread_ratio": 0.01481216030579944,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 369000448,
+          "min": 365101056,
+          "max": 369868800,
+          "spread_ratio": 0.012920699760234437,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 26103808,
+          "min": 25833472,
+          "max": 26144768,
+          "spread_ratio": 0.011925309901145457,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 495616,
+          "min": 0,
+          "max": 1527808,
+          "spread_ratio": 3.0826446280991737,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 1523712,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 354897920,
+          "min": 350085120,
+          "max": 355540992,
+          "spread_ratio": 0.015373074037740204,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.0640664451827238,
+          "min": 0.769212624584717,
+          "max": 1.1085415282392022,
+          "spread_ratio": 0.3188982278228076,
+          "stable": false,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.405,
+          "min": 0.942,
+          "max": 1.517,
+          "spread_ratio": 0.40925266903914587,
+          "stable": false,
+          "limit": 2,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 2.768136212624582,
+          "min": 2.7336511627906988,
+          "max": 6.167504983388707,
+          "spread_ratio": 1.2404930815677715,
+          "stable": false,
+          "limit": 5,
+          "within_budget": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.163,
+          "min": 3.056,
+          "max": 7.073,
+          "spread_ratio": 1.2699968384445148,
+          "stable": false,
+          "limit": 8,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": null,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 495616,
+          "min": 0,
+          "max": 1527808,
+          "spread_ratio": 3.0826446280991737,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 1523712,
+          "spread_ratio": null,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": true
+        }
+      },
+      "run_ids": [
+        "1794306159431550",
+        "1794306659957714",
+        "1794306825736505"
+      ]
+    },
+    "capsule_mixing": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.8902524916943517,
+          "min": 1.687430463576158,
+          "max": 2.013146179401994,
+          "spread_ratio": 0.17231333763981801,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 2.865,
+          "min": 2.793,
+          "max": 3.042,
+          "spread_ratio": 0.08691099476439779,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 3.611,
+          "min": 3.392,
+          "max": 3.622,
+          "spread_ratio": 0.06369426751592355,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 4.878,
+          "min": 4.513,
+          "max": 5.061,
+          "spread_ratio": 0.11234112341123412,
+          "stable": true
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 6.009023255813957,
+          "min": 5.998109271523183,
+          "max": 6.167073089701,
+          "spread_ratio": 0.028118349852338805,
+          "stable": true
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.7880425602366414,
+          "min": 0.6221640000000002,
+          "max": 0.805112658800675,
+          "spread_ratio": 0.232155809891457,
+          "stable": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.82,
+          "min": 6.751,
+          "max": 7.332,
+          "spread_ratio": 0.08519061583577706,
+          "stable": true
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 8.933,
+          "min": 7.696,
+          "max": 10.27,
+          "spread_ratio": 0.2881450800403,
+          "stable": true
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 15.712,
+          "min": 10.214,
+          "max": 16.55,
+          "spread_ratio": 0.40325865580448067,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 301.0,
+          "max": 302.0,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 301,
+          "min": 300,
+          "max": 301,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16234.376666666667,
+          "min": 16229.416666666666,
+          "max": 16277.777408637874,
+          "spread_ratio": 0.0029789096904782896,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16580.0,
+          "min": 16545.0,
+          "max": 16598.0,
+          "spread_ratio": 0.0031966224366706875,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17098.0,
+          "min": 17047.0,
+          "max": 17216.0,
+          "spread_ratio": 0.00988419698210317,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 3.194,
+          "min": 2.944,
+          "max": 5.811,
+          "spread_ratio": 0.8976205385097057,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0033112582781456954,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": 1.0033222591362128,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.681,
+          "min": 1.414,
+          "max": 1.845,
+          "spread_ratio": 0.25639500297442,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 5.674,
+          "min": 5.673,
+          "max": 5.933,
+          "spread_ratio": 0.045823052520267846,
+          "stable": true
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 7.499,
+          "min": 7.045,
+          "max": 7.501,
+          "spread_ratio": 0.06080810774769975,
+          "stable": true
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 9.597,
+          "min": 9.544,
+          "max": 10.095,
+          "spread_ratio": 0.057413775138064,
+          "stable": true
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 11.035,
+          "min": 10.338,
+          "max": 11.775,
+          "spread_ratio": 0.1302220208427731,
+          "stable": true
+        },
+        "fps": {
+          "median": 60.152347310460655,
+          "min": 60.01108510409232,
+          "max": 60.16657774498057,
+          "spread_ratio": 0.002584980434524365,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5015740,
+          "min": 5003961,
+          "max": 5019398,
+          "spread_ratio": 0.0030777113646241632,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 271187968,
+          "min": 271179776,
+          "max": 271638528,
+          "spread_ratio": 0.0016916384726921219,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 318947328,
+          "min": 317612032,
+          "max": 319225856,
+          "spread_ratio": 0.0050598448656701085,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 47308800,
+          "min": 46432256,
+          "max": 48037888,
+          "spread_ratio": 0.03393939393939394,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1871872,
+          "min": 851968,
+          "max": 1941504,
+          "spread_ratio": 0.5820568927789934,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1744896,
+          "min": 958464,
+          "max": 1871872,
+          "spread_ratio": 0.5234741784037559,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 304881664,
+          "min": 304455680,
+          "max": 305729536,
+          "spread_ratio": 0.004178198135260768,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.8902524916943517,
+          "min": 1.687430463576158,
+          "max": 2.013146179401994,
+          "spread_ratio": 0.17231333763981801,
+          "stable": true,
+          "limit": 1.5,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 2.865,
+          "min": 2.793,
+          "max": 3.042,
+          "spread_ratio": 0.08691099476439779,
+          "stable": true,
+          "limit": 3,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 6.009023255813957,
+          "min": 5.998109271523183,
+          "max": 6.167073089701,
+          "spread_ratio": 0.028118349852338805,
+          "stable": true,
+          "limit": 5,
+          "within_budget": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.82,
+          "min": 6.751,
+          "max": 7.332,
+          "spread_ratio": 0.08519061583577706,
+          "stable": true,
+          "limit": 8,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0033112582781456954,
+          "min": 0.0,
+          "max": 0.0033222591362126247,
+          "spread_ratio": 1.0033222591362128,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1871872,
+          "min": 851968,
+          "max": 1941504,
+          "spread_ratio": 0.5820568927789934,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1744896,
+          "min": 958464,
+          "max": 1871872,
+          "spread_ratio": 0.5234741784037559,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794307338918934",
+        "1794307482879570",
+        "1794307751074775"
+      ]
+    },
+    "number_wheel_spin": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.2421366666666678,
+          "min": 1.185591362126246,
+          "max": 1.2742325581395353,
+          "spread_ratio": 0.07136187055097742,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.78,
+          "min": 1.746,
+          "max": 1.808,
+          "spread_ratio": 0.034831460674157336,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.302,
+          "min": 2.105,
+          "max": 2.353,
+          "spread_ratio": 0.10773240660295405,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 2.959,
+          "min": 2.625,
+          "max": 3.594,
+          "spread_ratio": 0.3274754984792159,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 7.899330000000003,
+          "min": 7.4009468438538155,
+          "max": 16.589342192691028,
+          "spread_ratio": 1.1631866688487769,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.9359206342056658,
+          "min": 0.6923315101070157,
+          "max": 1.1300512235208187,
+          "spread_ratio": 0.467688922987903,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 8.848,
+          "min": 8.715,
+          "max": 17.359,
+          "spread_ratio": 0.9769439421338156,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 16.524,
+          "min": 12.814,
+          "max": 20.655,
+          "spread_ratio": 0.47452190752844353,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 25.992,
+          "min": 15.497,
+          "max": 26.653,
+          "spread_ratio": 0.4292089873807325,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 3,
+          "min": 0,
+          "max": 224,
+          "spread_ratio": 74.66666666666667,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 300.0,
+          "max": 301.0,
+          "spread_ratio": 0.0033222591362126247,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 296,
+          "min": 290,
+          "max": 298,
+          "spread_ratio": 0.02702702702702703,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 0.0,
+          "max": 2.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16277.422818791947,
+          "min": 16254.003436426117,
+          "max": 16293.807432432432,
+          "spread_ratio": 0.002445350007149865,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16675.0,
+          "min": 16519.0,
+          "max": 16745.0,
+          "spread_ratio": 0.013553223388305847,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17183.0,
+          "min": 16874.0,
+          "max": 17354.0,
+          "spread_ratio": 0.027934586509922598,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 2.593,
+          "min": 0.0,
+          "max": 6.196,
+          "spread_ratio": 2.3895102198225993,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.01,
+          "min": 0.0033222591362126247,
+          "max": 0.3588039867109635,
+          "spread_ratio": 35.54817275747508,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.082,
+          "min": 0.987,
+          "max": 1.322,
+          "spread_ratio": 0.30961182994454717,
+          "stable": false
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 7.14,
+          "min": 6.86,
+          "max": 16.457,
+          "spread_ratio": 1.3441176470588239,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 8.319,
+          "min": 7.856,
+          "max": 17.706,
+          "spread_ratio": 1.1840365428537083,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 10.496,
+          "min": 10.422,
+          "max": 18.802,
+          "spread_ratio": 0.7983993902439023,
+          "stable": false
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 17.557,
+          "min": 13.756,
+          "max": 21.368,
+          "spread_ratio": 0.4335592641111807,
+          "stable": false
+        },
+        "fps": {
+          "median": 59.97644380336733,
+          "min": 59.90788563504755,
+          "max": 60.080991571894394,
+          "spread_ratio": 0.0028862320916253816,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5009904,
+          "min": 5007688,
+          "max": 5018637,
+          "spread_ratio": 0.0021854710190055537,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 271396864,
+          "min": 271028224,
+          "max": 273465344,
+          "spread_ratio": 0.008979912162875987,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 320917504,
+          "min": 320745472,
+          "max": 322113536,
+          "spread_ratio": 0.004262977191795684,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 49520640,
+          "min": 48648192,
+          "max": 49717248,
+          "spread_ratio": 0.021588089330024814,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1167360,
+          "min": 585728,
+          "max": 2134016,
+          "spread_ratio": 1.3263157894736841,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1208320,
+          "min": 0,
+          "max": 1884160,
+          "spread_ratio": 1.5593220338983051,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 306708480,
+          "min": 306495488,
+          "max": 308740096,
+          "spread_ratio": 0.007318376068376068,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.2421366666666678,
+          "min": 1.185591362126246,
+          "max": 1.2742325581395353,
+          "spread_ratio": 0.07136187055097742,
+          "stable": true,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.78,
+          "min": 1.746,
+          "max": 1.808,
+          "spread_ratio": 0.034831460674157336,
+          "stable": true,
+          "limit": 2,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 7.899330000000003,
+          "min": 7.4009468438538155,
+          "max": 16.589342192691028,
+          "spread_ratio": 1.1631866688487769,
+          "stable": false,
+          "limit": 5,
+          "within_budget": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 8.848,
+          "min": 8.715,
+          "max": 17.359,
+          "spread_ratio": 0.9769439421338156,
+          "stable": false,
+          "limit": 8,
+          "within_budget": false
+        },
+        "dropped_frame_ratio": {
+          "median": 0.01,
+          "min": 0.0033222591362126247,
+          "max": 0.3588039867109635,
+          "spread_ratio": 35.54817275747508,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": false
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1167360,
+          "min": 585728,
+          "max": 2134016,
+          "spread_ratio": 1.3263157894736841,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1208320,
+          "min": 0,
+          "max": 1884160,
+          "spread_ratio": 1.5593220338983051,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794307935246425",
+        "1794308053039094",
+        "1794308364525262"
+      ]
+    },
+    "lots_shaking": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.3257674418604648,
+          "min": 1.3019966777408634,
+          "max": 1.4544617940199325,
+          "spread_ratio": 0.11500140331181542,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.992,
+          "min": 1.88,
+          "max": 2.056,
+          "spread_ratio": 0.08835341365461856,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.662,
+          "min": 2.195,
+          "max": 2.78,
+          "spread_ratio": 0.21975957926371148,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 3.706,
+          "min": 3.152,
+          "max": 4.463,
+          "spread_ratio": 0.3537506745817593,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 4.707026578073092,
+          "min": 3.0831129568106337,
+          "max": 16.749292358803995,
+          "spread_ratio": 2.9033571778954905,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.6795829072315552,
+          "min": 0.3077781922936833,
+          "max": 0.9082349642939925,
+          "spread_ratio": 0.8835666194819622,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.128,
+          "min": 3.532,
+          "max": 17.59,
+          "spread_ratio": 2.2940600522193213,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 7.093,
+          "min": 4.105,
+          "max": 20.365,
+          "spread_ratio": 2.2924009586916676,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 9.794,
+          "min": 4.532,
+          "max": 21.233,
+          "spread_ratio": 1.7052276904227077,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 236,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 301.0,
+          "max": 301.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 301,
+          "min": 296,
+          "max": 301,
+          "spread_ratio": 0.016611295681063124,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16288.912751677852,
+          "min": 16261.970099667775,
+          "max": 16294.736666666666,
+          "spread_ratio": 0.0020115871144018404,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16665.0,
+          "min": 16575.0,
+          "max": 16668.0,
+          "spread_ratio": 0.005580558055805581,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17129.0,
+          "min": 17001.0,
+          "max": 17158.0,
+          "spread_ratio": 0.00916574230836593,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 4.762,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.36212624584717606,
+          "spread_ratio": null,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.226,
+          "min": 1.077,
+          "max": 1.411,
+          "spread_ratio": 0.27243066884176187,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.613,
+          "min": 3.105,
+          "max": 16.463,
+          "spread_ratio": 2.895729460221114,
+          "stable": false
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 5.775,
+          "min": 4.142,
+          "max": 17.811,
+          "spread_ratio": 2.3669264069264067,
+          "stable": false
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 7.988,
+          "min": 5.497,
+          "max": 19.042,
+          "spread_ratio": 1.6956685027541314,
+          "stable": false
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 8.864,
+          "min": 6.322,
+          "max": 21.728,
+          "spread_ratio": 1.7380415162454874,
+          "stable": false
+        },
+        "fps": {
+          "median": 60.01964097885853,
+          "min": 59.98888710848781,
+          "max": 60.073940842536025,
+          "spread_ratio": 0.0014170983474922118,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5015025,
+          "min": 5010492,
+          "max": 5017596,
+          "spread_ratio": 0.001416543287421299,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 273428480,
+          "min": 261644288,
+          "max": 273465344,
+          "spread_ratio": 0.043232716650438166,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 320847872,
+          "min": 309932032,
+          "max": 321138688,
+          "spread_ratio": 0.03492825409794209,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 47710208,
+          "min": 47382528,
+          "max": 48287744,
+          "spread_ratio": 0.018973214285714284,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1191936,
+          "min": 1093632,
+          "max": 1994752,
+          "spread_ratio": 0.7560137457044673,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1191936,
+          "min": 0,
+          "max": 1994752,
+          "spread_ratio": 1.6735395189003437,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 307642368,
+          "min": 295698432,
+          "max": 308215808,
+          "spread_ratio": 0.04068807583746072,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.3257674418604648,
+          "min": 1.3019966777408634,
+          "max": 1.4544617940199325,
+          "spread_ratio": 0.11500140331181542,
+          "stable": true,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.992,
+          "min": 1.88,
+          "max": 2.056,
+          "spread_ratio": 0.08835341365461856,
+          "stable": true,
+          "limit": 2,
+          "within_budget": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 4.707026578073092,
+          "min": 3.0831129568106337,
+          "max": 16.749292358803995,
+          "spread_ratio": 2.9033571778954905,
+          "stable": false,
+          "limit": 5,
+          "within_budget": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.128,
+          "min": 3.532,
+          "max": 17.59,
+          "spread_ratio": 2.2940600522193213,
+          "stable": false,
+          "limit": 8,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.36212624584717606,
+          "spread_ratio": null,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1191936,
+          "min": 1093632,
+          "max": 1994752,
+          "spread_ratio": 0.7560137457044673,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1191936,
+          "min": 0,
+          "max": 1994752,
+          "spread_ratio": 1.6735395189003437,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794308933597372",
+        "1794309094772711",
+        "1794309197830176"
+      ]
+    },
+    "lotto_draw": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 2.5042970639032838,
+          "min": 2.4153264248704662,
+          "max": 2.551925734024181,
+          "spread_ratio": 0.05454596865629295,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 3.816,
+          "min": 3.729,
+          "max": 3.845,
+          "spread_ratio": 0.030398322851153067,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 5.026,
+          "min": 4.779,
+          "max": 5.202,
+          "spread_ratio": 0.08416235575009949,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 6.076,
+          "min": 5.77,
+          "max": 6.642,
+          "spread_ratio": 0.14351547070441092,
+          "stable": true
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 6.090131260794471,
+          "min": 5.944338514680482,
+          "max": 6.126352331606217,
+          "spread_ratio": 0.0298866820978815,
+          "stable": true
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.7522000106558683,
+          "min": 0.4428721168940951,
+          "max": 0.7726756353561707,
+          "spread_ratio": 0.4384518928343392,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.439,
+          "min": 6.415,
+          "max": 6.833,
+          "spread_ratio": 0.06491691256406276,
+          "stable": true
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 12.156,
+          "min": 10.463,
+          "max": 13.253,
+          "spread_ratio": 0.22951628825271478,
+          "stable": true
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 14.075,
+          "min": 13.277,
+          "max": 14.253,
+          "spread_ratio": 0.06934280639431623,
+          "stable": true
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "frame_count": {
+          "median": 579.0,
+          "min": 579.0,
+          "max": 579.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 274,
+          "min": 273,
+          "max": 274,
+          "spread_ratio": 0.0036496350364963502,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 4.0,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16135.784671532847,
+          "min": 16123.602189781022,
+          "max": 16166.916058394161,
+          "spread_ratio": 0.0026843360577037305,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16637.0,
+          "min": 16535.0,
+          "max": 16660.0,
+          "spread_ratio": 0.007513373805373565,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17166.0,
+          "min": 16894.0,
+          "max": 17173.0,
+          "spread_ratio": 0.01625305837119888,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 2.424,
+          "min": 2.134,
+          "max": 3.343,
+          "spread_ratio": 0.4987623762376238,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0017271157167530224,
+          "min": 0.0017271157167530224,
+          "max": 0.0034542314335060447,
+          "spread_ratio": 1.0,
+          "stable": false
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 2.19,
+          "min": 1.886,
+          "max": 2.198,
+          "spread_ratio": 0.14246575342465756,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 5.876,
+          "min": 5.826,
+          "max": 5.897,
+          "spread_ratio": 0.012083049693669266,
+          "stable": true
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 8.057,
+          "min": 7.828,
+          "max": 8.112,
+          "spread_ratio": 0.035248851929998735,
+          "stable": true
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 10.404,
+          "min": 10.144,
+          "max": 10.613,
+          "spread_ratio": 0.04507881584006146,
+          "stable": true
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 14.222,
+          "min": 12.449,
+          "max": 16.242,
+          "spread_ratio": 0.2666994796793701,
+          "stable": true
+        },
+        "fps": {
+          "median": 60.05590489053178,
+          "min": 60.04522369801421,
+          "max": 60.063038181419834,
+          "spread_ratio": 0.0002966316707423588,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 9641017,
+          "min": 9639872,
+          "max": 9642732,
+          "spread_ratio": 0.0002966492020499497,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 272572416,
+          "min": 272441344,
+          "max": 273375232,
+          "spread_ratio": 0.003426201424578487,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 327884800,
+          "min": 327049216,
+          "max": 333746176,
+          "spread_ratio": 0.02042473454091193,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 55312384,
+          "min": 54607872,
+          "max": 60370944,
+          "spread_ratio": 0.10419135071090048,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1232896,
+          "min": 733184,
+          "max": 2240512,
+          "spread_ratio": 1.2225913621262459,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1232896,
+          "min": 675840,
+          "max": 1769472,
+          "spread_ratio": 0.8870431893687708,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 309776384,
+          "min": 307511296,
+          "max": 314716160,
+          "spread_ratio": 0.02325827394253527,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 2.5042970639032838,
+          "min": 2.4153264248704662,
+          "max": 2.551925734024181,
+          "spread_ratio": 0.05454596865629295,
+          "stable": true,
+          "limit": 1.5,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 3.816,
+          "min": 3.729,
+          "max": 3.845,
+          "spread_ratio": 0.030398322851153067,
+          "stable": true,
+          "limit": 3,
+          "within_budget": false
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 6.090131260794471,
+          "min": 5.944338514680482,
+          "max": 6.126352331606217,
+          "spread_ratio": 0.0298866820978815,
+          "stable": true,
+          "limit": 6,
+          "within_budget": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 6.439,
+          "min": 6.415,
+          "max": 6.833,
+          "spread_ratio": 0.06491691256406276,
+          "stable": true,
+          "limit": 9,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0017271157167530224,
+          "min": 0.0017271157167530224,
+          "max": 0.0034542314335060447,
+          "spread_ratio": 1.0,
+          "stable": false,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1232896,
+          "min": 733184,
+          "max": 2240512,
+          "spread_ratio": 1.2225913621262459,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 1232896,
+          "min": 675840,
+          "max": 1769472,
+          "spread_ratio": 0.8870431893687708,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794309329997426",
+        "1794309404767165",
+        "1794309488538708"
+      ]
+    },
+    "memory_cycles": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.2402788104089228,
+          "min": 1.189876865671642,
+          "max": 1.3345241635687737,
+          "spread_ratio": 0.11662482393732183,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 1.744,
+          "min": 1.624,
+          "max": 1.791,
+          "spread_ratio": 0.09575688073394485,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.529,
+          "min": 2.406,
+          "max": 2.858,
+          "spread_ratio": 0.17872676947410043,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 51.668,
+          "min": 48.29,
+          "max": 78.92,
+          "spread_ratio": 0.5928234110087482,
+          "stable": false
+        },
+        "missed_frame_build_budget_count": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 5.004628252788101,
+          "min": 3.6528134328358233,
+          "max": 6.107349442379186,
+          "spread_ratio": 0.4904532136180004,
+          "stable": false
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 1.3585304633548674,
+          "min": 1.0318131037437301,
+          "max": 2.415239590387086,
+          "spread_ratio": 1.018325701160214,
+          "stable": false
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 5.992,
+          "min": 5.541,
+          "max": 7.679,
+          "spread_ratio": 0.3568090787716956,
+          "stable": false
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 12.183,
+          "min": 5.958,
+          "max": 17.253,
+          "spread_ratio": 0.9271115488795864,
+          "stable": false
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 16.417,
+          "min": 6.48,
+          "max": 23.366,
+          "spread_ratio": 1.0285679478589265,
+          "stable": false
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 1,
+          "min": 0,
+          "max": 18,
+          "spread_ratio": 18.0,
+          "stable": false
+        },
+        "frame_count": {
+          "median": 269,
+          "min": 268,
+          "max": 269,
+          "spread_ratio": 0.0037174721189591076,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 269,
+          "min": 268,
+          "max": 269,
+          "spread_ratio": 0.0037174721189591076,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 15853.431226765799,
+          "min": 15784.108208955224,
+          "max": 15944.966417910447,
+          "spread_ratio": 0.010146586354356037,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16556.0,
+          "min": 16534.0,
+          "max": 16605.0,
+          "spread_ratio": 0.0042884754771683985,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17035.0,
+          "min": 16951.0,
+          "max": 17218.0,
+          "spread_ratio": 0.0156736131493983,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 6.1259999999999994,
+          "min": 4.134,
+          "max": 7.928000000000001,
+          "spread_ratio": 0.6193274567417566,
+          "stable": false
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 5111808,
+          "min": 4792320,
+          "max": 5120000,
+          "spread_ratio": 0.0641025641025641,
+          "stable": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 5111808,
+          "min": 4501504,
+          "max": 5120000,
+          "spread_ratio": 0.12099358974358974,
+          "stable": true
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 224546816,
+          "min": 224165888,
+          "max": 224628736,
+          "spread_ratio": 0.0020612538990532826,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "rss_delta_bytes": {
+          "median": 5111808,
+          "min": 4792320,
+          "max": 5120000,
+          "spread_ratio": 0.0641025641025641,
+          "stable": true,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 5111808,
+          "min": 4501504,
+          "max": 5120000,
+          "spread_ratio": 0.12099358974358974,
+          "stable": true,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794310311094766",
+        "1794310371442895",
+        "1794310535504668"
+      ]
+    },
+    "lever_steady": {
+      "metrics": {
+        "average_frame_build_time_millis": {
+          "median": 1.3999368770764127,
+          "min": 1.3905315614617935,
+          "max": 1.4240199335548167,
+          "spread_ratio": 0.02392134434158159,
+          "stable": true
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 2.096,
+          "min": 2.067,
+          "max": 2.114,
+          "spread_ratio": 0.022423664122137265,
+          "stable": true
+        },
+        "99th_percentile_frame_build_time_millis": {
+          "median": 2.754,
+          "min": 2.611,
+          "max": 2.963,
+          "spread_ratio": 0.12781408859840226,
+          "stable": true
+        },
+        "worst_frame_build_time_millis": {
+          "median": 3.066,
+          "min": 2.854,
+          "max": 3.606,
+          "spread_ratio": 0.2452707110241356,
+          "stable": true
+        },
+        "missed_frame_build_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 3.713657807308969,
+          "min": 3.492933554817276,
+          "max": 3.78479069767442,
+          "spread_ratio": 0.07859020889935814,
+          "stable": true
+        },
+        "stddev_frame_rasterizer_time_millis": {
+          "median": 0.38279780576373323,
+          "min": 0.34359775887022515,
+          "max": 0.4327371387219867,
+          "spread_ratio": 0.23286282865158145,
+          "stable": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.217,
+          "min": 3.921,
+          "max": 4.448,
+          "spread_ratio": 0.12497035807446066,
+          "stable": true
+        },
+        "99th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.779,
+          "min": 4.283,
+          "max": 4.796,
+          "spread_ratio": 0.10734463276836156,
+          "stable": true
+        },
+        "worst_frame_rasterizer_time_millis": {
+          "median": 5.118,
+          "min": 4.944,
+          "max": 5.202,
+          "spread_ratio": 0.050410316529894486,
+          "stable": true
+        },
+        "missed_frame_rasterizer_budget_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "frame_count": {
+          "median": 301.0,
+          "min": 301.0,
+          "max": 301.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "frame_rasterizer_count": {
+          "median": 302,
+          "min": 301,
+          "max": 302,
+          "spread_ratio": 0.0033112582781456954,
+          "stable": true
+        },
+        "new_gen_gc_count": {
+          "median": 2.0,
+          "min": 2.0,
+          "max": 2.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "old_gen_gc_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_transitions_missed": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_vsync_frame_lag": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_frame_request_pending_latency": {
+          "median": 16274.323333333334,
+          "min": 16268.468438538206,
+          "max": 16280.173333333334,
+          "spread_ratio": 0.0007192246679254447,
+          "stable": true
+        },
+        "90th_percentile_frame_request_pending_latency": {
+          "median": 16636.0,
+          "min": 16613.0,
+          "max": 16675.0,
+          "spread_ratio": 0.003726857417648473,
+          "stable": true
+        },
+        "99th_percentile_frame_request_pending_latency": {
+          "median": 17135.0,
+          "min": 16949.0,
+          "max": 17175.0,
+          "spread_ratio": 0.013189378465129851,
+          "stable": true
+        },
+        "worst_layer_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_layer_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_count": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_picture_cache_memory": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "total_ui_gc_time": {
+          "median": 4.647,
+          "min": 4.473,
+          "max": 5.609,
+          "spread_ratio": 0.24445879061760276,
+          "stable": true
+        },
+        "30hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "60hz_frame_percentage": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "80hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "120hz_frame_percentage": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "illegal_refresh_rate_frame_count": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_frame_time": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "average_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "90th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "99th_percentile_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "worst_gpu_memory_mb": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true
+        },
+        "refresh_rate_hz": {
+          "median": 60.000003814697266,
+          "min": 60.000003814697266,
+          "max": 60.000003814697266,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "50th_percentile_frame_build_time_millis": {
+          "median": 1.2,
+          "min": 1.193,
+          "max": 1.206,
+          "spread_ratio": 0.01083333333333325,
+          "stable": true
+        },
+        "50th_percentile_frame_rasterizer_time_millis": {
+          "median": 3.732,
+          "min": 3.682,
+          "max": 3.755,
+          "spread_ratio": 0.01956055734190781,
+          "stable": true
+        },
+        "50th_percentile_build_plus_raster_millis": {
+          "median": 4.91,
+          "min": 4.847,
+          "max": 4.954,
+          "spread_ratio": 0.02179226069246422,
+          "stable": true
+        },
+        "90th_percentile_build_plus_raster_millis": {
+          "median": 6.258,
+          "min": 6.017,
+          "max": 6.438,
+          "spread_ratio": 0.06727388942154033,
+          "stable": true
+        },
+        "99th_percentile_build_plus_raster_millis": {
+          "median": 6.876,
+          "min": 6.511,
+          "max": 7.34,
+          "spread_ratio": 0.12056428155904592,
+          "stable": true
+        },
+        "fps": {
+          "median": 60.00647910488674,
+          "min": 59.97994557567198,
+          "max": 60.05322990610947,
+          "spread_ratio": 0.0012212736279594051,
+          "stable": true
+        },
+        "elapsed_micros": {
+          "median": 5016125,
+          "min": 5012220,
+          "max": 5018344,
+          "spread_ratio": 0.0012208627177353036,
+          "stable": true
+        },
+        "rss_steady_baseline": {
+          "median": 270917632,
+          "min": 270905344,
+          "max": 271286272,
+          "spread_ratio": 0.001406065737352968,
+          "stable": true
+        },
+        "rss_steady_after": {
+          "median": 318558208,
+          "min": 314585088,
+          "max": 318668800,
+          "spread_ratio": 0.012819358903475499,
+          "stable": true
+        },
+        "rss_steady_delta_bytes": {
+          "median": 47271936,
+          "min": 43679744,
+          "max": 47751168,
+          "spread_ratio": 0.08612771856858158,
+          "stable": true
+        },
+        "rss_delta_bytes": {
+          "median": 1880064,
+          "min": 1327104,
+          "max": 2236416,
+          "spread_ratio": 0.48366013071895425,
+          "stable": false
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 2134016,
+          "min": 0,
+          "max": 2486272,
+          "spread_ratio": 1.165067178502879,
+          "stable": false
+        },
+        "rss_cycles": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "rss_baseline": {
+          "median": 304291840,
+          "min": 302202880,
+          "max": 305020928,
+          "spread_ratio": 0.009261004172836183,
+          "stable": true
+        },
+        "reference_new_gen_gc_count": {
+          "median": 10.0,
+          "min": 10.0,
+          "max": 10.0,
+          "spread_ratio": 0.0,
+          "stable": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true
+        }
+      },
+      "budget_results": {
+        "average_frame_build_time_millis": {
+          "median": 1.3999368770764127,
+          "min": 1.3905315614617935,
+          "max": 1.4240199335548167,
+          "spread_ratio": 0.02392134434158159,
+          "stable": true,
+          "limit": 1,
+          "within_budget": false
+        },
+        "90th_percentile_frame_build_time_millis": {
+          "median": 2.096,
+          "min": 2.067,
+          "max": 2.114,
+          "spread_ratio": 0.022423664122137265,
+          "stable": true,
+          "limit": 2,
+          "within_budget": false
+        },
+        "average_frame_rasterizer_time_millis": {
+          "median": 3.713657807308969,
+          "min": 3.492933554817276,
+          "max": 3.78479069767442,
+          "spread_ratio": 0.07859020889935814,
+          "stable": true,
+          "limit": 5,
+          "within_budget": true
+        },
+        "90th_percentile_frame_rasterizer_time_millis": {
+          "median": 4.217,
+          "min": 3.921,
+          "max": 4.448,
+          "spread_ratio": 0.12497035807446066,
+          "stable": true,
+          "limit": 8,
+          "within_budget": true
+        },
+        "dropped_frame_ratio": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 0.005,
+          "within_budget": true
+        },
+        "new_gen_gc_over_reference": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "spread_ratio": 0,
+          "stable": true,
+          "limit": 1,
+          "within_budget": true
+        },
+        "rss_delta_bytes": {
+          "median": 1880064,
+          "min": 1327104,
+          "max": 2236416,
+          "spread_ratio": 0.48366013071895425,
+          "stable": false,
+          "limit": 12582912,
+          "within_budget": true
+        },
+        "rss_growth_5_cycles_bytes": {
+          "median": 2134016,
+          "min": 0,
+          "max": 2486272,
+          "spread_ratio": 1.165067178502879,
+          "stable": false,
+          "limit": 524288,
+          "within_budget": false
+        }
+      },
+      "run_ids": [
+        "1794306971906081",
+        "1794307088000701",
+        "1794307182571397"
+      ]
+    }
+  },
+  "calibrated": {
+    "wheel_steady/90th_percentile_frame_build_time_millis": 1.66,
+    "wheel_steady/new_gen_gc_over_reference": 0.0,
+    "grid_steady/new_gen_gc_over_reference": 0.0,
+    "slot_steady/90th_percentile_frame_build_time_millis": 2,
+    "slot_steady/new_gen_gc_over_reference": 0.0,
+    "slot_raster/new_gen_gc_over_reference": 0.0,
+    "capsule_mixing/90th_percentile_frame_build_time_millis": 3,
+    "capsule_mixing/90th_percentile_frame_rasterizer_time_millis": 7.503,
+    "capsule_mixing/new_gen_gc_over_reference": 0.0,
+    "number_wheel_spin/90th_percentile_frame_build_time_millis": 1.959,
+    "number_wheel_spin/new_gen_gc_over_reference": 0.0,
+    "lots_shaking/90th_percentile_frame_build_time_millis": 2,
+    "lots_shaking/new_gen_gc_over_reference": 0.0,
+    "lotto_draw/90th_percentile_frame_rasterizer_time_millis": 7.083,
+    "lotto_draw/new_gen_gc_over_reference": 0.0,
+    "memory_cycles/rss_delta_bytes": 5622989.0,
+    "lever_steady/average_frame_rasterizer_time_millis": 4.086,
+    "lever_steady/90th_percentile_frame_rasterizer_time_millis": 4.639,
+    "lever_steady/dropped_frame_ratio": 0.0,
+    "lever_steady/new_gen_gc_over_reference": 0.0
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "mutation": "deadline-becomes-cancel",
+    "failures": 18,
+    "before_sha256": "eb39bc1c217b7307db0d81085cfec4fb8e1c4c88e82f5aa996dc081ba1d5b19e",
+    "restored_sha256": "eb39bc1c217b7307db0d81085cfec4fb8e1c4c88e82f5aa996dc081ba1d5b19e"
+  },
+  {
+    "mutation": "deadline-timer-leaks",
+    "failures": 2,
+    "before_sha256": "c8a0e44c73ef8642bc5aa32314b5a687e7086782e0d213ab38f0fe82c6235d61",
+    "restored_sha256": "c8a0e44c73ef8642bc5aa32314b5a687e7086782e0d213ab38f0fe82c6235d61"
+  },
+  {
+    "mutation": "follower-aborts-shared-transport",
+    "failures": 4,
+    "before_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781",
+    "restored_sha256": "769a9eb9ab1f053998ea22abfd958c111cbde06023bb23f3d1675417be2e0781"
+  }
+]

@@ -1,4 +1,4 @@
-﻿// Copied from flip_counter_plus (MIT) with namespace renames.
+// Copied from flip_counter_plus (MIT) with namespace renames.
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 
 import 'package:flutter/foundation.dart';

@@ -1,0 +1,33 @@
+[
+  {
+    "attempt": 1,
+    "binary_sha256": "E6AF8EBC485F2C286E9317C252529213206CB424636ECB0945DB8A2D14543A40",
+    "scene": "lotto_draw",
+    "ended_at": "2026-11-10T19:01:12.4591757Z",
+    "build_free_physical_kib": 13973244,
+    "clean": true,
+    "valid": true,
+    "directory": "lotto_draw_1",
+    "started_at": "2026-11-10T18:59:33.0312170Z"
+  },
+  {
+    "attempt": 2,
+    "binary_sha256": "E6AF8EBC485F2C286E9317C252529213206CB424636ECB0945DB8A2D14543A40",
+    "scene": "lotto_draw",
+    "ended_at": "2026-11-10T19:02:20.3842034Z",
+    "clean": true,
+    "valid": true,
+    "directory": "lotto_draw_2",
+    "started_at": "2026-11-10T19:01:13.0078390Z"
+  },
+  {
+    "attempt": 3,
+    "binary_sha256": "E6AF8EBC485F2C286E9317C252529213206CB424636ECB0945DB8A2D14543A40",
+    "scene": "lotto_draw",
+    "ended_at": "2026-11-10T19:03:28.1962900Z",
+    "clean": true,
+    "valid": true,
+    "directory": "lotto_draw_3",
+    "started_at": "2026-11-10T19:02:20.8614941Z"
+  }
+]

@@ -5,6 +5,17 @@ const String kMovaAutoQualityLabel = '自动';
 /// 下个版本计划改为中性值，本版本保留现有宿主展示。
 const String kMovaUnknownQualityLabel = '未知';
 
+/// HLS variant tag shared by detection and attribute parsing.
+///
+/// 检测与属性解析共用的 HLS 档位标签。
+const String _variantTag = '#EXT-X-STREAM-INF:';
+
+/// Reused playlist line and resolution patterns.
+///
+/// 重复使用的播放列表分行与分辨率模式。
+final RegExp _lineBreak = RegExp(r'\r?\n');
+final RegExp _resolution = RegExp(r'(\d+)x(\d+)');
+
 /// A selectable video quality variant.
 ///
 /// For adaptive sources (HLS), "auto" delegates bitrate selection to the
@@ -64,10 +75,11 @@ class MovaQuality {
 }
 
 /// Parses an HLS master playlist into a quality list (auto first, then
-/// variants sorted highest-first). Returns an empty list if [content] is not
+/// variants sorted by resolution, then bandwidth, with heightless entries last).
+/// Returns an empty list if [content] is not
 /// a master playlist (no `#EXT-X-STREAM-INF`).
 ///
-/// 解析 HLS master playlist 为清晰度列表（"自动"在前，其余按从高到低排序）。
+/// 解析 HLS master playlist（"自动"在前，按分辨率、码率降序，无高度的档位最后）。
 /// 若 [content] 不是 master（无 `#EXT-X-STREAM-INF`），返回空列表。
 ///
 /// - [content]: raw .m3u8 text / m3u8 原文
@@ -79,11 +91,11 @@ class MovaQuality {
 /// final qs = parseHlsMasterPlaylist(text, base: Uri.parse(url));
 /// ```
 List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
-  final lines = content.split(RegExp(r'\r?\n'));
+  final lines = content.split(_lineBreak);
   final variants = <MovaQuality>[];
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i].trim();
-    if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
+    if (!line.startsWith(_variantTag)) continue;
     // The URI is the next non-empty, non-comment line.
     // 地址是下一条非空、非注释行。
     String? uri;
@@ -94,14 +106,14 @@ List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
       break;
     }
     if (uri == null) continue;
-    final attrs = _parseAttrs(line.substring('#EXT-X-STREAM-INF:'.length));
+    final attrs = _parseAttrs(line.substring(_variantTag.length));
     final bw = int.tryParse(
       attrs['BANDWIDTH'] ?? attrs['AVERAGE-BANDWIDTH'] ?? '',
     );
     int? w, h;
     final res = attrs['RESOLUTION'];
     if (res != null) {
-      final m = RegExp(r'(\d+)x(\d+)').firstMatch(res);
+      final m = _resolution.firstMatch(res);
       if (m != null) {
         w = int.tryParse(m.group(1)!);
         h = int.tryParse(m.group(2)!);
@@ -123,10 +135,13 @@ List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
     );
   }
   if (variants.isEmpty) return [];
-  variants.sort(
-    (a, b) =>
-        (b.height ?? b.bandwidth ?? 0).compareTo(a.height ?? a.bandwidth ?? 0),
-  );
+  variants.sort((a, b) {
+    if (a.height != null && b.height == null) return -1;
+    if (a.height == null && b.height != null) return 1;
+    final height = (b.height ?? 0).compareTo(a.height ?? 0);
+    if (height != 0) return height;
+    return (b.bandwidth ?? 0).compareTo(a.bandwidth ?? 0);
+  });
   return [MovaQuality.auto(), ...variants];
 }
 

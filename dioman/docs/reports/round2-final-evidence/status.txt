@@ -1,0 +1,29 @@
+ M CHANGELOG.md
+ M README.md
+ M README.zh-CN.md
+ M docs/guides/migrating-to-pipeline.md
+ M docs/reference/testkit-mapping.md
+ M test/accept/bin/matrix.dart
+ M test/accept/lib/client.dart
+ M test/accept/lib/matrix.dart
+ M test/accept/lib/matrix.json
+ M test/boundary/auth_callback_cancel_boundary_test.dart
+ M test/boundary/source_boundary_test.dart
+ M test/boundary/source_review_boundary_test.dart
+ M test/unit/accept_runner_test.dart
+ M test/unit/matrix_test.dart
+ M tool/pipeline_b1_mutations.py
+ M tool/pipeline_b2_mutations.py
+ M tool/pipeline_b3_mutations.py
+ M tool/pipeline_b4_mutations.py
+ M tool/pipeline_b5a_mutations.py
+ M tool/pipeline_b8_mutations.py
+ M tool/round2_r1_mutations.py
+ M tool/round2_r2a_mutations.py
+ M tool/round2_r2b_mutations.py
+ M tool/round2_r3_mutations.py
+ M tool/round2_r4_mutations.py
+ M tool/round2_r6b_mutations.py
+?? docs/reports/2026-11-03-round2-final.md
+?? docs/reports/round2-final-evidence/
+?? test/accept/evidence/2026-11-03-round2-final-summary.json.gz

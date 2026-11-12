@@ -8,10 +8,22 @@ import '../../core/api.dart';
 import '../../core/options/theme.dart';
 import '../../core/state/progress.dart';
 import '../../core/stt/cue.dart';
+import '../../core/stt/api.dart';
 import '../scope/video_rect_scope.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
+
+/// Shares the picker visibility choice across overlays of the same service.
+///
+/// 在同一字幕服务的叠加层之间共享选择器的显隐选择。
+final _subtitleChoices = Expando<ValueNotifier<bool>>();
+
+/// Returns the UI visibility signal for [stt], initially visible.
+///
+/// 返回 [stt] 的 UI 显隐信号，初始允许显示。
+ValueNotifier<bool> _subtitleChoice(MovaSttApi stt) =>
+    _subtitleChoices[stt] ??= ValueNotifier(true);
 
 /// STT subtitle overlay: renders the cue covering the current playback
 /// position, or nothing when none does.
@@ -117,6 +129,17 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _subtitleChoice(widget.api.stt),
+      builder: (context, visible, _) =>
+          visible ? _buildCue(context) : const SizedBox.shrink(),
+    );
+  }
+
+  /// Builds the retained cue while subtitles are enabled in the picker.
+  ///
+  /// 在选择器允许显示字幕时构建保留的字幕。
+  Widget _buildCue(BuildContext context) {
     final cue = _cue;
     if (cue == null) return const SizedBox.shrink();
     final theme = MovaPlayerStyle.themeOf(context);
@@ -234,13 +257,11 @@ class MovaSubtitleButtonComponent extends MovaComponent {
   }
 }
 
-/// Stateful body of [MovaSubtitleButtonComponent]: tracks whether this session
-/// turned subtitles on, purely as local UI state (`MovaApi.stt` exposes no
-/// "is running" flag to select on — see the port's doc comment).
+/// Stateful body of [MovaSubtitleButtonComponent], reading the STT service's
+/// actual running state on builds and after commands.
 ///
-/// [MovaSubtitleButtonComponent] 的有状态主体：跟踪本次会话是否已开启字幕，纯属
-/// 本地 UI 状态（`MovaApi.stt` 没有暴露"是否在运行"的字段可供 selector 使用——
-/// 见该端口的文档注释）。
+/// [MovaSubtitleButtonComponent] 的有状态主体，在构建与命令完成后读取 STT
+/// 服务的实际运行状态。
 class _SubtitleButton extends StatefulWidget {
   /// Creates the button widget.
   ///
@@ -260,21 +281,24 @@ class _SubtitleButton extends StatefulWidget {
 ///
 /// [_SubtitleButton] 的状态。
 class _SubtitleButtonState extends State<_SubtitleButton> {
-  /// Whether this session has turned subtitles on.
+  /// Whether the current service is actually running.
   ///
-  /// 本次会话是否已开启字幕。
-  bool _on = false;
+  /// 当前服务是否实际处于运行状态。
+  bool get _on => widget.api.stt.isRunning;
 
   @override
   Widget build(BuildContext context) {
     final theme = MovaPlayerStyle.themeOf(context);
-    return MovaIconButton(
-      label: MovaPlayerStyle.stringsOf(context).subtitles,
-      icon: _on
-          ? MovaPlayerStyle.iconsOf(context).subtitles
-          : MovaPlayerStyle.iconsOf(context).subtitlesOff,
-      theme: theme,
-      onPressed: () => _showMenu(theme),
+    return StreamBuilder<MovaProg>(
+      stream: widget.api.progress,
+      builder: (context, _) => MovaIconButton(
+        label: MovaPlayerStyle.stringsOf(context).subtitles,
+        icon: _on
+            ? MovaPlayerStyle.iconsOf(context).subtitles
+            : MovaPlayerStyle.iconsOf(context).subtitlesOff,
+        theme: theme,
+        onPressed: () => _showMenu(theme),
+      ),
     );
   }
 
@@ -285,23 +309,26 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
   ///
   /// - [theme]: theme used to style the sheet's text / 用于弹层文字样式的主题
   void _showMenu(MovaTheme theme) {
-    final languages = widget.api.stt.languages;
+    final stt = widget.api.stt;
+    final languages = stt.languages;
     final strings = MovaPlayerStyle.stringsOf(context);
     showMovaOptionSheet(context, theme, [
       MovaSheetItem(
         label: languages.join('/'),
         checked: _on,
         onSelected: () async {
-          await widget.api.stt.start();
-          if (mounted) setState(() => _on = true);
+          await stt.start();
+          _subtitleChoice(stt).value = stt.isRunning;
+          if (mounted) setState(() {});
         },
       ),
       MovaSheetItem(
         label: strings.subtitleOff,
         checked: !_on,
         onSelected: () async {
-          await widget.api.stt.stop();
-          if (mounted) setState(() => _on = false);
+          await stt.stop();
+          _subtitleChoice(stt).value = false;
+          if (mounted) setState(() {});
         },
       ),
     ]);

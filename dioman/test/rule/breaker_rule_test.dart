@@ -1,7 +1,8 @@
+import '../support/response_contract.dart';
 import 'package:dioman/dioman.dart';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../support/b3_helpers.dart';
+import '../support/auth_test_helpers.dart';
 import '../support/fake_clock.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart';
@@ -12,7 +13,7 @@ void main() {
       '[DiomanBreaker.keyBuilder][DiomanBreakerApi.bucketCount][DiomanBreakerOptions.enabled][DiomanBreakerOptions.keyBuilder][DiomanRequest.call]'
       '[DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态', () async {
     for (final custom in [false, true]) {
-      final api = testClient(plugins: [
+      final api = testClient(statusOf: businessStatus, plugins: [
         DiomanBreaker(keyBuilder: custom ? (_) => b3ValueKey : null)
       ]);
       final m = api.plugin<DiomanBreakerApi>()!;
@@ -52,25 +53,29 @@ void main() {
         final net = FakeNetwork();
         var status = 500;
         final changes = <DiomanBreakerState>[];
-        final api = testClient(clock: clock, network: net, plugins: [
-          DiomanBreaker(
-              failureThreshold: 2,
-              resetDuration: b3Tick,
-              onStateChange: (key, from, to) {
-                expect(key, b3Route);
-                changes.add(to);
-              }),
-          TestPlugin(b3ValueResult, stage: DiomanStage.source,
-              handler: (ctx, next) async {
-            net.routes[b3Route] = [
-              FakeReply(status: business ? 200 : status, body: {
-                b3ValueCode: business && status != 200 ? status : 0,
-                b3ValueData: null
+        final api = testClient(
+            statusOf: businessStatus,
+            clock: clock,
+            network: net,
+            plugins: [
+              DiomanBreaker(
+                  failureThreshold: 2,
+                  resetDuration: b3Tick,
+                  onStateChange: (key, from, to) {
+                    expect(key, b3Route);
+                    changes.add(to);
+                  }),
+              TestPlugin(b3ValueResult, stage: DiomanStage.source,
+                  handler: (ctx, next) async {
+                net.routes[b3Route] = [
+                  FakeReply(status: business ? 200 : status, body: {
+                    b3ValueCode: business && status != 200 ? status : 0,
+                    b3ValueData: null
+                  })
+                ];
+                return next();
               })
-            ];
-            return next();
-          })
-        ]);
+            ]);
         final management = api.plugin<DiomanBreakerApi>()!;
         final request = DiomanRequest(
             (await api.send<Object?>(b3ValueGet, b3Path))
@@ -81,8 +86,8 @@ void main() {
         await api.send<Object?>(b3ValueGet, b3Path);
         expect(management.stateOf(b3Route), DiomanBreakerState.open);
         expect(management.isOpen(request), isTrue);
-        expect(
-            (await api.send<Object?>(b3ValueGet, b3Path)).reason, b3ValueOpen);
+        expect(failureOf((await api.send<Object?>(b3ValueGet, b3Path)))?.reason,
+            b3ValueOpen);
         expect(net.sends.length, 2);
         clock.elapse(b3Tick);
         expect(management.isOpen(request), isFalse);
@@ -108,23 +113,23 @@ void main() {
       '[DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null', () async {
     for (final custom in [null, true, false]) {
       for (final kind in [
-        DiomanKind.network,
-        DiomanKind.timeout,
-        DiomanKind.parse,
-        DiomanKind.http,
-        DiomanKind.biz
+        diomanTestNetwork,
+        diomanTestTimeout,
+        diomanTestParse,
+        diomanTestHttp,
+        diomanTestBiz
       ]) {
         for (final status in [0, 200, 429, 500]) {
-          final api = testClient(plugins: [
+          final api = testClient(statusOf: businessStatus, plugins: [
             DiomanBreaker(failureThreshold: 1, shouldTrip: (r) => custom),
             TestPlugin(b3ValueResult,
                 stage: DiomanStage.source,
                 handler: (ctx, next) async =>
-                    ctx.fail(DiomanFailure(kind: kind, status: status)))
+                    scriptedResult(ctx, kind, status: status))
           ]);
           await api.send<Object?>(b3ValueGet, b3Path);
           final failed = custom ??
-              ([DiomanKind.network, DiomanKind.timeout].contains(kind) ||
+              ([diomanTestNetwork, diomanTestTimeout].contains(kind) ||
                   status >= 500 ||
                   status == 429);
           expect(api.plugin<DiomanBreakerApi>()!.stateOf(b3Route),
@@ -161,7 +166,9 @@ void main() {
       final net = FakeNetwork()
         ..routes[b3Route] = [const FakeReply(status: 500)];
       final api = testClient(
-          network: net, plugins: [const DiomanBreaker(failureThreshold: 1)]);
+          statusOf: businessStatus,
+          network: net,
+          plugins: [const DiomanBreaker(failureThreshold: 1)]);
       final call = DiomanCall(options: {DiomanBreaker.option: option});
       final p = api.send<Object?>(b3ValueGet, b3Path, call: call);
       if (option == b3ValueBad) {
@@ -181,23 +188,29 @@ void main() {
       }
       api.dispose();
     }
-    final api = testClient(plugins: [const DiomanBreaker(enabled: false)]);
+    final api = testClient(
+        statusOf: businessStatus,
+        plugins: [const DiomanBreaker(enabled: false)]);
     expect(api.inspect(), isEmpty);
     api.dispose();
   });
   test('[DiomanBreaker.onStateChange] 通知异常隔离，判定与 keyBuilder 异常原样落定', () async {
-    final bug = StateError('breaker');
+    final bug = StateError(diomanTestBreaker);
     for (final mode in [b3ValueNotice, b3ValueTrip, b3ValueKey]) {
       final logs = <String>[];
       final net = FakeNetwork()
         ..routes[b3Route] = [const FakeReply(status: 500)];
-      final api = testClient(network: net, debug: logs.add, plugins: [
-        DiomanBreaker(
-            failureThreshold: 1,
-            onStateChange: (k, f, t) => throw bug,
-            shouldTrip: mode == b3ValueTrip ? (r) => throw bug : null,
-            keyBuilder: mode == b3ValueKey ? (r) => throw bug : null)
-      ]);
+      final api = testClient(
+          statusOf: businessStatus,
+          network: net,
+          debug: logs.add,
+          plugins: [
+            DiomanBreaker(
+                failureThreshold: 1,
+                onStateChange: (k, f, t) => throw bug,
+                shouldTrip: mode == b3ValueTrip ? (r) => throw bug : null,
+                keyBuilder: mode == b3ValueKey ? (r) => throw bug : null)
+          ]);
       final p = api.send<Object?>(b3ValueGet, b3Path);
       if (mode == b3ValueNotice) {
         expect((await p).status, 500);

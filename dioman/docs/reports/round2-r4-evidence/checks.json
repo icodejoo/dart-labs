@@ -1,0 +1,101 @@
+[
+  {
+    "check": "analyze",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.BAT",
+      "analyze"
+    ],
+    "exitCode": 0,
+    "seconds": 9.927,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "analyze-example",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.BAT",
+      "analyze",
+      "example"
+    ],
+    "exitCode": 0,
+    "seconds": 7.221,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "coverage-tests",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.BAT",
+      "test",
+      "--concurrency=1",
+      "--coverage-path=coverage/r4-final.info",
+      "--branch-coverage",
+      "--reporter",
+      "expanded"
+    ],
+    "exitCode": 0,
+    "seconds": 48.106,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "coverage-audit",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "tool/pipeline_b5a_coverage.py",
+      "coverage/r4-final.info",
+      "--out",
+      "coverage/r4-audit"
+    ],
+    "exitCode": 0,
+    "seconds": 0.118,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "mutations",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "-B",
+      "tool/round2_r4_mutations.py"
+    ],
+    "exitCode": 0,
+    "seconds": 7.157,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "powerset-mutations",
+    "command": [
+      "E:\\sdk\\Python314\\python.exe",
+      "-B",
+      "-c",
+      "import sys; from pathlib import Path; sys.path.insert(0,'tool'); import pipeline_b5a_mutations as m; m.DEST=Path('coverage/r4-powerset-mutations'); original=m.subprocess.run; m.subprocess.run=lambda args,**kwargs: original(args[:2]+['--concurrency=1']+args[2:] if len(args)>1 and args[1]=='test' else args,**kwargs); m.run()"
+    ],
+    "exitCode": 0,
+    "seconds": 137.354,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "gates",
+    "command": [
+      "E:\\sdk\\flutter\\bin\\dart.BAT",
+      "run",
+      "test/accept/bin/matrix.dart",
+      "gates",
+      "--lcov=coverage/r4-final.info",
+      "--report=coverage/r4-gates.json"
+    ],
+    "exitCode": 0,
+    "seconds": 2.132,
+    "source_sha256_restored": true
+  },
+  {
+    "check": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "."
+    ],
+    "exitCode": 0,
+    "seconds": 0.087,
+    "source_sha256_restored": true
+  }
+]

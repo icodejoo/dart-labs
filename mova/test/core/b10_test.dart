@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -70,11 +71,15 @@ class _Native extends Fake implements NativePlayer {
   /// 属性设置是否失败。
   final bool fail;
 
+  /// 记录收到的属性。
+  final props = <String, String>{};
+
   /// 设置测试属性，失败时抛出错误。
   /// 实现测试所需的识别或播放器端口。
   @override
   Future<void> setProperty(String property, String value, {bool waitForInitialization = true}) async {
     if (fail) throw StateError('property');
+    props[property] = value;
   }
 }
 
@@ -169,6 +174,24 @@ void main() {
       expect(player.disposals, 1);
       await player.testStreams.done.close();
     }
+  });
+  test('音频抽取取消后删除残留的半成品 WAV', () async {
+    final dir = await Directory.systemTemp.createTemp('mova_audio_');
+    addTearDown(() => dir.delete(recursive: true));
+    final native = _Native(false);
+    final player = _Player()..native = native;
+    final extractor = MovaAudioExtractor(
+      playerFactory: () => player,
+      tempDirectory: () async => dir.path,
+      timeout: const Duration(seconds: 5),
+    );
+    final result = extractor.extractWav('a');
+    await player.opened.future;
+    // 模拟 mpv 已写出一部分输出。
+    await File(native.props['ao-pcm-file']!).writeAsString('partial');
+    await extractor.dispose();
+    expect(await result, isNull);
+    expect(File(native.props['ao-pcm-file']!).existsSync(), isFalse);
   });
   test('换源不改 isRunning，旧任务迟到 cue 被丢弃，新代际 cue 可用', () async {
     final recognizer = _Recognizer();

@@ -10,6 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../core/api.dart';
 import '../core/state/ui_bridge.dart';
 import 'chrome/chrome.dart';
+import 'fullscreen/fullscreen.dart';
 import '../core/kernel/restart_observer.dart';
 import '../core/model/fit.dart';
 import '../core/model/source.dart';
@@ -48,6 +49,7 @@ class MovaPlayer extends StatefulWidget {
     this.skin = const MovaDefaultSkin(),
     this.chrome,
     this.style,
+    this.fullscreenRoute = false,
     this.autoLoadQualities = true,
     this.surface,
     this.fit,
@@ -68,6 +70,11 @@ class MovaPlayer extends StatefulWidget {
   /// 本视图样式；未指定的节回落到主题扩展与旧配置。
   /// 示例：`MovaPlayer(api: engine, style: MovaPlayerStyle())`。
   final MovaPlayerStyle? style;
+
+  /// 是否用应用内路由展示全屏；默认关闭，沿用原有转屏行为。
+  /// 开启后返回键先退出全屏，锁定时提示解锁；方向与 PiP 仍由引擎管理。
+  /// 示例：`MovaPlayer(api: engine, fullscreenRoute: true)`。
+  final bool fullscreenRoute;
 
   /// Component tree provider.
   ///
@@ -336,6 +343,48 @@ class _MovaPlayerState extends State<MovaPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.fullscreenRoute) return _buildInline(context);
+    return MovaStyleScope(
+      local: widget.style,
+      legacy: MovaStyleScope.maybeOf(context)?.legacy ?? widget.api.options,
+      child: MovaScope(
+        api: widget.api,
+        child: Builder(
+          builder: (context) {
+            final style = MovaPlayerStyle(
+              theme: MovaPlayerStyle.themeOf(context),
+              strings: MovaPlayerStyle.stringsOf(context),
+              gesture: MovaPlayerStyle.gestureOf(context),
+              controls: MovaPlayerStyle.controlsOf(context),
+              danmaku: MovaPlayerStyle.danmakuOf(context),
+              icons: MovaPlayerStyle.iconsOf(context),
+            );
+            return MovaFullscreenHost(
+              api: widget.api,
+              onExit: () {
+                if (mounted) _ui.show();
+              },
+              fullscreen: MovaStyleScope(
+                legacy: MovaStyleScope.maybeOf(context)?.legacy,
+                child: MovaPlayer(
+                  api: widget.api,
+                  skin: widget.skin,
+                  style: style,
+                  autoLoadQualities: false,
+                  surface: widget.surface,
+                  poster: widget.poster,
+                  posterFade: widget.posterFade,
+                ),
+              ),
+              child: _buildInline(context),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInline(BuildContext context) {
     return MovaStyleScope(
       local: widget.style,
       legacy: MovaStyleScope.maybeOf(context)?.legacy,
@@ -593,17 +642,23 @@ class _RenderHandleKey extends ValueKey<Object?> {
   const _RenderHandleKey(super.handle);
 }
 
+/// Renders the current video handle over the default black backdrop.
+///
+/// 在默认黑色背景上渲染当前视频句柄。
 class _RenderSurface extends StatelessWidget {
   /// Creates the render surface.
   ///
   /// 创建渲染画面。
   const _RenderSurface();
 
+  /// Builds the video or placeholder using the same backdrop color.
+  ///
+  /// 用同一背景色构建视频或占位画面。
   @override
   Widget build(BuildContext context) {
     final api = MovaScope.of(context);
     return ColoredBox(
-      color: const Color(0xFF000000),
+      color: Colors.black,
       child: MovaSelect<({MovaFit fit, double zoom, int epoch})>(
         selector: (s) => (fit: s.fit, zoom: s.zoom, epoch: s.renderEpoch),
         builder: (context, value) {
@@ -624,10 +679,7 @@ class _RenderSurface extends StatelessWidget {
                   resumeUponEnteringForegroundMode: false,
                   fit: movaBoxFit(value.fit),
                 )
-              : ColoredBox(
-                  key: _RenderHandleKey(handle),
-                  color: const Color(0xFF000000),
-                );
+              : ColoredBox(key: _RenderHandleKey(handle), color: Colors.black);
           return ClipRect(
             // Windows: keep the texture out of page-transition snapshots, see MovaSnapshotGuard.
             // Windows：别让纹理进页面转场快照，见 MovaSnapshotGuard。

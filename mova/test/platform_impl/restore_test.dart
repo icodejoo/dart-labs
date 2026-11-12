@@ -165,7 +165,7 @@ void main() {
     }
   });
 
-  test('工厂配置在退出全屏及销毁时还原宿主方向和 manual 系统栏', () async {
+  test('强制横屏退出全屏后保留方向，销毁时还原宿主方向和 manual 系统栏', () async {
     final calls = <MethodCall>[];
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async { calls.add(call); return null; });
@@ -177,13 +177,53 @@ void main() {
     await api.setOrientation(MovaOrientation.landscape);
     calls.clear();
     await api.setFullscreen(false);
-    expect(calls.first.arguments, ['DeviceOrientation.portraitUp']);
+    expect(api.state.orientation, MovaOrientation.landscape);
+    expect(calls.first.method, 'SystemChrome.setPreferredOrientations');
+    expect(calls.first.arguments, [
+      'DeviceOrientation.landscapeLeft',
+      'DeviceOrientation.landscapeRight',
+    ]);
     expect(calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
     expect(calls.last.arguments, ['SystemUiOverlay.top']);
     await api.setFullscreen(true);
     calls.clear();
     await api.dispose();
     expect(calls.first.arguments, ['DeviceOrientation.portraitUp']);
+    expect(calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
+    expect(calls.last.arguments, ['SystemUiOverlay.top']);
+  });
+
+  test('auto 方向退出全屏及销毁时还原宿主方向和 manual 系统栏', () async {
+    final calls = <MethodCall>[];
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      calls.add(call);
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    final api = createMovaEngine(
+      kernel: MovaTestKernel(),
+      brightness: _Brightness(Future.value(0.4)),
+      orientationConfig: const MovaOrientationConfig(
+        allowedOrientations: [DeviceOrientation.portraitUp],
+        systemUiMode: SystemUiMode.manual,
+        systemUiOverlays: [SystemUiOverlay.top],
+      ),
+    );
+    expect(api.state.orientation, MovaOrientation.auto);
+    await api.setFullscreen(true);
+    calls.clear();
+    await api.setFullscreen(false);
+    expect(calls.first.method, 'SystemChrome.setPreferredOrientations');
+    expect(calls.first.arguments, ['DeviceOrientation.portraitUp']);
+    expect(calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
+    expect(calls.last.arguments, ['SystemUiOverlay.top']);
+    await api.setFullscreen(true);
+    calls.clear();
+    await api.dispose();
+    expect(calls.first.method, 'SystemChrome.setPreferredOrientations');
+    expect(calls.first.arguments, ['DeviceOrientation.portraitUp']);
+    expect(calls.last.method, 'SystemChrome.setEnabledSystemUIOverlays');
     expect(calls.last.arguments, ['SystemUiOverlay.top']);
   });
 

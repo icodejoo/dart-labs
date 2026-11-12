@@ -1,12 +1,21 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
+import 'package:countman/src/core/run_state.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
 import 'card_countdown_provider.dart';
 import 'card_countdown_types.dart';
 import 'painter/flip_card_painter.dart';
 import 'reduce_motion.dart';
+import 'scope_resolution.dart';
+import 'hidden_task_state.dart';
 import 'style_support.dart';
+import 'countman_theme.dart';
 import 'providers.dart';
+import 'card_progress.dart';
+import '../core/fps.dart';
 
 export 'card_countdown_provider.dart';
 export 'card_countdown_types.dart';
@@ -168,6 +177,35 @@ class CardCountdownStyle with BoxStyleFields, StyleProps {
           decoration: decoration ?? other.decoration,
         );
 
+  /// 在 [a] 与 [b] 之间按 [t]（0–1）插值，用于 `ThemeExtension.lerp`。
+  ///
+  /// 尺寸、间距、颜色、文字样式、内边距、装饰逐字段插值；过渡类型、缩放/透明效果、
+  /// 拆位开关等不可插值字段在 `t < 0.5` 时取 [a]，否则取 [b]；任一端为空时同样按
+  /// `t < 0.5` 取一端。例如 `CardCountdownStyle.lerp(a, b, 0.5)`。
+  static CardCountdownStyle? lerp(
+      CardCountdownStyle? a, CardCountdownStyle? b, double t) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return CardCountdownStyle(
+      splitDigits: pickField(a.splitDigits, b.splitDigits, t),
+      cardWidth: lerpNum(a.cardWidth, b.cardWidth, t),
+      cardHeight: lerpNum(a.cardHeight, b.cardHeight, t),
+      digitGap: lerpNum(a.digitGap, b.digitGap, t),
+      unitGap: lerpNum(a.unitGap, b.unitGap, t),
+      cardColor: lerpColor(a.cardColor, b.cardColor, t),
+      transitionType: pickField(a.transitionType, b.transitionType, t),
+      scaleEffect: pickField(a.scaleEffect, b.scaleEffect, t),
+      scaleFactor: lerpNum(a.scaleFactor, b.scaleFactor, t),
+      opacityEffect: pickField(a.opacityEffect, b.opacityEffect, t),
+      perspective: lerpNum(a.perspective, b.perspective, t),
+      textStyle: TextStyle.lerp(a.textStyle, b.textStyle, t),
+      labelStyle: TextStyle.lerp(a.labelStyle, b.labelStyle, t),
+      separatorStyle: TextStyle.lerp(a.separatorStyle, b.separatorStyle, t),
+      padding: EdgeInsetsGeometry.lerp(a.padding, b.padding, t),
+      decoration: Decoration.lerp(a.decoration, b.decoration, t),
+    );
+  }
+
   @override
   List<Object?> get props => [
         splitDigits,
@@ -199,37 +237,47 @@ class CardCountdownStyle with BoxStyleFields, StyleProps {
 /// CardCountdown(to: DateTime(2025, 12, 31), splitDigits: true)
 /// ```
 ///
-/// Rendering is a single [CustomPainter] driven by one shared
-/// [AnimationController] per card instance — dense grids of concurrent
-/// [CardCountdown]s cost one [Ticker] each, not one per digit, and digit
+/// Rendering is a single [CustomPainter] driven by the shared Counter ticker.
+/// Card progress tasks share one group, and digit
 /// changes never rebuild the widget tree (only `markNeedsPaint`).
 ///
 /// [cardColor]/[textStyle]/[labelStyle]/[separatorStyle]/[duration]/
 /// [cardWidth]/[cardHeight]/[digitGap]/[unitGap] fall back to an ancestor
 /// [CardCountdownProvider] when left unset, then to a hardcoded default.
-/// Digit/separator/label glyphs are cached per-card so repeated digits
-/// (0-9) aren't re-laid-out every frame; for whichever of [textStyle] /
-/// [labelStyle] / [separatorStyle] are inherited from a provider (not set
-/// on this card), that cache is also shared across every card in the
-/// provider's scope.
+/// Digit/separator/label glyphs with equal styles are shared across cards;
+/// the last user releases their cached paragraphs. Styles inherited from
+/// [CardCountdownProvider] continue to use that provider's shared cache.
+/// 相同样式的字形跨卡共享，最后一个使用者释放段落；继承的样式沿用 Provider 缓存。
+/// 支持天及动态小时位宽的卡片倒计时，逐数位动画和语义分别更新。
 class CardCountdown extends StatefulWidget {
+  /// 创建卡片倒计时；showDays 默认为 false，启用时使用 dayLabel 作为天标签。
+  /// 示例：`CardCountdown(to: Duration(days: 2, hours: 3), showDays: true)`。
   const CardCountdown({
     super.key,
     required this.to,
     this.style,
     this.showHours,
+    this.showDays = false,
+    this.dayLabel = 'D',
     this.labels = const ['H', 'M', 'S'],
     this.separator = ':',
     this.duration,
     this.curve,
     this.repaintBoundary = true,
     this.plugin,
+    this.fps,
+    this.total,
+    this.rounding = CountdownRounding.floor,
+    this.semanticsLabel = 'Countdown',
     this.controller,
     this.onComplete,
     this.onTick,
     this.threshold,
     this.onThreshold,
-  });
+  }) : assert(
+         fps == null || (fps > 0 && fps < double.infinity),
+         'fps 必须为有限正数',
+       );
 
   /// Visual style. Merged over the ancestor [CardCountdownProvider], then
   /// defaults.
@@ -239,7 +287,9 @@ class CardCountdown extends StatefulWidget {
   /// (a [CardCountdownStyle]) > ancestor [CardCountdownProvider] (which also
   /// owns the shared glyph cache) > hardcoded default. [CardCountdownProvider]
   /// stays separate because it carries stateful, card-specific [TextPainter]
-  /// glyph caches that don't belong on the general scope.
+  /// glyph caches that don't belong on the general scope. Explicit styles
+  /// share a reference-counted cache across cards with equal styles; the last
+  /// user releases the paragraphs.
   ///
   /// 视觉样式。叠加在祖先 [CardCountdownProvider] 之上，再到默认值。
   ///
@@ -247,7 +297,7 @@ class CardCountdown extends StatefulWidget {
   /// [CountdownProvider] 的 `cardCountdownStyle`（[CardCountdownStyle]）> 祖先
   /// [CardCountdownProvider]（同时持有共享字形缓存）> 硬编码默认值。
   /// [CardCountdownProvider] 保持独立，因为它承载有状态、卡片专属的 [TextPainter]
-  /// 字形缓存，不宜并入通用 scope。
+  /// 字形缓存，不宜并入通用 scope。显式的相同样式跨卡共享，最后一个使用者释放段落。
   final CardCountdownStyle? style;
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
@@ -256,7 +306,16 @@ class CardCountdown extends StatefulWidget {
 
   /// Whether to show the hours unit.
   /// null = auto: shown only when remaining ≥ 1 hour.
+  /// 自动模式下启用 showDays 也会保留小时列；显式 false 仍可隐藏小时。
   final bool? showHours;
+
+  /// 是否增加天单元；默认 false。启用后小时取 0–23，天位数按需扩展。
+  /// 示例：`CardCountdown(to: Duration(days: 2, hours: 3), showDays: true)`。
+  final bool showDays;
+
+  /// 天单元标签，默认 D；labels 为 null 时与其他标签一并隐藏。
+  /// 示例：`CardCountdown(to: Duration(days: 2), showDays: true, dayLabel: '天')`。
+  final String dayLabel;
 
   /// Labels shown below each unit card. Supply null to hide labels.
   /// Order: [hours, minutes, seconds].
@@ -264,8 +323,11 @@ class CardCountdown extends StatefulWidget {
 
   final String separator;
 
-  /// Total transition duration, shared by every transition type. Falls back
-  /// to [CardCountdownProvider.duration], then 450ms.
+  /// Transition duration; calendar runs forward and reverse segments of this
+  /// length, so its actual total animation duration is twice this value.
+  /// Slide and flip use a single segment. Falls back to
+  /// [CardCountdownProvider.duration], then 450ms.
+  /// calendar 往返两段各用此时长，实际动画总时长为两倍；slide/flip 仅一段。
   final Duration? duration;
 
   /// Easing curve for the per-digit transition. Falls back to
@@ -278,6 +340,22 @@ class CardCountdown extends StatefulWidget {
   final bool repaintBoundary;
 
   final Countdown? plugin;
+
+  /// 实例显示刷新上限（帧/秒），返回可空配置；null 继承插件再到全局。
+  /// 示例：`fps: 30`；只限制显示更新，完成与阈值不延迟。
+  final double? fps;
+
+  /// 进度分母；为空时沿用挂载那一刻的剩余时间，通过 [onTick] 的
+  /// [TimeParts.progress] 读取。详见 [CountdownOptions.total]。
+  final Duration? total;
+
+  /// 显示取整方式，默认 [CountdownRounding.floor]；[CountdownRounding.ceil] 让
+  /// 剩余 9.3 秒显示 10。卡片显示、语义值与 [onTick] 都使用取整后的值。
+  final CountdownRounding rounding;
+
+  /// 屏幕阅读器标签，默认 `'Countdown'`；本地化时传入译文，例如 `'倒计时'`。
+  final String semanticsLabel;
+
   final CountdownController? controller;
   final void Function()? onComplete;
 
@@ -297,31 +375,82 @@ class CardCountdown extends StatefulWidget {
   State<CardCountdown> createState() => _CountdownCardState();
 }
 
+/// 管理卡片模型、翻牌动画及倒计时控制器的任务归属。
 class _CountdownCardState extends State<CardCountdown>
-    with SingleTickerProviderStateMixin {
+    with HiddenTaskState<CardCountdown> {
+  /// 隐藏或恢复时直接提交当前模型，避免 Flutter 静音的翻牌停在半程。
+  @override
+  void onTaskMuteChanged(bool muted) {
+    _handle?.muted = muted;
+    final handle = _handle;
+    if (handle != null) {
+      _settleHidden(handle.isDone ? _lastRemaining : _shown(handle.remaining));
+    }
+  }
+
+  /// 落定端点并清零进度；只在可见性变化或静音终态使用。
+  void _settleHidden(Duration remaining) {
+    _ctrl.reset();
+    setState(() {
+      _lastRemaining = remaining;
+      _semanticRemaining.value = remaining;
+      _showHours = _hoursFor(remaining);
+      _model.committed = _digitsFor(remaining, _showHours);
+      _model.target = null;
+      _model.changedMask = null;
+      _model.reversePhase = false;
+    });
+  }
+
   CountdownHandle? _handle;
-  late final AnimationController _ctrl;
+
+  /// 当前生效的插件（显式 > 最近 CountdownProvider > 默认组），
+  /// 使 Provider 的 onGroupReady / onAllComplete 对卡片同样生效。
+  late Countdown _plugin;
+
+  /// 无存活任务时的终态：完成为 completed，其余为 idle。
+  CountmanRunState _doneState = CountmanRunState.idle;
+
+  /// 为 true 时旧任务被取消不把 runState 写成 idle（紧接着会有新任务）。
+  bool _keepRunState = false;
+  /// 常驻线性进度源，所有卡片共用 Counter 任务组。
+  late final CardProgress _ctrl;
+
+  /// 解析实例与倒计时插件上限；null 留给共享引擎动态继承全局。
+  double? _resolvedFps() => validFps(widget.fps) ?? _plugin.fps;
   late bool _showHours;
   late CardModel _model;
   Duration _lastRemaining = Duration.zero;
+  /// 仅驱动 Semantics 子树，tick 不触发卡片布局或 painter 重建。
+  final _semanticRemaining = ValueNotifier<Duration>(Duration.zero);
+  /// 当前持有的池样式；继承 Provider 的角色为 null，不参与引用计数。
+  (TextStyle?, TextStyle?, TextStyle?)? _cacheStyles;
+  /// 与三个样式角色一一对应的共享缓存，避免重复 acquire。
+  (CardGlyphCache?, CardGlyphCache?, CardGlyphCache?)? _pooledCaches;
 
   // Resolved once per build() (widget ?? provider ?? default) — the
-  // AnimationController's status listener is created once in initState and
+  // CardProgress's status listener is created once in initState and
   // can't safely query CardCountdownProvider itself, so it reads this field
   // instead of `widget.transitionType` directly.
   CountdownType _transitionType = _defaultTransitionType;
 
-  // Per-card glyph cache. Used for any style this card resolves itself
-  // (explicit override, or no ancestor provider) — never shared with other
-  // cards. Bounded: at most ~10 digits + separator + label strings.
-  final _localCache = <(String, TextStyle), TextPainter>{};
+  /// 成对归还本 State 的样式引用；清空记录后可安全重复调用。
+  void _releaseGlyphCaches() {
+    final styles = _cacheStyles;
+    if (styles == null) return;
+    if (styles.$1 != null) _GlyphPool.release(styles.$1!);
+    if (styles.$2 != null) _GlyphPool.release(styles.$2!);
+    if (styles.$3 != null) _GlyphPool.release(styles.$3!);
+    _cacheStyles = null;
+    _pooledCaches = null;
+  }
 
+  /// 用真实剩余时间初始化卡片端点和语义，并建立共享翻牌进度。
   @override
   void initState() {
     super.initState();
     _transitionType = widget.style?.transitionType ?? _defaultTransitionType;
-    _ctrl = AnimationController(
-        vsync: this,
+    _ctrl = CardProgress(
         duration: motionDuration(widget.duration ?? _defaultDuration))
       ..addStatusListener((status) {
         // calendar is two legs (forward then auto-reverse) over the same
@@ -342,41 +471,197 @@ class _CountdownCardState extends State<CardCountdown>
           _model.reversePhase = false;
         }
       });
-    final r = remainingUntil(widget.to);
-    _showHours = widget.showHours ?? r.inHours >= 1;
+    // initState 里不能注册依赖，先非依赖地解析一次；之后由 didChangeDependencies 跟随变化。
+    _plugin = resolvePlugin<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
+    final r = _shown(_remainingOfTo());
+    _lastRemaining = r;
+    _semanticRemaining.value = r;
+    _showHours = _hoursFor(r);
     _model = CardModel(_digitsFor(r, _showHours));
+  }
+
+  /// 解析出的插件变化（Provider 换分组）时迁移任务，保留剩余时间与暂停态。
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final plugin = resolvePluginDependent<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
+    if (_handle == null) {
+      _plugin = plugin;
+      _start();
+    } else if (!identical(plugin, _plugin)) {
+      _migrate(plugin);
+    }
+    _ctrl.fps = _resolvedFps();
+  }
+
+  /// 插件变化：存活任务迁移到新插件，保留剩余时间与暂停态；没有存活任务时只换插件。
+  void _migrate(Countdown next) {
+    final old = _handle;
+    _plugin = next;
+    if (old == null || old.isDone) return;
+    _start(remaining: old.remaining, paused: old.isPaused);
+  }
+
+  /// 按当前插件的时钟计算 `to` 对应的剩余时间。
+  Duration _remainingOfTo() => remainingUntil(widget.to, clock: _plugin.clock);
+
+  /// 把真实剩余时间 [r] 换算成卡片展示用的值（按 [CardCountdown.rounding] 取整，
+  /// 与引擎发出的 [TimeParts] 一致）。
+  Duration _shown(Duration r) => Duration(
+    microseconds: widget.rounding.apply(r.inMicroseconds, _plugin.interval),
+  );
+
+  /// 新建倒计时，可指定剩余时间和暂停状态，并重新绑定重启动作。
+  void _start({Duration? remaining, bool paused = false}) {
+    _cancelCurrent();
+    _doneState = CountmanRunState.idle;
+    final plugin = _plugin;
+    // 显式剩余时间（重启/插件迁移）按相对时长，避免重新计满；
+    // 否则 Duration 走相对时长，DateTime/int/String 解析为绝对截止。
+    final anchor = remaining != null
+        ? (duration: remaining, deadline: null)
+        : countdownAnchorOf(widget.to, clock: plugin.clock);
+    _handle = plugin.addMuted(CountdownOptions(
+      fps: widget.fps,
+      duration: anchor.duration,
+      deadline: anchor.deadline,
+      total: widget.total,
+      rounding: widget.rounding,
+      onUpdate: _onTick,
+      onComplete: _onTaskComplete,
+      threshold: widget.threshold,
+      onThreshold: () => widget.onThreshold?.call(),
+      onCancel: _onTaskCancel,
+    ), muted: taskMuted);
+    if (paused) _handle!.pause();
+    _attachController();
+  }
+
+  /// 取消当前任务；取消期间不把 runState 写成 idle，由调用方随后写入新状态。
+  void _cancelCurrent() {
+    final handle = _handle;
+    if (handle == null) return;
+    _keepRunState = true;
+    try {
+      handle.cancel();
+    } finally {
+      _keepRunState = false;
+    }
+  }
+
+  /// 任务被取消的回调：runState 回到 idle。
+  void _onTaskCancel() {
+    if (_keepRunState) return;
+    _doneState = CountmanRunState.idle;
+    widget.controller?.setRunState(CountmanRunState.idle);
+  }
+
+  /// 任务完成的回调：先更新 runState 为 completed，再转发用户 onComplete。
+  void _onTaskComplete() {
+    if (taskMuted) _settleHidden(Duration.zero);
+    _doneState = CountmanRunState.completed;
+    widget.controller?.setRunState(CountmanRunState.completed);
+    widget.onComplete?.call();
+  }
+
+  /// 由任务句柄状态推导当前 runState：存活为 running / paused，否则取终态。
+  CountmanRunState _runStateNow() {
+    final handle = _handle;
+    if (handle != null && !handle.isDone) {
+      return handle.isPaused
+          ? CountmanRunState.paused
+          : CountmanRunState.running;
+    }
+    return _doneState;
+  }
+
+  /// 绑定任务、重启动作及 runState。
+  void _attachController() {
+    final controller = widget.controller;
+    if (controller == null || _handle == null) return;
+    controller.attach(_handle!, relaunch: _relaunch, restart: _restart);
+    controller.setRunState(_runStateNow());
+  }
+
+  /// 结束后重启倒计时，并立即同步小时列与卡片模型。
+  void _relaunch({Duration? duration}) {
+    // widget.duration 是翻牌动画时长，不是倒计时长度，不能参与回退。
+    final remaining = duration ?? _remainingOfTo();
+    final shown = _shown(remaining);
+    _ctrl.reset();
+    setState(() {
+      _lastRemaining = shown;
+      _semanticRemaining.value = shown;
+      _showHours = _hoursFor(shown);
+      _model = CardModel(_digitsFor(shown, _showHours));
+    });
+    _start(remaining: remaining);
+  }
+
+  /// 按组件当前配置（`to`、`total`、取整方式）从头开始，并立即同步卡片模型。
+  void _restart() {
+    final shown = _shown(_remainingOfTo());
+    _ctrl.reset();
+    setState(() {
+      _lastRemaining = shown;
+      _semanticRemaining.value = shown;
+      _showHours = _hoursFor(shown);
+      _model = CardModel(_digitsFor(shown, _showHours));
+    });
     _start();
   }
 
-  void _start({Duration? remaining, bool paused = false}) {
-    _handle?.cancel();
-    _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
-      // 插件迁移保留已有剩余时间，避免相对时长重新计满。
-      duration: remaining ?? remainingUntil(widget.to),
-      onUpdate: _onTick,
-      onComplete: () => widget.onComplete?.call(),
-      threshold: widget.threshold,
-      onThreshold: () => widget.onThreshold?.call(),
-    ));
-    if (paused) _handle!.pause();
-    widget.controller?.attach(_handle!);
-  }
+  /// 解析小时列；显示天时默认保留小时单元。
+  bool _hoursFor(Duration r) => widget.showHours ?? (widget.showDays || r.inHours >= 1);
 
-  List<int> _digitsFor(Duration r, bool showHours) {
-    final units = showHours
-        ? [r.inHours, r.inMinutes % 60, r.inSeconds % 60]
-        : [r.inMinutes % 60, r.inSeconds % 60];
+  /// 按天、小时、分、秒顺序解析单位，小时在天模式下取余。
+  List<int> _unitsFor(Duration r, bool showHours) => [
+    if (widget.showDays) r.inDays,
+    if (showHours) widget.showDays ? r.inHours % 24 : r.inHours,
+    r.inMinutes % 60, r.inSeconds % 60,
+  ];
+
+  /// 天至少一位，其余单位至少两位。
+  int _minimumUnitWidth(int index) => widget.showDays && index == 0 ? 1 : 2;
+
+  /// 单位宽度取实际位数与最小宽度的较大值，每个单位只转换一次字符串。
+  List<int> _unitWidths(Duration r, bool showHours) {
+    final units = _unitsFor(r, showHours);
     return [
-      for (final u in units) ...[u ~/ 10, u % 10]
+      for (var i = 0; i < units.length; i++)
+        math.max(units[i].toString().length, _minimumUnitWidth(i)),
     ];
   }
 
+  /// 按最小宽度补零后拆位；padLeft 保留长文本，省去重复单位列表和额外宽度列表。
+  List<int> _digitsFor(Duration r, bool showHours) {
+    final units = _unitsFor(r, showHours);
+    return [
+      for (var i = 0; i < units.length; i++)
+        for (final code
+            in units[i].toString().padLeft(_minimumUnitWidth(i), '0').codeUnits)
+          code - 48,
+    ];
+  }
+
+  /// 同秒 tick 不拆位或重建语义；打断前先提交旧目标再计算 changedMask。
   void _onTick(TimeParts parts) {
+    if (taskMuted) {
+      _settleHidden(parts.value);
+      return;
+    }
     widget.onTick?.call(parts);
     final remaining = parts.value;
+    final previous = _lastRemaining;
     _lastRemaining = remaining;
-    final showHours = widget.showHours ?? remaining.inHours >= 1;
-    if (showHours != _showHours) {
+    if (remaining.inSeconds == previous.inSeconds) return;
+    final oldWidths = _unitWidths(previous, _showHours);
+    _semanticRemaining.value = remaining;
+    final showHours = _hoursFor(remaining);
+    if (showHours != _showHours || !listEquals(oldWidths, _unitWidths(remaining, showHours))) {
+      _ctrl.reset();
       // Rare event (crossing the 1h boundary): the unit count itself
       // changes, which needs a real layout pass. Snap instead of animating —
       // a transition here would need to reconcile two different cell counts
@@ -389,68 +674,86 @@ class _CountdownCardState extends State<CardCountdown>
     }
 
     final next = _digitsFor(remaining, _showHours);
-    final changed =
-        List.generate(next.length, (i) => next[i] != _model.committed[i]);
-    if (!changed.contains(true)) return;
-
+    if (listEquals(next, _model.target ?? _model.committed)) return;
     if (_ctrl.isAnimating && _model.target != null) {
-      _model.committed = _model.target!; // finish the previous batch instantly
+      _model.committed = _model.target!;
     }
+    final changed = List.generate(next.length, (i) => next[i] != _model.committed[i]);
+    if (!changed.contains(true)) return;
     _model.target = next;
     _model.changedMask = changed;
     _model.reversePhase = false;
     _ctrl.forward(from: 0);
   }
 
+  /// 更新任务配置；仅替换控制器时保留卡片任务与暂停状态。
   @override
   void didUpdateWidget(CardCountdown old) {
     super.didUpdateWidget(old);
+    if (widget.fps != old.fps) _handle?.fps = widget.fps;
+    final plugin = resolvePluginDependent<Countdown>(context,
+        widgetPlugin: widget.plugin, fallback: () => defaultCountdown);
     if (widget.to != old.to) {
       // 旧控制器解绑，新控制器由 _start 绑定。
-      old.controller?.detach();
-      _ctrl.stop();
-      _ctrl.value = 0;
-      final r = remainingUntil(widget.to);
-      _showHours = widget.showHours ?? r.inHours >= 1;
+      old.controller?.detach(_handle);
+      _plugin = plugin;
+      _ctrl.reset();
+      final r = _shown(_remainingOfTo());
+      _lastRemaining = r;
+      _semanticRemaining.value = r;
+      _showHours = _hoursFor(r);
       _model = CardModel(_digitsFor(r, _showHours));
       _start();
     } else {
       if (widget.controller != old.controller) {
-        old.controller?.detach();
-        if (_handle != null) widget.controller?.attach(_handle!);
+        old.controller?.detach(_handle);
+        _attachController();
       }
-      if (widget.plugin != old.plugin && _handle != null && !_handle!.isDone) {
+      // 换插件、分母或取整方式都要重建任务，同时保留剩余时间与暂停状态。
+      final pluginChanged = !identical(plugin, _plugin);
+      if ((pluginChanged ||
+              widget.total != old.total ||
+              widget.rounding != old.rounding) &&
+          _handle != null &&
+          !_handle!.isDone) {
         final remaining = _handle!.remaining;
         final paused = _handle!.isPaused;
+        _plugin = plugin;
         _start(remaining: remaining, paused: paused);
+      } else if (pluginChanged) {
+        _plugin = plugin;
       }
       // 单独修改阈值时沿用当前任务，不重置倒计时。
       _handle?.updateThreshold(widget.threshold);
     }
-    if (widget.to == old.to && widget.showHours != old.showHours) {
+    _ctrl.fps = _resolvedFps();
+    if (widget.to == old.to && (widget.showHours != old.showHours || widget.showDays != old.showDays)) {
       // showHours flipped without a new deadline — relayout the unit count now
       // instead of waiting for the next tick to notice (avoids a stale frame).
       //
       // showHours 翻转但截止未变——立即重排单位数，而非等下一 tick 才发现
       // （避免一帧陈旧）。
-      final r = remainingUntil(widget.to);
-      _showHours = widget.showHours ?? r.inHours >= 1;
+      final r = _handle != null && !_handle!.isDone
+          ? _shown(_handle!.remaining)
+          : _lastRemaining;
+      _ctrl.reset();
+      _showHours = _hoursFor(r);
       _model = CardModel(_digitsFor(r, _showHours));
     }
   }
 
+  /// 仅解绑当前 State 的任务，并释放翻牌动画与字形缓存。
   @override
   void dispose() {
-    widget.controller?.detach();
+    widget.controller?.detach(_handle);
     _handle?.cancel();
     _ctrl.dispose();
-    for (final tp in _localCache.values) {
-      tp.dispose(); // release cached native paragraphs
-    }
-    _localCache.clear();
+    _semanticRemaining.dispose();
+    _releaseGlyphCaches();
     super.dispose();
   }
 
+  /// 根据动态单位位数布局卡片，默认两位单元保持原几何。
   CardGeometry _measure({
     required double cardWidth,
     required double cardHeight,
@@ -462,7 +765,8 @@ class _CountdownCardState extends State<CardCountdown>
     required Map<(String, TextStyle), TextPainter> labelCache,
     required bool splitDigits,
   }) {
-    final unitsCount = _showHours ? 3 : 2;
+    final widths = _unitWidths(_lastRemaining, _showHours);
+    final unitsCount = widths.length;
     final labelOffset =
         _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
     final sepPainter = sepCache.putIfAbsent(
@@ -481,20 +785,21 @@ class _CountdownCardState extends State<CardCountdown>
 
     for (var u = 0; u < unitsCount; u++) {
       final unitStart = x;
-      if (splitDigits) {
-        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
-        x += cardWidth + digitGap;
-        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
-        x += cardWidth;
-      } else {
-        final half = cardWidth / 2;
-        cells.add(Cell(x, half, digitIndex++, _leftRadius));
-        x += half;
-        cells.add(Cell(x, half, digitIndex++, _rightRadius));
-        x += half;
+      final digits = widths[u];
+      for (var d = 0; d < digits; d++) {
+        final width = splitDigits ? cardWidth : cardWidth / 2;
+        final radius = splitDigits ? _fullRadius :
+            (digits == 1 ? _fullRadius : d == 0 ? _leftRadius :
+              d == digits - 1 ? _rightRadius : BorderRadius.zero);
+        cells.add(Cell(x, width, digitIndex++, radius));
+        x += width;
+        if (splitDigits && d < digits - 1) x += digitGap;
       }
       unitLabelCenters.add((unitStart + x) / 2);
-      unitLabelText.add(widget.labels?[u + labelOffset]);
+      final labelIndex = u - (widget.showDays ? 1 : 0) + labelOffset;
+      unitLabelText.add(widget.labels == null ? null :
+          widget.showDays && u == 0 ? widget.dayLabel :
+          labelIndex < widget.labels!.length ? widget.labels![labelIndex] : null);
 
       if (u != unitsCount - 1) {
         x += unitGap;
@@ -523,6 +828,7 @@ class _CountdownCardState extends State<CardCountdown>
     );
   }
 
+  /// 配置变化时重建几何和画笔，tick 仅更新模型或独立语义子树。
   @override
   Widget build(BuildContext context) {
     final provider = CardCountdownProvider.of(context);
@@ -532,8 +838,10 @@ class _CountdownCardState extends State<CardCountdown>
     //
     // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 cardCountdownStyle
     // > 祖先 CardCountdownProvider > 硬编码默认值。
-    final ccStyle =
+    final themeStyle = CountmanTheme.maybeOf(context)?.cardCountdownStyle;
+    final scopeStyle =
         CountmanScope.maybeOf<Countdown>(context)?.cardCountdownStyle;
+    final ccStyle = scopeStyle?.merge(themeStyle) ?? themeStyle;
     final st = widget.style?.merge(ccStyle) ?? ccStyle;
     final cardWidth = st?.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
     final cardHeight =
@@ -541,8 +849,8 @@ class _CountdownCardState extends State<CardCountdown>
     final digitGap = st?.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
     final unitGap = st?.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
     final cardColor = st?.cardColor ?? provider?.cardColor ?? _defaultCardColor;
-    final duration =
-        motionDuration(widget.duration ?? provider?.duration ?? _defaultDuration);
+    final duration = motionDuration(
+        widget.duration ?? provider?.duration ?? _defaultDuration);
     if (_ctrl.duration != duration) _ctrl.duration = duration;
     final effCurve = widget.curve ?? provider?.curve ?? Curves.linear;
     final splitDigits = st?.splitDigits ?? false;
@@ -583,18 +891,25 @@ class _CountdownCardState extends State<CardCountdown>
             fontWeight: FontWeight.bold,
             color: const Color(0xFF757575));
 
-    // A style is only shared via the provider's cache when this card is
-    // actually inheriting it (left unset) — an explicit override always
-    // uses this card's own local cache, so it never pollutes the shared one.
-    final digitCache = (resolvedTextStyle == null && provider != null)
-        ? provider.cache
-        : _localCache;
-    final sepCache = (resolvedSeparatorStyle == null && provider != null)
-        ? provider.cache
-        : _localCache;
-    final labelCache = (resolvedLabelStyle == null && provider != null)
-        ? provider.cache
-        : _localCache;
+    final styles = (
+      resolvedTextStyle == null && provider != null ? null : textStyle,
+      resolvedLabelStyle == null && provider != null ? null : labelStyle,
+      resolvedSeparatorStyle == null && provider != null ? null : separatorStyle,
+    );
+    if (_cacheStyles != styles) {
+      _releaseGlyphCaches();
+      _pooledCaches = (
+        styles.$1 == null ? null : _GlyphPool.acquire(styles.$1!),
+        styles.$2 == null ? null : _GlyphPool.acquire(styles.$2!),
+        styles.$3 == null ? null : _GlyphPool.acquire(styles.$3!),
+      );
+      _cacheStyles = styles;
+    }
+
+    // 相同的非继承样式跨卡共享，最后一个使用者释放；Provider 路径保持原样。
+    final digitCache = _pooledCaches?.$1 ?? provider!.cache;
+    final labelCache = _pooledCaches?.$2 ?? provider!.cache;
+    final sepCache = _pooledCaches?.$3 ?? provider!.cache;
 
     final geom = _measure(
       cardWidth: cardWidth,
@@ -634,11 +949,15 @@ class _CountdownCardState extends State<CardCountdown>
     );
     // The card paints digits straight to the canvas, so it has no text node
     // for a screen reader. Expose the remaining time via Semantics.
-    final semantic = Semantics(
-      container: true,
-      label: 'Countdown',
-      value: CountdownFormat.hms(TimeParts.of(_lastRemaining)),
+    final semantic = ValueListenableBuilder<Duration>(
+      valueListenable: _semanticRemaining,
       child: inner,
+      builder: (_, remaining, child) => Semantics(
+        container: true,
+        label: widget.semanticsLabel,
+        value: (widget.showDays ? CountdownFormat.dhms : CountdownFormat.hms)(TimeParts.of(remaining)),
+        child: child,
+      ),
     );
     final decorated = applyBoxStyle(semantic,
         padding: st?.padding, decoration: st?.decoration);
@@ -646,6 +965,38 @@ class _CountdownCardState extends State<CardCountdown>
         ? RepaintBoundary(child: decorated)
         : decorated;
   }
+}
+
+/// 非 Provider 样式的库内共享池，按 TextStyle 值相等计数。
+final class _GlyphPool {
+  /// 每个存活样式仅持有一个有界缓存。
+  static final _entries = <TextStyle, _GlyphPoolEntry>{};
+
+  /// 获取样式缓存并增加引用，仅在 build 的样式角色变化时调用。
+  static CardGlyphCache acquire(TextStyle style) {
+    final entry = _entries.putIfAbsent(style, _GlyphPoolEntry.new);
+    entry.references++;
+    return entry.cache;
+  }
+
+  /// 归还样式引用，最后一个使用者释放缓存中的原生段落。
+  static void release(TextStyle style) {
+    final entry = _entries[style]!;
+    if (--entry.references != 0) return;
+    _entries.remove(style);
+    entry.cache.clear();
+  }
+}
+
+/// 同一样式的缓存与引用数，生命周期由共享池管理。
+final class _GlyphPoolEntry {
+  /// 建立尚无使用者的空缓存条目。
+  _GlyphPoolEntry();
+
+  /// 供当前样式的所有卡片复用的字形缓存。
+  final cache = CardGlyphCache();
+  /// 各卡片、各样式角色分别占一个引用。
+  int references = 0;
 }
 
 // ── geometry ───────────────────────────────────────────────────────────────────────────

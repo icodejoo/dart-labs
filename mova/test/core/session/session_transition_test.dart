@@ -190,7 +190,13 @@ void main() {
       plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
     );
     final hostShadow = rig.engines.last;
-    await rig.ready(hostShadow);
+    await settleOperations();
+    // Cancellation now ends preparation without waiting for the old open hook.
+    //
+    // 取消现在会直接结束预热，不再等待旧 open 钩子返回。
+    expect(gate.isCompleted, isFalse);
+    expect(rig.engines.first.source, first.source);
+    expect(hostShadow.disposeCount, 1);
     gate.complete();
     await settleOperations();
     expect(rig.api.active, same(rig.engines.first));

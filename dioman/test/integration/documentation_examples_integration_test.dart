@@ -42,10 +42,17 @@ void main() {
           'docs/guides/migrating-to-pipeline.md': 18,
           'CHANGELOG.md': 7,
         };
+        const expectedCompiled = <String, int>{
+          'README.md': 19,
+          'README.zh-CN.md': 19,
+          'docs/guides/migrating-to-pipeline.md': 23,
+          'CHANGELOG.md': 7,
+        };
+        expect(localCompiled, expectedCompiled[path], reason: path);
         expect(localSkipped, expectedOld[path], reason: path);
         counts[path] = {'compiled': localCompiled, 'skippedOld': localSkipped};
       }
-      expect(compiled, greaterThan(0));
+      expect(compiled, 68, reason: 'R6b 新增三份逻辑截止时间示例');
       expect(skipped, 25, reason: '旧代码跳过必须显式登记，不能悄悄增加');
       final result = await Process.run(Platform.resolvedExecutable,
           ['analyze', '--format=machine', temporary.path],
@@ -55,8 +62,7 @@ void main() {
           .convert(output)
           .where((line) => line.startsWith('ERROR|'))
           .toList();
-      final evidence = Directory('docs/reports/pipeline-b6-evidence')
-        ..createSync(recursive: true);
+      final evidence = Directory('coverage')..createSync(recursive: true);
       File('${evidence.path}/documentation-examples.json')
           .writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
         'files': counts,

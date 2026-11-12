@@ -1,0 +1,13 @@
+{
+  "name": "tools",
+  "args": [
+    "flutter",
+    "test",
+    "test/tool",
+    "--no-pub",
+    "--concurrency=1",
+    "--reporter=json"
+  ],
+  "exitCode": 0,
+  "elapsedSeconds": 27.79
+}

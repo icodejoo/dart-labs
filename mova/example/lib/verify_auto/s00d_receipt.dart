@@ -67,7 +67,9 @@ class ReceiptAudit {
   };
 
   void receive(MovaEvent e) {
-    final expected = Map<String, Object?>.of(latest);
+    // 两条独立异步订阅没有跨流时序承诺；只把本事件声明的字段
+    // 与接收时 getter 对账。保留上一条流快照供诊断，不断言无关字段相等。
+    final expected = values(api.state);
     // Override only fields actually asserted by this event's public contract.
     expected.addAll(switch (e) {
       MovaSourceChange() => {
@@ -103,16 +105,8 @@ class ReceiptAudit {
       _ => <String, Object?>{},
     });
     final actual = values(api.state);
-    // Progress is a separate public stream (MovaState has no position).
-    // Seeked's public payload is compared against its last received progress,
-    // never a process-global position belonging to a different engine.
-    if (e is MovaSeeked) {
-      expected['position'] = e.position.inMilliseconds;
-      actual['position'] = positionMs;
-    } else {
-      expected['position'] = positionMs;
-      actual['position'] = positionMs;
-    }
+    // MovaState 没有 position；progress 独立节流，不能与 Seeked 载荷硬相等。
+    // 保留三种读数供诊断；原生落点另由 F3 的稳定窗判据验收。
     final differences = expected.keys
         .where((k) => !_equal(expected[k], actual[k]))
         .toList();
@@ -124,6 +118,15 @@ class ReceiptAudit {
       'event': e.runtimeType.toString(),
       'expected': expected,
       'actual': actual,
+      'lastObservedState': latest,
+      if (e is MovaSeeked) 'seekReceipt': {
+        'payloadMs': e.position.inMilliseconds,
+        'lastProgressMs': positionMs,
+        'progressValueMs': api is MovaProgressSource
+            ? (api as MovaProgressSource).progressValue.position.inMilliseconds
+            : null,
+        'landingVerified': false,
+      },
       'differences': differences,
       'numbers': {'fields': actual.length},
     });
