@@ -329,10 +329,19 @@ class _V030PageState extends State<V030Page> {
       id: _live,
       data: const {'n': 0},
       present: (ctx) => presentEntry<void>(
-        (close) => ValueListenableBuilder<Object?>(
-          valueListenable: ctx.dataListenable,
-          builder: (context, data, _) =>
-              _floatingCard('live n=${(data as Map)['n']}', close),
+        // Positioned 必须直接位于 presentEntry 的内容顶层，监听放进它的 child。
+        (close) => Positioned(
+          right: 16,
+          top: 100,
+          child: SizedBox(
+            width: 240,
+            height: 160,
+            child: ValueListenableBuilder<Object?>(
+              valueListenable: ctx.dataListenable,
+              builder: (context, data, _) =>
+                  buildCard('live n=${(data as Map)['n']}', close),
+            ),
+          ),
         ),
       ),
     );

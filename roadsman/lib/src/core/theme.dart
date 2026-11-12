@@ -37,6 +37,7 @@ class Palette {
   /// Key is outcome code or token string, value is color; `colorForToken` reads here with highest priority.
   final Map<String, int>? outcomes;
 
+  /// Creates a [Palette].
   const Palette({
     required this.banker,
     required this.player,
@@ -78,6 +79,7 @@ class CanvasTheme {
   /// Canvas background color (rendering layer fills bottom each frame, ensuring export/screenshot contains background).
   final int background;
 
+  /// Creates a [CanvasTheme].
   const CanvasTheme({required this.background});
 
   CanvasTheme copyWith({int? background}) =>
@@ -92,6 +94,7 @@ class GridTheme {
   /// Grid line width.
   final double lineWidth;
 
+  /// Creates a [GridTheme].
   const GridTheme({required this.stroke, required this.lineWidth});
 
   GridTheme copyWith({int? stroke, double? lineWidth}) =>
@@ -106,6 +109,7 @@ class CellTheme {
   /// Stroke line width.
   final double lineWidth;
 
+  /// Creates a [CellTheme].
   const CellTheme({required this.radiusRatio, required this.lineWidth});
 
   CellTheme copyWith({double? radiusRatio, double? lineWidth}) =>
@@ -123,6 +127,7 @@ class LabelsTheme {
   /// Custom outcome/token copy override slot.
   final Map<String, String>? outcomes;
 
+  /// Creates a [LabelsTheme].
   const LabelsTheme({
     required this.banker,
     required this.player,
@@ -154,6 +159,7 @@ class FontsTheme {
   /// Font size ratio (relative to cellSize).
   final double sizeRatio;
 
+  /// Creates a [FontsTheme].
   const FontsTheme({required this.family, required this.sizeRatio});
 
   FontsTheme copyWith({String? family, double? sizeRatio}) =>
@@ -171,6 +177,7 @@ class RoadTheme {
   /// Road-specific parameters (e.g., gold edge color for naturalRoad, textMode for beadPlate), defined by each road plugin documentation.
   final Map<String, Object?> extra;
 
+  /// Creates a [RoadTheme].
   const RoadTheme({this.radiusRatio, this.lineWidth, this.extra = const {}});
 
   /// Read a road-specific parameter, return [orElse] if not found.
@@ -200,6 +207,7 @@ class Theme {
   /// Override by road ID, only need to fill fields to override.
   final Map<String, RoadTheme> roads;
 
+  /// Creates a [Theme].
   const Theme({
     required this.palette,
     required this.canvas,

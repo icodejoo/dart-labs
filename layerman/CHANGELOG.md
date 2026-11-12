@@ -1,3 +1,8 @@
+## 1.0.1
+
+- Docs only: README gains the `gate:` (`OverlayGate` / `OverlayVerdict`) chapter, a 0.x → 1.0 migration table with before/after examples, and the `visible`-confirmed cooldown wording; CHANGELOG 1.0.0 lists `PresentedOverlay.visible`, `gate` and `OverlayVisibility`.
+- Example: new gate demos, a fix for the live-data demo wrapping `Positioned` inside `ValueListenableBuilder`, and a real example README.
+
 ## 1.0.0
 
 **Breaking**
@@ -19,6 +24,7 @@
 | Fixed login boolean | Custom policy, e.g. `auth: (ctx) => ctx['role'] == 'admin'`; read any `setContext` keys. |
 | `when` overrides route/auth | `route`, `auth`, `when` combine with AND; remove unwanted conditions explicitly. |
 | `Layerman(now: callback)` | `Layerman(clock: clock)` with an `OverlayClock` providing both `now()` and `createTimer(...)`; default `OverlayClock.system`. |
+| `PresentedOverlay(dismissed:, dismiss:)` | `visible:` is required: a `Future<void>` that completes after the first painted frame (error => `failed`). `shown` events and cooldown counting happen only after it succeeds. Use `presentRoute` (ModalRoute confirms automatically; other `TransitionRoute`s pass `visible:`) or wrap your content in `OverlayVisibility`; headless tests may pass `Future<void>.value()`. |
 | `PresentContext` | `PresentContext<T>`, with `close([T? result])` through `beforeClose`, bound to this submission. |
 | `DialogManager(key, manager: manager)` / `BottomSheetManager(key, manager: manager)` | Remove `manager:`; builder close always uses `ctx.close` and its guard. |
 
@@ -26,6 +32,9 @@
   (default `OverlayMode.queue`). `affix` remains independent.
 * `route` is now `RouteMatcher?`; `pauseOnRoutes` is `List<RouteMatcher>`.
   Choose `exact`, `anyOf` or `regex`; weakly typed patterns are no longer accepted.
+* `PresentedOverlay.visible` is required. Waiting for it keeps the entry in `OverlayPhase.open`
+  and occupies its slot (`duration` already runs); an earlier end has no `shown` and no
+  cooldown count; a failed signal ends as `failed`.
 * `OverlayRecord.phase` is now `OverlayPhase`, with `pending`, `resolving`,
   `open` and `closing` values, instead of strings.
 
@@ -83,6 +92,10 @@
 * Debug invariants (i), (j), (k): no permanently blocked serial queue entries after
   hydration is applied, no missed unblock scheduling, and no releasable held overlaps.
 
+* `gate:` on `open` / `submit` with `OverlayGate`, `OverlayVerdict.pass / waitUntil / drop` and
+  `OverlayEndReason.gated`: business eligibility evaluated after route/auth/when and before
+  activation. `waitUntil` works for serial entries and overlaps; compute `retryAt` from `manager.clock.now()`.
+* `OverlayVisibility` widget and `presentRoute(..., visible:)` for first-frame visibility confirmation.
 * `OverlayClock` unifies current time and timers. `package:layerman/testing.dart`
   exports `FakeOverlayClock` for ordinary Dart `test()` without Flutter bindings.
 * Automatic debug invariant validation after every outermost batch via

@@ -16,6 +16,7 @@ class EmptyStateOverlay extends StatelessWidget {
   /// Text color.
   final Color color;
 
+  /// Creates a [EmptyStateOverlay].
   const EmptyStateOverlay({super.key, this.message = 'Waiting for a new shoe', this.color = Colors.white70});
 
   @override

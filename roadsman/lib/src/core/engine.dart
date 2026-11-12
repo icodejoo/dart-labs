@@ -25,6 +25,7 @@ class ComputeOutput {
   /// Plugin error map (id -> error). Errored plugins and their downstream cascading plugins are recorded here, other roads proceed normally.
   final Map<String, Object> errors;
 
+  /// Creates a [ComputeOutput].
   const ComputeOutput({
     required this.layouts,
     required this.data,
