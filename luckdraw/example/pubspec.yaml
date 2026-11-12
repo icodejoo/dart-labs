@@ -18,6 +18,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - ../pubspec.yaml
     - assets/imgs/
     - assets/imgs/bili/
     - assets/imgs/cjl/
