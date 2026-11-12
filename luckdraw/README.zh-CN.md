@@ -2,7 +2,7 @@
 
 **[▶ 在线 Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — 八种玩法，浏览器直接试玩。
 
-> 状态：0.1.0 候选，尚未发布到 pub.dev。
+> 状态：0.1.0，已发布到 pub.dev。
 >
 > English: [README.md](./README.md)
 >
@@ -12,7 +12,7 @@
 
 Flutter 抽奖工具包：大转盘、九宫格、老虎机、拉霸机、扭蛋机、数字转盘、抽签、大乐透，渲染核心可插拔。
 
-**状态：0.1.0 候选，尚未发布到 pub.dev。** 仓库门禁通过：analyze 0 issue、
+**状态：0.1.0，已发布到 pub.dev。** 仓库门禁通过：analyze 0 issue、
 1051 条测试通过（0 跳过）、`lib/` 行覆盖6792/6792=100%，格式、imports、
 静态/运行 JSON 验收及 parity manifest 校验通过。Windows 与安卓集成各33/33；
 本地 Flutter 3.24.5 / Dart 3.5.4 analyze 0 issue、非 golden 951 条通过；
