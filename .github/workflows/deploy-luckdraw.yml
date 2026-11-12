@@ -2,7 +2,7 @@ name: Deploy luckdraw demo
 
 on:
   push:
-    branches: [main]
+    branches: [main, luckdraw]
     paths:
       - 'luckdraw/lib/**'
       - 'luckdraw/example/lib/**'
