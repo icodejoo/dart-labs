@@ -10,6 +10,7 @@ import 'package:slide_countdown/slide_countdown.dart';
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 
 import 'benchmark_frame_driver.dart';
+import 'demo_kit/demo_kit.dart';
 import 'benchmark_present_stats.dart';
 
 /// Which countdown library/mode is currently mounted / being measured.
@@ -235,12 +236,41 @@ class BenchResult {
 /// A/B 基准页：依次渲染两个库各 50 个并发滑动倒计时，汇报 FPS / 帧耗时 / RSS。
 /// 需在 profile 模式运行（`flutter run --profile -d windows`）才有意义。
 class BenchmarkPage extends StatefulWidget {
-  const BenchmarkPage({super.key});
+  /// 创建原生基准页；脚本入口可显式启用自动采集。
+  const BenchmarkPage({
+    super.key,
+    this.autoStart = false,
+    this.scripted = false,
+  });
+
+  /// 仅原生脚本或用户已点击开始时自动启动。
+  final bool autoStart;
+
+  /// 仅脚本入口读取 BENCH_LIB 并在单库完成后退出进程。
+  final bool scripted;
+
+  /// 创建采样与运行状态。
   @override
   State<BenchmarkPage> createState() => _BenchmarkPageState();
 }
 
+/// 管理原生基准采集、延迟任务与生命周期。
 class _BenchmarkPageState extends State<BenchmarkPage> {
+  /// 卸载时取消并唤醒等待，避免停止后继续采样或遗留定时器。
+  final Map<Timer, Completer<void>> _waits = {};
+
+  /// 等待指定窗口；页面卸载时提前完成，由调用方检查 mounted。
+  Future<void> _wait(Duration duration) {
+    final done = Completer<void>();
+    late final Timer timer;
+    timer = Timer(duration, () {
+      _waits.remove(timer);
+      done.complete();
+    });
+    _waits[timer] = done;
+    return done.future;
+  }
+
   /// Currently mounted library. / 当前挂载的库。
   BenchLib _mounted = BenchLib.idle;
 
@@ -298,17 +328,17 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       const bool.fromEnvironment('BENCH_FORCE_FRAMES') ||
       Platform.environment['BENCH_FORCE_FRAMES'] == 'true';
 
+  /// 只为显式启用的脚本入口安排首帧后采集。
   @override
   void initState() {
     super.initState();
-    // Auto-start one second after first frame so a bare `flutter run
-    // --profile` produces results with no manual click.
-    //
-    // 首帧后 1 秒自动开跑，`flutter run --profile` 无需手动点击即可出结果。
+    if (!widget.autoStart) return;
+    // 脚本首帧后 1 秒自动开跑，公开导航必须先由用户点击开始。
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      _wait(const Duration(seconds: 1)).then((_) {
         if (!mounted) return;
-        switch (_singleLib) {
+        switch (widget.scripted ? _singleLib : '') {
           case 'emptyBaseline':
             _runSingle(BenchLib.emptyBaseline);
           case 'countmanCard':
@@ -393,17 +423,26 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       if (mounted) setState(() => _mounted = BenchLib.idle);
       _releaseFpsVariant();
     }
+    if (!mounted) return;
     debugPrint('BENCH_DONE ${lib.name}');
     // Give stdout a moment to flush, then terminate. / 等 stdout 刷新后退出。
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    exit(0);
+    await _wait(const Duration(milliseconds: 300));
+    if (mounted) exit(0);
   }
 
+  /// 取消全部延迟与采样资源，让停止按钮立即释放负载。
   @override
   void dispose() {
+    for (final entry in _waits.entries) {
+      entry.key.cancel();
+      entry.value.complete();
+    }
+    _waits.clear();
     if (_timingsCb != null) {
       SchedulerBinding.instance.removeTimingsCallback(_timingsCb!);
+      _timingsCb = null;
     }
+    _collecting = null;
     _rssTimer?.cancel();
     _releaseFpsVariant();
     super.dispose();
@@ -425,7 +464,9 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       BenchLib.stopWatch,
     ]) {
       await _runOne(lib);
+      if (!mounted) return;
       await _cooldown();
+      if (!mounted) return;
     }
     // Unmount and print the final comparisons. / 卸载并打印最终对比。
     setState(() {
@@ -444,7 +485,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       _mounted = BenchLib.idle;
       _phase = 'cooldown';
     });
-    await Future<void>.delayed(const Duration(seconds: 2));
+    await _wait(const Duration(seconds: 2));
   }
 
   /// Mount [lib], warm up, then collect frame timings + RSS over [kMeasure].
@@ -482,7 +523,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       _phase = '${lib.name}: warmup';
     });
     if (lib == BenchLib.coveredCounter || lib == BenchLib.coveredCard) {
-      await Future<void>.delayed(const Duration(seconds: 1));
+      await _wait(const Duration(seconds: 1));
       if (!mounted) return;
       final route = MaterialPageRoute<void>(
         fullscreenDialog: true,
@@ -494,14 +535,16 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       _coverRoute = route;
       // MaterialPageRoute 默认 opaque 且 maintainState；底层 State/采集 Timer 不销毁。
       Navigator.of(context).push<void>(route);
-      await Future<void>.delayed(kWarmup - const Duration(seconds: 1));
+      await _wait(kWarmup - const Duration(seconds: 1));
     } else {
-      await Future<void>.delayed(kWarmup);
+      await _wait(kWarmup);
     }
 
+    if (!mounted) return;
     final result = BenchResult(lib);
     if (_forceFrames) {
       await _measureForced(result);
+      if (!mounted) return;
     } else {
       _collecting = result;
       final stopwatch = Stopwatch()..start();
@@ -525,7 +568,8 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       );
 
       setState(() => _phase = '${lib.name}: measuring');
-      await Future<void>.delayed(kMeasure);
+      await _wait(kMeasure);
+      if (!mounted) return;
 
       // Stop collection. / 停止采集。
       stopwatch.stop();
@@ -556,6 +600,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       clock.complete(binding.currentSystemFrameTimeStamp.inMicroseconds);
     });
     final startUs = await clock.future.timeout(const Duration(seconds: 3));
+    if (!mounted) return;
     final endUs = startUs + kMeasure.inMicroseconds;
     final display = PlatformDispatcher.instance.views.first.display;
     final finishes = <int>[];
@@ -582,14 +627,16 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     );
     setState(() => _phase = '${result.lib.name}: measuring forced frames');
     try {
-      await Future<void>.delayed(kMeasure);
+      await _wait(kMeasure);
+      if (!mounted) return;
       _rssTimer?.cancel();
       _rssTimer = null;
       await drained.future.timeout(const Duration(seconds: 3));
+      if (!mounted) return;
     } finally {
       _rssTimer?.cancel();
       _rssTimer = null;
-      binding.removeTimingsCallback(_timingsCb!);
+      if (_timingsCb != null) binding.removeTimingsCallback(_timingsCb!);
       _timingsCb = null;
     }
     final endDisplay = PlatformDispatcher.instance.views.first.display;
@@ -659,6 +706,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
     }
   }
 
+  /// 构建原生采集视图，保留脚本依赖的网格和输出。
   @override
   Widget build(BuildContext context) {
     final page = Scaffold(
@@ -670,14 +718,20 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
         //
         // 强制深色 AppBar → 浅色前景，使标题在浅色主题下仍可见。
         foregroundColor: Colors.white,
-        title: Text('Countdown Bench · $kCount 并发 · $_phase'),
+        title: Text(
+          '${tr(context, 'Countdown benchmark', '倒计时基准')} · $kCount ${tr(context, 'concurrent', '并发')} · ${_phaseLabel()}',
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: FilledButton.icon(
               onPressed: _running ? null : _runAll,
               icon: const Icon(Icons.play_arrow),
-              label: Text(_running ? 'running…' : 'Run A/B'),
+              label: Text(
+                _running
+                    ? tr(context, 'Running…', '运行中…')
+                    : tr(context, 'Run A/B', '开始 A/B'),
+              ),
             ),
           ),
         ],
@@ -700,6 +754,22 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
         const Positioned(right: 4, bottom: 4, child: BenchmarkFrameDriver()),
       ],
     );
+  }
+
+  /// 翻译运行阶段，保留内部阶段与脚本输出不变。
+  String _phaseLabel() {
+    const labels = {
+      'idle': '空闲',
+      'done': '完成',
+      'cooldown': '冷却',
+      'warmup': '预热',
+      'measuring': '采集中',
+      'measuring forced frames': '强制帧采集中',
+    };
+    final parts = _phase.split(': ');
+    final phase = parts.last;
+    final label = tr(context, phase, labels[phase] ?? phase);
+    return parts.length > 1 ? '${parts.first}: $label' : label;
   }
 
   /// 当前是否使用相同布局的混合页面变体。
@@ -790,7 +860,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           const SizedBox(width: 2),
           Expanded(
             child: Text(
-              '内容 $i',
+              '${tr(context, 'Content', '内容')} $i',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 9, color: Colors.white70),
@@ -805,11 +875,15 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
   Widget _grid() {
     if (_mounted == BenchLib.emptyBaseline) return const SizedBox.shrink();
     if (_mounted == BenchLib.idle) {
-      return const Center(
+      return Center(
         child: Text(
-          'Press "Run A/B" to benchmark\n(profile mode recommended)',
+          tr(
+            context,
+            'Press "Run A/B" to benchmark\n(profile mode recommended)',
+            '点击「开始 A/B」进行基准测试\n（建议使用 profile 模式）',
+          ),
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white38),
+          style: const TextStyle(color: Colors.white70),
         ),
       );
     }
@@ -1056,19 +1130,51 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          row('metric', 'countman', 'slide_countdown'),
+          row(tr(context, 'metric', '指标'), 'countman', 'slide_countdown'),
           const Divider(height: 8, color: Colors.white12),
           row('FPS', f(a, 'fps'), f(b, 'fps')),
-          row('frames', f(a, 'frames'), f(b, 'frames')),
-          row('UI ms avg', f(a, 'uiMs_avg'), f(b, 'uiMs_avg')),
-          row('UI ms p90', f(a, 'uiMs_p90'), f(b, 'uiMs_p90')),
-          row('UI ms p99', f(a, 'uiMs_p99'), f(b, 'uiMs_p99')),
-          row('raster ms avg', f(a, 'rasterMs_avg'), f(b, 'rasterMs_avg')),
-          row('raster ms p99', f(a, 'rasterMs_p99'), f(b, 'rasterMs_p99')),
-          row('jank frames', f(a, 'jankFrames'), f(b, 'jankFrames')),
-          row('jank %', f(a, 'jankPct'), f(b, 'jankPct')),
-          row('RSS avg MB', f(a, 'rss_avg_mb'), f(b, 'rss_avg_mb')),
-          row('RSS peak MB', f(a, 'rss_peak_mb'), f(b, 'rss_peak_mb')),
+          row(tr(context, 'frames', '帧数'), f(a, 'frames'), f(b, 'frames')),
+          row(
+            tr(context, 'UI ms avg', 'UI 均值 ms'),
+            f(a, 'uiMs_avg'),
+            f(b, 'uiMs_avg'),
+          ),
+          row(
+            tr(context, 'UI ms p90', 'UI p90 ms'),
+            f(a, 'uiMs_p90'),
+            f(b, 'uiMs_p90'),
+          ),
+          row(
+            tr(context, 'UI ms p99', 'UI p99 ms'),
+            f(a, 'uiMs_p99'),
+            f(b, 'uiMs_p99'),
+          ),
+          row(
+            tr(context, 'raster ms avg', '光栅均值 ms'),
+            f(a, 'rasterMs_avg'),
+            f(b, 'rasterMs_avg'),
+          ),
+          row(
+            tr(context, 'raster ms p99', '光栅 p99 ms'),
+            f(a, 'rasterMs_p99'),
+            f(b, 'rasterMs_p99'),
+          ),
+          row(
+            tr(context, 'jank frames', '卡顿帧'),
+            f(a, 'jankFrames'),
+            f(b, 'jankFrames'),
+          ),
+          row(tr(context, 'jank %', '卡顿 %'), f(a, 'jankPct'), f(b, 'jankPct')),
+          row(
+            tr(context, 'RSS avg MB', 'RSS 均值 MB'),
+            f(a, 'rss_avg_mb'),
+            f(b, 'rss_avg_mb'),
+          ),
+          row(
+            tr(context, 'RSS peak MB', 'RSS 峰值 MB'),
+            f(a, 'rss_peak_mb'),
+            f(b, 'rss_peak_mb'),
+          ),
         ],
       ),
     );

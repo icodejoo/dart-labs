@@ -1,136 +1,87 @@
-import 'package:cacheman/cacheman.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../demo_kit/demo_kit.dart';
+import '../demo_support.dart';
 
-class BasicPage extends StatefulWidget {
-  const BasicPage({super.key, required this.onChanged});
-  final VoidCallback onChanged;
+/// 当前同步 CRUD 与枚举的入口。
+class BasicPage extends StatelessWidget {
+  /// 创建基础页面。
+  const BasicPage({super.key});
 
-  @override
-  State<BasicPage> createState() => _BasicPageState();
-}
-
-class _BasicPageState extends State<BasicPage> {
-  @override
-  Widget build(BuildContext context) {
-    return _EngineTab(engine: cache, onChanged: widget.onChanged);
-  }
-}
-
-class _EngineTab extends StatefulWidget {
-  const _EngineTab({required this.engine, required this.onChanged});
-  final Cacheman engine;
-  final VoidCallback onChanged;
-
-  @override
-  State<_EngineTab> createState() => _EngineTabState();
-}
-
-class _EngineTabState extends State<_EngineTab> {
-  final _keyCtrl = TextEditingController();
-  final _valCtrl = TextEditingController();
-
-  void _refresh() {
-    setState(() {});
-    widget.onChanged();
-  }
-
-  void _set() {
-    final k = _keyCtrl.text.trim();
-    final v = _valCtrl.text.trim();
-    if (k.isEmpty) return;
-    widget.engine.write(k, v);
-    _refresh();
-  }
-
-  void _get() {
-    final k = _keyCtrl.text.trim();
-    if (k.isEmpty) return;
-    final v = widget.engine.read<dynamic>(k);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(v == null ? '"$k" not found' : '"$k" = $v')),
-    );
-  }
-
-  void _remove() {
-    final k = _keyCtrl.text.trim();
-    if (k.isEmpty) return;
-    widget.engine.remove(k);
-    _refresh();
-  }
-
-  void _clear() {
-    widget.engine.erase();
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    _keyCtrl.dispose();
-    _valCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final keys = widget.engine.keys();
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _keyCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Key', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _valCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Value', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(onPressed: _set, child: const Text('Set')),
-              FilledButton.tonal(onPressed: _get, child: const Text('Get')),
-              FilledButton.tonal(
-                  onPressed: _remove, child: const Text('Remove')),
-              FilledButton.tonal(onPressed: _clear, child: const Text('Clear')),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text('${widget.engine.length} entries',
-              style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 8),
-          Expanded(
-            child: keys.isEmpty
-                ? const Center(child: Text('(empty)'))
-                : ListView.builder(
-                    itemCount: keys.length,
-                    itemBuilder: (_, i) {
-                      final k = keys[i];
-                      final v = widget.engine.read<dynamic>(k);
-                      return ListTile(
-                        dense: true,
-                        title: Text(k),
-                        subtitle: Text('$v'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          onPressed: () {
-                            widget.engine.remove(k);
-                            _refresh();
-                          },
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+  /// 初始化隔离数据并提供编辑、读取和删除。
+  static Future<DemoSession> _crud() async {
+    final cache = await demoCache('basic-crud');
+    return DemoSession([
+      DemoAction('Write', '写入', (input) {
+        cache.write(demoKey, input);
+        return cache.read<String>(demoKey);
+      }),
+      DemoAction(
+        DemoCopy.read.en,
+        DemoCopy.read.zh,
+        (_) => cache.read<String>(demoKey),
       ),
-    );
+      DemoAction('Remove', '删除', (_) {
+        cache.remove(demoKey);
+        return cache.keys();
+      }),
+      DemoAction('Erase scope', '清空本卡片', (_) {
+        cache.erase();
+        return cache.keys();
+      }),
+    ]);
   }
+
+  /// 展示一次 keys 快照与按键顺序读取。
+  static Future<DemoSession> _enumerate() async {
+    final cache = await demoCache('enumeration');
+    return DemoSession([
+      DemoAction('Write pair', '写入两项', (_) {
+        cache.writeAll(demoKeys, [1, 2]);
+        return {demoKeysField: cache.keys(), 'length': cache.length};
+      }),
+      DemoAction('Read snapshot', '读取快照', (_) {
+        final keys = cache.keys();
+        return cache.readAll(keys);
+      }),
+    ]);
+  }
+
+  /// 构建首屏可操作的双卡片页面。
+  @override
+  Widget build(BuildContext context) => DemoPage(
+    title: tr(context, DemoCopy.basic.en, DemoCopy.basic.zh),
+    description: tr(
+      context,
+      'Initialize once, then read and write synchronously. Each card owns its namespace.',
+      '初始化一次后同步读写。每张卡片使用独立命名空间。',
+    ),
+    sections: [
+      DemoSection(
+        title: tr(context, 'Try persistent storage', '试试持久化存储'),
+        code:
+            "final cache = Cacheman(options: CachemanOptions(namespace: 'demo'));\nawait cache.ensureInitialized();\ncache.write('message', 'Ada');\nfinal value = cache.read<String>('message');\nfinal keys = cache.keys(); // snapshot, no deprecated key(index)\ncache.readAll(keys);",
+        child: DemoGrid(
+          children: [
+            actionCard(
+              context,
+              en: 'Keys & length',
+              zh: '键与数量',
+              descriptionEn: 'Enumerate with keys(), then readAll().',
+              descriptionZh: '用 keys() 快照枚举，再批量读取。',
+              create: _enumerate,
+            ),
+            actionCard(
+              context,
+              en: 'Read & write',
+              zh: '读写与删除',
+              descriptionEn: 'Edit the value stored under message.',
+              descriptionZh: '编辑 message 键的值。',
+              create: _crud,
+              editable: true,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 }

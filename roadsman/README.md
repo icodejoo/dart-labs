@@ -1,25 +1,31 @@
+**English** | [简体中文](README.zh-CN.md)
+
 # roadsman
 
-Baccarat / Dragon Tiger / Sic Bo "road map" (bead-road) visualization for Flutter.
+Road map (bead road) charts for Baccarat, Dragon Tiger and Sic Bo, for Flutter.
 
 ## What it does
 
-Turns a shoe's raw round-by-round results (banker/player/tie + pair/natural marks) into the industry-standard "roads" used at real tables:
+Takes a shoe's round-by-round results (banker/player/tie, plus pair and natural marks) and builds the standard roads used at real tables:
 
-- **Bead Plate** — one bead per round, in play order, no merging.
-- **Big Road** — consecutive same-winner runs merged into columns; the base every derived road builds on.
-- **Big Eye Boy / Small Road / Cockroach Pig** — three derived roads sharing one parametric algorithm, differing only in the column-offset `k` and marker shape.
-- **Pair Road / Natural Road** — dedicated roads for banker/player-pair and natural (8/9) hands.
-- **Derived Trio / Compact Road Sheet** — the three derived roads (optionally plus Big Road) combined onto one scoreboard-style grid.
-- **Stats Panel** — banker/player/tie counts and percentages, longest streaks, current streak.
+- **Bead Plate**: one bead per round, in play order, nothing merged.
+- **Big Road**: runs of the same winner are merged into columns. Most other roads are built from it.
+- **Big Eye Boy / Small Road / Cockroach Pig**: three derived roads that share one algorithm. They differ only in the column offset `k` and the marker shape.
+- **Pair Road / Natural Road**: roads for banker/player pairs and for natural (8/9) hands.
+- **Derived Trio / Compact Road Sheet**: the three derived roads (optionally with Big Road) on one scoreboard-style grid.
+- **Stats Panel**: banker/player/tie counts and percentages, longest streaks, current streak.
 
-Baked-in support for Baccarat, Dragon Tiger, and Sic Bo via a pluggable `GameSpec` — the engine, plugins, and renderer don't hardcode baccarat semantics anywhere.
+Baccarat, Dragon Tiger and Sic Bo are supported through a `GameSpec`. The engine, plugins and renderer don't hardcode any baccarat rules.
 
 ## Architecture
 
-Three layers: `core` (pure Dart, zero Flutter dependency — computes data and layout) → `render` (`RoadPainter`, a `CustomPainter` that draws a `DrawCommand` list; plus `renderToSvg`, a pure function for server-side rendering) → `panel` (`RoadPanel` widget: gestures, viewport physics, per-cell animation, replay, UX extras).
+There are three layers:
 
-Full diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
+- `core`: pure Dart with no Flutter dependency. It computes data and layout.
+- `render`: `RoadPainter`, a `CustomPainter` that draws a list of `DrawCommand`s, and `renderToSvg`, a pure function for rendering on a server.
+- `panel`: the `RoadPanel` widget. It handles gestures, viewport physics, per-cell animation, replay and some UX extras.
+
+Diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Quick start
 
@@ -68,7 +74,7 @@ class _BigRoadDemoState extends State<BigRoadDemo> {
 }
 ```
 
-See `example/` for a complete demo app: game-type switching, road checkboxes, manual "add a round", replay, ask-the-road (predict), and UX toggles.
+`example/` has a full demo app: switch game type, toggle roads with checkboxes, add a round by hand, replay, "ask the road" (predict), and the UX toggles.
 
 ## Run the demo
 
@@ -80,21 +86,21 @@ flutter run
 
 ## Theming
 
-Three built-in themes — `defaultTheme` (dark), `darkTheme`, `lightTheme` — plus `resolveTheme()` for overriding any field without touching plugin code:
+There are three built-in themes: `defaultTheme` (dark), `darkTheme` and `lightTheme`. Use `resolveTheme()` to override any field without touching plugin code:
 
 ```dart
 final theme = resolveTheme(palette: (p) => p.copyWith(banker: 0xFFFF0000));
 ```
 
-Colors are ARGB 32-bit integers throughout `core` and `render` (not CSS strings) — `core` never imports `dart:ui`, so the same theme values work in `renderToSvg` on a server with no Flutter runtime at all.
+Colors are 32-bit ARGB integers in `core` and `render`, not CSS strings. `core` never imports `dart:ui`, so the same theme works in `renderToSvg` on a server with no Flutter runtime.
 
 ## Engine robustness
 
-If a plugin's `derive`/`layout`/`predict` throws, that road's error is recorded in `ComputeOutput.errors` and every other road keeps rendering — no blank screen from one bad plugin.
+If a plugin's `derive`, `layout` or `predict` throws, the error is recorded in `ComputeOutput.errors` and the other roads keep rendering. One bad plugin doesn't blank the screen.
 
 ## API reference
 
-Everything below is exported from the `roadsman` barrel (`import 'package:roadsman/roadsman.dart'`).
+Everything below is exported from `package:roadsman/roadsman.dart`.
 
 ### Core types (`core/types.dart`)
 
@@ -102,49 +108,56 @@ Everything below is exported from the `roadsman` barrel (`import 'package:roadsm
 | --- | --- |
 | `RawResult` | One round's raw result: number, winner, pair/natural marks, optional point totals. |
 | `Shoe` | A full shoe: id, table id, start time, `List<RawResult>`. |
-| `BigRoadCell` / `BigRoadData` | One Big Road cell / the full derived Big Road (cells + column heights + leading ties). |
-| `DerivedColor` / `DerivedRoadData` | Red/blue entries for a derived road, with back-references to their source Big Road cells. |
+| `BigRoadCell` / `BigRoadData` | One Big Road cell / the full derived Big Road (cells, column heights, leading ties). |
+| `DerivedColor` / `DerivedRoadData` | Red/blue entries of a derived road, with references back to their source Big Road cells. |
 | `LayoutConfig` | Input to every plugin's `layout()`: cell size, row count, theme. |
-| `DrawCommand` | Sealed class with 6 variants (`CircleCommand`/`LineCommand`/`SlashCommand`/`DotCommand`/`BadgeCommand`/`RectCommand`) — the renderer-agnostic drawing instruction set. |
+| `DrawCommand` | Sealed class with 6 variants (`CircleCommand`/`LineCommand`/`SlashCommand`/`DotCommand`/`BadgeCommand`/`RectCommand`). The drawing instructions, independent of any renderer. |
 | `LayoutCell` | A positioned, animatable grid cell with a stable `key` for diffing. |
-| `RoadLayout` | Full `layout()` output: cells + optional decorations + content size + grid spec. |
-| `GridSpec` / `GridStyle` | Background grid presentation spec (line mesh or rounded tiles). |
-| `RoadContext` | Compute context passed to `derive`/`layout`/`predict`: results, spec, `stream()`, `get<T>()`. |
+| `RoadLayout` | Output of `layout()`: cells, optional decorations, content size, grid spec. |
+| `GridSpec` / `GridStyle` | Background grid spec (line mesh or rounded tiles). |
+| `RoadContext` | Context passed to `derive`/`layout`/`predict`: results, spec, `stream()`, `get<T>()`. |
 | `toGenericResult` / `fromGenericResult` | Convert between `RawResult` and the game-agnostic `GenericResult`. |
 | `RoadKind` | Plugin category: `grid` / `overlay` / `summary`. |
 | `RoadPlugin<TData>` | The contract every road implements. |
-| `PredictionForRoad` | "Ask the road" result: what color a road would fall if the next hand is banker/player. |
-| `StatsData` / `CurrentStreak` | Stats-panel derived data. |
-| `ViewportPhase` / `ViewportState` / `ViewportBounds` / `ViewportConfig` | Viewport state-machine types. |
-| `ConfigField` / `ConfigFieldType` / `ConfigFieldOption` | Self-describing plugin config field, for auto-generated settings UIs. |
+| `PredictionForRoad` | Result of "ask the road": what color a road would get if the next hand is banker or player. |
+| `StatsData` / `CurrentStreak` | Data for the stats panel. |
+| `ViewportPhase` / `ViewportState` / `ViewportBounds` / `ViewportConfig` | Viewport state machine types. |
+| `ConfigField` / `ConfigFieldType` / `ConfigFieldOption` | A plugin config field that describes itself, so a settings UI can be generated. |
 
 ### Theme (`core/theme.dart`)
 
-`Theme`, `Palette`, `CanvasTheme`, `GridTheme`, `CellTheme`, `LabelsTheme`, `FontsTheme`, `RoadTheme` — structure types, each with a `copyWith`. `defaultTheme`, `darkTheme`, `lightTheme` — built-in instances. `resolveTheme({base, palette, canvas, grid, cell, labels, fonts, roads})` — layer overrides onto a base theme via per-field mapper callbacks.
+- Structure types, each with a `copyWith`: `Theme`, `Palette`, `CanvasTheme`, `GridTheme`, `CellTheme`, `LabelsTheme`, `FontsTheme`, `RoadTheme`.
+- Built-in instances: `defaultTheme`, `darkTheme`, `lightTheme`.
+- `resolveTheme({base, palette, canvas, grid, cell, labels, fonts, roads})` applies overrides on top of a base theme. Each override is a callback that maps the old field to a new one.
 
 ### Engine (`core/engine.dart`)
 
-`createEngine(enabledIds, {spec})` — resolves transitive plugin dependencies, topologically sorts them, returns an `Engine`. `Engine.compute(results, cfg)` returns a `ComputeOutput` (`layouts`, `data`, `predictions`, `errors`).
+`createEngine(enabledIds, {spec})` resolves plugin dependencies (including indirect ones), sorts them topologically and returns an `Engine`. `Engine.compute(results, cfg)` returns a `ComputeOutput` (`layouts`, `data`, `predictions`, `errors`).
 
 ### Viewport (`core/viewport.dart`)
 
-Pure state-machine functions: `createViewport()`, `dragBy()`, `endDrag()`, `stepViewport()`, `computeBounds()`, `zoomAt()`, `startAutoScroll()`, plus `defaultViewportConfig`.
+Pure state-machine functions: `createViewport()`, `dragBy()`, `endDrag()`, `stepViewport()`, `computeBounds()`, `zoomAt()`, `startAutoScroll()`, and `defaultViewportConfig`.
 
 ### Animation (`core/animation.dart`)
 
-`diffLayout(prev, next)` → `List<Transition>` (`EnterTransition`/`MoveTransition`/`ExitTransition`). `sampleEnter`/`sampleMove`/`sampleExit` sample interpolated commands at a given progress; `registerEnterAnimation`/`registerMoveAnimation`/`registerExitAnimation` add custom named animations. `Easing` (linear/easeOutCubic/easeOutBack/spring). `applyWindow` clips a layout to a scrolling column window. `translateCommands`/`translateCommand` for manual composition.
+- `diffLayout(prev, next)` returns a `List<Transition>` (`EnterTransition`/`MoveTransition`/`ExitTransition`).
+- `sampleEnter`/`sampleMove`/`sampleExit` give the interpolated commands at a given progress.
+- `registerEnterAnimation`/`registerMoveAnimation`/`registerExitAnimation` add custom named animations.
+- `Easing` has linear, easeOutCubic, easeOutBack and spring.
+- `applyWindow` clips a layout to a scrolling column window.
+- `translateCommands`/`translateCommand` move commands by hand.
 
 ### Store (`core/store.dart`)
 
-`createStore({onOutOfSync})` → `RoadmapStore` with `setResults`/`append`/`patch`/`getResults`/`subscribe`. `UpdateKind` (`full`/`append`/`patch`) tags each `ChangeEvent`.
+`createStore({onOutOfSync})` returns a `RoadmapStore` with `setResults`/`append`/`patch`/`getResults`/`subscribe`. `UpdateKind` (`full`/`append`/`patch`) tags each `ChangeEvent`.
 
 ### Pipeline (`core/pipeline.dart`)
 
-`createPipeline()` / `globalPipeline` — an ordered, named `CommandTransform` chain between compute output and the renderer. Built-ins: `watermarkTransform(text, opts)`, `grayscaleTransform()`.
+`createPipeline()` / `globalPipeline` is an ordered, named chain of `CommandTransform`s that sits between compute output and the renderer. Built-ins: `watermarkTransform(text, opts)`, `grayscaleTransform()`.
 
 ### Predict (`core/predict.dart`)
 
-`predictNextOutcome(results)` — statistical next-round tendency (independent of the per-road "ask the road" mechanism above).
+`predictNextOutcome(results)` gives a statistical tendency for the next round. It is separate from the per-road "ask the road" mechanism above.
 
 ### Grid layout (`core/grid_layout.dart`)
 
@@ -152,47 +165,53 @@ Pure state-machine functions: `createViewport()`, `dragBy()`, `endDrag()`, `step
 
 ### Game rules (`core/game_spec.dart`, `stream.dart`, `game_specs/*`)
 
-`GameSpec`, `GenericResult`, `OutcomeDef`, `MarkerDef`, `StreamSelector` (sealed: `OutcomeSelector`/`RangeSelector`/`MarkSelector`), `StreamDef`, `validateGameSpecJson`. `resolveToken`, `colorForToken`, `labelForToken`, `getStreamDef`. Built-in specs: `baccaratSpec`, `dragonTigerSpec`, `sicboSpec`.
+- Types: `GameSpec`, `GenericResult`, `OutcomeDef`, `MarkerDef`, `StreamSelector` (sealed: `OutcomeSelector`/`RangeSelector`/`MarkSelector`), `StreamDef`.
+- Functions: `validateGameSpecJson`, `resolveToken`, `colorForToken`, `labelForToken`, `getStreamDef`.
+- Built-in specs: `baccaratSpec`, `dragonTigerSpec`, `sicboSpec`.
 
 ### Road plugins (`core/roads/*`)
 
-12 built-in plugins registered in `roadRegistry` (`Map<String, RoadPlugin>`), auto-resolved by `createEngine` via `dependsOn`:
+There are 12 built-in plugins in `roadRegistry` (`Map<String, RoadPlugin>`). `createEngine` pulls in dependencies from `dependsOn` automatically.
 
 | id | kind | depends on | notes |
 | --- | --- | --- | --- |
-| `beadPlate` | grid | — | Bead plate, no merging. |
-| `bigRoad` | grid | — | The algorithmic base for most other roads. `buildBigRoad(results)` is exported standalone. |
+| `beadPlate` | grid | none | Bead plate, no merging. |
+| `bigRoad` | grid | none | Base of most other roads. `buildBigRoad(results)` is also exported on its own. |
 | `bigEyeBoy` | grid | `bigRoad` | k=1 offset. |
 | `smallRoad` | grid | `bigRoad` | k=2 offset. |
 | `cockroachRoad` | grid | `bigRoad` | k=3 offset. |
-| `pairRoad` | grid | — | |
-| `naturalRoad` | grid | — | |
-| `derivedTrio` | grid | 3 derived roads | Combines them onto one grid. |
-| `compactRoadSheet` | grid | Big Road + 3 derived | Adds Big Road on top of the trio, 12 macro-rows total. |
-| `bigRoadMergedDots` | overlay | Big Road + 3 derived | Embeds the derived roads' colors as small dots/slashes on Big Road cells. |
-| `streakHighlight` | overlay | `bigRoad` | Dragon/single-hop/double-hop background highlighting. |
+| `pairRoad` | grid | none | |
+| `naturalRoad` | grid | none | |
+| `derivedTrio` | grid | 3 derived roads | Puts them on one grid. |
+| `compactRoadSheet` | grid | Big Road + 3 derived | Adds Big Road on top of the trio, 12 macro-rows in total. |
+| `bigRoadMergedDots` | overlay | Big Road + 3 derived | Draws the derived roads' colors as small dots/slashes on Big Road cells. |
+| `streakHighlight` | overlay | `bigRoad` | Highlights dragons, single hops and double hops in the background. |
 | `statsPanel` | summary | `bigRoad` | Produces `StatsData`. |
 
-`deriveRoad(bigRoad, k)` and `mergeBands(bands)` are the shared algorithms behind the derived roads and the combined-grid plugins, respectively.
+`deriveRoad(bigRoad, k)` is the algorithm behind the derived roads. `mergeBands(bands)` is the one behind the combined-grid plugins.
 
 ### Renderer (`render/*`)
 
-`RoadPainter` (`CustomPainter`) — the only built-in Flutter renderer. `renderToSvg(layout, theme, {width, height, grid})` — pure-function SVG export, no `dart:ui` import.
+`RoadPainter` (`CustomPainter`) is the only built-in Flutter renderer. `renderToSvg(layout, theme, {width, height, grid})` exports SVG as a pure function, with no `dart:ui` import.
 
-**Paint hooks** — `RoadPainter`/`RoadFramePainter` (and `RoadPanel`, see below) accept four optional callbacks for custom drawing layered under/over the built-in paint, without replacing it:
+**Paint hooks.** `RoadPainter`, `RoadFramePainter` and `RoadPanel` take four optional callbacks. They draw under or over the built-in paint and don't replace it:
 
-- `onBeforePaintGridCell`/`onAfterPaintGridCell` (`GridCellPaintCallback`) — fire once per background tile, `GridStyle.tile` only. Carry a `GridCellPaintInfo` with the live `Canvas`, the tile's `rect`/`color`, and its loop-order `row`/`col` (handy for checkerboard-style custom fills).
-- `onBeforePaintCommand`/`onAfterPaintCommand` (`CommandPaintCallback`) — fire once per `DrawCommand` (circle/line/slash/dot/badge/rect, including overlay commands). Carry a `CommandPaintInfo` with the live `Canvas` and the exact `command` — switch on its runtime type for every coordinate/size/color field.
+- `onBeforePaintGridCell`/`onAfterPaintGridCell` (`GridCellPaintCallback`) fire once per background tile, and only with `GridStyle.tile`. They get a `GridCellPaintInfo`: the live `Canvas`, the tile's `rect` and `color`, and its `row`/`col` in loop order (useful for checkerboard fills).
+- `onBeforePaintCommand`/`onAfterPaintCommand` (`CommandPaintCallback`) fire once per `DrawCommand` (circle/line/slash/dot/badge/rect, overlay commands included). They get a `CommandPaintInfo`: the live `Canvas` and the exact `command`. Switch on its runtime type to read the coordinates, size and color.
 
-`before` draws underneath the built-in shape, `after` draws on top — that's the whole z-order control surface. Leaving all four `null` (the default) costs nothing: the Picture-cache fast paths for the grid layer and content layer are untouched. Setting any of them makes that layer fall back to direct per-frame drawing for that frame (Picture playback can't invoke a Dart callback), trading some drag/inertia-frame performance for correctness.
+`before` draws under the built-in shape and `after` draws over it. That is all the z-order control there is.
+
+If all four are `null` (the default), nothing changes: the Picture-cache fast paths for the grid layer and content layer stay in use. If you set any of them, that layer is drawn directly each frame, because Picture playback can't call a Dart callback. Dragging and inertia frames get slower as a result.
 
 ### Panel (`panel/*`)
 
-`RoadPanel` — the widget. `FollowTail` (`none`/`hard`/`ease`) and `RoadUpdateKind` (`setResults`/`append`/`patch`) control tail-following and whether insert animations play. `createReplayer(fullResults, store, {opts})` → `Replayer` with `play`/`pause`/`seek`/`stop`. Exposes the same four paint hooks as `RoadPainter` (see above) — set them on `RoadPanel` and they're threaded straight through to its internal painter.
+- `RoadPanel` is the widget. It takes the same four paint hooks as `RoadPainter` and passes them to its internal painter.
+- `FollowTail` (`none`/`hard`/`ease`) controls tail-following. `RoadUpdateKind` (`setResults`/`append`/`patch`) controls whether insert animations play.
+- `createReplayer(fullResults, store, {opts})` returns a `Replayer` with `play`/`pause`/`seek`/`stop`.
 
 ### UX add-ons (`panel/ux/*`)
 
-`createPulseEffect`, `createCelebrationEffect`, `EmptyStateOverlay` widget, `createHapticsEffect`, `createDoubleTapToTail`, `prefersReducedMotion(context)`, `createSkeletonRenderer`/`defaultSkeletonAdapter`. These are intentionally lighter than their TS counterparts — see [ARCHITECTURE.md](ARCHITECTURE.md) for why.
+`createPulseEffect`, `createCelebrationEffect`, the `EmptyStateOverlay` widget, `createHapticsEffect`, `createDoubleTapToTail`, `prefersReducedMotion(context)`, `createSkeletonRenderer`/`defaultSkeletonAdapter`. They are deliberately simpler than their TS counterparts. [ARCHITECTURE.md](ARCHITECTURE.md) explains why.
 
 ## Development
 

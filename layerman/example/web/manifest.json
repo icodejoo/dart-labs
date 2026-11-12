@@ -1,11 +1,11 @@
 {
-    "name": "layerman_example",
-    "short_name": "layerman_example",
+    "name": "layerman",
+    "short_name": "layerman",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#4263EB",
+    "theme_color": "#4263EB",
+    "description": "Interactive layerman demos / layerman 交互演示",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

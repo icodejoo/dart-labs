@@ -1,11 +1,11 @@
 {
-    "name": "cacheman_example",
-    "short_name": "cacheman_example",
+    "name": "cacheman",
+    "short_name": "cacheman",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#00695C",
+    "theme_color": "#00695C",
+    "description": "Interactive cacheman demos · cacheman 交互示例",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

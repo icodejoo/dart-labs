@@ -1,4 +1,5 @@
 pub mod api;
+#[cfg_attr(target_family = "wasm", path = "frb_generated_web.rs")]
 mod frb_generated;
 
 // Test-only parsing benchmark; see src/bench.rs for the run command.

@@ -1,146 +1,73 @@
 import 'package:flutter/material.dart';
-import 'pages/queue_page.dart';
-import 'pages/replace_affix_page.dart';
-import 'pages/overlap_page.dart';
-import 'pages/timing_page.dart';
-import 'pages/conditions_page.dart';
-import 'pages/cooldown_page.dart';
-import 'pages/lifecycle_page.dart';
-import 'pages/pause_page.dart';
-import 'pages/external_page.dart';
-import 'pages/mixed_page.dart';
+import 'demo_kit/demo_kit.dart';
+import 'pages/catalog_page.dart';
+import 'pages/presenters_page.dart';
 import 'pages/setup_page.dart';
-import 'pages/v030_page.dart';
-import 'widgets/om_state_bar.dart';
+import 'scenarios.dart';
 
-// ── Destination manifest ─────────────────────────────────────────────────────
+/// 包名及网页标题。
+const demoProject = 'layerman';
 
-class _Dest {
-  const _Dest(this.label, this.icon, this.page);
-  final String label;
-  final IconData icon;
-  final Widget page;
-}
+/// 与包 pubspec.yaml 同步的版本，由 widget 测试校验。
+const demoVersion = '1.0.1';
 
-const _destinations = [
-  _Dest('v0.3 Features', Icons.new_releases_outlined, V030Page()),
-  _Dest('Queue Basics', Icons.queue_outlined, QueuePage()),
-  _Dest('Replace & Affix', Icons.swap_horiz, ReplaceAffixPage()),
-  _Dest('Overlap', Icons.layers_outlined, OverlapPage()),
-  _Dest('Timing', Icons.timer_outlined, TimingPage()),
-  _Dest('Conditions', Icons.filter_alt_outlined, ConditionsPage()),
-  _Dest('Cooldown', Icons.hourglass_empty, CooldownPage()),
-  _Dest('Lifecycle', Icons.recycling_outlined, LifecyclePage()),
-  _Dest('Pause & Resume', Icons.pause_circle_outline, PausePage()),
-  _Dest('External Presenters', Icons.open_in_new_outlined, ExternalPage()),
-  _Dest('Mixed UI Libraries', Icons.auto_awesome_outlined, MixedPage()),
-  _Dest('Setup & Restart', Icons.settings_outlined, SetupPage()),
-];
+/// 当前包的代码目录，与 pubspec.yaml 的主页一致。
+const demoRepository =
+    'https://github.com/icodejoo/dart-labs/tree/layerman/layerman';
 
-// ── Shell ────────────────────────────────────────────────────────────────────
+/// 当前包的英文文档地址。
+const demoReadme =
+    'https://github.com/icodejoo/dart-labs/blob/layerman/layerman/README.md';
 
-class DemoShell extends StatefulWidget {
-  const DemoShell({super.key});
+/// 使用统一页头和 hash 导航的功能入口。
+class LayermanDemoShell extends StatelessWidget {
+  /// 创建入口，可指定初始页面。
+  const LayermanDemoShell({super.key, this.initialFragment});
 
+  /// 初始页面路径。
+  final String? initialFragment;
+
+  /// 按主题生成稳定的双语导航。
   @override
-  State<DemoShell> createState() => _DemoShellState();
-}
-
-class _DemoShellState extends State<DemoShell> {
-  int _selected = 0;
-
-  Widget _navList(BuildContext ctx) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        DrawerHeader(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('layerman',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('All APIs demoed',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.grey[600])),
-            ],
-          ),
+  Widget build(BuildContext context) => DemoShell(
+    project: demoProject,
+    version: demoVersion,
+    pubUrl: 'https://pub.dev/packages/$demoProject',
+    githubUrl: demoRepository,
+    readmeUrl: demoReadme,
+    initialFragment: initialFragment,
+    destinations: [
+      for (final group in demoGroups)
+        DemoDestination(
+          id: group.id,
+          en: group.en,
+          zh: group.zh,
+          icon: group.icon,
+          builder: (_) => CatalogPage(group: group),
         ),
-        for (var i = 0; i < _destinations.length; i++)
-          Builder(
-            builder: (tileCtx) => ListTile(
-              leading: Icon(_destinations[i].icon, size: 20),
-              title: Text(_destinations[i].label,
-                  style: const TextStyle(fontSize: 13)),
-              selected: _selected == i,
-              selectedTileColor: Theme.of(ctx)
-                      .colorScheme
-                      .primaryContainer
-                      .withValues(alpha: 0.6),
-              selectedColor: Theme.of(ctx).colorScheme.onPrimaryContainer,
-              onTap: () {
-                setState(() => _selected = i);
-                Scaffold.maybeOf(tileCtx)?.closeDrawer();
-              },
-              dense: true,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _body(bool wide, BuildContext ctx) {
-    final content = Column(
-      children: [
-        Expanded(
-          child: IndexedStack(
-              index: _selected,
-              children: [for (final d in _destinations) d.page]),
-        ),
-        const Divider(height: 1),
-        const OmStateBar(),
-      ],
-    );
-
-    if (wide) {
-      return Row(
-        children: [
-          SizedBox(
-            width: 210,
-            child: Material(
-              elevation: 1,
-              child: _navList(ctx),
-            ),
-          ),
-          const VerticalDivider(width: 1, thickness: 1),
-          Expanded(child: content),
-        ],
-      );
-    }
-    return content;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final wide = constraints.maxWidth >= 700;
-        return Scaffold(
-          appBar: AppBar(
-            title: Text('layerman — ${_destinations[_selected].label}'),
-            centerTitle: false,
-          ),
-          drawer: wide ? null : Drawer(child: _navList(ctx)),
-          body: _body(wide, ctx),
-        );
-      },
-    );
-  }
+      DemoDestination(
+        id: 'presenters',
+        en: 'UI backends',
+        zh: 'UI 后端',
+        icon: Icons.open_in_new_rounded,
+        builder: (_) => const PresentersPage(),
+      ),
+      DemoDestination(
+        id: 'setup',
+        en: 'Setup',
+        zh: '接入说明',
+        icon: Icons.settings_outlined,
+        builder: (_) => const SetupPage(),
+      ),
+      DemoDestination(
+        id: 'diagnostics',
+        en: 'Queue diagnostics',
+        zh: '队列诊断',
+        sectionEn: 'Benchmarks',
+        sectionZh: '压测',
+        icon: Icons.monitor_heart_outlined,
+        builder: (_) => const CatalogPage(group: diagnosticsGroup),
+      ),
+    ],
+  );
 }
