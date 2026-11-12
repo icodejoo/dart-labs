@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,18 +18,19 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="flutter_stompsocket interactive STOMP demos · 中英双语连接、订阅、发送与缓冲演示。">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="flutter_stompsocket_example">
+  <meta name="apple-mobile-web-app-title" content="flutter_stompsocket">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>flutter_stompsocket_example</title>
+  <title>flutter_stompsocket · STOMP demo</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -41,6 +42,13 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    const requestedLanguage = new URLSearchParams(location.search).get('lang');
+    const browserLanguage = (navigator.language || 'en').toLowerCase();
+    document.documentElement.lang = ['zh', 'en'].includes(requestedLanguage)
+      ? requestedLanguage
+      : browserLanguage.startsWith('zh') ? 'zh' : 'en';
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
