@@ -307,6 +307,24 @@ Future<void> main() async {
         'DiomanAuthOptions(enabled:false) still lets the request through');
     print(_literal);
 
+    // ── 11. decode / raw / deadline（0.8 新增） ──────────────────────────────
+    print('[11] decode · raw · deadline');
+    final todoId = await api.get<int>('/todos/15',
+        decode: (data) => (data as Map)['id'] as int);
+    _check(todoId == 15, 'decode 仅在成功落定后把 data 转成目标类型');
+    final plain = await api.send<dynamic>(_literalGET, '/todos/16');
+    _check(plain.raw == null, '默认不携带原生响应');
+    final withRaw = await api.send<dynamic>(_literalGET, '/todos/17',
+        call: const DiomanCall(raw: true));
+    _check(withRaw.raw?.statusCode == 200, 'raw: true 才携带本次原生响应');
+    final expired = await api.send<dynamic>(_literalGET, '/todos/18',
+        call: const DiomanCall(deadline: Duration.zero));
+    _check(
+        failureOf(expired)?.kind == DiomanFailureKind.timeout &&
+            failureOf(expired)?.reason == 'deadline',
+        '零预算立即以 timeout/deadline 落定');
+    print(_literal);
+
     _check(api.pending == 0, '所有逻辑请求释放');
     print('=== ALL CHECKS PASSED ===');
   } finally {

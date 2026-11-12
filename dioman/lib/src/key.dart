@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 /// 构键参数错误的统一名称。
@@ -96,7 +97,7 @@ class DiomanKeyService {
       }
     } else if (data is String) {
       if (data.isNotEmpty) body = {'string': data};
-    } else if (data is List<int>) {
+    } else if (data is Uint8List) {
       if (data.length > maxBodyBytes) return null;
       var hash = 0x811c9dc5;
       for (final byte in data) {

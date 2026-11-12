@@ -61,7 +61,7 @@ void main() {
         })));
   });
   test('[DiomanKeyService.build] B8 字节体保留长度、哈希和完整 base64', () {
-    const bytes = [1, 2, 3];
+    final bytes = Uint8List.fromList([1, 2, 3]);
     final fields = jsonDecode(const DiomanKeyService(DiomanKeyOptions())
         .build(RequestOptions(data: bytes))!) as List;
     expect((fields[2] as Map)['bytes'], [3, 1456420779, base64Encode(bytes)]);
@@ -81,7 +81,10 @@ void main() {
           true
         ]));
     expect(key(<Object?>[1, 2]), isNot(key(<Object?>[2, 1])));
-    expect(key(<int>[1, 2]), key(Uint8List.fromList([1, 2])));
+    // 普通 List<int> 按 JSON 列表构键；越界整数不抛异常，也不冒充字节体。
+    expect(key(<int>[1, 2]), isNot(key(Uint8List.fromList([1, 2]))));
+    expect(key(<int>[300, -1]), isNotNull);
+    expect(key(<int>[300, -1]), isNot(key(<int>[300, -2])));
     expect(key(<int>[1, 2]), isNot(key(<int>[2, 1])));
     expect(key(Uint8List.fromList([126, 162, 133, 180, 156, 60, 76, 159])),
         isNot(key(Uint8List.fromList([233, 247, 55, 250, 228, 8, 210, 57]))));

@@ -14,6 +14,7 @@ class PredictResult {
   final PredictionForRoad smallRoad;
   final PredictionForRoad cockroachRoad;
 
+  /// Creates a [PredictResult].
   const PredictResult({required this.bigEyeBoy, required this.smallRoad, required this.cockroachRoad});
 }
 

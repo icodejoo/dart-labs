@@ -189,6 +189,7 @@ class RoadPainter extends CustomPainter {
   /// rule as [onBeforePaintCommand].
   final CommandPaintCallback? onAfterPaintCommand;
 
+  /// Creates a [RoadPainter].
   const RoadPainter({
     required this.commands,
     required this.contentWidth,
@@ -308,6 +309,7 @@ class RoadFramePainter extends CustomPainter {
   /// [RoadPainter.onAfterPaintCommand].
   final CommandPaintCallback? onAfterPaintCommand;
 
+  /// Creates a [RoadFramePainter].
   RoadFramePainter({
     required this.frame,
     required this.contentWidth,

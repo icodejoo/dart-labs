@@ -2,7 +2,7 @@
 
 Dioman brings authentication, retries, caching and the rest of your request policies together around Dio, for Dart and Flutter.
 
-R2b preserves web and Wasm support through a conditional native network classifier. Automatic keys include responseType in both deep and fast modes; Map keys carry type tags, so numeric 1 differs from string '1'. Byte keys retain the content hash and full base64 payload. Explicit keys and custom builders keep their output.
+R2b preserves web and Wasm support through a conditional native network classifier. Automatic keys include responseType in both deep and fast modes; Map keys carry type tags, so numeric 1 differs from string '1'. `Uint8List` byte keys retain the content hash and full base64 payload. Explicit keys and custom builders keep their output.
 
 Cancellation short-circuits at next() before entering inner plugins. cancelAll(reason) and a caller CancelToken preserve the first cancellation reason as failureOf(result)?.reason, converting non-null reasons with toString(); omitted reasons remain null. Debug logs report each option key whose plugin is absent once per client, including false/null options; installed but disabled plugins count as installed.
 
@@ -22,7 +22,7 @@ Start requests through the Dioman client to get this behavior. Its underlying Di
 dart pub add dioman
 ```
 
-Requires Dart ^3.5.0; Dio is the only runtime dependency.
+Requires Dart ^3.5.0 and Dio ^5.4.0 (the only runtime dependency).
 
 > **0.8.0 is a breaking release** (pipeline rewrite). Upgrading from 0.7.x: see the [migration guide](docs/guides/migrating-to-pipeline.md) and the [CHANGELOG](CHANGELOG.md).
 
@@ -426,7 +426,7 @@ Future<void> main() async {
 
 ### Cache
 
-Automatic keys now include responseType and typed Map keys, encode JSON arrays by content and encode byte lists up to 64 KiB with a content hash plus full base64. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
+Automatic keys now include responseType and typed Map keys, encode JSON arrays by content (including plain `List<int>`, which may hold negative or >255 integers) and treat only `Uint8List` as raw bytes, up to 64 KiB with a content hash plus full base64. Larger byte bodies, FormData, streams, other objects and encoding failures produce no key and bypass cache/share. Cache hits recheck caller cancellation before returning.
 
 Internal and cancel results are never cached, even when shouldStore returns true.
 

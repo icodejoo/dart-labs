@@ -30,6 +30,40 @@ class _MemoryAsync extends AsyncCacheman {
   Future<Iterable<String>> keysRaw(CacheContext ctx) async => _data.keys;
 }
 
+/// Example-only synchronous backend built with [Cacheman.custom]; no get_storage involved.
+/// 仅示例使用、基于 [Cacheman.custom] 的同步后端，不涉及 get_storage。
+class _MemorySync extends Cacheman {
+  /// Isolates the demo's custom-backend values. / 隔离示例的自定义后端值。
+  _MemorySync() : super.custom(options: const CachemanOptions(namespace: 'custom'));
+
+  /// Demonstration storage; mutations update it before returning. / 演示存储，变更在返回前更新。
+  final _data = <String, String>{};
+
+  @override
+  Object? getRaw(CacheContext ctx, String storageKey) => _data[storageKey];
+
+  @override
+  Future<void> setRaw(CacheContext ctx, String storageKey, String value) {
+    _data[storageKey] = value;
+    return Future<void>.value();
+  }
+
+  @override
+  Future<void> removeRaw(CacheContext ctx, String storageKey) {
+    _data.remove(storageKey);
+    return Future<void>.value();
+  }
+
+  @override
+  Iterable<String> keysRaw(CacheContext ctx) => _data.keys;
+
+  @override
+  Future<void> clearRaw(CacheContext ctx) {
+    _data.clear();
+    return Future<void>.value();
+  }
+}
+
 /// Runs synchronous small-value and asynchronous large-value caches together.
 /// 同时演示同步小值缓存与异步大值缓存。
 class AsyncPage extends StatefulWidget {
@@ -48,6 +82,9 @@ class _AsyncPageState extends State<AsyncPage> {
   /// Large-data semantic layer backed by a demo Map. / 演示 Map 支撑的大数据语义层。
   final _large = _MemoryAsync();
 
+  /// Synchronous custom backend built with Cacheman.custom. / 用 Cacheman.custom 构建的同步自定义后端。
+  final _custom = _MemorySync();
+
   /// Last run's visible result. / 最近一次运行的可见结果。
   Future<String>? _result;
 
@@ -58,6 +95,7 @@ class _AsyncPageState extends State<AsyncPage> {
   /// 不新增包内后端/依赖即可演示两套 API。
   Future<String> _run() async {
     await _large.ensureInitialized();
+    await _custom.ensureInitialized();
     const rows = 1000;
     const ttl = 60000;
     cache.write(_reportKey, rows, ttl: ttl);
@@ -68,9 +106,12 @@ class _AsyncPageState extends State<AsyncPage> {
     );
     final report = await _large.read<List<dynamic>>(_reportKey);
     final count = await _large.length();
+    _custom.write(_reportKey, rows, ttl: ttl);
     widget.onChanged();
     return 'Small summary (sync): ${cache.read<int>(_reportKey)} rows\n'
-        'Large report (async): ${report?.length} rows, $count key';
+        'Large report (async): ${report?.length} rows, $count key\n'
+        'Custom sync backend: ${_custom.read<int>(_reportKey)} rows, '
+        '${_custom.length} key';
   }
 
   @override
@@ -85,7 +126,8 @@ class _AsyncPageState extends State<AsyncPage> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'This demo uses an in-memory Map. Use LazyBox or file primitives '
+        'This demo also runs a Cacheman.custom subclass (synchronous, in-memory). '
+        'It uses in-memory Maps. Use LazyBox or file primitives '
         'in your app for on-demand disk reads without retaining large values.',
       ),
       const SizedBox(height: 16),

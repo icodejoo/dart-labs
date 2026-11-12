@@ -13,6 +13,7 @@ class DoubleTapToTailEffect {
   bool enabled;
   final void Function() onDoubleTap;
 
+  /// Creates a [DoubleTapToTailEffect].
   DoubleTapToTailEffect({required this.onDoubleTap, this.enabled = true});
 
   /// Toggle the effect on/off.

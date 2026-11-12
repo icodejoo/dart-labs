@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.2
+
+- **Fix:** automatic cache/share keys no longer throw `ArgumentError` for a plain `List<int>` body holding negative or >255 values; only `Uint8List` is treated as raw bytes (hash plus full base64, up to 64 KiB), every other `List` is encoded as a JSON array. A plain `List<int>` and a `Uint8List` with the same content now produce different keys.
+- Docs: README states the Dio ^5.4.0 floor and the `Uint8List` key rule; `example/real_run.dart` covers `decode`, `raw` and `deadline`.
+
 ## 0.8.1
 
 - **Fix:** 0.8.0 was published from a working tree with unresolved merge conflict markers in `lib/` and does not compile; use 0.8.1. No API changes versus the intended 0.8.0.
