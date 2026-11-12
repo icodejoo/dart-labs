@@ -252,6 +252,287 @@ class _SlotDemoState extends State<SlotDemo> {
 }
 ```
 
+### Lever slot
+
+The lever variant of the slot machine: drag the lever to start, then stop reels with `stopEach`.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/slot.dart';
+
+class LeverDemo extends StatefulWidget {
+  const LeverDemo({super.key});
+
+  @override
+  State<LeverDemo> createState() => _LeverDemoState();
+}
+
+class _LeverDemoState extends State<LeverDemo> {
+  final _controller = SlotController();
+  static const _config = SlotConfig(
+    prizes: [
+      SlotPrize(texts: [LuckyText('7')]),
+      SlotPrize(texts: [LuckyText('BAR')]),
+      SlotPrize(texts: [LuckyText('★')]),
+    ],
+    reels: [SlotReel(), SlotReel(), SlotReel()],
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLeverSlotMachine(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 180,
+            onPull: () => debugPrint('Lever pulled'),
+            onEnd: (result) => debugPrint('Lever: ${result.indices}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stopEach([0, 0, 0]);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### Capsule machine
+
+Tap the knob to start; `stop(1)` drops capsule `1`. The `physics` option switches to the built-in collision mode; remove it for the deterministic animation.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/capsule.dart';
+
+class CapsuleDemo extends StatefulWidget {
+  const CapsuleDemo({super.key});
+
+  @override
+  State<CapsuleDemo> createState() => _CapsuleDemoState();
+}
+
+class _CapsuleDemoState extends State<CapsuleDemo> {
+  final _controller = CapsuleController();
+  static const _config = CapsuleConfig(
+    prizes: [
+      CapsulePrize(
+        topFill: LuckyFill.color(Color(0xFFFF8A65)),
+        bottomFill: LuckyFill.color(Color(0xFFFFF3E0)),
+        texts: [LuckyText('Gift')],
+        weight: 1,
+      ),
+      CapsulePrize(
+        topFill: LuckyFill.color(Color(0xFF64B5F6)),
+        bottomFill: LuckyFill.color(Color(0xFFFFF3E0)),
+        texts: [LuckyText('Grand')],
+        weight: 1,
+      ),
+    ],
+    options: CapsuleOptions(physics: LuckyPhysics()),
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyCapsuleMachine(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Capsule: ${result.index}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stop(1);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### Number wheel
+
+Stops by number instead of index: `stopNumber(8)` lands the ball in pocket 8.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/number_wheel.dart';
+
+class NumberWheelDemo extends StatefulWidget {
+  const NumberWheelDemo({super.key});
+
+  @override
+  State<NumberWheelDemo> createState() => _NumberWheelDemoState();
+}
+
+class _NumberWheelDemoState extends State<NumberWheelDemo> {
+  final _controller = NumberWheelController();
+  static final _config = NumberWheelConfig.range(0, 12);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyNumberWheel(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 300,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Number: ${result.prize?.number}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stopNumber(8);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### Drawing lots
+
+Shake the cylinder, a stick comes out and unfolds; `weight` drives the default draw, `stop(0)` forces stick `0`.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/lots.dart';
+
+class LotsDemo extends StatefulWidget {
+  const LotsDemo({super.key});
+
+  @override
+  State<LotsDemo> createState() => _LotsDemoState();
+}
+
+class _LotsDemoState extends State<LotsDemo> {
+  final _controller = LotsController();
+  static const _config = LotsConfig(sticks: [
+    LotsStick(label: 'Great luck', weight: 1),
+    LotsStick(label: 'Good luck', weight: 2),
+    LotsStick(label: 'Small luck', weight: 3),
+  ]);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLots(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onEnd: (result) => debugPrint('Lots: ${result.prize?.label}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stop(0);
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
+### Super lotto
+
+`LottoConfig.superLotto` is the 5 + 2 preset. `stopWith(LottoDraw(...))` applies a server-drawn set of numbers; `onBallDrawn` reports each ball as it appears.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/lotto.dart';
+
+class LottoDemo extends StatefulWidget {
+  const LottoDemo({super.key});
+
+  @override
+  State<LottoDemo> createState() => _LottoDemoState();
+}
+
+class _LottoDemoState extends State<LottoDemo> {
+  final _controller = LottoController();
+  static final _config = LottoConfig.superLotto(
+    options: const LottoOptions(physics: LuckyPhysics()),
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LuckyLotto(
+            config: _config,
+            controller: _controller,
+            width: 300,
+            height: 400,
+            onStart: () {
+              _controller.play();
+            },
+            onBallDrawn: (pool, number) => debugPrint('Pool $pool: $number'),
+            onEnd: (result) => debugPrint('Lotto: ${result.draw?.numbers}'),
+          ),
+          TextButton(
+            onPressed: () {
+              _controller.stopWith(const LottoDraw([
+                [7, 1, 18, 25, 35],
+                [12, 3],
+              ]));
+            },
+            child: const Text('Server result'),
+          ),
+        ],
+      );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+```
+
 ## Controller
 
 Commands act on a Controller attached to a game Widget (or an explicit headless clock).
@@ -398,7 +679,65 @@ without replacement. It is an animation component, not a real lottery service.
 Use `extend.dart` to implement a custom `LuckyGame` and `LuckyRenderer`, then pass implementations
 explicitly. Renderers consume layout/frame data; `LuckyEasing` and `PrizePicker` replace easing
 and selection. The default backend uses Canvas; custom backends can return other Widgets.
+The example below swaps only the renderer of a wheel; game logic and the Controller stay the same.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:luckdraw/extend.dart';
+import 'package:luckdraw/wheel.dart';
+
+final class IndexRenderer extends LuckyRenderer<WheelConfig, WheelLayout,
+    WheelFrame, LuckyResult<WheelPrize>> {
+  const IndexRenderer();
+
+  @override
+  Widget buildSurface(BuildContext context,
+          LuckySurfaceData<WheelConfig, WheelLayout, WheelFrame> data) =>
+      Center(child: Text('pointer: ${data.frame.pointerIndex}'));
+}
+
+Widget customWheel(WheelController controller, WheelConfig config) =>
+    LuckyWheel(
+      config: config,
+      controller: controller,
+      renderer: const IndexRenderer(),
+    );
+```
+
 See [ARCHITECTURE §6](https://github.com/icodejoo/dart-labs/blob/main/luckdraw/docs/ARCHITECTURE.md#6-扩展机制需求-1需求-6-7) for the extension contract.
+
+## Testing
+
+`testing.dart` provides `ManualLuckyClock` (advance time by hand), `SequenceRandom` (replay fixed random
+values) and `LuckyFrameRecorder` (record frames). A Controller can run headless, without any Widget:
+
+```dart
+import 'package:luckdraw/testing.dart';
+import 'package:luckdraw/wheel.dart';
+
+///
+int? runHeadlessWheel() {
+  final clock = ManualLuckyClock();
+  final controller = WheelController(random: SequenceRandom([0.5]));
+  controller.attachHeadless(
+    clock: clock,
+    config: const WheelConfig(prizes: [
+      WheelPrize(texts: [LuckyText('A')]),
+      WheelPrize(texts: [LuckyText('B')]),
+      WheelPrize(texts: [LuckyText('C')]),
+    ]),
+  );
+  controller.play();
+  controller.stop(2);
+  while (controller.phase != LuckyPhase.settled) {
+    clock.advanceFrames(1);
+  }
+  final index = controller.lastResult!.index;
+  controller.dispose();
+  clock.dispose();
+  return index;
+}
+```
 
 ## Performance
 
