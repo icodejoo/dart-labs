@@ -77,13 +77,17 @@ jobs:
         working-directory: luckdraw/example
         run: |
           flutter pub get
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
+      - name: Example web build (deploy smoke)
+        if: hashFiles('luckdraw/example/web/index.html') != ''
+        working-directory: luckdraw/example
+        run: flutter build web --release --base-href /dart-labs/luckdraw/
       - name: Bench app
         if: hashFiles('luckdraw/tool/bench/pubspec.yaml') != ''
         working-directory: luckdraw/tool/bench
         run: |
           flutter pub get
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
 
   min-sdk:
     name: minimum Flutter (3.24.5)

@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/lotto.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 
 /// 前五后二区的逐球开奖示例；例如 `const LottoPage()`。
 class LottoPage extends StatefulWidget {
   /// 创建大乐透页。
-  const LottoPage({super.key});
+  const LottoPage({super.key, this.initialPhysics = false});
+
+  /// 初始是否开启实验性物理碰撞。
+  final bool initialPhysics;
 
   /// 创建页面状态。
   @override
@@ -42,7 +46,7 @@ class LottoPageState extends State<LottoPage> {
           sortResults: false, motion: demoMotion, physics: LuckyPhysics()));
 
   /// 是否使用物理碰撞模式。
-  bool _physics = false;
+  late bool _physics = widget.initialPhysics;
 
   /// 按实际回调记录的池及号码，测试可验证顺序。
   final List<(int, int)> drawn = [];
@@ -76,7 +80,7 @@ class LottoPageState extends State<LottoPage> {
         controller.stopWith(serverDraw);
       },
       game: LuckyLotto(
-          config: _physics ? physicsConfig : config,
+          config: demoConfig(context, _physics ? physicsConfig : config),
           controller: controller,
           width: demoSide,
           height: demoTall,

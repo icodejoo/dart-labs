@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:luckdraw/number_wheel.dart';
 
 import '../demo_shell.dart';
+import '../online/localized_config.dart';
 import '../theme/demo_theme.dart';
 
 /// 圆盘和小球反向旋转示例；例如 `const NumberWheelPage()`。
@@ -60,7 +61,7 @@ class NumberWheelPageState extends State<NumberWheelPage> {
         controller.stopNumber(targetNumber);
       },
       game: LuckyNumberWheel(
-          config: config,
+          config: demoConfig(context, config),
           controller: controller,
           width: demoSide,
           height: demoSide,

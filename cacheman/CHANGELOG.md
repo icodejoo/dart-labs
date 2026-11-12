@@ -1,3 +1,7 @@
+## 0.7.2
+
+- Docs only: rewrote README wording in plain language.
+
 ## 0.7.1
 
 - Docs only: README install snippet and migration chapter now describe the released 0.7.0 API (`Cacheman.custom`, `AsyncCacheman`, subclass changes); example app gains a `Cacheman.custom` demo and a real README; removed stale "planned" wording.
