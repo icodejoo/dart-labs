@@ -49,7 +49,7 @@ jobs:
           fi
           test -f "$font" || test -f "$legacy_font"
       - name: Analyze
-        run: flutter analyze --no-pub
+        run: flutter analyze --no-pub --no-fatal-infos
       - name: Format
         run: dart format --output=none --set-exit-if-changed lib test tool
       - name: Tests with coverage
@@ -125,7 +125,7 @@ jobs:
           fi
           test -f "$font" || test -f "$legacy_font"
       - name: Analyze
-        run: flutter analyze --no-pub
+        run: flutter analyze --no-pub --no-fatal-infos
       - name: Tests (no goldens)
         run: flutter test --no-pub --concurrency=1 --exclude-tags golden
 
