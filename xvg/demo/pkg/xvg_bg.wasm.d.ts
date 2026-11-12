@@ -1,0 +1,31 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_workerpool_free: (a: number, b: number) => void;
+export const frb_dart_fn_deliver_output: (a: number, b: any, c: number, d: number) => void;
+export const frb_dart_opaque_dart2rust_encode: (a: any, b: any) => number;
+export const frb_dart_opaque_drop_thread_box_persistent_handle: (a: number) => void;
+export const frb_dart_opaque_rust2dart_decode: (a: number) => any;
+export const frb_get_rust_content_hash: () => number;
+export const frb_pde_ffi_dispatcher_primary: (a: number, b: any, c: any, d: number, e: number) => void;
+export const frb_pde_ffi_dispatcher_sync: (a: number, b: any, c: number, d: number) => any;
+export const frb_rust_vec_u8_free: (a: number, b: number) => void;
+export const frb_rust_vec_u8_new: (a: number) => number;
+export const frb_rust_vec_u8_resize: (a: number, b: number, c: number) => number;
+export const receive_transfer_closure: (a: number, b: number, c: number, d: number) => void;
+export const wasm_start_callback: () => void;
+export const workerpool_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+export const workerpool_new_raw: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+export const __wasm_bindgen_func_elem_519: (a: number, b: number, c: any) => void;
+export const __wasm_bindgen_func_elem_526: (a: number, b: number) => void;
+export const __wbindgen_export: (a: number, b: number) => number;
+export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_export3: (a: number, b: number, c: number) => void;
+export const __wbindgen_export4: (a: number) => void;
+export const __wbindgen_export5: () => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_export6: (a: number, b: number) => void;
+export const __wbindgen_add_to_stack_pointer: (a: number) => number;
+export const __wbindgen_export7: (a: number, b: number) => void;
+export const __wbindgen_export8: (a: number) => void;
+export const __wbindgen_start: () => void;
