@@ -44657,7 +44657,7 @@ A.Gj.prototype={
 N(a){var s,r,q,p=null,o=A.c([],t.YR)
 for(s=0;s<4;++s){r=B.Gw[s]
 q=r.b
-o.push(new A.qh(r.a,q.a,q.b,r.d,new A.X2(r)))}return new A.vP("dioman",B.AM,new A.vU("dioman","0.8.2",o,"https://pub.dev/packages/dioman","https://github.com/icodejoo/dart-labs/tree/main/dioman","https://github.com/icodejoo/dart-labs/blob/main/dioman/README.md",p,p),p,p)}}
+o.push(new A.qh(r.a,q.a,q.b,r.d,new A.X2(r)))}return new A.vP("dioman",B.AM,new A.vU("dioman","0.8.3",o,"https://pub.dev/packages/dioman","https://github.com/icodejoo/dart-labs/tree/main/dioman","https://github.com/icodejoo/dart-labs/blob/main/dioman/README.md",p,p),p,p)}}
 A.X2.prototype={
 $1(a){return new A.rF(this.a,null)},
 $S:303}
