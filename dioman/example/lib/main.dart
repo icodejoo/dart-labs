@@ -281,8 +281,8 @@ Future<void> _runEnvs(_Emit emit) async {
   emit(
       '                    X-Env   = "${prodDio.options.headers[_literalXEnv]}"',
       _Kind.response);
-  dev.dispose();
-  prod.dispose();
+  await dev.dispose();
+  await prod.dispose();
 }
 
 // 2. repath ────────────────────────────────────────────────────────────────────
@@ -726,7 +726,7 @@ Future<void> _runLog(_Emit emit) async {
     final result = await api.send<dynamic>(_literalGET, '/config');
     _emitJson(emit, result.data);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -752,7 +752,7 @@ Future<void> _runTimeout(_Emit emit) async {
           }),
         }));
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -778,7 +778,7 @@ Future<void> _runBreaker(_Emit emit) async {
     emit(
         'buckets=${api.plugin<DiomanBreakerApi>()?.bucketCount}', _Kind.system);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }
@@ -812,7 +812,7 @@ Future<void> _runOffline(_Emit emit) async {
         _Kind.response);
   } finally {
     timer.cancel();
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
     await connectivity.close();
   }
@@ -837,7 +837,7 @@ Future<void> _runNotify(_Emit emit) async {
     emit(
         '2 failed calls, $notices notice; second call is silent', _Kind.system);
   } finally {
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }

@@ -292,7 +292,7 @@ Future<void> main() async {
       debugApi.logError('示例诊断日志');
       _check(captured.isNotEmpty, 'debug 收到诊断日志');
     } finally {
-      debugApi.dispose();
+      await debugApi.dispose();
       debugApi.dio.close(force: true);
     }
 
@@ -311,7 +311,7 @@ Future<void> main() async {
     print('=== ALL CHECKS PASSED ===');
   } finally {
     api.cancelAll();
-    api.dispose();
+    await api.dispose();
     dio.close(force: true);
   }
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+- **Fix:** 0.8.0 was published from a working tree with unresolved merge conflict markers in `lib/` and does not compile; use 0.8.1. No API changes versus the intended 0.8.0.
+- Examples now `await api.dispose()` and demonstrate `decode` and a default `deadline`.
+
 ## 0.8.0
 
 - **Dependency:** minimum `dio` raised from 5.0.0 to 5.4.0 (earlier versions lack `BaseOptions.preserveHeaderCase`, so lower-bound analysis failed).
