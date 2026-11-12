@@ -2,7 +2,7 @@
 
 **[▶ Live Demo](https://icodejoo.github.io/dart-labs/luckdraw/)** — all eight modes, runnable in the browser.
 
-> Status: 0.1.0, published to pub.dev.
+> Status: 0.1.1, published to pub.dev.
 >
 > 简体中文: [README.zh-CN.md](./README.zh-CN.md)
 >
@@ -13,7 +13,7 @@
 A Flutter lucky-draw toolkit for wheels, nine-grids, slot machines, lever slots,
 capsule machines, number wheels, drawing lots and super-lotto machines, with a pluggable rendering core.
 
-**Status: 0.1.0, published to pub.dev.** Repository gates pass with
+**Status: 0.1.1, published to pub.dev.** Repository gates pass with
 zero analysis issues, 1051 tests (zero skipped), 100% `lib/` line coverage (6792/6792),
 formatting, imports, static/runtime acceptance checks and parity manifest verification.
 Windows and Android integration each passed 33/33 runs. Local Flutter 3.24.5 / Dart 3.5.4
